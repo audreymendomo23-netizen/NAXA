@@ -26,14 +26,9 @@ function Formulaire(){
  }
  async function verifier(e:React.FormEvent){
    e.preventDefault();setBusy(true);setError("");
-   const {error}=await supabaseBrowser().auth.verifyOtp({email:await emailForReset(),token:code,type:"email"});
-   setBusy(false);if(error){setError("Code incorrect ou expiré.");return}setStep("password");
- }
- async function emailForReset(){
-   const res=await fetch("/api/auth/forgot-password/email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});
-   const data=await res.json(); return data.email as string;
- }
- async function mettreAJour(e:React.FormEvent){
+   const res=await fetch("/api/auth/forgot-password/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,token:code})});
+   const data=await res.json();setBusy(false);if(!res.ok){setError(data.error||"Code incorrect ou expiré.");return}setStep("password");
+ } async function mettreAJour(e:React.FormEvent){
    e.preventDefault();if(!passwordValid){setError("Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");return}
    setBusy(true);setError("");const {error}=await supabaseBrowser().auth.updateUser({password});if(error){setBusy(false);setError("Impossible de mettre à jour le mot de passe.");return}
    await supabaseBrowser().auth.signOut();setBusy(false);router.push(`/connexion?retour=${encodeURIComponent(retour)}&motDePasseMisAJour=1`);
