@@ -9,9 +9,10 @@ type Props = {
   href: string;
   className?: string;
   external?: boolean;
+  onAutorise?: () => void | Promise<void>;
 };
 
-export function ActionProtegee({ children, href, className = "", external = false }: Props) {
+export function ActionProtegee({ children, href, className = "", external = false, onAutorise }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [message, setMessage] = useState<"connexion" | "age" | null>(null);
@@ -42,7 +43,9 @@ export function ActionProtegee({ children, href, className = "", external = fals
       return;
     }
 
-    if (external) {
+    if (onAutorise) {
+      await onAutorise();
+    } else if (external) {
       window.location.assign(href);
     } else {
       router.push(href);
