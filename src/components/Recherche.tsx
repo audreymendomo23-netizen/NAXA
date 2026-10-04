@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
 
-export function Recherche() {
+export function Recherche({ langue }: { langue: "fr" | "en" }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [lecture, setLecture] = useState<LectureOrdonnance | null>(null);
@@ -32,8 +32,8 @@ export function Recherche() {
   return (
     <div className="w-full space-y-3">
       <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) aller([q.trim()]); }} className="flex gap-2">
-        <input className="champ min-w-0 flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ex. Paracétamol 500mg" aria-label="Médicament recherché" />
-        <button className="btn btn-canari shrink-0 !px-5" type="submit">Chercher</button>
+        <input className="champ min-w-0 flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder={langue === "fr" ? "Ex. Paracétamol 500 mg" : "E.g. Paracetamol 500 mg"} aria-label={langue === "fr" ? "Médicament recherché" : "Medicine searched"} />
+        <button className="btn btn-canari shrink-0 !px-5" type="submit">{langue === "fr" ? "Chercher" : "Search"}</button>
       </form>
 
       <input ref={fichier} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
