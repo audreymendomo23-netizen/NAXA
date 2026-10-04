@@ -10,6 +10,8 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
   const [liste, setListe] = useState<string[]>([]);
   const [etat, setEtat] = useState<"repos" | "lecture" | "erreur">("repos");
   const fichier = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const [choixScanner, setChoixScanner] = useState(false);
 
   const aller = (termes: string[]) => {
     const p = new URLSearchParams();
@@ -36,10 +38,32 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
         <button className="btn btn-canari shrink-0 !px-5" type="submit">{langue === "fr" ? "Chercher" : "Search"}</button>
       </form>
 
-      <input ref={fichier} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
-      <button className="btn btn-clair w-full" type="button" onClick={() => fichier.current?.click()} disabled={etat === "lecture"}>
+      <input ref={fichier} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
+      <button className="btn btn-clair w-full" type="button" onClick={() => setChoixScanner(true)} disabled={etat === "lecture"}>
         {etat === "lecture" ? "Lecture de l'ordonnance…" : "Scanner mon ordonnance"}
       </button>
+      {choixScanner && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="choix-ordonnance">
+          <div className="carte w-full max-w-sm space-y-4">
+            <div>
+              <h2 id="choix-ordonnance" className="text-xl font-extrabold">Scanner mon ordonnance</h2>
+              <p className="mt-1 text-sm text-slate-600">Choisissez comment vous souhaitez fournir l’ordonnance. L’image reste dans votre navigateur et n’est pas envoyée à NAXA.</p>
+            </div>
+            <div className="grid gap-2">
+              <button type="button" className="btn btn-vert w-full" onClick={() => { setChoixScanner(false); fichier.current?.click(); }}>
+                Importer depuis mon téléphone
+              </button>
+              <button type="button" className="btn btn-clair w-full" onClick={() => { setChoixScanner(false); camera.current?.click(); }}>
+                Filmer / prendre en photo
+              </button>
+              <button type="button" className="btn btn-clair w-full" onClick={() => setChoixScanner(false)}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {etat === "erreur" && <p role="alert" className="text-sm text-red-700">La lecture a échoué. Prenez la photo bien à plat, avec de la lumière, ou tapez le nom du médicament.</p>}
 
       {lecture && (
