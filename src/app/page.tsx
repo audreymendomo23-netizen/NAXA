@@ -12,7 +12,7 @@ const ETAPES = {
   en: ["I search", "I find", "I compare", "I reserve"],
 };
 
-const TRADUCTIONS: Record<string, string> = {
+const DICTIONNAIRE: Record<string, string> = {
   "Se connecter": "Sign in",
   "Votre médicament,": "Your medicine,",
   "à 2 minutes.": "in 2 minutes.",
@@ -21,70 +21,96 @@ const TRADUCTIONS: Record<string, string> = {
   "Je compare": "I compare",
   "Je réserve": "I reserve",
   "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call emergency services or go to the nearest on-duty pharmacy.",
-  "NAXA, partout au Cameroun": "NAXA, across Cameroon",
-  "Vous êtes pharmacien ?": "Are you a pharmacist?",
-  "Ex. Paracétamol 500mg": "E.g. Paracetamol 500mg",
-  "Médicament recherché": "Medicine searched",
-  "Chercher": "Search",
-  "Scanner mon ordonnance": "Scan my prescription",
-  "Lecture de l'ordonnance…": "Reading prescription…",
-  "La lecture a échoué. Prenez la photo bien à plat, avec de la lumière, ou tapez le nom du médicament.": "Reading failed. Take the photo flat in good light, or type the medicine name.",
-  "Vérifiez les médicaments lus": "Check the medicines read",
-  "Fiabilité de la lecture :": "Reading confidence:",
-  "Elle est faible : corrigez ou supprimez les lignes erronées. Seul le pharmacien confirme le médicament.": "It is low: correct or remove incorrect lines. Only the pharmacist confirms the medicine.",
-  "Ajouter une ligne": "Add a line",
-  "Annuler": "Cancel",
-  "Chercher en stock": "Search stock",
-  "Supprimer cette ligne": "Delete this line",
+  "Vous êtes Pharmacien ?": "Are you a pharmacist?",
+  "Made With 💚": "Made With 💚",
 };
 
-const FR_VALUES = new Set(Object.keys(TRADUCTIONS));
+const TERMES_MEDICAUX: Record<string, string> = {
+  "paracétamol": "paracetamol",
+  "ibuprofène": "ibuprofen",
+  "amoxicilline": "amoxicillin",
+  "acide clavulanique": "clavulanic acid",
+  "azithromycine": "azithromycin",
+  "métronidazole": "metronidazole",
+  "artéméther": "artemether",
+  "luméfantrine": "lumefantrine",
+  "ceftriaxone": "ceftriaxone",
+  "ciprofloxacine": "ciprofloxacin",
+  "doxycycline": "doxycycline",
+  "diclofénac": "diclofenac",
+  "oméprazole": "omeprazole",
+  "cétirizine": "cetirizine",
+  "aspirine": "aspirin",
+  "metformine": "metformin",
+  "insuline": "insulin",
+  "comprimé": "tablet",
+  "gélule": "capsule",
+  "sirop": "syrup",
+  "solution buvable": "oral solution",
+  "suspension buvable": "oral suspension",
+  "crème": "cream",
+  "pommade": "ointment",
+  "gel": "gel",
+  "collyre": "eye drops",
+  "injection": "injection",
+  "comprimé dispersible": "dispersible tablet",
+  "comprimé effervescent": "effervescent tablet",
+  "voie orale": "oral route",
+  "voie intraveineuse": "intravenous (IV)",
+  "voie intramusculaire": "intramuscular (IM)",
+  "voie sous-cutanée": "subcutaneous (SC)",
+  "posologie": "dosage / dose regimen",
+  "dose": "dose",
+  "dose quotidienne": "daily dose",
+  "contre-indication": "contraindication",
+  "effets indésirables": "adverse effects / side effects",
+  "effet indésirable": "adverse effect / side effect",
+  "ordonnance": "prescription",
+  "pharmacien": "pharmacist",
+  "pharmacie": "pharmacy",
+  "en stock": "in stock",
+  "rupture de stock": "out of stock",
+};
 
-function traduireTexte(texte: string, langue: Langue) {
+function traduireInterface(texte: string, langue: Langue) {
   if (langue === "fr") {
-    for (const [en, fr] of Object.entries(TRADUCTIONS)) {
-      if (FR_VALUES.has(en) && texte === fr) return en;
-    }
-    return texte;
+    const entree = Object.entries(DICTIONNAIRE).find(([, en]) => en === texte);
+    return entree?.[0] ?? texte;
   }
-
-  if (TRADUCTIONS[texte]) return TRADUCTIONS[texte];
-
-  for (const [fr, en] of Object.entries(TRADUCTIONS)) {
-    if (texte === en) return fr;
-  }
-
-  return texte;
+  return DICTIONNAIRE[texte] ?? texte;
 }
 
-function appliquerLangue(langue: Langue) {
-  document.documentElement.lang = langue;
+export function traduireMedicament(nom: string, langue: Langue) {
+  if (langue === "fr") return nom;
+  return nom.replace(/paracétamol/gi, "paracetamol")
+    .replace(/ibuprofène/gi, "ibuprofen")
+    .replace(/amoxicilline/gi, "amoxicillin")
+    .replace(/acide clavulanique/gi, "clavulanic acid")
+    .replace(/azithromycine/gi, "azithromycin")
+    .replace(/métronidazole/gi, "metronidazole")
+    .replace(/artéméther/gi, "artemether")
+    .replace(/luméfantrine/gi, "lumefantrine")
+    .replace(/ceftriaxone/gi, "ceftriaxone")
+    .replace(/ciprofloxacine/gi, "ciprofloxacin")
+    .replace(/doxycycline/gi, "doxycycline")
+    .replace(/diclofénac/gi, "diclofenac")
+    .replace(/oméprazole/gi, "omeprazole")
+    .replace(/cétirizine/gi, "cetirizine")
+    .replace(/aspirine/gi, "aspirin")
+    .replace(/metformine/gi, "metformin")
+    .replace(/insuline/gi, "insulin");
+}
 
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
-
-  while ((node = walker.nextNode())) {
-    const parent = node.parentElement;
-    if (!parent || ["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) continue;
-
-    const original = node.nodeValue ?? "";
-    const trimmed = original.trim();
-    if (!trimmed) continue;
-
-    const traduit = traduireTexte(trimmed, langue);
-    if (traduit !== trimmed) {
-      node.nodeValue = original.replace(trimmed, traduit);
-    }
+export function variantesRechercheMedicament(nom: string) {
+  const variantes = new Set([nom.trim()]);
+  const normalise = nom.toLowerCase().trim();
+  if (normalise.includes("paracétamol")) variantes.add(nom.replace(/paracétamol/gi, "paracetamol"));
+  if (normalise.includes("acetaminophen") || normalise.includes("paracetamol")) {
+    variantes.add(nom.replace(/acetaminophen/gi, "paracetamol"));
+    variantes.add(nom.replace(/paracetamol/gi, "acetaminophen"));
+    variantes.add(nom.replace(/paracétamol/gi, "acetaminophen"));
   }
-
-  document.querySelectorAll<HTMLInputElement>("input[placeholder], input[aria-label], button[aria-label], [role='dialog'][aria-label]").forEach((element) => {
-    for (const attribute of ["placeholder", "aria-label"]) {
-      const value = element.getAttribute(attribute);
-      if (!value) continue;
-      const traduit = traduireTexte(value, langue);
-      if (traduit !== value) element.setAttribute(attribute, traduit);
-    }
-  });
+  return [...variantes];
 }
 
 export default function Accueil() {
@@ -99,14 +125,8 @@ export default function Accueil() {
 
   useEffect(() => {
     if (!langueInitialisee.current) return;
-
     window.localStorage.setItem("naxa-langue", langue);
-    appliquerLangue(langue);
-
-    const observer = new MutationObserver(() => appliquerLangue(langue));
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => observer.disconnect();
+    document.documentElement.lang = langue;
   }, [langue]);
 
   return (
@@ -115,12 +135,12 @@ export default function Accueil() {
         <div className="mx-auto flex max-w-xl items-center justify-between">
           <Logo />
           <Link href="/connexion" className="text-sm font-semibold underline underline-offset-4">
-            {langue === "fr" ? "Se connecter" : "Sign in"}
+            {traduireInterface("Se connecter", langue)}
           </Link>
         </div>
         <h1 className="mx-auto mt-4 max-w-xl text-[clamp(1.7rem,5.5dvh,2.5rem)] font-extrabold leading-[1.1]">
-          {langue === "fr" ? "Votre médicament," : "Your medicine,"}<br />
-          <span className="text-naxa-canari">{langue === "fr" ? "à 2 minutes." : "in 2 minutes."}</span>
+          {traduireInterface("Votre médicament,", langue)}<br />
+          <span className="text-naxa-canari">{traduireInterface("à 2 minutes.", langue)}</span>
         </h1>
         <svg viewBox="0 0 340 40" preserveAspectRatio="none" className="mt-3 block h-8 w-full" aria-hidden="true">
           <path d="M0 40 L0 22 Q85 0 170 18 T340 10 L340 40 Z" className="fill-naxa-green-50" />
@@ -128,47 +148,33 @@ export default function Accueil() {
       </section>
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
-        <div className="carte"><Recherche /></div>
+        <div className="carte"><Recherche langue={langue} /></div>
       </div>
 
       <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col justify-center gap-3 px-4 py-2">
         <ol className="grid grid-cols-4 gap-2 [@media(max-height:600px)]:hidden">
-          {ETAPES[langue].map((t, i) => (
-            <li key={t} className="flex flex-col items-center gap-1 text-center">
+          {ETAPES[langue].map((etape, i) => (
+            <li key={etape} className="flex flex-col items-center gap-1 text-center">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-naxa-canari text-sm font-extrabold text-naxa-green-900">{i + 1}</span>
-              <span className="text-xs font-semibold">{t}</span>
+              <span className="text-xs font-semibold">{etape}</span>
             </li>
           ))}
         </ol>
         <p className="text-[11px] leading-snug text-slate-600">
-          {langue === "fr"
-            ? "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche."
-            : "NAXA provides availability information, not medical advice. In an emergency, call emergency services or go to the nearest on-duty pharmacy."}
+          {traduireInterface("NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.", langue)}
         </p>
       </div>
 
       <div className="shrink-0 bg-white px-5 py-3 text-xs text-slate-600">
         <div className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3">
-          <span />
-          <span className="text-center font-semibold">Made With 💚</span>
+          <Link href="/connexion" className="font-semibold underline underline-offset-4">
+            {traduireInterface("Vous êtes Pharmacien ?", langue)}
+          </Link>
+          <span className="text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
           <div className="flex justify-end gap-1" role="group" aria-label="Language">
-            <button
-              type="button"
-              onClick={() => setLangue("fr")}
-              className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"}
-              aria-pressed={langue === "fr"}
-            >
-              Fr
-            </button>
+            <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"}>Fr</button>
             <span aria-hidden="true">|</span>
-            <button
-              type="button"
-              onClick={() => setLangue("en")}
-              className={langue === "en" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"}
-              aria-pressed={langue === "en"}
-            >
-              En
-            </button>
+            <button type="button" onClick={() => setLangue("en")} className={langue === "en" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "en"}>En</button>
           </div>
         </div>
       </div>
