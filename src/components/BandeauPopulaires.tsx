@@ -1,0 +1,2 @@
+import { supabasePublic } from "@/lib/supabase/server"; import { BandeauDefilant,type Populaire } from "./BandeauDefilant";
+export async function BandeauPopulaires(){let produits:Populaire[]=[];try{const{data}=await supabasePublic().rpc("produits_populaires",{p_limit:10,p_jours:7});produits=(data??[]) as Populaire[]}catch{}return <BandeauDefilant produits={produits}/>}
