@@ -61,7 +61,11 @@ Aucun déploiement manuel effectué. Les pushes sur main déclenchent uniquement
 - Les actions protégées et les routes opérationnelles exigent maintenant connexion + validation de l'âge pour les comptes client.
 - Une page de validation d'âge existe pour les comptes client historiques dont l'âge n'était pas encore enregistré.
 - La connexion n'utilise plus l'OTP : elle se fait par nom d'utilisateur + mot de passe, avec « Rester connecté », « Mot de passe oublié ? » sur la même ligne et une entrée Google/Gmail préparée.
-- La récupération de mot de passe conserve une réponse non révélatrice pour éviter l'énumération des comptes.
+- La récupération de mot de passe demande le nom d'utilisateur, envoie un OTP à l'e-mail associé, vérifie l'OTP côté serveur puis ouvre l'interface « Modifier mot de passe » avec les mêmes critères que l'inscription. Après mise à jour, retour à la connexion. La réponse reste non révélatrice pour éviter l'énumération des comptes.
+- « Connexion via Gmail » affiche désormais l'icône Google ; le code OAuth est prêt mais le fournisseur Google doit être activé dans Supabase pour supprimer l'erreur « Unsupported provider ».
+- « Les plus recherchés » est rendu uniquement sur la page d'accueil.
+- La page d'inscription est verrouillée sans scroll de page et les trois documents de politique sont des liens individuels.
+- Le traitement visuel <strong>NAXA</strong> est standardisé via `.naxa-text` (gras, +1px) hors logo.
 
 ### Prochaine étape
 Vérifier le parcours complet en environnement de développement : inscription → OTP → mot de passe → connexion par nom d'utilisateur → récupération de mot de passe → blocage connexion/âge. La configuration Google/Gmail dans Supabase reste à confirmer si le fournisseur n'est pas encore activé.
