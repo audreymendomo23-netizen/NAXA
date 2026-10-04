@@ -6,12 +6,13 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   let next = url.searchParams.get("next") ?? "/";
 
-  if (!next.startsWith("/")) next = "/";
+  if (!next.startsWith("/") || next.startsWith("//")) next = "/";
 
   if (code) {
-    const supabase = supabaseServer();
+    const response = NextResponse.redirect(new URL(next, url.origin));
+    const supabase = supabaseServer(response);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, url.origin));
+    if (!error) return response;
   }
 
   return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
