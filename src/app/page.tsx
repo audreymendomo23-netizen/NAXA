@@ -80,7 +80,7 @@ function traduireInterface(texte: string, langue: Langue) {
   return DICTIONNAIRE[texte] ?? texte;
 }
 
-export function traduireMedicament(nom: string, langue: Langue) {
+function traduireMedicament(nom: string, langue: Langue) {
   if (langue === "fr") return nom;
   return nom.replace(/paracétamol/gi, "paracetamol")
     .replace(/ibuprofène/gi, "ibuprofen")
@@ -101,7 +101,7 @@ export function traduireMedicament(nom: string, langue: Langue) {
     .replace(/insuline/gi, "insulin");
 }
 
-export function variantesRechercheMedicament(nom: string) {
+function variantesRechercheMedicament(nom: string) {
   const variantes = new Set([nom.trim()]);
   const normalise = nom.toLowerCase().trim();
   if (normalise.includes("paracétamol")) variantes.add(nom.replace(/paracétamol/gi, "paracetamol"));
