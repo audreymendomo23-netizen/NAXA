@@ -14,16 +14,16 @@ function Formulaire(){
  const [username,setUsername]=useState(""),[password,setPassword]=useState(""),[show,setShow]=useState(false),[remember,setRemember]=useState(true),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  async function login(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password,remember})});const d=await r.json();setBusy(false);if(!r.ok){setError(d.error||"Identifiants incorrects.");return}localStorage.setItem("naxa-remember",remember?"1":"0");router.push(retour);router.refresh()}
  async function google(){setError("");setBusy(true);const {error}=await supabaseBrowser().auth.signInWithOAuth({provider:"google",options:{redirectTo:`${window.location.origin}/auth/callback?next=${encodeURIComponent(retour)}`}});if(error){setBusy(false);setError("Connexion via Gmail indisponible : le fournisseur Google n'est pas encore activé dans NAXA.");}}
- return <form onSubmit={login} className="carte w-full max-w-sm space-y-4">
+ return <form onSubmit={login} className="carte w-full max-w-sm space-y-3">
   <h1 className="text-2xl font-extrabold">Se connecter</h1>
   <label className="block text-sm font-semibold">Nom d'utilisateur<input className="champ mt-1" required value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username"/></label>
   <label className="block text-sm font-semibold">Mot de passe<span className="relative mt-1 block"><input className="champ pr-20" required type={show?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={()=>setShow(!show)}>{show?"Masquer":"Afficher"}</button></span></label>
   <div className="flex items-center justify-between gap-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" className="h-5 w-5 accent-[#FFE33D]" checked={remember} onChange={e=>setRemember(e.target.checked)}/>Rester connecté</label><Link href={`/mot-de-passe-oublie?retour=${encodeURIComponent(retour)}`} className="font-semibold underline">Mot de passe oublié ?</Link></div>
   <button className="btn btn-canari w-full" disabled={busy}>{busy?"Connexion...":"Connexion"}</button>
-  <div className="relative py-1 text-center text-xs text-slate-500"><span className="bg-white px-2">ou</span></div>
+  <div className="relative py-0.5 text-center text-xs text-slate-500"><span className="bg-white px-2">ou</span></div>
   <button type="button" onClick={google} className="btn btn-clair w-full" disabled={busy}><GoogleIcon/>Connexion via Gmail</button>
   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
   <p className="text-center text-sm text-slate-600">Vous n'avez pas de compte ? <Link href={`/creation-compte?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Créer un compte</Link></p>
  </form>
 }
-export default function Connexion(){return <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-naxa-green-900 px-5"><Logo/><Suspense><Formulaire/></Suspense></main>}
+export default function Connexion(){return <main className="auth-ecran flex flex-col items-center justify-center gap-3 bg-naxa-green-900 px-5 py-2"><Logo/><Suspense><Formulaire/></Suspense></main>}
