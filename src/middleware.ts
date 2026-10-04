@@ -24,7 +24,7 @@ export async function middleware(req: NextRequest) {
   );
 
   const { data } = await supabase.auth.getUser();
-  const prot = ["/pharmacie", "/admin", "/reservation", "/go"].some((p) =>
+  const prot = ["/pharmacie", "/admin", "/reservation", "/go", "/produit", "/panier"].some((p) =>
     req.nextUrl.pathname.startsWith(p)
   );
 
@@ -33,6 +33,21 @@ export async function middleware(req: NextRequest) {
     u.pathname = "/connexion";
     u.searchParams.set("retour", req.nextUrl.pathname);
     return NextResponse.redirect(u);
+  }
+
+  if (prot && data.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("age_verified")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (!profile?.age_verified) {
+      const u = req.nextUrl.clone();
+      u.pathname = "/verification-age";
+      u.searchParams.set("retour", req.nextUrl.pathname + req.nextUrl.search);
+      return NextResponse.redirect(u);
+    }
   }
 
   return res;
