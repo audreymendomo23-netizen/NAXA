@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server"; import { supabaseAdmin,supabaseServer } from "@/lib/supabase/server";
+export async function GET(_req:Request,{params}:{params:{id:string}}){const sb=supabaseServer();const{data:u}=await sb.auth.getUser();if(!u.user)return NextResponse.redirect(new URL("/connexion",_req.url));
+const{data:r}=await sb.from("reservations").select("id,total,pharmacie_id,reservation_items(quantite,prix_unitaire,produits(nom,dosage))").eq("id",params.id).single();if(!r)return new NextResponse("Réservation introuvable",{status:404});
+const{data:priv}=await supabaseAdmin().from("pharmacie_privee").select("whatsapp").eq("pharmacie_id",r.pharmacie_id).single();if(!priv)return new NextResponse("Pharmacie sans WhatsApp configuré",{status:409});
+const lignes=(r.reservation_items as unknown as {quantite:number;prix_unitaire:number;produits:{nom:string;dosage:string}|null}[]).map(i=>`- ${i.quantite} x ${i.produits?.nom??""} ${i.produits?.dosage??""} (${i.prix_unitaire} FCFA)`).join("\n");
+const texte=`Bonjour, réservation NAXA n°${r.id.slice(0,8).toUpperCase()}.\n${lignes}\nTotal : ${r.total} FCFA.\nJe viens retirer sous 3 h. Merci de confirmer la disponibilité en répondant OK.`;
+return NextResponse.redirect(`https://wa.me/${priv.whatsapp}?text=${encodeURIComponent(texte)}`);}
