@@ -5,11 +5,15 @@ import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 
+function GoogleIcon(){
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0"><path fill="#4285F4" d="M21.6 12.23c0-.7-.06-1.37-.18-2.02H12v3.83h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.22c1.89-1.74 2.99-4.3 2.99-7.34Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.22-2.51c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.06v2.59A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.39 13.89A6 6 0 0 1 6.08 12c0-.66.11-1.3.31-1.89V7.52H3.06A10 10 0 0 0 2 12c0 1.61.39 3.13 1.06 4.48l3.33-2.59Z"/><path fill="#EA4335" d="M12 5.98c1.47 0 2.79.51 3.83 1.51l2.87-2.87C16.95 2.9 14.7 2 12 2a10 10 0 0 0-8.94 5.52l3.33 2.59C7.18 7.74 9.39 5.98 12 5.98Z"/></svg>;
+}
+
 function Formulaire(){
  const router=useRouter(), search=useSearchParams(), retour=search.get("retour")||"/";
  const [username,setUsername]=useState(""),[password,setPassword]=useState(""),[show,setShow]=useState(false),[remember,setRemember]=useState(true),[error,setError]=useState(""),[busy,setBusy]=useState(false);
- async function login(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});const d=await r.json();setBusy(false);if(!r.ok){setError(d.error||"Identifiants incorrects.");return}localStorage.setItem("naxa-remember",remember?"1":"0");router.push(retour);router.refresh()}
- async function google(){setError("");const {error}=await supabaseBrowser().auth.signInWithOAuth({provider:"google",options:{redirectTo:`${window.location.origin}/auth/callback?next=${encodeURIComponent(retour)}`}});if(error)setError("La connexion Google est momentanément indisponible.")}
+ async function login(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password,remember})});const d=await r.json();setBusy(false);if(!r.ok){setError(d.error||"Identifiants incorrects.");return}localStorage.setItem("naxa-remember",remember?"1":"0");router.push(retour);router.refresh()}
+ async function google(){setError("");setBusy(true);const {error}=await supabaseBrowser().auth.signInWithOAuth({provider:"google",options:{redirectTo:`${window.location.origin}/auth/callback?next=${encodeURIComponent(retour)}`}});if(error){setBusy(false);setError("Connexion via Gmail indisponible : le fournisseur Google n'est pas encore activé dans NAXA.");}}
  return <form onSubmit={login} className="carte w-full max-w-sm space-y-4">
   <h1 className="text-2xl font-extrabold">Se connecter</h1>
   <label className="block text-sm font-semibold">Nom d'utilisateur<input className="champ mt-1" required value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} autoComplete="username"/></label>
@@ -17,7 +21,7 @@ function Formulaire(){
   <div className="flex items-center justify-between gap-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" className="h-5 w-5 accent-[#FFE33D]" checked={remember} onChange={e=>setRemember(e.target.checked)}/>Rester connecté</label><Link href={`/mot-de-passe-oublie?retour=${encodeURIComponent(retour)}`} className="font-semibold underline">Mot de passe oublié ?</Link></div>
   <button className="btn btn-canari w-full" disabled={busy}>{busy?"Connexion...":"Connexion"}</button>
   <div className="relative py-1 text-center text-xs text-slate-500"><span className="bg-white px-2">ou</span></div>
-  <button type="button" onClick={google} className="btn btn-clair w-full">Connexion via Gmail</button>
+  <button type="button" onClick={google} className="btn btn-clair w-full" disabled={busy}><GoogleIcon/>Connexion via Gmail</button>
   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
   <p className="text-center text-sm text-slate-600">Vous n'avez pas de compte ? <Link href={`/creation-compte?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Créer un compte</Link></p>
  </form>

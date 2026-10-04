@@ -61,7 +61,11 @@ Aucun déploiement manuel effectué. Les pushes sur main déclenchent uniquement
 - Les actions protégées et les routes opérationnelles exigent maintenant connexion + validation de l'âge pour les comptes client.
 - Une page de validation d'âge existe pour les comptes client historiques dont l'âge n'était pas encore enregistré.
 - La connexion n'utilise plus l'OTP : elle se fait par nom d'utilisateur + mot de passe, avec « Rester connecté », « Mot de passe oublié ? » sur la même ligne et une entrée Google/Gmail préparée.
-- La récupération de mot de passe conserve une réponse non révélatrice pour éviter l'énumération des comptes.
+- La récupération de mot de passe demande le nom d'utilisateur, envoie un OTP à l'e-mail associé, vérifie l'OTP côté serveur puis ouvre l'interface « Modifier mot de passe » avec les mêmes critères que l'inscription. Après mise à jour, retour à la connexion. La réponse reste non révélatrice pour éviter l'énumération des comptes.
+- « Connexion via Gmail » affiche désormais l'icône Google ; le code OAuth est prêt mais le fournisseur Google doit être activé dans Supabase pour supprimer l'erreur « Unsupported provider ».
+- « Les plus recherchés » est rendu uniquement sur la page d'accueil.
+- La page d'inscription est verrouillée sans scroll de page et les trois documents de politique sont des liens individuels.
+- Le traitement visuel <strong>NAXA</strong> est standardisé via `.naxa-text` (gras, +1px) hors logo.
 
 ### Prochaine étape
 Vérifier le parcours complet en environnement de développement : inscription → OTP → mot de passe → connexion par nom d'utilisateur → récupération de mot de passe → blocage connexion/âge. La configuration Google/Gmail dans Supabase reste à confirmer si le fournisseur n'est pas encore activé.
@@ -71,3 +75,25 @@ Vérifier le parcours complet en environnement de développement : inscription �
 - Aucun nouveau dépôt créé.
 - Aucun déploiement manuel sans autorisation explicite.
 - Les décisions du prompt maître et du cahier des charges restent prioritaires.
+
+## Réconciliation auth + accueil — 4 octobre 2026
+État : **RÉCONCILIÉE SUR BRANCHE, EN ATTENTE DE VALIDATION**
+
+### Arbitrages appliqués
+1. **Authentification** : la branche de récupération OTP / UX Google est conservée comme base, car elle porte les évolutions d'authentification les plus récentes.
+2. **Accueil** : les corrections visuelles et fonctionnelles approuvées de la branche homepage sont réintégrées par-dessus cette base.
+3. **Actions protégées** : la version de sécurité de la branche auth est conservée lorsque les deux branches portent des variantes concurrentes ; l'objectif est de ne pas régresser le contrôle d'accès.
+4. **Validation d'âge / middleware / schéma Supabase** : les versions de la branche auth sont conservées afin de ne pas remplacer les évolutions de durcissement par une variante concurrente sans justification.
+5. **Documentation** : ce statut est mis à jour pour rendre explicite que la réconciliation n'est pas encore fusionnée dans main.
+
+### Déploiement
+- Aucun merge dans main effectué.
+- Aucun déploiement Preview effectué.
+- Aucun déploiement Production effectué.
+- La branche de réconciliation doit encore passer la vérification finale/build avant toute demande de fusion.
+
+### Google OAuth
+- L'erreur redirect_uri_mismatch identifie le callback Supabase comme URI reçue par Google.
+- La configuration doit utiliser le même Client ID + Client Secret dans Supabase que le client OAuth Web unique configuré dans Google Cloud.
+- Le callback Google attendu reste : https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback.
+- La correction de cette configuration ne nécessite pas à elle seule un nouveau déploiement du code.

@@ -1,34 +1,34 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+
+const GENERIC = "Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
-    const { data: profile } = await supabaseAdmin()
+    if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) return NextResponse.json({ ok: true, message: GENERIC });
+
+    const { data: profile, error: profileError } = await supabaseAdmin()
       .from("profiles")
       .select("id")
       .ilike("username", username)
       .maybeSingle();
 
-    if (profile) {
+    if (!profileError && profile) {
       const { data: userData } = await supabaseAdmin().auth.admin.getUserById(profile.id);
-      if (userData.user?.email) {
-        const origin = new URL(request.url).origin;
-        await supabaseServer().auth.resetPasswordForEmail(userData.user.email, {
-          redirectTo: `${origin}/nouveau-mot-de-passe`,
+      const email = userData.user?.email;
+      if (email) {
+        const { error } = await supabaseAdmin().auth.signInWithOtp({
+          email,
+          options: { shouldCreateUser: false },
         });
+        if (error) console.error("password reset OTP:", error.message);
       }
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: "Si ce nom d'utilisateur existe, un e-mail de récupération a été envoyé.",
-    });
+    return NextResponse.json({ ok: true, message: GENERIC });
   } catch {
-    return NextResponse.json({
-      ok: true,
-      message: "Si ce nom d'utilisateur existe, un e-mail de récupération a été envoyé.",
-    });
+    return NextResponse.json({ ok: true, message: GENERIC });
   }
 }

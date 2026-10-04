@@ -7,3 +7,5 @@
 /* Accueil : un seul écran. Le défilement n'apparaît que si le contenu ne rentre pas. */
 .home-ecran { height: 100vh; height: 100dvh; overflow-y: auto; overscroll-behavior: none; }
 body:has(.bandeau) .home-ecran { height: calc(100vh - 4rem); height: calc(100dvh - 4rem); }
+
+.naxa-text{font-weight:800;font-size:calc(1em + 1px)}
