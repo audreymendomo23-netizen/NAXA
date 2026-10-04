@@ -15,13 +15,13 @@ const ETAPES = {
 const DICTIONNAIRE: Record<string, string> = {
   "Se connecter": "Sign in",
   "Votre médicament,": "Your medicine,",
-  "à 2 minutes.": "in 2 minutes.",
+  "à 2 minutes.": "just 2 minutes away.",
   "Je cherche": "I search",
   "Je trouve": "I find",
   "Je compare": "I compare",
   "Je réserve": "I reserve",
   "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call emergency services or go to the nearest on-duty pharmacy.",
-  "Vous êtes Pharmacien ?": "Are you a pharmacist?",
+  "Vous êtes une Pharmacie ?": "Are you a pharmacy?",
   "Made With 💚": "Made With 💚",
 };
 
@@ -167,9 +167,14 @@ export default function Accueil() {
 
       <div className="shrink-0 bg-white px-5 py-3 text-xs text-slate-600">
         <div className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3">
-          <Link href="/connexion" className="font-semibold underline underline-offset-4">
-            {traduireInterface("Vous êtes Pharmacien ?", langue)}
-          </Link>
+          <a
+            href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA, je suis pharmacien et je souhaite échanger avec vous")}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold underline underline-offset-4"
+          >
+            {traduireInterface("Vous êtes une Pharmacie ?", langue)}
+          </a>
           <span className="text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
           <div className="flex justify-end gap-1" role="group" aria-label="Language">
             <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"}>Fr</button>
