@@ -1,11 +1,17 @@
 alter table public.profiles
   add column if not exists age_verified boolean not null default false;
 
+create policy profiles_age_self_update on public.profiles
+  for update
+  to authenticated
+  using (id = auth.uid())
+  with check (id = auth.uid());
+
 create or replace function public.verify_age(p_birth_date date)
 returns boolean
 language plpgsql
-security definer
-set search_path = ''
+security invoker
+set search_path = public
 as $$
 declare
   v_age int;
@@ -26,6 +32,10 @@ begin
   update public.profiles
      set age_verified = true
    where id = auth.uid();
+
+  if not found then
+    raise exception 'Profil introuvable';
+  end if;
 
   return true;
 end;
