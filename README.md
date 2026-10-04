@@ -57,3 +57,14 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Build Production : compilation réussie, vérification TypeScript réussie, 23/23 pages statiques générées et fonctions serverless créées.
 - Runtime Production : aucune erreur détectée sur la fenêtre de contrôle de 30 minutes.
 - Google OAuth : le code est prêt ; la configuration externe Google/Supabase doit utiliser le même Client ID + Client Secret et le callback Supabase autorisé côté Google.
+
+
+## Consolidation finale — authentification, âge et politiques — 4 octobre 2026
+- Google OAuth reste un parcours sans OTP : le callback finalise la session Supabase avant de rediriger vers la destination demandée.
+- La récupération « Mot de passe oublié » conserve son OTP e-mail séparé et conserve la session après validation afin de permettre le changement de mot de passe.
+- Le parcours d'authentification utilise un écran sans défilement de page.
+- Le sélecteur téléphone a été resserré sur mobile sans modifier la liste des pays ni la validation du numéro.
+- La validation d'âge exige maintenant l'acceptation explicite des Conditions d'utilisation, de la Politique de confidentialité et de la Politique de sécurité, côté interface et côté serveur.
+- Les trois documents juridiques ont été enrichis pour refléter les comportements réellement présents dans NAXA.
+- Les numéros affichés sur l'accueil ont été mis à jour vers 1510, 119 et 1511.
+- Aucun nouveau modèle de données ni aucune réécriture de l'application n'ont été introduits.

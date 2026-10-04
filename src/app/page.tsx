@@ -162,9 +162,9 @@ export default function Accueil() {
         </ol>
         <p className="mt-auto text-xs leading-relaxed text-slate-600">
           {langue === "fr" ? (
-            <>NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros <a className="font-bold underline" href="tel:117">117</a> <a className="font-bold underline" href="tel:118">118</a> et <a className="font-bold underline" href="tel:119">119</a>, ou rendez-vous à la pharmacie la plus proche.</>
+            <>NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros <a className="font-bold underline" href="tel:1510">1510</a> <a className="font-bold underline" href="tel:119">119</a> et <a className="font-bold underline" href="tel:1511">1511</a>, ou rendez-vous à la pharmacie la plus proche.</>
           ) : (
-            <>NAXA provides availability information, not medical advice. In an emergency, call <a className="font-bold underline" href="tel:117">117</a>, <a className="font-bold underline" href="tel:118">118</a> or <a className="font-bold underline" href="tel:119">119</a>, or go to the nearest pharmacy.</>
+            <>NAXA provides availability information, not medical advice. In an emergency, call <a className="font-bold underline" href="tel:1510">1510</a>, <a className="font-bold underline" href="tel:119">119</a> or <a className="font-bold underline" href="tel:1511">1511</a>, or go to the nearest pharmacy.</>
           )}
         </p>
       </div>

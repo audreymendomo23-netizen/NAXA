@@ -1,8 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 
-export function supabaseServer(){
+export function supabaseServer(response?: NextResponse){
   const store=cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,7 +13,10 @@ export function supabaseServer(){
         getAll:()=>store.getAll(),
         setAll:(list: { name: string; value: string; options: CookieOptions }[])=>{
           try{
-            list.forEach(({name,value,options})=>store.set(name,value,options))
+            list.forEach(({name,value,options})=>{
+              if(response) response.cookies.set(name,value,options);
+              else store.set(name,value,options);
+            });
           }catch{}
         }
       }

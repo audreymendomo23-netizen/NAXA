@@ -3,9 +3,7 @@
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}} @media print{.no-print{display:none!important}body{background:#fff}}
 .btn{@apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 font-bold transition-colors}.btn-canari{@apply bg-naxa-canari text-naxa-green-900 hover:bg-naxa-canari-dark}.btn-vert{@apply bg-naxa-green-700 text-white hover:bg-naxa-green-900}.btn-clair{@apply border-2 border-naxa-green-700 bg-white text-naxa-green-700 hover:bg-naxa-green-100}.carte{@apply rounded-xl2 border border-naxa-green-100 bg-white p-4 shadow-sm}.champ{@apply min-h-[48px] w-full rounded-full border-2 border-naxa-green-100 bg-white px-5 text-base placeholder:text-slate-400 focus:border-naxa-green-600}
 .bandeau-piste{overflow:hidden}.defile{animation:defile 45s linear infinite}@keyframes defile{to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.bandeau-piste{overflow-x:auto}.defile>[aria-hidden="true"]{display:none}}
-
-/* Accueil : un seul écran. Le défilement n'apparaît que si le contenu ne rentre pas. */
 .home-ecran { height: 100vh; height: 100dvh; overflow-y: auto; overscroll-behavior: none; }
 body:has(.bandeau) .home-ecran { height: calc(100vh - 4rem); height: calc(100dvh - 4rem); }
-
+.auth-ecran{height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none}
 .naxa-text{font-weight:800;font-size:calc(1em + 1px)}
