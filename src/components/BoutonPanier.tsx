@@ -1,0 +1,3 @@
+"use client"; import Link from "next/link"; import { usePathname } from "next/navigation"; import { usePanier } from "@/lib/panier";
+const MASQUE=["/admin","/pharmacie","/connexion","/panier","/reservation"];
+export function BoutonPanier(){const chemin=usePathname();const{nombre,pret}=usePanier();if(!pret||nombre===0||MASQUE.some(p=>chemin.startsWith(p)))return null;return <Link href="/panier" className="no-print btn btn-canari fixed bottom-4 right-4 z-40 shadow-lg" aria-label={`Mon panier, ${nombre} produit${nombre>1?"s":""}`}>Mon panier <span className="rounded-full bg-naxa-green-900 px-2 text-sm text-white">{nombre}</span></Link>}
