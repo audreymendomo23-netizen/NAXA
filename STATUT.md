@@ -56,7 +56,11 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Côté client : une seule pharmacie visible, indépendamment du nombre de caisses.
 - Le Promoteur peut créer, bloquer et réactiver ses caisses ; un blocage ne désactive pas la pharmacie.
 - Formation terrain : utiliser les comptes Caisse pour l'apprentissage de l'import et de la gestion de stock.
-- Migration 007 préparée ; aucun compte réel n'est créé automatiquement par ce chantier.
+- PR #21 ouverte : architecture Promoteur parent / Caisses enfants.
+- Migrations 007/008 préparées et appliquées au projet Supabase NAXA ; aucun compte réel n'est créé automatiquement par ce chantier.
+- Le schéma Supabase contient désormais les rôles `promoteur` et `caisse`, `parent_profile_id` et `actif` sur `profiles`.
+- Le compte créé par `/admin` est désormais destiné au Promoteur ; le Promoteur dispose d'un espace de gestion de ses Caisses.
+- Aucun déploiement Production n'est effectué pour ce chantier tant que la consolidation n'est pas validée.
 
 ## Prochain chantier — feuille de route du prompt maître
 Mise en service terrain des pharmacies pilotes
