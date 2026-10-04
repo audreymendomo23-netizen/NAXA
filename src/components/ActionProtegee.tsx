@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Props = {
@@ -17,9 +17,9 @@ type Props = {
 
 export function ActionProtegee({ children, href, className = "", external = false, onAutorise, "aria-hidden": ariaHidden, tabIndex, "aria-label": ariaLabel }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
   const [message, setMessage] = useState<"connexion" | "age" | null>(null);
   const [busy, setBusy] = useState(false);
+  const retour = () => window.location.pathname + window.location.search;
 
   async function continuer() {
     if (busy) return;
@@ -80,8 +80,8 @@ export function ActionProtegee({ children, href, className = "", external = fals
                 className="btn btn-vert w-full"
                 onClick={() => router.push(
                   message === "connexion"
-                    ? `/connexion?retour=${encodeURIComponent(pathname)}`
-                    : `/verification-age?retour=${encodeURIComponent(pathname)}`
+                    ? `/connexion?retour=${encodeURIComponent(retour())}`
+                    : `/verification-age?retour=${encodeURIComponent(retour())}`
                 )}
               >
                 {message === "connexion" ? "Se connecter" : "Vérifier mon âge"}
