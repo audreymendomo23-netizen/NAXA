@@ -175,8 +175,8 @@ export default function Accueil() {
       </div>
 
       <div className="shrink-0 bg-white px-5 py-1 text-xs text-slate-600">
-        <div className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3">
-          <span className="text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
+        <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <span className="col-start-2 text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
           <div className="flex justify-end gap-1" role="group" aria-label="Language">
             <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"}>Fr</button>
             <span aria-hidden="true">|</span>
