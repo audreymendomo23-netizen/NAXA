@@ -33,7 +33,8 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Composant ImportAdmin ajouté pour restaurer la fonctionnalité d'import de stock référencée par /admin.
 - Audit par contradiction : validations serveur du panier renforcées (1–10 produits, quantité 1–10, pas de doublon) et écritures de fiches produits limitées à l'administration.
 - L'import de stock conserve la création de produits mais n'utilise plus une mise à jour produit générale.
-- Le build Next.js et le parcours local restent à valider.
+- Les variables Vercel Production/Preview/Development NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY sont maintenant configurées avec le projet Supabase NAXA.
+- Le dernier échec Vercel provenait du prerender /pharmacie sans ces variables Supabase ; une nouvelle construction doit confirmer la correction.
 
 ### Règles de gouvernance
 - Aucun déploiement manuel n'est effectué sans autorisation explicite.
