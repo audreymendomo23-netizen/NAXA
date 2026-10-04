@@ -55,9 +55,10 @@ Aucun déploiement manuel effectué. Les pushes sur main déclenchent uniquement
 - Visiteur non connecté : recherche libre conservée ; les actions opérationnelles nécessitent une connexion.
 - Les noms de médicaments du bandeau « Les plus recherchés » sont traduits en anglais pour les termes connus ; les cartes produit sont également soumises au contrôle d’accès.
 - La vérification d’âge est volontairement reportée : la migration 005 et le contrôle d’âge seront réintroduits après la finalisation de la page de création de compte.
+- Page de création de compte ajoutée : e-mail + code de confirmation, sans mot de passe, avec retour vers le parcours initial. La création du profil client continue de s'appuyer sur le trigger Supabase existant.
 
 ### Prochaine étape
-Poursuivre la Phase 1 avec la page de création de compte, puis réintroduire la vérification d’âge conformément au prompt maître et au cahier des charges.
+Valider la page de création de compte, puis réintroduire la vérification d’âge conformément au prompt maître et au cahier des charges.
 
 ## Gouvernance
 - Développement sur le dépôt NAXA existant.
