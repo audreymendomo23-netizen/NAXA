@@ -1,0 +1,5 @@
+import type { Metadata,Viewport } from "next"; import { Inter } from "next/font/google"; import "./globals.css"; import { PanierProvider } from "@/lib/panier"; import { BandeauPopulaires } from "@/components/BandeauPopulaires"; import { BoutonPanier } from "@/components/BoutonPanier";
+const inter=Inter({subsets:["latin"],variable:"--font-inter"});
+export const metadata:Metadata={title:"NAXA : votre médicament, à 2 minutes",description:"Trouvez votre médicament en quelques secondes dans les pharmacies près de vous : disponibilité, prix, distance, temps de trajet.",manifest:"/manifest.webmanifest"};
+export const viewport:Viewport={themeColor:"#054A29",width:"device-width",initialScale:1};
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="fr"><body className={`${inter.variable} font-sans`}><PanierProvider><BandeauPopulaires/>{children}<BoutonPanier/></PanierProvider></body></html>}
