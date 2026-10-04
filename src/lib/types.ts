@@ -1,0 +1,3 @@
+export type ItemStock={produit_id:string;nom:string;dosage:string;prix:number;quantite:number;quantite_demandee?:number};
+export type ResultatPharmacie={pharmacie_id:string;nom:string;quartier:string|null;adresse:string|null;lat:number;lng:number;de_garde:boolean;stock_updated_at:string|null;distance_km:number;total_prix:number;items:ItemStock[];trouves:number;demandes:number};
+export type Trajet={minutes:number;km:number;estime:boolean}; export type PharmacieClassee=ResultatPharmacie&{trajet:Trajet;score:number;badges:string[]};
