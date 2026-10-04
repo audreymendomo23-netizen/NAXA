@@ -54,12 +54,10 @@ export function ActionProtegee({ children, href, className = "", external = fals
           <div className="carte w-full max-w-sm space-y-4">
             <div>
               <h2 id="acces-protege-titre" className="text-xl font-extrabold">
-                {message === "connexion" ? "Connectez-vous pour continuer" }
+                {message === "connexion" ? "Connectez-vous pour continuer" : ""}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                {message === "connexion"
-                  ? "La recherche reste accessible sans compte. Pour utiliser cette action, veuillez vous connecter."
-                  : "Cette fonctionnalité nécessite un compte connecté et une vérification de votre âge."}
+                La recherche reste accessible sans compte. Pour utiliser cette action, veuillez vous connecter.
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -70,7 +68,7 @@ export function ActionProtegee({ children, href, className = "", external = fals
                   `/connexion?retour=${encodeURIComponent(retour())}`
                 )}
               >
-                {Se connecter}
+                Se connecter
               </button>
               <button type="button" className="btn btn-clair w-full" onClick={() => setMessage(null)}>
                 Annuler
