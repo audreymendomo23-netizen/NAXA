@@ -10,9 +10,11 @@ type Props = {
   className?: string;
   external?: boolean;
   onAutorise?: () => void | Promise<void>;
+  "aria-hidden"?: boolean;
+  tabIndex?: number;
 };
 
-export function ActionProtegee({ children, href, className = "", external = false, onAutorise }: Props) {
+export function ActionProtegee({ children, href, className = "", external = false, onAutorise, "aria-hidden": ariaHidden, tabIndex }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [message, setMessage] = useState<"connexion" | "age" | null>(null);
@@ -54,7 +56,7 @@ export function ActionProtegee({ children, href, className = "", external = fals
 
   return (
     <>
-      <button type="button" className={className} onClick={continuer} disabled={busy}>
+      <button type="button" className={className} onClick={continuer} disabled={busy} aria-hidden={ariaHidden} tabIndex={tabIndex}>
         {children}
       </button>
 
