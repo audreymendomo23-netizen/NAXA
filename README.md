@@ -35,11 +35,16 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Accueil : CTA pharmacie isolé, disclaimer repositionné, numéros 1510 / 119 / 1511.
 - Documents juridiques : Conditions, Confidentialité et Sécurité enrichis selon le comportement réel.
 - Authentification : tous les écrans principaux utilisent désormais le conteneur sans défilement auth-ecran, y compris /nouveau-mot-de-passe.
+- Création de compte : bandeau « Les plus recherchés » masqué, interface mobile recentrée/compactée et téléphone séparé en pays, indicatif et numéro avec longueur contrôlée.
 
 ### Consolidation finale — 4 octobre 2026
 - PR #11 : consolidation authentification, âge, accueil et politiques, fusionnée.
 - PR #12 : documentation de consolidation, fusionnée.
 - PR #13 : suppression du dernier scroll parasite de /nouveau-mot-de-passe, fusionnée dans main.
+- PR #15 : correction finale UX de /creation-compte, fusionnée dans main.
+- PR #15 : aucun changement métier, aucune migration DB et aucune réécriture destructive.
+- Build Production : compilation Next.js réussie et vérification TypeScript sans erreur bloquante.
+- Déploiement Production final issu de main : READY sur le projet Vercel existant naxa.
 - Correction PR #13 strictement ciblée : min-h-screen remplacé par le conteneur d'authentification existant auth-ecran (100dvh + overflow:hidden), sans changement fonctionnel.
 - Contrôle statique des cinq écrans principaux : /connexion, /creation-compte, /mot-de-passe-oublie, /verification-age, /nouveau-mot-de-passe : aucun conteneur de page ne conserve de scroll volontaire.
 
@@ -51,8 +56,10 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 
 ## Production
 - Projet Vercel existant : naxa.
-- La consolidation actuelle est destinée à Production après validation du build et des contrôles runtime.
-- Le déploiement doit provenir de main et rester sur le projet Vercel existant.
+- Déploiement Production : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N, commit 21a1a6e5b17e67bcab401364452096f771ac7ef5, état READY.
+- Alias Production : naxa-naxa3.vercel.app.
+- Le déploiement provient de main après fusion de PR #15.
+- Aucun nouveau projet Vercel et aucun Preview volontaire.
 
 ## Prochain point du cahier des charges
 Conformément à la feuille de route du prompt maître, après les fondations consolidées, le prochain chantier est Pharmacies pilotes :
