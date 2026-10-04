@@ -41,7 +41,7 @@ for update using(parent_profile_id=auth.uid() and is_promoteur())
 with check(
   parent_profile_id=auth.uid()
   and role='caisse'
-  and pharmacie_id=(select pharmacie_id from public.profiles where id=auth.uid())
+  and pharmacie_id=my_pharmacie()
 );
 
 drop policy if exists stocks_write on public.stocks;
