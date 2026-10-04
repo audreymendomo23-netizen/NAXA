@@ -21,7 +21,7 @@ const DICTIONNAIRE: Record<string, string> = {
   "Je compare": "I compare",
   "Je réserve": "I reserve",
   "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call emergency services or go to the nearest on-duty pharmacy.",
-  "Espace pharmacien": "Pharmacist space",
+  "Vous êtes Pharmacien ?": "Are you a pharmacist?",
   "Made With 💚": "Made With 💚",
 };
 
@@ -115,8 +115,6 @@ function variantesRechercheMedicament(nom: string) {
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
-  const [medicamentEnVedette, setMedicamentEnVedette] = useState(0);
-  const MEDICAMENTS_RECHERCHES = ["Paracétamol 500 mg", "Ibuprofène 400 mg", "Amoxicilline 500 mg", "Artéméther / Luméfantrine 20/120 mg"];
   const langueInitialisee = useRef(false);
 
   useEffect(() => {
@@ -130,13 +128,6 @@ export default function Accueil() {
     window.localStorage.setItem("naxa-langue", langue);
     document.documentElement.lang = langue;
   }, [langue]);
-
-  useEffect(() => {
-    const intervalle = window.setInterval(() => {
-      setMedicamentEnVedette((index) => (index + 1) % MEDICAMENTS_RECHERCHES.length);
-    }, 2500);
-    return () => window.clearInterval(intervalle);
-  }, []);
 
   return (
     <main className="home-ecran flex flex-col bg-naxa-green-50">
@@ -169,33 +160,22 @@ export default function Accueil() {
             </li>
           ))}
         </ol>
-
-        <div className="flex items-center justify-between gap-3 rounded-full bg-white px-3 py-2 text-xs shadow-sm">
-          <span className="min-w-0 truncate font-semibold text-slate-700" aria-live="polite">
-            {langue === "fr" ? "Médicament recherché :" : "Searched medicine:"} {traduireMedicament(MEDICAMENTS_RECHERCHES[medicamentEnVedette], langue)}
-          </span>
-          <div className="flex shrink-0 items-center gap-2" role="group" aria-label="Language">
-            <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"} aria-label="Français">🇫🇷</button>
-            <button type="button" onClick={() => setLangue("en")} className={langue === "en" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "en"} aria-label="English">🇬🇧</button>
-          </div>
-        </div>
-
         <p className="text-[11px] leading-snug text-slate-600">
           {traduireInterface("NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.", langue)}
         </p>
       </div>
 
       <div className="shrink-0 bg-white px-5 py-3 text-xs text-slate-600">
-        <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
-          <a
-            href={"https://wa.me/237681972237?text=" + encodeURIComponent(langue === "fr" ? "Bonjour NAXA, je suis pharmacien et je souhaite échanger avec vous." : "Hello NAXA, I am a pharmacist and would like to contact you.")}
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold underline underline-offset-4"
-          >
-            {traduireInterface("Espace pharmacien", langue)}
-          </a>
+        <div className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3">
+          <Link href="/connexion" className="font-semibold underline underline-offset-4">
+            {traduireInterface("Vous êtes Pharmacien ?", langue)}
+          </Link>
           <span className="text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
+          <div className="flex justify-end gap-1" role="group" aria-label="Language">
+            <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"}>Fr</button>
+            <span aria-hidden="true">|</span>
+            <button type="button" onClick={() => setLangue("en")} className={langue === "en" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "en"}>En</button>
+          </div>
         </div>
       </div>
     </main>
