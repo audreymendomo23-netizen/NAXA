@@ -68,3 +68,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Les trois documents juridiques ont été enrichis pour refléter les comportements réellement présents dans NAXA.
 - Les numéros affichés sur l'accueil ont été mis à jour vers 1510, 119 et 1511.
 - Aucun nouveau modèle de données ni aucune réécriture de l'application n'ont été introduits.
+
+- Validation Production : déploiement `dpl_7LEmWPTL8QB7iGGeheQZZxx1Xfww` sur le commit `35decd227c9175bbc69c1805a55f2b77f2ca6f17`, état READY.
+- Build Production : compilation Next.js réussie et contrôle TypeScript intégré au build réussi.
+- Runtime Production : aucun log de niveau error/fatal détecté sur la fenêtre contrôlée de 30 minutes.
