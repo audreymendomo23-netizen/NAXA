@@ -1,161 +1,39 @@
 "use client";
-
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense,useEffect,useMemo,useState } from "react";
 import Link from "next/link";
+import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 
-function FormulaireCreation() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const retour = searchParams.get("retour") || "/";
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [envoye, setEnvoye] = useState(false);
-  const [erreur, setErreur] = useState("");
-  const [occupe, setOccupe] = useState(false);
+const COUNTRIES=[["CM","🇨🇲","+237","Cameroun",9],["AO","🇦🇴","+244","Angola",9],["BI","🇧🇮","+257","Burundi",8],["CF","🇨🇫","+236","Centrafrique",8],["TD","🇹🇩","+235","Tchad",8],["CG","🇨🇬","+242","Congo",9],["CD","🇨🇩","+243","RDC",9],["GQ","🇬🇶","+240","Guinée équatoriale",9],["GA","🇬🇦","+241","Gabon",8],["RW","🇷🇼","+250","Rwanda",9],["ST","🇸🇹","+239","São Tomé-et-Príncipe",7]] as const;
+function ageOf(v:string){const d=new Date(v+"T00:00:00");if(!v||Number.isNaN(d.getTime()))return null;const n=new Date();let a=n.getFullYear()-d.getFullYear();const m=n.getMonth()-d.getMonth();if(m<0||(m===0&&n.getDate()<d.getDate()))a--;return a}
 
-  async function creerCompte(e: React.FormEvent) {
-    e.preventDefault();
-    setOccupe(true);
-    setErreur("");
-
-    const { error } = await supabaseBrowser().auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true },
-    });
-
-    setOccupe(false);
-
-    if (error) {
-      setErreur(
-        "Impossible d'envoyer le code. Vérifiez l'adresse e-mail et réessayez dans une minute."
-      );
-      return;
-    }
-
-    setEnvoye(true);
-  }
-
-  async function verifierCode(e: React.FormEvent) {
-    e.preventDefault();
-    setOccupe(true);
-    setErreur("");
-
-    const { error } = await supabaseBrowser().auth.verifyOtp({
-      email,
-      token: code,
-      type: "email",
-    });
-
-    setOccupe(false);
-
-    if (error) {
-      setErreur("Code incorrect ou expiré. Demandez un nouveau code.");
-      return;
-    }
-
-    router.push(retour);
-    router.refresh();
-  }
-
-  return (
-    <form
-      onSubmit={envoye ? verifierCode : creerCompte}
-      className="carte w-full max-w-sm space-y-4"
-    >
-      <div>
-        <h1 className="text-2xl font-extrabold">Créer mon compte</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Créez votre compte NAXA avec votre adresse e-mail. Aucun mot de passe
-          n&apos;est nécessaire.
-        </p>
-      </div>
-
-      {!envoye ? (
-        <>
-          <label className="block text-sm font-semibold">
-            Adresse e-mail
-            <input
-              className="champ mt-1"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              inputMode="email"
-            />
-          </label>
-
-          <button className="btn btn-vert w-full" disabled={occupe}>
-            {occupe ? "Envoi..." : "Créer mon compte"}
-          </button>
-        </>
-      ) : (
-        <>
-          <p className="text-sm leading-relaxed text-slate-600">
-            Un code de confirmation a été envoyé à <strong>{email}</strong>.
-          </p>
-
-          <label className="block text-sm font-semibold">
-            Code reçu
-            <input
-              className="champ mt-1 tracking-widest"
-              inputMode="numeric"
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              autoComplete="one-time-code"
-              aria-label="Code de confirmation reçu par e-mail"
-            />
-          </label>
-
-          <button className="btn btn-vert w-full" disabled={occupe}>
-            {occupe ? "Vérification..." : "Valider mon compte"}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-clair w-full"
-            disabled={occupe}
-            onClick={() => {
-              setEnvoye(false);
-              setCode("");
-              setErreur("");
-            }}
-          >
-            Modifier mon e-mail
-          </button>
-        </>
-      )}
-
-      {erreur && (
-        <p role="alert" className="text-sm text-red-700">
-          {erreur}
-        </p>
-      )}
-
-      <p className="text-center text-sm text-slate-600">
-        Vous avez déjà un compte ?{" "}
-        <Link
-          href={`/connexion?retour=${encodeURIComponent(retour)}`}
-          className="font-bold text-naxa-green-700 underline underline-offset-2"
-        >
-          Se connecter
-        </Link>
-      </p>
-    </form>
-  );
+function Formulaire(){
+ const router=useRouter(), search=useSearchParams(), retour=search.get("retour")||"/";
+ const [nom,setNom]=useState(""),[prenom,setPrenom]=useState(""),[username,setUsername]=useState("");
+ const [uState,setUState]=useState<"idle"|"checking"|"available"|"taken">("idle");
+ const [country,setCountry]=useState("CM"),[phone,setPhone]=useState(""),[dob,setDob]=useState(""),[email,setEmail]=useState("");
+ const [consent,setConsent]=useState(false),[step,setStep]=useState<"details"|"otp"|"password">("details"),[code,setCode]=useState("");
+ const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState(""),[show,setShow]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ const selected=COUNTRIES.find(c=>c[0]===country)??COUNTRIES[0], digits=phone.replace(/\D/g,""), age=useMemo(()=>ageOf(dob),[dob]);
+ useEffect(()=>{const v=username.trim().toLowerCase();if(!v){setUState("idle");return}if(!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v)){setUState("taken");return}setUState("checking");const t=setTimeout(async()=>{try{const r=await fetch("/api/auth/username-availability",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:v})});const d=await r.json();setUState(d.available?"available":"taken")}catch{setUState("taken")}},350);return()=>clearTimeout(t)},[username]);
+ const phoneValid=digits.length===selected[4], checks=[password.length>=6,/[A-Z]/.test(password),/[0-9]/.test(password),/[^A-Za-z0-9]/.test(password)], score=checks.filter(Boolean).length, passwordValid=score===4&&password===confirmation;
+ async function signup(e:React.FormEvent){e.preventDefault();setError("");if(uState!=="available")return setError("Choisissez un nom d'utilisateur disponible.");if(!phoneValid)return setError(`Le numéro doit contenir ${selected[4]} chiffres pour ${selected[3]}.`);if(age===null)return setError("Saisissez une date de naissance valide.");if(age<18)return setError("NAXA est réservé aux personnes âgées de 18 ans ou plus.");if(!consent)return setError("Vous devez accepter les conditions de NAXA.");setBusy(true);const temporaryPassword=`${crypto.randomUUID()}Aa1!`;const {error}=await supabaseBrowser().auth.signUp({email,password:temporaryPassword,options:{data:{username:username.trim().toLowerCase(),first_name:prenom.trim(),last_name:nom.trim(),phone:`${selected[2]}${digits}`,phone_country:selected[0],date_of_birth:dob,consent_accepted:true}}});setBusy(false);if(error){setError("Impossible de créer ce compte avec ces informations.");return}setStep("otp")}
+ async function verify(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");const {error}=await supabaseBrowser().auth.verifyOtp({email,token:code,type:"email"});setBusy(false);if(error)return setError("Code incorrect ou expiré. Demandez un nouveau code.");setStep("password")}
+ async function savePassword(e:React.FormEvent){e.preventDefault();if(!passwordValid)return setError("Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");setBusy(true);setError("");const {error}=await supabaseBrowser().auth.updateUser({password});setBusy(false);if(error)return setError("Impossible d'enregistrer le mot de passe.");router.push(retour);router.refresh()}
+ return <form onSubmit={step==="details"?signup:step==="otp"?verify:savePassword} className="carte w-full max-w-lg space-y-4">
+  <div><h1 className="text-2xl font-extrabold">Créer mon compte</h1><p className="mt-2 text-sm leading-relaxed text-slate-600">{step==="details"?"Renseignez vos informations pour créer votre compte NAXA.":step==="otp"?"Un code de confirmation a été envoyé à votre adresse e-mail.":"Votre e-mail est validé. Choisissez maintenant votre mot de passe."}</p></div>
+  {step==="details"&&<><div className="grid grid-cols-2 gap-3"><label className="block text-sm font-semibold">Nom<input className="champ mt-1" required value={nom} onChange={e=>setNom(e.target.value)} autoComplete="family-name"/></label><label className="block text-sm font-semibold">Prénom<input className="champ mt-1" required value={prenom} onChange={e=>setPrenom(e.target.value)} autoComplete="given-name"/></label></div>
+  <label className="block text-sm font-semibold">Nom d'utilisateur<span className="relative mt-1 block"><input className={`champ pr-12 ${uState==="taken"?"border-red-500":uState==="available"?"border-naxa-canari":""}`} required minLength={3} maxLength={30} value={username} onChange={e=>setUsername(e.target.value.replace(/\s/g,"").toLowerCase())} autoComplete="username"/>{uState==="available"&&<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-naxa-canari">✓</span>}{uState==="taken"&&<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-red-600">✕</span>}</span><span className={`mt-1 block text-xs ${uState==="available"?"text-naxa-green-700":"text-red-700"}`}>{uState==="checking"?"Vérification...":uState==="available"?"Nom d'utilisateur disponible":uState==="taken"?"Nom d'utilisateur pris ou invalide":"3 à 30 caractères : lettres, chiffres, point, tiret ou underscore."}</span></label>
+  <label className="block text-sm font-semibold">Téléphone<span className="mt-1 flex gap-2"><select className="champ w-36 shrink-0" value={country} onChange={e=>{setCountry(e.target.value);setPhone("")}} aria-label="Pays et indicatif">{COUNTRIES.map(c=><option key={c[0]} value={c[0]}>{c[1]} {c[2]}</option>)}</select><input className={`champ min-w-0 flex-1 ${phone&&!phoneValid?"border-red-500":""}`} required value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,selected[4]))} inputMode="numeric" autoComplete="tel-national" placeholder={`${selected[4]} chiffres`}/></span><span className="mt-1 block text-xs text-slate-500">{selected[1]} {selected[3]} · {selected[2]} · {selected[4]} chiffres attendus{phone&&!phoneValid&&<span className="text-red-700"> · Numéro invalide</span>}</span></label>
+  <label className="block text-sm font-semibold">Date de naissance<input className="champ mt-1" type="date" required value={dob} onChange={e=>setDob(e.target.value)} max={new Date().toISOString().slice(0,10)}/></label>
+  {age!==null&&age<18&&<p role="alert" className="rounded-xl2 bg-red-50 p-3 text-sm font-semibold text-red-700">NAXA est réservé aux personnes âgées de 18 ans ou plus.</p>}
+  <label className="block text-sm font-semibold">Adresse e-mail<input className="champ mt-1" type="email" required value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/></label>
+  <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-5 w-5 accent-[#FFE33D]" checked={consent} onChange={e=>setConsent(e.target.checked)} required/><span>J'accepte les Conditions d'utilisation, la Politique de confidentialité et la Politique de sécurité et de protection des données de NAXA.</span></label>
+  <button className="btn btn-canari w-full" disabled={busy||uState!=="available"||!phoneValid||age===null||age<18||!consent}>{busy?"Création...":"Valider"}</button></>}
+  {step==="otp"&&<><p className="rounded-xl2 bg-naxa-green-50 p-3 text-sm">Code envoyé à <strong>{email}</strong>.</p><label className="block text-sm font-semibold">Code reçu<input className="champ mt-1 tracking-widest" required inputMode="numeric" value={code} onChange={e=>setCode(e.target.value)} autoComplete="one-time-code"/></label><button className="btn btn-canari w-full" disabled={busy}>{busy?"Vérification...":"Valider le code"}</button><button type="button" className="btn btn-clair w-full" onClick={()=>{setStep("details");setCode("")}}>Modifier mes informations</button></>}
+  {step==="password"&&<><label className="block text-sm font-semibold">Mot de passe<span className="relative mt-1 block"><input className="champ pr-20" required type={show?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={()=>setShow(!show)}>{show?"Masquer":"Afficher"}</button></span></label><div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-naxa-canari transition-all" style={{width:`${score*25}%`}}/></div><ul className="grid grid-cols-2 gap-1 text-xs text-slate-600">{checks.map((ok,i)=><li key={i} className={ok?"text-naxa-green-700":"text-slate-500"}>{ok?"✓":"○"} {["6 caractères minimum","1 majuscule","1 chiffre","1 caractère spécial"][i]}</li>)}</ul><label className="block text-sm font-semibold">Confirmer le mot de passe<input className="champ mt-1" required type={show?"text":"password"} value={confirmation} onChange={e=>setConfirmation(e.target.value)} autoComplete="new-password"/></label><button className="btn btn-canari w-full" disabled={busy||!passwordValid}>{busy?"Enregistrement...":"Se connecter"}</button></>}
+  {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}<p className="text-center text-sm text-slate-600">Vous avez déjà un compte ? <Link href={`/connexion?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Se connecter</Link></p>
+ </form>
 }
-
-export default function CreationCompte() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-naxa-green-900 px-5">
-      <Logo />
-      <Suspense>
-        <FormulaireCreation />
-      </Suspense>
-    </main>
-  );
-}
+export default function CreationCompte(){return <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-naxa-green-900 px-5 py-8"><Logo/><Suspense><Formulaire/></Suspense></main>}

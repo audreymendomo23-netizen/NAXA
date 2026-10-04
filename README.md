@@ -5,7 +5,7 @@ Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % of
 ## Démarrage
 1. npm install
 2. Créer un projet Supabase (gratuit). Dans Database > Extensions, activer pg_cron.
-3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_004_corrections.sql, puis (démo seulement) supabase/seed.sql.
+3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_004_corrections.sql, supabase/migration_006_auth_profile_age_gate.sql, puis (démo seulement) supabase/seed.sql.
 4. Planifier l'expiration des réservations avec le job naxa-expire toutes les 5 minutes.
 5. Copier .env.example vers .env.local et renseigner les clés. La clé service_role ne doit jamais être exposée.
 6. npm run dev, puis ouvrir /admin après avoir configuré un compte administrateur.
@@ -31,13 +31,13 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Correction du typage Supabase SSR effectuée, notamment dans le middleware.
 - Page panier corrigée pour éliminer l'erreur de syntaxe JSX signalée par Vercel.
 - Composant ImportAdmin ajouté pour restaurer la fonctionnalité d'import de stock référencée par /admin.
-- Page de création de compte ajoutée avec confirmation par code e-mail, sans mot de passe, et conservation du paramètre de retour.
+- Parcours compte refondu : connexion par nom d'utilisateur + mot de passe, récupération du mot de passe, création de compte en 3 étapes (informations, OTP e-mail, mot de passe), contrôle d'unicité du nom d'utilisateur, téléphone avec indicatif/drapeau et validation de la date de naissance.
 - Audit par contradiction : validations serveur du panier renforcées (1–10 produits, quantité 1–10, pas de doublon) et écritures de fiches produits limitées à l'administration.
 - L'import de stock conserve la création de produits mais n'utilise plus une mise à jour produit générale.
 - Les variables Vercel Production/Preview/Development NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY sont maintenant configurées avec le projet Supabase NAXA.
 - Le dernier échec Vercel provenait du prerender /pharmacie sans ces variables Supabase ; une nouvelle construction doit confirmer la correction.
 
 ### Règles de gouvernance
-- Aucun déploiement manuel n'est effectué sans autorisation explicite.
+- Aucun déploiement Preview n'est autorisé. Aucun déploiement Production n'est effectué sans autorisation stricte explicite.
 - Les décisions du cahier des charges et du prompt maître restent prioritaires.
 

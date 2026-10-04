@@ -50,15 +50,21 @@ Mise à jour : 4 octobre 2026
 ### Déploiement
 Aucun déploiement manuel effectué. Les pushes sur main déclenchent uniquement le mécanisme Vercel déjà configuré.
 
-### Dernière évolution — accès client et ordonnance
+### Dernière évolution — accès client, compte et validation d'âge
 - Scanner d’ordonnance : choix explicite entre import depuis le téléphone et utilisation de la caméra ; aucune image n’est envoyée par ce parcours OCR navigateur.
 - Visiteur non connecté : recherche libre conservée ; les actions opérationnelles nécessitent une connexion.
 - Les noms de médicaments du bandeau « Les plus recherchés » sont traduits en anglais pour les termes connus ; les cartes produit sont également soumises au contrôle d’accès.
-- La vérification d’âge est volontairement reportée : la migration 005 et le contrôle d’âge seront réintroduits après la finalisation de la page de création de compte.
-- Page de création de compte ajoutée : e-mail + code de confirmation, sans mot de passe, avec retour vers le parcours initial. La création du profil client continue de s'appuyer sur le trigger Supabase existant.
+- Le parcours d'inscription est désormais structuré en trois étapes : identité et téléphone, OTP e-mail, puis création du mot de passe.
+- Nom et prénom sont sur la même ligne ; le nom d'utilisateur est unique, contrôlé en direct avec coche jaune canari / croix rouge, et devient l'identifiant de connexion.
+- Aucun champ « nationalité » séparé : le drapeau sélectionné fournit le pays et l'indicatif téléphonique ; la longueur attendue du numéro est contrôlée côté interface et côté trigger Supabase.
+- « Âge » est remplacé par « Date de naissance » ; les moins de 18 ans sont refusés avant création et la base marque les comptes validés avec age_verified=true.
+- Les actions protégées et les routes opérationnelles exigent maintenant connexion + validation de l'âge pour les comptes client.
+- Une page de validation d'âge existe pour les comptes client historiques dont l'âge n'était pas encore enregistré.
+- La connexion n'utilise plus l'OTP : elle se fait par nom d'utilisateur + mot de passe, avec « Rester connecté », « Mot de passe oublié ? » sur la même ligne et une entrée Google/Gmail préparée.
+- La récupération de mot de passe conserve une réponse non révélatrice pour éviter l'énumération des comptes.
 
 ### Prochaine étape
-Valider la page de création de compte, puis réintroduire la vérification d’âge conformément au prompt maître et au cahier des charges.
+Vérifier le parcours complet en environnement de développement : inscription → OTP → mot de passe → connexion par nom d'utilisateur → récupération de mot de passe → blocage connexion/âge. La configuration Google/Gmail dans Supabase reste à confirmer si le fournisseur n'est pas encore activé.
 
 ## Gouvernance
 - Développement sur le dépôt NAXA existant.
