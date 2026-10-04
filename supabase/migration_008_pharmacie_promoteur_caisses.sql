@@ -32,6 +32,7 @@ create policy profiles_promoteur_children on public.profiles for select using(
   parent_profile_id=auth.uid() and is_promoteur()
 );
 
+drop policy if exists profiles_promoteur_update_children on public.profiles;
 create policy profiles_promoteur_update_children on public.profiles
 for update using(parent_profile_id=auth.uid() and is_promoteur())
 with check(
