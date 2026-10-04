@@ -5,7 +5,7 @@ create extension if not exists pgcrypto;
 create type role_type as enum ('client','pharmacie','admin');
 create type resa_statut as enum ('en_attente','confirmee','payee','retiree','expiree','annulee');
 create table pharmacies(id uuid primary key default gen_random_uuid(),nom text not null,ville text not null default 'Yaoundé',quartier text,adresse text,lat double precision not null,lng double precision not null,de_garde boolean not null default false,horaires text,actif boolean not null default true,stock_updated_at timestamptz,created_at timestamptz not null default now());
-create table profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references pharmacies(id),created_at timestamptz not null default now());
+create table profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references pharmacies(id),age_verified boolean not null default false,created_at timestamptz not null default now());
 create table pharmacie_privee(pharmacie_id uuid primary key references pharmacies(id) on delete cascade,whatsapp text not null,code_marchand text);
 create table produits(id uuid primary key default gen_random_uuid(),nom text not null,dci text not null default '',dosage text not null default '',forme text not null default '',nom_norm text,unique(nom,dosage,forme));
 create or replace function produits_norm() returns trigger language plpgsql as $$begin new.nom_norm:=lower(unaccent(coalesce(new.nom,'')||' '||coalesce(new.dci,'')||' '||coalesce(new.dosage,'')));return new;end$$;
@@ -41,3 +41,7 @@ create or replace function declare_payment(p_id uuid,p_ref text) returns void la
 revoke execute on function expire_reservations() from public,anon,authenticated;
 create or replace function expire_reservations() returns int language plpgsql security definer set search_path=public as $$declare n int:=0;r record;begin for r in select id from reservations where statut in('en_attente','confirmee') and expires_at<now() for update skip locked loop perform restore_stock(r.id);update reservations set statut='expiree' where id=r.id;n:=n+1;end loop;return n;end$$;
 create or replace function set_garde(p_garde boolean) returns void language plpgsql security definer set search_path=public as $$begin if my_pharmacie() is null then raise exception 'Réservé aux pharmacies';end if;update pharmacies set de_garde=p_garde where id=my_pharmacie();end$$;
+
+create or replace function public.verify_age(p_birth_date date) returns boolean language plpgsql security definer set search_path = '' as $$declare v_age int;begin if auth.uid() is null then raise exception 'Connexion requise';end if;if p_birth_date is null or p_birth_date > current_date then raise exception 'Date de naissance invalide';end if;v_age:=extract(year from age(current_date,p_birth_date))::int;if v_age<18 then raise exception 'Âge minimum requis';end if;update public.profiles set age_verified=true where id=auth.uid();return true;end$$;
+revoke execute on function public.verify_age(date) from public,anon;
+grant execute on function public.verify_age(date) to authenticated;

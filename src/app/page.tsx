@@ -151,7 +151,7 @@ export default function Accueil() {
         <div className="carte"><Recherche langue={langue} /></div>
       </div>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col justify-center gap-3 px-4 py-2">
+      <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col gap-3 px-4 py-2">
         <ol className="grid grid-cols-4 gap-2 [@media(max-height:600px)]:hidden">
           {ETAPES[langue].map((etape, i) => (
             <li key={etape} className="flex flex-col items-center gap-1 text-center">
@@ -160,15 +160,18 @@ export default function Accueil() {
             </li>
           ))}
         </ol>
-        <p className="text-[11px] leading-snug text-slate-600">
+        <p className="mt-auto text-xs leading-relaxed text-slate-600">
           {langue === "fr" ? (
             <>NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros <a className="font-bold underline" href="tel:117">117</a> <a className="font-bold underline" href="tel:118">118</a> et <a className="font-bold underline" href="tel:119">119</a>, ou rendez-vous à la pharmacie la plus proche.</>
           ) : (
             <>NAXA provides availability information, not medical advice. In an emergency, call <a className="font-bold underline" href="tel:117">117</a>, <a className="font-bold underline" href="tel:118">118</a> or <a className="font-bold underline" href="tel:119">119</a>, or go to the nearest pharmacy.</>
           )}
         </p>
-        <div className="mb-[3cm] mt-3 flex justify-center">
-          <a href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA\\nJe souhaite échanger avec vous.")} target="_blank" rel="noreferrer" className="btn btn-canari">
+      </div>
+
+      <div className="mx-auto w-full max-w-xl shrink-0 px-4 pb-2">
+        <div className="flex justify-start">
+          <a href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA\nJe souhaite échanger avec vous.")} target="_blank" rel="noreferrer" className="btn btn-canari min-h-[48px] px-4 text-xs">
             {traduireInterface("Vous êtes une Pharmacie ?", langue)}
           </a>
         </div>
