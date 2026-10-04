@@ -54,10 +54,11 @@ Aucun déploiement manuel effectué. Les pushes sur main déclenchent uniquement
 - Scanner d'ordonnance : choix explicite entre import depuis le téléphone et utilisation de la caméra ; aucune image n'est envoyée par ce parcours OCR navigateur.
 - Visiteur non connecté : recherche libre conservée ; les actions opérationnelles sont maintenant protégées par une interface de connexion puis de vérification d'âge.
 - Vérification d'âge : ajout du champ `profiles.age_verified`, de l'écran `/verification-age` et de la migration `migration_005_age_verification.sql`. La migration reste à appliquer/vérifier sur Supabase avant de considérer cette partie comme active en production.
+- Durcissement post-audit : la vérification d'âge utilise désormais une fonction `SECURITY INVOKER` avec une policy RLS limitée à la propre ligne du compte ; le retour vers une action protégée conserve maintenant les paramètres de recherche.
 - Bandeau « Les plus recherchés » : noms de médicaments traduits en anglais pour les termes connus ; les cartes produit sont également soumises au contrôle d'accès.
 
 ### Prochaine étape
-Vérifier le build de la branche de travail et appliquer/tester la migration 005 uniquement après validation explicite.
+Vérifier le build et le parcours fonctionnel de la branche corrigée, puis appliquer/tester la migration 005 sur le projet Supabase NAXA dès que l'accès au projet est disponible. Ne pas déclarer la vérification d'âge active en production avant ce test.
 
 ## Gouvernance
 - Développement sur le dépôt NAXA existant.
