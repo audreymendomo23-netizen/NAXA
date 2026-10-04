@@ -31,6 +31,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Correction du typage Supabase SSR effectuée, notamment dans le middleware.
 - Page panier corrigée pour éliminer l'erreur de syntaxe JSX signalée par Vercel.
 - Composant ImportAdmin ajouté pour restaurer la fonctionnalité d'import de stock référencée par /admin.
+- Page de création de compte ajoutée avec confirmation par code e-mail, sans mot de passe, et conservation du paramètre de retour.
 - Audit par contradiction : validations serveur du panier renforcées (1–10 produits, quantité 1–10, pas de doublon) et écritures de fiches produits limitées à l'administration.
 - L'import de stock conserve la création de produits mais n'utilise plus une mise à jour produit générale.
 - Les variables Vercel Production/Preview/Development NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY sont maintenant configurées avec le projet Supabase NAXA.
