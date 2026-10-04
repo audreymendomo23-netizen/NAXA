@@ -1,2 +1,17 @@
 import Link from "next/link";
-export default function Securite(){return <main className="min-h-screen bg-naxa-green-50 px-5 py-8"><article className="mx-auto max-w-2xl rounded-xl2 bg-white p-6 shadow-sm"><h1 className="text-2xl font-extrabold">Politique de sécurité et de protection des données</h1><p className="mt-4 text-sm leading-7"><strong className="naxa-text">NAXA</strong> applique des contrôles d'accès aux données et protège les informations d'authentification. Les secrets serveur ne sont pas exposés au navigateur.</p><h2 className="mt-6 text-lg font-bold">Compte et authentification</h2><p className="mt-2 text-sm leading-7">L'accès aux fonctionnalités protégées nécessite une authentification. Les mots de passe sont gérés par le service d'authentification et ne sont pas stockés en clair par <strong className="naxa-text">NAXA</strong>.</p><h2 className="mt-6 text-lg font-bold">Âge</h2><p className="mt-2 text-sm leading-7">La date de naissance est utilisée pour appliquer la règle d'accès aux personnes majeures.</p><Link href="/creation-compte" className="mt-8 inline-flex font-bold underline">Retour à l'inscription</Link></article></main>
+
+export default function Securite(){
+  return (
+    <main className="min-h-screen bg-naxa-green-50 px-5 py-8">
+      <article className="mx-auto max-w-2xl rounded-xl2 bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-extrabold">Politique de sécurité et de protection des données</h1>
+        <p className="mt-4 text-sm leading-7"><strong className="naxa-text">NAXA</strong> applique des contrôles d'accès aux données et protège les informations d'authentification. Les secrets serveur ne sont pas exposés au navigateur.</p>
+        <h2 className="mt-6 text-lg font-bold">Compte et authentification</h2>
+        <p className="mt-2 text-sm leading-7">L'accès aux fonctionnalités protégées nécessite une authentification. Les mots de passe sont gérés par le service d'authentification et ne sont pas stockés en clair par <strong className="naxa-text">NAXA</strong>.</p>
+        <h2 className="mt-6 text-lg font-bold">Âge</h2>
+        <p className="mt-2 text-sm leading-7">La date de naissance est utilisée pour appliquer la règle d'accès aux personnes majeures.</p>
+        <Link href="/creation-compte" className="mt-8 inline-flex font-bold underline">Retour à l'inscription</Link>
+      </article>
+    </main>
+  );
+}
