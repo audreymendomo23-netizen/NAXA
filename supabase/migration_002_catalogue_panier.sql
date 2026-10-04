@@ -13,8 +13,8 @@ create table if not exists dictionnaire(
   definition text not null
 );
 alter table dictionnaire enable row level security;
-create policy if not exists dictionnaire_read on dictionnaire for select using(true);
-create policy if not exists dictionnaire_write on dictionnaire for all using(is_admin()) with check(is_admin());
+create policy dictionnaire_read on dictionnaire for select using(true);
+create policy dictionnaire_write on dictionnaire for all using(is_admin()) with check(is_admin());
 
 create or replace function search_pharmacies_panier(p_items jsonb,p_lat float8,p_lng float8,p_rayon_km float8 default 20)
 returns table(pharmacie_id uuid,nom text,quartier text,adresse text,lat float8,lng float8,de_garde boolean,stock_updated_at timestamptz,distance_km float8,total_prix int,items jsonb,trouves int,demandes int)
