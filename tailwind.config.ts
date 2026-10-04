@@ -1,0 +1,2 @@
+import type { Config } from "tailwindcss";
+const config:Config={content:["./src/**/*.{ts,tsx}"],theme:{extend:{colors:{naxa:{green:{900:"#054A29",700:"#0A6B3A",600:"#0E8545",500:"#17A354",100:"#DDF3E6",50:"#F2FAF5"},canari:{DEFAULT:"#FFE33D",dark:"#E6C700"},ink:"#0A2A1B"}},fontFamily:{sans:["var(--font-inter)","system-ui","sans-serif"]},borderRadius:{xl2:"1.25rem"}}},plugins:[]};export default config;
