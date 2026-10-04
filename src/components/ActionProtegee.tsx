@@ -56,7 +56,7 @@ export function ActionProtegee({ children, href, className = "", external = fals
 
   return (
     <>
-      <button type="button" className={className} onClick={continuer} disabled={busy} aria-hidden={ariaHidden} tabIndex={tabIndex}>
+      <button type="button" className={className} onClick={continuer} disabled={busy || ariaHidden} aria-hidden={ariaHidden} tabIndex={tabIndex}>
         {children}
       </button>
 
