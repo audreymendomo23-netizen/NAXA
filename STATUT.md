@@ -50,8 +50,14 @@ Mise à jour : 4 octobre 2026
 ### Déploiement
 Aucun déploiement manuel effectué. Les pushes sur main déclenchent uniquement le mécanisme Vercel déjà configuré.
 
+### Dernière évolution — accès client et ordonnance
+- Scanner d'ordonnance : choix explicite entre import depuis le téléphone et utilisation de la caméra ; aucune image n'est envoyée par ce parcours OCR navigateur.
+- Visiteur non connecté : recherche libre conservée ; les actions opérationnelles sont maintenant protégées par une interface de connexion puis de vérification d'âge.
+- Vérification d'âge : ajout du champ `profiles.age_verified`, de l'écran `/verification-age` et de la migration `migration_005_age_verification.sql`. La migration reste à appliquer/vérifier sur Supabase avant de considérer cette partie comme active en production.
+- Bandeau « Les plus recherchés » : noms de médicaments traduits en anglais pour les termes connus ; les cartes produit sont également soumises au contrôle d'accès.
+
 ### Prochaine étape
-Confirmer le build Vercel issu du dernier commit, puis effectuer la validation fonctionnelle Phase 1 avant d'ouvrir la Phase 2.
+Vérifier le build de la branche de travail et appliquer/tester la migration 005 uniquement après validation explicite.
 
 ## Gouvernance
 - Développement sur le dépôt NAXA existant.
