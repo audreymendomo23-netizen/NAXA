@@ -5,7 +5,7 @@ Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % of
 ## Démarrage
 1. npm install
 2. Créer un projet Supabase (gratuit). Dans Database > Extensions, activer pg_cron.
-3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_005_age_verification.sql, puis (démo seulement) supabase/seed.sql.
+3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_004_corrections.sql, supabase/migration_005_age_verification.sql, puis (démo seulement) supabase/seed.sql.
 4. Planifier l'expiration des réservations avec le job naxa-expire toutes les 5 minutes.
 5. Copier .env.example vers .env.local et renseigner les clés. La clé service_role ne doit jamais être exposée.
 6. npm run dev, puis ouvrir /admin après avoir configuré un compte administrateur.
