@@ -5,7 +5,7 @@ Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % of
 ## Démarrage
 1. npm install
 2. Créer un projet Supabase (gratuit). Dans Database > Extensions, activer pg_cron.
-3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_004_corrections.sql, supabase/migration_006_auth_profile_age_gate.sql, puis (démo seulement) supabase/seed.sql.
+3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_004_corrections.sql, supabase/migration_006_auth_profile_age_gate.sql, supabase/migration_007_pharmacie_promoteur_caisses.sql, puis (démo seulement) supabase/seed.sql.
 4. Planifier l'expiration des réservations avec le job naxa-expire toutes les 5 minutes.
 5. Copier .env.example vers .env.local et renseigner les clés. La clé service_role ne doit jamais être exposée.
 6. npm run dev, puis ouvrir /admin après avoir configuré un compte administrateur.
@@ -62,6 +62,14 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Import existant conservé : Excel/CSV, reconnaissance des colonnes nom/désignation/produit, prix, quantité, dosage/conditionnement et péremption.
 - Vérification Supabase du 5 octobre 2026 : 3 pharmacies de démonstration actives existent déjà à Yaoundé, avec 3 lignes de stock chacune. Elles ne sont pas considérées comme des pharmacies pilotes réelles tant que les données/équipes réelles n'ont pas été fournies.
 - Aucune nouvelle table, migration ou dépendance ajoutée pour ce chantier.
+
+### Architecture des comptes pharmacie
+- Une pharmacie reste une seule entité côté client : un seul stock, une seule identité et les mêmes réservations pour toute l'équipe.
+- Le compte principal de la pharmacie est le **Promoteur**. L'équipe NAXA crée la pharmacie et son compte Promoteur ; la pharmacie devient ensuite autonome.
+- Le Promoteur est le compte parent : il crée, bloque et réactive les comptes **Caisses** enfants.
+- Les Caisses sont des utilisateurs opérationnels de la même pharmacie, pas des sous-pharmacies. Elles partagent le stock, les réservations et le statut de garde de leur pharmacie.
+- Un compte Caisse bloqué perd son accès opérationnel sans désactiver la pharmacie ni les autres caisses.
+- La formation terrain doit utiliser les comptes Caisse pour apprendre l'import et la gestion quotidienne du stock, afin que l'équipe pharmacie prenne elle-même la main.
 
 ### Règles de gouvernance
 - Aucun déploiement Preview volontaire.
