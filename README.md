@@ -36,6 +36,11 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Documents juridiques : Conditions, Confidentialité et Sécurité enrichis selon le comportement réel.
 - Authentification : tous les écrans principaux utilisent désormais le conteneur sans défilement auth-ecran, y compris /nouveau-mot-de-passe.
 - Création de compte : bandeau « Les plus recherchés » masqué, interface mobile recentrée/compactée et téléphone séparé en pays, indicatif et numéro avec longueur contrôlée.
+- Création de compte : sélecteur pays compact affichant uniquement drapeau + indicatif au repos ; le nom du pays apparaît uniquement à l’ouverture du sélecteur.
+- Création de compte : coche jaune de validation ajoutée aux informations correctement renseignées.
+- Mot de passe oublié : le serveur vérifie désormais l’existence réelle du compte avant tout envoi d’OTP ; un compte inexistant reçoit une erreur et n’accède pas à l’étape OTP.
+- PR #17 : ces deux corrections sont fusionnées dans main, sans migration DB ni réécriture destructive.
+- Build Production PR #17 : compilation Next.js réussie, contrôle TypeScript sans erreur bloquante, déploiement Production READY.
 
 ### Consolidation finale — 4 octobre 2026
 - PR #11 : consolidation authentification, âge, accueil et politiques, fusionnée.
@@ -56,7 +61,8 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 
 ## Production
 - Projet Vercel existant : naxa.
-- Déploiement Production : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N, commit 21a1a6e5b17e67bcab401364452096f771ac7ef5, état READY.
+- Déploiement Production précédent : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N, commit 21a1a6e5b17e67bcab401364452096f771ac7ef5, état READY.
+- Déploiement Production courant : dpl_7tJYSaG3gQfej9PdHiy6xsrBnZsK, commit 26e98cc43c3c2a6dafcac92a5abb8fbeb016006b, état READY.
 - Alias Production : naxa-naxa3.vercel.app.
 - Le déploiement provient de main après fusion de PR #15.
 - Aucun nouveau projet Vercel et aucun Preview volontaire.
