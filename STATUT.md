@@ -1,6 +1,6 @@
 # NAXA — STATUT
 
-Mise à jour : 4 octobre 2026
+Mise à jour : 4 octobre 2026 — consolidation PR #17
 
 ## État global
 **CONSOLIDATION AUTHENTIFICATION + UX CRÉATION DE COMPTE TERMINÉE — ÉVALUATION 100 % DU PÉRIMÈTRE CONTRÔLÉ — PRODUCTION READY**
@@ -13,7 +13,10 @@ Mise à jour : 4 octobre 2026
 - /creation-compte : bandeau « Les plus recherchés » masqué.
 - /creation-compte : titre et introduction recentrés et compactés.
 - /creation-compte : scroll de page interdit via auth-ecran.
-- /creation-compte : téléphone corrigé avec sélection pays, drapeau, indicatif séparé et numéro national ; longueur contrôlée selon le pays.
+- /creation-compte : téléphone corrigé avec sélecteur compact drapeau + indicatif ; les noms de pays apparaissent uniquement dans le sélecteur ouvert.
+- /creation-compte : numéro national séparé, longueur contrôlée selon le pays et coches jaunes de validation pour les informations correctement renseignées.
+- /mot-de-passe-oublie : vérification serveur de l’existence du compte avant envoi d’OTP ; compte inexistant = erreur, aucune étape OTP proposée.
+- PR #17 fusionnée dans main.
 - Les cinq écrans principaux contrôlés sont sans défilement de page : /connexion, /creation-compte, /mot-de-passe-oublie, /verification-age, /nouveau-mot-de-passe.
 - auth-ecran impose 100vh/100dvh, overflow:hidden et overscroll-behavior:none.
 - Google OAuth : parcours direct sans OTP ; le callback finalise la session Supabase avant redirection.
@@ -40,7 +43,8 @@ Mise à jour : 4 octobre 2026
 - Projet Vercel : naxa existant, aucun nouveau projet créé.
 - Aucun Preview volontaire.
 - Déploiement Production autorisé par le fondateur pour cette consolidation.
-- Déploiement : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N.
+- Déploiement précédent : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N.
+- Déploiement courant PR #17 : dpl_7tJYSaG3gQfej9PdHiy6xsrBnZsK — READY.
 - Commit Production : 21a1a6e5b17e67bcab401364452096f771ac7ef5.
 - Alias : naxa-naxa3.vercel.app.
 - Aucun nouveau projet créé.
