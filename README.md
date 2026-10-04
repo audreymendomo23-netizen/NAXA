@@ -19,7 +19,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 ### Phase 0 — terminée et validée
 - Cahier des charges et prompt maître lus et pris comme sources de vérité.
 - Code existant conservé ; aucune réécriture de l'application.
-- Aucun déploiement effectué.
+- Aucun déploiement manuel effectué.
 
 ### Phase 1 — fondations
 - Projet Supabase NAXA connecté et sain.
@@ -28,8 +28,10 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Données de démonstration chargées.
 - pg_cron activé et expiration des réservations planifiée toutes les 5 minutes.
 - Correction du typage Supabase SSR effectuée.
+- Page panier corrigée pour éliminer l'erreur de syntaxe JSX signalée par Vercel.
+- Composant ImportAdmin ajouté pour restaurer la fonctionnalité d'import de stock référencée par /admin.
 - Le build Next.js et le parcours local restent à valider.
 
 ### Règles de gouvernance
-- Aucun déploiement n'est effectué sans autorisation explicite.
+- Aucun déploiement manuel n'est effectué sans autorisation explicite.
 - Les décisions du cahier des charges et du prompt maître restent prioritaires.

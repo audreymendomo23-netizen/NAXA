@@ -21,6 +21,8 @@ Mise à jour : 4 octobre 2026
 - pg_cron activé.
 - Job naxa-expire planifié toutes les 5 minutes.
 - Correction du typage Supabase SSR dans src/lib/supabase/server.ts.
+- Correction de la page panier : structure JSX/TypeScript fermée et reformattée.
+- Ajout du composant d'import de stock administrateur manquant référencé par /admin.
 
 ### Reste à vérifier
 - npm install.
@@ -31,7 +33,7 @@ Mise à jour : 4 octobre 2026
 - Vérification du parcours jusqu'à l'affichage des pharmacies.
 
 ### Déploiement
-Aucun déploiement effectué. Le déploiement Vercel existant reste inchangé.
+Aucun déploiement manuel effectué. Le dépôt reste sur main.
 
 ### Prochaine étape
 Valider techniquement le build et le premier parcours local de Phase 1 avant de passer à la Phase 2.
@@ -39,5 +41,5 @@ Valider techniquement le build et le premier parcours local de Phase 1 avant de 
 ## Gouvernance
 - Développement sur le dépôt NAXA existant.
 - Aucun nouveau dépôt créé.
-- Aucun déploiement sans autorisation explicite.
+- Aucun déploiement manuel sans autorisation explicite.
 - Les décisions du prompt maître et du cahier des charges restent prioritaires.
