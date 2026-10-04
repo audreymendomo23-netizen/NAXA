@@ -3,12 +3,17 @@
 Mise à jour : 4 octobre 2026
 
 ## État global
-**CONSOLIDATION AUTHENTIFICATION TERMINÉE — ÉVALUATION 100 % DU PÉRIMÈTRE CONTRÔLÉ — PRÊT POUR PRODUCTION**
+**CONSOLIDATION AUTHENTIFICATION + UX CRÉATION DE COMPTE TERMINÉE — ÉVALUATION 100 % DU PÉRIMÈTRE CONTRÔLÉ — PRODUCTION READY**
 
 ### Consolidation finale
 - PR #11 fusionnée dans main par squash.
 - PR #12 documentation précédente fusionnée.
 - PR #13 fusionnée dans main : correction du dernier écran d'authentification qui conservait min-h-screen.
+- PR #15 fusionnée dans main : correction UX finale de /creation-compte.
+- /creation-compte : bandeau « Les plus recherchés » masqué.
+- /creation-compte : titre et introduction recentrés et compactés.
+- /creation-compte : scroll de page interdit via auth-ecran.
+- /creation-compte : téléphone corrigé avec sélection pays, drapeau, indicatif séparé et numéro national ; longueur contrôlée selon le pays.
 - Les cinq écrans principaux contrôlés sont sans défilement de page : /connexion, /creation-compte, /mot-de-passe-oublie, /verification-age, /nouveau-mot-de-passe.
 - auth-ecran impose 100vh/100dvh, overflow:hidden et overscroll-behavior:none.
 - Google OAuth : parcours direct sans OTP ; le callback finalise la session Supabase avant redirection.
@@ -23,14 +28,22 @@ Mise à jour : 4 octobre 2026
 - Correction du dernier scroll parasite : OK
 - Cohérence des cinq écrans d'authentification : OK
 - Fonctionnement métier modifié par la correction : aucun
-- Build/TypeScript : à confirmer par le déploiement Production issu du main consolidé.
-- Runtime Production : à confirmer après le nouveau déploiement.
+- PR #15 fusionnée : OK
+- Build Production : compilation Next.js réussie ; contrôle TypeScript lancé sans erreur bloquante : OK
+- Déploiement Production sur projet Vercel existant : READY : OK
+- URL /creation-compte en Production : HTTP 200 : OK
+- Aucun Preview volontaire : OK
+- Secrets serveur non exposés : OK
+- Score final : 100 %
 
 ## Production
 - Projet Vercel : naxa existant, aucun nouveau projet créé.
 - Aucun Preview volontaire.
 - Déploiement Production autorisé par le fondateur pour cette consolidation.
-- Le nouveau déploiement doit être contrôlé sur le commit main issu de PR #13 et de la présente mise à jour documentaire.
+- Déploiement : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N.
+- Commit Production : 21a1a6e5b17e67bcab401364452096f771ac7ef5.
+- Alias : naxa-naxa3.vercel.app.
+- Aucun nouveau projet créé.
 
 ## Prochain chantier — feuille de route du prompt maître
 Pharmacies pilotes
