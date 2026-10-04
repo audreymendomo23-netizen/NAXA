@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       .ilike("username", username)
       .maybeSingle();
 
-    if (!profileError && profile) {
+    if (profileError) {\n      console.error("password reset profile lookup:", profileError.message);\n      return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 500 });\n    }\n\n    if (!profile) return NextResponse.json({ ok: false, error: NOT_FOUND }, { status: 404 });\n\n    {
       const { data: userData } = await supabaseAdmin().auth.admin.getUserById(profile.id);
       const email = userData.user?.email;
       if (email) {
