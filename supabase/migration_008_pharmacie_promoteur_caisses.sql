@@ -18,7 +18,9 @@ as $$select exists(
 create or replace function public.my_pharmacie()
 returns uuid language sql stable security definer set search_path=public
 as $$select pharmacie_id from public.profiles
-where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse')$$;
+where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse')$;
+revoke execute on function public.is_promoteur() from public,anon,authenticated;
+revoke execute on function public.my_pharmacie() from public,anon,authenticated;
 
 drop policy if exists profiles_self on public.profiles;
 create policy profiles_self on public.profiles for select using(
