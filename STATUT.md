@@ -97,3 +97,15 @@ Vérifier le parcours complet en environnement de développement : inscription �
 - La configuration doit utiliser le même Client ID + Client Secret dans Supabase que le client OAuth Web unique configuré dans Google Cloud.
 - Le callback Google attendu reste : https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback.
 - La correction de cette configuration ne nécessite pas à elle seule un nouveau déploiement du code.
+
+## Clôture — 4 octobre 2026
+État : **RÉCONCILIÉE — FUSIONNÉE — DÉPLOYÉE EN PRODUCTION**
+
+- PR #8 fusionnée dans `main`.
+- PR #9 fusionnée après correction syntaxique minimale signalée par le build Production.
+- main actuel : `1a28b0fa7b7651efb27f635d0ca3051595e9e7c2`.
+- Déploiement Vercel Production : **READY**.
+- Build : compilation Next.js réussie, type checking réussi, 23/23 pages statiques générées.
+- Runtime errors : 0 sur la fenêtre contrôlée de 30 minutes.
+- Aucun nouveau projet Vercel créé et aucun déploiement Preview lancé manuellement.
+- Google OAuth reste à valider par un test fonctionnel réel après configuration du fournisseur.
