@@ -20,7 +20,7 @@ const DICTIONNAIRE: Record<string, string> = {
   "Je trouve": "I find",
   "Je compare": "I compare",
   "Je réserve": "I reserve",
-  "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call emergency services or go to the nearest on-duty pharmacy.",
+  "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros 117 118 et 119, ou rendez-vous à la pharmacie la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call 117, 118 or 119, or go to the nearest pharmacy.",
   "Vous êtes une Pharmacie ?": "Are you a pharmacy?",
   "Made With 💚": "Made With 💚",
 };
@@ -134,7 +134,7 @@ export default function Accueil() {
       <section className="shrink-0 bg-naxa-green-900 px-5 pt-4 text-white">
         <div className="mx-auto flex max-w-xl items-center justify-between">
           <Logo />
-          <Link href="/connexion" className="text-sm font-semibold underline underline-offset-4">
+          <Link href="/connexion" className="text-sm font-semibold text-naxa-canari underline underline-offset-4">
             {traduireInterface("Se connecter", langue)}
           </Link>
         </div>
@@ -161,21 +161,22 @@ export default function Accueil() {
           ))}
         </ol>
         <p className="text-[11px] leading-snug text-slate-600">
-          {traduireInterface("NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours ou allez à la pharmacie de garde la plus proche.", langue)}
+          {langue === "fr" ? (
+            <>NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros <a className="font-bold underline" href="tel:117">117</a> <a className="font-bold underline" href="tel:118">118</a> et <a className="font-bold underline" href="tel:119">119</a>, ou rendez-vous à la pharmacie la plus proche.</>
+          ) : (
+            <>NAXA provides availability information, not medical advice. In an emergency, call <a className="font-bold underline" href="tel:117">117</a>, <a className="font-bold underline" href="tel:118">118</a> or <a className="font-bold underline" href="tel:119">119</a>, or go to the nearest pharmacy.</>
+          )}
         </p>
-      </div>
-
-      <div className="shrink-0 bg-white px-5 py-3 text-xs text-slate-600">
-        <div className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3">
-          <a
-            href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA, je suis pharmacien et je souhaite échanger avec vous")}
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold underline underline-offset-4"
-          >
+        <div className="mb-[3cm] mt-3 flex justify-center">
+          <a href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA\\nJe souhaite échanger avec vous.")} target="_blank" rel="noreferrer" className="btn btn-canari">
             {traduireInterface("Vous êtes une Pharmacie ?", langue)}
           </a>
-          <span className="text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
+        </div>
+      </div>
+
+      <div className="shrink-0 bg-white px-5 py-1 text-xs text-slate-600">
+        <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <span className="col-start-2 text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
           <div className="flex justify-end gap-1" role="group" aria-label="Language">
             <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"}>Fr</button>
             <span aria-hidden="true">|</span>
