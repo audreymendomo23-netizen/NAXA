@@ -171,7 +171,7 @@ export default function Accueil() {
 
       <div className="mx-auto w-full max-w-xl shrink-0 px-4 pb-2">
         <div className="flex justify-start">
-          <a href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA\nJe souhaite échanger avec vous.")} target="_blank" rel="noreferrer" className="btn btn-canari min-h-[40px] px-4 text-xs">
+          <a href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA\nJe souhaite échanger avec vous.")} target="_blank" rel="noreferrer" className="btn btn-canari min-h-[48px] px-4 text-xs">
             {traduireInterface("Vous êtes une Pharmacie ?", langue)}
           </a>
         </div>
