@@ -1,16 +1,33 @@
-[object Object]
+# NAXA — STATUT
 
-## Consolidation finale — 4 octobre 2026
-État : **PRÊTE POUR CONSOLIDATION ET VALIDATION PRODUCTION**
+Mise à jour : 4 octobre 2026
 
-- PR #11 : authentification, récupération OTP, validation d'âge, téléphone et politiques.
-- Google OAuth : correction du callback pour conserver les cookies de session sur la réponse de redirection ; aucun OTP dans ce parcours.
-- Mot de passe oublié : la session issue de la vérification OTP est maintenant conservée sur la réponse serveur.
-- Authentification : écrans connexion / récupération / validation d'âge sans défilement de page.
-- Validation d'âge : 3 cases obligatoires et contrôle serveur correspondant.
-- Documents : Conditions, Confidentialité et Sécurité enrichis sans ajouter d'engagement non implémenté.
-- Accueil : numéros 1510, 119 et 1511.
-- Téléphone : largeur mobile corrigée du sélecteur pays/indicatif.
-- Aucun nouveau modèle DB, aucune suppression fonctionnelle, aucune nouvelle dépendance.
-- Vérification GitHub : branche à jour sur main avant consolidation ; aucune modification hors du périmètre listé.
-- La validation finale de build et le contrôle runtime doivent être réalisés sur le déploiement Production, sans déploiement Preview.
+## État global
+**CONSOLIDATION FINALE TERMINÉE — PRODUCTION READY**
+
+### Consolidation finale
+- PR #11 fusionnée dans `main` par squash.
+- Commit consolidé : `35decd227c9175bbc69c1805a55f2b77f2ca6f17`.
+- Google OAuth : parcours direct sans OTP, callback de session corrigé, destination `retour` conservée.
+- Mot de passe oublié : OTP e-mail séparé et session conservée après validation pour permettre le changement de mot de passe.
+- Authentification : écrans connexion/récupération/validation d'âge sans défilement de page.
+- Téléphone : sélecteur pays/indicatif adapté aux petits écrans.
+- Validation d'âge : acceptation obligatoire des Conditions d'utilisation, de la Politique de confidentialité et de la Politique de sécurité, avec contrôle côté serveur.
+- Documents juridiques : trois pages enrichies sans introduire de promesse fonctionnelle non implémentée.
+- Accueil : numéros affichés 1510, 119 et 1511.
+- Aucun nouveau modèle DB, aucune nouvelle dépendance, aucune réécriture destructive.
+
+## Production
+- Projet Vercel : `naxa` existant, aucun nouveau projet créé.
+- Déploiement Production : `dpl_7LEmWPTL8QB7iGGeheQZZxx1Xfww`.
+- État : **READY**.
+- Build : **réussi** — Next.js 14.2.35, compilation réussie, lint/type checking de build réussi, fonctions serverless créées.
+- Contrôle HTTP : accueil, connexion, récupération du mot de passe et validation d'âge répondent en HTTP 200.
+- Runtime : **0 erreur/fatal** détectée sur les 30 dernières minutes au moment du contrôle.
+- Aucun déploiement Preview lancé manuellement.
+
+## Gouvernance
+- Le dépôt existant a été conservé.
+- Aucun secret serveur n'a été exposé.
+- Aucun déploiement Preview volontaire.
+- La mise en Production a été effectuée après consolidation et validation du build, conformément à l'autorisation de ce chantier.
