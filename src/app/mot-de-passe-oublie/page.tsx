@@ -22,7 +22,7 @@ function Formulaire(){
  async function envoyer(e:React.FormEvent){
    e.preventDefault();setBusy(true);setError("");setMessage("");
    const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});
-   const data=await res.json();setBusy(false);setMessage(data.message||"Un code OTP a été envoyé si le compte existe.");setStep("otp");
+   const data=await res.json();setBusy(false);if(!res.ok){setError(data.error||"Aucun compte ne correspond à ce nom d\'utilisateur.");return}setMessage(data.message||"Un code OTP a été envoyé.");setStep("otp");
  }
  async function verifier(e:React.FormEvent){
    e.preventDefault();setBusy(true);setError("");
