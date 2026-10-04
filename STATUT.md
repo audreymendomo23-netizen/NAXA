@@ -75,3 +75,25 @@ Vérifier le parcours complet en environnement de développement : inscription �
 - Aucun nouveau dépôt créé.
 - Aucun déploiement manuel sans autorisation explicite.
 - Les décisions du prompt maître et du cahier des charges restent prioritaires.
+
+## Réconciliation auth + accueil — 4 octobre 2026
+État : **RÉCONCILIÉE SUR BRANCHE, EN ATTENTE DE VALIDATION**
+
+### Arbitrages appliqués
+1. **Authentification** : la branche de récupération OTP / UX Google est conservée comme base, car elle porte les évolutions d'authentification les plus récentes.
+2. **Accueil** : les corrections visuelles et fonctionnelles approuvées de la branche homepage sont réintégrées par-dessus cette base.
+3. **Actions protégées** : la version de sécurité de la branche auth est conservée lorsque les deux branches portent des variantes concurrentes ; l'objectif est de ne pas régresser le contrôle d'accès.
+4. **Validation d'âge / middleware / schéma Supabase** : les versions de la branche auth sont conservées afin de ne pas remplacer les évolutions de durcissement par une variante concurrente sans justification.
+5. **Documentation** : ce statut est mis à jour pour rendre explicite que la réconciliation n'est pas encore fusionnée dans main.
+
+### Déploiement
+- Aucun merge dans main effectué.
+- Aucun déploiement Preview effectué.
+- Aucun déploiement Production effectué.
+- La branche de réconciliation doit encore passer la vérification finale/build avant toute demande de fusion.
+
+### Google OAuth
+- L'erreur redirect_uri_mismatch identifie le callback Supabase comme URI reçue par Google.
+- La configuration doit utiliser le même Client ID + Client Secret dans Supabase que le client OAuth Web unique configuré dans Google Cloud.
+- Le callback Google attendu reste : https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback.
+- La correction de cette configuration ne nécessite pas à elle seule un nouveau déploiement du code.
