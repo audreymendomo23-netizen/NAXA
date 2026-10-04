@@ -53,6 +53,16 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Correction PR #13 strictement ciblée : min-h-screen remplacé par le conteneur d'authentification existant auth-ecran (100dvh + overflow:hidden), sans changement fonctionnel.
 - Contrôle statique des cinq écrans principaux : /connexion, /creation-compte, /mot-de-passe-oublie, /verification-age, /nouveau-mot-de-passe : aucun conteneur de page ne conserve de scroll volontaire.
 
+### Phase 3 — pharmacies pilotes — infrastructure consolidée
+- PR #19 : panneau pharmacie renforcé, fusionnée dans main.
+- Stock : quantité réellement modifiable depuis `/pharmacie` ; persistance dans `stocks` conservée avec le mécanisme `updated_at` existant.
+- Garde : bouton « De garde » branché sur la RPC sécurisée `set_garde` existante.
+- Hors connexion : file locale IndexedDB pour les modifications manuelles de quantité, badge « Hors connexion », synchronisation au retour réseau.
+- Conflits : comparaison de `updated_at` avant écriture distante ; l'équipe pharmacie peut garder la valeur serveur ou réappliquer sa modification locale.
+- Import existant conservé : Excel/CSV, reconnaissance des colonnes nom/désignation/produit, prix, quantité, dosage/conditionnement et péremption.
+- Vérification Supabase du 5 octobre 2026 : 3 pharmacies de démonstration actives existent déjà à Yaoundé, avec 3 lignes de stock chacune. Elles ne sont pas considérées comme des pharmacies pilotes réelles tant que les données/équipes réelles n'ont pas été fournies.
+- Aucune nouvelle table, migration ou dépendance ajoutée pour ce chantier.
+
 ### Règles de gouvernance
 - Aucun déploiement Preview volontaire.
 - Production uniquement après évaluation complète et autorisation explicite.
@@ -68,10 +78,10 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Aucun nouveau projet Vercel et aucun Preview volontaire.
 
 ## Prochain point du cahier des charges
-Conformément à la feuille de route du prompt maître, après les fondations consolidées, le prochain chantier est Pharmacies pilotes :
-1. créer 3 à 5 pharmacies pilotes dans /admin ;
+La consolidation technique du chantier Pharmacies pilotes est terminée. Il reste la mise en service terrain :
+1. remplacer/compléter les 3 pharmacies de démonstration par 3 à 5 pharmacies pilotes réelles ;
 2. migrer leurs stocks réels via l'import prévu ;
-3. vérifier la fraîcheur, les prix, les quantités et les formats de stock ;
-4. former les pharmacies à /pharmacie (réservations, stock, statut de garde) ;
+3. vérifier fraîcheur, prix, quantités, péremptions et formats ;
+4. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 5. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.

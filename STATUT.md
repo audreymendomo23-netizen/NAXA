@@ -1,9 +1,9 @@
 # NAXA — STATUT
 
-Mise à jour : 4 octobre 2026 — consolidation PR #17
+Mise à jour : 5 octobre 2026 — consolidation PR #19
 
 ## État global
-**CONSOLIDATION AUTHENTIFICATION + UX CRÉATION DE COMPTE TERMINÉE — ÉVALUATION 100 % DU PÉRIMÈTRE CONTRÔLÉ — PRODUCTION READY**
+**AUTHENTIFICATION VALIDÉE. INFRASTRUCTURE PHARMACIE PILOTE CONSOLIDÉE. PRODUCTION À ÉVALUER APRÈS CONTRÔLE COMPLET.**
 
 ### Consolidation finale
 - PR #11 fusionnée dans main par squash.
@@ -50,12 +50,12 @@ Mise à jour : 4 octobre 2026 — consolidation PR #17
 - Aucun nouveau projet créé.
 
 ## Prochain chantier — feuille de route du prompt maître
-Pharmacies pilotes
-- Créer 3 à 5 pharmacies pilotes.
-- Migrer leurs stocks.
-- Former les équipes pharmacie.
-- Vérifier réservation, stock modifiable et statut de garde sur données pilotes.
-- Contrôler la fraîcheur des stocks avant passage au chantier Qualité.
+Mise en service terrain des pharmacies pilotes
+- Remplacer/compléter les 3 pharmacies de démonstration par 3 à 5 pharmacies pilotes réelles.
+- Migrer leurs stocks réels et vérifier prix, quantités, péremptions et formats.
+- Former les équipes sur réservations, stock, garde et mode hors connexion.
+- Tester le parcours complet sur données réelles.
+- Puis passer au chantier Qualité.
 - Règles inchangées : pas d'auto-inscription pharmacie, pas de livraison, réservation et paiement facultatifs.
 
 ## Gouvernance
