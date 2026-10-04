@@ -20,7 +20,7 @@ const DICTIONNAIRE: Record<string, string> = {
   "Je trouve": "I find",
   "Je compare": "I compare",
   "Je réserve": "I reserve",
-  "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros 117 118 et 119, ou rendez-vous à la pharmacie la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call 117, 118 or 119, or go to the nearest pharmacy.",
+  "<strong className="naxa-text">NAXA</strong> donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros 117 118 et 119, ou rendez-vous à la pharmacie la plus proche.": "<strong className="naxa-text">NAXA</strong> provides availability information, not medical advice. In an emergency, call 117, 118 or 119, or go to the nearest pharmacy.",
   "Vous êtes une Pharmacie ?": "Are you a pharmacy?",
   "Made With 💚": "Made With 💚",
 };
