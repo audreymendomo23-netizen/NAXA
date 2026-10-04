@@ -41,3 +41,10 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Aucun déploiement Preview n'est autorisé. Aucun déploiement Production n'est effectué sans autorisation stricte explicite.
 - Les décisions du cahier des charges et du prompt maître restent prioritaires.
 
+
+## Réconciliation du chantier 4 octobre 2026
+- Les évolutions d'authentification les plus récentes (connexion username/mot de passe, récupération OTP, OAuth callback et durcissement de l'accès par âge) sont conservées comme base.
+- Les corrections d'accueil approuvées ont été réintégrées par-dessus cette base : CTA pharmacie isolé en bas, disclaimer médical repositionné, traduction/affichage et corrections de recherche associées.
+- Les versions concurrentes n'ont pas été écrasées sur main : la réconciliation est isolée sur une branche dédiée pour validation avant toute fusion.
+- Aucun déploiement Preview ou Production n'est autorisé dans cette étape.
+- Google OAuth dépend en plus de la configuration du fournisseur Supabase : le Client ID et le Client Secret doivent correspondre au même client Google, avec le callback Supabase autorisé côté Google.
