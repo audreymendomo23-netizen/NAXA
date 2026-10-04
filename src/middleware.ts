@@ -31,7 +31,7 @@ export async function middleware(req: NextRequest) {
   if (prot && !data.user) {
     const u = req.nextUrl.clone();
     u.pathname = "/connexion";
-    u.searchParams.set("retour", req.nextUrl.pathname);
+    u.searchParams.set("retour", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(u);
   }
 
