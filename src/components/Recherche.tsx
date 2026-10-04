@@ -55,7 +55,7 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
                 Importer depuis mon téléphone
               </button>
               <button type="button" className="btn btn-clair w-full" onClick={() => { setChoixScanner(false); camera.current?.click(); }}>
-                Filmer / prendre en photo
+                Utiliser la caméra
               </button>
               <button type="button" className="btn btn-clair w-full" onClick={() => setChoixScanner(false)}>
                 Annuler
