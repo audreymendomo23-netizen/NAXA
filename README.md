@@ -48,3 +48,12 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Les versions concurrentes n'ont pas été écrasées sur main : la réconciliation est isolée sur une branche dédiée pour validation avant toute fusion.
 - Aucun déploiement Preview ou Production n'est autorisé dans cette étape.
 - Google OAuth dépend en plus de la configuration du fournisseur Supabase : le Client ID et le Client Secret doivent correspondre au même client Google, avec le callback Supabase autorisé côté Google.
+
+## Clôture de la réconciliation — 4 octobre 2026
+- PR #8 : réconciliation accueil + authentification, fusionnée dans main.
+- PR #9 : correction minimale de syntaxe de `src/app/politique-securite/page.tsx`, fusionnée dans main après échec du premier build Production.
+- main : `1a28b0fa7b7651efb27f635d0ca3051595e9e7c2`.
+- Production Vercel : READY sur ce commit.
+- Build Production : compilation réussie, vérification TypeScript réussie, 23/23 pages statiques générées et fonctions serverless créées.
+- Runtime Production : aucune erreur détectée sur la fenêtre de contrôle de 30 minutes.
+- Google OAuth : le code est prêt ; la configuration externe Google/Supabase doit utiliser le même Client ID + Client Secret et le callback Supabase autorisé côté Google.
