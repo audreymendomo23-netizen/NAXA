@@ -5,7 +5,7 @@ Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % of
 ## Démarrage
 1. npm install
 2. Créer un projet Supabase (gratuit). Dans Database > Extensions, activer pg_cron.
-3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, puis supabase/migration_002_catalogue_panier.sql, puis (démo seulement) supabase/seed.sql.
+3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, puis (démo seulement) supabase/seed.sql.
 4. Planifier l'expiration des réservations avec le job naxa-expire toutes les 5 minutes.
 5. Copier .env.example vers .env.local et renseigner les clés. La clé service_role ne doit jamais être exposée.
 6. npm run dev, puis ouvrir /admin après avoir configuré un compte administrateur.
@@ -24,12 +24,15 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 ### Phase 1 — fondations
 - Projet Supabase NAXA connecté et sain.
 - Schéma initial + migration catalogue/panier appliqués.
+- Migration de durcissement sécurité/performance ajoutée et appliquée sur l'environnement NAXA.
 - 9 tables publiques créées avec RLS activé.
 - Données de démonstration chargées.
 - pg_cron activé et expiration des réservations planifiée toutes les 5 minutes.
-- Correction du typage Supabase SSR effectuée.
+- Correction du typage Supabase SSR effectuée, notamment dans le middleware.
 - Page panier corrigée pour éliminer l'erreur de syntaxe JSX signalée par Vercel.
 - Composant ImportAdmin ajouté pour restaurer la fonctionnalité d'import de stock référencée par /admin.
+- Audit par contradiction : validations serveur du panier renforcées (1–10 produits, quantité 1–10, pas de doublon) et écritures de fiches produits limitées à l'administration.
+- L'import de stock conserve la création de produits mais n'utilise plus une mise à jour produit générale.
 - Le build Next.js et le parcours local restent à valider.
 
 ### Règles de gouvernance
