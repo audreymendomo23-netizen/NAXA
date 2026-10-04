@@ -17,7 +17,7 @@ type Props = {
 
 export function ActionProtegee({ children, href, className = "", external = false, onAutorise, "aria-hidden": ariaHidden, tabIndex, "aria-label": ariaLabel }: Props) {
   const router = useRouter();
-  const [message, setMessage] = useState<"connexion" | "age" | null>(null);
+  const [message, setMessage] = useState<"connexion" | null>(null);
   const [busy, setBusy] = useState(false);
   const retour = () => window.location.pathname + window.location.search;
 
@@ -33,18 +33,6 @@ export function ActionProtegee({ children, href, className = "", external = fals
       return;
     }
 
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("age_verified")
-      .eq("id", auth.user.id)
-      .maybeSingle();
-
-    setBusy(false);
-
-    if (!profile?.age_verified) {
-      setMessage("age");
-      return;
-    }
 
     if (onAutorise) {
       await onAutorise();
@@ -66,11 +54,11 @@ export function ActionProtegee({ children, href, className = "", external = fals
           <div className="carte w-full max-w-sm space-y-4">
             <div>
               <h2 id="acces-protege-titre" className="text-xl font-extrabold">
-                {message === "connexion" ? "Connectez-vous pour continuer" : "Vérifiez votre âge pour continuer"}
+                {message === "connexion" ? "Connectez-vous pour continuer" }
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 {message === "connexion"
-                  ? "La recherche reste accessible sans compte. Pour utiliser cette action, veuillez vous connecter puis faire vérifier votre âge."
+                  ? "La recherche reste accessible sans compte. Pour utiliser cette action, veuillez vous connecter."
                   : "Cette fonctionnalité nécessite un compte connecté et une vérification de votre âge."}
               </p>
             </div>
@@ -79,12 +67,10 @@ export function ActionProtegee({ children, href, className = "", external = fals
                 type="button"
                 className="btn btn-vert w-full"
                 onClick={() => router.push(
-                  message === "connexion"
-                    ? `/connexion?retour=${encodeURIComponent(retour())}`
-                    : `/verification-age?retour=${encodeURIComponent(retour())}`
+                  `/connexion?retour=${encodeURIComponent(retour())}`
                 )}
               >
-                {message === "connexion" ? "Se connecter" : "Vérifier mon âge"}
+                {Se connecter}
               </button>
               <button type="button" className="btn btn-clair w-full" onClick={() => setMessage(null)}>
                 Annuler
