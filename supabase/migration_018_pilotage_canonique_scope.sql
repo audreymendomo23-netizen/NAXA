@@ -47,11 +47,11 @@ begin
       'inactives', coalesce((select count(*) from unnest(v_pharmacies) x join public.pharmacies ph on ph.id=x where not ph.actif and ph.est_demo is not true),0)
     ),
     'recherches', jsonb_build_object(
-      'total', coalesce((select count(*) from public.evenements e where e.type='recherche' and e.created_at>=v_debut and (v_role='admin' or e.pharmacie_id=any(v_pharmacies))),0),
-      'sans_resultat', coalesce((select count(*) from public.evenements e where e.type='recherche' and e.resultats=0 and e.created_at>=v_debut and (v_role='admin' or e.pharmacie_id=any(v_pharmacies))),0)
+      'total', coalesce((select count(*) from public.evenements e where e.type='recherche' and e.created_at>=v_debut and ((v_role='admin' and (e.pharmacie_id is null or e.pharmacie_id=any(v_pharmacies))) or (v_role<>'admin' and e.pharmacie_id=any(v_pharmacies)))),0),
+      'sans_resultat', coalesce((select count(*) from public.evenements e where e.type='recherche' and e.resultats=0 and e.created_at>=v_debut and ((v_role='admin' and (e.pharmacie_id is null or e.pharmacie_id=any(v_pharmacies))) or (v_role<>'admin' and e.pharmacie_id=any(v_pharmacies)))),0)
     ),
     'entonnoir', jsonb_build_object(
-      'recherches', coalesce((select count(*) from public.evenements e where e.type='recherche' and e.created_at>=v_debut and (v_role='admin' or e.pharmacie_id=any(v_pharmacies))),0),
+      'recherches', coalesce((select count(*) from public.evenements e where e.type='recherche' and e.created_at>=v_debut and ((v_role='admin' and (e.pharmacie_id is null or e.pharmacie_id=any(v_pharmacies))) or (v_role<>'admin' and e.pharmacie_id=any(v_pharmacies)))),0),
       'fiches_vues', coalesce((select count(*) from public.evenements e where e.type='fiche_vue' and e.created_at>=v_debut and e.pharmacie_id=any(v_pharmacies)),0),
       'paniers', coalesce((select count(*) from public.evenements e where e.type='panier_ajout' and e.created_at>=v_debut and e.pharmacie_id=any(v_pharmacies)),0),
       'reservations', coalesce((select count(*) from public.reservations r where r.created_at>=v_debut and r.pharmacie_id=any(v_pharmacies)),0),
@@ -66,7 +66,7 @@ begin
     'serie', coalesce((
       select jsonb_agg(jsonb_build_object(
         'jour',g::date,
-        'recherches',(select count(*) from public.evenements e where e.type='recherche' and e.created_at::date=g::date and (v_role='admin' or e.pharmacie_id=any(v_pharmacies))),
+        'recherches',(select count(*) from public.evenements e where e.type='recherche' and e.created_at::date=g::date and ((v_role='admin' and (e.pharmacie_id is null or e.pharmacie_id=any(v_pharmacies))) or (v_role<>'admin' and e.pharmacie_id=any(v_pharmacies)))),
         'reservations',(select count(*) from public.reservations r where r.created_at::date=g::date and r.pharmacie_id=any(v_pharmacies)),
         'ventes',(select count(*) from public.v_reservations_ca v where v.jour=g::date and v.pharmacie_id=any(v_pharmacies))
       ) order by g)
