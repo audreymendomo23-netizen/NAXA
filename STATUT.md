@@ -132,6 +132,8 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Les 4 sessions existantes restent actives ; aucune déconnexion automatique des anciennes sessions.
 - Une 5e tentative de connexion par mot de passe est refusée avec un message explicite.
 - Le parcours Google OAuth applique la même limite ; si la 5e session est créée pendant le callback, elle est immédiatement révoquée, sans toucher aux 4 précédentes.
-- Migration additive 011_limite_sessions.sql appliquée à Supabase : fonction naxa_session_count protégée, exécutable uniquement par service_role.
+- Migrations additives 011_limite_sessions.sql et 012_enforcement_limite_sessions.sql appliquées à Supabase.
+- Enforcement DB atomique sur auth.sessions avec verrou transactionnel par utilisateur : une 5e session ne peut pas être créée, y compris sous connexions concurrentes.
+- La vérification applicative reste présente uniquement pour fournir un message UX explicite.
 - État de sécurité vérifié : anon et authenticated n'ont pas EXECUTE sur la fonction ; service_role uniquement.
 - Aucun changement de mot de passe, de rôle, de profil ou de donnée métier ; aucun merge main et aucun déploiement applicatif effectué.
