@@ -252,3 +252,28 @@ Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, a
 - Tests BI/RLS multi-pharmacie : 🔴.
 
 **Règle de progression : aucun passage au vert global tant qu'une contradiction résiduelle n'a pas une réponse explicite, une source de vérité et un test d'acceptation.**
+
+
+## Passe 4 — clôture C3 et convention monétaire
+### Devise Client — 🟢 100 %
+- **Technique : XAF. Affichage humain : FCFA.**
+- Le Client voit les prix sous la forme `1 500 FCFA`, et non `1 500 XAF`.
+- La fonction existante `fcfa()` est utilisée sur les vues Client de résultats, fiche produit, réservation et reçu.
+- Aucun changement de devise en base ni de calcul monétaire.
+
+### Contradiction C3 — double source recherche — 🟢 100 %
+- `evenements` = source unique des KPI analytiques de recherche/funnel.
+- `recherche_events` = compatibilité historique du mécanisme « Les plus recherchés », hors KPI.
+- Une recherche ne compte qu'une fois dans les KPI, via `evenements.recherche`.
+- Les lignes `recherche_events` ne sont jamais additionnées aux événements et ne servent pas à reconstituer les volumes du funnel.
+- Test d'acceptation verrouillé : recherche → exactement un événement canonique `recherche`; présence éventuelle de lignes secondaires sans impact sur les KPI.
+
+### Passe 4 — progression après C3
+- C1 `stocks_couts` : 🟢 100 %.
+- C3 sources de recherche : 🟢 100 %.
+- C4 CA / transitions de réservation : 🟠.
+- Rapports hiérarchiques : 🔴.
+- Exports par scope : 🟠.
+- Tests BI/RLS multi-pharmacie : 🔴.
+
+**Règle maintenue : on ne passe pas au vert global sans réponse explicite + source de vérité + test d'acceptation.**
