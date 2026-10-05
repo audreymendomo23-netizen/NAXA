@@ -7,7 +7,8 @@ export async function middleware(req:NextRequest){
  const prot=["/pharmacie","/admin","/reservation","/go","/produit","/panier"].some(p=>req.nextUrl.pathname.startsWith(p));
  if(!prot)return res;
  if(!data.user){const u=req.nextUrl.clone();u.pathname="/connexion";u.searchParams.set("retour",req.nextUrl.pathname+req.nextUrl.search);return NextResponse.redirect(u)}
- const{data:profile}=await supabase.from("profiles").select("role,age_verified").eq("id",data.user.id).maybeSingle();
+ const{data:profile}=await supabase.from("profiles").select("role,age_verified,actif,pharmacie_id").eq("id",data.user.id).maybeSingle();
+ if(profile?.role==="promoteur"||profile?.role==="caisse"||profile?.role==="pharmacie"){if(profile.actif===false){const u=req.nextUrl.clone();u.pathname="/pharmacie/suspendue";return NextResponse.redirect(u)}const{data:ph}=await supabase.from("pharmacies").select("actif").eq("id",profile.pharmacie_id).maybeSingle();if(ph?.actif===false){const u=req.nextUrl.clone();u.pathname="/pharmacie/suspendue";return NextResponse.redirect(u)}}
  if(profile?.role==="client"&&!profile.age_verified){const u=req.nextUrl.clone();u.pathname="/verification-age";u.searchParams.set("retour",req.nextUrl.pathname+req.nextUrl.search);return NextResponse.redirect(u)}
  return res;
 }
