@@ -1,7 +1,7 @@
 name: NAXA quality
 on:
   pull_request:
-    branches: [main]
+    branches: [main, consolidation]
 jobs:
   build:
     runs-on: ubuntu-latest
