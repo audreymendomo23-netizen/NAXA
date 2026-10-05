@@ -41,7 +41,7 @@ BEGIN
   IF NOT public.is_admin() AND NOT public.is_promoteur() THEN RAISE EXCEPTION 'Accréditation non autorisée'; END IF;
   IF p_niveau NOT IN (2,3) THEN RAISE EXCEPTION 'Niveau invalide'; END IF;
   SELECT role INTO v_role FROM public.profiles WHERE id=p_target AND actif=true;
-  IF v_role IS NULL OR (p_niveau=2 AND v_role <> 'responsable') OR (p_niveau=3 AND v_role <> 'caisse') THEN
+  IF v_role IS NULL OR (p_niveau=2 AND v_role::text <> 'responsable') OR (p_niveau=3 AND v_role::text <> 'caisse') THEN
     RAISE EXCEPTION 'Niveau et rôle incompatibles';
   END IF;
   IF NOT public.is_admin() AND NOT EXISTS (
@@ -72,7 +72,7 @@ CREATE OR REPLACE FUNCTION public.can_operate_pharmacy(p_pharmacie uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $$ SELECT public.can_access_pharmacy(p_pharmacie)
  AND EXISTS (SELECT 1 FROM public.pharmacies ph WHERE ph.id=p_pharmacie AND ph.actif=true)
- AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=(SELECT auth.uid()) AND p.actif=true AND p.role IN ('promoteur','responsable','caisse','pharmacie','admin')) $$;
+ AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=(SELECT auth.uid()) AND p.actif=true AND p.role::text IN ('promoteur','responsable','caisse','pharmacie','admin')) $$;
 
 DROP POLICY IF EXISTS profiles_promoteur_update_children ON public.profiles;
 CREATE POLICY profiles_promoteur_update_children ON public.profiles FOR UPDATE TO authenticated
