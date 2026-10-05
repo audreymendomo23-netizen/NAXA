@@ -247,3 +247,13 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - `v_ventes_journalieres` et `bi.activite_mensuelle` sont désormais alignées sur cette source canonique dans `supabase/migration_014_ca_canonique_reservations.sql`.
 - Test réel sur Supabase, dans une transaction entièrement rollbackée : vue créée avec succès ; 0 réservation qualifiante et CA canonique 0 FCFA dans l'état actuel ; aucune donnée Production modifiée.
 - Migration 014 non appliquée en Production.
+
+
+## Passe 4 — Contradiction C2 : rapports hiérarchiques 🟢 100 % au niveau modèle
+- Le modèle `rapports` conserve `portee`/`pharmacie_id` pour compatibilité historique et ajoute `scope_type`, `scope_profile_id`, `scope_pharmacie_id`.
+- `scope_type` canonique : `PHARMACIE`, `RESPONSABLE`, `PROMOTEUR`, `NAXA`.
+- Un scope Promoteur n'est jamais réduit à une seule `pharmacie_id` : son périmètre est déterminé par son autorisation hiérarchique et les pharmacies couvertes.
+- Les rapports historiques peuvent être mappés sans réécrire leur contenu.
+- `migration_015_scopes_rapports_hierarchiques.sql` est additive et non destructive.
+- Test Supabase exécuté en transaction rollbackée : colonnes, contrainte et index créables ; 0 rapport actuellement présent, donc 0 historique à migrer.
+- **Important** : le branchement effectif des scopes à l'autorisation Promoteur/Responsable reste une étape d'implémentation du moteur hiérarchique ; il ne doit pas être simulé par l'UI.
