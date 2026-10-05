@@ -88,14 +88,14 @@ begin
     raise exception 'Le role_type historique doit rester compatible et ne pas créer responsable';
   end if;
 
-  -- Un Responsable ne peut pas recevoir un privilège réservé au Promoteur.
+  -- Un Responsable peut recevoir un privilège de pilotage compatible, mais jamais le Pilotage réseau.
   perform public.naxa_grant_privilege(v_target,'VIEW_CA_BY_RESPONSABLE',v_pharmacie,'PHARMACIE');
-  if not public.authorize('VIEW_NETWORK_PILOTAGE',v_pharmacie,'PHARMACIE') then
-    null;
+  if public.authorize('VIEW_NETWORK_PILOTAGE',v_pharmacie,'PHARMACIE') then
+    raise exception 'Responsable ne doit pas recevoir VIEW_NETWORK_PILOTAGE';
   end if;
 
-  -- La fonction de scope ne doit jamais élargir un utilisateur hors de sa pharmacie.
-  if public.naxa_scope_allows(v_target,(select id from public.pharmacies where id<>v_pharmacie limit 1),'PHARMACIE') then
+  -- La fonction de scope ne doit jamais élargir le Responsable hors de sa pharmacie.
+  if public.authorize('VIEW_CA_BY_RESPONSABLE',(select id from public.pharmacies where id<>v_pharmacie limit 1),'PHARMACIE') then
     raise exception 'Scope Responsable hors pharmacie autorisée';
   end if;
 end
