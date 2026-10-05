@@ -89,6 +89,13 @@ begin
 end $naxa$;
 create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
 
+-- Compatibilité additive avec le premier catalogue 020 : ses colonnes historiques
+-- family/description/governance_only sont NOT NULL. On desserre uniquement pendant
+-- le seed canonique, puis on les recale et on restaure immédiatement les invariants.
+alter table public.naxa_privileges alter column family drop not null;
+alter table public.naxa_privileges alter column description drop not null;
+alter table public.naxa_privileges alter column governance_only drop not null;
+
 insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,delegable,governance) values
 ('CREATE_PROMOTEUR','GOUVERNANCE','Créer un Promoteur',1,1,false,true),
 ('SUSPEND_PROMOTEUR','GOUVERNANCE','Suspendre un Promoteur',1,1,false,true),
@@ -235,6 +242,15 @@ insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,de
 on conflict (code) do update set
  famille=excluded.famille,libelle=excluded.libelle,niveau_min=excluded.niveau_min,
  niveau_max=excluded.niveau_max,delegable=excluded.delegable,governance=excluded.governance,active=true;
+
+update public.naxa_privileges
+set family=coalesce(family,famille),
+    description=coalesce(description,libelle),
+    governance_only=coalesce(governance_only,governance,false);
+
+alter table public.naxa_privileges alter column family set not null;
+alter table public.naxa_privileges alter column description set not null;
+alter table public.naxa_privileges alter column governance_only set not null;
 
 create table if not exists public.naxa_profile_privileges (
  id uuid primary key default gen_random_uuid(),
