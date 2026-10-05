@@ -295,3 +295,21 @@ Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, a
 - Rapports hiérarchiques : 🔴.
 - Exports par scope : 🟠.
 - Tests BI/RLS multi-pharmacie : 🔴.
+
+
+## Passe 4 — C2 Rapports hiérarchiques — 🟢 100 % au niveau modèle
+- Source de vérité du scope : `rapports.scope_type + scope_profile_id + scope_pharmacie_id`.
+- Valeurs autorisées : `PHARMACIE`, `RESPONSABLE`, `PROMOTEUR`, `NAXA`.
+- Compatibilité historique préservée via `portee` et `pharmacie_id`.
+- Aucun rapport historique supprimé ou réécrit.
+- Migration 015 préparée et testée dans une transaction rollbackée.
+- 0 rapport réel actuellement, donc aucun historique à transformer.
+- Le contrôle effectif d'accès restera soumis au moteur hiérarchique/RLS ; aucune élévation n'est donnée par ces colonnes seules.
+
+### Passe 4 — progression
+- C1 `stocks_couts` : 🟢 100 %.
+- C2 rapports hiérarchiques : 🟢 100 % modèle.
+- C3 sources de recherche : 🟢 100 %.
+- C4 CA / transitions : 🟢 100 %.
+- Exports par scope : 🟠.
+- Tests BI/RLS multi-pharmacie : 🔴.
