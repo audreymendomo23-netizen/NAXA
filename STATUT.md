@@ -277,3 +277,21 @@ Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, a
 - Tests BI/RLS multi-pharmacie : 🔴.
 
 **Règle maintenue : on ne passe pas au vert global sans réponse explicite + source de vérité + test d'acceptation.**
+
+
+## Passe 4 — C4 CA / transitions — 🟢 100 % au niveau contradiction + dépôt
+- Source de vérité : `v_reservations_ca`.
+- Éligibilité CA : `payee` ou `retiree`.
+- Un passage `payee → retiree` reste une seule vente.
+- Matrice de transitions ajoutée à `set_reservation_status` pour empêcher les retours ou sauts incohérents.
+- `v_ventes_journalieres` et `bi.activite_mensuelle` utilisent la règle canonique.
+- Test SQL de la migration 014 exécuté dans une transaction puis **ROLLBACK** : syntaxe et dépendances validées ; état actuel = 0 ligne qualifiante / 0 FCFA.
+- **Aucune modification persistante de Supabase Production.**
+
+### Passe 4 — progression
+- C1 `stocks_couts` : 🟢 100 %.
+- C3 sources de recherche : 🟢 100 %.
+- C4 CA / transitions : 🟢 100 % au niveau contradiction + dépôt.
+- Rapports hiérarchiques : 🔴.
+- Exports par scope : 🟠.
+- Tests BI/RLS multi-pharmacie : 🔴.
