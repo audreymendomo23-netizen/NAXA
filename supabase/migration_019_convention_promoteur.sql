@@ -281,10 +281,10 @@ returns void
 language sql
 security definer
 set search_path=public
-as $
+as $$
  update public.abonnements_promoteurs
  set rappel_5j_envoye_at=now(), rappel_5j_en_cours_at=null
  where promoteur_id=p_promoteur and echeance=current_date+5 and rappel_5j_envoye_at is null;
-$;
+$$;
 revoke all on function public.marquer_rappel_validite(uuid) from public,anon,authenticated;
 grant execute on function public.marquer_rappel_validite(uuid) to service_role;
