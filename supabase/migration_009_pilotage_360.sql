@@ -191,7 +191,7 @@ revoke execute on function public.generer_rapports(text) from public,anon,authen
 
 create or replace function public.rapports_non_envoyes() returns table(rapport_id bigint,email text,portee text,pharmacie_nom text,periode text,du date,au date,texte text,contenu jsonb)
 language sql stable security definer set search_path=public as $$
-select r.id,u.email::text,r.portee,ph.nom,r.periode,r.du,r.au,r.texte,r.contenu from public.rapports r left join public.pharmacies ph on ph.id=r.pharmacie_id join public.profiles p on ((r.portee='pharmacie' and p.pharmacie_id=r.pharmacie_id and p.role='promoteur' and p.actif) or (r.portee='admin' and p.role='admin')) join auth.users u on u.id=p.id where r.envoye_le is null and u.email is not null;
+select r.id,coalesce(pref.destinataire,u.email)::text,r.portee,ph.nom,r.periode,r.du,r.au,r.texte,r.contenu from public.rapports r left join public.pharmacies ph on ph.id=r.pharmacie_id left join public.preferences_rapports pref on pref.pharmacie_id=r.pharmacie_id join public.profiles p on ((r.portee='pharmacie' and p.pharmacie_id=r.pharmacie_id and p.role='promoteur' and p.actif) or (r.portee='admin' and p.role='admin')) join auth.users u on u.id=p.id where r.envoye_le is null and u.email is not null and (r.portee='admin' or coalesce(pref.actif,false));
 $$;
 create or replace function public.marquer_rapport_envoye(p_id bigint) returns void language sql security definer set search_path=public as $$update public.rapports set envoye_le=now() where id=p_id$$;
 revoke execute on function public.rapports_non_envoyes() from public,anon,authenticated;
