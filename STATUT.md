@@ -529,3 +529,11 @@ La Passe 6 continue. Le moteur stats_pilotage_scope(p_jours) reste le point d'en
 - Scénarios prouvés dans cette transaction : Admin voit 3 pharmacies non-démo et compte les recherches réseau (y compris une recherche sans pharmacie) ; Promoteur voit uniquement A+B et ne récupère ni la recherche sans pharmacie ni celle de C.
 - Aucun changement persistant en Production.
 - CI GitHub sur le dernier commit de test : encore **in_progress** au moment du contrôle ; build/typecheck non déclarés verts avant conclusion du run.
+
+
+### Passe 6 — validation supplémentaire
+- CI précédente `NAXA quality #121` : **SUCCESS** (`tsc --noEmit` + `npm run build`).
+- Test d'acceptation `018_pilotage_canonique_scope.sql` corrigé puis rejoué avec les migrations 013→019 dans une transaction : **PASS**, puis **ROLLBACK**.
+- Le test prouve Admin (scope réseau non-démo) et Promoteur (scope A+B, sans fuite de recherche sans pharmacie ni de C).
+- Le test multi-rôle Responsable/Caisse/Client n'est pas exécuté dans cette transaction : l'ajout de la valeur enum `responsable` ne peut pas être consommé avant commit PostgreSQL. Aucune mutation Production n'a été faite pour contourner cette contrainte. Ce point reste donc explicitement **🟠 non prouvé transactionnellement**.
+- CI du dernier commit (`NAXA quality #125`) : **in_progress** au moment de ce contrôle.
