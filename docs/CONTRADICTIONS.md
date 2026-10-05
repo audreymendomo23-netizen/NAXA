@@ -117,3 +117,17 @@ Les recherches rattachées à une pharmacie démo sont exclues du KPI Admin ; le
 - Test 018 013→019 : 🟢 PASS / ROLLBACK.
 - Matrice Responsable/Caisse/Client : 🟠 non exécutée transactionnellement, car PostgreSQL interdit l'utilisation d'une nouvelle valeur d'enum dans la même transaction que son `ALTER TYPE ... ADD VALUE`. Aucun contournement n'a été appliqué en Production.
 - Dernière CI #125 : 🟠 en cours.
+
+
+## E30 — matrice multi-rôles Pilotage 018
+**Statut : 🟠 fermeture partielle, dernier verrou identifié.**
+
+Le test `supabase/tests/018_pilotage_canonique_scope.sql` prouve désormais transactionnellement :
+- Admin : réseau non-démo + recherches réseau ;
+- Promoteur : uniquement son périmètre A+B ;
+- Caisse : uniquement sa pharmacie A ;
+- Client : accès au moteur Pilotage refusé.
+
+Le Responsable est traité dans `supabase/tests/018b_pilotage_responsable_post_commit.sql`. Il doit être exécuté dans un environnement de test où la migration 016 a déjà été committée, car PostgreSQL interdit l'utilisation d'une nouvelle valeur enum avant le commit qui termine `ALTER TYPE ... ADD VALUE`. citeturn0search0
+
+**Décision :** aucune mutation Production pour contourner ce point. Le chantier ne passe pas au vert 100 % avant cette preuve.
