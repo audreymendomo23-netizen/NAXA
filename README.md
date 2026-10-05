@@ -449,3 +449,19 @@ La reprise est considérée correcte uniquement si une nouvelle IA peut répondr
 - Quand faut-il retourner au V3 pour continuer le cahier des charges ?
 
 **Réponse canonique :** nous étions en train de **terminer le chantier Pilotage**, pas de commencer un nouveau chantier. Les Passes 1→6 sont le chemin décisionnel à préserver. Le V3 sert ensuite de cadre pour reprendre la suite du cahier des charges une fois le Pilotage définitivement vert.
+
+
+## 🔒 Rectification métier — abonnement Promoteur (5 octobre 2026)
+La règle commerciale canonique est désormais explicite et prioritaire sur les formulations historiques :
+- **1 Promoteur = 1 convention commerciale = 1 tarif = 1 abonnement**, qu'il possède une pharmacie, plusieurs pharmacies ou temporairement aucune.
+- Les pharmacies A/B/C d'un même Promoteur **ne portent pas des tarifs différents** et ne disposent pas d'abonnements indépendants.
+- Le Dashboard Promoteur est unique et couvre son périmètre autorisé.
+- L'échéance de l'abonnement Promoteur entraîne le **blocage de toutes les pharmacies rattachées à ce Promoteur**.
+- La convention est administrative entre NAXA et le Promoteur ; le système exploite trois données opérationnelles issues de cette convention : **montant à payer, date de paiement, date d'expiration**.
+- Le tarif n'est jamais fixé par un 30000 universel. NAXA/Admin configure le tarif réellement convenu.
+- Les anciennes tables abonnements / abonnement_paiements sont conservées pour compatibilité historique. Le nouveau chemin canonique est conventions_promoteurs → abonnements_promoteurs → abonnement_promoteur_paiements.
+- Migration additive de correction : supabase/migration_019_convention_promoteur.sql.
+- La page /admin/pilotage/validite affiche désormais une ligne par Promoteur et son périmètre de pharmacies.
+- Le cron de validité envoie un rappel unique au Promoteur et applique le blocage au niveau Promoteur.
+
+**Important :** aucune migration 019 n'a été appliquée en Production. Le test DDL 013→019 a été exécuté dans une transaction puis **ROLLBACK**.
