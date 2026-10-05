@@ -12,3 +12,5 @@ E09 `stocks_couts` documenté mais absent du schéma : résolue par migration ad
 
 E10 devise technique vs affichage humain : résolue ; XAF reste le code technique, FCFA est le libellé affiché au Client et sur les interfaces humaines, sans conversion.
 E11 double source recherche : résolue ; `evenements` est la source canonique des KPI/funnel, `recherche_events` reste une source historique de compatibilité « Les plus recherchés » hors KPI ; aucune addition entre les deux.
+
+E12 CA et transitions de réservation : résolue ; `v_reservations_ca` fixe le grain à la réservation et le statut qualifiant `payee|retiree`, tandis que `set_reservation_status` interdit les transitions incohérentes. `payee → retiree` reste une seule vente.
