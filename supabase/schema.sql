@@ -2,10 +2,10 @@
 create extension if not exists pg_trgm;
 create extension if not exists unaccent;
 create extension if not exists pgcrypto;
-create type role_type as enum ('client','pharmacie','admin');
+create type role_type as enum ('client','pharmacie','promoteur','caisse','admin');
 create type resa_statut as enum ('en_attente','confirmee','payee','retiree','expiree','annulee');
 create table pharmacies(id uuid primary key default gen_random_uuid(),nom text not null,ville text not null default 'Yaoundé',quartier text,adresse text,lat double precision not null,lng double precision not null,de_garde boolean not null default false,horaires text,actif boolean not null default true,stock_updated_at timestamptz,created_at timestamptz not null default now());
-create table profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references pharmacies(id),created_at timestamptz not null default now(),first_name text,last_name text,phone text,phone_country text,date_of_birth date,age_verified boolean not null default false,consent_accepted_at timestamptz); create unique index profiles_username_lower_unique on profiles(lower(username)) where username is not null;
+create table profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references pharmacies(id),created_at timestamptz not null default now(),first_name text,last_name text,phone text,phone_country text,date_of_birth date,age_verified boolean not null default false,consent_accepted_at timestamptz,parent_profile_id uuid references profiles(id) on delete set null,actif boolean not null default true); create unique index profiles_username_lower_unique on profiles(lower(username)) where username is not null;
 create table pharmacie_privee(pharmacie_id uuid primary key references pharmacies(id) on delete cascade,whatsapp text not null,code_marchand text);
 create table produits(id uuid primary key default gen_random_uuid(),nom text not null,dci text not null default '',dosage text not null default '',forme text not null default '',nom_norm text,unique(nom,dosage,forme));
 create or replace function produits_norm() returns trigger language plpgsql as $$begin new.nom_norm:=lower(unaccent(coalesce(new.nom,'')||' '||coalesce(new.dci,'')||' '||coalesce(new.dosage,'')));return new;end$$;
@@ -19,9 +19,9 @@ create table reservation_items(reservation_id uuid not null references reservati
 create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path='' as $declare v_username text:=lower(trim(new.raw_user_meta_data->>'username'));v_first_name text:=trim(new.raw_user_meta_data->>'first_name');v_last_name text:=trim(new.raw_user_meta_data->>'last_name');v_phone text:=trim(new.raw_user_meta_data->>'phone');v_country text:=upper(trim(new.raw_user_meta_data->>'phone_country'));v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date;v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);begin if v_username is null or v_username!~'^[a-z0-9][a-z0-9._-]{2,29}
 create trigger on_auth_user_created after insert on auth.users for each row execute function handle_new_user();
 create or replace function is_admin() returns boolean language sql stable security definer set search_path=public as $$select exists(select 1 from profiles where id=auth.uid() and role='admin')$$;
-create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $$select pharmacie_id from profiles where id=auth.uid()$$;
+create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $$select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse')$;
 alter table profiles enable row level security; alter table pharmacies enable row level security; alter table pharmacie_privee enable row level security; alter table produits enable row level security; alter table stocks enable row level security; alter table reservations enable row level security; alter table reservation_items enable row level security;
-create policy profiles_self on profiles for select using(id=auth.uid() or is_admin());
+create policy profiles_self on profiles for select using(id=auth.uid() or is_admin() or parent_profile_id=auth.uid());
 create policy profiles_admin on profiles for all using(is_admin()) with check(is_admin());
 create policy pharmacies_read on pharmacies for select using(actif or is_admin());
 create policy pharmacies_admin on pharmacies for all using(is_admin()) with check(is_admin());

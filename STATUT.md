@@ -1,6 +1,6 @@
 # NAXA — STATUT
 
-Mise à jour : 5 octobre 2026 — consolidation PR #19
+Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 
 ## État global
 **AUTHENTIFICATION VALIDÉE. INFRASTRUCTURE PHARMACIE PILOTE CONSOLIDÉE. PRODUCTION À ÉVALUER APRÈS CONTRÔLE COMPLET.**
@@ -48,6 +48,19 @@ Mise à jour : 5 octobre 2026 — consolidation PR #19
 - Commit Production : 21a1a6e5b17e67bcab401364452096f771ac7ef5.
 - Alias : naxa-naxa3.vercel.app.
 - Aucun nouveau projet créé.
+
+## Architecture comptes pharmacie — validée comme évolution métier
+- Le prompt maître impose une pharmacie créée par NAXA puis autonome ; cette évolution précise cette autonomie sans créer de sous-pharmacies.
+- **Promoteur** : compte parent de la pharmacie, gère les comptes enfants.
+- **Caisse** : compte enfant, opérationnel, partage exactement le stock et les réservations de la pharmacie.
+- Côté client : une seule pharmacie visible, indépendamment du nombre de caisses.
+- Le Promoteur peut créer, bloquer et réactiver ses caisses ; un blocage ne désactive pas la pharmacie.
+- Formation terrain : utiliser les comptes Caisse pour l'apprentissage de l'import et de la gestion de stock.
+- PR #21 ouverte : architecture Promoteur parent / Caisses enfants.
+- Migrations 007/008 préparées et appliquées au projet Supabase NAXA ; aucun compte réel n'est créé automatiquement par ce chantier.
+- Le schéma Supabase contient désormais les rôles `promoteur` et `caisse`, `parent_profile_id` et `actif` sur `profiles`.
+- Le compte créé par `/admin` est désormais destiné au Promoteur ; le Promoteur dispose d'un espace de gestion de ses Caisses.
+- Aucun déploiement Production n'est effectué pour ce chantier tant que la consolidation n'est pas validée.
 
 ## Prochain chantier — feuille de route du prompt maître
 Mise en service terrain des pharmacies pilotes

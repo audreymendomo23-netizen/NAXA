@@ -13,11 +13,11 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabaseAdmin()
       .from("profiles")
-      .select("id")
+      .select("id,actif")
       .ilike("username", username)
       .maybeSingle();
 
-    if (!profile) {
+    if (!profile || profile.actif === false) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
