@@ -23,3 +23,7 @@ Pour les KPI BI, `public.evenements` est la source canonique des recherches : `t
 
 ## Rapports — scope canonique
 Le rapport porte un scope explicite : `PHARMACIE`, `RESPONSABLE`, `PROMOTEUR` ou `NAXA`. Le scope utilisateur est porté par `scope_profile_id` et, lorsque nécessaire, `scope_pharmacie_id`. Les anciennes colonnes restent compatibles. Le périmètre Promoteur est toujours calculé par les autorisations hiérarchiques ; une pharmacie unique ne doit jamais être utilisée comme substitut silencieux.
+
+
+## Exports par scope
+L'export ne constitue jamais une nouvelle couche d'autorisation. Il consomme un jeu de rapports déjà filtré par le scope autorisé. Le CSV existant est conservé. Les métadonnées `scope_type`, `scope_profile_id` et `scope_pharmacie_id` accompagnent le rapport. Tant que le moteur hiérarchique multi-pharmacie n'est pas actif, aucun Promoteur/Responsable ne peut obtenir un périmètre élargi par simple ajout de ces champs.
