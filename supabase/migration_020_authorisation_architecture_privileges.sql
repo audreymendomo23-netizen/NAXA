@@ -49,7 +49,7 @@ create index if not exists profiles_niveau_interne_idx on public.profiles(niveau
 
 -- Réconciliation avec migration_020 : naxa_privileges existe déjà avec le catalogue canonique
 -- (family/description/governance_only). On l'étend sans recréer ni remplacer cette table.
-do $
+do $naxa$
 begin
   if to_regclass('public.naxa_privileges') is null then
     create table public.naxa_privileges (
@@ -307,7 +307,7 @@ $$;
 
 create or replace function public.naxa_has_privilege(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
-as $
+as $naxa$
   select exists(
     select 1
     from public.profiles p
@@ -343,7 +343,7 @@ as $
         )
       )
   )
-$;
+$naxa$;
 
 -- Authorization atomique : le moteur décide du droit effectif ; l'UI n'est jamais la source d'autorité.
 create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
@@ -449,7 +449,7 @@ $$;
 revoke all on function public.accrediter_profile(uuid,uuid,smallint,uuid) from public,anon,authenticated;
 create or replace function public.naxa_create_custom_role(p_nom text,p_description text default null)
 returns uuid language plpgsql security definer set search_path=''
-as $
+as $naxa$
 declare v_id uuid; v_arch text;
 begin
  if not public.naxa_has_privilege('CREATE_CUSTOM_ROLE',null,'RESEAU') then raise exception 'Création de rôle personnalisé non autorisée'; end if;
@@ -459,11 +459,11 @@ begin
  values((select auth.uid()),trim(p_nom),p_description) returning id into v_id;
  return v_id;
 end
-$;
+$naxa$;
 
 create or replace function public.naxa_add_custom_role_privilege(p_role uuid,p_privilege text)
 returns void language plpgsql security definer set search_path=''
-as $
+as $naxa$
 declare v_promoteur uuid;
 begin
  select promoteur_id into v_promoteur from public.naxa_custom_roles where id=p_role and actif;
@@ -474,11 +474,11 @@ begin
  insert into public.naxa_custom_role_privileges(role_id,privilege_code) values(p_role,p_privilege)
  on conflict do nothing;
 end
-$;
+$naxa$;
 
 create or replace function public.naxa_assign_custom_role(p_target uuid,p_role uuid)
 returns void language plpgsql security definer set search_path=''
-as $
+as $naxa$
 declare v_promoteur uuid; v_arch text;
 begin
  if not public.naxa_has_privilege('ASSIGN_CUSTOM_ROLE',null,'RESEAU') then raise exception 'Attribution de rôle personnalisé non autorisée'; end if;
@@ -493,11 +493,11 @@ begin
  values(p_target,p_role,(select auth.uid()))
  on conflict(profile_id,role_id) do update set active=true,assigned_by=excluded.assigned_by;
 end
-$;
+$naxa$;
 
 create or replace function public.naxa_revoke_custom_role(p_target uuid,p_role uuid)
 returns void language plpgsql security definer set search_path=''
-as $
+as $naxa$
 begin
  if not public.naxa_has_privilege('ASSIGN_CUSTOM_ROLE',null,'RESEAU') then raise exception 'Révocation de rôle personnalisé non autorisée'; end if;
  update public.naxa_profile_custom_roles
@@ -506,7 +506,7 @@ begin
    and exists(select 1 from public.naxa_custom_roles r where r.id=p_role and r.promoteur_id=(select auth.uid()));
  if not found then raise exception 'Rôle personnalisé introuvable'; end if;
 end
-$;
+$naxa$;
 
 revoke all on function public.naxa_create_custom_role(text,text) from public,anon,authenticated;
 revoke all on function public.naxa_add_custom_role_privilege(uuid,text) from public,anon,authenticated;
