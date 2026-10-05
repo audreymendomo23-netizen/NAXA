@@ -13,3 +13,6 @@ Snapshot → rapports → dashboard/e-mail.
 
 ## Convention monétaire
 Code technique : **XAF**. Affichage utilisateur : **FCFA**. Aucun changement de valeur ou conversion n'est effectué.
+
+
+Rapport — scope canonique : `scope_type` (`PHARMACIE|RESPONSABLE|PROMOTEUR|NAXA`), `scope_profile_id`, `scope_pharmacie_id`. Les champs historiques `portee`/`pharmacie_id` sont conservés pour compatibilité. Le scope ne constitue pas à lui seul une autorisation.
