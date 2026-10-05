@@ -321,3 +321,17 @@ Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, a
 - Compatibilité maintenue avec l'export CSV existant.
 - Tant que l'autorisation hiérarchique multi-pharmacie n'est pas implémentée, le périmètre non-admin reste limité à `pharmacie_id`.
 - **Contradiction exports : 🟢 100 % comme règle de sécurité et d'architecture ; implémentation multi-pharmacie complète attend le moteur hiérarchique.**
+
+
+## Passe 4 — BI/RLS multi-pharmacie — 🟢 modèle et migration de branche
+Le dernier bloc structurel de la Passe 4 est désormais traité dans `migration_016_bi_rls_multipharmacie.sql` : relation Promoteur↔pharmacies, périmètre `my_pharmacies()`, garde `can_access_pharmacy()`, politiques RLS multi-pharmacie et vues BI `security_invoker` avec `pharmacie_id`.
+
+### Tests d'acceptation obligatoires avant Production
+1. Promoteur autorisé sur A+B : A+B visibles, C invisible.
+2. Responsable/Caisse de A : A visible, B/C invisibles.
+3. NAXA Admin : A+B+C visibles.
+4. Client : aucune donnée interne de coût, lots ou utilisateurs.
+5. BI : consolidation = somme des pharmacies autorisées, sans doublon.
+6. Rapport/export : même scope que la source, jamais plus large.
+
+**État réel : 🟢 contradiction architecturale résolue ; 🔶 validation d'exécution multi-utilisateur encore à effectuer sur environnement de test avant toute mise en Production.**
