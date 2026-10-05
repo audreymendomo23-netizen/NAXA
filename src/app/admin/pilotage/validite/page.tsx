@@ -7,7 +7,7 @@ export default async function ValiditePage(){
  if(!u.user)return null;
  const{data:p}=await sb.from("profiles").select("role").eq("id",u.user.id).single();
  if(p?.role!=="admin")return null;
- const{data,error}=await sb.rpc("validites_pharmacies_admin");
+ const{data,error}=await sb.rpc("validites_promoteurs_admin");
  const rows=(data||[]) as any[];
  return <main className="min-h-screen bg-[#ACDC76] p-3 sm:p-6"><div className="mx-auto max-w-7xl space-y-4">
   <header className="rounded-3xl bg-black p-5 text-white">
