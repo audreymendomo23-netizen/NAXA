@@ -555,3 +555,11 @@ Agrégation cohérente de : **Commercial + Performance + Sécurité/activité**,
 Avant tout code P7/P8 : audit de l'existant, matrice des contradictions, vérification des points de communication avec les implémentations actuelles, plan complet, estimation de faisabilité et de couverture. Le chantier ne démarre que lorsque **faisabilité = 100 % et couverture = 100 %**, puis après accord explicite.
 
 Après implémentation : tests concrets, CI, ré-audit, README/STATUT/CONTRADICTIONS mis à jour. Aucun faux vert : une décision conçue n'est pas une preuve Production.
+
+
+## 🔒 Passe 6 — preuve multi-rôles mise à jour — 5 octobre 2026
+- Le test transactionnel du moteur 018 couvre désormais **Admin + Promoteur + Caisse + Client** et a été exécuté avec les migrations 013→018 puis **ROLLBACK**.
+- Résultat : **PASS** pour ces quatre scénarios ; aucune donnée persistante n'a été laissée en Production.
+- Le scénario **Responsable** est isolé dans `supabase/tests/018b_pilotage_responsable_post_commit.sql` afin de respecter la contrainte PostgreSQL : la valeur enum `responsable` ajoutée par 016 ne peut être utilisée qu'après le commit qui ajoute cette valeur.
+- **Ne pas contourner cette contrainte par une mutation Production.**
+- Tant que 018b n'est pas exécuté dans un environnement où 016 est déjà committée, la Passe 6 reste **🟠 non verte à 100 %**.
