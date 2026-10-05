@@ -313,3 +313,11 @@ Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, a
 - C4 CA / transitions : 🟢 100 %.
 - Exports par scope : 🟠.
 - Tests BI/RLS multi-pharmacie : 🔴.
+
+
+## Passe 4 — Exports par scope — 🟢 100 % au niveau contrat de sécurité
+- Un export ne possède pas sa propre logique d'autorisation : il exporte uniquement les rapports déjà autorisés par l'API/source.
+- Le scope est visible dans la donnée (`scope_type`, `scope_profile_id`, `scope_pharmacie_id`) mais n'accorde aucun droit à lui seul.
+- Compatibilité maintenue avec l'export CSV existant.
+- Tant que l'autorisation hiérarchique multi-pharmacie n'est pas implémentée, le périmètre non-admin reste limité à `pharmacie_id`.
+- **Contradiction exports : 🟢 100 % comme règle de sécurité et d'architecture ; implémentation multi-pharmacie complète attend le moteur hiérarchique.**
