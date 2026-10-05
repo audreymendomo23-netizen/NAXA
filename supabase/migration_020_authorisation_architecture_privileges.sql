@@ -86,7 +86,7 @@ begin
     alter table public.naxa_privileges alter column governance set not null;
     alter table public.naxa_privileges alter column active set not null;
   end if;
-end $;
+end $naxa$;
 create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
 
 insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,delegable,governance) values
