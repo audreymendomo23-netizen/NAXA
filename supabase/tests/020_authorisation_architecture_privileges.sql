@@ -99,7 +99,7 @@ begin
   where pharmacie_id=v_pharmacie;
   update public.profiles set role='pharmacie',niveau_interne=0,parent_profile_id=null,pharmacie_id=v_pharmacie,actif=true where id=v_target;
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
-  perform public.accrediter_profile(v_target,v_pharmacie,2,v_promoteur);
+  perform public.accrediter_profile(v_target,v_pharmacie,2::smallint,v_promoteur);
 
   if (select niveau_interne from public.profiles where id=v_target) <> 2 then
     raise exception 'Responsable attendu au niveau interne 2';
