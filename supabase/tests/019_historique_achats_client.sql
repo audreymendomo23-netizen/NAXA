@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(8);
+select plan(9);
 
 -- 1. La table existe et RLS est activée.
 select ok(
@@ -16,7 +16,7 @@ select ok(
   'reservation_events est protégée par RLS'
 );
 
--- 2. Le listing est une vue security_invoker.
+-- 2. Le listing existe et reste une vue.
 select ok(
   exists (
     select 1
@@ -28,11 +28,15 @@ select ok(
 );
 
 -- 3-4. Aucun accès public/anonyme à la table brute.
-select has_table_privilege('anon','public.reservation_events','select') is false
-  as "anon ne peut pas lire reservation_events";
+select ok(
+  not has_table_privilege('anon','public.reservation_events','select'),
+  'anon ne peut pas lire reservation_events'
+);
 
-select has_table_privilege('authenticated','public.reservation_events','insert') is false
-  as "authenticated ne peut pas écrire reservation_events";
+select ok(
+  not has_table_privilege('authenticated','public.reservation_events','insert'),
+  'authenticated ne peut pas écrire reservation_events'
+);
 
 -- 5-6. Le listing expose les grains nécessaires.
 select ok(
@@ -51,13 +55,22 @@ select ok(
   'client_achats expose payee_le'
 );
 
--- 7. Les achats sont bornés aux états commerciaux terminaux autorisés.
+-- 7. Le listing expose l'indicateur d'exactitude historique.
+select ok(
+  exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='client_achats' and column_name='horodatage_achat_exact'
+  ),
+  'client_achats expose horodatage_achat_exact'
+);
+
+-- 8. Les achats sont bornés aux états commerciaux terminaux autorisés.
 select ok(
   pg_get_viewdef('public.client_achats'::regclass, true) like '%where r.statut in (%',
   'client_achats est bornée aux achats payés/retirés'
 );
 
--- 8. La fonction de trigger n'est pas directement exposée.
+-- 9. La fonction de trigger n'est pas directement exposée.
 select ok(
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
   'authenticated ne peut pas appeler directement le trigger'
