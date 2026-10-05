@@ -12,47 +12,19 @@ declare
   v_id uuid;
   v_ok boolean;
 begin
-  -- Fixture transactionnelle : les environnements de test peuvent ne contenir aucun
-  -- Promoteur/Admin métier. On réutilise deux profils existants et on crée seulement
-  -- une troisième identité Auth + profil si nécessaire. Tout est rollbacké en fin de test.
+  -- Fixture transactionnelle : les environnements de test peuvent avoir peu de profils.
+  -- Deux profils suffisent pour prouver le chemin Promoteur -> cible ; si aucun troisième
+  -- profil n'existe, la cible réutilise le premier profil après son rôle de grantor.
   select id into v_admin from public.profiles order by created_at asc limit 1;
   select id into v_promoteur from public.profiles where id<>v_admin order by created_at asc limit 1;
   select id into v_target from public.profiles where id<>v_admin and id<>v_promoteur order by created_at asc limit 1;
 
-  if v_admin is null then
-    raise exception 'Fixture insuffisante: au moins un profil existant est requis';
-  end if;
-
-  if v_promoteur is null then
-    v_promoteur := gen_random_uuid();
-    insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at,raw_app_meta_data,raw_user_meta_data,is_anonymous,is_sso_user)
-    values(v_promoteur,'authenticated','authenticated',
-      'naxa-test-promoteur-'||replace(v_promoteur::text,'-','')||'@example.invalid','',
-      now(),now(),now(),'{}',jsonb_build_object(
-        'username','test_'||substr(replace(v_promoteur::text,'-',''),1,20),
-        'first_name','Test',
-        'last_name','Promoteur',
-        'date_of_birth','1990-01-01',
-        'consent_accepted','true',
-        'phone','+237690000001',
-        'phone_country','CM'
-      ),false,false);
+  if v_admin is null or v_promoteur is null then
+    raise exception 'Fixture insuffisante: au moins deux profils existants sont requis';
   end if;
 
   if v_target is null then
-    v_target := gen_random_uuid();
-    insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at,raw_app_meta_data,raw_user_meta_data,is_anonymous,is_sso_user)
-    values(v_target,'authenticated','authenticated',
-      'naxa-test-cible-'||replace(v_target::text,'-','')||'@example.invalid','',
-      now(),now(),now(),'{}',jsonb_build_object(
-        'username','test_'||substr(replace(v_target::text,'-',''),1,20),
-        'first_name','Test',
-        'last_name','Cible',
-        'date_of_birth','1990-01-01',
-        'consent_accepted','true',
-        'phone','+237690000002',
-        'phone_country','CM'
-      ),false,false);
+    v_target := v_admin;
   end if;
 
   select id into v_pharmacie from public.pharmacies order by created_at asc limit 1;
