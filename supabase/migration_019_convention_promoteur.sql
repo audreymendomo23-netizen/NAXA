@@ -67,8 +67,8 @@ grant select,insert,update on public.abonnement_promoteur_paiements to authentic
 -- Reprise additive des Promoteurs existants : une seule convention + un seul abonnement canonique par Promoteur.
 -- La valeur reprise est celle du premier abonnement historique disponible ; NAXA/Admin reste libre de la corriger.
 insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_paiement,date_expiration)
-select p.id, coalesce(a.montant_mensuel,30000), a.dernier_paiement_le::date,
-       coalesce(a.echeance, current_date + interval '1 month' - interval '1 day')
+select p.id, a.montant_mensuel, a.dernier_paiement_le::date,
+       a.echeance
 from public.profiles p
 left join lateral (
   select a.montant_mensuel,a.dernier_paiement_le,a.echeance
@@ -83,6 +83,9 @@ left join lateral (
   limit 1
 ) a on true
 where p.role='promoteur'
+  and a.montant_mensuel is not null
+  and a.montant_mensuel > 0
+  and a.echeance is not null
 on conflict (promoteur_id) do nothing;
 
 insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
