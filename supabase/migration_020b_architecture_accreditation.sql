@@ -103,6 +103,7 @@ begin
   set parent_profile_id=p_parent,
       pharmacie_id=p_pharmacie,
       niveau_hierarchique=p_niveau,
+      niveau_interne=p_niveau,
       architecture_code=v_arch,
       actif=true
   where id=p_target;
