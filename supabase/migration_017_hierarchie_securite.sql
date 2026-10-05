@@ -145,7 +145,7 @@ create or replace function public.accrediter_profile(
   p_target uuid,
   p_pharmacie uuid,
   p_niveau smallint,
-  p_parent uuid
+  p_parent uuid DEFAULT NULL
 )
 returns uuid
 language plpgsql
