@@ -114,6 +114,8 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Ajout additif : migration `010_validite_pharmacies.sql`, historique des règlements, échéance mensuelle standard 30 000 FCFA, statut impayé, blocage pharmacie + comptes Promoteur/Caisse, réactivation administrative.
 - Côté client : stocks des pharmacies inactives masqués ; recherche et réservation restent protégées par `pharmacies.actif`.
 - N1 Admin : `/admin/pilotage/validite` connecté au Pilotage 360.
-- Notification : cron quotidien serveur `/api/cron/validite`, rappel J-5 au Promoteur via Resend, idempotent.
+- Notification : endpoint `/api/cron/validite`, protégé par `CRON_SECRET`, rappel J-5 au Promoteur via Resend ; claim atomique anti-doublon concurrent (`rappel_5j_en_cours_at`).
+- Orchestration quotidienne : workflow GitHub Actions `.github/workflows/naxa-validite.yml` à 06:00 UTC, avec `NAXA_CRON_URL` et `CRON_SECRET` fournis par secrets ; aucun secret n’est commité.
+- CI qualité étendue aux PR ciblant `main` et `consolidation`.
 - Écran de suspension ajouté pour les comptes pharmacie bloqués.
 - Aucun merge `main`, aucune migration Production et aucun déploiement Production.
