@@ -106,5 +106,6 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - Migration additive prévue : `009_pilotage_360.sql` ; le numéro 006 du pack ne remplace pas l’authentification existante.
 - Rapports : snapshots Supabase, page Rapports et préparation d’envoi serveur PDF/CSV via Resend.
 - BI : vues agrégées dans `bi`, sans identité client.
+- Suivi des événements réellement raccordé aux parcours existants : recherche, vue fiche médicament et ajout panier appellent `log_evenement`; `recherche_events` historique est conservé.
 - Branding officiel préparé : jeton `naxa-logo-green #0A7547`, manifest et métadonnées mis à jour.
 - Cette branche n’est pas en Production. Autorisation exacte requise : **OUI, DÉPLOIE**.
