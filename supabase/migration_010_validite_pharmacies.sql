@@ -119,6 +119,8 @@ begin
    insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut)
    values(p_pharmacie,'essentiel',30000,current_date,current_date+interval '1 month'-interval '1 day','actif')
    returning * into a;
+   insert into public.abonnement_paiements(abonnement_id,pharmacie_id,periode_du,periode_au,montant,reference,enregistre_par)
+   values(a.id,p_pharmacie,current_date,a.echeance,30000,nullif(trim(coalesce(p_reference,'')),''),auth.uid());
  else
    v_fin:=current_date+interval '1 month'-interval '1 day';
    update public.abonnements
