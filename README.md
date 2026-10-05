@@ -751,3 +751,7 @@ Le périmètre Client est désormais construit comme un parcours cohérent, et n
 - Test DB : `supabase/tests/019_historique_achats_client.sql`.
 
 **Gouvernance :** branche `feat/pharmacie-validite-pilotage`, PR #24, aucun merge `main`, aucune migration Production et aucun déploiement sans autorisation explicite **OUI, DÉPLOIE**.
+
+
+### Correctif de sécurité Client — 6 octobre 2026
+Audit de contradiction post-implémentation : la vue `client_achats` était `security_invoker`, mais les RLS internes autorisent aussi les comptes pharmacie à lire leurs réservations. Pour éviter qu'un compte interne puisse recevoir l'historique d'achat des clients via cette vue, la vue est désormais explicitement bornée à `r.client_id = auth.uid()`. La route `/client` vérifie également `profiles.role = client`. Le test 019 couvre désormais cette isolation. Aucun autre rôle ne doit recevoir le dataset Client.
