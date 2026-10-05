@@ -335,3 +335,9 @@ Le dernier bloc structurel de la Passe 4 est désormais traité dans `migration_
 6. Rapport/export : même scope que la source, jamais plus large.
 
 **État réel : 🟢 contradiction architecturale résolue ; 🔶 validation d'exécution multi-utilisateur encore à effectuer sur environnement de test avant toute mise en Production.**
+
+
+## Passe 5 — Hierarchie + securite
+**Branche : 🟢 100 % sur le modele et les migrations.**
+
+Le modele hierarchique, le scope multi-pharmacie, les accreditations, la revocation, les garde-fous RLS et le controle OAuth sont maintenant traites. Les migrations 015→017 ont ete rejouees dans une transaction Supabase puis rollbackees. Le test de scope Promoteur A+B avec refus C a reussi. **Production reste volontairement inchangee.**
