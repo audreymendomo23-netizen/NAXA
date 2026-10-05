@@ -278,9 +278,11 @@ $$;
 
 create or replace function public.naxa_has_privilege(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
-as $$
+as $
   select exists(
-    select 1 from public.profiles p
+    select 1
+    from public.profiles p
+    join public.naxa_privileges n on n.code=p_privilege
     where p.id=(select auth.uid()) and p.actif
       and (
         p.role='admin'
@@ -296,10 +298,8 @@ as $$
           and public.naxa_scope_allows(p.id,p_pharmacie,p_scope)
         )
       )
-      and n.code=p_privilege
-    join public.naxa_privileges n on true
   )
-$$;
+$;
 
 -- Authorization atomique : le moteur décide du droit effectif ; l'UI n'est jamais la source d'autorité.
 create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
