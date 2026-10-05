@@ -80,3 +80,33 @@ La migration 013 protège `stocks_couts` avec `pharmacie_id = my_pharmacie()`. O
 Le PR #24 contient `supabase/tests/017_hierarchie_securite.sql`, mais aucun `supabase/tests/018_pilotage_canonique_scope.sql`. La migration 018 a été contrôlée transactionnellement lors du chantier, mais le contrat d’acceptation du pilotage par rôle/scope n’est pas encore matérialisé dans un test versionné.
 
 **Décision attendue :** ajouter un test rollbackable couvrant Admin, Promoteur A+B/C, Responsable/Caisse A, Client, non-fuite des recherches sans pharmacie et cohérence CA `payee/retiree`.
+
+
+## T1 — tarif fixe 30 000 FCFA vs convention Promoteur — 🟢 décision + correction branche
+**Contradiction :** le modèle précédent traitait implicitement le tarif comme un tarif par pharmacie, avec 30 000 FCFA comme valeur par défaut.
+**Décision canonique :** **1 Promoteur = 1 convention = 1 tarif = 1 abonnement**, indépendamment du nombre de pharmacies. Une convention peut exister avant toute pharmacie. À expiration, toutes les pharmacies du Promoteur sont bloquées.
+**Source de vérité :** conventions_promoteurs pour le contrat administratif ; abonnements_promoteurs pour l'état opérationnel ; abonnement_promoteur_paiements pour les règlements.
+**Correction :** migration additive 019, UI Admin et cron de validité alignés sur le Promoteur.
+**Anti-parasite :** aucun fallback 30 000 n'est utilisé par le nouveau chemin canonique. Les occurrences historiques de 30 000 dans les migrations antérieures sont conservées comme historique de compatibilité et ne constituent plus la source de vérité.
+**Test :** migration 013→019 exécutée en transaction puis ROLLBACK.
+**Statut : 🟢 décision + branche + syntaxe transactionnelle ; validation métier multi-utilisateur encore requise.**
+
+## E20 — stocks_couts vs scope multi-pharmacie — 🟢 correction branche
+Les policies de stocks_couts utilisent désormais can_access_pharmacy() après l'introduction du moteur multi-pharmacie.
+
+## E21 — parent implicite dans accrediter_profile() — 🟢 correction branche
+Le parent doit être explicitement fourni. N2 doit avoir un Promoteur parent. N3 peut avoir un Responsable parent ou un Promoteur parent dans l'architecture 2 niveaux.
+
+## E22/E24 — set_reservation_status() — 🟢 correction branche
+La fonction utilise can_access_pharmacy() et search_path='' tout en conservant la matrice de transitions CA canonique.
+
+## E25 — scope Admin / pharmacies démo — 🟢 correction branche
+Les recherches rattachées à une pharmacie démo sont exclues du KPI Admin ; les recherches sans pharmacie restent réseau uniquement et ne sont jamais attribuées à un scope Promoteur/Responsable/Caisse.
+
+### Passe 6 — état après correction
+- Moteur canonique stats_pilotage_scope() : 🟢 branche.
+- Dashboards Admin + pharmacie : 🟢 raccordés au même moteur.
+- Scopes : 🟢 modèle + correction de filtrage.
+- Test transactionnel 013→019 : 🟢 PASS puis ROLLBACK.
+- Tests multi-utilisateurs/acceptation finale : 🟠 à exécuter.
+- Production : inchangée.
