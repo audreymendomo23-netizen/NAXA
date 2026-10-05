@@ -259,7 +259,7 @@ join public.naxa_role_privileges rp on rp.role_key=r.role_key
 where (r.role_key <> 'responsable' or a.architecture_code in ('PARENTS_AINES_CADETS','HYBRIDE'))
 on conflict do nothing;
 
-create or replace function public.naxa_business_function(p_profile uuid default (select auth.uid()))
+create or replace function public.naxa_business_function(p_profile uuid default auth.uid())
 returns text
 language sql stable security definer set search_path=''
 as $$
