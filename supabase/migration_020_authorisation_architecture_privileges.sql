@@ -379,7 +379,7 @@ grant execute on function public.naxa_has_privilege(text,uuid,text) to authentic
 grant execute on function public.authorize(text,uuid,text) to authenticated;
 
 -- Accréditation : architecture + quotas + parent explicite. Responsable = niveau 2, pas role_type.
-create or replace function public.accrediter_profile(p_target uuid,p_pharmacie uuid,p_niveau smallint,p_parent uuid)
+create or replace function public.accrediter_profile(p_target uuid,p_pharmacie uuid,p_niveau smallint,p_parent uuid default null)
 returns uuid language plpgsql security definer set search_path=''
 as $$
 declare
