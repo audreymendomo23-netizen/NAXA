@@ -902,3 +902,7 @@ Le Client disposera d'un historique personnel des médicaments effectivement ach
 ### Décision de gouvernance
 **Le prochain rôle ne commence qu'après validation utilisateur de ce périmètre Client.**
 Ordre retenu : **Client → Caisse → Responsable → Promoteur → Admin**, avec la même méthode : audit → contradiction → fermeture → test → documentation → vert.
+
+
+### Correctif de sécurité Client — 6 octobre 2026
+Audit de contradiction post-implémentation : la vue `client_achats` était `security_invoker`, mais les RLS internes autorisent aussi les comptes pharmacie à lire leurs réservations. Pour éviter qu'un compte interne puisse recevoir l'historique d'achat des clients via cette vue, la vue est désormais explicitement bornée à `r.client_id = auth.uid()`. La route `/client` vérifie également `profiles.role = client`. Le test 019 couvre désormais cette isolation. Aucun autre rôle ne doit recevoir le dataset Client.
