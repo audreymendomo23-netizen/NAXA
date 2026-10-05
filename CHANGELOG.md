@@ -23,5 +23,6 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - Maximum 4 sessions/appareils simultanés par compte.
 - Aucune déconnexion automatique des sessions existantes.
 - 5e connexion refusée pour mot de passe et Google OAuth ; les 4 sessions précédentes restent intactes.
-- Migration additive `011_limite_sessions.sql` appliquée sur Supabase.
+- Migrations additives `011_limite_sessions.sql` et `012_enforcement_limite_sessions.sql` appliquées sur Supabase.
+- Enforcement DB atomique ajouté pour empêcher tout dépassement concurrent de la limite.
 - Aucun merge `main` et aucun déploiement applicatif.
