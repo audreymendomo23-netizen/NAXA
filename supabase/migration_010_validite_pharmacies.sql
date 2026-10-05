@@ -4,6 +4,7 @@
 alter table public.abonnements
   add column if not exists echeance date,
   add column if not exists rappel_5j_envoye_at timestamptz,
+  add column if not exists rappel_5j_en_cours_at timestamptz,
   add column if not exists dernier_paiement_le timestamptz,
   add column if not exists dernier_paiement_ref text,
   add column if not exists bloque_le timestamptz,
@@ -18,7 +19,7 @@ set montant_mensuel=30000
 where montant_mensuel=0;
 
 update public.abonnements
-set echeance=coalesce(echeance,fin,debut+interval '1 month'-interval '1 day')
+set echeance=coalesce(echeance,fin,debut+interval '1 month'-interval '1 day'), montant_mensuel=30000
 where echeance is null;
 
 create index if not exists abonnements_echeance_idx on public.abonnements(echeance);
@@ -141,23 +142,26 @@ $$;
 revoke all on function public.reactiver_pharmacie(uuid,text) from public,anon;
 grant execute on function public.reactiver_pharmacie(uuid,text) to authenticated;
 
-create or replace function public.validite_rappels_5j()
+create or replace function public.claim_validite_rappels_5j()
 returns table(pharmacie_id uuid,pharmacie_nom text,promoteur_email text,promoteur_prenom text,montant_mensuel integer,echeance date)
 language sql
 security definer
 set search_path=public
 as $$
- select ph.id,ph.nom,u.email,p.first_name,a.montant_mensuel,a.echeance
- from public.abonnements a
- join public.pharmacies ph on ph.id=a.pharmacie_id
- join public.profiles p on p.pharmacie_id=ph.id and p.role='promoteur' and p.actif
- join auth.users u on u.id=p.id
+ update public.abonnements a
+ set rappel_5j_en_cours_at=now()
  where a.statut='actif'
    and a.echeance=current_date+5
-   and a.rappel_5j_envoye_at is null;
+   and a.rappel_5j_envoye_at is null
+   and (a.rappel_5j_en_cours_at is null or a.rappel_5j_en_cours_at < now()-interval '15 minutes')
+ returning a.pharmacie_id,
+   (select ph.nom from public.pharmacies ph where ph.id=a.pharmacie_id),
+   (select u.email from public.profiles p join auth.users u on u.id=p.id where p.pharmacie_id=a.pharmacie_id and p.role='promoteur' and p.actif order by p.created_at asc limit 1),
+   (select p.first_name from public.profiles p where p.pharmacie_id=a.pharmacie_id and p.role='promoteur' and p.actif order by p.created_at asc limit 1),
+   a.montant_mensuel,a.echeance;
 $$;
-revoke all on function public.validite_rappels_5j() from public,anon,authenticated;
-grant execute on function public.validite_rappels_5j() to service_role;
+revoke all on function public.claim_validite_rappels_5j() from public,anon,authenticated;
+grant execute on function public.claim_validite_rappels_5j() to service_role;
 
 create or replace function public.marquer_rappel_validite(p_pharmacie uuid)
 returns void
@@ -166,7 +170,7 @@ security definer
 set search_path=public
 as $$
  update public.abonnements
- set rappel_5j_envoye_at=now()
+ set rappel_5j_envoye_at=now(), rappel_5j_en_cours_at=null
  where pharmacie_id=p_pharmacie and echeance=current_date+5 and rappel_5j_envoye_at is null;
 $$;
 revoke all on function public.marquer_rappel_validite(uuid) from public,anon,authenticated;
