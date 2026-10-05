@@ -26,3 +26,8 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - Migrations additives `011_limite_sessions.sql` et `012_enforcement_limite_sessions.sql` appliquées sur Supabase.
 - Enforcement DB atomique ajouté pour empêcher tout dépassement concurrent de la limite.
 - Aucun merge `main` et aucun déploiement applicatif.
+
+## 2026-10-05 — Passe 4 : devise et recherche
+- Affichage humain verrouillé en **FCFA** ; XAF reste le code technique, sans conversion.
+- C3 résolue : `evenements` devient la source canonique des KPI de recherche/funnel ; `recherche_events` reste compatible avec « Les plus recherchés » et est exclue des KPI.
+- Aucun historique supprimé et aucun merge `main` / déploiement Production.
