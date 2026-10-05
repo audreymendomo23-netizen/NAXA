@@ -31,3 +31,8 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - Affichage humain verrouillé en **FCFA** ; XAF reste le code technique, sans conversion.
 - C3 résolue : `evenements` devient la source canonique des KPI de recherche/funnel ; `recherche_events` reste compatible avec « Les plus recherchés » et est exclue des KPI.
 - Aucun historique supprimé et aucun merge `main` / déploiement Production.
+
+
+## 2026-10-05 — Passe 4 : C4 CA canonique
+- Migration additive 014 préparée : source `v_reservations_ca`, transitions de réservation verrouillées et vues de ventes alignées.
+- Test SQL de la migration effectué en transaction rollbackée ; aucune modification Production persistante.
