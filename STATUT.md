@@ -96,3 +96,13 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Aucun secret serveur exposé.
 - Aucune livraison.
 - Le prompt maître et le cahier des charges sont les sources de vérité.
+
+
+## Chantier consolidation — Pilotage 360°
+- Branche : `consolidation`, PR #23.
+- Architecture N1 NAXA / N2 Promoteur / N3 Caisse implémentée.
+- Migration additive `009_pilotage_360.sql` syntaxiquement validée dans une transaction annulée ; aucune migration de production appliquée.
+- Dashboards, rapports, BI, lots/péremptions et préparation e-mail ajoutés.
+- Aucun merge `main`, aucun déploiement Production.
+- Les tests réels mobile, Realtime et e-mail restent à prouver par le fondateur.
+- Prochaine autorisation de déploiement : phrase exacte **OUI, DÉPLOIE**.
