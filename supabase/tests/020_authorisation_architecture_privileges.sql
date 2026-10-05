@@ -28,7 +28,7 @@ begin
     insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at,raw_app_meta_data,raw_user_meta_data,is_anonymous,is_sso_user)
     values(v_promoteur,'authenticated','authenticated',
       'naxa-test-promoteur-'||replace(v_promoteur::text,'-','')||'@example.invalid','',
-      now(),now(),now(),'{}','{}',false,false);
+      now(),now(),now(),'{}',jsonb_build_object('username','test_'||replace(v_promoteur::text,'-','')),false,false);
     insert into public.profiles(id,role,actif) values(v_promoteur,'client',true);
   end if;
 
@@ -37,7 +37,7 @@ begin
     insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at,raw_app_meta_data,raw_user_meta_data,is_anonymous,is_sso_user)
     values(v_target,'authenticated','authenticated',
       'naxa-test-cible-'||replace(v_target::text,'-','')||'@example.invalid','',
-      now(),now(),now(),'{}','{}',false,false);
+      now(),now(),now(),'{}',jsonb_build_object('username','test_'||replace(v_target::text,'-','')),false,false);
     insert into public.profiles(id,role,actif) values(v_target,'client',true);
   end if;
 
