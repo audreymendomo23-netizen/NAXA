@@ -131,3 +131,33 @@ Le test `supabase/tests/018_pilotage_canonique_scope.sql` prouve désormais tran
 Le Responsable est traité dans `supabase/tests/018b_pilotage_responsable_post_commit.sql`. Il doit être exécuté dans un environnement de test où la migration 016 a déjà été committée, car PostgreSQL interdit l'utilisation d'une nouvelle valeur enum avant le commit qui termine `ALTER TYPE ... ADD VALUE`. citeturn0search0
 
 **Décision :** aucune mutation Production pour contourner ce point. Le chantier ne passe pas au vert 100 % avant cette preuve.
+
+
+
+## E31 — Responsable enum vs fonction/niveau métier — résolue sur branche par 020
+
+Les sections historiques qui supposaient responsable comme valeur de role_type sont désormais obsolètes.
+
+Décision : role_type reste client | pharmacie | admin | promoteur | caisse. Responsable est un niveau/fonction N2 porté par profiles.niveau_interne=2, avec parent Promoteur et architecture autorisant N2. Aucun enum n'est modifié.
+
+Implémentation : supabase/migration_020_authorisation_architecture_privileges.sql.
+Test : supabase/tests/020_authorisation_architecture_privileges.sql.
+État : 🟠 code de branche ; migration non appliquée en Production ; test/CI à prouver.
+
+## E32 — Autorisation role-centric vs architecture + privilège + scope — en cours de preuve
+
+Décision : droit effectif = identité + statut + architecture + niveau + privilège + scope + objet. authorize() devient la primitive d'autorisation à raccorder progressivement aux RLS, API, accréditations et Pilotage.
+
+État : moteur et tables implémentés sur branche ; raccordement exhaustif de tous les chemins existants reste à auditer.
+
+## E33 — Architecture choisie par Promoteur vs imposée par NAXA — modèle verrouillé
+
+conventions_promoteurs.architecture_code porte l'architecture attribuée par NAXA. Le Promoteur ne peut pas la modifier via les fonctions de délégation. Les quotas et niveaux sont contrôlés par le moteur d'accréditation.
+
+## E34 — Privilège de gouvernance délégable — garde-fou implémenté
+
+Les privilèges governance=true ou delegable=false sont refusés par naxa_grant_privilege() et les rôles personnalisés.
+
+## E35 — Rôle personnalisé HYBRIDE vs nouveau role_type — modèle implémenté
+
+HYBRIDE compose des bundles de privilèges dans naxa_custom_roles ; aucun nouveau rôle système n'est injecté dans role_type. Les privilèges de gouvernance restent non composables.
