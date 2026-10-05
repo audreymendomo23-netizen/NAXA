@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(13);
+select plan(14);
 
 -- 1. La table existe et RLS est activée.
 select ok(
@@ -99,7 +99,13 @@ select ok(
   'client_achats est bornée aux achats payés/retirés'
 );
 
--- 12. La fonction de trigger n'est pas directement exposée.
+-- 12. Le listing Client est explicitement borné au propriétaire courant.
+select ok(
+  pg_get_viewdef('public.client_achats'::regclass, true) like '%r.client_id = auth.uid()%',
+  'client_achats ne peut retourner que les achats du Client courant'
+);
+
+-- 13. La fonction de trigger n'est pas directement exposée.
 select ok(
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
   'authenticated ne peut pas appeler directement le trigger'
