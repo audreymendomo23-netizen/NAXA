@@ -119,3 +119,10 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - CI qualité étendue aux PR ciblant `main` et `consolidation`.
 - Écran de suspension ajouté pour les comptes pharmacie bloqués.
 - Aucun merge `main`, aucune migration Production et aucun déploiement Production.
+
+## Verrou Supabase — validité exécuté
+- Prérequis `009_pilotage_360` détecté absent de Supabase malgré sa présence dans le dépôt ; appliqué avant `010`.
+- `010_validite_pharmacies` a d’abord révélé une erreur de quoting dans `reserve_stock`; le fichier de branche a été corrigé puis la migration appliquée avec succès.
+- Vérification réelle : migrations `009` et `010`, tables, fonctions et trigger d’initialisation présents.
+- État réel : 3/3 pharmacies ont un abonnement actif à 30 000 FCFA/mois, échéance 4 novembre 2026 ; aucun paiement fictif enregistré.
+- Aucun merge `main` et aucun déploiement applicatif effectué.
