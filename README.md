@@ -465,3 +465,93 @@ La règle commerciale canonique est désormais explicite et prioritaire sur les 
 - Le cron de validité envoie un rappel unique au Promoteur et applique le blocage au niveau Promoteur.
 
 **Important :** aucune migration 019 n'a été appliquée en Production. Le test DDL 013→019 a été exécuté dans une transaction puis **ROLLBACK**.
+
+
+---
+
+# 🔒 ÉTAT DE RÉFÉRENCE — 5 OCTOBRE 2026 — APRÈS PASSE 6 / PRÉPARATION P7
+
+> Cette section est prioritaire sur toute formulation historique contradictoire plus haut dans le fichier.
+
+## 1. Position exacte du chantier
+
+Le chantier actuel reste **Pilotage**. Les Passes 1→6 ont construit et consolidé le socle du Pilotage ; nous ne passons pas encore à un autre chantier produit.
+
+- Branche active : `feat/pharmacie-validite-pilotage`
+- PR : **#24** vers `consolidation`
+- HEAD de référence : `0dd2a02f5a75f1a4f0f4542378713fec50dcabb2`
+- CI GitHub **NAXA quality #127 : SUCCESS**
+- `main` : **inchangé**
+- Production Supabase : **inchangée**
+- Migrations 013→019 : **branche uniquement, non appliquées en Production**
+- Aucun merge `main`, aucune migration Production et aucun déploiement sans l'autorisation exacte : **OUI, DÉPLOIE**.
+
+## 2. Passe 6 — état réel
+
+La décision centrale reste :
+
+**DONNÉE SOURCE → RÈGLE KPI → KPI CANONIQUE → AGRÉGATION PAR SCOPE → BI → DASHBOARD → RAPPORT/EXPORT**
+
+Le point d'entrée canonique est `stats_pilotage_scope(p_jours)` et les dashboards Admin et pharmacie utilisent ce même moteur.
+
+### Preuves déjà obtenues
+- Migration/test 018 exécuté transactionnellement avec rollback.
+- Extension du test aux migrations 013→019 : **PASS syntaxe/dépendances, puis ROLLBACK**.
+- Admin et Promoteur sont prouvés dans le test d'acceptation versionné.
+- CI #127 est **SUCCESS**.
+- Les corrections E20, E21, E22/E24 et E25 sont présentes sur la branche.
+
+### Point qui empêche encore le 🟢 100 %
+La matrice transactionnelle **Responsable / Caisse / Client** n'est pas encore prouvée dans le même test, en raison de la contrainte PostgreSQL sur l'utilisation d'une nouvelle valeur enum dans la transaction qui l'ajoute. Ce n'est pas une permission de contourner la contrainte par une mutation Production : le point reste **🟠 non prouvé**.
+
+## 3. Décision commerciale canonique
+
+**1 Promoteur = 1 convention = 1 tarif = 1 abonnement**, qu'il possède une pharmacie, plusieurs pharmacies ou temporairement aucune.
+
+La convention est administrative entre NAXA et le Promoteur. Pour l'automatisation, le système attend :
+1. le montant à payer ;
+2. la date de paiement ;
+3. la date d'expiration de la convention / utilisation de la plateforme.
+
+Les pharmacies d'un même Promoteur ne portent donc pas des tarifs ou abonnements indépendants. À échéance impayée, **toutes les pharmacies du périmètre du Promoteur sont bloquées**.
+
+Le montant réel est celui configuré par NAXA/Admin dans la convention. **30 000 FCFA n'est pas un tarif universel.** Les anciennes occurrences historiques restent documentées comme compatibilité historique et ne constituent pas la règle commerciale canonique.
+
+## 4. Suite Pilotage 360° — ordre verrouillé
+
+Une fois la Passe 6 définitivement verte à 100 %, le chantier reprend le cadre graphique et le parcours de pilotage du **V3/Cahier des charges** sans créer une nouvelle direction visuelle.
+
+### Prochain bloc : Pilotage Performance
+Chaque famille de pilotage doit disposer de son propre dashboard, tout en consommant les mêmes sources/KPI canoniques.
+
+Périmètre à auditer puis construire :
+- objectifs vs réalisé ;
+- performance par Caisse ;
+- drill-down ;
+- comparaison des pharmacies d'un même réseau Promoteur ;
+- Network Health / qualité du réseau ;
+- rentabilité et marge avec coût figé au niveau transactionnel ;
+- dashboard Performance fidèle au design et au parcours V3.
+
+### Bloc suivant : Sécurité & activité réseau
+Le Promoteur doit pouvoir consulter les traces de sessions de **son propre réseau uniquement** :
+- sessions actives ;
+- dernière activité ;
+- connexion / déconnexion ;
+- sessions expirées ;
+- tentatives refusées ;
+- pharmacie, utilisateur, rôle et horodatage ;
+- appareil/navigateur uniquement si ces informations existent réellement.
+
+Ne jamais exposer : tokens, cookies, secrets, sessions d'un autre Promoteur ou données privées sans rapport avec le scope. Le Promoteur ne manipule pas directement les sessions.
+
+Le scope canonique sera `promoteur_pharmacies` : **Promoteur → pharmacies → Responsables/Caisses → activité**.
+
+### Bloc final : Pilotage Direction 360°
+Agrégation cohérente de : **Commercial + Performance + Sécurité/activité**, selon le périmètre V3.
+
+## 5. Règle de méthode pour la suite
+
+Avant tout code P7/P8 : audit de l'existant, matrice des contradictions, vérification des points de communication avec les implémentations actuelles, plan complet, estimation de faisabilité et de couverture. Le chantier ne démarre que lorsque **faisabilité = 100 % et couverture = 100 %**, puis après accord explicite.
+
+Après implémentation : tests concrets, CI, ré-audit, README/STATUT/CONTRADICTIONS mis à jour. Aucun faux vert : une décision conçue n'est pas une preuve Production.
