@@ -210,3 +210,45 @@ Cette section prime sur les formulations historiques antérieures.
 
 ## Passe 4 — prochaine passe
 Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, agrégation, anti-double-compte, rapports hiérarchiques, exports et tests de cohérence.
+
+
+## Passe 4 — Contradiction C1 : `stocks_couts`
+**Mise à jour : 5 octobre 2026**
+
+### Contradiction C1 — 🟢 résolue au niveau dépôt / conception
+- La documentation historique faisait référence à `stocks_couts`, mais la table n'existait pas dans le schéma Supabase inspecté.
+- Décision : conserver la séparation métier voulue par le cahier : `stocks` = quantité + prix public/vente ; `stocks_couts` = coût d'achat interne courant.
+- Migration additive créée : `supabase/migration_013_stocks_couts.sql`.
+- Grain verrouillé : `pharmacie × produit`.
+- Devise verrouillée : XAF.
+- RLS/grants dédiés : accès interne uniquement, dans le périmètre pharmacie autorisé ; Client exclu.
+- Aucune donnée existante supprimée ou réécrite.
+- Aucun KPI ne doit additionner prix public et coût d'achat.
+- **Marge historique interdite tant qu'un coût au moment de la vente n'est pas figé dans la donnée transactionnelle.**
+
+### Test de contradiction C1
+**Question :** peut-on avoir une source `stocks_couts` sans créer un second stock ?
+
+**Réponse : oui.** `stocks` reste l'unique quantité opérationnelle ; `stocks_couts` est une table de référence du coût interne. Elle ne possède ni quantité de stock ni lot et ne remplace pas `stocks`.
+
+**Question :** le Client peut-il accéder au coût d'achat ?
+
+**Réponse : non.** RLS/grants excluent l'accès public et la BI n'expose le coût qu'aux scopes internes autorisés.
+
+**Question :** peut-on calculer une marge historique avec cette table seule ?
+
+**Réponse : non, volontairement.** La contradiction est levée sans fabriquer une fausse marge historique.
+
+**Résultat C1 : 🟢 100 % au niveau contradiction, modèle et dépôt.**
+
+### Passe 4 — état de progression
+- C1 : 🟢 100 %.
+- Source de vérité KPI : 🟢.
+- Grain stock/lot/réservation/événement : 🟢 au niveau spécification.
+- Recherche et double source `recherche_events` / `evenements` : 🟠, règle canonique à formaliser/tester.
+- CA et transitions de réservation : 🟠, règle anti-double-compte à formaliser/tester.
+- Rapports hiérarchiques : 🔴, schéma historique encore `pharmacie/admin`.
+- Exports par scope : 🟠.
+- Tests BI/RLS multi-pharmacie : 🔴.
+
+**Règle de progression : aucun passage au vert global tant qu'une contradiction résiduelle n'a pas une réponse explicite, une source de vérité et un test d'acceptation.**
