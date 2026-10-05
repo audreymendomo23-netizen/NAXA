@@ -18,3 +18,9 @@ Coût d'achat : Promoteur/NAXA uniquement via `stocks_couts` dans le périmètre
 ## Devise
 - Données/contrats techniques : XAF.
 - Affichage Client : **FCFA**.
+
+
+## Export
+- Source : rapport déjà autorisé.
+- Format actuel : CSV côté interface ; PDF pour l'envoi automatique existant.
+- Règle : l'export ne peut jamais élargir le scope.
