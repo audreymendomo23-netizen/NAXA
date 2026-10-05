@@ -40,16 +40,13 @@ export async function POST(request: Request) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      if (error.message?.includes("NAXA_SESSION_LIMIT_REACHED")) {
+        return NextResponse.json(
+          { error: `Ce compte est déjà connecté sur ${MAX_CONCURRENT_SESSIONS} appareils. Déconnectez-vous d'un appareil avant de vous connecter ici.` },
+          { status: 429 }
+        );
+      }
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
-    }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session && !(await hasAvailableSessionSlot(profile.id))) {
-      await supabase.auth.signOut({ scope: "local" });
-      return NextResponse.json(
-        { error: `Ce compte est déjà connecté sur ${MAX_CONCURRENT_SESSIONS} appareils. Déconnectez-vous d'un appareil avant de vous connecter ici.` },
-        { status: 429 }
-      );
     }
 
     return NextResponse.json({ ok: true });
