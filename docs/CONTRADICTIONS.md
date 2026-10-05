@@ -17,3 +17,6 @@ E12 CA et transitions de réservation : résolue ; `v_reservations_ca` fixe le g
 
 
 E13 rapports hiérarchiques : résolue au niveau modèle ; `rapports` peut désormais représenter les quatre scopes sans perdre l'historique. L'autorisation effective du scope reste déléguée au futur moteur hiérarchique/RLS et ne peut pas être déduite de l'UI.
+
+
+E14 exports par scope : résolue au niveau architecture/sécurité ; l'export ne possède aucun droit autonome et reprend strictement le périmètre du rapport/API autorisé. L'élargissement multi-pharmacie attend le moteur hiérarchique canonique et ne sera pas simulé par l'export.
