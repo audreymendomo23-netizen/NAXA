@@ -35,3 +35,13 @@ Contradiction : le dashboard Admin utilisait stats_admin tandis que le dashboard
 Décision : une seule entrée de pilotage, stats_pilotage_scope(p_jours), calcule les KPI selon le scope effectif. Admin voit le réseau ; Promoteur voit uniquement ses pharmacies autorisées ; Responsable/Caisse voient leur pharmacie active. Le CA vient de v_reservations_ca. Les recherches sans pharmacie ne sont jamais attribuées artificiellement à un scope pharmacie.
 
 Test d'acceptation : mêmes faits sources + même période => même KPI quelle que soit la surface dashboard/rapport/BI ; aucun scope non autorisé ne doit apparaître dans une agrégation.
+
+
+## E19 — État documentaire vs état réel de branche
+**Statut : 🟠 contradiction documentaire en cours de correction.**
+
+La documentation historique décrivait encore `consolidation` comme branche de référence du pilotage, alors que les travaux 013–018 et les dashboards alignés se trouvent sur `feat/pharmacie-validite-pilotage`.
+
+**Décision :** la branche de travail actuelle et la PR #24 deviennent le périmètre explicite du checking de la Passe 6. Les migrations 013–018 sont localisées sous `supabase/`. Leur présence dans Git ne signifie pas leur application Supabase Production.
+
+**Test d’acceptation documentaire :** README + STATUT + CHANGELOG + CONTRADICTIONS doivent distinguer sans ambiguïté branche, validation transactionnelle, état Supabase réel et Production. Le vert ne sera accordé qu’après checking migration par migration puis audit contradictoire.
