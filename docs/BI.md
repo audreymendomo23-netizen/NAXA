@@ -15,3 +15,7 @@ Les données et règles techniques utilisent le code ISO **XAF**. Les interfaces
 
 ## Contradiction C3 — source canonique de recherche
 Pour les KPI BI, `public.evenements` est la source canonique des recherches : `type='recherche'` porte le volume, le nombre de résultats et la zone anonymisée nécessaires au funnel. `public.recherche_events` est conservée pour la compatibilité historique du bandeau « Les plus recherchés » et n'entre pas dans les agrégations KPI. Il est interdit de sommer les deux sources ou de les joindre pour compter les recherches.
+
+
+## Contradiction C4 — CA canonique
+`v_reservations_ca` est la source canonique des ventes/CA : une réservation est qualifiante si son statut est `payee` ou `retiree`. Le grain est `réservation`, donc un changement `payee → retiree` ne double jamais le CA. `v_ventes_journalieres` et `bi.activite_mensuelle` consomment cette règle. La vue est `security_invoker=true` afin de respecter les protections sous-jacentes conformément aux pratiques Supabase. citeturn2search0turn2search1
