@@ -678,3 +678,39 @@ Validation exécutée selon la méthode NAXA : audit → contradiction → corre
 
 ### Point de vigilance
 Le catalogue contient désormais aussi les privilèges VIEW_PERFORMANCE_KPI, VIEW_OBJECTIVES, VIEW_OBJECTIVES_VS_ACTUAL, VIEW_COMPARISON, VIEW_DRILLDOWN, VIEW_NETWORK_HEALTH, etc. Cela ne signifie pas que le Pilotage de la performance métier est construit. Ces privilèges décrivent des capacités d’autorisation prévues ; le contenu métier du Pilotage Performance reste à concevoir/construire selon le V3.
+
+
+# 🔒 CLÔTURE — PASSE 6 / MATRICE MULTI-RÔLES — 5 OCTOBRE 2026
+
+Cette section est prioritaire sur les formulations historiques antérieures concernant le test Responsable.
+
+## Point précédemment bloquant
+La preuve Responsable était auparavant déclarée 🟠 car le test tentait de consommer la valeur enum historique `responsable` dans la même transaction que son ajout PostgreSQL.
+
+## Fermeture retenue
+La règle métier canonique ne dépend pas de cette valeur enum :
+- `role_type` conserve son modèle historique ; **aucun profil n'utilise `role='responsable'`**.
+- Responsable est porté par `fonction_interne='responsable'` + `niveau_interne=2` + `niveau_hierarchique=2) + pharmacie/scope.
+- Le test versionné `supabase/tests/018_pilotage_canonique_scope.sql` a été corrigé pour tester ce modèle réel, sans dépendre de la consommation transactionnelle de la nouvelle valeur enum.
+
+## Preuve d'acceptation
+Validation transactionnelle complète de la chaîne `013→019→020c), puis **ROLLBACK**, avec scénarios :
+- Admin : réseau NAXA, 3 pharmacies non-démo et recherches réseau ;
+- Promoteur : uniquement A+B, sans fuite vers C ni recherche sans pharmacie ;
+- Caisse : uniquement pharmacie A ;
+- Responsable : uniquement pharmacie A, avec niveau 2 et fonction métier Responsable ;
+- Client : accès au moteur Pilotage refusé ;
+- aucun profil n'est porté par `role_type='responsable'`.
+
+**Résultat : 🟢 Passe 6 — point multi-rôles/isolation fermé.**
+
+## État de gouvernance
+- Branche : `feat/pharmacie-validite-pilotage`
+- PR : #24 → `consolidation`
+- `main) inchangé.
+- Production Supabase inchangée.
+- Les migrations `013→020c) restent des migrations de branche/test ; aucune application Production.
+- Aucun merge ni déploiement sans l'autorisation exacte : **OUI, DÉPLOIE**.
+
+## Suite
+La Passe 6 étant désormais **verte sur ce point**, la prochaine étape est la reprise du cadre V3/Cahier des charges pour **P7 — Pilotage Performance**, en commençant par l'audit de l'existant et la matrice des contradictions avant tout code.
