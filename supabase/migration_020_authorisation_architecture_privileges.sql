@@ -47,17 +47,46 @@ update public.profiles set niveau_interne=3 where role='caisse' and niveau_inter
 
 create index if not exists profiles_niveau_interne_idx on public.profiles(niveau_interne,actif);
 
-create table if not exists public.naxa_privileges (
- code text primary key,
- famille text not null,
- libelle text not null,
- niveau_min smallint not null check (niveau_min between 1 and 3),
- niveau_max smallint not null check (niveau_max between 1 and 3),
- delegable boolean not null default true,
- governance boolean not null default false,
- active boolean not null default true,
- check (niveau_min <= niveau_max)
-);
+-- Réconciliation avec migration_020 : naxa_privileges existe déjà avec le catalogue canonique
+-- (family/description/governance_only). On l'étend sans recréer ni remplacer cette table.
+do $
+begin
+  if to_regclass('public.naxa_privileges') is null then
+    create table public.naxa_privileges (
+      code text primary key,
+      famille text not null,
+      libelle text not null,
+      niveau_min smallint not null check (niveau_min between 1 and 3),
+      niveau_max smallint not null check (niveau_max between 1 and 3),
+      delegable boolean not null default true,
+      governance boolean not null default false,
+      active boolean not null default true,
+      check (niveau_min <= niveau_max)
+    );
+  else
+    alter table public.naxa_privileges add column if not exists famille text;
+    alter table public.naxa_privileges add column if not exists libelle text;
+    alter table public.naxa_privileges add column if not exists niveau_min smallint;
+    alter table public.naxa_privileges add column if not exists niveau_max smallint;
+    alter table public.naxa_privileges add column if not exists governance boolean;
+    alter table public.naxa_privileges add column if not exists active boolean;
+
+    update public.naxa_privileges
+       set famille=coalesce(famille,family),
+           libelle=coalesce(libelle,description),
+           niveau_min=coalesce(niveau_min,1),
+           niveau_max=coalesce(niveau_max,3),
+           governance=coalesce(governance,governance_only,false),
+           active=coalesce(active,true);
+
+    alter table public.naxa_privileges alter column famille set not null;
+    alter table public.naxa_privileges alter column libelle set not null;
+    alter table public.naxa_privileges alter column niveau_min set not null;
+    alter table public.naxa_privileges alter column niveau_max set not null;
+    alter table public.naxa_privileges alter column governance set not null;
+    alter table public.naxa_privileges alter column active set not null;
+  end if;
+end $;
 create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
 
 insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,delegable,governance) values
