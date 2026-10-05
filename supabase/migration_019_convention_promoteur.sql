@@ -188,7 +188,7 @@ as $$
  left join public.abonnements_promoteurs ap on ap.promoteur_id=p.id
  left join public.conventions_promoteurs c on c.id=ap.convention_id
  where p.role='promoteur' and public.is_admin()
- order by (ap.statut='impaye') desc, ap.echeance asc nulls last, promoteur_nom;
+ order by (ap.statut='impaye') desc, ap.echeance asc nulls last, trim(concat_ws(' ',p.first_name,p.last_name));
 $$;
 revoke all on function public.validites_promoteurs_admin() from public,anon;
 grant execute on function public.validites_promoteurs_admin() to authenticated;
