@@ -341,3 +341,16 @@ Le dernier bloc structurel de la Passe 4 est désormais traité dans `migration_
 **Branche : 🟢 100 % sur le modele et les migrations.**
 
 Le modele hierarchique, le scope multi-pharmacie, les accreditations, la revocation, les garde-fous RLS et le controle OAuth sont maintenant traites. Les migrations 015→017 ont ete rejouees dans une transaction Supabase puis rollbackees. Le test de scope Promoteur A+B avec refus C a reussi. **Production reste volontairement inchangee.**
+
+
+## Passe 6 — Pilotage réel par scope
+- Contradiction fermée : les dashboards ne doivent pas recalculer leurs KPI avec un moteur parallèle à la BI/CA canonique.
+- Migration additive 018_pilotage_canonique_scope.sql : RPC stats_pilotage_scope(p_jours) comme point d'entrée unique du pilotage NAXA par scope.
+- Scope Admin = réseau NAXA ; Promoteur = pharmacies autorisées via my_pharmacies() ; Responsable/Caisse = pharmacie de leur profil actif.
+- Les recherches sans pharmacie ne sont jamais attribuées à un Promoteur/Responsable/Caisse ; elles restent réseau uniquement côté Admin. Cela évite une fuite d'agrégation entre pharmacies.
+- CA et ventes utilisent v_reservations_ca, donc la règle payee/retiree et l'anti-double-compte de la Passe 4 restent la source canonique.
+- /admin/pilotage et /pharmacie/pilotage consomment désormais la même RPC canonique.
+- /pharmacie/pilotage devient le tableau de bord commun adapté au niveau : Promoteur, Responsable ou Caisse ; il ne crée aucune sous-pharmacie.
+- Accès au pilotage ajouté depuis /pharmacie.
+- Validation Supabase : migration 018 rejouée dans une transaction puis rollbackée ; fonction créée et détectée dans la transaction, aucune modification Production persistante.
+- Validation fonctionnelle multi-utilisateur complète et application Production de 018 : encore à faire, sans les déclarer vertes prématurément.
