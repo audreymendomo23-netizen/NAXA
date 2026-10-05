@@ -33,13 +33,15 @@ AS $$ SELECT
       AND t.parent_profile_id=a.id AND t.actif=true
   ) $$;
 
-CREATE OR REPLACE FUNCTION public.accrediter_profile(p_target uuid,p_pharmacie uuid,p_niveau smallint)
+CREATE OR REPLACE FUNCTION public.accrediter_profile(p_target uuid,p_pharmacie uuid,p_niveau smallint,p_parent uuid DEFAULT NULL)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE v_id uuid; v_role public.role_type;
 BEGIN
   IF NOT public.is_admin() AND NOT public.is_promoteur() THEN RAISE EXCEPTION 'Accréditation non autorisée'; END IF;
   IF p_niveau NOT IN (2,3) THEN RAISE EXCEPTION 'Niveau invalide'; END IF;
+  IF p_parent IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.profiles parent WHERE parent.id=p_parent AND parent.actif=true AND parent.pharmacie_id=p_pharmacie AND parent.role::text IN ('promoteur','responsable')) THEN RAISE EXCEPTION 'Parent invalide'; END IF;
+  IF p_niveau=3 AND p_parent IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.profiles parent WHERE parent.id=p_parent AND parent.role::text='responsable') THEN RAISE EXCEPTION 'Parent Responsable requis'; END IF;
   SELECT role INTO v_role FROM public.profiles WHERE id=p_target AND actif=true;
   IF v_role IS NULL OR (p_niveau=2 AND v_role::text <> 'responsable') OR (p_niveau=3 AND v_role::text <> 'caisse') THEN
     RAISE EXCEPTION 'Niveau et rôle incompatibles';
@@ -50,7 +52,7 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Pharmacie hors périmètre Promoteur'; END IF;
   INSERT INTO public.profile_accreditations(grantor_profile_id,target_profile_id,pharmacie_id,niveau)
   VALUES((SELECT auth.uid()),p_target,p_pharmacie,p_niveau) RETURNING id INTO v_id;
-  UPDATE public.profiles SET parent_profile_id=(SELECT auth.uid()),pharmacie_id=p_pharmacie,actif=true WHERE id=p_target;
+  UPDATE public.profiles SET parent_profile_id=COALESCE(p_parent,(SELECT auth.uid())),pharmacie_id=p_pharmacie,actif=true WHERE id=p_target;
   RETURN v_id;
 END $$;
 
@@ -73,11 +75,6 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $$ SELECT public.can_access_pharmacy(p_pharmacie)
  AND EXISTS (SELECT 1 FROM public.pharmacies ph WHERE ph.id=p_pharmacie AND ph.actif=true)
  AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=(SELECT auth.uid()) AND p.actif=true AND p.role::text IN ('promoteur','responsable','caisse','pharmacie','admin')) $$;
-
-DROP POLICY IF EXISTS profiles_promoteur_update_children ON public.profiles;
-CREATE POLICY profiles_promoteur_update_children ON public.profiles FOR UPDATE TO authenticated
-USING (public.can_manage_profile(id))
-WITH CHECK (public.can_manage_profile(id) AND role::text IN ('responsable','caisse') AND public.can_access_pharmacy(pharmacie_id));
 
 DROP POLICY IF EXISTS stocks_write ON public.stocks;
 CREATE POLICY stocks_write ON public.stocks FOR ALL TO authenticated
