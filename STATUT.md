@@ -174,3 +174,39 @@ Le verrouillage ci-dessus est **un verrouillage de conception**, pas une déclar
 ## Passe suivante
 **Passe 4 — Métier / Données / BI / Rapports.**
 Objectif : fermer le dictionnaire KPI, le grain, les sources, les scopes, les agrégations anti-double-compte, les rapports hiérarchiques, les exports et les tests de cohérence.
+
+
+## 🔒 Référence prioritaire — clôture Passes 1–3 — 5 octobre 2026
+Cette section prime sur les formulations historiques antérieures.
+
+### 🟢 PASS 1 — Existant & invariants
+- Existant vérifié avant évolution ; principe additif/non destructif maintenu.
+- Une pharmacie reste une unité commerciale et un stock partagé, même avec plusieurs caisses.
+- Client hors hiérarchie interne.
+- Hiérarchie cible : N0 Admin → N1 Promoteur → N2 Responsable → N3 Caisse.
+- `role=pharmacie` reste une compatibilité historique et n'est pas un niveau hiérarchique.
+- Aucun merge main ni déploiement Production sans accord explicite.
+
+### 🟢 PASS 2 — Métier / Données / Commercial
+- Convention → Promoteur → pharmacies autorisées → architecture → abonnements → paiements.
+- Relation Promoteur ↔ pharmacies obligatoire pour le multi-pharmacie.
+- Architecture 2 ou 3 niveaux choisie dans les limites de la Convention.
+- Responsable = autorité/scopage ; accréditation distincte du niveau et du statut.
+- 30 000 FCFA/mois = référence catalogue ; le prix facturé est contractuel et historisé.
+- PAR_PHARMACIE et FORFAIT_CONVENTION sont les deux modes commerciaux retenus.
+- Une pharmacie impayée ne bloque pas les autres pharmacies valides du Promoteur.
+
+### 🟢 PASS 3 — Sécurité / Autorisation
+- Droit effectif = identité × niveau × accréditation × périmètre × pharmacie × convention × statut × objet × opération.
+- RLS + grants + contrôles DB/serveur = autorité.
+- Caisse = opérateur normal ; Responsable/Promoteur = supervision/pilotage avec droits explicites.
+- Public/client limité aux données de disponibilité ; données opérationnelles internes séparées.
+- Vues/fonctions doivent avoir une posture de sécurité explicite, grants minimaux et tests allow/deny. Supabase recommande RLS + grants par opération et des tests de base de données ; les vues doivent utiliser `security_invoker` lorsqu'elles doivent respecter le RLS sous-jacent. citeturn0search0turn0search1
+- SECURITY DEFINER uniquement lorsqu'il est nécessaire, avec `search_path` sécurisé et EXECUTE minimal. citeturn0search3
+- Limite sessions : 4 maximum, aucune déconnexion automatique des 4 précédentes.
+
+### État de clôture
+**Passes 1–3 : 🟢 vertes côté conception, arbitrage et spécification.** Les corrections techniques identifiées (RLS historiques, fonctions/vues privilégiées, compatibilité mono-pharmacie, callback OAuth) sont désormais des tâches d'implémentation déterministes ; elles ne constituent plus des ambiguïtés de conception.
+
+## Passe 4 — prochaine passe
+Métier / Données / BI / Rapports : dictionnaire KPI, grain, sources, scopes, agrégation, anti-double-compte, rapports hiérarchiques, exports et tests de cohérence.
