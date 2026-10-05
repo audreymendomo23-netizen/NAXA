@@ -382,7 +382,7 @@ returns uuid language plpgsql security definer set search_path=''
 as $$
 declare v_id uuid; v_level smallint; v_arch text; v_promoteur uuid;
 begin
- if not public.is_admin() and not public.naxa_has_privilege('ASSIGN_PRIVILEGE',p_pharmacie,p_scope) then raise exception 'Attribution non autorisée'; end if;
+ if not public.is_admin() and not public.naxa_has_privilege('ASSIGN_PRIVILEGE',p_pharmacie,'PHARMACIE') then raise exception 'Attribution non autorisée'; end if;
  select niveau_interne into v_level from public.profiles where id=p_target and actif;
  if v_level is null or v_level=0 then raise exception 'Niveau cible invalide'; end if;
  select architecture_code into v_arch from public.conventions_promoteurs c where c.promoteur_id=
@@ -410,7 +410,7 @@ create or replace function public.naxa_revoke_privilege(p_target uuid,p_privileg
 returns void language plpgsql security definer set search_path=''
 as $$
 begin
- if not public.is_admin() and not public.naxa_has_privilege('REVOKE_PRIVILEGE',p_pharmacie,p_scope) then raise exception 'Révocation non autorisée'; end if;
+ if not public.is_admin() and not public.naxa_has_privilege('REVOKE_PRIVILEGE',p_pharmacie,'PHARMACIE') then raise exception 'Révocation non autorisée'; end if;
  update public.naxa_profile_privileges set active=false,revoked_at=now()
  where profile_id=p_target and privilege_code=p_privilege and pharmacie_id is not distinct from p_pharmacie and scope_type=p_scope and active;
  if not found then raise exception 'Privilège introuvable'; end if;
