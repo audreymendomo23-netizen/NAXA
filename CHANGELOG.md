@@ -36,3 +36,9 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 ## 2026-10-05 — Passe 4 : C4 CA canonique
 - Migration additive 014 préparée : source `v_reservations_ca`, transitions de réservation verrouillées et vues de ventes alignées.
 - Test SQL de la migration effectué en transaction rollbackée ; aucune modification Production persistante.
+
+
+## 2026-10-05 — Passe 4 : C2 rapports hiérarchiques
+- Migration additive 015 préparée pour représenter les scopes PHARMACIE / RESPONSABLE / PROMOTEUR / NAXA sans supprimer l'ancien modèle.
+- Test Supabase rollbacké : structure validée, 0 rapport existant actuellement.
+- Aucun merge main ni déploiement Production.
