@@ -118,3 +118,8 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - Pilotage NAXA : `/admin/pilotage/validite` pour suivre les échéances, impayés et réactivations.
 - Migration additive : `supabase/migration_010_validite_pharmacies.sql`.
 - Le chantier reste sur une branche dédiée jusqu'à validation complète.
+
+### État Supabase réel — validité commerciale
+- `009_pilotage_360` et `010_validite_pharmacies` sont appliquées sur le projet Supabase Naxa.
+- Les 3 pharmacies existantes sont initialisées à **30 000 FCFA/mois**, actives, échéance **4 novembre 2026**.
+- Aucun paiement fictif n’a été créé.
