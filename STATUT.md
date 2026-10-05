@@ -906,3 +906,8 @@ Ordre retenu : **Client → Caisse → Responsable → Promoteur → Admin**, av
 
 ### Correctif de sécurité Client — 6 octobre 2026
 Audit de contradiction post-implémentation : la vue `client_achats` était `security_invoker`, mais les RLS internes autorisent aussi les comptes pharmacie à lire leurs réservations. Pour éviter qu'un compte interne puisse recevoir l'historique d'achat des clients via cette vue, la vue est désormais explicitement bornée à `r.client_id = auth.uid()`. La route `/client` vérifie également `profiles.role = client`. Le test 019 couvre désormais cette isolation. Aucun autre rôle ne doit recevoir le dataset Client.
+
+
+### Complément parcours Client — point d'entrée
+- `/client` est maintenant accessible depuis l'accueil via un lien dynamique basé sur le rôle du profil : **Mon espace** pour un Client, **Se connecter** sinon.
+- Le lien n'accorde aucun droit ; le contrôle serveur/dataset reste assuré par authentification + rôle + RLS.
