@@ -126,3 +126,12 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Vérification réelle : migrations `009` et `010`, tables, fonctions et trigger d’initialisation présents.
 - État réel : 3/3 pharmacies ont un abonnement actif à 30 000 FCFA/mois, échéance 4 novembre 2026 ; aucun paiement fictif enregistré.
 - Aucun merge `main` et aucun déploiement applicatif effectué.
+
+## Chantier — limite de sessions par compte
+- Règle métier validée : maximum 4 sessions/appareils simultanés par compte.
+- Les 4 sessions existantes restent actives ; aucune déconnexion automatique des anciennes sessions.
+- Une 5e tentative de connexion par mot de passe est refusée avec un message explicite.
+- Le parcours Google OAuth applique la même limite ; si la 5e session est créée pendant le callback, elle est immédiatement révoquée, sans toucher aux 4 précédentes.
+- Migration additive 011_limite_sessions.sql appliquée à Supabase : fonction naxa_session_count protégée, exécutable uniquement par service_role.
+- État de sécurité vérifié : anon et authenticated n'ont pas EXECUTE sur la fonction ; service_role uniquement.
+- Aucun changement de mot de passe, de rôle, de profil ou de donnée métier ; aucun merge main et aucun déploiement applicatif effectué.
