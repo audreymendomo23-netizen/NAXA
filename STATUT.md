@@ -748,3 +748,47 @@ Ne pas repartir de zéro et ne pas créer un second modèle. Reprendre par :
 7. seulement après 100 % vert, demander validation avant la suite du roadmap.
 
 **Règle absolue : ne pas déclarer ce chantier terminé sur la seule présence des fichiers SQL.**
+
+
+---
+
+# 🔒 MISE À JOUR DE CONTINUITÉ — VALIDATION 020 — 5 OCTOBRE 2026
+
+## 1. Méthodologie exécutée
+Audit → contradiction → fermeture additive → test transactionnel → acceptance → rollback → contrôle Production → documentation.
+
+Aucune migration 013→020c n’a été appliquée de façon persistante à Production. Toutes les validations SQL ont été exécutées dans une transaction contrôlée suivie d’un ROLLBACK.
+
+## 2. Contradictions découvertes et fermées
+1. Catalogue 020 incompatible avec les colonnes legacy : le seed canonique alimentait famille/libelle/niveau_* / governance/active alors que family/description/governance_only étaient encore NOT NULL. Correction additive : relâchement temporaire pendant le seed, backfill, puis restauration des contraintes.
+2. Doublons de privilèges : VIEW_TEAM_ACTIVITY et EXPORT_STOCK apparaissaient deux fois dans le même seed. Les doublons ont été supprimés en conservant une définition canonique par code.
+3. Signature accrediter_profile : une version retirait par inadvertance le default p_parent. Le default est conservé.
+4. Niveau interne non synchronisé : 020b mettait à jour niveau_hierarchique mais pas niveau_interne. Correction additive : les deux sont synchronisés.
+5. Enum historique responsable : 016 l’a ajouté avant la décision canonique. PostgreSQL ne permet pas de supprimer une valeur enum existante sans recréer le type ; la stratégie non destructive est donc de conserver la valeur historique mais d’interdire son utilisation dans les profils. La preuve porte sur l’absence de profils actifs utilisant role_type=responsable. citeturn0search5
+6. Test d’autorisation trop strict sur le contenu de la fixture : le test a été rendu exécutable avec les deux profils réellement présents dans l’environnement de validation, sans créer de donnée persistante.
+7. Test Responsable avec privilège hors niveau : VIEW_CA_BY_RESPONSABLE est réservé au niveau Promoteur dans le catalogue ; le test utilise désormais VIEW_PHARMACY_PILOTAGE, compatible N2.
+
+## 3. Preuves d’exécution
+| Contrôle | Résultat | Persistance |
+|---|---|---|
+| Migrations 013→020c | 🟢 PASS | ROLLBACK |
+| Test 017 sécurité | 🟢 PASS | ROLLBACK |
+| Test 018 Pilotage canonique | 🟢 PASS | ROLLBACK |
+| Test 020 structure architecture/privilèges | 🟢 PASS | ROLLBACK |
+| Test 020 autorisation architecture/privilèges | 🟢 PASS | ROLLBACK |
+| Contrôle Production après rollback | 🟢 PASS | 013→020c absentes |
+
+## 4. État réel après cette passe
+- Architecture A1/A2/A3/A4 : 🟢 modèle verrouillé.
+- Responsable : 🟢 fonction/niveau N2 ; pas de modèle métier concurrent.
+- Catalogue de privilèges : 🟢 structure et compatibilité legacy validées transactionnellement.
+- Autorisation / gates : 🟢 tests d’acceptation passés.
+- Pilotage canonique technique : 🟢 tests 018 passés.
+- Pilotage de la performance métier : 🟠 non construit. Les privilèges correspondants ne sont pas une preuve de réalisation fonctionnelle.
+- Production : 🟢 inchangée.
+- main : 🟢 inchangé.
+- PR #24 : ouverte, vers consolidation.
+- CI HEAD : 🟠 NAXA quality encore in_progress au dernier contrôle.
+
+## 5. Prochain point obligatoire
+Attendre la fin de la CI du HEAD, puis effectuer un dernier contrôle de cohérence branche/README/STATUT/PR. Si CI = SUCCESS, le lot architecture/privilèges pourra être considéré vert au niveau branche + preuve transactionnelle, sans déploiement Production. Ensuite seulement, reprendre le chantier Pilotage Performance métier selon V3/Cahier, avec audit préalable et sans confondre les privilèges préparés avec une fonctionnalité déjà construite.
