@@ -155,7 +155,7 @@ revoke all on function public.synchroniser_validite_pharmacies() from public,ano
 grant execute on function public.synchroniser_validite_pharmacies() to service_role;
 
 -- Vue RPC Admin : une ligne par Promoteur, même sans pharmacie.
-create or replace function public.validites_pharmacies_admin()
+create or replace function public.validites_promoteurs_admin()
 returns table(
  promoteur_id uuid,
  promoteur_nom text,
@@ -190,8 +190,8 @@ as $$
  where p.role='promoteur' and public.is_admin()
  order by (ap.statut='impaye') desc, ap.echeance asc nulls last, promoteur_nom;
 $$;
-revoke all on function public.validites_pharmacies_admin() from public,anon;
-grant execute on function public.validites_pharmacies_admin() to authenticated;
+revoke all on function public.validites_promoteurs_admin() from public,anon;
+grant execute on function public.validites_promoteurs_admin() to authenticated;
 
 create or replace function public.reactiver_promoteur(
  p_promoteur uuid,
