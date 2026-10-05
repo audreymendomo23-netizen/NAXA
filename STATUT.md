@@ -828,3 +828,41 @@ Validation transactionnelle complète de la chaîne `013→019→020c), puis **R
 
 ## Suite
 La Passe 6 étant désormais **verte sur ce point**, la prochaine étape est la reprise du cadre V3/Cahier des charges pour **P7 — Pilotage Performance**, en commençant par l'audit de l'existant et la matrice des contradictions avant tout code.
+
+
+## 🔒 Passe Client — Historique des médicaments achetés — 6 octobre 2026
+
+### Objectif
+Le Client disposera d'un historique personnel des médicaments effectivement achetés, distinct du Pilotage interne.
+
+### Fondation implémentée sur la branche
+- Migration additive : supabase/migration_021_historique_achats_client.sql.
+- Table d'événements : public.reservation_events.
+- Vue canonique de lecture : public.client_achats.
+- Événements capturés automatiquement : création de réservation ; changement de statut ; déclaration de paiement.
+- Horodatage conservé en timestamptz : date + heure.
+- Listing prévu : médicament, DCI, dosage, forme, quantité, prix unitaire, total ligne, total transaction, pharmacie, référence de paiement, réservation et chronologie disponible.
+- Achat = réservation payee ou retiree.
+- Aucun faux horodatage historique : lorsque l'ancienne donnée ne possède pas d'événement de transition d'achat, horodatage_achat_exact=false et la date de création de réservation reste séparée.
+
+### Sécurité
+- RLS activée sur reservation_events.
+- Client : lecture uniquement de ses événements.
+- Pharmacie/Admin : lecture dans leur périmètre.
+- Aucun insert/update/delete direct pour le rôle Client.
+- client_achats utilise security_invoker=true.
+- Trigger de journalisation non exposé directement aux rôles clients.
+- Référence : recommandations Supabase actuelles sur RLS, grants et vues security_invoker.
+
+### Tests
+- supabase/tests/019_historique_achats_client.sql ajouté.
+- Tests prévus : RLS, grants, présence des timestamps, bornage aux achats payés/retirés, non-exposition de la fonction de trigger.
+- État : 🟠 dépôt préparé, validation DB réelle encore à exécuter.
+- La connexion MCP Supabase au projet NAXA n'est pas disponible dans cette session ; aucune prétention de test sur Production.
+
+### Gouvernance
+- Branche : feat/pharmacie-validite-pilotage.
+- main inchangé.
+- Production inchangée.
+- Aucun merge ni déploiement.
+- Prochaine étape : brancher l'interface Client Mes médicaments achetés, puis exécuter les tests DB et le contrôle UX avant acceptation.
