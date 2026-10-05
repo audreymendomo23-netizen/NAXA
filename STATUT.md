@@ -354,3 +354,13 @@ Le modele hierarchique, le scope multi-pharmacie, les accreditations, la revocat
 - Accès au pilotage ajouté depuis /pharmacie.
 - Validation Supabase : migration 018 rejouée dans une transaction puis rollbackée ; fonction créée et détectée dans la transaction, aucune modification Production persistante.
 - Validation fonctionnelle multi-utilisateur complète et application Production de 018 : encore à faire, sans les déclarer vertes prématurément.
+
+
+## Point de contrôle documentaire — Passe 6 — 5 octobre 2026
+- Branche de travail : `feat/pharmacie-validite-pilotage`.
+- PR #24 ouverte vers `consolidation`, HEAD `bfc6089acc293806fedda8b90078eb0ca23ba021` ; PR non fusionnée.
+- Migrations 013–018 vérifiées comme fichiers de branche sous `supabase/` ; elles ne résident pas sous `supabase/migrations/`.
+- 018 = point d’entrée canonique du pilotage par scope : `stats_pilotage_scope(p_jours)`.
+- Dashboards Admin et pharmacie consomment cette même RPC ; aucune application Production de 013–018 n’est déclarée.
+- **Statut documentaire : 🟠 en contrôle.** La prochaine étape est le checking migration par migration (dépendances, idempotence/additivité, RLS/grants, sécurité DEFINER/INVOKER, cohérence BI/CA, tests), puis seulement la reprise de l’audit contradictoire.
+- Aucun merge `main`, aucune migration Production, aucun déploiement sans **OUI, DÉPLOIE**.
