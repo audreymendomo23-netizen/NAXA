@@ -98,3 +98,13 @@ La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses
 6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
+
+
+## Pilotage 360° — branche consolidation
+- N1 NAXA : pilotage réseau, entonnoir commercial, demande et revenus.
+- N2/N3 : pilotage pharmacie partagé entre Promoteur et Caisses, sans créer de sous-pharmacie.
+- Migration additive prévue : `009_pilotage_360.sql` ; le numéro 006 du pack ne remplace pas l’authentification existante.
+- Rapports : snapshots Supabase, page Rapports et préparation d’envoi serveur PDF/CSV via Resend.
+- BI : vues agrégées dans `bi`, sans identité client.
+- Branding officiel préparé : jeton `naxa-logo-green #0A7547`, manifest et métadonnées mis à jour.
+- Cette branche n’est pas en Production. Autorisation exacte requise : **OUI, DÉPLOIE**.
