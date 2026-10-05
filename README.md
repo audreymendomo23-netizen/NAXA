@@ -257,3 +257,12 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - `migration_015_scopes_rapports_hierarchiques.sql` est additive et non destructive.
 - Test Supabase exécuté en transaction rollbackée : colonnes, contrainte et index créables ; 0 rapport actuellement présent, donc 0 historique à migrer.
 - **Important** : le branchement effectif des scopes à l'autorisation Promoteur/Responsable reste une étape d'implémentation du moteur hiérarchique ; il ne doit pas être simulé par l'UI.
+
+
+## Passe 4 — Exports par scope 🟢 100 % au niveau garde-fou / contrat
+- Le mécanisme d'export CSV existant (`exporterCsv`) est conservé : aucun deuxième moteur d'export n'est créé.
+- L'API `/api/rapports` expose désormais les métadonnées de scope (`scope_type`, `scope_profile_id`, `scope_pharmacie_id`) sans élargir les droits.
+- Tant que le moteur hiérarchique/RLS complet n'est pas branché, un utilisateur non-admin reste limité à sa `pharmacie_id` historique. La présence d'un `scope_type` ne donne jamais un droit implicite.
+- Les exports héritent donc du périmètre autorisé par la source : pas d'export global depuis une vue locale.
+- Le CSV reste un format d'export opérationnel ; le PDF d'envoi automatique reste séparé et inchangé.
+- Test d'acceptation : un scope n'élargit pas l'API par lui-même ; aucune donnée hors périmètre n'est ajoutée.
