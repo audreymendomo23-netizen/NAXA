@@ -115,3 +115,12 @@ REVOKE ALL ON FUNCTION public.stats_admin(integer) FROM anon;
 REVOKE ALL ON FUNCTION public.stats_pharmacie(uuid,integer) FROM anon;
 REVOKE ALL ON FUNCTION public.validites_pharmacies_admin() FROM anon;
 REVOKE ALL ON FUNCTION public.set_garde(boolean) FROM anon;
+
+REVOKE ALL ON FUNCTION public.can_manage_profile(uuid) FROM public,anon,authenticated;
+REVOKE ALL ON FUNCTION public.accrediter_profile(uuid,uuid,smallint,uuid) FROM public,anon,authenticated;
+REVOKE ALL ON FUNCTION public.retirer_accreditation(uuid) FROM public,anon,authenticated;
+REVOKE ALL ON FUNCTION public.can_operate_pharmacy(uuid) FROM public,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.can_manage_profile(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.accrediter_profile(uuid,uuid,smallint,uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.retirer_accreditation(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.can_operate_pharmacy(uuid) TO authenticated;
