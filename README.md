@@ -63,7 +63,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Vérification Supabase du 5 octobre 2026 : 3 pharmacies de démonstration actives existent déjà à Yaoundé, avec 3 lignes de stock chacune. Elles ne sont pas considérées comme des pharmacies pilotes réelles tant que les données/équipes réelles n'ont pas été fournies.
 - Aucune nouvelle table, migration ou dépendance ajoutée pour ce chantier.
 
-### Architecture des comptes pharmacie
+### Architecture des comptes pharmacie — consolidée en Production
 - Une pharmacie reste une seule entité côté client : un seul stock, une seule identité et les mêmes réservations pour toute l'équipe.
 - Le compte principal de la pharmacie est le **Promoteur**. L'équipe NAXA crée la pharmacie et son compte Promoteur ; la pharmacie devient ensuite autonome.
 - Le Promoteur est le compte parent : il crée, bloque et réactive les comptes **Caisses** enfants.
@@ -72,24 +72,29 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - La formation terrain doit utiliser les comptes Caisse pour apprendre l'import et la gestion quotidienne du stock, afin que l'équipe pharmacie prenne elle-même la main.
 
 ### Règles de gouvernance
+- PR #21 : architecture Promoteur parent / Caisses enfants, fusionnée dans `main` par squash après évaluation complète.
+- Déploiement Production issu de la consolidation PR #21 : READY sur le projet Vercel existant `naxa`.
+- Contrôle post-déploiement : commit `5ad95ce30dd43b3c140e0048606c81dd5143e490`, Vercel READY, aucun log runtime `error/fatal` sur les 30 premières minutes contrôlées.
 - Aucun déploiement Preview volontaire.
 - Production uniquement après évaluation complète et autorisation explicite.
 - Aucune suppression ou réécriture destructive.
 - Le prompt maître et le cahier des charges restent prioritaires.
 
 ## Production
-- Projet Vercel existant : naxa.
-- Déploiement Production précédent : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N, commit 21a1a6e5b17e67bcab401364452096f771ac7ef5, état READY.
-- Déploiement Production courant : dpl_7tJYSaG3gQfej9PdHiy6xsrBnZsK, commit 26e98cc43c3c2a6dafcac92a5abb8fbeb016006b, état READY.
-- Alias Production : naxa-naxa3.vercel.app.
-- Le déploiement provient de main après fusion de PR #15.
+- Projet Vercel existant : `naxa`.
+- Déploiement Production courant : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6`, commit `5ad95ce30dd43b3c140e0048606c81dd5143e490`, état **READY**.
+- Alias Production : `naxa-opal.vercel.app` et `naxa-naxa3.vercel.app`.
+- Le déploiement provient de `main` après fusion de PR #21.
+- Contrôle post-déploiement : état Vercel READY ; statut GitHub Vercel SUCCESS ; aucun log runtime error/fatal trouvé sur la fenêtre de contrôle de 30 minutes.
 - Aucun nouveau projet Vercel et aucun Preview volontaire.
 
 ## Prochain point du cahier des charges
-La consolidation technique du chantier Pharmacies pilotes est terminée. Il reste la mise en service terrain :
-1. remplacer/compléter les 3 pharmacies de démonstration par 3 à 5 pharmacies pilotes réelles ;
-2. migrer leurs stocks réels via l'import prévu ;
-3. vérifier fraîcheur, prix, quantités, péremptions et formats ;
-4. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
-5. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
+La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses est en Production. Il reste la **mise en service terrain réelle** :
+1. identifier 3 à 5 pharmacies pilotes réelles ;
+2. créer leurs comptes Promoteur via l'accès NAXA `/admin` ;
+3. faire créer/activer par chaque Promoteur les comptes Caisses de son équipe ;
+4. importer leurs stocks réels via le mécanisme existant ;
+5. vérifier fraîcheur, prix, quantités, péremptions et formats ;
+6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
+7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
