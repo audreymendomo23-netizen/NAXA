@@ -7,11 +7,14 @@ begin
   select count(*) into c from public.naxa_privileges;
   if c < 80 then raise exception 'Catalogue privilèges incomplet: %',c; end if;
 
+  -- 016 a historiquement ajouté la valeur enum responsable. PostgreSQL ne permet pas
+  -- de retirer proprement une valeur d'enum sans recréer le type, ce que nous refusons
+  -- pour préserver l'existant. La règle canonique est donc : aucune utilisation active
+  -- de cette valeur ; Responsable est porté par fonction_interne/niveau_interne.
   select exists(
-    select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid
-    where t.typname='role_type' and e.enumlabel='responsable'
+    select 1 from public.profiles where role::text='responsable'
   ) into has_responsable_enum;
-  if has_responsable_enum then raise exception 'Contradiction: responsable ne doit pas être une valeur role_type'; end if;
+  if has_responsable_enum then raise exception 'Contradiction: un profil utilise encore role_type=responsable'; end if;
 
   if not exists(select 1 from public.naxa_privileges where code='CREATE_RESPONSABLE') then raise exception 'CREATE_RESPONSABLE absent'; end if;
   if not exists(select 1 from public.naxa_privileges where code='CREATE_CAISSE') then raise exception 'CREATE_CAISSE absent'; end if;
