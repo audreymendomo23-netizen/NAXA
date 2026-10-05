@@ -131,3 +131,39 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - La règle s'applique à la connexion username/mot de passe et au callback Google OAuth.
 - Migrations additives : `supabase/migration_011_limite_sessions.sql` et `supabase/migration_012_enforcement_limite_sessions.sql`.
 - Enforcement DB atomique : une 5e session ne peut pas être créée, y compris en cas de connexions concurrentes.
+
+## Clôture des passes 1 → 3 — architecture et sécurité (audit du 5 octobre 2026)
+Les passes 1, 2 et 3 sont désormais **vertes au niveau spécification/architecture** : les contradictions métier structurantes ont été arbitrées et aucun second modèle concurrent ne doit être créé.
+
+### Pass 1 — état existant et invariants : 🟢 100 %
+- Existant inventorié avant évolution ; principe additif conservé.
+- Une pharmacie reste une unité commerciale et un stock unique côté client, même avec plusieurs caisses.
+- Le Client est hors hiérarchie interne NAXA.
+- N0 NAXA Admin / N1 Promoteur / N2 Responsable / N3 Caisse est la hiérarchie cible.
+- 'pharmacie' est conservé comme compatibilité historique d'identité, pas comme niveau hiérarchique.
+- Aucun nouveau projet Vercel/Supabase et aucun merge/deploy Production sans autorisation.
+
+### Pass 2 — métier, données et commercial : 🟢 100 %
+- Modèle canonique : Convention → Promoteur → pharmacies autorisées → architecture → abonnements → paiements.
+- Une relation explicite Promoteur ↔ pharmacie est obligatoire pour le multi-pharmacie.
+- Une pharmacie peut choisir une architecture 2 niveaux (Promoteur → Caisse) ou 3 niveaux (Promoteur → Responsable → Caisse) uniquement dans les limites autorisées par la convention.
+- Responsable = niveau d'autorité/scopage ; jamais une fonction métier propriétaire de la pharmacie.
+- Accréditation ≠ rôle : niveau, périmètre, statut, dates d'attribution/révocation sont distincts.
+- Tarif catalogue de référence : 30 000 FCFA/mois ; le tarif facturé est contractuel et historique par période.
+- Modes commerciaux retenus : PAR_PHARMACIE et FORFAIT_CONVENTION.
+- Aucun historique de paiement/période ne doit être réécrit lors d'un changement tarifaire.
+- Une pharmacie impayée peut être bloquée opérationnellement sans désactiver les autres pharmacies du même Promoteur.
+
+### Pass 3 — autorisation, RLS et séparation des données : 🟢 100 % au niveau du modèle cible
+- Règle canonique : droit effectif = identité × niveau × accréditation × périmètre × pharmacie × convention × statut × objet × opération.
+- Caisse = opérateur normal du stock ; niveaux supérieurs = supervision/pilotage et corrections explicitement autorisées.
+- Client : disponibilité/public ; interne : quantités exactes, lots, péremptions, mouvements et anomalies.
+- Les rapports remontent par agrégation hiérarchique sans déplacer physiquement les données historiques.
+- Les KPI suivent une seule chaîne : source → règle KPI → agrégation → BI → dashboard → rapport.
+- Les vues et fonctions exposées doivent respecter grants minimaux + RLS + posture explicite SECURITY INVOKER/DEFINER.
+- Le callback OAuth ne doit plus effectuer de déconnexion locale après une erreur de limite de session : l'enforcement DB est l'autorité.
+
+**Important :** « vert » ici signifie que la spécification et les arbitrages des passes 1–3 sont verrouillés. Les remédiations SQL/RLS et les tests d'acceptation associés restent à exécuter dans les lots d'implémentation, sans les présenter artificiellement comme déjà déployés.
+
+### Prochaine passe
+**Passe 4 — Métier / Données / BI / Rapports :** dictionnaire KPI, grain, sources, scopes, règles d'agrégation, exports, rapports hiérarchiques et tests de cohérence.
