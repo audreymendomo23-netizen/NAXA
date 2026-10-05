@@ -24,3 +24,4 @@ Coût d'achat : Promoteur/NAXA uniquement via `stocks_couts` dans le périmètre
 - Source : rapport déjà autorisé.
 - Format actuel : CSV côté interface ; PDF pour l'envoi automatique existant.
 - Règle : l'export ne peut jamais élargir le scope.
+\n\nMatrice BI/RLS multi-pharmacie : Promoteur = pharmacies explicitement accréditées ; Responsable = périmètre autorisé, avec compatibilité actuelle via `profiles.pharmacie_id` ; Caisse = pharmacie opérationnelle ; NAXA = global ; Client = hors hiérarchie interne.\n
