@@ -59,9 +59,10 @@ begin
   on conflict (promoteur_id) do update
   set architecture_code='PARENTS_ENFANTS',statut='active',date_expiration=current_date+30;
 
-  -- Le rôle système reste inchangé : aucune valeur responsable dans role_type.
-  if exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid where t.typname='role_type' and e.enumlabel='responsable') then
-    raise exception 'Contradiction: responsable ne doit pas être une valeur role_type';
+  -- 016 a conservé la valeur enum historique responsable. La contrainte canonique
+  -- est qu'aucun profil ne l'utilise : la fonction/niveau porte désormais Responsable.
+  if exists(select 1 from public.profiles where role::text='responsable') then
+    raise exception 'Contradiction: un profil utilise role_type=responsable';
   end if;
 
   -- Admin prépare les privilèges délégables du Promoteur.
