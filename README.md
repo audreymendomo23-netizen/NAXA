@@ -278,3 +278,17 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - Migration ajoutée : `supabase/migration_016_bi_rls_multipharmacie.sql`.
 - **Aucun déploiement Production ni migration Supabase Production n'a été exécuté.**
 - Acceptance tests à exécuter après application contrôlée : Promoteur multi-pharmacie voit A+B mais pas C ; Responsable/Caisse voient uniquement leur pharmacie ; NAXA voit toutes ; Client ne reçoit pas le périmètre interne ; KPI consolidés = somme des pharmacies autorisées sans double-compte.
+
+
+## Passe 5 — Hierarchie + securite
+- Arbre canonique : `profiles.parent_profile_id`.
+- Scope Promoteur : `promoteur_pharmacies`.
+- Accreditations tracees : `profile_accreditations`.
+- Creation/revocation des niveaux via fonctions DB controlees.
+- Pas d'auto-elevation par UPDATE direct des profils.
+- RLS multi-pharmacie appliquee aux donnees internes principales.
+- Stock interne non directement expose a `anon`.
+- Nouvelles fonctions sensibles : `search_path` fixe et EXECUTE restreint.
+- OAuth : limite de 4 appareils controlee lors de la creation de session.
+- Validation branche : migrations 015 a 017 executees en transaction puis rollback ; test A+B autorise et C refuse reussi.
+- Production non modifiee.
