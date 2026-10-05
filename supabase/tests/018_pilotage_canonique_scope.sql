@@ -80,11 +80,28 @@ begin
     raise exception 'Client doit être refusé par stats_pilotage_scope';
   end if;
 
-  -- Responsable : couverture différée dans un test post-commit.
-  -- PostgreSQL interdit d'utiliser la nouvelle valeur enum 'responsable'
-  -- avant le commit qui termine ALTER TYPE ... ADD VALUE.
-  -- Ce scénario doit être exécuté après application contrôlée de 016 dans
-  -- un environnement de test, sans mutation Production.
+  -- Responsable : fonction métier + niveau interne 2, sans utiliser role_type=responsable.
+  -- Le rôle technique historique reste 'pharmacie' ; le scope est celui de la pharmacie A.
+  update public.profiles
+    set role='pharmacie',
+        fonction_interne='responsable',
+        niveau_interne=2,
+        niveau_hierarchique=2,
+        pharmacie_id=v_a,
+        actif=true
+  where id=v_promoteur;
+
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
+  v_json := public.stats_pilotage_scope(7);
+  if (v_json->'pharmacies'->>'total')::int <> 1 then
+    raise exception 'Responsable scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
+  end if;
+  if (v_json->'recherches'->>'total')::int <> 1 then
+    raise exception 'Responsable recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
+  end if;
+  if exists(select 1 from public.profiles where id=v_promoteur and role::text='responsable') then
+    raise exception 'Responsable ne doit pas être porté par role_type=responsable';
+  end if;
 
 end
 $$;
