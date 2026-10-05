@@ -221,3 +221,19 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - Source de vérité KPI : 🟢.
 - Grain des stocks/lots/réservations/recherches : 🟢 au niveau spécification.
 - Recherche, CA, rapports hiérarchiques, exports et tests anti-double-comptage : 🟠/🔴, encore à fermer par contradiction.
+
+
+## Passe 4 — conventions de présentation monétaire et source KPI recherche
+### Devise — règle d'affichage Client 🟢 100 %
+- Le code technique de devise reste XAF dans la donnée et les contrats techniques.
+- L'interface humaine NAXA affiche **FCFA** : par exemple `2 500 FCFA`, jamais `2 500 XAF` pour le Client.
+- La fonction Client existante `fcfa()` centralise déjà ce rendu pour les prix de recherche, les fiches, les réservations et les reçus.
+- Aucun changement de valeur, de calcul ou de devise réelle : il s'agit uniquement d'une convention d'affichage.
+
+### Contradiction C3 — deux sources de recherche 🟢 100 % au niveau règle canonique
+- `evenements` est la **source canonique des KPI de recherche et du funnel** : un parcours de recherche produit un événement `recherche` via `log_evenement`.
+- `recherche_events` est conservée comme **source historique/compatibilité du bandeau « Les plus recherchés »** via `log_recherche`.
+- Les deux flux ne doivent jamais être additionnés, joints ou interprétés comme deux recherches indépendantes pour un même parcours.
+- `recherche_events` ne sert donc pas au calcul des volumes de recherche, taux de résultat, conversion ou autres KPI du funnel.
+- Test d'acceptation : une recherche utilisateur = 1 événement canonique `evenements.recherche`; les éventuelles lignes secondaires `recherche_events` restent hors KPI.
+- Aucun historique n'est supprimé.
