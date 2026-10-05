@@ -29,7 +29,7 @@ begin
     values(v_promoteur,'authenticated','authenticated',
       'naxa-test-promoteur-'||replace(v_promoteur::text,'-','')||'@example.invalid','',
       now(),now(),now(),'{}',jsonb_build_object(
-        'username','test_'||replace(v_promoteur::text,'-',''),
+        'username','test_'||substr(replace(v_promoteur::text,'-',''),1,20),
         'first_name','Test',
         'last_name','Promoteur',
         'date_of_birth','1990-01-01',
@@ -45,7 +45,7 @@ begin
     values(v_target,'authenticated','authenticated',
       'naxa-test-cible-'||replace(v_target::text,'-','')||'@example.invalid','',
       now(),now(),now(),'{}',jsonb_build_object(
-        'username','test_'||replace(v_target::text,'-',''),
+        'username','test_'||substr(replace(v_target::text,'-',''),1,20),
         'first_name','Test',
         'last_name','Cible',
         'date_of_birth','1990-01-01',
