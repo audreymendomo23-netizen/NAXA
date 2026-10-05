@@ -27,3 +27,4 @@ Le rapport porte un scope explicite : `PHARMACIE`, `RESPONSABLE`, `PROMOTEUR` ou
 
 ## Exports par scope
 L'export ne constitue jamais une nouvelle couche d'autorisation. Il consomme un jeu de rapports déjà filtré par le scope autorisé. Le CSV existant est conservé. Les métadonnées `scope_type`, `scope_profile_id` et `scope_pharmacie_id` accompagnent le rapport. Tant que le moteur hiérarchique multi-pharmacie n'est pas actif, aucun Promoteur/Responsable ne peut obtenir un périmètre élargi par simple ajout de ces champs.
+\n\nLe grain BI reste `pharmacie × période` pour les indicateurs agrégés. `promoteur_pharmacies` définit le périmètre Promoteur ; `my_pharmacies()` le projette en périmètre autorisé ; `can_access_pharmacy()` sert de garde RLS. Les vues BI sont `security_invoker` et ne créent pas une voie parallèle autour des tables sources. La consolidation est une agrégation des pharmacies autorisées, sans duplication de faits.\n
