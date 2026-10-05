@@ -305,3 +305,13 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - Accès au pilotage ajouté depuis /pharmacie.
 - Validation Supabase : migration 018 rejouée dans une transaction puis rollbackée ; fonction créée et détectée dans la transaction, aucune modification Production persistante.
 - Validation fonctionnelle multi-utilisateur complète et application Production de 018 : encore à faire, sans les déclarer vertes prématurément.
+
+
+## État documentaire — Passe 6 / point de contrôle du 5 octobre 2026
+- Branche auditée : `feat/pharmacie-validite-pilotage`.
+- PR : #24, ouverte vers `consolidation`, HEAD `bfc6089acc293806fedda8b90078eb0ca23ba021`. Aucun merge `main` et aucun déploiement Production n’est autorisé par cette passe.
+- Les migrations 013 à 018 sont des fichiers additifs présents dans **`supabase/`** (et non dans `supabase/migrations/`). Cette localisation est désormais la référence du dépôt pour ce lot.
+- La migration 018 centralise le pilotage dans `stats_pilotage_scope(p_jours)` ; les dashboards Admin et pharmacie l’appellent désormais directement.
+- État de validation : la présence des fichiers de migration et leur cohérence avec les changements de dashboard sont en cours de checking avant reprise de l’audit contradictoire. La présence dans la branche ne vaut pas application Production.
+- Production : migrations 013–018 non appliquées à ce stade ; aucune conclusion de validation Production ne doit être déduite du code de branche.
+- Règle de gouvernance : aucun merge, aucune migration Production et aucun déploiement sans autorisation explicite **OUI, DÉPLOIE**.
