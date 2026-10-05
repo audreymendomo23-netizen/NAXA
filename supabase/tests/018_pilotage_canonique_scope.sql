@@ -54,6 +54,31 @@ begin
   if (v_json->'recherches'->>'total')::int <> 1 then
     raise exception 'Promoteur recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
   end if;
+
+  update public.profiles set role='responsable', pharmacie_id=v_a, actif=true where id=v_promoteur;
+  v_json := public.stats_pilotage_scope(7);
+  if v_json->'pharmacies'->>'total' <> '1' then
+    raise exception 'Responsable scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
+  end if;
+  if v_json->'recherches'->>'total' <> '1' then
+    raise exception 'Responsable recherches attendu=1, obtenu=%',v_json->'recherches'->>'total';
+  end if;
+
+  update public.profiles set role='caisse', pharmacie_id=v_a, actif=true where id=v_promoteur;
+  v_json := public.stats_pilotage_scope(7);
+  if v_json->'pharmacies'->>'total' <> '1' then
+    raise exception 'Caisse scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
+  end if;
+
+  update public.profiles set role='client', pharmacie_id=null, actif=true where id=v_promoteur;
+  begin
+    perform public.stats_pilotage_scope(7);
+    raise exception 'Client ne doit pas accéder au pilotage';
+  exception when others then
+    if sqlerrm <> 'Accès pilotage refusé' then
+      raise;
+    end if;
+  end;
 end
 $$;
 
