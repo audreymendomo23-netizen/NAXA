@@ -109,3 +109,12 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - Suivi des événements réellement raccordé aux parcours existants : recherche, vue fiche médicament et ajout panier appellent `log_evenement`; `recherche_events` historique est conservé.
 - Branding officiel préparé : jeton `naxa-logo-green #0A7547`, manifest et métadonnées mis à jour.
 - Cette branche n’est pas en Production. Autorisation exacte requise : **OUI, DÉPLOIE**.
+
+### Validité commerciale des pharmacies
+- Abonnement standard : **30 000 FCFA / mois** par pharmacie.
+- **J-5** : rappel automatique envoyé au Promoteur.
+- À l’échéance impayée : abonnement `impaye`, pharmacie désactivée, comptes Promoteur/Caisse bloqués et produits indisponibles côté client.
+- Après règlement : seul NAXA/Admin réactive la pharmacie ; le règlement et sa période sont enregistrés.
+- Pilotage NAXA : `/admin/pilotage/validite` pour suivre les échéances, impayés et réactivations.
+- Migration additive : `supabase/migration_010_validite_pharmacies.sql`.
+- Le chantier reste sur une branche dédiée jusqu'à validation complète.
