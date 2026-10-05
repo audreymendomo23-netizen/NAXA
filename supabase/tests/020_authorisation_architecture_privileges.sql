@@ -65,7 +65,7 @@ begin
 
   -- Architecture 2 : Responsable interdit.
   begin
-    perform public.accrediter_profile(v_target,v_pharmacie,2,v_promoteur);
+    perform public.accrediter_profile(v_target,v_pharmacie,2::smallint,v_promoteur);
     raise exception 'Architecture PARENTS_ENFANTS doit refuser le niveau Responsable';
   exception when others then
     null;
@@ -73,7 +73,7 @@ begin
 
   -- Le Promoteur peut attribuer un privilège opérationnel à une Caisse, mais pas une gouvernance.
   update public.profiles set role='caisse',niveau_interne=3,parent_profile_id=null,pharmacie_id=v_pharmacie,actif=true where id=v_target;
-  perform public.accrediter_profile(v_target,v_pharmacie,3,v_promoteur);
+  perform public.accrediter_profile(v_target,v_pharmacie,3::smallint,v_promoteur);
   perform public.naxa_grant_privilege(v_target,'VIEW_STOCK',v_pharmacie,'POSTE_CAISSE');
 
   perform set_config('request.jwt.claims',json_build_object('sub',v_target::text,'role','authenticated')::text,true);
