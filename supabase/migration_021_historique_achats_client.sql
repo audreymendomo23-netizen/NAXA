@@ -126,6 +126,7 @@ select
   p.dci,
   p.dosage,
   p.forme,
+  p.photo_url,
   ri.quantite,
   ri.prix_unitaire,
   (ri.quantite * ri.prix_unitaire)::int as total_ligne,
@@ -137,21 +138,13 @@ select
   ph.ville,
   ph.quartier,
   ph.adresse,
-  min(e.occurred_at) filter (
-    where e.event_type='status_changed'
-      and e.to_statut='payee'
-  ) as payee_le,
-  min(e.occurred_at) filter (
-    where e.event_type='status_changed'
-      and e.to_statut='retiree'
-  ) as retire_le,
-  min(e.occurred_at) filter (
-    where e.event_type='payment_declared'
-  ) as paiement_declare_le,
-  min(e.occurred_at) filter (
-    where e.event_type='status_changed'
-      and e.to_statut in ('payee','retiree')
-  ) as achat_le,
+  min(e.occurred_at) filter (where e.event_type='status_changed' and e.to_statut='confirmee') as confirmee_le,
+  min(e.occurred_at) filter (where e.event_type='payment_declared') as paiement_declare_le,
+  min(e.occurred_at) filter (where e.event_type='status_changed' and e.to_statut='payee') as payee_le,
+  min(e.occurred_at) filter (where e.event_type='status_changed' and e.to_statut='retiree') as retiree_le,
+  min(e.occurred_at) filter (where e.event_type='status_changed' and e.to_statut='annulee') as annulee_le,
+  min(e.occurred_at) filter (where e.event_type='status_changed' and e.to_statut='expiree') as expiree_le,
+  min(e.occurred_at) filter (where e.event_type='status_changed' and e.to_statut in ('payee','retiree')) as achat_le,
   (
     min(e.occurred_at) filter (
       where e.event_type='status_changed'
@@ -166,7 +159,7 @@ join public.pharmacies ph on ph.id=r.pharmacie_id
 left join public.reservation_events e on e.reservation_id=r.id
 where r.statut in ('payee','retiree')
 group by
-  r.id, ri.produit_id, p.nom, p.dci, p.dosage, p.forme,
+  r.id, ri.produit_id, p.nom, p.dci, p.dosage, p.forme, p.photo_url,
   ri.quantite, ri.prix_unitaire, r.total, r.paiement_ref,
   r.created_at, ph.id, ph.nom, ph.ville, ph.quartier, ph.adresse, r.statut;
 
