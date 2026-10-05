@@ -77,7 +77,7 @@ AS $$ SELECT public.can_access_pharmacy(p_pharmacie)
 DROP POLICY IF EXISTS profiles_promoteur_update_children ON public.profiles;
 CREATE POLICY profiles_promoteur_update_children ON public.profiles FOR UPDATE TO authenticated
 USING (public.can_manage_profile(id))
-WITH CHECK (public.can_manage_profile(id) AND role IN ('responsable','caisse') AND public.can_access_pharmacy(pharmacie_id));
+WITH CHECK (public.can_manage_profile(id) AND role::text IN ('responsable','caisse') AND public.can_access_pharmacy(pharmacie_id));
 
 DROP POLICY IF EXISTS stocks_write ON public.stocks;
 CREATE POLICY stocks_write ON public.stocks FOR ALL TO authenticated
