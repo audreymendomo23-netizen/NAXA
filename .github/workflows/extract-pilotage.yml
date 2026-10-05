@@ -1,0 +1,18 @@
+name: Extract pilotage source
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract pilotage
+        run: unzip -q pilotage.zip -d extracted-pilotage
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilotage-source
+          path: extracted-pilotage/pilotage
