@@ -498,3 +498,26 @@ La reprise est considérée correcte uniquement si une nouvelle IA peut répondr
 - Quand faut-il retourner au V3 pour continuer le cahier des charges ?
 
 **Réponse canonique :** nous étions en train de **terminer le chantier Pilotage**, pas de commencer un nouveau chantier. Les Passes 1→6 sont le chemin décisionnel à préserver. Le V3 sert ensuite de cadre pour reprendre la suite du cahier des charges une fois le Pilotage définitivement vert.
+
+
+## 🔒 Correction commerciale verrouillée — 5 octobre 2026
+**Décision : 1 Promoteur = 1 convention = 1 tarif = 1 abonnement.**
+
+Cette décision corrige définitivement l'ancien raisonnement « un tarif / abonnement par pharmacie » :
+- plusieurs pharmacies du même Promoteur partagent le même tarif conventionné ;
+- l'abonnement appartient au Promoteur ;
+- une échéance impayée bloque toutes les pharmacies de son périmètre ;
+- un Promoteur peut exister sans pharmacie et recevoir sa convention ;
+- le tarif réel est celui configuré par NAXA/Admin dans la convention ; aucun 30 000 FCFA universel n'est une source de vérité.
+
+### Implémentation branche
+- migration additive supabase/migration_019_convention_promoteur.sql ;
+- tables canoniques conventions_promoteurs, abonnements_promoteurs, abonnement_promoteur_paiements ;
+- /admin/pilotage/validite basculé sur un scope Promoteur ;
+- cron /api/cron/validite basculé sur un rappel Promoteur unique ;
+- validité globale et blocage calculés à partir de l'abonnement Promoteur ;
+- E20, E21, E22, E24 et E25 ont reçu une correction dans les migrations de branche ;
+- test transactionnel complet 013→019 : PASS syntaxe/dépendances, ROLLBACK, aucune persistance Production.
+
+### État Passe 6
+La Passe 6 continue. Le moteur stats_pilotage_scope(p_jours) reste le point d'entrée canonique. Le scope Admin exclut désormais les événements rattachés aux pharmacies démo tout en conservant les recherches réellement sans pharmacie au niveau réseau. Les tests multi-rôles réels et la matrice finale d'acceptation restent à fermer avant le vert 100 %.
