@@ -730,3 +730,24 @@ La Passe 6 étant désormais **verte sur ce point**, la prochaine étape est la 
 - Test dédié : supabase/tests/019_historique_achats_client.sql.
 - Cette fondation prépare l'interface Mes médicaments achetés et le futur chaînage BI canonique Recherche → Réservation → Paiement → Achat/Retrait → Réachat.
 - Aucun merge main, aucune application Production et aucun déploiement ne sont effectués dans ce chantier.
+
+
+## 🔒 Passe Client — Mon suivi + Mes médicaments achetés — 6 octobre 2026
+
+Le périmètre Client est désormais construit comme un parcours cohérent, et non comme une succession de micro-fonctions.
+
+- Route ajoutée : `/client`.
+- **Mon suivi** : réservations récentes, statut, pharmacie, total, produits et chronologie des événements autorisés au Client.
+- **Mes médicaments achetés** : historique transactionnel regroupé par achat, médicament, DCI, dosage, forme, photo lorsqu'elle existe, quantité, prix unitaire, total de ligne, total transaction, pharmacie, adresse, référence de paiement et horodatages disponibles.
+- Filtres temporels : 7 jours, 30 jours, 3 mois, 1 an, tout ; recherche par médicament/pharmacie.
+- Les dates/heures sont affichées en heure locale à partir des timestamps Supabase ; aucune heure historique n'est inventée.
+- `client_achats` reste la source canonique du listing d'achats ; `reservation_events` porte la chronologie des transitions.
+- Le périmètre Client ne reçoit aucun KPI interne pharmacie, marge, stock interne, caisse, Responsable ou Network Health.
+- L'accès repose sur l'authentification + RLS ; l'interface ne masque pas un dataset interne déjà livré au navigateur.
+- La photo produit est affichée uniquement lorsqu'elle existe déjà dans `produits.photo_url`.
+- Le moyen de paiement n'est pas inventé : le modèle actuel conserve une référence de paiement, pas un type de moyen de paiement.
+- L'historique antérieur à la migration 021 conserve une distinction explicite lorsque l'heure exacte de la transition d'achat ne peut pas être reconstruite.
+- Migration : `supabase/migration_021_historique_achats_client.sql`.
+- Test DB : `supabase/tests/019_historique_achats_client.sql`.
+
+**Gouvernance :** branche `feat/pharmacie-validite-pilotage`, PR #24, aucun merge `main`, aucune migration Production et aucun déploiement sans autorisation explicite **OUI, DÉPLOIE**.
