@@ -760,3 +760,7 @@ Audit de contradiction post-implémentation : la vue `client_achats` était `sec
 ### Complément parcours Client — point d'entrée
 - `/client` est maintenant accessible depuis l'accueil via un lien dynamique basé sur le rôle du profil : **Mon espace** pour un Client, **Se connecter** sinon.
 - Le lien n'accorde aucun droit ; le contrôle serveur/dataset reste assuré par authentification + rôle + RLS.
+
+
+### ⚠️ État de validation corrigé — Client non déclaré vert prématurément
+Le périmètre Client est **construit et audité**, mais n'est pas encore déclaré 🟢 100 %. La validation réelle de la migration 021 / test 019 reste impossible dans cette session car la connexion Supabase MCP exige un compte lié éligible. De plus, la CI `naxa-quality.yml` de la branche `consolidation` ne se déclenche que pour les PR vers `main`, tandis que PR #24 cible `consolidation`. Un contrôle TypeScript/transpilation local du nouveau code Client est vert, mais il ne remplace ni le build complet ni le test DB réel. **Aucune validation utilisateur du Client ne sera demandée tant que ces preuves ne sont pas vertes.**
