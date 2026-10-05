@@ -106,7 +106,7 @@ for select to authenticated using (true);
 drop policy if exists pharmacie_architectures_scope on public.pharmacie_architectures;
 create policy pharmacie_architectures_scope on public.pharmacie_architectures
 for select to authenticated
-using (public.is_admin() or public.can_access_pharmacy(pharmacie_id));
+using (public.is_admin() or exists (select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=(select auth.uid()) and pp.pharmacie_id=pharmacie_id and pp.actif));
 
 drop policy if exists profile_privileges_self_scope on public.profile_privileges;
 create policy profile_privileges_self_scope on public.profile_privileges
