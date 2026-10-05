@@ -123,3 +123,10 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - `009_pilotage_360` et `010_validite_pharmacies` sont appliquées sur le projet Supabase Naxa.
 - Les 3 pharmacies existantes sont initialisées à **30 000 FCFA/mois**, actives, échéance **4 novembre 2026**.
 - Aucun paiement fictif n’a été créé.
+
+### Limite de sessions par compte
+- Maximum **4 sessions/appareils simultanés** par compte.
+- Les sessions existantes ne sont jamais déconnectées automatiquement pour faire de la place.
+- Une 5e connexion est refusée ; le compte doit d'abord être déconnecté d'un appareil existant.
+- La règle s'applique à la connexion username/mot de passe et au callback Google OAuth.
+- Migration additive : `supabase/migration_011_limite_sessions.sql`.
