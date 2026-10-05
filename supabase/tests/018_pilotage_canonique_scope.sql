@@ -10,6 +10,7 @@ declare
   v_b uuid;
   v_c uuid;
   v_json jsonb;
+  v_failed boolean := false;
 begin
   select id into v_admin from public.profiles order by created_at asc limit 1;
   select id into v_promoteur from public.profiles where id <> v_admin order by created_at asc limit 1;
@@ -54,6 +55,36 @@ begin
   if (v_json->'recherches'->>'total')::int <> 1 then
     raise exception 'Promoteur recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
   end if;
+
+  -- Caisse : même pharmacie A uniquement.
+  update public.profiles set role='caisse', actif=true, pharmacie_id=v_a where id=v_promoteur;
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
+  v_json := public.stats_pilotage_scope(7);
+  if (v_json->'pharmacies'->>'total')::int <> 1 then
+    raise exception 'Caisse scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
+  end if;
+  if (v_json->'recherches'->>'total')::int <> 1 then
+    raise exception 'Caisse recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
+  end if;
+
+  -- Client : aucun accès au moteur de Pilotage.
+  update public.profiles set role='client', actif=true, pharmacie_id=null where id=v_promoteur;
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
+  begin
+    perform public.stats_pilotage_scope(7);
+    v_failed := true;
+  exception when others then
+    null;
+  end;
+  if v_failed then
+    raise exception 'Client doit être refusé par stats_pilotage_scope';
+  end if;
+
+  -- Responsable : couverture différée dans un test post-commit.
+  -- PostgreSQL interdit d'utiliser la nouvelle valeur enum 'responsable'
+  -- avant le commit qui termine ALTER TYPE ... ADD VALUE.
+  -- Ce scénario doit être exécuté après application contrôlée de 016 dans
+  -- un environnement de test, sans mutation Production.
 
 end
 $$;
