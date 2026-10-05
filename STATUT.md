@@ -364,3 +364,137 @@ Le modele hierarchique, le scope multi-pharmacie, les accreditations, la revocat
 - Dashboards Admin et pharmacie consomment cette même RPC ; aucune application Production de 013–018 n’est déclarée.
 - **Statut documentaire : 🟠 en contrôle.** La prochaine étape est le checking migration par migration (dépendances, idempotence/additivité, RLS/grants, sécurité DEFINER/INVOKER, cohérence BI/CA, tests), puis seulement la reprise de l’audit contradictoire.
 - Aucun merge `main`, aucune migration Production, aucun déploiement sans **OUI, DÉPLOIE**.
+
+
+---
+
+# 🔒 RÉFÉRENCE DE CONTINUITÉ — CHANTIER PILOTAGE — 5 OCTOBRE 2026
+
+> **Cette section est une instruction de continuité prioritaire pour toute IA qui reprend le dépôt après une rupture de conversation, de session ou de contexte.**
+>
+> **Ne pas recommencer le chantier depuis le Prompt maître v3.** Le V3 définit le cadre et la destination ; les **Passes 1→6 et leurs arbitrages successifs constituent l'historique décisionnel de travail** qui explique comment le Pilotage a été construit. Une reprise correcte doit reconstituer cet historique avant toute nouvelle modification.
+
+## 1. Vérité de travail : ne pas confondre les sources
+
+La reprise doit distinguer au minimum :
+
+1. **Prompt maître v3 / Cahier des charges v3** : exigences, destination et périmètre contractuel du produit.
+2. **Historique décisionnel des Passes 1→6** : arbitrages métier, contradictions détectées, décisions, architecture retenue, tests et limites explicitement établis pendant le développement du Pilotage.
+3. **Branche `feat/pharmacie-validite-pilotage`** : état d'implémentation candidat du chantier en cours ; il n'est pas la Production.
+4. **`main` + Supabase réel** : vérité de Production ; ne jamais présenter l'état de la branche comme déployé.
+5. **ZIP/documentation de référence** : source documentaire additive ; ne remplace jamais l'existant et ne doit pas être réappliqué aveuglément.
+
+**Règle fondamentale :** si une formulation ancienne du README/STATUT contredit une section de référence plus récente, la section de référence la plus récente prévaut. Si un arbitrage des Passes contredit le V3, **ne pas écraser automatiquement l'arbitrage** : identifier la contradiction, vérifier son origine et la fermer explicitement.
+
+## 2. Chemin historique obligatoire du Pilotage
+
+Le chantier Pilotage a volontairement été développé par passes :
+
+- **Passes 1→3** : existant, invariants, modèle métier, hiérarchie, autorisation, RLS, séparation Client/interne.
+- **Passe 4** : coûts, CA canonique, recherche/funnel, rapports hiérarchiques, exports, BI et multi-pharmacie.
+- **Passe 5** : hiérarchie opérationnelle, accréditations, scopes, sécurité et garde-fous.
+- **Passe 6** : moteur KPI canonique de Pilotage et raccordement des dashboards à ce moteur unique.
+
+**Important :** le fait de ne pas avoir fusionné `main` ni déployé Production pendant ces passes était **volontaire**. Le but était de concevoir, consolider et corriger le Pilotage avant livraison. Ne pas interpréter cette absence de déploiement comme un abandon, un échec ou une invitation à créer un nouveau chantier.
+
+## 3. Règles métier/architecture verrouillées pendant les Passes
+
+- Une **pharmacie = une unité commerciale et un stock partagé** ; plusieurs caisses ne créent jamais plusieurs pharmacies.
+- Client = acteur externe, hors hiérarchie interne.
+- Hiérarchie cible : **N0 NAXA Admin → N1 Promoteur → N2 Responsable → N3 Caisse**.
+- Relation Promoteur ↔ pharmacie explicite pour le multi-pharmacie.
+- Le scope autorisé est une composante du droit ; l'UI/JWT seuls ne constituent jamais l'autorité.
+- Formule de droit effectif : **identité × niveau × accréditation × périmètre × pharmacie × convention × statut × objet × opération**.
+- `stocks` = quantité/prix de vente ; `stocks_couts` = coût d'achat interne courant. Ne jamais les confondre.
+- Technique monétaire : **XAF** ; affichage humain : **FCFA**.
+- `evenements` = source canonique des KPI de recherche/funnel ; `recherche_events` reste historique/compatibilité et ne doit pas être additionné aux KPI.
+- CA canonique = `v_reservations_ca`, au grain réservation ; statuts éligibles = `payee` ou `retiree` ; `payee → retiree` reste une seule vente.
+- Les agrégations Promoteur doivent sommer uniquement les pharmacies autorisées, sans double comptage.
+- Les données de coût, lots, péremptions, mouvements et autres données internes ne sont jamais exposées au Client.
+- Les fonctions `SECURITY DEFINER` doivent avoir une justification, un `search_path` sûr et des EXECUTE minimaux ; les vues doivent avoir une posture de sécurité explicite.
+- Limite de sessions : 4 simultanées ; aucune ancienne session n'est expulsée automatiquement.
+
+## 4. Passe 6 — décision centrale
+
+La contradiction principale de la Passe 6 était l'existence de moteurs KPI différents :
+
+`stats_admin` ≠ `stats_pharmacie` alors que BI/CA avaient désormais des règles canoniques.
+
+**Décision retenue :** une seule chaîne de vérité :
+
+**DONNÉE SOURCE → RÈGLE KPI → KPI CANONIQUE → AGRÉGATION PAR SCOPE → BI → DASHBOARD → RAPPORT/EXPORT**
+
+Le point d'entrée de Pilotage introduit par la Passe 6 est :
+
+`stats_pilotage_scope(p_jours)`
+
+Scopes retenus :
+- Admin → réseau NAXA, hors pharmacies de démonstration selon la règle canonique ;
+- Promoteur → pharmacies autorisées via `my_pharmacies()` ;
+- Responsable/Caisse → pharmacie autorisée par leur profil ;
+- Client → aucun accès au Pilotage interne.
+
+Les recherches sans `pharmacie_id` ne doivent **jamais** être attribuées artificiellement à un Promoteur/Responsable/Caisse.
+
+`/admin/pilotage` et `/pharmacie/pilotage` doivent consommer le même moteur KPI canonique et ne doivent pas recréer leur propre calcul métier.
+
+## 5. État au moment de la rupture
+
+- Branche de travail : `feat/pharmacie-validite-pilotage`.
+- PR #24 vers `consolidation`.
+- HEAD documenté : `bfc6089acc293806fedda8b90078eb0ca23ba021`.
+- Migrations de branche : `013` à `018`, sous `supabase/`.
+- **013→018 ne sont pas déclarées appliquées en Production.**
+- Aucun merge `main` ni déploiement Production ne doit être effectué sans l'autorisation exacte : **OUI, DÉPLOIE**.
+- La validation transactionnelle effectuée sur les migrations signifie **ROLLBACK**, donc ne pas la présenter comme une migration Production.
+- La Passe 6 avait déjà raccordé les dashboards au moteur canonique, mais les contradictions résiduelles et tests d'acceptation devaient encore être fermés avant de déclarer le Pilotage final vert.
+
+## 6. Contradictions résiduelles à reprendre — ne pas perdre leur contexte
+
+La reprise doit traiter les points déjà identifiés, notamment :
+
+- **E20** : `stocks_couts` encore à aligner complètement sur le scope multi-pharmacie.
+- **E21** : `accrediter_profile()` ne doit pas choisir implicitement le parent ; respecter N2→Promoteur et N3→Responsable, avec le cas 2 niveaux explicitement autorisé.
+- **E22** : `set_reservation_status()` doit avoir un `search_path` sûr et une autorisation cohérente avec `can_access_pharmacy()`.
+- **E23** : test versionné d'acceptation du moteur `018` et couverture des rôles/scopes.
+- **E24** : transitions de réservation et multi-pharmacie doivent utiliser le même moteur de scope que Pilotage.
+- **E25** : scope Admin et exclusion des pharmacies de démonstration doivent être cohérents pour tous les KPI.
+- **E26** : gouvernance documentaire ; le code et les décisions doivent rester traçables ensemble, sans faux vert.
+- **E27** : traçabilité branche/PR/`main` ; `consolidation` n'est pas Production.
+- **E28** : vérifier le périmètre réel du **Pilotage 360°** prévu par le V3/cahier et distinguer ce qui appartient aux Passes actuelles de ce qui est explicitement prévu plus tard.
+- **E29** : branding/design uniquement si exigé par le périmètre Pilotage courant ; ne pas inventer un nouveau design en contradiction avec les sources documentaires.
+
+Cette liste n'est pas une invitation à créer une Passe 7 automatiquement. **Commencer par déterminer si chaque point est une fermeture de la Passe 6, une exigence déjà couverte par une passe antérieure, ou une exigence explicitement différée.**
+
+## 7. Protocole obligatoire en cas de nouvelle rupture
+
+Toute IA qui reprend le projet doit :
+
+1. Lire cette section en premier.
+2. Lire les sections de référence les plus récentes de `README.md`, `STATUT.md` et `docs/CONTRADICTIONS.md`.
+3. Reconstituer les décisions des Passes 1→6 avant de proposer une nouvelle architecture.
+4. Vérifier la branche réelle et distinguer **Production / main / branche / spécification / documentation**.
+5. Ne supprimer, remplacer ou recréer aucune architecture existante sans décision explicite.
+6. Auditer les contradictions restantes avant de coder.
+7. Produire une matrice : **Exigence → décision historique → source → état branche → état Production → contradiction → test d'acceptation → statut**.
+8. Ne coder qu'après avoir établi que le plan d'implémentation est complet et sans ambiguïté.
+9. Après chaque modification : tests concrets, documentation et ré-audit.
+10. Ne déclarer le chantier Pilotage terminé que lorsque les critères applicables sont **prouvés à 100 %**, pas seulement conçus.
+11. Une fois le dernier passage Pilotage vert, **revenir au Prompt maître v3 + Cahier v3 pour poursuivre le chantier suivant prévu**, sans laisser volontairement des tâches Pilotage non terminées.
+12. **Ne jamais fusionner `main`, appliquer une migration Production ou déployer sans l'accord explicite du fondateur.**
+
+## 8. Critère de continuité
+
+La reprise est considérée correcte uniquement si une nouvelle IA peut répondre sans ambiguïté aux questions suivantes :
+
+- Où en étions-nous ?
+- Pourquoi avons-nous choisi cette architecture ?
+- Quelles décisions ont été prises pendant les Passes 1→6 ?
+- Quelles décisions sont encore ouvertes ?
+- Qu'est-ce qui est réellement en Production ?
+- Qu'est-ce qui n'est que sur la branche ?
+- Quel est le prochain test à exécuter ?
+- Pourquoi ne faut-il pas repartir de zéro ?
+- Quand faut-il retourner au V3 pour continuer le cahier des charges ?
+
+**Réponse canonique :** nous étions en train de **terminer le chantier Pilotage**, pas de commencer un nouveau chantier. Les Passes 1→6 sont le chemin décisionnel à préserver. Le V3 sert ensuite de cadre pour reprendre la suite du cahier des charges une fois le Pilotage définitivement vert.
