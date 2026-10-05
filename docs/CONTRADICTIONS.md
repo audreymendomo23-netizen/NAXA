@@ -7,3 +7,4 @@ E04 prix achat dans stocks : rejeté, stocks_couts séparé.
 E05 lots dans stocks : rejeté, stocks_lots séparé.
 E06 e-mail sans secret : rejeté, serveur + variables d’environnement.
 E07 dashboard statique : rejeté, RPC + rafraîchissement/Realtimе.
+E08 suivi pilotage découplé des parcours existants : résolu ; `src/lib/evenements.ts` + `EvenementVue` branchent recherche, vue fiche et ajout panier sur `log_evenement` sans supprimer `recherche_events`.
