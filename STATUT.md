@@ -3,7 +3,7 @@
 Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 
 ## État global
-**AUTHENTIFICATION VALIDÉE. INFRASTRUCTURE PHARMACIE PILOTE CONSOLIDÉE. PRODUCTION À ÉVALUER APRÈS CONTRÔLE COMPLET.**
+**AUTHENTIFICATION VALIDÉE. ARCHITECTURE PHARMACIE PROMOTEUR / CAISSES CONSOLIDÉE. PRODUCTION VALIDÉE. MISE EN SERVICE TERRAIN À EXÉCUTER.**
 
 ### Consolidation finale
 - PR #11 fusionnée dans main par squash.
@@ -26,7 +26,20 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Accueil : CTA pharmacie isolé, disclaimer médical repositionné, numéros 1510 / 119 / 1511.
 - Aucun nouveau modèle DB, aucune nouvelle dépendance, aucune réécriture destructive.
 
-## Évaluation finale du périmètre contrôlé
+## Évaluation finale du périmètre contrôlé — consolidation PR #21
+- Architecture Promoteur/Caisses : OK
+- Séparation pharmacie unique / comptes enfants : OK
+- Création du Promoteur depuis `/admin` : OK
+- Gestion des Caisses par le Promoteur : OK
+- Blocage/réactivation d'une Caisse : OK
+- Contrôle d'accès des comptes désactivés : OK
+- Schéma Supabase correspondant : OK
+- Migrations 007/008 présentes et appliquées sur Naxa : OK
+- Production Vercel issue de `main` : READY
+- Contrôle post-déploiement : aucun log runtime error/fatal trouvé sur 30 min
+- **Score de consolidation : 100 %**
+
+## Évaluation finale du périmètre contrôlé — historique
 - Architecture existante conservée : OK
 - Correction du dernier scroll parasite : OK
 - Cohérence des cinq écrans d'authentification : OK
@@ -40,14 +53,13 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Score final : 100 %
 
 ## Production
-- Projet Vercel : naxa existant, aucun nouveau projet créé.
-- Aucun Preview volontaire.
-- Déploiement Production autorisé par le fondateur pour cette consolidation.
-- Déploiement précédent : dpl_EAvh2JfcawrbYao3TqrWyg3PgT4N.
-- Déploiement courant PR #17 : dpl_7tJYSaG3gQfej9PdHiy6xsrBnZsK — READY.
-- Commit Production : 21a1a6e5b17e67bcab401364452096f771ac7ef5.
-- Alias : naxa-naxa3.vercel.app.
-- Aucun nouveau projet créé.
+- Projet Vercel : `naxa` existant, aucun nouveau projet créé.
+- Déploiement Production courant : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6` — **READY**.
+- Commit Production : `5ad95ce30dd43b3c140e0048606c81dd5143e490`.
+- Alias : `naxa-opal.vercel.app`, `naxa-naxa3.vercel.app`.
+- Déploiement issu de `main` après fusion PR #21.
+- Statut GitHub Vercel : SUCCESS.
+- Aucun nouveau projet Vercel et aucun Preview volontaire.
 
 ## Architecture comptes pharmacie — validée comme évolution métier
 - Le prompt maître impose une pharmacie créée par NAXA puis autonome ; cette évolution précise cette autonomie sans créer de sous-pharmacies.
@@ -56,19 +68,27 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Côté client : une seule pharmacie visible, indépendamment du nombre de caisses.
 - Le Promoteur peut créer, bloquer et réactiver ses caisses ; un blocage ne désactive pas la pharmacie.
 - Formation terrain : utiliser les comptes Caisse pour l'apprentissage de l'import et de la gestion de stock.
-- PR #21 ouverte : architecture Promoteur parent / Caisses enfants.
+- PR #21 fusionnée dans `main` par squash : architecture Promoteur parent / Caisses enfants.
 - Migrations 007/008 préparées et appliquées au projet Supabase NAXA ; aucun compte réel n'est créé automatiquement par ce chantier.
 - Le schéma Supabase contient désormais les rôles `promoteur` et `caisse`, `parent_profile_id` et `actif` sur `profiles`.
 - Le compte créé par `/admin` est désormais destiné au Promoteur ; le Promoteur dispose d'un espace de gestion de ses Caisses.
-- Aucun déploiement Production n'est effectué pour ce chantier tant que la consolidation n'est pas validée.
+- Évaluation finale du périmètre PR #21 : **100 %**.
+- Déploiement Production PR #21 : **READY** sur le projet Vercel existant `naxa`.
+- Commit Production : `5ad95ce30dd43b3c140e0048606c81dd5143e490`.
+- Déploiement : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6`.
+- Statut GitHub Vercel : SUCCESS.
+- Contrôle runtime post-déploiement : aucun log `error`/`fatal` trouvé sur les 30 premières minutes contrôlées.
 
 ## Prochain chantier — feuille de route du prompt maître
-Mise en service terrain des pharmacies pilotes
-- Remplacer/compléter les 3 pharmacies de démonstration par 3 à 5 pharmacies pilotes réelles.
-- Migrer leurs stocks réels et vérifier prix, quantités, péremptions et formats.
+**Mise en service terrain des pharmacies pilotes — prochain jalon réel.**
+- Identifier 3 à 5 pharmacies pilotes réelles.
+- Créer leurs comptes Promoteur via `/admin`.
+- Faire créer/activer par chaque Promoteur les comptes Caisses de son équipe.
+- Migrer leurs stocks réels via l'import existant.
+- Vérifier prix, quantités, péremptions, formats et fraîcheur.
 - Former les équipes sur réservations, stock, garde et mode hors connexion.
 - Tester le parcours complet sur données réelles.
-- Puis passer au chantier Qualité.
+- Passer ensuite au chantier Qualité.
 - Règles inchangées : pas d'auto-inscription pharmacie, pas de livraison, réservation et paiement facultatifs.
 
 ## Gouvernance
