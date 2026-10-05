@@ -563,3 +563,22 @@ Après implémentation : tests concrets, CI, ré-audit, README/STATUT/CONTRADICT
 - Le scénario **Responsable** est isolé dans `supabase/tests/018b_pilotage_responsable_post_commit.sql` afin de respecter la contrainte PostgreSQL : la valeur enum `responsable` ajoutée par 016 ne peut être utilisée qu'après le commit qui ajoute cette valeur.
 - **Ne pas contourner cette contrainte par une mutation Production.**
 - Tant que 018b n'est pas exécuté dans un environnement où 016 est déjà committée, la Passe 6 reste **🟠 non verte à 100 %**.
+
+
+
+## Correction architecturale canonique — 5 octobre 2026 — migration 020
+
+Le moteur d'autorisation est implémenté de façon additive dans supabase/migration_020_authorisation_architecture_privileges.sql.
+
+- role_type reste strictement : client, pharmacie, admin, promoteur, caisse.
+- Responsable n'est pas une valeur de role_type : c'est le niveau interne N2 (profiles.niveau_interne=2).
+- Architecture, niveau métier, privilège et scope sont séparés.
+- conventions_promoteurs.architecture_code porte l'architecture attribuée par NAXA.
+- Architectures : ORPHELIN, PARENTS_ENFANTS, PARENTS_AINES_CADETS, HYBRIDE.
+- Les privilèges sont atomiques, bornés par niveau et non délégables lorsqu'ils relèvent de la gouvernance NAXA.
+- Le Promoteur attribue uniquement les privilèges délégables autorisés par NAXA dans son périmètre.
+- HYBRIDE supporte les rôles personnalisés comme bundles de privilèges, sans nouveau role_type.
+
+Les anciennes mentions d'un enum responsable et du test 018b sont historiques et ne constituent plus la source de vérité. Le test courant est supabase/tests/020_authorisation_architecture_privileges.sql.
+
+État : code de branche uniquement. Aucun changement Production, aucun merge main, aucune migration Production.
