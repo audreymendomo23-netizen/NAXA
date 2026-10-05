@@ -45,6 +45,11 @@ begin
   on conflict (promoteur_id) do update
   set architecture_code='PARENTS_ENFANTS',statut='active',date_expiration=current_date+30;
 
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,max_responsables,max_caisses,active)
+  values(v_pharmacie,'PARENTS_ENFANTS',v_admin,0,5,true)
+  on conflict (pharmacie_id) do update
+  set architecture_code='PARENTS_ENFANTS',assigned_by=v_admin,max_responsables=0,max_caisses=5,active=true;
+
   -- 016 a conservé la valeur enum historique responsable. La contrainte canonique
   -- est qu'aucun profil ne l'utilise : la fonction/niveau porte désormais Responsable.
   if exists(select 1 from public.profiles where role::text='responsable') then
@@ -89,6 +94,9 @@ begin
 
   -- Architecture 3 : Responsable devient possible comme niveau métier, sans changer role_type.
   update public.conventions_promoteurs set architecture_code='PARENTS_AINES_CADETS' where promoteur_id=v_promoteur;
+  update public.pharmacie_architectures
+  set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5,assigned_by=v_admin,active=true
+  where pharmacie_id=v_pharmacie;
   update public.profiles set role='pharmacie',niveau_interne=0,parent_profile_id=null,pharmacie_id=v_pharmacie,actif=true where id=v_target;
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   perform public.accrediter_profile(v_target,v_pharmacie,2,v_promoteur);
