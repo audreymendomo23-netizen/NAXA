@@ -103,6 +103,7 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Architecture N1 NAXA / N2 Promoteur / N3 Caisse implémentée.
 - Migration additive `009_pilotage_360.sql` syntaxiquement validée dans une transaction annulée ; aucune migration de production appliquée.
 - Dashboards, rapports, BI, lots/péremptions et préparation e-mail ajoutés.
+- Contradiction E08 corrigée : les parcours recherche → fiche → panier alimentent maintenant réellement `evenements` via `log_evenement`, sans supprimer `recherche_events`.
 - Aucun merge `main`, aucun déploiement Production.
 - Les tests réels mobile, Realtime et e-mail restent à prouver par le fondateur.
 - Prochaine autorisation de déploiement : phrase exacte **OUI, DÉPLOIE**.
