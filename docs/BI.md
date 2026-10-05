@@ -19,3 +19,7 @@ Pour les KPI BI, `public.evenements` est la source canonique des recherches : `t
 
 ## Contradiction C4 — CA canonique
 `v_reservations_ca` est la source canonique des ventes/CA : une réservation est qualifiante si son statut est `payee` ou `retiree`. Le grain est `réservation`, donc un changement `payee → retiree` ne double jamais le CA. `v_ventes_journalieres` et `bi.activite_mensuelle` consomment cette règle. La vue est `security_invoker=true` afin de respecter les protections sous-jacentes conformément aux pratiques Supabase. citeturn2search0turn2search1
+
+
+## Rapports — scope canonique
+Le rapport porte un scope explicite : `PHARMACIE`, `RESPONSABLE`, `PROMOTEUR` ou `NAXA`. Le scope utilisateur est porté par `scope_profile_id` et, lorsque nécessaire, `scope_pharmacie_id`. Les anciennes colonnes restent compatibles. Le périmètre Promoteur est toujours calculé par les autorisations hiérarchiques ; une pharmacie unique ne doit jamais être utilisée comme substitut silencieux.
