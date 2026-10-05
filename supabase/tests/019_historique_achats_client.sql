@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(10);
+select plan(13);
 
 -- 1. La table existe et RLS est activée.
 select ok(
@@ -77,13 +77,29 @@ select ok(
   'client_achats expose horodatage_achat_exact'
 );
 
+-- 8-10. Les détails Client enrichis existent dans le listing.
+select ok(
+  exists (select 1 from information_schema.columns where table_schema='public' and table_name='client_achats' and column_name='photo_url'),
+  'client_achats expose la photo produit'
+);
+
+select ok(
+  exists (select 1 from information_schema.columns where table_schema='public' and table_name='client_achats' and column_name='confirmee_le'),
+  'client_achats expose la confirmation'
+);
+
+select ok(
+  exists (select 1 from information_schema.columns where table_schema='public' and table_name='client_achats' and column_name='paiement_declare_le'),
+  'client_achats expose la déclaration de paiement'
+);
+
 -- 8. Les achats sont bornés aux états commerciaux terminaux autorisés.
 select ok(
   pg_get_viewdef('public.client_achats'::regclass, true) like '%where r.statut in (%',
   'client_achats est bornée aux achats payés/retirés'
 );
 
--- 9. La fonction de trigger n'est pas directement exposée.
+-- 12. La fonction de trigger n'est pas directement exposée.
 select ok(
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
   'authenticated ne peut pas appeler directement le trigger'
