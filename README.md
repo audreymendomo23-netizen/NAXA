@@ -237,3 +237,13 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - `recherche_events` ne sert donc pas au calcul des volumes de recherche, taux de résultat, conversion ou autres KPI du funnel.
 - Test d'acceptation : une recherche utilisateur = 1 événement canonique `evenements.recherche`; les éventuelles lignes secondaires `recherche_events` restent hors KPI.
 - Aucun historique n'est supprimé.
+
+
+## Passe 4 — Contradiction C4 : CA et transitions de réservation 🟢 100 % au niveau dépôt/conception
+- **CA canonique** : une réservation contribue au chiffre d'affaires si son statut courant est `payee` ou `retiree`.
+- `payee → retiree` ne crée jamais une deuxième vente : la réservation garde un identifiant unique et le total est compté une seule fois.
+- Transitions autorisées verrouillées : `en_attente → confirmee/payee/annulee/expiree`, `confirmee → payee/retiree/annulee/expiree`, `payee → retiree`; les états `retiree`, `expiree`, `annulee` sont terminaux.
+- Nouvelle vue canonique `v_reservations_ca` : une ligne par réservation qualifiante, avec `security_invoker=true` et grants minimaux.
+- `v_ventes_journalieres` et `bi.activite_mensuelle` sont désormais alignées sur cette source canonique dans `supabase/migration_014_ca_canonique_reservations.sql`.
+- Test réel sur Supabase, dans une transaction entièrement rollbackée : vue créée avec succès ; 0 réservation qualifiante et CA canonique 0 FCFA dans l'état actuel ; aucune donnée Production modifiée.
+- Migration 014 non appliquée en Production.
