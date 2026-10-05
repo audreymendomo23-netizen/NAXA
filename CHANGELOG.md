@@ -55,3 +55,10 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - Callback OAuth aligne sur la limite de sessions.
 - Validation transactionnelle des migrations 015 a 017 avec rollback.
 - Production non modifiee.
+
+
+## 2026-10-05 — Passe 6 / Pilotage par scope
+- Ajout de la RPC canonique stats_pilotage_scope pour éviter les KPI divergents entre dashboards et BI.
+- CA/ventes branchés sur v_reservations_ca ; périmètres Promoteur/Responsable/Caisse protégés par scope.
+- Dashboards Admin et pharmacie alignés sur la même source de pilotage.
+- Aucun changement Production et aucune migration Supabase appliquée.
