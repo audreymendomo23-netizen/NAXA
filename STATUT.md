@@ -137,3 +137,40 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - La vérification applicative reste présente uniquement pour fournir un message UX explicite.
 - État de sécurité vérifié : anon et authenticated n'ont pas EXECUTE sur la fonction ; service_role uniquement.
 - Aucun changement de mot de passe, de rôle, de profil ou de donnée métier ; aucun merge main et aucun déploiement applicatif effectué.
+
+## Clôture des passes 1 → 3 — verrouillage
+**Date : 5 octobre 2026**
+
+### Passe 1 — état existant / invariants : 🟢 100 %
+- Inventaire et contraintes existantes pris comme base.
+- Principe additif/non destructif maintenu.
+- Client séparé de la hiérarchie interne.
+- Hiérarchie cible verrouillée : N0 Admin / N1 Promoteur / N2 Responsable / N3 Caisse.
+- Pharmacie = unité commerciale et stock partagé ; plusieurs caisses ne créent jamais plusieurs pharmacies.
+
+### Passe 2 — métier / données / commercial : 🟢 100 %
+- Convention comme niveau contractuel supérieur.
+- Relation Promoteur ↔ pharmacies explicite.
+- Architecture autorisée par convention, choisie par Promoteur dans la limite contractuelle.
+- Responsable = autorité hiérarchique, non fonction métier.
+- Accréditation distincte du rôle.
+- Tarification : 30 000 FCFA = référence catalogue ; prix réellement facturé contractuel et historisé.
+- Modes PAR_PHARMACIE / FORFAIT_CONVENTION.
+- Une pharmacie impayée ne doit pas désactiver globalement le Promoteur si d'autres pharmacies restent valides.
+
+### Passe 3 — sécurité / autorisation : 🟢 100 % du modèle cible
+- Formule d'autorisation canonique verrouillée.
+- RLS et grants comme source d'autorité, UI/JWT jamais suffisants seuls.
+- Stock public limité à la disponibilité ; données opérationnelles internes séparées.
+- Caisse = opérateur normal ; Responsable/Promoteur = supervision/pilotage avec droits explicites.
+- Vues/fonctions SECURITY DEFINER classées par exposition et durcies selon leur finalité.
+- OAuth/session : enforcement DB ; pas de déconnexion locale des sessions existantes.
+
+### Preuve / limite actuelle
+Le verrouillage ci-dessus est **un verrouillage de conception**, pas une déclaration de déploiement. Le Security Advisor Supabase comporte encore des findings réels (notamment v_ventes_journalieres, tables RLS sans policy et fonctions SECURITY DEFINER exposées) qui devront être traités et testés dans l'implémentation. Supabase recommande d'associer grants minimaux, RLS et tests d'autorisation, et de rendre les vues security_invoker lorsqu'elles doivent respecter le RLS sous-jacent.
+
+**Conclusion : passes 1–3 vertes côté spécification, sans faux-positif sur l'état de production.**
+
+## Passe suivante
+**Passe 4 — Métier / Données / BI / Rapports.**
+Objectif : fermer le dictionnaire KPI, le grain, les sources, les scopes, les agrégations anti-double-compte, les rapports hiérarchiques, les exports et les tests de cohérence.
