@@ -14,3 +14,6 @@ E10 devise technique vs affichage humain : résolue ; XAF reste le code techniqu
 E11 double source recherche : résolue ; `evenements` est la source canonique des KPI/funnel, `recherche_events` reste une source historique de compatibilité « Les plus recherchés » hors KPI ; aucune addition entre les deux.
 
 E12 CA et transitions de réservation : résolue ; `v_reservations_ca` fixe le grain à la réservation et le statut qualifiant `payee|retiree`, tandis que `set_reservation_status` interdit les transitions incohérentes. `payee → retiree` reste une seule vente.
+
+
+E13 rapports hiérarchiques : résolue au niveau modèle ; `rapports` peut désormais représenter les quatre scopes sans perdre l'historique. L'autorisation effective du scope reste déléguée au futur moteur hiérarchique/RLS et ne peut pas être déduite de l'UI.
