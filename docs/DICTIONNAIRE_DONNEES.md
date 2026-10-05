@@ -16,3 +16,6 @@ Code technique : **XAF**. Affichage utilisateur : **FCFA**. Aucun changement de 
 
 
 Rapport — scope canonique : `scope_type` (`PHARMACIE|RESPONSABLE|PROMOTEUR|NAXA`), `scope_profile_id`, `scope_pharmacie_id`. Les champs historiques `portee`/`pharmacie_id` sont conservés pour compatibilité. Le scope ne constitue pas à lui seul une autorisation.
+
+
+Export — projection du rapport autorisé ; aucun nouveau grain métier ni nouvelle autorisation. Le scope provient du rapport source et n'est pas recalculé dans le fichier exporté.
