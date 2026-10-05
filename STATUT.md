@@ -635,3 +635,33 @@ Après implémentation : tests concrets, CI, ré-audit, README/STATUT/CONTRADICT
 - Cause du découpage : PostgreSQL interdit l'utilisation d'une nouvelle valeur enum dans la même transaction que `ALTER TYPE ... ADD VALUE`; le test Responsable doit donc être exécuté après commit contrôlé de 016. citeturn0search0
 - Production reste inchangée.
 - **Passe 6 : 🟠 tant que Responsable n'est pas transactionnellement prouvé.**
+
+
+
+---
+
+## Passe d'implémentation — architecture + privilèges — 5 octobre 2026
+
+Décision canonique : le moteur sépare rôle système / niveau métier / architecture / privilège / scope.
+
+- role_type n'est pas modifié et ne contient pas responsable.
+- profiles.niveau_interne porte N1 Promoteur, N2 Responsable, N3 Caisse ; 0 pour les acteurs hors hiérarchie interne.
+- conventions_promoteurs.architecture_code porte l'architecture déterminée par NAXA.
+- Catalogue : naxa_privileges.
+- Attribution : naxa_profile_privileges.
+- Rôles personnalisés HYBRIDE : naxa_custom_roles, naxa_custom_role_privileges, naxa_profile_custom_roles.
+- Autorité : naxa_has_privilege() / authorize().
+- Accréditation : architecture + niveau + parent explicite + quotas via accrediter_profile().
+- Attribution : naxa_grant_privilege() / naxa_revoke_privilege().
+
+Architectures :
+- ORPHELIN : Promoteur + 1 Caisse max.
+- PARENTS_ENFANTS : Promoteur + 5 Caisses max, sans Responsable.
+- PARENTS_AINES_CADETS : jusqu'à 5 Responsables + 5 Caisses.
+- HYBRIDE : rôles/bundles personnalisés dans les limites NAXA.
+
+Sécurité : fonctions SECURITY DEFINER avec search_path='' et EXECUTE restreint ; gouvernance NAXA non délégable.
+
+Test versionné : supabase/tests/020_authorisation_architecture_privileges.sql. Il remplace le raisonnement historique fondé sur un enum responsable et doit être exécuté dans un environnement de test où 020 est appliquée ; il est rollbackable.
+
+État de preuve : 🟠 code implémenté sur branche ; preuve d'exécution et CI encore à obtenir. Production inchangée. Aucun merge main. Aucun déploiement sans OUI, DÉPLOIE.
