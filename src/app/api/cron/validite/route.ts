@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";import { supabaseAdmin } from "@/lib/supabase/server";
 export async function GET(req:Request){
  const secret=process.env.CRON_SECRET;
- if(secret&&req.headers.get("authorization")!==`Bearer ${secret}`)return NextResponse.json({error:"Unauthorized"},{status:401});
+ if(!secret||req.headers.get("authorization")!==`Bearer ${secret}`)return NextResponse.json({error:"Unauthorized"},{status:401});
  const sb=supabaseAdmin();
  const {error:blockError}=await sb.rpc("synchroniser_validite_pharmacies");
  if(blockError)return NextResponse.json({error:blockError.message},{status:500});
- const {data:rows,error}=await sb.rpc("validite_rappels_5j");
+ const {data:rows,error}=await sb.rpc("claim_validite_rappels_5j");
  if(error)return NextResponse.json({error:error.message},{status:500});
  const key=process.env.RESEND_API_KEY,from=process.env.REPORT_FROM_EMAIL;
  if(!rows?.length)return NextResponse.json({blocked:"ok",reminders:0});
