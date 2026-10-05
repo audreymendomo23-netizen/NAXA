@@ -74,6 +74,11 @@ AS $$ SELECT public.can_access_pharmacy(p_pharmacie)
  AND EXISTS (SELECT 1 FROM public.pharmacies ph WHERE ph.id=p_pharmacie AND ph.actif=true)
  AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=(SELECT auth.uid()) AND p.actif=true AND p.role IN ('promoteur','responsable','caisse','pharmacie','admin')) $$;
 
+DROP POLICY IF EXISTS profiles_promoteur_update_children ON public.profiles;
+CREATE POLICY profiles_promoteur_update_children ON public.profiles FOR UPDATE TO authenticated
+USING (public.can_manage_profile(id))
+WITH CHECK (public.can_manage_profile(id) AND role IN ('responsable','caisse') AND public.can_access_pharmacy(pharmacie_id));
+
 DROP POLICY IF EXISTS stocks_write ON public.stocks;
 CREATE POLICY stocks_write ON public.stocks FOR ALL TO authenticated
 USING (public.can_operate_pharmacy(pharmacie_id) OR public.is_admin())
@@ -89,6 +94,8 @@ USING (public.can_operate_pharmacy(pharmacie_id) OR public.is_admin())
 WITH CHECK (public.can_operate_pharmacy(pharmacie_id) OR public.is_admin());
 
 DROP POLICY IF EXISTS profile_accreditations_admin ON public.profile_accreditations;
+DROP POLICY IF EXISTS pharmacie_privee_scope ON public.pharmacie_privee;
+CREATE POLICY pharmacie_privee_scope ON public.pharmacie_privee FOR SELECT TO authenticated USING (public.is_admin() OR public.can_access_pharmacy(pharmacie_id));
 CREATE POLICY profile_accreditations_admin ON public.profile_accreditations FOR ALL TO authenticated
 USING (public.is_admin()) WITH CHECK (public.is_admin());
 DROP POLICY IF EXISTS profile_accreditations_parties ON public.profile_accreditations;
@@ -111,4 +118,3 @@ REVOKE ALL ON FUNCTION public.stats_admin(integer) FROM anon;
 REVOKE ALL ON FUNCTION public.stats_pharmacie(uuid,integer) FROM anon;
 REVOKE ALL ON FUNCTION public.validites_pharmacies_admin() FROM anon;
 REVOKE ALL ON FUNCTION public.set_garde(boolean) FROM anon;
-REVOKE ALL ON FUNCTION public.search_pharmacies(uuid) FROM anon,authenticated;
