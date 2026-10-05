@@ -203,7 +203,7 @@ for each row execute function public.initialiser_abonnement_pharmacie();
 -- Une pharmacie impayée ne peut pas être réservée, même si un ancien chemin appelait la table directement.
 create or replace function public.reserve_stock(p_pharmacie uuid,p_items jsonb)
 returns uuid language plpgsql security definer set search_path=public
-as $declare v_id uuid;it jsonb;v_total int:=0;v_prix int;v_q int;begin
+as $ declare v_id uuid;it jsonb;v_total int:=0;v_prix int;v_q int;begin
  if auth.uid() is null then raise exception 'Connexion requise';end if;
  if not exists(select 1 from public.pharmacies where id=p_pharmacie and actif) then raise exception 'Pharmacie indisponible';end if;
  if jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>10 then raise exception 'Panier invalide';end if;
