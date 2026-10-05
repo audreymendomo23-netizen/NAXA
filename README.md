@@ -714,3 +714,19 @@ Validation transactionnelle complète de la chaîne `013→019→020c), puis **R
 
 ## Suite
 La Passe 6 étant désormais **verte sur ce point**, la prochaine étape est la reprise du cadre V3/Cahier des charges pour **P7 — Pilotage Performance**, en commençant par l'audit de l'existant et la matrice des contradictions avant tout code.
+
+
+## Suivi Client — Historique des médicaments achetés
+
+### Passe client — fondation d'horodatage
+- Migration additive supabase/migration_021_historique_achats_client.sql ajoutée sur la branche de travail.
+- reservation_events conserve les événements horodatés de réservation, transition de statut et déclaration de paiement.
+- client_achats fournit le listing canonique des médicaments achetés : médicament, DCI, dosage, forme, quantité, prix unitaire, total ligne, total transaction, pharmacie, référence de paiement, réservation et timestamps disponibles.
+- Les achats sont limités aux réservations payee ou retiree.
+- achat_le, payee_le, retire_le, paiement_declare_le sont en timestamptz afin de conserver la date et l'heure exactes.
+- Les anciennes transactions dont la transition d'achat n'a jamais été historisée ne sont pas artificiellement datées : horodatage_achat_exact=false et reservation_creee_le reste disponible comme information distincte.
+- RLS/grants : le Client ne lit que ses propres événements ; la pharmacie/admin lit les événements de son périmètre ; aucune écriture directe Client n'est autorisée.
+- La vue client_achats est security_invoker et reste soumise aux RLS des tables sous-jacentes.
+- Test dédié : supabase/tests/019_historique_achats_client.sql.
+- Cette fondation prépare l'interface Mes médicaments achetés et le futur chaînage BI canonique Recherche → Réservation → Paiement → Achat/Retrait → Réachat.
+- Aucun merge main, aucune application Production et aucun déploiement ne sont effectués dans ce chantier.
