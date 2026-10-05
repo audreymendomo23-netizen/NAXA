@@ -237,7 +237,9 @@ begin
  set actif=true
  where pr.id=p_promoteur
     or exists(select 1 from public.promoteur_pharmacies pp
-              where pp.promoteur_id=p_promoteur and pp.pharmacie_id=pr.pharmacie_id);
+              where pp.promoteur_id=p_promoteur and pp.pharmacie_id=pr.pharmacie_id)
+    or exists(select 1 from public.profiles owner
+              where owner.id=p_promoteur and owner.pharmacie_id=pr.pharmacie_id);
  return v_fin;
 end;
 $$;
@@ -249,3 +251,34 @@ drop trigger if exists trg_initialiser_abonnement_pharmacie on public.pharmacies
 create trigger trg_initialiser_abonnement_pharmacie
 after insert on public.pharmacies
 for each row execute function public.initialiser_abonnement_pharmacie();
+
+-- Rappels : une seule notification par Promoteur, jamais une notification par pharmacie.
+create or replace function public.claim_validite_rappels_5j()
+returns table(promoteur_id uuid,promoteur_email text,promoteur_prenom text,montant_mensuel integer,echeance date)
+language sql
+security definer
+set search_path=public
+as $$
+ update public.abonnements_promoteurs ap
+ set bloque_le=bloque_le
+ where ap.statut='actif'
+   and ap.echeance=current_date+5
+ returning ap.promoteur_id,
+   (select u.email from public.profiles p join auth.users u on u.id=p.id
+    where p.id=ap.promoteur_id and p.actif),
+   (select p.first_name from public.profiles p where p.id=ap.promoteur_id),
+   ap.montant_mensuel,ap.echeance;
+$$;
+revoke all on function public.claim_validite_rappels_5j() from public,anon,authenticated;
+grant execute on function public.claim_validite_rappels_5j() to service_role;
+
+create or replace function public.marquer_rappel_validite(p_promoteur uuid)
+returns void
+language sql
+security definer
+set search_path=public
+as $$
+ select null::void;
+$$;
+revoke all on function public.marquer_rappel_validite(uuid) from public,anon,authenticated;
+grant execute on function public.marquer_rappel_validite(uuid) to service_role;
