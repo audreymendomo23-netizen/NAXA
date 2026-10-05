@@ -32,7 +32,9 @@ create table if not exists public.abonnements_promoteurs (
   created_at timestamptz not null default now(),
   bloque_le timestamptz,
   reactive_le timestamptz,
-  reactive_par uuid references public.profiles(id) on delete set null
+  reactive_par uuid references public.profiles(id) on delete set null,
+  rappel_5j_envoye_at timestamptz,
+  rappel_5j_en_cours_at timestamptz
 );
 create unique index if not exists abonnements_promoteur_unique
   on public.abonnements_promoteurs(promoteur_id);
@@ -260,9 +262,11 @@ security definer
 set search_path=public
 as $$
  update public.abonnements_promoteurs ap
- set bloque_le=bloque_le
+ set rappel_5j_en_cours_at=now()
  where ap.statut='actif'
    and ap.echeance=current_date+5
+   and ap.rappel_5j_envoye_at is null
+   and (ap.rappel_5j_en_cours_at is null or ap.rappel_5j_en_cours_at < now()-interval '15 minutes')
  returning ap.promoteur_id,
    (select u.email from public.profiles p join auth.users u on u.id=p.id
     where p.id=ap.promoteur_id and p.actif),
@@ -277,8 +281,10 @@ returns void
 language sql
 security definer
 set search_path=public
-as $$
- select null::void;
-$$;
+as $
+ update public.abonnements_promoteurs
+ set rappel_5j_envoye_at=now(), rappel_5j_en_cours_at=null
+ where promoteur_id=p_promoteur and echeance=current_date+5 and rappel_5j_envoye_at is null;
+$;
 revoke all on function public.marquer_rappel_validite(uuid) from public,anon,authenticated;
 grant execute on function public.marquer_rappel_validite(uuid) to service_role;
