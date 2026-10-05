@@ -48,3 +48,4 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - API rapports enrichie avec les métadonnées de scope sans élargissement de droits.
 - Export CSV existant conservé ; aucun second moteur créé.
 - Garde-fou : hors admin, le filtre historique `pharmacie_id` reste obligatoire tant que le moteur hiérarchique multi-pharmacie n'est pas branché.
+\n\n2026-10-05 — Passe 4 BI/RLS multi-pharmacie : relation Promoteur↔pharmacies, primitives de périmètre, RLS multi-pharmacie et vues BI `security_invoker`. Aucun changement Production.\n
