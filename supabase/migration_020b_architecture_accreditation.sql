@@ -1,7 +1,7 @@
 -- NAXA 020.1 — fermeture des contradictions d'exécution de l'accréditation
 -- Responsable = fonction_interne, jamais role_type.
 
-create or replace function public.naxa_business_function(p_profile uuid default (select auth.uid()))
+create or replace function public.naxa_business_function(p_profile uuid default auth.uid())
 returns text
 language sql stable security definer set search_path=''
 as $$
