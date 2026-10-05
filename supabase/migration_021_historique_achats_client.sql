@@ -157,7 +157,8 @@ join public.reservation_items ri on ri.reservation_id=r.id
 join public.produits p on p.id=ri.produit_id
 join public.pharmacies ph on ph.id=r.pharmacie_id
 left join public.reservation_events e on e.reservation_id=r.id
-where r.statut in ('payee','retiree')
+where r.client_id = auth.uid()
+  and r.statut in ('payee','retiree')
 group by
   r.id, ri.produit_id, p.nom, p.dci, p.dosage, p.forme, p.photo_url,
   ri.quantite, ri.prix_unitaire, r.total, r.paiement_ref,
