@@ -255,7 +255,12 @@ after insert on public.pharmacies
 for each row execute function public.initialiser_abonnement_pharmacie();
 
 -- Rappels : une seule notification par Promoteur, jamais une notification par pharmacie.
-create or replace function public.claim_validite_rappels_5j()
+-- L'ancien RPC claim_validite_rappels_5j est conservé pour compatibilité historique mais
+-- n'est plus autorisé pour le moteur de validité canonique.
+revoke all on function public.claim_validite_rappels_5j() from public,anon,authenticated,service_role;
+revoke all on function public.marquer_rappel_validite(uuid) from public,anon,authenticated,service_role;
+
+create or replace function public.claim_validite_promoteurs_5j()
 returns table(promoteur_id uuid,promoteur_email text,promoteur_prenom text,montant_mensuel integer,echeance date)
 language sql
 security definer
@@ -268,15 +273,14 @@ as $$
    and ap.rappel_5j_envoye_at is null
    and (ap.rappel_5j_en_cours_at is null or ap.rappel_5j_en_cours_at < now()-interval '15 minutes')
  returning ap.promoteur_id,
-   (select u.email from public.profiles p join auth.users u on u.id=p.id
-    where p.id=ap.promoteur_id and p.actif),
+   (select u.email from public.profiles p join auth.users u on u.id=p.id where p.id=ap.promoteur_id and p.actif),
    (select p.first_name from public.profiles p where p.id=ap.promoteur_id),
    ap.montant_mensuel,ap.echeance;
 $$;
-revoke all on function public.claim_validite_rappels_5j() from public,anon,authenticated;
-grant execute on function public.claim_validite_rappels_5j() to service_role;
+revoke all on function public.claim_validite_promoteurs_5j() from public,anon,authenticated;
+grant execute on function public.claim_validite_promoteurs_5j() to service_role;
 
-create or replace function public.marquer_rappel_validite(p_promoteur uuid)
+create or replace function public.marquer_rappel_promoteur(p_promoteur uuid)
 returns void
 language sql
 security definer
@@ -286,5 +290,5 @@ as $$
  set rappel_5j_envoye_at=now(), rappel_5j_en_cours_at=null
  where promoteur_id=p_promoteur and echeance=current_date+5 and rappel_5j_envoye_at is null;
 $$;
-revoke all on function public.marquer_rappel_validite(uuid) from public,anon,authenticated;
-grant execute on function public.marquer_rappel_validite(uuid) to service_role;
+revoke all on function public.marquer_rappel_promoteur(uuid) from public,anon,authenticated;
+grant execute on function public.marquer_rappel_promoteur(uuid) to service_role;
