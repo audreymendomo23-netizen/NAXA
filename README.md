@@ -598,3 +598,56 @@ Les anciennes mentions d'un enum responsable et du test 018b sont historiques et
 - Test structurel : `supabase/tests/020_architecture_privileges.sql`.
 - **Non appliqué en Production. Non fusionné dans main.**
 - Validation Production et migration Supabase restent soumises à autorisation explicite.
+
+
+## 🔒 CONTINUITÉ PRIORITAIRE — Architecture NAXA : fonctions, privilèges, architectures et scopes — 5 octobre 2026
+
+> **Cette section est prioritaire pour toute IA qui reprend le chantier. Elle décrit l'état de travail actuel sur la branche, sans le confondre avec Production.**
+
+### 1. Décision canonique verrouillée
+- `role_type` reste strictement : `client`, `pharmacie`, `admin`, `promoteur`, `caisse`.
+- **`responsable` n'est jamais ajouté à l'enum.** Responsable = fonction/niveau métier N2, porté par les données internes de fonction/niveau, l'architecture et le scope.
+- Le droit effectif : **identité → fonction/niveau → architecture → privilège autorisé → scope → statut**.
+- Le Promoteur ne choisit pas librement l'architecture : **NAXA l'attribue selon la convention**.
+- Le Promoteur attribue uniquement les privilèges délégables autorisés par NAXA pour son architecture et son périmètre.
+- Aucun utilisateur ne peut dépasser les limites de son architecture, de sa fonction/niveau ou de ses privilèges.
+
+### 2. Quatre architectures canoniques
+1. **ORPHELIN** : Promoteur → 1 Caisse maximum ; aucun Responsable.
+2. **PARENTS_ENFANTS** : Promoteur → jusqu'à 5 Caisses ; aucun Responsable.
+3. **PARENTS_AINES_CADETS** : Promoteur → jusqu'à 5 Responsables + jusqu'à 5 Caisses ; Responsable N2, Caisse N3.
+4. **HYBRIDE** : Promoteur → rôles/bundles personnalisés autorisés par NAXA, sans plafond métier fixe ; les privilèges de gouvernance NAXA restent non délégables.
+
+### 3. Catalogue de privilèges
+Le catalogue est atomique et organisé par domaines : gouvernance NAXA, organisation, rôles/privilèges, pharmacie, produits, stock, réservations, ventes/caisse, CA, Pilotage, rapports, exports, sécurité, sessions, configuration et commercial/subscription.
+
+Règle : **les privilèges Promoteur, Responsable et Caisse sont distincts**. Une Caisse ne peut pas recevoir un privilège réservé à Responsable ; un Responsable ne reçoit pas automatiquement les privilèges Promoteur ; les privilèges de gouvernance NAXA ne sont pas délégables.
+
+### 4. Implémentation actuellement présente sur la branche
+- `supabase/migration_020_architecture_privileges.sql` : catalogue, architectures, matrice fonction/privilège, moteur d'autorisation et attribution/révocation.
+- `supabase/migration_020b_architecture_accreditation.sql` : fermeture des quotas d'accréditation et garde-fous architecture/fonction.
+- `supabase/tests/020_authorisation_architecture_privileges.sql` : test principal d'autorisation.
+- `supabase/tests/020_architecture_privileges.sql` : test structurel complémentaire.
+- Aucun ajout de `responsable` dans `role_type`.
+
+### 5. État de preuve — à ne jamais falsifier
+- Architecture/décision : 🟢 verrouillée.
+- Code de branche : 🟢 présent et relu.
+- Tests SQL versionnés : 🟢 présents.
+- Exécution Supabase des migrations 020/020b : **à vérifier/exécuter en environnement de test** avant de déclarer le lot vert.
+- CI post-commit : **à vérifier**.
+- Production : **inchangée**.
+- `main` : **inchangé**.
+- Aucun merge, aucune migration Production et aucun déploiement sans autorisation explicite ; phrase de déploiement : **OUI, DÉPLOIE**.
+
+### 6. Prochaine reprise obligatoire
+Ne pas repartir de zéro et ne pas créer un second modèle. Reprendre par :
+1. audit contradictoire de 020/020b contre 017/018 et les tests existants ;
+2. exécution transactionnelle des migrations/tests en environnement de test ;
+3. vérification des quotas ORPHELIN/PARENTS_ENFANTS/PARENTS_AINES_CADETS/HYBRIDE ;
+4. vérification allow/deny des privilèges Promoteur/Responsable/Caisse et des privilèges NAXA non délégables ;
+5. vérification du scope multi-pharmacie et du Pilotage canonique ;
+6. mise à jour du README/STATUT avec les preuves réelles ;
+7. seulement après 100 % vert, demander validation avant la suite du roadmap.
+
+**Règle absolue : ne pas déclarer ce chantier terminé sur la seule présence des fichiers SQL.**
