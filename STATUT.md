@@ -107,3 +107,13 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Aucun merge `main`, aucun déploiement Production.
 - Les tests réels mobile, Realtime et e-mail restent à prouver par le fondateur.
 - Prochaine autorisation de déploiement : phrase exacte **OUI, DÉPLOIE**.
+
+## Chantier — validité commerciale des pharmacies
+- Branche : `feat/pharmacie-validite-pilotage`, basée sur la consolidation PR #23.
+- Audit : le pilotage 360 possédait déjà `abonnements` et le MRR, mais pas le cycle complet échéance → rappel J-5 → blocage → règlement → réactivation.
+- Ajout additif : migration `010_validite_pharmacies.sql`, historique des règlements, échéance mensuelle standard 30 000 FCFA, statut impayé, blocage pharmacie + comptes Promoteur/Caisse, réactivation administrative.
+- Côté client : stocks des pharmacies inactives masqués ; recherche et réservation restent protégées par `pharmacies.actif`.
+- N1 Admin : `/admin/pilotage/validite` connecté au Pilotage 360.
+- Notification : cron quotidien serveur `/api/cron/validite`, rappel J-5 au Promoteur via Resend, idempotent.
+- Écran de suspension ajouté pour les comptes pharmacie bloqués.
+- Aucun merge `main`, aucune migration Production et aucun déploiement Production.
