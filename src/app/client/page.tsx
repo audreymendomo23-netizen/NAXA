@@ -20,12 +20,12 @@ export default function ClientPage(){
  const [period,setPeriod]=useState("all"),[q,setQ]=useState(""),[loading,setLoading]=useState(true),[error,setError]=useState("");
  useEffect(()=>{(async()=>{const sb=supabaseBrowser();const {data:{user}}=await sb.auth.getUser();if(!user){router.replace("/connexion?retour=/client");return}
  const [{data:p},{data:r,error:re},{data:e,error:ee},{data:a,error:ae}]=await Promise.all([
- sb.from("profiles").select("first_name,last_name").eq("id",user.id).single(),
+ sb.from("profiles").select("first_name,last_name,role").eq("id",user.id).single(),
  sb.from("reservations").select("id,statut,total,expires_at,created_at,pharmacies(nom,quartier,adresse),reservation_items(quantite,prix_unitaire,produits(nom,dosage,forme))").eq("client_id",user.id).order("created_at",{ascending:false}).limit(50),
  sb.from("reservation_events").select("reservation_id,event_type,to_statut,occurred_at").eq("client_id",user.id).order("occurred_at",{ascending:true}),
  sb.from("client_achats").select("*").order("achat_le",{ascending:false,nullsFirst:false}).limit(500)]);
  if(re||ee||ae){setError("Impossible de charger votre suivi pour le moment.");setLoading(false);return}
- setName([p?.first_name,p?.last_name].filter(Boolean).join(" ")||"Client");setReservations((r??[]) as unknown as Reservation[]);setEvents((e??[]) as Event[]);setAchats((a??[]) as unknown as Achat[]);setLoading(false);})();},[router]);
+ if(p?.role!=="client"){router.replace("/");return} setName([p?.first_name,p?.last_name].filter(Boolean).join(" ")||"Client");setReservations((r??[]) as unknown as Reservation[]);setEvents((e??[]) as Event[]);setAchats((a??[]) as unknown as Achat[]);setLoading(false);})();},[router]);
  const filtered=useMemo(()=>{const days=period==="all"?Infinity:Number(period)*86400000;const query=q.trim().toLowerCase();return achats.filter(a=>(Date.now()-new Date(a.achat_le??a.reservation_creee_le).getTime())<=days&&(!query||[a.medicament,a.dci,a.pharmacie,a.ville,a.quartier??""].join(" ").toLowerCase().includes(query)))},[achats,period,q]);
  const groups=useMemo(()=>{const m=new Map<string,Achat[]>();for(const a of filtered)m.set(a.reservation_id,[...(m.get(a.reservation_id)??[]),a]);return [...m.entries()].sort((x,y)=>new Date(y[1][0].achat_le??y[1][0].reservation_creee_le).getTime()-new Date(x[1][0].achat_le??x[1][0].reservation_creee_le).getTime())},[filtered]);
  const timeline=(id:string)=>events.filter(e=>e.reservation_id===id),recent=reservations.slice(0,8);const purchaseCount=new Set(achats.map(a=>a.reservation_id)).size,medicineCount=new Set(achats.map(a=>a.produit_id)).size;
