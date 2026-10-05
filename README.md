@@ -204,3 +204,20 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 
 ### Passe 4 — prête à démarrer
 **Métier / Données / BI / Rapports : KPI, grain, sources, scopes, agrégations, anti-double-comptage, rapports hiérarchiques, exports et tests de cohérence.**
+
+
+## Passe 4 — Contradiction C1 résolue
+- **C1 — `stocks_couts` documenté mais absent du schéma : 🟢 résolue au niveau dépôt/conception.**
+- Migration additive `supabase/migration_013_stocks_couts.sql` ajoutée sur `feat/pharmacie-validite-pilotage`.
+- `stocks` conserve quantité et prix public/vente ; `stocks_couts` conserve le coût d'achat interne courant, au grain `pharmacie × produit`, en XAF.
+- Aucun déplacement ni suppression de donnée existante.
+- RLS et grants dédiés : coût d'achat accessible uniquement aux scopes internes autorisés ; jamais au Client.
+- **Contradiction volontairement fermée :** `stocks.prix` et `stocks_couts.cout_unitaire` ne sont jamais additionnés ni confondus.
+- **Marge historique interdite pour l'instant :** un coût courant ne suffit pas à reconstituer le coût au moment d'une vente passée. Aucun KPI de marge transactionnelle ne sera publié avant qu'un coût de vente soit figé au grain transactionnel.
+- La migration 013 est préparée dans la branche ; son application Supabase Production reste soumise à l'autorisation de déploiement/migration.
+
+### Passe 4 — état après C1
+- C1 : 🟢 100 % au niveau contradiction / modèle / dépôt.
+- Source de vérité KPI : 🟢.
+- Grain des stocks/lots/réservations/recherches : 🟢 au niveau spécification.
+- Recherche, CA, rapports hiérarchiques, exports et tests anti-double-comptage : 🟠/🔴, encore à fermer par contradiction.
