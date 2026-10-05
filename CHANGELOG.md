@@ -42,3 +42,9 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - Migration additive 015 préparée pour représenter les scopes PHARMACIE / RESPONSABLE / PROMOTEUR / NAXA sans supprimer l'ancien modèle.
 - Test Supabase rollbacké : structure validée, 0 rapport existant actuellement.
 - Aucun merge main ni déploiement Production.
+
+
+## 2026-10-05 — Passe 4 : exports par scope
+- API rapports enrichie avec les métadonnées de scope sans élargissement de droits.
+- Export CSV existant conservé ; aucun second moteur créé.
+- Garde-fou : hors admin, le filtre historique `pharmacie_id` reste obligatoire tant que le moteur hiérarchique multi-pharmacie n'est pas branché.
