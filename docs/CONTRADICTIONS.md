@@ -20,3 +20,4 @@ E13 rapports hiérarchiques : résolue au niveau modèle ; `rapports` peut déso
 
 
 E14 exports par scope : résolue au niveau architecture/sécurité ; l'export ne possède aucun droit autonome et reprend strictement le périmètre du rapport/API autorisé. L'élargissement multi-pharmacie attend le moteur hiérarchique canonique et ne sera pas simulé par l'export.
+\n\nE15 BI/RLS multi-pharmacie : résolue au niveau architecture et migration de branche. Relation Promoteur↔pharmacies, `my_pharmacies()` et `can_access_pharmacy()` deviennent les primitives de périmètre. Les vues BI passent en `security_invoker` et conservent le grain pharmacie. Validation multi-comptes encore requise avant Production.\n
