@@ -148,13 +148,16 @@ select
   min(e.occurred_at) filter (
     where e.event_type='payment_declared'
   ) as paiement_declare_le,
-  coalesce(
+  min(e.occurred_at) filter (
+    where e.event_type='status_changed'
+      and e.to_statut in ('payee','retiree')
+  ) as achat_le,
+  (
     min(e.occurred_at) filter (
       where e.event_type='status_changed'
         and e.to_statut in ('payee','retiree')
-    ),
-    r.created_at
-  ) as achat_le,
+    ) is not null
+  ) as horodatage_achat_exact,
   r.statut
 from public.reservations r
 join public.reservation_items ri on ri.reservation_id=r.id
