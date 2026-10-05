@@ -521,3 +521,11 @@ Cette décision corrige définitivement l'ancien raisonnement « un tarif / abon
 
 ### État Passe 6
 La Passe 6 continue. Le moteur stats_pilotage_scope(p_jours) reste le point d'entrée canonique. Le scope Admin exclut désormais les événements rattachés aux pharmacies démo tout en conservant les recherches réellement sans pharmacie au niveau réseau. Les tests multi-rôles réels et la matrice finale d'acceptation restent à fermer avant le vert 100 %.
+
+
+### Mise à jour Passe 6 — test d'acceptation 018 exécuté
+- Test versionné ajouté : supabase/tests/018_pilotage_canonique_scope.sql.
+- Test exécuté avec les migrations 013→018 dans une transaction unique puis ROLLBACK.
+- Scénarios prouvés dans cette transaction : Admin voit 3 pharmacies non-démo et compte les recherches réseau (y compris une recherche sans pharmacie) ; Promoteur voit uniquement A+B et ne récupère ni la recherche sans pharmacie ni celle de C.
+- Aucun changement persistant en Production.
+- CI GitHub sur le dernier commit de test : encore **in_progress** au moment du contrôle ; build/typecheck non déclarés verts avant conclusion du run.
