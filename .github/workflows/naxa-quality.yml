@@ -13,3 +13,7 @@ jobs:
       - run: npm install
       - run: npx tsc --noEmit
       - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
