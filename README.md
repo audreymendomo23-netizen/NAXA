@@ -651,3 +651,30 @@ Ne pas repartir de zéro et ne pas créer un second modèle. Reprendre par :
 7. seulement après 100 % vert, demander validation avant la suite du roadmap.
 
 **Règle absolue : ne pas déclarer ce chantier terminé sur la seule présence des fichiers SQL.**
+
+
+## 🔒 Validation architecture/privilèges — 5 octobre 2026 — passe de fermeture
+
+Validation exécutée selon la méthode NAXA : audit → contradiction → correction additive → validation transactionnelle → tests d’acceptation → contrôle de rollback → documentation.
+
+### Corrections réalisées sur la branche
+- Réconciliation additive des colonnes historiques family, description, governance_only et active du catalogue naxa_privileges avec le schéma canonique 020.
+- Suppression de deux doublons de seed (VIEW_TEAM_ACTIVITY, EXPORT_STOCK) qui rendaient le ON CONFLICT DO UPDATE ambigu.
+- Conservation de la signature/default de accrediter_profile(..., p_parent uuid default null).
+- accrediter_profile() synchronise désormais aussi profiles.niveau_interne en plus de niveau_hierarchique.
+- Les tests ne traitent plus la présence historique de la valeur enum responsable comme une preuve d’utilisation : aucune valeur active role_type=responsable n’est autorisée ; Responsable reste porté par fonction/niveau. La valeur enum historique est conservée pour compatibilité non destructive.
+- Le test d’autorisation utilise un privilège Pilotage réellement compatible avec le niveau Responsable.
+- Les fixtures du test d’autorisation sont adaptées à un environnement avec seulement deux profils existants.
+
+### Preuves obtenues
+- Chaîne 013 → 020c : PASS transactionnel, puis ROLLBACK.
+- Test 017_hierarchie_securite.sql : PASS / ROLLBACK.
+- Test 018_pilotage_canonique_scope.sql : PASS / ROLLBACK.
+- Test 020_architecture_privileges.sql : PASS / ROLLBACK.
+- Test 020_authorisation_architecture_privileges.sql : PASS / ROLLBACK.
+- Contrôle post-rollback : naxa_privileges et pharmacie_architectures n’existent pas en Production ; aucune migration 013→020c n’est enregistrée dans l’historique Supabase Production.
+- main inchangé ; PR #24 toujours ouverte vers consolidation.
+- CI GitHub du HEAD courant : in_progress au dernier contrôle ; aucune conclusion CI artificiellement déclarée.
+
+### Point de vigilance
+Le catalogue contient désormais aussi les privilèges VIEW_PERFORMANCE_KPI, VIEW_OBJECTIVES, VIEW_OBJECTIVES_VS_ACTUAL, VIEW_COMPARISON, VIEW_DRILLDOWN, VIEW_NETWORK_HEALTH, etc. Cela ne signifie pas que le Pilotage de la performance métier est construit. Ces privilèges décrivent des capacités d’autorisation prévues ; le contenu métier du Pilotage Performance reste à concevoir/construire selon le V3.
