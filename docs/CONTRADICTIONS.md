@@ -25,3 +25,13 @@ E14 exports par scope : résolue au niveau architecture/sécurité ; l'export ne
 E16 — Hierarchie : resolue. `parent_profile_id` est l'arbre canonique, `promoteur_pharmacies` porte le scope Promoteur et `profile_accreditations` la preuve des accreditations.
 
 E17 — Securite : resolue sur branche. Auto-elevation directe retiree, stock interne non expose a anon, nouvelles fonctions protegees, callback OAuth aligne sur le controle de creation de session.
+
+
+## E18 — KPI dashboard vs moteur parallèle
+**Résolution : 🟢 au niveau architecture et branche, 🔶 tests multi-rôles encore requis.**
+
+Contradiction : le dashboard Admin utilisait stats_admin tandis que le dashboard pharmacie utilisait stats_pharmacie, avec des règles historiques différentes du CA canonique de la Passe 4. Cela pouvait faire diverger les ventes/CA affichés du BI.
+
+Décision : une seule entrée de pilotage, stats_pilotage_scope(p_jours), calcule les KPI selon le scope effectif. Admin voit le réseau ; Promoteur voit uniquement ses pharmacies autorisées ; Responsable/Caisse voient leur pharmacie active. Le CA vient de v_reservations_ca. Les recherches sans pharmacie ne sont jamais attribuées artificiellement à un scope pharmacie.
+
+Test d'acceptation : mêmes faits sources + même période => même KPI quelle que soit la surface dashboard/rapport/BI ; aucun scope non autorisé ne doit apparaître dans une agrégation.
