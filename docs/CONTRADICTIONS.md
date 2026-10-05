@@ -8,3 +8,4 @@ E05 lots dans stocks : rejeté, stocks_lots séparé.
 E06 e-mail sans secret : rejeté, serveur + variables d’environnement.
 E07 dashboard statique : rejeté, RPC + rafraîchissement/Realtimе.
 E08 suivi pilotage découplé des parcours existants : résolu ; `src/lib/evenements.ts` + `EvenementVue` branchent recherche, vue fiche et ajout panier sur `log_evenement` sans supprimer `recherche_events`.
+E09 `stocks_couts` documenté mais absent du schéma : résolue par migration additive 013 ; coût d'achat séparé de `stocks.prix`, au grain pharmacie × produit. La marge historique reste explicitement bloquée tant que le coût au moment de la vente n'est pas figé dans la transaction.
