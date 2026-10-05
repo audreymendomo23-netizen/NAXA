@@ -62,3 +62,11 @@ Dashboards N1/N2/N3, entonnoir commercial, rapports, BI, lots/péremptions et pr
 - CA/ventes branchés sur v_reservations_ca ; périmètres Promoteur/Responsable/Caisse protégés par scope.
 - Dashboards Admin et pharmacie alignés sur la même source de pilotage.
 - Aucun changement Production et aucune migration Supabase appliquée.
+
+
+## 2026-10-05 — Documentation de contrôle avant reprise d’audit
+- Documentation synchronisée avec l’état réel de la branche `feat/pharmacie-validite-pilotage` et de la PR #24.
+- Clarification : les migrations 013–018 sont sous `supabase/`, pas sous `supabase/migrations/`.
+- Clarification : 018 est le point d’entrée canonique du pilotage par scope ; sa présence en branche ne constitue pas une application Production.
+- Séquence de contrôle verrouillée : documentation → checking migrations → audit contradictoire → tests/fermetures → décision de déploiement.
+- Aucun merge `main`, aucune migration Production et aucun déploiement applicatif.
