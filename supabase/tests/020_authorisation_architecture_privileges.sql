@@ -12,13 +12,38 @@ declare
   v_id uuid;
   v_ok boolean;
 begin
-  select id into v_admin from public.profiles where role='admin' order by created_at asc limit 1;
+  -- Fixture transactionnelle : les environnements de test peuvent ne contenir aucun
+  -- Promoteur/Admin métier. On réutilise deux profils existants et on crée seulement
+  -- une troisième identité Auth + profil si nécessaire. Tout est rollbacké en fin de test.
+  select id into v_admin from public.profiles order by created_at asc limit 1;
   select id into v_promoteur from public.profiles where id<>v_admin order by created_at asc limit 1;
   select id into v_target from public.profiles where id<>v_admin and id<>v_promoteur order by created_at asc limit 1;
-  select id into v_pharmacie from public.pharmacies order by created_at asc limit 1;
 
-  if v_admin is null or v_promoteur is null or v_target is null or v_pharmacie is null then
-    raise exception 'Fixture insuffisante: admin + promoteur + cible + pharmacie requis';
+  if v_admin is null then
+    raise exception 'Fixture insuffisante: au moins un profil existant est requis';
+  end if;
+
+  if v_promoteur is null then
+    v_promoteur := gen_random_uuid();
+    insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at,raw_app_meta_data,raw_user_meta_data,is_anonymous,is_sso_user)
+    values(v_promoteur,'authenticated','authenticated',
+      'naxa-test-promoteur-'||replace(v_promoteur::text,'-','')||'@example.invalid','',
+      now(),now(),now(),'{}','{}',false,false);
+    insert into public.profiles(id,role,actif) values(v_promoteur,'client',true);
+  end if;
+
+  if v_target is null then
+    v_target := gen_random_uuid();
+    insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at,raw_app_meta_data,raw_user_meta_data,is_anonymous,is_sso_user)
+    values(v_target,'authenticated','authenticated',
+      'naxa-test-cible-'||replace(v_target::text,'-','')||'@example.invalid','',
+      now(),now(),now(),'{}','{}',false,false);
+    insert into public.profiles(id,role,actif) values(v_target,'client',true);
+  end if;
+
+  select id into v_pharmacie from public.pharmacies order by created_at asc limit 1;
+  if v_pharmacie is null then
+    raise exception 'Fixture insuffisante: pharmacie requise';
   end if;
 
   update public.profiles set role='admin',actif=true,niveau_interne=0,pharmacie_id=null,parent_profile_id=null where id=v_admin;
