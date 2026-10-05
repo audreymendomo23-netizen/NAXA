@@ -582,3 +582,19 @@ Le moteur d'autorisation est implémenté de façon additive dans supabase/migra
 Les anciennes mentions d'un enum responsable et du test 018b sont historiques et ne constituent plus la source de vérité. Le test courant est supabase/tests/020_authorisation_architecture_privileges.sql.
 
 État : code de branche uniquement. Aucun changement Production, aucun merge main, aucune migration Production.
+
+
+## Architecture canonique — fonctions, privilèges et scopes — 5 octobre 2026
+
+- Implémentation additive sur la branche `feat/pharmacie-validite-pilotage`.
+- `role_type` reste strictement `client`, `pharmacie`, `admin`, `promoteur`, `caisse`.
+- **Responsable n'est pas un rôle enum** : il est modélisé par `fonction_interne=responsable` + niveau hiérarchique + architecture + périmètre.
+- Quatre architectures NAXA : `ORPHELIN` (1 Caisse), `PARENTS_ENFANTS` (5 Caisses), `PARENTS_AINES_CADETS` (5 Responsables + 5 Caisses), `HYBRIDE` (rôles personnalisés sans plafond métier fixe, dans les limites NAXA).
+- Catalogue atomique des privilèges : organisation, privilèges, pharmacie, produits, stock, ventes, CA, pilotage, rapports, exports, sécurité, configuration et gouvernance.
+- Les privilèges de gouvernance NAXA ne sont pas délégables.
+- Attribution effective : identité → fonction → architecture → privilège autorisé → scope → statut.
+- Migration additive : `supabase/migration_020_architecture_privileges.sql`.
+- Fermeture des quotas d'accréditation : `supabase/migration_020b_architecture_accreditation.sql`.
+- Test structurel : `supabase/tests/020_architecture_privileges.sql`.
+- **Non appliqué en Production. Non fusionné dans main.**
+- Validation Production et migration Supabase restent soumises à autorisation explicite.
