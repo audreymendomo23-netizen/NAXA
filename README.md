@@ -167,3 +167,40 @@ Les passes 1, 2 et 3 sont désormais **vertes au niveau spécification/architect
 
 ### Prochaine passe
 **Passe 4 — Métier / Données / BI / Rapports :** dictionnaire KPI, grain, sources, scopes, règles d'agrégation, exports, rapports hiérarchiques et tests de cohérence.
+
+
+## Rectification de référence — clôture Passes 1–3 (5 octobre 2026)
+Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'état actuel du chantier.
+
+### 🟢 PASS 1 — Existant, invariants et périmètre
+- Existant inspecté avant évolution ; aucune nouvelle infrastructure créée.
+- Architecture commerciale : une **pharmacie = une unité commerciale et un stock partagé**, quel que soit le nombre de comptes Caisse.
+- Client = acteur externe au périmètre hiérarchique interne.
+- Hiérarchie cible : **N0 NAXA Admin → N1 Promoteur → N2 Responsable → N3 Caisse**.
+- Le libellé historique `role=pharmacie` est traité comme compatibilité technique, jamais comme niveau hiérarchique cible.
+- Aucun merge `main` ni déploiement Production sans autorisation explicite.
+
+### 🟢 PASS 2 — Métier, données et commercial
+- Modèle canonique : **Convention → Promoteur → pharmacies autorisées → architecture autorisée/choisie → abonnement → paiements**.
+- Promoteur ↔ pharmacie = relation explicite nécessaire au multi-pharmacie.
+- Architecture d'une pharmacie : 2 niveaux (Promoteur → Caisse) ou 3 niveaux (Promoteur → Responsable → Caisse), seulement si autorisée par la Convention.
+- Responsable = niveau d'autorité et de périmètre, pas propriétaire ni fonction métier.
+- Accréditation distincte de l'identité, du niveau hiérarchique et du statut.
+- 30 000 FCFA/mois = **référence catalogue**, jamais tarif contractuel universel.
+- Tarifs et paiements sont historisés par période ; aucune modification du présent ne réécrit le passé.
+- Une pharmacie impayée est bloquée localement ; elle ne doit pas désactiver le Promoteur ni ses autres pharmacies valides.
+
+### 🟢 PASS 3 — Autorisation, RLS et séparation des données
+- Formule canonique : **droit effectif = identité × niveau × accréditation × périmètre × pharmacie × convention × statut × objet × opération**.
+- RLS + grants + contrôle serveur/DB constituent l'autorité ; l'UI ou le JWT seuls ne suffisent jamais.
+- Caisse = opérateur normal du stock ; Responsable/Promoteur = supervision/pilotage et opérations exceptionnelles explicitement autorisées.
+- Client : disponibilité/public ; interne : quantité exacte, lots, péremptions, mouvements, anomalies et données sensibles.
+- Les agrégations remontent par scope hiérarchique sans dupliquer ni déplacer les faits historiques.
+- Toute fonction `SECURITY DEFINER` doit être justifiée, avoir un `search_path` sûr et un EXECUTE minimal ; les vues exposées doivent être protégées, notamment par `security_invoker` lorsqu'elles doivent respecter le RLS sous-jacent. citeturn0search0turn0search3
+- La limite de 4 sessions est une règle DB ; aucune ancienne session n'est expulsée automatiquement.
+
+### Statut de clôture
+**Les trois passes sont 🟢 au niveau spécification, architecture et arbitrages.** Les écarts d'implémentation encore visibles (RLS historiques, fonctions SECURITY DEFINER, vue `v_ventes_journalieres`, modèle mono-pharmacie et callback OAuth) sont désormais des **actions techniques identifiées**, et non des ambiguïtés métier. Elles appartiennent au lot d'implémentation avant validation Production.
+
+### Passe 4 — prête à démarrer
+**Métier / Données / BI / Rapports : KPI, grain, sources, scopes, agrégations, anti-double-comptage, rapports hiérarchiques, exports et tests de cohérence.**
