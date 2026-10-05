@@ -110,3 +110,10 @@ Les recherches rattachées à une pharmacie démo sont exclues du KPI Admin ; le
 - Test transactionnel 013→019 : 🟢 PASS puis ROLLBACK.
 - Tests multi-utilisateurs/acceptation finale : 🟠 à exécuter.
 - Production : inchangée.
+
+
+### Passe 6 — état de preuve mis à jour
+- CI #121 : 🟢 SUCCESS avec TypeScript + build.
+- Test 018 013→019 : 🟢 PASS / ROLLBACK.
+- Matrice Responsable/Caisse/Client : 🟠 non exécutée transactionnellement, car PostgreSQL interdit l'utilisation d'une nouvelle valeur d'enum dans la même transaction que son `ALTER TYPE ... ADD VALUE`. Aucun contournement n'a été appliqué en Production.
+- Dernière CI #125 : 🟠 en cours.
