@@ -109,13 +109,13 @@ begin
   end if;
 
   -- Un Responsable peut recevoir un privilège de pilotage compatible, mais jamais le Pilotage réseau.
-  perform public.naxa_grant_privilege(v_target,'VIEW_CA_BY_RESPONSABLE',v_pharmacie,'PHARMACIE');
+  perform public.naxa_grant_privilege(v_target,'VIEW_PHARMACY_PILOTAGE',v_pharmacie,'PHARMACIE');
   if public.authorize('VIEW_NETWORK_PILOTAGE',v_pharmacie,'PHARMACIE') then
     raise exception 'Responsable ne doit pas recevoir VIEW_NETWORK_PILOTAGE';
   end if;
 
   -- La fonction de scope ne doit jamais élargir le Responsable hors de sa pharmacie.
-  if public.authorize('VIEW_CA_BY_RESPONSABLE',(select id from public.pharmacies where id<>v_pharmacie limit 1),'PHARMACIE') then
+  if public.authorize('VIEW_PHARMACY_PILOTAGE',(select id from public.pharmacies where id<>v_pharmacie limit 1),'PHARMACIE') then
     raise exception 'Scope Responsable hors pharmacie autorisée';
   end if;
 end
