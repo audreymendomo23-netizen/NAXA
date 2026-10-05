@@ -866,3 +866,39 @@ Le Client disposera d'un historique personnel des médicaments effectivement ach
 - Production inchangée.
 - Aucun merge ni déploiement.
 - Prochaine étape : brancher l'interface Client Mes médicaments achetés, puis exécuter les tests DB et le contrôle UX avant acceptation.
+
+
+## 🔒 CLÔTURE — PASSE CLIENT — 6 OCTOBRE 2026
+
+### Périmètre construit
+- Route Client : `/client`.
+- Mon suivi : réservations, statut, pharmacie, total, produits et chronologie des événements propres au compte.
+- Mes médicaments achetés : listing regroupé par transaction avec détails produit, quantité, prix, total, pharmacie, référence et dates/heures disponibles.
+- Filtres 7 j / 30 j / 3 mois / 1 an / tout + recherche médicament/pharmacie.
+- Photo produit affichée depuis `produits.photo_url` uniquement lorsqu'elle existe.
+- Aucune donnée interne de Pilotage pharmacie n'est exposée au Client.
+
+### Contradictions traitées
+- **Client ≠ Pilotage interne** : séparation stricte du suivi personnel et de la BI interne.
+- **Une heure historique ne doit pas être inventée** : `achat_le` reste NULL si la transition historique n'est pas traçable ; l'UI l'indique.
+- **Photo absente ≠ photo fabriquée** : fallback visuel neutre NAXA.
+- **Moyen de paiement non modélisé ≠ moyen inventé** : seule la référence réellement présente est affichée.
+- **Scope UI ≠ sécurité** : RLS de `reservations`, `reservation_items`, `reservation_events` et vue `client_achats` restent l'autorité.
+
+### Base de données
+- Migration 021 additive : `reservation_events` + `client_achats`.
+- Vue `client_achats` enrichie avec photo et jalons création/confirmation/paiement/achat/retrait/annulation/expiration.
+- `security_invoker=true` conservé.
+- Aucun accès d'écriture direct du Client à `reservation_events`.
+
+### État de validation
+- Code et documentation sur `feat/pharmacie-validite-pilotage`.
+- PR #24 ouverte vers `consolidation`.
+- `main` inchangé par ce passage.
+- Production inchangée.
+- Validation réelle Supabase de 021/019 encore bloquée par l'absence de compte Supabase MCP éligible dans la session ; aucune validation Production n'est revendiquée.
+- La CI PR doit valider TypeScript + build ; tout échec sera traité avant de déclarer le Client vert.
+
+### Décision de gouvernance
+**Le prochain rôle ne commence qu'après validation utilisateur de ce périmètre Client.**
+Ordre retenu : **Client → Caisse → Responsable → Promoteur → Admin**, avec la même méthode : audit → contradiction → fermeture → test → documentation → vert.
