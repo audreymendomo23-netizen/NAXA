@@ -124,3 +124,116 @@ GRANT EXECUTE ON FUNCTION public.can_manage_profile(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accrediter_profile(uuid,uuid,smallint,uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.retirer_accreditation(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_operate_pharmacy(uuid) TO authenticated;
+
+
+-- Passe 5 / fermeture E20-E24 : tous les contrôles utilisent le scope canonique.
+drop policy if exists stocks_couts_lecture on public.stocks_couts;
+create policy stocks_couts_lecture on public.stocks_couts
+for select using (public.is_admin() or public.can_access_pharmacy(pharmacie_id));
+
+drop policy if exists stocks_couts_equipe_maj on public.stocks_couts;
+create policy stocks_couts_equipe_maj on public.stocks_couts
+for insert with check (public.is_admin() or public.can_access_pharmacy(pharmacie_id));
+
+drop policy if exists stocks_couts_equipe_update on public.stocks_couts;
+create policy stocks_couts_equipe_update on public.stocks_couts
+for update
+using (public.is_admin() or public.can_access_pharmacy(pharmacie_id))
+with check (public.is_admin() or public.can_access_pharmacy(pharmacie_id));
+
+create or replace function public.accrediter_profile(
+  p_target uuid,
+  p_pharmacie uuid,
+  p_niveau smallint,
+  p_parent uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  v_id uuid;
+  v_role public.role_type;
+  v_parent_role text;
+begin
+  if not public.is_admin() and not public.is_promoteur() then
+    raise exception 'Accréditation non autorisée';
+  end if;
+  if p_parent is null then
+    raise exception 'Parent explicite requis';
+  end if;
+  if p_niveau not in (2,3) then
+    raise exception 'Niveau invalide';
+  end if;
+  if not public.can_access_pharmacy(p_pharmacie) and not public.is_admin() then
+    raise exception 'Pharmacie hors périmètre';
+  end if;
+  select role into v_role from public.profiles where id=p_target and actif=true;
+  if v_role is null or (p_niveau=2 and v_role::text <> 'responsable') or (p_niveau=3 and v_role::text <> 'caisse') then
+    raise exception 'Niveau et rôle incompatibles';
+  end if;
+  select role::text into v_parent_role from public.profiles where id=p_parent and actif=true and pharmacie_id=p_pharmacie;
+  if v_parent_role is null then
+    raise exception 'Parent invalide';
+  end if;
+  if p_niveau=2 and v_parent_role <> 'promoteur' then
+    raise exception 'Responsable doit avoir un Promoteur comme parent';
+  end if;
+  if p_niveau=3 and v_parent_role not in ('responsable','promoteur') then
+    raise exception 'Caisse doit avoir un Responsable ou un Promoteur comme parent';
+  end if;
+  if v_parent_role='promoteur' and not public.is_admin()
+     and not exists (
+       select 1 from public.promoteur_pharmacies pp
+       where pp.promoteur_id=p_parent and pp.pharmacie_id=p_pharmacie and pp.actif=true
+     ) then
+    raise exception 'Parent Promoteur hors périmètre';
+  end if;
+  insert into public.profile_accreditations(grantor_profile_id,target_profile_id,pharmacie_id,niveau)
+  values((select auth.uid()),p_target,p_pharmacie,p_niveau)
+  returning id into v_id;
+  update public.profiles
+  set parent_profile_id=p_parent,pharmacie_id=p_pharmacie,actif=true
+  where id=p_target;
+  return v_id;
+end;
+$$;
+
+create or replace function public.set_reservation_status(
+  p_id uuid,
+  p_statut public.resa_statut
+)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  r public.reservations;
+  transition_ok boolean := false;
+begin
+  select * into r from public.reservations where id=p_id for update;
+  if not found then raise exception 'Réservation introuvable'; end if;
+  if not (
+    public.is_admin()
+    or public.can_access_pharmacy(r.pharmacie_id)
+    or (r.client_id=(select auth.uid()) and p_statut='annulee')
+  ) then
+    raise exception 'Action non autorisée';
+  end if;
+  transition_ok := case
+    when r.statut='en_attente' then p_statut in ('confirmee','payee','annulee','expiree')
+    when r.statut='confirmee' then p_statut in ('payee','retiree','annulee','expiree')
+    when r.statut='payee' then p_statut='retiree'
+    else false
+  end;
+  if not transition_ok then
+    raise exception 'Transition de réservation interdite: % -> %', r.statut, p_statut;
+  end if;
+  if p_statut in ('annulee','expiree') then
+    perform public.restore_stock(p_id);
+  end if;
+  update public.reservations set statut=p_statut where id=p_id;
+end;
+$$;
