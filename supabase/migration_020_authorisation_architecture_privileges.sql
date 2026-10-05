@@ -295,6 +295,21 @@ as $
               and (pp.pharmacie_id is null or pp.pharmacie_id=p_pharmacie)
               and (pp.scope_type=p_scope or pp.scope_type='RESEAU')
           )
+          and (
+            exists(
+              select 1
+              from public.naxa_profile_custom_roles pcr
+              join public.naxa_custom_role_privileges rpv on rpv.role_id=pcr.role_id
+              where pcr.profile_id=p.id and pcr.active
+                and rpv.privilege_code=n.code
+            )
+            or exists(
+              select 1 from public.naxa_profile_privileges pp
+              where pp.profile_id=p.id and pp.privilege_code=n.code and pp.active and pp.revoked_at is null
+                and (pp.pharmacie_id is null or pp.pharmacie_id=p_pharmacie)
+                and (pp.scope_type=p_scope or pp.scope_type='RESEAU')
+            )
+          )
           and public.naxa_scope_allows(p.id,p_pharmacie,p_scope)
         )
       )
@@ -403,6 +418,76 @@ end
 $$;
 
 revoke all on function public.accrediter_profile(uuid,uuid,smallint,uuid) from public,anon,authenticated;
+create or replace function public.naxa_create_custom_role(p_nom text,p_description text default null)
+returns uuid language plpgsql security definer set search_path=''
+as $
+declare v_id uuid; v_arch text;
+begin
+ if not public.naxa_has_privilege('CREATE_CUSTOM_ROLE',null,'RESEAU') then raise exception 'Création de rôle personnalisé non autorisée'; end if;
+ select architecture_code into v_arch from public.conventions_promoteurs where promoteur_id=(select auth.uid());
+ if v_arch <> 'HYBRIDE' then raise exception 'Les rôles personnalisés sont réservés à HYBRIDE'; end if;
+ insert into public.naxa_custom_roles(promoteur_id,nom,description)
+ values((select auth.uid()),trim(p_nom),p_description) returning id into v_id;
+ return v_id;
+end
+$;
+
+create or replace function public.naxa_add_custom_role_privilege(p_role uuid,p_privilege text)
+returns void language plpgsql security definer set search_path=''
+as $
+declare v_promoteur uuid;
+begin
+ select promoteur_id into v_promoteur from public.naxa_custom_roles where id=p_role and actif;
+ if v_promoteur is null or v_promoteur<>(select auth.uid()) then raise exception 'Rôle personnalisé non autorisé'; end if;
+ if not exists(select 1 from public.naxa_privileges n where n.code=p_privilege and n.active and n.delegable and not n.governance) then
+   raise exception 'Privilège non composable';
+ end if;
+ insert into public.naxa_custom_role_privileges(role_id,privilege_code) values(p_role,p_privilege)
+ on conflict do nothing;
+end
+$;
+
+create or replace function public.naxa_assign_custom_role(p_target uuid,p_role uuid)
+returns void language plpgsql security definer set search_path=''
+as $
+declare v_promoteur uuid; v_arch text;
+begin
+ if not public.naxa_has_privilege('ASSIGN_CUSTOM_ROLE',null,'RESEAU') then raise exception 'Attribution de rôle personnalisé non autorisée'; end if;
+ select promoteur_id into v_promoteur from public.naxa_custom_roles where id=p_role and actif;
+ if v_promoteur<>(select auth.uid()) then raise exception 'Rôle hors périmètre'; end if;
+ select architecture_code into v_arch from public.conventions_promoteurs where promoteur_id=v_promoteur;
+ if v_arch <> 'HYBRIDE' then raise exception 'Rôle personnalisé réservé à HYBRIDE'; end if;
+ if not exists(select 1 from public.profiles p where p.id=p_target and p.actif and (p.id=v_promoteur or p.parent_profile_id=v_promoteur or exists(select 1 from public.profile_accreditations a where a.target_profile_id=p.id and a.grantor_profile_id=v_promoteur and a.active))) then
+   raise exception 'Cible hors réseau';
+ end if;
+ insert into public.naxa_profile_custom_roles(profile_id,role_id,assigned_by)
+ values(p_target,p_role,(select auth.uid()))
+ on conflict(profile_id,role_id) do update set active=true,assigned_by=excluded.assigned_by;
+end
+$;
+
+create or replace function public.naxa_revoke_custom_role(p_target uuid,p_role uuid)
+returns void language plpgsql security definer set search_path=''
+as $
+begin
+ if not public.naxa_has_privilege('ASSIGN_CUSTOM_ROLE',null,'RESEAU') then raise exception 'Révocation de rôle personnalisé non autorisée'; end if;
+ update public.naxa_profile_custom_roles
+ set active=false
+ where profile_id=p_target and role_id=p_role and active
+   and exists(select 1 from public.naxa_custom_roles r where r.id=p_role and r.promoteur_id=(select auth.uid()));
+ if not found then raise exception 'Rôle personnalisé introuvable'; end if;
+end
+$;
+
+revoke all on function public.naxa_create_custom_role(text,text) from public,anon,authenticated;
+revoke all on function public.naxa_add_custom_role_privilege(uuid,text) from public,anon,authenticated;
+revoke all on function public.naxa_assign_custom_role(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.naxa_revoke_custom_role(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.naxa_create_custom_role(text,text) to authenticated;
+grant execute on function public.naxa_add_custom_role_privilege(uuid,text) to authenticated;
+grant execute on function public.naxa_assign_custom_role(uuid,uuid) to authenticated;
+grant execute on function public.naxa_revoke_custom_role(uuid,uuid) to authenticated;
+
 revoke all on function public.naxa_grant_privilege(uuid,text,uuid,text) from public,anon,authenticated;
 revoke all on function public.naxa_revoke_privilege(uuid,text,uuid,text) from public,anon,authenticated;
 grant execute on function public.accrediter_profile(uuid,uuid,smallint,uuid) to authenticated;
