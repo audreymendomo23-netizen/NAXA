@@ -45,3 +45,38 @@ La documentation historique décrivait encore `consolidation` comme branche de r
 **Décision :** la branche de travail actuelle et la PR #24 deviennent le périmètre explicite du checking de la Passe 6. Les migrations 013–018 sont localisées sous `supabase/`. Leur présence dans Git ne signifie pas leur application Supabase Production.
 
 **Test d’acceptation documentaire :** README + STATUT + CHANGELOG + CONTRADICTIONS doivent distinguer sans ambiguïté branche, validation transactionnelle, état Supabase réel et Production. Le vert ne sera accordé qu’après checking migration par migration puis audit contradictoire.
+
+
+## E20 — Coûts d’achat et scope multi-pharmacie
+**Statut : 🔴 contradiction d’implémentation détectée.**
+
+La migration 013 protège `stocks_couts` avec `pharmacie_id = my_pharmacie()`. Or 016/017 introduisent le scope Promoteur multi-pharmacie via `my_pharmacies()` / `can_access_pharmacy()`. Le Promoteur autorisé sur A+B ne dispose donc pas, par cette policy, du même périmètre sur les coûts d’achat que sur les autres données internes.
+
+**Décision attendue :** aligner `stocks_couts` sur le moteur de scope canonique, sans exposer les coûts au Client.
+
+**Test d’acceptation :** Promoteur A+B = coûts A+B ; Responsable/Caisse A = A uniquement ; autre pharmacie C = refus ; Client = refus.
+
+## E21 — Accréditation et parent hiérarchique
+**Statut : 🔴 garde-fou insuffisant détecté.**
+
+`accrediter_profile()` accepte `p_parent = NULL` puis utilise `auth.uid()` comme parent. Cela permet notamment à un Admin de produire un Responsable/Caisse dont `parent_profile_id` est l’Admin, et permet à un Promoteur de créer un niveau 3 sans parent Responsable explicite. Cela contredit l’arbre canonique N0 Admin → N1 Promoteur → N2 Responsable → N3 Caisse.
+
+**Décision attendue :** le parent effectif doit être compatible avec le niveau et la convention/architecture de la pharmacie ; aucun rattachement implicite à N0 pour N2/N3.
+
+**Test d’acceptation :** N2 → parent Promoteur ; N3 en architecture 3 niveaux → parent Responsable ; aucune auto-élévation ni parent Admin implicite.
+
+## E22 — SECURITY DEFINER avec search_path non vide
+**Statut : 🔴 contradiction sécurité détectée sur le lot 014.**
+
+`set_reservation_status()` est `SECURITY DEFINER SET search_path=public`, alors que le durcissement canonique retenu pour les fonctions privilégiées exige un `search_path` vide et des références qualifiées. Supabase recommande explicitement cette posture pour limiter les résolutions d’objets inattendues. citeturn1search0turn1search3
+
+**Décision attendue :** passer la fonction à `search_path=''` et qualifier toutes les références non qualifiées, puis tester les transitions et les droits.
+
+**Test d’acceptation :** transitions métier inchangées ; appel hors scope refusé ; aucune résolution d’objet dépendante du search_path.
+
+## E23 — Test d’acceptation 018 manquant dans le dépôt
+**Statut : 🟠 couverture de test incomplète.**
+
+Le PR #24 contient `supabase/tests/017_hierarchie_securite.sql`, mais aucun `supabase/tests/018_pilotage_canonique_scope.sql`. La migration 018 a été contrôlée transactionnellement lors du chantier, mais le contrat d’acceptation du pilotage par rôle/scope n’est pas encore matérialisé dans un test versionné.
+
+**Décision attendue :** ajouter un test rollbackable couvrant Admin, Promoteur A+B/C, Responsable/Caisse A, Client, non-fuite des recherches sans pharmacie et cohérence CA `payee/retiree`.
