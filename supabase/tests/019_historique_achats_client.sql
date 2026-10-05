@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(9);
+select plan(10);
 
 -- 1. La table existe et RLS est activée.
 select ok(
@@ -27,7 +27,20 @@ select ok(
   'client_achats existe'
 );
 
--- 3-4. Aucun accès public/anonyme à la table brute.
+-- 3. La vue est explicitement security_invoker.
+select ok(
+  exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public'
+      and c.relname='client_achats'
+      and 'security_invoker=true' = any(coalesce(c.reloptions, '{}'::text[]))
+  ),
+  'client_achats est security_invoker'
+);
+
+-- 4-5. Aucun accès public/anonyme à la table brute.
 select ok(
   not has_table_privilege('anon','public.reservation_events','select'),
   'anon ne peut pas lire reservation_events'
