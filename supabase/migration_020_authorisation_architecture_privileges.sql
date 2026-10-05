@@ -494,6 +494,26 @@ grant execute on function public.accrediter_profile(uuid,uuid,smallint,uuid) to 
 grant execute on function public.naxa_grant_privilege(uuid,text,uuid,text) to authenticated;
 grant execute on function public.naxa_revoke_privilege(uuid,text,uuid,text) to authenticated;
 
+-- Lecture contrôlée des rôles personnalisés.
+drop policy if exists naxa_custom_roles_read on public.naxa_custom_roles;
+create policy naxa_custom_roles_read on public.naxa_custom_roles for select to authenticated
+using (promoteur_id=(select auth.uid()) or public.is_admin());
+
+drop policy if exists naxa_custom_role_privileges_read on public.naxa_custom_role_privileges;
+create policy naxa_custom_role_privileges_read on public.naxa_custom_role_privileges for select to authenticated
+using (exists(select 1 from public.naxa_custom_roles r where r.id=role_id and (r.promoteur_id=(select auth.uid()) or public.is_admin())));
+
+drop policy if exists naxa_profile_custom_roles_read on public.naxa_profile_custom_roles;
+create policy naxa_profile_custom_roles_read on public.naxa_profile_custom_roles for select to authenticated
+using (
+  profile_id=(select auth.uid())
+  or public.is_admin()
+  or exists(select 1 from public.naxa_custom_roles r where r.id=role_id and r.promoteur_id=(select auth.uid()))
+);
+
+revoke all on public.naxa_custom_roles,public.naxa_custom_role_privileges,public.naxa_profile_custom_roles from anon,authenticated;
+grant select on public.naxa_custom_roles,public.naxa_custom_role_privileges,public.naxa_profile_custom_roles to authenticated;
+
 -- Accès RLS au catalogue : lecture seulement, attribution par fonctions.
 drop policy if exists naxa_privileges_read on public.naxa_privileges;
 create policy naxa_privileges_read on public.naxa_privileges for select to authenticated using (active);
