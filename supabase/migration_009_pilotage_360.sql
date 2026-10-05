@@ -1,3 +1,4 @@
+alter table public.pharmacies add column if not exists est_demo boolean not null default false;
 -- NAXA 009 — Pilotage commercial 360° et BI
 -- Additive/idempotente. Ne remplace aucune migration existante.
 create table if not exists public.evenements (
