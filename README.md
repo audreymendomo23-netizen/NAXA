@@ -266,3 +266,15 @@ Cette section est prioritaire sur les descriptions historiques ci-dessus pour l'
 - Les exports héritent donc du périmètre autorisé par la source : pas d'export global depuis une vue locale.
 - Le CSV reste un format d'export opérationnel ; le PDF d'envoi automatique reste séparé et inchangé.
 - Test d'acceptation : un scope n'élargit pas l'API par lui-même ; aucune donnée hors périmètre n'est ajoutée.
+
+
+## Passe 4 — BI/RLS multi-pharmacie 🟢 au niveau modèle + migration de branche
+- Ajout de `promoteur_pharmacies` : relation explicite Promoteur ↔ pharmacies.
+- Ajout de `my_pharmacies()` : périmètre autorisé multi-pharmacie, avec compatibilité `profiles.pharmacie_id` pour les niveaux inférieurs.
+- Ajout de `can_access_pharmacy(uuid)` : point de contrôle commun pour les politiques RLS.
+- Les politiques `stocks`, `stocks_lots`, `reservations` et `rapports` ne reposent plus exclusivement sur `my_pharmacie()`.
+- Les vues BI `activite_mensuelle` et `stock_pharmacies` deviennent `security_invoker` et portent `pharmacie_id`, afin de conserver le grain pharmacie et de permettre l'agrégation hiérarchique sans contourner la RLS.
+- `role=responsable` est désormais prévu dans l'enum, sans transformer Responsable en fonction métier.
+- Migration ajoutée : `supabase/migration_016_bi_rls_multipharmacie.sql`.
+- **Aucun déploiement Production ni migration Supabase Production n'a été exécuté.**
+- Acceptance tests à exécuter après application contrôlée : Promoteur multi-pharmacie voit A+B mais pas C ; Responsable/Caisse voient uniquement leur pharmacie ; NAXA voit toutes ; Client ne reçoit pas le périmètre interne ; KPI consolidés = somme des pharmacies autorisées sans double-compte.
