@@ -665,3 +665,33 @@ Sécurité : fonctions SECURITY DEFINER avec search_path='' et EXECUTE restreint
 Test versionné : supabase/tests/020_authorisation_architecture_privileges.sql. Il remplace le raisonnement historique fondé sur un enum responsable et doit être exécuté dans un environnement de test où 020 est appliquée ; il est rollbackable.
 
 État de preuve : 🟠 code implémenté sur branche ; preuve d'exécution et CI encore à obtenir. Production inchangée. Aucun merge main. Aucun déploiement sans OUI, DÉPLOIE.
+
+
+## Chantier — Architecture canonique privilèges / fonctions — 5 octobre 2026
+
+### Implémentation branchée
+- Migration `020_architecture_privileges.sql` créée.
+- Migration `020b_architecture_accreditation.sql` créée pour fermer le contrôle des quotas et de la fonction Responsable.
+- Test `020_architecture_privileges.sql` créé.
+- Aucun ajout de `responsable` dans `role_type`.
+- Responsable modélisé par `fonction_interne` + `niveau_hierarchique` + architecture + scope.
+- Attribution des privilèges bornée par fonction et architecture.
+- Gouvernance NAXA explicitement non délégable.
+- Aucune migration appliquée en Production, aucun merge main, aucun déploiement.
+
+### État de preuve
+- Code écrit sur la branche dédiée : 🟢
+- Relecture contradictoire du modèle : 🟢
+- Test SQL créé : 🟢
+- Exécution réelle Supabase de la migration : 🔴 non effectuée (outil Supabase non disponible sur ce contexte)
+- Production : 🔴 inchangée volontairement
+- CI post-commit : à vérifier après push/commit final
+
+### Contradictions fermées dans ce lot
+1. `responsable` comme enum → remplacé par fonction interne.
+2. Autorisation purement role-centric → moteur fonction + architecture + privilège + scope introduit.
+3. Accréditation sans quota architecture → quotas A1/A2/A3 désormais contrôlés.
+4. Caisse pouvant recevoir un privilège supérieur → matrice de rôle + architecture bloque les privilèges Responsable/Gouvernance.
+
+### Règle de gouvernance
+Aucun déploiement Production sans la phrase exacte **OUI, DÉPLOIE**.
