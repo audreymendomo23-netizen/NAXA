@@ -129,4 +129,5 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - Les sessions existantes ne sont jamais déconnectées automatiquement pour faire de la place.
 - Une 5e connexion est refusée ; le compte doit d'abord être déconnecté d'un appareil existant.
 - La règle s'applique à la connexion username/mot de passe et au callback Google OAuth.
-- Migration additive : `supabase/migration_011_limite_sessions.sql`.
+- Migrations additives : `supabase/migration_011_limite_sessions.sql` et `supabase/migration_012_enforcement_limite_sessions.sql`.
+- Enforcement DB atomique : une 5e session ne peut pas être créée, y compris en cas de connexions concurrentes.
