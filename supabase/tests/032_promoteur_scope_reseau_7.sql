@@ -27,7 +27,7 @@ select set_config('request.jwt.claim.sub',(select promoteur::text from v7_ids),t
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v7_ids),'role','authenticated')::text,true);
 
 -- 7.1 Le scope PHARMACIE suit exclusivement les liens actifs.
-select case when public.naxa_scope_allows((select promoteur from v7_ids),(select a from v7_ids),'PHARMACIE') then 1 else 1/0 end;
+do $ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select a from v7_ids),'PHARMACIE') then raise exception '7.1-A dans scope'; end if; end $;
 do $ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 réactivation'; end if; end $;
 do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'PHARMACIE')) then raise exception '7.1-C hors scope'; end if; end $;
 
@@ -39,7 +39,7 @@ do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(
 update public.promoteur_pharmacies set actif=false where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
 do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 désactivation'; end if; end $;
 update public.promoteur_pharmacies set actif=true where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
-select case when public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE') then 1 else 1/0 end;
+do $ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE') then raise exception '7.3 réactivation'; end if; end $;
 
 -- 7.4 Le pilotage Promoteur suit les pharmacies A+B via le scope canonique et exclut C + non attribué.
 do $ begin if not ((public.stats_pilotage_scope(7)->'pharmacies'->>'total')::int=2) then raise exception '7.4 pharmacies=2'; end if; end $;
