@@ -6,6 +6,7 @@ declare
   v_policy_count integer;
   v_trigger_count integer;
   v_secret_columns integer;
+  v_service_grant boolean;
 begin
   if to_regclass('public.naxa_session_audit') is null then
     raise exception 'ASSERT 1: table naxa_session_audit absente';
@@ -52,5 +53,7 @@ begin
     raise exception 'ASSERT 5: fonction de journalisation absente';
   end if;
 
-  raise notice 'NAXA 034 — 5/5 assertions structurelles PASS';
+  select has_function_privilege('service_role','public.naxa_record_session_limit_rejected(uuid,uuid,uuid,inet,text,text)','execute') into v_service_grant;
+  if not v_service_grant then raise exception 'ASSERT 6: service_role absent'; end if;
+  raise notice 'NAXA 034 — 6/6 assertions structurelles PASS';
 end $$;

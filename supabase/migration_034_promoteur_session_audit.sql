@@ -108,6 +108,23 @@ $$;
 revoke all on function public.naxa_record_session_audit(text,uuid,uuid,uuid,inet,text,text)
   from public, anon, authenticated;
 
+create or replace function public.naxa_record_session_limit_rejected(
+  p_session_id uuid,p_user_id uuid,p_pharmacie_id uuid default null,
+  p_ip_address inet default null,p_user_agent text default null,p_provider text default null
+)
+returns void language plpgsql security definer set search_path=pg_catalog,public
+as $
+begin
+  insert into public.naxa_session_audit(session_id,user_id,pharmacie_id,event_type,occurred_at,ip_address,user_agent,provider)
+  values(p_session_id,p_user_id,p_pharmacie_id,'SESSION_LIMIT_REJECTED',now(),p_ip_address,left(p_user_agent,1024),left(p_provider,64));
+end;
+$;
+
+revoke all on function public.naxa_record_session_limit_rejected(uuid,uuid,uuid,inet,text,text)
+  from public,anon,authenticated;
+grant execute on function public.naxa_record_session_limit_rejected(uuid,uuid,uuid,inet,text,text)
+  to service_role;
+
 create or replace function public.naxa_audit_session_insert()
 returns trigger
 language plpgsql
@@ -201,16 +218,6 @@ begin
       into v_pharmacie_id
       from public.profiles p
      where p.id = new.user_id;
-
-    perform public.naxa_record_session_audit(
-      'SESSION_LIMIT_REJECTED',
-      new.id,
-      new.user_id,
-      v_pharmacie_id,
-      new.ip,
-      new.user_agent,
-      new.tag
-    );
 
     raise exception 'NAXA_SESSION_LIMIT_REACHED'
       using errcode = 'P0001',
