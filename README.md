@@ -818,3 +818,15 @@ Le périmètre Client est **construit et audité**, mais n'est pas encore décla
 - supabase/tests/020_caisse_perimetre.sql — 20 assertions.
 - Migration 022 et test restent sur la branche ; aucune application Production.
 - Aucun merge main et aucun déploiement sans autorisation explicite.
+
+## Passe Client — validation finale (6 octobre 2026)
+- `/client`, Mon suivi et Mes médicaments achetés sont construits sur la branche dédiée.
+- Migration additive `supabase/migration_021_historique_achats_client.sql`.
+- Test `supabase/tests/019_historique_achats_client.sql` : **16/16 assertions PASS** lors d'une exécution réelle sur Supabase NAXA, entièrement rollbackée.
+- Preuve RLS réelle sous `authenticated` : le Client propriétaire voit uniquement ses réservations/achats ; un autre UUID ne voit rien.
+- `client_achats` : `security_invoker=true`, filtre explicite `r.client_id = auth.uid()`, achats limités à `payee`/`retiree`.
+- Trigger d'historisation vérifié pour transition terminale et référence de paiement.
+- CI `NAXA quality #223` : **SUCCESS** — TypeScript PASS + build Next.js PASS sur le HEAD Client corrigé.
+- Correction TypeScript additive de `/pharmacie/pilotage` : narrowing explicite du type Caisse/Stats ; aucun changement métier.
+- **Client : 🟢 validé au niveau branche + Supabase transactionnel + RLS + CI/build.**
+- Migration 021 non persistée en Production ; `main` et Production restent inchangés conformément à la gouvernance.
