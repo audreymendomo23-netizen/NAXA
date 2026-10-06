@@ -1044,3 +1044,30 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 - Partie 4/6 : ⏳ Gestion des Caisses + délégation.
 - Partie 5/6 : ⏳ Pilotage / CA / reporting réseau.
 - Partie 6/6 : ⏳ Sécurité finale + régression CI/build + clôture documentaire.
+## 🔄 Promoteur — checkpoint Partie 3/6 — 6 octobre 2026
+
+La reprise du chantier Promoteur est traitée en 6 parties selon la méthode canonique : audit → contradiction → correction additive → test réel → régression → documentation → 🟢 → validation utilisateur.
+
+### Partie 1/6 — Périmètre réseau/pharmacies : 🟢
+Validation transactionnelle réelle : **13/13 assertions PASS**, rollback complet, aucune donnée persistée.
+
+### Partie 2/6 — Architecture + convention + validité : 🟢
+Validation transactionnelle réelle : **11/11 assertions PASS**, replay 013→027, rollback complet, aucune donnée persistée.
+
+### Partie 3/6 — Accréditation Responsable : 🟡 PAUSÉE VOLONTAIREMENT
+Le chantier est gelé exactement à son état actuel, à la demande explicite de l'utilisateur.
+- Migration additive `supabase/migration_028_promoteur_responsable_accreditation.sql` construite.
+- Contradiction principale fermée dans le code : l'accréditation d'un Responsable doit passer par le privilège `CREATE_RESPONSABLE`.
+- Test structurel 028 : PASS.
+- Replay des migrations jusqu'à 028 dans la CI locale : PASS.
+- Build : PASS.
+- La validation comportementale complète n'est **pas déclarée verte** à ce checkpoint.
+- Aucun merge vers `main` et aucune modification Production.
+- Le test comportemental sera repris ultérieurement exactement depuis ce checkpoint.
+
+### Parties suivantes
+- Partie 4/6 — Gestion des Caisses + délégation.
+- Partie 5/6 — Pilotage / CA / reporting réseau.
+- Partie 6/6 — Sécurité finale + régression CI/build + clôture documentaire.
+
+**Important :** la pause de la Partie 3 n'est pas une validation verte. Elle est conservée comme checkpoint technique ouvert pour reprise ultérieure.
