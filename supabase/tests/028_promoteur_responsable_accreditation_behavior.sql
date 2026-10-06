@@ -1,14 +1,18 @@
 -- NAXA Partie 3/6 — comportemental isolé CI.
 begin;
 create temp table p3_ids(promoteur uuid, pharmacie uuid, target uuid, other_pharmacie uuid);
-do $$
+do $
 declare v_promoteur uuid := gen_random_uuid(); v_target uuid := gen_random_uuid(); v_pharmacie uuid := gen_random_uuid(); v_other_pharmacie uuid := gen_random_uuid();
 begin
+  alter table auth.users disable trigger on_auth_user_created;
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values
    (v_promoteur,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-promoteur@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3promoteur","first_name":"P3","last_name":"Promoteur","date_of_birth":"1990-01-01","consent_accepted":true,"phone_country":"CM","phone":"+237690000001"}',now(),now()),
    (v_target,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-target@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3target","first_name":"P3","last_name":"Target","date_of_birth":"1990-01-01","consent_accepted":true,"phone_country":"CM","phone":"+237690000002"}',now(),now());
-  insert into public.pharmacies(id,nom,actif) values(v_pharmacie,'P3 Test A3',true),(v_other_pharmacie,'P3 Test Hors périmètre',true);
+   insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif)
+  values(v_promoteur,'promoteur','p3promoteur','P3','Promoteur','+237690000001','CM','1990-01-01',true,now(),true),(v_target,'pharmacie','p3target','P3','Target','+237690000002','CM','1990-01-01',true,now(),true);
+  alter table auth.users enable trigger on_auth_user_created;
+ insert into public.pharmacies(id,nom,actif) values(v_pharmacie,'P3 Test A3',true),(v_other_pharmacie,'P3 Test Hors périmètre',true);
   update public.profiles set role='promoteur',fonction_interne='promoteur',niveau_interne=1,actif=true where id=v_promoteur;
   update public.profiles set role='pharmacie',fonction_interne='responsable',actif=true where id=v_target;
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(v_promoteur,v_pharmacie,true);
@@ -41,8 +45,11 @@ select pg_temp.assert_true(not public.naxa_has_privilege('CREATE_RESPONSABLE',(s
 do $$
 declare v_target uuid:=gen_random_uuid();
 begin
+  alter table auth.users disable trigger on_auth_user_created;
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values(v_target,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-target2@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3target2","first_name":"P3","last_name":"Target2","date_of_birth":"1990-01-01","consent_accepted":true,"phone_country":"CM","phone":"+237690000003"}',now(),now());
+  insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif) values(v_target,'pharmacie','p3target2','P3','Target2','+237690000003','CM','1990-01-01',true,now(),true);
+  alter table auth.users enable trigger on_auth_user_created;
   update public.profiles set role='pharmacie',fonction_interne='responsable',actif=true where id=v_target;
   perform pg_temp.assert_raises(format('select public.accrediter_profile(%L,%L,2,%L)',v_target,(select pharmacie from p3_ids),(select promoteur from p3_ids)),'API historique sans CREATE_RESPONSABLE refusée');
 end $$;
