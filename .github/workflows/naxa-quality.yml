@@ -64,6 +64,8 @@ jobs:
           s=s[:a]+"""create or replace function reserve_stock(p_pharmacie uuid,p_items jsonb) returns uuid language plpgsql security definer set search_path=public as $fn$ begin return gen_random_uuid(); end; $fn$;
           """+s[b:]
           s=s.replace("as $declare","as $fn$ declare").replace("end$;","end$fn$;")
+          import re
+          s=re.sub(r"revoke execute on function [^;]+;","",s)
           s=s.replace("revoke execute on function restore_stock(uuid) from public,anon,authenticated","")
           s=s.replace("create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $$select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse')$;","create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $fn$select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse');$fn$;")
           p.write_text(s)
