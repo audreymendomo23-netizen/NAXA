@@ -50,5 +50,5 @@ begin
   if has_function_privilege('authenticated','public.naxa_provision_promoteur_pharmacie(uuid,uuid)','EXECUTE') then raise exception 'provisioning Promoteur exposé au client'; end if;
 end $$;
 
-select 'GREEN' as status, 12 as assertions;
+select 'GREEN' as status, 13 as assertions;
 rollback;
