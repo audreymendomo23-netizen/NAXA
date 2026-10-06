@@ -50,6 +50,9 @@ begin
 
   if not public.naxa_promoteur_valide(v_promoteur) then raise exception 'validité active refusée'; end if;
 
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
+  if not public.naxa_can('VIEW_PHARMACY',v_a,'PHARMACIE') then raise exception 'Promoteur valide refusé par naxa_can'; end if;
+
   update public.conventions_promoteurs
   set date_expiration=current_date-1,statut='expiree'
   where promoteur_id=v_promoteur;
@@ -99,10 +102,12 @@ begin
   select public.naxa_can('VIEW_PHARMACY',v_a,null) into v_ok;
   if v_ok then raise exception 'Promoteur invalide encore autorisé par naxa_can'; end if;
 
+  if public.naxa_can('VIEW_PHARMACY',v_a,'PHARMACIE') then raise exception 'Promoteur invalide encore autorisé par naxa_can'; end if;
+
   if not public.naxa_scope_allows(v_promoteur,v_a,'PHARMACIE') then
     raise exception 'le scope réseau a été cassé par la validité';
   end if;
 end $$;
 
-select 'GREEN' as status, 9 as assertions;
+select 'GREEN' as status, 11 as assertions;
 rollback;
