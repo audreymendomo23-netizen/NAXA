@@ -72,17 +72,17 @@ jobs:
             if v_last_name is null or length(v_last_name)<2 or length(v_last_name)>80 then raise exception 'Nom invalide'; end if;
             if v_dob is null or v_dob>current_date or extract(year from age(current_date,v_dob))<18 then raise exception 'NAXA est réservé aux personnes âgées de 18 ans ou plus'; end if;
             if not v_consent then raise exception 'L''acceptation des conditions est obligatoire'; end if;
-            if v_country='CM' and v_phone !~ '^[+237[0-9]{9}$' then raise exception 'Numéro de téléphone camerounais invalide';
-            elsif v_country='CF' and v_phone !~ '^[+236[0-9]{8}$' then raise exception 'Numéro de téléphone centrafricain invalide';
-            elsif v_country='TD' and v_phone !~ '^[+235[0-9]{8}$' then raise exception 'Numéro de téléphone tchadien invalide';
-            elsif v_country='CG' and v_phone !~ '^[+242[0-9]{9}$' then raise exception 'Numéro de téléphone congolais invalide';
-            elsif v_country='CD' and v_phone !~ '^[+243[0-9]{9}$' then raise exception 'Numéro de téléphone congolais (RDC) invalide';
-            elsif v_country='GQ' and v_phone !~ '^[+240[0-9]{9}$' then raise exception 'Numéro de téléphone équato-guinéen invalide';
-            elsif v_country='GA' and v_phone !~ '^[+241[0-9]{8}$' then raise exception 'Numéro de téléphone gabonais invalide';
-            elsif v_country='ST' and v_phone !~ '^[+239[0-9]{7}$' then raise exception 'Numéro de téléphone santoméen invalide';
-            elsif v_country='AO' and v_phone !~ '^[+244[0-9]{9}$' then raise exception 'Numéro de téléphone angolais invalide';
-            elsif v_country='BI' and v_phone !~ '^[+257[0-9]{8}$' then raise exception 'Numéro de téléphone burundais invalide';
-            elsif v_country='RW' and v_phone !~ '^[+250[0-9]{9}$' then raise exception 'Numéro de téléphone rwandais invalide';
+            if v_country='CM' and v_phone !~ '^\+237[0-9]{9}$' then raise exception 'Numéro de téléphone camerounais invalide';
+            elsif v_country='CF' and v_phone !~ '^\+236[0-9]{8}$' then raise exception 'Numéro de téléphone centrafricain invalide';
+            elsif v_country='TD' and v_phone !~ '^\+235[0-9]{8}$' then raise exception 'Numéro de téléphone tchadien invalide';
+            elsif v_country='CG' and v_phone !~ '^\+242[0-9]{9}$' then raise exception 'Numéro de téléphone congolais invalide';
+            elsif v_country='CD' and v_phone !~ '^\+243[0-9]{9}$' then raise exception 'Numéro de téléphone congolais (RDC) invalide';
+            elsif v_country='GQ' and v_phone !~ '^\+240[0-9]{9}$' then raise exception 'Numéro de téléphone équato-guinéen invalide';
+            elsif v_country='GA' and v_phone !~ '^\+241[0-9]{8}$' then raise exception 'Numéro de téléphone gabonais invalide';
+            elsif v_country='ST' and v_phone !~ '^\+239[0-9]{7}$' then raise exception 'Numéro de téléphone santoméen invalide';
+            elsif v_country='AO' and v_phone !~ '^\+244[0-9]{9}$' then raise exception 'Numéro de téléphone angolais invalide';
+            elsif v_country='BI' and v_phone !~ '^\+257[0-9]{8}$' then raise exception 'Numéro de téléphone burundais invalide';
+            elsif v_country='RW' and v_phone !~ '^\+250[0-9]{9}$' then raise exception 'Numéro de téléphone rwandais invalide';
             else
               raise exception 'Pays ou numéro de téléphone invalide';
             end if;
@@ -129,9 +129,9 @@ jobs:
       - name: Replay complet + migration 028
         run: supabase db reset
       - name: Assertions structurelles Partie 3
-        run: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
+        run: docker exec supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/028_promoteur_responsable_accreditation.sql
       - name: Tests comportementaux Partie 3
-        run: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+        run: docker exec supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
       - name: Arrêt propre
         if: always()
         run: supabase stop
