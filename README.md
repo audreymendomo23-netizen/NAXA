@@ -1101,3 +1101,28 @@ Audit croisé exécuté selon la méthode NAXA : **audit → contradictions → 
 - Aucun merge `main`, aucune migration Production.
 - La chaîne CI doit encore fournir la **preuve d'exécution** avant tout passage au vert.
 - **Aucune partie 3→10 n'est déclarée verte sans cette preuve.**
+
+
+## 🔒 ÉTAT COURANT — PILOTAGE — ÉTAPE 1 AUDIT SOCLE — 6 OCTOBRE 2026
+
+Cette section supersède les formulations historiques antérieures du document lorsqu'elles présentent le Pilotage comme définitivement vert.
+
+### Résultat de l'étape 1
+- Source KPI canonique : `stats_pilotage_scope(p_jours)`.
+- Recherche/funnel : `evenements` comme source KPI canonique ; `recherche_events` hors KPI.
+- CA/ventes : `v_reservations_ca`, au grain réservation, sans double comptage `payee → retiree`.
+- Scope Promoteur : `promoteur_pharmacies` actives.
+- Scope Admin : réseau NAXA avec exclusion des pharmacies de démonstration selon la règle canonique.
+- Responsable/Caisse : pharmacie de leur périmètre effectif.
+- Recherche sans pharmacie : jamais attribuée à un Promoteur/Responsable/Caisse.
+- Aucun second moteur KPI ne doit être créé pour le Pilotage Performance.
+
+### Contradictions restantes à fermer
+1. **Preuve d'exécution multi-rôles** : les tests versionnés existent, mais la preuve CI post-corrections doit encore être observée.
+2. **Documentation historique** : les anciennes sections restent conservées comme historique mais ne constituent pas l'état courant.
+3. **Production** : les migrations Pilotage 013→019 ne sont pas appliquées en Production ; aucune conclusion de déploiement ne doit en être tirée.
+
+### Verdict étape 1
+**🟡 — socle métier/code cohérent, mais étape non clôturée à 100 % tant que la preuve d'exécution et la réconciliation documentaire ne sont pas définitivement fermées.**
+
+Règle : aucune nouvelle architecture KPI ne sera créée pour le Pilotage Performance avant cette fermeture.
