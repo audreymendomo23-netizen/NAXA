@@ -122,6 +122,17 @@ jobs:
           s = s.replace("revoke execute on function restore_stock(uuid) from public,anon,authenticated;", "")
           s = s.replace("revoke execute on function expire_reservations() from public,anon,authenticated;", "")
           s = "\\n".join(line for line in s.splitlines() if not line.strip().lower().startswith(("revoke all on function public.naxa_audit_session_", "revoke execute on function public.naxa_audit_session_")))
+          s += """
+          create table if not exists public.produits(
+            id uuid primary key default gen_random_uuid(),
+            nom text not null,
+            dci text not null default '',
+            dosage text not null default '',
+            forme text not null default '',
+            nom_norm text,
+            unique(nom,dosage,forme)
+          );
+          """
           p.write_text(s)
           PY
           n=1
