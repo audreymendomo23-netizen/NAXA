@@ -79,30 +79,28 @@ update public.reservations
 set statut='payee', paiement_ref='TEST-CLIENT-019'
 where id=(select id from target);
 
-insert into _client_019_results
-select 17,
-  'transition vers payee journalisée',
-  exists(
-    select 1
-    from public.reservation_events e
-    join public.reservations r on r.id=e.reservation_id
-    where r.paiement_ref='TEST-CLIENT-019'
-      and e.event_type='status_changed'
-      and e.to_statut='payee'
-  ),
-  'status_changed payee';
+update _client_019_results
+set ok = ok and exists(
+  select 1
+  from public.reservation_events e
+  join public.reservations r on r.id=e.reservation_id
+  where r.paiement_ref='TEST-CLIENT-019'
+    and e.event_type='status_changed'
+    and e.to_statut='payee'
+),
+detail = detail || ' + transition runtime payee'
+where assertion_no=15;
 
-insert into _client_019_results
-select 18,
-  'référence de paiement journalisée',
-  exists(
-    select 1
-    from public.reservation_events e
-    join public.reservations r on r.id=e.reservation_id
-    where r.paiement_ref='TEST-CLIENT-019'
-      and e.event_type='payment_declared'
-  ),
-  'payment_declared';
+update _client_019_results
+set ok = ok and exists(
+  select 1
+  from public.reservation_events e
+  join public.reservations r on r.id=e.reservation_id
+  where r.paiement_ref='TEST-CLIENT-019'
+    and e.event_type='payment_declared'
+),
+detail = detail || ' + référence runtime'
+where assertion_no=16;
 
 select
   count(*) filter (where ok) as passed,
