@@ -34,3 +34,10 @@ select 'Responsable pilotage Responsable' as check_name,
 select 'Migration 023 functions' as check_name,
        exists(select 1 from pg_proc where proname='naxa_can_manage_team_member')
        and exists(select 1 from pg_proc where proname='naxa_set_caisse_status') as pass;
+
+select 'Privilege target helper' as check_name,
+       exists(select 1 from pg_proc where proname='naxa_can_manage_privilege_target') as pass;
+
+select 'RBAC boundary helper' as check_name,
+       exists(select 1 from pg_proc where proname='naxa_grant_privilege')
+       and exists(select 1 from pg_proc where proname='naxa_revoke_privilege') as pass;
