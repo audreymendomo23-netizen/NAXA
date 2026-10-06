@@ -52,10 +52,10 @@ begin
   insert into p4_ids values(p,a,b,c1,c2,r);
 end $$;
 
-create or replace function pg_temp.assert_true(p_ok boolean,p_label text) returns void language plpgsql as $
-begin if not p_ok then raise exception 'FAIL: %',p_label; end if; end $;
-create or replace function pg_temp.assert_raises(p_sql text,p_label text) returns void language plpgsql as $
-begin begin execute p_sql; exception when others then return; end; raise exception 'FAIL: % — aucune exception',p_label; end $;
+create or replace function pg_temp.assert_true(p_ok boolean,p_label text) returns void language plpgsql as $fn$
+begin if not p_ok then raise exception 'FAIL: %',p_label; end if; end $fn$;
+create or replace function pg_temp.assert_raises(p_sql text,p_label text) returns void language plpgsql as $fn$
+begin begin execute p_sql; exception when others then return; end; raise exception 'FAIL: % — aucune exception',p_label; end $fn$;
 grant select on p4_ids to authenticated;
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from p4_ids),true);
