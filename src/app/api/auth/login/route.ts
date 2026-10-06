@@ -8,10 +8,14 @@ function requestIp(request: Request): string | null {
   return candidate && isIP(candidate) ? candidate : null;
 }
 async function auditSessionLimitRejected(request: Request, profile: { id: string; pharmacie_id?: string | null }, provider: string) {
-  await supabaseAdmin().rpc("naxa_record_session_limit_rejected", {
-    p_session_id: crypto.randomUUID(), p_user_id: profile.id, p_pharmacie_id: profile.pharmacie_id ?? null,
-    p_ip_address: requestIp(request), p_user_agent: request.headers.get("user-agent"), p_provider: provider,
-  });
+  try {
+    await supabaseAdmin().rpc("naxa_record_session_limit_rejected", {
+      p_session_id: crypto.randomUUID(), p_user_id: profile.id, p_pharmacie_id: profile.pharmacie_id ?? null,
+      p_ip_address: requestIp(request), p_user_agent: request.headers.get("user-agent"), p_provider: provider,
+    });
+  } catch (auditError) {
+    console.error("NAXA_SESSION_LIMIT_AUDIT_FAILED", auditError);
+  }
 }
 
 export async function POST(request: Request) {
