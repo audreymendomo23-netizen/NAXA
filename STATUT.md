@@ -956,7 +956,7 @@ Après validation explicite du Client, le chantier suivant sera traité en bloc 
 6. Double comptage CA : payee puis retiree pouvaient compter deux fois la même vente. → CA attribué au passage payee uniquement.
 
 ### Matrice Caisse retenue
-- 🟢 Stock : voir stock + modifier quantité.
+- 🟢 Stock : voir stock + modifier quantité sur les lignes existantes ; suppression/insertion restent séparées.
 - 🟢 Réservations : voir, confirmer, traiter, annuler selon transitions autorisées.
 - 🟢 Vente : confirmer paiement, confirmer retrait, historique autorisé.
 - 🟢 Pilotage : activité de son poste.
