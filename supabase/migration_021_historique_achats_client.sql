@@ -74,6 +74,29 @@ begin
       new.id, new.client_id, new.pharmacie_id, 'reservation_created',
       null, new.statut, new.paiement_ref, now(), (select auth.uid())
     );
+
+    if new.statut in ('payee','retiree') then
+      insert into public.reservation_events (
+        reservation_id, client_id, pharmacie_id, event_type,
+        from_statut, to_statut, paiement_ref, occurred_at, actor_id
+      )
+      values (
+        new.id, new.client_id, new.pharmacie_id, 'status_changed',
+        null, new.statut, new.paiement_ref, now(), (select auth.uid())
+      );
+    end if;
+
+    if new.paiement_ref is not null then
+      insert into public.reservation_events (
+        reservation_id, client_id, pharmacie_id, event_type,
+        from_statut, to_statut, paiement_ref, occurred_at, actor_id
+      )
+      values (
+        new.id, new.client_id, new.pharmacie_id, 'payment_declared',
+        null, new.statut, new.paiement_ref, now(), (select auth.uid())
+      );
+    end if;
+
     return new;
   end if;
 
