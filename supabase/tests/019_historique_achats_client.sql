@@ -55,10 +55,12 @@ insert into _client_019_results values
          where table_schema='public' and table_name='client_achats' and column_name='paiement_declare_le'),
   'colonne présente'),
 (12, 'client_achats est bornée aux achats payés/retirés',
-  pg_get_viewdef('public.client_achats'::regclass,true) ~* 'r\\.statut[[:space:]]*=[[:space:]]*ANY[[:space:]]*\\(ARRAY.*payee.*retiree',
+  position('r.statut = ANY' in pg_get_viewdef('public.client_achats'::regclass,true)) > 0
+  and position('payee' in pg_get_viewdef('public.client_achats'::regclass,true)) > 0
+  and position('retiree' in pg_get_viewdef('public.client_achats'::regclass,true)) > 0,
   'filtre terminal présent'),
 (13, 'client_achats est bornée au Client courant',
-  pg_get_viewdef('public.client_achats'::regclass,true) ~* 'r\\.client_id[[:space:]]*=[[:space:]]*auth\\.uid\\(\\)',
+  position('r.client_id = auth.uid()' in pg_get_viewdef('public.client_achats'::regclass,true)) > 0,
   'ownership auth.uid présent'),
 (14, 'authenticated ne peut pas appeler le trigger',
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
