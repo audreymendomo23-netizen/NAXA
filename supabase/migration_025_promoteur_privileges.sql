@@ -72,8 +72,7 @@ $naxa$;
 
 revoke all on function public.naxa_provision_promoteur_pharmacie(uuid,uuid)
   from public,anon,authenticated;
-grant execute on function public.naxa_provision_promoteur_pharmacie(uuid,uuid)
-  to authenticated;
+-- Aucun EXECUTE client : cette fonction est appelée uniquement par le trigger DB.
 
 drop trigger if exists trg_provision_promoteur_pharmacie
   on public.promoteur_pharmacies;
