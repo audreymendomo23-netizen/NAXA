@@ -1272,6 +1272,24 @@ Fermer le périmètre Promoteur sur la gestion opérationnelle des Caisses sans 
 
 Aucun « 🟢 » ne sera déclaré pour la Partie 4 tant que les preuves correspondantes ne sont pas obtenues.
 
+## 🔎 AUDIT CI COMPLÉMENTAIRE — 6 OCTOBRE 2026
+
+### Nouvelle contradiction racine détectée
+Le workflow `.github/workflows/naxa-quality.yml` comportait une **double définition** des jobs `verification-9-role-chain`, `verification-10-security-regression` et `verification-11-session-audit`. Cette duplication pouvait empêcher le chargement/exécution fiable du workflow et explique l'absence de runs malgré les déclencheurs ajoutés.
+
+### Correction
+- suppression du bloc de jobs dupliqué ;
+- conservation d'une seule chaîne 7 → 8 → 9 → 10 → 11 ;
+- ajout de `workflow_dispatch` pour permettre une exécution manuelle ;
+- documentation README/STATUT synchronisée ;
+- aucun changement Production ;
+- aucun merge vers `main`.
+
+### Verdict
+**Correction structurelle CI : 🟢**
+**Preuve d'exécution post-correction : 🟡**
+Les points 3→11 restent volontairement non verts tant qu'un run complet n'a pas été exécuté et réussi.
+
 ## 🔎 Audit des points pending — 6 octobre 2026
 
 Audit croisé exécuté selon la méthode NAXA : **audit → contradictions → correction → test → régression → documentation → 100% vert**.
