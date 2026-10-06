@@ -54,7 +54,7 @@ begin
   perform public.naxa_provision_promoteur_pharmacie(v_promoteur,v_a);
 
   perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
-  if not public.naxa_can('VIEW_PHARMACY',v_a,'PHARMACIE') then raise exception 'Promoteur valide refusé par naxa_can'; end if;
+  if not public.naxa_can('VIEW_PHARMACY',v_a,null) then raise exception 'Promoteur valide refusé par naxa_can'; end if;
 
   update public.conventions_promoteurs
   set date_expiration=current_date-1,statut='expiree'
