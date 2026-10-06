@@ -25,19 +25,19 @@ begin begin execute p_sql; exception when others then return; end; raise excepti
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from p3_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from p3_ids),'role','authenticated')::text,true);
-select assert((select public.naxa_promoteur_valide((select promoteur from p3_ids))),'Promoteur A3 valide');
-select assert((select public.naxa_has_privilege('CREATE_RESPONSABLE',(select pharmacie from p3_ids),'PHARMACIE')),'CREATE_RESPONSABLE autorisé');
+select pg_temp.assert_true((select public.naxa_promoteur_valide((select promoteur from p3_ids))),'Promoteur A3 valide');
+select pg_temp.assert_true((select public.naxa_has_privilege('CREATE_RESPONSABLE',(select pharmacie from p3_ids),'PHARMACIE')),'CREATE_RESPONSABLE autorisé');
 do $$
 declare v_id uuid;
 begin
   v_id:=public.accrediter_responsable((select target from p3_ids),(select pharmacie from p3_ids));
   if v_id is null then raise exception 'FAIL: ID accreditation null'; end if;
 end $$;
-select assert((select p.fonction_interne='responsable' and p.niveau_interne=2 and p.pharmacie_id=(select pharmacie from p3_ids) from public.profiles p where p.id=(select target from p3_ids)),'Responsable correctement accrédité');
-select assert(not public.naxa_has_privilege('CREATE_RESPONSABLE',(select other_pharmacie from p3_ids),'PHARMACIE'),'Hors périmètre refusé');
+select pg_temp.assert_true((select p.fonction_interne='responsable' and p.niveau_interne=2 and p.pharmacie_id=(select pharmacie from p3_ids) from public.profiles p where p.id=(select target from p3_ids)),'Responsable correctement accrédité');
+select pg_temp.assert_true(not public.naxa_has_privilege('CREATE_RESPONSABLE',(select other_pharmacie from p3_ids),'PHARMACIE'),'Hors périmètre refusé');
 select pg_temp.assert_raises(format('select public.accrediter_responsable(%L,%L)',(select target from p3_ids),(select other_pharmacie from p3_ids)),'Accréditation hors périmètre refusée');
 update public.naxa_profile_privileges set active=false,revoked_at=now() where profile_id=(select promoteur from p3_ids) and privilege_code='CREATE_RESPONSABLE' and pharmacie_id=(select pharmacie from p3_ids);
-select assert(not public.naxa_has_privilege('CREATE_RESPONSABLE',(select pharmacie from p3_ids),'PHARMACIE'),'Révocation CREATE_RESPONSABLE effective');
+select pg_temp.assert_true(not public.naxa_has_privilege('CREATE_RESPONSABLE',(select pharmacie from p3_ids),'PHARMACIE'),'Révocation CREATE_RESPONSABLE effective');
 do $$
 declare v_target uuid:=gen_random_uuid();
 begin
@@ -48,14 +48,14 @@ begin
 end $$;
 update public.conventions_promoteurs set date_expiration=current_date-1,statut='expiree' where promoteur_id=(select promoteur from p3_ids);
 update public.abonnements_promoteurs set echeance=current_date-1,statut='impaye' where promoteur_id=(select promoteur from p3_ids);
-select assert(not public.naxa_promoteur_valide((select promoteur from p3_ids)),'Expiration commerciale bloquante');
+select pg_temp.assert_true(not public.naxa_promoteur_valide((select promoteur from p3_ids)),'Expiration commerciale bloquante');
 update public.conventions_promoteurs set date_expiration=current_date+30,statut='active',architecture_code='ORPHELIN' where promoteur_id=(select promoteur from p3_ids);
 update public.abonnements_promoteurs set echeance=current_date+30,statut='actif' where promoteur_id=(select promoteur from p3_ids);
 update public.naxa_profile_privileges set active=true,revoked_at=null where profile_id=(select promoteur from p3_ids) and privilege_code='CREATE_RESPONSABLE';
-select assert(not exists(select 1 from public.naxa_architecture_privileges where architecture_code='ORPHELIN' and role_key='promoteur' and privilege_code='CREATE_RESPONSABLE'),'A1 sans CREATE_RESPONSABLE');
+select pg_temp.assert_true(not exists(select 1 from public.naxa_architecture_privileges where architecture_code='ORPHELIN' and role_key='promoteur' and privilege_code='CREATE_RESPONSABLE'),'A1 sans CREATE_RESPONSABLE');
 select pg_temp.assert_raises(format('select public.accrediter_responsable(%L,%L)',(select target from p3_ids),(select pharmacie from p3_ids)),'A1 Responsable refusé');
 update public.conventions_promoteurs set architecture_code='PARENTS_ENFANTS' where promoteur_id=(select promoteur from p3_ids);
-select assert(not exists(select 1 from public.naxa_architecture_privileges where architecture_code='PARENTS_ENFANTS' and role_key='promoteur' and privilege_code='CREATE_RESPONSABLE'),'A2 sans CREATE_RESPONSABLE');
+select pg_temp.assert_true(not exists(select 1 from public.naxa_architecture_privileges where architecture_code='PARENTS_ENFANTS' and role_key='promoteur' and privilege_code='CREATE_RESPONSABLE'),'A2 sans CREATE_RESPONSABLE');
 select pg_temp.assert_raises(format('select public.accrediter_responsable(%L,%L)',(select target from p3_ids),(select promoteur from p3_ids)),'A2 Responsable refusé');
 rollback;
 select 'Partie 3 behavioral suite' as suite,true as pass;
