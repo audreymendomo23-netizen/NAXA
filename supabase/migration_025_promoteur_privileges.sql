@@ -84,7 +84,10 @@ security definer
 set search_path=''
 as $naxa$
 begin
-  if new.actif then
+  if new.actif and exists (
+    select 1 from public.pharmacie_architectures
+    where pharmacie_id=new.pharmacie_id and active
+  ) then
     perform public.naxa_provision_promoteur_pharmacie(new.promoteur_id,new.pharmacie_id);
   end if;
   return new;
@@ -101,3 +104,32 @@ execute function public.trg_provision_promoteur_pharmacie();
 
 -- Toute modification du lien réseau doit rester administrative / fonctionnelle ;
 -- aucune écriture directe depuis le client.
+
+
+create or replace function public.trg_provision_promoteurs_for_architecture()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $naxa$
+begin
+  if new.active then
+    perform public.naxa_provision_promoteur_pharmacie(pp.promoteur_id,new.pharmacie_id)
+    from public.promoteur_pharmacies pp
+    where pp.pharmacie_id=new.pharmacie_id
+      and pp.actif;
+  end if;
+  return new;
+end
+$naxa$;
+
+revoke all on function public.trg_provision_promoteurs_for_architecture()
+  from public,anon,authenticated;
+
+drop trigger if exists trg_provision_promoteurs_for_architecture
+  on public.pharmacie_architectures;
+
+create trigger trg_provision_promoteurs_for_architecture
+after insert or update of architecture_code,active on public.pharmacie_architectures
+for each row
+execute function public.trg_provision_promoteurs_for_architecture();
