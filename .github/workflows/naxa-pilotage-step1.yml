@@ -121,6 +121,7 @@ jobs:
           s = re.sub(r"insert into storage\\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*", "", s, flags=re.I|re.S)
           s = s.replace("revoke execute on function restore_stock(uuid) from public,anon,authenticated;", "")
           s = s.replace("revoke execute on function expire_reservations() from public,anon,authenticated;", "")
+          s = re.sub(r"revoke (?:all|execute) on function public\\.naxa_audit_session_[a-z_]+\\([^;]*\\) from public, ?anon, ?authenticated;\\s*", "", s, flags=re.I)
           p.write_text(s)
           PY
           n=1
