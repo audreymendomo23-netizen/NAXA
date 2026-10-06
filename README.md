@@ -993,3 +993,30 @@ L'architecture 019→023 utilisait `promoteur_pharmacies` comme scope canonique 
 **🟢 PASSE PROMOTEUR — scope réseau + architecture + délégation + convention + RLS + runtime transactionnel + régression + CI validés.**
 
 Prochain rôle selon l'ordre convenu : **Admin**. Même méthode obligatoire : audit → contradiction → fermeture → test → documentation → 🟢.
+
+
+## 🔄 Reprise Promoteur — méthodologie en 6 parties — 6 octobre 2026
+
+Les anciennes mentions présentant le chantier Promoteur comme entièrement clôturé sont **supersédées par cette reprise**. Conformément à la méthodologie demandée, le Promoteur est désormais revalidé partie par partie : **audit → contradiction → correction additive → test Supabase transactionnel → régression → documentation → 🟢 → validation utilisateur avant partie suivante**.
+
+### Partie 1/6 — périmètre réseau/pharmacies : 🟢
+- Scope canonique : `promoteur_pharmacies`.
+- Accès multi-pharmacie uniquement via liens actifs.
+- Hors réseau refusé.
+- Désactivation/réactivation du lien testée.
+- Gouvernance convention / architecture / réseau global non accordée au Promoteur.
+- RLS et grants du lien réseau contrôlés.
+- Provisioning Promoteur non exposé à `authenticated`.
+- Correction additive : `naxa_scope_allows(..., 'PHARMACIE')` utilise explicitement `promoteur_pharmacies` pour un Promoteur.
+- Migrations : `024`, `025`, `026`.
+- Validation réelle transactionnelle : **13/13 assertions PASS, rollback complet, aucune donnée persistée**.
+- `main` et Production inchangés.
+
+### Parties suivantes
+2. ⏳ Architecture + convention + validité
+3. ⏳ Accréditation Responsable
+4. ⏳ Gestion des Caisses + délégation
+5. ⏳ Pilotage / CA / reporting réseau
+6. ⏳ Sécurité finale + régression CI/build + clôture documentaire
+
+**Aucune partie suivante ne sera déclarée verte avant fermeture de toutes ses contradictions et preuve correspondante.**
