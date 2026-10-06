@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(14);
+select plan(16);
 
 -- 1. La table existe et RLS est activée.
 select ok(
@@ -109,6 +109,16 @@ select ok(
 select ok(
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
   'authenticated ne peut pas appeler directement le trigger'
+);
+
+select ok(
+  pg_get_functiondef('public.log_reservation_event()'::regprocedure) like '%new.statut in (''payee'',''retiree'')%',
+  'une création directe payee/retiree est horodatée comme achat'
+);
+
+select ok(
+  pg_get_functiondef('public.log_reservation_event()'::regprocedure) like '%new.paiement_ref is not null%',
+  'une référence de paiement présente à la création est historisée'
 );
 
 select * from finish();
