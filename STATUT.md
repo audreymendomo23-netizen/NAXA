@@ -960,7 +960,7 @@ Après validation explicite du Client, le chantier suivant sera traité en bloc 
 - 🟢 Réservations : voir, confirmer, traiter, annuler selon transitions autorisées.
 - 🟢 Vente : confirmer paiement, confirmer retrait, historique autorisé.
 - 🟢 Pilotage : activité de son poste.
-- 🟢 Rapports : rapports Caisse autorisés.
+- ⚪ Rapports Caisse : module dédié pas encore construit ; aucun faux privilège n'est accordé.
 - 🔴 Import stock global.
 - 🔴 Coût d'achat / valorisation / marge.
 - 🔴 Gestion Caisses / Responsables.
