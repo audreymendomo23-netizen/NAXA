@@ -47,7 +47,7 @@ jobs:
           s=p.read_text()
           s=re.sub(r"create or replace function handle_new_user.*?create trigger on_auth_user_created", """create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path=public as $fn$ begin insert into profiles(id,role,username,first_name,last_name,date_of_birth,age_verified,consent_accepted_at) values(new.id,'client',lower(trim(new.raw_user_meta_data->>'username')),trim(new.raw_user_meta_data->>'first_name'),trim(new.raw_user_meta_data->>'last_name'),(new.raw_user_meta_data->>'date_of_birth')::date,false,null); return new; end; $fn$;
           create trigger on_auth_user_created""", s, flags=re.S)
-          s=re.sub(r"create or replace function my_pharmacie\\(\\).*?;", "create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse');$;", s, count=1, flags=re.S)
+          s=re.sub(r"create or replace function my_pharmacie.*?;", "create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $fn$select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse');$fn$;", s, count=1, flags=re.S)
           p.write_text(s)
           PY
           n=1
