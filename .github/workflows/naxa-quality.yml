@@ -158,6 +158,8 @@ jobs:
         run: supabase stop
 
   partie4-caisse:
+    needs: partie3-supabase
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
