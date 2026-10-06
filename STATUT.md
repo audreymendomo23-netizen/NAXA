@@ -1022,3 +1022,32 @@ Aucun passage à Responsable tant que Caisse n'est pas validé.
 - Aucun merge ni déploiement sans **OUI, DÉPLOIE**.
 
 **Verdict actuel : 🟠 CAISSE — architecture et périmètre corrigés + 20/20 structurel, mais runtime multi-utilisateur encore à fermer.**
+
+
+## 🟢 PASSE CAISSE — VALIDATION FINALE — 6 OCTOBRE 2026
+
+Cette section **fait foi et supersède les précédents états intermédiaires 🟠 Caisse** de ce document.
+
+### Contradiction finale fermée
+- migration_022_caisse_perimetre.sql ne provisionne plus à une Caisse des privilèges de rapports/pilotage global non construits.
+- Les privilèges globaux VIEW_CA, VIEW_CA_HISTORY, VIEW_PILOTAGE, VIEW_REPORTS et VIEW_CAISSE_REPORT ne sont pas attribués au rôle Caisse par l'architecture.
+- Le moteur naxa_has_privilege() reste la barrière effective : un privilège présent dans le catalogue n'est pas exploitable sans autorisation architecturale + scope + privilège de profil.
+
+### Preuves DB réelles
+- Migrations 013→022 rejouées dans une transaction réelle Supabase puis ROLLBACK.
+- Test d'acceptation Caisse supabase/tests/020_caisse_perimetre.sql : 20/20 assertions PASS.
+- Test runtime transactionnel avec profils Caisse/Promoteur existants : 11/11 contrôles PASS.
+- Vérifications runtime : stock autorisé dans le périmètre, modification de quantité autorisée, paiement autorisé, import stock refusé, coût d'achat refusé, garde refusée, CA global refusé, autre pharmacie refusée, pilotage borné au poste, provisionnement Caisse interdit à une Caisse.
+- Toutes les fixtures runtime ont été rollbackées : aucune donnée métier persistée.
+
+### CI / branche / gouvernance
+- NAXA quality #229 : SUCCESS.
+- Branche : feat/pharmacie-validite-pilotage.
+- main inchangé.
+- Migrations 021/022 non persistées en Production.
+- Aucun merge ni déploiement Production sans autorisation explicite.
+
+### Verdict
+**🟢 PASSE CAISSE — validée : architecture + privilèges + scope + runtime Supabase transactionnel + tests + CI + documentation.**
+
+**Prochain passage : Responsable.**
