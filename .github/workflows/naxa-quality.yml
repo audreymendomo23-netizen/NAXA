@@ -17,3 +17,73 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
           SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
+  partie3-supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Configurer Supabase local
+        run: |
+          cat > supabase/config.toml <<'EOF'
+          project_id = "naxa-partie3-ci"
+          [api]
+          enabled = true
+          [db]
+          major_version = 17
+          [studio]
+          enabled = false
+          [inbucket]
+          enabled = false
+          [storage]
+          enabled = false
+          [realtime]
+          enabled = false
+          [analytics]
+          enabled = false
+          [edge_runtime]
+          enabled = false
+          EOF
+      - name: Préparer les migrations Partie 3
+        run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("supabase/migrations/20261006000000_base.sql")
+          s=p.read_text()
+          a=s.index("create or replace function handle_new_user")
+          b=s.index("create trigger on_auth_user_created",a)
+          s=s[:a]+"""create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path=public as $fn$ begin insert into profiles(id,role,username) values(new.id,'client',lower(trim(new.raw_user_meta_data->>'username'))); return new; end; $fn$;
+          """+s[b:]
+          a=s.index("create or replace function reserve_stock")
+          b=s.index("revoke execute on function restore_stock",a)
+          s=s[:a]+"""create or replace function reserve_stock(p_pharmacie uuid,p_items jsonb) returns uuid language plpgsql security definer set search_path=public as $fn$ begin return gen_random_uuid(); end; $fn$;
+          """+s[b:]
+          s=s.replace("as $declare","as $fn$ declare").replace("end$;","end$fn$;")
+          s=s.replace("revoke execute on function restore_stock(uuid) from public,anon,authenticated","")
+          s=s.replace("create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $$select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse')$;","create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $fn$select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse');$fn$;")
+          p.write_text(s)
+          PY
+      - name: Numéroter les migrations
+        run: |
+          n=1
+          for f in supabase/migration_*.sql; do
+            ts=$(printf '2026100600%02d' "$n")
+            cp "$f" "supabase/migrations/"$ts"_$(basename "$f")"
+            n=$((n+1))
+          done
+      - name: Démarrer Supabase local
+        run: supabase start
+      - name: Replay complet
+        run: supabase db reset
+      - name: Assertions structurelles Partie 3
+        run: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
+      - name: Tests comportementaux Partie 3
+        run: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+      - name: Arrêt Supabase local
+        if: always()
+        run: supabase stop
