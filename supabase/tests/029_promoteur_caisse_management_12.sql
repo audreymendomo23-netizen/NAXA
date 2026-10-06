@@ -52,6 +52,7 @@ begin
   insert into p4_ids values(p,a,b,c1,c2,r);
 end $$;
 
+grant select on p4_ids to authenticated;
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from p4_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from p4_ids),'role','authenticated')::text,true);
