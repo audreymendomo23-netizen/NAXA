@@ -104,7 +104,7 @@ begin
     raise exception 'Cette architecture ne permet pas de Caisse';
   end if;
 
-  select public.naxa_business_function(id),parent_profile_id
+  select coalesce(fonction_interne,case role::text when 'caisse' then 'caisse' else null end),parent_profile_id
     into target_fn,target_parent
   from public.profiles
   where id=p_target;
