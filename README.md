@@ -1020,3 +1020,27 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 6. ⏳ Sécurité finale + régression CI/build + clôture documentaire
 
 **Aucune partie suivante ne sera déclarée verte avant fermeture de toutes ses contradictions et preuve correspondante.**
+
+
+### Partie 2/6 — architecture + convention + validité : 🟢
+- Contradiction fermée : un Promoteur pouvait être techniquement actif alors que sa convention/son abonnement étaient expirés ou résiliés ; le moteur d'autorisation ne possédait pas de barrière commerciale canonique.
+- Contradiction fermée : l'abonnement Promoteur pouvait théoriquement pointer vers la convention d'un autre Promoteur ; cette incohérence est désormais refusée par un trigger DB.
+- Architecture : les gates existants sont conservés et vérifiés : A1/A2 n'exposent pas CREATE_RESPONSABLE, A3/A4 l'autorisent.
+- Validité canonique ajoutée : naxa_promoteur_valide(uuid) exige simultanément Promoteur actif + convention active non échue + abonnement actif non échu et rattaché à cette convention.
+- Autorisation : naxa_can(...) refuse désormais un Promoteur commercialement invalide avant l'évaluation des privilèges.
+- Accréditation : accredit​er_profile(...) refuse un Promoteur invalide et un parent Promoteur invalide.
+- Provisioning réseau : naxa_provision_promoteur_pharmacie(...) ne peut plus réactiver/provisionner les droits d'un Promoteur commercialement invalide.
+- Scope réseau : la validité commerciale ne détruit pas le lien promoteur_pharmacies ; elle bloque l'opérationnel. Le scope de la Partie 1 reste intact.
+- Migration additive : supabase/migration_027_promoteur_architecture_validite.sql.
+- Test : supabase/tests/027_promoteur_architecture_validite.sql.
+- Validation Supabase réelle : 11/11 assertions PASS, replay des migrations 013→026 + 027 dans une transaction, puis ROLLBACK complet ; aucune donnée de test persistée.
+- Production : migration 027 non appliquée.
+- main : inchangé ; aucun merge ni déploiement Production.
+
+### État Promoteur après Partie 2
+- Partie 1/6 : 🟢 Périmètre réseau/pharmacies.
+- Partie 2/6 : 🟢 Architecture + convention + validité.
+- Partie 3/6 : ⏳ Accréditation Responsable — ne démarre qu'après validation utilisateur.
+- Partie 4/6 : ⏳ Gestion des Caisses + délégation.
+- Partie 5/6 : ⏳ Pilotage / CA / reporting réseau.
+- Partie 6/6 : ⏳ Sécurité finale + régression CI/build + clôture documentaire.
