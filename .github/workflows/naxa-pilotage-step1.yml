@@ -111,6 +111,14 @@ jobs:
           reserve = s[a:b].replace("as $declare", "as $fn$ declare").replace("end$;", "end$fn$;")
           s = s[:a] + reserve + s[b:]
 
+          a = s.index("create or replace function is_admin")
+          b = s.index("create or replace function my_pharmacie", a)
+          is_admin = """create or replace function is_admin() returns boolean
+          language sql stable security definer set search_path=public
+          as $fn$ select exists(select 1 from public.profiles where id=auth.uid() and role::text='admin'); $fn$;
+          """
+          s = s[:a] + is_admin + s[b:]
+
           a = s.index("create or replace function my_pharmacie")
           b = s.index("alter table profiles", a)
           my_pharmacie = """create or replace function my_pharmacie() returns uuid
