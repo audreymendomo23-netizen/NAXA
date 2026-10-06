@@ -126,6 +126,11 @@ jobs:
           """
           s = s[:a] + my_pharmacie + s[b:]
 
+          # Storage is disabled in these CI replay projects. The historical snapshot
+          # contains an early storage.buckets seed before the local storage schema is
+          # initialized; remove only that seed for the isolated replay.
+          s = re.sub(r"insert into storage\\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*", "", s, flags=re.I|re.S)
+
           # These revokes precede the function declarations in the historical snapshot.
           s = re.sub(r"revoke execute on function (restore_stock|expire_reservations)\([^;]*\) from public,anon,authenticated;\s*", "", s)
 
