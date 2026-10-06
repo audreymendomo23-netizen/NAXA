@@ -369,7 +369,7 @@ jobs:
           p.write_text(s)
           PY
           n=1
-          for f in supabase/migration_*.sql; do ts=$(printf '2026100600%02d' "$n"); cp "$f" "supabase/migrations/$ts_$(basename "$f")"; n=$((n+1)); done
+          for f in supabase/migration_*.sql; do ts=$(printf '2026100600%02d' "$n"); cp "$f" "supabase/migrations/${ts}_$(basename "$f")"; n=$((n+1)); done
       - name: Démarrer Supabase local
         run: supabase start
       - name: Replay complet
