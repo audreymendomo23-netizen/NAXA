@@ -2,21 +2,33 @@
 -- Additif / non destructif. La Caisse reste un opérateur de la pharmacie.
 
 drop policy if exists stocks_write on public.stocks;
-create policy stocks_write on public.stocks
-for all
+drop policy if exists stocks_caisse_update on public.stocks;
+drop policy if exists stocks_management_insert on public.stocks;
+drop policy if exists stocks_management_delete on public.stocks;
+
+create policy stocks_caisse_update on public.stocks
+for update
 using (
   public.is_admin()
-  or (
-    pharmacie_id=public.my_pharmacie()
-    and public.authorize('EDIT_STOCK_QUANTITY',pharmacie_id,'POSTE_CAISSE')
-  )
+  or (pharmacie_id=public.my_pharmacie() and public.authorize('EDIT_STOCK_QUANTITY',pharmacie_id,'POSTE_CAISSE'))
 )
 with check (
   public.is_admin()
-  or (
-    pharmacie_id=public.my_pharmacie()
-    and public.authorize('EDIT_STOCK_QUANTITY',pharmacie_id,'POSTE_CAISSE')
-  )
+  or (pharmacie_id=public.my_pharmacie() and public.authorize('EDIT_STOCK_QUANTITY',pharmacie_id,'POSTE_CAISSE'))
+);
+
+create policy stocks_management_insert on public.stocks
+for insert
+with check (
+  public.is_admin()
+  or (pharmacie_id=public.my_pharmacie() and public.authorize('IMPORT_STOCK',pharmacie_id,'PHARMACIE'))
+);
+
+create policy stocks_management_delete on public.stocks
+for delete
+using (
+  public.is_admin()
+  or (pharmacie_id=public.my_pharmacie() and public.authorize('MANAGE_STOCK_ANOMALIES',pharmacie_id,'PHARMACIE'))
 );
 
 create or replace function public.set_garde(p_garde boolean)
