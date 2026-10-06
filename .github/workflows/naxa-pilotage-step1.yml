@@ -147,6 +147,9 @@ jobs:
           create table if not exists public.profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references public.pharmacies(id),created_at timestamptz not null default now(),first_name text,last_name text,phone text,phone_country text,date_of_birth date,age_verified boolean not null default false,consent_accepted_at timestamptz,parent_profile_id uuid references public.profiles(id) on delete set null,actif boolean not null default true);
           create table if not exists public.stocks(pharmacie_id uuid not null references public.pharmacies(id) on delete cascade,produit_id uuid not null references public.produits(id) on delete cascade,prix integer not null default 0,quantite integer not null default 0,date_peremption date,updated_at timestamptz not null default now(),primary key(pharmacie_id,produit_id));
           """
+          s += """create table if not exists public.reservations(id uuid primary key default gen_random_uuid(),client_id uuid not null references auth.users(id),pharmacie_id uuid not null references public.pharmacies(id),statut resa_statut not null default 'en_attente',total integer not null default 0,expires_at timestamptz not null,paiement_ref text,created_at timestamptz not null default now());
+          create table if not exists public.reservation_items(reservation_id uuid not null references public.reservations(id) on delete cascade,produit_id uuid not null references public.produits(id),quantite integer not null check(quantite>0),prix_unitaire integer not null,primary key(reservation_id,produit_id));
+          """
           s += """
           create or replace function public.is_admin() returns boolean
           language sql stable security definer set search_path=public
