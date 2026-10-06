@@ -1,125 +1,127 @@
--- NAXA 021 — tests de sécurité et de cohérence de l'historique d'achats
--- Exécuter dans une base de test avec les fixtures auth/profils du chantier.
--- Aucun test ne doit écrire durablement : transaction rollbackée.
+-- NAXA 019 — validation intégrée de 021 : historique d'achats Client
+-- Test exécutable sur Supabase sans dépendance à pgTAP.
+-- Toutes les mutations sont encapsulées dans une transaction puis rollbackées.
 
 begin;
 
-select plan(16);
-
--- 1. La table existe et RLS est activée.
-select ok(
-  exists (
-    select 1 from pg_class c
-    join pg_namespace n on n.oid=c.relnamespace
-    where n.nspname='public' and c.relname='reservation_events' and c.relrowsecurity
-  ),
-  'reservation_events est protégée par RLS'
+create temporary table _client_019_results (
+  assertion_no integer primary key,
+  name text not null,
+  ok boolean not null,
+  detail text not null
 );
 
--- 2. Le listing existe et reste une vue.
-select ok(
-  exists (
-    select 1
-    from pg_views v
-    where v.schemaname='public'
-      and v.viewname='client_achats'
-  ),
-  'client_achats existe'
-);
-
--- 3. La vue est explicitement security_invoker.
-select ok(
-  exists (
-    select 1
-    from pg_class c
-    join pg_namespace n on n.oid=c.relnamespace
-    where n.nspname='public'
-      and c.relname='client_achats'
-      and 'security_invoker=true' = any(coalesce(c.reloptions, '{}'::text[]))
-  ),
-  'client_achats est security_invoker'
-);
-
--- 4-5. Aucun accès public/anonyme à la table brute.
-select ok(
+insert into _client_019_results values
+(1, 'reservation_events protégée par RLS',
+  (select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   where n.nspname='public' and c.relname='reservation_events'),
+  'RLS activé'),
+(2, 'client_achats existe comme vue',
+  exists(select 1 from pg_views where schemaname='public' and viewname='client_achats'),
+  'vue présente'),
+(3, 'client_achats est security_invoker',
+  exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+         where n.nspname='public' and c.relname='client_achats'
+           and 'security_invoker=true' = any(coalesce(c.reloptions,'{}'::text[]))),
+  'security_invoker=true'),
+(4, 'anon ne peut pas lire reservation_events',
   not has_table_privilege('anon','public.reservation_events','select'),
-  'anon ne peut pas lire reservation_events'
-);
-
-select ok(
+  'SELECT refusé à anon'),
+(5, 'authenticated ne peut pas écrire reservation_events',
   not has_table_privilege('authenticated','public.reservation_events','insert'),
-  'authenticated ne peut pas écrire reservation_events'
-);
-
--- 5-6. Le listing expose les grains nécessaires.
-select ok(
-  exists (
-    select 1 from information_schema.columns
-    where table_schema='public' and table_name='client_achats' and column_name='achat_le'
-  ),
-  'client_achats expose achat_le'
-);
-
-select ok(
-  exists (
-    select 1 from information_schema.columns
-    where table_schema='public' and table_name='client_achats' and column_name='payee_le'
-  ),
-  'client_achats expose payee_le'
-);
-
--- 7. Le listing expose l'indicateur d'exactitude historique.
-select ok(
-  exists (
-    select 1 from information_schema.columns
-    where table_schema='public' and table_name='client_achats' and column_name='horodatage_achat_exact'
-  ),
-  'client_achats expose horodatage_achat_exact'
-);
-
--- 8-10. Les détails Client enrichis existent dans le listing.
-select ok(
-  exists (select 1 from information_schema.columns where table_schema='public' and table_name='client_achats' and column_name='photo_url'),
-  'client_achats expose la photo produit'
-);
-
-select ok(
-  exists (select 1 from information_schema.columns where table_schema='public' and table_name='client_achats' and column_name='confirmee_le'),
-  'client_achats expose la confirmation'
-);
-
-select ok(
-  exists (select 1 from information_schema.columns where table_schema='public' and table_name='client_achats' and column_name='paiement_declare_le'),
-  'client_achats expose la déclaration de paiement'
-);
-
--- 8. Les achats sont bornés aux états commerciaux terminaux autorisés.
-select ok(
-  pg_get_viewdef('public.client_achats'::regclass, true) ~* 'r\\.statut[[:space:]]*=[[:space:]]*ANY[[:space:]]*\\(ARRAY.*payee.*retiree',
-  'client_achats est bornée aux achats payés/retirés'
-);
-
--- 12. Le listing Client est explicitement borné au propriétaire courant.
-select ok(
-  pg_get_viewdef('public.client_achats'::regclass, true) like '%r.client_id = auth.uid()%',
-  'client_achats ne peut retourner que les achats du Client courant'
-);
-
--- 13. La fonction de trigger n'est pas directement exposée.
-select ok(
+  'INSERT refusé à authenticated'),
+(6, 'client_achats expose achat_le',
+  exists(select 1 from information_schema.columns
+         where table_schema='public' and table_name='client_achats' and column_name='achat_le'),
+  'colonne présente'),
+(7, 'client_achats expose payee_le',
+  exists(select 1 from information_schema.columns
+         where table_schema='public' and table_name='client_achats' and column_name='payee_le'),
+  'colonne présente'),
+(8, 'client_achats expose horodatage_achat_exact',
+  exists(select 1 from information_schema.columns
+         where table_schema='public' and table_name='client_achats' and column_name='horodatage_achat_exact'),
+  'colonne présente'),
+(9, 'client_achats expose photo_url',
+  exists(select 1 from information_schema.columns
+         where table_schema='public' and table_name='client_achats' and column_name='photo_url'),
+  'colonne présente'),
+(10, 'client_achats expose confirmee_le',
+  exists(select 1 from information_schema.columns
+         where table_schema='public' and table_name='client_achats' and column_name='confirmee_le'),
+  'colonne présente'),
+(11, 'client_achats expose paiement_declare_le',
+  exists(select 1 from information_schema.columns
+         where table_schema='public' and table_name='client_achats' and column_name='paiement_declare_le'),
+  'colonne présente'),
+(12, 'client_achats est bornée aux achats payés/retirés',
+  pg_get_viewdef('public.client_achats'::regclass,true) ~* 'r\\.statut[[:space:]]*=[[:space:]]*ANY[[:space:]]*\\(ARRAY.*payee.*retiree',
+  'filtre terminal présent'),
+(13, 'client_achats est bornée au Client courant',
+  pg_get_viewdef('public.client_achats'::regclass,true) ~* 'r\\.client_id[[:space:]]*=[[:space:]]*auth\\.uid\\(\\)',
+  'ownership auth.uid présent'),
+(14, 'authenticated ne peut pas appeler le trigger',
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
-  'authenticated ne peut pas appeler directement le trigger'
-);
-
-select ok(
+  'EXECUTE refusé'),
+(15, 'création directe payee/retiree horodatée',
   pg_get_functiondef('public.log_reservation_event()'::regprocedure) like '%new.statut in (''payee'',''retiree'')%',
-  'une création directe payee/retiree est horodatée comme achat'
-);
-
-select ok(
+  'branche terminal présente'),
+(16, 'référence de paiement à la création historisée',
   pg_get_functiondef('public.log_reservation_event()'::regprocedure) like '%new.paiement_ref is not null%',
-  'une référence de paiement présente à la création est historisée'
-);
+  'branche paiement présente');
 
-select * from finish();
+-- Preuve runtime : une transition terminale et une référence de paiement
+-- doivent produire les événements attendus. La modification est rollbackée.
+with target as (
+  select id from public.reservations order by created_at desc limit 1
+)
+update public.reservations
+set statut='payee', paiement_ref='TEST-CLIENT-019'
+where id=(select id from target);
+
+insert into _client_019_results
+select 17,
+  'transition vers payee journalisée',
+  exists(
+    select 1
+    from public.reservation_events e
+    join public.reservations r on r.id=e.reservation_id
+    where r.paiement_ref='TEST-CLIENT-019'
+      and e.event_type='status_changed'
+      and e.to_statut='payee'
+  ),
+  'status_changed payee';
+
+insert into _client_019_results
+select 18,
+  'référence de paiement journalisée',
+  exists(
+    select 1
+    from public.reservation_events e
+    join public.reservations r on r.id=e.reservation_id
+    where r.paiement_ref='TEST-CLIENT-019'
+      and e.event_type='payment_declared'
+  ),
+  'payment_declared';
+
+select
+  count(*) filter (where ok) as passed,
+  count(*) as total,
+  count(*) filter (where not ok) as failed
+from _client_019_results;
+
+select assertion_no, name, ok, detail
+from _client_019_results
+order by assertion_no;
+
+do $$
+declare failed_count integer;
+begin
+  select count(*) into failed_count from _client_019_results where not ok;
+  if failed_count > 0 then
+    raise exception 'NAXA test 019 FAILED: % assertion(s)', failed_count;
+  end if;
+end
+$$;
+
 rollback;
