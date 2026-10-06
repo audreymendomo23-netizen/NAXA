@@ -131,3 +131,113 @@ create policy profiles_team_read on public.profiles for select to authenticated 
  or (pharmacie_id=public.my_pharmacie() and parent_profile_id=(select auth.uid()) and public.naxa_business_function((select auth.uid()))='responsable')
  or (pharmacie_id=public.my_pharmacie() and public.naxa_business_function((select auth.uid()))='promoteur')
 );
+
+
+-- Fermeture de la frontière RBAC : un Responsable ne peut déléguer/révoquer
+-- que sur ses Caisses directes. Un Promoteur reste au-dessus du Responsable.
+create or replace function public.naxa_can_manage_privilege_target(
+  p_target uuid,
+  p_pharmacie uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $$
+select exists(
+  select 1
+  from public.profiles actor
+  join public.profiles target on target.id=p_target
+  where actor.id=(select auth.uid()) and actor.actif
+    and target.pharmacie_id=p_pharmacie
+    and (
+      public.is_admin()
+      or (
+        actor.niveau_interne=2
+        and public.naxa_business_function(actor.id)='responsable'
+        and target.niveau_interne=3
+        and coalesce(target.fonction_interne,case target.role::text when 'caisse' then 'caisse' else null end)='caisse'
+        and target.parent_profile_id=actor.id
+      )
+      or (
+        actor.niveau_interne=1
+        and public.naxa_business_function(actor.id)='promoteur'
+        and exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=actor.id and pp.pharmacie_id=p_pharmacie and pp.actif)
+        and target.niveau_interne in (2,3)
+      )
+    )
+)
+$$;
+
+revoke all on function public.naxa_can_manage_privilege_target(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.naxa_can_manage_privilege_target(uuid,uuid) to authenticated;
+
+create or replace function public.naxa_grant_privilege(
+ p_target uuid,p_privilege text,p_pharmacie uuid,p_scope text default 'PHARMACIE'
+)
+returns uuid
+language plpgsql
+security definer
+set search_path=''
+as $naxa$
+declare v_id uuid; v_level smallint; v_arch text; v_actor_fn text;
+begin
+ v_actor_fn:=public.naxa_business_function((select auth.uid()));
+ if not public.is_admin() and not public.naxa_has_privilege('ASSIGN_PRIVILEGE',p_pharmacie,'PHARMACIE') then
+   raise exception 'Attribution non autorisée';
+ end if;
+ if not public.naxa_can_manage_privilege_target(p_target,p_pharmacie) then
+   raise exception 'Cible hors périmètre hiérarchique';
+ end if;
+ select niveau_interne into v_level from public.profiles where id=p_target and actif;
+ if v_level is null then raise exception 'Niveau cible invalide'; end if;
+ select architecture_code into v_arch from public.pharmacie_architectures where pharmacie_id=p_pharmacie and active;
+ if v_arch is null then raise exception 'Architecture non définie'; end if;
+ if not exists(select 1 from public.naxa_architecture_privileges where architecture_code=v_arch and role_key=case when v_level=3 then 'caisse' when v_level=2 then 'responsable' else 'promoteur' end and privilege_code=p_privilege) then
+   raise exception 'Privilège hors architecture ou fonction';
+ end if;
+ if not exists(select 1 from public.naxa_privileges n where n.code=p_privilege and n.active and n.delegable and v_level between n.niveau_min and n.niveau_max and not n.governance) then
+   raise exception 'Privilège non délégable à ce niveau';
+ end if;
+ if p_scope='RESEAU' and v_level<>1 then raise exception 'Scope réseau réservé au Promoteur'; end if;
+ if p_scope='POSTE_CAISSE' and v_level<>3 then raise exception 'Scope poste réservé à la Caisse'; end if;
+ insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by)
+ values(p_target,p_privilege,p_pharmacie,p_scope,(select auth.uid()))
+ on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+ do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now()
+ returning id into v_id;
+ return v_id;
+end
+$naxa$;
+
+create or replace function public.naxa_revoke_privilege(
+ p_target uuid,p_privilege text,p_pharmacie uuid,p_scope text default 'PHARMACIE'
+)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $naxa$
+begin
+ if not public.is_admin() and not public.naxa_has_privilege('REVOKE_PRIVILEGE',p_pharmacie,'PHARMACIE') then
+   raise exception 'Révocation non autorisée';
+ end if;
+ if not public.naxa_can_manage_privilege_target(p_target,p_pharmacie) then
+   raise exception 'Cible hors périmètre hiérarchique';
+ end if;
+ update public.naxa_profile_privileges
+ set active=false,revoked_at=now()
+ where profile_id=p_target
+   and privilege_code=p_privilege
+   and pharmacie_id is not distinct from p_pharmacie
+   and scope_type=p_scope
+   and active;
+ if not found then raise exception 'Privilège introuvable'; end if;
+end
+$naxa$;
+
+revoke all on function public.naxa_grant_privilege(uuid,text,uuid,text) from public,anon,authenticated;
+revoke all on function public.naxa_revoke_privilege(uuid,text,uuid,text) from public,anon,authenticated;
+grant execute on function public.naxa_grant_privilege(uuid,text,uuid,text) to authenticated;
+grant execute on function public.naxa_revoke_privilege(uuid,text,uuid,text) to authenticated;
