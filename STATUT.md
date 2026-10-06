@@ -1189,3 +1189,26 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 6. ⏳ Sécurité finale + régression CI/build + clôture documentaire
 
 **Aucune partie suivante ne sera déclarée verte avant fermeture de toutes ses contradictions et preuve correspondante.**
+
+
+### Partie 2/6 — Promoteur : architecture + convention + validité — 🟢
+- Contradiction fermée : l'état actif du profil ne garantissait pas la validité commerciale de la convention et de l'abonnement.
+- Contradiction fermée : une incohérence convention ↔ abonnement pouvait être représentée sans invariant DB explicite.
+- Architecture vérifiée : A1/A2 refusent CREATE_RESPONSABLE ; A3/A4 l'autorisent conformément à la matrice existante.
+- Ajout canonique : naxa_promoteur_valide(uuid) = Promoteur actif + convention active non échue + abonnement actif non échu + abonnement rattaché à la bonne convention.
+- naxa_can(...) bloque maintenant un Promoteur commercialement invalide.
+- accredit​er_profile(...) bloque l'accréditation lancée par un Promoteur invalide et le parent Promoteur invalide.
+- naxa_provision_promoteur_pharmacie(...) refuse le provisioning d'un Promoteur commercialement invalide.
+- Le scope réseau de la Partie 1 reste indépendant de la validité : le lien peut rester présent, mais l'opérationnel est bloqué.
+- Migration : supabase/migration_027_promoteur_architecture_validite.sql.
+- Test : supabase/tests/027_promoteur_architecture_validite.sql.
+- Preuve réelle : **11/11 PASS**, replay transactionnel 013→026 + 027, rollback complet, aucune donnée persistée.
+- Production : 027 non appliquée. main inchangé. Aucun merge/déploiement Production.
+
+### État Promoteur
+- Partie 1/6 — 🟢 Périmètre réseau/pharmacies.
+- Partie 2/6 — 🟢 Architecture + convention + validité.
+- Partie 3/6 — ⏳ Accréditation Responsable.
+- Partie 4/6 — ⏳ Gestion des Caisses + délégation.
+- Partie 5/6 — ⏳ Pilotage / CA / reporting réseau.
+- Partie 6/6 — ⏳ Sécurité finale + régression CI/build + clôture documentaire.
