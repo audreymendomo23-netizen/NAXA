@@ -11,7 +11,7 @@ select exists(
    and actor.pharmacie_id=p_pharmacie and target.pharmacie_id=p_pharmacie
    and (
      (actor.niveau_interne=2 and public.naxa_business_function(actor.id)='responsable'
-      and target.niveau_interne=3 and public.naxa_business_function(target.id)='caisse'
+      and target.niveau_interne=3 and coalesce(target.fonction_interne,case target.role::text when 'caisse' then 'caisse' else null end)='caisse'
       and target.parent_profile_id=actor.id)
      or
      (actor.niveau_interne=1 and public.naxa_business_function(actor.id)='promoteur'
@@ -48,7 +48,7 @@ begin
  if v_arch is null then raise exception 'Architecture NAXA non assignée'; end if;
  if not exists(select 1 from public.naxa_architecture_niveaux where architecture_code=v_arch and niveau=p_niveau) then raise exception 'Niveau non autorisé par architecture %',v_arch; end if;
 
- select public.naxa_business_function(p_target) into v_target_fn;
+ select coalesce(fonction_interne,case role::text when 'caisse' then 'caisse' when 'promoteur' then 'promoteur' else null end) into v_target_fn from public.profiles where id=p_target;
  if p_niveau=2 and v_target_fn<>'responsable' then raise exception 'Niveau 2 exige fonction Responsable'; end if;
  if p_niveau=3 and v_target_fn<>'caisse' then raise exception 'Niveau 3 exige fonction Caisse'; end if;
  select public.naxa_business_function(p_parent) into v_parent_fn;
@@ -89,7 +89,7 @@ begin
  select architecture_code,max_caisses into arch,maxc from public.pharmacie_architectures where pharmacie_id=p_pharmacie and active=true;
  if arch is null then raise exception 'Architecture NAXA non assignée'; end if;
  if not exists(select 1 from public.naxa_architecture_niveaux where architecture_code=arch and niveau=3) then raise exception 'Cette architecture ne permet pas de Caisse'; end if;
- if actor_fn='responsable' and not exists(select 1 from public.profiles where id=p_target and niveau_interne=3 and public.naxa_business_function(id)='caisse') then raise exception 'Cible Caisse invalide'; end if;
+ if actor_fn='responsable' and not exists(select 1 from public.profiles where id=p_target and niveau_interne=3 and coalesce(fonction_interne,case role::text when 'caisse' then 'caisse' else null end)='caisse') then raise exception 'Cible Caisse invalide'; end if;
  select count(*) into cnt from public.profiles where pharmacie_id=p_pharmacie and actif and niveau_interne=3 and public.naxa_business_function(id)='caisse';
  if maxc is not null and cnt>=maxc then raise exception 'Quota Caisses atteint'; end if;
  update public.profiles set role='caisse',fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,pharmacie_id=p_pharmacie,parent_profile_id=uid,architecture_code=arch,actif=true where id=p_target;
@@ -110,7 +110,7 @@ returns void language plpgsql security definer set search_path=''
 as $naxa$
 declare pid uuid; fn text;
 begin
- select pharmacie_id into pid from public.profiles where id=p_target; fn:=public.naxa_business_function(p_target);
+ select pharmacie_id,coalesce(fonction_interne,case role::text when 'caisse' then 'caisse' else null end) into pid,fn from public.profiles where id=p_target;
  if fn<>'caisse' or pid is null then raise exception 'Cible Caisse invalide'; end if;
  if p_active then
    if not public.naxa_has_privilege('REACTIVATE_CAISSE',pid,'PHARMACIE') then raise exception 'Réactivation Caisse non autorisée'; end if;
