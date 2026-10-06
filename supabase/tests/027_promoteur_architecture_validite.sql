@@ -109,7 +109,6 @@ begin
   select public.naxa_can('VIEW_PHARMACY',v_a,null) into v_ok;
   if v_ok then raise exception 'Promoteur invalide encore autorisé par naxa_can'; end if;
 
-  if public.naxa_can('VIEW_PHARMACY',v_a,'PHARMACIE') then raise exception 'Promoteur invalide encore autorisé par naxa_can'; end if;
   begin
     perform public.naxa_provision_promoteur_pharmacie(v_promoteur,v_a);
     raise exception 'provisioning Promoteur invalide encore accepté';
