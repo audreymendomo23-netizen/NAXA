@@ -944,3 +944,38 @@ Je ne passe pas à Caisse avant :
 2. confirmation utilisateur du périmètre Client.
 
 Après validation explicite du Client, le chantier suivant sera traité en bloc : Caisse complète → audit contradictoire → corrections → tests → documentation → demande de validation.
+
+## 🔒 PASSAGE CAISSE — CONSTRUCTION COMPLÈTE / AUDIT CONTRADICTOIRE — 6 OCTOBRE 2026
+
+### Contradictions fermées
+1. Caisse trop puissante : l'ancien écran permettait l'import du stock et la modification de la garde. → UI + DB corrigées.
+2. Transition de réservation insuffisamment liée aux privilèges : set_reservation_status acceptait les opérations de pharmacie sans vérifier le droit effectif. → contrôles par privilège ajoutés.
+3. Architecture seulement déclarative : l'ancien moteur de privilèges n'utilisait pas naxa_architecture_privileges comme barrière effective. → architecture intégrée au calcul du droit effectif.
+4. Caisse sans provision de droits fiable : le rôle pouvait exister sans socle opérationnel. → provision DB automatique du socle autorisé.
+5. Pilotage Caisse trop large : le dashboard réutilisait les KPI de toute la pharmacie. → stats_caisse_scope() dédié au poste courant.
+6. Double comptage CA : payee puis retiree pouvaient compter deux fois la même vente. → CA attribué au passage payee uniquement.
+
+### Matrice Caisse retenue
+- 🟢 Stock : voir stock + modifier quantité.
+- 🟢 Réservations : voir, confirmer, traiter, annuler selon transitions autorisées.
+- 🟢 Vente : confirmer paiement, confirmer retrait, historique autorisé.
+- 🟢 Pilotage : activité de son poste.
+- 🟢 Rapports : rapports Caisse autorisés.
+- 🔴 Import stock global.
+- 🔴 Coût d'achat / valorisation / marge.
+- 🔴 Gestion Caisses / Responsables.
+- 🔴 Architecture / convention / tarif.
+- 🔴 Gestion de garde.
+- 🔴 Auto-élévation / attribution de privilèges.
+
+### Artefacts
+- supabase/migration_022_caisse_perimetre.sql
+- supabase/tests/020_caisse_perimetre.sql
+- UI /pharmacie et /pharmacie/pilotage adaptées au périmètre Caisse.
+
+### Validation
+🟠 CAISSE — construit et contradictoirement corrigé, mais validation d'intégration Supabase non encore déclarée verte.
+
+Raison : les migrations 021/022 ne sont volontairement pas appliquées en Production et le projet NAXA ne dispose pas d'une branche Supabase non-Production dédiée. Les tests structurels sont présents, mais la preuve d'exécution intégrée doit encore être réalisée dans un environnement de test sûr.
+
+Aucun passage à Responsable tant que Caisse n'est pas validé.
