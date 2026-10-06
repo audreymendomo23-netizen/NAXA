@@ -65,6 +65,36 @@ begin
     granted_by=excluded.granted_by,
     granted_at=now();
 
+  insert into public.naxa_profile_privileges(
+    profile_id,privilege_code,pharmacie_id,scope_type,granted_by
+  )
+  select
+    p_promoteur,
+    ap.privilege_code,
+    null,
+    'RESEAU',
+    p_promoteur
+  from public.naxa_architecture_privileges ap
+  join public.naxa_privileges n on n.code=ap.privilege_code
+  where ap.architecture_code=v_arch
+    and ap.role_key='promoteur'
+    and n.active
+    and not n.governance
+    and n.delegable
+    and ap.privilege_code in (
+      'VIEW_NETWORK_PILOTAGE',
+      'VIEW_NETWORK_REPORT',
+      'VIEW_NETWORK_HEALTH',
+      'VIEW_CA_BY_PHARMACY',
+      'VIEW_COMPARISON'
+    )
+  on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+  do update set
+    active=true,
+    revoked_at=null,
+    granted_by=excluded.granted_by,
+    granted_at=now();
+
   get diagnostics v_count=row_count;
   return v_count;
 end
