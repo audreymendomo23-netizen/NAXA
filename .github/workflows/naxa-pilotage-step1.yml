@@ -141,7 +141,8 @@ jobs:
             unique(nom,dosage,forme)
           );
           """
-          s += """do $block$ begin create type role_type as enum ('client','pharmacie','promoteur','caisse','admin'); exception when duplicate_object then null; end $block$;
+          s += """create extension if not exists pg_trgm; create extension if not exists unaccent; create extension if not exists pgcrypto;
+          do $block$ begin create type role_type as enum ('client','pharmacie','promoteur','caisse','admin'); exception when duplicate_object then null; end $block$;
           do $block$ begin create type resa_statut as enum ('en_attente','confirmee','payee','retiree','expiree','annulee'); exception when duplicate_object then null; end $block$;
           create table if not exists public.pharmacies(id uuid primary key default gen_random_uuid(),nom text not null,ville text not null default 'Yaoundé',lat double precision not null,lng double precision not null,actif boolean not null default true,quartier text,adresse text,de_garde boolean not null default false,horaires text,stock_updated_at timestamptz,created_at timestamptz not null default now());
           create table if not exists public.profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references public.pharmacies(id),created_at timestamptz not null default now(),first_name text,last_name text,phone text,phone_country text,date_of_birth date,age_verified boolean not null default false,consent_accepted_at timestamptz,parent_profile_id uuid references public.profiles(id) on delete set null,actif boolean not null default true);
