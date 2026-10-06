@@ -40,8 +40,8 @@ jobs:
           cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
           n=1
           for f in supabase/migration_*.sql; do
-            ts=$(printf "2026100600%02d" "$n")
-            cp "$f" "supabase/migrations/"$(printf "2026100600%02d" "$n")"_"$(basename "$f")
+            ts=$(printf '2026100600%02d' "$n")
+            cp "$f" "supabase/migrations/"$ts"_$(basename "$f")"
             n=$((n+1))
           done
       - name: Démarrer Supabase local
