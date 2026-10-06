@@ -815,6 +815,6 @@ Le périmètre Client est **construit et audité**, mais n'est pas encore décla
 - Les données d'un autre poste ne sont pas utilisées pour le tableau Caisse.
 
 ### Tests
-- supabase/tests/020_caisse_perimetre.sql — 18 assertions.
+- supabase/tests/020_caisse_perimetre.sql — 20 assertions.
 - Migration 022 et test restent sur la branche ; aucune application Production.
 - Aucun merge main et aucun déploiement sans autorisation explicite.
