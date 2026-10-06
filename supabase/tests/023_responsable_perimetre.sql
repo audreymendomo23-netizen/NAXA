@@ -41,3 +41,23 @@ select 'Privilege target helper' as check_name,
 select 'RBAC boundary helper' as check_name,
        exists(select 1 from pg_proc where proname='naxa_grant_privilege')
        and exists(select 1 from pg_proc where proname='naxa_revoke_privilege') as pass;
+
+
+select 'profiles_team_read policy' as check_name,
+       exists(select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_team_read') as pass;
+
+select 'Responsible function fields' as check_name,
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='fonction_interne')
+       and exists(select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='niveau_interne') as pass;
+
+select 'Exact sensitive execute gates' as check_name,
+       not has_function_privilege('anon','public.accrediter_profile(uuid,uuid,smallint,uuid)','EXECUTE')
+       and not has_function_privilege('anon','public.naxa_provision_caisse(uuid,uuid)','EXECUTE')
+       and not has_function_privilege('anon','public.naxa_set_caisse_status(uuid,boolean)','EXECUTE')
+       and not has_function_privilege('anon','public.naxa_grant_privilege(uuid,text,uuid,text)','EXECUTE')
+       and not has_function_privilege('anon','public.naxa_revoke_privilege(uuid,text,uuid,text)','EXECUTE')
+       and has_function_privilege('authenticated','public.accrediter_profile(uuid,uuid,smallint,uuid)','EXECUTE')
+       and has_function_privilege('authenticated','public.naxa_provision_caisse(uuid,uuid)','EXECUTE')
+       and has_function_privilege('authenticated','public.naxa_set_caisse_status(uuid,boolean)','EXECUTE')
+       and has_function_privilege('authenticated','public.naxa_grant_privilege(uuid,text,uuid,text)','EXECUTE')
+       and has_function_privilege('authenticated','public.naxa_revoke_privilege(uuid,text,uuid,text)','EXECUTE') as pass;
