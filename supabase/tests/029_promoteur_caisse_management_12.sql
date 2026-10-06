@@ -1,4 +1,5 @@
 -- NAXA Partie 4 — vérifications 1+2 : management Caisse, scope, architecture, quotas.
+-- Checkpoint d'exécution : 6 octobre 2026.
 begin;
 
 create temp table p4_ids(
