@@ -35,9 +35,11 @@ begin
   values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true,max_responsables=5,max_caisses=5;
 
+  set local session_replication_role='replica';
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
+  set local session_replication_role='origin';
 
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut)
   values(v_promoteur,30000,current_date+30,'active')
@@ -49,6 +51,7 @@ begin
   on conflict(promoteur_id) do update set convention_id=excluded.convention_id,montant_mensuel=30000,debut=current_date,echeance=current_date+30,statut='actif';
 
   if not public.naxa_promoteur_valide(v_promoteur) then raise exception 'validité active refusée'; end if;
+  perform public.naxa_provision_promoteur_pharmacie(v_promoteur,v_a);
 
   perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   if not public.naxa_can('VIEW_PHARMACY',v_a,'PHARMACIE') then raise exception 'Promoteur valide refusé par naxa_can'; end if;
@@ -103,6 +106,12 @@ begin
   if v_ok then raise exception 'Promoteur invalide encore autorisé par naxa_can'; end if;
 
   if public.naxa_can('VIEW_PHARMACY',v_a,'PHARMACIE') then raise exception 'Promoteur invalide encore autorisé par naxa_can'; end if;
+  begin
+    perform public.naxa_provision_promoteur_pharmacie(v_promoteur,v_a);
+    raise exception 'provisioning Promoteur invalide encore accepté';
+  exception when others then
+    if position('commercialement invalide' in sqlerrm)=0 then raise; end if;
+  end;
 
   if not public.naxa_scope_allows(v_promoteur,v_a,'PHARMACIE') then
     raise exception 'le scope réseau a été cassé par la validité';
