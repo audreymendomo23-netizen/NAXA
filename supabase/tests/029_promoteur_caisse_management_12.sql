@@ -21,7 +21,7 @@ declare
   r uuid:=gen_random_uuid();
   conv uuid;
 begin
-  alter table auth.users disable trigger on_auth_user_created;
+  set local session_replication_role='replica';
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values
    (p,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p4-promoteur@example.test','x',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
@@ -34,7 +34,7 @@ begin
    (c1,'caisse','p4caisse1','P4','Caisse1','+237690000012','CM','1990-01-01',true,now(),true,'caisse',3,3),
    (c2,'caisse','p4caisse2','P4','Caisse2','+237690000013','CM','1990-01-01',true,now(),false,'caisse',3,3),
    (r,'pharmacie','p4responsable','P4','Responsable','+237690000014','CM','1990-01-01',true,now(),true,'responsable',2,2);
-  alter table auth.users enable trigger on_auth_user_created;
+  set local session_replication_role='origin';
 
   insert into public.pharmacies(id,nom,actif) values(a,'P4 A',true),(b,'P4 B',true);
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true);
