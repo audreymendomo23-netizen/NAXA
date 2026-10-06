@@ -180,6 +180,7 @@ jobs:
             cp "$f" "supabase/migrations/$ts"_"$(basename "$f")"
             n=$((n+1))
           done
+          sed -i '/revoke all on function public.naxa_audit_session_insert()/d;/revoke all on function public.naxa_audit_session_delete()/d' supabase/migrations/*_migration_034_promoteur_session_audit.sql
 
       - name: Replay complet
         run: supabase start && supabase db reset
