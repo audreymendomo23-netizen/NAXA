@@ -110,6 +110,7 @@ begin
 
   -- Un Responsable peut recevoir un privilège de pilotage compatible, mais jamais le Pilotage réseau.
   perform public.naxa_grant_privilege(v_target,'VIEW_PHARMACY_PILOTAGE',v_pharmacie,'PHARMACIE');
+  perform set_config('request.jwt.claims',json_build_object('sub',v_target::text,'role','authenticated')::text,true);
   if public.authorize('VIEW_NETWORK_PILOTAGE',v_pharmacie,'PHARMACIE') then
     raise exception 'Responsable ne doit pas recevoir VIEW_NETWORK_PILOTAGE';
   end if;
