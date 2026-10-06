@@ -1,0 +1,57 @@
+name: NAXA — Partie 3 Responsable — validation isolée
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, consolidation]
+jobs:
+  partie3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Configurer Supabase local
+        run: |
+          cat > supabase/config.toml <<'EOF'
+          project_id = "naxa-partie3-ci"
+          [api]
+          enabled = true
+          [db]
+          major_version = 17
+          [studio]
+          enabled = false
+          [inbucket]
+          enabled = false
+          [storage]
+          enabled = false
+          [realtime]
+          enabled = false
+          [analytics]
+          enabled = false
+          [edge_runtime]
+          enabled = false
+          EOF
+      - name: Préparer les migrations
+        run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+          n=1
+          for f in supabase/migration_*.sql; do
+            ts=$$(printf "2026100600%02d" "$$n")
+            cp "$$f" "supabase/migrations/$"+'{ts}_$'+"(basename "$f")"
+            n=$$(($$n+1))
+          done
+      - name: Démarrer Supabase local
+        run: supabase start
+      - name: Replay complet + migration 028
+        run: supabase db reset
+      - name: Assertions structurelles Partie 3
+        run: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
+      - name: Tests comportementaux Partie 3
+        run: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+      - name: Arrêt propre
+        if: always()
+        run: supabase stop
