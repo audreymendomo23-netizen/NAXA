@@ -1197,7 +1197,7 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 - Architecture vérifiée : A1/A2 refusent CREATE_RESPONSABLE ; A3/A4 l'autorisent conformément à la matrice existante.
 - Ajout canonique : naxa_promoteur_valide(uuid) = Promoteur actif + convention active non échue + abonnement actif non échu + abonnement rattaché à la bonne convention.
 - naxa_can(...) bloque maintenant un Promoteur commercialement invalide.
-- accredit​er_profile(...) bloque l'accréditation lancée par un Promoteur invalide et le parent Promoteur invalide.
+- accrediter_profile(...) bloque l'accréditation lancée par un Promoteur invalide et le parent Promoteur invalide.
 - naxa_provision_promoteur_pharmacie(...) refuse le provisioning d'un Promoteur commercialement invalide.
 - Le scope réseau de la Partie 1 reste indépendant de la validité : le lien peut rester présent, mais l'opérationnel est bloqué.
 - Migration : supabase/migration_027_promoteur_architecture_validite.sql.
