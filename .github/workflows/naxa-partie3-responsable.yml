@@ -1,8 +1,6 @@
 name: NAXA — Partie 3 Responsable — validation isolée
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main, consolidation]
   push:
     branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
 jobs:
