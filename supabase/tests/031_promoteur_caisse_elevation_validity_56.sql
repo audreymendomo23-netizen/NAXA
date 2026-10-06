@@ -62,12 +62,12 @@ select set_config('request.jwt.claim.sub',(select promoteur::text from p4c_ids),
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from p4c_ids),'role','authenticated')::text,true);
 
 select public.naxa_grant_privilege((select caisse from p4c_ids),'VIEW_STOCK',(select pharmacie from p4c_ids),'PHARMACIE');
-update public.profiles set actif=false where id=(select caisse from p4c_ids);
+select public.naxa_set_caisse_status((select caisse from p4c_ids),false);
 select pg_temp.assert_raises(
   format('select public.naxa_grant_privilege(%L,%L,%L,%L)',(select caisse from p4c_ids),'VIEW_STOCK',(select pharmacie from p4c_ids),'PHARMACIE'),
   '6.1 cible inactive non délégable'
 );
-update public.profiles set actif=true where id=(select caisse from p4c_ids);
+select public.naxa_set_caisse_status((select caisse from p4c_ids),true);
 update public.conventions_promoteurs set date_expiration=current_date-1,statut='expiree' where id=(select convention from p4c_ids);
 update public.abonnements_promoteurs set echeance=current_date-1,statut='impaye' where promoteur_id=(select promoteur from p4c_ids);
 select pg_temp.assert_true(
