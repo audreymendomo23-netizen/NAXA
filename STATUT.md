@@ -1212,3 +1212,62 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 - Partie 4/6 — ⏳ Gestion des Caisses + délégation.
 - Partie 5/6 — ⏳ Pilotage / CA / reporting réseau.
 - Partie 6/6 — ⏳ Sécurité finale + régression CI/build + clôture documentaire.
+## 🔄 CHECKPOINT — PROMOTEUR PARTIE 3/6 — 6 OCTOBRE 2026
+
+Cette section fait foi pour l'état courant du chantier Promoteur et supersède toute formulation antérieure présentant la Partie 3 comme clôturée.
+
+### Partie 1/6 — 🟢 Périmètre réseau/pharmacies
+- `promoteur_pharmacies` comme scope canonique.
+- **13/13 assertions PASS** en validation transactionnelle réelle.
+- Rollback complet ; aucune donnée de test persistée.
+
+### Partie 2/6 — 🟢 Architecture + convention + validité
+- Validité commerciale Promoteur contrôlée par `naxa_promoteur_valide()`.
+- Architecture et privilège `CREATE_RESPONSABLE` contrôlés.
+- **11/11 assertions PASS** en replay transactionnel 013→027.
+- Rollback complet ; aucune donnée de test persistée.
+
+### Partie 3/6 — 🟡 PAUSÉE VOLONTAIREMENT
+Décision utilisateur : **geler exactement la Partie 3 à son état actuel et avancer sur le chantier suivant**.
+
+État conservé :
+- `supabase/migration_028_promoteur_responsable_accreditation.sql` construite.
+- `CREATE_RESPONSABLE` est devenu une barrière explicite pour l'accréditation d'un Responsable.
+- Test structurel `supabase/tests/028_promoteur_responsable_accreditation.sql` : PASS.
+- Replay CI jusqu'à migration 028 : PASS.
+- Build : PASS.
+- Validation comportementale complète : **non clôturée / non verte** à ce checkpoint.
+- Aucun merge `main`.
+- Aucune modification Production.
+- Aucun déploiement Preview.
+- Reprise ultérieure prévue exactement à ce point, sans perdre l'état de travail.
+
+### Promoteur — état courant
+- Partie 1/6 : 🟢
+- Partie 2/6 : 🟢
+- Partie 3/6 : 🟡 PAUSÉE
+- Partie 4/6 : prochaine étape
+- Partie 5/6 : ⏳
+- Partie 6/6 : ⏳
+
+## ▶️ PROCHAINE ÉTAPE — PROMOTEUR PARTIE 4/6
+
+### Intitulé
+**Gestion des Caisses + délégation des privilèges**
+
+### Objectif
+Fermer le périmètre Promoteur sur la gestion opérationnelle des Caisses sans réintroduire de pouvoir de gouvernance.
+
+### Contradictions à rechercher en priorité
+1. Un Promoteur peut-il gérer une Caisse hors de son réseau ou hors de la pharmacie ciblée ? → doit être refusé.
+2. Peut-il créer/suspendre/réactiver une Caisse sans respecter l'architecture et le quota de la pharmacie ? → doit être refusé.
+3. Peut-il déléguer un privilège non délégable ou de gouvernance NAXA ? → doit être refusé.
+4. Peut-il attribuer un privilège compatible mais au-delà du scope autorisé ? → doit être refusé.
+5. Une Caisse peut-elle s'auto-élever, gérer un Promoteur/Responsable ou modifier l'architecture/convention/tarif ? → doit être refusé.
+6. La délégation doit-elle survivre correctement aux désactivations/réactivations et à l'expiration commerciale ? → à vérifier sans contournement du moteur `naxa_can()`.
+7. Les anciennes fonctions de gestion de profils peuvent-elles contourner la nouvelle matrice ? → à rechercher et fermer.
+
+### Méthode de la Partie 4
+**Audit → inventaire des entrées → raisonnement par contradiction → correction additive → tests structurels + comportementaux → rollback → régression CI/build → README.md + STATUT.md → verdict.**
+
+Aucun « 🟢 » ne sera déclaré pour la Partie 4 tant que les preuves correspondantes ne sont pas obtenues.
