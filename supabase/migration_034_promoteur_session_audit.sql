@@ -107,6 +107,8 @@ $$;
 
 revoke all on function public.naxa_record_session_audit(text,uuid,uuid,uuid,inet,text,text)
   from public, anon, authenticated;
+revoke all on function public.naxa_audit_session_insert() from public, anon, authenticated;
+revoke all on function public.naxa_audit_session_delete() from public, anon, authenticated;
 
 create or replace function public.naxa_record_session_limit_rejected(
   p_session_id uuid,p_user_id uuid,p_pharmacie_id uuid default null,
@@ -146,7 +148,7 @@ begin
     v_pharmacie_id,
     new.ip,
     new.user_agent,
-    case when new.tag is null then null else new.tag end
+    null
   );
 
   return new;
@@ -174,7 +176,7 @@ begin
     v_pharmacie_id,
     old.ip,
     old.user_agent,
-    old.tag
+    null
   );
 
   return old;
