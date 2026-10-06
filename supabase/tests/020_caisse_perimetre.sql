@@ -1,7 +1,7 @@
 -- NAXA 022 — test d'acceptation Caisse
 -- Test structurel : aucun changement persistant.
 begin;
-select plan(18);
+select plan(20);
 
 select ok(
  exists(select 1 from pg_proc where proname='naxa_has_privilege' and pronamespace='public'::regnamespace),
@@ -104,6 +104,16 @@ select ok(
 select ok(
   exists(select 1 from pg_policies where schemaname='public' and tablename='stocks' and policyname='stocks_management_insert' and cmd='INSERT'),
   'INSERT stock est séparé et réservé au management'
+);
+
+select ok(
+  not exists(select 1 from public.naxa_architecture_privileges where role_key='caisse' and privilege_code in ('VIEW_REPORTS','VIEW_CAISSE_REPORT')),
+  'aucun privilège Rapport Caisse non implémenté n’est présenté comme acquis'
+);
+
+select ok(
+  not exists(select 1 from public.naxa_architecture_privileges where role_key='caisse' and privilege_code in ('VIEW_CA','VIEW_CA_HISTORY')),
+  'le CA global n’est pas exposé comme dataset Caisse'
 );
 
 select * from finish();
