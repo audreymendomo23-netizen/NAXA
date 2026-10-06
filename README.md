@@ -1071,3 +1071,21 @@ Le chantier est gelé exactement à son état actuel, à la demande explicite de
 - Partie 6/6 — Sécurité finale + régression CI/build + clôture documentaire.
 
 **Important :** la pause de la Partie 3 n'est pas une validation verte. Elle est conservée comme checkpoint technique ouvert pour reprise ultérieure.
+
+## 🔎 Audit des points pending — 6 octobre 2026
+
+Audit croisé exécuté selon la méthode NAXA : **audit → contradictions → correction → test → régression → documentation → 100% vert**.
+
+### Contradictions racines identifiées
+1. **CI non déclenchée sur la bonne branche cible** : le workflow présent sur `consolidation` ne ciblait que `main`, alors que le PR Promoteur 25 cible `consolidation`. Les points 3→10 pouvaient donc rester « pending » sans constituer des échecs métier.
+2. **Replay historique incomplet en Vérification 8** : la normalisation appliquée aux autres jobs n'était pas reproduite pour `handle_new_user()`, `reserve_stock()` et `my_pharmacie()`. Cela créait un échec de harness indépendant du métier testé.
+3. **Audit `SESSION_LIMIT_REJECTED` transactionnellement impossible** : l'écriture précédait un `RAISE EXCEPTION` dans le même trigger ; le rollback pouvait annuler la trace. Le refus est désormais journalisé par le chemin serveur après l'échec, avec une fonction réservée à `service_role`.
+4. **Test session insuffisant** : le contrôle 034 était structurel. Un test 035 couvre désormais la séquence 4 sessions → 5e refus → trace de refus → révocations.
+5. **Surface SECURITY DEFINER à réduire** : les fonctions trigger d'audit sont désormais retirées des droits directs `public/anon/authenticated`.
+6. **Sémantique `provider` ambiguë** : `auth.sessions.tag` n'est pas utilisé comme faux fournisseur ; les événements issus des triggers laissent `provider` nul et le chemin serveur renseigne explicitement `password`.
+
+### État de preuve
+- Corrections de code et de CI appliquées sur la branche de travail.
+- Aucun merge `main`, aucune migration Production.
+- La chaîne CI doit encore fournir la **preuve d'exécution** avant tout passage au vert.
+- **Aucune partie 3→10 n'est déclarée verte sans cette preuve.**
