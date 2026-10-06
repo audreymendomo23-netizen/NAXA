@@ -293,6 +293,8 @@ jobs:
         run: supabase db reset
       - name: Vérifications Promoteur Partie 4 — groupes 1+2
         run: docker exec -i supabase_db_naxa-partie4-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/029_promoteur_caisse_management_12.sql
+      - name: Vérifications Promoteur Partie 4 — groupes 3+4
+        run: docker exec -i supabase_db_naxa-partie4-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/030_promoteur_caisse_delegation_34.sql
       - name: Arrêt Supabase local
         if: always()
         run: supabase stop
