@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { Barres, Liste, Section, Tuile, useTempsReel } from "@/components/Pilotage";
 
-type Stats={role:string;pharmacies:{total:number;actives:number;inactives:number};recherches:{total:number;sans_resultat:number};entonnoir:{recherches:number;fiches_vues:number;paniers:number;reservations:number;ventes:number};ca:number;stock:{produits_en_stock:number;ruptures:number};alertes:number;serie:{jour:string;recherches:number;reservations:number;ventes:number}[]}; type CaisseStats={role:"caisse";pharmacie_id:string;jours:number;evenements_reservation:number;paiements:number;retraits:number;annulations:number;ca:number};
+type Stats={role:"admin"|"promoteur"|"responsable"|"pharmacie";pharmacies:{total:number;actives:number;inactives:number};recherches:{total:number;sans_resultat:number};entonnoir:{recherches:number;fiches_vues:number;paniers:number;reservations:number;ventes:number};ca:number;stock:{produits_en_stock:number;ruptures:number};alertes:number;serie:{jour:string;recherches:number;reservations:number;ventes:number}[]}; type CaisseStats={role:"caisse";pharmacie_id:string;jours:number;evenements_reservation:number;paiements:number;retraits:number;annulations:number;ca:number};
 
 export default function PilotagePharmacie(){
  const[jours,setJours]=useState(7),[d,setD]=useState<Stats|CaisseStats|null>(null),[err,setErr]=useState("");
