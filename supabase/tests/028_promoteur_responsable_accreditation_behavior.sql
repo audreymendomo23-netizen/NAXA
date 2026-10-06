@@ -42,7 +42,7 @@ do $$
 declare v_target uuid:=gen_random_uuid();
 begin
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
-  values(v_target,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-target2@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3target2","first_name":"P3","last_name":"Target2","date_of_birth":"1990-01-01","consent_accepted":true}',now(),now());
+  values(v_target,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-target2@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3target2","first_name":"P3","last_name":"Target2","date_of_birth":"1990-01-01","consent_accepted":true,"phone_country":"CM","phone":"+237690000003"}',now(),now());
   update public.profiles set role='pharmacie',fonction_interne='responsable',actif=true where id=v_target;
   perform pg_temp.assert_raises(format('select public.accrediter_profile(%L,%L,2,%L)',v_target,(select pharmacie from p3_ids),(select promoteur from p3_ids)),'API historique sans CREATE_RESPONSABLE refusée');
 end $$;
