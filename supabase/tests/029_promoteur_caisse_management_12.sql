@@ -8,6 +8,7 @@ create temp table p4_ids(
   pharmacie_b uuid,
   caisse1 uuid,
   caisse2 uuid,
+  caisse_other uuid,
   responsable uuid
 );
 
@@ -18,6 +19,7 @@ declare
   b uuid:=gen_random_uuid();
   c1 uuid:=gen_random_uuid();
   c2 uuid:=gen_random_uuid();
+  co uuid:=gen_random_uuid();
   r uuid:=gen_random_uuid();
   conv uuid;
 begin
@@ -27,12 +29,14 @@ begin
    (p,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p4-promoteur@example.test','x',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
    (c1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p4-c1@example.test','x',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
    (c2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p4-c2@example.test','x',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
+   (co,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p4-co@example.test','x',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
    (r,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p4-r@example.test','x',now(),'{"provider":"email","providers":["email"]}','{}',now(),now());
   insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif,fonction_interne,niveau_interne,niveau_hierarchique)
   values
    (p,'promoteur','p4promoteur','P4','Promoteur','+237690000011','CM','1990-01-01',true,now(),true,'promoteur',1,1),
    (c1,'caisse','p4caisse1','P4','Caisse1','+237690000012','CM','1990-01-01',true,now(),true,'caisse',3,3),
    (c2,'caisse','p4caisse2','P4','Caisse2','+237690000013','CM','1990-01-01',true,now(),false,'caisse',3,3),
+   (co,'caisse','p4caisseother','P4','CaisseOther','+237690000015','CM','1990-01-01',true,now(),true,'caisse',3,3),
    (r,'pharmacie','p4responsable','P4','Responsable','+237690000014','CM','1990-01-01',true,now(),true,'responsable',2,2);
   set local session_replication_role='origin';
 
@@ -48,8 +52,9 @@ begin
 
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=c1;
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=c2;
+  update public.profiles set pharmacie_id=b,parent_profile_id=p,architecture_code='ORPHELIN' where id=co;
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=r;
-  insert into p4_ids values(p,a,b,c1,c2,r);
+  insert into p4_ids values(p,a,b,c1,c2,co,r);
 end $$;
 
 create or replace function pg_temp.assert_true(p_ok boolean,p_label text) returns void language plpgsql as $fn$
@@ -115,9 +120,8 @@ select pg_temp.assert_raises(
 );
 
 -- 2.7 Le Promoteur ne peut pas suspendre/réactiver une Caisse hors de son réseau.
-update public.profiles set pharmacie_id=(select pharmacie_b from p4_ids) where id=(select caisse1 from p4_ids);
 select pg_temp.assert_raises(
-  format('select public.naxa_set_caisse_status(%L,false)',(select caisse1 from p4_ids)),
+  format('select public.naxa_set_caisse_status(%L,false)',(select caisse_other from p4_ids)),
   '2.7 suspension hors réseau refusée'
 );
 
