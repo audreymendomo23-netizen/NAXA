@@ -36,7 +36,7 @@ begin
    (r,'pharmacie','p4responsable','P4','Responsable','+237690000014','CM','1990-01-01',true,now(),true,'responsable',2,2);
   set local session_replication_role='origin';
 
-  insert into public.pharmacies(id,nom,actif) values(a,'P4 A',true),(b,'P4 B',true);
+  insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'P4 A',3.8667,11.5167,true),(b,'P4 B',3.8700,11.5200,true);
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true);
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(a,'ORPHELIN',p,true,0,1),(b,'ORPHELIN',p,true,0,1);
