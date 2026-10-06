@@ -6,8 +6,8 @@ declare v_promoteur uuid := gen_random_uuid(); v_target uuid := gen_random_uuid(
 begin
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values
-   (v_promoteur,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-promoteur@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3promoteur","first_name":"P3","last_name":"Promoteur","date_of_birth":"1990-01-01","consent_accepted":true}',now(),now()),
-   (v_target,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-target@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3target","first_name":"P3","last_name":"Target","date_of_birth":"1990-01-01","consent_accepted":true}',now(),now());
+   (v_promoteur,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-promoteur@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3promoteur","first_name":"P3","last_name":"Promoteur","date_of_birth":"1990-01-01","consent_accepted":true,"phone_country":"CM","phone":"+237690000001"}',now(),now()),
+   (v_target,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p3-target@example.test','x',now(),'{"provider":"email","providers":["email"]}','{"username":"p3target","first_name":"P3","last_name":"Target","date_of_birth":"1990-01-01","consent_accepted":true,"phone_country":"CM","phone":"+237690000002"}',now(),now());
   insert into public.pharmacies(id,nom,actif) values(v_pharmacie,'P3 Test A3',true),(v_other_pharmacie,'P3 Test Hors périmètre',true);
   update public.profiles set role='promoteur',fonction_interne='promoteur',niveau_interne=1,actif=true where id=v_promoteur;
   update public.profiles set role='pharmacie',fonction_interne='responsable',actif=true where id=v_target;
