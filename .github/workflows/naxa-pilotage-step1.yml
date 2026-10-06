@@ -119,7 +119,8 @@ jobs:
           """
           s = s[:a] + my_pharmacie + s[b:]
           s = re.sub(r"insert into storage\\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*", "", s, flags=re.I|re.S)
-          s = re.sub(r"revoke execute on function (restore_stock|expire_reservations)\\([^;]*\\) from public,anon,authenticated;\\s*", "", s)
+          s = s.replace("revoke execute on function restore_stock(uuid) from public,anon,authenticated;", "")
+          s = s.replace("revoke execute on function expire_reservations() from public,anon,authenticated;", "")
           p.write_text(s)
           PY
           n=1
