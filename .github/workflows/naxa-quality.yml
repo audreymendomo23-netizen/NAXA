@@ -574,6 +574,8 @@ jobs:
         run: docker exec -i supabase_db_naxa-verification-11-session-audit psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/034_promoteur_session_audit.sql
       - name: Audit sessions Promoteur — comportement réel 4→5
         run: docker exec -i supabase_db_naxa-verification-11-session-audit psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/035_promoteur_session_audit_behavior.sql
+      - name: Audit sessions Promoteur — cloisonnement RLS
+        run: docker exec -i supabase_db_naxa-verification-11-session-audit psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/036_promoteur_session_audit_rls.sql
       - name: Arrêt Supabase
         if: always()
         run: supabase stop
