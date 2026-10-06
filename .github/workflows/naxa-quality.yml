@@ -572,6 +572,8 @@ jobs:
         run: supabase db reset
       - name: Audit sessions Promoteur — structure + sécurité
         run: docker exec -i supabase_db_naxa-verification-11-session-audit psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/034_promoteur_session_audit.sql
+      - name: Audit sessions Promoteur — comportement réel 4→5
+        run: docker exec -i supabase_db_naxa-verification-11-session-audit psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/035_promoteur_session_audit_behavior.sql
       - name: Arrêt Supabase
         if: always()
         run: supabase stop
