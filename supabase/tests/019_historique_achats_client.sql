@@ -95,7 +95,7 @@ select ok(
 
 -- 8. Les achats sont bornés aux états commerciaux terminaux autorisés.
 select ok(
-  pg_get_viewdef('public.client_achats'::regclass, true) like '%where r.statut in (%',
+  pg_get_viewdef('public.client_achats'::regclass, true) ~* 'r\\.statut[[:space:]]*=[[:space:]]*ANY[[:space:]]*\\(ARRAY.*payee.*retiree',
   'client_achats est bornée aux achats payés/retirés'
 );
 
