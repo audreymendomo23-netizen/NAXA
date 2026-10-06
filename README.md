@@ -937,3 +937,59 @@ Cette section fait foi et supersède les états intermédiaires précédents con
 **🟢 PASSE RESPONSABLE — architecture + RBAC + périmètre + runtime transactionnel + sécurité + CI + documentation validés.**
 
 Prochain rôle selon l'ordre convenu : **Promoteur**. Même méthode obligatoire : audit → contradiction → fermeture → test → documentation → 🟢.
+
+
+## 🟢 PASSE PROMOTEUR — VALIDATION FINALE — 6 OCTOBRE 2026
+
+Cette section fait foi et supersède les formulations intermédiaires concernant le périmètre Promoteur.
+
+### Périmètre fermé
+- Le Promoteur est N1 ; il reste porté par `role_type='promoteur'`.
+- Le scope canonique est désormais matérialisé par `promoteur_pharmacies` : un Promoteur peut couvrir plusieurs pharmacies, sans accès implicite aux autres pharmacies.
+- Une Caisse ou un Responsable reste rattaché à une pharmacie du réseau ; le Promoteur peut gérer les cibles de son réseau selon architecture et privilèges.
+- Le Promoteur peut déléguer uniquement les privilèges opérationnels autorisés par NAXA et l'architecture ; les privilèges de gouvernance NAXA restent exclus.
+- Le Pilotage réseau est disponible au Promoteur dans le scope `RESEAU`, mais reste borné aux pharmacies effectivement liées au Promoteur.
+- Le Promoteur ne peut pas modifier lui-même l'architecture, la convention, les tarifs ou la gouvernance NAXA.
+- Une seule convention canonique reste portée par Promoteur, indépendamment du nombre de pharmacies liées.
+
+### Contradiction principale fermée
+L'architecture 019→023 utilisait `promoteur_pharmacies` comme scope canonique sans que cette table soit présente dans les migrations du lot. La fermeture est additive :
+- `supabase/migration_024_promoteur_pharmacies_scope.sql` crée le lien canonique, ses index et sa RLS.
+- `supabase/migration_025_promoteur_privileges.sql` provisionne automatiquement les privilèges Promoteur autorisés par architecture et les privilèges réseau `RESEAU`, sans exposer de fonction de provisioning au client.
+- Le provisioning est robuste à l'ordre : création du lien avant ou après attribution de l'architecture.
+
+### Artefacts
+- `supabase/migration_024_promoteur_pharmacies_scope.sql`
+- `supabase/migration_025_promoteur_privileges.sql`
+- `supabase/tests/024_promoteur_perimetre.sql`
+- Correction de `supabase/tests/020_authorisation_architecture_privileges.sql` : la vérification Responsable → refus du Pilotage réseau s'exécute désormais avec l'identité Responsable, et non avec l'identité Promoteur.
+
+### Preuve Supabase transactionnelle
+- Replay réel des migrations `013→025`, avec exclusion volontaire de la consommation transactionnelle de la nouvelle valeur enum historique `responsable`.
+- Test Promoteur `024_promoteur_perimetre.sql` : **PASS complet + ROLLBACK**.
+- Scope A/B autorisé ; pharmacie C refusée.
+- `VIEW_PHARMACY` autorisé sur A et refusé sur C.
+- Gouvernance `MANAGE_CONVENTION`, `CHANGE_ARCHITECTURE`, `VIEW_GLOBAL_NETWORK` refusée au Promoteur.
+- Pilotage réseau `RESEAU` autorisé pour le Promoteur et refusé hors réseau.
+- Architecture A2 : création Responsable refusée.
+- Architecture A3 : création/accréditation Responsable autorisée.
+- Création/accréditation Caisse et délégation de `VIEW_STOCK` : PASS.
+- Délégation d'un privilège de gouvernance : refusée.
+- Cible d'une autre pharmacie : refusée.
+- Désactivation d'un lien Promoteur/pharmacie : fermeture du scope ; réactivation : restauration du scope.
+- Une seule convention Promoteur : PASS.
+- RLS `promoteur_pharmacies` : activée ; `anon` sans SELECT ; `authenticated` limité par policy.
+- Provisioning Promoteur : non exécutable directement par `authenticated`, déclenché uniquement par les mécanismes DB.
+- Contrôle structurel : PK composite du lien + gouvernance exclue du rôle Promoteur : PASS.
+
+### Régression
+- Correction du test 020 pour évaluer le refus réseau avec l'identité réellement Responsable.
+- CI GitHub **NAXA quality #254 : SUCCESS** sur le HEAD de la branche.
+- Production Supabase inchangée ; migrations `024/025` non appliquées en Production.
+- `main` inchangé.
+- Aucun merge ni déploiement Production.
+
+### Verdict
+**🟢 PASSE PROMOTEUR — scope réseau + architecture + délégation + convention + RLS + runtime transactionnel + régression + CI validés.**
+
+Prochain rôle selon l'ordre convenu : **Admin**. Même méthode obligatoire : audit → contradiction → fermeture → test → documentation → 🟢.
