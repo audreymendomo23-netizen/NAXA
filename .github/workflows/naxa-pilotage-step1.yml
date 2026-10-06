@@ -164,6 +164,72 @@ jobs:
           create or replace function public.stocks_touch() returns trigger language plpgsql security definer set search_path=public as $fn$ begin new.updated_at:=now(); update public.pharmacies set stock_updated_at=now() where id=new.pharmacie_id; return new; end $fn$;
           """
           s += """
+          create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path=public as $fn$
+          declare v_username text:=lower(trim(new.raw_user_meta_data->>'username')); v_first_name text:=trim(new.raw_user_meta_data->>'first_name'); v_last_name text:=trim(new.raw_user_meta_data->>'last_name'); v_phone text:=trim(new.raw_user_meta_data->>'phone'); v_country text:=upper(trim(new.raw_user_meta_data->>'phone_country')); v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date; v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
+          begin
+            if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}(p_id uuid,p_statut resa_statut) returns void language plpgsql security definer set search_path=public as $fn$ declare r public.reservations; begin select * into r from public.reservations where id=p_id for update; if not found then raise exception 'Réservation introuvable'; end if; if not(is_admin() or r.pharmacie_id=my_pharmacie() or(r.client_id=auth.uid() and p_statut='annulee')) then raise exception 'Action non autorisée'; end if; if r.statut in('retiree','expiree','annulee') then raise exception 'Réservation déjà clôturée'; end if; if p_statut in('annulee','expiree') then perform restore_stock(p_id); end if; update public.reservations set statut=p_statut where id=p_id; end $fn$;
+          create or replace function public.declare_payment(p_id uuid,p_ref text) returns void language plpgsql security definer set search_path=public as $fn$ begin update public.reservations set paiement_ref=p_ref where id=p_id and client_id=auth.uid() and statut in('en_attente','confirmee'); if not found then raise exception 'Réservation introuvable ou close'; end if; end $fn$;
+          create or replace function public.expire_reservations() returns int language plpgsql security definer set search_path=public as $fn$ declare n int:=0; r record; begin for r in select id from public.reservations where statut in('en_attente','confirmee') and expires_at<now() for update skip locked loop perform restore_stock(r.id); update public.reservations set statut='expiree' where id=r.id; n:=n+1; end loop; return n; end $fn$;
+          create or replace function public.set_garde(p_garde boolean) returns void language plpgsql security definer set search_path=public as $fn$ begin if my_pharmacie() is null then raise exception 'Réservé aux pharmacies'; end if; update public.pharmacies set de_garde=p_garde where id=my_pharmacie(); end $fn$;
+          """
+          p.write_text(s)
+          PY
+          n=1
+          for f in supabase/migration_*.sql; do
+            ts=$(printf '2026100600%02d' "$n")
+            cp "$f" "supabase/migrations/$ts"_"$(basename "$f")"
+            n=$((n+1))
+          done
+
+      - name: Replay complet
+        run: supabase start && supabase db reset
+
+      - name: Vérification 7 — scope réseau
+        run: docker exec -i supabase_db_naxa-pilotage-step1-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/032_promoteur_scope_reseau_7.sql
+
+      - name: Vérification 8 — pilotage hors périmètre
+        run: docker exec -i supabase_db_naxa-pilotage-step1-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/033_promoteur_pilotage_hors_scope_8.sql
+
+      - name: Arrêt propre
+        if: always()
+        run: supabase stop
+ then raise exception 'Nom d''utilisateur invalide'; end if;
+            if exists(select 1 from public.profiles where lower(username)=v_username) then raise exception 'Nom d''utilisateur déjà pris'; end if;
+            if v_first_name is null or length(v_first_name)<2 or length(v_first_name)>80 then raise exception 'Prénom invalide'; end if;
+            if v_last_name is null or length(v_last_name)<2 or length(v_last_name)>80 then raise exception 'Nom invalide'; end if;
+            if v_dob is null or v_dob>current_date or extract(year from age(current_date,v_dob))<18 then raise exception 'NAXA est réservé aux personnes âgées de 18 ans ou plus'; end if;
+            if not v_consent then raise exception 'L''acceptation des conditions est obligatoire'; end if;
+            if v_country='CM' and v_phone !~ '^\\+237[0-9]{9}(p_id uuid,p_statut resa_statut) returns void language plpgsql security definer set search_path=public as $fn$ declare r public.reservations; begin select * into r from public.reservations where id=p_id for update; if not found then raise exception 'Réservation introuvable'; end if; if not(is_admin() or r.pharmacie_id=my_pharmacie() or(r.client_id=auth.uid() and p_statut='annulee')) then raise exception 'Action non autorisée'; end if; if r.statut in('retiree','expiree','annulee') then raise exception 'Réservation déjà clôturée'; end if; if p_statut in('annulee','expiree') then perform restore_stock(p_id); end if; update public.reservations set statut=p_statut where id=p_id; end $fn$;
+          create or replace function public.declare_payment(p_id uuid,p_ref text) returns void language plpgsql security definer set search_path=public as $fn$ begin update public.reservations set paiement_ref=p_ref where id=p_id and client_id=auth.uid() and statut in('en_attente','confirmee'); if not found then raise exception 'Réservation introuvable ou close'; end if; end $fn$;
+          create or replace function public.expire_reservations() returns int language plpgsql security definer set search_path=public as $fn$ declare n int:=0; r record; begin for r in select id from public.reservations where statut in('en_attente','confirmee') and expires_at<now() for update skip locked loop perform restore_stock(r.id); update public.reservations set statut='expiree' where id=r.id; n:=n+1; end loop; return n; end $fn$;
+          create or replace function public.set_garde(p_garde boolean) returns void language plpgsql security definer set search_path=public as $fn$ begin if my_pharmacie() is null then raise exception 'Réservé aux pharmacies'; end if; update public.pharmacies set de_garde=p_garde where id=my_pharmacie(); end $fn$;
+          """
+          p.write_text(s)
+          PY
+          n=1
+          for f in supabase/migration_*.sql; do
+            ts=$(printf '2026100600%02d' "$n")
+            cp "$f" "supabase/migrations/$ts"_"$(basename "$f")"
+            n=$((n+1))
+          done
+
+      - name: Replay complet
+        run: supabase start && supabase db reset
+
+      - name: Vérification 7 — scope réseau
+        run: docker exec -i supabase_db_naxa-pilotage-step1-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/032_promoteur_scope_reseau_7.sql
+
+      - name: Vérification 8 — pilotage hors périmètre
+        run: docker exec -i supabase_db_naxa-pilotage-step1-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/033_promoteur_pilotage_hors_scope_8.sql
+
+      - name: Arrêt propre
+        if: always()
+        run: supabase stop
+ then raise exception 'Numéro de téléphone camerounais invalide'; end if;
+            insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at) values(new.id,'client',v_username,v_first_name,v_last_name,v_phone,v_country,v_dob,true,now()); return new;
+          end $fn$;
+          """
+          s += """
           create or replace function public.set_reservation_status(p_id uuid,p_statut resa_statut) returns void language plpgsql security definer set search_path=public as $fn$ declare r public.reservations; begin select * into r from public.reservations where id=p_id for update; if not found then raise exception 'Réservation introuvable'; end if; if not(is_admin() or r.pharmacie_id=my_pharmacie() or(r.client_id=auth.uid() and p_statut='annulee')) then raise exception 'Action non autorisée'; end if; if r.statut in('retiree','expiree','annulee') then raise exception 'Réservation déjà clôturée'; end if; if p_statut in('annulee','expiree') then perform restore_stock(p_id); end if; update public.reservations set statut=p_statut where id=p_id; end $fn$;
           create or replace function public.declare_payment(p_id uuid,p_ref text) returns void language plpgsql security definer set search_path=public as $fn$ begin update public.reservations set paiement_ref=p_ref where id=p_id and client_id=auth.uid() and statut in('en_attente','confirmee'); if not found then raise exception 'Réservation introuvable ou close'; end if; end $fn$;
           create or replace function public.expire_reservations() returns int language plpgsql security definer set search_path=public as $fn$ declare n int:=0; r record; begin for r in select id from public.reservations where statut in('en_attente','confirmee') and expires_at<now() for update skip locked loop perform restore_stock(r.id); update public.reservations set statut='expiree' where id=r.id; n:=n+1; end loop; return n; end $fn$;
