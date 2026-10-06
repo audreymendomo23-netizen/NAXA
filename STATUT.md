@@ -915,3 +915,32 @@ Audit de contradiction post-implémentation : la vue `client_achats` était `sec
 
 ### ⚠️ État de validation corrigé — Client non déclaré vert prématurément
 Le périmètre Client est **construit et audité**, mais n'est pas encore déclaré 🟢 100 %. La validation réelle de la migration 021 / test 019 reste impossible dans cette session car la connexion Supabase MCP exige un compte lié éligible. De plus, la CI `naxa-quality.yml` de la branche `consolidation` ne se déclenche que pour les PR vers `main`, tandis que PR #24 cible `consolidation`. Un contrôle TypeScript/transpilation local du nouveau code Client est vert, mais il ne remplace ni le build complet ni le test DB réel. **Aucune validation utilisateur du Client ne sera demandée tant que ces preuves ne sont pas vertes.**
+
+
+## 🔒 PASSAGE CLIENT — CONSTRUCTION COMPLÈTE / VALIDATION FINALE — 6 OCTOBRE 2026
+
+### Ce qui est construit
+- Espace /client séparé du Pilotage interne.
+- Mon suivi des réservations et de leur chronologie.
+- Mes médicaments achetés avec listing transactionnel, détails produit, pharmacie, prix, quantités, référence de paiement et dates/heures disponibles.
+- Filtres temporels et recherche médicament/pharmacie.
+- Garde-fou explicite : historique ancien sans transition d'achat = heure exacte non inventée.
+- Entrée dynamique « Mon espace » pour un Client authentifié.
+
+### Correctif contradictoire fermé
+Une réservation pouvant théoriquement être créée directement en état terminal payee/retiree, la première version de 021 pouvait ne pas disposer d'un événement status_changed pour calculer achat_le. Le trigger a été durci : ce cas produit maintenant un événement terminal horodaté ; une référence de paiement présente à la création est également historisée.
+
+### Tests
+- supabase/tests/019_historique_achats_client.sql porté à 16 assertions.
+- Vérifications prévues : RLS, grants, security_invoker, propriété auth.uid(), états terminaux, exposition de la fonction trigger et couverture du cas terminal direct.
+- Les tentatives précédentes de validation transactionnelle réelle ont été rollbackées ou bloquées avant écriture persistante ; aucune migration 021 n'est en Production.
+- L'absence d'environnement Supabase non-Production dédié empêche encore de déclarer la validation DB d'intégration entièrement verte.
+
+### Statut de décision
+🟠 CLIENT — CONSTRUIT / AUDITÉ / CORRIGÉ, MAIS PAS ENCORE ACCEPTÉ.
+
+Je ne passe pas à Caisse avant :
+1. fermeture de la dernière validation technique disponible sans modifier Production ;
+2. confirmation utilisateur du périmètre Client.
+
+Après validation explicite du Client, le chantier suivant sera traité en bloc : Caisse complète → audit contradictoire → corrections → tests → documentation → demande de validation.
