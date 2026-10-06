@@ -158,6 +158,12 @@ jobs:
           create or replace function public.my_pharmacie() returns uuid language sql stable security definer set search_path=public
           as $fn$ select pharmacie_id from public.profiles where id=auth.uid() and actif=true and role::text in ('pharmacie','promoteur','caisse'); $fn$;
           """
+          s += """
+          create or replace function public.set_reservation_status(p_id uuid,p_statut resa_statut) returns void language plpgsql security definer set search_path=public as $fn$ declare r public.reservations; begin select * into r from public.reservations where id=p_id for update; if not found then raise exception 'Réservation introuvable'; end if; if not(is_admin() or r.pharmacie_id=my_pharmacie() or(r.client_id=auth.uid() and p_statut='annulee')) then raise exception 'Action non autorisée'; end if; if r.statut in('retiree','expiree','annulee') then raise exception 'Réservation déjà clôturée'; end if; if p_statut in('annulee','expiree') then perform restore_stock(p_id); end if; update public.reservations set statut=p_statut where id=p_id; end $fn$;
+          create or replace function public.declare_payment(p_id uuid,p_ref text) returns void language plpgsql security definer set search_path=public as $fn$ begin update public.reservations set paiement_ref=p_ref where id=p_id and client_id=auth.uid() and statut in('en_attente','confirmee'); if not found then raise exception 'Réservation introuvable ou close'; end if; end $fn$;
+          create or replace function public.expire_reservations() returns int language plpgsql security definer set search_path=public as $fn$ declare n int:=0; r record; begin for r in select id from public.reservations where statut in('en_attente','confirmee') and expires_at<now() for update skip locked loop perform restore_stock(r.id); update public.reservations set statut='expiree' where id=r.id; n:=n+1; end loop; return n; end $fn$;
+          create or replace function public.set_garde(p_garde boolean) returns void language plpgsql security definer set search_path=public as $fn$ begin if my_pharmacie() is null then raise exception 'Réservé aux pharmacies'; end if; update public.pharmacies set de_garde=p_garde where id=my_pharmacie(); end $fn$;
+          """
           p.write_text(s)
           PY
           n=1
