@@ -170,6 +170,8 @@ jobs:
           create or replace function public.set_garde(p_garde boolean) returns void language plpgsql security definer set search_path=public as $fn$ begin if my_pharmacie() is null then raise exception 'Réservé aux pharmacies'; end if; update public.pharmacies set de_garde=p_garde where id=my_pharmacie(); end $fn$;
           """
           s += "create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path=public as $fn$ begin insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at) values(new.id,'client',lower(trim(new.raw_user_meta_data->>'username')),trim(new.raw_user_meta_data->>'first_name'),trim(new.raw_user_meta_data->>'last_name'),trim(new.raw_user_meta_data->>'phone'),upper(trim(new.raw_user_meta_data->>'phone_country')),(new.raw_user_meta_data->>'date_of_birth')::date,true,now()); return new; end $fn$;"
+          s = s.replace("revoke all on function public.naxa_audit_session_insert() from public, anon, authenticated;", "")
+          s = s.replace("revoke all on function public.naxa_audit_session_delete() from public, anon, authenticated;", "")
           p.write_text(s)
           PY
           n=1
