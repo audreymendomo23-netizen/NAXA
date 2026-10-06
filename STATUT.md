@@ -917,6 +917,26 @@ Audit de contradiction post-implémentation : la vue `client_achats` était `sec
 Le périmètre Client est **construit et audité**, mais n'est pas encore déclaré 🟢 100 %. La validation réelle de la migration 021 / test 019 reste impossible dans cette session car la connexion Supabase MCP exige un compte lié éligible. De plus, la CI `naxa-quality.yml` de la branche `consolidation` ne se déclenche que pour les PR vers `main`, tandis que PR #24 cible `consolidation`. Un contrôle TypeScript/transpilation local du nouveau code Client est vert, mais il ne remplace ni le build complet ni le test DB réel. **Aucune validation utilisateur du Client ne sera demandée tant que ces preuves ne sont pas vertes.**
 
 
+## 🔒 VALIDATION TECHNIQUE FINALE — PASSE CLIENT — 6 OCTOBRE 2026
+
+### Preuves désormais obtenues
+- Supabase NAXA accessible : projet `eouwtuusnsuxaejsxknf`, état `ACTIVE_HEALTHY`.
+- Migration 021 + test 019 exécutés **dans une transaction réelle Supabase puis ROLLBACK** : aucune modification persistante de Production.
+- Test 019 : **16/16 assertions PASS**.
+- RLS réel simulé sous le rôle `authenticated` avec `request.jwt.claim.sub` :
+  - Client propriétaire : 4 réservations visibles et 1 achat visible pendant la fixture transactionnelle.
+  - autre UUID Client : 0 réservation et 0 achat visibles.
+- La vue `client_achats` est confirmée `security_invoker=true` et bornée à `r.client_id = auth.uid()`.
+- `reservation_events` est protégée par RLS ; aucun INSERT Client ; fonction de trigger non exécutable directement par `authenticated`.
+- Le cas contradictoire « réservation créée directement en `payee`/référence de paiement présente » produit bien les événements attendus.
+- CI GitHub Actions **NAXA quality #223 : SUCCESS** ; TypeScript PASS et build Next.js PASS sur le HEAD `e7d00e57eec19019473cf3adc83efc79a6730df3`.
+- Correction CI nécessaire sur `src/app/pharmacie/pilotage/page.tsx) : narrowing explicite du discriminant `caisse`/stats pour supprimer les erreurs TypeScript sans changer le métier Client.
+
+### Verdict
+**🟢 PASSE CLIENT — validée au niveau branche + preuves Supabase réelles transactionnelles + RLS + CI/build.**
+
+La migration 021 reste volontairement **non persistée en Production**. Cette absence n'est pas un défaut de validation : elle relève de la règle de gouvernance de déploiement. `main` et Production restent inchangés.
+
 ## 🔒 PASSAGE CLIENT — CONSTRUCTION COMPLÈTE / VALIDATION FINALE — 6 OCTOBRE 2026
 
 ### Ce qui est construit
