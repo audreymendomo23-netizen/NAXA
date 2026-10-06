@@ -21,17 +21,17 @@ select exists(
     and (
       (
         actor.niveau_interne=2
-        and public.naxa_business_function(actor.id)='responsable'
+        and coalesce(public.naxa_business_function(actor.id),case actor.role::text when 'promoteur' then 'promoteur' when 'responsable' then 'responsable' when 'caisse' then 'caisse' else null end)='responsable'
         and target.niveau_interne=3
-        and public.naxa_business_function(target.id)='caisse'
+        and coalesce(public.naxa_business_function(target.id),case target.role::text when 'promoteur' then 'promoteur' when 'responsable' then 'responsable' when 'caisse' then 'caisse' else null end)='caisse'
         and target.parent_profile_id=actor.id
       )
       or
       (
         actor.niveau_interne=1
-        and public.naxa_business_function(actor.id)='promoteur'
+        and coalesce(public.naxa_business_function(actor.id),case actor.role::text when 'promoteur' then 'promoteur' when 'responsable' then 'responsable' when 'caisse' then 'caisse' else null end)='promoteur'
         and target.niveau_interne=3
-        and public.naxa_business_function(target.id)='caisse'
+        and coalesce(public.naxa_business_function(target.id),case target.role::text when 'promoteur' then 'promoteur' when 'responsable' then 'responsable' when 'caisse' then 'caisse' else null end)='caisse'
         and target.parent_profile_id=actor.id
         and exists(
           select 1
