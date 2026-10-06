@@ -71,6 +71,10 @@ begin
 
   if not public.naxa_promoteur_valide(v_promoteur) then raise exception 'réactivation de validité refusée'; end if;
 
+  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut)
+  values(v_other,30000,current_date+30,'active')
+  on conflict(promoteur_id) do update set montant_mensuel=30000,date_expiration=current_date+30,statut='active';
+
   begin
     insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
     select v_promoteur,c.id,30000,current_date,current_date+30,'actif'
