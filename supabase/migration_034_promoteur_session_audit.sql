@@ -115,12 +115,12 @@ create or replace function public.naxa_record_session_limit_rejected(
   p_ip_address inet default null,p_user_agent text default null,p_provider text default null
 )
 returns void language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $fn$
 begin
   insert into public.naxa_session_audit(session_id,user_id,pharmacie_id,event_type,occurred_at,ip_address,user_agent,provider)
   values(p_session_id,p_user_id,p_pharmacie_id,'SESSION_LIMIT_REJECTED',now(),p_ip_address,left(p_user_agent,1024),left(p_provider,64));
 end;
-$;
+$fn$;
 
 revoke all on function public.naxa_record_session_limit_rejected(uuid,uuid,uuid,inet,text,text)
   from public,anon,authenticated;
@@ -205,7 +205,6 @@ set search_path = pg_catalog, public, auth
 as $$
 declare
   current_count integer;
-  v_pharmacie_id uuid;
 begin
   perform pg_advisory_xact_lock(hashtextextended(new.user_id::text, 0));
 
@@ -216,11 +215,7 @@ begin
      and (not_after is null or not_after > now());
 
   if current_count >= 4 then
-    select p.pharmacie_id
-      into v_pharmacie_id
-      from public.profiles p
-     where p.id = new.user_id;
-
+    -- Le rejet est journalisé hors de cette transaction par le serveur NAXA.
     raise exception 'NAXA_SESSION_LIMIT_REACHED'
       using errcode = 'P0001',
             detail = 'Maximum de 4 sessions actives atteint.';
