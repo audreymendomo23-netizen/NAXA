@@ -379,3 +379,57 @@ jobs:
       - name: Arrêt Supabase local
         if: always()
         run: supabase stop
+
+  verification-8-pilotage:
+    needs: verification-7-scope-reseau
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Configurer Supabase
+        run: |
+          cat > supabase/config.toml <<'EOF'
+          project_id = "naxa-verification-8-ci"
+          [api]
+          enabled = true
+          [db]
+          major_version = 17
+          [studio]
+          enabled = false
+          [storage]
+          enabled = true
+          [realtime]
+          enabled = false
+          [analytics]
+          enabled = false
+          [edge_runtime]
+          enabled = false
+          EOF
+      - name: Préparer le replay
+        run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("supabase/migrations/20261006000000_base.sql")
+          s=p.read_text()
+          s=re.sub(r'insert into storage\\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*','',s,flags=re.I|re.S)
+          s=re.sub(r'revoke execute on function (restore_stock|expire_reservations)\\([^;]*\\) from public,anon,authenticated;\\s*','',s)
+          p.write_text(s)
+          PY
+          cp supabase/migration_*.sql supabase/migrations/ 2>/dev/null || true
+      - name: Démarrer Supabase
+        run: supabase start
+      - name: Replay complet
+        run: supabase db reset
+      - name: Vérification 8 — Pilotage hors périmètre
+        run: docker exec -i supabase_db_naxa-verification-8-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/033_promoteur_pilotage_hors_scope_8.sql
+      - name: Arrêt Supabase
+        if: always()
+        run: supabase stop
