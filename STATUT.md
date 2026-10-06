@@ -999,3 +999,26 @@ Après validation explicite du Client, le chantier suivant sera traité en bloc 
 Raison : les migrations 021/022 ne sont volontairement pas appliquées en Production et le projet NAXA ne dispose pas d'une branche Supabase non-Production dédiée. Les tests structurels sont présents, mais la preuve d'exécution intégrée doit encore être réalisée dans un environnement de test sûr.
 
 Aucun passage à Responsable tant que Caisse n'est pas validé.
+
+
+## 🔒 PASSE CAISSE — VALIDATION TECHNIQUE INTERMÉDIAIRE — 6 OCTOBRE 2026
+
+### Audit contradictoire exécuté
+- Les migrations 013→022 ont été rejouées dans une transaction réelle Supabase puis **ROLLBACK** : aucune modification persistante de Production.
+- `supabase/migration_022_caisse_perimetre.sql` a été corrigée après deux contradictions détectées par le test : les privilèges **VIEW_REPORTS / VIEW_CAISSE_REPORT** et **VIEW_CA / VIEW_CA_HISTORY / VIEW_PILOTAGE** ne doivent pas être exposés à la Caisse tant que ces modules/datasets ne sont pas construits.
+- Le test Caisse `supabase/tests/020_caisse_perimetre.sql` a été rendu exécutable sans pgTAP, par assertions SQL transactionnelles.
+- Validation structurelle Caisse : **20/20 assertions PASS**, transaction rollbackée.
+- Contradiction métier conservée et clarifiée : la Caisse peut voir la file opérationnelle partagée de réservations de sa pharmacie ; son **Pilotage** reste borné à l'acteur courant. Elle ne reçoit pas le Pilotage/CA global ni les opérations confidentielles d'autres caisses.
+
+### Blocage restant avant 🟢
+- Une validation runtime complète sous utilisateurs Caisse réels/simulés n'est pas encore possible sur l'environnement Supabase actuel : la base Production contient les fondations 009/010/011/012 mais **aucun profil `public.profiles` exploitable** pour construire une fixture Caisse sans créer de comptes.
+- Aucune création de compte réel ni modification persistante n'est autorisée pour contourner ce blocage.
+- CI GitHub `NAXA quality` a été déclenchée sur le HEAD et doit être contrôlée avant clôture.
+
+### Gouvernance
+- Branche : `feat/pharmacie-validite-pilotage`.
+- `main` inchangé.
+- Production inchangée.
+- Aucun merge ni déploiement sans **OUI, DÉPLOIE**.
+
+**Verdict actuel : 🟠 CAISSE — architecture et périmètre corrigés + 20/20 structurel, mais runtime multi-utilisateur encore à fermer.**
