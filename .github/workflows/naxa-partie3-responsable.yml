@@ -132,6 +132,8 @@ jobs:
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/028_promoteur_responsable_accreditation.sql
       - name: Tests comportementaux Partie 3
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+      - name: Vérifications Partie 4 — groupes 1+2
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/029_promoteur_caisse_management_12.sql
       - name: Arrêt propre
         if: always()
         run: supabase stop
