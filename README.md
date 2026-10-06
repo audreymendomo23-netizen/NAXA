@@ -790,3 +790,31 @@ Le périmètre Client est **construit et audité**, mais n'est pas encore décla
 - Migration 021 non appliquée en Production.
 - Le Client reste 🟠 en validation finale, pas 🟢 prématurément.
 - Aucun merge main et aucun déploiement Production sans autorisation explicite.
+
+## Caisse — construction complète du périmètre opérationnel
+
+### Périmètre
+- Une Caisse reste un poste opérationnel de la même pharmacie : même stock, mêmes réservations, même identité commerciale.
+- La Caisse peut traiter les opérations autorisées : consultation du stock, modification des quantités, traitement des réservations, confirmation du paiement et du retrait, activité de son poste.
+- La Caisse ne gère pas les utilisateurs, les Responsables, l'architecture, les conventions, les tarifs, les coûts d'achat, la marge, l'import global du stock ni le statut de garde.
+- L'import de stock est retiré de l'UI Caisse et protégé par le moteur de privilèges.
+- Le bouton de gestion des Caisses n'est visible que pour le Promoteur.
+
+### Autorisation
+- migration_022_caisse_perimetre.sql rend l'architecture A1/A2/A3/A4 effective dans naxa_has_privilege().
+- Les transitions de réservation passent désormais par les privilèges correspondants.
+- set_garde() exige MANAGE_GUARD_STATUS.
+- La modification de quantité exige EDIT_STOCK_QUANTITY.
+- Le socle opérationnel Caisse est provisionné automatiquement par la DB lors de l'attribution du rôle Caisse, dans les limites de l'architecture et du quota.
+- Aucun privilège supérieur n'est accordé au rôle Caisse.
+
+### Pilotage Caisse
+- Le dashboard Caisse n'utilise plus le dataset de pharmacie entière.
+- stats_caisse_scope() expose uniquement les opérations attribuées au poste courant via reservation_events.actor_id.
+- CA Caisse compté au passage payee, une seule fois par opération ; le retrait ne double pas le CA.
+- Les données d'un autre poste ne sont pas utilisées pour le tableau Caisse.
+
+### Tests
+- supabase/tests/020_caisse_perimetre.sql — 16 assertions.
+- Migration 022 et test restent sur la branche ; aucune application Production.
+- Aucun merge main et aucun déploiement sans autorisation explicite.
