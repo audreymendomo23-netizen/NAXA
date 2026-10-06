@@ -420,7 +420,7 @@ jobs:
           p=Path("supabase/migrations/20261006000000_base.sql")
           s=p.read_text()
           s=re.sub(r'insert into storage\.buckets\s*\([^;]*?\)\s*values\s*\([^;]*?\);\s*','',s,flags=re.I|re.S)
-          s=re.sub(r'revoke execute on function (restore_stock|expire_reservations)\\([^;]*\\) from public,anon,authenticated;\\s*','',s)
+          s=re.sub(r"revoke execute on function (restore_stock|expire_reservations)\\([^;]*\\) from public,anon,authenticated;\\s*", "", s)
           p.write_text(s)
           PY
           cp supabase/migration_*.sql supabase/migrations/ 2>/dev/null || true
@@ -433,6 +433,25 @@ jobs:
       - name: Arrêt Supabase
         if: always()
         run: supabase stop
+
+  verification-9-role-chain:
+    needs: verification-8-pilotage
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérifier la chaîne canonique des rôles
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required=["Client","Caisse","Responsable","Promoteur","Admin"]
+          text=(Path("README.md").read_text()+"\\n"+Path("STATUT.md").read_text()).lower()
+          missing=[x for x in required if x.lower() not in text]
+          if missing:
+            raise SystemExit("Rôles absents de la documentation: "+", ".join(missing))
+          print("Chaîne documentaire Client → Caisse → Responsable → Promoteur → Admin: PASS")
+          PY
 
   verification-10-security-regression:
     needs: [verification-7-scope-reseau, verification-8-pilotage, verification-9-role-chain]
