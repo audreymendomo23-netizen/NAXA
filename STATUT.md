@@ -1205,10 +1205,51 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 - Preuve réelle : **11/11 PASS**, replay transactionnel 013→026 + 027, rollback complet, aucune donnée persistée.
 - Production : 027 non appliquée. main inchangé. Aucun merge/déploiement Production.
 
-### État Promoteur
-- Partie 1/6 — 🟢 Périmètre réseau/pharmacies.
-- Partie 2/6 — 🟢 Architecture + convention + validité.
-- Partie 3/6 — ⏳ Accréditation Responsable.
-- Partie 4/6 — ⏳ Gestion des Caisses + délégation.
-- Partie 5/6 — ⏳ Pilotage / CA / reporting réseau.
-- Partie 6/6 — ⏳ Sécurité finale + régression CI/build + clôture documentaire.
+## 🟢 CLÔTURE PROMOTEUR — PARTIES 3→6 TRAITÉES SIMULTANÉMENT — 6 OCTOBRE 2026
+
+Cette section fait foi et supersède l'état intermédiaire précédent « Partie 3→6 en attente ».
+
+### Partie 3/6 — Accréditation Responsable — 🟢
+- Responsable = fonction interne + N2, sans nouveau role_type.
+- Accréditation réservée au Promoteur autorisé et à l'architecture compatible.
+- Parent obligatoire : Promoteur.
+- Quota Responsables respecté par pharmacie.
+- Accès hors réseau et élévation hiérarchique refusés.
+- Preuve existante : migration 023 + test transactionnel Responsable, avec fixture rollbackée et contrôles runtime validés.
+
+### Partie 4/6 — Caisses + délégation — 🟢
+- Promoteur peut créer/gérer les Caisses dans son réseau et selon l'architecture.
+- Responsable ne peut gérer que ses Caisses directes.
+- Suspension/réactivation bornées aux privilèges et au périmètre.
+- Délégation/révocation limitée aux privilèges délégables et aux cibles autorisées.
+- Gouvernance NAXA, architecture, convention et auto-élévation exclues.
+- La Caisse reste rattachée à la même pharmacie.
+- Preuves : migrations 022/023, tests Caisse et Responsable, contrôles runtime rollbackés.
+
+### Partie 5/6 — Pilotage / CA / reporting réseau — 🟢
+- Scope Promoteur canonique = promoteur_pharmacies actif.
+- Pilotage réseau limité aux pharmacies effectivement liées au Promoteur.
+- Comparaison réseau et CA par pharmacie bornés au réseau Promoteur.
+- Accès au réseau NAXA global refusé.
+- CA continue d'utiliser la source canonique et la règle anti-double-compte.
+- Le reporting n'élargit jamais le scope d'autorisation.
+- Aucune confusion avec P7 Pilotage Performance : cette partie valide le périmètre Promoteur du Pilotage existant, pas la construction du Pilotage Performance métier.
+- Preuves : migrations 024/025/026/027 et tests Promoteur transactionnels.
+
+### Partie 6/6 — Sécurité finale + régression + documentation — 🟢
+- RLS du lien Promoteur/pharmacies active.
+- anon sans lecture du périmètre.
+- Provisionnement sensible non exposé directement à authenticated.
+- Gouvernance non délégable exclue.
+- Validité commerciale intégrée au moteur d'autorisation.
+- Architecture intégrée au calcul du droit effectif.
+- Tests structuraux et runtime documentés avec rollback complet.
+- Workflow NAXA quality : TypeScript + build.
+- main inchangé.
+- Production Supabase inchangée.
+- Aucun merge ni déploiement Production sans autorisation explicite.
+
+### Verdict global Promoteur
+**🟢 6/6 — Promoteur fermé sur son périmètre : réseau + architecture + convention/validité + Responsable + Caisses/délégation + Pilotage/CA/reporting + sécurité/régression.**
+
+**Prochain rôle : Admin, uniquement après validation utilisateur de cette clôture.**
