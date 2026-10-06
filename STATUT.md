@@ -1051,3 +1051,58 @@ Cette section **fait foi et supersède les précédents états intermédiaires �
 **🟢 PASSE CAISSE — validée : architecture + privilèges + scope + runtime Supabase transactionnel + tests + CI + documentation.**
 
 **Prochain passage : Responsable.**
+
+
+## 🟢 PASSE RESPONSABLE — VALIDATION FINALE — 6 OCTOBRE 2026
+
+Cette section fait foi et supersède les états intermédiaires précédents concernant Responsable.
+
+### Périmètre fermé
+- Responsable = niveau interne N2 + fonction `responsable` ; aucun nouveau `role_type='responsable'` n'est requis.
+- Architecture A3 `PARENTS_AINES_CADETS` : Promoteur → Responsable → Caisse.
+- Le Responsable gère uniquement ses Caisses directes, dans sa pharmacie.
+- Il peut créer/provisionner, suspendre et réactiver une Caisse lorsque les privilèges et l'architecture l'autorisent.
+- Il peut consulter le pilotage de sa pharmacie et le CA par Caisse dans le périmètre prévu.
+- Il ne peut pas gérer le Promoteur, changer l'architecture, gérer conventions/tarifs, gérer le réseau NAXA, créer des rôles système/custom ni s'auto-élever.
+- La Caisse reste une composante opérationnelle de la même pharmacie : aucun nouveau stock ou sous-pharmacie n'est créé.
+
+### Artefacts
+- `supabase/migration_023_responsable_perimetre.sql`
+- `supabase/tests/023_responsable_perimetre.sql`
+
+### Contradictions fermées
+1. **Création Responsable** : réservée au Promoteur et bornée à la pharmacie/architecture autorisée.
+2. **Création Caisse par Responsable** : limitée aux Caisses directes et au quota de l'architecture.
+3. **Périmètre transversal** : accès à une autre pharmacie refusé.
+4. **Élévation hiérarchique** : Responsable ne peut pas cibler Promoteur.
+5. **RBAC** : attribution/révocation de privilèges bornées à la cible Caisse directe et aux privilèges délégables compatibles.
+6. **Gouvernance** : privilèges d'architecture, convention, tarif, réseau et rôles système exclus.
+7. **Fonctions sensibles** : `anon` refusé ; `authenticated` autorisé uniquement sur les signatures prévues.
+8. **Enum historique** : aucun test runtime ne consomme une nouvelle valeur enum non commitée ; Responsable reste porté par les attributs internes existants.
+
+### Preuves DB
+- Replay transactionnel réel Supabase des migrations `013→023`, avec la mutation enum `responsable` volontairement exclue du replay de test car elle n'est pas nécessaire au modèle Responsable et PostgreSQL interdit l'utilisation transactionnelle immédiate d'une nouvelle valeur enum.
+- Fixture runtime avec Promoteur, Responsable et Caisse distincts ; comptes temporaires uniquement dans la transaction ; **ROLLBACK complet**.
+- Accréditation Promoteur → Responsable : PASS.
+- Provisionnement Responsable → Caisse : PASS.
+- Gestion Caisse directe : PASS.
+- Suspension + réactivation : PASS.
+- Attribution d'un privilège opérationnel compatible : PASS.
+- Tentative de privilège de gouvernance : refusée.
+- Cible Promoteur : refusée.
+- Autre pharmacie : refusée.
+- Pilotage pharmacie / CA par Caisse / pilotage Responsable : présents dans l'architecture A3.
+- RLS/policy `profiles_team_read` et gates d'exécution sensibles contrôlés.
+- **20/20 contrôles runtime/structurels consolidés PASS** sur la fixture finale.
+
+### CI / gouvernance
+- CI GitHub **NAXA quality #239 : SUCCESS** sur le HEAD de la branche avant la dernière mise à jour documentaire/test.
+- Branche : `feat/pharmacie-validite-pilotage` → PR #24 vers `consolidation`.
+- `main` inchangé.
+- Production Supabase inchangée ; migration 023 non appliquée en Production.
+- Aucun merge ni déploiement Production effectué.
+
+### Verdict
+**🟢 PASSE RESPONSABLE — architecture + RBAC + périmètre + runtime transactionnel + sécurité + CI + documentation validés.**
+
+Prochain rôle selon l'ordre convenu : **Promoteur**. Même méthode obligatoire : audit → contradiction → fermeture → test → documentation → 🟢.
