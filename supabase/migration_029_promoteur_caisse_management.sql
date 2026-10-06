@@ -74,7 +74,7 @@ begin
     if not public.naxa_promoteur_valide(uid) then
       raise exception 'Promoteur commercialement invalide';
     end if;
-    if not public.naxa_can('CREATE_CAISSE',p_pharmacie,'') then
+    if not public.naxa_can('CREATE_CAISSE',p_pharmacie,null) then
       raise exception 'Privilège CREATE_CAISSE insuffisant';
     end if;
   elsif actor_fn='responsable' then
