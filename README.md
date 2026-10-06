@@ -1072,6 +1072,18 @@ Le chantier est gelé exactement à son état actuel, à la demande explicite de
 
 **Important :** la pause de la Partie 3 n'est pas une validation verte. Elle est conservée comme checkpoint technique ouvert pour reprise ultérieure.
 
+## 🔎 Audit complémentaire CI — 6 octobre 2026
+
+Le contrôle contradictoire du workflow a identifié une cause technique supplémentaire qui expliquait l'absence totale d'exécution CI :
+
+- le fichier `.github/workflows/naxa-quality.yml` contenait **deux définitions identiques** des jobs `verification-9-role-chain`, `verification-10-security-regression` et `verification-11-session-audit` ;
+- cette duplication rendait le workflow YAML structurellement ambigu et pouvait empêcher GitHub Actions de charger le workflow ;
+- la correction a supprimé le second bloc dupliqué et conservé une seule chaîne canonique **7 → 8 → 9 → 10 → 11** ;
+- `workflow_dispatch` a également été ajouté pour permettre une exécution manuelle contrôlée ;
+- aucun code métier, aucune migration Production et aucun `main` n'ont été modifiés.
+
+**État de preuve après correction :** le défaut d'orchestration est corrigé, mais un run GitHub Actions post-correction reste nécessaire pour déclarer les points 3→11 verts. Tant que ce run n'est pas observé avec ses jobs terminés avec succès, aucune validation finale n'est accordée.
+
 ## 🔎 Audit des points pending — 6 octobre 2026
 
 Audit croisé exécuté selon la méthode NAXA : **audit → contradictions → correction → test → régression → documentation → 100% vert**.
