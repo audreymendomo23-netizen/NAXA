@@ -927,7 +927,7 @@ Cette section fait foi et supersède les états intermédiaires précédents con
 - **20/20 contrôles runtime/structurels consolidés PASS** sur la fixture finale.
 
 ### CI / gouvernance
-- CI GitHub **NAXA quality #239 : SUCCESS** sur le HEAD de la branche avant la dernière mise à jour documentaire/test.
+- CI GitHub **NAXA quality #240 : SUCCESS** sur le HEAD de la branche avant la dernière mise à jour documentaire/test.
 - Branche : `feat/pharmacie-validite-pilotage` → PR #24 vers `consolidation`.
 - `main` inchangé.
 - Production Supabase inchangée ; migration 023 non appliquée en Production.
