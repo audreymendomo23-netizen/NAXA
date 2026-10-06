@@ -79,6 +79,8 @@ begin
   update public.profiles set pharmacie_id=v_a,parent_profile_id=null,role='caisse',fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,architecture_code='PARENTS_AINES_CADETS',actif=true where id=v_caisse;
   perform public.accrediter_profile(v_caisse,v_a,3::smallint,v_promoteur);
   perform public.naxa_grant_privilege(v_caisse,'VIEW_STOCK',v_a,'POSTE_CAISSE');
+  perform set_config('request.jwt.claim.sub',v_caisse::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_caisse::text,'role','authenticated')::text,true);
   if not public.naxa_has_privilege('VIEW_STOCK',v_a,'POSTE_CAISSE') then raise exception 'Caisse VIEW_STOCK attendu'; end if;
 
   -- Le Promoteur ne peut pas attribuer de privilège de gouvernance.
