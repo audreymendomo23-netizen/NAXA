@@ -6,7 +6,7 @@ returns boolean language sql stable security definer set search_path=''
 as $$
 select exists(
  select 1 from public.profiles actor
- join public.profiles target on target.id=p_target and target.actif
+ join public.profiles target on target.id=p_target
  where actor.id=(select auth.uid()) and actor.actif
    and actor.pharmacie_id=p_pharmacie and target.pharmacie_id=p_pharmacie
    and (
@@ -89,7 +89,7 @@ begin
  select architecture_code,max_caisses into arch,maxc from public.pharmacie_architectures where pharmacie_id=p_pharmacie and active=true;
  if arch is null then raise exception 'Architecture NAXA non assignée'; end if;
  if not exists(select 1 from public.naxa_architecture_niveaux where architecture_code=arch and niveau=3) then raise exception 'Cette architecture ne permet pas de Caisse'; end if;
- if actor_fn='responsable' and not exists(select 1 from public.profiles where id=p_target and actif and niveau_interne=3 and public.naxa_business_function(id)='caisse') then raise exception 'Cible Caisse invalide'; end if;
+ if actor_fn='responsable' and not exists(select 1 from public.profiles where id=p_target and niveau_interne=3 and public.naxa_business_function(id)='caisse') then raise exception 'Cible Caisse invalide'; end if;
  select count(*) into cnt from public.profiles where pharmacie_id=p_pharmacie and actif and niveau_interne=3 and public.naxa_business_function(id)='caisse';
  if maxc is not null and cnt>=maxc then raise exception 'Quota Caisses atteint'; end if;
  update public.profiles set role='caisse',fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,pharmacie_id=p_pharmacie,parent_profile_id=uid,architecture_code=arch,actif=true where id=p_target;
