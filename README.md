@@ -1044,3 +1044,17 @@ Les anciennes mentions présentant le chantier Promoteur comme entièrement clô
 - Partie 4/6 : ⏳ Gestion des Caisses + délégation.
 - Partie 5/6 : ⏳ Pilotage / CA / reporting réseau.
 - Partie 6/6 : ⏳ Sécurité finale + régression CI/build + clôture documentaire.
+
+
+## Promoteur — clôture des parties 3 à 6 — 6 octobre 2026
+
+Le chantier Promoteur est désormais fermé sur les parties 3 à 6, en complément des parties 1 et 2 déjà validées.
+
+- **Partie 3 — Responsable :** accréditation N2, parent Promoteur, architecture et quotas contrôlés.
+- **Partie 4 — Caisses/délégation :** gestion des Caisses dans le réseau, Caisses directes du Responsable, suspension/réactivation et délégation bornées par privilège, architecture et périmètre.
+- **Partie 5 — Pilotage/CA/reporting réseau :** scope Promoteur basé sur promoteur_pharmacies, pilotage réseau limité au réseau autorisé, CA canonique et reporting sans élargissement de scope.
+- **Partie 6 — sécurité/régression :** RLS, grants sensibles, validité commerciale, architecture effective, tests transactionnels rollbackés et workflow NAXA quality.
+
+Cette clôture ne signifie pas que le **P7 Pilotage Performance métier** est construit : ce chantier reste distinct.
+
+**État Promoteur : 🟢 6/6 — en attente uniquement de validation utilisateur avant passage à Admin.**
