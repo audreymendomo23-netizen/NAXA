@@ -764,3 +764,29 @@ Audit de contradiction post-implémentation : la vue `client_achats` était `sec
 
 ### ⚠️ État de validation corrigé — Client non déclaré vert prématurément
 Le périmètre Client est **construit et audité**, mais n'est pas encore déclaré 🟢 100 %. La validation réelle de la migration 021 / test 019 reste impossible dans cette session car la connexion Supabase MCP exige un compte lié éligible. De plus, la CI `naxa-quality.yml` de la branche `consolidation` ne se déclenche que pour les PR vers `main`, tandis que PR #24 cible `consolidation`. Un contrôle TypeScript/transpilation local du nouveau code Client est vert, mais il ne remplace ni le build complet ni le test DB réel. **Aucune validation utilisateur du Client ne sera demandée tant que ces preuves ne sont pas vertes.**
+
+
+## Client — clôture fonctionnelle en attente de validation finale
+
+### Périmètre construit
+- /client est l'espace personnel du Client, distinct du Pilotage interne.
+- Mon suivi : réservations récentes, statuts, chronologie disponible et raccourcis.
+- Mes médicaments achetés : historique transactionnel groupé par achat, produit, dosage, forme, quantité, prix, pharmacie, adresse, référence de paiement et chronologie.
+- Filtres : 7 jours, 30 jours, 3 mois, 1 an, tout ; recherche médicament/pharmacie.
+- Les timestamps sont affichés avec date + heure. Lorsqu'un achat historique ne possède pas de transition horodatée, l'interface le signale au lieu d'inventer une heure.
+- L'espace Client reste un suivi commercial personnel et n'est pas un dossier médical.
+
+### Sécurité
+- Route protégée par authentification + rôle client.
+- La base reste l'autorité : client_achats exige auth.uid() = reservations.client_id.
+- client_achats est security_invoker=true.
+- reservation_events est RLS, sans écriture directe par authenticated.
+- Le trigger est non exécutable directement par les rôles applicatifs.
+- Une création directe en état terminal payee/retiree produit désormais l'événement nécessaire pour conserver l'horodatage exact de l'achat.
+
+### État
+- Migration additive : supabase/migration_021_historique_achats_client.sql.
+- Tests : supabase/tests/019_historique_achats_client.sql — 16 assertions structurelles/sécurité.
+- Migration 021 non appliquée en Production.
+- Le Client reste 🟠 en validation finale, pas 🟢 prématurément.
+- Aucun merge main et aucun déploiement Production sans autorisation explicite.
