@@ -155,6 +155,8 @@ jobs:
           create or replace function public.is_admin() returns boolean
           language sql stable security definer set search_path=public
           as $fn$ select exists(select 1 from public.profiles where id=auth.uid() and role::text='admin'); $fn$;
+          s += """create or replace function public.my_pharmacie() returns uuid language sql stable security definer set search_path=public as $fn$ select pharmacie_id from public.profiles where id=auth.uid() and actif=true and role::text in ('pharmacie','promoteur','caisse'); $fn$;
+          create or replace function public.is_admin() returns boolean language sql stable security definer set search_path=public as $fn$ select exists(select 1 from public.profiles where id=auth.uid() and role::text='admin'); $fn$;
           """
           p.write_text(s)
           PY
