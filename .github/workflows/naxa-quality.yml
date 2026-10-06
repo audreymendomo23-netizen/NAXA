@@ -364,8 +364,8 @@ jobs:
           s=s[:a]+handle+s[s.index("create trigger on_auth_user_created",a):b]
           a=s.index("create or replace function reserve_stock"); b=s.index("revoke execute on function restore_stock",a); reserve=s[a:b].replace("as $declare","as $fn$ declare").replace("end$;","end$fn$;"); s=s[:a]+reserve+s[b:]
           a=s.index("create or replace function my_pharmacie"); b=s.index("alter table profiles",a); s=s[:a]+"""create or replace function my_pharmacie() returns uuid language sql stable security definer set search_path=public as $fn$ select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse'); $fn$;\n"""+s[b:]
-          s=re.sub(r"insert into storage\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*","",s,flags=re.I|re.S)
-          s=re.sub(r"revoke execute on function (restore_stock|expire_reservations)\([^;]*\\) from public,anon,authenticated;\\s*","",s)
+          s=re.sub(r"insert into storage\.buckets\s*\([^;]*?\)\s*values\s*\([^;]*?\);\s*","",s,flags=re.I|re.S)
+          s=re.sub(r"revoke execute on function (restore_stock|expire_reservations)\([^;]*\) from public,anon,authenticated;\s*","",s)
           p.write_text(s)
           PY
           n=1
