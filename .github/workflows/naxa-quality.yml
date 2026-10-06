@@ -129,7 +129,7 @@ jobs:
           # Storage is disabled in these CI replay projects. The historical snapshot
           # contains an early storage.buckets seed before the local storage schema is
           # initialized; remove only that seed for the isolated replay.
-          s = re.sub(r"insert into storage\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*", "", s, flags=re.I|re.S)
+          s = re.sub(r"insert into storage\.buckets\s*\([^;]*?\)\s*values\s*\([^;]*?\);\s*", "", s, flags=re.I|re.S)
 
           # These revokes precede the function declarations in the historical snapshot.
           s = re.sub(r"revoke execute on function (restore_stock|expire_reservations)\([^;]*\) from public,anon,authenticated;\s*", "", s)
@@ -419,7 +419,7 @@ jobs:
           import re
           p=Path("supabase/migrations/20261006000000_base.sql")
           s=p.read_text()
-          s=re.sub(r'insert into storage\\.buckets\\s*\\([^;]*?\\)\\s*values\\s*\\([^;]*?\\);\\s*','',s,flags=re.I|re.S)
+          s=re.sub(r'insert into storage\.buckets\s*\([^;]*?\)\s*values\s*\([^;]*?\);\s*','',s,flags=re.I|re.S)
           s=re.sub(r'revoke execute on function (restore_stock|expire_reservations)\\([^;]*\\) from public,anon,authenticated;\\s*','',s)
           p.write_text(s)
           PY
@@ -433,3 +433,39 @@ jobs:
       - name: Arrêt Supabase
         if: always()
         run: supabase stop
+
+  verification-10-security-regression:
+    needs: [verification-7-scope-reseau, verification-8-pilotage, verification-9-role-chain]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Contrôle anti-régression sécurité NAXA
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          files=[
+            Path("supabase/migration_028_promoteur_responsable_accreditation.sql"),
+            Path("supabase/migration_029_promoteur_caisse_management.sql"),
+            Path("supabase/migration_030_promoteur_delegation_validity.sql"),
+            Path("supabase/migration_031_promoteur_caisse_elevation_validity.sql"),
+            Path("supabase/migration_032_promoteur_scope_pilotage.sql"),
+            Path("supabase/migration_033_caisse_reactivation_authorization.sql"),
+          ]
+          missing=[]
+          for p in files:
+            if not p.exists():
+              missing.append(str(p))
+          if missing:
+            raise SystemExit("Migrations attendues absentes: "+", ".join(missing))
+          forbidden=["grant all privileges to authenticated","grant all on schema public to authenticated"]
+          for p in files:
+            t=p.read_text().lower()
+            for x in forbidden:
+              if x in t:
+                raise SystemExit(f"Élargissement de privilèges détecté dans {p}: {x}")
+          print("Anti-régression structurelle: PASS")
+          print("Aucune migration Promoteur contrôlée n'élargit globalement les privilèges authenticated.")
+          PY
