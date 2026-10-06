@@ -211,7 +211,7 @@ begin
   'paiements',coalesce((select count(*) from public.reservation_events e where e.actor_id=uid and e.event_type='status_changed' and e.to_statut='payee' and e.occurred_at>=debut),0),
   'retraits',coalesce((select count(*) from public.reservation_events e where e.actor_id=uid and e.event_type='status_changed' and e.to_statut='retiree' and e.occurred_at>=debut),0),
   'annulations',coalesce((select count(*) from public.reservation_events e where e.actor_id=uid and e.event_type='status_changed' and e.to_statut='annulee' and e.occurred_at>=debut),0),
-  'ca',coalesce((select sum(r.total)::int from public.reservations r join public.reservation_events e on e.reservation_id=r.id where e.actor_id=uid and e.event_type='status_changed' and e.to_statut in ('payee','retiree') and e.occurred_at>=debut),0)
+  'ca',coalesce((select sum(r.total)::int from public.reservations r join public.reservation_events e on e.reservation_id=r.id where e.actor_id=uid and e.event_type='status_changed' and e.to_statut='payee' and e.occurred_at>=debut),0)
  );
 end
 $naxa$;
