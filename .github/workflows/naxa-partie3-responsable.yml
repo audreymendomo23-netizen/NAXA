@@ -25,7 +25,7 @@ jobs:
           [inbucket]
           enabled = false
           [storage]
-          enabled = false
+          enabled = true
           [realtime]
           enabled = false
           [analytics]
