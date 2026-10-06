@@ -59,7 +59,7 @@ begin
   if public.naxa_has_privilege('CHANGE_ARCHITECTURE',v_a,'PHARMACIE') then raise exception 'Promoteur ne doit pas changer architecture'; end if;
   if public.naxa_has_privilege('VIEW_GLOBAL_NETWORK',v_a,'PHARMACIE') then raise exception 'VIEW_GLOBAL_NETWORK réservé NAXA'; end if;
   if not public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',null,'RESEAU') then raise exception 'Promoteur doit disposer du Pilotage réseau'; end if;
-  if not public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',v_c,'RESEAU') then raise exception 'Pilotage réseau doit rester borné au réseau Promoteur'; end if;
+  if public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',v_c,'RESEAU') then raise exception 'Pilotage réseau doit rester borné au réseau Promoteur'; end if;
   if (select count(*) from public.conventions_promoteurs where promoteur_id=v_promoteur)<>1 then raise exception 'Un Promoteur doit avoir une seule convention canonique'; end if;
   update public.promoteur_pharmacies set actif=false where promoteur_id=v_promoteur and pharmacie_id=v_b;
   if public.naxa_scope_allows(v_promoteur,v_b,'PHARMACIE') then raise exception 'Lien désactivé doit fermer le scope'; end if;
