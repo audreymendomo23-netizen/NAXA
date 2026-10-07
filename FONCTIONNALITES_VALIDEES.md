@@ -322,7 +322,9 @@ CA, ventes, indicateurs, scopes réseau/pharmacie, vues/rapports.
 
 Branches : `feat/pilotage-equipes-bi-20261005`, `feat/pharmacie-validite-pilotage`, réconciliations du 07/10/2026.
 
-**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
+**Statut : 🟢 VALIDÉ — MAIN**
+
+**Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
 **Solution cible :** comparer les générations historiques à `main`, conserver la meilleure implémentation, intégrer sans écraser le socle vert, puis effectuer une vérification commune du pilotage.
 
@@ -331,14 +333,18 @@ Branches : `feat/pilotage-equipes-bi-20261005`, `feat/pharmacie-validite-pilotag
 ## NAXA-F021 — Pilotage performance
 BI, indicateurs de performance, rapports et scopes Promoteur/Responsable/Caisse.
 
-**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
+**Statut : 🟢 VALIDÉ — MAIN**
+
+**Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
 ---
 
 ## NAXA-F022 — Pilotage sécurité / réseau
 Visibilité réseau, sessions/audit, scopes, absence d'exposition de tokens/cookies.
 
-**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
+**Statut : 🟢 VALIDÉ — MAIN**
+
+**Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
 ---
 
@@ -347,7 +353,9 @@ Consolidation pilotage commercial + performance + sécurité/réseau + BI/rappor
 
 Branches de réconciliation : `reconciliation/final-integration-20261007`, `reconciliation/integration-20261007`, `reconciliation/integration-20261007-v2`.
 
-**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
+**Statut : 🟢 VALIDÉ — MAIN**
+
+**Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
 ---
 

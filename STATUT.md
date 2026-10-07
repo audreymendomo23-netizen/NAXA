@@ -1,6 +1,6 @@
 # NAXA — STATUT
 
-Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
+Mise à jour : 8 octobre 2026 — premier chantier Pilotage 360° réconcilié dans `main`
 
 ## État global
 **AUTHENTIFICATION VALIDÉE. ARCHITECTURE PHARMACIE PROMOTEUR / CAISSES CONSOLIDÉE. PRODUCTION VALIDÉE. MISE EN SERVICE TERRAIN À EXÉCUTER.**
@@ -51,6 +51,15 @@ Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
 - Aucun Preview volontaire : OK
 - Secrets serveur non exposés : OK
 - Score final : 100 %
+
+
+## Premier chantier — Pilotage 360°
+- Réconciliation additive dans `main` : socle historique Pilotage 360° conservé et intégré sans reconstruire les fonctionnalités existantes.
+- Noyau SQL intégré : événements, CA canonique, scopes hiérarchiques, BI multi-pharmacie et RPC `stats_pilotage_scope`.
+- UI intégrée : `/admin/pilotage`, rapports et composants de pilotage existants.
+- Aucun changement Production exécuté pendant ce chantier.
+- Preuve Supabase NAXA en lecture seule : `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies` et `stocks_lots` sont présents ; l'historique des migrations confirme le socle Pilotage 360° déployé.
+- **État : 🟢 chantier réconcilié dans `main`.**
 
 ## Production
 - Projet Vercel : `naxa` existant, aucun nouveau projet créé.
