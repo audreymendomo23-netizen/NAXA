@@ -102,3 +102,27 @@ Pilotage 360° → Partie 4.
 Ne pas reprendre la Partie 2 Performance : elle reste explicitement en pause et non verte.
 
 - Sécurité sessions : migration 051 ; maximum 4 sessions, 5e refusée, aucune éviction automatique, audit session_audit ; test 051 PASS avec ROLLBACK.
+
+
+## CP-0006-PILOTAGE360-PART4-DIRECTION-360
+
+- Date : 07/10/2026
+- Objet : clôture de Pilotage 360° — Partie 4, Direction 360°.
+- Branche : rewrite/naxa-from-main-20261007.
+- Périmètre canonique : cockpit Direction NAXA consolidant réseau, commercial, performance et sécurité ; métriques ERP non disponibles explicitement exclues.
+- Correction préalable : la migration 049 contenait deux contradictions SQL avec l'état réel : `CREATE VIEW IF NOT EXISTS` invalide sur PostgreSQL et `CREATE OR REPLACE VIEW` incompatible avec les colonnes historiques de `v_reservations_ca`. La migration a été réconciliée par suppression/recréation transactionnelle du view canonique.
+- Implémentation : `supabase/migration_052_direction_360.sql`.
+- Test contradictoire : `supabase/tests/052_direction_360.sql`.
+- Preuve fonctionnelle : replay transactionnel réel Supabase des migrations 043→052 + test Direction 360 = PASS.
+- Preuve de rollback : PASS ; après rollback, `VIEW_DIRECTION_360` n'est pas persisté, `session_audit` n'est pas persisté et l'historique Supabase reste inchangé à la migration 042.
+- Sécurité : Direction 360 réservée à la fonction Admin ; privilège catalogue `VIEW_DIRECTION_360` non délégable/gouvernance.
+- main et Production restent inchangés.
+- CI : gate dédiée Partie 4 ajoutée et déclenchée par le commit de clôture ; validation finale uniquement après statut Success.
+
+### exact_resume_point
+
+**Pilotage 360° → après validation de la Partie 4 Direction 360°.**
+
+- Ne pas modifier main.
+- Ne pas déployer Production.
+- Ne pas appliquer les migrations 043→052 en Production sans autorisation explicite.
