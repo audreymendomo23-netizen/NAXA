@@ -200,3 +200,14 @@ Corrections principales : compatibilité entre l'ancien appel 3 paramètres de n
 La validation fonctionnelle a été réalisée transactionnellement sur le Supabase réel avec ROLLBACK : PASS. Aucune donnée Production n'a été persistée. La preuve CI fonctionnelle reste dépendante de l'infrastructure CI disponible ; elle n'est pas utilisée comme preuve de réussite du test SQL.
 
 - Sessions : migration 051 impose 4 sessions simultanées maximum sans expulsion automatique ; la 5e est refusée et un journal session_audit trace création/fin. Validation transactionnelle PASS + ROLLBACK.
+
+
+## Pilotage 360° — Partie 4 : Direction 360°
+
+La Partie 4 consolide le pilotage exécutif NAXA sur les axes réseau, commercial, performance et sécurité. L'accès est réservé à l'Admin Réseau NAXA. Les indicateurs dépendant d'un ERP non encore disponible restent explicitement exclus.
+
+Implémentation canonique :
+- `supabase/migration_052_direction_360.sql`
+- `supabase/tests/052_direction_360.sql`
+
+La validation fonctionnelle a été effectuée transactionnellement sur Supabase réel avec **PASS + ROLLBACK**, sans persistance Production. La migration 049 a également été réconciliée avec le view historique `v_reservations_ca`.
