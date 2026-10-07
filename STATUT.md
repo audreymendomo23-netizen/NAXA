@@ -3,7 +3,7 @@
 Mise à jour : 7 octobre 2026 — reprise contrôlée / reconstruction canonique
 
 ## État actuel
-**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES. PRODUCTION INCHANGÉE.**
+**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES ; PILOTAGE 360° PARTIE 1 VERTE ; PARTIE 2 PERFORMANCE EN COURS. PRODUCTION INCHANGÉE.**
 
 ### Partie 1 — Audit et verrouillage du socle
 - Branche de reconstruction : `rewrite/naxa-from-main-20261007`.
@@ -143,6 +143,18 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - CI de clôture : SHA `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`, CircleCI pipeline #13, workflow `part6_gate`, job `part6_check` = **Success**.
 - Aucune persistance Production ; aucun merge vers `main` ; aucun déploiement Production.
 - **Partie 6 : 🟢 VERT — 100 %.**
+
+## Pilotage 360° — Partie 2 : socle Performance — EN COURS / NON VERT
+
+- Migration : supabase/migration_049_pilotage_performance_socle.sql.
+- Test contradictoire : supabase/tests/049_pilotage_performance_socle.sql.
+- KPI couverts : pharmacies actives du scope, CA canonique, ventes, réservations, payées, retirées, lignes de stock, unités, ruptures et couverture stock.
+- Contradiction détectée puis corrigée : les fixtures du test utilisaient des UUID de pharmacies sans créer les pharmacies correspondantes ; le test a été rendu autonome en créant p1 actif et p2 inactif dans la transaction.
+- CI CircleCI : la configuration fonctionnelle a été corrigée pour utiliser un exécuteur machine afin que Supabase/Docker et PostgreSQL local soient joignables dans le même environnement ; délai d’absence de sortie porté à 30 min.
+- Dernier commit de correction du test : 5c92278765f23768c9590b82257d98251466f95e.
+- Dernier commit CI : 81dc2673ca9b182776ab87fbebbbe230ce8c9a5a.
+- Preuve fonctionnelle CircleCI : NON DISPONIBLE À CET INSTANT ; le connecteur CircleCI n’est pas exposé dans cette session et GitHub ne rapporte encore aucun status pour ces commits.
+- Conclusion : 🟠 NON VERT — preuve CI fonctionnelle manquante. Aucun passage à la Partie 3 et aucune persistance Production.
 
 ## Pilotage 360° — Partie 1 : audit canonique — VERT
 
