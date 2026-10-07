@@ -44,14 +44,14 @@ update public.naxa_profile_privileges
    and scope_type='RESEAU' and pharmacie_id is null;
 set local role authenticated;
 
-do $ begin
+do $$ begin
   begin
     perform public.stats_pilotage_scope(7);
     raise exception '7.2-D privilège réseau révoqué mais accès encore autorisé';
   exception when others then
     if sqlerrm <> 'Privilège Pilotage réseau requis' then raise; end if;
   end;
-end $;
+end $$;
 
 set local role postgres;
 update public.naxa_profile_privileges
