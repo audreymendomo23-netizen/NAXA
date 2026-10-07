@@ -683,3 +683,29 @@ Ordre :
 > **Quand plusieurs non-verts ont le même blocage, on résout le blocage une seule fois puis on vérifie massivement tous les concernés.**
 >
 > **Aucune fonctionnalité ne passe au vert sans preuve.**
+
+
+# 19. GOUVERNANCE MULTI-IA — REGISTRE UNIQUE
+
+> **Une seule source documentaire, un seul processus d'intégration.**
+>
+> Plusieurs IA peuvent travailler en parallèle, mais elles ne doivent pas chacune créer une copie concurrente de `FONCTIONNALITES_VALIDEES.md`.
+
+## Règle opérationnelle
+
+- Les IA de chantier produisent code, audits, preuves et deltas.
+- Le document maître est relu depuis `main` avant toute édition.
+- Les deltas documentaires compatibles sont regroupés par le processus d'intégration.
+- Une modification d'un document maître utilise le préfixe de commit `docs(registry-integrator):`.
+- Si `main` a changé depuis la lecture initiale, l'ancienne copie ne peut pas être réinjectée : **STOP → relire → réappliquer le delta → vérifier**.
+- Un 🟢 existant ne peut pas être rétrogradé sans régression prouvée.
+
+## Protection automatisée
+
+Le dépôt contient désormais :
+
+- `.github/CODEOWNERS` pour identifier les documents maîtres ;
+- `.github/workflows/naxa-registry-guard.yml` pour contrôler les commits qui modifient ces documents ;
+- `docs/REGISTRE_GOUVERNANCE.md` comme procédure détaillée.
+
+**Limite explicite :** cette protection automatise le contrôle et la détection ; elle ne remplace pas une règle GitHub de branche obligatoire tant que celle-ci n'est pas activée côté dépôt.
