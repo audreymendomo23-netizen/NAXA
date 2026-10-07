@@ -5,11 +5,12 @@
 ## Identité
 
 - checkpoint_id : `CP-0001-CONTINUITE`
-- checkpoint_status : 🟢 CONTINUITÉ INSTALLÉE
+- checkpoint_status : 🟡 PARTIE 5 — CI BLOQUÉE PAR ALLOCATION RUNNER
 - checkpoint_scope : installation initiale du système de reprise
 - branch : `rewrite/naxa-from-main-20261007`
-- anchor_sha : `f644b4d42a48cda57cc1a7d9c6f26867852ac56e`
+- anchor_sha : `940aea76e2553378d56be49b451e2c41d1b11771`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
+- current_sha : `940aea76e2553378d56be49b451e2c41d1b11771`
 
 ## Position fonctionnelle exacte
 
@@ -18,6 +19,8 @@
 - partie courante : Partie 5 — Scope réseau + Pilotage Promoteur
 - statut Partie 5 : 🟡
 - blocage : CI GitHub échoue avant l'exécution des steps ; aucune preuve CI exploitable n'est déclarée.
+- preuve du 07/10/2026 : run `37653058140`, job `112901096630`, `steps=null`, durée facturable `0 ms` ; le workflow Partie 5 en `ubuntu-latest` échoue comme les autres jobs du workflow qualité en `ubuntu-24.04` sur le même push.
+- conclusion : le blocage n'est pas démontré comme provenant du SQL ou du YAML du gate ; il se situe au niveau de l'allocation/exécution des runners GitHub. Aucun motif de facturation précis n'est inventé faute de message d'erreur runner accessible.
 
 ## Dernier point fonctionnel établi
 
@@ -33,7 +36,7 @@ Reprendre sur :
 
 ## Première action obligatoire à la prochaine reprise
 
-Vérifier d'abord le SHA réel de `rewrite/naxa-from-main-20261007`, puis lire le workflow `.github/workflows/naxa-part5-gate.yml` et les derniers runs CI. Ne modifier aucun autre chantier avant cette vérification.
+Vérifier le SHA réel `940aea76e2553378d56be49b451e2c41d1b11771`, le workflow `.github/workflows/naxa-part5-gate.yml` et les runs `37653058140` / `37653057958`. La correction `ubuntu-24.04 → ubuntu-latest` a été appliquée mais n'a pas levé le blocage. Prochaine action technique : obtenir la cause d'allocation runner côté GitHub (quota/permission/disponibilité) sans souscrire de service payant, puis relancer le même gate.
 
 ## Fichiers métier de la Partie 5
 
