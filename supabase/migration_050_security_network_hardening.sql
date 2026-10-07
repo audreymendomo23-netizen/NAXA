@@ -9,6 +9,32 @@ begin;
 alter table public.naxa_architecture_privileges
   add column if not exists active boolean not null default true;
 
+alter table public.naxa_privileges
+  add column if not exists domaine text;
+
+update public.naxa_privileges
+set domaine=coalesce(domaine,family,'pilotage')
+where domaine is null;
+
+alter table public.naxa_privileges
+  alter column domaine set not null;
+
+insert into public.naxa_privileges(
+  code,domaine,description,niveau_min,niveau_max,delegable,governance,active
+)
+values(
+  'VIEW_PERFORMANCE_PILOTAGE','pilotage',
+  'Voir les KPI de performance du périmètre autorisé',0,3,true,false,true
+)
+on conflict(code) do update set
+  domaine=excluded.domaine,
+  description=excluded.description,
+  niveau_min=excluded.niveau_min,
+  niveau_max=excluded.niveau_max,
+  delegable=excluded.delegable,
+  governance=excluded.governance,
+  active=true;
+
 create or replace function private.naxa_has_privilege(
   p_uid uuid,
   p_privilege text,
