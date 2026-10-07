@@ -37,14 +37,14 @@ select set_config('request.jwt.claim.sub',(select promoteur::text from v7_ids),t
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v7_ids),'role','authenticated')::text,true);
 
 -- 7.1 Le scope PHARMACIE suit exclusivement les liens actifs.
-do $ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select a from v7_ids),'PHARMACIE') then raise exception '7.1-A dans scope'; end if; end $;
-do $ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 réactivation'; end if; end $;
-do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'PHARMACIE')) then raise exception '7.1-C hors scope'; end if; end $;
+do $$ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select a from v7_ids),'PHARMACIE') then raise exception '7.1-A dans scope'; end if; end $$;
+do $$ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 réactivation'; end if; end $$;
+do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'PHARMACIE')) then raise exception '7.1-C hors scope'; end if; end $$;
 
 -- 7.2 Le scope RESEAU ne donne pas accès à une pharmacie hors réseau.
-do $ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),null,'RESEAU')) then raise exception '7.2 réseau global'; end if; end $;
-do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'RESEAU')) then raise exception '7.2-C hors réseau'; end if; end $;
-do $ begin
+do $$ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),null,'RESEAU')) then raise exception '7.2 réseau global'; end if; end $$;
+do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'RESEAU')) then raise exception '7.2-C hors réseau'; end if; end $$;
+do $$ begin
   update public.naxa_profile_privileges
      set active=false
    where profile_id=(select promoteur from v7_ids)
@@ -61,18 +61,18 @@ do $ begin
    where profile_id=(select promoteur from v7_ids)
      and privilege_code='VIEW_NETWORK_PILOTAGE'
      and scope_type='RESEAU' and pharmacie_id is null;
-end $;
+end $$;
 
 -- 7.3 Désactivation du lien ferme immédiatement le scope, réactivation le restaure.
 update public.promoteur_pharmacies set actif=false where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
-do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 désactivation'; end if; end $;
+do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 désactivation'; end if; end $$;
 update public.promoteur_pharmacies set actif=true where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
-do $ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE') then raise exception '7.3 réactivation'; end if; end $;
+do $$ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE') then raise exception '7.3 réactivation'; end if; end $$;
 
 -- 7.4 Le pilotage Promoteur suit les pharmacies A+B via le scope canonique et exclut C + non attribué.
-do $ begin if not ((public.stats_pilotage_scope(7)->'pharmacies'->>'total')::int=2) then raise exception '7.4 pharmacies=2'; end if; end $;
-do $ begin if not ((public.stats_pilotage_scope(7)->'recherches'->>'total')::int=2) then raise exception '7.4 recherches=2'; end if; end $;
-do $ begin if not ((public.stats_pilotage_scope(7)->'recherches'->>'sans_resultat')::int=1) then raise exception '7.4 sans_resultat=1'; end if; end $;
+do $$ begin if not ((public.stats_pilotage_scope(7)->'pharmacies'->>'total')::int=2) then raise exception '7.4 pharmacies=2'; end if; end $$;
+do $$ begin if not ((public.stats_pilotage_scope(7)->'recherches'->>'total')::int=2) then raise exception '7.4 recherches=2'; end if; end $$;
+do $$ begin if not ((public.stats_pilotage_scope(7)->'recherches'->>'sans_resultat')::int=1) then raise exception '7.4 sans_resultat=1'; end if; end $$;
 
 rollback;
 select 'Verification 7 — Scope pharmacie + réseau : PASS transactionnel' as resultat;
