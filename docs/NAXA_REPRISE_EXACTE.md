@@ -152,3 +152,13 @@ Ne pas déployer Production.
 ## CP-0009 — Autorité de reprise
 
 La Partie 2 Performance est clôturée **🟢 100 %**. Toute formulation historique indiquant qu'elle reste en pause/non verte est obsolète. Le checkpoint courant unique est CP-0009.
+
+
+## CP-0011 — Réconciliation v3.7 clôturée
+
+- 🟢 Réconciliation documentaire / matrice de fusion : 100 %.
+- Livrables : `docs/CAHIER_DES_CHARGES.md`, `docs/FUSION.md`, `docs/FUSION_FICHES.md`, `docs/TRACABILITE.md`.
+- Production : migration 042, inchangée.
+- main : inchangé.
+- Prochain chantier : **Qualité**.
+- Attendre la validation explicite du fondateur avant toute construction fonctionnelle suivante.
