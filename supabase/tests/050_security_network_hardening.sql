@@ -87,6 +87,12 @@ begin
     raise exception 'PART3_FAIL_EXPIRED_PROMOTER_STILL_AUTHORIZED';
   end if;
 
+  update public.profiles
+  set role='admin',actif=true,pharmacie_id=null,parent_profile_id=null,
+      fonction_interne=null,niveau_interne=null,niveau_hierarchique=0,
+      architecture_code=null,custom_role_code=null
+  where id=admin_id;
+
   perform set_config('request.jwt.claims',json_build_object('sub',admin_id,'role','authenticated')::text,true);
 
   begin
