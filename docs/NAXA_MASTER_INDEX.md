@@ -92,3 +92,12 @@ Elle doit :
 - Parties 1 à 6 : 🟢 100 %
 - Aucun merge `main`.
 - Aucun déploiement Production.
+
+
+## 8. Pilotage 360° — Partie 1
+
+- Partie 1 : 🟢 **VERT — 100 %**.
+- Audit canonique : `docs/PILOTAGE_360_AUDIT_PARTIE1.md`.
+- Contrôles C1→C6 : PASS.
+- Prochaine partie : socle Performance.
+- Aucun changement Production ; aucun merge `main`.
