@@ -16,17 +16,22 @@ begin
     (p1,'PART2 Pharmacie Active','Yaoundé',3.848,11.502,true),
     (p2,'PART2 Pharmacie Inactive','Yaoundé',3.849,11.503,false);
 
+  -- Isolation stricte : le test Performance ne dépend pas du trigger d'authentification.
+  alter table auth.users disable trigger on_auth_user_created;
   insert into auth.users(id,email,raw_user_meta_data)
   values
-   (admin_id,'part2-admin@naxa.local',jsonb_build_object('username','part2admin','first_name','Partie','last_name','Admin','phone','+237690000001','phone_country','CM','date_of_birth','1980-01-01','consent_accepted',true)),
-   (promoter_id,'part2-promoter@naxa.local',jsonb_build_object('username','part2promoter','first_name','Partie','last_name','Promoteur','phone','+237690000002','phone_country','CM','date_of_birth','1980-01-01','consent_accepted',true));
+   (admin_id,'part2-admin@naxa.local','{}'::jsonb),
+   (promoter_id,'part2-promoter@naxa.local','{}'::jsonb);
+  alter table auth.users enable trigger on_auth_user_created;
 
-  update public.profiles
-  set role='admin',pharmacie_id=null,actif=true,niveau_hierarchique=0,fonction_interne=null,niveau_interne=null,architecture_code=null
-  where id=admin_id;
-  update public.profiles
-  set role='promoteur',pharmacie_id=p1,actif=true,niveau_hierarchique=1,fonction_interne='promoteur',niveau_interne=1,architecture_code='ORPHELIN'
-  where id=promoter_id;
+  insert into public.profiles(
+    id,role,username,first_name,last_name,pharmacie_id,
+    phone,phone_country,date_of_birth,age_verified,consent_accepted_at,
+    niveau_hierarchique,fonction_interne,niveau_interne,parent_profile_id,actif,architecture_code,custom_role_code
+  )
+  values
+    (admin_id,'admin','part2admin','Partie','Admin',null,null,null,'1980-01-01',true,now(),0,null,null,null,true,null,null),
+    (promoter_id,'promoteur','part2promoter','Partie','Promoteur',p1,null,null,'1980-01-01',true,now(),1,'promoteur',1,null,true,'ORPHELIN',null);
 
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(promoter_id,p1,true);
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(promoter_id,p2,false);
