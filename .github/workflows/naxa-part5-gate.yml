@@ -23,6 +23,9 @@ jobs:
           assert "PART5_FAIL_NETWORK_PRIVILEGE_NOT_EFFECTIVE" in test
           assert "PART5_FAIL_SCOPE_LEAK" in test
           assert "PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK" in test
-          assert "Partie 5 : VERT — 100 %." in readme
-          assert "Partie 5 : VERT — 100 %." in statut
-          print("PART5_GATE=GREEN")
+          # La documentation reste JAUNE tant que la preuve CI réelle n'est pas obtenue.
+          # Le passage au VERT documentaire intervient seulement après un run CI exploitable.
+          assert "Partie 5" in readme
+          assert "Partie 5" in statut
+          assert "CI GitHub" in statut
+          print("PART5_GATE_STRUCTURE=PASS")
