@@ -31,14 +31,19 @@ create table if not exists public.abonnements_promoteurs (
   reactive_le timestamptz,
   reactive_par uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint abonnements_promoteurs_convention_promoteur_uq unique (convention_id,promoteur_id),
+  constraint abonnements_promoteurs_promoteur_convention_fk
+    foreign key (convention_id,promoteur_id)
+    references public.conventions_promoteurs(id,promoteur_id)
+    on delete restrict
 );
 alter table public.abonnements_promoteurs enable row level security;
 
 create table if not exists public.abonnement_promoteur_paiements (
   id uuid primary key default gen_random_uuid(),
-  abonnement_id uuid not null references public.abonnements_promoteurs(id) on delete cascade,
-  promoteur_id uuid not null references public.profiles(id) on delete restrict,
+  abonnement_id uuid not null,
+  promoteur_id uuid not null,
   periode_du date not null,
   periode_au date not null,
   montant integer not null check (montant > 0),
@@ -46,9 +51,40 @@ create table if not exists public.abonnement_promoteur_paiements (
   paye_le timestamptz not null default now(),
   enregistre_par uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
-  constraint abonnement_promoteur_paiement_periode_ck check (periode_au >= periode_du)
+  constraint abonnement_promoteur_paiement_periode_ck check (periode_au >= periode_du),
+  constraint abonnement_promoteur_paiement_abonnement_fk
+    foreign key (abonnement_id,promoteur_id)
+    references public.abonnements_promoteurs(id,promoteur_id)
+    on delete cascade
 );
 alter table public.abonnement_promoteur_paiements enable row level security;
+
+create or replace function private.validate_promoteur_pharmacie_link()
+returns trigger
+language plpgsql security definer
+set search_path to ''
+as $$
+begin
+  if not exists (
+    select 1 from public.profiles p
+    where p.id=new.promoteur_id and p.role::text='promoteur' and p.actif
+  ) then raise exception 'PROMOTEUR_RESEAU_INVALIDE'; end if;
+  if not exists (
+    select 1 from public.pharmacies ph
+    where ph.id=new.pharmacie_id
+  ) then raise exception 'PHARMACIE_INEXISTANTE'; end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_validate_promoteur_pharmacie on public.promoteur_pharmacies;
+create trigger trg_validate_promoteur_pharmacie
+before insert or update of promoteur_id,pharmacie_id on public.promoteur_pharmacies
+for each row execute function private.validate_promoteur_pharmacie_link();
+
+create unique index if not exists promoteur_pharmacies_one_active_promoteur_per_pharmacie
+on public.promoteur_pharmacies(pharmacie_id)
+where actif;
 
 create or replace function private.naxa_promoteur_abonnement_actif(p_promoteur uuid)
 returns boolean
@@ -110,8 +146,7 @@ begin
   set actif=false
   where ph.actif
     and exists (
-      select 1
-      from public.promoteur_pharmacies pp
+      select 1 from public.promoteur_pharmacies pp
       where pp.pharmacie_id=ph.id and pp.actif
         and not private.naxa_promoteur_abonnement_actif(pp.promoteur_id)
     );
@@ -130,13 +165,34 @@ begin
 end;
 $$;
 
--- Compatibility facade: legacy per-pharmacy validity must no longer define promoter validity.
-create or replace function private.naxa_promoteur_valide(p_promoteur uuid default auth.uid())
-returns boolean
-language sql stable security definer
-set search_path to ''
-as $$
-  select private.naxa_promoteur_valide_canonique($1);
-$$;
+drop policy if exists conventions_promoteurs_select_own on public.conventions_promoteurs;
+create policy conventions_promoteurs_select_own on public.conventions_promoteurs
+for select to authenticated
+using (promoteur_id=(select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists abonnements_promoteurs_select_own on public.abonnements_promoteurs;
+create policy abonnements_promoteurs_select_own on public.abonnements_promoteurs
+for select to authenticated
+using (promoteur_id=(select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists abonnement_promoteur_paiements_select_own on public.abonnement_promoteur_paiements;
+create policy abonnement_promoteur_paiements_select_own on public.abonnement_promoteur_paiements
+for select to authenticated
+using (promoteur_id=(select auth.uid()) or (select public.is_admin()));
+
+create policy conventions_promoteurs_admin_write on public.conventions_promoteurs
+for all to authenticated
+using ((select public.is_admin()))
+with check ((select public.is_admin()));
+
+create policy abonnements_promoteurs_admin_write on public.abonnements_promoteurs
+for all to authenticated
+using ((select public.is_admin()))
+with check ((select public.is_admin()));
+
+create policy abonnement_promoteur_paiements_admin_write on public.abonnement_promoteur_paiements
+for all to authenticated
+using ((select public.is_admin()))
+with check ((select public.is_admin()));
 
 commit;
