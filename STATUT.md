@@ -144,6 +144,18 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - Aucune persistance Production ; aucun merge vers `main` ; aucun déploiement Production.
 - **Partie 6 : 🟢 VERT — 100 %.**
 
-## Point de reprise après Partie 6
+## Pilotage 360° — Partie 1 : audit canonique — VERT
 
-Les Parties 1 à 6 de la reconstruction/réconciliation Promoteur sont clôturées au vert. Le prochain chantier est **Pilotage 360° — Partie 1 : audit de l'existant + matrice KPI canonique**, sans reprise depuis zéro et sans codage prématuré.
+- Périmètre séparé en quatre couches : Commercial, Performance, Sécurité/Réseau, Direction 360°.
+- Source CA canonique verrouillée : `v_reservations_ca`.
+- Scope réseau verrouillé : réseau actif autorisé du Promoteur ; aucune lecture hors périmètre.
+- Validité Promoteur verrouillée sur le moteur canonique `private.naxa_promoteur_valide_canonique()`.
+- Responsable confirmé comme fonction interne N2, pas comme `role_type`.
+- Contradictions C1→C6 auditées et documentées dans `docs/PILOTAGE_360_AUDIT_PARTIE1.md`.
+- Contrôle structurel documentaire C1→C6 : PASS.
+- Aucune migration ni donnée Production modifiée.
+- **Partie 1 Pilotage 360° : 🟢 VERT — 100 %.**
+
+## Point de reprise après Pilotage 360° Partie 1
+
+La prochaine étape est **Pilotage 360° — Partie 2 : socle Performance**. Elle doit inventorier les données réellement disponibles, définir les KPI de performance, tester les contradictions par rôle/scope et seulement ensuite coder si nécessaire.
