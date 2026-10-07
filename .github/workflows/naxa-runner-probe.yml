@@ -11,5 +11,3 @@ jobs:
           echo "NAXA_RUNNER_OK"
           node --version
           git --version
-
-# retrigger
