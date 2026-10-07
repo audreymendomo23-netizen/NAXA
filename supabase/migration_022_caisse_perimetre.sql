@@ -5,7 +5,7 @@
 -- canonique actuel est naxa_can(). Ce wrapper ne crée aucun second moteur.
 create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
-as $ select public.naxa_can($1,$2,null) $;
+as $$ select public.naxa_can($1,$2,null) $$;
 revoke all on function public.authorize(text,uuid,text) from public,anon,authenticated;
 grant execute on function public.authorize(text,uuid,text) to authenticated;
 
