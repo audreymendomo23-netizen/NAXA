@@ -5,7 +5,7 @@
 -- canonique actuel est naxa_can(). Ce wrapper ne crée aucun second moteur.
 create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
-as $$ select public.naxa_has_privilege($1,$2,$3) $$;
+as $ select public.naxa_can($1,$2,null) $;
 revoke all on function public.authorize(text,uuid,text) from public,anon,authenticated;
 grant execute on function public.authorize(text,uuid,text) to authenticated;
 
@@ -168,6 +168,14 @@ as $naxa$
 $naxa$;
 revoke all on function public.naxa_has_privilege(text,uuid,text) from public,anon,authenticated;
 grant execute on function public.naxa_has_privilege(text,uuid,text) to authenticated;
+
+-- Après la définition canonique de naxa_has_privilege dans ce passage, le wrapper
+-- historique conserve exactement le scope demandé par les anciennes policies.
+create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
+returns boolean language sql stable security definer set search_path=''
+as $ select public.naxa_has_privilege($1,$2,$3) $;
+revoke all on function public.authorize(text,uuid,text) from public,anon,authenticated;
+grant execute on function public.authorize(text,uuid,text) to authenticated;
 
 create or replace function public.naxa_provision_caisse(p_target uuid,p_pharmacie uuid)
 returns void language plpgsql security definer set search_path=''
