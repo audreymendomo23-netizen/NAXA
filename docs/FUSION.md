@@ -95,3 +95,31 @@ Inventaire et comparaison exécutés sur les **31 branches actuellement retourn�
 - Classification fonctionnelle : 31/31 = 100 %.
 - Vert global Pilotage : NON. CI et validation live Supabase restent bloquantes ; le Pilotage/Promoteur n'est pas intégré à main/Production.
 - Aucune fusion, migration Production ou déploiement n'a été effectué.
+
+
+## Réconciliation finale — contrôle du 07/10/2026
+
+### État Git
+- `main` de référence : `82d2145cea6d6d162405c3e74d3f21400ba5b763`.
+- État Promoteur/Pilotage retenu : `b5cf9377688842bf224b4f72ec3ffbbc918ce226`.
+- Réconciliation intermédiaire : `reconciliation/integration-20261007-v2`.
+- Réconciliation finale : `reconciliation/final-integration-20261007`.
+- Commit de fusion sémantique : `e142c49b17d11e9f65f585b18143b5d607285a9a`, avec `main` + état Promoteur comme parents.
+
+### Conservation vérifiée
+- Le workflow qualité final est identique entre `main` et l'état réconcilié au contrôle.
+- Les artefacts manquants côté branche Promoteur ont été récupérés depuis `main` : cahier v3.7, prompt maître fusion v2, migration 033.
+- Les deux branches convergent donc sur le contenu de ces éléments sans suppression du travail Promoteur/Pilotage.
+
+### État de preuve
+- Réconciliation Git : 🟢 construite.
+- Préservation des artefacts main : 🟢 vérifiée.
+- Préservation du socle Promoteur/Pilotage : 🟢 vérifiée par présence des migrations/tests/fichiers structurants.
+- CI complète sur le commit final : 🟡 non observée.
+- Validation Supabase distante : 🔴 bloquée par le connecteur.
+- Non-régression applicative complète : 🟡 non prouvée.
+- Verdict global : **🟡 — jamais déclarer 100 % avant preuves manquantes.**
+
+### Historique des PR de réconciliation
+- PR #26, #27 et #28 ont été fermées sans merge afin d'éviter toute promotion prématurée et toute activation durable d'un Preview automatique.
+- Aucune PR de réconciliation n'est actuellement fusionnée dans `main`.
