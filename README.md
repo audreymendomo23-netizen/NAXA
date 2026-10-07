@@ -165,3 +165,6 @@ Le projet possède désormais un système de reprise persistant et vérifiable :
 - `docs/CONTINUITE_NAXA.md` impose la vérification branche/SHA avant toute nouvelle action.
 
 Une nouvelle conversation ne doit pas recommencer le chantier ni créer une nouvelle branche par défaut. En cas de divergence entre checkpoint et GitHub, toute modification est suspendue jusqu'à résolution.
+
+### État de reprise actuel
+La Partie 5 reste en attente de preuve CI réelle. Le gate a été corrigé pour utiliser `ubuntu-latest`, mais le run `37653058140` échoue avant toute étape avec 0 ms facturables ; le workflow qualité parallèle présente le même symptôme. Aucun 🟢 n'est déclaré.
