@@ -1251,3 +1251,20 @@ La Phase E du cahier est adaptée par Fusion V2 : le Pilotage 360° déjà couve
 
 ### Point de situation
 Le chantier Promoteur 1→6 est documenté comme 🟢 100 %. Cela **ne suffit pas à lui seul** pour déclarer l'Étape 0 Pilotage 360° globalement verte : Fusion V2 exige encore la passe Admin, la clôture de l'étape 1 Audit socle Pilotage et la preuve CI/réconciliation correspondante avant d'enchaîner sur Pilotage Performance.
+
+
+## 2026-10-07 — Mise au vert Pilotage 360° / Étape 1 — audit contradictoire
+
+- Référence de parcours : **Cahier V3.7 + Prompt Maître Fusion V2** ; aucune exigence supprimée.
+- Branche de travail : `feat/promoteur-partie3-responsable-accreditation-20261006`, PR #25 vers `consolidation`. Aucun merge `main`, aucune mutation Production et aucun déploiement autorisé sans **OUI, DÉPLOIE**.
+- CI observée sur le commit `6033b5...` puis sur `a07e5a...` : workflows Pilotage Étape 1 et Promoteur échouent immédiatement avec jobs sans étapes exécutées. Le remplacement initial `setup-cli@v3` était incorrect ; il a été corrigé vers l'action Supabase officiellement documentée/pinnée v2.1.1. Malgré cela, l'exécution reste non démarrée côté runner. Cette preuve CI reste donc **non verte**.
+- Audit Supabase réel : les migrations distantes vont jusqu'à **041**. La façade `public.stats_pilotage_scope` est actuellement `SECURITY INVOKER` et appelle `private.stats_pilotage_scope`, dont l'EXECUTE est révoqué aux rôles API. Cette combinaison produit un défaut réel de permission pour un appel authentifié.
+- Cause racine applicative identifiée : la façade publique du Pilotage doit être le point contrôlé d'accès, tandis que le moteur privé reste protégé. La correction retenue est additive : migration **042** `migration_042_stats_pilotage_facade_security.sql`, façade `SECURITY DEFINER`, `search_path='' `, EXECUTE uniquement pour `authenticated`; aucun accès `anon/public`.
+- Le test `032_promoteur_scope_reseau_7.sql` contenait en outre une mutation directe de `naxa_profile_privileges` après passage au rôle `authenticated`, ce qui est incompatible avec le modèle de droits. Il a été corrigé pour effectuer cette mutation de fixture sous `postgres`, puis tester le comportement sous `authenticated`.
+- Vérification Supabase directe avant correction : **032 échoue** sur la mutation interdite du catalogue de privilèges ; **033 échoue** sur l'appel à la façade de Pilotage. Ces échecs sont des preuves de non-vert, pas des succès masqués.
+- Vercel : la Production observée reste sur `main`, commit `c171b546...`; aucune promotion de la branche de travail et aucun Preview volontaire n'ont été effectués.
+
+### Statut de mise au vert
+**🟠 Non vert — correction engagée, preuve CI encore bloquée.**
+
+Prochaine preuve obligatoire : exécution réelle du workflow après migration 042 + tests 032/033 + build, puis ré-audit. Tant que ces preuves ne sont pas observées avec succès, Pilotage 360° reste fermé et aucun passage à Pilotage Performance suivant n'est déclaré vert.
