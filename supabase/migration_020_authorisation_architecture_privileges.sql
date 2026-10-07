@@ -303,7 +303,7 @@ as $$
   limit 1
 $$;
 
-create or replace function public.naxa_scope_allows(p_profile uuid,p_pharmacie uuid,p_scope text)
+create or replace function public.naxa_scope_allows(p_profile uuid,p_pharmacie uuid,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
 as $$
   select
