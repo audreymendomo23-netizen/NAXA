@@ -39,6 +39,15 @@ insert into public.naxa_architecture_niveaux values
 on conflict do nothing;
 
 alter table public.profiles
+  add column if not exists fonction_interne text;
+
+alter table public.profiles
+  add column if not exists niveau_hierarchique smallint;
+
+alter table public.profiles
+  add column if not exists architecture_code text;
+
+alter table public.profiles
   add column if not exists niveau_interne smallint not null default 0
   check (niveau_interne between 0 and 3);
 
