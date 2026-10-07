@@ -40,6 +40,7 @@ jobs:
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
           cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+          # The historical snapshot is already a compatibility base; migrations own the canonical architecture objects.
           python - <<'PY'
           from pathlib import Path
           import re
