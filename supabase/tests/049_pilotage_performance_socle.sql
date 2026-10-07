@@ -39,7 +39,7 @@ begin
   perform set_config('request.jwt.claims',json_build_object('sub',admin_id,'role','authenticated')::text,true);
   perform public.naxa_grant_privilege(promoter_id,'VIEW_NETWORK_PILOTAGE',p1,'RESEAU');
 
-  select id into prod from public.produits order by id limit 1;
+  insert into public.produits(nom,dci,dosage,forme) values('PART2 TEST','TEST','1','unite') returning id into prod;
   insert into public.reservations(client_id,pharmacie_id,statut,total,expires_at)
   values(promoter_id,p1,'payee',12000,now()+interval '1 hour');
   insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
