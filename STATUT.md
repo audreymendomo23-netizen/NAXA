@@ -1402,3 +1402,14 @@ Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complè
 - Aucune donnée de test n'a été conservée : les preuves transactionnelles ont été exécutées avec rollback.
 - État Part 5 : 🟡 — blocage précis identifié. Aucun merge main et aucune migration Production appliquée dans cette étape.
 - La fermeture définitive nécessite l'application de la migration 032 corrigée sur un environnement NAXA autorisé, puis l'exécution réelle des tests 032/033 et la vérification finale de rollback/sécurité.
+
+
+## Part 5 — clôture de l'audit et preuve finale
+- Blocage isolé et corrigé : le projet Supabase NAXA avait dépassé la migration 032 sans embarquer sa garde `VIEW_NETWORK_PILOTAGE`.
+- Solution déployée : migration forward `038_promoteur_scope_pilotage_guard` appliquée au projet NAXA. Elle restaure le moteur canonique `private.stats_pilotage_scope`, impose le privilège réseau au Promoteur, conserve `SECURITY DEFINER` avec `search_path=''`, révoque l'exécution directe du helper privé et expose uniquement la façade authentifiée.
+- Preuve comportementale 032 : Promoteur autorisé → RPC accessible ; révocation de `VIEW_NETWORK_PILOTAGE` → exception exacte `Privilège Pilotage réseau requis` ; réactivation → accès rétabli. Transaction rollbackée.
+- Preuve comportementale 033 : pharmacie hors périmètre exclue du scope et des KPI ; révocation du privilège réseau refusée par le RPC. Transaction rollbackée.
+- Vérification migrations : `038_promoteur_scope_pilotage_guard` est maintenant présente dans l'historique Supabase.
+- Aucun fixture de test persistant ; aucun merge `main` ; aucune modification Vercel/Production applicative.
+- Les tests GitHub Actions restent un contrôle CI secondaire ; leur échec historique `steps=[]` est une défaillance d'exécution du runner et non un échec SQL. La preuve PostgreSQL réelle sur le projet NAXA est désormais disponible.
+- **Partie 5 : 🟢 100 % — chantier fonctionnel et sécurité validés.**
