@@ -55,18 +55,6 @@ create table if not exists public.pharmacie_architectures (
 );
 
 alter table public.pharmacie_architectures enable row level security;
-drop policy if exists pharmacie_architectures_read on public.pharmacie_architectures;
-create policy pharmacie_architectures_read on public.pharmacie_architectures
-for select to authenticated
-using (
-  public.is_admin()
-  or exists(
-    select 1 from public.promoteur_pharmacies pp
-    where pp.promoteur_id=(select auth.uid())
-      and pp.pharmacie_id=pharmacie_id
-      and pp.actif
-  )
-);
 
 alter table public.profiles
   add column if not exists fonction_interne text;
