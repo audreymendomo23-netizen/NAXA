@@ -147,3 +147,8 @@ Ne pas reprendre la Partie 2 Performance : elle reste explicitement en pause et 
 Ne pas merger `main`.
 Ne pas persister les migrations 043→052 en Production.
 Ne pas déployer Production.
+
+
+## CP-0009 — Autorité de reprise
+
+La Partie 2 Performance est clôturée **🟢 100 %**. Toute formulation historique indiquant qu'elle reste en pause/non verte est obsolète. Le checkpoint courant unique est CP-0009.
