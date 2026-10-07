@@ -38,6 +38,36 @@ insert into public.naxa_architecture_niveaux values
  ('HYBRIDE',1),('HYBRIDE',2),('HYBRIDE',3)
 on conflict do nothing;
 
+create table if not exists public.pharmacie_architectures (
+  pharmacie_id uuid primary key references public.pharmacies(id) on delete restrict,
+  architecture_code text not null references public.naxa_architectures(code) on delete restrict,
+  assigned_by uuid references public.profiles(id) on delete set null,
+  assigned_at timestamptz not null default now(),
+  active boolean not null default true,
+  max_responsables integer not null default 0 check (max_responsables >= 0),
+  max_caisses integer,
+  check (
+    (architecture_code='ORPHELIN' and max_responsables=0 and max_caisses=1)
+    or (architecture_code='PARENTS_ENFANTS' and max_responsables=0 and max_caisses=5)
+    or (architecture_code='PARENTS_AINES_CADETS' and max_responsables=5 and max_caisses=5)
+    or (architecture_code='HYBRIDE' and max_responsables is null)
+  )
+);
+
+alter table public.pharmacie_architectures enable row level security;
+drop policy if exists pharmacie_architectures_read on public.pharmacie_architectures;
+create policy pharmacie_architectures_read on public.pharmacie_architectures
+for select to authenticated
+using (
+  public.is_admin()
+  or exists(
+    select 1 from public.promoteur_pharmacies pp
+    where pp.promoteur_id=(select auth.uid())
+      and pp.pharmacie_id=pharmacie_id
+      and pp.actif
+  )
+);
+
 alter table public.profiles
   add column if not exists fonction_interne text;
 
