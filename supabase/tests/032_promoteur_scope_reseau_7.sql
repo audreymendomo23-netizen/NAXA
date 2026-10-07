@@ -15,8 +15,18 @@ begin
   set local session_replication_role='origin';
   insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'V7 A',3.86,11.51,true),(b,'V7 B',3.87,11.52,true),(c,'V7 C',3.88,11.53,true);
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true),(p,b,true);
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
+  values(a,'ORPHELIN',p,true,0,1),(b,'ORPHELIN',p,true,0,1);
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code) values(p,30000,current_date+30,'active','ORPHELIN') returning id into conv;
   insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut) values(p,conv,30000,current_date,current_date+30,'actif');
+  -- Le trigger de provisioning doit donner le privilège réseau requis au Promoteur.
+  if not exists(
+    select 1 from public.naxa_profile_privileges
+    where profile_id=p and privilege_code='VIEW_NETWORK_PILOTAGE'
+      and scope_type='RESEAU' and pharmacie_id is null and active
+  ) then
+    raise exception '7.0 privilège réseau non provisionné';
+  end if;
   insert into public.evenements(type,pharmacie_id,terme,resultats) values('recherche',a,'a',1),('recherche',b,'b',0),('recherche',c,'c',1),('recherche',null,'global',0);
   insert into v7_ids values(p,a,b,c);
 end $$;
@@ -34,6 +44,24 @@ do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(
 -- 7.2 Le scope RESEAU ne donne pas accès à une pharmacie hors réseau.
 do $ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),null,'RESEAU')) then raise exception '7.2 réseau global'; end if; end $;
 do $ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'RESEAU')) then raise exception '7.2-C hors réseau'; end if; end $;
+do $ begin
+  update public.naxa_profile_privileges
+     set active=false
+   where profile_id=(select promoteur from v7_ids)
+     and privilege_code='VIEW_NETWORK_PILOTAGE'
+     and scope_type='RESEAU' and pharmacie_id is null;
+  begin
+    perform public.stats_pilotage_scope(7);
+    raise exception '7.2-D privilège réseau révoqué mais accès encore autorisé';
+  exception when others then
+    if sqlerrm <> 'Privilège Pilotage réseau requis' then raise; end if;
+  end;
+  update public.naxa_profile_privileges
+     set active=true
+   where profile_id=(select promoteur from v7_ids)
+     and privilege_code='VIEW_NETWORK_PILOTAGE'
+     and scope_type='RESEAU' and pharmacie_id is null;
+end $;
 
 -- 7.3 Désactivation du lien ferme immédiatement le scope, réactivation le restaure.
 update public.promoteur_pharmacies set actif=false where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
