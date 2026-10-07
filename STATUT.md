@@ -1367,3 +1367,8 @@ Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complè
 - Corrections intégrées : gate canonique `naxa_can_manage_privilege_target`, matrices de privilèges construites après le catalogue, fermeture des privilèges de gestion/élévation pour N3 Caisse, correction de la contrainte HYBRIDE, migration CI vers `supabase/setup-cli@v3`.
 - Aucun merge `main`, aucun déploiement Production, aucun changement persistant Supabase réalisé pendant cette passe.
 - Reprise requise dès qu’une preuve d’exécution CI ou un environnement Supabase de test autorisé est disponible.
+
+### Partie 4 — audit contradictoire, 7 octobre 2026 — état de preuve
+- 🟡 **Non déclarée verte** : les corrections de cohérence du moteur Caisse/délégation sont intégrées dans la branche, mais la preuve CI complète reste bloquée par le runner GitHub (job terminé avec `steps=[]`, puis nouvelle tentative également sans étape). Aucun changement DDL/DML persistant n'a été appliqué à Supabase Production pendant cette passe.
+- Corrections Part 4 intégrées : gate hiérarchique canonique privé + façade publique, wrapper public `naxa_has_privilege`, fermeture de la délégation/révocation aux descendants directs, contrôle des privilèges d'élévation Caisse, test anti-révocation hors descendant direct, runner CI alternatif Ubuntu 22.04.
+- La validation comportementale définitive doit encore être exécutée dans un environnement de replay fonctionnel avant passage 🟢 100 %.
