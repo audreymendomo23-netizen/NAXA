@@ -391,7 +391,7 @@ jobs:
       - name: Replay complet
         run: supabase db reset
       - name: Vérification 7 — Scope pharmacie + réseau
-        run: docker exec -i supabase_db_naxa-verification-7-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/032_promoteur_scope_reseau_7.sql
+        run: docker exec -i supabase_db_naxa-verification-7-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/047_network_scope_pilotage_promoteur.sql
       - name: Arrêt Supabase local
         if: always()
         run: supabase stop
@@ -488,7 +488,7 @@ jobs:
       - name: Replay complet
         run: supabase db reset
       - name: Vérification 8 — Pilotage hors périmètre
-        run: docker exec -i supabase_db_naxa-verification-8-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/033_promoteur_pilotage_hors_scope_8.sql
+        run: docker exec -i supabase_db_naxa-verification-8-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/049_pilotage_performance_socle.sql
       - name: Arrêt Supabase
         if: always()
         run: supabase stop
