@@ -1449,3 +1449,7 @@ Le modèle autorisation imposait que la validité commerciale du Promoteur soit 
 ### Verdict
 **PARTIE 6/6 — 🟢 100 %.**
 Le chantier Promoteur est techniquement réconcilié sur les six parties. Aucun merge `main`, aucun déploiement Vercel et aucune migration applicative Production n'ont été effectués dans cette exécution.
+
+
+### 🔴→🟢 Réconciliation de la règle commerciale — priorité finale
+La règle historique « une pharmacie impayée ne bloque pas les autres pharmacies du Promoteur » est **supersédée** par l'arbitrage final du chantier Promoteur : **un Promoteur = une convention commerciale ; son échéance bloque l'ensemble de son réseau**. L'implémentation courante applique donc une validité réseau transversale avant les privilèges Promoteur et le pilotage. Cette section est prioritaire sur toute formulation historique antérieure.
