@@ -114,6 +114,11 @@ select pg_temp.assert_true(
   '2.5c provisionnement Caisse direct effectif'
 );
 
+select pg_temp.assert_raises(
+  format('select public.naxa_provision_caisse(%L,%L)',(select caisse2 from p4_ids),(select pharmacie_a from p4_ids)),
+  '2.5d une Caisse déjà provisionnée ne peut pas être réaffectée par provisionnement'
+);
+
 -- 2.6 La réactivation respecte à nouveau le quota.
 select pg_temp.assert_raises(
   format('select public.naxa_set_caisse_status(%L,true)',(select caisse1 from p4_ids)),
