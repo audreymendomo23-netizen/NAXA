@@ -78,5 +78,8 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Audit : `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
 - Production : migration 042, aucune persistance des migrations 043→052.
 - main : inchangé.
+- Preuve fonctionnelle : replay Supabase réel des migrations 043→052 + test 052 = PASS, avec ROLLBACK.
+- Preuve post-rollback : migration Production toujours 042, aucune fixture Direction persistée, `session_audit` et `stats_direction_360` non persistées.
+- Contrôle structurel : PASS sur migration, test, gate dédiée et documentation.
 - Résultat : 🟢 VERT — 100 %.
 - Point suivant : validation explicite du fondateur avant tout nouveau chantier.
