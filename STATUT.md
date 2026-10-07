@@ -3,7 +3,7 @@
 Mise à jour : 7 octobre 2026 — reprise contrôlée / reconstruction canonique
 
 ## État actuel
-**REWRITE ISOLÉ DE MAIN — PARTIE 1 VERT. PRODUCTION INCHANGÉE.**
+**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES. PRODUCTION INCHANGÉE.**
 
 ### Partie 1 — Audit et verrouillage du socle
 - Branche de reconstruction : `rewrite/naxa-from-main-20261007`.
@@ -49,7 +49,7 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 
 **Partie 2 : VERT — 100 % de l'objectif.**
 
-## Prochaine étape — validation requise
+## Historique — Partie 3
 **Partie 3 : conventions + réseau pharmacies + abonnement Promoteur**, avec le même protocole audit → contradiction → correction → tests → documentation → VERT.
 
 ## Partie 3 — Convention + réseau + abonnement Promoteur : VERT
@@ -70,7 +70,7 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 
 **Partie 3 : VERT — 100 %.**
 
-## Prochaine étape — validation requise
+## Historique — Partie 4
 **Partie 4 : privilèges effectifs + délégation Promoteur + Responsable/Caisse**, même protocole audit → contradiction → correction → tests → documentation → VERT.
 
 
@@ -91,9 +91,9 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 
 **Partie 4 : VERT — 100 %.**
 
-## Prochaine étape — validation requise
+## Historique — Partie 5
 
-**Partie 5** uniquement après validation explicite du fondateur.
+**Partie 5** clôturée après validation explicite du fondateur.
 
 
 ## Partie 5 — Scope réseau + Pilotage Promoteur
@@ -146,4 +146,4 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 
 ## Point de reprise après Partie 6
 
-Les Parties 1 à 6 de la reconstruction/réconciliation Promoteur sont clôturées au vert. Le prochain chantier doit être déterminé à partir du cahier des charges V3.7 et du checkpoint, sans reprise depuis zéro.
+Les Parties 1 à 6 de la reconstruction/réconciliation Promoteur sont clôturées au vert. Le prochain chantier est **Pilotage 360° — Partie 1 : audit de l'existant + matrice KPI canonique**, sans reprise depuis zéro et sans codage prématuré.
