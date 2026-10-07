@@ -1,11 +1,11 @@
 # NAXA — REPRISE EXACTE
 
-> **CHECKPOINT COURANT UNIQUE — CP-0008**
+> **CHECKPOINT COURANT UNIQUE — CP-0009**
 
 ## Identité courante
 
-- checkpoint_id : `CP-0008-PILOTAGE360-RECONCILIATION-PRIVILEGES`
-- checkpoint_status : 🟢 RÉCONCILIATION GLOBALE DES PRIVILÈGES — VERT / 100 % après correction et preuve
+- checkpoint_id : `CP-0009-PILOTAGE360-PART2-PERFORMANCE`
+- checkpoint_status : 🟢 SOCLE PERFORMANCE — VERT / 100 % après correction et preuve
 - branch : `rewrite/naxa-from-main-20261007`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
 - état Supabase Production : migration 042, inchangé
@@ -13,7 +13,7 @@
 
 ## exact_resume_point
 
-**Après CP-0008 : attendre la validation explicite du fondateur avant tout nouveau chantier.**
+**Après CP-0009 : attendre la validation explicite du fondateur avant tout nouveau chantier.**
 
 ## Dernière correction
 
@@ -127,3 +127,23 @@ Ne pas reprendre la Partie 2 Performance : elle reste explicitement en pause et 
 - Ne pas modifier main.
 - Ne pas déployer Production.
 - Ne pas appliquer les migrations 043→052 en Production sans autorisation explicite.
+
+
+## CP-0009 — Pilotage 360° Partie 2 : socle Performance
+
+- 🟢 **VERT — 100 %**.
+- Migration : `supabase/migration_049_pilotage_performance_socle.sql`.
+- Test : `supabase/tests/049_pilotage_performance_socle.sql`.
+- Contradictions corrigées : collisions de fixtures, couplage Auth du test, gate CI incohérent et exécuteur CI inadapté.
+- Preuve fonctionnelle Supabase réelle : PASS + ROLLBACK.
+- Production : migration 042, inchangée.
+- main : inchangé.
+- Documentation : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
+
+### exact_resume_point
+
+**Après CP-0009 : attendre la validation explicite du fondateur avant tout chantier suivant.**
+
+Ne pas merger `main`.
+Ne pas persister les migrations 043→052 en Production.
+Ne pas déployer Production.
