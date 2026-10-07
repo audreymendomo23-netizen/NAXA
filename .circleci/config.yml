@@ -121,7 +121,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Contrôle structurel Partie 3 — Sécurité + Réseau"
+          name: "Controle structurel Partie 3 — Sécurité + Réseau"
           command: |
             grep -Fq "private.naxa_promoteur_valide" supabase/migration_050_security_network_hardening.sql
             grep -Fq "with recursive lineage" supabase/migration_050_security_network_hardening.sql
@@ -138,7 +138,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Préparation environnement fonctionnel Partie 3"
+          name: "Preparation environnement fonctionnel Partie 3"
           command: |
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git postgresql-client
