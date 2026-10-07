@@ -405,6 +405,8 @@ jobs:
           major_version = 17
           [studio]
           enabled = false
+          [inbucket]
+          enabled = false
           [storage]
           enabled = true
           [realtime]
@@ -426,13 +428,50 @@ jobs:
           s=p.read_text()
           a=s.index("create or replace function handle_new_user")
           b=s.index("then raise exception 'Nom d''utilisateur invalide'",a)
-          handle=r"""create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path=public as $fn$
+          handle=r"""create or replace function handle_new_user() returns trigger
+          language plpgsql security definer set search_path=public as $fn$
           declare
-            v_username text:=lower(trim(new.raw_user_meta_data->>'username')); v_first_name text:=trim(new.raw_user_meta_data->>'first_name'); v_last_name text:=trim(new.raw_user_meta_data->>'last_name'); v_phone text:=trim(new.raw_user_meta_data->>'phone'); v_country text:=upper(trim(new.raw_user_meta_data->>'phone_country')); v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date; v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
+            v_username text:=lower(trim(new.raw_user_meta_data->>'username'));
+            v_first_name text:=trim(new.raw_user_meta_data->>'first_name');
+            v_last_name text:=trim(new.raw_user_meta_data->>'last_name');
+            v_phone text:=trim(new.raw_user_meta_data->>'phone');
+            v_country text:=upper(trim(new.raw_user_meta_data->>'phone_country'));
+            v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date;
+            v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
           begin
-            if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}
+            if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}$' then raise exception 'Nom d''utilisateur invalide'; end if;
+            if exists(select 1 from public.profiles where lower(username)=v_username) then raise exception 'Nom d''utilisateur déjà pris'; end if;
+            if v_first_name is null or length(v_first_name)<2 or length(v_first_name)>80 then raise exception 'Prénom invalide'; end if;
+            if v_last_name is null or length(v_last_name)<2 or length(v_last_name)>80 then raise exception 'Nom invalide'; end if;
+            if v_dob is null or v_dob>current_date or extract(year from age(current_date,v_dob))<18 then raise exception 'NAXA est réservé aux personnes âgées de 18 ans ou plus'; end if;
+            if not v_consent then raise exception 'L''acceptation des conditions est obligatoire'; end if;
+            insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at)
+            values(new.id,'client',v_username,v_first_name,v_last_name,v_phone,v_country,v_dob,true,now());
+            return new;
+          end; $fn$;
+          """
+          s=s[:a]+handle+s[s.index("create trigger on_auth_user_created",a):b]
+          a=s.index("create or replace function reserve_stock")
+          b=s.index("revoke execute on function restore_stock",a)
+          reserve=s[a:b].replace("as $declare","as $fn$ declare").replace("end$;","end$fn$;")
+          s=s[:a]+reserve+s[b:]
+          a=s.index("create or replace function my_pharmacie")
+          b=s.index("alter table profiles",a)
+          my_pharmacie="""create or replace function my_pharmacie() returns uuid
+          language sql stable security definer set search_path=public
+          as $fn$ select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse'); $fn$;
+          """
+          s=s[:a]+my_pharmacie+s[b:]
+          s=re.sub(r"insert into storage\.buckets\s*\([^;]*?\)\s*values\s*\([^;]*?\);\s*","",s,flags=re.I|re.S)
+          s=re.sub(r"revoke execute on function (restore_stock|expire_reservations)\([^;]*\) from public,anon,authenticated;\s*","",s)
+          p.write_text(s)
           PY
-          cp supabase/migration_*.sql supabase/migrations/ 2>/dev/null || true
+          n=1
+          for f in supabase/migration_*.sql; do
+            ts=$(printf '2026100600%02d' "$n")
+            cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
+            n=$((n+1))
+          done
       - name: Démarrer Supabase
         run: supabase start
       - name: Replay complet
