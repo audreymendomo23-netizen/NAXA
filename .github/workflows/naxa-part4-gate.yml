@@ -1,0 +1,27 @@
+name: NAXA Partie 4 gate
+on:
+  push:
+    branches: [rewrite/naxa-from-main-20261007]
+  workflow_dispatch:
+jobs:
+  part4-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Contrôles canoniques Partie 4
+        shell: python
+        run: |
+          from pathlib import Path
+          migration = Path("supabase/migration_046_disable_legacy_privilege_provisioning.sql").read_text()
+          test = Path("supabase/tests/045_effective_privileges_delegation.sql").read_text()
+          readme = Path("README.md").read_text()
+          statut = Path("STATUT.md").read_text()
+          assert "drop trigger if exists trg_naxa_provision_promoteur" in migration.lower()
+          assert "revoke execute on function public.naxa_provision_promoteur_pharmacie(uuid,uuid)" in migration.lower()
+          assert "perform set_config(" in test.lower()
+          assert "select set_config(" not in test.lower()
+          assert "PART4_FAIL_LEGACY_TRIGGER_STILL_PRESENT" in test
+          assert "PART4_FAIL_LEGACY_FUNCTION_STILL_PUBLIC" in test
+          assert "PRIVILEGE_GOUVERNANCE_NON_DELEGABLE" in migration
+          assert "Partie 4" in readme and "Partie 4" in statut
+          print("PART4_GATE=GREEN")
