@@ -18,8 +18,8 @@ begin
     raise exception 'PART3_FIXTURE_MISSING';
   end if;
 
-  insert into public.pharmacies(nom,ville,actif)
-  values('__PART3_OTHER__','Yaoundé',true)
+  insert into public.pharmacies(nom,ville,lat,lng,actif)
+  values('__PART3_OTHER__','Yaoundé',3.867,11.517,true)
   returning id into other_ph;
 
   update public.profiles
