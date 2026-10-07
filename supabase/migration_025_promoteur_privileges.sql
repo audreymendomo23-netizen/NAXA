@@ -1,4 +1,9 @@
 -- NAXA 025 — provisioning canonique des droits Promoteur par pharmacie
+-- Réconciliation des anciens triggers de provisioning : une seule chaîne canonique.
+-- Les triggers historiques pouvaient réactiver/provisionner avant la validité commerciale.
+drop trigger if exists trg_naxa_provision_promoteur on public.promoteur_pharmacies;
+drop trigger if exists trg_naxa_provision_on_architecture on public.pharmacie_architectures;
+
 -- Additif non destructif. Le lien Promoteur/pharmacie active le socle de privilèges
 -- déjà autorisé par NAXA pour la fonction Promoteur et l'architecture de la pharmacie.
 
