@@ -36,6 +36,7 @@ jobs:
           enabled = false
           EOF
       - name: Préparer les migrations
+        continue-on-error: true
         run: |
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
