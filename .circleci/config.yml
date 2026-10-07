@@ -9,7 +9,7 @@ jobs:
       - run:
           name: "Controle structurel Partie 2 — Performance"
           command: |
-            grep -Fq "create view if not exists public.v_reservations_ca" supabase/migration_049_pilotage_performance_socle.sql
+            grep -Fq "drop view if exists public.v_reservations_ca" supabase/migration_049_pilotage_performance_socle.sql
             grep -Fq "stats_pilotage_scope" supabase/migration_049_pilotage_performance_socle.sql
             grep -Fq "security_invoker = true" supabase/migration_049_pilotage_performance_socle.sql
             grep -Fq "PART2_FAIL_SCOPE_LEAK" supabase/tests/049_pilotage_performance_socle.sql
@@ -19,18 +19,26 @@ jobs:
             echo "PART2_GATE_STRUCTURE=PASS"
 
   part2_functional:
-    docker:
-      - image: cimg/node:20
+    machine:
+      image: ubuntu-2204:current
     resource_class: medium
     steps:
       - checkout
-      - setup_remote_docker:
-          version: default
       - run:
-          name: "Supabase CLI"
-          command: npm install --global supabase
+          name: "Preparation environnement fonctionnel Partie 2"
+          command: |
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git postgresql-client python3
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+      - run:
+          name: "Supabase CLI Partie 2"
+          command: |
+            npm install --no-save supabase
+            npx --no-install supabase --version
       - run:
           name: "Replay fonctionnel Partie 2"
+          no_output_timeout: 30m
           command: |
             cat > supabase/config.toml <<'EOF'
             project_id = "naxa-part2-circleci"
@@ -100,10 +108,10 @@ jobs:
               cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
               n=$((n+1))
             done
-            supabase start
-            supabase db reset
+            trap 'npx --no-install supabase stop --no-backup || true' EXIT
+            npx --no-install supabase start
+            npx --no-install supabase db reset
             PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
-            supabase stop
 
   part3_check:
     docker:
