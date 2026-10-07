@@ -1,0 +1,10 @@
+name: NAXA — Part 4 — CI smoke
+on:
+  push:
+    branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "NAXA_PART4_SMOKE_OK"
