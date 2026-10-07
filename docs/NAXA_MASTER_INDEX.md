@@ -112,3 +112,5 @@ Elle doit :
 - Contradictions corrigées : compatibilité moteur naxa_has_privilege, expiration Promoteur des descendants, bootstrap RESEAU hors réseau, catalogue historique/canonique.
 - main et Production restent inchangés.
 - Prochaine étape après validation : Partie 4.
+
+- Sécurité sessions : migration 051 ; plafond 4, 5e refusée, aucune expulsion automatique, journal session_audit ; preuve transactionnelle PASS + ROLLBACK.
