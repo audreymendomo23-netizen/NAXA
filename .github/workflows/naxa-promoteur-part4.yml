@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 jobs:
   partie4:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -135,11 +135,8 @@ jobs:
             n=$((n+1))
           done
       - name: Démarrer Supabase local
-        continue-on-error: true
         run: |
-          set -o pipefail
-          supabase start 2>&1 | tee /tmp/part4-start.log
-          echo $? > /tmp/part4-start-exit
+          supabase start
 
       - name: Replay complet + migrations de la branche
         run: supabase db reset
