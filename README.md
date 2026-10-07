@@ -153,4 +153,4 @@ Les validations Supabase sont effectuées transactionnellement avec rollback tan
 - Le CA reste calculé exclusivement par `v_reservations_ca`, sans second moteur KPI.
 - Test contradictoire : `supabase/tests/047_network_scope_pilotage_promoteur.sql`.
 - Validation transactionnelle réelle effectuée puis ROLLBACK ; aucune donnée Production persistée.
-- **Partie 5 : VERT — 100 %.**
+- **Partie 5 : 🟡 non clôturée — CI GitHub bloquée avant l'exécution des steps.**

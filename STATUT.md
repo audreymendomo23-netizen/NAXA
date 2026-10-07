@@ -105,6 +105,14 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - Test contradictoire réel : bootstrap NAXA → privilège réseau effectif → pilotage limité au réseau actif → auto-attribution Promoteur refusée → révocation réseau NAXA contrôlée.
 - Test exécuté transactionnellement avec ROLLBACK.
 - `main` et Production inchangés.
-- **Partie 5 : VERT — 100 %.**
+- **Partie 5 : 🟡 non clôturée — CI GitHub bloquée avant l'exécution des steps.**
 
 CI gate: runner lightweight `ubuntu-slim` configuré pour la validation structurelle.
+
+
+### Blocage CI Partie 5 — 07/10/2026
+- Replay Supabase réel : PASS transactionnel, avec ROLLBACK et aucune donnée persistée.
+- Correction racine : le scope `RESEAU` exigeait `pharmacie_id=NULL`, alors que `naxa_grant_privilege()` injectait `p_pharmacie`. Migration 047 corrige l'attribution et la révocation réseau.
+- Contrôles fonctionnels : bootstrap NAXA → accès Promoteur au réseau actif → exclusion du réseau inactif/hors périmètre → auto-attribution réseau refusée → révocation refusée au Promoteur et autorisée à NAXA → réactivation testée.
+- CI GitHub : plusieurs runs réels du gate, y compris `ubuntu-slim`, se terminent en échec avec `steps=[]` avant toute étape. Le rerun reproduit le même blocage. Aucun résultat CI exploitable n'est donc déclaré vert.
+- **Aucune validation finale de la Partie 5 tant que cette preuve CI réelle n'est pas obtenue.**
