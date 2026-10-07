@@ -34,6 +34,7 @@
 - Dépôt : `audreymendomo23-netizen/NAXA`
 - Branche de reprise : `rewrite/naxa-from-main-20261007`
 - SHA de l'état fonctionnel avant installation du système de continuité : `f644b4d42a48cda57cc1a7d9c6f26867852ac56e`
+- SHA courant vérifié : `940aea76e2553378d56be49b451e2c41d1b11771`
 - Base : `main`
 - SHA main : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
 - Écart constaté : branche +46 / -0 par rapport à main au moment du gel.
@@ -69,3 +70,4 @@ Elle doit :
 - Aucun service payant.
 - Aucune nouvelle branche sans nécessité technique démontrée et signalée.
 - Aucun 🟢 sans preuve.
+- Le runner GitHub doit être réellement exécuté ; `steps=null` et `0 ms` ne constituent pas une preuve CI.
