@@ -1227,25 +1227,20 @@ Cette section fait foi pour l'état courant du chantier Promoteur et supersède 
 - **11/11 assertions PASS** en replay transactionnel 013→027.
 - Rollback complet ; aucune donnée de test persistée.
 
-### Partie 3/6 — 🟡 PAUSÉE VOLONTAIREMENT
-Décision utilisateur : **geler exactement la Partie 3 à son état actuel et avancer sur le chantier suivant**.
-
-État conservé :
-- `supabase/migration_028_promoteur_responsable_accreditation.sql` construite.
-- `CREATE_RESPONSABLE` est devenu une barrière explicite pour l'accréditation d'un Responsable.
-- Test structurel `supabase/tests/028_promoteur_responsable_accreditation.sql` : PASS.
-- Replay CI jusqu'à migration 028 : PASS.
-- Build : PASS.
-- Validation comportementale complète : **non clôturée / non verte** à ce checkpoint.
-- Aucun merge `main`.
-- Aucune modification Production.
-- Aucun déploiement Preview.
-- Reprise ultérieure prévue exactement à ce point, sans perdre l'état de travail.
+### Partie 3/6 — 🟢 VERTE — Accréditation Responsable
+- Contradiction racine fermée : l'API historique `accrediter_profile(..., niveau=2)` exige explicitement `CREATE_RESPONSABLE`.
+- Validité commerciale, scope `promoteur_pharmacies`, parent explicite et quota d'architecture restent des barrières obligatoires.
+- A1/A2 n'exposent plus `CREATE_RESPONSABLE` ; A3/A4 l'exposent.
+- Le moteur public reste un wrapper vers le moteur privé canonique ; aucune seconde implémentation concurrente de `naxa_can` ou `naxa_scope_allows`.
+- Réconciliation effectuée des références obsolètes `governance_only`, `profile_privileges` comme table d'écriture et `can_access_pharmacy()`.
+- Validation comportementale transactionnelle réelle sur Supabase : **6/6 assertions PASS**, incluant A3, révocation, hors-scope, expiration commerciale et refus A2.
+- ROLLBACK complet : aucune donnée de test persistée.
+- Aucun merge `main`, aucune migration Production et aucun déploiement applicatif.
 
 ### Promoteur — état courant
 - Partie 1/6 : 🟢
 - Partie 2/6 : 🟢
-- Partie 3/6 : 🟡 PAUSÉE
+- Partie 3/6 : 🟢 **100 %**
 - Partie 4/6 : prochaine étape
 - Partie 5/6 : ⏳
 - Partie 6/6 : ⏳
