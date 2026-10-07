@@ -41,9 +41,9 @@ L'advisor sécurité signale Leaked Password Protection désactivée. L'advisor 
 
 ## Résultat de l'audit
 
-Après correction de C3 et réconciliation documentaire, aucun conflit bloquant ne subsiste dans le périmètre de l'audit métier/global post-Direction 360°.
+Après correction de C3, le replay transactionnel réel des migrations 043→052 et du test 052 est **PASS**, avec **ROLLBACK**. L'historique Supabase reste à 042 et la fixture temporaire n'est pas persistée. La relecture structurelle des fichiers et du checkpoint est également PASS.
 
-**Statut cible : 🟢 100 %**, sous réserve de la preuve transactionnelle de la correction C3 et de la relecture finale des documents mis à jour.
+**Statut : 🟢 100 %.**
 
 ## Prochaine position
 
