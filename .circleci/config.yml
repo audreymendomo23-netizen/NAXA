@@ -1,36 +1,17 @@
 version: 2.1
 
 jobs:
-  part5-gate:
+  part5_check:
     docker:
       - image: cimg/python:3.12
     steps:
       - checkout
       - run:
-          name: "Contrôles structurels Partie 5"
+          name: "Controle structurel Partie 5"
           command: |
-            python - <<'PY'
-            from pathlib import Path
-
-            migration = Path("supabase/migration_047_network_scope_pilotage_promoteur.sql").read_text()
-            test = Path("supabase/tests/047_network_scope_pilotage_promoteur.sql").read_text()
-            readme = Path("README.md").read_text()
-            statut = Path("STATUT.md").read_text()
-
-            assert "v_priv_pharmacie := null" in migration
-            assert "p_scope='RESEAU'" in migration
-            assert "pharmacie_id is null" in test.lower()
-            assert "PART5_FAIL_NETWORK_PRIVILEGE_NOT_EFFECTIVE" in test
-            assert "PART5_FAIL_SCOPE_LEAK" in test
-            assert "PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK" in test
-            assert "Partie 5" in readme
-            assert "Partie 5" in statut
-            assert "CI GitHub" in statut
-
-            print("PART5_GATE_STRUCTURE=PASS")
-            PY
+            python -c 'from pathlib import Path; migration=Path("supabase/migration_047_network_scope_pilotage_promoteur.sql").read_text(); test=Path("supabase/tests/047_network_scope_pilotage_promoteur.sql").read_text(); readme=Path("README.md").read_text(); statut=Path("STATUT.md").read_text(); assert "v_priv_pharmacie := null" in migration; assert "p_scope=''RESEAU''" in migration; assert "pharmacie_id is null" in test.lower(); assert "PART5_FAIL_NETWORK_PRIVILEGE_NOT_EFFECTIVE" in test; assert "PART5_FAIL_SCOPE_LEAK" in test; assert "PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK" in test; assert "Partie 5" in readme; assert "Partie 5" in statut; assert "CI GitHub" in statut; print("PART5_GATE_STRUCTURE=PASS")'
 
 workflows:
-  part5-gate:
+  part5_gate:
     jobs:
-      - part5-gate
+      - part5_check
