@@ -29,18 +29,16 @@
 
 > Le contenu intégral de ces deux références n'est pas dupliqué ici. Ce fichier les désigne comme autorités ; leurs copies/emplacements exacts doivent être référencés lorsqu'ils sont présents dans le dépôt.
 
-## 3. État technique de référence au gel de continuité
+## 3. État technique de référence actuel
 
 - Dépôt : `audreymendomo23-netizen/NAXA`
 - Branche de reprise : `rewrite/naxa-from-main-20261007`
-- SHA de l'état fonctionnel avant installation du système de continuité : `f644b4d42a48cda57cc1a7d9c6f26867852ac56e`
-- SHA courant vérifié : `70486d3244c8132dfb82b1220bd86696b97afbb3`
-- Dernier SHA CI réellement testé : `940aea76e2553378d56be49b451e2c41d1b11771`
+- SHA courant vérifié : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
 - Base : `main`
 - SHA main : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- Écart constaté : branche +46 / -0 par rapport à main au moment du gel.
 - `main` : inchangé.
 - Production : inchangée.
+- Partie 5 : clôturée au vert avec preuve fonctionnelle Supabase + preuve CI CircleCI.
 
 ## 4. Dernier état métier validé
 
@@ -48,8 +46,11 @@
 - Partie 2 : 🟢 100 %
 - Partie 3 : 🟢 100 %
 - Partie 4 : 🟢 100 %
-- Partie 5 : 🟡 non clôturée.
-- Cause du jaune : CI GitHub bloquée avant l'exécution des steps ; les validations Supabase transactionnelles sont passées mais ne remplacent pas la preuve CI exigée.
+- Partie 5 : 🟢 100 %
+- Cause racine corrigée : contradiction du scope `RESEAU` dans l'attribution des privilèges.
+- Preuve fonctionnelle : validation Supabase transactionnelle PASS + ROLLBACK.
+- Preuve CI : CircleCI pipeline #3 / workflow `part5_gate` / job `part5_check` = **Success**.
+- SHA de clôture : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`.
 
 ## 5. Règle de reprise
 
@@ -71,4 +72,4 @@ Elle doit :
 - Aucun service payant.
 - Aucune nouvelle branche sans nécessité technique démontrée et signalée.
 - Aucun 🟢 sans preuve.
-- Le runner GitHub doit être réellement exécuté ; `steps=null` et `0 ms` ne constituent pas une preuve CI.
+- Pour la Partie 5, la preuve CI de clôture est désormais fournie par CircleCI : workflow `part5_gate` = Success.
