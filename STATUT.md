@@ -51,3 +51,24 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 
 ## Prochaine étape — validation requise
 **Partie 3 : conventions + réseau pharmacies + abonnement Promoteur**, avec le même protocole audit → contradiction → correction → tests → documentation → VERT.
+
+## Partie 3 — Convention + réseau + abonnement Promoteur : VERT
+- Migration canonique : `supabase/migration_044_promoteur_convention_network_subscription.sql`.
+- Tests contradictoires : `supabase/tests/044_promoteur_convention_network_subscription.sql`.
+- Tables canoniques : `conventions_promoteurs`, `abonnements_promoteurs`, `abonnement_promoteur_paiements`.
+- Invariant verrouillé : 1 Promoteur = 1 convention = 1 abonnement.
+- Tarif négocié distinct de la référence catalogue 30 000 FCFA.
+- Réseau : un seul lien Promoteur actif par pharmacie.
+- Un lien réseau exige un profil Promoteur actif.
+- Le Promoteur ne reçoit aucun droit d'écriture sur convention/abonnement/paiements ; l'écriture est réservée à NAXA.
+- RLS activé sur les trois tables avec lecture limitée au Promoteur concerné ou NAXA.
+- L'expiration/impayé du Promoteur bloque le réseau via le moteur canonique ; le Promoteur lui-même n'est pas désactivé par ce mécanisme.
+- Ancien trigger de création d'abonnement par pharmacie retiré du chemin canonique.
+- Validation transactionnelle réelle effectuée puis ROLLBACK.
+- Après rollback : 0 table canonique persistée, 0 lien réseau persistant ; les 3 abonnements historiques par pharmacie et l'ancien trigger restent uniquement dans Production comme état legacy non appliqué par cette migration.
+- `main` et Production inchangés.
+
+**Partie 3 : VERT — 100 %.**
+
+## Prochaine étape — validation requise
+**Partie 4 : privilèges effectifs + délégation Promoteur + Responsable/Caisse**, même protocole audit → contradiction → correction → tests → documentation → VERT.
