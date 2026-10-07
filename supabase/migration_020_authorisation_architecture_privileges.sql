@@ -127,43 +127,6 @@ alter table public.naxa_privileges alter column family drop not null;
 alter table public.naxa_privileges alter column description drop not null;
 alter table public.naxa_privileges alter column active drop not null;
 
-create table if not exists public.naxa_role_privileges (
-  role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
-  privilege_code text not null references public.naxa_privileges(code) on delete restrict,
-  primary key (role_key,privilege_code)
-);
-
-create table if not exists public.naxa_architecture_privileges (
-  architecture_code text not null references public.naxa_architectures(code) on delete restrict,
-  role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
-  privilege_code text not null references public.naxa_privileges(code) on delete restrict,
-  primary key (architecture_code,role_key,privilege_code)
-);
-
-insert into public.naxa_role_privileges(role_key,privilege_code)
-select r.role_key,n.code
-from (values ('promoteur',1::smallint),('responsable',2::smallint),('caisse',3::smallint)) r(role_key,niveau)
-join public.naxa_privileges n on r.niveau between n.niveau_min and n.niveau_max
-where n.active
-on conflict do nothing;
-
-insert into public.naxa_architecture_privileges(architecture_code,role_key,privilege_code)
-select an.architecture_code,
-       case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end,
-       rp.privilege_code
-from public.naxa_architecture_niveaux an
-join public.naxa_role_privileges rp
-  on rp.role_key=case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end
-on conflict do nothing;
-
-alter table public.naxa_role_privileges enable row level security;
-alter table public.naxa_architecture_privileges enable row level security;
-drop policy if exists naxa_role_privileges_read on public.naxa_role_privileges;
-create policy naxa_role_privileges_read on public.naxa_role_privileges for select to authenticated using (true);
-drop policy if exists naxa_architecture_privileges_read on public.naxa_architecture_privileges;
-create policy naxa_architecture_privileges_read on public.naxa_architecture_privileges for select to authenticated using (true);
-
-create index if not exists naxa_privileges_level_idx
 insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,delegable,governance) values
 ('CREATE_PROMOTEUR','GOUVERNANCE','Créer un Promoteur',1,1,false,true),
 ('SUSPEND_PROMOTEUR','GOUVERNANCE','Suspendre un Promoteur',1,1,false,true),
@@ -308,6 +271,43 @@ insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,de
 on conflict (code) do update set
  famille=excluded.famille,libelle=excluded.libelle,niveau_min=excluded.niveau_min,
  niveau_max=excluded.niveau_max,delegable=excluded.delegable,governance=excluded.governance,active=true;
+create table if not exists public.naxa_role_privileges (
+  role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
+  privilege_code text not null references public.naxa_privileges(code) on delete restrict,
+  primary key (role_key,privilege_code)
+);
+
+create table if not exists public.naxa_architecture_privileges (
+  architecture_code text not null references public.naxa_architectures(code) on delete restrict,
+  role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
+  privilege_code text not null references public.naxa_privileges(code) on delete restrict,
+  primary key (architecture_code,role_key,privilege_code)
+);
+
+insert into public.naxa_role_privileges(role_key,privilege_code)
+select r.role_key,n.code
+from (values ('promoteur',1::smallint),('responsable',2::smallint),('caisse',3::smallint)) r(role_key,niveau)
+join public.naxa_privileges n on r.niveau between n.niveau_min and n.niveau_max
+where n.active
+on conflict do nothing;
+
+insert into public.naxa_architecture_privileges(architecture_code,role_key,privilege_code)
+select an.architecture_code,
+       case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end,
+       rp.privilege_code
+from public.naxa_architecture_niveaux an
+join public.naxa_role_privileges rp
+  on rp.role_key=case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end
+on conflict do nothing;
+
+alter table public.naxa_role_privileges enable row level security;
+alter table public.naxa_architecture_privileges enable row level security;
+drop policy if exists naxa_role_privileges_read on public.naxa_role_privileges;
+create policy naxa_role_privileges_read on public.naxa_role_privileges for select to authenticated using (true);
+drop policy if exists naxa_architecture_privileges_read on public.naxa_architecture_privileges;
+create policy naxa_architecture_privileges_read on public.naxa_architecture_privileges for select to authenticated using (true);
+
+create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
 
 update public.naxa_privileges
 set family=coalesce(family,famille),
