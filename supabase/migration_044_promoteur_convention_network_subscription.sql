@@ -38,8 +38,8 @@ create table if not exists public.abonnements_promoteurs (
     references public.conventions_promoteurs(id,promoteur_id)
     on delete restrict
 );
-alter table public.abonnements_promoteurs enable row level security;
 alter table public.conventions_promoteurs add constraint conventions_promoteurs_id_promoteur_uq unique (id,promoteur_id);
+alter table public.abonnements_promoteurs enable row level security;
 
 create table if not exists public.abonnement_promoteur_paiements (
   id uuid primary key default gen_random_uuid(),
@@ -58,8 +58,8 @@ create table if not exists public.abonnement_promoteur_paiements (
     references public.abonnements_promoteurs(id,promoteur_id)
     on delete cascade
 );
-alter table public.abonnement_promoteur_paiements enable row level security;
 alter table public.abonnements_promoteurs add constraint abonnements_promoteurs_id_promoteur_uq unique (id,promoteur_id);
+alter table public.abonnement_promoteur_paiements enable row level security;
 
 create or replace function private.validate_promoteur_pharmacie_link()
 returns trigger
