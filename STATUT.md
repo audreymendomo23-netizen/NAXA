@@ -1453,3 +1453,29 @@ Le chantier Promoteur est techniquement réconcilié sur les six parties. Aucun 
 
 ### 🔴→🟢 Réconciliation de la règle commerciale — priorité finale
 La règle historique « une pharmacie impayée ne bloque pas les autres pharmacies du Promoteur » est **supersédée** par l'arbitrage final du chantier Promoteur : **un Promoteur = une convention commerciale ; son échéance bloque l'ensemble de son réseau**. L'implémentation courante applique donc une validité réseau transversale avant les privilèges Promoteur et le pilotage. Cette section est prioritaire sur toute formulation historique antérieure.
+
+
+## 🔐 NOUVEAU RÉFÉRENTIEL DE GOUVERNANCE — V3.7 + PROMPT MAÎTRE FUSION V2 — 7 OCTOBRE 2026
+
+À compter de cette mise à jour, le parcours NAXA est gouverné par le couple documentaire nouvellement ajouté au dépôt :
+
+1. **Cahier des charges V3.7** — définit le périmètre complet et les exigences à conserver.
+2. **Prompt maître Fusion V2** — définit l'ordre de construction, la fusion additive, la méthode de preuve et les points d'arrêt.
+3. **État réel du dépôt, Supabase et Vercel** — définit ce qui est effectivement prouvé.
+4. **Décisions nouvelles du fondateur** — ajouts/précisions uniquement, sauf décision explicite de remplacement.
+
+### Règle de non-régression documentaire
+Aucune ancienne exigence du cahier ne doit être supprimée par une décision ajoutée implicitement. Les sections historiques restent conservées ; la section de référence la plus récente prévaut lorsqu'une contradiction est explicitement résolue.
+
+### Ordre de parcours officiel Fusion V2
+**Étape 0 — Pilotage 360°** → **Réconciliation** → **Qualité** → **ERP B → H du Cahier V3.7** → **I mise en service terrain** → **J paiement client sur demande** → **K extensions F69–F75**.
+
+### État actuel
+- Promoteur parties 1→6 : 🟢 100 % selon les preuves documentées.
+- **Étape 0 Pilotage 360° globale : 🟡 non clôturée** tant que la passe Admin et la clôture de l'étape 1 Audit socle (preuve CI/réconciliation documentaire) ne sont pas définitivement prouvées.
+- Conséquence : **Pilotage Performance n'est pas encore le prochain chantier exécutable comme chantier validé** ; il le devient après clôture complète de l'Étape 0.
+
+### Prochaine séquence à respecter
+1. Fermer les éléments encore ouverts de l'Étape 0 Pilotage 360°.
+2. Une fois l'Étape 0 à 🟢 100 %, commencer **Pilotage Performance** selon le protocole Fusion V2.
+3. Puis poursuivre automatiquement Réconciliation → Qualité → ERP B→H, avec les points d'arrêt et validations prévus par Fusion V2.
