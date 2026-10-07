@@ -138,3 +138,15 @@ Elle doit :
 - Audit métier/global : `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
 - Production reste à migration 042 ; aucune migration 043→052 n'est persistée.
 - Aucun merge `main` et aucun déploiement Production.
+
+
+## 12. CP-0008 — Réconciliation globale des privilèges
+
+- 🟢 100 %.
+- Contradiction corrigée : trigger legacy `trg_naxa_provision_on_architecture` encore actif.
+- Migration : `supabase/migration_046_disable_legacy_privilege_provisioning.sql`.
+- Test : `supabase/tests/046_disable_legacy_privilege_provisioning.sql`.
+- Audit : `docs/PILOTAGE_360_RECONCILIATION_PRIVILEGES.md`.
+- Preuve Supabase : migrations 043→052 + tests 046/052 = PASS + ROLLBACK.
+- Production : migration 042, inchangée.
+- main : inchangé.
