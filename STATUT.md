@@ -1530,3 +1530,22 @@ Prochaine preuve obligatoire : exécution réelle du workflow après migration 0
 - Nouveau blocage résiduel : tous les jobs GitHub-hosted échouent avant la première étape avec runner_id=0, runner_name="", steps=[], y compris un probe minimal ubuntu-latest. Le problème est donc désormais circonscrit à l'allocation du runner GitHub-hosted / gate compte, et non au YAML ou au code NAXA.
 - Aucun abonnement, paiement ou changement de plan n'a été effectué. Aucun déploiement Production.
 - État : CI non vert tant qu'un runner réel n'exécute pas au moins le probe puis le workflow qualité complet.
+
+
+## Réconciliation globale — 07/10/2026
+### État du chantier
+**🟡 Candidat de fusion construit — NON VERT.**
+
+- `main` reste inchangé : `82d2145cea6d6d162405c3e74d3f21400ba5b763`.
+- Branche finale de réconciliation : `reconciliation/final-integration-20261007`.
+- Commit d'intégration : `e142c49b17d11e9f65f585b18143b5d607285a9a`.
+- Le commit possède deux parents : le dernier `main` et le dernier état Promoteur/Pilotage retenu.
+- Artefacts `main` récupérés explicitement : cahier v3.7, prompt maître fusion v2 et migration 033 Caisse.
+- Contrôle statique du dépôt : 176 fichiers, 39 migrations nommées, 21 tests Promoteur/Pilotage recensés sur la branche réconciliée.
+- Aucune migration Production supplémentaire n'a été appliquée.
+- Supabase MCP reste bloqué par `link_id must identify an eligible linked account` : aucune validation distante n'est déclarée.
+- CI : les runs observés précédemment restent non verts ; aucun nouveau run exécutable n'est actuellement disponible sur le commit d'intégration. Aucun faux vert n'est déclaré.
+- Vercel : aucune nouvelle Production ni Preview volontaire n'a été déclenchée.
+
+### Règle de sortie
+Le candidat ne sera promu vers `main` qu'après : build/TypeScript, replay SQL, tests de sécurité/scopes, preuve CI observable, validation Supabase distante ou preuve alternative complète, régression et documentation à 100 %.
