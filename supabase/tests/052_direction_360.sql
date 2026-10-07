@@ -39,7 +39,7 @@ begin
   where id=admin_id;
 
   update public.profiles
-  set role='client',actif=true,pharmacie_id=ph_id,parent_profile_id=null,
+  set role='pharmacie',actif=true,pharmacie_id=ph_id,parent_profile_id=null,
       fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2
   where id=responsible_id;
 
