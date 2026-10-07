@@ -9,7 +9,7 @@ on:
       - feat/promoteur-partie3-responsable-accreditation-20261006
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,7 +23,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
           SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
   partie3-supabase:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -170,7 +170,7 @@ jobs:
   partie4-caisse:
     needs: partie3-supabase
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -313,7 +313,7 @@ jobs:
 
   verification-7-scope-reseau:
     needs: partie4-caisse
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -388,7 +388,7 @@ jobs:
   verification-8-pilotage:
     needs: verification-7-scope-reseau
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -446,7 +446,7 @@ jobs:
   verification-9-role-chain:
     needs: verification-8-pilotage
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -465,7 +465,7 @@ jobs:
   verification-10-security-regression:
     needs: [verification-7-scope-reseau, verification-8-pilotage, verification-9-role-chain]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -502,7 +502,7 @@ jobs:
   verification-11-session-audit:
     needs: verification-10-security-regression
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
