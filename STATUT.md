@@ -273,3 +273,7 @@ Le socle Performance est désormais clôturé à 100 %.
 Documentation : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
 
 Point d'arrêt : validation explicite du fondateur.
+
+## CP-0009 — Correction d'autorité documentaire
+
+Le bloc historique « Partie 2 — EN COURS / NON VERT » est obsolète. **CP-0009 clôture la Partie 2 Performance à 🟢 100 %.** La preuve est le replay Supabase réel 043→049 PASS + ROLLBACK documenté dans `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`. Production reste à migration 042.
