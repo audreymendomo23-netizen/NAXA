@@ -49,3 +49,17 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Derniers commits : test 5c92278765f23768c9590b82257d98251466f95e ; CI 81dc2673ca9b182776ab87fbebbbe230ce8c9a5a ; documentation 6c435c120e5183bfe7e9bd829e542cbbfe923619.
 - Preuve : aucun status CI CircleCI remonté par GitHub à cet instant.
 - Statut : 🟠 NON VERT — attente de preuve fonctionnelle ; ne pas passer à la Partie 3.
+
+
+## CP-0005-PILOTAGE360-PART3-SECURITY-NETWORK
+
+- Date : 07/10/2026
+- Chantier : Pilotage 360° — Partie 3 — Sécurité & Réseau
+- Résultat : 🟢 VERT — 100 %
+- Migration : supabase/migration_050_security_network_hardening.sql
+- Test : supabase/tests/050_security_network_hardening.sql
+- Contradictions corrigées : signature historique 3 paramètres de naxa_has_privilege non alignée sur le moteur canonique 4 paramètres ; attribution RESEAU possible avec une pharmacie hors réseau actif ; catalogue family historique absent du catalogue canonique domaine ; propagation de l'expiration Promoteur vers les profils descendants à verrouiller.
+- Preuve : replay transactionnel Supabase réel PASS + ROLLBACK.
+- Aucun changement Production persistant.
+- CI : gate structurel CircleCI ajouté ; la preuve fonctionnelle CI n'est pas disponible dans les connecteurs actuels.
+- Étape suivante : Pilotage 360° — Partie 4, après validation du fondateur.
