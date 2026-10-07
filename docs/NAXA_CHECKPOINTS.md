@@ -65,3 +65,18 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Étape suivante : Pilotage 360° — Partie 4, après validation du fondateur.
 
 - Sessions : migration 051 et test 051 ajoutent le contrôle gratuit du plafond de 4 sessions, le refus de la 5e sans éviction et l'audit création/fin ; validation transactionnelle PASS + ROLLBACK.
+
+
+## CP-0007-PILOTAGE360-AUDIT-GLOBAL
+
+- Date : 07/10/2026
+- Objet : audit métier/global après clôture de Direction 360°.
+- Branche : `rewrite/naxa-from-main-20261007`.
+- Contradiction racine : le compteur des Responsables de Direction 360° utilisait l'ancien `role_type='pharmacie'` alors que Responsable est une fonction interne canonique.
+- Correction : `supabase/migration_052_direction_360.sql` utilise `fonction_interne='responsable'`.
+- Test : `supabase/tests/052_direction_360.sql` renforcé par un cas contradictoire dédié.
+- Audit : `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
+- Production : migration 042, aucune persistance des migrations 043→052.
+- main : inchangé.
+- Résultat : 🟢 VERT — 100 %.
+- Point suivant : validation explicite du fondateur avant tout nouveau chantier.
