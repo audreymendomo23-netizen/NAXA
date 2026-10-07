@@ -386,7 +386,7 @@ jobs:
         run: supabase stop
 
   verification-8-pilotage:
-    needs: verification-7-scope-reseau
+    needs: partie3-supabase
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 20
