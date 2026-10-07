@@ -19,16 +19,25 @@ jobs:
             echo "PART2_GATE_STRUCTURE=PASS"
 
   part2_functional:
-    docker:
-      - image: cimg/node:20
+    machine:
+      image: ubuntu-2204:current
     resource_class: medium
     steps:
       - checkout
-      - setup_remote_docker:
-          version: default
+      - run:
+          name: "Préparation environnement fonctionnel"
+          command: |
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git postgresql-client
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+            node --version
+            npm --version
       - run:
           name: "Supabase CLI"
-          command: npm install --global supabase
+          command: |
+            npm install --no-save supabase
+            npx --no-install supabase --version
       - run:
           name: "Replay fonctionnel Partie 2"
           command: |
@@ -100,10 +109,10 @@ jobs:
               cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
               n=$((n+1))
             done
-            supabase start
-            supabase db reset
+            trap 'npx --no-install supabase stop --no-backup || true' EXIT
+            npx --no-install supabase start
+            npx --no-install supabase db reset
             PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
-            supabase stop
 
   part5_check:
     docker:
