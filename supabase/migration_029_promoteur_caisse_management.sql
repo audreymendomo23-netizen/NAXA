@@ -2,7 +2,7 @@
 -- Canonical target gate used by privilege delegation/revocation.
 -- The actor may manage only direct descendants in the same pharmacy and only
 -- for functions strictly below its own level.
-create or replace function public.naxa_can_manage_privilege_target(
+create or replace function private.naxa_can_manage_privilege_target(
   p_target uuid,
   p_pharmacie uuid default null
 )
@@ -41,6 +41,21 @@ as $fn$
         )
       )
   )
+$fn$;
+
+revoke all on function private.naxa_can_manage_privilege_target(uuid,uuid) from public,anon,authenticated;
+grant execute on function private.naxa_can_manage_privilege_target(uuid,uuid) to authenticated;
+
+create or replace function public.naxa_can_manage_privilege_target(
+  p_target uuid,
+  p_pharmacie uuid default null
+)
+returns boolean
+language sql
+stable
+set search_path=''
+as $fn$
+  select private.naxa_can_manage_privilege_target($1,$2)
 $fn$;
 
 revoke all on function public.naxa_can_manage_privilege_target(uuid,uuid) from public,anon,authenticated;
