@@ -1519,3 +1519,14 @@ Prochaine preuve obligatoire : exécution réelle du workflow après migration 0
 - Migration de traçabilité ajoutée dans le code: `supabase/migration_043_stats_pilotage_facade_invoker_security.sql`.
 - Vercel Production reste volontairement inchangée sur `main` SHA `c171b546...`; **aucun déploiement Production effectué**.
 - État: **corrections techniques appliquées et vérifiées; chantier pas encore déclaré 100% vert** tant que le contrôle CI exécutable et le réglage Auth restant ne sont pas prouvés verts.
+
+
+## CI — audit contradictoire du 07/10/2026 — blocage runner isolé
+
+- Le blocage initial ne provenait pas du quota seul : l'absence du workflow sur la branche par défaut empêchait les déclenchements pull_request, et la PR #25 était en conflit (mergeable=false).
+- Le workflow naxa-quality.yml contenait en outre une corruption structurelle : verification-8-pilotage était tronqué et un fragment Python de cette étape était dupliqué après verification-11-session-audit.
+- Correction appliquée : workflow restauré sur main, verification-8-pilotage reconstruit, fragment dupliqué supprimé, puis validation par exécution réelle.
+- Preuve : le workflow NAXA quality a ensuite été créé et exécuté (run 571), preuve que le déclenchement fonctionne désormais.
+- Nouveau blocage résiduel : tous les jobs GitHub-hosted échouent avant la première étape avec runner_id=0, runner_name="", steps=[], y compris un probe minimal ubuntu-latest. Le problème est donc désormais circonscrit à l'allocation du runner GitHub-hosted / gate compte, et non au YAML ou au code NAXA.
+- Aucun abonnement, paiement ou changement de plan n'a été effectué. Aucun déploiement Production.
+- État : CI non vert tant qu'un runner réel n'exécute pas au moins le probe puis le workflow qualité complet.
