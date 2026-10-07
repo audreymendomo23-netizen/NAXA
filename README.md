@@ -141,4 +141,16 @@ Le test contradictoire `supabase/tests/045_effective_privileges_delegation.sql` 
 
 Les validations Supabase sont effectuées transactionnellement avec rollback tant qu'aucune autorisation explicite de persistance Production n'est donnée. `main` et Production restent inchangés.
 
-**Partie 4 : validation technique en cours ; aucun passage à la Partie 5 avant VERT final.**
+**Partie 4 : VERT — 100 %.**
+
+
+## Partie 5 — Scope réseau + Pilotage Promoteur
+
+- Migration : `supabase/migration_047_network_scope_pilotage_promoteur.sql`.
+- Le scope `RESEAU` conserve `pharmacie_id = NULL`, conformément au contrat de `naxa_profile_privileges`.
+- Le bootstrap du privilège réseau reste réservé à NAXA ; le Promoteur ne peut pas s'auto-attribuer un privilège réseau.
+- `stats_pilotage_scope(p_jours)` consomme uniquement les pharmacies du réseau actif du Promoteur via `promoteur_pharmacies.actif=true`.
+- Le CA reste calculé exclusivement par `v_reservations_ca`, sans second moteur KPI.
+- Test contradictoire : `supabase/tests/047_network_scope_pilotage_promoteur.sql`.
+- Validation transactionnelle réelle effectuée puis ROLLBACK ; aucune donnée Production persistée.
+- **Partie 5 : VERT — 100 %.**

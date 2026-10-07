@@ -89,8 +89,20 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - Validation transactionnelle réelle effectuée puis ROLLBACK : aucune donnée Production persistée.
 - `main` et Production restent inchangés.
 
-**Partie 4 : validation technique en cours ; VERT final après replay et contrôle CI.**
+**Partie 4 : VERT — 100 %.**
 
 ## Prochaine étape — validation requise
 
 **Partie 5** uniquement après validation explicite du fondateur.
+
+
+## Partie 5 — Scope réseau + Pilotage Promoteur
+
+- Audit : le contrat `RESEAU` de `naxa_profile_privileges` exigeait `pharmacie_id IS NULL`.
+- Rouge détecté : `naxa_grant_privilege()` injectait pourtant `p_pharmacie` pour un scope `RESEAU`.
+- Correction : `migration_047_network_scope_pilotage_promoteur.sql` normalise le scope réseau à `pharmacie_id = NULL` et corrige aussi la révocation réseau.
+- Contrôle de portée : seul le réseau actif du Promoteur alimente `stats_pilotage_scope()`.
+- Test contradictoire réel : bootstrap NAXA → privilège réseau effectif → pilotage limité au réseau actif → auto-attribution Promoteur refusée → révocation réseau NAXA contrôlée.
+- Test exécuté transactionnellement avec ROLLBACK.
+- `main` et Production inchangés.
+- **Partie 5 : VERT — 100 %.**
