@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
+import { LienEspaceClient } from "@/components/LienEspaceClient";
 import { Recherche } from "@/components/Recherche";
 
 type Langue = "fr" | "en";
@@ -134,9 +135,7 @@ export default function Accueil() {
       <section className="shrink-0 bg-naxa-green-900 px-5 pt-4 text-white">
         <div className="mx-auto flex max-w-xl items-center justify-between">
           <Logo />
-          <Link href="/connexion" className="text-sm font-semibold text-naxa-canari underline underline-offset-4">
-            {traduireInterface("Se connecter", langue)}
-          </Link>
+          <LienEspaceClient />
         </div>
         <h1 className="mx-auto mt-4 max-w-xl text-[clamp(1.7rem,5.5dvh,2.5rem)] font-extrabold leading-[1.1]">
           {traduireInterface("Votre médicament,", langue)}<br />

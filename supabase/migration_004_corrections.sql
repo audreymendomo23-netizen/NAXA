@@ -27,7 +27,7 @@ end $$;
 
 update public.produits set nom_norm = lower(unaccent(
   coalesce(nom, '') || ' ' || coalesce(dci, '') || ' ' || coalesce(dosage, '') || ' ' ||
-  coalesce(array_to_string(synonymes, ' '), ''));
+  coalesce(array_to_string(synonymes, ' '), '')));
 
 -- 4. Garde-fou : un compte pharmacie qui crée un produit ne peut pas y mettre une fiche, une photo ni la déclarer « relue ».
 create or replace function public.produits_garde_fiche() returns trigger

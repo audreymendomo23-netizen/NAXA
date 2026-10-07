@@ -11,7 +11,8 @@ function GoogleIcon(){
 
 function Formulaire(){
  const router=useRouter(), search=useSearchParams(), retour=search.get("retour")||"/";
- const [username,setUsername]=useState(""),[password,setPassword]=useState(""),[show,setShow]=useState(false),[remember,setRemember]=useState(true),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ const limiteAppareils=search.get("erreur")==="limite-appareils";
+ const [username,setUsername]=useState(""),[password,setPassword]=useState(""),[show,setShow]=useState(false),[remember,setRemember]=useState(true),[error,setError]=useState(limiteAppareils?"Ce compte est déjà connecté sur le nombre maximal d'appareils autorisés. Déconnectez-vous d'un appareil avant de vous connecter ici.":""),[busy,setBusy]=useState(false);
  async function login(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password,remember})});const d=await r.json();setBusy(false);if(!r.ok){setError(d.error||"Identifiants incorrects.");return}localStorage.setItem("naxa-remember",remember?"1":"0");router.push(retour);router.refresh()}
  async function google(){setError("");setBusy(true);const {error}=await supabaseBrowser().auth.signInWithOAuth({provider:"google",options:{redirectTo:`${window.location.origin}/auth/callback?next=${encodeURIComponent(retour)}`}});if(error){setBusy(false);setError("Connexion via Gmail indisponible : le fournisseur Google n'est pas encore activé dans NAXA.");}}
  return <form onSubmit={login} className="carte w-full max-w-sm space-y-3">

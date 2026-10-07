@@ -1,0 +1,1 @@
+{"crons":[{"path":"/api/cron/rapports","schedule":"15 6 * * *"},{"path":"/api/cron/validite","schedule":"0 6 * * *"}]}

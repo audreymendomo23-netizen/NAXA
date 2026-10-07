@@ -1,0 +1,20 @@
+import { NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase/server";
+
+export async function GET(){
+  const sb=supabaseServer();
+  const {data:u}=await sb.auth.getUser();
+  if(!u.user)return NextResponse.json({error:"Connexion requise"},{status:401});
+  const {data:p}=await sb.from("profiles").select("role,pharmacie_id,actif").eq("id",u.user.id).single();
+  if(!p?.actif||!["admin","promoteur","caisse","pharmacie"].includes(p.role))return NextResponse.json({error:"Accès refusé"},{status:403});
+
+  let q=sb.from("rapports").select("id,portee,pharmacie_id,scope_type,scope_profile_id,scope_pharmacie_id,periode,du,au,texte,contenu,created_at").order("created_at",{ascending:false}).limit(30);
+  if(p.role!=="admin"){
+    // Compatibilité immédiate : tant que le moteur hiérarchique n'est pas branché,
+    // ne pas élargir le périmètre historique par simple présence de scope_type.
+    q=q.eq("pharmacie_id",p.pharmacie_id);
+  }
+  const {data,error}=await q;
+  if(error)return NextResponse.json({error:"Rapports indisponibles"},{status:500});
+  return NextResponse.json({rapports:data||[]});
+}
