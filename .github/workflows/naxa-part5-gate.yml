@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 jobs:
   part5-gate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Contrôles structurels Partie 5
