@@ -120,6 +120,13 @@ jobs:
           PY
           n=1
           for f in supabase/migration_*.sql; do
+            # migration_020_architecture_privileges.sql is a superseded legacy
+            # catalog whose profile_privileges object conflicts with the canonical
+            # compatibility view already present in schema.sql. The canonical
+            # replacement is migration_020_authorisation_architecture_privileges.sql.
+            case "$(basename "$f")" in
+              migration_020_architecture_privileges.sql) continue ;;
+            esac
             ts=$(printf '2026100600%02d' "$n")
             cp "$f" "supabase/migrations/"$ts"_$(basename "$f")"
             n=$((n+1))
