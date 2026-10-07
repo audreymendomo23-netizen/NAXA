@@ -184,3 +184,6 @@ La prochaine étape est **Pilotage 360° — Partie 2 : socle Performance**. Ell
 - Contrôle supplémentaire : même test exécuté avec la compatibilité Production historique 3 paramètres ; PASS avec ROLLBACK.
 - CI : gate structurel CircleCI part3_gate ajouté ; preuve fonctionnelle CI non remontée par les connecteurs disponibles. Le run GitHub diagnostique a échoué avant les steps (runner externe), sans échec SQL.
 - Aucun merge main, aucun déploiement Production.
+
+- Sessions : migration 051 impose au niveau DB un maximum de 4 sessions simultanées par compte, refuse la 5e sans supprimer les 4 existantes et journalise création/fin de session dans session_audit.
+- Test session : supabase/tests/051_session_security_limit_audit.sql ; replay Supabase réel PASS + ROLLBACK.
