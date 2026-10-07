@@ -54,6 +54,8 @@ begin
   if to_regclass('public.naxa_privileges') is null then
     create table public.naxa_privileges (
       code text primary key,
+      family text,
+      description text,
       famille text not null,
       libelle text not null,
       niveau_min smallint not null check (niveau_min between 1 and 3),
