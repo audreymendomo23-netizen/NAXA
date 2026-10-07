@@ -34,12 +34,6 @@ begin
       architecture_code='PARENTS_AINES_CADETS',custom_role_code=null
   where id=promoter_id;
 
-  update public.profiles
-  set role='pharmacie',actif=true,pharmacie_id=ph_id,parent_profile_id=promoter_id,
-      fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,
-      architecture_code='PARENTS_AINES_CADETS',custom_role_code=null
-  where id=admin_id;
-
   insert into public.pharmacie_architectures(
     pharmacie_id,architecture_code,assigned_by,max_responsables,max_caisses,active
   )
@@ -72,6 +66,12 @@ begin
 
   perform set_config('request.jwt.claims',json_build_object('sub',admin_id,'role','authenticated')::text,true);
   perform public.naxa_grant_privilege(promoter_id,'VIEW_NETWORK_PILOTAGE',ph_id,'RESEAU');
+
+  update public.profiles
+  set role='pharmacie',actif=true,pharmacie_id=ph_id,parent_profile_id=promoter_id,
+      fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,
+      architecture_code='PARENTS_AINES_CADETS',custom_role_code=null
+  where id=admin_id;
 
   perform set_config('request.jwt.claims',json_build_object('sub',promoter_id,'role','authenticated')::text,true);
   perform public.naxa_grant_privilege(admin_id,'VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE');
