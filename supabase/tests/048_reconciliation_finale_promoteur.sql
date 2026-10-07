@@ -71,7 +71,7 @@ begin
 
   -- Conserver un ancien abonnement pharmacie actif pour prouver que le moteur canonique ne dépend plus de lui.
   insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut,dernier_paiement_le)
-  values(pharmacy_id,'LEGACY_PART6',30000,current_date,current_date+30,'actif',now())
+  values(pharmacy_id,'pro',30000,current_date,current_date+30,'actif',now())
   on conflict (pharmacie_id) do update set echeance=current_date+30,statut='actif';
 
   perform set_config(
