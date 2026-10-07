@@ -1,0 +1,17 @@
+name: NAXA CI — billing isolation probe
+on:
+  push:
+    branches:
+      - feat/promoteur-partie3-responsable-accreditation-20261006
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Runner allocation
+        run: |
+          echo "NAXA_CI_PROBE=RUNNER_OK"
+          echo "RUNNER_OS=$RUNNER_OS"
+          node --version
+          git --version
