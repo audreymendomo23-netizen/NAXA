@@ -119,6 +119,9 @@ jobs:
             grep -Fq "PART3_FAIL_RESPONSIBLE_VALID_PROMOTER" supabase/tests/050_security_network_hardening.sql
             grep -Fq "PART3_FAIL_EXPIRED_PROMOTER_STILL_AUTHORIZED" supabase/tests/050_security_network_hardening.sql
             grep -Fq "PART3_FAIL_NETWORK_GRANT_OUTSIDE_NETWORK" supabase/tests/050_security_network_hardening.sql
+            grep -Fq "SESSION_LIMIT_REACHED" supabase/migration_051_session_security_limit_audit.sql
+            grep -Fq "PART3_FAIL_FIFTH_SESSION_ACCEPTED" supabase/tests/051_session_security_limit_audit.sql
+            grep -Fq "PART3_FAIL_EXISTING_SESSIONS_EVICTED" supabase/tests/051_session_security_limit_audit.sql
             echo "PART3_GATE_STRUCTURE=PASS"
 
   part3_functional:
@@ -175,6 +178,7 @@ jobs:
             npx --no-install supabase start
             npx --no-install supabase db reset
             PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/050_security_network_hardening.sql
+            PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/051_session_security_limit_audit.sql
 
   part5_check:
     docker:
