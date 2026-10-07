@@ -101,7 +101,8 @@ begin
     if sqlerrm='PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK' then raise; end if;
   end;
 
-  -- La révocation RESEAU doit cibler pharmacie_id NULL.
+  -- Le scope RESEAU reste gouverné par NAXA : seul l'Admin peut le révoquer.
+  perform set_config('request.jwt.claims',json_build_object('sub',admin_id,'role','authenticated')::text,true);
   perform public.naxa_revoke_privilege(promoter_id,'VIEW_NETWORK_PILOTAGE',ph1,'RESEAU');
 
   if exists(
