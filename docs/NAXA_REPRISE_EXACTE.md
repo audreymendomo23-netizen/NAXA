@@ -53,3 +53,21 @@ Reprendre sur :
 - pas de merge main ;
 - pas de Production ;
 - pas de reprise depuis zéro.
+
+
+## Clôture Partie 6 — Réconciliation finale Promoteur
+
+- checkpoint_status : 🟢 PARTIE 6 — VERT / 100 %
+- branch : `rewrite/naxa-from-main-20261007`
+- clôture CI : SHA `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
+- CircleCI pipeline #13 : workflow `part6_gate`, job `part6_check` = **Success**.
+- preuve fonctionnelle : replay Supabase des migrations 043→048 + test contradictoire = PASS avec ROLLBACK.
+- cause racine corrigée : `private.naxa_promoteur_valide()` ne dépend plus de l'ancien abonnement par pharmacie et délègue exclusivement à la validité canonique Promoteur.
+- durcissement : les fonctions mutantes de synchronisation ne sont plus exposées aux rôles client.
+- aucune donnée Production persistée ; `main` inchangé ; aucun merge ; aucun déploiement Production.
+
+## exact_resume_point
+
+**Parties 1 à 6 : ne pas recommencer.**
+
+Le prochain chantier doit être sélectionné depuis le cahier des charges V3.7 et la documentation canonique, après validation du fondateur.
