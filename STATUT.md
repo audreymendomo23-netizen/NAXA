@@ -171,3 +171,16 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 ## Point de reprise après Pilotage 360° Partie 1
 
 La prochaine étape est **Pilotage 360° — Partie 2 : socle Performance**. Elle doit inventorier les données réellement disponibles, définir les KPI de performance, tester les contradictions par rôle/scope et seulement ensuite coder si nécessaire.
+
+## Pilotage 360° — Partie 3 : Sécurité & Réseau — 🟢 VERT / 100 %
+
+- Contradiction racine 1 corrigée : après la réconciliation 048, le moteur historique à 3 paramètres de private.naxa_has_privilege() pouvait continuer à ignorer la nouvelle signature canonique ; migration 050 ajoute le pont de compatibilité vers le moteur canonique 4 paramètres.
+- Contradiction racine 2 corrigée : un privilège RESEAU pouvait être bootstrapé par NAXA en utilisant une pharmacie hors réseau actif du Promoteur ; migration 050 exige désormais le lien promoteur_pharmacies.actif=true et la pharmacie active.
+- Compatibilité schéma corrigée : le catalogue historique naxa_privileges.family et le catalogue canonique domaine sont réconciliés ; le privilège VIEW_PERFORMANCE_PILOTAGE est assuré par la migration 050.
+- Sécurité hiérarchique : PHARMACIE/POSTE_CAISSE est autorisé uniquement si le profil appartient à la pharmacie et possède une lignée active remontant à un Promoteur canoniquement valide.
+- Expiration du Promoteur : une expiration canonique invalide immédiatement les privilèges opérationnels des profils descendants du réseau.
+- Test contradictoire : supabase/tests/050_security_network_hardening.sql.
+- Preuve fonctionnelle : replay transactionnel sur le projet Supabase réel, migrations 044 + 048 + 050 + test 050, PASS avec ROLLBACK ; aucune donnée Production persistée.
+- Contrôle supplémentaire : même test exécuté avec la compatibilité Production historique 3 paramètres ; PASS avec ROLLBACK.
+- CI : gate structurel CircleCI part3_gate ajouté ; preuve fonctionnelle CI non remontée par les connecteurs disponibles. Le run GitHub diagnostique a échoué avant les steps (runner externe), sans échec SQL.
+- Aucun merge main, aucun déploiement Production.
