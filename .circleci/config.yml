@@ -35,7 +35,27 @@ jobs:
             grep -Fq "PART6_FAIL_PRIVILEGE_ENGINE_IGNORES_CANONICAL_EXPIRY" supabase/tests/048_reconciliation_finale_promoteur.sql
             echo "PART6_GATE_STRUCTURE=PASS"
 
+  part2_check:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Controle structurel Partie 2 — Performance"
+          command: |
+            grep -Fq "create view if not exists public.v_reservations_ca" supabase/migration_049_pilotage_performance_socle.sql
+            grep -Fq "stats_pilotage_scope" supabase/migration_049_pilotage_performance_socle.sql
+            grep -Fq "security_invoker = true" supabase/migration_049_pilotage_performance_socle.sql
+            grep -Fq "PART2_FAIL_SCOPE_LEAK" supabase/tests/049_pilotage_performance_socle.sql
+            grep -Fq "PART2_FAIL_CANONICAL_CA" supabase/tests/049_pilotage_performance_socle.sql
+            grep -Fq "PART2_FAIL_DOUBLE_COUNT" supabase/tests/049_pilotage_performance_socle.sql
+            grep -Fq "PART2_FAIL_STOCK_RUPTURE" supabase/tests/049_pilotage_performance_socle.sql
+            echo "PART2_GATE_STRUCTURE=PASS"
+
 workflows:
+  part2_gate:
+    jobs:
+      - part2_check
   part5_gate:
     jobs:
       - part5_check
