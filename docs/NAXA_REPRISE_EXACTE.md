@@ -19,7 +19,8 @@
 
 - `supabase/migration_052_direction_360.sql` compte désormais les Responsables via `fonction_interne='responsable'`, conformément au modèle canonique.
 - `supabase/tests/052_direction_360.sql` contient un test contradictoire dédié au comptage des Responsables.
-- Replay fonctionnel transactionnel : attendu PASS + ROLLBACK après correction.
+- Replay fonctionnel transactionnel réel : PASS + ROLLBACK après correction.
+- Vérification post-rollback : migration Production toujours 042, fixture Direction supprimée, `session_audit` non persistée, `stats_direction_360` non persistée.
 
 ## Règles permanentes
 
