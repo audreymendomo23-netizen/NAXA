@@ -64,6 +64,8 @@ begin
       check (niveau_min <= niveau_max)
     );
   else
+    alter table public.naxa_privileges add column if not exists family text;
+    alter table public.naxa_privileges add column if not exists description text;
     alter table public.naxa_privileges add column if not exists famille text;
     alter table public.naxa_privileges add column if not exists libelle text;
     alter table public.naxa_privileges add column if not exists niveau_min smallint;
