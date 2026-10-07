@@ -198,3 +198,5 @@ La couche Sécurité & Réseau a été auditée et durcie. La migration de réf�
 Corrections principales : compatibilité entre l'ancien appel 3 paramètres de naxa_has_privilege et le moteur canonique, propagation de la validité Promoteur aux profils descendants, refus d'un bootstrap RESEAU hors réseau actif, et réconciliation du catalogue de privilèges historique/canonique.
 
 La validation fonctionnelle a été réalisée transactionnellement sur le Supabase réel avec ROLLBACK : PASS. Aucune donnée Production n'a été persistée. La preuve CI fonctionnelle reste dépendante de l'infrastructure CI disponible ; elle n'est pas utilisée comme preuve de réussite du test SQL.
+
+- Sessions : migration 051 impose 4 sessions simultanées maximum sans expulsion automatique ; la 5e est refusée et un journal session_audit trace création/fin. Validation transactionnelle PASS + ROLLBACK.
