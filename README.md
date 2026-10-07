@@ -1278,3 +1278,16 @@ Prochaine preuve obligatoire : exécution réelle du workflow après migration 0
 - Les branches historiques auth/docs sont classées comme divergentes ou derrière main selon leur comparaison réelle ; aucun ancien score documentaire n'est repris comme preuve.
 - Supabase MCP a refusé les lectures live avec « link_id must identify an eligible linked account » ; aucune validation live Supabase n'est déclarée.
 - Le vert global Pilotage reste refusé : preuve CI et validation live Supabase non acquises, et le chantier n'est pas dans main/Production.
+
+
+## Audit mise au vert — 2026-10-07 — correction Pilotage 360° / CI
+
+- Audit global GitHub confirmé sur **31 branches**; branche de travail: `feat/promoteur-partie3-responsable-accreditation-20261006`.
+- Comparaison actuelle avec `main`: **631 commits ahead / 3 behind**, état `diverged`. Aucun merge vers `main` effectué.
+- Supabase Production: migrations connues jusqu'à **042** dans l'historique; correction live de la façade RPC `public.stats_pilotage_scope(integer)` effectuée: façade désormais **SECURITY INVOKER**, exécution publique/anon révoquée, authentifié autorisé; helper `private.stats_pilotage_scope` reste SECURITY DEFINER non exposé et son EXECUTE est limité à authenticated.
+- Vérification ACL: public façade = invoker; `anon=false`, `authenticated=true`, `public=false`. Appel sans session retourne bien **Connexion requise**.
+- Advisor sécurité: l'alerte SECURITY DEFINER de la façade Pilotage a disparu. Il reste uniquement l'alerte Supabase **Leaked Password Protection Disabled**, qui relève du réglage Auth du projet et ne peut pas être modifié par les connecteurs disponibles dans cette session.
+- GitHub CI: correction du lien de dépendance dans `.github/workflows/naxa-quality.yml`: `verification-8-pilotage` dépend désormais du job réellement déclaré `partie3-supabase`.
+- Migration de traçabilité ajoutée dans le code: `supabase/migration_043_stats_pilotage_facade_invoker_security.sql`.
+- Vercel Production reste volontairement inchangée sur `main` SHA `c171b546...`; **aucun déploiement Production effectué**.
+- État: **corrections techniques appliquées et vérifiées; chantier pas encore déclaré 100% vert** tant que le contrôle CI exécutable et le réglage Auth restant ne sont pas prouvés verts.
