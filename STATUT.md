@@ -1360,3 +1360,10 @@ Règle : aucune nouvelle architecture KPI ne sera créée pour le Pilotage Perfo
 - Partie 6/6 : ⏳
 
 Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complète n'a pas fourni la preuve PASS. Aucun merge main, aucune migration Production et aucun déploiement applicatif.
+
+
+### Partie 4 — état après audit contradictoire (7 octobre 2026)
+- 🟡 Non déclarée verte : les contrôles de preuve définitive restent bloqués par l’infrastructure GitHub Actions (runner échoue avant exécution, y compris smoke `checkout + echo`) et par la protection d’exécution DDL du connecteur Supabase pour un replay transactionnel.
+- Corrections intégrées : gate canonique `naxa_can_manage_privilege_target`, matrices de privilèges construites après le catalogue, fermeture des privilèges de gestion/élévation pour N3 Caisse, correction de la contrainte HYBRIDE, migration CI vers `supabase/setup-cli@v3`.
+- Aucun merge `main`, aucun déploiement Production, aucun changement persistant Supabase réalisé pendant cette passe.
+- Reprise requise dès qu’une preuve d’exécution CI ou un environnement Supabase de test autorisé est disponible.
