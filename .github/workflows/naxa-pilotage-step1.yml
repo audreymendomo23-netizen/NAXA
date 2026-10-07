@@ -8,17 +8,6 @@ on:
       - consolidation
 
 jobs:
-  runner-diagnostic:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Prouver le runner
-        run: |
-          echo "RUNNER=${RUNNER_OS}"
-          echo "IMAGE=${ImageOS}"
-          uname -a
-          node --version || true
-
   build:
     runs-on: ubuntu-latest
     steps:
