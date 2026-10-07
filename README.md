@@ -116,3 +116,16 @@ La Partie 2 a établi le socle canonique de gouvernance dans la branche rewrite/
 La migration supabase/migration_043_canonical_governance_part2.sql est additive et n'a pas été appliquée à Production. Sa compatibilité avec l'état Supabase réel a été vérifiée dans une transaction annulée, puis les contradictions Client N4 et architecture invalide ont été testées négativement. Production reste inchangée.
 
 **Partie 2 : VERT — 100 %.**
+
+
+## Reprise contrôlée — Partie 3
+
+La Partie 3 reconstruit le modèle canonique Promoteur : une convention, un tarif négocié, un abonnement et des paiements au niveau du Promoteur, valables pour l'ensemble de son réseau. Le réseau multi-pharmacie reste porté par `promoteur_pharmacies`, avec un seul Promoteur actif par pharmacie.
+
+Migration de référence : `supabase/migration_044_promoteur_convention_network_subscription.sql`. Tests : `supabase/tests/044_promoteur_convention_network_subscription.sql`.
+
+Le moteur historique d'abonnement par pharmacie est retiré du chemin canonique : le trigger d'initialisation automatique d'abonnement par pharmacie est supprimé et la façade historique de synchronisation délègue désormais au moteur Promoteur. La validation effective d'un Promoteur dépend de sa convention, de son abonnement, de leur échéance/statut et de l'existence de son réseau actif.
+
+La migration et les tests ont été exécutés dans Supabase réel dans une transaction puis annulés. Production n'a pas été modifiée.
+
+**Partie 3 : VERT — 100 %.**
