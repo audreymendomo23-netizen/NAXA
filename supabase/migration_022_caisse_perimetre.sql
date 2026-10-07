@@ -173,7 +173,7 @@ grant execute on function public.naxa_has_privilege(text,uuid,text) to authentic
 -- historique conserve exactement le scope demandé par les anciennes policies.
 create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
-as $ select public.naxa_has_privilege($1,$2,$3) $;
+as $fn$ select public.naxa_has_privilege($1,$2,$3) $fn$;
 revoke all on function public.authorize(text,uuid,text) from public,anon,authenticated;
 grant execute on function public.authorize(text,uuid,text) to authenticated;
 
