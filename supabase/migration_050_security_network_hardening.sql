@@ -6,6 +6,9 @@
 --    hors de son réseau actif.
 begin;
 
+alter table public.naxa_architecture_privileges
+  add column if not exists active boolean not null default true;
+
 create or replace function private.naxa_has_privilege(
   p_uid uuid,
   p_privilege text,
