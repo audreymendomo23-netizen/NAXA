@@ -20,7 +20,25 @@ jobs:
             grep -Fq "CI GitHub" STATUT.md
             echo "PART5_GATE_STRUCTURE=PASS"
 
+  part6_check:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Controle structurel Partie 6"
+          command: |
+            grep -Fq "private.naxa_promoteur_valide_canonique" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "revoke execute on function public.synchroniser_validite_promoteurs()" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "revoke execute on function public.synchroniser_validite_pharmacies()" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "PART6_FAIL_CANONICAL_EXPIRY_IGNORED" supabase/tests/048_reconciliation_finale_promoteur.sql
+            grep -Fq "PART6_FAIL_PRIVILEGE_ENGINE_IGNORES_CANONICAL_EXPIRY" supabase/tests/048_reconciliation_finale_promoteur.sql
+            echo "PART6_GATE_STRUCTURE=PASS"
+
 workflows:
   part5_gate:
     jobs:
       - part5_check
+  part6_gate:
+    jobs:
+      - part6_check
