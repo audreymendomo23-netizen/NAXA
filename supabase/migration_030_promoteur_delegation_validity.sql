@@ -15,6 +15,12 @@ declare
  v_arch text;
 begin
  if not public.is_admin()
+    and public.naxa_business_function((select auth.uid()))='promoteur'
+    and not public.naxa_promoteur_valide((select auth.uid())) then
+   raise exception 'Promoteur commercialement invalide';
+ end if;
+
+ if not public.is_admin()
     and not public.naxa_can('ASSIGN_PRIVILEGE',p_pharmacie,p_target) then
    raise exception 'Attribution non autorisée';
  end if;
