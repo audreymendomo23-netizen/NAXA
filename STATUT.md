@@ -116,3 +116,16 @@ CI gate: runner lightweight `ubuntu-slim` configuré pour la validation structur
 - Contrôles fonctionnels : bootstrap NAXA → accès Promoteur au réseau actif → exclusion du réseau inactif/hors périmètre → auto-attribution réseau refusée → révocation refusée au Promoteur et autorisée à NAXA → réactivation testée.
 - CI GitHub : plusieurs runs réels du gate, y compris `ubuntu-slim`, se terminent en échec avec `steps=[]` avant toute étape. Le rerun reproduit le même blocage. Aucun résultat CI exploitable n'est donc déclaré vert.
 - **Aucune validation finale de la Partie 5 tant que cette preuve CI réelle n'est pas obtenue.**
+
+
+## Système de continuité déterministe — installé
+
+- `docs/NAXA_MASTER_INDEX.md` : hiérarchie des autorités et état de référence.
+- `docs/CONTINUITE_NAXA.md` : protocole obligatoire de reprise.
+- `docs/NAXA_REPRISE_EXACTE.md` : checkpoint courant unique avec position exacte.
+- `docs/NAXA_CHECKPOINTS.md` : historique append-only des checkpoints.
+- Ancrage fonctionnel de continuité : `f644b4d42a48cda57cc1a7d9c6f26867852ac56e`.
+- La branche de continuation reste `rewrite/naxa-from-main-20261007` ; aucune nouvelle branche créée.
+- `main` et Production inchangés.
+
+**Continuité : 🟢 fondation installée.**

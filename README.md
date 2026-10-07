@@ -154,3 +154,14 @@ Les validations Supabase sont effectuées transactionnellement avec rollback tan
 - Test contradictoire : `supabase/tests/047_network_scope_pilotage_promoteur.sql`.
 - Validation transactionnelle réelle effectuée puis ROLLBACK ; aucune donnée Production persistée.
 - **Partie 5 : 🟡 non clôturée — CI GitHub bloquée avant l'exécution des steps.**
+
+
+## Continuité déterministe NAXA — 7 octobre 2026
+
+Le projet possède désormais un système de reprise persistant et vérifiable :
+- `docs/NAXA_MASTER_INDEX.md` définit la hiérarchie Cahier V3.7 → Prompt maître Fusion → GitHub → checkpoint → documentation.
+- `docs/NAXA_REPRISE_EXACTE.md` indique le point fonctionnel exact où reprendre.
+- `docs/NAXA_CHECKPOINTS.md` conserve l'historique des checkpoints.
+- `docs/CONTINUITE_NAXA.md` impose la vérification branche/SHA avant toute nouvelle action.
+
+Une nouvelle conversation ne doit pas recommencer le chantier ni créer une nouvelle branche par défaut. En cas de divergence entre checkpoint et GitHub, toute modification est suspendue jusqu'à résolution.
