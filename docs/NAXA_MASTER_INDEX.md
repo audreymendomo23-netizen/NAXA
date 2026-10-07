@@ -1,167 +1,78 @@
 # NAXA — MASTER INDEX
 
-> Document canonique de continuité. Toute nouvelle session NAXA doit commencer ici.
+> **Point d'entrée unique de continuité.**
+>
+> Le présent index ne contient pas les détails des anciens chantiers. Il désigne les sources canoniques afin d'éviter les équivalences concurrentes.
 
 ## 1. Hiérarchie des autorités
 
 | Niveau | Référence | Autorité |
 |---|---|---|
-| 1 | Cahier des charges V3.7 | Produit : ce que NAXA doit être |
+| 1 | `docs/CAHIER_DES_CHARGES.md` | Produit : ce que NAXA doit être |
 | 2 | Prompt maître Fusion | Méthode : comment construire, auditer, corriger et valider |
 | 3 | GitHub | Réalité technique effectivement présente |
-| 4 | NAXA_REPRISE_EXACTE.md | Position exacte de reprise |
-| 5 | STATUT.md | État opérationnel synthétique |
-| 6 | README.md | Documentation consolidée |
-| 7 | Conversations | Historique et contexte, jamais source technique unique |
+| 4 | `docs/NAXA_REPRISE_EXACTE.md` | **Position opérationnelle unique** |
+| 5 | `STATUT.md` | État synthétique |
+| 6 | `README.md` | Documentation consolidée |
+| 7 | Conversations | Historique, jamais source technique unique |
 
-## 2. Références maîtres
+## 2. État technique courant
 
-### Cahier des charges
-- Version : V3.7
-- Date connue : 06/10/2026
-- Autorité : PRODUIT
-- Règle : aucune implémentation ne peut contredire le cahier sans décision explicite de réconciliation.
-
-### Prompt maître Fusion
-- Nom canonique : Prompt maître Fusion
-- Autorité : MÉTHODOLOGIE
-- Règle : il impose le protocole de travail : audit → contradiction → cause racine → correction → tests/preuves → documentation → VERT → validation utilisateur.
-
-> Le contenu intégral de ces deux références n'est pas dupliqué ici. Ce fichier les désigne comme autorités ; leurs copies/emplacements exacts doivent être référencés lorsqu'ils sont présents dans le dépôt.
-
-## 3. État technique de référence actuel
-
-- Dépôt : `audreymendomo23-netizen/NAXA`
-- Branche de reprise : `rewrite/naxa-from-main-20261007`
-- SHA de référence vérifié : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
-- Base : `main`
-- SHA main : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- `main` : inchangé.
-- Production : inchangée.
-- Parties 1 à 6 : 🟢 100 %.
-- Pilotage 360° Parties 1 à 4 : 🟢 100 %.
-
-## 4. Dernier état métier validé
-
-- Partie 1 : 🟢 100 %
-- Partie 2 : 🟢 100 %
-- Partie 3 : 🟢 100 %
-- Partie 4 : 🟢 100 %
-- Partie 5 : 🟢 100 %
-- Cause racine corrigée : contradiction du scope `RESEAU` dans l'attribution des privilèges.
-- Preuve fonctionnelle : validation Supabase transactionnelle PASS + ROLLBACK.
-- Preuve CI : CircleCI pipeline #3 / workflow `part5_gate` / job `part5_check` = **Success**.
-- SHA de clôture : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`.
-
-## 5. Règle de reprise
-
-Une nouvelle session ne crée PAS de nouvelle branche par défaut.
-
-Elle doit :
-1. lire ce fichier ;
-2. lire `docs/NAXA_REPRISE_EXACTE.md` ;
-3. lire `STATUT.md` et `README.md` ;
-4. vérifier la branche et le SHA GitHub réels ;
-5. comparer la réalité GitHub au checkpoint ;
-6. si cohérent, reprendre à `exact_resume_point` ;
-7. si divergent, suspendre toute modification et auditer la divergence.
-
-## 6. Règles de sécurité
-
-- Aucun merge vers `main` sans autorisation explicite.
-- Aucun déploiement Production sans autorisation explicite.
-- Aucun service payant.
-- Aucune nouvelle branche sans nécessité technique démontrée et signalée.
-- Aucun 🟢 sans preuve.
-- Pour la Partie 5, la preuve CI de clôture est désormais fournie par CircleCI : workflow `part5_gate` = Success.
-
-
-## 7. Clôture Partie 6
-
-- Partie 6 : 🟢 **VERT — 100 %**.
-- Contradiction racine corrigée : le moteur de privilèges ne peut plus considérer le Promoteur valide via l'ancien abonnement par pharmacie lorsque l'abonnement Promoteur canonique est expiré.
-- Correction : `supabase/migration_048_reconciliation_finale_promoteur.sql`.
-- Test : `supabase/tests/048_reconciliation_finale_promoteur.sql`.
-- Preuve fonctionnelle : replay Supabase transactionnel PASS + ROLLBACK.
-- Preuve CI : CircleCI pipeline #13 / workflow `part6_gate` / job `part6_check` = **Success** sur `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`.
-- Sécurité : exécution client retirée des deux fonctions mutantes de synchronisation.
-- `main` et Production restent inchangés.
-
-### État de référence
-- Branche : `rewrite/naxa-from-main-20261007`
-- SHA de clôture Partie 6 : `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
+- dépôt : `audreymendomo23-netizen/NAXA`
+- branche unique de continuation : `rewrite/naxa-from-main-20261007`
+- SHA courant vérifié : `3b5e38f9f11ab184124abb4296f665d91e2c2619`
+- SHA `main` : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
+- `main) : inchangé
+- Production : inchangée
+- Supabase Production : migration `042_stats_pilotage_facade_security`, inchangée
 - Parties 1 à 6 : 🟢 100 %
-- Aucun merge `main`.
-- Aucun déploiement Production.
+- Pilotage 360° Parties 1 à 4 : 🟢 100 %
+- Réconciliation v3.7 : 🟢 clôturée
+- **Chantier courant : Qualité — EN COURS / non vert**
 
+## 3. Parcours déjà traité — une seule ligne par jalon
 
-## 8. Pilotage 360° — Partie 1
+1. Reconstruction du socle → 🟢
+2. Partie 2 — DB canonique → 🟢
+3. Partie 3 — convention/réseau/abonnement Promoteur → 🟢
+4. Partie 4 — privilèges/délégation → 🟢
+5. Partie 5 — scope réseau/Pilotage Promoteur → 🟢
+6. Partie 6 — réconciliation finale Promoteur → 🟢
+7. Pilotage 360° Partie 1 → 🟢
+8. Pilotage 360° Partie 2 — Performance → 🟢
+9. Pilotage 360° Partie 3 — Sécurité/Réseau → 🟢
+10. Pilotage 360° Partie 4 — Direction 360° → 🟢
+11. Réconciliation documentaire v3.7 → 🟢
+12. **Qualité → 🟡 en cours**
 
-- Partie 1 : 🟢 **VERT — 100 %**.
-- Audit canonique : `docs/PILOTAGE_360_AUDIT_PARTIE1.md`.
-- Contrôles C1→C6 : PASS.
-- Prochaine partie : socle Performance.
-- Aucun changement Production ; aucun merge `main`.
+Pour les preuves et détails, consulter `docs/NAXA_CHECKPOINTS.md`, pas recopier ces jalons dans le checkpoint courant.
 
+## 4. Contrat de continuité
 
-## 9. Pilotage 360° — Partie 3
+Toute nouvelle conversation doit :
 
-- Partie 3 : 🟢 VERT — 100 %.
-- Migration : supabase/migration_050_security_network_hardening.sql.
-- Test contradictoire : supabase/tests/050_security_network_hardening.sql.
-- Preuve fonctionnelle : replay Supabase réel PASS + ROLLBACK.
-- Contradictions corrigées : compatibilité moteur naxa_has_privilege, expiration Promoteur des descendants, bootstrap RESEAU hors réseau, catalogue historique/canonique.
-- main et Production restent inchangés.
-- Prochaine étape après validation : Partie 4.
+1. rester sur la branche de continuation existante ;
+2. lire `docs/NAXA_REPRISE_EXACTE.md` ;
+3. vérifier le SHA réel de cette branche ;
+4. vérifier `main` et Production ;
+5. reprendre uniquement au `exact_resume_point` ;
+6. ne jamais recréer une partie déjà clôturée ;
+7. lorsqu'un bloc devient 🟢 et est validé, remplacer son état opérationnel par le bloc suivant.
 
-- Sécurité sessions : migration 051 ; plafond 4, 5e refusée, aucune expulsion automatique, journal session_audit ; preuve transactionnelle PASS + ROLLBACK.
+**Une conversation n'est pas une branche. Un ancien checkpoint n'est pas un nouveau chantier.**
 
+## 5. Sécurité
 
-## 10. Pilotage 360° — Partie 4 : Direction 360°
+- aucun merge `main` sans autorisation explicite ;
+- aucun déploiement/mutation Production sans autorisation explicite ;
+- aucun service payant ;
+- aucun 🟢 sans preuve ;
+- aucune nouvelle branche sans nécessité technique démontrée et documentée.
 
-- Partie 4 : 🟢 **VERT — 100 %** après preuve fonctionnelle transactionnelle et rollback.
-- Migration : `supabase/migration_052_direction_360.sql`.
-- Test contradictoire : `supabase/tests/052_direction_360.sql`.
-- Cockpit : réseau + commercial + performance + sécurité.
-- Accès : Admin Réseau NAXA uniquement.
-- ERP : marge, bénéfice, coûts, performance par caisse et rétention client restent explicitement hors périmètre tant que les sources ERP canoniques ne sont pas disponibles.
-- Correction intégrée : réconciliation de `v_reservations_ca` dans la migration 049.
-- Preuve Supabase : PASS + ROLLBACK sur la base réelle, sans persistance.
-- main et Production : inchangés.
-- Prochaine action : validation explicite du fondateur avant tout chantier suivant.
+## 6. Sources de détail
 
-
-## 11. État canonique post-Direction 360° — CP-0007
-
-- Partie 4 Direction 360° : 🟢 100 % après correction du comptage Responsable.
-- Contrat canonique Responsable : fonction interne `fonction_interne='responsable'`, jamais un `role_type` métier.
-- Audit métier/global : `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
-- Production reste à migration 042 ; aucune migration 043→052 n'est persistée.
-- Aucun merge `main` et aucun déploiement Production.
-
-
-## 12. CP-0008 — Réconciliation globale des privilèges
-
-- 🟢 100 %.
-- Contradiction corrigée : trigger legacy `trg_naxa_provision_on_architecture` encore actif.
-- Migration : `supabase/migration_046_disable_legacy_privilege_provisioning.sql`.
-- Test : `supabase/tests/046_disable_legacy_privilege_provisioning.sql`.
-- Audit : `docs/PILOTAGE_360_RECONCILIATION_PRIVILEGES.md`.
-- Preuve Supabase : migrations 043→052 + tests 046/052 = PASS + ROLLBACK.
-- Production : migration 042, inchangée.
-- main : inchangé.
-
-## CP-0009 — État courant
-
-- Pilotage 360° Partie 2 Performance : 🟢 100 %.
-- Preuve fonctionnelle : Supabase réel, replay 043→049, PASS + ROLLBACK.
-- Production : migration 042, inchangée.
-- main : inchangé.
-- Checkpoint courant : CP-0009.
-- Documentation de preuve : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
-- Après validation du fondateur seulement : déterminer et exécuter le chantier canonique suivant.
-
-
-## CP-0009 — Autorité courante
-
-Le checkpoint courant est CP-0009. Pilotage 360° Partie 2 Performance : **🟢 100 %**. La preuve fonctionnelle réelle est PASS + ROLLBACK ; Production reste inchangée à migration 042.
+- position actuelle : `docs/NAXA_REPRISE_EXACTE.md`
+- historique des checkpoints : `docs/NAXA_CHECKPOINTS.md`
+- traçabilité : `docs/TRACABILITE.md`
+- protocole : `docs/CONTINUITE_NAXA.md`
+- cahier canonique : `docs/CAHIER_DES_CHARGES.md`
