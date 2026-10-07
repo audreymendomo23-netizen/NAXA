@@ -1374,3 +1374,10 @@ Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complè
 - Preuve exécutée dans PostgreSQL réel, dans une transaction entièrement annulée : groupes **1+2, 3+4 et 5+6 passés** ; contrôle post-`ROLLBACK` : aucune convention de test persistante, aucun profil `p4*` persistant, RLS `profiles` restauré à `true`, trigger historique restauré.
 - Aucun changement persistant Supabase Production, aucun merge `main`, aucun déploiement Production.
 - GitHub Actions n'a pas fourni de preuve exploitable (jobs précédents échouant avant étape, `steps=[]`) ; cette anomalie d'infrastructure ne remet pas en cause la preuve transactionnelle PostgreSQL réussie.
+
+### Partie 5 — audit contradictoire, 7 octobre 2026 — état courant
+- 🟡 **Non déclarée verte** : contradiction métier corrigée dans la branche, mais la preuve d'exécution définitive reste bloquée par l'infrastructure GitHub Actions (runner `ubuntu-22.04` termine en ~2 secondes avec `steps=[]`) et le connecteur Supabase NAXA n'est actuellement plus éligible pour un replay transactionnel.
+- Contradiction racine corrigée : le RPC de pilotage pouvait exposer le dashboard à un utilisateur authentifié sur la seule base de son rôle, sans exiger le privilège de pilotage correspondant. Le moteur Part 5 utilise désormais la chaîne canonique `private.stats_pilotage_scope` + façade publique invoker et vérifie `VIEW_NETWORK_PILOTAGE` pour Promoteur, `VIEW_RESPONSABLE_PILOTAGE` pour Responsable et `VIEW_CAISSE_PILOTAGE` pour Caisse.
+- Scope Promoteur exclusivement basé sur `promoteur_pharmacies` actifs ; les tests 032/033 ont été renforcés avec architecture et contrôle de révocation du privilège réseau.
+- Aucun merge `main`, aucune migration Production, aucun déploiement Production.
+- Reprise obligatoire de la preuve dès qu'un runner GitHub exécutable ou un environnement Supabase de test autorisé est disponible. **Partie 5 ne doit pas être annoncée verte avant PASS des tests 032/033.**
