@@ -644,21 +644,59 @@ Programme ERP + mise en service terrain + extensions réellement absentes après
 
 # 16. PROCHAIN CHANTIER — MÉTHODE
 
-**Étape suivante : audit massif des 🟡.**
+### Traitement maître — étapes 1 à 4 exécutées
 
-Pas de nouveau développement aveugle.
+**1. Lecture / audit des sources disponibles**
+- `main` contrôlé sur le SHA courant ;
+- registre des fonctionnalités contrôlé ;
+- historique récent des commits contrôlé ;
+- branches historiques de Pilotage / Promoteur / Responsable / réconciliation comparées à `main` ;
+- les travaux existants sont considérés comme matière à réconcilier, jamais comme fonctionnalités à reconstruire par défaut.
 
-Ordre :
+**2. Comparaison cible ↔ existant**
+- les 🟢 intégrés restent verrouillés ;
+- les travaux historiques identifiés sur les blocs F020–F041 sont confirmés comme existants hors de `main` ou partiellement intégrés ;
+- les briques ERP réellement absentes restent dans le périmètre de construction, après audit de l'existant.
 
-**1. récupérer les branches/commits historiques ;  
-2. déterminer pour chaque 🟡 la cause exacte ;  
-3. regrouper par cause ;  
-4. trouver une solution commune pour chaque groupe ;  
-5. exécuter les vérifications massives ;  
-6. intégrer uniquement ce qui est validé ;  
-7. passer chaque fiche au 🟢 ;  
-8. verrouiller les 🟢 ;  
-9. seulement ensuite ouvrir les ⚪.**
+**3. Préservation de l'historique**
+- aucune reconstruction des travaux historiques détectés ;
+- les branches divergentes sont traitées comme sources de code/preuves à comparer ;
+- une intégration future devra sélectionner la meilleure combinaison sans dégrader les 🟢.
+
+**4. Traitement par chantier**
+La prochaine action porte sur la **réconciliation/construction additive**, pas sur une reconstruction globale :
+- intégrer les éléments historiques compatibles ;
+- résoudre les contradictions réelles ;
+- construire uniquement les éléments absents ;
+- conserver les éléments compatibles des deux côtés ;
+- différer la vérification massive finale jusqu'à stabilisation du périmètre construit/réconcilié.
+
+### Blocage atteint
+
+Le blocage actuellement démontré est **l'intégration/preuve des travaux historiques dans `main`**, et non l'absence de ces travaux.
+
+Les comparaisons GitHub montrent notamment que plusieurs branches historiques sont fortement divergentes de `main`. Cela interdit une fusion aveugle : il faut sélectionner les deltas utiles et les réconcilier avec l'état actuel.
+
+**Décision appliquée :**
+- si une branche fournit ultérieurement une preuve complète de validation hors-main (SHA + périmètre + preuve), classement immédiat **🟢 VALIDÉ — HORS MAIN** et intégration sans reconstruction ;
+- si seule l'intégration manque, classement **🟡 CONSTRUIT — INTÉGRATION MANQUANTE** ;
+- si seule une preuve automatisée manque, classement **🟡 CONSTRUIT — PREUVE MANQUANTE** ;
+- une fonctionnalité ne sera jamais artificiellement déclarée 🟢 sans preuve suffisante.
+
+**La vérification massive LOT A reste volontairement différée**, conformément à la décision de chantier : elle sera exécutée après la stabilisation des constructions/réconciliations à venir, afin d'éviter de refaire plusieurs fois le même lot.
+
+### Règle opérationnelle désormais active
+
+**EXISTANT + PLANIFIÉ → FUSION ADDITIVE**
+
+- sans conflit → conserver/intégrer les deux ;
+- conflit réel → choisir la meilleure option ;
+- partiel → compléter ;
+- absent → construire ;
+- validé ailleurs → intégrer, pas reconstruire ;
+- 🟢 MAIN → verrouillé sauf régression prouvée.
+
+**Aucune fonctionnalité verte n'est retraitée dans ce passage.**
 
 ---
 
