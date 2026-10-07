@@ -170,3 +170,16 @@ Une nouvelle conversation ne doit pas recommencer le chantier ni créer une nouv
 
 ### État de reprise actuel
 La Partie 5 reste en attente de preuve CI réelle. Le gate a été corrigé pour utiliser `ubuntu-latest`, mais le run `37653058140` échoue avant toute étape avec 0 ms facturables ; le workflow qualité parallèle présente le même symptôme. Aucun 🟢 n'est déclaré.
+
+
+## Partie 6 — Réconciliation finale Promoteur
+
+- Contradiction racine isolée : le moteur interne de privilèges pouvait encore s'appuyer sur l'ancienne validité d'abonnement par pharmacie via `private.naxa_promoteur_valide()`, alors que le modèle canonique repose sur la convention + l'abonnement Promoteur.
+- Correction : `supabase/migration_048_reconciliation_finale_promoteur.sql` fait déléguer exclusivement `private.naxa_promoteur_valide()` à `private.naxa_promoteur_valide_canonique()`.
+- Durcissement sécurité : les fonctions mutantes `synchroniser_validite_promoteurs()` et `synchroniser_validite_pharmacies()` ne sont plus exécutables par `public`, `anon` ou `authenticated`.
+- Test contradictoire : `supabase/tests/048_reconciliation_finale_promoteur.sql` maintient volontairement l'ancien abonnement pharmacie actif, expire uniquement l'abonnement Promoteur canonique, puis vérifie que le Promoteur et son privilège réseau deviennent invalides.
+- Validation Supabase réelle : replay complet des migrations 043→048 + test PASS avec ROLLBACK ; aucune donnée Production persistée.
+- CI de clôture : commit `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`, CircleCI pipeline #13, `part6_gate` / `part6_check` = **Success**.
+- `main` et Production restent inchangés.
+- **Partie 6 : 🟢 VERT — 100 %.**
+
