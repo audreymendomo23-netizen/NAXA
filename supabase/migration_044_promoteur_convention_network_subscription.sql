@@ -167,7 +167,7 @@ begin
     );
   return n;
 end;
-$;
+$body$;
 
 create or replace function public.synchroniser_validite_pharmacies()
 returns integer
