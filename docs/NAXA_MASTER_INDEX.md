@@ -34,7 +34,8 @@
 - Dépôt : `audreymendomo23-netizen/NAXA`
 - Branche de reprise : `rewrite/naxa-from-main-20261007`
 - SHA de l'état fonctionnel avant installation du système de continuité : `f644b4d42a48cda57cc1a7d9c6f26867852ac56e`
-- SHA courant vérifié : `940aea76e2553378d56be49b451e2c41d1b11771`
+- SHA courant vérifié : `70486d3244c8132dfb82b1220bd86696b97afbb3`
+- Dernier SHA CI réellement testé : `940aea76e2553378d56be49b451e2c41d1b11771`
 - Base : `main`
 - SHA main : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
 - Écart constaté : branche +46 / -0 par rapport à main au moment du gel.
