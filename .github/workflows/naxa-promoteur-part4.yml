@@ -3,6 +3,8 @@ on:
   workflow_dispatch:
   push:
     branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
+  pull_request:
+    types: [opened, synchronize, reopened]
 jobs:
   partie4:
     runs-on: ubuntu-latest
