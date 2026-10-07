@@ -11,6 +11,11 @@ declare
   v jsonb;
 begin
   -- Fixtures transactionnelles : aucune persistance après rollback.
+  insert into public.pharmacies(id,nom,ville,lat,lng,actif)
+  values
+    (p1,'PART2 Pharmacie Active','Yaoundé',3.848,11.502,true),
+    (p2,'PART2 Pharmacie Inactive','Yaoundé',3.849,11.503,false);
+
   insert into auth.users(id,email,raw_user_meta_data)
   values
    (admin_id,'part2-admin@naxa.local',jsonb_build_object('username','part2admin','first_name','Partie','last_name','Admin','phone','+237690000001','phone_country','CM','date_of_birth','1980-01-01','consent_accepted',true)),
