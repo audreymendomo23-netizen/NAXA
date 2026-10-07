@@ -22,7 +22,7 @@
 - branche unique de continuation : `rewrite/naxa-from-main-20261007`
 - SHA courant vérifié : `3b5e38f9f11ab184124abb4296f665d91e2c2619`
 - SHA `main` : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- `main) : inchangé
+- `main` : inchangé
 - Production : inchangée
 - Supabase Production : migration `042_stats_pilotage_facade_security`, inchangée
 - Parties 1 à 6 : 🟢 100 %
