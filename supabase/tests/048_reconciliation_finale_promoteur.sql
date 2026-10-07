@@ -80,7 +80,8 @@ begin
     raise exception 'PART6_FAIL_CANONICAL_EXPIRY_IGNORED';
   end if;
 
-  if not has_function_privilege('public','public.naxa_promoteur_valide(uuid)','execute') then
+  if not has_function_privilege('authenticated','public.naxa_promoteur_valide(uuid)','execute')
+     or has_function_privilege('anon','public.naxa_promoteur_valide(uuid)','execute') then
     raise exception 'PART6_FAIL_PUBLIC_VALIDITY_FACADE';
   end if;
 
