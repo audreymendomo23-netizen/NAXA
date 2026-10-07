@@ -48,7 +48,7 @@ update public.profiles set niveau_interne=3 where role='caisse' and niveau_inter
 create index if not exists profiles_niveau_interne_idx on public.profiles(niveau_interne,actif);
 
 -- Réconciliation avec migration_020 : naxa_privileges existe déjà avec le catalogue canonique
--- (family/description/governance_only). On l'étend sans recréer ni remplacer cette table.
+-- (family/description/governance). On l'étend sans recréer ni remplacer cette table.
 do $naxa$
 begin
   if to_regclass('public.naxa_privileges') is null then
@@ -76,7 +76,7 @@ begin
            libelle=coalesce(libelle,description),
            niveau_min=coalesce(niveau_min,1),
            niveau_max=coalesce(niveau_max,3),
-           governance=coalesce(governance,governance_only,false),
+           governance=coalesce(governance,false),
            active=coalesce(active,true);
 
     alter table public.naxa_privileges alter column famille set not null;
@@ -90,11 +90,10 @@ end $naxa$;
 create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
 
 -- Compatibilité additive avec le premier catalogue 020 : ses colonnes historiques
--- family/description/governance_only sont NOT NULL. On desserre uniquement pendant
+-- family/description/governance sont NOT NULL. On desserre uniquement pendant
 -- le seed canonique, puis on les recale et on restaure immédiatement les invariants.
 alter table public.naxa_privileges alter column family drop not null;
 alter table public.naxa_privileges alter column description drop not null;
-alter table public.naxa_privileges alter column governance_only drop not null;
 alter table public.naxa_privileges alter column active drop not null;
 
 insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,delegable,governance) values
@@ -245,12 +244,11 @@ on conflict (code) do update set
 update public.naxa_privileges
 set family=coalesce(family,famille),
     description=coalesce(description,libelle),
-    governance_only=coalesce(governance_only,governance,false),
+    governance=coalesce(governance,false),
     active=coalesce(active,true);
 
 alter table public.naxa_privileges alter column family set not null;
 alter table public.naxa_privileges alter column description set not null;
-alter table public.naxa_privileges alter column governance_only set not null;
 alter table public.naxa_privileges alter column active set not null;
 
 create table if not exists public.naxa_profile_privileges (
