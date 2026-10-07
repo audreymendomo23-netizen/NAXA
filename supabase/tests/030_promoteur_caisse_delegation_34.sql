@@ -50,8 +50,15 @@ select pg_temp.assert_true(
 );
 select public.naxa_grant_privilege((select caisse from p4b_ids),'VIEW_STOCK',(select pharmacie_a from p4b_ids),'PHARMACIE');
 select pg_temp.assert_true(
-  public.naxa_has_privilege('VIEW_STOCK',(select pharmacie_a from p4b_ids),'PHARMACIE') = true,
-  '3.2 privilège opérationnel attribué'
+  exists(
+    select 1 from public.naxa_profile_privileges
+    where profile_id=(select caisse from p4b_ids)
+      and privilege_code='VIEW_STOCK'
+      and pharmacie_id=(select pharmacie_a from p4b_ids)
+      and scope_type='PHARMACIE'
+      and active
+  ),
+  '3.2 privilège opérationnel attribué à la Caisse'
 );
 
 -- 4. Privilèges gouvernance, architecture et scopes incompatibles refusés.
