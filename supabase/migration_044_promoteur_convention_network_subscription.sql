@@ -65,7 +65,7 @@ create or replace function private.validate_promoteur_pharmacie_link()
 returns trigger
 language plpgsql security definer
 set search_path to ''
-as $$
+as $body$
 begin
   if not exists (
     select 1 from public.profiles p
@@ -77,7 +77,7 @@ begin
   ) then raise exception 'PHARMACIE_INEXISTANTE'; end if;
   return new;
 end;
-$$;
+$body$;
 
 drop trigger if exists trg_validate_promoteur_pharmacie on public.promoteur_pharmacies;
 create trigger trg_validate_promoteur_pharmacie
@@ -94,7 +94,7 @@ create or replace function private.naxa_promoteur_abonnement_actif(p_promoteur u
 returns boolean
 language sql stable security definer
 set search_path to ''
-as $$
+as $body$
   select exists (
     select 1
     from public.profiles p
@@ -108,34 +108,34 @@ as $$
       and (a.echeance is null or a.echeance >= current_date)
       and (c.date_expiration is null or c.date_expiration >= current_date)
   );
-$$;
+$body$;
 
 create or replace function private.naxa_promoteur_valide_canonique(p_promoteur uuid)
 returns boolean
 language sql stable security definer
 set search_path to ''
-as $$
+as $body$
   select private.naxa_promoteur_abonnement_actif(p_promoteur)
   and exists (
     select 1 from public.promoteur_pharmacies pp
     join public.pharmacies ph on ph.id=pp.pharmacie_id
     where pp.promoteur_id=p_promoteur and pp.actif and ph.actif
   );
-$$;
+$body$;
 
 create or replace function public.naxa_promoteur_valide(p_promoteur uuid default auth.uid())
 returns boolean
 language sql stable
 set search_path to ''
-as $$
+as $body$
   select private.naxa_promoteur_valide_canonique($1);
-$$;
+$body$;
 
 create or replace function public.synchroniser_validite_promoteurs()
 returns integer
 language plpgsql security definer
 set search_path to 'public'
-as $$
+as $body$
 declare n integer := 0;
 begin
   update public.conventions_promoteurs c
