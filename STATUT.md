@@ -3,7 +3,15 @@
 Mise à jour : 7 octobre 2026 — reprise contrôlée / reconstruction canonique
 
 ## État actuel
-**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES ; PILOTAGE 360° PARTIES 1 À 4 VERTES ; AUDIT MÉTIER/GLOBAL POST-DIRECTION 360° CLÔTURÉ. PRODUCTION INCHANGÉE.**
+**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES ; PILOTAGE 360° PARTIES 1 À 4 VERTES ; RÉCONCILIATION V3.7 CLÔTURÉE ; CHANTIER COURANT : QUALITÉ 🟡 EN COURS. PRODUCTION INCHANGÉE.**
+
+### Point de reprise unique
+- Branche : `rewrite/naxa-from-main-20261007`
+- SHA courant : `186685c4e10d5f608f44b3c2dcd799de8f4dee01`
+- Chantier courant : **Qualité**
+- Statut : 🟡 non vert
+- Première action : audit du workflow Qualité et preuve CI complète.
+- Aucun jalon précédent ne doit être repris comme chantier courant ; les détails historiques restent dans `docs/NAXA_CHECKPOINTS.md`.
 
 ### Partie 1 — Audit et verrouillage du socle
 - Branche de reconstruction : `rewrite/naxa-from-main-20261007`.
