@@ -5,57 +5,51 @@
 ## Identité
 
 - checkpoint_id : `CP-0001-CONTINUITE`
-- checkpoint_status : 🟡 PARTIE 5 — CI BLOQUÉE PAR ALLOCATION RUNNER
-- checkpoint_scope : installation initiale du système de reprise
+- checkpoint_status : 🟢 PARTIE 5 — VERT / 100 %
+- checkpoint_scope : clôture de la Partie 5 et préparation de la Partie 6
 - branch : `rewrite/naxa-from-main-20261007`
-- anchor_sha : `70486d3244c8132dfb82b1220bd86696b97afbb3`
+- current_sha : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- current_sha : `70486d3244c8132dfb82b1220bd86696b97afbb3`
-- last_ci_test_sha : `940aea76e2553378d56be49b451e2c41d1b11771`
+- last_ci_test_sha : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
 
 ## Position fonctionnelle exacte
 
 - chantier : Reconstruction / Réconciliation NAXA
-- dernière partie fonctionnellement clôturée : Partie 4
-- partie courante : Partie 5 — Scope réseau + Pilotage Promoteur
-- statut Partie 5 : 🟡
-- blocage : CI GitHub échoue avant l'exécution des steps ; aucune preuve CI exploitable n'est déclarée.
-- preuve du 07/10/2026 : run `37653058140`, job `112901096630`, `steps=null`, durée facturable `0 ms` ; le workflow Partie 5 en `ubuntu-latest` échoue comme les autres jobs du workflow qualité en `ubuntu-24.04` sur le même push.
-- conclusion : le blocage n'est pas démontré comme provenant du SQL ou du YAML du gate ; il se situe au niveau de l'allocation/exécution des runners GitHub. Aucun motif de facturation précis n'est inventé faute de message d'erreur runner accessible.
-
-## Dernier point fonctionnel établi
-
-La correction de `migration_047_network_scope_pilotage_promoteur.sql` a résolu la contradiction du scope `RESEAU` : `pharmacie_id` doit rester NULL pour ce scope. Le replay Supabase transactionnel et les contrôles fonctionnels ont été validés avec rollback.
+- dernières parties clôturées : Parties 1, 2, 3, 4 et 5
+- statut Partie 5 : 🟢 VERT — 100 %
+- preuve fonctionnelle : replay Supabase transactionnel PASS avec ROLLBACK.
+- preuve CI : CircleCI pipeline #3, workflow `part5_gate`, job `part5_check`, **Success**, 26 s.
+- correction racine : le scope `RESEAU` exige `pharmacie_id = NULL`, alors que l'ancien chemin injectait `p_pharmacie`; migration 047 corrige l'attribution et la révocation.
+- aucune donnée Production persistée.
+- `main` et Production restent inchangés.
 
 ## exact_resume_point
 
-**Ne pas recommencer les Parties 1 à 4.**
+**Ne pas recommencer les Parties 1 à 5.**
 
 Reprendre sur :
 
-**Partie 5 → preuve CI réelle du gate → comprendre/corriger le blocage avant steps → relancer → obtenir 🟢.**
-
-## Première action obligatoire à la prochaine reprise
-
-Vérifier le SHA réel `940aea76e2553378d56be49b451e2c41d1b11771`, le workflow `.github/workflows/naxa-part5-gate.yml` et les runs `37653058140` / `37653057958`. La correction `ubuntu-24.04 → ubuntu-latest` a été appliquée mais n'a pas levé le blocage. Prochaine action technique : obtenir la cause d'allocation runner côté GitHub (quota/permission/disponibilité) sans souscrire de service payant, puis relancer le même gate.
+**Partie 6 → Réconciliation finale Promoteur**, après validation explicite du fondateur.
 
 ## Fichiers métier de la Partie 5
 
 - `supabase/migration_047_network_scope_pilotage_promoteur.sql`
 - `supabase/tests/047_network_scope_pilotage_promoteur.sql`
 - `.github/workflows/naxa-part5-gate.yml`
+- `.circleci/config.yml`
 
 ## Dernière réalité connue
 
 - `main` inchangé.
 - Production inchangée.
 - Branche de continuation : `rewrite/naxa-from-main-20261007`.
-- L'état fonctionnel d'ancrage est `f644b4d42a48cda57cc1a7d9c6f26867852ac56e`.
+- SHA de clôture Partie 5 : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`.
+- Aucun merge `main`.
+- Aucun déploiement Production.
 
 ## Interdictions au prochain démarrage
 
-- pas de nouvelle branche ;
+- pas de nouvelle branche sans nécessité technique démontrée ;
 - pas de merge main ;
 - pas de Production ;
-- pas de déclaration 🟢 sans preuve CI ;
 - pas de reprise depuis zéro.
