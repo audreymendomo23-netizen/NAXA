@@ -37,7 +37,7 @@ revoke all on function public.accrediter_profile(uuid,uuid,smallint,uuid) from p
 grant execute on function public.accrediter_profile(uuid,uuid,smallint,uuid) to authenticated;
 create or replace function public.accrediter_responsable(p_target uuid,p_pharmacie uuid)
 returns uuid language plpgsql security definer set search_path='' as $naxa$
-begin return public.accrediter_profile(p_target,p_pharmacie,2,(select auth.uid())); end
+begin return public.accrediter_profile(p_target,p_pharmacie,2::smallint,(select auth.uid())); end
 $naxa$;
 revoke all on function public.accrediter_responsable(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.accrediter_responsable(uuid,uuid) to authenticated;
