@@ -1138,3 +1138,10 @@ Les tests versionnés 029/030/031 ont été renforcés et le workflow naxa-promo
 
 
 Partie 4 — replay CI : correction supplémentaire du catalogue naxa_privileges, avec création des alias historiques family/description dans les deux chemins de migration. Validation finale toujours en attente du prochain PASS CI.
+
+
+### Partie 4 — état après audit contradictoire (7 octobre 2026)
+- 🟡 Non déclarée verte : les contrôles de preuve définitive restent bloqués par l’infrastructure GitHub Actions (runner échoue avant exécution, y compris smoke `checkout + echo`) et par la protection d’exécution DDL du connecteur Supabase pour un replay transactionnel.
+- Corrections intégrées : gate canonique `naxa_can_manage_privilege_target`, matrices de privilèges construites après le catalogue, fermeture des privilèges de gestion/élévation pour N3 Caisse, correction de la contrainte HYBRIDE, migration CI vers `supabase/setup-cli@v3`.
+- Aucun merge `main`, aucun déploiement Production, aucun changement persistant Supabase réalisé pendant cette passe.
+- Reprise requise dès qu’une preuve d’exécution CI ou un environnement Supabase de test autorisé est disponible.
