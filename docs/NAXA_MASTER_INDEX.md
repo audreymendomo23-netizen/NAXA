@@ -73,3 +73,22 @@ Elle doit :
 - Aucune nouvelle branche sans nécessité technique démontrée et signalée.
 - Aucun 🟢 sans preuve.
 - Pour la Partie 5, la preuve CI de clôture est désormais fournie par CircleCI : workflow `part5_gate` = Success.
+
+
+## 7. Clôture Partie 6
+
+- Partie 6 : 🟢 **VERT — 100 %**.
+- Contradiction racine corrigée : le moteur de privilèges ne peut plus considérer le Promoteur valide via l'ancien abonnement par pharmacie lorsque l'abonnement Promoteur canonique est expiré.
+- Correction : `supabase/migration_048_reconciliation_finale_promoteur.sql`.
+- Test : `supabase/tests/048_reconciliation_finale_promoteur.sql`.
+- Preuve fonctionnelle : replay Supabase transactionnel PASS + ROLLBACK.
+- Preuve CI : CircleCI pipeline #13 / workflow `part6_gate` / job `part6_check` = **Success** sur `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`.
+- Sécurité : exécution client retirée des deux fonctions mutantes de synchronisation.
+- `main` et Production restent inchangés.
+
+### État de référence
+- Branche : `rewrite/naxa-from-main-20261007`
+- SHA de clôture Partie 6 : `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
+- Parties 1 à 6 : 🟢 100 %
+- Aucun merge `main`.
+- Aucun déploiement Production.
