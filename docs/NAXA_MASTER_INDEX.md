@@ -101,3 +101,14 @@ Elle doit :
 - Contrôles C1→C6 : PASS.
 - Prochaine partie : socle Performance.
 - Aucun changement Production ; aucun merge `main`.
+
+
+## 9. Pilotage 360° — Partie 3
+
+- Partie 3 : 🟢 VERT — 100 %.
+- Migration : supabase/migration_050_security_network_hardening.sql.
+- Test contradictoire : supabase/tests/050_security_network_hardening.sql.
+- Preuve fonctionnelle : replay Supabase réel PASS + ROLLBACK.
+- Contradictions corrigées : compatibilité moteur naxa_has_privilege, expiration Promoteur des descendants, bootstrap RESEAU hors réseau, catalogue historique/canonique.
+- main et Production restent inchangés.
+- Prochaine étape après validation : Partie 4.
