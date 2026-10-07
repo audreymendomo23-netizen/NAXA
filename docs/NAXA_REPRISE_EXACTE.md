@@ -4,13 +4,13 @@
 
 ## Identité
 
-- checkpoint_id : `CP-0001-CONTINUITE`
-- checkpoint_status : 🟢 PARTIE 6 — VERT / 100 %
+- checkpoint_id : `CP-0004-PILOTAGE360-PART2-REPRISE`
+- checkpoint_status : 🟠 PILOTAGE 360° PARTIE 2 — EN COURS / NON VERT
 - checkpoint_scope : clôture de la Partie 6 et préparation du chantier Pilotage 360°
 - branch : `rewrite/naxa-from-main-20261007`
-- current_sha : `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
+- current_sha : `7ddde25d03bd535290111efbfa1510d0833cb06e`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- last_ci_test_sha : `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
+- last_ci_test_sha : `81dc2673ca9b182776ab87fbebbbe230ce8c9a5a`
 
 ## Position fonctionnelle exacte
 
@@ -68,6 +68,15 @@ Reprendre sur :
 
 ## exact_resume_point
 
-**Parties 1 à 6 : ne pas recommencer.**
+**Pilotage 360° → Partie 2 : socle Performance.**
 
-Reprendre sur : **Pilotage 360° → Partie 1 : audit de l'existant + matrice KPI canonique**, sans codage prématuré.
+Dernières corrections appliquées :
+- test 049 rendu autonome avec création transactionnelle de p1 actif et p2 inactif ;
+- CircleCI fonctionnel déplacé sur exécuteur machine ;
+- délai de sortie porté à 30 min ;
+- documentation réconciliée.
+
+**Blocage restant : preuve CI fonctionnelle CircleCI non remontée dans GitHub.**
+Le chantier reste 🟠 et doit être poursuivi jusqu’au replay fonctionnel PASS + preuve CI avant toute validation de la Partie 2.
+
+Aucun merge main. Aucune persistance Production.
