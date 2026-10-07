@@ -1,6 +1,15 @@
 -- NAXA 022 — fermeture du périmètre Caisse
 -- Additif / non destructif. La Caisse reste un opérateur de la pharmacie.
 
+-- Compatibilité historique : les policies 022 utilisaient authorize(); le moteur
+-- canonique actuel est naxa_can(). Ce wrapper ne crée aucun second moteur.
+create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
+returns boolean language sql stable security definer set search_path=''
+as $ select public.naxa_can($1,$2,null) $;
+revoke all on function public.authorize(text,uuid,text) from public,anon,authenticated;
+grant execute on function public.authorize(text,uuid,text) to authenticated;
+
+
 drop policy if exists stocks_write on public.stocks;
 drop policy if exists stocks_caisse_update on public.stocks;
 drop policy if exists stocks_management_insert on public.stocks;
