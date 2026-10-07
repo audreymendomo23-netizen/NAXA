@@ -11,15 +11,17 @@ declare
   v jsonb;
 begin
   -- Fixtures transactionnelles : aucune persistance après rollback.
-  insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,created_at,updated_at)
+  insert into auth.users(id,email,raw_user_meta_data)
   values
-   (admin_id,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','part2-admin@naxa.local','x',now(),now(),now()),
-   (promoter_id,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','part2-promoter@naxa.local','x',now(),now(),now());
+   (admin_id,'part2-admin@naxa.local',jsonb_build_object('username','part2admin','first_name','Partie','last_name','Admin','phone','+237690000001','phone_country','CM','date_of_birth','1980-01-01','consent_accepted',true)),
+   (promoter_id,'part2-promoter@naxa.local',jsonb_build_object('username','part2promoter','first_name','Partie','last_name','Promoteur','phone','+237690000002','phone_country','CM','date_of_birth','1980-01-01','consent_accepted',true));
 
-  insert into public.profiles(id,role,pharmacie_id,actif,niveau_hierarchique,fonction_interne,niveau_interne,architecture_code)
-  values
-   (admin_id,'admin',null,true,0,null,null,null),
-   (promoter_id,'promoteur',p1,true,1,'promoteur',1,'ORPHELIN');
+  update public.profiles
+  set role='admin',pharmacie_id=null,actif=true,niveau_hierarchique=0,fonction_interne=null,niveau_interne=null,architecture_code=null
+  where id=admin_id;
+  update public.profiles
+  set role='promoteur',pharmacie_id=p1,actif=true,niveau_hierarchique=1,fonction_interne='promoteur',niveau_interne=1,architecture_code='ORPHELIN'
+  where id=promoter_id;
 
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(promoter_id,p1,true);
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(promoter_id,p2,false);
