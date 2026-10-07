@@ -114,3 +114,17 @@ Elle doit :
 - Prochaine étape après validation : Partie 4.
 
 - Sécurité sessions : migration 051 ; plafond 4, 5e refusée, aucune expulsion automatique, journal session_audit ; preuve transactionnelle PASS + ROLLBACK.
+
+
+## 10. Pilotage 360° — Partie 4 : Direction 360°
+
+- Partie 4 : 🟢 **VERT — 100 %** après preuve fonctionnelle transactionnelle et rollback.
+- Migration : `supabase/migration_052_direction_360.sql`.
+- Test contradictoire : `supabase/tests/052_direction_360.sql`.
+- Cockpit : réseau + commercial + performance + sécurité.
+- Accès : Admin Réseau NAXA uniquement.
+- ERP : marge, bénéfice, coûts, performance par caisse et rétention client restent explicitement hors périmètre tant que les sources ERP canoniques ne sont pas disponibles.
+- Correction intégrée : réconciliation de `v_reservations_ca` dans la migration 049.
+- Preuve Supabase : PASS + ROLLBACK sur la base réelle, sans persistance.
+- main et Production : inchangés.
+- Prochaine action : validation explicite du fondateur avant tout chantier suivant.
