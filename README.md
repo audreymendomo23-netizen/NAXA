@@ -1191,3 +1191,39 @@ Partie 4 — replay CI : correction supplémentaire du catalogue naxa_privileges
 - Aucun fixture de test persistant ; aucun merge `main` ; aucune modification Vercel/Production applicative.
 - Les tests GitHub Actions restent un contrôle CI secondaire ; leur échec historique `steps=[]` est une défaillance d'exécution du runner et non un échec SQL. La preuve PostgreSQL réelle sur le projet NAXA est désormais disponible.
 - **Partie 5 : 🟢 100 % — chantier fonctionnel et sécurité validés.**
+
+
+## 🔒 PARTIE 6/6 — RÉCONCILIATION FINALE PROMOTEUR — 🟢 100 %
+**Mise à jour : 7 octobre 2026 — état courant prioritaire sur les historiques précédents**
+
+### Contradiction racine fermée
+Le modèle autorisation imposait que la validité commerciale du Promoteur soit une condition préalable à ses privilèges et à son pilotage. Le moteur distant possédait le contrôle de rôle, de scope et de privilèges, mais aucune fonction canonique `naxa_promoteur_valide()` n'existait réellement sur Supabase. `naxa_provision_caisse()` la référençait pourtant déjà : c'était une divergence code ↔ base.
+
+### Correction exécutée
+- `039_promoteur_reconciliation_validite` : création du contrôle canonique de validité commerciale et intégration dans `naxa_has_privilege()` et `naxa_scope_allows()`.
+- Une seule pharmacie active liée au Promoteur avec abonnement absent, expiré, impayé ou pharmacie inactive suffit désormais à invalider le Promoteur pour l'ensemble de son réseau.
+- Le privilège réseau et le pilotage Promoteur passent donc par la même chaîne d'autorité : identité → validité commerciale → privilège → scope.
+- `040` puis `041` ont fermé puis réconcilié la façade `naxa_promoteur_valide()` en SECURITY INVOKER, avec helper privé protégé.
+- Les fonctions privilégiées conservent `search_path=''` et des références qualifiées.
+
+### Preuves Supabase réelles
+- Promoteur + pharmacie valide : `naxa_promoteur_valide() = true`.
+- Même Promoteur + abonnement expiré : `false`.
+- Après expiration : `naxa_has_privilege('VIEW_NETWORK_PILOTAGE', null, 'RESEAU') = false`.
+- Avec deux pharmacies liées, l'expiration d'une seule invalide le réseau entier : `false`.
+- `stats_pilotage_scope(7)` refuse alors avec l'exception exacte : `Privilège Pilotage réseau requis`.
+- Tous les fixtures de ces contrôles ont été exécutés en transaction puis annulés ; vérification post-rollback : aucun lien de test, aucun changement de rôle, aucune architecture de test persistante.
+- ACL finale : helper privé non exécutable par `public/anon` ; façade exposée uniquement à `authenticated`.
+
+### Réconciliation finale
+1. Architecture ↔ rôle ↔ fonction interne : 🟢
+2. Promoteur ↔ pharmacies autorisées : 🟢
+3. Validité commerciale ↔ privilèges ↔ pilotage : 🟢
+4. Responsables/Caisses ↔ descendants ↔ scopes : 🟢
+5. Privilèges ↔ délégation ↔ RLS/grants/RPC : 🟢
+6. Pilotage ↔ sécurité ↔ source KPI canonique : 🟢
+7. Documentation dépôt ↔ état Supabase : 🟢
+
+### Verdict
+**PARTIE 6/6 — 🟢 100 %.**
+Le chantier Promoteur est techniquement réconcilié sur les six parties. Aucun merge `main`, aucun déploiement Vercel et aucune migration applicative Production n'ont été effectués dans cette exécution.
