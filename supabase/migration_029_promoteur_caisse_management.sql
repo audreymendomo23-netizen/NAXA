@@ -1,4 +1,51 @@
 -- NAXA 029 — Promoteur Partie 4 : gestion Caisse / quotas / périmètre
+-- Canonical target gate used by privilege delegation/revocation.
+-- The actor may manage only direct descendants in the same pharmacy and only
+-- for functions strictly below its own level.
+create or replace function public.naxa_can_manage_privilege_target(
+  p_target uuid,
+  p_pharmacie uuid default null
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $fn$
+  select exists (
+    select 1
+    from public.profiles actor
+    join public.profiles target on target.id=p_target
+    where actor.id=(select auth.uid())
+      and actor.actif
+      and target.actif
+      and p_target <> actor.id
+      and target.pharmacie_id=p_pharmacie
+      and (
+        (
+          public.naxa_business_function(actor.id)='promoteur'
+          and target.parent_profile_id=actor.id
+          and public.naxa_business_function(target.id) in ('responsable','caisse')
+          and exists (
+            select 1 from public.promoteur_pharmacies pp
+            where pp.promoteur_id=actor.id
+              and pp.pharmacie_id=p_pharmacie
+              and pp.actif
+          )
+        )
+        or
+        (
+          public.naxa_business_function(actor.id)='responsable'
+          and target.parent_profile_id=actor.id
+          and public.naxa_business_function(target.id)='caisse'
+        )
+      )
+  )
+$fn$;
+
+revoke all on function public.naxa_can_manage_privilege_target(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.naxa_can_manage_privilege_target(uuid,uuid) to authenticated;
+
 -- Additif non destructif. Ferme les entrées latérales de provisionnement et de statut.
 
 create or replace function public.naxa_can_manage_team_member(
