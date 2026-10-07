@@ -1,5 +1,5 @@
 name: NAXA quality
-# CI retrigger: workflow restored on default branch; no product logic change.
+# CI retrigger: Actions permissions activated; no product logic change.
 on:
   workflow_dispatch:
   pull_request:
