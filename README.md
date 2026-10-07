@@ -1054,16 +1054,17 @@ Validation transactionnelle réelle : **13/13 assertions PASS**, rollback comple
 ### Partie 2/6 — Architecture + convention + validité : 🟢
 Validation transactionnelle réelle : **11/11 assertions PASS**, replay 013→027, rollback complet, aucune donnée persistée.
 
-### Partie 3/6 — Accréditation Responsable : 🟡 PAUSÉE VOLONTAIREMENT
-Le chantier est gelé exactement à son état actuel, à la demande explicite de l'utilisateur.
-- Migration additive `supabase/migration_028_promoteur_responsable_accreditation.sql` construite.
-- Contradiction principale fermée dans le code : l'accréditation d'un Responsable doit passer par le privilège `CREATE_RESPONSABLE`.
-- Test structurel 028 : PASS.
-- Replay des migrations jusqu'à 028 dans la CI locale : PASS.
-- Build : PASS.
-- La validation comportementale complète n'est **pas déclarée verte** à ce checkpoint.
-- Aucun merge vers `main` et aucune modification Production.
-- Le test comportemental sera repris ultérieurement exactement depuis ce checkpoint.
+### Partie 3/6 — Accréditation Responsable : 🟢 VERTE — 100 %
+- `accrediter_profile(..., niveau=2)` impose `CREATE_RESPONSABLE`.
+- Validité commerciale, scope pharmacie, parent explicite et quota d'architecture restent obligatoires.
+- A1/A2 refusent structurellement la création d'un Responsable ; A3/A4 l'autorisent.
+- Le moteur d'autorisation reste unifié autour du chemin canonique privé.
+- Les références obsolètes `governance_only`, `profile_privileges` comme table d'écriture et `can_access_pharmacy()` ont été réconciliées.
+- Validation comportementale transactionnelle réelle : **6/6 assertions PASS**.
+- ROLLBACK complet ; aucune donnée de test persistée.
+- Aucun merge `main`, aucune migration Production, aucun déploiement.
+
+**Verdict : Partie 3/6 🟢 100 %.**
 
 ### Parties suivantes
 - Partie 4/6 — Gestion des Caisses + délégation.
