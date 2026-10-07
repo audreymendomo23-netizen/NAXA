@@ -1,686 +1,587 @@
-# NAXA — FONCTIONNALITÉS VALIDÉES
+# NAXA — REGISTRE DES FONCTIONNALITÉS / ÉTAT DE VALIDATION
 
-> Registre opérationnel permanent des fonctionnalités/pages/blocs NAXA.
-> **Source de suivi :** toute fonctionnalité créée ou reprise doit être consignée ici avec son état réel.
-> **Source de vérité du code :** `main`.
-> Les anciennes branches restent des sources historiques et de récupération ; elles ne sont jamais assimilées à une intégration dans `main` sans preuve.
-
-## 1. Règle de fonctionnement
-
-**Construire → contrôler → consigner → statut → commit → main → continuer.**
-
-Un bloc bloqué par une preuve externe ne doit pas immobiliser les blocs indépendants. Le blocage, sa cause et la prochaine action sont consignés ici.
-
-## 2. Niveaux de validation
-
-| Niveau | Signification |
-|---|---|
-| 🟡 Statique | Code/page/route présente et inspectée. |
-| 🟢 Technique | Compilation, tests, DB, sécurité et contrôles techniques effectivement prouvés. |
-| 🟢 Fonctionnelle | Flux métier effectivement vérifié. |
-| 🟢 Production | Déploiement Production autorisé et comportement réellement vérifié en Production. |
-
-### Statuts globaux
-
-- 🟢 **VALIDÉ** : le niveau annoncé est prouvé.
-- 🟡 **VALIDÉ — À COMPLÉTER** : bloc construit et état connu, mais preuve/niveau supérieur manquant.
-- 🔴 **À CORRIGER** : contradiction, régression ou défaut identifié.
-- ⚪ **À FAIRE** : fonctionnalité non construite.
-
-> « Validé » dans ce registre signifie que le bloc a été traité et consigné avec son statut réel. Cela ne signifie pas automatiquement « Production validée ».
-
-## 3. Fiche obligatoire
-
-Chaque entrée doit contenir, quand l'information existe :
-
-- ID
-- fonctionnalité/page
-- domaine
-- description
-- routes
-- fichiers créés/modifiés
-- tables/vues/fonctions/triggers DB
-- migrations
-- tests et résultats
-- branche de création
-- commit de création
-- intégration dans main + SHA
-- déploiement éventuel
-- validation statique/technique/fonctionnelle/Production
-- preuves
-- blocage
-- cause
-- correction
-- prochaine action
-- dernière vérification
-- notes/contradictions.
+> **Document de pilotage permanent.**
+> Ce registre sert à savoir **ce qui est réellement terminé, ce qui est terminé hors `main`, ce qui est seulement construit, ce qui est bloqué par une preuve et ce qui reste à construire**.
+>
+> **Source de vérité du code intégré : `main`.**
+> **Sources de vérité fonctionnelles : Cahier des charges NAXA v3.7 + Prompt maître + historique technique vérifié.**
+>
+> **Règle cardinale : un point 🟢 réellement validé n'est jamais reconstruit ni retraité, sauf régression prouvée.**
 
 ---
 
-# 4. INVENTAIRE RETRACÉ — FONCTIONNALITÉS DÉJÀ TRAITÉES
+## 1. RÈGLE DE TRAVAIL — VERSION COURANTE
 
-> **Important :** les statuts ci-dessous distinguent ce qui est réellement documenté/présent sur `main` de ce qui a été traité sur des branches historiques. Une fonctionnalité historique n'est pas déclarée intégrée à `main` sans preuve.
+Le cycle NAXA est :
+
+**AUDIT → CONTRADICTION → CAUSE RACINE → SOLUTION → CONSTRUCTION/CORRECTION → TEST → PREUVE → CONSIGNATION → COMMIT → MAIN → 🟢 → CONTINUER**
+
+Mais le registre impose désormais une deuxième règle :
+
+### Ne jamais confondre « construit », « validé hors main » et « validé dans main »
+
+| Statut | Signification | Action |
+|---|---|---|
+| 🟢 **VALIDÉ — MAIN** | Fonctionnalité prouvée et intégrée dans `main` | **Ne plus revenir dessus** sauf régression |
+| 🟢 **VALIDÉ — HORS MAIN** | Fonctionnalité réellement validée sur une autre branche/commit, mais non intégrée dans `main` | **Ne pas reconstruire** ; intégrer/réconcilier puis revalider uniquement l'intégration |
+| 🟡 **CONSTRUIT — PREUVE MANQUANTE** | Code présent/traité, mais une preuve technique/fonctionnelle manque | Classer par cause puis résoudre en lot |
+| 🟡 **CONSTRUIT — INTÉGRATION MANQUANTE** | Fonctionnalité traitée dans une branche historique mais état `main` non démontré | Comparer/réconcilier ; ne pas refaire |
+| 🔴 **À CORRIGER** | Contradiction, défaut, régression ou sécurité non conforme | Corriger jusqu'au 🟢 |
+| ⚪ **À FAIRE** | Fonctionnalité non construite après audit de l'existant | Construire |
+
+### Règle anti-boucle
+
+**🟢 = verrouillé.**
+
+Une fiche 🟢 contient sa preuve et devient une référence historique.  
+On ne la « revalide » pas simplement parce qu'une autre conversation recommence l'audit.
+
+---
+
+# 2. NIVEAUX DE PREUVE
+
+| Niveau | Définition |
+|---|---|
+| 🟡 Statique | Code/routes/UI présents et contrôlés |
+| 🟢 Technique | Build/tests/code/DB/sécurité effectivement prouvés |
+| 🟢 Fonctionnelle | Flux métier effectivement vérifié |
+| 🟢 Production | Déploiement Production autorisé et comportement Production vérifié |
+
+**Important :** un niveau manquant ne transforme pas automatiquement un travail existant en « non construit ». Il doit être classé selon sa **cause exacte**.
+
+---
+
+# 3. STRATÉGIE DE RÉSOLUTION PAR LOT
+
+Le projet ne doit plus être traité fonctionnalité par fonctionnalité lorsque plusieurs blocages ont la même cause.
+
+Exemple :
+
+- 11 fonctionnalités bloquées uniquement par CI ;
+- 4 par preuve Supabase live ;
+- 2 par contradiction SQL ;
+- 1 réellement non construite.
+
+Alors :
+
+**LOT CI → trouver une voie de vérification alternative → vérifier les 11 en masse**
+
+**LOT SUPABASE → trouver une méthode de preuve commune → vérifier les 4**
+
+**LOT CONTRADICTIONS → corriger les 2**
+
+**LOT CONSTRUCTION → construire la 1**
+
+### Conséquence
+
+Un blocage GitHub/CI ne doit **jamais** entraîner la reconstruction des fonctionnalités concernées.
+
+Nous cherchons d'abord une **solution de preuve commune**, puis nous lançons une vérification massive.
+
+---
+
+# 4. FICHE OBLIGATOIRE
+
+Chaque fonctionnalité doit conserver, quand disponible :
+
+- ID ;
+- domaine ;
+- description ;
+- routes ;
+- fichiers ;
+- DB : tables/vues/RPC/triggers ;
+- migrations ;
+- tests + résultats ;
+- branche de création ;
+- commit de création ;
+- branche/commit de validation ;
+- SHA d'intégration dans `main` ;
+- déploiement ;
+- niveaux de validation ;
+- preuves ;
+- statut ;
+- cause du non-vert ;
+- solution détectée ;
+- correction ;
+- prochaine action ;
+- dernière vérification ;
+- contradictions connues.
+
+---
+
+# 5. ALIGNEMENT AVEC LE CAHIER DES CHARGES v3.7
+
+Le registre est désormais organisé autour des axes confirmés par la v3.7 :
+
+1. socle Client/Auth ;
+2. pharmacie et exploitation ;
+3. Promoteur / Caisses ;
+4. **Pilotage 360° (§2bis)** ;
+5. hiérarchie N0 → N4 ;
+6. architectures ;
+7. privilèges et délégation ;
+8. convention Promoteur / tarif / abonnement / validité ;
+9. Responsable N2 ;
+10. multi-pharmacie et scopes ;
+11. CA canonique ;
+12. sécurité/réseau/sessions ;
+13. rapports/BI/exports ;
+14. ERP pharmacie ;
+15. mise en service terrain et extensions prévues.
+
+**Point important v3.7 : ERP est bien un axe du produit.**  
+Le fait que certaines briques stock/vente existent déjà ne signifie pas que tout l'ERP est construit.
+
+---
+
+# 6. ALIGNEMENT AVEC LE PROMPT MAÎTRE
+
+Le registre applique les règles suivantes du prompt maître :
+
+- `main` = source de vérité de l'intégration ;
+- historique des branches conservé ;
+- ne jamais déclarer 🟢 sans preuve ;
+- ne pas refaire une fonctionnalité déjà traitée ;
+- audit avant codage ;
+- correction des contradictions avant poursuite ;
+- Production uniquement avec autorisation explicite ;
+- aucune dépendance à un service payant ;
+- documentation après chaque chantier ;
+- les blocages externes sont isolés et regroupés ;
+- une preuve manquante est traitée comme un problème de **validation**, pas comme une raison de déclarer le développement inexistant.
+
+---
+
+# 7. INVENTAIRE ACTUEL — 🟢 VALIDÉ DANS MAIN
+
+> Ces éléments ne doivent plus être retraités sauf régression prouvée.
 
 ## NAXA-F001 — Authentification / connexion
+Routes principales : `/connexion`, `/nouveau-mot-de-passe`, `/mot-de-passe-oublie`, `/verification-age`.
 
-**Domaine :** Auth  
-**Routes principales :** `/connexion`, `/nouveau-mot-de-passe`, `/mot-de-passe-oublie`, `/verification-age`  
-**État retracé :** construite et consolidée.  
-**Travaux :**
-- connexion username/mot de passe ;
-- récupération de compte ;
-- OTP e-mail ;
-- changement de mot de passe ;
-- session Supabase ;
-- Google OAuth et callback ;
-- conservation de la destination de retour ;
-- conteneur d'authentification sans scroll parasite ;
-- contrôle serveur avant envoi OTP ;
-- compte inexistant = aucune étape OTP.
+Travaux consolidés : username/mot de passe, récupération, OTP, reset, session Supabase, Google OAuth/callback, destination de retour, conteneur auth sans scroll, précontrôle serveur OTP, compte inexistant sans OTP.
 
-**Branches historiques retracées :**
-- `feat/auth-flow-age-gate`
-- `fix/auth-reset-google-ux`
-- `fix/auth-no-scroll-final-20261004`
-- `reconcile/auth-homepage-20261004`
-- `reconcile/naxa-final-auth-home-20261004`
-- `feat/final-auth-legal-ux-20261004`
+Branches historiques : `feat/auth-flow-age-gate`, `fix/auth-reset-google-ux`, `fix/auth-no-scroll-final-20261004`, `reconcile/auth-homepage-20261004`, `reconcile/naxa-final-auth-home-20261004`, `feat/final-auth-legal-ux-20261004`.
 
-**Main / preuve récente :**
-- PR #17 documentée par le commit `d69bec6742bc475e6aadac317fa4317edd894567`.
-- README/STATUT de `main` indiquent la consolidation et un build Production réussi.
-- Production documentée comme READY dans l'état historique du dépôt.
+Preuve de consolidation : commit `d69bec6742bc475e6aadac317fa4317edd894567`.
 
-**Validation :**
-- Statique : 🟢
-- Technique : 🟢 selon les preuves documentées
-- Fonctionnelle : 🟢 selon le périmètre contrôlé
-- Production : 🟢 selon le dernier état documenté
-
-**Statut global :** 🟢 VALIDÉ — historique/main documenté.  
-**À surveiller :** ne pas confondre cette validation historique avec une nouvelle preuve Production si l'environnement a changé.
+**Statut : 🟢 VALIDÉ — MAIN**
 
 ---
 
 ## NAXA-F002 — Création de compte
+Route : `/creation-compte`.
 
-**Domaine :** Auth  
-**Route :** `/creation-compte`  
-**Travaux retracés :**
-- création en étapes informations → OTP → mot de passe ;
-- username unique ;
-- téléphone pays/indicatif/numéro ;
-- contrôle de longueur ;
-- coche jaune de validation ;
-- sélecteur pays compact ;
-- suppression du bandeau « Les plus recherchés » sur cet écran ;
-- recentrage/compactage mobile ;
-- suppression du scroll volontaire.
+Username unique, OTP, téléphone pays/indicatif/numéro, validation, sélecteur pays compact, UX mobile et absence de scroll.
 
-**Branches :**
-- `feat/creation-compte`
-- `docs/creation-compte-consolidation-20261004`
-- `fix/creation-compte-mobile-ux-20261005`
-- `fix/creation-phone-forgot-password-20261004`
+Branches : `feat/creation-compte`, `docs/creation-compte-consolidation-20261004`, `fix/creation-compte-mobile-ux-20261005`, `fix/creation-phone-forgot-password-20261004`.
 
-**Main :** fusionnée dans les consolidations historiques documentées.  
-**Production :** état historique documenté READY.
-
-**Validation :** Statique 🟢 / Technique 🟢 / Fonctionnelle 🟢 / Production 🟢 selon le dernier périmètre documenté.  
-**Statut :** 🟢 VALIDÉ.
+**Statut : 🟢 VALIDÉ — MAIN**
 
 ---
 
 ## NAXA-F003 — Validation d'âge
+Route : `/verification-age`.
 
-**Domaine :** Sécurité/Auth  
-**Route :** `/verification-age`  
-**Travaux :**
-- validation obligatoire ;
-- trois politiques ;
-- contrôle interface + serveur ;
-- hardening de la validation.
+Trois politiques, contrôles interface + serveur, hardening.
 
-**Branche retracée :** `fix/age-gate-production-hardening`.  
-**Statut :** 🟢 VALIDÉ dans le périmètre historique contrôlé.  
-**Production :** 🟢 documentée dans la consolidation auth.
+Branche historique : `fix/age-gate-production-hardening`.
+
+**Statut : 🟢 VALIDÉ — MAIN**
 
 ---
 
 ## NAXA-F004 — Accueil / marketplace de recherche
+Recherche, classement prix/distance/temps, circulation, « Les plus recherchés », traductions, CTA pharmacie, disclaimer, numéros d'urgence et actions protégées.
 
-**Domaine :** Client  
-**Routes :** accueil, recherche/résultats, fiches produits  
-**Travaux retracés :**
-- recherche de médicaments ;
-- classement prix/distance/temps ;
-- circulation ;
-- bandeau « Les plus recherchés » ;
-- traduction des noms du bandeau ;
-- CTA pharmacie isolé ;
-- disclaimer médical repositionné ;
-- numéros 1510 / 119 / 1511 ;
-- accès protégé pour les actions opérationnelles.
-
-**Statut :** 🟢 VALIDÉ — historique/main documenté pour le périmètre existant.  
-**Attention :** extensions marketplace futures restent à traiter.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
-## NAXA-F005 — Catalogue / fiche produit
+## NAXA-F005 — Catalogue / fiches produits
+Catalogue, fiches, contrôles administratifs, relation panier, migrations catalogue/panier et hardening.
 
-**Domaine :** Client / Catalogue  
-**Travaux :**
-- catalogue ;
-- fiches produits ;
-- contrôle des écritures administratives ;
-- panier relié au catalogue.
-
-**DB retracée :** migrations catalogue/panier historiques 002+, contrôles sécurité 003/004.  
-**Statut :** 🟢 VALIDÉ pour le périmètre existant.  
-**Reste :** enrichissements ERP/catalogue à venir.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
 ## NAXA-F006 — Panier
+Gestion panier + contrôles serveur + protection des opérations.
 
-**Domaine :** Client  
-**Travaux :**
-- ajout/gestion panier ;
-- contrôles serveur renforcés ;
-- actions opérationnelles protégées.
-
-**DB :** migration catalogue/panier + hardening sécurité.  
-**Statut :** 🟢 VALIDÉ pour le périmètre existant.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
 ## NAXA-F007 — Réservation / retrait
+Réservation 3 h, expiration, reçu, retrait, paiement guidé facultatif.
 
-**Domaine :** Client / Pharmacie  
-**Travaux retracés :**
-- réservation ;
-- durée de réservation 3 h ;
-- expiration planifiée ;
-- reçu ;
-- parcours de retrait ;
-- paiement guidé facultatif.
-
-**DB :** mécanisme d'expiration + RPC historiques.  
-**Statut :** 🟢 VALIDÉ pour le périmètre existant.  
-**À compléter ultérieurement :** ERP vente/retrait complet.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
 ## NAXA-F008 — Paiement guidé
+Code marchand, statut réservation, reçu imprimable.
 
-**Domaine :** Client / Réservation  
-**Travaux :**
-- paiement guidé par code marchand ;
-- statut de réservation ;
-- reçu imprimable.
-
-**Statut :** 🟢 VALIDÉ pour le flux existant.  
-**Reste :** intégrations de paiement en ligne/Mobile Money selon cahier.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
 ## NAXA-F009 — WhatsApp
+Interaction existante ; règle actuelle : pas de numéro WhatsApp pharmacie exposé au client.
 
-**Domaine :** Client  
-**Travaux :** contact/interaction dans le parcours existant.  
-**Règle métier conservée :** aucun numéro WhatsApp pharmacie exposé côté client dans la règle actuelle.  
-**Statut :** 🟢 VALIDÉ pour le périmètre actuel.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
 ## NAXA-F010 — Scan/import ordonnance
+Import téléphone, caméra, OCR et parcours protégé.
 
-**Domaine :** Client / Ordonnance  
-**Travaux :**
-- import téléphone ;
-- caméra ;
-- OCR ;
-- parcours protégé.
-
-**Statut :** 🟢 VALIDÉ pour le périmètre existant.  
-**Reste ERP :** ordonnance/ordonnancier complet, prescription → vente et règles réglementaires.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
 
 ---
 
 ## NAXA-F011 — Suivi / historique client
+Suivi, historique, achats, isolation par `auth.uid()`.
 
-**Domaine :** Client  
-**Travaux retracés :**
-- suivi ;
-- historique ;
-- achats ;
-- isolation des achats client par `auth.uid()`.
-
-**Statut :** 🟢 VALIDÉ pour le périmètre contrôlé.  
-**Reste :** extensions fidélité/communication client éventuelles.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre contrôlé**
 
 ---
 
 ## NAXA-F012 — Pharmacie / espace équipe
+Route : `/pharmacie`.
 
-**Domaine :** Pharmacie  
-**Route :** `/pharmacie`  
-**Travaux :**
-- panneau pharmacie ;
-- gestion du stock ;
-- statut « De garde » via RPC sécurisée ;
-- réservations ;
-- travail hors connexion ;
-- IndexedDB ;
-- badge hors connexion ;
-- synchronisation au retour réseau ;
-- résolution des conflits via `updated_at`.
+Stock, garde via RPC sécurisée, réservations, IndexedDB, offline, badge, synchronisation et résolution par `updated_at`.
 
-**Branches retracées :**
-- `feat/pharmacie-pilotes-offline-20261005`
-- `feat/pharmacie-promoteur-caisses-20261005`
-- `feat/pharmacie-validite-pilotage`
+Branches historiques : `feat/pharmacie-pilotes-offline-20261005`, `feat/pharmacie-promoteur-caisses-20261005`, `feat/pharmacie-validite-pilotage`.
 
-**Statut :** 🟢 VALIDÉ dans le périmètre Production historique documenté.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre consolidé**
 
 ---
 
 ## NAXA-F013 — Import de stock
+Excel/CSV, désignation/produit, prix, quantité, dosage/conditionnement, péremption, modification manuelle et persistance.
 
-**Domaine :** Pharmacie / Stock  
-**Travaux :**
-- import Excel/CSV ;
-- reconnaissance nom/désignation/produit ;
-- prix ;
-- quantité ;
-- dosage/conditionnement ;
-- péremption ;
-- modifications manuelles ;
-- persistance ;
-- mode hors connexion.
-
-**Statut :** 🟢 VALIDÉ pour le mécanisme existant.  
-**Reste ERP :** lots, inventaires, réapprovisionnement, valorisation, rappels, etc.
+**Statut : 🟢 VALIDÉ — MAIN — mécanisme existant**
 
 ---
 
 ## NAXA-F014 — Promoteur / Caisses
+Promoteur parent, Caisses enfants, création/gestion/blocage/réactivation, stock/réservations/garde partagés, `parent_profile_id`, `actif`.
 
-**Domaine :** Architecture pharmacie  
-**Hiérarchie concernée :** Promoteur parent → Caisses enfants.  
-**Travaux :**
-- création du Promoteur via `/admin` ;
-- gestion des Caisses ;
-- blocage/réactivation d'une Caisse ;
-- Caisse = utilisateur opérationnel de la même pharmacie ;
-- stock/réservations/statut de garde partagés ;
-- blocage d'une Caisse sans désactiver la pharmacie ;
-- schéma Supabase correspondant ;
-- rôles `promoteur` et `caisse` ;
-- `parent_profile_id` et `actif`.
+Branche historique : `feat/pharmacie-promoteur-caisses-20261005`.
 
-**Branche :** `feat/pharmacie-promoteur-caisses-20261005`.  
-**Commit main de consolidation :** `5ad95ce30dd43b3c140e0048606c81dd5143e490`.  
-**Production :** déploiement documenté READY `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6`.  
-**Statut :** 🟢 VALIDÉ — périmètre consolidé 100 % selon STATUT/README.
+Commit de consolidation : `5ad95ce30dd43b3c140e0048606c81dd5143e490`.
+
+Déploiement historique documenté : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6`.
+
+**Statut : 🟢 VALIDÉ — MAIN**
 
 ---
 
-# 5. PILOTAGE / PROMOTEUR — TRAVAUX DÉJÀ RETRACÉS, À NE PAS RECONSTRUIRE COMME S'ILS N'EXISTAIENT PAS
+## NAXA-F050 — Administration NAXA
+Dashboard admin, produits, pilotage, rapports, validité, actions et gestion Promoteur dans le périmètre existant.
 
-> Ces blocs ont été développés/traités dans les travaux historiques. Leur présence hors de la version actuelle de `main` doit être distinguée de leur existence fonctionnelle. Ils doivent être **réconciliés/intégrés et revalidés**, pas recommencés aveuglément.
+**Statut : 🟢 VALIDÉ — MAIN — périmètre historique documenté**
+
+---
+
+## NAXA-F060 — APIs existantes
+Login, username availability, forgot password, forgot password verify, age verify, pay, réservation, reports, cron reports, cron validity.
+
+**Statut : 🟢 VALIDÉ — MAIN — périmètre existant**
+
+---
+
+# 8. 🟢 VALIDÉ HORS MAIN — À INTÉGRER, PAS À RECONSTRUIRE
+
+> Cette catégorie est volontairement stricte. Un bloc n'y entre que lorsqu'un commit/branche fournit une preuve suffisante de validation. Une simple présence de code n'est pas suffisante.
+
+### NAXA-HM-001 — Travaux historiques de Responsable
+
+Branche : `feat/promoteur-partie3-responsable-accreditation-20261006`.
+
+Commit de test retracé : `7dbfd643c9b5b8d0df0907aab04737bcce7827ec`.
+
+**État actuel : 🟡 INTÉGRATION/PROUVE À RÉCONCILIER**
+
+> Le travail est réel et le test de scope est tracé, mais nous ne déclarons pas encore « 🟢 validé hors main » sans preuve consolidée suffisante de l'ensemble du bloc. **Ne pas reconstruire.**
+
+### Règle pour toute future entrée hors-main
+
+Pour passer en 🟢 HORS MAIN, il faudra au minimum :
+**branche + SHA + périmètre + test/preuve + statut explicite**, puis l'intégration sera un chantier distinct.
+
+---
+
+# 9. 🟡 CONSTRUIT / À RÉCONCILIER — PILOTAGE 360°
+
+Ces blocs ont déjà été travaillés historiquement. Ils ne doivent **pas** être recréés comme des fonctionnalités neuves.
 
 ## NAXA-F020 — Pilotage commercial
+CA, ventes, indicateurs, scopes réseau/pharmacie, vues/rapports.
 
-**Travaux retracés :**
-- pilotage commercial ;
-- CA ;
-- indicateurs de ventes ;
-- périmètre réseau/pharmacie ;
-- vues et rapports associés.
+Branches : `feat/pilotage-equipes-bi-20261005`, `feat/pharmacie-validite-pilotage`, réconciliations du 07/10/2026.
 
-**Branches historiques associées :**
-- `feat/pilotage-equipes-bi-20261005`
-- `feat/pharmacie-validite-pilotage`
-- travaux de réconciliation du 07/10/2026.
+**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
 
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.  
-**Raison :** fonctionnalité déjà traitée historiquement, mais l'intégration complète et la preuve actuelle dans `main` doivent être distinguées de l'ancien état.
+**Solution cible :** comparer les générations historiques à `main`, conserver la meilleure implémentation, intégrer sans écraser le socle vert, puis effectuer une vérification commune du pilotage.
 
 ---
 
 ## NAXA-F021 — Pilotage performance
+BI, indicateurs de performance, rapports et scopes Promoteur/Responsable/Caisse.
 
-**Travaux retracés :**
-- pilotage performance ;
-- indicateurs de performance ;
-- BI ;
-- rapports ;
-- périmètres Promoteur/Responsable/Caisse.
-
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.  
-**Règle :** ne pas repartir de zéro.
+**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
 
 ---
 
 ## NAXA-F022 — Pilotage sécurité / réseau
+Visibilité réseau, sessions/audit, scopes, absence d'exposition de tokens/cookies.
 
-**Travaux retracés :**
-- visibilité réseau ;
-- sécurité ;
-- sessions/audit ;
-- périmètres de consultation ;
-- traces sans exposition de tokens/cookies.
-
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
 
 ---
 
 ## NAXA-F023 — Direction 360°
+Consolidation pilotage commercial + performance + sécurité/réseau + BI/rapports.
 
-**Travaux retracés :**
-- vue Direction 360° ;
-- consolidation du pilotage ;
-- réseau ;
-- performance ;
-- sécurité ;
-- BI/rapports.
+Branches de réconciliation : `reconciliation/final-integration-20261007`, `reconciliation/integration-20261007`, `reconciliation/integration-20261007-v2`.
 
-**Branches historiques :**
-- travaux de réconciliation/pilotage du 07/10/2026 ;
-- `reconciliation/final-integration-20261007` et générations associées.
-
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
 
 ---
 
-# 6. HIÉRARCHIE / PRIVILÈGES / ARCHITECTURE
+# 10. 🟡 CONSTRUIT / À RÉCONCILIER — ARCHITECTURE NAXA
 
 ## NAXA-F030 — Hiérarchie N0 → N4
-
-**Modèle retenu :**
 - N0 Admin Réseau NAXA
 - N1 Promoteur
 - N2 Responsable
 - N3 Caisse
 - N4 Client
 
-**Point important :** Responsable n'est pas un nouveau `role_type` ; c'est une fonction interne/niveau conforme au modèle retenu.
+**Règle :** Responsable = fonction interne, pas nouveau `role_type`.
 
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER dans la génération actuelle.
+**Statut : 🟡 CONSTRUIT — PREUVE/INTÉGRATION À RÉCONCILIER**
 
 ---
 
-## NAXA-F031 — Architectures ORPHELIN / PARENTS-ENFANTS / PARENTS-AÎNÉS-CADETS / HYBRIDE
-
-**Travaux retracés :**
+## NAXA-F031 — Architectures
 - ORPHELIN ;
 - PARENTS_ENFANTS ;
 - PARENTS_AINES_CADETS ;
 - HYBRIDE ;
-- limites configurables par NAXA ;
-- pas de création arbitraire de nouveaux `role_type` pour l'HYBRIDE.
+- limites configurables par NAXA.
 
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — PREUVE/INTÉGRATION À RÉCONCILIER**
 
 ---
 
 ## NAXA-F032 — Moteur de privilèges / délégation
+`naxa_can()`, domaine, niveau minimal, architecture autorisée, scope maximal, délégabilité et gouvernance non délégable.
 
-**Travaux retracés :**
-- `naxa_can()` ;
-- privilèges par domaine ;
-- niveau minimal ;
-- architecture autorisée ;
-- scope maximal ;
-- délégabilité ;
-- privilèges de gouvernance non délégables ;
-- Promoteur ne reçoit pas automatiquement « tous les droits ».
+Anciens éléments à réconcilier :
+`parent_profile_id`, `promoteur_pharmacies`, `profile_accreditations`, `can_manage_profile()`, `accrediter_profile()`, `can_operate_pharmacy()`.
 
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — CONTRADICTIONS/INTÉGRATION À RÉCONCILIER**
 
-**Contradictions historiques connues :**
-- `parent_profile_id` ;
-- `promoteur_pharmacies` ;
-- `profile_accreditations` ;
-- `can_manage_profile()` ;
-- `accrediter_profile()` ;
-- `can_operate_pharmacy()`.
-Ces éléments doivent être réconciliés avec le moteur canonique, pas ignorés.
+**Solution cible :** moteur canonique unique + conservation des compatibilités nécessaires sans doubler les modèles.
 
 ---
 
 ## NAXA-F033 — Convention Promoteur / tarif / abonnement / validité
+Promoteur = 1 convention + 1 tarif + 1 abonnement ; montant payé ; date de paiement ; expiration ; blocage du réseau à expiration ; tarif négocié NAXA ; 30 000 FCFA non fixe ; remise multi-pharmacies possible.
 
-**Modèle retenu :**
-- Promoteur = 1 convention + 1 tarif + 1 abonnement ;
-- montant payé ;
-- date de paiement ;
-- date d'expiration ;
-- expiration = blocage du réseau concerné ;
-- tarif négocié par NAXA ;
-- 30 000 FCFA non considéré comme tarif fixe ;
-- remise multi-pharmacies possible.
-
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — PREUVE/INTÉGRATION À RÉCONCILIER**
 
 ---
 
 ## NAXA-F034 — Responsable N2 / accréditation
+Responsable = fonction interne ; scope une pharmacie ; accréditation ; tests de scope.
 
-**Travaux retracés :**
-- Responsable comme fonction interne ;
-- périmètre d'une pharmacie ;
-- accréditation ;
-- tests de scope Responsable.
+Branche : `feat/promoteur-partie3-responsable-accreditation-20261006`.
 
-**Branche :** `feat/promoteur-partie3-responsable-accreditation-20261006`.  
-**Commit de test retracé :** `7dbfd643c9b5b8d0df0907aab04737bcce7827ec`.  
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+Commit test : `7dbfd643c9b5b8d0df0907aab04737bcce7827ec`.
+
+**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
 
 ---
 
-# 7. STOCK / COÛTS / CA / RAPPORTS
+# 11. 🟡 CONSTRUIT / PREUVES À REGROUPER — STOCK / COÛTS / CA / BI
 
 ## NAXA-F040 — Coûts / marges / stocks multi-pharmacies
+Travaux retracés : coûts, marges, scopes multi-pharmacies, moteur de scope, CA canonique, vues/rapports.
 
-**Travaux retracés :**
-- coûts ;
-- marges ;
-- scope multi-pharmacie ;
-- accès via moteur de scope ;
-- CA canonique ;
-- vues/rapports.
+Contradictions historiques déjà traitées : E20, E22, E25 ; E30 avait une validation multi-rôle partielle liée à un problème PostgreSQL enum.
 
-**Contradictions historiques :**
-- E20 stocks_couts vs scope multi-pharmacie corrigée historiquement ;
-- E22 `set_reservation_status()` / `search_path='' ` corrigée historiquement ;
-- E25 scope Admin/demo corrigée ;
-- E30 multi-rôle Pilotage : validation partielle historique.
-
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — PREUVES/INTÉGRATION À RÉCONCILIER**
 
 ---
 
 ## NAXA-F041 — Rapports / exports / BI
+Rapports, exports, BI, pilotage réseau, indicateurs commerciaux/performance.
 
-**Travaux retracés :**
-- rapports ;
-- exports ;
-- BI ;
-- pilotage réseau ;
-- indicateurs commerciaux/performance.
-
-**Statut :** 🟡 VALIDÉ — À COMPLÉTER / RÉCONCILIER.
+**Statut : 🟡 CONSTRUIT — PREUVES/INTÉGRATION À RÉCONCILIER**
 
 ---
 
-# 8. ADMINISTRATION
+# 12. CLASSIFICATION DES BLOCAGES — POUR VÉRIFICATION MASSIVE
 
-## NAXA-F050 — Administration NAXA
+Cette section devient le point d'entrée des prochains audits.
 
-**Travaux retracés :**
-- dashboard admin ;
-- produits ;
-- pilotage ;
-- rapports ;
-- validité ;
-- actions ;
-- création/gestion du Promoteur dans le modèle consolidé.
+### LOT A — CI / preuve automatisée
+Toutes les fonctionnalités dont **le seul manque** est la preuve CI doivent être regroupées ici.
 
-**Statut :** 🟢 VALIDÉ pour le périmètre historique documenté ; 🟡 pour les extensions de gouvernance futures.
+**Action :**
+1. identifier une voie gratuite et fiable de vérification hors dépendance au connecteur GitHub si nécessaire ;
+2. définir une preuve reproductible ;
+3. lancer une vérification massive ;
+4. mettre à jour chaque fiche en une seule passe.
+
+**Ne pas recoder.**
+
+### LOT B — Supabase live
+Fonctionnalités dont le code est traité mais dont la preuve live Supabase manque.
+
+Blocage connu historiquement : connecteur Supabase ayant renvoyé `link_id must identify an eligible linked account`.
+
+**Action :**
+chercher une voie de preuve alternative ; ne pas déclarer 🟢 sans preuve ; ne pas refaire le développement.
+
+### LOT C — Intégration `main`
+Fonctionnalités prouvées sur des branches historiques mais non démontrées dans `main`.
+
+**Action :**
+comparaison → sélection → intégration → tests de non-régression → documentation.
+
+### LOT D — Contradictions SQL / architecture
+Contradictions de modèle, RLS, scope, RPC, migrations ou conventions.
+
+**Action :**
+isoler la contradiction → corriger → test ciblé → test de régression → 🟢.
+
+### LOT E — Fonctionnalités réellement absentes
+Uniquement après audit du cahier v3.7 + code + historique.
+
+**Action :**
+construction normale.
 
 ---
 
-# 9. API / AUTOMATISATION RETRACÉES
-
-## NAXA-F060 — APIs auth / âge / réservation / paiement
-
-**Routes/API retracées :**
-- login ;
-- username availability ;
-- forgot password ;
-- forgot password verify ;
-- age verify ;
-- pay ;
-- go/réservation ;
-- reports ;
-- cron reports ;
-- cron validity.
-
-**Statut :** 🟢 VALIDÉ pour le périmètre historique existant ; extensions ERP/API à venir.
-
----
-
-# 10. ERP PHARMACIE — PROGRAMME RESTANT À CONSTRUIRE
-
-> **Ce n'est pas à considérer comme déjà construit simplement parce que certains éléments du stock/vente existent.**
-
-Les blocs ERP restant à construire ou à compléter comprennent notamment :
+# 13. ERP PHARMACIE — À CONSTRUIRE APRÈS RÉCONCILIATION
 
 ## NAXA-ERP-001 — Catalogue pharmacie avancé
-- molécules / ATC ;
-- conditionnements ;
-- références avancées ;
-- équivalences.
+Molécules/ATC, conditionnements, références avancées, équivalences.
 
-**Statut :** ⚪ À FAIRE / à auditer précisément.
+**Statut : ⚪ À FAIRE / AUDIT DE L'EXISTANT OBLIGATOIRE**
 
 ## NAXA-ERP-002 — Lots / péremptions / alertes
-- gestion des lots ;
-- dates d'expiration ;
-- alertes ;
-- blocages ;
-- rappels.
+Lots, expiration, alertes et blocages.
 
-**Statut :** ⚪ À FAIRE / à auditer précisément.
+**Statut : ⚪ À FAIRE / AUDIT OBLIGATOIRE**
 
-## NAXA-ERP-003 — Caisse / POS complet
-- vente rapide ;
-- scan code-barres ;
-- panier caisse ;
-- encaissement ;
-- clôture/Z ;
-- remises/promotions.
+## NAXA-ERP-003 — POS / caisse complet
+Vente rapide, scan, encaissement, clôture, remises/promotions.
 
-**Statut :** ⚪ À FAIRE.
+**Statut : ⚪ À FAIRE**
 
-## NAXA-ERP-004 — Vente / prescription
-- prescription → vente ;
-- ordonnance/ordonnancier ;
-- règles spécifiques ;
-- stupéfiants selon périmètre réglementaire.
+## NAXA-ERP-004 — Prescription → vente
+Ordonnance, prescription, vente et règles métier/réglementaires.
 
-**Statut :** ⚪ À FAIRE / à cadrer précisément.
+**Statut : ⚪ À FAIRE / cadrage obligatoire**
 
 ## NAXA-ERP-005 — Fournisseurs / commandes / réception
-- fournisseurs ;
-- commandes ;
-- réception ;
-- rapprochement ;
-- réapprovisionnement.
-
-**Statut :** ⚪ À FAIRE.
+**Statut : ⚪ À FAIRE**
 
 ## NAXA-ERP-006 — Inventaire / valorisation
-- inventaire ;
-- valorisation ;
-- coût historique ;
-- écarts ;
-- mouvements.
-
-**Statut :** ⚪ À FAIRE.
+**Statut : ⚪ À FAIRE**
 
 ## NAXA-ERP-007 — Assurance / crédit / bordereaux
-**Statut :** ⚪ À FAIRE.
+**Statut : ⚪ À FAIRE**
 
 ## NAXA-ERP-008 — Trésorerie / dépenses
-**Statut :** ⚪ À FAIRE.
+**Statut : ⚪ À FAIRE**
 
-## NAXA-ERP-009 — Hors connexion ERP avancé
-Le mode hors connexion stock existe déjà ; le mode offline complet de vente/ERP reste à construire si confirmé par le cahier des charges.
+## NAXA-ERP-009 — Offline ERP avancé
+Le offline stock existe déjà ; le offline vente/ERP complet reste à construire si confirmé par le périmètre v3.7.
 
-**Statut :** ⚪ À FAIRE.
-
----
-
-# 11. ROADMAP DES EXTENSIONS RESTANTES
-
-À auditer dans le cahier des charges avant construction :
-
-- mise en service terrain réelle ;
-- qualité ;
-- marketplace avancée ;
-- Mobile Money / abonnement ;
-- paiement en ligne ;
-- équipes/multi-sites ;
-- fournisseurs ;
-- non-médicaments ;
-- sécurité avancée ;
-- communication client ;
-- prévision saisonnière ;
-- autres fonctions métier du cahier des charges.
+**Statut : ⚪ À FAIRE**
 
 ---
 
-# 12. ÉTAT ACTUEL EXACT
+# 14. MISE EN SERVICE TERRAIN
 
-## Ce qui est acquis
+Le socle technique ne doit pas être confondu avec le déploiement opérationnel terrain.
 
-Le socle Client/Auth/Pharmacie existe largement sur `main`, avec une consolidation historique documentée jusqu'au modèle Promoteur/Caisses.
+À faire lorsque le chantier sera ouvert :
+1. sélectionner 3–5 pharmacies pilotes réelles ;
+2. créer les Promoteurs via NAXA ;
+3. faire créer les Caisses par les Promoteurs ;
+4. importer les stocks réels ;
+5. contrôler prix, quantités, péremptions et formats ;
+6. former les équipes ;
+7. tester le parcours complet sur données réelles.
 
-## Ce qui a déjà été travaillé mais doit être réconcilié
-
-Les chantiers **Pilotage commercial, Pilotage performance, Pilotage sécurité/réseau, Direction 360°, hiérarchie N0-N4, privilèges, architectures, Responsable, convention Promoteur, coûts/marges, BI/rapports** ont déjà été traités dans les générations historiques.
-
-**Ils ne doivent PAS être reconstruits comme s'ils n'avaient jamais existé.**
-
-Ils doivent être repris via une **réconciliation/intégration contrôlée dans main**, avec conservation des meilleures versions et preuves.
-
-## Chantier fonctionnel de construction restant
-
-Après réconciliation des travaux déjà effectués, le prochain grand programme fonctionnel est :
-
-**ERP PHARMACIE**
-
-Premier bloc à traiter : **NAXA-ERP-001 — Catalogue pharmacie avancé**, après vérification précise du cahier des charges et de l'existant afin de ne pas recréer une fonction déjà présente.
+**Statut : ⚪ À FAIRE**
 
 ---
 
-# 13. HISTORIQUE DU REGISTRE
+# 15. ÉTAT DE DÉPART APRÈS RÉÉCRITURE
+
+### 🟢 Verrouillés — ne plus revenir dessus
+**F001 à F014, F050, F060**, dans leur périmètre actuellement validé et intégré à `main`.
+
+### 🟡 À résoudre par réconciliation / preuve
+**F020 à F041**, sans reconstruire les travaux historiques.
+
+### 🟢 Hors-main
+Aucun bloc supplémentaire n'est artificiellement déclaré 🟢 hors-main à ce stade : les preuves historiques doivent être suffisamment explicites avant cette classification.
+
+**C'est volontaire.** Une fonctionnalité réellement validée hors-main sera promue dans cette catégorie dès que son SHA + périmètre + preuve seront établis.
+
+### ⚪ À construire
+Programme ERP + mise en service terrain + extensions réellement absentes après audit.
+
+---
+
+# 16. PROCHAIN CHANTIER — MÉTHODE
+
+**Étape suivante : audit massif des 🟡.**
+
+Pas de nouveau développement aveugle.
+
+Ordre :
+
+**1. récupérer les branches/commits historiques ;  
+2. déterminer pour chaque 🟡 la cause exacte ;  
+3. regrouper par cause ;  
+4. trouver une solution commune pour chaque groupe ;  
+5. exécuter les vérifications massives ;  
+6. intégrer uniquement ce qui est validé ;  
+7. passer chaque fiche au 🟢 ;  
+8. verrouiller les 🟢 ;  
+9. seulement ensuite ouvrir les ⚪.**
+
+---
+
+# 17. HISTORIQUE DU REGISTRE
 
 | Date | Action | Commit |
 |---|---|---|
 | 2026-10-08 | Création du registre | `9741736cc6ff00a309d34547faf3b0300a274252` |
-| 2026-10-08 | Premier inventaire enrichi à partir des travaux retracés | à renseigner après commit |
+| 2026-10-08 | Inventaire enrichi | `59e84c65bb5e3a8e1c75fb753b28a9162e912cfc` |
+| 2026-10-08 | Réécriture : distinction MAIN / HORS-MAIN / PREUVE / INTÉGRATION / CORRECTION / À FAIRE + stratégie de vérification massive | **présent commit** |
 
 ---
 
-# 14. RÈGLE ABSOLUE POUR LES PROCHAINES FONCTIONNALITÉS
+# 18. RÈGLE ABSOLUE
 
-À chaque fonctionnalité :
-
-**AUDIT → CONSTRUCTION → TEST → CORRECTION → CONSIGNATION COMPLÈTE → COMMIT → MAIN → STATUT → CONTINUATION.**
-
-Aucune fonctionnalité créée ne doit être perdue du registre.
+> **Un point vert est terminé.**
+>
+> **On ne le refait pas.**
+>
+> **On travaille uniquement sur les non-verts, en les regroupant selon leur cause et la solution disponible.**
+>
+> **Quand plusieurs non-verts ont le même blocage, on résout le blocage une seule fois puis on vérifie massivement tous les concernés.**
+>
+> **Aucune fonctionnalité ne passe au vert sans preuve.**
