@@ -252,3 +252,24 @@ La Partie 4 est strictement fondée sur les données déjà disponibles. Les ind
 - Production : migration 042, inchangée.
 - **Réconciliation globale des privilèges : 🟢 100 %.**
 - Point d'arrêt : validation explicite du fondateur.
+ 
+
+## CP-0009 — Pilotage 360° Partie 2 : Performance — 🟢 VERT
+
+Le socle Performance est désormais clôturé à 100 %.
+
+- Migration : `supabase/migration_049_pilotage_performance_socle.sql`.
+- Test contradictoire : `supabase/tests/049_pilotage_performance_socle.sql`.
+- Fixtures rendues déterministes et isolées des données existantes.
+- Test découplé du trigger Auth/téléphone hors périmètre.
+- Gate structurel CI corrigé.
+- Job fonctionnel CircleCI configuré sur exécuteur machine avec PostgreSQL client et timeout 30 min.
+- Workflow GitHub aligné sur `psql`.
+- Replay Supabase réel 043→049 : **PASS + ROLLBACK**.
+- CA canonique, scope actif, ventes, ruptures, couverture et expiration Promoteur vérifiés.
+- Post-rollback : aucune fixture persistée ; Production reste à migration 042.
+- **Partie 2 Performance : 🟢 100 %.**
+
+Documentation : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
+
+Point d'arrêt : validation explicite du fondateur.
