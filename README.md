@@ -1302,3 +1302,13 @@ Prochaine preuve obligatoire : exécution réelle du workflow après migration 0
 - Nouveau blocage résiduel : tous les jobs GitHub-hosted échouent avant la première étape avec runner_id=0, runner_name="", steps=[], y compris un probe minimal ubuntu-latest. Le problème est donc désormais circonscrit à l'allocation du runner GitHub-hosted / gate compte, et non au YAML ou au code NAXA.
 - Aucun abonnement, paiement ou changement de plan n'a été effectué. Aucun déploiement Production.
 - État : CI non vert tant qu'un runner réel n'exécute pas au moins le probe puis le workflow qualité complet.
+
+
+## Réconciliation globale — 07/10/2026 — état réel
+- Une branche de réconciliation finale a été construite à partir de l'état Promoteur/Pilotage retenu, puis réconciliée avec le dernier `main` sans modifier `main`.
+- Le commit d'intégration `e142c49b17d11e9f65f585b18143b5d607285a9a` porte `main` et l'état de travail réconcilié comme parents.
+- Les artefacts présents sur `main` mais absents de la branche Promoteur ont été réintégrés : `naxa_cahier_des_charges_v3_7.md`, `naxa_prompt_maitre_fusion_v2.md` et `supabase/migration_033_caisse_reactivation_authorization.sql`.
+- Le workflow `.github/workflows/naxa-quality.yml` a été comparé entre `main` et la branche réconciliée : contenu identique au moment du contrôle.
+- Les migrations et tests Promoteur sont conservés ; aucune suppression de migration n'a été effectuée.
+- **État : 🟡 réconciliation technique construite, non déclarée verte.** La validation CI exécutable et la validation Supabase distante restent nécessaires avant toute promotion vers `main`.
+- Aucun merge `main`, aucune migration Production et aucun déploiement Production n'ont été effectués.
