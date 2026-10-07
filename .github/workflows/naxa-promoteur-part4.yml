@@ -135,12 +135,23 @@ jobs:
             n=$((n+1))
           done
       - name: Démarrer Supabase local
-        run: supabase start
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          supabase start 2>&1 | tee /tmp/part4-start.log
+          echo $? > /tmp/part4-start-exit
+
       - name: Replay complet + migrations de la branche
+        continue-on-error: true
         run: |
           set -o pipefail
           supabase db reset 2>&1 | tee /tmp/part4-replay.log
+          echo $? > /tmp/part4-replay-exit
 
+      - name: Vérifier démarrage et replay
+        run: |
+          test "$(cat /tmp/part4-start-exit 2>/dev/null || echo 1)" = "0"
+          test "$(cat /tmp/part4-replay-exit 2>/dev/null || echo 1)" = "0"
       - name: Vérifications Partie 4 — groupes 1+2
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/029_promoteur_caisse_management_12.sql
       - name: Vérifications Partie 4 — groupes 3+4
