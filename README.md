@@ -98,3 +98,12 @@ La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses
 6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
+
+
+## Reprise contrôlée du 7 octobre 2026
+
+La branche `rewrite/naxa-from-main-20261007` constitue une reconstruction isolée depuis `main`. La Partie 1 (audit du socle) est au vert : l'état réel Supabase, l'historique des migrations, le modèle de gouvernance et les contradictions entre documentation historique et état réel ont été vérifiés. Production et `main` restent inchangés.
+
+Le détail de la baseline est documenté dans `docs/REWRITE_BASELINE_20261007.md`.
+
+**Partie suivante : socle DB canonique profils + hiérarchie + architectures, avec tests contradictoires avant toute persistance.**
