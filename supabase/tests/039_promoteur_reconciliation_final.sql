@@ -48,12 +48,15 @@ do $$ begin
   then raise exception '39.4 privilège réseau reste actif après expiration'; end if;
 end $$;
 
+do $
 begin
-  perform public.stats_pilotage_scope(7);
-  raise exception '39.5 pilotage réseau encore accessible après expiration';
-exception when others then
-  if sqlerrm <> 'Privilège Pilotage réseau requis' then raise; end if;
-end;
+  begin
+    perform public.stats_pilotage_scope(7);
+    raise exception '39.5 pilotage réseau encore accessible après expiration';
+  exception when others then
+    if sqlerrm <> 'Privilège Pilotage réseau requis' then raise; end if;
+  end;
+end $;
 
 update public.abonnements
 set statut='actif',echeance=current_date+30
