@@ -1159,3 +1159,13 @@ Partie 4 — replay CI : correction supplémentaire du catalogue naxa_privileges
 - Scope Promoteur exclusivement basé sur `promoteur_pharmacies` actifs ; les tests 032/033 ont été renforcés avec architecture et contrôle de révocation du privilège réseau.
 - Aucun merge `main`, aucune migration Production, aucun déploiement Production.
 - Reprise obligatoire de la preuve dès qu'un runner GitHub exécutable ou un environnement Supabase de test autorisé est disponible. **Partie 5 ne doit pas être annoncée verte avant PASS des tests 032/033.**
+
+
+### Partie 5 — audit du blocage d'exécution, 7 octobre 2026
+- 🟡 Toujours non déclarée verte : la preuve complète 032/033 n'est pas encore PASS.
+- Cause code/test supplémentaire trouvée et corrigée : les tests 032/033 utilisaient un dollar-quoting PostgreSQL invalide (do $ ... end $ au lieu de do $$ ... end $$) ; la révocation du privilège 032 n'alimentait pas revoked_at, ce qui violait la contrainte canonique active OR revoked_at IS NOT NULL.
+- Cause d'intégration supplémentaire trouvée et corrigée dans migration_032 : la façade publique SECURITY INVOKER ne pouvait pas résoudre le helper private.stats_pilotage_scope car le rôle authenticated n'avait pas USAGE sur le schéma private. Le helper reste non exécutable directement ; seul l'usage du schéma est accordé à authenticated et l'exécution de la façade publique reste limitée à authenticated.
+- Preuve PostgreSQL obtenue : la migration 032 compile entièrement dans une transaction annulée ; les privilèges de la façade/helper ont été vérifiés sans persistance.
+- Limite restante : le replay fonctionnel 032/033 sur l'état réel nécessite les tables de conventions/abonnements présentes dans la replay complète de la branche, absentes du projet NAXA actuellement déployé ; aucune création persistante n'a été effectuée pour contourner ce différentiel.
+- GitHub Actions continue d'échouer avant toute étape (steps=[]), même après passage de ubuntu-22.04 à ubuntu-latest. Le statut public GitHub indique actuellement Actions opérationnel, donc la cause exacte de cette absence de runner reste à isoler côté exécution du dépôt/connecteur.
+- Aucun merge main, aucune migration Production persistante, aucun déploiement Production.
