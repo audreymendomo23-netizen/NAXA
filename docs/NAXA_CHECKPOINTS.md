@@ -83,3 +83,19 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Contrôle structurel : PASS sur migration, test, gate dédiée et documentation.
 - Résultat : 🟢 VERT — 100 %.
 - Point suivant : validation explicite du fondateur avant tout nouveau chantier.
+
+
+## CP-0008-PILOTAGE360-RECONCILIATION-PRIVILEGES
+
+- Date : 07/10/2026
+- Objet : réconciliation globale du moteur de privilèges après Direction 360°.
+- Branche : `rewrite/naxa-from-main-20261007`.
+- Contradiction racine : le trigger legacy `trg_naxa_provision_on_architecture` restait actif malgré la désactivation du provisioning réseau.
+- Correction : migration 046 supprimant les deux triggers de provisioning legacy.
+- Test : `supabase/tests/046_disable_legacy_privilege_provisioning.sql`.
+- Audit : `docs/PILOTAGE_360_RECONCILIATION_PRIVILEGES.md`.
+- Preuve : replay Supabase réel 043→052 + tests 046/052 = PASS + ROLLBACK.
+- Résultat : 🟢 VERT — 100 %.
+- Production : migration 042, inchangée.
+- main : inchangé.
+- Point suivant : validation explicite du fondateur.
