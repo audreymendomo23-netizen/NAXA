@@ -51,7 +51,8 @@ begin
   values(a,'ORPHELIN',p,true,0,1),(b,'ORPHELIN',p,true,0,1);
 
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=c1;
-  update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=c2;
+  -- c2 reste un profil Caisse non provisionné : pharmacie/parent/architecture sont assignés par naxa_provision_caisse().
+  update public.profiles set pharmacie_id=null,parent_profile_id=null,architecture_code=null where id=c2;
   update public.profiles set pharmacie_id=b,parent_profile_id=p,architecture_code='ORPHELIN' where id=co;
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=r;
   insert into p4_ids values(p,a,b,c1,c2,co,r);
