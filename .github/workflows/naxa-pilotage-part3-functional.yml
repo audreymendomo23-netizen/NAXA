@@ -1,0 +1,58 @@
+name: NAXA Pilotage 360 Part 3 Functional
+
+on:
+  push:
+    branches:
+      - "rewrite/naxa-from-main-20261007"
+  workflow_dispatch:
+
+jobs:
+  part3:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git postgresql-client
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+      - name: Install Supabase CLI
+        run: |
+          npm install --no-save supabase
+          npx --no-install supabase --version
+      - name: Replay Part 3
+        run: |
+          cat > supabase/config.toml <<'EOF'
+          project_id = "naxa-part3-github"
+          [api]
+          enabled = true
+          [db]
+          major_version = 17
+          [studio]
+          enabled = false
+          [inbucket]
+          enabled = false
+          [storage]
+          enabled = true
+          [realtime]
+          enabled = false
+          [analytics]
+          enabled = false
+          [edge_runtime]
+          enabled = false
+          EOF
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+          python3 - <<'PY'
+          from pathlib import Path
+          for i, f in enumerate(sorted(Path("supabase").glob("migration_*.sql")), 1):
+              target = Path("supabase/migrations") / f"20261006{i:06d}_{f.name}"
+              target.write_text(f.read_text())
+          PY
+          trap 'npx --no-install supabase stop --no-backup || true' EXIT
+          npx --no-install supabase start
+          npx --no-install supabase db reset
+          PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/050_security_network_hardening.sql
