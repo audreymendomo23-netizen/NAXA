@@ -160,3 +160,8 @@ Elle doit :
 - Checkpoint courant : CP-0009.
 - Documentation de preuve : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
 - Après validation du fondateur seulement : déterminer et exécuter le chantier canonique suivant.
+
+
+## CP-0009 — Autorité courante
+
+Le checkpoint courant est CP-0009. Pilotage 360° Partie 2 Performance : **🟢 100 %**. La preuve fonctionnelle réelle est PASS + ROLLBACK ; Production reste inchangée à migration 042.
