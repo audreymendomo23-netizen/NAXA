@@ -8,9 +8,10 @@
 - checkpoint_status : 🟡 PARTIE 5 — CI BLOQUÉE PAR ALLOCATION RUNNER
 - checkpoint_scope : installation initiale du système de reprise
 - branch : `rewrite/naxa-from-main-20261007`
-- anchor_sha : `940aea76e2553378d56be49b451e2c41d1b11771`
+- anchor_sha : `70486d3244c8132dfb82b1220bd86696b97afbb3`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- current_sha : `940aea76e2553378d56be49b451e2c41d1b11771`
+- current_sha : `70486d3244c8132dfb82b1220bd86696b97afbb3`
+- last_ci_test_sha : `940aea76e2553378d56be49b451e2c41d1b11771`
 
 ## Position fonctionnelle exacte
 
