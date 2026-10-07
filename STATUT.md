@@ -34,3 +34,20 @@ La documentation historique ne peut plus être utilisée seule comme état coura
 6. documentation et statut.
 
 Aucun passage à la Partie 2 sans validation du fondateur.
+
+## Partie 2 — Socle DB canonique : VERT
+- Migration de reconstruction ajoutée : supabase/migration_043_canonical_governance_part2.sql.
+- Test contradictoire ajouté : supabase/tests/043_canonical_governance_part2.sql.
+- Hiérarchie canonique verrouillée : N0 Admin, N1 Promoteur, N2 Responsable, N3 Caisse, N4 Client.
+- Responsable reste une fonction interne et n'est jamais ajouté à role_type.
+- Quatre architectures verrouillées avec leurs capacités canoniques.
+- Validation transactionnelle effectuée sur Supabase réel puis ROLLBACK : aucune donnée Production modifiée.
+- Test négatif : un Client ne peut pas être accepté au niveau N3.
+- Test négatif : ORPHELIN ne peut pas déclarer une capacité Responsable > 0.
+- Après rollback, contrôle d'intégrité : 2 profils clients restent inchangés et 0 architecture n'a été persistée.
+- main et Production restent inchangés.
+
+**Partie 2 : VERT — 100 % de l'objectif.**
+
+## Prochaine étape — validation requise
+**Partie 3 : conventions + réseau pharmacies + abonnement Promoteur**, avec le même protocole audit → contradiction → correction → tests → documentation → VERT.
