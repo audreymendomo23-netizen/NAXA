@@ -68,7 +68,7 @@ begin
   from public.pharmacies;
 
   select count(*) filter(where role::text='promoteur'),
-         count(*) filter(where role::text='pharmacie'),
+         count(*) filter(where fonction_interne='responsable'),
          count(*) filter(where role::text='caisse'),
          count(*) filter(where role::text='client')
     into v_promoteurs,v_responsables,v_caisses,v_clients
