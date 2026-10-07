@@ -63,3 +63,5 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Aucun changement Production persistant.
 - CI : gate structurel CircleCI ajouté ; la preuve fonctionnelle CI n'est pas disponible dans les connecteurs actuels.
 - Étape suivante : Pilotage 360° — Partie 4, après validation du fondateur.
+
+- Sessions : migration 051 et test 051 ajoutent le contrôle gratuit du plafond de 4 sessions, le refus de la 5e sans éviction et l'audit création/fin ; validation transactionnelle PASS + ROLLBACK.
