@@ -36,24 +36,30 @@ do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),
 -- 7.2 Le scope RESEAU ne donne pas accès à une pharmacie hors réseau.
 do $$ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),null,'RESEAU')) then raise exception '7.2 réseau global'; end if; end $$;
 do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'RESEAU')) then raise exception '7.2-C hors réseau'; end if; end $$;
-do $$ begin
-  update public.naxa_profile_privileges
-     set active=false, revoked_at=now()
-   where profile_id=(select promoteur from v7_ids)
-     and privilege_code='VIEW_NETWORK_PILOTAGE'
-     and scope_type='RESEAU' and pharmacie_id is null;
+set local role postgres;
+update public.naxa_profile_privileges
+   set active=false, revoked_at=now()
+ where profile_id=(select promoteur from v7_ids)
+   and privilege_code='VIEW_NETWORK_PILOTAGE'
+   and scope_type='RESEAU' and pharmacie_id is null;
+set local role authenticated;
+
+do $ begin
   begin
     perform public.stats_pilotage_scope(7);
     raise exception '7.2-D privilège réseau révoqué mais accès encore autorisé';
   exception when others then
     if sqlerrm <> 'Privilège Pilotage réseau requis' then raise; end if;
   end;
-  update public.naxa_profile_privileges
-     set active=true, revoked_at=null
-   where profile_id=(select promoteur from v7_ids)
-     and privilege_code='VIEW_NETWORK_PILOTAGE'
-     and scope_type='RESEAU' and pharmacie_id is null;
-end $$;
+end $;
+
+set local role postgres;
+update public.naxa_profile_privileges
+   set active=true, revoked_at=null
+ where profile_id=(select promoteur from v7_ids)
+   and privilege_code='VIEW_NETWORK_PILOTAGE'
+   and scope_type='RESEAU' and pharmacie_id is null;
+set local role authenticated;
 
 -- 7.3 Désactivation du lien ferme immédiatement le scope, réactivation le restaure.
 update public.promoteur_pharmacies set actif=false where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
