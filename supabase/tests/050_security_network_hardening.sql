@@ -79,6 +79,7 @@ begin
   on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
   do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
+  perform set_config('request.jwt.claims',json_build_object('sub',admin_id,'role','authenticated')::text,true);
   select public.naxa_has_privilege('VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE') into ok;
   if not ok then raise exception 'PART3_FAIL_RESPONSIBLE_VALID_PROMOTER'; end if;
 
