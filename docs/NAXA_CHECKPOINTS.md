@@ -126,3 +126,17 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Documentation : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
 - Résultat : **🟢 VERT — 100 %.**
 - Point d'arrêt : validation explicite du fondateur avant tout chantier suivant.
+
+
+## CP-0011-RECONCILIATION-FUSION
+
+- Date : 07/10/2026
+- Objet : réconciliation documentaire et matrice de fusion v3.7 après clôture du Pilotage 360°.
+- Résultat : 🟢 VERT / 100 % du périmètre de réconciliation documentaire.
+- Livrables : `docs/CAHIER_DES_CHARGES.md`, `docs/FUSION.md`, `docs/FUSION_FICHES.md`, `docs/TRACABILITE.md`.
+- Matrice détaillée : fiches v3.7 principales et profils recensés, avec statut conservateur et test d'acceptation attendu.
+- Contradictions isolées : `docs/CONTRADICTIONS.md` absent ; anciennes sections historiques ; Responsable proposition vs modèle canonique ; divergence volontaire branche/Production.
+- Aucune fonctionnalité construite dans cette étape.
+- Production : migration 042, inchangée.
+- main : inchangé.
+- Point d'arrêt : validation explicite du fondateur avant le chantier Qualité.
