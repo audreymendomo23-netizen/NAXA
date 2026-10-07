@@ -1,4 +1,4 @@
-name: NAXA — Promoteur Partie 4 — validation isolée
+name: NAXA — Promoteur Parties 4+5 — validation isolée
 on:
   push:
     branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
