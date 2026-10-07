@@ -4,6 +4,7 @@ on:
     branches: [rewrite/naxa-from-main-20261007]
   workflow_dispatch:
 jobs:
+  # trigger-gate
   part5-gate:
     runs-on: ubuntu-24.04
     steps:
