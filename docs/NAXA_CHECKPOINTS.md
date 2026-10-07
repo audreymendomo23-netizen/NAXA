@@ -24,3 +24,16 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Documentation réconciliée : MASTER_INDEX, REPRISE_EXACTE, STATUT et README.
 - Action fonctionnelle suivante : Pilotage 360° — Partie 1, audit + matrice KPI canonique.
 - Règle : aucun codage KPI avant résolution des contradictions cahier V3.7 ↔ code ↔ DB ↔ documentation.
+
+
+## CP-0003-PILOTAGE360-PART1
+
+- Date : 07/10/2026
+- Objet : clôture de la Partie 1 du chantier Pilotage 360°.
+- Branche : `rewrite/naxa-from-main-20261007`
+- Partie : Pilotage 360° — Partie 1, audit canonique.
+- Preuve documentaire : `docs/PILOTAGE_360_AUDIT_PARTIE1.md`.
+- Contrôles structurels : C1→C6 PASS.
+- Résultat : 🟢 VERT — 100 %.
+- Prochaine étape : Pilotage 360° — Partie 2, socle Performance.
+- Interdiction : aucun KPI nouveau, aucune migration Production et aucun contournement du CA canonique avant validation de la Partie 2.
