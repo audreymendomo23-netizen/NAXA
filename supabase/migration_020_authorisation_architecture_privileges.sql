@@ -44,7 +44,7 @@ create table if not exists public.pharmacie_architectures (
   assigned_by uuid references public.profiles(id) on delete set null,
   assigned_at timestamptz not null default now(),
   active boolean not null default true,
-  max_responsables integer not null default 0 check (max_responsables >= 0),
+  max_responsables integer check (max_responsables >= 0),
   max_caisses integer,
   check (
     (architecture_code='ORPHELIN' and max_responsables=0 and max_caisses=1)
@@ -299,6 +299,26 @@ from public.naxa_architecture_niveaux an
 join public.naxa_role_privileges rp
   on rp.role_key=case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end
 on conflict do nothing;
+
+-- N3 never receives hierarchy/RBAC management capabilities from the generic
+-- level-range seed. Caisse remains an operational post only.
+delete from public.naxa_role_privileges
+where role_key='caisse'
+  and privilege_code in (
+    'CREATE_RESPONSABLE','MANAGE_RESPONSABLES','SUSPEND_RESPONSABLE','REACTIVATE_RESPONSABLE',
+    'CREATE_CAISSE','MANAGE_CAISSES','SUSPEND_CAISSE','REACTIVATE_CAISSE',
+    'ASSIGN_USER_TO_PHARMACY','REMOVE_USER_FROM_PHARMACY','ASSIGN_PRIVILEGE','REVOKE_PRIVILEGE',
+    'MANAGE_ROLE_PROFILE','CREATE_CUSTOM_ROLE','EDIT_CUSTOM_ROLE','DELETE_CUSTOM_ROLE','ASSIGN_CUSTOM_ROLE'
+  );
+
+delete from public.naxa_architecture_privileges
+where role_key='caisse'
+  and privilege_code in (
+    'CREATE_RESPONSABLE','MANAGE_RESPONSABLES','SUSPEND_RESPONSABLE','REACTIVATE_RESPONSABLE',
+    'CREATE_CAISSE','MANAGE_CAISSES','SUSPEND_CAISSE','REACTIVATE_CAISSE',
+    'ASSIGN_USER_TO_PHARMACY','REMOVE_USER_FROM_PHARMACY','ASSIGN_PRIVILEGE','REVOKE_PRIVILEGE',
+    'MANAGE_ROLE_PROFILE','CREATE_CUSTOM_ROLE','EDIT_CUSTOM_ROLE','DELETE_CUSTOM_ROLE','ASSIGN_CUSTOM_ROLE'
+  );
 
 alter table public.naxa_role_privileges enable row level security;
 alter table public.naxa_architecture_privileges enable row level security;
