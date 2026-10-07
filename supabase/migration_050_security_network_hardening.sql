@@ -12,22 +12,27 @@ alter table public.naxa_architecture_privileges
 alter table public.naxa_privileges
   add column if not exists domaine text;
 
+alter table public.naxa_privileges
+  add column if not exists family text;
+
 update public.naxa_privileges
-set domaine=coalesce(domaine,family,'pilotage')
+set domaine=coalesce(domaine,family,'pilotage'),
+    family=coalesce(family,domaine,'pilotage')
 where domaine is null;
 
 alter table public.naxa_privileges
   alter column domaine set not null;
 
 insert into public.naxa_privileges(
-  code,domaine,description,niveau_min,niveau_max,delegable,governance,active
+  code,domaine,family,description,niveau_min,niveau_max,delegable,governance,active
 )
 values(
-  'VIEW_PERFORMANCE_PILOTAGE','pilotage',
+  'VIEW_PERFORMANCE_PILOTAGE','pilotage','pilotage',
   'Voir les KPI de performance du périmètre autorisé',0,3,true,false,true
 )
 on conflict(code) do update set
   domaine=excluded.domaine,
+  family=excluded.family,
   description=excluded.description,
   niveau_min=excluded.niveau_min,
   niveau_max=excluded.niveau_max,
