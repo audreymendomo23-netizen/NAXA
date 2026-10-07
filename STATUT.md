@@ -72,3 +72,25 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 
 ## Prochaine étape — validation requise
 **Partie 4 : privilèges effectifs + délégation Promoteur + Responsable/Caisse**, même protocole audit → contradiction → correction → tests → documentation → VERT.
+
+
+## Partie 4 — Privilèges effectifs + délégation : VERT
+
+- Migration canonique : `supabase/migration_045_effective_privileges_delegation.sql`.
+- Durcissement legacy : `supabase/migration_046_disable_legacy_privilege_provisioning.sql`.
+- L'association Promoteur → pharmacie n'attribue plus automatiquement de matrice de privilèges.
+- Bootstrap des privilèges effectifs contrôlé par NAXA.
+- Délégation Promoteur → Responsable/Caisse limitée par niveau, architecture et scope.
+- Délégation Responsable → Caisse limitée à ses enfants.
+- Les privilèges de gouvernance restent non délégables.
+- `POSTE_CAISSE` est réservé au niveau Caisse et `RESEAU` au bootstrap NAXA vers Promoteur.
+- Test contradictoire : `supabase/tests/045_effective_privileges_delegation.sql`.
+- Correction du test : utilisation correcte de `PERFORM set_config(...)` dans le bloc PL/pgSQL.
+- Validation transactionnelle réelle effectuée puis ROLLBACK : aucune donnée Production persistée.
+- `main` et Production restent inchangés.
+
+**Partie 4 : VERT — 100 %.**
+
+## Prochaine étape — validation requise
+
+**Partie 5** uniquement après validation explicite du fondateur.

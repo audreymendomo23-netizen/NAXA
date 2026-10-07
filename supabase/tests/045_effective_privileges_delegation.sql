@@ -65,7 +65,7 @@ begin
   insert into public.abonnements_promoteurs(convention_id,promoteur_id,debut,echeance,statut)
   values(convention_id,promoteur_id,current_date,current_date+30,'actif');
 
-  select set_config('request.jwt.claims',json_build_object('sub',promoteur_id,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',promoteur_id,'role','authenticated')::text,true);
   set local role authenticated;
 
   if public.naxa_has_privilege('ASSIGN_PRIVILEGE',ph_id,'PHARMACIE') then
@@ -78,12 +78,12 @@ begin
       pharmacie_id=null,parent_profile_id=null,architecture_code=null,custom_role_code=null
   where id=cible_id;
 
-  select set_config('request.jwt.claims',json_build_object('sub',cible_id,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',cible_id,'role','authenticated')::text,true);
   granted_id := public.naxa_grant_privilege(promoteur_id,'ASSIGN_PRIVILEGE',ph_id,'PHARMACIE');
   if granted_id is null then raise exception 'PART4_FAIL_ADMIN_BOOTSTRAP'; end if;
 
   set local role authenticated;
-  select set_config('request.jwt.claims',json_build_object('sub',promoteur_id,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',promoteur_id,'role','authenticated')::text,true);
 
   update public.profiles
   set role='pharmacie',pharmacie_id=ph_id,actif=true,parent_profile_id=promoteur_id,
@@ -106,7 +106,7 @@ begin
   end;
 
   set local role authenticated;
-  select set_config('request.jwt.claims',json_build_object('sub',cible_id,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',cible_id,'role','authenticated')::text,true);
 
   if public.naxa_can_manage_privilege_target(promoteur_id,ph_id) then
     raise exception 'PART4_FAIL_RESPONSABLE_TARGETS_PROMOTEUR';

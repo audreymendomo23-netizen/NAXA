@@ -129,3 +129,16 @@ Le moteur historique d'abonnement par pharmacie est retiré du chemin canonique 
 La migration et les tests ont été exécutés dans Supabase réel dans une transaction puis annulés. Production n'a pas été modifiée.
 
 **Partie 3 : VERT — 100 %.**
+
+
+## Reprise contrôlée — Partie 4
+
+La Partie 4 verrouille les privilèges effectifs et la délégation hiérarchique. L'architecture définit le plafond des droits ; elle ne provoque plus d'attribution automatique lors de l'association Promoteur/pharmacie. L'attribution passe par la fonction canonique de délégation, avec contrôle du niveau cible, du scope, de l'architecture active et du caractère non délégable des privilèges de gouvernance.
+
+La migration de durcissement est `supabase/migration_046_disable_legacy_privilege_provisioning.sql`. Elle supprime le trigger legacy `trg_naxa_provision_promoteur` et retire l'exécution publique de `naxa_provision_promoteur_pharmacie(uuid,uuid)`.
+
+Le test contradictoire `supabase/tests/045_effective_privileges_delegation.sql` vérifie notamment : absence d'auto-provisioning, impossibilité d'auto-escalade du Promoteur, bootstrap NAXA, délégation Promoteur → Responsable, refus des privilèges de gouvernance et impossibilité pour un Responsable de se cibler lui-même.
+
+Les validations Supabase sont effectuées transactionnellement avec rollback tant qu'aucune autorisation explicite de persistance Production n'est donnée. `main` et Production restent inchangés.
+
+**Partie 4 : VERT — 100 % sous réserve du contrôle final de la branche et de la CI.**
