@@ -1,11 +1,11 @@
 # NAXA — REPRISE EXACTE
 
-> **CHECKPOINT COURANT UNIQUE — CP-0007**
+> **CHECKPOINT COURANT UNIQUE — CP-0008**
 
 ## Identité courante
 
-- checkpoint_id : `CP-0007-PILOTAGE360-AUDIT-GLOBAL`
-- checkpoint_status : 🟢 AUDIT MÉTIER/GLOBAL POST-DIRECTION 360° — VERT / 100 % après correction et preuve
+- checkpoint_id : `CP-0008-PILOTAGE360-RECONCILIATION-PRIVILEGES`
+- checkpoint_status : 🟢 RÉCONCILIATION GLOBALE DES PRIVILÈGES — VERT / 100 % après correction et preuve
 - branch : `rewrite/naxa-from-main-20261007`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
 - état Supabase Production : migration 042, inchangé
@@ -13,7 +13,7 @@
 
 ## exact_resume_point
 
-**Après CP-0007 : attendre la validation explicite du fondateur avant tout nouveau chantier.**
+**Après CP-0008 : attendre la validation explicite du fondateur avant tout nouveau chantier.**
 
 ## Dernière correction
 
