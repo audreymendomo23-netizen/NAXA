@@ -107,3 +107,12 @@ La branche `rewrite/naxa-from-main-20261007` constitue une reconstruction isolé
 Le détail de la baseline est documenté dans `docs/REWRITE_BASELINE_20261007.md`.
 
 **Partie suivante : socle DB canonique profils + hiérarchie + architectures, avec tests contradictoires avant toute persistance.**
+
+
+## Reprise contrôlée — Partie 2
+
+La Partie 2 a établi le socle canonique de gouvernance dans la branche rewrite/naxa-from-main-20261007 : champs internes de hiérarchie, distinction stricte Responsable = fonction interne, niveaux N0 à N4, quatre architectures canoniques et contraintes de capacité.
+
+La migration supabase/migration_043_canonical_governance_part2.sql est additive et n'a pas été appliquée à Production. Sa compatibilité avec l'état Supabase réel a été vérifiée dans une transaction annulée, puis les contradictions Client N4 et architecture invalide ont été testées négativement. Production reste inchangée.
+
+**Partie 2 : VERT — 100 %.**
