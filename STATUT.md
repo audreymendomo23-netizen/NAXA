@@ -1327,3 +1327,36 @@ Cette section supersède les formulations historiques antérieures du document l
 **🟡 — socle métier/code cohérent, mais étape non clôturée à 100 % tant que la preuve d'exécution et la réconciliation documentaire ne sont pas définitivement fermées.**
 
 Règle : aucune nouvelle architecture KPI ne sera créée pour le Pilotage Performance avant cette fermeture.
+
+## 🔎 CHECKPOINT — PROMOTEUR PARTIE 4/6 — AUDIT + CORRECTIONS EN COURS — 7 OCTOBRE 2026
+
+### Contradictions racines fermées
+- naxa_provision_caisse() ne peut plus servir de réactivation déguisée : une Caisse déjà rattachée doit passer par naxa_set_caisse_status(..., true) et donc REACTIVATE_CAISSE.
+- Le chemin Responsable → provisionnement utilise désormais un target NULL explicite au lieu d'un UUID vide.
+- naxa_grant_privilege() bloque explicitement un Promoteur commercialement expiré avant toute délégation.
+- Le moteur privé canonique naxa_has_privilege() bloque désormais tout privilège opérationnel d'un Promoteur dont convention/abonnement est expiré.
+- Le wrapper historique authorize() a été réconcilié vers naxa_has_privilege() en conservant le scope PHARMACIE/POSTE_CAISSE, sans second moteur d'autorisation.
+- Le replay CI ne rejoue plus migration_020_architecture_privileges.sql, migration historique qui entrait en conflit avec la vue de compatibilité profile_privileges; le moteur canonique est migration_020_authorisation_architecture_privileges.sql.
+- Le workflow Partie 4 exécute désormais les groupes de tests 1+2, 3+4 et 5+6.
+
+### Tests renforcés
+- Groupe 1+2 : scope réseau, architecture, quota, suspension, provisionnement initial et anti-réactivation déguisée.
+- Groupe 3+4 : délégation compatible, gouvernance refusée, scope réseau refusé à la Caisse, hors-pharmacie refusée, révocation.
+- Groupe 5+6 : anti-auto-élévation, cible inactive, expiration commerciale et blocage des opérations Promoteur après expiration.
+
+### Preuves obtenues
+- Compilation transactionnelle des migrations 029/030 : PASS avec rollback.
+- Compilation transactionnelle du wrapper historique authorize() : PASS avec rollback.
+- Build GitHub précédent du même PR : PASS pour TypeScript + Next build.
+- Un replay CI antérieur a révélé une contradiction historique réelle : migration_022_caisse_perimetre.sql appelait une fonction public.authorize() absente. Cette contradiction a été corrigée par le wrapper canonique ci-dessus.
+- Une nouvelle exécution CI Partie 4 a été déclenchée sur le HEAD 9a56575bdc178bf12aeece8bfd20ab292a719cd7 et est actuellement QUEUED.
+
+### État
+- Partie 1/6 : 🟢
+- Partie 2/6 : 🟢
+- Partie 3/6 : 🟢 100 %
+- Partie 4/6 : 🟡 en validation finale — CI en attente
+- Partie 5/6 : ⏳
+- Partie 6/6 : ⏳
+
+Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complète n'a pas fourni la preuve PASS. Aucun merge main, aucune migration Production et aucun déploiement applicatif.
