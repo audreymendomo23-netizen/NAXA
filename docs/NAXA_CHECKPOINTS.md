@@ -99,3 +99,30 @@ Les checkpoints sont append-only. Le dernier checkpoint actif est indiqué dans 
 - Production : migration 042, inchangée.
 - main : inchangé.
 - Point suivant : validation explicite du fondateur.
+
+
+## CP-0009-PILOTAGE360-PART2-PERFORMANCE
+
+- Date : 07/10/2026
+- Objet : clôture définitive du socle Performance resté non vert.
+- Branche : `rewrite/naxa-from-main-20261007`.
+- Contradictions corrigées :
+  - fixtures pharmacies à UUID fixes entrant en collision avec Production ;
+  - dépendance du test au trigger Auth/téléphone ;
+  - assertion CI incohérente avec la vue réconciliée ;
+  - exécuteur CI Partie 2 inadapté au replay Supabase.
+- Corrections :
+  - fixtures `gen_random_uuid()` ;
+  - isolation Auth transactionnelle via `session_replication_role` pendant l'insertion des fixtures ;
+  - gate structurel aligné sur `drop view if exists` ;
+  - job fonctionnel CircleCI déplacé sur machine + PostgreSQL client + timeout 30 min ;
+  - workflow GitHub aligné sur `psql`.
+- Preuve fonctionnelle réelle Supabase : replay 043→049 + test 049 = **PASS**, puis **ROLLBACK**.
+- Contrôles métier : scope réseau actif, CA canonique 12 000 XAF, ventes 1, absence de double comptage, rupture 1, couverture 0 %, refus après expiration Promoteur.
+- Post-rollback : 0 fixture `PART2` persistée ; Production reste à migration 042.
+- Contrôle structurel de la branche : PASS.
+- CI distante CircleCI : non remontée par les connecteurs disponibles ; aucune réussite distante inventée.
+- Observation hors périmètre : anomalie Auth historique de validation téléphonique, documentée séparément et non modifiée dans ce chantier.
+- Documentation : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
+- Résultat : **🟢 VERT — 100 %.**
+- Point d'arrêt : validation explicite du fondateur avant tout chantier suivant.
