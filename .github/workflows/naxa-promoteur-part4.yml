@@ -4,7 +4,7 @@ on:
   push:
     branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
 jobs:
-  partie3:
+  partie4:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -130,6 +130,12 @@ jobs:
         run: supabase db reset
       - name: Vérifications Partie 4 — groupes 1+2
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/029_promoteur_caisse_management_12.sql
+      - name: Vérifications Partie 4 — groupes 3+4
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/030_promoteur_caisse_delegation_34.sql
+      - name: Vérifications Partie 4 — groupes 5+6
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/031_promoteur_caisse_elevation_validity_56.sql
+      - name: Vérifications sécurité Partie 4
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/036_promoteur_session_audit_rls.sql
       - name: Arrêt propre
         if: always()
         run: supabase stop
