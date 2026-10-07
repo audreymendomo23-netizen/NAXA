@@ -21,7 +21,7 @@ create table if not exists public.naxa_architecture_privileges(
 create table if not exists public.profile_privileges(
  profile_id uuid not null references public.profiles(id) on delete cascade,
  privilege_code text not null references public.naxa_privileges(code) on delete cascade,
- pharmacie_id uuid references public.pharmacies(id) on delete cascade,
+ pharmacie_id uuid not null references public.pharmacies(id) on delete cascade,
  granted_by uuid references public.profiles(id) on delete set null,
  granted_at timestamptz not null default now(),
  revoked_at timestamptz,
