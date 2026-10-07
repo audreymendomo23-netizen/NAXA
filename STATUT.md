@@ -130,3 +130,20 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - Preuve fonctionnelle : replay Supabase transactionnel PASS + ROLLBACK.
 - **Partie 5 : 🟢 VERT — 100 %.**
 - Prochaine étape : Partie 6 — Réconciliation finale Promoteur, uniquement après validation explicite du fondateur.
+
+
+## Partie 6 — Réconciliation finale Promoteur : VERT
+
+- Contradiction racine : le moteur de privilèges pouvait encore considérer valide un Promoteur sur la base de l'ancien abonnement par pharmacie, malgré l'expiration de l'abonnement Promoteur canonique.
+- Migration corrective : `supabase/migration_048_reconciliation_finale_promoteur.sql`.
+- Correction : `private.naxa_promoteur_valide()` délègue désormais exclusivement à `private.naxa_promoteur_valide_canonique()`.
+- Sécurité : retrait de l'exécution client des fonctions mutantes `synchroniser_validite_promoteurs()` et `synchroniser_validite_pharmacies()`.
+- Test contradictoire : `supabase/tests/048_reconciliation_finale_promoteur.sql`.
+- Replay Supabase réel : PASS avec ROLLBACK, y compris le cas de régression « ancien abonnement pharmacie actif + abonnement Promoteur canonique expiré ».
+- CI de clôture : SHA `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`, CircleCI pipeline #13, workflow `part6_gate`, job `part6_check` = **Success**.
+- Aucune persistance Production ; aucun merge vers `main` ; aucun déploiement Production.
+- **Partie 6 : 🟢 VERT — 100 %.**
+
+## Point de reprise après Partie 6
+
+Les Parties 1 à 6 de la reconstruction/réconciliation Promoteur sont clôturées au vert. Le prochain chantier doit être déterminé à partir du cahier des charges V3.7 et du checkpoint, sans reprise depuis zéro.
