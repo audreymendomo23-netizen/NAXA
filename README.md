@@ -1231,3 +1231,23 @@ Le chantier Promoteur est techniquement réconcilié sur les six parties. Aucun 
 
 ### 🔴→🟢 Réconciliation de la règle commerciale — priorité finale
 La règle historique « une pharmacie impayée ne bloque pas les autres pharmacies du Promoteur » est **supersédée** par l'arbitrage final du chantier Promoteur : **un Promoteur = une convention commerciale ; son échéance bloque l'ensemble de son réseau**. L'implémentation courante applique donc une validité réseau transversale avant les privilèges Promoteur et le pilotage. Cette section est prioritaire sur toute formulation historique antérieure.
+
+
+## 📌 RÉFÉRENTIEL MAÎTRE ACTUEL — V3.7 + FUSION V2 — 7 OCTOBRE 2026
+
+Cette section est la référence actuelle de parcours et complète l'historique sans supprimer aucune exigence antérieure.
+
+- **Cahier des charges NAXA V3.7** : référence du périmètre fonctionnel. Toute exigence V3.7 reste à réaliser, sauf si elle est explicitement classée EXISTANT dans le § 2bis ou explicitement arbitrée par le fondateur.
+- **Prompt maître Fusion V2** : référence de l'ordre de travail, de la fusion avec l'existant, des points d'arrêt et de la méthode de preuve.
+- **État réel dépôt / Supabase / Vercel** : référence de preuve. Une documentation historique ne peut pas transformer un élément non testé en élément vert.
+- Les décisions nouvelles du fondateur peuvent **ajouter ou préciser** le périmètre ; elles ne retirent pas une exigence V3.7 sans décision explicite de remplacement.
+- Principe de fusion : **étendre, compléter, ne pas supprimer, ne pas remplacer, ne pas dupliquer**.
+- Légende de preuve : 🟢 prouvé ; 🟡 cohérent mais non clos ; 🟠 non prouvé ; 🔴 absent. Aucun faux vert.
+
+### Ordre Fusion V2 désormais gouvernant
+**Étape 0 — clôture du Pilotage 360°** → **Réconciliation** → **Qualité** → **ERP phases B, C, D, E, F, G, H du Cahier V3.7** → **I mise en service terrain** → **J paiement en ligne client (uniquement sur demande)** → **K extensions F69–F75**.
+
+La Phase E du cahier est adaptée par Fusion V2 : le Pilotage 360° déjà couvert dans l'Étape 0 n'est pas reconstruit ; seuls ses éléments ERP restant à construire sont traités.
+
+### Point de situation
+Le chantier Promoteur 1→6 est documenté comme 🟢 100 %. Cela **ne suffit pas à lui seul** pour déclarer l'Étape 0 Pilotage 360° globalement verte : Fusion V2 exige encore la passe Admin, la clôture de l'étape 1 Audit socle Pilotage et la preuve CI/réconciliation correspondante avant d'enchaîner sur Pilotage Performance.
