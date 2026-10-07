@@ -3,7 +3,7 @@
 Mise à jour : 7 octobre 2026 — reprise contrôlée / reconstruction canonique
 
 ## État actuel
-**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES ; PILOTAGE 360° PARTIE 1 VERTE ; PARTIE 2 PERFORMANCE EN COURS. PRODUCTION INCHANGÉE.**
+**REWRITE ISOLÉ DE MAIN — PARTIES 1 À 6 VERTES ; PILOTAGE 360° PARTIES 1 À 4 VERTES ; AUDIT MÉTIER/GLOBAL POST-DIRECTION 360° CLÔTURÉ. PRODUCTION INCHANGÉE.**
 
 ### Partie 1 — Audit et verrouillage du socle
 - Branche de reconstruction : `rewrite/naxa-from-main-20261007`.
@@ -227,3 +227,15 @@ La Partie 4 est strictement fondée sur les données déjà disponibles. Les ind
 
 ### Prochaine étape
 **Validation explicite du fondateur avant de commencer le chantier suivant.**
+
+
+## CP-0007 — Audit métier/global post-Direction 360°
+
+- Audit : `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
+- Contradiction racine corrigée : Direction 360° comptait les Responsables via l'ancien `role_type='pharmacie'` au lieu de la fonction interne canonique `fonction_interne='responsable'`.
+- Migration corrigée : `supabase/migration_052_direction_360.sql`.
+- Test contradictoire renforcé : `supabase/tests/052_direction_360.sql`.
+- Production : migration 042, aucune persistance 043→052.
+- main : inchangé.
+- **Audit métier/global : 🟢 VERT — 100 %.**
+- Point de reprise : validation explicite du fondateur avant le chantier suivant.
