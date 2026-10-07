@@ -1,10 +1,10 @@
 name: NAXA — Promoteur Partie 4 — validation isolée
 on:
-  workflow_dispatch:
   push:
     branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 jobs:
   partie4:
     runs-on: ubuntu-latest
