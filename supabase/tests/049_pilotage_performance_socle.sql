@@ -5,8 +5,8 @@ do $$
 declare
   admin_id uuid := gen_random_uuid();
   promoter_id uuid := gen_random_uuid();
-  p1 uuid := '00000000-0000-0000-0000-000000000001';
-  p2 uuid := '00000000-0000-0000-0000-000000000002';
+  p1 uuid := gen_random_uuid();
+  p2 uuid := gen_random_uuid();
   prod uuid;
   v jsonb;
 begin
