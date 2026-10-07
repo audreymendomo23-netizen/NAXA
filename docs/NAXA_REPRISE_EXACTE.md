@@ -5,17 +5,17 @@
 ## Identité
 
 - checkpoint_id : `CP-0001-CONTINUITE`
-- checkpoint_status : 🟢 PARTIE 5 — VERT / 100 %
-- checkpoint_scope : clôture de la Partie 5 et préparation de la Partie 6
+- checkpoint_status : 🟢 PARTIE 6 — VERT / 100 %
+- checkpoint_scope : clôture de la Partie 6 et préparation du chantier Pilotage 360°
 - branch : `rewrite/naxa-from-main-20261007`
-- current_sha : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
+- current_sha : `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- last_ci_test_sha : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
+- last_ci_test_sha : `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`
 
 ## Position fonctionnelle exacte
 
 - chantier : Reconstruction / Réconciliation NAXA
-- dernières parties clôturées : Parties 1, 2, 3, 4 et 5
+- dernières parties clôturées : Parties 1, 2, 3, 4, 5 et 6
 - statut Partie 5 : 🟢 VERT — 100 %
 - preuve fonctionnelle : replay Supabase transactionnel PASS avec ROLLBACK.
 - preuve CI : CircleCI pipeline #3, workflow `part5_gate`, job `part5_check`, **Success**, 26 s.
@@ -29,7 +29,7 @@
 
 Reprendre sur :
 
-**Partie 6 → Réconciliation finale Promoteur**, après validation explicite du fondateur.
+**Chantier suivant → Pilotage 360°, Partie 1 : audit et matrice canonique des KPI**, après validation explicite du fondateur.
 
 ## Fichiers métier de la Partie 5
 
@@ -70,4 +70,4 @@ Reprendre sur :
 
 **Parties 1 à 6 : ne pas recommencer.**
 
-Le prochain chantier doit être sélectionné depuis le cahier des charges V3.7 et la documentation canonique, après validation du fondateur.
+Reprendre sur : **Pilotage 360° → Partie 1 : audit de l'existant + matrice KPI canonique**, sans codage prématuré.
