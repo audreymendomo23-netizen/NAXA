@@ -38,6 +38,42 @@ insert into public.naxa_architecture_niveaux values
  ('HYBRIDE',1),('HYBRIDE',2),('HYBRIDE',3)
 on conflict do nothing;
 
+create table if not exists public.naxa_role_privileges (
+  role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
+  privilege_code text not null references public.naxa_privileges(code) on delete restrict,
+  primary key (role_key,privilege_code)
+);
+
+create table if not exists public.naxa_architecture_privileges (
+  architecture_code text not null references public.naxa_architectures(code) on delete restrict,
+  role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
+  privilege_code text not null references public.naxa_privileges(code) on delete restrict,
+  primary key (architecture_code,role_key,privilege_code)
+);
+
+insert into public.naxa_role_privileges(role_key,privilege_code)
+select r.role_key,n.code
+from (values ('promoteur',1::smallint),('responsable',2::smallint),('caisse',3::smallint)) r(role_key,niveau)
+join public.naxa_privileges n on r.niveau between n.niveau_min and n.niveau_max
+where n.active
+on conflict do nothing;
+
+insert into public.naxa_architecture_privileges(architecture_code,role_key,privilege_code)
+select an.architecture_code,
+       case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end,
+       rp.privilege_code
+from public.naxa_architecture_niveaux an
+join public.naxa_role_privileges rp
+  on rp.role_key=case an.niveau when 1 then 'promoteur' when 2 then 'responsable' when 3 then 'caisse' end
+on conflict do nothing;
+
+alter table public.naxa_role_privileges enable row level security;
+alter table public.naxa_architecture_privileges enable row level security;
+drop policy if exists naxa_role_privileges_read on public.naxa_role_privileges;
+create policy naxa_role_privileges_read on public.naxa_role_privileges for select to authenticated using (true);
+drop policy if exists naxa_architecture_privileges_read on public.naxa_architecture_privileges;
+create policy naxa_architecture_privileges_read on public.naxa_architecture_privileges for select to authenticated using (true);
+
 alter table public.profiles
   add column if not exists fonction_interne text;
 
