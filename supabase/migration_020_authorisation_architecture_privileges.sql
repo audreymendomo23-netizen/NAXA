@@ -306,119 +306,19 @@ $$;
 create or replace function public.naxa_scope_allows(p_profile uuid,p_pharmacie uuid,p_scope text default 'PHARMACIE')
 returns boolean language sql stable security definer set search_path=''
 as $$
-  select
-    p_scope='RESEAU' and exists(
-      select 1 from public.profiles p where p.id=p_profile and p.role='promoteur' and p.actif
-    ) and (
-      p_pharmacie is null or exists(
-        select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=p_profile and pp.pharmacie_id=p_pharmacie and pp.actif
-      )
-    )
-    or p_scope='PHARMACIE' and p_pharmacie is not null and public.can_access_pharmacy(p_pharmacie)
-    or p_scope='POSTE_CAISSE' and p_pharmacie is not null and exists(
-      select 1 from public.profiles p where p.id=p_profile and p.role='caisse' and p.actif and p.pharmacie_id=p_pharmacie
-    )
+  select case
+    when p_profile is null then false
+    when p_scope='RESEAU' then exists(select 1 from public.profiles p where p.id=p_profile and p.actif and p.role::text='promoteur')
+      and exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=p_profile and pp.actif and (p_pharmacie is null or pp.pharmacie_id=p_pharmacie))
+    when p_scope='PHARMACIE' then exists(select 1 from public.profiles p where p.id=p_profile and p.actif and p.role::text='admin')
+      or exists(select 1 from public.profiles p where p.id=p_profile and p.actif and p.role::text='promoteur' and exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=p_profile and pp.pharmacie_id=p_pharmacie and pp.actif))
+      or exists(select 1 from public.profiles p where p.id=p_profile and p.actif and p.role::text<>'promoteur' and p.pharmacie_id=p_pharmacie)
+    when p_scope='POSTE_CAISSE' then exists(select 1 from public.profiles p where p.id=p_profile and p.actif and (p.role::text='admin' or p.role::text='caisse') and (p.role::text='admin' or p.pharmacie_id=p_pharmacie))
+    else false
+  end
 $$;
-
-create or replace function public.naxa_has_privilege(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
-returns boolean language sql stable security definer set search_path=''
-as $naxa$
-  select exists(
-    select 1
-    from public.profiles p
-    join public.naxa_privileges n on n.code=p_privilege
-    where p.id=(select auth.uid()) and p.actif
-      and (
-        p.role='admin'
-        or (
-          p.niveau_interne between n.niveau_min and n.niveau_max
-          and n.active
-          and exists(
-            select 1 from public.naxa_profile_privileges pp
-            where pp.profile_id=p.id and pp.privilege_code=n.code and pp.active and pp.revoked_at is null
-              and (pp.pharmacie_id is null or pp.pharmacie_id=p_pharmacie)
-              and (pp.scope_type=p_scope or pp.scope_type='RESEAU')
-          )
-          and (
-            exists(
-              select 1
-              from public.naxa_profile_custom_roles pcr
-              join public.naxa_custom_role_privileges rpv on rpv.role_id=pcr.role_id
-              where pcr.profile_id=p.id and pcr.active
-                and rpv.privilege_code=n.code
-            )
-            or exists(
-              select 1 from public.naxa_profile_privileges pp
-              where pp.profile_id=p.id and pp.privilege_code=n.code and pp.active and pp.revoked_at is null
-                and (pp.pharmacie_id is null or pp.pharmacie_id=p_pharmacie)
-                and (pp.scope_type=p_scope or pp.scope_type='RESEAU')
-            )
-          )
-          and public.naxa_scope_allows(p.id,p_pharmacie,p_scope)
-        )
-      )
-  )
-$naxa$;
-
--- Authorization atomique : le moteur décide du droit effectif ; l'UI n'est jamais la source d'autorité.
-create or replace function public.authorize(p_privilege text,p_pharmacie uuid default null,p_scope text default 'PHARMACIE')
-returns boolean language sql stable security definer set search_path=''
-as $$
-  select public.naxa_has_privilege(p_privilege,p_pharmacie,p_scope)
-$$;
-
-revoke all on function public.naxa_architecture_for_profile(uuid) from public,anon,authenticated;
 revoke all on function public.naxa_scope_allows(uuid,uuid,text) from public,anon,authenticated;
-revoke all on function public.naxa_has_privilege(text,uuid,text) from public,anon,authenticated;
-revoke all on function public.authorize(text,uuid,text) from public,anon,authenticated;
-grant execute on function public.naxa_architecture_for_profile(uuid) to authenticated;
 grant execute on function public.naxa_scope_allows(uuid,uuid,text) to authenticated;
-grant execute on function public.naxa_has_privilege(text,uuid,text) to authenticated;
-grant execute on function public.authorize(text,uuid,text) to authenticated;
-
--- Accréditation : architecture + quotas + parent explicite. Responsable = niveau 2, pas role_type.
-create or replace function public.accrediter_profile(p_target uuid,p_pharmacie uuid,p_niveau smallint,p_parent uuid default null)
-returns uuid language plpgsql security definer set search_path=''
-as $$
-declare
- v_id uuid; v_parent_role text; v_arch text; v_max_resp integer; v_max_caisse integer; v_count integer;
-begin
- if not public.is_admin() and not public.naxa_has_privilege(case when p_niveau=2 then 'CREATE_RESPONSABLE' else 'CREATE_CAISSE' end,p_pharmacie,'PHARMACIE') then
-   raise exception 'Privilège de création insuffisant';
- end if;
- if p_niveau not in (2,3) or p_parent is null then raise exception 'Niveau ou parent invalide'; end if;
- if not exists(select 1 from public.profiles where id=p_target and actif) then raise exception 'Cible invalide'; end if;
- select role::text into v_parent_role from public.profiles where id=p_parent and actif and pharmacie_id=p_pharmacie;
- if v_parent_role is null then raise exception 'Parent invalide'; end if;
- if p_niveau=2 and v_parent_role <> 'promoteur' then raise exception 'Responsable doit avoir un Promoteur comme parent'; end if;
- if p_niveau=3 and v_parent_role not in ('responsable','promoteur') then raise exception 'Caisse doit avoir un Responsable ou un Promoteur comme parent'; end if;
- if p_niveau=2 and not exists(select 1 from public.profiles where id=p_target and role='pharmacie') then raise exception 'Un Responsable conserve un role_type existant; profil pharmacie requis'; end if;
- if p_niveau=3 and not exists(select 1 from public.profiles where id=p_target and role='caisse') then raise exception 'Profil Caisse requis'; end if;
- select c.architecture_code,a.max_responsables,a.max_caisses
- into v_arch,v_max_resp,v_max_caisse
- from public.conventions_promoteurs c
- join public.naxa_architectures a on a.code=c.architecture_code and a.active
- where c.promoteur_id=case when v_parent_role='promoteur' then p_parent else (select parent_profile_id from public.profiles where id=p_parent) end
- limit 1;
- if v_arch is null then raise exception 'Architecture NAXA non attribuée à la convention Promoteur'; end if;
- if not exists(select 1 from public.naxa_architecture_niveaux where architecture_code=v_arch and niveau=p_niveau) then
-   raise exception 'Niveau non autorisé par architecture %',v_arch;
- end if;
- if p_niveau=2 and v_max_resp is not null then
-   select count(*) into v_count from public.profiles where parent_profile_id=(select promoteur_id from public.conventions_promoteurs where architecture_code=v_arch limit 1) and niveau_interne=2 and actif and pharmacie_id=p_pharmacie;
-   if v_count >= v_max_resp then raise exception 'Quota Responsable atteint'; end if;
- end if;
- if p_niveau=3 and v_max_caisse is not null then
-   select count(*) into v_count from public.profiles where niveau_interne=3 and actif and pharmacie_id=p_pharmacie
-     and (parent_profile_id=p_parent or parent_profile_id=(select promoteur_id from public.conventions_promoteurs where architecture_code=v_arch limit 1));
-   if v_count >= v_max_caisse then raise exception 'Quota Caisse atteint'; end if;
- end if;
- insert into public.profile_accreditations(grantor_profile_id,target_profile_id,pharmacie_id,niveau)
- values((select auth.uid()),p_target,p_pharmacie,p_niveau) returning id into v_id;
- update public.profiles set parent_profile_id=p_parent,pharmacie_id=p_pharmacie,niveau_interne=p_niveau,actif=true where id=p_target;
- return v_id;
-end
-$$;
 
 -- Attribution : le Promoteur ne peut déléguer que ce que NAXA autorise pour l'architecture et le niveau cible.
 create or replace function public.naxa_grant_privilege(p_target uuid,p_privilege text,p_pharmacie uuid,p_scope text default 'PHARMACIE')
