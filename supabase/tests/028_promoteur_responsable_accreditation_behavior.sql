@@ -1,7 +1,7 @@
 -- NAXA Partie 3/6 — comportemental isolé CI.
 begin;
 create temp table p3_ids(promoteur uuid, pharmacie uuid, target uuid, other_pharmacie uuid);
-do $
+do $$
 declare v_promoteur uuid := gen_random_uuid(); v_target uuid := gen_random_uuid(); v_pharmacie uuid := gen_random_uuid(); v_other_pharmacie uuid := gen_random_uuid();
 begin
   alter table auth.users disable trigger on_auth_user_created;
