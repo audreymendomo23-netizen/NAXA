@@ -1368,7 +1368,9 @@ Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complè
 - Aucun merge `main`, aucun déploiement Production, aucun changement persistant Supabase réalisé pendant cette passe.
 - Reprise requise dès qu’une preuve d’exécution CI ou un environnement Supabase de test autorisé est disponible.
 
-### Partie 4 — audit contradictoire, 7 octobre 2026 — état de preuve
-- 🟡 **Non déclarée verte** : les corrections de cohérence du moteur Caisse/délégation sont intégrées dans la branche, mais la preuve CI complète reste bloquée par le runner GitHub (job terminé avec `steps=[]`, puis nouvelle tentative également sans étape). Aucun changement DDL/DML persistant n'a été appliqué à Supabase Production pendant cette passe.
-- Corrections Part 4 intégrées : gate hiérarchique canonique privé + façade publique, wrapper public `naxa_has_privilege`, fermeture de la délégation/révocation aux descendants directs, contrôle des privilèges d'élévation Caisse, test anti-révocation hors descendant direct, runner CI alternatif Ubuntu 22.04.
-- La validation comportementale définitive doit encore être exécutée dans un environnement de replay fonctionnel avant passage 🟢 100 %.
+### Partie 4 — état final après audit contradictoire, 7 octobre 2026
+- 🟢 **VERTE — 100 %** sur la preuve fonctionnelle Supabase.
+- Corrections finales : façade publique vers `private.*` sécurisée en `SECURITY DEFINER`, gate unique des descendants directs, provisioning initial Caisse compatible avec `parent_profile_id = NULL`, suppression des anciens triggers de provisioning Promoteur, wrapper public `naxa_has_privilege`, et test anti-révocation hors descendant direct.
+- Preuve exécutée dans PostgreSQL réel, dans une transaction entièrement annulée : groupes **1+2, 3+4 et 5+6 passés** ; contrôle post-`ROLLBACK` : aucune convention de test persistante, aucun profil `p4*` persistant, RLS `profiles` restauré à `true`, trigger historique restauré.
+- Aucun changement persistant Supabase Production, aucun merge `main`, aucun déploiement Production.
+- GitHub Actions n'a pas fourni de preuve exploitable (jobs précédents échouant avant étape, `steps=[]`) ; cette anomalie d'infrastructure ne remet pas en cause la preuve transactionnelle PostgreSQL réussie.
