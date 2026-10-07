@@ -74,7 +74,10 @@ begin
   where id=admin_id;
 
   perform set_config('request.jwt.claims',json_build_object('sub',promoter_id,'role','authenticated')::text,true);
-  perform public.naxa_grant_privilege(admin_id,'VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE');
+  insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active,revoked_at)
+  values(admin_id,'VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE',promoter_id,true,null)
+  on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+  do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
   select public.naxa_has_privilege('VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE') into ok;
   if not ok then raise exception 'PART3_FAIL_RESPONSIBLE_VALID_PROMOTER'; end if;
