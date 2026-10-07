@@ -92,7 +92,9 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 
 La branche `rewrite/naxa-from-main-20261007` a clôturé les Parties 1 à 6 au vert. La Partie 6 est ancrée sur `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`. `main` et Production restent inchangés.
 
-Le chantier courant est **Audit métier/global post-Direction 360°**. Les Parties 1 à 6 et les Parties 1 à 4 du Pilotage 360° sont vertes. L'audit a réconcilié le contrat métier Responsable avec le code de Direction 360°. Aucun KPI nouveau ni migration n'est persisté en Production ; Supabase Production reste à la migration 042.
+Le chantier courant est **Qualité** et reste 🟡 tant que sa preuve CI complète n'est pas obtenue. Les Parties 1 à 6 et les Parties 1 à 4 du Pilotage 360° sont vertes, et la réconciliation v3.7 est clôturée. Aucun KPI nouveau ni migration n'est persisté en Production ; Supabase Production reste à la migration 042.
+
+**Règle de parcours :** les jalons déjà verts ne sont pas recréés dans une nouvelle conversation. Leur historique est conservé dans Git et `docs/NAXA_CHECKPOINTS.md`, tandis que `docs/NAXA_REPRISE_EXACTE.md` reste la seule position opérationnelle.
 
 ## Historique du socle initial
 La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses est en Production. Il reste la **mise en service terrain réelle** :
