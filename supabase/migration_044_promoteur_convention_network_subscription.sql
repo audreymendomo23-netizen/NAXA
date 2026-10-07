@@ -86,13 +86,6 @@ for each row execute function private.validate_promoteur_pharmacie_link();
 
 drop trigger if exists trg_initialiser_abonnement_pharmacie on public.pharmacies;
 
-create or replace function public.synchroniser_validite_pharmacies()
-returns integer
-language sql
-security definer
-set search_path to ''
-as $fn$ select public.synchroniser_validite_promoteurs(); $fn$;
-
 create unique index if not exists promoteur_pharmacies_one_active_promoteur_per_pharmacie
 on public.promoteur_pharmacies(pharmacie_id)
 where actif;
@@ -174,7 +167,14 @@ begin
     );
   return n;
 end;
-$$;
+$;
+
+create or replace function public.synchroniser_validite_pharmacies()
+returns integer
+language sql
+security definer
+set search_path to ''
+as $fn$ select public.synchroniser_validite_promoteurs(); $fn$;
 
 drop policy if exists conventions_promoteurs_select_own on public.conventions_promoteurs;
 create policy conventions_promoteurs_select_own on public.conventions_promoteurs
