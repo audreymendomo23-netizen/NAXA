@@ -1,98 +1,36 @@
 # NAXA — STATUT
 
-Mise à jour : 5 octobre 2026 — architecture Promoteur / Caisses
+Mise à jour : 7 octobre 2026 — reprise contrôlée / reconstruction canonique
 
-## État global
-**AUTHENTIFICATION VALIDÉE. ARCHITECTURE PHARMACIE PROMOTEUR / CAISSES CONSOLIDÉE. PRODUCTION VALIDÉE. MISE EN SERVICE TERRAIN À EXÉCUTER.**
+## État actuel
+**REWRITE ISOLÉ DE MAIN — PARTIE 1 VERT. PRODUCTION INCHANGÉE.**
 
-### Consolidation finale
-- PR #11 fusionnée dans main par squash.
-- PR #12 documentation précédente fusionnée.
-- PR #13 fusionnée dans main : correction du dernier écran d'authentification qui conservait min-h-screen.
-- PR #15 fusionnée dans main : correction UX finale de /creation-compte.
-- /creation-compte : bandeau « Les plus recherchés » masqué.
-- /creation-compte : titre et introduction recentrés et compactés.
-- /creation-compte : scroll de page interdit via auth-ecran.
-- /creation-compte : téléphone corrigé avec sélecteur compact drapeau + indicatif ; les noms de pays apparaissent uniquement dans le sélecteur ouvert.
-- /creation-compte : numéro national séparé, longueur contrôlée selon le pays et coches jaunes de validation pour les informations correctement renseignées.
-- /mot-de-passe-oublie : vérification serveur de l’existence du compte avant envoi d’OTP ; compte inexistant = erreur, aucune étape OTP proposée.
-- PR #17 fusionnée dans main.
-- Les cinq écrans principaux contrôlés sont sans défilement de page : /connexion, /creation-compte, /mot-de-passe-oublie, /verification-age, /nouveau-mot-de-passe.
-- auth-ecran impose 100vh/100dvh, overflow:hidden et overscroll-behavior:none.
-- Google OAuth : parcours direct sans OTP ; le callback finalise la session Supabase avant redirection.
-- Mot de passe oublié : OTP e-mail séparé, puis changement du mot de passe avec session conservée.
-- Création de compte : informations → OTP → mot de passe.
-- Validation d'âge : acceptation obligatoire des trois politiques côté interface et serveur.
-- Accueil : CTA pharmacie isolé, disclaimer médical repositionné, numéros 1510 / 119 / 1511.
-- Aucun nouveau modèle DB, aucune nouvelle dépendance, aucune réécriture destructive.
+### Partie 1 — Audit et verrouillage du socle
+- Branche de reconstruction : `rewrite/naxa-from-main-20261007`.
+- `main` inchangé.
+- Production Vercel inchangée.
+- Supabase Production n'a subi aucune modification persistante pendant cette partie.
+- Historique Supabase réel vérifié jusqu'à la migration `042_stats_pilotage_facade_security`.
+- Modèle réel de gouvernance vérifié.
+- 104 privilèges catalogués, mais 0 attribution effective actuellement mesurée.
+- 0 relation Promoteur → pharmacie actuellement mesurée.
+- 3 pharmacies, 2 profils, 3 abonnements, 4 réservations et 9 stocks actuellement mesurés.
+- Alerte sécurité Supabase actuelle : Leaked Password Protection désactivée.
+- 25 index inutilisés signalés ; aucune suppression effectuée sans preuve.
+- Contradictions historiques consignées dans `docs/REWRITE_BASELINE_20261007.md`.
 
-## Évaluation finale du périmètre contrôlé — consolidation PR #21
-- Architecture Promoteur/Caisses : OK
-- Séparation pharmacie unique / comptes enfants : OK
-- Création du Promoteur depuis `/admin` : OK
-- Gestion des Caisses par le Promoteur : OK
-- Blocage/réactivation d'une Caisse : OK
-- Contrôle d'accès des comptes désactivés : OK
-- Schéma Supabase correspondant : OK
-- Migrations 007/008 présentes et appliquées sur Naxa : OK
-- Production Vercel issue de `main` : READY
-- Contrôle post-déploiement : aucun log runtime error/fatal trouvé sur 30 min
-- **Score de consolidation : 100 %**
+### Décision de reconstruction
+La documentation historique ne peut plus être utilisée seule comme état courant. La reconstruction doit repartir du comportement validé, du cahier des charges v3.7, du prompt maître et de l'état réel Supabase, puis produire un modèle canonique testable.
 
-## Évaluation finale du périmètre contrôlé — historique
-- Architecture existante conservée : OK
-- Correction du dernier scroll parasite : OK
-- Cohérence des cinq écrans d'authentification : OK
-- Fonctionnement métier modifié par la correction : aucun
-- PR #15 fusionnée : OK
-- Build Production : compilation Next.js réussie ; contrôle TypeScript lancé sans erreur bloquante : OK
-- Déploiement Production sur projet Vercel existant : READY : OK
-- URL /creation-compte en Production : HTTP 200 : OK
-- Aucun Preview volontaire : OK
-- Secrets serveur non exposés : OK
-- Score final : 100 %
+**Partie 1 : VERT — 100 % de l'objectif d'audit.**
 
-## Production
-- Projet Vercel : `naxa` existant, aucun nouveau projet créé.
-- Déploiement Production courant : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6` — **READY**.
-- Commit Production : `5ad95ce30dd43b3c140e0048606c81dd5143e490`.
-- Alias : `naxa-opal.vercel.app`, `naxa-naxa3.vercel.app`.
-- Déploiement issu de `main` après fusion PR #21.
-- Statut GitHub Vercel : SUCCESS.
-- Aucun nouveau projet Vercel et aucun Preview volontaire.
+## Prochaine partie — validation requise
+**Partie 2 : socle DB canonique**
+1. profils et hiérarchie N0 → N4 ;
+2. architectures ORPHELIN / PARENTS_ENFANTS / PARENTS_AINES_CADETS / HYBRIDE ;
+3. invariants et contraintes ;
+4. tests contradictoires ;
+5. vérification transactionnelle avant toute persistance ;
+6. documentation et statut.
 
-## Architecture comptes pharmacie — validée comme évolution métier
-- Le prompt maître impose une pharmacie créée par NAXA puis autonome ; cette évolution précise cette autonomie sans créer de sous-pharmacies.
-- **Promoteur** : compte parent de la pharmacie, gère les comptes enfants.
-- **Caisse** : compte enfant, opérationnel, partage exactement le stock et les réservations de la pharmacie.
-- Côté client : une seule pharmacie visible, indépendamment du nombre de caisses.
-- Le Promoteur peut créer, bloquer et réactiver ses caisses ; un blocage ne désactive pas la pharmacie.
-- Formation terrain : utiliser les comptes Caisse pour l'apprentissage de l'import et de la gestion de stock.
-- PR #21 fusionnée dans `main` par squash : architecture Promoteur parent / Caisses enfants.
-- Migrations 007/008 préparées et appliquées au projet Supabase NAXA ; aucun compte réel n'est créé automatiquement par ce chantier.
-- Le schéma Supabase contient désormais les rôles `promoteur` et `caisse`, `parent_profile_id` et `actif` sur `profiles`.
-- Le compte créé par `/admin` est désormais destiné au Promoteur ; le Promoteur dispose d'un espace de gestion de ses Caisses.
-- Évaluation finale du périmètre PR #21 : **100 %**.
-- Déploiement Production PR #21 : **READY** sur le projet Vercel existant `naxa`.
-- Commit Production : `5ad95ce30dd43b3c140e0048606c81dd5143e490`.
-- Déploiement : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6`.
-- Statut GitHub Vercel : SUCCESS.
-- Contrôle runtime post-déploiement : aucun log `error`/`fatal` trouvé sur les 30 premières minutes contrôlées.
-
-## Prochain chantier — feuille de route du prompt maître
-**Mise en service terrain des pharmacies pilotes — prochain jalon réel.**
-- Identifier 3 à 5 pharmacies pilotes réelles.
-- Créer leurs comptes Promoteur via `/admin`.
-- Faire créer/activer par chaque Promoteur les comptes Caisses de son équipe.
-- Migrer leurs stocks réels via l'import existant.
-- Vérifier prix, quantités, péremptions, formats et fraîcheur.
-- Former les équipes sur réservations, stock, garde et mode hors connexion.
-- Tester le parcours complet sur données réelles.
-- Passer ensuite au chantier Qualité.
-- Règles inchangées : pas d'auto-inscription pharmacie, pas de livraison, réservation et paiement facultatifs.
-
-## Gouvernance
-- Dépôt existant conservé.
-- Aucun secret serveur exposé.
-- Aucune livraison.
-- Le prompt maître et le cahier des charges sont les sources de vérité.
+Aucun passage à la Partie 2 sans validation du fondateur.
