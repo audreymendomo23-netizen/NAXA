@@ -115,6 +115,166 @@ jobs:
             npx --no-install supabase db reset
             PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
 
+  part3_check:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Contrôle structurel Partie 3 — Sécurité + Réseau"
+          command: |
+            grep -Fq "private.naxa_promoteur_valide" supabase/migration_050_security_network_hardening.sql
+            grep -Fq "with recursive lineage" supabase/migration_050_security_network_hardening.sql
+            grep -Fq "RESEAU_CIBLE_HORS_RESEAU" supabase/migration_050_security_network_hardening.sql
+            grep -Fq "PART3_FAIL_RESPONSIBLE_VALID_PROMOTER" supabase/tests/050_security_network_hardening.sql
+            grep -Fq "PART3_FAIL_EXPIRED_PROMOTER_STILL_AUTHORIZED" supabase/tests/050_security_network_hardening.sql
+            grep -Fq "PART3_FAIL_NETWORK_GRANT_OUTSIDE_NETWORK" supabase/tests/050_security_network_hardening.sql
+            echo "PART3_GATE_STRUCTURE=PASS"
+
+  part3_functional:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: "Préparation environnement fonctionnel Partie 3"
+          command: |
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git postgresql-client
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+      - run:
+          name: "Supabase CLI Partie 3"
+          command: |
+            npm install --no-save supabase
+            npx --no-install supabase --version
+      - run:
+          name: "Replay fonctionnel Partie 3"
+          no_output_timeout: 30m
+          command: |
+            cat > supabase/config.toml <<'EOF'
+            project_id = "naxa-part3-circleci"
+            [api]
+            enabled = true
+            [db]
+            major_version = 17
+            [studio]
+            enabled = false
+            [inbucket]
+            enabled = false
+            [storage]
+            enabled = true
+            [realtime]
+            enabled = false
+            [analytics]
+            enabled = false
+            [edge_runtime]
+            enabled = false
+            EOF
+            rm -rf supabase/migrations
+            mkdir -p supabase/migrations
+            cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+            python3 - <<'PY'
+            from pathlib import Path
+            import re
+            p=Path("supabase/migrations/20261006000000_base.sql")
+            s=p.read_text()
+            a=s.index("create or replace function handle_new_user")
+            b=s.index("create trigger on_auth_user_created",a)
+            handle=r"""create or replace function handle_new_user()
+            returns trigger language plpgsql security definer set search_path=public
+            as $fn$
+            declare
+              v_username text:=lower(trim(new.raw_user_meta_data->>'username'));
+              v_first_name text:=trim(new.raw_user_meta_data->>'first_name');
+              v_last_name text:=trim(new.raw_user_meta_data->>'last_name');
+              v_phone text:=trim(new.raw_user_meta_data->>'phone');
+              v_country text:=upper(trim(new.raw_user_meta_data->>'phone_country'));
+              v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date;
+              v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
+            begin
+              if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Controle structurel Partie 5"
+          command: |
+            grep -Fq "v_priv_pharmacie := null" supabase/migration_047_network_scope_pilotage_promoteur.sql
+            grep -Fq "p_scope='RESEAU'" supabase/migration_047_network_scope_pilotage_promoteur.sql
+            grep -Fqi "pharmacie_id is null" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "PART5_FAIL_NETWORK_PRIVILEGE_NOT_EFFECTIVE" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "PART5_FAIL_SCOPE_LEAK" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "Partie 5" README.md
+            grep -Fq "Partie 5" STATUT.md
+            grep -Fq "CI GitHub" STATUT.md
+            echo "PART5_GATE_STRUCTURE=PASS"
+
+  part6_check:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Controle structurel Partie 6"
+          command: |
+            grep -Fq "private.naxa_promoteur_valide_canonique" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "revoke execute on function public.synchroniser_validite_promoteurs()" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "revoke execute on function public.synchroniser_validite_pharmacies()" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "PART6_FAIL_CANONICAL_EXPIRY_IGNORED" supabase/tests/048_reconciliation_finale_promoteur.sql
+            grep -Fq "PART6_FAIL_PRIVILEGE_ENGINE_IGNORES_CANONICAL_EXPIRY" supabase/tests/048_reconciliation_finale_promoteur.sql
+            echo "PART6_GATE_STRUCTURE=PASS"
+
+workflows:
+  part2_gate:
+    jobs:
+      - part2_check
+      - part2_functional
+  part5_gate:
+    jobs:
+      - part5_check
+  part3_gate:
+    jobs:
+      - part3_check
+      - part3_functional
+  part6_gate:
+    jobs:
+      - part6_check
+ then raise exception 'Nom d''utilisateur invalide'; end if;
+              if exists(select 1 from public.profiles where lower(username)=v_username) then raise exception 'Nom d''utilisateur déjà pris'; end if;
+              if v_first_name is null or v_last_name is null then raise exception 'Identité invalide'; end if;
+              if v_dob is null or extract(year from age(current_date,v_dob))<18 then raise exception '18+ requis'; end if;
+              if not v_consent then raise exception 'Consentement requis'; end if;
+              insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at)
+              values(new.id,'client',v_username,v_first_name,v_last_name,v_phone,v_country,v_dob,true,now());
+              return new;
+            end;
+            $fn$;
+            """
+            s=s[:a]+handle+s[b:]
+            a=s.index("create or replace function my_pharmacie")
+            b=s.index("alter table profiles",a)
+            s=s[:a]+"""create or replace function my_pharmacie() returns uuid
+            language sql stable security definer set search_path=public
+            as $fn$ select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse'); $fn$;
+            """+s[b:]
+            s=re.sub(r"insert into storage\.buckets\s*\([^;]*?\)\s*values\s*\([^;]*?\);\s*","",s,flags=re.I|re.S)
+            p.write_text(s)
+            PY
+            n=1
+            for f in supabase/migration_*.sql; do
+              ts=$(printf '20261006%06d' "$n")
+              cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
+              n=$((n+1))
+            done
+            trap 'npx --no-install supabase stop --no-backup || true' EXIT
+            npx --no-install supabase start
+            npx --no-install supabase db reset
+            PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/050_security_network_hardening.sql
+
   part5_check:
     docker:
       - image: cimg/python:3.12
