@@ -149,6 +149,10 @@ $$;
 
 revoke all on function private.stats_pilotage_scope(integer) from public,anon,authenticated;
 
+-- The public invoker façade resolves the private helper as the authenticated caller.
+-- Schema USAGE is required for name resolution; EXECUTE on the helper remains revoked.
+grant usage on schema private to authenticated;
+
 create or replace function public.stats_pilotage_scope(p_jours integer default 7)
 returns jsonb
 language sql
