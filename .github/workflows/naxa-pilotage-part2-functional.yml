@@ -5,16 +5,6 @@ on:
       - rewrite/naxa-from-main-20261007
   workflow_dispatch:
 jobs:
-  diagnostic:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Runner diagnostic
-        run: |
-          echo "PART2_RUNNER_DIAGNOSTIC=PASS"
-          uname -a
-          node --version
-          npm --version
-
   part2:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
