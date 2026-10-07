@@ -106,3 +106,5 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - Test exécuté transactionnellement avec ROLLBACK.
 - `main` et Production inchangés.
 - **Partie 5 : VERT — 100 %.**
+
+CI gate: runner lightweight `ubuntu-slim` configuré pour la validation structurelle.
