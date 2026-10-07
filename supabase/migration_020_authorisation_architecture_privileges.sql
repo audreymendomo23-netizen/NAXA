@@ -303,20 +303,20 @@ as $$
   limit 1
 $$;
 
-create or replace function public.naxa_scope_allows(p_actor uuid,p_pharmacie uuid,p_scope text)
+create or replace function public.naxa_scope_allows(p_profile uuid,p_pharmacie uuid,p_scope text)
 returns boolean language sql stable security definer set search_path=''
 as $$
   select
     p_scope='RESEAU' and exists(
-      select 1 from public.profiles p where p.id=p_actor and p.role='promoteur' and p.actif
+      select 1 from public.profiles p where p.id=p_profile and p.role='promoteur' and p.actif
     ) and (
       p_pharmacie is null or exists(
-        select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=p_actor and pp.pharmacie_id=p_pharmacie and pp.actif
+        select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=p_profile and pp.pharmacie_id=p_pharmacie and pp.actif
       )
     )
     or p_scope='PHARMACIE' and p_pharmacie is not null and public.can_access_pharmacy(p_pharmacie)
     or p_scope='POSTE_CAISSE' and p_pharmacie is not null and exists(
-      select 1 from public.profiles p where p.id=p_actor and p.role='caisse' and p.actif and p.pharmacie_id=p_pharmacie
+      select 1 from public.profiles p where p.id=p_profile and p.role='caisse' and p.actif and p.pharmacie_id=p_pharmacie
     )
 $$;
 
