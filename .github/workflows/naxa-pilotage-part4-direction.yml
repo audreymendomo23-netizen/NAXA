@@ -1,0 +1,28 @@
+name: NAXA Pilotage 360 Partie 4 gate
+on:
+  push:
+    branches: [rewrite/naxa-from-main-20261007]
+  workflow_dispatch:
+jobs:
+  part4-direction-360:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Controle structurel Partie 4
+        shell: python
+        run: |
+          from pathlib import Path
+          migration = Path("supabase/migration_052_direction_360.sql").read_text()
+          test = Path("supabase/tests/052_direction_360.sql").read_text()
+          statut = Path("STATUT.md").read_text()
+          reprise = Path("docs/NAXA_REPRISE_EXACTE.md").read_text()
+          assert "VIEW_DIRECTION_360" in migration
+          assert "DIRECTION_360_ADMIN_ONLY" in migration
+          assert "unsupported_until_erp" in migration
+          assert "PART4_DIRECTION_360_GREEN" in test
+          assert "PART4_FAIL_CANONICAL_CA" in test
+          assert "PART4_FAIL_DOUBLE_COUNT" in test
+          assert "PART4_FAIL_INVALID_PERIOD_ACCEPTED" in test
+          assert "Partie 4" in statut and "Direction 360" in statut
+          assert "CP-0006-PILOTAGE360-PART4-DIRECTION-360" in reprise
+          print("PART4_DIRECTION_360_GATE=GREEN")
