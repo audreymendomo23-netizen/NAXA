@@ -1127,3 +1127,11 @@ Cette section supersède les formulations historiques antérieures du document l
 **🟡 — socle métier/code cohérent, mais étape non clôturée à 100 % tant que la preuve d'exécution et la réconciliation documentaire ne sont pas définitivement fermées.**
 
 Règle : aucune nouvelle architecture KPI ne sera créée pour le Pilotage Performance avant cette fermeture.
+
+## 🔎 PROMOTEUR PARTIE 4/6 — CHECKPOINT D'AUDIT — 7 OCTOBRE 2026
+
+La Partie 4 couvre Gestion des Caisses + délégation des privilèges. Les contradictions métier identifiées ont été corrigées : provisionnement initial séparé de la réactivation, hiérarchie directe, quotas d'architecture, délégation bornée par rôle/architecture/scope, gouvernance non délégable et validité commerciale Promoteur.
+
+Le chemin historique authorize() a été réconcilié vers naxa_has_privilege() avec conservation du scope. Le replay CI a également été corrigé pour exclure la migration historique 020_architecture_privileges.sql, incompatible avec la vue de compatibilité profile_privileges du socle actuel.
+
+Les tests versionnés 029/030/031 ont été renforcés et le workflow naxa-promoteur-part4.yml exécute maintenant les trois groupes. La validation transactionnelle de compilation des migrations 029/030 est PASS. La preuve CI complète de Partie 4 est actuellement en attente d'exécution ; la Partie 4 reste donc 🟡 et ne doit pas être présentée comme verte avant le PASS CI.
