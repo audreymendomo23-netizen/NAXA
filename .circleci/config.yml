@@ -1,40 +1,6 @@
 version: 2.1
 
 jobs:
-  part5_check:
-    docker:
-      - image: cimg/python:3.12
-    steps:
-      - checkout
-      - run:
-          name: "Controle structurel Partie 5"
-          command: |
-            grep -Fq "v_priv_pharmacie := null" supabase/migration_047_network_scope_pilotage_promoteur.sql
-            grep -Fq "p_scope='RESEAU'" supabase/migration_047_network_scope_pilotage_promoteur.sql
-            grep -Fqi "pharmacie_id is null" supabase/tests/047_network_scope_pilotage_promoteur.sql
-            grep -Fq "PART5_FAIL_NETWORK_PRIVILEGE_NOT_EFFECTIVE" supabase/tests/047_network_scope_pilotage_promoteur.sql
-            grep -Fq "PART5_FAIL_SCOPE_LEAK" supabase/tests/047_network_scope_pilotage_promoteur.sql
-            grep -Fq "PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK" supabase/tests/047_network_scope_pilotage_promoteur.sql
-            grep -Fq "Partie 5" README.md
-            grep -Fq "Partie 5" STATUT.md
-            grep -Fq "CI GitHub" STATUT.md
-            echo "PART5_GATE_STRUCTURE=PASS"
-
-  part6_check:
-    docker:
-      - image: cimg/python:3.12
-    steps:
-      - checkout
-      - run:
-          name: "Controle structurel Partie 6"
-          command: |
-            grep -Fq "private.naxa_promoteur_valide_canonique" supabase/migration_048_reconciliation_finale_promoteur.sql
-            grep -Fq "revoke execute on function public.synchroniser_validite_promoteurs()" supabase/migration_048_reconciliation_finale_promoteur.sql
-            grep -Fq "revoke execute on function public.synchroniser_validite_pharmacies()" supabase/migration_048_reconciliation_finale_promoteur.sql
-            grep -Fq "PART6_FAIL_CANONICAL_EXPIRY_IGNORED" supabase/tests/048_reconciliation_finale_promoteur.sql
-            grep -Fq "PART6_FAIL_PRIVILEGE_ENGINE_IGNORES_CANONICAL_EXPIRY" supabase/tests/048_reconciliation_finale_promoteur.sql
-            echo "PART6_GATE_STRUCTURE=PASS"
-
   part2_check:
     docker:
       - image: cimg/python:3.12
@@ -107,29 +73,7 @@ jobs:
               v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date;
               v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
             begin
-              if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}
-            for f in supabase/migration_*.sql; do
-              ts=$(printf '20261006%06d' "$n")
-              cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
-              n=$((n+1))
-            done
-            supabase start
-            supabase db reset
-            PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
-            supabase stop
-
-workflows:
-  part2_gate:
-    jobs:
-      - part2_check
-      - part2_functional
-  part5_gate:
-    jobs:
-      - part5_check
-  part6_gate:
-    jobs:
-      - part6_check
- then raise exception 'Nom d''utilisateur invalide'; end if;
+              if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}$' then raise exception 'Nom d''utilisateur invalide'; end if;
               if exists(select 1 from public.profiles where lower(username)=v_username) then raise exception 'Nom d''utilisateur déjà pris'; end if;
               if v_first_name is null or v_last_name is null then raise exception 'Identité invalide'; end if;
               if v_dob is null or extract(year from age(current_date,v_dob))<18 then raise exception '18+ requis'; end if;
@@ -160,6 +104,40 @@ workflows:
             supabase db reset
             PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
             supabase stop
+
+  part5_check:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Controle structurel Partie 5"
+          command: |
+            grep -Fq "v_priv_pharmacie := null" supabase/migration_047_network_scope_pilotage_promoteur.sql
+            grep -Fq "p_scope='RESEAU'" supabase/migration_047_network_scope_pilotage_promoteur.sql
+            grep -Fqi "pharmacie_id is null" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "PART5_FAIL_NETWORK_PRIVILEGE_NOT_EFFECTIVE" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "PART5_FAIL_SCOPE_LEAK" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "PART5_FAIL_PROMOTEUR_SELF_GRANT_NETWORK" supabase/tests/047_network_scope_pilotage_promoteur.sql
+            grep -Fq "Partie 5" README.md
+            grep -Fq "Partie 5" STATUT.md
+            grep -Fq "CI GitHub" STATUT.md
+            echo "PART5_GATE_STRUCTURE=PASS"
+
+  part6_check:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: "Controle structurel Partie 6"
+          command: |
+            grep -Fq "private.naxa_promoteur_valide_canonique" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "revoke execute on function public.synchroniser_validite_promoteurs()" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "revoke execute on function public.synchroniser_validite_pharmacies()" supabase/migration_048_reconciliation_finale_promoteur.sql
+            grep -Fq "PART6_FAIL_CANONICAL_EXPIRY_IGNORED" supabase/tests/048_reconciliation_finale_promoteur.sql
+            grep -Fq "PART6_FAIL_PRIVILEGE_ENGINE_IGNORES_CANONICAL_EXPIRY" supabase/tests/048_reconciliation_finale_promoteur.sql
+            echo "PART6_GATE_STRUCTURE=PASS"
 
 workflows:
   part2_gate:
