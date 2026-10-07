@@ -5,7 +5,6 @@ do $$
 declare
   admin_id uuid;
   promoter_id uuid;
-  responsible_id uuid;
   ph_id uuid;
   other_ph uuid;
   convention_id uuid;
@@ -13,10 +12,9 @@ declare
 begin
   select id into admin_id from public.profiles order by created_at limit 1;
   select id into promoter_id from public.profiles order by created_at offset 1 limit 1;
-  select id into responsible_id from public.profiles order by created_at offset 2 limit 1;
   select id into ph_id from public.pharmacies order by created_at limit 1;
 
-  if admin_id is null or promoter_id is null or responsible_id is null or ph_id is null then
+  if admin_id is null or promoter_id is null or ph_id is null then
     raise exception 'PART3_FIXTURE_MISSING';
   end if;
 
@@ -40,7 +38,7 @@ begin
   set role='pharmacie',actif=true,pharmacie_id=ph_id,parent_profile_id=promoter_id,
       fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,
       architecture_code='PARENTS_AINES_CADETS',custom_role_code=null
-  where id=responsible_id;
+  where id=admin_id;
 
   insert into public.pharmacie_architectures(
     pharmacie_id,architecture_code,assigned_by,max_responsables,max_caisses,active
@@ -76,7 +74,7 @@ begin
   perform public.naxa_grant_privilege(promoter_id,'VIEW_NETWORK_PILOTAGE',ph_id,'RESEAU');
 
   perform set_config('request.jwt.claims',json_build_object('sub',promoter_id,'role','authenticated')::text,true);
-  perform public.naxa_grant_privilege(responsible_id,'VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE');
+  perform public.naxa_grant_privilege(admin_id,'VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE');
 
   select public.naxa_has_privilege('VIEW_PERFORMANCE_PILOTAGE',ph_id,'PHARMACIE') into ok;
   if not ok then raise exception 'PART3_FAIL_RESPONSIBLE_VALID_PROMOTER'; end if;
