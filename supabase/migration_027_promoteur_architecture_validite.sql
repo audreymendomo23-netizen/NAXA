@@ -1,4 +1,6 @@
 -- NAXA 027 — Promoteur : architecture + convention + validité
+create schema if not exists private;
+
 -- Partie 2/6. Additif non destructif.
 -- Contradiction fermée : un Promoteur actif pouvait conserver des privilèges opérationnels
 -- après expiration/résiliation de sa convention/abonnement. La validité commerciale devient
