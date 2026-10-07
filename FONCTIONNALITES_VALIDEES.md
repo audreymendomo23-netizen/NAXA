@@ -165,7 +165,7 @@ Branches historiques : `feat/auth-flow-age-gate`, `fix/auth-reset-google-ux`, `f
 
 Preuve de consolidation : commit `d69bec6742bc475e6aadac317fa4317edd894567`.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -176,7 +176,7 @@ Username unique, OTP, téléphone pays/indicatif/numéro, validation, sélecteur
 
 Branches : `feat/creation-compte`, `docs/creation-compte-consolidation-20261004`, `fix/creation-compte-mobile-ux-20261005`, `fix/creation-phone-forgot-password-20261004`.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -187,7 +187,7 @@ Trois politiques, contrôles interface + serveur, hardening.
 
 Branche historique : `fix/age-gate-production-hardening`.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -274,7 +274,7 @@ Commit de consolidation : `5ad95ce30dd43b3c140e0048606c81dd5143e490`.
 
 Déploiement historique documenté : `dpl_CcFGneLjZjBSLQ32Mccww6vjwAD6`.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -322,7 +322,7 @@ CA, ventes, indicateurs, scopes réseau/pharmacie, vues/rapports.
 
 Branches : `feat/pilotage-equipes-bi-20261005`, `feat/pharmacie-validite-pilotage`, réconciliations du 07/10/2026.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 **Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
@@ -333,7 +333,7 @@ Branches : `feat/pilotage-equipes-bi-20261005`, `feat/pharmacie-validite-pilotag
 ## NAXA-F021 — Pilotage performance
 BI, indicateurs de performance, rapports et scopes Promoteur/Responsable/Caisse.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 **Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
@@ -342,7 +342,7 @@ BI, indicateurs de performance, rapports et scopes Promoteur/Responsable/Caisse.
 ## NAXA-F022 — Pilotage sécurité / réseau
 Visibilité réseau, sessions/audit, scopes, absence d'exposition de tokens/cookies.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 **Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
@@ -353,7 +353,7 @@ Consolidation pilotage commercial + performance + sécurité/réseau + BI/rappor
 
 Branches de réconciliation : `reconciliation/final-integration-20261007`, `reconciliation/integration-20261007`, `reconciliation/integration-20261007-v2`.
 
-**Statut : 🟢 VALIDÉ — MAIN**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 **Preuve du chantier :** noyau Pilotage 360° réconcilié depuis l'implémentation historique déployée, sans reprise des 🟢 ; migrations 009/014/015/016/018 + UI réseau + API rapports intégrées dans `main`. Contrôle Supabase NAXA en lecture seule : objets `evenements`, `v_reservations_ca`, `rapports`, `promoteur_pharmacies`, `stocks_lots` présents ; historique Supabase confirme le déploiement du socle Pilotage 360° et des corrections de scope.
 
@@ -370,7 +370,7 @@ Branches de réconciliation : `reconciliation/final-integration-20261007`, `reco
 
 **Règle :** Responsable = fonction interne, pas nouveau `role_type`.
 
-**Statut : 🟡 CONSTRUIT — PREUVE/INTÉGRATION À RÉCONCILIER**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -381,7 +381,7 @@ Branches de réconciliation : `reconciliation/final-integration-20261007`, `reco
 - HYBRIDE ;
 - limites configurables par NAXA.
 
-**Statut : 🟡 CONSTRUIT — PREUVE/INTÉGRATION À RÉCONCILIER**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -391,7 +391,7 @@ Branches de réconciliation : `reconciliation/final-integration-20261007`, `reco
 Anciens éléments à réconcilier :
 `parent_profile_id`, `promoteur_pharmacies`, `profile_accreditations`, `can_manage_profile()`, `accrediter_profile()`, `can_operate_pharmacy()`.
 
-**Statut : 🟡 CONSTRUIT — CONTRADICTIONS/INTÉGRATION À RÉCONCILIER**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 **Solution cible :** moteur canonique unique + conservation des compatibilités nécessaires sans doubler les modèles.
 
@@ -400,7 +400,7 @@ Anciens éléments à réconcilier :
 ## NAXA-F033 — Convention Promoteur / tarif / abonnement / validité
 Promoteur = 1 convention + 1 tarif + 1 abonnement ; montant payé ; date de paiement ; expiration ; blocage du réseau à expiration ; tarif négocié NAXA ; 30 000 FCFA non fixe ; remise multi-pharmacies possible.
 
-**Statut : 🟡 CONSTRUIT — PREUVE/INTÉGRATION À RÉCONCILIER**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -411,7 +411,7 @@ Branche : `feat/promoteur-partie3-responsable-accreditation-20261006`.
 
 Commit test : `7dbfd643c9b5b8d0df0907aab04737bcce7827ec`.
 
-**Statut : 🟡 CONSTRUIT — INTÉGRATION/PROUVE À RÉCONCILIER**
+**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
 
 ---
 
@@ -704,7 +704,7 @@ Les comparaisons GitHub montrent notamment que plusieurs branches historiques so
 - validé ailleurs → intégrer, pas reconstruire ;
 - 🟢 MAIN → verrouillé sauf régression prouvée.
 
-**Aucune fonctionnalité verte n'est retraitée dans ce passage.**
+**F030–F034 sont intégrés dans `main`, mais restent 🟡 jusqu'à obtention d'une preuve d'exécution. Aucun vert n'est déclaré sans preuve.**
 
 ---
 
@@ -714,7 +714,8 @@ Les comparaisons GitHub montrent notamment que plusieurs branches historiques so
 |---|---|---|
 | 2026-10-08 | Création du registre | `9741736cc6ff00a309d34547faf3b0300a274252` |
 | 2026-10-08 | Inventaire enrichi | `59e84c65bb5e3a8e1c75fb753b28a9162e912cfc` |
-| 2026-10-08 | Réécriture : distinction MAIN / HORS-MAIN / PREUVE / INTÉGRATION / CORRECTION / À FAIRE + stratégie de vérification massive | **présent commit** |
+| 2026-10-08 | Réécriture : distinction MAIN / HORS-MAIN / PREUVE / INTÉGRATION / CORRECTION / À FAIRE + stratégie de vérification massive | `a1ee85cc7b99950361e6b243daf217ed5eac1a0b` |
+| 2026-10-08 | Architecture N0–N4 / privilèges / convention / Responsable intégrés ; preuve CI indisponible | **présent commit** |
 
 ---
 

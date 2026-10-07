@@ -1,6 +1,6 @@
 # NAXA — STATUT
 
-Mise à jour : 8 octobre 2026 — premier chantier Pilotage 360° réconcilié dans `main`
+Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / convention / Responsable
 
 ## État global
 **AUTHENTIFICATION VALIDÉE. ARCHITECTURE PHARMACIE PROMOTEUR / CAISSES CONSOLIDÉE. PRODUCTION VALIDÉE. MISE EN SERVICE TERRAIN À EXÉCUTER.**
@@ -105,3 +105,20 @@ Mise à jour : 8 octobre 2026 — premier chantier Pilotage 360° réconcilié d
 - Aucun secret serveur exposé.
 - Aucune livraison.
 - Le prompt maître et le cahier des charges sont les sources de vérité.
+
+## Deuxième chantier — Architecture N0–N4 / privilèges / convention / Responsable
+- Réconciliation additive des travaux historiques 017/019/020/020_authorisation/020c/023/024/025/026/027.
+- Responsable = fonction interne/niveau 2 ; aucun `responsable` dans `role_type`.
+- Architecture canonique portée par la convention Promoteur ; quatre architectures conservées.
+- Moteur RBAC unifié sur `naxa_profile_privileges`; pas de stockage parallèle `profile_privileges`.
+- Validité commerciale bloquante dans l'autorisation Promoteur.
+- Accréditation via `accrediter_profile` avec parent, scope et quotas.
+- Workflow qualité déclenché sur `push main` et replay local + tests architecture.
+- Aucun déploiement Production.
+- **État : 🟡 intégré dans `main` — preuve d'exécution CI indisponible.**
+
+### Blocage de preuve constaté
+- Deux exécutions du workflow qualité sur le commit du chantier ont échoué avant attribution d'un runner (`runner_name` vide), sur `ubuntu-24.04` puis `ubuntu-latest`.
+- Le problème est donc actuellement dans l'infrastructure GitHub Actions, pas dans une erreur SQL démontrée.
+- Le workflow a été simplifié pour ne conserver que build + replay Supabase local + tests Architecture, et déclenché sur `push main`.
+- **Aucun 🟢 n'est déclaré tant que cette preuve d'exécution n'est pas obtenue.**
