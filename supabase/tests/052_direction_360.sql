@@ -4,6 +4,7 @@ begin;
 do $$
 declare
   admin_id uuid;
+  responsible_id uuid;
   ph_id uuid;
   prod_id uuid;
   v jsonb;
@@ -17,6 +18,16 @@ begin
     raise exception 'PART4_DIRECTION_FIXTURE_ADMIN_MISSING';
   end if;
 
+  select id into responsible_id
+  from public.profiles
+  where id<>admin_id
+  order by created_at
+  limit 1;
+
+  if responsible_id is null then
+    raise exception 'PART4_DIRECTION_FIXTURE_RESPONSIBLE_MISSING';
+  end if;
+
   insert into public.pharmacies(id,nom,ville,lat,lng,actif)
   values(gen_random_uuid(),'__PART4_DIRECTION__','Yaoundé',3.848,11.502,true)
   returning id into ph_id;
@@ -26,6 +37,11 @@ begin
       fonction_interne=null,niveau_interne=null,niveau_hierarchique=0,
       architecture_code=null,custom_role_code=null
   where id=admin_id;
+
+  update public.profiles
+  set role='client',actif=true,pharmacie_id=ph_id,parent_profile_id=null,
+      fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2
+  where id=responsible_id;
 
   insert into public.produits(nom,dci,dosage,forme)
   values('__PART4_DIRECTION_PROD__','TEST','1','unite')
@@ -51,6 +67,10 @@ begin
 
   if (v->'network'->>'pharmacies_actives')::bigint < 1 then
     raise exception 'PART4_FAIL_NETWORK';
+  end if;
+
+  if (v->'network'->>'responsables_actifs')::bigint <> 1 then
+    raise exception 'PART4_FAIL_RESPONSABLE_FUNCTION_COUNT';
   end if;
 
   if (v->'commercial'->>'ca_xaf')::bigint <> 15000 then
