@@ -52,10 +52,58 @@ jobs:
             grep -Fq "PART2_FAIL_STOCK_RUPTURE" supabase/tests/049_pilotage_performance_socle.sql
             echo "PART2_GATE_STRUCTURE=PASS"
 
+  part2_functional:
+    docker:
+      - image: cimg/node:20
+    resource_class: medium
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: default
+      - run:
+          name: "Supabase CLI"
+          command: npm install --global supabase
+      - run:
+          name: "Replay fonctionnel Partie 2"
+          command: |
+            cat > supabase/config.toml <<'EOF'
+            project_id = "naxa-part2-circleci"
+            [api]
+            enabled = true
+            [db]
+            major_version = 17
+            [studio]
+            enabled = false
+            [inbucket]
+            enabled = false
+            [storage]
+            enabled = true
+            [realtime]
+            enabled = false
+            [analytics]
+            enabled = false
+            [edge_runtime]
+            enabled = false
+            EOF
+            rm -rf supabase/migrations
+            mkdir -p supabase/migrations
+            cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+            n=1
+            for f in supabase/migration_*.sql; do
+              ts=$(printf '20261006%06d' "$n")
+              cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
+              n=$((n+1))
+            done
+            supabase start
+            supabase db reset
+            supabase db query --file supabase/tests/049_pilotage_performance_socle.sql
+            supabase stop
+
 workflows:
   part2_gate:
     jobs:
       - part2_check
+      - part2_functional
   part5_gate:
     jobs:
       - part5_check
