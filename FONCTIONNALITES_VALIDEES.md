@@ -468,6 +468,104 @@ construction normale.
 
 ---
 
+
+
+# 12 BIS. AUDIT MASSIF DES NON-VERTS — ÉTAT AU 08/10/2026
+
+## Résultat de l'audit de cause
+
+L'audit historique a été exécuté sur les branches et commits connus du chantier Pilotage/Promoteur.
+
+### Constat 1 — Le problème CI est identifiable
+
+La branche `main` contient actuellement `.github/workflows/naxa-quality.yml`.
+
+Le workflow prévoit déjà une voie de validation locale et gratuite :
+- `npm install`
+- `npx tsc --noEmit`
+- `npm run build`
+- Supabase local via `supabase start`
+- `supabase db reset`
+- tests SQL structurels/comportementaux.
+
+Le workflow contient également un déclenchement manuel `workflow_dispatch`.
+
+**Mais : aucune exécution CI exploitable n'a été retrouvée pour les commits historiques contrôlés.**
+
+Les statuts GitHub contrôlés sur plusieurs commits historiques sont des statuts **Vercel = success**, pas une preuve CI GitHub complète.
+
+**Conclusion : LOT A confirmé comme problème de PREUVE CI, pas comme problème de développement.**
+
+### Constat 2 — Plusieurs corrections CI ont déjà été tentées
+
+Historique retrouvé :
+- `4eebb068a47337812c3a6f01d8a38d7f0af833c0` — restauration du workflow qualité ;
+- `7f7b44ec089d6610b476cb890311f2cb6e6bdcff` — réparation du workflow de vérification Pilotage ;
+- `b2788ae1fb89ba9b00910460b76cba7926e5a6ba` — activation d'un workflow qualité de remplacement ;
+- `b9f5ff620ffffec3bf5879e8516a93756e6604a9` — isolation du runner ;
+- `86a6e0d7d48d4b91b6d6782d412d4206dbb38fca` et `eaad6300d6c0ffecfc6979333bd45f24d99f1ca2` — suppression de fragments dupliqués ;
+- `82d2145cea6d6d162405c3e74d3f21400ba5b763` — retrait d'un probe runner.
+
+**Conclusion : il est inutile de reconstruire les fonctionnalités pour résoudre ce problème. Le problème est maintenant celui de la voie de preuve.**
+
+### Constat 3 — Responsable possède une preuve SQL historique partielle
+
+Commit :
+`7dbfd643c9b5b8d0df0907aab04737bcce7827ec`
+
+Le test couvre notamment :
+- rôle Responsable ;
+- scope à une seule pharmacie ;
+- exclusion d'une seconde pharmacie ;
+- statistiques de recherche limitées au scope.
+
+Le commit possède également un statut Vercel success.
+
+**Mais cela ne suffit pas à déclarer le bloc complet 🟢 hors-main**, car l'exécution SQL effective du test n'est pas démontrée par cette seule trace.
+
+**Classement : LOT C + LOT A.**
+
+### Constat 4 — Pilotage 360° et architecture ne doivent pas être reconstruits
+
+Les branches historiques suivantes sont toujours présentes :
+- `feat/pilotage-equipes-bi-20261005`
+- `feat/pharmacie-validite-pilotage`
+- `feat/promoteur-partie3-responsable-accreditation-20261006`
+- `reconciliation/final-integration-20261007`
+- `reconciliation/integration-20261007`
+- `reconciliation/integration-20261007-v2`
+
+**Classement : LOT C — intégration/réconciliation**, avec sous-classement LOT A lorsque la seule preuve manquante est la CI.
+
+### Matrice de traitement
+
+| Bloc | Cause principale | Traitement | Reconstruction ? |
+|---|---|---|---|
+| F020 Pilotage commercial | intégration + preuve | LOT C puis LOT A | ❌ |
+| F021 Pilotage performance | intégration + preuve | LOT C puis LOT A | ❌ |
+| F022 Sécurité/réseau | intégration + preuve | LOT C puis LOT A | ❌ |
+| F023 Direction 360° | intégration + preuve | LOT C puis LOT A | ❌ |
+| F030 Hiérarchie | intégration/preuve | LOT C + LOT A | ❌ |
+| F031 Architectures | intégration/preuve | LOT C + LOT A | ❌ |
+| F032 Privilèges | intégration + contradictions possibles | LOT D puis LOT A/C | ❌ |
+| F033 Convention | intégration/preuve | LOT C + LOT A | ❌ |
+| F034 Responsable | test historique + intégration/preuve | LOT C + LOT A | ❌ |
+| F040 Coûts/marges/scopes/CA | intégration + preuve | LOT C + LOT A | ❌ |
+| F041 Rapports/BI/exports | intégration + preuve | LOT C + LOT A | ❌ |
+
+### Décision de méthode
+
+**Le prochain chantier n'est donc pas de recoder F020–F041.**
+
+Le prochain chantier est :
+
+**LOT A — établir une voie de preuve reproductible et gratuite, puis vérifier massivement les blocs concernés.**
+
+La voie déjà présente dans `naxa-quality.yml` — build TypeScript + build Next.js + replay Supabase local + tests SQL — est la première candidate.
+
+Si cette voie échoue, nous corrigerons **la voie de vérification**, pas les fonctionnalités elles-mêmes, sauf erreur réelle démontrée.
+
+
 # 13. ERP PHARMACIE — À CONSTRUIRE APRÈS RÉCONCILIATION
 
 ## NAXA-ERP-001 — Catalogue pharmacie avancé
