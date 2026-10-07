@@ -1,35 +1,35 @@
 # NAXA — REPRISE EXACTE
 
-> **CHECKPOINT COURANT UNIQUE**
+> **CHECKPOINT COURANT UNIQUE — CP-0007**
 
-## Identité
+## Identité courante
 
-- checkpoint_id : `CP-0004-PILOTAGE360-PART2-REPRISE`
-- checkpoint_status : 🟠 PILOTAGE 360° PARTIE 2 — EN COURS / NON VERT
-- checkpoint_scope : clôture de la Partie 6 et préparation du chantier Pilotage 360°
+- checkpoint_id : `CP-0007-PILOTAGE360-AUDIT-GLOBAL`
+- checkpoint_status : 🟢 AUDIT MÉTIER/GLOBAL POST-DIRECTION 360° — VERT / 100 % après correction et preuve
 - branch : `rewrite/naxa-from-main-20261007`
-- current_sha : `7ddde25d03bd535290111efbfa1510d0833cb06e`
 - main_sha : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
-- last_ci_test_sha : `81dc2673ca9b182776ab87fbebbbe230ce8c9a5a`
-
-## Position fonctionnelle exacte
-
-- chantier : Reconstruction / Réconciliation NAXA
-- dernières parties clôturées : Parties 1, 2, 3, 4, 5 et 6
-- statut Partie 5 : 🟢 VERT — 100 %
-- preuve fonctionnelle : replay Supabase transactionnel PASS avec ROLLBACK.
-- preuve CI : CircleCI pipeline #3, workflow `part5_gate`, job `part5_check`, **Success**, 26 s.
-- correction racine : le scope `RESEAU` exige `pharmacie_id = NULL`, alors que l'ancien chemin injectait `p_pharmacie`; migration 047 corrige l'attribution et la révocation.
-- aucune donnée Production persistée.
-- `main` et Production restent inchangés.
+- état Supabase Production : migration 042, inchangé
+- état main : inchangé
 
 ## exact_resume_point
 
-**Ne pas recommencer les Parties 1 à 5.**
+**Après CP-0007 : attendre la validation explicite du fondateur avant tout nouveau chantier.**
 
-Reprendre sur :
+## Dernière correction
 
-**Chantier suivant → Pilotage 360°, Partie 1 : audit et matrice canonique des KPI**, après validation explicite du fondateur.
+- `supabase/migration_052_direction_360.sql` compte désormais les Responsables via `fonction_interne='responsable'`, conformément au modèle canonique.
+- `supabase/tests/052_direction_360.sql` contient un test contradictoire dédié au comptage des Responsables.
+- Replay fonctionnel transactionnel : attendu PASS + ROLLBACK après correction.
+
+## Règles permanentes
+
+- Aucun merge vers `main` sans autorisation explicite.
+- Aucun déploiement ou migration persistante Production sans autorisation explicite.
+- Aucun service payant.
+- Aucune nouvelle branche sans nécessité technique démontrée.
+- Aucun 🟢 sans preuve.
+
+---
 
 ## Fichiers métier de la Partie 5
 
