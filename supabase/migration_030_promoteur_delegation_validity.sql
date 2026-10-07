@@ -32,6 +32,22 @@ begin
 end
 $function$;
 
+create or replace function public.naxa_has_privilege(
+  p_privilege text,
+  p_pharmacie uuid default null,
+  p_scope text default 'PHARMACIE'
+)
+returns boolean
+language sql
+stable
+set search_path=''
+as $fn$
+  select private.naxa_has_privilege($1,$2,$3)
+$fn$;
+
+revoke all on function public.naxa_has_privilege(text,uuid,text) from public,anon,authenticated;
+grant execute on function public.naxa_has_privilege(text,uuid,text) to authenticated;
+
 create or replace function public.naxa_grant_privilege(
  p_target uuid,p_privilege text,p_pharmacie uuid,p_scope text default 'PHARMACIE'
 )
