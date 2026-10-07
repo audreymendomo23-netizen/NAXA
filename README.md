@@ -189,3 +189,12 @@ La Partie 5 reste en attente de preuve CI réelle. Le gate a été corrigé pour
 - `main` et Production restent inchangés.
 - **Partie 6 : 🟢 VERT — 100 %.**
 
+
+
+## Pilotage 360° — Partie 3 : Sécurité & Réseau — 🟢 VERT / 100 %
+
+La couche Sécurité & Réseau a été auditée et durcie. La migration de référence est supabase/migration_050_security_network_hardening.sql et son test contradictoire supabase/tests/050_security_network_hardening.sql.
+
+Corrections principales : compatibilité entre l'ancien appel 3 paramètres de naxa_has_privilege et le moteur canonique, propagation de la validité Promoteur aux profils descendants, refus d'un bootstrap RESEAU hors réseau actif, et réconciliation du catalogue de privilèges historique/canonique.
+
+La validation fonctionnelle a été réalisée transactionnellement sur le Supabase réel avec ROLLBACK : PASS. Aucune donnée Production n'a été persistée. La preuve CI fonctionnelle reste dépendante de l'infrastructure CI disponible ; elle n'est pas utilisée comme preuve de réussite du test SQL.
