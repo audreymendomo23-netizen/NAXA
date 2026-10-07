@@ -96,7 +96,7 @@ begin
 end
 $function$;
 create or replace function public.naxa_can(p_privilege text,p_pharmacie uuid default null,p_target uuid default null)
-returns boolean language sql stable set search_path='' as $$ select private.naxa_can($1,$2,$3) $$;
+returns boolean language sql stable security definer set search_path='' as $$ select private.naxa_can($1,$2,$3) $$;
 revoke all on function public.naxa_can(text,uuid,uuid) from public,anon,authenticated;
 grant execute on function public.naxa_can(text,uuid,uuid) to authenticated;
 -- Une accréditation Promoteur/Responsable/Caisse ne peut pas être lancée par un
