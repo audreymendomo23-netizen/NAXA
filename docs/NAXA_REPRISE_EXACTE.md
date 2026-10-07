@@ -80,3 +80,23 @@ Dernières corrections appliquées :
 Le chantier reste 🟠 et doit être poursuivi jusqu’au replay fonctionnel PASS + preuve CI avant toute validation de la Partie 2.
 
 Aucun merge main. Aucune persistance Production.
+
+
+## Clôture Pilotage 360° — Partie 3
+
+- checkpoint_id : CP-0005-PILOTAGE360-PART3-SECURITY-NETWORK
+- checkpoint_status : 🟢 PARTIE 3 — VERT / 100 %
+- branch : rewrite/naxa-from-main-20261007
+- main : inchangé
+- Production : inchangée
+- migration : supabase/migration_050_security_network_hardening.sql
+- test : supabase/tests/050_security_network_hardening.sql
+- preuve fonctionnelle : replay Supabase réel transactionnel PASS + ROLLBACK, y compris compatibilité avec l'ancien appel 3 paramètres.
+- corrections : moteur de privilèges descendant, expiration Promoteur, scope RESEAU, catalogue de privilèges historique/canonique.
+- CI : gate structurel ajouté ; aucune preuve fonctionnelle CI disponible via les connecteurs exposés.
+
+### exact_resume_point
+
+Pilotage 360° → Partie 4.
+
+Ne pas reprendre la Partie 2 Performance : elle reste explicitement en pause et non verte.
