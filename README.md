@@ -1268,3 +1268,13 @@ Le chantier Promoteur 1→6 est documenté comme 🟢 100 %. Cela **ne suffit pa
 **🟠 Non vert — correction engagée, preuve CI encore bloquée.**
 
 Prochaine preuve obligatoire : exécution réelle du workflow après migration 042 + tests 032/033 + build, puis ré-audit. Tant que ces preuves ne sont pas observées avec succès, Pilotage 360° reste fermé et aucun passage à Pilotage Performance suivant n'est déclaré vert.
+
+
+## Audit transversal exhaustif des branches — 07/10/2026
+- GitHub a retourné 31 branches ; 31/31 ont été comparées à main.
+- La branche main de référence est c171b5465b423d3c576d22ef48c99af5d59ba5f7.
+- Production Vercel est READY sur dpl_HxzyGDhYhiLLeagQBeYNPrMrCjv4, source main, même SHA.
+- Les deltas majeurs sont : feat/promoteur-partie3-responsable-accreditation-20261006 +625/-3 ; feat/pharmacie-validite-pilotage +358/-3 ; consolidation +56/-3 ; fix/033-caisse-reactivation-schema-aligned +47/-1.
+- Les branches historiques auth/docs sont classées comme divergentes ou derrière main selon leur comparaison réelle ; aucun ancien score documentaire n'est repris comme preuve.
+- Supabase MCP a refusé les lectures live avec « link_id must identify an eligible linked account » ; aucune validation live Supabase n'est déclarée.
+- Le vert global Pilotage reste refusé : preuve CI et validation live Supabase non acquises, et le chantier n'est pas dans main/Production.
