@@ -53,6 +53,7 @@ create or replace function public.naxa_can_manage_privilege_target(
 returns boolean
 language sql
 stable
+security definer
 set search_path=''
 as $fn$
   select private.naxa_can_manage_privilege_target($1,$2)
