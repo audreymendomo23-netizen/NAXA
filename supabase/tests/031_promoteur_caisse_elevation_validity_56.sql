@@ -79,5 +79,10 @@ select pg_temp.assert_raises(
   '6.3 Promoteur expiré ne peut plus déléguer'
 );
 
+select pg_temp.assert_raises(
+  format('select public.naxa_set_caisse_status(%L,false)',(select caisse from p4c_ids)),
+  '6.4 Promoteur expiré ne peut plus suspendre une Caisse'
+);
+
 rollback;
 select 'Partie 4 — vérifications 5+6' as suite, true as pass;
