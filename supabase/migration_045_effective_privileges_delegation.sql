@@ -78,6 +78,10 @@ begin
     raise exception 'Scope de délégation invalide';
   end if;
 
+  select architecture_code into arch
+  from public.pharmacie_architectures
+  where pharmacie_id=p_pharmacie and active;
+
   if p_scope='RESEAU' and (not is_admin_actor or target_fn<>'promoteur') then
     raise exception 'RESEAU_RESERVE_A_NAXA';
   end if;
@@ -108,6 +112,7 @@ begin
   end if;
 
   if p_scope='RESEAU' then
+    if arch is null then raise exception 'ARCHITECTURE_PHARMACIE_MANQUANTE'; end if;
     if not exists(
       select 1 from public.naxa_architecture_privileges ap
       where ap.architecture_code=arch
@@ -117,10 +122,6 @@ begin
       raise exception 'Privilège hors architecture/fonction';
     end if;
   else
-    select architecture_code into arch
-    from public.pharmacie_architectures
-    where pharmacie_id=p_pharmacie and active;
-
     if arch is null then
       raise exception 'ARCHITECTURE_PHARMACIE_MANQUANTE';
     end if;
