@@ -1135,3 +1135,6 @@ La Partie 4 couvre Gestion des Caisses + délégation des privilèges. Les contr
 Le chemin historique authorize() a été réconcilié vers naxa_has_privilege() avec conservation du scope. Le replay CI a également été corrigé pour exclure la migration historique 020_architecture_privileges.sql, incompatible avec la vue de compatibilité profile_privileges du socle actuel.
 
 Les tests versionnés 029/030/031 ont été renforcés et le workflow naxa-promoteur-part4.yml exécute maintenant les trois groupes. La validation transactionnelle de compilation des migrations 029/030 est PASS. La preuve CI complète de Partie 4 est actuellement en attente d'exécution ; la Partie 4 reste donc 🟡 et ne doit pas être présentée comme verte avant le PASS CI.
+
+
+Partie 4 — replay CI : correction supplémentaire du catalogue naxa_privileges, avec création des alias historiques family/description dans les deux chemins de migration. Validation finale toujours en attente du prochain PASS CI.
