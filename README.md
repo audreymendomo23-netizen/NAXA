@@ -220,3 +220,14 @@ La validation fonctionnelle a été effectuée transactionnellement sur Supabase
 - Audit documenté dans `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
 - Production et `main` inchangés.
 - **Audit métier/global : 🟢 100 %.**
+
+## CP-0009 — Pilotage 360° Partie 2 : Performance — VERT
+
+La Partie 2 Performance est désormais clôturée à 100 % après correction des fixtures, isolation du test et réconciliation du gate CI.
+
+Preuve fonctionnelle réelle : replay Supabase 043→049 **PASS + ROLLBACK**.
+Production reste inchangée à la migration 042.
+
+**Partie 2 Performance : 🟢 VERT — 100 %.**
+
+La reprise doit attendre la validation explicite du fondateur.
