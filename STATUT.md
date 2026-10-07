@@ -239,3 +239,16 @@ La Partie 4 est strictement fondée sur les données déjà disponibles. Les ind
 - main : inchangé.
 - **Audit métier/global : 🟢 VERT — 100 %.**
 - Point de reprise : validation explicite du fondateur avant le chantier suivant.
+
+
+## Réconciliation globale des privilèges — CP-0008
+
+- Contradiction racine : un second trigger legacy `trg_naxa_provision_on_architecture` pouvait encore provisionner automatiquement les privilèges.
+- Correction : `supabase/migration_046_disable_legacy_privilege_provisioning.sql` supprime les deux points d'entrée legacy et révoque l'exécution client.
+- Test contradictoire : `supabase/tests/046_disable_legacy_privilege_provisioning.sql`.
+- Audit : `docs/PILOTAGE_360_RECONCILIATION_PRIVILEGES.md`.
+- Replay réel Supabase 043→052 + tests : PASS + ROLLBACK.
+- Invariants privilèges : 🟢 tous les contrôles à zéro anomalie.
+- Production : migration 042, inchangée.
+- **Réconciliation globale des privilèges : 🟢 100 %.**
+- Point d'arrêt : validation explicite du fondateur.
