@@ -182,7 +182,11 @@ begin
     raise exception 'Caisse déjà provisionnée : utiliser la réactivation dédiée';
   end if;
 
-  if not public.is_admin() and target_parent is distinct from uid then
+  -- Première affectation : une Caisse vierge n'a pas encore de parent.
+  -- Si un parent existe déjà, il doit obligatoirement être l'acteur appelant.
+  if not public.is_admin()
+     and target_parent is not null
+     and target_parent is distinct from uid then
     raise exception 'Caisse hors périmètre hiérarchique direct';
   end if;
 
