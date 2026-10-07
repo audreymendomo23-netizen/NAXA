@@ -78,7 +78,7 @@ begin
       raise exception 'Privilège CREATE_CAISSE insuffisant';
     end if;
   elsif actor_fn='responsable' then
-    if not public.naxa_can('CREATE_CAISSE',p_pharmacie,'') then
+    if not public.naxa_can('CREATE_CAISSE',p_pharmacie,null) then
       raise exception 'Privilège CREATE_CAISSE insuffisant';
     end if;
   else
