@@ -187,3 +187,43 @@ La prochaine étape est **Pilotage 360° — Partie 2 : socle Performance**. Ell
 
 - Sessions : migration 051 impose au niveau DB un maximum de 4 sessions simultanées par compte, refuse la 5e sans supprimer les 4 existantes et journalise création/fin de session dans session_audit.
 - Test session : supabase/tests/051_session_security_limit_audit.sql ; replay Supabase réel PASS + ROLLBACK.
+
+
+## Pilotage 360° — Partie 4 : Direction 360° — 🟢 VERT / 100 %
+
+### Périmètre
+Cockpit Direction NAXA consolidant quatre axes canoniques :
+1. réseau ;
+2. commercial ;
+3. performance ;
+4. sécurité.
+
+La Partie 4 est strictement fondée sur les données déjà disponibles. Les indicateurs ERP non supportés (marge, bénéfice, coûts, performance par caisse, rétention client) restent explicitement exclus.
+
+### Implémentation
+- `supabase/migration_052_direction_360.sql`
+- `supabase/tests/052_direction_360.sql`
+- privilège `VIEW_DIRECTION_360` : niveau 0, non délégable, gouvernance ;
+- accès fonctionnel réservé à l'Admin Réseau NAXA.
+
+### Contradictions corrigées
+- migration 049 : suppression de la syntaxe PostgreSQL invalide `CREATE VIEW IF NOT EXISTS` ;
+- réconciliation du view historique `v_reservations_ca`, dont la définition/les colonnes divergeaient du contrat canonique ;
+- replay transactionnel complet 043→052 effectué sur Supabase réel.
+
+### Preuves
+- Direction 360 : **PASS**
+- CA canonique : **PASS**
+- absence de double comptage : **PASS**
+- scope réseau : **PASS**
+- rupture stock : **PASS**
+- métrique sécurité : **PASS**
+- période invalide refusée : **PASS**
+- rollback : **PASS**
+- Production : inchangée.
+- main : inchangé.
+
+**Partie 4 Direction 360° : 🟢 100 %.**
+
+### Prochaine étape
+**Validation explicite du fondateur avant de commencer le chantier suivant.**
