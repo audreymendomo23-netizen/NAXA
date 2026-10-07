@@ -46,7 +46,7 @@ do $$ begin if not (public.naxa_scope_allows((select promoteur from v7_ids),null
 do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select c from v7_ids),'RESEAU')) then raise exception '7.2-C hors réseau'; end if; end $$;
 do $$ begin
   update public.naxa_profile_privileges
-     set active=false
+     set active=false, revoked_at=now()
    where profile_id=(select promoteur from v7_ids)
      and privilege_code='VIEW_NETWORK_PILOTAGE'
      and scope_type='RESEAU' and pharmacie_id is null;
@@ -57,7 +57,7 @@ do $$ begin
     if sqlerrm <> 'Privilège Pilotage réseau requis' then raise; end if;
   end;
   update public.naxa_profile_privileges
-     set active=true
+     set active=true, revoked_at=null
    where profile_id=(select promoteur from v7_ids)
      and privilege_code='VIEW_NETWORK_PILOTAGE'
      and scope_type='RESEAU' and pharmacie_id is null;
