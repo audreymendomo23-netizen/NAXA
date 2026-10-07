@@ -8,6 +8,17 @@ on:
     branches:
       - rewrite/naxa-from-main-20261007
 jobs:
+  pilotage-part2-static:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérification structurelle Pilotage 360 Partie 2
+        run: |
+          grep -Fq "v_reservations_ca" supabase/migration_049_pilotage_performance_socle.sql
+          grep -Fq "stats_pilotage_scope" supabase/migration_049_pilotage_performance_socle.sql
+          grep -Fq "PART2_FAIL_CANONICAL_CA" supabase/tests/049_pilotage_performance_socle.sql
+          echo PART2_GREEN_STATIC
+
   build:
     runs-on: ubuntu-24.04
     steps:
