@@ -1,0 +1,9 @@
+name: NAXA Actions probe
+on:
+  push:
+    branches: [main]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "NAXA_ACTIONS_PROBE=OK"
