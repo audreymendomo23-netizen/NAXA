@@ -116,6 +116,26 @@ begin
     raise exception 'PART5_FAIL_NETWORK_REVOKE';
   end if;
 
+  perform set_config('request.jwt.claims',json_build_object('sub',promoter_id,'role','authenticated')::text,true);
+  if public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',null,'RESEAU') then
+    raise exception 'PART5_FAIL_REVOKED_NETWORK_STILL_EFFECTIVE';
+  end if;
+
+  begin
+    perform public.stats_pilotage_scope(7);
+    raise exception 'PART5_FAIL_REVOKED_PILOTAGE_STILL_ACCESSIBLE';
+  exception when others then
+    if sqlerrm='PART5_FAIL_REVOKED_PILOTAGE_STILL_ACCESSIBLE' then raise; end if;
+  end;
+
+  perform set_config('request.jwt.claims',json_build_object('sub',admin_id,'role','authenticated')::text,true);
+  perform public.naxa_grant_privilege(promoter_id,'VIEW_NETWORK_PILOTAGE',ph1,'RESEAU');
+
+  perform set_config('request.jwt.claims',json_build_object('sub',promoter_id,'role','authenticated')::text,true);
+  if not public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',null,'RESEAU') then
+    raise exception 'PART5_FAIL_NETWORK_REACTIVATION';
+  end if;
+
   raise notice 'PART5_GREEN';
 end $$;
 
