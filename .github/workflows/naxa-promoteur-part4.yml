@@ -146,6 +146,10 @@ jobs:
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/030_promoteur_caisse_delegation_34.sql
       - name: Vérifications Partie 4 — groupes 5+6
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/031_promoteur_caisse_elevation_validity_56.sql
+      - name: Vérifications Partie 5 — scope réseau + pilotage
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/032_promoteur_scope_reseau_7.sql
+      - name: Vérifications Partie 5 — hors périmètre
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/033_promoteur_pilotage_hors_scope_8.sql
       - name: Arrêt propre
         if: always()
         run: supabase stop
