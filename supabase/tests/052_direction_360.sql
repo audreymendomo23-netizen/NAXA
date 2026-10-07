@@ -39,8 +39,9 @@ begin
   where id=admin_id;
 
   update public.profiles
-  set role='pharmacie',actif=true,pharmacie_id=ph_id,parent_profile_id=null,
-      fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2
+  set role='pharmacie',actif=true,pharmacie_id=ph_id,parent_profile_id=admin_id,
+      fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,
+      architecture_code='PARENTS_AINES_CADETS'
   where id=responsible_id;
 
   insert into public.produits(nom,dci,dosage,forme)
