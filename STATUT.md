@@ -107,14 +107,14 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - `main` et Production inchangés.
 - **Partie 5 : 🟡 non clôturée — CI GitHub bloquée avant l'exécution des steps.**
 
-CI gate: runner lightweight `ubuntu-slim` configuré pour la validation structurelle.
+CI gate: runner standard `ubuntu-latest` configuré pour la validation structurelle.
 
 
 ### Blocage CI Partie 5 — 07/10/2026
 - Replay Supabase réel : PASS transactionnel, avec ROLLBACK et aucune donnée persistée.
 - Correction racine : le scope `RESEAU` exigeait `pharmacie_id=NULL`, alors que `naxa_grant_privilege()` injectait `p_pharmacie`. Migration 047 corrige l'attribution et la révocation réseau.
 - Contrôles fonctionnels : bootstrap NAXA → accès Promoteur au réseau actif → exclusion du réseau inactif/hors périmètre → auto-attribution réseau refusée → révocation refusée au Promoteur et autorisée à NAXA → réactivation testée.
-- CI GitHub : plusieurs runs réels du gate, y compris `ubuntu-slim`, se terminent en échec avec `steps=[]` avant toute étape. Le rerun reproduit le même blocage. Aucun résultat CI exploitable n'est donc déclaré vert.
+- CI GitHub : le gate a été relancé sur `ubuntu-latest` (run `37653058140`) ; il échoue toujours avant toute étape (`steps=null`, durée facturable 0 ms). Le workflow qualité parallèle échoue également avant steps sur ses jobs `ubuntu-24.04`, ce qui isole le problème au niveau de l'allocation/exécution des runners GitHub plutôt qu'au test Partie 5. Aucun motif de facturation précis n'est affirmé sans message runner accessible.
 - **Aucune validation finale de la Partie 5 tant que cette preuve CI réelle n'est pas obtenue.**
 
 
@@ -129,3 +129,11 @@ CI gate: runner lightweight `ubuntu-slim` configuré pour la validation structur
 - `main` et Production inchangés.
 
 **Continuité : 🟢 fondation installée.**
+
+## Reprise Partie 5 — état après audit CI du 07/10/2026
+- SHA courant : `940aea76e2553378d56be49b451e2c41d1b11771`.
+- Correction appliquée au gate : `runs-on: ubuntu-latest` + `timeout-minutes: 10`.
+- Run réel : `37653058140`, job `112901096630`.
+- Résultat : échec avant steps, `steps=null`, 0 ms facturables.
+- Même symptôme sur `naxa-quality` (`37653057958`) : plusieurs jobs `ubuntu-24.04` échouent avant steps.
+- **Partie 5 reste 🟡. Aucun passage au vert tant qu'un runner n'exécute réellement le gate.**
