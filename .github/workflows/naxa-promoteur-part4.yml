@@ -147,6 +147,17 @@ jobs:
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/030_promoteur_caisse_delegation_34.sql
       - name: Vérifications Partie 4 — groupes 5+6
         run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/031_promoteur_caisse_elevation_validity_56.sql
+      - name: Exposer diagnostic CI dans la PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.existsSync('/tmp/part4-replay.log') ? fs.readFileSync('/tmp/part4-replay.log','utf8').slice(-12000) : 'Aucun log de replay disponible.';
+            const body = context.payload.pull_request.body || '';
+            const clean = body.replace(/\n\n<!-- PART4-DIAGNOSTIC-START -->[\s\S]*?<!-- PART4-DIAGNOSTIC-END -->/,'');
+            const diagnostic = '\n\n<!-- PART4-DIAGNOSTIC-START -->\n### Diagnostic CI Partie 4\n'+log+'\n<!-- PART4-DIAGNOSTIC-END -->';
+            await github.rest.pulls.update({owner: context.repo.owner, repo: context.repo.repo, pull_number: context.issue.number, body: clean + diagnostic});
       - name: Diagnostic replay Partie 4
         if: always()
         run: |
