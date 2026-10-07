@@ -92,7 +92,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 
 La branche `rewrite/naxa-from-main-20261007` a clôturé les Parties 1 à 6 au vert. La Partie 6 est ancrée sur `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`. `main` et Production restent inchangés.
 
-Le chantier suivant est **Pilotage 360° — Partie 1 : audit de l'existant et construction de la matrice KPI canonique**. Aucun KPI nouveau, aucune migration et aucune persistance Production ne doivent être ajoutés avant résolution des contradictions entre cahier V3.7, code, DB et documentation.
+Le chantier courant est **Audit métier/global post-Direction 360°**. Les Parties 1 à 6 et les Parties 1 à 4 du Pilotage 360° sont vertes. L'audit a réconcilié le contrat métier Responsable avec le code de Direction 360°. Aucun KPI nouveau ni migration n'est persisté en Production ; Supabase Production reste à la migration 042.
 
 ## Historique du socle initial
 La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses est en Production. Il reste la **mise en service terrain réelle** :
@@ -211,3 +211,12 @@ Implémentation canonique :
 - `supabase/tests/052_direction_360.sql`
 
 La validation fonctionnelle a été effectuée transactionnellement sur Supabase réel avec **PASS + ROLLBACK**, sans persistance Production. La migration 049 a également été réconciliée avec le view historique `v_reservations_ca`.
+
+
+## CP-0007 — Audit métier/global post-Direction 360°
+
+- Contradiction corrigée : le compteur Responsable de `stats_direction_360` utilise désormais `fonction_interne='responsable'`.
+- Test contradictoire renforcé dans `supabase/tests/052_direction_360.sql`.
+- Audit documenté dans `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
+- Production et `main` inchangés.
+- **Audit métier/global : 🟢 100 %.**
