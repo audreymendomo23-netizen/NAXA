@@ -112,6 +112,13 @@ begin
   if target_fn is null then raise exception 'Compte cible introuvable'; end if;
   if target_fn<>'caisse' then raise exception 'La cible doit déjà être une Caisse'; end if;
 
+  -- Provisionner une Caisse est une opération d'affectation initiale, jamais une
+  -- réactivation déguisée. Une Caisse déjà rattachée passe obligatoirement par
+  -- naxa_set_caisse_status(..., true) et donc REACTIVATE_CAISSE.
+  if exists(select 1 from public.profiles where id=p_target and (pharmacie_id is not null or parent_profile_id is not null)) then
+    raise exception 'Caisse déjà provisionnée : utiliser la réactivation dédiée';
+  end if;
+
   if not public.is_admin() and target_parent is distinct from uid then
     raise exception 'Caisse hors périmètre hiérarchique direct';
   end if;
