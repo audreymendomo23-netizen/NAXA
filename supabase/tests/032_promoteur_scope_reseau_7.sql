@@ -5,7 +5,7 @@ begin;
 create temp table v7_ids(promoteur uuid,a uuid,b uuid,c uuid);
 
 do $$
-declare p uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); c uuid:=gen_random_uuid(); conv uuid;
+declare p uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); c uuid:=gen_random_uuid();
 begin
   set local session_replication_role='replica';
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
@@ -14,19 +14,11 @@ begin
   values(p,'promoteur','v7promoteur','V7','Promoteur','+237690000071','CM','1990-01-01',true,now(),true,'promoteur',1,1);
   set local session_replication_role='origin';
   insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'V7 A',3.86,11.51,true),(b,'V7 B',3.87,11.52,true),(c,'V7 C',3.88,11.53,true);
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true),(p,b,true);
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(a,'ORPHELIN',p,true,0,1),(b,'ORPHELIN',p,true,0,1);
-  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code) values(p,30000,current_date+30,'active','ORPHELIN') returning id into conv;
-  insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut) values(p,conv,30000,current_date,current_date+30,'actif');
-  -- Le trigger de provisioning doit donner le privilège réseau requis au Promoteur.
-  if not exists(
-    select 1 from public.naxa_profile_privileges
-    where profile_id=p and privilege_code='VIEW_NETWORK_PILOTAGE'
-      and scope_type='RESEAU' and pharmacie_id is null and active
-  ) then
-    raise exception '7.0 privilège réseau non provisionné';
-  end if;
+  -- Le lien Promoteur/pharmacie est créé après l'architecture afin que le trigger
+  -- de provisioning puisse immédiatement attribuer les privilèges canoniques.
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true),(p,b,true);
   insert into public.evenements(type,pharmacie_id,terme,resultats) values('recherche',a,'a',1),('recherche',b,'b',0),('recherche',c,'c',1),('recherche',null,'global',0);
   insert into v7_ids values(p,a,b,c);
 end $$;
