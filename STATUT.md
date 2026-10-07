@@ -89,7 +89,7 @@ Aucun passage à la Partie 2 sans validation du fondateur.
 - Validation transactionnelle réelle effectuée puis ROLLBACK : aucune donnée Production persistée.
 - `main` et Production restent inchangés.
 
-**Partie 4 : VERT — 100 %.**
+**Partie 4 : validation technique en cours ; VERT final après replay et contrôle CI.**
 
 ## Prochaine étape — validation requise
 

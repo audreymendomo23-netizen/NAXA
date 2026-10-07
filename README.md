@@ -141,4 +141,4 @@ Le test contradictoire `supabase/tests/045_effective_privileges_delegation.sql` 
 
 Les validations Supabase sont effectuées transactionnellement avec rollback tant qu'aucune autorisation explicite de persistance Production n'est donnée. `main` et Production restent inchangés.
 
-**Partie 4 : VERT — 100 %.**
+**Partie 4 : validation technique en cours ; aucun passage à la Partie 5 avant VERT final.**

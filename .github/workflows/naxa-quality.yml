@@ -6,7 +6,7 @@ on:
     branches: [main, consolidation]
   push:
     branches:
-      - feat/promoteur-partie3-responsable-accreditation-20261006
+      - rewrite/naxa-from-main-20261007
 jobs:
   build:
     runs-on: ubuntu-24.04
