@@ -3,16 +3,23 @@ begin;
 
 do $$
 declare
+  admin_id uuid;
   promoter_id uuid;
   pharmacy_id uuid;
   convention_id uuid;
 begin
-  select id into promoter_id from public.profiles order by created_at limit 1;
+  select id into admin_id from public.profiles order by created_at limit 1;
+  select id into promoter_id from public.profiles order by created_at desc limit 1;
   select id into pharmacy_id from public.pharmacies order by created_at limit 1;
 
-  if promoter_id is null or pharmacy_id is null then
+  if admin_id is null or promoter_id is null or admin_id=promoter_id or pharmacy_id is null then
     raise exception 'PART6_FIXTURE_MISSING';
   end if;
+
+  update public.profiles
+  set role='admin', niveau_hierarchique=0, pharmacie_id=null, fonction_interne=null,
+      niveau_interne=null, parent_profile_id=null, architecture_code=null, custom_role_code=null, actif=true
+  where id=admin_id;
 
   update public.profiles
   set role='promoteur',
@@ -62,6 +69,11 @@ begin
     statut='actif',
     dernier_paiement_le=now();
 
+  -- Conserver un ancien abonnement pharmacie actif pour prouver que le moteur canonique ne dépend plus de lui.
+  insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut,dernier_paiement_le)
+  values(pharmacy_id,'LEGACY_PART6',30000,current_date,current_date+30,'actif',now())
+  on conflict (pharmacie_id) do update set echeance=current_date+30,statut='actif';
+
   perform set_config(
     'request.jwt.claims',
     json_build_object('sub',promoter_id,'role','authenticated')::text,
@@ -78,6 +90,10 @@ begin
 
   if private.naxa_promoteur_valide(promoter_id) then
     raise exception 'PART6_FAIL_CANONICAL_EXPIRY_IGNORED';
+  end if;
+
+  if public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',null,'RESEAU') then
+    raise exception 'PART6_FAIL_PRIVILEGE_ENGINE_IGNORES_CANONICAL_EXPIRY';
   end if;
 
   if not has_function_privilege('authenticated','public.naxa_promoteur_valide(uuid)','execute')
