@@ -96,5 +96,17 @@ select pg_temp.assert_true(
   '4.5 révocation effective'
 );
 
+-- Le même Promoteur ne peut ni attribuer ni révoquer un privilège sur
+-- un membre qui n'est plus son descendant direct.
+select public.naxa_grant_privilege((select caisse from p4b_ids),'VIEW_STOCK',(select pharmacie_a from p4b_ids),'PHARMACIE');
+update public.profiles
+set parent_profile_id=(select responsable from p4b_ids)
+where id=(select caisse from p4b_ids);
+
+select pg_temp.assert_raises(
+  format('select public.naxa_revoke_privilege(%L,%L,%L,%L)',(select caisse from p4b_ids),'VIEW_STOCK',(select pharmacie_a from p4b_ids),'PHARMACIE'),
+  '4.6 révocation hors descendant direct refusée'
+);
+
 rollback;
 select 'Partie 4 — vérifications 3+4' as suite, true as pass;
