@@ -40,10 +40,14 @@ jobs:
           fi
 
           bad=0
+          registry_commits=0
           while IFS= read -r sha; do
             [[ -z "$sha" ]] && continue
             subject="$(git log -1 --format='%s' "$sha")"
             files="$(git diff-tree --no-commit-id --name-only -r "$sha" --               'FONCTIONNALITES_VALIDEES.md' 'README.md' 'Statut.md'               'docs/REGISTRE_GOUVERNANCE.md' || true)"
+            if [[ -n "$files" ]]; then
+              registry_commits=$((registry_commits + 1))
+            fi
             if [[ -n "$files" && "$subject" != docs(registry-integrator):* ]]; then
               echo "::error::Commit $sha modifie un document maître sans le préfixe docs(registry-integrator):"
               echo "Sujet: $subject"
@@ -51,6 +55,11 @@ jobs:
               bad=1
             fi
           done < <(git rev-list "$RANGE")
+
+          if [[ "$registry_commits" -gt 1 ]]; then
+            echo "::error::Plus d'un commit modifie les documents maîtres dans ce lot. Regrouper les changements dans un seul commit docs(registry-integrator):."
+            exit 1
+          fi
 
           if [[ "$bad" -ne 0 ]]; then
             echo "Protection registre: échec."
