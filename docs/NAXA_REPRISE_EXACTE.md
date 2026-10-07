@@ -100,3 +100,5 @@ Aucun merge main. Aucune persistance Production.
 Pilotage 360° → Partie 4.
 
 Ne pas reprendre la Partie 2 Performance : elle reste explicitement en pause et non verte.
+
+- Sécurité sessions : migration 051 ; maximum 4 sessions, 5e refusée, aucune éviction automatique, audit session_audit ; test 051 PASS avec ROLLBACK.
