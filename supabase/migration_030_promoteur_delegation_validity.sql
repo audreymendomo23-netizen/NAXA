@@ -40,6 +40,7 @@ create or replace function public.naxa_has_privilege(
 returns boolean
 language sql
 stable
+security definer
 set search_path=''
 as $fn$
   select private.naxa_has_privilege($1,$2,$3)
