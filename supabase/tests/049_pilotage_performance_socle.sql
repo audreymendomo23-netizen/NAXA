@@ -17,12 +17,14 @@ begin
     (p2,'PART2 Pharmacie Inactive','Yaoundé',3.849,11.503,false);
 
   -- Isolation stricte : le test Performance ne dépend pas du trigger d'authentification.
-  alter table auth.users disable trigger on_auth_user_created;
+  -- Désactive localement les triggers pendant l'insertion de fixtures auth :
+  -- le test Performance ne doit pas dépendre de la validation téléphonique Auth.
+  set local session_replication_role = replica;
   insert into auth.users(id,email,raw_user_meta_data)
   values
    (admin_id,'part2-admin@naxa.local','{}'::jsonb),
    (promoter_id,'part2-promoter@naxa.local','{}'::jsonb);
-  alter table auth.users enable trigger on_auth_user_created;
+  set local session_replication_role = origin;
 
   insert into public.profiles(
     id,role,username,first_name,last_name,pharmacie_id,
