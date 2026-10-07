@@ -101,6 +101,21 @@ as $body$
   );
 $body$;
 
+-- Compatibilité avec le moteur Production historique qui appelle la signature 3 paramètres.
+create or replace function private.naxa_has_privilege(
+  p_privilege text,
+  p_pharmacie uuid default null,
+  p_scope text default 'PHARMACIE'
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path to ''
+as $body$
+  select private.naxa_has_privilege((select auth.uid()),$1,$2,$3);
+$body$;
+
 create or replace function private.naxa_grant_privilege(
   p_target uuid,
   p_privilege text,
