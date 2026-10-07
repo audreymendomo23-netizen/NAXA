@@ -33,12 +33,13 @@
 
 - Dépôt : `audreymendomo23-netizen/NAXA`
 - Branche de reprise : `rewrite/naxa-from-main-20261007`
-- SHA courant vérifié : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
+- SHA de référence vérifié : `935026a21dfdadff10b0d44e1bc0aa83da0459a6`
 - Base : `main`
 - SHA main : `82d2145cea6d6d162405c3e74d3f21400ba5b763`
 - `main` : inchangé.
 - Production : inchangée.
-- Partie 5 : clôturée au vert avec preuve fonctionnelle Supabase + preuve CI CircleCI.
+- Parties 1 à 6 : 🟢 100 %.
+- Pilotage 360° Parties 1 à 4 : 🟢 100 %.
 
 ## 4. Dernier état métier validé
 
@@ -128,3 +129,12 @@ Elle doit :
 - Preuve Supabase : PASS + ROLLBACK sur la base réelle, sans persistance.
 - main et Production : inchangés.
 - Prochaine action : validation explicite du fondateur avant tout chantier suivant.
+
+
+## 11. État canonique post-Direction 360° — CP-0007
+
+- Partie 4 Direction 360° : 🟢 100 % après correction du comptage Responsable.
+- Contrat canonique Responsable : fonction interne `fonction_interne='responsable'`, jamais un `role_type` métier.
+- Audit métier/global : `docs/PILOTAGE_360_AUDIT_GLOBAL_POST_PART4.md`.
+- Production reste à migration 042 ; aucune migration 043→052 n'est persistée.
+- Aucun merge `main` et aucun déploiement Production.
