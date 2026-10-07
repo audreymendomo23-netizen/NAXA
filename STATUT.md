@@ -1391,3 +1391,14 @@ Important : Partie 4 n'est pas déclarée verte tant que l'exécution CI complè
 - Limite restante : le replay fonctionnel 032/033 sur l'état réel nécessite les tables de conventions/abonnements présentes dans la replay complète de la branche, absentes du projet NAXA actuellement déployé ; aucune création persistante n'a été effectuée pour contourner ce différentiel.
 - GitHub Actions continue d'échouer avant toute étape (steps=[]), même après passage de ubuntu-22.04 à ubuntu-latest. Le statut public GitHub indique actuellement Actions opérationnel, donc la cause exacte de cette absence de runner reste à isoler côté exécution du dépôt/connecteur.
 - Aucun merge main, aucune migration Production persistante, aucun déploiement Production.
+
+
+## Audit Part 5 — état au 7 octobre 2026
+- Contradiction racine désormais isolée : le dépôt de branche contient la correction du RPC de pilotage (migration_032_promoteur_scope_pilotage.sql), mais cette migration n'est pas appliquée sur le projet Supabase NAXA actuellement connecté.
+- Preuve Supabase : l'historique distant contient les migrations jusqu'aux séries 033–037, mais aucune migration correspondant à la correction 032 ; la définition distante de private.stats_pilotage_scope ne contrôle pas VIEW_NETWORK_PILOTAGE avant de construire le scope Promoteur.
+- Conséquence : le test de révocation du privilège réseau ne peut pas être vert sur la base distante tant que la correction 032 n'est pas déployée.
+- Deux contradictions de harness ont aussi été corrigées dans les tests 032/033 : références à conventions_promoteurs / abonnements_promoteurs inexistantes dans le schéma canonique distant, et ordre de fixture corrigé pour créer l'architecture avant le lien Promoteur/pharmacie afin que le trigger de provisioning puisse attribuer les privilèges.
+- Une preuve transactionnelle sur la base distante a confirmé que, lorsque l'architecture et le lien sont présents, le RPC actuel produit bien le scope Promoteur ; elle a également démontré le défaut précis : après révocation de VIEW_NETWORK_PILOTAGE, l'ancien RPC continue à répondre, car son code distant ne contient pas la garde de privilège.
+- Aucune donnée de test n'a été conservée : les preuves transactionnelles ont été exécutées avec rollback.
+- État Part 5 : 🟡 — blocage précis identifié. Aucun merge main et aucune migration Production appliquée dans cette étape.
+- La fermeture définitive nécessite l'application de la migration 032 corrigée sur un environnement NAXA autorisé, puis l'exécution réelle des tests 032/033 et la vérification finale de rollback/sécurité.
