@@ -96,7 +96,7 @@ jobs:
             done
             supabase start
             supabase db reset
-            supabase db query --file supabase/tests/049_pilotage_performance_socle.sql
+            PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
             supabase stop
 
 workflows:
