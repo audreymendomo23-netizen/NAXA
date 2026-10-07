@@ -3,11 +3,11 @@
 begin;
 
 insert into public.naxa_privileges(
-  code,family,description,niveau_min,niveau_max,delegable,governance,active
+  code,domaine,family,description,niveau_min,niveau_max,delegable,governance,active
 )
 values(
   'VIEW_DIRECTION_360',
-  'pilotage',
+  'pilotage','pilotage',
   'Accès au cockpit Direction 360° NAXA consolidant réseau, commercial, performance et sécurité',
   0,0,false,true,true
 )
