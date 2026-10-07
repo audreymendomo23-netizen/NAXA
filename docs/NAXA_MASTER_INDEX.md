@@ -150,3 +150,13 @@ Elle doit :
 - Preuve Supabase : migrations 043→052 + tests 046/052 = PASS + ROLLBACK.
 - Production : migration 042, inchangée.
 - main : inchangé.
+
+## CP-0009 — État courant
+
+- Pilotage 360° Partie 2 Performance : 🟢 100 %.
+- Preuve fonctionnelle : Supabase réel, replay 043→049, PASS + ROLLBACK.
+- Production : migration 042, inchangée.
+- main : inchangé.
+- Checkpoint courant : CP-0009.
+- Documentation de preuve : `docs/PILOTAGE_360_PART2_PERFORMANCE_GREEN.md`.
+- Après validation du fondateur seulement : déterminer et exécuter le chantier canonique suivant.
