@@ -88,7 +88,13 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Contrôle post-déploiement : état Vercel READY ; statut GitHub Vercel SUCCESS ; aucun log runtime error/fatal trouvé sur la fenêtre de contrôle de 30 minutes.
 - Aucun nouveau projet Vercel et aucun Preview volontaire.
 
-## Prochain point du cahier des charges
+## État courant de la reconstruction — 7 octobre 2026
+
+La branche `rewrite/naxa-from-main-20261007` a clôturé les Parties 1 à 6 au vert. La Partie 6 est ancrée sur `4d8fb7c43ebc8642e644e96aeec4f37969c93a82`. `main` et Production restent inchangés.
+
+Le chantier suivant est **Pilotage 360° — Partie 1 : audit de l'existant et construction de la matrice KPI canonique**. Aucun KPI nouveau, aucune migration et aucune persistance Production ne doivent être ajoutés avant résolution des contradictions entre cahier V3.7, code, DB et documentation.
+
+## Historique du socle initial
 La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses est en Production. Il reste la **mise en service terrain réelle** :
 1. identifier 3 à 5 pharmacies pilotes réelles ;
 2. créer leurs comptes Promoteur via l'accès NAXA `/admin` ;
