@@ -66,13 +66,11 @@ begin
   values(convention_id,promoteur_id,current_date,current_date+30,'actif');
 
   perform set_config('request.jwt.claims',json_build_object('sub',promoteur_id,'role','authenticated')::text,true);
-  set local role authenticated;
 
   if public.naxa_has_privilege('ASSIGN_PRIVILEGE',ph_id,'PHARMACIE') then
     raise exception 'PART4_FAIL_PROMOTEUR_ESCALADE_SANS_BOOTSTRAP';
   end if;
 
-  set local role postgres;
   update public.profiles
   set role='admin',niveau_hierarchique=0,fonction_interne=null,niveau_interne=null,
       pharmacie_id=null,parent_profile_id=null,architecture_code=null,custom_role_code=null
@@ -82,7 +80,6 @@ begin
   granted_id := public.naxa_grant_privilege(promoteur_id,'ASSIGN_PRIVILEGE',ph_id,'PHARMACIE');
   if granted_id is null then raise exception 'PART4_FAIL_ADMIN_BOOTSTRAP'; end if;
 
-  set local role authenticated;
   perform set_config('request.jwt.claims',json_build_object('sub',promoteur_id,'role','authenticated')::text,true);
 
   update public.profiles
@@ -97,7 +94,6 @@ begin
   select public.naxa_has_privilege('VIEW_USER_PRIVILEGES',ph_id,'PHARMACIE') into has_it;
   if has_it then raise exception 'PART4_FAIL_PROMOTEUR_READS_TARGET_PRIVILEGE_AS_OWN'; end if;
 
-  set local role postgres;
   begin
     perform public.naxa_grant_privilege(cible_id,'CHANGE_ARCHITECTURE',ph_id,'PHARMACIE');
     raise exception 'PART4_FAIL_GOVERNANCE_DELEGATED';
@@ -105,11 +101,23 @@ begin
     if position('NON_DELEGABLE' in sqlerrm)=0 and position('GOUVERNANCE' in sqlerrm)=0 then raise; end if;
   end;
 
-  set local role authenticated;
   perform set_config('request.jwt.claims',json_build_object('sub',cible_id,'role','authenticated')::text,true);
 
   if public.naxa_can_manage_privilege_target(promoteur_id,ph_id) then
     raise exception 'PART4_FAIL_RESPONSABLE_TARGETS_PROMOTEUR';
+  end if;
+
+  if exists(
+    select 1 from pg_trigger
+    where tgname='trg_naxa_provision_promoteur'
+      and tgrelid='public.promoteur_pharmacies'::regclass
+      and not tgisinternal
+  ) then
+    raise exception 'PART4_FAIL_LEGACY_TRIGGER_STILL_PRESENT';
+  end if;
+
+  if has_function_privilege('public','public.naxa_provision_promoteur_pharmacie(uuid,uuid)','EXECUTE') then
+    raise exception 'PART4_FAIL_LEGACY_FUNCTION_STILL_PUBLIC';
   end if;
 
   -- Même identité, la fonction Responsable ne peut pas gérer une autre Responsable.
