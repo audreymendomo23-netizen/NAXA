@@ -95,7 +95,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          supabase db query --file supabase/tests/049_pilotage_performance_socle.sql
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql-client
+          PGPASSWORD=postgres psql "postgresql://postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/049_pilotage_performance_socle.sql
       - name: Structural assertions
         run: |
           grep -Fq "v_reservations_ca" supabase/migration_049_pilotage_performance_socle.sql
