@@ -118,6 +118,15 @@ begin
     alter table public.naxa_privileges alter column active set not null;
   end if;
 end $naxa$;
+create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
+
+-- Compatibilité additive avec le premier catalogue 020 : ses colonnes historiques
+-- family/description/governance sont NOT NULL. On desserre uniquement pendant
+-- le seed canonique, puis on les recale et on restaure immédiatement les invariants.
+alter table public.naxa_privileges alter column family drop not null;
+alter table public.naxa_privileges alter column description drop not null;
+alter table public.naxa_privileges alter column active drop not null;
+
 create table if not exists public.naxa_role_privileges (
   role_key text not null check (role_key in ('admin','promoteur','responsable','caisse')),
   privilege_code text not null references public.naxa_privileges(code) on delete restrict,
@@ -154,15 +163,7 @@ create policy naxa_role_privileges_read on public.naxa_role_privileges for selec
 drop policy if exists naxa_architecture_privileges_read on public.naxa_architecture_privileges;
 create policy naxa_architecture_privileges_read on public.naxa_architecture_privileges for select to authenticated using (true);
 
-create index if not exists naxa_privileges_level_idx on public.naxa_privileges(niveau_min,niveau_max,active);
-
--- Compatibilité additive avec le premier catalogue 020 : ses colonnes historiques
--- family/description/governance sont NOT NULL. On desserre uniquement pendant
--- le seed canonique, puis on les recale et on restaure immédiatement les invariants.
-alter table public.naxa_privileges alter column family drop not null;
-alter table public.naxa_privileges alter column description drop not null;
-alter table public.naxa_privileges alter column active drop not null;
-
+create index if not exists naxa_privileges_level_idx
 insert into public.naxa_privileges(code,famille,libelle,niveau_min,niveau_max,delegable,governance) values
 ('CREATE_PROMOTEUR','GOUVERNANCE','Créer un Promoteur',1,1,false,true),
 ('SUSPEND_PROMOTEUR','GOUVERNANCE','Suspendre un Promoteur',1,1,false,true),
