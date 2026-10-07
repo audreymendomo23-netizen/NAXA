@@ -89,6 +89,9 @@ begin
     true
   );
 
+  -- Bootstrap NAXA : l'admin temporaire est distinct du Promoteur.
+  update public.profiles set role='admin',niveau_hierarchique=0,fonction_interne=null,niveau_interne=null,pharmacie_id=null,parent_profile_id=null,architecture_code=null,custom_role_code=null where id=cible_id;
+  select set_config('request.jwt.claims',json_build_object('sub',cible_id,'role','authenticated')::text,true);
   granted_id := public.naxa_grant_privilege(promoteur_id,'ASSIGN_PRIVILEGE',pharmacie_id,'PHARMACIE');
   if granted_id is null then raise exception 'PART4_FAIL_ADMIN_BOOTSTRAP'; end if;
 
@@ -122,7 +125,7 @@ begin
 
   -- Une Responsable ne peut cibler qu'une Caisse enfant, jamais une autre Responsable.
   update public.profiles
-  set role='pharmacie',fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,parent_profile_id=promoteur_id
+  set role='pharmacie',fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,parent_profile_id=promoteur_id,pharmacie_id=pharmacie_id,actif=true,architecture_code='PARENTS_AINES_CADETS'
   where id=cible_id;
 
   set local role authenticated;
@@ -138,7 +141,7 @@ begin
 
   -- Caisse : la Responsable peut gérer son enfant, mais pas s'élever elle-même.
   update public.profiles
-  set role='caisse',fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,parent_profile_id=cible_id
+  set role='caisse',fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,parent_profile_id=cible_id,pharmacie_id=pharmacie_id,actif=true,architecture_code='PARENTS_AINES_CADETS'
   where id=promoteur_id;
 
   if public.naxa_can_manage_privilege_target(cible_id,pharmacie_id) then
