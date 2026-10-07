@@ -74,5 +74,3 @@ do $$ begin if not ((public.stats_pilotage_scope(7)->'recherches'->>'sans_result
 
 rollback;
 select 'Verification 7 — Scope pharmacie + réseau : PASS transactionnel' as resultat;
-
--- CI harness repair marker 2026-10-07
