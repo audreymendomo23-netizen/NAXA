@@ -361,7 +361,6 @@ begin
 end
 $$;
 
-revoke all on function public.accrediter_profile(uuid,uuid,smallint,uuid) from public,anon,authenticated;
 create or replace function public.naxa_create_custom_role(p_nom text,p_description text default null)
 returns uuid language plpgsql security definer set search_path=''
 as $naxa$
@@ -434,7 +433,6 @@ grant execute on function public.naxa_revoke_custom_role(uuid,uuid) to authentic
 
 revoke all on function public.naxa_grant_privilege(uuid,text,uuid,text) from public,anon,authenticated;
 revoke all on function public.naxa_revoke_privilege(uuid,text,uuid,text) from public,anon,authenticated;
-grant execute on function public.accrediter_profile(uuid,uuid,smallint,uuid) to authenticated;
 grant execute on function public.naxa_grant_privilege(uuid,text,uuid,text) to authenticated;
 grant execute on function public.naxa_revoke_privilege(uuid,text,uuid,text) to authenticated;
 
