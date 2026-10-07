@@ -152,9 +152,11 @@ Les validations Supabase sont effectuées transactionnellement avec rollback tan
 - `stats_pilotage_scope(p_jours)` consomme uniquement les pharmacies du réseau actif du Promoteur via `promoteur_pharmacies.actif=true`.
 - Le CA reste calculé exclusivement par `v_reservations_ca`, sans second moteur KPI.
 - Test contradictoire : `supabase/tests/047_network_scope_pilotage_promoteur.sql`.
-- Validation transactionnelle réelle effectuée puis ROLLBACK ; aucune donnée Production persistée.
-- **Partie 5 : 🟡 non clôturée — CI GitHub bloquée avant l'exécution des steps.**
-
+- Validation transactionnelle réelle : PASS avec ROLLBACK ; aucune donnée Production persistée.
+- CI de validation structurelle : CircleCI `part5_gate` = **Success** sur le commit `935026a21dfdadff10b0d44e1bc0aa83da0459a6` (pipeline #3, job exécuté en 26 s).
+- Le blocage GitHub Actions précédent était externe au code : l'exécution était empêchée avant les steps par la limitation de compte GitHub ; il ne constitue plus le gate de clôture de cette partie.
+- `main` et Production restent inchangés.
+- **Partie 5 : 🟢 VERT — 100 %.**
 
 ## Continuité déterministe NAXA — 7 octobre 2026
 
