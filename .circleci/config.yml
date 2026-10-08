@@ -93,4 +93,6 @@ workflows:
   quality_and_tests:
     jobs:
       - quality
-      - sql_tests
+      - sql_tests:
+          requires:
+            - quality
