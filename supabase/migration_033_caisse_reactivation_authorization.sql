@@ -35,7 +35,7 @@ begin
   if v_arch is null then return false; end if;
   if not exists(select 1 from public.naxa_role_privileges rp where rp.role_key=v_fn and rp.privilege_code=p_privilege) then return false; end if;
   if not exists(select 1 from public.naxa_architecture_privileges ap where ap.architecture_code=v_arch and ap.role_key=v_fn and ap.privilege_code=p_privilege) then return false; end if;
-  if not exists(select 1 from public.profile_privileges pp where pp.profile_id=uid and pp.privilege_code=p_privilege and pp.revoked_at is null) then
+  if not exists(select 1 from public.naxa_profile_privileges pp where pp.profile_id=uid and pp.privilege_code=p_privilege and pp.revoked_at is null) then
     if v_fn <> 'promoteur' then return false; end if;
   end if;
   if v_fn='promoteur' and v_pharmacie is not null and not exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=uid and pp.pharmacie_id=v_pharmacie and pp.actif) then return false; end if;
