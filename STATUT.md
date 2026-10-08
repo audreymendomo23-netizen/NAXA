@@ -234,3 +234,11 @@ Aucune modification de `main` ni de Production n'est autorisée par cette correc
 - Correction appliquée sur rewrite/naxa-from-main-20261007 : timestamp Supabase conforme + underscore, exclusions CLI conformes, délimiteurs PL/pgSQL corrigés dans supabase/schema.sql.
 - Aucun changement main / Production.
 - Statut : 🟡 correction appliquée ; passage au vert uniquement après nouveau run CircleCI réussi.
+
+
+## PREUVE FINALE — CI / REPLAY SUPABASE — 08/10/2026
+- CircleCI run 192 a terminé avec `success` sur le HEAD `7c5155ce5fd3417e882be2523dfd0ce29f2ed0d6`.
+- Le retour GitHub associé indique : « Your tests passed on CircleCI! ».
+- Le défaut des noms de migrations et les délimiteurs PL/pgSQL du schéma ont été corrigés avant cette exécution.
+- Niveau CI/replay concerné : 🟢 VALIDÉ.
+- Aucun merge vers main et aucun déploiement Production.
