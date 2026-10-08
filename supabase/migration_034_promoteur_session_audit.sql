@@ -178,7 +178,7 @@ begin
 
   return old;
 end;
-$;
+$$;
 
 revoke all on function public.naxa_audit_session_insert() from public, anon, authenticated;
 revoke all on function public.naxa_audit_session_delete() from public, anon, authenticated;
