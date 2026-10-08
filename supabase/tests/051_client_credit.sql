@@ -13,4 +13,10 @@ begin
   if has_table_privilege('authenticated','public.client_credit_requests','INSERT') then raise exception 'ERP-010: INSERT direct demandes interdit'; end if;
   if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='client_credit_demander') then raise exception 'ERP-010: RPC demande absente'; end if;
   if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='client_credit_demande_decider') then raise exception 'ERP-010: RPC décision absente'; end if;
-end $$;
+
+  if not exists(
+    select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='client_credit_enregistrer_vente'
+      and pg_get_functiondef(p.oid) like '%vente_ajouter_paiement%'
+  ) then raise exception 'ERP-010: crédit POS non raccordé à vente_paiements'; end if;
+end $;
