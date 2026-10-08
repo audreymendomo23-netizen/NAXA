@@ -604,9 +604,12 @@ Si cette voie échoue, nous corrigerons **la voie de vérification**, pas les fo
 - **Statut : 🟡 CONSTRUIT — PREUVE D'EXÉCUTION MANQUANTE**.
 
 ## NAXA-ERP-003 — POS / caisse complet
-Vente rapide, scan, encaissement, clôture, remises/promotions.
-
-**Statut : ⚪ À FAIRE**
+- Audit : aucune table `ventes`, `vente_lignes`, `caisses` ou `caisses_sessions` dans le `main` ; les réservations restent un flux distinct.
+- Correction additive : socle POS relié à `produits`, `pharmacies` et `stocks` existants.
+- Couverture initiale : caisse, session, vente, lignes, total/remise, mode de paiement, ouverture de caisse et RLS multi-pharmacie.
+- Migration : `supabase/migration_044_pos_caisse.sql`.
+- Test structurel : `supabase/tests/044_pos_caisse.sql`.
+- **Statut : 🟡 CONSTRUIT — SOCLE EN PLACE / PREUVE D'EXÉCUTION MANQUANTE**.
 
 ## NAXA-ERP-004 — Prescription → vente
 Ordonnance, prescription, vente et règles métier/réglementaires.
@@ -782,3 +785,14 @@ Le dépôt contient désormais :
 - Test ajouté : `supabase/tests/043_stocks_lots.sql`.
 - Production non modifiée ; preuve Supabase live indisponible (`link_id` non éligible).
 - **État : 🟡 construit dans `main` — preuve d'exécution à obtenir.**
+
+
+## 21. ERP-003 — POS / caisse — chantier du 08/10/2026
+- Audit : aucun moteur de vente concurrent trouvé dans `main`.
+- Construction additive : `caisses`, `caisses_sessions`, `ventes`, `vente_lignes`.
+- Fonctions sécurisées : ouverture de session et création de vente.
+- RLS : périmètre pharmacie via `can_access_pharmacy()`.
+- Aucun remplacement du flux réservation.
+- Test structurel ajouté.
+- Aucun changement Production.
+- **État : 🟡 socle construit dans `main` — preuve SQL/CI manquante.**

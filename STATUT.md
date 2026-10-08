@@ -165,3 +165,13 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Test : `supabase/tests/043_stocks_lots.sql`.
 - Aucun changement Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## Septième chantier — ERP-003 POS / caisse
+- Audit terminé : aucun moteur POS/vente concurrent trouvé.
+- Socle ajouté : caisses, sessions de caisse, ventes et lignes de vente.
+- Ouverture de caisse et création de vente sécurisées par fonctions SQL.
+- RLS multi-pharmacie appliquée.
+- Migration : `supabase/migration_044_pos_caisse.sql`.
+- Test : `supabase/tests/044_pos_caisse.sql`.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
