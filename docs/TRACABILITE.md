@@ -36,3 +36,17 @@ Aucun merge main, aucune migration Production et aucun déploiement Vercel ne so
 - Les branches historiques auth/docs sont classées comme divergentes ou derrière main selon leur comparaison réelle ; aucun ancien score documentaire n'est repris comme preuve.
 - Supabase MCP a refusé les lectures live avec « link_id must identify an eligible linked account » ; aucune validation live Supabase n'est déclarée.
 - Le vert global Pilotage reste refusé : preuve CI et validation live Supabase non acquises, et le chantier n'est pas dans main/Production.
+
+
+## Référence courante supersédant les anciennes reprises — 08/10/2026
+Les lignes historiques précédentes sont conservées comme historique et ne constituent plus seules la référence de positionnement courant.
+
+- Branche de travail : `rewrite/naxa-from-main-20261007`.
+- HEAD au début de la correction documentaire : `b2fc8b793cbac1d11a089c88d736386faf0af658`.
+- `main` vérifié : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`.
+- PR #30 : ouverte, draft, non fusionnée.
+- Niveau 1 Documentation/Traçabilité : 🟢 corrigé.
+- Niveau Qualité/CI : 🟡 non vert ; aucune preuve CI n'est déclarée sans exécution réelle.
+- Production : inchangée par cette correction documentaire.
+
+Les documents de référence courants sont `FONCTIONNALITES_VALIDEES.md`, `STATUT.md`, `README.md`, `docs/CONTINUITE_NAXA.md`, `docs/FUSION.md`, `CONTRADICTIONS.md` et `docs/CAHIER_DES_CHARGES.md`, avec le cahier v3.7 et le prompt maître comme sources prioritaires.
