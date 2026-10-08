@@ -948,3 +948,16 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/056_pos_ticket.sql`.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
+
+
+## ERP-003 — POS étapes 4/5/6 — annulation contrôlée, approbation sensible et clôture Z — 08/10/2026
+- Audit : aucune implémentation concurrente d'annulation POS ou de clôture Z n'a été trouvée ; extension additive du moteur `ventes`/`caisses_sessions` existant.
+- Étape 4 : `vente_annulation_demander()` crée une demande tracée ; `vente_annuler()` restitue atomiquement les quantités dans `stocks` et, lorsqu'un `lot_id` existe, dans `stocks_lots` avant de passer la vente à `annulee`.
+- Étape 5 : la décision est séparée de la demande ; Promoteur/NAXA décide via `vente_annulation_decider()`, et le demandeur ne peut pas approuver sa propre demande.
+- Étape 6 : `caisse_cloturer()` calcule le théorique de caisse sur le fond initial + encaissements espèces, accepte les paiements mixtes, refuse les ventes brouillon ouvertes et enregistre comptage/écart.
+- Correction d'architecture : remplacement de l'unicité historique `caisse_id` par une unicité partielle sur les sessions `ouvertes`, permettant plusieurs clôtures historiques pour une même caisse.
+- RLS/grants : table de demandes en lecture scoped ; RPC réservées à `authenticated`.
+- Migration : `supabase/migration_060_pos_annulation_z.sql`.
+- Test structurel : `supabase/tests/057_pos_annulation_z.sql`.
+- Aucun changement Supabase live/Production.
+- **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
