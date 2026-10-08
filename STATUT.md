@@ -85,3 +85,12 @@
 - Migrations/tests : `supabase/migration_061_pos_avance_rapide_remises.sql`, `supabase/migration_062_pos_creation_vouchers_promotions.sql`, `supabase/tests/058_pos_avance_rapide_remises.sql`.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 construit — preuve SQL/CI manquante.**
+
+## Vérification finale ERP-010/011/012 — 08/10/2026
+- ERP-010 : raccordement crédit → `vente_paiements` verrouillé par test structurel.
+- ERP-011 : RPC rappel durcies avec `search_path=''`.
+- ERP-012 : mutation directe de l'état offline interdite ; état serveur géré par RPC sécurisée avec contrôle de pharmacie.
+- POS étape 7 : voucher consommé uniquement lors de la finalisation ; syntaxe assurance corrigée.
+- Preuve live Supabase : indisponible actuellement (`link_id must identify an eligible linked account`).
+- Preuve CI : aucun run associé au dernier commit.
+- **État : 🟡 construit / preuve d'exécution SQL-CI manquante.**
