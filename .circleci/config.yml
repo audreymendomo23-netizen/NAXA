@@ -29,6 +29,26 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Préflight intégrité SQL N4
+          command: |
+            set -euo pipefail
+            echo "HEAD=\$(git rev-parse HEAD)"
+            echo "BRANCH=\${CIRCLE_BRANCH:-unknown}"
+            test -s supabase/schema.sql
+            test "\$(grep -Fc 'create or replace function my_pharmacie()' supabase/schema.sql)" -eq 1
+            test "\$(grep -Fc 'create or replace function restore_stock(' supabase/schema.sql)" -eq 1
+            test "\$(grep -Fc 'create or replace function expire_reservations()' supabase/schema.sql)" -eq 1
+            test "\$(grep -Fc 'create trigger on_auth_user_created' supabase/schema.sql)" -eq 1
+            test "\$(grep -Fc 'as $select' supabase/schema.sql)" -eq 0
+            test "\$(grep -Fc 'as $;' supabase/schema.sql)" -eq 0
+            restore_line="\$(grep -nF 'create or replace function restore_stock(' supabase/schema.sql | cut -d: -f1)"
+            restore_revoke_line="\$(grep -nF 'revoke execute on function restore_stock(uuid)' supabase/schema.sql | cut -d: -f1)"
+            test -n "$restore_line" && test -n "$restore_revoke_line" && test "$restore_revoke_line" -gt "$restore_line"
+            expire_line="\$(grep -nF 'create or replace function expire_reservations()' supabase/schema.sql | cut -d: -f1)"
+            expire_revoke_line="\$(grep -nF 'revoke execute on function expire_reservations()' supabase/schema.sql | cut -d: -f1)"
+            test -n "$expire_line" && test -n "$expire_revoke_line" && test "$expire_revoke_line" -gt "$expire_line"
+            echo "SQL preflight: OK"
+      - run:
           name: Installer les dépendances frontend
           command: npm install --no-audit --no-fund
       - run:
