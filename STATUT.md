@@ -242,3 +242,23 @@ Aucune modification de `main` ni de Production n'est autorisée par cette correc
 - Le défaut des noms de migrations et les délimiteurs PL/pgSQL du schéma ont été corrigés avant cette exécution.
 - Niveau CI/replay concerné : 🟢 VALIDÉ.
 - Aucun merge vers main et aucun déploiement Production.
+
+
+# RECTIFICATION DE CONTINUITÉ — 08/10/2026 — HEAD COURANT
+
+Cette section est la référence courante et supersède les références SHA antérieures présentes dans l'historique.
+
+- Branche : `rewrite/naxa-from-main-20261007`
+- HEAD vérifié : `5b24b96098ed240ddb9ade154e22f66969faa2df`
+- main vérifié : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`
+- Git : **behind = 0**, branche ahead de main ; merge-base = main HEAD.
+- PR #30 : **ouverte / draft / non fusionnée**.
+- Aucun merge main et aucune Production.
+- Les SHA antérieurs consignés dans les sections historiques ne représentent plus le HEAD courant.
+- La preuve CircleCI run 192 sur `7c5155ce...` reste une preuve historique et ne valide pas automatiquement `5b24b960...`.
+
+## N4–N15 — position courante
+
+Le gate bulk N4–N15 doit être rejoué et prouvé au HEAD `5b24b960...`. Aucun vert supplémentaire n'est déclaré avant cette preuve.
+
+**N1–N3 : état documentaire et preuves historiques conservés ; N4–N15 : 🟡 en attente de preuve au HEAD courant.**
