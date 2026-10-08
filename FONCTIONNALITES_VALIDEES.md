@@ -925,3 +925,14 @@ Le dépôt contient désormais :
 - Preuve CI : aucune exécution associée détectée à ce stade.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
+
+
+## ERP-003 — POS étape 2 — paiements + finalisation — 08/10/2026
+- Audit : aucune fonction de finalisation/paiement POS concurrente trouvée ; extension du moteur `ventes` existant.
+- Ajout : `vente_paiements` pour paiements simples ou mixtes.
+- `vente_ajouter_paiement()` refuse les montants invalides, les dépassements du total et exige une référence pour Mobile Money.
+- `vente_finaliser()` exige une vente non vide et un paiement exactement égal au total net avant passage à `payee`.
+- Sécurité : RLS de lecture par pharmacie + RPC d'écriture réservées à `authenticated`.
+- Tests : `supabase/tests/055_pos_paiements.sql`.
+- Aucun changement Production/Supabase live.
+- **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
