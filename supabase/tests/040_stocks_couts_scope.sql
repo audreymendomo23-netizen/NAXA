@@ -1,0 +1,4 @@
+select 'stocks_couts existe' check_name,to_regclass('public.stocks_couts') is not null pass;
+select 'stocks_couts devise XAF' check_name,exists(select 1 from pg_constraint c join pg_class t on t.oid=c.conrelid where t.relname='stocks_couts' and pg_get_constraintdef(c.oid) like '%devise = ''XAF''%') pass;
+select 'stocks_couts prix public séparé' check_name,exists(select 1 from information_schema.columns where table_schema='public' and table_name='stocks' and column_name='prix') and exists(select 1 from information_schema.columns where table_schema='public' and table_name='stocks_couts' and column_name='cout_unitaire') pass;
+select 'stocks_couts scope canonique' check_name,exists(select 1 from pg_policies where schemaname='public' and tablename='stocks_couts' and policyname='stocks_couts_lecture' and qual like '%can_access_pharmacy%') pass;

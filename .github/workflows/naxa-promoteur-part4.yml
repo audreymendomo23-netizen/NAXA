@@ -1,0 +1,155 @@
+name: NAXA — Promoteur Parties 4+5 — validation isolée
+on:
+  push:
+    branches: [feat/promoteur-partie3-responsable-accreditation-20261006]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+jobs:
+  partie4:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        with:
+          version: latest
+      - name: Configurer Supabase local
+        run: |
+          cat > supabase/config.toml <<'EOF'
+          project_id = "naxa-partie3-ci"
+          [api]
+          enabled = true
+          [db]
+          major_version = 17
+          [studio]
+          enabled = false
+          [inbucket]
+          enabled = false
+          [storage]
+          enabled = true
+          [realtime]
+          enabled = false
+          [analytics]
+          enabled = false
+          [edge_runtime]
+          enabled = false
+          EOF
+      - name: Préparer les migrations
+        run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+          # The historical snapshot is already a compatibility base; migrations own the canonical architecture objects.
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("supabase/migrations/20261006000000_base.sql")
+          s = p.read_text()
+
+          # schema.sql is a historical declarative snapshot and is currently malformed:
+          # handle_new_user() was split across repeated snapshots. Rebuild only that
+          # broken region for the local replay; production/schema.sql is not modified.
+          a = s.index("create or replace function handle_new_user")
+          b = s.index("then raise exception 'Nom d''utilisateur invalide'", a)
+
+          handle = r"""create or replace function handle_new_user()
+          returns trigger
+          language plpgsql
+          security definer
+          set search_path=public
+          as $fn$
+          declare
+            v_username text := lower(trim(new.raw_user_meta_data->>'username'));
+            v_first_name text := trim(new.raw_user_meta_data->>'first_name');
+            v_last_name text := trim(new.raw_user_meta_data->>'last_name');
+            v_phone text := trim(new.raw_user_meta_data->>'phone');
+            v_country text := upper(trim(new.raw_user_meta_data->>'phone_country'));
+            v_dob date := (new.raw_user_meta_data->>'date_of_birth')::date;
+            v_consent boolean := coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
+          begin
+            if v_username is null or v_username !~ '^[a-z0-9][a-z0-9._-]{2,29}$' then raise exception 'Nom d''utilisateur invalide'; end if;
+            if exists(select 1 from public.profiles where lower(username)=v_username) then raise exception 'Nom d''utilisateur déjà pris'; end if;
+            if v_first_name is null or length(v_first_name)<2 or length(v_first_name)>80 then raise exception 'Prénom invalide'; end if;
+            if v_last_name is null or length(v_last_name)<2 or length(v_last_name)>80 then raise exception 'Nom invalide'; end if;
+            if v_dob is null or v_dob>current_date or extract(year from age(current_date,v_dob))<18 then raise exception 'NAXA est réservé aux personnes âgées de 18 ans ou plus'; end if;
+            if not v_consent then raise exception 'L''acceptation des conditions est obligatoire'; end if;
+            if v_country='CM' and v_phone !~ '^\+237[0-9]{9}$' then raise exception 'Numéro de téléphone camerounais invalide';
+            elsif v_country='CF' and v_phone !~ '^\+236[0-9]{8}$' then raise exception 'Numéro de téléphone centrafricain invalide';
+            elsif v_country='TD' and v_phone !~ '^\+235[0-9]{8}$' then raise exception 'Numéro de téléphone tchadien invalide';
+            elsif v_country='CG' and v_phone !~ '^\+242[0-9]{9}$' then raise exception 'Numéro de téléphone congolais invalide';
+            elsif v_country='CD' and v_phone !~ '^\+243[0-9]{9}$' then raise exception 'Numéro de téléphone congolais (RDC) invalide';
+            elsif v_country='GQ' and v_phone !~ '^\+240[0-9]{9}$' then raise exception 'Numéro de téléphone équato-guinéen invalide';
+            elsif v_country='GA' and v_phone !~ '^\+241[0-9]{8}$' then raise exception 'Numéro de téléphone gabonais invalide';
+            elsif v_country='ST' and v_phone !~ '^\+239[0-9]{7}$' then raise exception 'Numéro de téléphone santoméen invalide';
+            elsif v_country='AO' and v_phone !~ '^\+244[0-9]{9}$' then raise exception 'Numéro de téléphone angolais invalide';
+            elsif v_country='BI' and v_phone !~ '^\+257[0-9]{8}$' then raise exception 'Numéro de téléphone burundais invalide';
+            elsif v_country='RW' and v_phone !~ '^\+250[0-9]{9}$' then raise exception 'Numéro de téléphone rwandais invalide';
+            else
+              raise exception 'Pays ou numéro de téléphone invalide';
+            end if;
+            insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at)
+            values(new.id,'client',v_username,v_first_name,v_last_name,v_phone,v_country,v_dob,true,now());
+            return new;
+          end;
+          $fn$;
+          """
+
+          # Keep the valid base objects after the broken trigger definition, up to
+          # the detached tail of handle_new_user().
+          s = s[:a] + handle + s[s.index("create trigger on_auth_user_created", a):b]
+
+          # Restore the real first reserve_stock implementation; only fix its
+          # historical dollar-quoting. Do not stub business logic.
+          a = s.index("create or replace function reserve_stock")
+          b = s.index("revoke execute on function restore_stock", a)
+          reserve = s[a:b].replace("as $declare", "as $fn$ declare").replace("end$;", "end$fn$;")
+          s = s[:a] + reserve + s[b:]
+
+          # The snapshot contains an invalid dollar terminator on my_pharmacie().
+          a = s.index("create or replace function my_pharmacie")
+          b = s.index("alter table profiles", a)
+          my_pharmacie = """create or replace function my_pharmacie() returns uuid
+          language sql stable security definer set search_path=public
+          as $fn$ select pharmacie_id from profiles where id=auth.uid() and actif=true and role in ('pharmacie','promoteur','caisse'); $fn$;
+          """
+          s = s[:a] + my_pharmacie + s[b:]
+
+          # These revokes precede the function declarations in the historical snapshot.
+          s = re.sub(r"revoke execute on function (restore_stock|expire_reservations)\([^;]*\) from public,anon,authenticated;\s*", "", s)
+
+          p.write_text(s)
+          PY
+          n=1
+          for f in supabase/migration_*.sql; do
+            # migration_020_architecture_privileges.sql is a superseded legacy
+            # catalog whose profile_privileges object conflicts with the canonical
+            # compatibility view already present in schema.sql. The canonical
+            # replacement is migration_020_authorisation_architecture_privileges.sql.
+            case "$(basename "$f")" in
+              migration_020_architecture_privileges.sql) continue ;;
+            esac
+            ts=$(printf '2026100600%02d' "$n")
+            cp "$f" "supabase/migrations/"$ts"_$(basename "$f")"
+            n=$((n+1))
+          done
+      - name: Démarrer Supabase local
+        run: |
+          supabase start
+
+      - name: Replay complet + migrations de la branche
+        run: supabase db reset
+      - name: Vérifications Partie 4 — groupes 1+2
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/029_promoteur_caisse_management_12.sql
+      - name: Vérifications Partie 4 — groupes 3+4
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/030_promoteur_caisse_delegation_34.sql
+      - name: Vérifications Partie 4 — groupes 5+6
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/031_promoteur_caisse_elevation_validity_56.sql
+      - name: Vérifications Partie 5 — scope réseau + pilotage
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/032_promoteur_scope_reseau_7.sql
+      - name: Vérifications Partie 5 — hors périmètre
+        run: docker exec -i supabase_db_naxa-partie3-ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/033_promoteur_pilotage_hors_scope_8.sql
+      - name: Arrêt propre
+        if: always()
+        run: supabase stop

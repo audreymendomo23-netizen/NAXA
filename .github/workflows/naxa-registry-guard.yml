@@ -1,0 +1,68 @@
+name: NAXA Registry Guard
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'FONCTIONNALITES_VALIDEES.md'
+      - 'README.md'
+      - 'Statut.md'
+      - 'docs/REGISTRE_GOUVERNANCE.md'
+  push:
+    branches: [main]
+    paths:
+      - 'FONCTIONNALITES_VALIDEES.md'
+      - 'README.md'
+      - 'Statut.md'
+      - 'docs/REGISTRE_GOUVERNANCE.md'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  registry-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Vérifier le commit d'intégration documentaire
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            RANGE="origin/${{ github.event.pull_request.base.ref }}..${{ github.event.pull_request.head.sha }}"
+          else
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+
+          bad=0
+          registry_commits=0
+          while IFS= read -r sha; do
+            [[ -z "$sha" ]] && continue
+            subject="$(git log -1 --format='%s' "$sha")"
+            files="$(git diff-tree --no-commit-id --name-only -r "$sha" --               'FONCTIONNALITES_VALIDEES.md' 'README.md' 'Statut.md'               'docs/REGISTRE_GOUVERNANCE.md' || true)"
+            if [[ -n "$files" ]]; then
+              registry_commits=$((registry_commits + 1))
+            fi
+            if [[ -n "$files" && "$subject" != docs(registry-integrator):* ]]; then
+              echo "::error::Commit $sha modifie un document maître sans le préfixe docs(registry-integrator):"
+              echo "Sujet: $subject"
+              echo "$files"
+              bad=1
+            fi
+          done < <(git rev-list "$RANGE")
+
+          if [[ "$registry_commits" -gt 1 ]]; then
+            echo "::error::Plus d'un commit modifie les documents maîtres dans ce lot. Regrouper les changements dans un seul commit docs(registry-integrator):."
+            exit 1
+          fi
+
+          if [[ "$bad" -ne 0 ]]; then
+            echo "Protection registre: échec."
+            exit 1
+          fi
+          echo "Protection registre: OK."

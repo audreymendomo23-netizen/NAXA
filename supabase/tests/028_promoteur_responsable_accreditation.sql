@@ -1,0 +1,13 @@
+select 'role_type sans responsable' check_name,not exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid where t.typname='role_type' and e.enumlabel='responsable') pass;
+select 'fonction_interne' check_name,exists(select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='fonction_interne') pass;
+select 'niveau_interne' check_name,exists(select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='niveau_interne') pass;
+select 'architectures' check_name,(select count(*) from public.naxa_architectures where active and code in ('ORPHELIN','PARENTS_ENFANTS','PARENTS_AINES_CADETS','HYBRIDE'))=4 pass;
+select 'A1/A2 no N2' check_name,not exists(select 1 from public.naxa_architecture_niveaux where architecture_code in ('ORPHELIN','PARENTS_ENFANTS') and niveau=2) pass;
+select 'A3/A4 N2' check_name,exists(select 1 from public.naxa_architecture_niveaux where architecture_code='PARENTS_AINES_CADETS' and niveau=2) and exists(select 1 from public.naxa_architecture_niveaux where architecture_code='HYBRIDE' and niveau=2) pass;
+select 'A3 CREATE_RESPONSABLE' check_name,exists(select 1 from public.naxa_architecture_privileges where architecture_code='PARENTS_AINES_CADETS' and role_key='promoteur' and privilege_code='CREATE_RESPONSABLE') pass;
+select 'A1/A2 no CREATE_RESPONSABLE' check_name,not exists(select 1 from public.naxa_architecture_privileges where architecture_code in ('ORPHELIN','PARENTS_ENFANTS') and role_key='promoteur' and privilege_code='CREATE_RESPONSABLE') pass;
+select 'naxa_has_privilege' check_name,exists(select 1 from pg_proc where proname='naxa_has_privilege') pass;
+select 'naxa_can' check_name,exists(select 1 from pg_proc where proname='naxa_can') pass;
+select 'accrediter_profile' check_name,exists(select 1 from pg_proc where proname='accrediter_profile') pass;
+select 'convention architecture' check_name,exists(select 1 from information_schema.columns where table_schema='public' and table_name='conventions_promoteurs' and column_name='architecture_code') pass;
+select 'single privilege store' check_name,to_regclass('public.naxa_profile_privileges') is not null and to_regclass('public.profile_privileges') is null pass;

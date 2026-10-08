@@ -1,32 +1,125 @@
-# NAXA — Matrice de fusion v3.7
+# NAXA — Matrice de fusion
 
-Date : 07/10/2026
-Branche : rewrite/naxa-from-main-20261007
-Production : Supabase migration 042 ; main inchangé.
+Mise à jour: 7 octobre 2026.
 
-## Autorité
+## Sources et ordre de priorité
+1. État réel du dépôt / branche / Supabase / Vercel.
+2. Cahier des charges v3.7.
+3. Prompt maître Fusion v2.
+4. README / STATUT / CONTRADICTIONS comme documentation historique et de traçabilité, réconciliée avec l'état réel.
 
-La matrice applique le cahier v3.7, le Prompt maître Fusion v2 et l'état réel GitHub/Supabase. Absence de preuve = non fait. Présent sur la branche ne signifie jamais déployé en Production.
+## Reprise PA1
+- Branche active: `feat/promoteur-partie3-responsable-accreditation-20261006`.
+- HEAD observé: `d89b6e0b7ae3dfa1c5fba622d4945459f336f192`.
+- Main observé: `c171b5465b423d3c576d22ef48c99af5d59ba5f7`.
+- Aucun merge vers main dans cette reprise.
+- Aucun déploiement Production demandé ou effectué.
+- Production et branche de travail restent strictement séparées.
 
-## État initial de réconciliation
+## Étape 0 — Pilotage 360°
+| Bloc | État | Preuve / verrou |
+|---|---|---|
+| Promoteur parties 1–4 | 🟢 documenté | état courant dans STATUT; partie 4 historiquement déclarée verte après preuves transactionnelles |
+| Promoteur parties 5–6 | 🟢 documenté | preuves PostgreSQL réelles consignées dans STATUT |
+| Moteur canonique | 🟢 branche | `stats_pilotage_scope`, `naxa_has_privilege`, `naxa_can`, scope `promoteur_pharmacies` |
+| CA canonique | 🟢 branche | `v_reservations_ca` |
+| Tests 032/033 | 🟡 preuve CI non observable | tests présents; plusieurs exécutions GitHub échouent avant tout step |
+| Façade RPC 042 | 🟢 code de branche | SECURITY DEFINER, search_path vide, EXECUTE authenticated uniquement |
+| Passe Admin | 🟡 à clôturer | UI raccordée au RPC canonique; preuve multi-scope Admin à matérialiser |
+| Étape 0 globale | 🟡 | CI/réconciliation finale encore non clôturées |
 
-- Pilotage 360° : parties clôturées au vert, non reconstruites.
-- Migrations 043→052 : présentes sur la branche, non persistées en Production.
-- Fiches EXISTANT : conservation et non-régression, pas de reconstruction.
-- Fiches NOUVEAU : construction future par phase.
-- Fiches À ARBITRER : bloquées sans construction avant décision.
+## Contradictions principales encore ouvertes
+1. GitHub Actions: jobs créés puis échec avant runner/steps/logs. Cause applicative non démontrée; preuve CI impossible à obtenir avec l'infrastructure exposée.
+2. Supabase MCP: le connecteur courant retourne `link_id must identify an eligible linked account`; revalidation live impossible dans cette session.
+3. Documentation historique: README/STATUT contiennent des sections anciennes qui décrivent encore des états antérieurs. Les sections datées les plus récentes priment, mais une réconciliation documentaire finale reste à effectuer.
 
-## Contradictions isolées
+## Acceptance Step 0
+Le vert final exige: Admin + Promoteur + Responsable + Caisse + Client, scope sans fuite, CA sans double comptage, privilèges, sécurité RPC, tests exécutés et preuve CI observable, puis documentation réconciliée. Tant que ces éléments ne sont pas tous prouvés, l'Étape 0 reste 🟡.
 
-1. docs/CONTRADICTIONS.md est référencé par le Prompt maître mais absent du dépôt courant. Aucun contenu n'est inventé.
-2. Des sections historiques de README/STATUT décrivent des états antérieurs ; CP-0009/CP-0010 les supersèdent.
-3. Le cahier décrit Responsable comme proposition, tandis que le modèle canonique validé le traite comme N2/fonction interne. L'existant canonique prime et aucun role_type responsable n'est créé.
-4. Branche et Production divergent volontairement : Production reste à migration 042.
 
-## Statut
+## Audit transversal exhaustif des branches — 7 octobre 2026
 
-🟢 MATRICE DE RÉCONCILIATION — 100 % du périmètre d'audit documentaire établi.
+Inventaire et comparaison exécutés sur les **31 branches actuellement retournées par GitHub**. Méthode : inventaire exhaustif → comparaison de chaque branche à main → classification des fichiers divergents → croisement des branches structurantes → contrôle main/Production.
 
-Aucune fonctionnalité ni migration Production n'est appliquée dans cette étape.
+### Référentiel observé
+- main = c171b5465b423d3c576d22ef48c99af5d59ba5f7 (Add files via upload).
+- Production Vercel = READY, dpl_HxzyGDhYhiLLeagQBeYNPrMrCjv4, source main, même SHA c171b5465b423d3c576d22ef48c99af5d59ba5f7.
+- Cahier v3.7 = naxa_cahier_des_charges_v3_7.md ; Prompt maître fusion v2 = naxa_prompt_maitre_fusion_v2.md.
+- Supabase MCP : lecture live indisponible pendant cet audit (link_id must identify an eligible linked account). Aucune validation live Supabase n'est donc déclarée.
 
-Prochain chantier : Qualité, après clôture documentaire de cette réconciliation.
+### Matrice exhaustive
+| Branche | Écart vs main | Domaine dominant |
+|---|---:|---|
+| audit/mise-au-vert-20261007 | +2/-0 | docs |
+| consolidation | +56/-3 | pilotage/docs/UI |
+| docs/auth-consolidation-20261004 | +2/-10 | docs/auth |
+| docs/creation-compte-consolidation-20261004 | +2/-12 | docs/auth |
+| docs/final-consolidation-20261004 | +2/-14 | docs |
+| docs/final-production-status-20261004 | +0/-18 | docs |
+| docs/final-status-20261004 | +2/-16 | docs |
+| docs/pharmacie-pilotes-statut-20261005 | +4/-8 | docs/pharmacie |
+| docs/production-validation-20261004 | +0/-13 | docs |
+| feat/auth-flow-age-gate | +16/-50 | auth/âge |
+| feat/creation-compte | +6/-51 | création compte |
+| feat/final-auth-legal-ux-20261004 | +15/-17 | auth/legal/UX |
+| feat/homepage-lower-visual-reorg | +27/-61 | homepage/UX |
+| feat/pharmacie-pilotes-offline-20261005 | +2/-9 | pharmacie/offline |
+| feat/pharmacie-promoteur-caisses-20261005 | +24/-7 | pharmacie/promoteur/caisse |
+| feat/pharmacie-validite-pilotage | +358/-3 | pilotage/validité/privileges |
+| feat/pilotage-equipes-bi-20261005 | +1/-3 | CI/BI |
+| feat/promoteur-partie3-responsable-accreditation-20261006 | +625/-3 | Promoteur/Pilotage |
+| fix/age-gate-production-hardening | +4/-60 | auth/âge |
+| fix/auth-no-scroll-final-20261004 | +1/-15 | auth UX |
+| fix/auth-reset-google-ux | +0/-32 | auth |
+| fix/build-politique-securite-20261004 | +0/-21 | sécurité/docs |
+| fix/creation-compte-mobile-ux-20261005 | +2/-13 | création compte UX |
+| fix/creation-phone-forgot-password-20261004 | +6/-11 | auth |
+| fix/homepage-copy-cta-emergency | +4/-62 | homepage UX |
+| fix/033-caisse-reactivation-schema-aligned | +47/-1 | Caisse/Promoteur/Pilotage |
+| main | 0/0 | Production actuelle |
+| naxa-dev | +13/-135 | ancien app shell |
+| naxa-v2 | +0/-72 | ancien app |
+| reconcile/auth-homepage-20261004 | +0/-49 | auth/home |
+| reconcile/naxa-final-auth-home-20261004 | +0/-23 | auth/home |
+
+### Contradictions décisives
+1. Production ≠ branche Pilotage : Production suit main/c171b..., tandis que le chantier Pilotage/Promoteur vit sur des branches divergentes.
+2. Les README/STATUT historiques affichent encore des verts/100 %, mais ces branches sont parfois derrière ou divergentes de main : ces déclarations ne valent pas preuve actuelle.
+3. Les plus gros deltas fonctionnels sont la branche Promoteur actuelle (+625 vs main) puis feat/pharmacie-validite-pilotage (+358). Ce sont des sources de travail, pas Production.
+4. La migration 042 et les tests 032/033 sont présents sur la branche Promoteur actuelle ; la façade stats_pilotage_scope est SECURITY DEFINER, search_path vide, EXECUTE authenticated uniquement.
+5. La CI reste non probante : les exécutions observées échouaient avant les steps/runner, donc pas de preuve d'exécution SQL/app.
+
+### Résultat
+- Couverture branches : 31/31 = 100 %.
+- Comparaison vs main : 31/31 = 100 %.
+- Classification fonctionnelle : 31/31 = 100 %.
+- Vert global Pilotage : NON. CI et validation live Supabase restent bloquantes ; le Pilotage/Promoteur n'est pas intégré à main/Production.
+- Aucune fusion, migration Production ou déploiement n'a été effectué.
+
+
+## Réconciliation finale — contrôle du 07/10/2026
+
+### État Git
+- `main` de référence : `82d2145cea6d6d162405c3e74d3f21400ba5b763`.
+- État Promoteur/Pilotage retenu : `b5cf9377688842bf224b4f72ec3ffbbc918ce226`.
+- Réconciliation intermédiaire : `reconciliation/integration-20261007-v2`.
+- Réconciliation finale : `reconciliation/final-integration-20261007`.
+- Commit de fusion sémantique : `e142c49b17d11e9f65f585b18143b5d607285a9a`, avec `main` + état Promoteur comme parents.
+
+### Conservation vérifiée
+- Le workflow qualité final est identique entre `main` et l'état réconcilié au contrôle.
+- Les artefacts manquants côté branche Promoteur ont été récupérés depuis `main` : cahier v3.7, prompt maître fusion v2, migration 033.
+- Les deux branches convergent donc sur le contenu de ces éléments sans suppression du travail Promoteur/Pilotage.
+
+### État de preuve
+- Réconciliation Git : 🟢 construite.
+- Préservation des artefacts main : 🟢 vérifiée.
+- Préservation du socle Promoteur/Pilotage : 🟢 vérifiée par présence des migrations/tests/fichiers structurants.
+- CI complète sur le commit final : 🟡 non observée.
+- Validation Supabase distante : 🔴 bloquée par le connecteur.
+- Non-régression applicative complète : 🟡 non prouvée.
+- Verdict global : **🟡 — jamais déclarer 100 % avant preuves manquantes.**
+
+### Historique des PR de réconciliation
+- PR #26, #27 et #28 ont été fermées sans merge afin d'éviter toute promotion prématurée et toute activation durable d'un Preview automatique.
+- Aucune PR de réconciliation n'est actuellement fusionnée dans `main`.

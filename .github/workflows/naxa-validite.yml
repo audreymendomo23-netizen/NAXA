@@ -1,0 +1,20 @@
+name: NAXA — validité pharmacies
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+jobs:
+  validite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler le contrôle quotidien
+        env:
+          NAXA_CRON_URL: ${{ secrets.NAXA_CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$NAXA_CRON_URL"
+          test -n "$CRON_SECRET"
+          code=$(curl -sS -o response.json -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$NAXA_CRON_URL")
+          cat response.json
+          test "$code" = "200"
