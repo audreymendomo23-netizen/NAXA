@@ -50,3 +50,11 @@
 ## ERP-003 — POS étape 1 — 08/10/2026
 - Lignes de vente + allocation FEFO ajoutées au socle POS existant.
 - État : 🟡 construit, preuve SQL/CI manquante.
+
+
+## ERP-003 — POS étape 2 — 08/10/2026
+- Paiements POS simples ou mixtes et finalisation atomique ajoutés au moteur de vente existant.
+- Référence Mobile Money obligatoire ; paiement exact du total net requis.
+- Aucun second moteur de vente créé.
+- Aucun changement Production/Supabase live.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
