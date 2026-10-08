@@ -59,7 +59,7 @@ jobs:
             fi
             # Garde architecturale : aucun GRANT/REVOKE de fonction ne peut
             # précéder sa définition dans le replay, ni viser un nom de fonction inexistant.
-            python3 - <<'PY'
+            python3 - \<<'PY'
             import re
             from pathlib import Path
             files = [Path("supabase/schema.sql")] + sorted(Path("supabase").glob("migration_*.sql"))
