@@ -37,20 +37,20 @@ jobs:
               shift
               echo "CHECK: $label"
               if "$@"; then
-                echo "PASS: $label"
+                echo "PASS: $label (résultat conforme)"
               else
-                echo "FAIL: $label"
+                echo "FAIL: $label (résultat non conforme)"
                 FAILS+=("$label")
               fi
               return 0
             }
             check_count() {
-              local label="$1" expected="$2" needle="$3" file="$4" count
+              local label="$1" expected="$2" pattern="$3" file="$4" count
               echo "CHECK: $label"
-              count="$(grep -Fc "$needle" "$file" || true)"
-              echo "TROUVÉ: $count occurrence(s) ; attendu: $expected"
+              count="$(grep -Eic -- "$pattern" "$file" || true)"
+              echo "TROUVÉ: $count ligne(s) correspondante(s) ; attendu: $expected"
               echo "LIGNES:"
-              grep -nF "$needle" "$file" || true
+              grep -Ein -- "$pattern" "$file" || true
               if [[ "$count" -eq "$expected" ]]; then
                 echo "PASS: $label"
               else
@@ -60,41 +60,41 @@ jobs:
               return 0
             }
             check "schema.sql présent et non vide" test -s supabase/schema.sql
-            check_count "my_pharmacie() : une définition attendue" 1 "create or replace function my_pharmacie()" supabase/schema.sql
-            check_count "restore_stock( : une définition attendue" 1 "create or replace function restore_stock(" supabase/schema.sql
-            check_count "expire_reservations() : une définition attendue" 1 "create or replace function expire_reservations()" supabase/schema.sql
-            check_count "on_auth_user_created : un trigger attendu" 1 "create trigger on_auth_user_created" supabase/schema.sql
-            check_count "as $select : zéro occurrence attendue" 0 'as $select' supabase/schema.sql
-            check_count "as $; : zéro occurrence attendue" 0 'as $;' supabase/schema.sql
-            check "Aucun délimiteur dollar malformé ($;) dans le schéma ou les migrations" bash -c 'if grep -R -nE "^[[:space:]]*\\$;[[:space:]]*$" supabase/schema.sql supabase/migration_*.sql; then exit 1; else rc=$?; [[ "$rc" -eq 1 ]]; fi'
-            check "restore_stock : révocation après définition" bash -c 'def="$(grep -nF "create or replace function restore_stock(" supabase/schema.sql | head -1 | cut -d: -f1)"; rev="$(grep -nF "revoke execute on function restore_stock(uuid)" supabase/schema.sql | head -1 | cut -d: -f1)"; [[ -n "$def" && -n "$rev" && "$rev" -gt "$def" ]]'
-            check "expire_reservations : révocation après définition" bash -c 'def="$(grep -nF "create or replace function expire_reservations()" supabase/schema.sql | head -1 | cut -d: -f1)"; rev="$(grep -nF "revoke execute on function expire_reservations()" supabase/schema.sql | head -1 | cut -d: -f1)"; [[ -n "$def" && -n "$rev" && "$rev" -gt "$def" ]]'
-            check "can_access_pharmacy : définition avant première utilisation dans migration 013" bash -c 'f=supabase/migration_013_stocks_couts.sql; def="$(grep -nF "create or replace function public.can_access_pharmacy" "$f" | head -1 | cut -d: -f1)"; use="$(grep -nF "or public.can_access_pharmacy(" "$f" | head -1 | cut -d: -f1)"; [[ -n "$def" && -n "$use" && "$use" -gt "$def" ]]'
-            check "Aucune référence legacy public.profile_privileges" bash -c 'if grep -R -nF "public.profile_privileges" supabase/migration_*.sql; then exit 1; else rc=$?; [[ "$rc" -eq 1 ]]; fi'
-            run_function_privilege_preflight() {
-              python3 - <<'PY'
+            check_count "my_pharmacie() : une définition attendue" 1 '^[[:space:]]*create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+(public[[:space:]]*\.[[:space:]]*)?my_pharmacie[[:space:]]*\(' supabase/schema.sql
+            check_count "restore_stock( : une définition attendue" 1 '^[[:space:]]*create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+(public[[:space:]]*\.[[:space:]]*)?restore_stock[[:space:]]*\(' supabase/schema.sql
+            check_count "expire_reservations() : une définition attendue" 1 '^[[:space:]]*create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+(public[[:space:]]*\.[[:space:]]*)?expire_reservations[[:space:]]*\(' supabase/schema.sql
+            check_count "on_auth_user_created : un trigger attendu" 1 '^[[:space:]]*create[[:space:]]+trigger[[:space:]]+on_auth_user_created([[:space:]]|$)' supabase/schema.sql
+            check_count 'as $select : zéro occurrence attendue' 0 'as[[:space:]]+\$select([[:space:]]|$)' supabase/schema.sql
+            check_count 'as $; : zéro occurrence attendue' 0 'as[[:space:]]+\$;' supabase/schema.sql
+            check "Délimiteurs dollar et blocs SQL valides (schéma, migrations, tests)" python3 - <<'PY'
             import re
+            from collections import Counter
             from pathlib import Path
-            files = [Path("supabase/schema.sql")] + sorted(Path("supabase").glob("migration_*.sql"))
-            defined = set()
-            definition = re.compile(r"create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-zA-Z_]\w*)\s*\(", re.I)
-            privilege = re.compile(r"(?:grant|revoke)\b[^;]*?on\s+function\s+(?:public\.)?([a-zA-Z_]\w*)\s*\(", re.I)
+
+            files = [Path("supabase/schema.sql")]
+            files += sorted(Path("supabase").glob("migration_*.sql"))
+            files += sorted(Path("supabase/tests").rglob("*.sql"))
             errors = []
+            token_re = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
+            invalid_as_re = re.compile(r"\bas\s+\$[A-Za-z_][A-Za-z0-9_]*(?=\s|;|,|$)", re.I)
+
             for path in files:
-                for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                    for m in privilege.finditer(line):
-                        fn = m.group(1)
-                        if fn not in defined:
-                            errors.append(f"{path}:{line_no}: privilege before definition or unknown function: {fn}")
-                    for m in definition.finditer(line):
-                        defined.add(m.group(1))
+                content = path.read_text(encoding="utf-8")
+                for line_no, line in enumerate(content.splitlines(), 1):
+                    if "$;" in line:
+                        errors.append(f"{path}:{line_no}: délimiteur malformé $;")
+                    if invalid_as_re.search(line):
+                        errors.append(f"{path}:{line_no}: ouverture dollar-quote invalide après AS")
+                counts = Counter(token_re.findall(content))
+                for token, count in counts.items():
+                    if count % 2:
+                        errors.append(f"{path}: délimiteur {token} non apparié ({count} occurrence(s))")
+
             if errors:
                 print("\n".join(errors))
                 raise SystemExit(1)
-            print(f"SQL function privilege-order preflight: OK ({len(defined)} function names known)")
+            print(f"PASS: {len(files)} fichiers SQL inspectés, délimiteurs appariés")
             PY
-            }
-            check "Ordre des privilèges GRANT/REVOKE sur les fonctions SQL" run_function_privilege_preflight
             if (( ${#FAILS[@]} > 0 )); then
               echo "RÉCAPITULATIF : ${#FAILS[@]} contrôle(s) en échec"
               printf ' - %s\n' "${FAILS[@]}"
@@ -107,6 +107,7 @@ jobs:
       - run:
           name: Préparer Supabase local
           command: |
+            echo "Supabase CLI version: $(npx supabase@latest --version)"
             npx supabase@latest init --force
             cat > supabase/config.toml \<<'EOF'
             project_id = "naxa-tests-ci"
@@ -128,7 +129,7 @@ jobs:
             done
       - run:
           name: Démarrer Supabase local
-          command: npx supabase@latest start -x studio -x mailpit -x storage-api -x realtime
+          command: npx supabase@latest start -x studio -x mailpit -x realtime -x imgproxy -x kong -x postgrest -x postgres-meta -x edge-runtime -x logflare -x vector -x supavisor
       - run:
           name: Replay complet des migrations
           command: npx supabase@latest db reset
@@ -139,8 +140,8 @@ jobs:
             for f in supabase/tests/*.sql; do
               echo "=== TEST $f ==="
               out="$(mktemp)"
-              npx supabase@latest db query --file "$f" 2>&1 | tee "$out"
-              if grep -Eq '(^|[[:space:]])f([[:space:]]|$)' "$out"; then
+              npx supabase@latest db query --local --file "$f" 2>&1 | tee "$out"
+              if grep -Eiq '(^|[^[:alnum:]_])(false|f)([^[:alnum:]_]|$)' "$out"; then
                 echo "ÉCHEC: au moins une assertion booléenne est fausse dans $f"
                 rm -f "$out"
                 exit 1

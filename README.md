@@ -98,3 +98,11 @@ La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses
 6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
+
+
+## CI SQL — état du chantier N4 (08/10/2026)
+
+- La CI CircleCI prépare une base Supabase locale, rejoue le schéma de base puis toutes les migrations dans des noms de migration temporaires uniques, et exécute les tests SQL de `supabase/tests/*.sql`.
+- Le préflight doit afficher le nombre et les lignes des définitions ciblées, détecter les délimiteurs SQL malformés et récapituler tous les échecs sans s'arrêter au premier contrôle.
+- La validation dépend du résultat réel CircleCI : aucune réussite SQL n'est présumée à partir de la seule lecture des fichiers.
+- Les migrations restent inchangées dans ce correctif ; aucune modification de `main` ni de Production n'est autorisée sans validation explicite.

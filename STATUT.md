@@ -104,3 +104,13 @@
 - Logos officiels Orange Money / MTN MoMo : assets officiels à intégrer ; aucun logo de substitution/redessiné.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## CI NAXA — audit/reprise SQL N4 (08/10/2026)
+- Branche de travail : `fix/circleci-pr-main-config-20261008`, PR #36 vers `main` (ouverte, non fusionnée).
+- Audit : le `supabase/schema.sql` présent avant correction était concaténé en 13 blocs répétitifs et contenait des fragments/délimiteurs dollar invalides. Une version historique réelle du dépôt (`cf092341`) a servi de base au rétablissement du schéma, avec correction des délimiteurs et déplacement des révocations après les définitions concernées.
+- Préflight CircleCI : contrôles tolérants à la casse, au préfixe `public.` et aux espaces ; affichage des nombres/lignes ; agrégation des FAIL ; analyse des délimiteurs dans schéma, migrations et tests.
+- Environnement CI : le service `storage-api` est conservé car la migration 004 référence `storage.buckets` et `storage.objects`. Les services non nécessaires aux tests directs SQL sont exclus pour limiter la mémoire. La version effective de la CLI est affichée au début de la préparation.
+- Tests corrigés : fermeture du bloc dollar dans `supabase/tests/051_client_credit.sql` ; le test structurel `supabase/tests/049_assurances.sql` vérifie désormais aussi le registre de substances de la migration 049. Les contrôles de création voucher/promotion pour la migration 062 existaient déjà dans `supabase/tests/058_pos_avance_rapide_remises.sql`.
+- Migrations : aucune migration modifiée. `main` et Production : inchangés.
+- Validation CI : 🟡 en attente. Au moment de cette mise à jour, GitHub n'expose pas encore de statut CircleCI ni de logs pour le nouveau commit. Aucun vert SQL n'est déclaré avant preuve d'exécution.
