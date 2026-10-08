@@ -49,7 +49,6 @@ begin
   if v.expires_at is not null and v.expires_at < now() then raise exception 'Voucher expiré'; end if;
   if p_montant > v.solde then raise exception 'Solde voucher insuffisant'; end if;
   perform public.vente_ajouter_paiement(p_vente,'autre',p_montant,'VOUCHER:'||v.code);
-  update public.vente_vouchers set solde=solde-p_montant, actif=(solde-p_montant)>0 where id=v.id;
 end;
 $voucher$;
 
@@ -314,3 +313,51 @@ grant execute on function public.vente_remise_demander(uuid,integer,uuid) to aut
 grant execute on function public.vente_remise_decider(uuid,boolean) to authenticated;
 
 create index if not exists pos_promotions_scope_idx on public.pos_promotions(pharmacie_id,actif,date_debut,date_fin);
+
+-- Sécurisation voucher : la consommation est différée à la finalisation de la vente.
+create or replace function public.vente_finaliser(p_vente uuid)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $finalisation_voucher$
+declare
+  v_vente public.ventes%rowtype;
+  v_paye integer;
+  v_code text;
+  v_montant integer;
+  v_voucher public.vente_vouchers%rowtype;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  select * into v_vente from public.ventes where id=p_vente for update;
+  if not found then raise exception 'Vente introuvable'; end if;
+  if v_vente.statut <> 'brouillon' then raise exception 'Vente déjà clôturée'; end if;
+  if not (public.is_admin() or public.can_operate_pharmacy(v_vente.pharmacie_id)) then raise exception 'Vente hors périmètre'; end if;
+  if not exists(select 1 from public.vente_lignes where vente_id=p_vente) then raise exception 'Vente vide'; end if;
+  select coalesce(sum(montant),0) into v_paye from public.vente_paiements where vente_id=p_vente;
+  if v_paye <> v_vente.total_net then raise exception 'Paiement incomplet'; end if;
+
+  for v_code, v_montant in
+    select substring(reference from 9), sum(montant)::integer
+    from public.vente_paiements
+    where vente_id=p_vente and reference like 'VOUCHER:%'
+    group by substring(reference from 9)
+  loop
+    if nullif(trim(v_code),'') is null then raise exception 'Référence voucher invalide'; end if;
+    select * into v_voucher from public.vente_vouchers where code=v_code and pharmacie_id=v_vente.pharmacie_id for update;
+    if not found or not v_voucher.actif then raise exception 'Voucher invalide ou épuisé'; end if;
+    if v_voucher.expires_at is not null and v_voucher.expires_at < now() then raise exception 'Voucher expiré'; end if;
+    if v_montant > v_voucher.solde then raise exception 'Solde voucher insuffisant à la finalisation'; end if;
+    update public.vente_vouchers set solde=solde-v_montant, actif=(solde-v_montant)>0 where id=v_voucher.id;
+  end loop;
+
+  update public.ventes
+  set statut='payee',
+      mode_paiement=(select mode from public.vente_paiements where vente_id=p_vente group by mode order by sum(montant) desc, mode::text limit 1),
+      paiement_ref=(select string_agg(reference, ', ') from public.vente_paiements where vente_id=p_vente and reference is not null),
+      paid_at=now()
+  where id=p_vente;
+end;
+$finalisation_voucher$;
+revoke all on function public.vente_finaliser(uuid) from public,anon,authenticated;
+grant execute on function public.vente_finaliser(uuid) to authenticated;
