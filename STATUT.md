@@ -135,3 +135,12 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - RLS alignée sur `can_access_pharmacy()`.
 - Aucun calcul de marge transactionnelle ajouté prématurément : le coût historique devra être figé sur chaque ligne de vente avant calcul de marge.
 - **État : 🟡 intégré dans `main`, preuve d'exécution à obtenir.**
+
+
+## Quatrième chantier — F041 rapports / exports / BI
+- Audit de l'existant : routes, UI et socles SQL déjà présents ; aucune reconstruction parallèle.
+- Correction ciblée de `/api/rapports` : le nom de pharmacie est maintenant chargé depuis la relation existante et exposé à l'UI.
+- Preuve Supabase live : `rapports`, `v_reservations_ca`, `v_ventes_journalieres`, `bi.activite_mensuelle` et `bi.stock_pharmacies` présents ; RLS `rapports_lecture` contrôlée.
+- Export CSV existant conservé.
+- Aucun déploiement Production.
+- **État : 🟢 F041 validé dans `main`.**

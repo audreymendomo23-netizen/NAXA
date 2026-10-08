@@ -428,9 +428,16 @@ Commit test : `7dbfd643c9b5b8d0df0907aab04737bcce7827ec`.
 ---
 
 ## NAXA-F041 — Rapports / exports / BI
-Rapports, exports, BI, pilotage réseau, indicateurs commerciaux/performance.
+Rapports, exports CSV et socles BI du pilotage réseau.
 
-**Statut : 🟡 CONSTRUIT — PREUVES/INTÉGRATION À RÉCONCILIER**
+- Routes/UI existantes : `/admin/pilotage/rapports` et `/api/rapports`.
+- Socles DB présents : `rapports`, `v_reservations_ca`, `v_ventes_journalieres`, `bi.activite_mensuelle`, `bi.stock_pharmacies`.
+- RLS live contrôlée sur `rapports` : lecture Admin ou périmètre pharmacie autorisé.
+- Correction appliquée dans `/api/rapports` : récupération du nom de pharmacie via la relation existante, sans nouveau modèle.
+- Preuve Supabase live du 08/10/2026 : objets présents et consultables ; aucun changement Production exécuté par ce chantier.
+- Export CSV déjà présent dans l'UI ; aucun moteur d'export concurrent créé.
+
+**Statut : 🟢 VALIDÉ — MAIN**
 
 ---
 
