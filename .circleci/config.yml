@@ -50,7 +50,7 @@ jobs:
             # Garde de dépendances : 013 doit fournir le prédicat minimal avant
             # que 016 ne le remplace par la sémantique multi-pharmacie canonique.
             access_bootstrap_line="$(grep -nF 'create or replace function public.can_access_pharmacy' supabase/migration_013_stocks_couts.sql | cut -d: -f1)"
-            access_first_use_line="$(grep -nF 'public.can_access_pharmacy(' supabase/migration_013_stocks_couts.sql | head -1 | cut -d: -f1)"
+            access_first_use_line="$(grep -nF 'or public.can_access_pharmacy(' supabase/migration_013_stocks_couts.sql | head -1 | cut -d: -f1)"
             test -n "$access_bootstrap_line" && test -n "$access_first_use_line" && test "$access_first_use_line" -gt "$access_bootstrap_line"
             # L'ancien nom profile_privileges est interdit : le modèle canonique est naxa_profile_privileges.
             if grep -R -nF 'public.profile_privileges' supabase/migration_*.sql; then
