@@ -58,3 +58,12 @@
 - Aucun second moteur de vente créé.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 construit — preuve SQL/CI manquante.**
+
+
+## ERP-003 — POS étape 3 — ticket/reçu + numérotation unique — 08/10/2026
+- Audit : aucun moteur concurrent de ticket POS/numéro de vente/réimpression trouvé ; le reçu de réservation existant reste inchangé.
+- Construction additive : `ventes.numero_vente`, séquence unique, index unique et RPC `vente_ticket()` en lecture sécurisée.
+- Les ventes historiques sont numérotées avant contrainte `NOT NULL` ; les nouvelles ventes reçoivent automatiquement un numéro.
+- La RPC ticket est `SECURITY INVOKER` et s'appuie sur le scope existant des ventes/lignes.
+- Aucun changement Production/Supabase live.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
