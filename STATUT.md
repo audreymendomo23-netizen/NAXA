@@ -202,3 +202,14 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Commits : `05da2aa1f1fcd3aa90ebcdcae8b80f58ff7401e4` puis `db8a5b88933cfe74d98fb4d8f56bc6c254fa57a6`.
 - Aucun changement Production.
 - **État : 🟡 construit — preuve d'exécution manquante.**
+
+
+## Neuvième chantier — ERP-006 Inventaire / valorisation
+- Audit terminé : aucun modèle concurrent d'inventaire ou de valorisation trouvé.
+- Socle ajouté : inventaires et lignes d'inventaire avec comptage, écarts et valorisation interne.
+- Raccordement aux structures existantes : stocks, stocks_lots, stocks_couts, ventes et vente_lignes.
+- F67 sécurisé : coût d'achat figé sur chaque ligne de vente avant calcul de marge.
+- Migration : supabase/migration_047_inventaire_valorisation.sql.
+- Test : supabase/tests/047_inventaire_valorisation.sql.
+- Aucun changement Production.
+- **État : 🟡 construit dans main — preuve SQL/CI manquante.**

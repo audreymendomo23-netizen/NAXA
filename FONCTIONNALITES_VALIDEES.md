@@ -826,3 +826,13 @@ Le dépôt contient désormais :
 - RLS multi-pharmacie ajoutée.
 - Fichiers : `supabase/migration_046_fournisseurs_commandes.sql`, `supabase/tests/046_fournisseurs_commandes.sql`.
 - **État : 🟡 construit dans main — preuve d'exécution SQL/CI manquante.**
+
+
+## ERP-006 — Inventaire / valorisation
+- Audit : aucun moteur d'inventaire/valorisation concurrent trouvé dans main ni dans l'historique ciblé.
+- Construction additive : inventaires + lignes, comptage physique, écarts et valorisation interne.
+- Raccordement à stocks, stocks_lots, stocks_couts, ventes et vente_lignes ; aucun second moteur de stock/vente.
+- F67 : coût d'achat figé sur chaque ligne de vente avant calcul de marge.
+- Fichiers : supabase/migration_047_inventaire_valorisation.sql, supabase/tests/047_inventaire_valorisation.sql.
+- Production non modifiée.
+- **État : 🟡 construit dans main — preuve SQL/CI d'exécution manquante.**
