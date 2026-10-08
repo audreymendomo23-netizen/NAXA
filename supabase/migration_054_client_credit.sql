@@ -44,6 +44,7 @@ create table if not exists public.client_credit_requests (
   requested_by uuid not null references auth.users(id) on delete restrict,
   decided_by uuid references auth.users(id) on delete set null,
   decided_at timestamptz,
+  consumed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -182,8 +183,11 @@ begin
 
   if not found then raise exception 'Crédit client non activé'; end if;
   v_new_solde := v_credit.solde + p_montant;
-  if v_new_solde > v_credit.plafond then
-    raise exception 'Plafond de crédit dépassé';
+  if v_new_solde > v_credit.plafond and not exists (
+    select 1 from public.client_credit_requests q
+    where q.vente_id=v_vente.id and q.statut='approuvee' and q.consumed_at is null
+  ) then
+    raise exception 'Plafond de crédit dépassé : demande Promoteur requise';
   end if;
 
   update public.ventes
@@ -193,6 +197,10 @@ begin
   update public.client_credits
     set solde=v_new_solde, updated_at=now()
   where id=v_credit.id;
+
+  update public.client_credit_requests
+    set consumed_at=now()
+  where vente_id=v_vente.id and statut='approuvee' and consumed_at is null;
 
   insert into public.client_credit_operations(
     credit_id,pharmacie_id,client_id,vente_id,nature,montant,reference,created_by
@@ -263,9 +271,7 @@ begin
   end if;
   select * into c from public.client_credits where id=r.credit_id for update;
   v_new := c.solde + r.montant;
-  if v_new > c.plafond then
-    update public.client_credits set plafond=v_new,updated_at=now() where id=c.id;
-  end if;
+  update public.client_credits set updated_at=now() where id=c.id;
   update public.client_credit_requests set statut='approuvee',decided_by=auth.uid(),decided_at=now() where id=r.id;
 end
 $$;
