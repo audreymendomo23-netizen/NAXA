@@ -79,15 +79,32 @@ Toute nouvelle contradiction documentaire est ajoutée ici avant correction ; au
 - **Statut : 🟢 RÉSOLU — preuve CI réelle obtenue.**
 
 
-## C-010 — Niveau 4 : tests SQL non exécutés par le gate qualité
-- Constat : le dépôt contient une suite SQL structurée (supabase/tests/017 à 061), dont les tests Caisse et Pharmacien, mais le gate CircleCI précédemment vert ne lançait que TypeScript/ESLint/build.
-- Correction engagée : ajout d'un job CircleCI sql_tests sur exécuteur machine, avec Supabase CLI local, replay de schema.sql + migrations, puis exécution de tous les fichiers supabase/tests/*.sql.
-- Preuve actuelle : aucune exécution CircleCI retournée pour le commit d'activation dfc58961fc2f55d501ac7c52ef95b44327258e6a ; le statut GitHub combiné reste vide.
-- Validation locale impossible dans l'environnement courant : aucun runtime Docker n'est disponible.
-- Validation Supabase distante impossible : le connecteur renvoie « link_id must identify an eligible linked account ».
-- Statut : 🔴 À CORRIGER — l'automatisation est construite mais son exécution réelle n'est pas prouvée.
+## C-010 — N4 à N15 : environnement de validation non aligné sur le HEAD de travail
+- **Constat corrigé :** l'accès Supabase distant fonctionne désormais ; l'ancien message « link_id must identify an eligible linked account » est historique et n'est plus le blocage actuel.
+- **Constat actuel :** la base Supabase distante NAXA est accessible, mais elle ne contient pas encore l'ensemble des migrations présentes sur la branche de travail. Elle ne peut donc pas servir de preuve des fonctionnalités nouvelles sans modifier Production.
+- **Cause racine commune :** absence d'un environnement reproductible qui rejoue exactement le schéma, toutes les migrations de la branche et tous les tests sur le même HEAD que le code contrôlé.
+- **Impact :** N4 à N15 ne peuvent pas être déclarés techniquement/fonctionnellement verts par simple présence du code.
+- **Correction engagée :** job CircleCI `sql_tests` + replay Supabase local + exécution de `supabase/tests/*.sql`.
+- **Durcissement engagé :** le harnais traite désormais les assertions `false` comme échec bloquant.
+- **Règle :** aucune migration de la branche ne sera poussée en Production pour fabriquer une preuve.
+- **Statut commun : 🔴 À CORRIGER — preuve reproductible au HEAD manquante.
 
-## C-011 — Niveau 4 : tests structurels vs assertions bloquantes
-- Les fichiers de test contiennent de nombreuses requêtes select ... as pass : une valeur false peut être produite sans nécessairement faire échouer le processus SQL.
-- La robustesse du harnais doit donc vérifier non seulement l'exécution SQL, mais aussi que les assertions attendues sont vraies.
-- Statut : 🔴 À AUDITER/CORRIGER dans le chantier tests.
+## C-011 — N4 à N15 : matrice de validation en bulk
+| Niveau | Périmètre | Preuve commune |
+|---|---|---|
+| N4 | Tests | replay migrations + tests SQL bloquants |
+| N5 | CI / automatisation | job reproductible + résultat |
+| N6 | Base de données | schéma/migrations/RLS/RPC |
+| N7 | Logique métier | règles métier sur le même replay |
+| N8 | Intégrations fonctionnelles | contrats et flux existants |
+| N9 | Architecture / sécurité | RLS, scopes, privilèges, contrôles négatifs |
+| N10 | Auth / sessions | identité, sessions, limites |
+| N11 | UI / UX | artefact build + recette |
+| N12 | Services externes | contrats/configuration sans service payant |
+| N13 | Déploiement | artefact validé avant Production |
+| N14 | Robustesse / performance | régression + charge raisonnable |
+| N15 | Conformité NAXA | cahier v3.7 + preuves cumulées |
+
+**Objectif bulk :** réduire N4–N15 à **un seul problème commun**, puis traiter les anomalies spécifiques seulement si l'exécution en révèle.
+
+**Statut global N4–N15 : 🔴 UN SEUL PROBLÈME COMMUN — preuve d'exécution reproductible au HEAD de la branche.**
