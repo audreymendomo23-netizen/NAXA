@@ -44,7 +44,7 @@ export function ImportAdmin({ pharmacies }: { pharmacies: Pharmacie[] }) {
       </div>
 
       {pharmacies.length === 0 ? (
-        <p className="text-sm text-slate-600">Créez d'abord une pharmacie.</p>
+        <p className="text-sm text-slate-600">Créez d’abord une pharmacie.</p>
       ) : (
         <>
           <label className="block text-sm font-semibold">
