@@ -24,7 +24,8 @@ create table if not exists public.tresorerie_comptes (
   actif boolean not null default true,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
-  unique(pharmacie_id, nom)
+  unique(pharmacie_id, nom),
+  unique(id, pharmacie_id)
 );
 
 create table if not exists public.categories_depenses (
