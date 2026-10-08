@@ -135,3 +135,19 @@ Le niveau 3 a fait l'objet d'une correction statique : ESLint/Next configuré, s
 ## Méthode de validation bulk — 08/10/2026
 
 Les niveaux N4 à N15 sont audités simultanément par cause commune. L'objectif est de réduire tous les écarts de validation à un seul blocage transversal : **obtenir une exécution reproductible, alignée sur le HEAD de la branche, du schéma + migrations + tests**. L'accès Supabase distant est désormais fonctionnel ; sa divergence avec la branche de travail interdit seulement de l'utiliser comme preuve des nouveaux changements sans modifier Production. Aucun merge vers `main` et aucun déploiement Production n'est effectué par ce chantier.
+
+
+## Référence de continuité courante — 08/10/2026
+
+> Cette section supersède les anciennes références de HEAD conservées dans l'historique du README.
+
+- Branche de travail : `rewrite/naxa-from-main-20261007`
+- HEAD courant vérifié : `5b24b96098ed240ddb9ade154e22f66969faa2df`
+- `main` courant vérifié : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`
+- Relation : **behind = 0**, branche ahead de `main`, merge-base = `main` HEAD.
+- PR #30 : ouverte, draft, non fusionnée.
+- Aucun merge vers `main`, aucun déploiement Production dans ce chantier.
+- Les anciens SHA de reprise restent historiques.
+- N4–N15 doivent être validés uniquement par une preuve d'exécution reproductible au HEAD courant.
+
+**Statut de continuité : 🟢 aligné sur le HEAD courant.**
