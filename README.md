@@ -161,3 +161,7 @@ Les niveaux N4 à N15 sont audités simultanément par cause commune. L'objectif
 Le blocage N4 n'est plus traité erreur par erreur. L'audit transversal a identifié une contradiction d'ordre de construction : migration_013 utilisait `can_access_pharmacy(uuid)` alors que sa définition canonique n'arrivait qu'en migration_016. Un bootstrap compatible a été placé en 013, puis 016 conserve le remplacement canonique multi-pharmacie. Une seconde contradiction de nomenclature, `profile_privileges` versus `naxa_profile_privileges`, a été corrigée en migration_033. Le préflight CircleCI et un test de régression dédiés verrouillent désormais ces deux familles d'erreurs.
 
 **N4 reste 🟡 jusqu'à la preuve réelle du replay complet + de tous les tests SQL au HEAD courant. Aucun nouveau run CircleCI n'a été consommé pendant l'audit.**
+
+
+## Mise à jour N4 — 08/10/2026
+Le replay SQL a révélé un défaut syntaxique ciblé dans `migration_034_promoteur_session_audit.sql` : le corps de `naxa_audit_session_delete()` se terminait par un délimiteur dollar invalide `$;`. La correction a restauré `$$;` et le préflight CircleCI détecte désormais explicitement ce type de délimiteur malformé. Cette correction est additive et ne modifie ni `main` ni Production. Le vert reste interdit tant qu'un nouveau replay complet et tous les tests SQL n'ont pas fourni une preuve au HEAD courant.
