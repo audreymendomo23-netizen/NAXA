@@ -11,7 +11,7 @@ export default function CaissePage(){
   const sb=supabaseBrowser();
   const [pid,setPid]=useState<string|null>(null),[session,setSession]=useState<string|null>(null),[vente,setVente]=useState<string|null>(null);
   const [onglet,setOnglet]=useState<"caisse"|"recherche">("caisse"),[scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[bulk,setBulk]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
-  const [percu,setPercu]=useState(""),[mode,setMode]=useState<"especes"|"mobile_money">("especes"),[reference,setReference]=useState(""),[msg,setMsg]=useState(""),[busy,setBusy]=useState(false);
+  const [percu,setPercu]=useState(""),[mode,setMode]=useState<"especes"|"orange_money"|"mtn_momo">("especes"),[reference,setReference]=useState(""),[msg,setMsg]=useState(""),[busy,setBusy]=useState(false);
   const [pharmacie,setPharmacie]=useState("");
 
   useEffect(()=>{(async()=>{
@@ -56,11 +56,11 @@ export default function CaissePage(){
   async function payer(){
     if(!vente||total<=0)return setMsg("Ajoutez au moins un produit.");
     const montant=Number(percu); if(!Number.isFinite(montant)||montant<=0)return setMsg("Indiquez le montant perçu.");
-    if(mode!=="especes"&&montant!==total)return setMsg("OM/MoMo doit être validé pour le montant exact.");
+    if(mode!=="especes"&&montant!==total)return setMsg("Le paiement électronique doit être validé pour le montant exact.");
     if(mode==="especes"&&montant<total)return setMsg("Montant perçu insuffisant.");
     setBusy(true);
     try{
-      const p=await sb.rpc("vente_encaisser",{p_vente:vente,p_mode:mode,p_montant_percu:montant,p_reference:mode==="mobile_money"?reference:null});
+      const p=await sb.rpc("vente_encaisser",{p_vente:vente,p_mode:mode,p_montant_percu:montant,p_reference:mode!=="especes"?reference:null});
       if(p.error)throw p.error;
       const f=await sb.rpc("vente_finaliser",{p_vente:vente}); if(f.error)throw f.error;
       const t=await sb.rpc("vente_ticket",{p_vente:vente}); if(t.error)throw t.error;
@@ -86,11 +86,11 @@ export default function CaissePage(){
       <aside className="carte space-y-3"><h2 className="text-lg font-bold">À payer</h2><p className="text-3xl font-extrabold">{fcfa(total)}</p>
         <label className="block text-sm font-semibold">Montant perçu<input className="champ mt-1 w-full" inputMode="numeric" type="number" value={percu} onChange={e=>setPercu(e.target.value)}/></label>
         <p className="rounded bg-gray-50 p-3 font-bold">Monnaie à rendre : {fcfa(rendu)}</p>
-        <div className="grid grid-cols-2 gap-2"><button className={mode==="especes"?"btn btn-vert":"btn btn-clair"} onClick={()=>setMode("especes")}>💵 Cash</button><button className={mode==="mobile_money"?"btn btn-canari":"btn btn-clair"} onClick={()=>setMode("mobile_money")}>Orange Money / MTN MoMo</button></div>
-        {mode==="mobile_money"&&<label className="block text-sm font-semibold">Référence transaction<input className="champ mt-1 w-full" required value={reference} onChange={e=>setReference(e.target.value)} placeholder="Référence reçue après confirmation opérateur"/></label>}
+        <div className="grid grid-cols-2 gap-2"><button className={mode==="especes"?"btn btn-vert":"btn btn-clair"} onClick={()=>setMode("especes")}>💵 Cash</button><button className={mode==="orange_money"?"btn btn-canari":"btn btn-clair"} onClick={()=>setMode("orange_money")}><span aria-hidden="true">Orange Money</span><span className="sr-only">Logo officiel Orange Money</span></button><button className={mode==="mtn_momo"?"btn btn-canari":"btn btn-clair"} onClick={()=>setMode("mtn_momo")}><span aria-hidden="true">MTN MoMo</span><span className="sr-only">Logo officiel MTN MoMo</span></button></div>
+        {mode!=="especes"&&<label className="block text-sm font-semibold">Référence opérateur<input className="champ mt-1 w-full" required value={reference} onChange={e=>setReference(e.target.value)} placeholder="Référence reçue après confirmation opérateur"/></label>}
         <button disabled={busy} className="btn btn-vert w-full" onClick={payer}>{busy?"Traitement…":"Valider et imprimer le ticket"}</button>
         {msg&&<p role="status" className="text-sm">{msg}</p>}
-        <p className="text-xs text-gray-600">Pour Orange Money/MTN MoMo, cette étape enregistre la référence fournie après confirmation opérateur. Elle ne simule pas un transfert électronique.</p>
+        <p className="text-xs text-gray-600">Orange Money et MTN MoMo sont séparés comme canaux de paiement. La référence opérateur est obligatoire. La transaction électronique réelle doit être confirmée par le canal marchand officiel ; NAXA ne simule jamais un paiement.</p>
       </aside>
     </div>
   </main>;
