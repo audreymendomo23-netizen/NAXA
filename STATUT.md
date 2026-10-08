@@ -35,3 +35,13 @@
 - Test structurel : `supabase/tests/052_rappel_lot.sql`.
 - Aucun changement Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## ERP-012 — Offline ERP avancé — chantier du 08/10/2026
+- Audit historique réconcilié : le offline stock existait déjà dans `main` via IndexedDB, file locale, détection réseau, synchronisation et résolution de conflits.
+- Le manque identifié concernait l'idempotence côté serveur : un replay devait être rejouable sans risque de double mutation.
+- Ajout : `supabase/migration_056_offline_idempotence.sql` + `supabase/tests/053_offline_idempotence.sql`.
+- `src/app/pharmacie/page.tsx` utilise maintenant une clé d'opération UUID et la RPC `offline_stock_set_quantity()` pour les écritures online/offline.
+- Aucun second moteur de stock ni second mécanisme offline créé.
+- Aucun changement Production/Supabase live.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
