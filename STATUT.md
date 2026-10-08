@@ -312,3 +312,7 @@ Audit transversal mené avant tout nouveau replay CircleCI : PostgreSQL/Supabase
 - Commits : `fa2854d6b123be34c9c5853c2f68e62bb4895594` puis `6cfbd89302e509eea50fa03293483abe4a437ac0`.
 - Aucun changement de `main`, aucun déploiement Production.
 - **Statut N4 : 🟡 — correction appliquée ; preuve CircleCI/replay au nouveau HEAD encore requise.**
+
+## RECTIFICATION N4 — 08/10/2026
+La correction effective de `migration_034_promoteur_session_audit.sql` est le commit `0a13542b4e2917086f2f5264c139c645c79bc380` : le délimiteur isolé `$;` de `naxa_audit_session_delete()` a été remplacé par `$$;`. Les commits intermédiaires de tentative sont historiques et ne constituent pas la preuve de correction finale. Le préflight CI contient désormais une garde bloquante contre tout `$;` isolé. **N4 reste 🟡 jusqu'à un nouveau run CircleCI réussi au HEAD courant.**
+
