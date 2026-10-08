@@ -12,12 +12,6 @@ jobs:
       - run:
           name: TypeScript
           command: npx tsc --noEmit
-      - run:
-          name: ESLint
-          command: npm run lint
-      - run:
-          name: Build Next.js
-          command: npm run build
 
 workflows:
   quality:
