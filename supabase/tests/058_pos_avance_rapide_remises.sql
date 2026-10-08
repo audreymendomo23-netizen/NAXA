@@ -15,3 +15,7 @@ select has_function_privilege('authenticated','public.vente_remise_demander(uuid
 select has_function_privilege('authenticated','public.vente_remise_decider(uuid,boolean)','EXECUTE') as authenticated_can_discount_decide;
 select has_function_privilege('anon','public.vente_payer_voucher(uuid,uuid,integer)','EXECUTE') = false as anon_cannot_voucher;
 select has_function_privilege('anon','public.vente_remise_decider(uuid,boolean)','EXECUTE') = false as anon_cannot_discount_decide;
+
+select has_function_privilege('authenticated','public.vente_voucher_creer(uuid,text,integer,timestamptz)','EXECUTE') as authenticated_can_create_voucher;
+select has_function_privilege('authenticated','public.pos_promotion_creer(uuid,text,text,integer,integer,boolean,timestamptz,timestamptz)','EXECUTE') as authenticated_can_create_promotion;
+select has_function_privilege('anon','public.vente_voucher_creer(uuid,text,integer,timestamptz)','EXECUTE') = false as anon_cannot_create_voucher;
