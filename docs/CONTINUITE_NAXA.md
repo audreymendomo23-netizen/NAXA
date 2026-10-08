@@ -4,7 +4,7 @@ Mise à jour : 08/10/2026.
 
 ## Source de vérité technique
 - Branche de travail courante : `rewrite/naxa-from-main-20261007`.
-- HEAD courant de cette branche : `bc938027b164e21c8559980cb3fcfb7a676305b2`.
+- HEAD courant de cette branche : `c26efbaa1132b023a0f5b5f5fcc31ca380c53770`.
 - `main` courant vérifié : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`.
 - PR #30 est ouverte, draft, non fusionnée ; son objectif est la preuve CI et non une intégration Production.
 
