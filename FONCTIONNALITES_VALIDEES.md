@@ -961,3 +961,14 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/057_pos_annulation_z.sql`.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
+
+
+## ERP-003 — POS étapes 7/8/9 — paiements avancés, caisse rapide, remises/promotions — 08/10/2026
+- Étape 7 : extension additive des paiements mixtes existants avec voucher et tiers payant assurance ; le crédit existant est réconcilié avec `vente_paiements` afin que la finalisation reste unique. Les références `VOUCHER:` et `ASSURANCE:` distinguent temporairement ces usages via le mode existant `autre`, sans migration enum non validée.
+- Étape 7 : création/consommation de vouchers contrôlée, validation expiration/solde, rattachement assurance au dossier existant et plafond crédit conservé.
+- Étape 8 : favoris par utilisateur/pharmacie, paniers de ventes POS en attente/reprise et affichage client rattaché à la session caisse ; aucun second moteur de vente.
+- Étape 9 : promotions par pharmacie, remises bornées par pourcentage/plafond, demande d'approbation et interdiction d'auto-approbation ; seule une décision autorisée modifie la remise de la vente.
+- Migration : `supabase/migration_061_pos_avance_rapide_remises.sql`.
+- Test structurel : `supabase/tests/058_pos_avance_rapide_remises.sql`.
+- Aucun changement Supabase live/Production.
+- **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
