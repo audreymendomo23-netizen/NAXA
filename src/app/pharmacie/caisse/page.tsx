@@ -10,7 +10,7 @@ type Ligne=Produit&{q:number};
 export default function CaissePage(){
   const sb=supabaseBrowser();
   const [pid,setPid]=useState<string|null>(null),[session,setSession]=useState<string|null>(null),[vente,setVente]=useState<string|null>(null);
-  const [onglet,setOnglet]=useState<"caisse"|"recherche">("caisse"),[scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
+  const [onglet,setOnglet]=useState<"caisse"|"recherche">("caisse"),[scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[bulk,setBulk]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
   const [percu,setPercu]=useState(""),[mode,setMode]=useState<"especes"|"mobile_money">("especes"),[reference,setReference]=useState(""),[msg,setMsg]=useState(""),[busy,setBusy]=useState(false);
   const [pharmacie,setPharmacie]=useState("");
 
@@ -38,7 +38,7 @@ export default function CaissePage(){
     if(error)return setMsg(error.message);
     setResultats((data??[]) as Produit[]);
   }
-  async function ajouter(p:Produit){
+  async function lookupBulk(){if(!pid)return;const codes=bulk.split(/\\s+/).map(x=>x.trim()).filter(Boolean);if(!codes.length)return setMsg("Saisissez au moins un code-barres.");const {data,error}=await sb.rpc("caisse_rechercher_codes",{p_pharmacie:pid,p_codes:codes});if(error)return setMsg(error.message);setResultats((data??[]) as Produit[]);setMsg((data?.length??0)+" produit(s) trouvé(s).")}\n  async function ajouter(p:Produit){
     if(!vente)return;
     const r=await sb.rpc("vente_ajouter_produit",{p_vente:vente,p_produit:p.produit_id,p_quantite:1});
     if(r.error)return setMsg(r.error.message);
@@ -77,7 +77,7 @@ export default function CaissePage(){
         <h1 className="text-xl font-extrabold">{onglet==="caisse"?"Encaissement":"Recherche prix"}</h1>
         <p className="text-sm mb-3">Scannez les codes-barres un par un. Le même champ accepte une succession de scans rapides.</p>
         <input autoFocus className="champ w-full" placeholder="Scanner le code-barres puis Entrée" value={scan} onChange={e=>setScan(e.target.value)} onKeyDown={scanner}/>
-        <div className="mt-3 flex gap-2"><input className="champ flex-1" placeholder="Recherche prix : nom, référence ou code" value={recherche} onChange={e=>setRecherche(e.target.value)} onKeyDown={e=>e.key==="Enter"&&lookup()}/><button className="btn btn-clair" onClick={()=>lookup()}>Rechercher</button></div>
+        <div className="mt-3 flex gap-2"><input className="champ flex-1" placeholder="Recherche prix : nom, référence ou code" value={recherche} onChange={e=>setRecherche(e.target.value)} onKeyDown={e=>e.key==="Enter"&&lookup()}/><button className="btn btn-clair" onClick={()=>lookup()}>Rechercher</button></div>\n        {onglet==="recherche"&&<div className="mt-3"><textarea className="champ min-h-24 w-full" placeholder="Recherche bulk : un code-barres par ligne ou séparé par espaces" value={bulk} onChange={e=>setBulk(e.target.value)}/><button className="btn btn-clair mt-2" onClick={lookupBulk}>Rechercher les codes</button></div>}
         {resultats.length>0&&<div className="mt-3 rounded border">{resultats.map(p=>onglet==="caisse"?<button key={p.produit_id} className="block w-full border-b p-3 text-left hover:bg-gray-50" onClick={()=>ajouter(p)}><b>{p.nom}</b> {p.dosage&&<span>{p.dosage}</span>} · {fcfa(p.prix)} · Stock {p.quantite} · {p.emplacement||"Emplacement non renseigné"}</button>:<div key={p.produit_id} className="border-b p-3"><b>{p.nom}</b> {p.dosage&&<span>{p.dosage}</span>} · <strong>{fcfa(p.prix)}</strong> · {p.emplacement||"Emplacement non renseigné"}</div>)}</div>}
         <div className="mt-5 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Produit</th><th className="p-2">Qté</th><th className="p-2 text-right">Prix</th><th className="p-2 text-right">Total</th></tr></thead><tbody>{lignes.map(l=><tr key={l.produit_id} className="border-t"><td className="p-2">{l.nom}</td><td className="p-2 text-center">{l.q}</td><td className="p-2 text-right">{fcfa(l.prix)}</td><td className="p-2 text-right">{fcfa(l.prix*l.q)}</td></tr>)}</tbody></table></div>
       </section>
