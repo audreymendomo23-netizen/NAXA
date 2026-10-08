@@ -98,3 +98,17 @@ La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses
 6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
+
+
+## Mise à jour de continuité — 08/10/2026 — Niveau 1 Documentation
+La section historique ci-dessus reste conservée. Pour l'état courant, la référence est :
+- branche de travail : `rewrite/naxa-from-main-20261007` ;
+- HEAD de travail au contrôle : `b2fc8b793cbac1d11a089c88d736386faf0af658` avant les corrections documentaires de niveau 1 ;
+- `main` au contrôle : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471` ;
+- PR #30 : ouverte, draft, non fusionnée ;
+- Qualité/CI : non verte ; aucune preuve d'exécution ne doit être inventée ;
+- Production : aucun changement effectué dans ce chantier.
+
+**Priorité actuelle :** corriger et prouver la qualité avant tout passage ERP supplémentaire. Les paragraphes historiques annonçant une consolidation « terminée » ne valent pas fermeture du chantier Qualité courant.
+
+**Niveau 1 — Documentation / traçabilité : 🟢 corrigé.** Références complémentaires : `docs/CONTINUITE_NAXA.md`, `docs/FUSION.md`, `CONTRADICTIONS.md`, `docs/CAHIER_DES_CHARGES.md`.
