@@ -872,3 +872,17 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/050_tresorerie_depenses.sql`.
 - Aucun changement Production/Supabase live exécuté.
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
+
+
+## ERP-010 — Fiche client / crédit (F68)
+- Audit : aucune table de fiche client commerciale ni moteur de crédit client concurrent n'a été trouvé dans `main`. L'identité reste portée par `profiles`/auth et n'est pas dupliquée.
+- Construction additive : `client_fiches`, `client_credits`, `client_credit_operations`, demandes de dépassement de plafond.
+- Le mode de paiement caisse `credit` est raccordé au moteur de vente existant sans créer de second moteur de vente.
+- Le crédit reste strictement commercial : aucune donnée d'ordonnance ou de santé n'est stockée dans ces tables.
+- Sécurité : RLS, aucune écriture directe ; configuration du plafond et décision d'un dépassement réservées au Promoteur/NAXA ; le caissier peut enregistrer une vente à crédit dans le plafond ou demander une dérogation.
+- Dépassement : demande `en_attente`, décision Promoteur/NAXA, puis consommation unique lors de la vente.
+- Remboursement du crédit journalisé et plafonné au solde.
+- Migration : `supabase/migration_054_client_credit.sql`.
+- Test structurel : `supabase/tests/051_client_credit.sql`.
+- Aucun changement Production/Supabase live exécuté.
+- **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
