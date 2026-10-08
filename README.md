@@ -130,3 +130,8 @@ Le niveau 3 a fait l'objet d'une correction statique : ESLint/Next configuré, s
 - Niveau 3 : **🟢 VERT** pour la qualité technique exécutée.
 - `package-lock.json` reste absent ; la reproductibilité npm transitive est enregistrée comme amélioration séparée et n'est pas présentée comme validée.
 - `main` reste inchangé et aucune Production n'a été modifiée.
+
+
+## Méthode de validation bulk — 08/10/2026
+
+Les niveaux N4 à N15 sont audités simultanément par cause commune. L'objectif est de réduire tous les écarts de validation à un seul blocage transversal : **obtenir une exécution reproductible, alignée sur le HEAD de la branche, du schéma + migrations + tests**. L'accès Supabase distant est désormais fonctionnel ; sa divergence avec la branche de travail interdit seulement de l'utiliser comme preuve des nouveaux changements sans modifier Production. Aucun merge vers `main` et aucun déploiement Production n'est effectué par ce chantier.
