@@ -4,6 +4,10 @@ jobs:
   quality:
     docker:
       - image: cimg/node:20.14
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
     steps:
       - checkout
       - run:
@@ -18,10 +22,6 @@ jobs:
       - run:
           name: Build Next.js
           command: npm run build
-        environment:
-          NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
-          SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
 
 workflows:
   quality:
