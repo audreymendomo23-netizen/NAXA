@@ -191,3 +191,16 @@ Les niveaux 4 à 15 sont désormais traités simultanément par cause commune, e
 - N15 Conformité → croisement cahier v3.7 et preuves cumulées
 
 **Statut bulk N4–N15 : 🔴 un seul problème commun résiduel — preuve d'exécution reproductible au HEAD manquante.**
+
+
+## CORRECTION DE CONTINUITÉ — 08/10/2026
+
+Le bloc historique indiquant que la preuve Supabase était indisponible par erreur de liaison et que le Niveau 3 était encore rouge est désormais **historique**.
+
+- Accès Supabase NAXA : rétabli et vérifié.
+- HEAD réel de la branche : `788a82b300db1a1862d39780dd901dc7c44573d9`.
+- `main` : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`.
+- Niveau 3 : 🟢 preuve CircleCI réelle déjà obtenue sur `f1fcd801f37989bdd17e667a0e88c17dd3e5f4e6`.
+- Niveau 4–15 : le seul résiduel est la preuve d'exécution reproductible au HEAD courant.
+
+Aucune modification de `main` ni de Production n'est autorisée par cette correction.
