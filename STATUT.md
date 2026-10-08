@@ -17,3 +17,10 @@
 - Validation d'une dépense génère un décaissement unique dans le journal.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## ERP-010 — Fiche client / crédit (F68)
+- Audit sans doublon : aucune fiche client commerciale/crédit existante dans `main`.
+- Construction : fiche commerciale, plafond et solde de crédit, journal des opérations, demandes de dépassement et décision Promoteur/NAXA.
+- Le crédit est raccordé au mode de paiement POS `credit`, sans second moteur de vente.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
