@@ -1252,3 +1252,21 @@ Les niveaux 4 à 15 sont désormais traités simultanément par cause commune, e
 - Preuve finale : CircleCI run 192, statut `success` (« Your tests passed on CircleCI! »), commit `7c5155ce5fd3417e882be2523dfd0ce29f2ed0d6`.
 - Aucun merge main, aucun déploiement Production.
 - État : 🟢 VALIDÉ — CI/replay corrigé et prouvé.
+
+
+## RECTIFICATION DE CONTINUITÉ — 08/10/2026
+
+### Référence Git courante
+- Branche de validation : `rewrite/naxa-from-main-20261007`
+- HEAD courant : `5b24b96098ed240ddb9ade154e22f66969faa2df`
+- `main` courant : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`
+- Branche : **behind = 0**, ahead de `main`, merge-base = `main` HEAD.
+- PR #30 : ouverte / draft / non fusionnée.
+- Aucun merge `main`, aucun déploiement Production.
+
+### Règle de preuve
+Les preuves CircleCI antérieures, notamment run 192 sur `7c5155ce...`, restent historiques. Elles ne sont pas attribuées au HEAD `5b24b960...`.
+
+Les fonctionnalités actuellement 🟡 pour cause de preuve SQL/CI restent 🟡 jusqu'à l'exécution reproductible du replay Supabase + tests au HEAD courant.
+
+**Référence courante du registre : HEAD `5b24b960...`.**
