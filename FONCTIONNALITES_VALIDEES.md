@@ -898,3 +898,16 @@ Le dépôt contient désormais :
 - Limite volontaire : le POS actuel ne porte pas encore de `lot_id` dans `vente_lignes`; l'interdiction de vendre un lot rappelé sera raccordée au chantier de vente/FEFO lotisé, sans inventer un second mécanisme de vente.
 - Aucun changement Production/Supabase live exécuté.
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
+
+
+## ERP-012 — Offline ERP avancé — chantier du 08/10/2026
+- Audit corrigé : le mécanisme offline stock n'était pas absent. Il existe déjà dans `main`, issu du chantier historique `feat/pharmacie-pilotes-offline-20261005` (commit fonctionnel `8b682b403b075c82c82b5f50291ebbd736e7e46b`, puis correction garde `04e1903cc28f78ddf3f948ce53bb42a35ee8e14b`).
+- Réconciliation : aucun remplacement du mécanisme IndexedDB existant ; il reste le socle offline canonique du stock.
+- Contradiction résolue : le point manquant était l'idempotence serveur et la garantie qu'un replay ne crée pas de double mutation.
+- Construction additive : `supabase/migration_056_offline_idempotence.sql` ajoute `offline_operations`, une clé d'opération unique et la RPC `offline_stock_set_quantity()`.
+- La synchronisation du stock passe désormais par cette RPC ; les replays déjà appliqués sont reconnus, les changements serveur sont signalés comme conflits et les mutations restent soumises au scope/RLS Supabase.
+- Sécurité : RLS sur `offline_operations`, opération liée à `auth.uid()`, RPC `SECURITY INVOKER`, exécution retirée à `anon/public` et accordée à `authenticated` uniquement.
+- Client : `src/app/pharmacie/page.tsx` utilise un `operation_id` UUID pour chaque mutation et rejoue la même opération sans double écriture.
+- Test structurel : `supabase/tests/053_offline_idempotence.sql`.
+- Aucun changement Supabase live/Production exécuté.
+- **État : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
