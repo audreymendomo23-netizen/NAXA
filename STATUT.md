@@ -302,3 +302,13 @@ Audit transversal mené avant tout nouveau replay CircleCI : PostgreSQL/Supabase
 **Statut N4 : 🟡 CORRECTION STRUCTURELLE APPLIQUÉE — preuve de replay complet encore requise.**
 
 **Règle :** le vert N4 ne sera déclaré qu'après replay complet du schéma + toutes les migrations + tous les tests SQL au HEAD exact de la branche, avec logs exploitables.
+
+
+## N4 — Correction ciblée migration_034 — 08/10/2026
+- Audit au HEAD de travail : la migration `supabase/migration_034_promoteur_session_audit.sql` contenait un délimiteur PL/pgSQL invalide dans `naxa_audit_session_delete()` : `end; $;` au lieu de `end; $$;`.
+- Cette erreur pouvait faire échouer le replay avant même toute validation métier.
+- Correction appliquée : restauration du délimiteur `$$`.
+- Garde CI renforcée : détection explicite de tout `$;` isolé dans le schéma et les migrations.
+- Commits : `fa2854d6b123be34c9c5853c2f68e62bb4895594` puis `6cfbd89302e509eea50fa03293483abe4a437ac0`.
+- Aucun changement de `main`, aucun déploiement Production.
+- **Statut N4 : 🟡 — correction appliquée ; preuve CircleCI/replay au nouveau HEAD encore requise.**
