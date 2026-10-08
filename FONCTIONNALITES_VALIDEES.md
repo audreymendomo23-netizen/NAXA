@@ -1270,3 +1270,15 @@ Les preuves CircleCI antérieures, notamment run 192 sur `7c5155ce...`, restent 
 Les fonctionnalités actuellement 🟡 pour cause de preuve SQL/CI restent 🟡 jusqu'à l'exécution reproductible du replay Supabase + tests au HEAD courant.
 
 **Référence courante du registre : HEAD `5b24b960...`.**
+
+
+## NAXA-CI-001 — Correction replay migration_034 — 08/10/2026
+- **ID :** NAXA-CI-001
+- **Domaine :** Qualité / SQL / CI
+- **Description :** Correction du délimiteur PL/pgSQL invalide de `naxa_audit_session_delete()` dans `migration_034_promoteur_session_audit.sql`.
+- **Correction :** `end; $;` → `end; $$;`.
+- **Garde :** préflight CircleCI bloquant sur tout `$;` isolé dans le schéma ou les migrations.
+- **Commits :** `fa2854d6b123be34c9c5853c2f68e62bb4895594`, `6cfbd89302e509eea50fa03293483abe4a437ac0`.
+- **Validation :** correction statique vérifiée ; nouveau replay CI requis.
+- **Main / Production :** aucun changement.
+- **Statut :** 🟡 **CORRIGÉ — PREUVE D'EXÉCUTION MANQUANTE**.
