@@ -24,3 +24,14 @@
 - Construction : fiche commerciale, plafond et solde de crédit, journal des opérations, demandes de dépassement et décision Promoteur/NAXA.
 - Le crédit est raccordé au mode de paiement POS `credit`, sans second moteur de vente.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+## ERP-011 — Rappel de lot (F64)
+- Audit sans doublon : aucune implémentation concurrente de rappel de lot trouvée dans `main`.
+- Construction : table `rappels_lots`, traçabilité du motif/référence/statut et RPC de rappel/levée.
+- Le rappel actif bloque le lot canonique `stocks_lots`.
+- RLS et exécution RPC limitées au périmètre pharmacie.
+- Le POS n'étant pas encore lotisé, le blocage de vente au niveau d'un lot précis reste une dépendance du futur raccordement vente/FEFO.
+- Migration : `supabase/migration_055_rappel_lot.sql`.
+- Test structurel : `supabase/tests/052_rappel_lot.sql`.
+- Aucun changement Production.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
