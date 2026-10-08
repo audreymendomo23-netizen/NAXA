@@ -985,6 +985,36 @@ Le dépôt contient désormais :
 - **État final ERP-010/011/012 : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
 
 
+## Classement par problème bloquant le vert — ajouts Pharmacien / Caisse — 08/10/2026
+
+Les fonctionnalités sont maintenant classées selon le problème qui empêche leur passage au vert, afin de traiter d'abord les causes communes.
+
+### PROBLÈME A — Preuve d'exécution CI/SQL absente
+
+Concerne : **NAXA-CAISSE-001, NAXA-CAISSE-002, NAXA-PHARMACIEN-001**.
+
+Les migrations, UI et tests sont présents, mais l'exécution CI exploitable n'est pas encore prouvée. Le traitement prioritaire est donc le gate Qualité : exécution réelle, replay Supabase, succès des assertions et conservation des logs.
+
+**Statut commun : 🟡 CONSTRUIT — preuve CI/SQL manquante.**
+
+### PROBLÈME B — Couverture de test dédiée à consolider
+
+Concerne : **NAXA-PRODUIT-001 — Emplacement physique par pharmacie**.
+
+La présence de `stocks.emplacement` et son usage Caisse sont établis, mais la couverture de test dédiée doit être isolée/confirmée puis exécutée dans le gate Qualité.
+
+**Statut : 🟡 CONSTRUIT — preuve dédiée à consolider.**
+
+### PROBLÈME C — Intégration `main` non démontrée
+
+Ce n'est pas le blocage technique actuel : c'est une condition de validation finale. Les quatre éléments restent sur `rewrite/naxa-from-main-20261007`. Aucun SHA `main` ne doit être inventé et aucune intégration ne doit être faite avant le vert technique et l'autorisation prévue.
+
+**Statut : ⚪ À FAIRE après le vert technique.**
+
+### ORDRE DE RÉSOLUTION
+
+**A → B → C** : mettre d'abord le workflow Qualité au vert, consolider ensuite le test Emplacement, puis seulement traiter l'intégration `main`.
+
 ## NAXA-CAISSE-001 — Parcours Caisse scan / recherche / encaissement — 08/10/2026
 
 - **ID :** NAXA-CAISSE-001
@@ -1010,6 +1040,12 @@ Le dépôt contient désormais :
 - **Prochaine action :** exécuter et prouver le gate qualité ; corriger toute erreur avant validation.
 - **Dernière vérification :** 08/10/2026.
 - **Contradictions connues :** aucune nouvelle seconde caisse/vente ; les moyens de paiement opérateurs doivent rester distingués par leur type.
+
+
+
+
+
+
 
 ## NAXA-CAISSE-002 — Paiements opérateurs Orange Money / MTN MoMo — 08/10/2026
 
