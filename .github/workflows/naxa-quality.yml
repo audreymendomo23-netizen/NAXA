@@ -2,7 +2,7 @@ name: NAXA quality
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, rewrite/naxa-from-main-20261007]
   pull_request:
     branches: [main, consolidation]
 jobs:
@@ -15,6 +15,7 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npx tsc --noEmit
+      - run: npm run lint
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
