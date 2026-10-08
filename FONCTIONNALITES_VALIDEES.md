@@ -1282,3 +1282,7 @@ Les fonctionnalités actuellement 🟡 pour cause de preuve SQL/CI restent 🟡 
 - **Validation :** correction statique vérifiée ; nouveau replay CI requis.
 - **Main / Production :** aucun changement.
 - **Statut :** 🟡 **CORRIGÉ — PREUVE D'EXÉCUTION MANQUANTE**.
+
+## RECTIFICATION NAXA-CI-001 — 08/10/2026
+La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c645c79bc380`. Les commits intermédiaires de correction de documentation/harnais restent historiques. **Statut : 🟡 corrigé statiquement, preuve CI/replay encore requise.**
+
