@@ -144,3 +144,13 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Export CSV existant conservé.
 - Aucun déploiement Production.
 - **État : 🟢 F041 validé dans `main`.**
+
+
+## Cinquième chantier — ERP-001 catalogue pharmacie avancé
+- Audit effectué : DCI/molécule, dosage, forme et fiches produit existaient déjà.
+- Extension additive de `produits` : ATC, conditionnement et référence catalogue.
+- Relation d'équivalence ajoutée uniquement pour couvrir un besoin absent, sans catalogue concurrent.
+- RLS ajoutée sur les équivalences.
+- Test structurel ajouté.
+- Aucun changement Production exécuté.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**

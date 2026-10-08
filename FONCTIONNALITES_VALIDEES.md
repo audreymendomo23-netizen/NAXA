@@ -585,9 +585,13 @@ Si cette voie échoue, nous corrigerons **la voie de vérification**, pas les fo
 # 13. ERP PHARMACIE — À CONSTRUIRE APRÈS RÉCONCILIATION
 
 ## NAXA-ERP-001 — Catalogue pharmacie avancé
-Molécules/ATC, conditionnements, références avancées, équivalences.
-
-**Statut : ⚪ À FAIRE / AUDIT DE L'EXISTANT OBLIGATOIRE**
+- Audit : `produits.dci` porte déjà la molécule/DCI ; `dosage` et `forme` existent déjà.
+- Extension additive : `atc_code`, `conditionnement`, `reference_catalogue` sur `produits`.
+- Équivalences : `produit_equivalences` référence les produits existants ; aucun second catalogue.
+- RLS : lecture des équivalences actives ; écriture Admin.
+- Migration : `supabase/migration_042_catalogue_avance.sql`.
+- Test structurel : `supabase/tests/042_catalogue_avance.sql`.
+- **Statut : 🟡 CONSTRUIT — PREUVE D'EXÉCUTION MANQUANTE**.
 
 ## NAXA-ERP-002 — Lots / péremptions / alertes
 Lots, expiration, alertes et blocages.
