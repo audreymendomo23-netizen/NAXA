@@ -19,3 +19,10 @@ select has_function_privilege('anon','public.vente_remise_decider(uuid,boolean)'
 select has_function_privilege('authenticated','public.vente_voucher_creer(uuid,text,integer,timestamptz)','EXECUTE') as authenticated_can_create_voucher;
 select has_function_privilege('authenticated','public.pos_promotion_creer(uuid,text,text,integer,integer,boolean,timestamptz,timestamptz)','EXECUTE') as authenticated_can_create_promotion;
 select has_function_privilege('anon','public.vente_voucher_creer(uuid,text,integer,timestamptz)','EXECUTE') = false as anon_cannot_create_voucher;
+
+select exists(
+  select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='vente_finaliser'
+    and pg_get_functiondef(p.oid) like '%VOUCHER:%'
+) as finalisation_consomme_voucher;
+select has_function_privilege('anon','public.vente_finaliser(uuid)','EXECUTE') = false as anon_cannot_finalize;
