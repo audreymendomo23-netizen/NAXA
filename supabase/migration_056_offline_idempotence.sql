@@ -52,8 +52,8 @@ create policy offline_operations_update_own
   using ((select auth.uid()) = created_by)
   with check ((select auth.uid()) = created_by);
 
-revoke all on table public.offline_operations from anon;
-grant select, insert, update on table public.offline_operations to authenticated;
+revoke all on table public.offline_operations from anon, authenticated;
+grant select, insert on table public.offline_operations to authenticated;
 
 create or replace function public.offline_stock_set_quantity(
   p_operation_id uuid,
@@ -64,7 +64,7 @@ create or replace function public.offline_stock_set_quantity(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -80,6 +80,9 @@ begin
   end if;
   if p_quantite is null or p_quantite < 0 then
     raise exception 'Quantité invalide';
+  end if;
+  if not (public.is_admin() or public.can_access_pharmacy(p_pharmacie_id)) then
+    raise exception 'Pharmacie hors périmètre';
   end if;
 
   select *
