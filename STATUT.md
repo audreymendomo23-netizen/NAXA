@@ -13,6 +13,7 @@
 - Audit sans doublon : aucun socle trésorerie/dépenses trouvé dans `main`.
 - Construction : comptes de trésorerie XAF, catégories, dépenses en brouillon/validées/annulées et journal des mouvements.
 - Sécurité : RLS + RPC ; aucune écriture directe authentifiée sur les dépenses/mouvements.
+- Correction post-audit : clé composite `(id, pharmacie_id)` ajoutée pour sécuriser les références de compte par pharmacie.
 - Validation d'une dépense génère un décaissement unique dans le journal.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
