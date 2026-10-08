@@ -77,3 +77,17 @@ Toute nouvelle contradiction documentaire est ajoutée ici avant correction ; au
 - Preuve d'exécution réelle : commit `f1fcd801f37989bdd17e667a0e88c17dd3e5f4e6`, contexte `ci/circleci: quality`, état **success**, pipeline CircleCI #167.
 - Le gate exécute : installation npm, TypeScript, ESLint et build Next.js.
 - **Statut : 🟢 RÉSOLU — preuve CI réelle obtenue.**
+
+
+## C-010 — Niveau 4 : tests SQL non exécutés par le gate qualité
+- Constat : le dépôt contient une suite SQL structurée (supabase/tests/017 à 061), dont les tests Caisse et Pharmacien, mais le gate CircleCI précédemment vert ne lançait que TypeScript/ESLint/build.
+- Correction engagée : ajout d'un job CircleCI sql_tests sur exécuteur machine, avec Supabase CLI local, replay de schema.sql + migrations, puis exécution de tous les fichiers supabase/tests/*.sql.
+- Preuve actuelle : aucune exécution CircleCI retournée pour le commit d'activation dfc58961fc2f55d501ac7c52ef95b44327258e6a ; le statut GitHub combiné reste vide.
+- Validation locale impossible dans l'environnement courant : aucun runtime Docker n'est disponible.
+- Validation Supabase distante impossible : le connecteur renvoie « link_id must identify an eligible linked account ».
+- Statut : 🔴 À CORRIGER — l'automatisation est construite mais son exécution réelle n'est pas prouvée.
+
+## C-011 — Niveau 4 : tests structurels vs assertions bloquantes
+- Les fichiers de test contiennent de nombreuses requêtes select ... as pass : une valeur false peut être produite sans nécessairement faire échouer le processus SQL.
+- La robustesse du harnais doit donc vérifier non seulement l'exécution SQL, mais aussi que les assertions attendues sont vraies.
+- Statut : 🔴 À AUDITER/CORRIGER dans le chantier tests.
