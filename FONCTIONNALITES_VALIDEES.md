@@ -816,3 +816,13 @@ Le dépôt contient désormais :
 - Correction : suppression de cette capacité ; le statut, le validateur et le motif passent désormais exclusivement par `prescription_valider()`.
 - Commit de correction : `c43bd5e842af54912431975c4cb5b2a53e7f51d9`.
 - **État inchangé : 🟡 construit — preuve d'exécution manquante.**
+
+
+### ERP-005 — Fournisseurs / commandes / réception
+- Audit : aucun socle fournisseur/achat/réception trouvé dans `main`.
+- Construction additive : `fournisseurs`, `commandes_fournisseurs`, lignes de commande, `receptions_fournisseurs` et lignes de réception.
+- Les fournisseurs sont mutualisables ; les commandes et réceptions restent strictement scoped par pharmacie.
+- Réceptions conçues par lignes pour permettre les réceptions partielles ; aucune réception ne force artificiellement le statut `recue`.
+- RLS multi-pharmacie ajoutée.
+- Fichiers : `supabase/migration_046_fournisseurs_commandes.sql`, `supabase/tests/046_fournisseurs_commandes.sql`.
+- **État : 🟡 construit dans main — preuve d'exécution SQL/CI manquante.**
