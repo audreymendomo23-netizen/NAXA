@@ -1249,5 +1249,6 @@ Les niveaux 4 à 15 sont désormais traités simultanément par cause commune, e
 - Cause racine corrigée : le harnais CircleCI fabriquait des noms de migrations incompatibles avec Supabase (timestamp-migration.sql au lieu de timestamp_migration.sql) et le schéma de base contenait des délimiteurs PL/pgSQL invalides (as $declare / end$;).
 - Correction : génération en timestamp 14 chiffres + underscore ; nettoyage des exclusions Supabase obsolètes ; délimiteurs PL/pgSQL restaurés dans le schéma existant.
 - Commits de correction : cf18a3d794b684dcf06401ebb88201a878942a65, 1f736303bcf13936e420ec84b25fc6f456728eaa.
+- Preuve finale : CircleCI run 192, statut `success` (« Your tests passed on CircleCI! »), commit `7c5155ce5fd3417e882be2523dfd0ce29f2ed0d6`.
 - Aucun merge main, aucun déploiement Production.
-- État : 🟡 CORRIGÉ — preuve CircleCI finale en attente.
+- État : 🟢 VALIDÉ — CI/replay corrigé et prouvé.
