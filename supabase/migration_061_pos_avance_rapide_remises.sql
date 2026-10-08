@@ -79,7 +79,7 @@ begin
   if not found or d.statut not in ('accepte','clos') then raise exception 'Dossier assurance non accepté'; end if;
   if d.vente_id is not null and d.vente_id<>p_vente then raise exception 'Dossier rattaché à une autre vente'; end if;
   if d.montant_prise_en_charge is null or p_montant>d.montant_prise_en_charge then raise exception 'Montant assurance supérieur à la prise en charge'; end if;
-  perform public.vente_ajouter_paiement(p_vente,'assurance',p_montant,coalesce(d.reference_externe,'ASS-'||perform public.vente_ajouter_paiement(p_vente,'autre',p_montant,'ASSURANCE:'||coalesce(d.reference_externe,'ASS-'||d.id::text));
+  perform public.vente_ajouter_paiement(p_vente,'autre',p_montant,'ASSURANCE:'||coalesce(d.reference_externe,'ASS-'||d.id::text));
   update public.dossiers_assurance set vente_id=p_vente where id=d.id;
 end;
 $assurance$;
