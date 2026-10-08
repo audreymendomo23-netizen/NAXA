@@ -14,3 +14,9 @@ select exists (
 select relrowsecurity
 from pg_class
 where oid='public.rappels_lots'::regclass;
+
+select exists(
+  select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='lot_rappeler'
+    and coalesce(array_to_string(p.proconfig,','),'') like '%search_path=%'
+) as rappel_rpc_configuree;
