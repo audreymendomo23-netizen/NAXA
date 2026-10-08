@@ -107,9 +107,6 @@ $$;
 
 revoke all on function public.naxa_record_session_audit(text,uuid,uuid,uuid,inet,text,text)
   from public, anon, authenticated;
-revoke all on function public.naxa_audit_session_insert() from public, anon, authenticated;
-revoke all on function public.naxa_audit_session_delete() from public, anon, authenticated;
-
 create or replace function public.naxa_record_session_limit_rejected(
   p_session_id uuid,p_user_id uuid,p_pharmacie_id uuid default null,
   p_ip_address inet default null,p_user_agent text default null,p_provider text default null
@@ -181,7 +178,10 @@ begin
 
   return old;
 end;
-$$;
+$;
+
+revoke all on function public.naxa_audit_session_insert() from public, anon, authenticated;
+revoke all on function public.naxa_audit_session_delete() from public, anon, authenticated;
 
 drop trigger if exists trg_naxa_session_audit_insert on auth.sessions;
 create trigger trg_naxa_session_audit_insert
