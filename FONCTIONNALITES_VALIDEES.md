@@ -1182,3 +1182,22 @@ Ces fiches suivent désormais exactement la fiche obligatoire du registre : **ID
 - **Statut : 🟢.**
 
 **STATUT GLOBAL NIVEAU 2 : 🟢 VALIDÉ — GIT / STRUCTURE / HISTORIQUE.**
+
+
+# 11. NIVEAU 3 — QUALITÉ TECHNIQUE ÉLÉMENTAIRE — 08/10/2026
+
+## Périmètre
+Lint / TypeScript / compilation-build / dépendances et configuration.
+
+## Corrections
+- Ajout de `.eslintrc.json` avec `next/core-web-vitals`.
+- Ajout des dépendances ESLint compatibles Next 14.2.15.
+- Versions des dépendances de `package.json` figées.
+- Workflow qualité étendu à `npm run lint` et au déclenchement sur la branche de chantier.
+
+## Preuves disponibles
+- Fichiers corrigés présents sur `rewrite/naxa-from-main-20261007`.
+- Aucune exécution GitHub Actions associée aux commits du chantier n'est actuellement retournée par le connecteur ; aucune preuve TypeScript/lint/build ne peut donc être considérée comme passée.
+- `package-lock.json` absent du dépôt ; une génération locale a été bloquée par l'absence d'accès réseau/cache npm.
+
+**Statut Niveau 3 : 🔴 À CORRIGER / À PROUVER — ne pas confondre correction statique et validation exécutée.**
