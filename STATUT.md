@@ -67,3 +67,12 @@
 - La RPC ticket est `SECURITY INVOKER` et s'appuie sur le scope existant des ventes/lignes.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 construit — preuve SQL/CI manquante.**
+
+
+## ERP-003 — POS étapes 4/5/6 — 08/10/2026
+- Étape 4 : annulation contrôlée avec restitution stock/lot.
+- Étape 5 : demande + décision séparées, décision Promoteur/NAXA et interdiction d'auto-approbation.
+- Étape 6 : clôture Z avec fond initial, espèces, paiements mixtes, comptage et écart ; sessions historiques réouvrables grâce à l'index partiel des sessions ouvertes.
+- Migrations/tests : `supabase/migration_060_pos_annulation_z.sql`, `supabase/tests/057_pos_annulation_z.sql`.
+- Aucun changement Supabase live/Production.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
