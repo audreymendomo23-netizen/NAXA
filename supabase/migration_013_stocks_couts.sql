@@ -5,6 +5,19 @@
 -- Elle restera interdite tant qu'un coût au moment de la vente n'est pas figé
 -- au grain de la transaction.
 
+-- Compatibilité de replay : 013 précède le modèle multi-pharmacie de 016.
+-- Le prédicat est volontairement minimal à ce stade et sera remplacé par
+-- l'implémentation canonique multi-pharmacie de migration_016.
+create or replace function public.can_access_pharmacy(p_pharmacie uuid)
+returns boolean
+language sql stable security definer set search_path=public
+as $naxa$
+  select p_pharmacie is not null
+     and p_pharmacie = public.my_pharmacie()
+$naxa$;
+revoke all on function public.can_access_pharmacy(uuid) from public, anon;
+grant execute on function public.can_access_pharmacy(uuid) to authenticated;
+
 create table if not exists public.stocks_couts (
   pharmacie_id uuid not null references public.pharmacies(id) on delete cascade,
   produit_id uuid not null references public.produits(id) on delete cascade,
