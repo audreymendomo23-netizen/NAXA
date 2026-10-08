@@ -75,7 +75,14 @@ jobs:
             set -e
             for f in supabase/tests/*.sql; do
               echo "=== TEST $f ==="
-              npx supabase@latest db query --file "$f"
+              out="$(mktemp)"
+              npx supabase@latest db query --file "$f" 2>&1 | tee "$out"
+              if grep -Eq '(^|[[:space:]])f([[:space:]]|$)' "$out"; then
+                echo "ÉCHEC: au moins une assertion booléenne est fausse dans $f"
+                rm -f "$out"
+                exit 1
+              fi
+              rm -f "$out"
             done
       - run:
           name: Arrêter Supabase local
