@@ -193,3 +193,12 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Correction appliquée dans `migration_045_prescription_vente.sql` : aucune policy UPDATE directe ; seule la RPC `prescription_valider()` peut valider/rejeter.
 - Live Supabase vérifié en lecture seule : `ventes` et `prescriptions` sont encore absentes ; `naxa_privileges` existe mais sa structure live ne correspond pas au dépôt (`governance_only` absent) et `can_access_pharmacy(uuid)` est absent. Le replay complet ne peut donc pas être déclaré vert sur cet environnement sans réconciliation préalable du socle.
 - **État : 🟡 construit dans main — preuve d'exécution manquante / environnement Supabase désaligné.**
+
+
+### ERP-005 — Fournisseurs / commandes / réception
+- Audit terminé : aucun modèle existant concurrent trouvé.
+- Socle construit dans `main` : fournisseurs, commandes, lignes, réceptions et réceptions partielles.
+- Correction de conception appliquée avant validation : fournisseur mutualisable et réception non déclarée complète sans lignes.
+- Commits : `05da2aa1f1fcd3aa90ebcdcae8b80f58ff7401e4` puis `db8a5b88933cfe74d98fb4d8f56bc6c254fa57a6`.
+- Aucun changement Production.
+- **État : 🟡 construit — preuve d'exécution manquante.**
