@@ -72,7 +72,7 @@ export default function CaissePage(){
 
   return <main className="mx-auto max-w-5xl px-4 pb-16">
     <header className="-mx-4 mb-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Caisse · {pharmacie}</b></header>
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="mb-4 flex gap-2"><button className={onglet==="caisse"?"btn btn-vert":"btn btn-clair"} onClick={()=>setOnglet("caisse")}>Encaissement</button><button className={onglet==="recherche"?"btn btn-vert":"btn btn-clair"} onClick={()=>setOnglet("recherche")}>Recherche prix</button></div><div className="grid gap-4 lg:grid-cols-3">
       <section className="carte lg:col-span-2">
         <h1 className="text-xl font-extrabold">{onglet==="caisse"?"Encaissement":"Recherche prix"}</h1>
         <p className="text-sm mb-3">Scannez les codes-barres un par un. Le même champ accepte une succession de scans rapides.</p>
