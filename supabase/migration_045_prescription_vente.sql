@@ -103,25 +103,8 @@ using (
   )
 );
 
-drop policy if exists prescriptions_staff_update on public.prescriptions;
-create policy prescriptions_staff_update
-on public.prescriptions for update to authenticated
-using (
-  exists (
-    select 1 from public.profiles p
-    where p.id=(select auth.uid())
-      and p.actif
-      and p.pharmacie_id=prescriptions.pharmacie_id
-      and (
-        p.role='promoteur'
-        or p.fonction_interne='pharmacien_assistant'
-      )
-  )
-)
-with check (
-  pharmacie_id = (select p.pharmacie_id from public.profiles p where p.id=(select auth.uid()) and p.actif)
-);
-
+-- Aucune mise à jour directe de l'ordonnance : le changement de statut,
+-- validateur et motif passe exclusivement par prescription_valider().
 drop policy if exists prescription_items_staff on public.prescription_items;
 create policy prescription_items_staff
 on public.prescription_items for all to authenticated
