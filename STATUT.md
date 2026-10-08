@@ -128,3 +128,20 @@
 - **État : 🟢 NIVEAU 2 — GIT / STRUCTURE / HISTORIQUE CORRIGÉ.**
 
 > Ce vert ne signifie pas que `main` a été modifié. `main` reste protégé ; aucune fusion ni Production n'a été effectuée.
+
+
+# NIVEAU 3 — QUALITÉ TECHNIQUE ÉLÉMENTAIRE — 08/10/2026
+
+## Corrections effectuées
+- Script lint rendu exécutable de manière déterministe par ajout d'ESLint et de la configuration Next.
+- Versions npm figées dans `package.json`.
+- Gate qualité étendu au lint et activé sur la branche de chantier pour permettre une preuve CI réelle.
+
+## Contrôles
+- TypeScript : non prouvé par une exécution CI réelle à ce stade.
+- Lint : non prouvé par une exécution CI réelle à ce stade.
+- Build : non prouvé par une exécution CI réelle à ce stade.
+- Reproductibilité npm : non complète tant que `package-lock.json` n'est pas versionné.
+- Aucun merge vers `main`, aucun déploiement Production.
+
+**Statut Niveau 3 : 🔴 — CORRECTIONS STATIQUES EFFECTUÉES, PREUVE D'EXÉCUTION MANQUANTE.**
