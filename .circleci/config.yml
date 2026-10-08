@@ -57,6 +57,29 @@ jobs:
               echo "ÉCHEC: référence legacy public.profile_privileges détectée"
               exit 1
             fi
+            # Garde architecturale : aucun GRANT/REVOKE de fonction ne peut
+            # précéder sa définition dans le replay, ni viser un nom de fonction inexistant.
+            python3 - <<'PY'
+            import re
+            from pathlib import Path
+            files = [Path("supabase/schema.sql")] + sorted(Path("supabase").glob("migration_*.sql"))
+            defined = set()
+            definition = re.compile(r"create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-zA-Z_]\w*)\s*\(", re.I)
+            privilege = re.compile(r"(?:grant|revoke)\b[^;]*?on\s+function\s+(?:public\.)?([a-zA-Z_]\w*)\s*\(", re.I)
+            errors = []
+            for path in files:
+                for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                    for m in privilege.finditer(line):
+                        fn = m.group(1)
+                        if fn not in defined:
+                            errors.append(f"{path}:{line_no}: privilege before definition or unknown function: {fn}")
+                    for m in definition.finditer(line):
+                        defined.add(m.group(1))
+            if errors:
+                print("\n".join(errors))
+                raise SystemExit(1)
+            print(f"SQL function privilege-order preflight: OK ({len(defined)} function names known)")
+            PY
             echo "SQL preflight: OK"
       - run:
           name: Installer les dépendances frontend

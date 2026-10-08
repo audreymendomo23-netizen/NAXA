@@ -1,3 +1,7 @@
+
+
+## N4 — Stabilisation du replay SQL par dépendances — 08/10/2026
+Le chantier N4 applique une vérification architecturale du graphe des migrations avant de considérer le replay SQL comme fiable. Une migration ne peut plus attribuer/révoquer les droits d'une fonction avant que cette fonction soit définie ; les références historiques inconnues sont traitées comme des défauts bloquants. La correction actuelle cible la contradiction de migration_020_architecture_privileges.sql, qui contenait des GRANT/REVOKE prématurés sur le moteur d'autorisation. Le replay complet CircleCI reste la preuve finale requise.
 # NAXA : base de l'application
 
 Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % offre gratuite.

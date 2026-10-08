@@ -1,3 +1,14 @@
+
+
+## N4 — Replay SQL / architecture des dépendances — 08/10/2026
+- HEAD audité : bf683ffb9ec6e810b418096ef87c6881a7a44882.
+- Qualité CI : 🟢 ; replay SQL : 🔴 sur le dernier run connu.
+- Cause architecturale traitée : migration_020_architecture_privileges.sql exécutait des GRANT/REVOKE sur des fonctions d'autorisation avant leur définition réelle, dont naxa_can, naxa_business_function et deux anciens noms inexistants (naxa_assign_privilege, naxa_revoke_privilege).
+- Correction : suppression de ces opérations prématurées ; les droits sont appliqués dans les migrations qui définissent effectivement les fonctions.
+- Garde CI ajoutée : tout GRANT/REVOKE ON FUNCTION doit rencontrer sa définition avant son utilisation dans l'ordre de replay ; un nom de fonction inconnu est également bloquant.
+- Test structurel ajouté : supabase/tests/020_architecture_authorization_dependencies.sql.
+- Aucun merge vers main, aucun déploiement Production et aucune validation Supabase live effectués.
+- État N4 : 🟡 — nouvelle preuve CI complète requise avant passage au vert.
 [object Object]
 
 ## ERP-008 — Socle assurances / tiers payant
