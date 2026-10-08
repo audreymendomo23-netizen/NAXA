@@ -118,3 +118,7 @@ La section historique ci-dessus reste conservée. Pour l'état courant, la réf�
 Le chantier courant est `rewrite/naxa-from-main-20261007`. `main` reste la source de vérité et n'a pas été modifié. Les branches historiques sont conservées comme archives et ne constituent pas des sources concurrentes. Voir `docs/GIT_GOUVERNANCE.md`.
 
 **Niveau 2 : 🟢 corrigé.**
+
+
+## État du chantier — Niveau 3
+Le niveau 3 a fait l'objet d'une correction statique : ESLint/Next configuré, script lint rendu exploitable et versions npm figées. La preuve d'exécution TypeScript/lint/build reste à obtenir via un runner réel. Le dépôt ne contient toujours pas de `package-lock.json`, et la génération locale a été bloquée par l'absence d'accès au registre npm. **Le niveau 3 n'est donc pas déclaré vert.**
