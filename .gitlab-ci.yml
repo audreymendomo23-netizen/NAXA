@@ -1,0 +1,63 @@
+stages:
+  - quality
+  - sql
+
+default:
+  image: node:20-bookworm
+
+quality:
+  stage: quality
+  script:
+    - npm install --no-audit --no-fund
+    - npx tsc --noEmit
+    - npm run lint
+    - npm run build
+
+architecture-supabase:
+  stage: sql
+  image: node:20-bookworm
+  timeout: 30m
+  before_script:
+    - apt-get update
+    - apt-get install -y ca-certificates curl
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - npm install --no-audit --no-fund
+    - npx supabase@latest --version
+  script:
+    - npx supabase@latest init --force
+    - |
+      cat > supabase/config.toml <<'EOF'
+      project_id = "naxa-gitlab-ci"
+      [api]
+      enabled = true
+      [db]
+      major_version = 17
+      [studio]
+      enabled = false
+      [inbucket]
+      enabled = false
+      [storage]
+      enabled = false
+      [realtime]
+      enabled = false
+      [analytics]
+      enabled = false
+      [edge_runtime]
+      enabled = false
+      EOF
+    - rm -rf supabase/migrations
+    - mkdir -p supabase/migrations
+    - cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+    - |
+      n=1
+      for f in supabase/migration_*.sql; do
+        ts=$(printf '2026100600%02d' "$n")
+        cp "$f" "supabase/migrations/$ts-$(basename "$f")"
+        n=$((n+1))
+      done
+    - npx supabase@latest start -x studio -x inbucket -x storage -x realtime -x analytics -x edge-runtime
+    - npx supabase@latest db reset
+    - npx supabase@latest db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
+    - npx supabase@latest db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+  after_script:
+    - npx supabase@latest stop --no-backup || true
