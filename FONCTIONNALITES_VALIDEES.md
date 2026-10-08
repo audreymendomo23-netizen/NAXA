@@ -1147,7 +1147,7 @@ Ces fiches suivent désormais exactement la fiche obligatoire du registre : **ID
 - Branche : `rewrite/naxa-from-main-20261007`.
 - HEAD contrôlé avant la présente série documentaire : `b2fc8b793cbac1d11a089c88d736386faf0af658`.
 - `main` contrôlé : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`.
-- PR #30 : ouverte, draft, non fusionnée.
+- PR #30 : fermée, non fusionnée (validation CI remplacée par le gate CircleCI).
 - Production : aucune modification par ce chantier documentaire.
 
 **Statut du niveau 1 : 🟢 VALIDÉ — DOCUMENTATION / TRAÇABILITÉ.**
