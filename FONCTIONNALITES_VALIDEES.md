@@ -868,6 +868,7 @@ Le dépôt contient désormais :
 - Validation d'une dépense : création en brouillon puis validation atomique qui génère le mouvement de décaissement unique.
 - Le CA canonique et le moteur de vente restent inchangés ; le raccordement des encaissements de ventes sera traité dans le chantier POS final.
 - Migration : `supabase/migration_053_tresorerie_depenses.sql`.
+- Correction post-audit : ajout d'une clé unique composite `(id, pharmacie_id)` nécessaire aux clés étrangères de scope.
 - Test structurel : `supabase/tests/050_tresorerie_depenses.sql`.
 - Aucun changement Production/Supabase live exécuté.
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
