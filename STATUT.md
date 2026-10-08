@@ -119,7 +119,7 @@
 ## Niveau 2 — Git / structure / historique — 08/10/2026
 ### Audit par contradiction
 - **Contradiction 1 :** plusieurs branches/PR historiques pouvaient être confondues avec le chantier courant.
-- **Correction :** branche de travail explicitement désignée ; PR historiques obsolètes fermées sans suppression des commits ; PR #30 conservée comme unique PR active du chantier Qualité.
+- **Correction :** branche de travail explicitement désignée ; PR historiques obsolètes fermées sans suppression des commits ; PR #30 : fermée sans merge après obtention de la preuve CI CircleCI.nservée comme unique PR active du chantier Qualité.
 - **Contradiction 2 :** deux migrations `064` et deux tests `060` existaient.
 - **Correction :** renumérotation du Pharmacien en migration `065` et test `061`, références documentaires alignées.
 - **Contradiction 3 :** PR #33/#34 reproduisaient des contenus déjà présents sur la branche courante.
