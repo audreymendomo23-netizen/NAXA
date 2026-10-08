@@ -32,6 +32,37 @@ create table if not exists public.client_credits (
   unique(pharmacie_id, id)
 );
 
+create table if not exists public.client_credit_requests (
+  id uuid primary key default gen_random_uuid(),
+  credit_id uuid not null references public.client_credits(id) on delete restrict,
+  pharmacie_id uuid not null references public.pharmacies(id) on delete restrict,
+  client_id uuid not null references auth.users(id) on delete restrict,
+  vente_id uuid references public.ventes(id) on delete restrict,
+  montant integer not null check (montant > 0),
+  statut text not null default 'en_attente' check (statut in ('en_attente','approuvee','rejetee')),
+  motif text,
+  requested_by uuid not null references auth.users(id) on delete restrict,
+  decided_by uuid references auth.users(id) on delete set null,
+  decided_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists client_credit_requests_scope_idx
+  on public.client_credit_requests(pharmacie_id, statut, created_at desc);
+
+alter table public.client_credit_requests enable row level security;
+
+drop policy if exists client_credit_requests_read on public.client_credit_requests;
+create policy client_credit_requests_read on public.client_credit_requests for select to authenticated
+using (
+  client_id=(select auth.uid())
+  or public.is_admin()
+  or public.can_access_pharmacy(pharmacie_id)
+);
+
+revoke all on public.client_credit_requests from anon, authenticated;
+grant select on public.client_credit_requests to authenticated;
+
 create table if not exists public.client_credit_operations (
   id uuid primary key default gen_random_uuid(),
   credit_id uuid not null references public.client_credits(id) on delete restrict,
@@ -98,9 +129,11 @@ declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Connexion requise'; end if;
   if p_plafond < 0 then raise exception 'Plafond invalide'; end if;
-  if not (public.is_admin() or public.can_operate_pharmacy(p_pharmacie)) then
-    raise exception 'Pharmacie hors périmètre';
-  end if;
+  if public.is_admin() is not true and not exists (
+    select 1 from public.profiles p
+    where p.id=auth.uid() and p.actif and p.role::text='promoteur' and p.niveau_interne=1
+  ) then raise exception 'Seul le Promoteur ou NAXA peut configurer le crédit'; end if;
+  if not public.can_access_pharmacy(p_pharmacie) then raise exception 'Pharmacie hors périmètre'; end if;
   insert into public.client_fiches(client_id,pharmacie_id,created_by)
   values(p_client,p_pharmacie,auth.uid())
   on conflict(client_id,pharmacie_id) do nothing;
@@ -171,6 +204,76 @@ begin
   return v_op;
 end
 $$;
+
+create or replace function public.client_credit_demander(
+  p_vente uuid,
+  p_montant integer,
+  p_motif text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare v_vente public.ventes%rowtype; v_credit public.client_credits%rowtype; v_id uuid;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  select * into v_vente from public.ventes where id=p_vente for update;
+  if not found or v_vente.client_id is null then raise exception 'Vente/client introuvable'; end if;
+  if p_montant <= 0 or p_montant <> v_vente.total_net then raise exception 'Montant de demande invalide'; end if;
+  if not public.can_operate_pharmacy(v_vente.pharmacie_id) then raise exception 'Pharmacie hors périmètre'; end if;
+  select * into v_credit from public.client_credits
+  where client_id=v_vente.client_id and pharmacie_id=v_vente.pharmacie_id and actif for update;
+  if not found then raise exception 'Crédit client non activé'; end if;
+  if v_credit.solde + p_montant <= v_credit.plafond then
+    raise exception 'Le plafond suffit : validation directe autorisée';
+  end if;
+  insert into public.client_credit_requests(
+    credit_id,pharmacie_id,client_id,vente_id,montant,motif,requested_by
+  ) values(
+    v_credit.id,v_vente.pharmacie_id,v_vente.client_id,v_vente.id,p_montant,
+    nullif(trim(p_motif),''),auth.uid()
+  ) returning id into v_id;
+  return v_id;
+end
+$$;
+
+create or replace function public.client_credit_demande_decider(
+  p_demande uuid,
+  p_approuver boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare r public.client_credit_requests%rowtype; c public.client_credits%rowtype; v_new integer;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  select * into r from public.client_credit_requests where id=p_demande for update;
+  if not found or r.statut <> 'en_attente' then raise exception 'Demande introuvable ou déjà traitée'; end if;
+  if public.is_admin() is not true and not exists (
+    select 1 from public.profiles p
+    where p.id=auth.uid() and p.actif and p.role::text='promoteur' and p.niveau_interne=1
+  ) then raise exception 'Décision réservée au Promoteur ou à NAXA'; end if;
+  if not public.is_admin() and not public.can_access_pharmacy(r.pharmacie_id) then raise exception 'Pharmacie hors périmètre'; end if;
+  if not p_approuver then
+    update public.client_credit_requests set statut='rejetee',decided_by=auth.uid(),decided_at=now() where id=r.id;
+    return;
+  end if;
+  select * into c from public.client_credits where id=r.credit_id for update;
+  v_new := c.solde + r.montant;
+  if v_new > c.plafond then
+    update public.client_credits set plafond=v_new,updated_at=now() where id=c.id;
+  end if;
+  update public.client_credit_requests set statut='approuvee',decided_by=auth.uid(),decided_at=now() where id=r.id;
+end
+$$;
+
+revoke all on function public.client_credit_demander(uuid,integer,text) from public,anon,authenticated;
+revoke all on function public.client_credit_demande_decider(uuid,boolean) from public,anon,authenticated;
+grant execute on function public.client_credit_demander(uuid,integer,text) to authenticated;
+grant execute on function public.client_credit_demande_decider(uuid,boolean) to authenticated;
 
 create or replace function public.client_credit_rembourser(
   p_credit uuid,
