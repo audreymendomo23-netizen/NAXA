@@ -66,13 +66,14 @@ Toute nouvelle contradiction documentaire est ajoutée ici avant correction ; au
 - Statut de correction statique : 🟢.
 
 ## C-008 — Niveau 3 : reproductibilité npm
-- Contradiction : le dépôt ne contient pas de `package-lock.json`, donc `npm ci` et une résolution npm totalement déterministe ne sont pas encore démontrables.
-- Tentative de génération locale impossible : l'environnement d'exécution n'a pas accès au registre npm et ne possède pas les métadonnées en cache.
-- Statut : 🔴 preuve externe requise ; ne pas déclarer le niveau 3 vert.
+- Contradiction résiduelle : le dépôt ne contient pas de `package-lock.json`.
+- La preuve d'installation réelle est désormais obtenue par CircleCI avec `npm install --no-audit --no-fund`, TypeScript, ESLint et build Next.js tous exécutés avec succès.
+- Les versions directes du `package.json` sont figées ; la résolution transitive reste gérée par npm faute de lockfile versionné.
+- **Statut : 🟡 amélioration de reproductibilité à traiter séparément ; elle ne bloque plus la preuve d'exécution du gate Niveau 3.**
 
-
-## C-009 — Niveau 3 : preuve CI externe indisponible
-- Le workflow qualité est correctement présent et couvre TypeScript, lint et build.
-- Contradiction vérifiée : GitHub ne retourne aucune exécution Actions pour les commits du chantier, tandis que le statut global du commit expose encore un ancien contexte CircleCI en erreur (#299).
-- Le dépôt ne contient pas `package-lock.json`; une validation `npm ci` déterministe n'est donc pas démontrable.
-- Conclusion : le code de configuration a été corrigé, mais la preuve d'exécution n'est pas obtenue. Déclarer le niveau 3 🟢 serait contraire à la méthodologie.
+## C-009 — Niveau 3 : preuve CI externe
+- Contradiction initiale : GitHub Actions ne retournait aucune exécution pour les commits du chantier.
+- Correction : réactivation du pipeline CircleCI existant via `.circleci/config.yml`, sans service payant supplémentaire et sans modification de `main`.
+- Preuve d'exécution réelle : commit `f1fcd801f37989bdd17e667a0e88c17dd3e5f4e6`, contexte `ci/circleci: quality`, état **success**, pipeline CircleCI #167.
+- Le gate exécute : installation npm, TypeScript, ESLint et build Next.js.
+- **Statut : 🟢 RÉSOLU — preuve CI réelle obtenue.**
