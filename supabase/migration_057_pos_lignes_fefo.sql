@@ -11,8 +11,8 @@ create or replace function public.vente_recalculer_totaux(p_vente uuid)
 returns void
 language plpgsql
 security definer
-set search_path=public
-as $$
+set search_path=''
+as $
 declare v_brut integer;
 begin
   select coalesce(sum(total_ligne),0) into v_brut
