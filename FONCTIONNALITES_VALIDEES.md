@@ -417,12 +417,13 @@ Commit test : `7dbfd643c9b5b8d0df0907aab04737bcce7827ec`.
 
 # 11. 🟡 CONSTRUIT / PREUVES À REGROUPER — STOCK / COÛTS / CA / BI
 
-## NAXA-F040 — Coûts / marges / stocks multi-pharmacies
-Travaux retracés : coûts, marges, scopes multi-pharmacies, moteur de scope, CA canonique, vues/rapports.
+## NAXA-F040 — Coûts d'achat / stocks multi-pharmacie
 
-Contradictions historiques déjà traitées : E20, E22, E25 ; E30 avait une validation multi-rôle partielle liée à un problème PostgreSQL enum.
-
-**Statut : 🟡 CONSTRUIT — PREUVES/INTÉGRATION À RÉCONCILIER**
+- Travail historique identifié : `supabase/migration_013_stocks_couts.sql` sur `feat/pharmacie-validite-pilotage`.
+- Réconciliation additive : `stocks` = quantité/prix public ; `stocks_couts` = coût d'achat interne, sans modèle concurrent.
+- RLS alignée sur le scope multi-pharmacie canonique `can_access_pharmacy()`.
+- La marge transactionnelle n'est pas calculée prématurément : le coût doit être figé au niveau de chaque ligne de vente avant calcul de marge.
+- **Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE** (CI GitHub Actions indisponible : aucun runner attribué).
 
 ---
 

@@ -122,3 +122,16 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Le problème est donc actuellement dans l'infrastructure GitHub Actions, pas dans une erreur SQL démontrée.
 - Le workflow a été simplifié pour ne conserver que build + replay Supabase local + tests Architecture, et déclenché sur `push main`.
 - **Aucun 🟢 n'est déclaré tant que cette preuve d'exécution n'est pas obtenue.**
+
+
+## Preuve Architecture — clôture de recherche
+- Les runs GitHub Actions du chantier Architecture sur `main` se terminent avant exécution des étapes : `runner_name` est vide et aucune étape n'est exécutée.
+- Le même comportement est observé sur `ubuntu-24.04` et `ubuntu-latest`, y compris sur plusieurs anciens workflows NAXA.
+- Conclusion : aucune preuve CI exploitable n'a été trouvée. Le chantier Architecture reste **🟡 PREUVE MANQUANTE** et ne bloque pas la poursuite opérationnelle demandée.
+
+## Troisième chantier — F040 coûts d'achat / stocks multi-pharmacie
+- Réconciliation de `migration_013_stocks_couts.sql` depuis l'implémentation historique.
+- Conservation du modèle existant : `stocks` = quantité/prix public ; `stocks_couts` = coût d'achat interne courant.
+- RLS alignée sur `can_access_pharmacy()`.
+- Aucun calcul de marge transactionnelle ajouté prématurément : le coût historique devra être figé sur chaque ligne de vente avant calcul de marge.
+- **État : 🟡 intégré dans `main`, preuve d'exécution à obtenir.**
