@@ -936,3 +936,15 @@ Le dépôt contient désormais :
 - Tests : `supabase/tests/055_pos_paiements.sql`.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
+
+
+## ERP-003 — POS étape 3 — ticket/reçu + numérotation unique — 08/10/2026
+- Audit historique : aucun moteur concurrent de ticket POS, numéro de vente ou réimpression n'a été trouvé ; le reçu de réservation existant reste distinct et n'est pas remplacé.
+- Réconciliation : extension additive de `ventes`, sans second moteur de vente.
+- Ajout : `ventes.numero_vente` avec index unique et séquence PostgreSQL pour les nouvelles ventes ; les ventes historiques sont numérotées avant contrainte `NOT NULL`.
+- Ajout : RPC de lecture `vente_ticket(uuid)`, `SECURITY INVOKER`, réutilisant les RLS existantes de `ventes`/`vente_lignes` et réservée à `authenticated`.
+- Le ticket expose numéro, statut, dates, totaux, mode/référence de paiement et lignes produit ; il est donc réimprimable sans mutation de la vente.
+- Migration : `supabase/migration_059_pos_ticket.sql`.
+- Test structurel : `supabase/tests/056_pos_ticket.sql`.
+- Aucun changement Production/Supabase live.
+- **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
