@@ -1153,3 +1153,32 @@ Ces fiches suivent désormais exactement la fiche obligatoire du registre : **ID
 **Statut du niveau 1 : 🟢 VALIDÉ — DOCUMENTATION / TRAÇABILITÉ.**
 
 **Règle :** ce 🟢 ne valide ni SQL, ni CI, ni sécurité, ni fonctionnalité métier. Il verrouille uniquement la qualité documentaire et la traçabilité du chantier.
+
+
+# 10. NIVEAU 2 — GIT / STRUCTURE / HISTORIQUE — 08/10/2026
+
+## Problème 1 — Branches et PR concurrentes
+- Inventaire des branches effectué.
+- Branche courante : `rewrite/naxa-from-main-20261007`.
+- Source de vérité : `main`.
+- Base historique CI : `consolidation`.
+- PR #30 conservée comme PR technique active du gate Qualité.
+- PR #7, #22, #23, #24, #25, #33 et #34 fermées car historiques/supersédées.
+- Les commits et branches historiques restent conservés.
+- **Statut : 🟢.**
+
+## Problème 2 — Collision de numérotation des fichiers SQL de migration/test
+- Avant correction : deux migrations `064`, deux tests `060`.
+- Correction : Pharmacien → migration `065`, test `061`.
+- Contenu SQL inchangé ; références documentaires mises à jour.
+- Contrôle de l'arbre courant : chaque numéro concerné est désormais unique.
+- **Statut : 🟢.**
+
+## Problème 3 — Traçabilité de l'intégration
+- Aucun merge `main` effectué.
+- Aucun SHA `main` inventé.
+- Aucun déploiement Production effectué.
+- Les PR fermées conservent leur historique Git.
+- **Statut : 🟢.**
+
+**STATUT GLOBAL NIVEAU 2 : 🟢 VALIDÉ — GIT / STRUCTURE / HISTORIQUE.**
