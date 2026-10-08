@@ -1009,3 +1009,11 @@ Le dépôt contient désormais :
 - `stocks.emplacement` devient l'emplacement du produit **par pharmacie**.
 - L'emplacement est affiché dans le tableau de stock et dans la recherche Caisse.
 - **État : 🟡 construit — preuve SQL/CI manquante.**
+
+
+### Mise à jour ERP-003 / Caisse — 08/10/2026
+- Interface Caisse : onglets **Encaissement** et **Recherche prix**.
+- Recherche bulk : plusieurs codes-barres, chacun retourné avec son prix et son emplacement, sans créer de vente.
+- Scan en encaissement : chaque scan ajoute le produit au panier existant et le total se recalcule.
+- Encaissement : montant perçu, monnaie rendue, choix espèces ou mobile money, référence opérateur, finalisation et impression navigateur.
+- **Statut inchangé : 🟡** tant que la preuve SQL/CI et l'intégration des assets officiels OM/MTN ne sont pas obtenues.
