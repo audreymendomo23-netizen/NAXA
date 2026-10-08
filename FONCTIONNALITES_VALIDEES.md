@@ -983,3 +983,29 @@ Le dépôt contient désormais :
 - Vérification GitHub : commits et fichiers présents dans `main`. Vérification Supabase live impossible à ce stade : la liaison MCP renvoie `link_id must identify an eligible linked account`.
 - Vérification CI : aucun run associé au dernier commit ; la preuve d'exécution CI reste indisponible.
 - **État final ERP-010/011/012 : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
+
+
+## NAXA-CAISSE-001 — Parcours Caisse scan / recherche / encaissement — 08/10/2026
+- Audit : le moteur POS existant reste la source unique de vente ; aucune seconde caisse n'est créée.
+- Ajout : recherche produit par code-barres, nom ou référence ; recherche bulk de codes ; prix, stock et emplacement affichés.
+- Ajout : montant perçu en espèces et calcul serveur de la monnaie rendue.
+- Ajout : paiement électronique enregistré avec référence opérateur ; aucune simulation de transfert Orange Money/MTN MoMo.
+- Ajout : validation finale via `vente_finaliser()` et impression navigateur du ticket existant `vente_ticket()`.
+- Interface : `src/app/pharmacie/caisse/page.tsx`.
+- DB : `supabase/migration_063_caisse_pharmacien_barcode.sql` ; test `supabase/tests/059_caisse_pharmacien_barcode.sql`.
+- Les logos officiels Orange Money et MTN MoMo restent à intégrer à partir des assets officiels ; aucun logo redessiné n'est utilisé.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
+
+## NAXA-PHARMACIEN-001 — Fonction Pharmacien / validation ordonnance — 08/10/2026
+- Le Pharmacien est une **fonction interne métier**, pas un nouveau `role_type` ni un niveau hiérarchique N5.
+- Fonctions acceptées : `pharmacien` (canonique) et `pharmacien_assistant` (compatibilité historique).
+- Parcours : connexion → espace Pharmacien → ordonnances `en_attente` → contrôle → validation/rejet → vente autorisée lorsque l'ordonnance est validée → délivrance/traçabilité.
+- RPC canonique : `prescription_valider()` ; la validation enregistre le validateur et l'horodatage.
+- La vente liée à une ordonnance reste bloquée si celle-ci n'est pas validée.
+- Interface : `src/app/pharmacie/pharmacien/page.tsx`.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
+
+## NAXA-PRODUIT-001 — Emplacement physique — 08/10/2026
+- `stocks.emplacement` devient l'emplacement du produit **par pharmacie**.
+- L'emplacement est affiché dans le tableau de stock et dans la recherche Caisse.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
