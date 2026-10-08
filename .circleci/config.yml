@@ -1,22 +1,49 @@
 version: 2.1
 
 jobs:
-  quality:
+  lint_app:
     docker:
       - image: cimg/node:20.14
     steps:
       - checkout
       - run:
-          name: Installer les dépendances
+          name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: TypeScript
-          command: npx tsc --noEmit
+          name: Lint app
+          command: npx eslint src/app
+
+  lint_components:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
       - run:
-          name: ESLint
-          command: npm run lint
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint components
+          command: npx eslint src/components
+
+  lint_lib:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint lib
+          command: npx eslint src/lib
 
 workflows:
-  quality:
+  lint_app:
     jobs:
-      - quality
+      - lint_app
+  lint_components:
+    jobs:
+      - lint_components
+  lint_lib:
+    jobs:
+      - lint_lib
