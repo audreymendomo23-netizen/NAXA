@@ -858,3 +858,16 @@ Le dépôt contient désormais :
 - RLS : client sur sa couverture/dossier ; personnel sur le périmètre pharmacie via `can_access_pharmacy`.
 - Aucun opérateur externe, aucun remboursement automatisé et aucun contrat commercial d'assureur n'est imposé.
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
+
+
+## ERP-009 — Trésorerie / dépenses (F66)
+- Audit : aucune fondation concurrente de trésorerie, dépenses ou journal financier n'a été trouvée dans `main`.
+- Construction additive : `tresorerie_comptes`, `categories_depenses`, `depenses`, `tresorerie_mouvements`.
+- Contrôle de périmètre : opérations rattachées à une pharmacie et contrôlées par `can_access_pharmacy()` / `can_operate_pharmacy()`.
+- Sécurité : RLS active ; aucun INSERT direct utilisateur sur les dépenses ou mouvements ; création/validation via RPC contrôlées.
+- Validation d'une dépense : création en brouillon puis validation atomique qui génère le mouvement de décaissement unique.
+- Le CA canonique et le moteur de vente restent inchangés ; le raccordement des encaissements de ventes sera traité dans le chantier POS final.
+- Migration : `supabase/migration_053_tresorerie_depenses.sql`.
+- Test structurel : `supabase/tests/050_tresorerie_depenses.sql`.
+- Aucun changement Production/Supabase live exécuté.
+- **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
