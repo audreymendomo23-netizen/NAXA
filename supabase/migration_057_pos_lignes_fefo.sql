@@ -12,7 +12,7 @@ returns void
 language plpgsql
 security definer
 set search_path=''
-as $
+as $totaux$
 declare v_brut integer;
 begin
   select coalesce(sum(total_ligne),0) into v_brut
@@ -24,7 +24,7 @@ begin
       total_net=greatest(v_brut-remise,0)
   where id=p_vente;
 end;
-$$;
+$totaux$;
 
 create or replace function public.vente_ajouter_produit(
   p_vente uuid,
@@ -35,7 +35,7 @@ returns integer
 language plpgsql
 security definer
 set search_path=''
-as $
+as $vente$
 declare
   v_vente public.ventes%rowtype;
   v_stock public.stocks%rowtype;
@@ -128,7 +128,7 @@ exception
     -- Toute erreur annule atomiquement la transaction : aucun stock/lot partiellement débité.
     raise;
 end;
-$$;
+$vente$;
 
 revoke all on function public.vente_recalculer_totaux(uuid) from public,anon,authenticated;
 revoke all on function public.vente_ajouter_produit(uuid,uuid,integer) from public,anon,authenticated;
