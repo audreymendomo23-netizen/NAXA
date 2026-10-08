@@ -12,6 +12,9 @@ jobs:
       - run:
           name: TypeScript
           command: npx tsc --noEmit
+      - run:
+          name: ESLint
+          command: npm run lint
 
 workflows:
   quality:
