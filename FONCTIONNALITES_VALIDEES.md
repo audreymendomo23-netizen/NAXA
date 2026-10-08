@@ -1081,8 +1081,8 @@ Ce n'est pas le blocage technique actuel : c'est une condition de validation fin
 - **Routes/pages :** `/pharmacie/pharmacien`
 - **Fichiers UI :** `src/app/pharmacie/pharmacien/page.tsx`
 - **DB / objets :** `consultations_pharmaceutiques`, `prescriptions`, `prescription_items`, RPC `prescription_valider()` et raccordement à `ventes.prescription_id`.
-- **Migrations :** `supabase/migration_064_pharmacien_consultation_prescription.sql`
-- **Tests :** `supabase/tests/060_pharmacien_consultation_prescription.sql`
+- **Migrations :** `supabase/migration_065_pharmacien_consultation_prescription.sql`
+- **Tests :** `supabase/tests/061_pharmacien_consultation_prescription.sql`
 - **Résultats des tests :** test structurel présent ; exécution CI réelle non encore démontrée.
 - **Branche de création :** historique exact à consolider ; fichier actuellement présent sur `rewrite/naxa-from-main-20261007`.
 - **Commit de création :** `b1a5ed3edba21a3ce072368999ace76d1d507b9b` — `feat(pharmacien): ajouter consultation et prescription`.
