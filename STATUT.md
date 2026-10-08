@@ -145,3 +145,22 @@
 - Aucun merge vers `main`, aucun déploiement Production.
 
 **Statut Niveau 3 : 🔴 — CORRECTIONS STATIQUES EFFECTUÉES, PREUVE D'EXÉCUTION MANQUANTE.**
+
+
+## Niveau 4 — Tests
+Le chantier Tests est ouvert.
+
+### Audit
+- Tests SQL présents : supabase/tests/017... jusqu'aux tests récents Caisse/Pharmacien 059, 060, 061.
+- Le gate qualité historique ne les exécutait pas.
+- Un job CircleCI sql_tests a été ajouté pour démarrer Supabase localement, rejouer le schéma + migrations et exécuter tous les tests SQL.
+
+### Preuve
+Aucune exécution du nouveau job n'est actuellement remontée pour le commit dfc58961fc2f55d501ac7c52ef95b44327258e6a. Le Niveau 4 ne peut donc pas être déclaré vert.
+
+### Blocages
+1. Pas de runtime Docker dans l'environnement d'exécution actuel.
+2. Connecteur Supabase distant bloqué par « link_id must identify an eligible linked account ».
+3. Le harnais doit encore garantir qu'un test SQL qui produit pass = false échoue réellement.
+
+Statut Niveau 4 : 🔴 À CORRIGER — tests non prouvés.
