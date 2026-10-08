@@ -104,3 +104,13 @@
 - Logos officiels Orange Money / MTN MoMo : assets officiels à intégrer ; aucun logo de substitution/redessiné.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## Niveau 1 — Documentation / traçabilité — 08/10/2026
+### Audit par contradiction
+- **Contradiction :** plusieurs documents prescrits par le prompt maître étaient absents ou contenaient des références de reprise devenues obsolètes.
+- **Cause racine :** historique documentaire conservé sans couche de référence courante explicite.
+- **Correction :** création/mise à jour de `docs/CONTINUITE_NAXA.md`, `docs/FUSION.md`, `CONTRADICTIONS.md`, `docs/CAHIER_DES_CHARGES.md` et ajout d'une section de supersession dans le présent statut.
+- **Preuve :** fichiers présents dans la branche de travail et références SHA consignées.
+- **Distinction importante :** ce vert concerne uniquement la documentation/traçabilité. Les fonctionnalités métier encore 🟡 restent 🟡.
+- **État : 🟢 NIVEAU 1 — DOCUMENTATION / TRAÇABILITÉ CORRIGÉ.**
