@@ -594,9 +594,14 @@ Si cette voie échoue, nous corrigerons **la voie de vérification**, pas les fo
 - **Statut : 🟡 CONSTRUIT — PREUVE D'EXÉCUTION MANQUANTE**.
 
 ## NAXA-ERP-002 — Lots / péremptions / alertes
-Lots, expiration, alertes et blocages.
-
-**Statut : ⚪ À FAIRE / AUDIT OBLIGATOIRE**
+- Audit : aucune définition `stocks_lots` n'est présente dans le `main` courant ; les mentions historiques ne constituaient pas une preuve d'intégration.
+- Solution : restauration additive d'une table canonique `stocks_lots`, rattachée à `pharmacies` et `produits`, sans remplacer `stocks`.
+- Péremption : `date_peremption` + index dédié pour préparer les alertes.
+- Blocage : `bloque` + `motif_blocage`, avec contrainte de cohérence.
+- Scope : RLS alignée sur `can_access_pharmacy()`.
+- Migration : `supabase/migration_043_stocks_lots.sql`.
+- Test structurel : `supabase/tests/043_stocks_lots.sql`.
+- **Statut : 🟡 CONSTRUIT — PREUVE D'EXÉCUTION MANQUANTE**.
 
 ## NAXA-ERP-003 — POS / caisse complet
 Vente rapide, scan, encaissement, clôture, remises/promotions.
@@ -768,3 +773,12 @@ Le dépôt contient désormais :
 - `docs/REGISTRE_GOUVERNANCE.md` comme procédure détaillée.
 
 **Limite explicite :** cette protection automatise le contrôle et la détection ; elle ne remplace pas une règle GitHub de branche obligatoire tant que celle-ci n'est pas activée côté dépôt.
+
+
+## 20. ERP-002 — Lots / péremptions / alertes — chantier du 08/10/2026
+- Contradiction détectée : les documents historiques citaient `stocks_lots`, mais la branche `main` courante n'en contenait aucune définition.
+- Correction additive : `stocks_lots` devient le socle canonique des lots, sans table concurrente et sans remplacement de `stocks`.
+- Règles intégrées : pharmacie + produit + numéro de lot, date de péremption, quantité, blocage motivé, scope multi-pharmacie et index de péremption.
+- Test ajouté : `supabase/tests/043_stocks_lots.sql`.
+- Production non modifiée ; preuve Supabase live indisponible (`link_id` non éligible).
+- **État : 🟡 construit dans `main` — preuve d'exécution à obtenir.**

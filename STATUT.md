@@ -154,3 +154,14 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Test structurel ajouté.
 - Aucun changement Production exécuté.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## Sixième chantier — ERP-002 lots / péremptions / alertes
+- Audit : `stocks_lots` était référencé historiquement mais absent du `main` courant.
+- Correction additive : création du socle canonique `stocks_lots` sans remplacer `stocks`.
+- Champs couverts : lot, péremption, quantité, blocage motivé, pharmacie, produit.
+- RLS : scope `can_access_pharmacy()` ; Admin réseau autorisé.
+- Migration : `supabase/migration_043_stocks_lots.sql`.
+- Test : `supabase/tests/043_stocks_lots.sql`.
+- Aucun changement Production.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
