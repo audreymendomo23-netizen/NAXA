@@ -94,3 +94,13 @@
 - Preuve live Supabase : indisponible actuellement (`link_id must identify an eligible linked account`).
 - Preuve CI : aucun run associé au dernier commit.
 - **État : 🟡 construit / preuve d'exécution SQL-CI manquante.**
+
+
+## ERP-003 / Pharmacien — chantier du 08/10/2026
+- Ajout du parcours Caisse : scan code-barres, recherche prix, bulk lookup, montant perçu, monnaie rendue, paiement et impression ticket.
+- Ajout de `stocks.emplacement` par pharmacie.
+- Intégration de la fonction interne `pharmacien` et du parcours de validation des ordonnances.
+- Migrations/tests : `supabase/migration_063_caisse_pharmacien_barcode.sql`, `supabase/tests/059_caisse_pharmacien_barcode.sql`.
+- Logos officiels Orange Money / MTN MoMo : assets officiels à intégrer ; aucun logo de substitution/redessiné.
+- Aucun changement Supabase live/Production.
+- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
