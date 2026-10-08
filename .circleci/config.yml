@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  lint_actionprotegee:
+  lint_app_admin:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -10,10 +10,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint ActionProtegee
-          command: npx eslint src/components/ActionProtegee.tsx
+          name: Lint admin
+          command: npx eslint src/app/admin
 
-  lint_ajouterpanier:
+  lint_app_api:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -22,10 +22,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint AjouterPanier
-          command: npx eslint src/components/AjouterPanier.tsx
+          name: Lint api
+          command: npx eslint src/app/api
 
-  lint_bandeaudefilant:
+  lint_app_auth:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -34,10 +34,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint BandeauDefilant
-          command: npx eslint src/components/BandeauDefilant.tsx
+          name: Lint auth
+          command: npx eslint src/app/auth
 
-  lint_bandeaupopulaires:
+  lint_app_client:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -46,10 +46,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint BandeauPopulaires
-          command: npx eslint src/components/BandeauPopulaires.tsx
+          name: Lint client
+          command: npx eslint src/app/client
 
-  lint_boutonpanier:
+  lint_app_conditions_utilisation:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -58,10 +58,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint BoutonPanier
-          command: npx eslint src/components/BoutonPanier.tsx
+          name: Lint conditions-utilisation
+          command: npx eslint src/app/conditions-utilisation
 
-  lint_evenementvue:
+  lint_app_connexion:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -70,10 +70,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint EvenementVue
-          command: npx eslint src/components/EvenementVue.tsx
+          name: Lint connexion
+          command: npx eslint src/app/connexion
 
-  lint_importadmin:
+  lint_app_creation_compte:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -82,10 +82,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint ImportAdmin
-          command: npx eslint src/components/ImportAdmin.tsx
+          name: Lint creation-compte
+          command: npx eslint src/app/creation-compte
 
-  lint_lienespaceclient:
+  lint_app_go:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -94,10 +94,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint LienEspaceClient
-          command: npx eslint src/components/LienEspaceClient.tsx
+          name: Lint go
+          command: npx eslint src/app/go
 
-  lint_logo:
+  lint_app_mot_de_passe_oublie:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -106,10 +106,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint Logo
-          command: npx eslint src/components/Logo.tsx
+          name: Lint mot-de-passe-oublie
+          command: npx eslint src/app/mot-de-passe-oublie
 
-  lint_photoupload:
+  lint_app_nouveau_mot_de_passe:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -118,10 +118,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint PhotoUpload
-          command: npx eslint src/components/PhotoUpload.tsx
+          name: Lint nouveau-mot-de-passe
+          command: npx eslint src/app/nouveau-mot-de-passe
 
-  lint_pilotage:
+  lint_app_panier:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -130,10 +130,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint Pilotage
-          command: npx eslint src/components/Pilotage.tsx
+          name: Lint panier
+          command: npx eslint src/app/panier
 
-  lint_recherche:
+  lint_app_pharmacie:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -142,21 +142,125 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint Recherche
-          command: npx eslint src/components/Recherche.tsx
+          name: Lint pharmacie
+          command: npx eslint src/app/pharmacie
+
+  lint_app_politique_confidentialite:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint politique-confidentialite
+          command: npx eslint src/app/politique-confidentialite
+
+  lint_app_politique_securite:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint politique-securite
+          command: npx eslint src/app/politique-securite
+
+  lint_app_produit:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint produit
+          command: npx eslint src/app/produit
+
+  lint_app_reservation:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint reservation
+          command: npx eslint src/app/reservation
+
+  lint_app_resultats:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint resultats
+          command: npx eslint src/app/resultats
+
+  lint_app_verification_age:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint verification-age
+          command: npx eslint src/app/verification-age
+
+  lint_app_root_layout:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint layout.tsx
+          command: npx eslint src/app/layout.tsx
+
+  lint_app_root_page:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint page.tsx
+          command: npx eslint src/app/page.tsx
 
 workflows:
-  lint_components:
+  lint_app:
     jobs:
-      - lint_actionprotegee
-      - lint_ajouterpanier
-      - lint_bandeaudefilant
-      - lint_bandeaupopulaires
-      - lint_boutonpanier
-      - lint_evenementvue
-      - lint_importadmin
-      - lint_lienespaceclient
-      - lint_logo
-      - lint_photoupload
-      - lint_pilotage
-      - lint_recherche
+      - lint_app_admin
+      - lint_app_api
+      - lint_app_auth
+      - lint_app_client
+      - lint_app_conditions_utilisation
+      - lint_app_connexion
+      - lint_app_creation_compte
+      - lint_app_go
+      - lint_app_mot_de_passe_oublie
+      - lint_app_nouveau_mot_de_passe
+      - lint_app_panier
+      - lint_app_pharmacie
+      - lint_app_politique_confidentialite
+      - lint_app_politique_securite
+      - lint_app_produit
+      - lint_app_reservation
+      - lint_app_resultats
+      - lint_app_verification_age
+      - lint_app_root_layout
+      - lint_app_root_page
