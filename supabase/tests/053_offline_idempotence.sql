@@ -59,6 +59,10 @@ begin
     raise exception 'anon ne doit pas exécuter la RPC offline';
   end if;
 
+  if has_table_privilege('authenticated','public.offline_operations','UPDATE') then
+    raise exception 'UPDATE direct offline interdit';
+  end if;
+
   if not has_function_privilege(
        'authenticated',
        'public.offline_stock_set_quantity(uuid,uuid,uuid,integer,timestamptz)',
