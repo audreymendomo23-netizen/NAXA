@@ -1017,3 +1017,16 @@ Le dépôt contient désormais :
 - Scan en encaissement : chaque scan ajoute le produit au panier existant et le total se recalcule.
 - Encaissement : montant perçu, monnaie rendue, choix espèces ou mobile money, référence opérateur, finalisation et impression navigateur.
 - **Statut inchangé : 🟡** tant que la preuve SQL/CI et l'intégration des assets officiels OM/MTN ne sont pas obtenues.
+
+
+## NAXA-PHARMACIEN-002 — Consultation + prescription interne — 08/10/2026
+- Extension additive du bloc Pharmacien existant : aucune nouvelle hiérarchie et aucun nouveau `role_type`.
+- Consultation : table `consultations_pharmaceutiques`, scope par pharmacie, RLS de lecture et RPC `pharmacien_creer_consultation()`.
+- Prescription : réutilisation de `prescriptions` / `prescription_items`, `source='pharmacie'`, lien optionnel `consultation_id`, champs `posologie`, `duree`, `instructions`.
+- RPC : `pharmacien_creer_prescription()`, contrôlée par `fonction_interne='pharmacien'` ; `pharmacien_prescriptions_recentes()` pour l'historique interne.
+- UI : `src/app/pharmacie/pharmacien/page.tsx` avec trois onglets : Consultation, Prescription, Ordonnances reçues.
+- Privilèges ajoutés au catalogue : `CREATE_PHARMACY_CONSULTATION`, `CREATE_PHARMACY_PRESCRIPTION`.
+- Migration : `supabase/migration_064_pharmacien_consultation_prescription.sql`.
+- Test structurel : `supabase/tests/060_pharmacien_consultation_prescription.sql`.
+- Branche : `feat/pharmacien-consultation-prescription-20261008-v2`.
+- **Statut : 🟡 CONSTRUIT — preuve SQL/CI manquante ; non intégré dans `main`.**
