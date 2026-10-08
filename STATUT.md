@@ -1,10 +1,9 @@
 [object Object]
 
-## Dixième chantier — ERP-007 Ordonnancier / registre sécurisé
-- Audit : aucun ordonnancier ni registre de substances contrôlées trouvé dans `main` ; le modèle `prescriptions` existant est conservé comme socle.
-- Construction additive : ordonnancier lié à `prescriptions` et `ventes`, plus registre interne dédié.
-- Sécurité : RLS pharmacie + rôle/fonction autorisés ; aucune écriture directe ; inscription via RPC sécurisée.
-- Contrôles : validation de l'ordonnance, expiration, rattachement vente/ordonnance/pharmacie et vente payée.
-- Référence du registre obligatoire lorsqu'une dispensation est explicitement signalée comme substance contrôlée.
+## ERP-008 — Socle assurances / tiers payant
+- Audit sans doublon : aucun socle assurance détecté.
+- Construction : assureurs, couvertures client, dossiers de prise en charge liés à la pharmacie et optionnellement à une vente.
+- Les intégrations externes et règles de remboursement restent volontairement hors périmètre tant qu'aucun partenaire/scope n'est arbitré.
+- Test structurel : `supabase/tests/049_assurances.sql`.
 - Aucun changement Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**

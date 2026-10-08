@@ -849,3 +849,12 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/048_ordonnancier.sql`.
 - Aucun changement Production.
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
+
+
+## ERP-008 — Socle assurances / tiers payant
+- Audit : aucun modèle assurance/assureur/tiers payant existant détecté dans `main`.
+- Fondation additive : `assureurs`, `couvertures_assurance`, `dossiers_assurance`.
+- Liaison possible avec une vente sans remplacer le moteur de vente existant.
+- RLS : client sur sa couverture/dossier ; personnel sur le périmètre pharmacie via `can_access_pharmacy`.
+- Aucun opérateur externe, aucun remboursement automatisé et aucun contrat commercial d'assureur n'est imposé.
+- **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
