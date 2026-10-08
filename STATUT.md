@@ -164,3 +164,30 @@ Aucune exécution du nouveau job n'est actuellement remontée pour le commit dfc
 3. Le harnais doit encore garantir qu'un test SQL qui produit pass = false échoue réellement.
 
 Statut Niveau 4 : 🔴 À CORRIGER — tests non prouvés.
+
+
+## AUDIT BULK N4–N15 — 08/10/2026
+
+Les niveaux 4 à 15 sont désormais traités simultanément par cause commune, et non comme quinze chantiers indépendants.
+
+**Cause commune retenue :** absence d'un environnement de validation reproductible aligné exactement sur le HEAD de la branche, permettant de rejouer le schéma + toutes les migrations + tous les tests et de produire une preuve exploitable.
+
+**Correction déjà engagée :** CircleCI `sql_tests` avec Supabase local et replay complet ; assertions SQL rendues bloquantes ; aucun changement de `main` ni de Production.
+
+**Important :** l'accès Supabase distant fonctionne désormais. Le problème actuel est la divergence entre son état live et les migrations de la branche, et non un problème de connexion.
+
+### Matrice bulk
+- N4 Tests → preuve SQL reproductible
+- N5 CI → exécution du gate et logs
+- N6 DB → replay schéma/migrations/RLS/RPC
+- N7 Métier → assertions métier sur le même replay
+- N8 Intégrations → contrats/flux sur le même artefact
+- N9 Sécurité/architecture → contrôles positifs et négatifs
+- N10 Auth/sessions → tests identité/session
+- N11 UI/UX → artefact + recette
+- N12 Services externes → configuration/contrats sans souscription payante
+- N13 Déploiement → validation avant autorisation Production
+- N14 Robustesse → régression/performance
+- N15 Conformité → croisement cahier v3.7 et preuves cumulées
+
+**Statut bulk N4–N15 : 🔴 un seul problème commun résiduel — preuve d'exécution reproductible au HEAD manquante.**
