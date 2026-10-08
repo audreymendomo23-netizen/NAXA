@@ -836,3 +836,16 @@ Le dépôt contient désormais :
 - Fichiers : supabase/migration_047_inventaire_valorisation.sql, supabase/tests/047_inventaire_valorisation.sql.
 - Production non modifiée.
 - **État : 🟡 construit dans main — preuve SQL/CI d'exécution manquante.**
+
+
+## ERP-007 — Ordonnancier / registre sécurisé
+- Extension additive du modèle canonique `prescriptions` → `ventes` → ordonnancier.
+- Ordonnancier interne lié à la pharmacie, l'ordonnance, la vente et au dispensateur.
+- Registre interne séparé pour les substances signalées comme contrôlées, sans imposer de qualification juridique automatique du produit.
+- RLS limitée au Promoteur et au pharmacien assistant du même périmètre pharmacie ; aucune lecture Client/Comptable/Admin réseau.
+- Écriture uniquement via `ordonnancier_enregistrer()` ; aucune écriture directe accordée aux utilisateurs authentifiés.
+- Contrôles serveur : ordonnance validée/non expirée, vente rattachée et payée, même pharmacie, utilisateur autorisé.
+- Migrations : `048_ordonnancier.sql`, `049_registre_substances.sql`, `050_ordonnancier_securite.sql`, `051_ordonnancier_rpc.sql`.
+- Test structurel : `supabase/tests/048_ordonnancier.sql`.
+- Aucun changement Production.
+- **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
