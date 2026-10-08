@@ -105,7 +105,7 @@ La section historique ci-dessus reste conservée. Pour l'état courant, la réf�
 - branche de travail : `rewrite/naxa-from-main-20261007` ;
 - HEAD de travail au contrôle : `b2fc8b793cbac1d11a089c88d736386faf0af658` avant les corrections documentaires de niveau 1 ;
 - `main` au contrôle : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471` ;
-- PR #30 : ouverte, draft, non fusionnée ;
+- PR #30 : fermée, non fusionnée (validation CI remplacée par le gate CircleCI) ;
 - Qualité/CI : non verte ; aucune preuve d'exécution ne doit être inventée ;
 - Production : aucun changement effectué dans ce chantier.
 
