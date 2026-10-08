@@ -57,3 +57,15 @@ Toute nouvelle contradiction documentaire est ajoutée ici avant correction ; au
 **Correction :** fermeture des PR #33/#34 ; le travail reste conservé sur la branche courante et dans l'historique.
 
 **Statut : 🟢 RÉSOLU.**
+
+
+## C-007 — Niveau 3 : qualité outillée frontend
+- Cause identifiée : le script `lint` existait mais aucune configuration ESLint ni dépendance ESLint explicite n'était versionnée.
+- Correction : ajout de `eslint@8.57.1`, `eslint-config-next@14.2.15` et `.eslintrc.json` basé sur `next/core-web-vitals`.
+- Les versions des dépendances sont désormais figées dans `package.json` pour réduire la dérive d'installation.
+- Statut de correction statique : 🟢.
+
+## C-008 — Niveau 3 : reproductibilité npm
+- Contradiction : le dépôt ne contient pas de `package-lock.json`, donc `npm ci` et une résolution npm totalement déterministe ne sont pas encore démontrables.
+- Tentative de génération locale impossible : l'environnement d'exécution n'a pas accès au registre npm et ne possède pas les métadonnées en cache.
+- Statut : 🔴 preuve externe requise ; ne pas déclarer le niveau 3 vert.
