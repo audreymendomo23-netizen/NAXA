@@ -104,3 +104,15 @@
 - Logos officiels Orange Money / MTN MoMo : assets officiels à intégrer ; aucun logo de substitution/redessiné.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## ERP-003 / Pharmacien — consultation + prescription — 08/10/2026
+- Ajout du parcours **Consultation pharmaceutique** dans `/pharmacie/pharmacien`.
+- Ajout du parcours **Prescription** depuis l'espace Pharmacien, sans créer de second moteur ordonnance : réutilisation de `prescriptions` + `prescription_items`.
+- La prescription interne est marquée `source='pharmacie'` et enregistrée comme validée par le Pharmacien émetteur ; aucune décision médicale automatisée n'est ajoutée.
+- Une prescription peut être rattachée à une consultation ; les lignes disposent désormais de posologie, durée et instructions.
+- Contrôle serveur : création consultation/prescription réservée à `fonction_interne='pharmacien'`, pharmacie active et périmètre correspondant.
+- RLS : consultation lisible uniquement par un Pharmacien actif de la même pharmacie ; écritures via RPC sécurisées.
+- Migration/test : `supabase/migration_064_pharmacien_consultation_prescription.sql`, `supabase/tests/060_pharmacien_consultation_prescription.sql`.
+- Aucun changement Supabase live ni Production.
+- **État : 🟡 construit sur branche de travail — preuve SQL/CI manquante ; intégration `main` non autorisée à ce stade.**
