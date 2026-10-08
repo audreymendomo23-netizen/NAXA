@@ -986,34 +986,111 @@ Le dépôt contient désormais :
 
 
 ## NAXA-CAISSE-001 — Parcours Caisse scan / recherche / encaissement — 08/10/2026
-- Audit : le moteur POS existant reste la source unique de vente ; aucune seconde caisse n'est créée.
-- Ajout : recherche produit par code-barres, nom ou référence ; recherche bulk de codes ; prix, stock et emplacement affichés.
-- Ajout : montant perçu en espèces et calcul serveur de la monnaie rendue.
-- Ajout : paiement électronique enregistré avec référence opérateur ; aucune simulation de transfert Orange Money/MTN MoMo.
-- Ajout : validation finale via `vente_finaliser()` et impression navigateur du ticket existant `vente_ticket()`.
-- Interface : `src/app/pharmacie/caisse/page.tsx`.
-- DB : `supabase/migration_063_caisse_pharmacien_barcode.sql` ; test `supabase/tests/059_caisse_pharmacien_barcode.sql`.
-- Les logos officiels Orange Money et MTN MoMo restent à intégrer à partir des assets officiels ; aucun logo redessiné n'est utilisé.
-- **État : 🟡 construit — preuve SQL/CI manquante.**
 
-## NAXA-PHARMACIEN-001 — Fonction Pharmacien / validation ordonnance — 08/10/2026
-- Le Pharmacien est une **fonction interne métier**, pas un nouveau `role_type` ni un niveau hiérarchique N5.
-- Fonctions acceptées : `pharmacien` (canonique) et `pharmacien_assistant` (compatibilité historique).
-- Parcours : connexion → espace Pharmacien → ordonnances `en_attente` → contrôle → validation/rejet → vente autorisée lorsque l'ordonnance est validée → délivrance/traçabilité.
-- RPC canonique : `prescription_valider()` ; la validation enregistre le validateur et l'horodatage.
-- La vente liée à une ordonnance reste bloquée si celle-ci n'est pas validée.
-- Interface : `src/app/pharmacie/pharmacien/page.tsx`.
-- **État : 🟡 construit — preuve SQL/CI manquante.**
+- **ID :** NAXA-CAISSE-001
+- **Domaine :** ERP pharmacie / POS / Caisse
+- **Description :** Parcours Caisse de recherche produit, scan, constitution du panier, calcul du total, encaissement, calcul de monnaie, paiement opérateur, finalisation et ticket.
+- **Routes/pages :** `/pharmacie/caisse`
+- **Fichiers UI :** `src/app/pharmacie/caisse/page.tsx`
+- **DB / objets :** moteur canonique `ventes`, `vente_lignes`, `vente_paiements`, RPC `vente_ajouter_produit()`, `vente_ajouter_paiement()`, `vente_finaliser()`, `vente_ticket()`
+- **Migrations :** `supabase/migration_063_caisse_pharmacien_barcode.sql`, compléments `supabase/migration_064_caisse_modes_operateurs.sql`
+- **Tests :** `supabase/tests/059_caisse_pharmacien_barcode.sql`, `supabase/tests/060_caisse_modes_operateurs.sql`
+- **Résultats des tests :** présents dans le dépôt ; exécution CI réelle non encore démontrée.
+- **Branche de création :** historique exact à consolider ; les fichiers sont actuellement présents sur `rewrite/naxa-from-main-20261007`.
+- **Commit(s) de création :** `023b3535449838d13d5c18e50553f580878160fe` pour le complément opérateurs ; socle barcode documenté avant ce complément.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / validation CI à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour ces derniers compléments ; ne pas déclarer intégré.
+- **Déploiement :** aucun déploiement Production exécuté pour ce complément.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique ; fonctionnelle/Production non déclarées.
+- **Preuves :** fichiers UI, migrations et tests présents ; absence de run CI associé au dernier chantier.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE SQL/CI MANQUANTE**
+- **Cause du non-vert :** preuve d’exécution automatisée SQL/CI non obtenue.
+- **Solution détectée :** mettre au vert le workflow qualité et exécuter le replay Supabase local prévu par le CI.
+- **Correction :** ajout/raccordement au moteur POS existant, sans second moteur de vente.
+- **Prochaine action :** exécuter et prouver le gate qualité ; corriger toute erreur avant validation.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** aucune nouvelle seconde caisse/vente ; les moyens de paiement opérateurs doivent rester distingués par leur type.
 
-## NAXA-PRODUIT-001 — Emplacement physique — 08/10/2026
-- `stocks.emplacement` devient l'emplacement du produit **par pharmacie**.
-- L'emplacement est affiché dans le tableau de stock et dans la recherche Caisse.
-- **État : 🟡 construit — preuve SQL/CI manquante.**
+## NAXA-CAISSE-002 — Paiements opérateurs Orange Money / MTN MoMo — 08/10/2026
 
+- **ID :** NAXA-CAISSE-002
+- **Domaine :** ERP pharmacie / POS / Paiements
+- **Description :** Distinction native des paiements Orange Money et MTN MoMo dans le moteur de paiement Caisse, avec référence opérateur obligatoire selon le flux existant.
+- **Routes/pages :** `/pharmacie/caisse`
+- **Fichiers UI :** `src/app/pharmacie/caisse/page.tsx`
+- **DB / objets :** enum `public.mode_paiement_caisse`, `vente_paiements`, RPC de paiement/finalisation existantes.
+- **Migrations :** `supabase/migration_064_caisse_modes_operateurs.sql`
+- **Tests :** `supabase/tests/060_caisse_modes_operateurs.sql`
+- **Résultats des tests :** test structurel présent ; exécution CI réelle non encore démontrée.
+- **Branche de création :** historique exact à consolider ; présence actuelle sur `rewrite/naxa-from-main-20261007`.
+- **Commit de création :** `023b3535449838d13d5c18e50553f580878160fe` — `feat(caisse): distinguer Orange Money et MTN MoMo`.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / preuve CI à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour ce dernier complément.
+- **Déploiement :** aucun changement Production exécuté.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique non exécuté ; fonctionnelle/Production non déclarées.
+- **Preuves :** migration et test présents ; valeurs `orange_money` et `mtn_momo` présentes dans l’enum.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE SQL/CI MANQUANTE**
+- **Cause du non-vert :** le test existe mais son exécution CI réelle n’est pas encore prouvée.
+- **Solution détectée :** gate qualité local/CI gratuit avec replay complet des migrations.
+- **Correction :** séparation explicite des deux opérateurs dans le type de paiement existant ; aucune simulation de transfert et aucun nouveau moteur de paiement.
+- **Prochaine action :** exécuter le test `060_caisse_modes_operateurs.sql` via le gate qualité et contrôler le parcours Caisse.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** aucune transaction Mobile Money réelle n’est simulée ; l’intégration opérateur réelle reste distincte de l’enregistrement comptable de la référence.
 
-### Mise à jour ERP-003 / Caisse — 08/10/2026
-- Interface Caisse : onglets **Encaissement** et **Recherche prix**.
-- Recherche bulk : plusieurs codes-barres, chacun retourné avec son prix et son emplacement, sans créer de vente.
-- Scan en encaissement : chaque scan ajoute le produit au panier existant et le total se recalcule.
-- Encaissement : montant perçu, monnaie rendue, choix espèces ou mobile money, référence opérateur, finalisation et impression navigateur.
-- **Statut inchangé : 🟡** tant que la preuve SQL/CI et l'intégration des assets officiels OM/MTN ne sont pas obtenues.
+## NAXA-PHARMACIEN-001 — Fonction Pharmacien / consultation / prescription — 08/10/2026
+
+- **ID :** NAXA-PHARMACIEN-001
+- **Domaine :** ERP pharmacie / Pharmacien / Ordonnance
+- **Description :** Fonction interne Pharmacien permettant la consultation pharmaceutique et la création/validation d’une prescription dans le parcours ordonnance existant.
+- **Routes/pages :** `/pharmacie/pharmacien`
+- **Fichiers UI :** `src/app/pharmacie/pharmacien/page.tsx`
+- **DB / objets :** `consultations_pharmaceutiques`, `prescriptions`, `prescription_items`, RPC `prescription_valider()` et raccordement à `ventes.prescription_id`.
+- **Migrations :** `supabase/migration_064_pharmacien_consultation_prescription.sql`
+- **Tests :** `supabase/tests/060_pharmacien_consultation_prescription.sql`
+- **Résultats des tests :** test structurel présent ; exécution CI réelle non encore démontrée.
+- **Branche de création :** historique exact à consolider ; fichier actuellement présent sur `rewrite/naxa-from-main-20261007`.
+- **Commit de création :** `b1a5ed3edba21a3ce072368999ace76d1d507b9b` — `feat(pharmacien): ajouter consultation et prescription`.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / preuve CI à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour ce dernier complément.
+- **Déploiement :** aucun changement Production exécuté.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique non exécuté ; fonctionnelle/Production non déclarées.
+- **Preuves :** UI, migration et test présents ; fonction Pharmacien traitée comme fonction interne et non comme nouveau `role_type`.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE SQL/CI MANQUANTE**
+- **Cause du non-vert :** preuve d’exécution SQL/CI manquante.
+- **Solution détectée :** exécuter le test structurel via le gate qualité puis compléter la preuve fonctionnelle.
+- **Correction :** extension additive du modèle `prescriptions` existant ; aucun nouveau niveau hiérarchique N5.
+- **Prochaine action :** valider consultation/prescription, contrôler les scopes et la règle de blocage de vente avant ordonnance validée.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** `pharmacien` reste une fonction interne ; `pharmacien_assistant` est conservé pour compatibilité historique ; aucun `role_type` supplémentaire.
+
+## NAXA-PRODUIT-001 — Emplacement physique par pharmacie — 08/10/2026
+
+- **ID :** NAXA-PRODUIT-001
+- **Domaine :** ERP pharmacie / Stock / Caisse
+- **Description :** Emplacement physique du produit porté par le stock de chaque pharmacie et réutilisé par la recherche Caisse.
+- **Routes/pages :** `/pharmacie`, `/pharmacie/caisse`
+- **Fichiers UI :** `src/app/pharmacie/page.tsx`, `src/app/pharmacie/caisse/page.tsx`
+- **DB / objets :** colonne `stocks.emplacement`
+- **Migrations :** raccordement au socle stock existant ; migration spécifique à reconstituer uniquement si absente après audit.
+- **Tests :** couvertures de stock/Caisse existantes ; preuve spécifique à consolider.
+- **Résultats des tests :** présence UI/DB contrôlée ; exécution CI spécifique non démontrée.
+- **Branche de création :** historique exact à consolider ; présence actuelle sur `rewrite/naxa-from-main-20261007`.
+- **Commit de création :** non isolé avec certitude lors de cet audit ; ne pas inventer de SHA.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / preuve à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour le dernier complément.
+- **Déploiement :** aucun changement Production exécuté.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique ; fonctionnelle/Production non déclarées.
+- **Preuves :** champ affiché dans le stock et réutilisé dans la recherche Caisse.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE MANQUANTE**
+- **Cause du non-vert :** couverture de test dédiée et preuve CI non consolidées.
+- **Solution détectée :** rattacher la vérification au gate stock/Caisse sans créer un second modèle.
+- **Correction :** conserver `stocks.emplacement` comme source canonique par pharmacie.
+- **Prochaine action :** ajouter/identifier le test ciblé puis le faire passer dans le gate qualité.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** aucune table concurrente d’emplacement ne doit être créée.
+
+### Règle de classement de ces quatre fiches
+
+Ces fiches suivent désormais exactement la fiche obligatoire du registre : **ID → domaine → description → routes → fichiers → DB → migrations → tests/résultats → branche → commit → validation → main → déploiement → niveaux → preuves → statut → cause → solution → correction → prochaine action → dernière vérification → contradictions**.
+
+**Important :** aucune de ces fiches n’est passée artificiellement au vert. La preuve CI/SQL reste le chantier Qualité actif.
