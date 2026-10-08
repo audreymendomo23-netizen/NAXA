@@ -1205,3 +1205,14 @@ Lint / TypeScript / compilation-build / dépendances et configuration.
 
 ## Mise à jour Niveau 3 — 08/10/2026
 Preuve CI réelle obtenue sur `rewrite/naxa-from-main-20261007` : commit `f1fcd801f37989bdd17e667a0e88c17dd3e5f4e6`, contexte CircleCI `ci/circleci: quality` = **success**, pipeline #167. Installation npm, TypeScript, ESLint et build Next.js sont tous passés. Le niveau 3 est donc **🟢 VERT**. `main` et Production n'ont pas été modifiés.
+
+
+## Niveau 4 — TESTS — chantier ouvert
+- Suite de tests SQL existante recensée jusqu'à supabase/tests/061_pharmacien_consultation_prescription.sql.
+- Infrastructure CircleCI sql_tests ajoutée au commit dfc58961fc2f55d501ac7c52ef95b44327258e6a.
+- Objectif du job : environnement Supabase local → replay complet → exécution de tous les tests SQL.
+- Preuve d'exécution : absente à ce stade.
+- Supabase distant : accès bloqué par « link_id must identify an eligible linked account ».
+- Docker local : indisponible dans l'environnement courant.
+- Contradiction supplémentaire : plusieurs tests exposent pass par SELECT sans mécanisme universel d'échec du processus.
+- Statut : 🔴 À CORRIGER.
