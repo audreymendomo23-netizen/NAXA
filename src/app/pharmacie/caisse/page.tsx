@@ -10,7 +10,7 @@ type Ligne=Produit&{q:number};
 export default function CaissePage(){
   const sb=supabaseBrowser();
   const [pid,setPid]=useState<string|null>(null),[session,setSession]=useState<string|null>(null),[vente,setVente]=useState<string|null>(null);
-  const [scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
+  const [onglet,setOnglet]=useState<"caisse"|"recherche">("caisse"),[scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
   const [percu,setPercu]=useState(""),[mode,setMode]=useState<"especes"|"mobile_money">("especes"),[reference,setReference]=useState(""),[msg,setMsg]=useState(""),[busy,setBusy]=useState(false);
   const [pharmacie,setPharmacie]=useState("");
 
@@ -42,7 +42,7 @@ export default function CaissePage(){
     if(!vente)return;
     const r=await sb.rpc("vente_ajouter_produit",{p_vente:vente,p_produit:p.produit_id,p_quantite:1});
     if(r.error)return setMsg(r.error.message);
-    setLignes(x=>{const old=x.find(l=>l.produit_id===p.produit_id);return old?x.map(l=>l.produit_id===p.produit_id?{...l,q:l.q+1}:l):[...lignes,{...p,q:1}]});
+    setLignes(x=>{const old=x.find(l=>l.produit_id===p.produit_id);return old?x.map(l=>l.produit_id===p.produit_id?{...l,q:l.q+1}:l):[...x,{...p,q:1}]});
     setScan(""); setMsg(p.nom+" ajouté.");
   }
   async function scanner(e:React.KeyboardEvent<HTMLInputElement>){
@@ -74,7 +74,7 @@ export default function CaissePage(){
     <header className="-mx-4 mb-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Caisse · {pharmacie}</b></header>
     <div className="grid gap-4 lg:grid-cols-3">
       <section className="carte lg:col-span-2">
-        <h1 className="text-xl font-extrabold">Encaissement</h1>
+        <h1 className="text-xl font-extrabold">{onglet==="caisse"?"Encaissement":"Recherche prix"}</h1>
         <p className="text-sm mb-3">Scannez les codes-barres un par un. Le même champ accepte une succession de scans rapides.</p>
         <input autoFocus className="champ w-full" placeholder="Scanner le code-barres puis Entrée" value={scan} onChange={e=>setScan(e.target.value)} onKeyDown={scanner}/>
         <div className="mt-3 flex gap-2"><input className="champ flex-1" placeholder="Recherche prix : nom, référence ou code" value={recherche} onChange={e=>setRecherche(e.target.value)} onKeyDown={e=>e.key==="Enter"&&lookup()}/><button className="btn btn-clair" onClick={()=>lookup()}>Rechercher</button></div>
