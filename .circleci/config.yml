@@ -23,7 +23,67 @@ jobs:
           name: Build Next.js
           command: npm run build
 
+  sql_tests:
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+      - run:
+          name: Installer les dépendances frontend
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Préparer Supabase local
+          command: |
+            npx supabase@latest init --force
+            cat > supabase/config.toml <<'EOF'
+            project_id = "naxa-tests-ci"
+            [api]
+            enabled = true
+            [db]
+            major_version = 17
+            [studio]
+            enabled = false
+            [inbucket]
+            enabled = false
+            [storage]
+            enabled = false
+            [realtime]
+            enabled = false
+            [analytics]
+            enabled = false
+            [edge_runtime]
+            enabled = false
+            EOF
+            rm -rf supabase/migrations
+            mkdir -p supabase/migrations
+            cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+            n=1
+            for f in supabase/migration_*.sql; do
+              ts=$(printf '2026100600%02d' "$n")
+              cp "$f" "supabase/migrations/$ts-$(basename "$f")"
+              n=$((n+1))
+            done
+      - run:
+          name: Démarrer Supabase local
+          command: npx supabase@latest start -x studio -x inbucket -x storage -x realtime -x analytics -x edge-runtime
+      - run:
+          name: Replay complet des migrations
+          command: npx supabase@latest db reset
+      - run:
+          name: Exécuter tous les tests SQL
+          command: |
+            set -e
+            for f in supabase/tests/*.sql; do
+              echo "=== TEST $f ==="
+              npx supabase@latest db query --file "$f"
+            done
+      - run:
+          name: Arrêter Supabase local
+          command: npx supabase@latest stop --no-backup
+          when: always
+
 workflows:
-  quality:
+  quality_and_tests:
     jobs:
       - quality
+      - sql_tests
