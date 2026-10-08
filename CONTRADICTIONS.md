@@ -69,3 +69,10 @@ Toute nouvelle contradiction documentaire est ajoutée ici avant correction ; au
 - Contradiction : le dépôt ne contient pas de `package-lock.json`, donc `npm ci` et une résolution npm totalement déterministe ne sont pas encore démontrables.
 - Tentative de génération locale impossible : l'environnement d'exécution n'a pas accès au registre npm et ne possède pas les métadonnées en cache.
 - Statut : 🔴 preuve externe requise ; ne pas déclarer le niveau 3 vert.
+
+
+## C-009 — Niveau 3 : preuve CI externe indisponible
+- Le workflow qualité est correctement présent et couvre TypeScript, lint et build.
+- Contradiction vérifiée : GitHub ne retourne aucune exécution Actions pour les commits du chantier, tandis que le statut global du commit expose encore un ancien contexte CircleCI en erreur (#299).
+- Le dépôt ne contient pas `package-lock.json`; une validation `npm ci` déterministe n'est donc pas démontrable.
+- Conclusion : le code de configuration a été corrigé, mais la preuve d'exécution n'est pas obtenue. Déclarer le niveau 3 🟢 serait contraire à la méthodologie.
