@@ -809,3 +809,10 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/045_prescription_vente.sql`.
 - Aucun changement Production exécuté.
 - **État : 🟡 construit dans `main` — preuve SQL/CI d'exécution manquante.**
+
+
+### Correction ERP-004 — verrouillage du statut
+- Relecture post-construction : la première RLS autorisait une mise à jour directe du statut d'ordonnance.
+- Correction : suppression de cette capacité ; le statut, le validateur et le motif passent désormais exclusivement par `prescription_valider()`.
+- Commit de correction : `c43bd5e842af54912431975c4cb5b2a53e7f51d9`.
+- **État inchangé : 🟡 construit — preuve d'exécution manquante.**

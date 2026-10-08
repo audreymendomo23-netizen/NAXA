@@ -186,3 +186,10 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Références Supabase utilisées pour la conception : RLS, grants explicites, fonctions sécurisées et triggers. citeturn0search0turn2search0turn1search0
 - Aucun changement Production.
 - **État : 🟡 construit — preuve SQL/CI manquante.**
+
+
+### Correction ERP-004 — verrouillage du statut
+- Contradiction de sécurité détectée après construction : possibilité de modifier directement le statut d'une ordonnance.
+- Correction appliquée dans `migration_045_prescription_vente.sql` : aucune policy UPDATE directe ; seule la RPC `prescription_valider()` peut valider/rejeter.
+- Live Supabase vérifié en lecture seule : `ventes` et `prescriptions` sont encore absentes ; `naxa_privileges` existe mais sa structure live ne correspond pas au dépôt (`governance_only` absent) et `can_access_pharmacy(uuid)` est absent. Le replay complet ne peut donc pas être déclaré vert sur cet environnement sans réconciliation préalable du socle.
+- **État : 🟡 construit dans main — preuve d'exécution manquante / environnement Supabase désaligné.**
