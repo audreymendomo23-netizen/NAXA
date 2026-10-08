@@ -82,6 +82,6 @@
 - Paiements avancés : voucher, assurance/tier payant et crédit réconcilié avec le flux unique `vente_paiements`.
 - Caisse rapide : favoris, paniers en attente/reprise et affichage client par session.
 - Remises/promotions : bornes, période, plafond et approbation séparée.
-- Migrations/tests : `supabase/migration_061_pos_avance_rapide_remises.sql`, `supabase/tests/058_pos_avance_rapide_remises.sql`.
+- Migrations/tests : `supabase/migration_061_pos_avance_rapide_remises.sql`, `supabase/migration_062_pos_creation_vouchers_promotions.sql`, `supabase/tests/058_pos_avance_rapide_remises.sql`.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 construit — preuve SQL/CI manquante.**
