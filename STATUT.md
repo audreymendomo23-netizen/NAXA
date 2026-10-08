@@ -45,3 +45,8 @@
 - Aucun second moteur de stock ni second mécanisme offline créé.
 - Aucun changement Production/Supabase live.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## ERP-003 — POS étape 1 — 08/10/2026
+- Lignes de vente + allocation FEFO ajoutées au socle POS existant.
+- État : 🟡 construit, preuve SQL/CI manquante.
