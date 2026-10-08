@@ -165,3 +165,7 @@ Le blocage N4 n'est plus traité erreur par erreur. L'audit transversal a identi
 
 ## Mise à jour N4 — 08/10/2026
 Le replay SQL a révélé un défaut syntaxique ciblé dans `migration_034_promoteur_session_audit.sql` : le corps de `naxa_audit_session_delete()` se terminait par un délimiteur dollar invalide `$;`. La correction a restauré `$$;` et le préflight CircleCI détecte désormais explicitement ce type de délimiteur malformé. Cette correction est additive et ne modifie ni `main` ni Production. Le vert reste interdit tant qu'un nouveau replay complet et tous les tests SQL n'ont pas fourni une preuve au HEAD courant.
+
+## Rectification N4 — 08/10/2026
+Correction effective : `migration_034_promoteur_session_audit.sql` ne contient plus le délimiteur PL/pgSQL isolé `$;` dans `naxa_audit_session_delete()` ; il est restauré en `$$;`. Commit effectif : `0a13542b4e2917086f2f5264c139c645c79bc380`. Le préflight CI bloque désormais ce défaut. Aucun vert N4 n'est déclaré avant une nouvelle exécution complète au HEAD courant.
+
