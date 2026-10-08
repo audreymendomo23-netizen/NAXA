@@ -27,7 +27,7 @@ end $$;
 
 update public.produits set nom_norm = lower(unaccent(
   coalesce(nom, '') || ' ' || coalesce(dci, '') || ' ' || coalesce(dosage, '') || ' ' ||
-  coalesce(array_to_string(synonymes, ' '), ''));
+  coalesce(array_to_string(synonymes, ' '), '')));
 
 -- 4. Garde-fou : un compte pharmacie qui crée un produit ne peut pas y mettre une fiche, une photo ni la déclarer « relue ».
 create or replace function public.produits_garde_fiche() returns trigger
@@ -64,13 +64,15 @@ drop policy if exists photos_admin_maj on storage.objects;
 drop policy if exists photos_admin_suppr on storage.objects;
 create policy photos_lecture on storage.objects for select using (bucket_id = 'produits-photos');
 create policy photos_admin_ajout on storage.objects for insert with check (bucket_id = 'produits-photos' and public.is_admin());
-create policy photos_admin_maj on storage.objects for update using (bucket_id = 'produits-photos' and public.is_admin());
+create policy photos_admin_maj on storage.objects for update using (bucket_id = 'produits-photos' and public.is_admin()) with check (bucket_id = 'produits-photos' and public.is_admin());
 create policy photos_admin_suppr on storage.objects for delete using (bucket_id = 'produits-photos' and public.is_admin());
 
 -- 6. Dictionnaire : colonnes et mots simples manquants.
 alter table public.dictionnaire add column if not exists categorie text not null default 'mot';
 alter table public.dictionnaire add column if not exists source text not null default 'NAXA (à faire valider par un pharmacien)';
 alter table public.dictionnaire enable row level security;
+drop policy if exists dictionnaire_read on public.dictionnaire;
+drop policy if exists dictionnaire_write on public.dictionnaire;
 drop policy if exists dico_lecture on public.dictionnaire;
 drop policy if exists dico_admin on public.dictionnaire;
 create policy dico_lecture on public.dictionnaire for select using (true);
