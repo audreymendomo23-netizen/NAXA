@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  lint_app:
+  lint_actionprotegee:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -10,10 +10,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint app
-          command: npx eslint src/app
+          name: Lint ActionProtegee
+          command: npx eslint src/components/ActionProtegee.tsx
 
-  lint_components:
+  lint_ajouterpanier:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -22,10 +22,10 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint components
-          command: npx eslint src/components
+          name: Lint AjouterPanier
+          command: npx eslint src/components/AjouterPanier.tsx
 
-  lint_lib:
+  lint_bandeaudefilant:
     docker:
       - image: cimg/node:20.14
     steps:
@@ -34,16 +34,129 @@ jobs:
           name: Installer
           command: npm install --no-audit --no-fund
       - run:
-          name: Lint lib
-          command: npx eslint src/lib
+          name: Lint BandeauDefilant
+          command: npx eslint src/components/BandeauDefilant.tsx
+
+  lint_bandeaupopulaires:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint BandeauPopulaires
+          command: npx eslint src/components/BandeauPopulaires.tsx
+
+  lint_boutonpanier:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint BoutonPanier
+          command: npx eslint src/components/BoutonPanier.tsx
+
+  lint_evenementvue:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint EvenementVue
+          command: npx eslint src/components/EvenementVue.tsx
+
+  lint_importadmin:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint ImportAdmin
+          command: npx eslint src/components/ImportAdmin.tsx
+
+  lint_lienespaceclient:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint LienEspaceClient
+          command: npx eslint src/components/LienEspaceClient.tsx
+
+  lint_logo:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint Logo
+          command: npx eslint src/components/Logo.tsx
+
+  lint_photoupload:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint PhotoUpload
+          command: npx eslint src/components/PhotoUpload.tsx
+
+  lint_pilotage:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint Pilotage
+          command: npx eslint src/components/Pilotage.tsx
+
+  lint_recherche:
+    docker:
+      - image: cimg/node:20.14
+    steps:
+      - checkout
+      - run:
+          name: Installer
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint Recherche
+          command: npx eslint src/components/Recherche.tsx
 
 workflows:
-  lint_app:
-    jobs:
-      - lint_app
   lint_components:
     jobs:
-      - lint_components
-  lint_lib:
-    jobs:
-      - lint_lib
+      - lint_actionprotegee
+      - lint_ajouterpanier
+      - lint_bandeaudefilant
+      - lint_bandeaupopulaires
+      - lint_boutonpanier
+      - lint_evenementvue
+      - lint_importadmin
+      - lint_lienespaceclient
+      - lint_logo
+      - lint_photoupload
+      - lint_pilotage
+      - lint_recherche
