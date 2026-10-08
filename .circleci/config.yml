@@ -35,7 +35,7 @@ jobs:
           name: Préparer Supabase local
           command: |
             npx supabase@latest init --force
-            cat > supabase/config.toml <<'EOF'
+            cat > supabase/config.toml \<<'EOF'
             project_id = "naxa-tests-ci"
             [api]
             enabled = true
