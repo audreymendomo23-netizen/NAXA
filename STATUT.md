@@ -227,3 +227,10 @@ Aucune modification de `main` ni de Production n'est autorisée par cette correc
 - Validation attendue : un nouveau run CircleCI `quality_and_tests`, avec `quality` puis `sql_tests`.
 - Aucun changement de `main` et aucune modification Production.
 - Statut N4–N15 : 🟡 EN ATTENTE DE PREUVE CI AU HEAD COURANT ; aucun vert déclaré sans résultat réel.
+
+
+## CORRECTION CI / REPLAY SUPABASE — 08/10/2026
+- Audit du feedback CircleCI : le blocage venait de deux défauts conjoints du harnais de validation, pas des fonctionnalités métier : noms de migrations générés au mauvais format et schéma base.sql avec des délimiteurs PL/pgSQL invalides.
+- Correction appliquée sur rewrite/naxa-from-main-20261007 : timestamp Supabase conforme + underscore, exclusions CLI conformes, délimiteurs PL/pgSQL corrigés dans supabase/schema.sql.
+- Aucun changement main / Production.
+- Statut : 🟡 correction appliquée ; passage au vert uniquement après nouveau run CircleCI réussi.
