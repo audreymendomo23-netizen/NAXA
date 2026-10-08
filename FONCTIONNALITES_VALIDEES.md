@@ -972,3 +972,14 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/058_pos_avance_rapide_remises.sql`.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
+
+## ERP-010/011/012 — Vérification finale du bloc ERP avancé — 08/10/2026
+- ERP-010 ré-audité : le crédit client reste sur le moteur POS unique via la version finale de `client_credit_enregistrer_vente()` dans la chaîne de migrations ; le test structurel vérifie désormais ce raccordement.
+- ERP-011 ré-audité : les RPC de rappel sont durcies avec `search_path=''` ; le rappel reste une extension du lot canonique et non un second stock.
+- ERP-012 ré-audité : l'état serveur `offline_operations` n'est plus modifiable directement par l'utilisateur authentifié ; la RPC serveur porte l'état, avec contrôle explicite du périmètre pharmacie. Le test vérifie l'absence de privilège UPDATE direct.
+- Correction transversale POS étape 7 : le voucher n'est plus débité lors de l'ajout au brouillon ; sa consommation est différée à `vente_finaliser()`, dans la même transaction que la clôture de vente.
+- Correction transversale étape 7 : la syntaxe du paiement assurance a été corrigée dans `migration_061_pos_avance_rapide_remises.sql`.
+- Tests renforcés : `051_client_credit.sql`, `052_rappel_lot.sql`, `053_offline_idempotence.sql`, `058_pos_avance_rapide_remises.sql`.
+- Vérification GitHub : commits et fichiers présents dans `main`. Vérification Supabase live impossible à ce stade : la liaison MCP renvoie `link_id must identify an eligible linked account`.
+- Vérification CI : aucun run associé au dernier commit ; la preuve d'exécution CI reste indisponible.
+- **État final ERP-010/011/012 : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
