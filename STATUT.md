@@ -262,3 +262,32 @@ Cette section est la référence courante et supersède les références SHA ant
 Le gate bulk N4–N15 doit être rejoué et prouvé au HEAD `5b24b960...`. Aucun vert supplémentaire n'est déclaré avant cette preuve.
 
 **N1–N3 : état documentaire et preuves historiques conservés ; N4–N15 : 🟡 en attente de preuve au HEAD courant.**
+
+
+# N4 — AUDIT ARCHITECTURAL DES DÉPENDANCES SQL — 08/10/2026
+
+## Méthode
+Audit transversal mené avant tout nouveau replay CircleCI : PostgreSQL/Supabase, backend SQL, RLS, migrations, CI et architecture ont été croisés par raisonnement par contradiction. Le but est de traiter la chaîne de dépendances complète et non de corriger uniquement la dernière erreur affichée.
+
+## Contradiction racine identifiée
+- supabase/migration_013_stocks_couts.sql utilisait public.can_access_pharmacy(uuid).
+- La définition canonique de cette fonction n'apparaissait qu'en supabase/migration_016_bi_rls_multipharmacie.sql.
+- Un replay depuis zéro respecte l'ordre des migrations : 013 ne pouvait donc pas appeler un objet créé en 016.
+- Ce défaut explique directement l'échec CircleCI observé à la migration 013.
+
+## Correction architecturale
+- migration_013 possède désormais un bootstrap minimal de can_access_pharmacy(uuid) fondé sur my_pharmacie().
+- migration_016 conserve la définition canonique multi-pharmacie et la remplace ensuite avec la sémantique Promoteur/réseau complète.
+- La signature reste identique : les policies de stocks_couts n'ont pas besoin d'être recréées.
+- migration_033 référençait encore l'ancien objet public.profile_privileges, alors que le modèle canonique est public.naxa_profile_privileges. Cette contradiction de nomenclature a été corrigée.
+- Le préflight CI vérifie désormais ces deux classes de régression avant le replay.
+- Test de régression ajouté : supabase/tests/013_stocks_couts_dependencies.sql.
+
+## Preuve disponible
+- Audit des migrations 001–065 effectué par familles de dépendances et ordre de définition.
+- Les fonctions/tableaux critiques déjà identifiés ont été croisés avec leur migration de définition ; aucun nouveau défaut de même nature n'est déclaré vert sans preuve d'exécution.
+- Aucun nouveau run CircleCI n'a été lancé pendant cette phase d'audit afin de préserver le quota gratuit.
+
+**Statut N4 : 🟡 CORRECTION STRUCTURELLE APPLIQUÉE — preuve de replay complet encore requise.**
+
+**Règle :** le vert N4 ne sera déclaré qu'après replay complet du schéma + toutes les migrations + tous les tests SQL au HEAD exact de la branche, avec logs exploitables.
