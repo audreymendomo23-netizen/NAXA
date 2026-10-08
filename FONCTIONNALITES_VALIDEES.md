@@ -886,3 +886,15 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/051_client_credit.sql`.
 - Aucun changement Production/Supabase live exécuté.
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
+
+## ERP-011 — Rappel de lot (F64)
+- Audit : aucune implémentation concurrente de rappel de lot n'a été trouvée dans `main` ; `stocks_lots` reste le socle canonique des lots.
+- Construction additive : `rappels_lots` trace le rappel, son motif, sa référence, son statut et son responsable.
+- Sécurité : RLS par pharmacie ; lecture authentifiée uniquement ; création/levée exclusivement via RPC contrôlées.
+- `lot_rappeler()` enregistre le rappel actif et bloque le lot existant ; `lot_lever_rappel()` lève le rappel et débloque le lot.
+- Aucun second moteur de stock n'est créé.
+- Migration : `supabase/migration_055_rappel_lot.sql`.
+- Test structurel : `supabase/tests/052_rappel_lot.sql`.
+- Limite volontaire : le POS actuel ne porte pas encore de `lot_id` dans `vente_lignes`; l'interdiction de vendre un lot rappelé sera raccordée au chantier de vente/FEFO lotisé, sans inventer un second mécanisme de vente.
+- Aucun changement Production/Supabase live exécuté.
+- **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
