@@ -34,8 +34,8 @@ create or replace function public.vente_ajouter_produit(
 returns integer
 language plpgsql
 security definer
-set search_path=public
-as $$
+set search_path=''
+as $
 declare
   v_vente public.ventes%rowtype;
   v_stock public.stocks%rowtype;
