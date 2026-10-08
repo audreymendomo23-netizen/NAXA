@@ -968,7 +968,7 @@ Le dépôt contient désormais :
 - Étape 7 : création/consommation de vouchers contrôlée, validation expiration/solde, rattachement assurance au dossier existant et plafond crédit conservé.
 - Étape 8 : favoris par utilisateur/pharmacie, paniers de ventes POS en attente/reprise et affichage client rattaché à la session caisse ; aucun second moteur de vente.
 - Étape 9 : promotions par pharmacie, remises bornées par pourcentage/plafond, demande d'approbation et interdiction d'auto-approbation ; seule une décision autorisée modifie la remise de la vente.
-- Migration : `supabase/migration_061_pos_avance_rapide_remises.sql`.
+- Migrations : `supabase/migration_061_pos_avance_rapide_remises.sql` + `supabase/migration_062_pos_creation_vouchers_promotions.sql`.
 - Test structurel : `supabase/tests/058_pos_avance_rapide_remises.sql`.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 CONSTRUIT — preuve SQL/CI manquante.**
