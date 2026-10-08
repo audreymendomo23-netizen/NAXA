@@ -217,3 +217,13 @@ Aucune modification de `main` ni de Production n'est autorisée par cette correc
 - Aucun merge vers `main`, aucun déploiement Production.
 
 **Action en cours :** déclencher une nouvelle exécution CircleCI via une mise à jour documentaire minimale afin d'obtenir la preuve réelle du job `sql_tests`.
+
+
+## REPRISE CI — CORRECTION CIRCLECI — 08/10/2026
+
+- HEAD branche : `a415325bb6263568935b18d4919ea7d81d7bed3c3` (correction du parseur CircleCI heredoc).
+- Correction : `.circleci/config.yml` utilise désormais le heredoc échappé \\<<'EOF' exigé par CircleCI v2.1.
+- OpenAI/Chunk : hors chemin critique ; son exécution précédente s'est arrêtée sur `Budget Exceeded`, sans correction exploitable.
+- Validation attendue : un nouveau run CircleCI `quality_and_tests`, avec `quality` puis `sql_tests`.
+- Aucun changement de `main` et aucune modification Production.
+- Statut N4–N15 : 🟡 EN ATTENTE DE PREUVE CI AU HEAD COURANT ; aucun vert déclaré sans résultat réel.
