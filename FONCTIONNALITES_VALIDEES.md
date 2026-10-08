@@ -911,3 +911,17 @@ Le dépôt contient désormais :
 - Test structurel : `supabase/tests/053_offline_idempotence.sql`.
 - Aucun changement Supabase live/Production exécuté.
 - **État : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
+
+
+## ERP-003 — POS étape 1 — lignes de vente + FEFO — 08/10/2026
+- Audit : le socle POS ERP-003 existait déjà (migration_044_pos_caisse.sql) ; aucune seconde caisse/vente n'a été créée.
+- Correction de fondation : migration_057_pos_lignes_fefo.sql ajoute vente_lignes.lot_id et la RPC atomique vente_ajouter_produit.
+- Si le produit est lotisé, allocation FEFO par date de péremption, exclusion des lots expirés ou bloqués (dont rappels actifs), puis décrément du stock agrégé canonique.
+- Si aucun lot n'existe pour le produit, le stock agrégé existant reste utilisé afin de préserver la compatibilité avec l'historique non lotisé.
+- Les totaux POS sont recalculés après chaque ajout ; une erreur transactionnelle annule l'opération entière.
+- Test structurel : supabase/tests/054_pos_lignes_fefo.sql.
+- Commit migration : a8b466e6ca83afe111a133d5629f1140f1680888.
+- Commit test : 389b24c96bc41d50e3a7273d1af13e160951a469.
+- Preuve CI : aucune exécution associée détectée à ce stade.
+- Aucun changement Production/Supabase live.
+- **État : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
