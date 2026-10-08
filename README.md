@@ -112,3 +112,9 @@ La section historique ci-dessus reste conservée. Pour l'état courant, la réf�
 **Priorité actuelle :** corriger et prouver la qualité avant tout passage ERP supplémentaire. Les paragraphes historiques annonçant une consolidation « terminée » ne valent pas fermeture du chantier Qualité courant.
 
 **Niveau 1 — Documentation / traçabilité : 🟢 corrigé.** Références complémentaires : `docs/CONTINUITE_NAXA.md`, `docs/FUSION.md`, `CONTRADICTIONS.md`, `docs/CAHIER_DES_CHARGES.md`.
+
+
+## Niveau 2 — Gouvernance Git — 08/10/2026
+Le chantier courant est `rewrite/naxa-from-main-20261007`. `main` reste la source de vérité et n'a pas été modifié. Les branches historiques sont conservées comme archives et ne constituent pas des sources concurrentes. Voir `docs/GIT_GOUVERNANCE.md`.
+
+**Niveau 2 : 🟢 corrigé.**
