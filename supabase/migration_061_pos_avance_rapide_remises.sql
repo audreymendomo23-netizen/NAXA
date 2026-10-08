@@ -2,15 +2,8 @@
 -- Paiements avancés + caisse rapide + remises/promotions.
 -- Extension additive : aucun second moteur de vente.
 
--- 7. Paiements avancés : assurance et voucher deviennent des modes de paiement
--- utilisables avec les paiements mixtes déjà construits.
-do $enum$
-begin
-  alter type public.mode_paiement_caisse add value if not exists 'assurance';
-  alter type public.mode_paiement_caisse add value if not exists 'voucher';
-exception when duplicate_object then null;
-end
-$enum$;
+-- 7. Paiements avancés : assurance/voucher utilisent le mode existant `autre`.
+-- Les étiquettes dédiées pourront être ajoutées séparément sans bloquer ce chantier.
 
 create table if not exists public.vente_vouchers (
   id uuid primary key default gen_random_uuid(),
@@ -55,7 +48,7 @@ begin
   if not found or not v.actif then raise exception 'Voucher invalide'; end if;
   if v.expires_at is not null and v.expires_at < now() then raise exception 'Voucher expiré'; end if;
   if p_montant > v.solde then raise exception 'Solde voucher insuffisant'; end if;
-  perform public.vente_ajouter_paiement(p_vente,'voucher',p_montant,v.code);
+  perform public.vente_ajouter_paiement(p_vente,'autre',p_montant,'VOUCHER:'||v.code);
   update public.vente_vouchers set solde=solde-p_montant, actif=(solde-p_montant)>0 where id=v.id;
 end;
 $voucher$;
@@ -86,7 +79,7 @@ begin
   if not found or d.statut not in ('accepte','clos') then raise exception 'Dossier assurance non accepté'; end if;
   if d.vente_id is not null and d.vente_id<>p_vente then raise exception 'Dossier rattaché à une autre vente'; end if;
   if d.montant_prise_en_charge is null or p_montant>d.montant_prise_en_charge then raise exception 'Montant assurance supérieur à la prise en charge'; end if;
-  perform public.vente_ajouter_paiement(p_vente,'assurance',p_montant,coalesce(d.reference_externe,'ASS-'||d.id::text));
+  perform public.vente_ajouter_paiement(p_vente,'assurance',p_montant,coalesce(d.reference_externe,'ASS-'||perform public.vente_ajouter_paiement(p_vente,'autre',p_montant,'ASSURANCE:'||coalesce(d.reference_externe,'ASS-'||d.id::text));
   update public.dossiers_assurance set vente_id=p_vente where id=d.id;
 end;
 $assurance$;
