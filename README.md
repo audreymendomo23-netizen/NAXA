@@ -98,3 +98,11 @@ La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses
 6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
+
+
+### Mise à jour Pharmacien — 8 octobre 2026
+- L'espace `/pharmacie/pharmacien` couvre désormais trois parcours : **consultation pharmaceutique**, **prescription** et **contrôle des ordonnances reçues**.
+- La consultation est enregistrée dans le dossier pharmacie et peut être liée à un compte client NAXA.
+- La prescription réutilise le moteur ordonnance existant et peut être rattachée à la consultation ; posologie, durée et instructions sont conservées.
+- L'émission est protégée côté serveur et réservée à la fonction interne `pharmacien` de la pharmacie concernée.
+- Ces ajouts sont construits sur la branche de travail et restent 🟡 tant que les tests SQL/CI ne sont pas effectivement exécutés ; aucune mise en Production n'a été faite.
