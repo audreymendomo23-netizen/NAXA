@@ -31,13 +31,24 @@ jobs:
             set -euo pipefail
             echo "HEAD=$(git rev-parse HEAD)"
             echo "BRANCH=${CIRCLE_BRANCH:-unknown}"
-            test -s supabase/schema.sql
-            test "$(grep -Fc 'create or replace function my_pharmacie()' supabase/schema.sql)" -eq 1
-            test "$(grep -Fc 'create or replace function restore_stock(' supabase/schema.sql)" -eq 1
-            test "$(grep -Fc 'create or replace function expire_reservations()' supabase/schema.sql)" -eq 1
-            test "$(grep -Fc 'create trigger on_auth_user_created' supabase/schema.sql)" -eq 1
-            test "$(grep -Fc 'as $select' supabase/schema.sql)" -eq 0
-            test "$(grep -Fc 'as $;' supabase/schema.sql)" -eq 0
+            check() {
+              local label="$1"
+              shift
+              echo "CHECK: $label"
+              if "$@"; then
+                echo "PASS: $label"
+              else
+                echo "FAIL: $label"
+                return 1
+              fi
+            }
+            check "schema.sql présent et non vide" awk 'NF { found=1; exit } END { exit(found ? 0 : 1) }' supabase/schema.sql
+            check "my_pharmacie() : 1 occurrence attendue" bash -c '[[ "$(grep -Fc "create or replace function my_pharmacie()" supabase/schema.sql)" == "1" ]]'
+            check "restore_stock( : 1 occurrence attendue" bash -c '[[ "$(grep -Fc "create or replace function restore_stock(" supabase/schema.sql)" == "1" ]]'
+            check "expire_reservations() : 1 occurrence attendue" bash -c '[[ "$(grep -Fc "create or replace function expire_reservations()" supabase/schema.sql)" == "1" ]]'
+            check "on_auth_user_created : 1 occurrence attendue" bash -c '[[ "$(grep -Fc "create trigger on_auth_user_created" supabase/schema.sql)" == "1" ]]'
+            check "as $select : 0 occurrence attendue" bash -c '[[ "$(grep -Fc "as $select" supabase/schema.sql)" == "0" ]]'
+            check "as $; : 0 occurrence attendue" bash -c '[[ "$(grep -Fc "as $;" supabase/schema.sql)" == "0" ]]'
             # Garde syntaxique minimale : un délimiteur dollar isolé ($;) est invalide.
             if grep -R -nE '^[[:space:]]*\$;[[:space:]]*$' supabase/schema.sql supabase/migration_*.sql; then
               echo "ÉCHEC: délimiteur dollar PL/pgSQL malformé détecté"
