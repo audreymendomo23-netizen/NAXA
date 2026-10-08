@@ -4,8 +4,8 @@ workflows:
   naxa-pr-ci:
     when:
       and:
-        - equal: [pull_request, << pipeline.event.name >>]
-        - equal: [main, << pipeline.event.github.pull_request.base.ref >>]
+        - equal: [pull_request, \<< pipeline.event.name >>]
+        - equal: [main, \<< pipeline.event.github.pull_request.base.ref >>]
     jobs:
       - build
       - architecture-supabase
@@ -39,12 +39,14 @@ jobs:
       - run:
           name: Installer Supabase CLI
           command: |
+            set -euo pipefail
             curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase.tar.gz
             tar -xzf /tmp/supabase.tar.gz -C /tmp
             sudo install /tmp/supabase /usr/local/bin/supabase
       - run:
           name: Préparer les migrations de replay
           command: |
+            set -euo pipefail
             rm -rf supabase/migrations
             mkdir -p supabase/migrations
             cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
@@ -56,17 +58,27 @@ jobs:
             done
       - run:
           name: Démarrer Supabase local
-          command: supabase start
+          command: |
+            set -euo pipefail
+            supabase start
       - run:
           name: Replay complet
-          command: supabase db reset
+          command: |
+            set -euo pipefail
+            supabase db reset
       - run:
           name: Assertions architecture
-          command: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
+          command: |
+            set -euo pipefail
+            supabase db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
       - run:
           name: Tests comportementaux architecture
-          command: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+          command: |
+            set -euo pipefail
+            supabase db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
       - run:
           name: Arrêter Supabase
-          command: supabase stop
+          command: |
+            set -euo pipefail
+            supabase stop
           when: always
