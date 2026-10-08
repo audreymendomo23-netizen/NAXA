@@ -225,15 +225,8 @@ as $$
   where p.id=p_profile and p.actif=true
 $$;
 
-revoke all on function public.naxa_business_function(uuid) from public,anon;
-revoke all on function public.naxa_can(text,uuid,uuid) from public,anon;
-revoke all on function public.naxa_assign_privilege(uuid,text) from public,anon;
-revoke all on function public.naxa_revoke_privilege(uuid,text) from public,anon;
-grant execute on function public.naxa_business_function(uuid) to authenticated;
-grant execute on function public.naxa_can(text,uuid,uuid) to authenticated;
-grant execute on function public.naxa_assign_privilege(uuid,text) to authenticated;
-grant execute on function public.naxa_revoke_privilege(uuid,text) to authenticated;
-
+-- Les fonctions d'autorisation sont définies dans les migrations dédiées suivantes.
+-- Leurs GRANT/REVOKE restent placés après leur CREATE OR REPLACE afin de respecter le replay chronologique.
 comment on table public.pharmacie_architectures is 'Architecture assignée par NAXA à une pharmacie; le Promoteur ne la choisit pas.';
 comment on table public.naxa_privileges is 'Catalogue atomique canonique des privilèges NAXA.';
 comment on table public.pharmacie_architectures is 'Projection opérationnelle; la convention Promoteur reste la source de vérité.';
