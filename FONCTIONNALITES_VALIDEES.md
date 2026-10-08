@@ -1130,3 +1130,26 @@ Ce n'est pas le blocage technique actuel : c'est une condition de validation fin
 Ces fiches suivent désormais exactement la fiche obligatoire du registre : **ID → domaine → description → routes → fichiers → DB → migrations → tests/résultats → branche → commit → validation → main → déploiement → niveaux → preuves → statut → cause → solution → correction → prochaine action → dernière vérification → contradictions**.
 
 **Important :** aucune de ces fiches n’est passée artificiellement au vert. La preuve CI/SQL reste le chantier Qualité actif.
+
+# 9. NIVEAU 1 — DOCUMENTATION / TRAÇABILITÉ — 08/10/2026
+
+## Audit par raisonnement par contradiction
+**Problème commun traité :** documentation de référence incomplète ou devenue ambiguë par accumulation d'historique.
+
+**Cas traités l'un après l'autre :**
+1. **Documents prescrits absents** → création de `docs/CONTINUITE_NAXA.md`, `docs/FUSION.md`, `CONTRADICTIONS.md`, `docs/CAHIER_DES_CHARGES.md`.
+2. **Références de positionnement obsolètes** → ajout d'une couche de référence courante datée dans `docs/TRACABILITE.md` et `README.md`.
+3. **Confusion historique / état courant** → `STATUT.md` et ce registre précisent désormais que l'historique est conservé mais que la section datée la plus récente prévaut pour la position courante.
+4. **SHA / intégration non démontrés** → aucun SHA n'est inventé ; branche de travail, HEAD contrôlé, `main` contrôlé et PR #30 sont consignés explicitement.
+5. **Statut fonctionnel artificiellement vert** → les fonctionnalités sans preuve CI/SQL restent 🟡 ; le vert du niveau 1 ne modifie pas leur statut technique.
+
+## Références vérifiées
+- Branche : `rewrite/naxa-from-main-20261007`.
+- HEAD contrôlé avant la présente série documentaire : `b2fc8b793cbac1d11a089c88d736386faf0af658`.
+- `main` contrôlé : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`.
+- PR #30 : ouverte, draft, non fusionnée.
+- Production : aucune modification par ce chantier documentaire.
+
+**Statut du niveau 1 : 🟢 VALIDÉ — DOCUMENTATION / TRAÇABILITÉ.**
+
+**Règle :** ce 🟢 ne valide ni SQL, ni CI, ni sécurité, ni fonctionnalité métier. Il verrouille uniquement la qualité documentaire et la traçabilité du chantier.
