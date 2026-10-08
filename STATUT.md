@@ -103,7 +103,7 @@
 - Migrations/tests : `supabase/migration_063_caisse_pharmacien_barcode.sql`, `supabase/tests/059_caisse_pharmacien_barcode.sql`.
 - Logos officiels Orange Money / MTN MoMo : assets officiels à intégrer ; aucun logo de substitution/redessiné.
 - Aucun changement Supabase live/Production.
-- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+- **État : 🟡 construit sur `rewrite/naxa-from-main-20261007` — preuve SQL/CI manquante ; intégration `main` non démontrée.**
 
 
 ## Niveau 1 — Documentation / traçabilité — 08/10/2026
