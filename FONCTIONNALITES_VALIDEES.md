@@ -796,3 +796,16 @@ Le dépôt contient désormais :
 - Test structurel ajouté.
 - Aucun changement Production.
 - **État : 🟡 socle construit dans `main` — preuve SQL/CI manquante.**
+
+
+## Huitième chantier — ERP-004 Prescription → vente
+- Audit : aucun modèle/table/RPC de prescription persistant n'a été trouvé dans `main`; le scan/import ordonnance existant reste un parcours amont et ne devait pas être remplacé.
+- Réconciliation : raccordement additif au moteur de caisse `ventes`/ERP-003 via `ventes.prescription_id`, sans seconde table de vente.
+- Socle ajouté : `prescriptions`, `prescription_items`, statuts en attente/validée/rejetée/expirée, validateur, motif de rejet, échéance.
+- Contrôle serveur : une vente portant une ordonnance est bloquée tant que l'ordonnance n'est pas validée, et l'ordonnance doit appartenir à la même pharmacie et au même client lorsqu'un client est renseigné.
+- Sécurité : coffre ordonnance non lisible par le comptable ni par l'administration réseau ; lecture limitée au Promoteur et à la fonction interne `pharmacien_assistant`. Le rôle `role_type` n'est pas modifié.
+- Validation : RPC `prescription_valider`, motif obligatoire au rejet ; permissions de fonction restreintes.
+- Migration : `supabase/migration_045_prescription_vente.sql`.
+- Test structurel : `supabase/tests/045_prescription_vente.sql`.
+- Aucun changement Production exécuté.
+- **État : 🟡 construit dans `main` — preuve SQL/CI d'exécution manquante.**

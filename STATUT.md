@@ -175,3 +175,14 @@ Mise à jour : 8 octobre 2026 — Architecture N0–N4 / privilèges / conventio
 - Migration : `supabase/migration_044_pos_caisse.sql`.
 - Test : `supabase/tests/044_pos_caisse.sql`.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+## Huitième chantier — ERP-004 Prescription → vente
+- Audit réalisé : aucun modèle persistant de prescription/ordonnance n'existait dans `main`; le scan/import ordonnance existant est conservé.
+- Construction additive : `prescriptions` + `prescription_items` + lien `ventes.prescription_id`.
+- Sécurité métier : validation serveur par Promoteur ou fonction interne `pharmacien_assistant`, rejet avec motif obligatoire, et blocage serveur d'une vente liée à une ordonnance non validée.
+- Séparation des données : le coffre n'est pas exposé au comptable ni à l'admin réseau.
+- Fichiers : `supabase/migration_045_prescription_vente.sql`, `supabase/tests/045_prescription_vente.sql`.
+- Références Supabase utilisées pour la conception : RLS, grants explicites, fonctions sécurisées et triggers. citeturn0search0turn2search0turn1search0
+- Aucun changement Production.
+- **État : 🟡 construit — preuve SQL/CI manquante.**
