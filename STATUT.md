@@ -204,3 +204,16 @@ Le bloc historique indiquant que la preuve Supabase était indisponible par erre
 - Niveau 4–15 : le seul résiduel est la preuve d'exécution reproductible au HEAD courant.
 
 Aucune modification de `main` ni de Production n'est autorisée par cette correction.
+
+
+## CIRCLECI — REPRISE DU GATE SQL — 08/10/2026
+
+- Connexion CircleCI : 🟢 existante et déjà utilisée sur NAXA.
+- Configuration actuelle : `.circleci/config.yml`.
+- Job `quality` : preuve historique 🟢 sur CircleCI.
+- Job `sql_tests` : présent, mais aucune preuve d'exécution au HEAD actuel n'est encore disponible.
+- GitHub Actions est actuellement bloqué **avant démarrage des jobs** par la limite de facturation/spending limit du compte ; ce blocage est externe au code NAXA.
+- Aucun changement de code fonctionnel n'est introduit pour contourner ce blocage.
+- Aucun merge vers `main`, aucun déploiement Production.
+
+**Action en cours :** déclencher une nouvelle exécution CircleCI via une mise à jour documentaire minimale afin d'obtenir la preuve réelle du job `sql_tests`.
