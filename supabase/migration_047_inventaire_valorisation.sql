@@ -68,7 +68,7 @@ revoke all on function public.inventaire_cloturer(uuid) from public,anon,authent
 grant execute on function public.inventaire_cloturer(uuid) to authenticated;
 alter table public.vente_lignes add column if not exists cout_unitaire_fige integer check(cout_unitaire_fige is null or cout_unitaire_fige>=0);
 alter table public.vente_lignes add column if not exists cout_total integer generated always as (quantite*coalesce(cout_unitaire_fige,0)) stored;
-alter table public.vente_lignes add column if not exists marge_ligne integer generated always as (total_ligne-(quantite*coalesce(cout_unitaire_fige,0))) stored;
+alter table public.vente_lignes add column if not exists marge_ligne integer generated always as ((quantite*prix_unitaire)-(quantite*coalesce(cout_unitaire_fige,0))) stored;
 create or replace function public.vente_ligne_figer_cout() returns trigger language plpgsql security definer set search_path=public as $$
 declare v_pharmacie uuid; v_cout integer;
 begin
