@@ -1,0 +1,72 @@
+version: 2.1
+
+workflows:
+  naxa-pr-ci:
+    when:
+      and:
+        - equal: [pull_request, << pipeline.event.name >>]
+        - equal: [main, << pipeline.event.github.pull_request.base.ref >>]
+    jobs:
+      - build
+      - architecture-supabase
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:20.19
+    steps:
+      - checkout
+      - run:
+          name: Installer les dépendances
+          command: npm install
+      - run:
+          name: TypeScript
+          command: npx tsc --noEmit
+      - run:
+          name: Build Next.js
+          command: npm run build
+          environment:
+            NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
+            SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
+
+  architecture-supabase:
+    docker:
+      - image: cimg/base:stable
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: Installer Supabase CLI
+          command: |
+            curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase.tar.gz
+            tar -xzf /tmp/supabase.tar.gz -C /tmp
+            sudo install /tmp/supabase /usr/local/bin/supabase
+      - run:
+          name: Préparer les migrations de replay
+          command: |
+            rm -rf supabase/migrations
+            mkdir -p supabase/migrations
+            cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+            n=1
+            for f in supabase/migration_*.sql; do
+              ts=$(printf '2026100600%02d' "$n")
+              cp "$f" "supabase/migrations/$ts-$(basename "$f")"
+              n=$((n+1))
+            done
+      - run:
+          name: Démarrer Supabase local
+          command: supabase start
+      - run:
+          name: Replay complet
+          command: supabase db reset
+      - run:
+          name: Assertions architecture
+          command: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation.sql
+      - run:
+          name: Tests comportementaux architecture
+          command: supabase db query --file supabase/tests/028_promoteur_responsable_accreditation_behavior.sql
+      - run:
+          name: Arrêter Supabase
+          command: supabase stop
+          when: always
