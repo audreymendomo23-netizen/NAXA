@@ -252,11 +252,8 @@ jobs:
                 lines = [line for line in output.splitlines() if line.strip()]
                 if not lines:
                     return False
-                # psql est lancé sans tuples-only : ignorer la première ligne (en-tête).
-                rows = lines[1:]
-                if not rows:
-                    return False
-                values = [v.strip().lower() for row in rows for v in row.split("\t")]
+                values = [v.strip().lower() for row in lines for v in row.split("\t")]
+                return not any(v in ("f", "false") for v in values)
                 return not any(v in ("f", "false") for v in values)
             cases = [
                 ("t", "assertion\nt", True, True),
@@ -290,11 +287,9 @@ jobs:
                 lines = [line.rstrip("\n") for line in open(p, encoding="utf-8") if line.strip()]
                 if not lines:
                     raise SystemExit(2)
-                # En-tête exclu; toute valeur booléenne fausse fait échouer le test.
-                rows = lines[1:]
-                if not rows:
-                    raise SystemExit(2)
-                vals = [v.strip().lower() for row in rows for v in row.split("\t")]
+                # Sortie tuples-only : aucune ligne de données = échec.
+                vals = [v.strip().lower() for row in lines for v in row.split("\t")]
+                if any(v in ("f", "false") for v in vals):
                 if any(v in ("f", "false") for v in vals):
                     raise SystemExit(3)
             except (UnicodeError, OSError):
