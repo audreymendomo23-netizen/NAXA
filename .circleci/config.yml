@@ -256,7 +256,7 @@ jobs:
       - run:
           name: Commenter les 30 dernières lignes SQL en échec sur la PR
           command: |
-            python3 - <<'PY'
+            python3 - \\<<'PY'
             import json, os, re, urllib.request
             from pathlib import Path
             repo = "audreymendomo23-netizen/NAXA"
