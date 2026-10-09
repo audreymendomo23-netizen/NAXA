@@ -361,3 +361,13 @@ La correction effective de `migration_034_promoteur_session_audit.sql` est le co
 - Test 051 corrigé par migration additive 055d : commit `7951032cdc9f98ca24d31162afb66c1d5a726fb3`; le POS utilise désormais la RPC `vente_ajouter_paiement` et le journal `vente_paiements`; test 051 rejoué **PASS**.
 - Test 023b bloqué par le contrôle de sécurité de l'outil ; aucun contournement.
 - Le projet de test est à la migration 055d. Les migrations 056–065 et les 46 tests complets restent non validés. **N4 reste NON VERT** tant que le replay complet et tous les tests ne sont pas prouvés.
+
+
+## Rectification audit replay propre — 09/10/2026
+- Contrôle direct de la branche `ci/replay-rewrite-20261008` : le job CircleCI parcourt `supabase/migration_*.sql` par ordre alphabétique du shell, puis exécute `supabase/tests/*.sql`. L'inventaire courant contient 78 migrations sources après retrait de la migration additive redondante 055d, et 52 fichiers de test SQL — pas 69 migrations/46 tests.
+- `migration_058_pos_paiements.sql` crée déjà `public.vente_paiements` et `public.vente_ajouter_paiement(uuid, mode_paiement_caisse, integer, text)`. La migration 055d concurrente créait les mêmes noms avec une forme incompatible; elle a été retirée de cette branche au commit 42b9c5769310e4020a36dbc40efbe45e5bbc5a41. Elle n'a pas été appliquée en Production. La base de test actuelle conserve cependant son ancien état et doit être recréée avant tout verdict.
+- `migration_055c_naxa_can_privilege_engine_alignment.sql` reste en place : elle corrige la façade `naxa_can` définie par 034, dont le contrôle historique par `profiles.pharmacie_id` ne couvre pas le périmètre Promoteur via `promoteur_pharmacies`. Les migrations 038–043 et 063–065 consultées ne remplacent pas cette façade.
+- `migration_055b_rappel_lot_search_path_hardening.sql` reste en place comme durcissement additif `SECURITY DEFINER` avec `search_path=''`; elle doit être validée sur un rejeu complet, pas sur la base intermédiaire.
+- La migration 023b est une instruction DDL `ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_niveau_interne_check`; elle modifie le schéma et n'est pas en lecture seule. Son exécution via l'outil a été bloquée et aucun contournement n'a été tenté.
+- La base `naxa-ci-replay` n'a pas été réinitialisée : l'interface disponible ne fournit pas de reset complet sûr de ce projet (le reset de branche ne s'applique pas à ce projet racine). Aucun DROP de schéma/registre n'a été tenté. Rejeu propre en attente d'une nouvelle base isolée ou d'une procédure de reset officiellement prise en charge.
+- Aucun changement Production, aucun commit sur `main`, aucune fusion.
