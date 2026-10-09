@@ -93,7 +93,7 @@ begin
   if (select role::text from public.profiles where id=v_responsable)<>'pharmacie' then raise exception 'Responsable doit conserver role_type pharmacie'; end if;
 
   -- Le Promoteur peut créer une Caisse directe et lui déléguer un privilège opérationnel.
-  update public.profiles set pharmacie_id=v_a,parent_profile_id=null,role='caisse',fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,architecture_code='PARENTS_AINES_CADETS',actif=true where id=v_caisse;
+  update public.profiles set pharmacie_id=v_a,parent_profile_id=null,role='caisse',fonction_interne=null,niveau_interne=3,niveau_hierarchique=3,architecture_code='PARENTS_AINES_CADETS',actif=true where id=v_caisse;
   perform public.accrediter_profile(v_caisse,v_a,3::smallint,v_promoteur);
   perform public.naxa_grant_privilege(v_caisse,'VIEW_STOCK',v_a,'POSTE_CAISSE');
   perform set_config('request.jwt.claim.sub',v_caisse::text,true);
