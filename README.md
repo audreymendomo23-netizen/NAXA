@@ -264,3 +264,13 @@ Correction effective : `migration_034_promoteur_session_audit.sql` ne contient p
 - Statut GitHub combiné du commit `ffb0f377...` : aucune status check ; workflow runs GitHub Actions retournés : liste vide. Aucun déclenchement CircleCI confirmé ; pas de surveillance de dix minutes effectuée.
 - Compare `4680e7d...HEAD` : 51 commits en avance, 0 en retard ; `.circleci/config.yml` modifié (+63/-14 dans le diff comparatif de branche). Le diff contient d'autres changements que les heredocs ; déclenchement non garanti.
 - Aucun rejeu des 78 migrations ni des 52 tests : le projet de test n'est pas encore `ACTIVE_HEALTHY`.
+
+
+## État opérationnel du rejeu SQL — 09/10/2026
+
+- Projet de test cible : `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) relu `ACTIVE_HEALTHY`; `schema.sql` est appliqué et l’inventaire Supabase ne montre que `schema_base` dans le registre des migrations.
+- Production `eouwtuusnsuxaejsxknf` : lecture seule, `ACTIVE_HEALTHY`. La requête sur `pg_class.relrowsecurity` n’a trouvé aucune table de `public` sans RLS. `abonnements` et `naxa_architecture_niveaux` ont RLS activé ; leurs policies et privilèges ont été consultés en lecture seule.
+- `.circleci/config.yml` : les cinq heredocs présents sont échappés avec un antislash ; aucun `>>` détecté. Le runner contient maintenant `ON_ERROR_STOP=1`, un contrôle de résultat vide, le rejet des valeurs booléennes `f/false`, et l’auto-test des cas `t`, `f`, zéro ligne, en-tête contenant `f` et erreur SQL. Les cas du filtre ont été simulés localement ; aucun run CircleCI n’est prouvé.
+- Statuts GitHub du commit de code `e450d343e7e045eabeb8e547d28fddc09927d279` : `statuses=[]`. Le seul workflow GitHub Actions remonté (run 446) est le workflow « NAXA — Promoteur Parties 4+5 — validation isolée », en échec ; il ne constitue pas une preuve CircleCI.
+- Rejeu des 78 migrations et exécution des 52 tests : NON exécutés. Le connecteur GitHub disponible ne fournit pas de lecture récursive de l’arbre des fichiers ; l’inventaire exact des chemins n’a pas été récupéré dans cette passe. Aucun échec SQL de migration n’a donc été observé et aucun message SQL d’échec ne doit être inventé.
+- Projet historique `naxa-ci-replay` (`fnlyjlvflgiewrkmnisi`) laissé `INACTIVE` ; aucun autre projet touché. Aucun commit sur `main`, aucune PR vers `main`, aucune fusion, aucune écriture Production.
