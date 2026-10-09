@@ -14,8 +14,20 @@ DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname='public' AND tablename='stocks'
-      AND policyname='stocks_write'
-  ) THEN RAISE EXCEPTION 'RLS stocks_write manquante'; END IF;
+      AND policyname='stocks_management_insert' AND cmd='INSERT'
+  ) THEN RAISE EXCEPTION 'RLS stocks_management_insert manquante'; END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='stocks'
+      AND policyname='stocks_caisse_update' AND cmd='UPDATE'
+  ) THEN RAISE EXCEPTION 'RLS stocks_caisse_update manquante'; END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='stocks'
+      AND policyname='stocks_management_delete' AND cmd='DELETE'
+  ) THEN RAISE EXCEPTION 'RLS stocks_management_delete manquante'; END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
