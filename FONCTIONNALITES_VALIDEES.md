@@ -985,35 +985,304 @@ Le dépôt contient désormais :
 - **État final ERP-010/011/012 : 🟡 CONSTRUIT — preuve d'exécution SQL/CI manquante.**
 
 
+## Classement par problème bloquant le vert — ajouts Pharmacien / Caisse — 08/10/2026
+
+Les fonctionnalités sont maintenant classées selon le problème qui empêche leur passage au vert, afin de traiter d'abord les causes communes.
+
+### PROBLÈME A — Preuve d'exécution CI/SQL absente
+
+Concerne : **NAXA-CAISSE-001, NAXA-CAISSE-002, NAXA-PHARMACIEN-001**.
+
+Les migrations, UI et tests sont présents, mais l'exécution CI exploitable n'est pas encore prouvée. Le traitement prioritaire est donc le gate Qualité : exécution réelle, replay Supabase, succès des assertions et conservation des logs.
+
+**Statut commun : 🟡 CONSTRUIT — preuve CI/SQL manquante.**
+
+### PROBLÈME B — Couverture de test dédiée à consolider
+
+Concerne : **NAXA-PRODUIT-001 — Emplacement physique par pharmacie**.
+
+La présence de `stocks.emplacement` et son usage Caisse sont établis, mais la couverture de test dédiée doit être isolée/confirmée puis exécutée dans le gate Qualité.
+
+**Statut : 🟡 CONSTRUIT — preuve dédiée à consolider.**
+
+### PROBLÈME C — Intégration `main` non démontrée
+
+Ce n'est pas le blocage technique actuel : c'est une condition de validation finale. Les quatre éléments restent sur `rewrite/naxa-from-main-20261007`. Aucun SHA `main` ne doit être inventé et aucune intégration ne doit être faite avant le vert technique et l'autorisation prévue.
+
+**Statut : ⚪ À FAIRE après le vert technique.**
+
+### ORDRE DE RÉSOLUTION
+
+**A → B → C** : mettre d'abord le workflow Qualité au vert, consolider ensuite le test Emplacement, puis seulement traiter l'intégration `main`.
+
 ## NAXA-CAISSE-001 — Parcours Caisse scan / recherche / encaissement — 08/10/2026
-- Audit : le moteur POS existant reste la source unique de vente ; aucune seconde caisse n'est créée.
-- Ajout : recherche produit par code-barres, nom ou référence ; recherche bulk de codes ; prix, stock et emplacement affichés.
-- Ajout : montant perçu en espèces et calcul serveur de la monnaie rendue.
-- Ajout : paiement électronique enregistré avec référence opérateur ; aucune simulation de transfert Orange Money/MTN MoMo.
-- Ajout : validation finale via `vente_finaliser()` et impression navigateur du ticket existant `vente_ticket()`.
-- Interface : `src/app/pharmacie/caisse/page.tsx`.
-- DB : `supabase/migration_063_caisse_pharmacien_barcode.sql` ; test `supabase/tests/059_caisse_pharmacien_barcode.sql`.
-- Les logos officiels Orange Money et MTN MoMo restent à intégrer à partir des assets officiels ; aucun logo redessiné n'est utilisé.
-- **État : 🟡 construit — preuve SQL/CI manquante.**
 
-## NAXA-PHARMACIEN-001 — Fonction Pharmacien / validation ordonnance — 08/10/2026
-- Le Pharmacien est une **fonction interne métier**, pas un nouveau `role_type` ni un niveau hiérarchique N5.
-- Fonctions acceptées : `pharmacien` (canonique) et `pharmacien_assistant` (compatibilité historique).
-- Parcours : connexion → espace Pharmacien → ordonnances `en_attente` → contrôle → validation/rejet → vente autorisée lorsque l'ordonnance est validée → délivrance/traçabilité.
-- RPC canonique : `prescription_valider()` ; la validation enregistre le validateur et l'horodatage.
-- La vente liée à une ordonnance reste bloquée si celle-ci n'est pas validée.
-- Interface : `src/app/pharmacie/pharmacien/page.tsx`.
-- **État : 🟡 construit — preuve SQL/CI manquante.**
+- **ID :** NAXA-CAISSE-001
+- **Domaine :** ERP pharmacie / POS / Caisse
+- **Description :** Parcours Caisse de recherche produit, scan, constitution du panier, calcul du total, encaissement, calcul de monnaie, paiement opérateur, finalisation et ticket.
+- **Routes/pages :** `/pharmacie/caisse`
+- **Fichiers UI :** `src/app/pharmacie/caisse/page.tsx`
+- **DB / objets :** moteur canonique `ventes`, `vente_lignes`, `vente_paiements`, RPC `vente_ajouter_produit()`, `vente_ajouter_paiement()`, `vente_finaliser()`, `vente_ticket()`
+- **Migrations :** `supabase/migration_063_caisse_pharmacien_barcode.sql`, compléments `supabase/migration_064_caisse_modes_operateurs.sql`
+- **Tests :** `supabase/tests/059_caisse_pharmacien_barcode.sql`, `supabase/tests/060_caisse_modes_operateurs.sql`
+- **Résultats des tests :** présents dans le dépôt ; exécution CI réelle non encore démontrée.
+- **Branche de création :** historique exact à consolider ; les fichiers sont actuellement présents sur `rewrite/naxa-from-main-20261007`.
+- **Commit(s) de création :** `023b3535449838d13d5c18e50553f580878160fe` pour le complément opérateurs ; socle barcode documenté avant ce complément.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / validation CI à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour ces derniers compléments ; ne pas déclarer intégré.
+- **Déploiement :** aucun déploiement Production exécuté pour ce complément.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique ; fonctionnelle/Production non déclarées.
+- **Preuves :** fichiers UI, migrations et tests présents ; absence de run CI associé au dernier chantier.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE SQL/CI MANQUANTE**
+- **Cause du non-vert :** preuve d’exécution automatisée SQL/CI non obtenue.
+- **Solution détectée :** mettre au vert le workflow qualité et exécuter le replay Supabase local prévu par le CI.
+- **Correction :** ajout/raccordement au moteur POS existant, sans second moteur de vente.
+- **Prochaine action :** exécuter et prouver le gate qualité ; corriger toute erreur avant validation.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** aucune nouvelle seconde caisse/vente ; les moyens de paiement opérateurs doivent rester distingués par leur type.
 
-## NAXA-PRODUIT-001 — Emplacement physique — 08/10/2026
-- `stocks.emplacement` devient l'emplacement du produit **par pharmacie**.
-- L'emplacement est affiché dans le tableau de stock et dans la recherche Caisse.
-- **État : 🟡 construit — preuve SQL/CI manquante.**
 
 
-### Mise à jour ERP-003 / Caisse — 08/10/2026
-- Interface Caisse : onglets **Encaissement** et **Recherche prix**.
-- Recherche bulk : plusieurs codes-barres, chacun retourné avec son prix et son emplacement, sans créer de vente.
-- Scan en encaissement : chaque scan ajoute le produit au panier existant et le total se recalcule.
-- Encaissement : montant perçu, monnaie rendue, choix espèces ou mobile money, référence opérateur, finalisation et impression navigateur.
-- **Statut inchangé : 🟡** tant que la preuve SQL/CI et l'intégration des assets officiels OM/MTN ne sont pas obtenues.
+
+
+
+
+## NAXA-CAISSE-002 — Paiements opérateurs Orange Money / MTN MoMo — 08/10/2026
+
+- **ID :** NAXA-CAISSE-002
+- **Domaine :** ERP pharmacie / POS / Paiements
+- **Description :** Distinction native des paiements Orange Money et MTN MoMo dans le moteur de paiement Caisse, avec référence opérateur obligatoire selon le flux existant.
+- **Routes/pages :** `/pharmacie/caisse`
+- **Fichiers UI :** `src/app/pharmacie/caisse/page.tsx`
+- **DB / objets :** enum `public.mode_paiement_caisse`, `vente_paiements`, RPC de paiement/finalisation existantes.
+- **Migrations :** `supabase/migration_064_caisse_modes_operateurs.sql`
+- **Tests :** `supabase/tests/060_caisse_modes_operateurs.sql`
+- **Résultats des tests :** test structurel présent ; exécution CI réelle non encore démontrée.
+- **Branche de création :** historique exact à consolider ; présence actuelle sur `rewrite/naxa-from-main-20261007`.
+- **Commit de création :** `023b3535449838d13d5c18e50553f580878160fe` — `feat(caisse): distinguer Orange Money et MTN MoMo`.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / preuve CI à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour ce dernier complément.
+- **Déploiement :** aucun changement Production exécuté.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique non exécuté ; fonctionnelle/Production non déclarées.
+- **Preuves :** migration et test présents ; valeurs `orange_money` et `mtn_momo` présentes dans l’enum.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE SQL/CI MANQUANTE**
+- **Cause du non-vert :** le test existe mais son exécution CI réelle n’est pas encore prouvée.
+- **Solution détectée :** gate qualité local/CI gratuit avec replay complet des migrations.
+- **Correction :** séparation explicite des deux opérateurs dans le type de paiement existant ; aucune simulation de transfert et aucun nouveau moteur de paiement.
+- **Prochaine action :** exécuter le test `060_caisse_modes_operateurs.sql` via le gate qualité et contrôler le parcours Caisse.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** aucune transaction Mobile Money réelle n’est simulée ; l’intégration opérateur réelle reste distincte de l’enregistrement comptable de la référence.
+
+## NAXA-PHARMACIEN-001 — Fonction Pharmacien / consultation / prescription — 08/10/2026
+
+- **ID :** NAXA-PHARMACIEN-001
+- **Domaine :** ERP pharmacie / Pharmacien / Ordonnance
+- **Description :** Fonction interne Pharmacien permettant la consultation pharmaceutique et la création/validation d’une prescription dans le parcours ordonnance existant.
+- **Routes/pages :** `/pharmacie/pharmacien`
+- **Fichiers UI :** `src/app/pharmacie/pharmacien/page.tsx`
+- **DB / objets :** `consultations_pharmaceutiques`, `prescriptions`, `prescription_items`, RPC `prescription_valider()` et raccordement à `ventes.prescription_id`.
+- **Migrations :** `supabase/migration_065_pharmacien_consultation_prescription.sql`
+- **Tests :** `supabase/tests/061_pharmacien_consultation_prescription.sql`
+- **Résultats des tests :** test structurel présent ; exécution CI réelle non encore démontrée.
+- **Branche de création :** historique exact à consolider ; fichier actuellement présent sur `rewrite/naxa-from-main-20261007`.
+- **Commit de création :** `b1a5ed3edba21a3ce072368999ace76d1d507b9b` — `feat(pharmacien): ajouter consultation et prescription`.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / preuve CI à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour ce dernier complément.
+- **Déploiement :** aucun changement Production exécuté.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique non exécuté ; fonctionnelle/Production non déclarées.
+- **Preuves :** UI, migration et test présents ; fonction Pharmacien traitée comme fonction interne et non comme nouveau `role_type`.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE SQL/CI MANQUANTE**
+- **Cause du non-vert :** preuve d’exécution SQL/CI manquante.
+- **Solution détectée :** exécuter le test structurel via le gate qualité puis compléter la preuve fonctionnelle.
+- **Correction :** extension additive du modèle `prescriptions` existant ; aucun nouveau niveau hiérarchique N5.
+- **Prochaine action :** valider consultation/prescription, contrôler les scopes et la règle de blocage de vente avant ordonnance validée.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** `pharmacien` reste une fonction interne ; `pharmacien_assistant` est conservé pour compatibilité historique ; aucun `role_type` supplémentaire.
+
+## NAXA-PRODUIT-001 — Emplacement physique par pharmacie — 08/10/2026
+
+- **ID :** NAXA-PRODUIT-001
+- **Domaine :** ERP pharmacie / Stock / Caisse
+- **Description :** Emplacement physique du produit porté par le stock de chaque pharmacie et réutilisé par la recherche Caisse.
+- **Routes/pages :** `/pharmacie`, `/pharmacie/caisse`
+- **Fichiers UI :** `src/app/pharmacie/page.tsx`, `src/app/pharmacie/caisse/page.tsx`
+- **DB / objets :** colonne `stocks.emplacement`
+- **Migrations :** raccordement au socle stock existant ; migration spécifique à reconstituer uniquement si absente après audit.
+- **Tests :** couvertures de stock/Caisse existantes ; preuve spécifique à consolider.
+- **Résultats des tests :** présence UI/DB contrôlée ; exécution CI spécifique non démontrée.
+- **Branche de création :** historique exact à consolider ; présence actuelle sur `rewrite/naxa-from-main-20261007`.
+- **Commit de création :** non isolé avec certitude lors de cet audit ; ne pas inventer de SHA.
+- **Branche/commit de validation :** `rewrite/naxa-from-main-20261007` / preuve à obtenir.
+- **SHA d’intégration dans `main` :** non démontré pour le dernier complément.
+- **Déploiement :** aucun changement Production exécuté.
+- **Niveaux de validation :** 🟡 statique ; 🟡 technique ; fonctionnelle/Production non déclarées.
+- **Preuves :** champ affiché dans le stock et réutilisé dans la recherche Caisse.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE MANQUANTE**
+- **Cause du non-vert :** couverture de test dédiée et preuve CI non consolidées.
+- **Solution détectée :** rattacher la vérification au gate stock/Caisse sans créer un second modèle.
+- **Correction :** conserver `stocks.emplacement` comme source canonique par pharmacie.
+- **Prochaine action :** ajouter/identifier le test ciblé puis le faire passer dans le gate qualité.
+- **Dernière vérification :** 08/10/2026.
+- **Contradictions connues :** aucune table concurrente d’emplacement ne doit être créée.
+
+### Règle de classement de ces quatre fiches
+
+Ces fiches suivent désormais exactement la fiche obligatoire du registre : **ID → domaine → description → routes → fichiers → DB → migrations → tests/résultats → branche → commit → validation → main → déploiement → niveaux → preuves → statut → cause → solution → correction → prochaine action → dernière vérification → contradictions**.
+
+**Important :** aucune de ces fiches n’est passée artificiellement au vert. La preuve CI/SQL reste le chantier Qualité actif.
+
+# 9. NIVEAU 1 — DOCUMENTATION / TRAÇABILITÉ — 08/10/2026
+
+## Audit par raisonnement par contradiction
+**Problème commun traité :** documentation de référence incomplète ou devenue ambiguë par accumulation d'historique.
+
+**Cas traités l'un après l'autre :**
+1. **Documents prescrits absents** → création de `docs/CONTINUITE_NAXA.md`, `docs/FUSION.md`, `CONTRADICTIONS.md`, `docs/CAHIER_DES_CHARGES.md`.
+2. **Références de positionnement obsolètes** → ajout d'une couche de référence courante datée dans `docs/TRACABILITE.md` et `README.md`.
+3. **Confusion historique / état courant** → `STATUT.md` et ce registre précisent désormais que l'historique est conservé mais que la section datée la plus récente prévaut pour la position courante.
+4. **SHA / intégration non démontrés** → aucun SHA n'est inventé ; branche de travail, HEAD contrôlé, `main` contrôlé et PR #30 sont consignés explicitement.
+5. **Statut fonctionnel artificiellement vert** → les fonctionnalités sans preuve CI/SQL restent 🟡 ; le vert du niveau 1 ne modifie pas leur statut technique.
+
+## Références vérifiées
+- Branche : `rewrite/naxa-from-main-20261007`.
+- HEAD contrôlé avant la présente série documentaire : `b2fc8b793cbac1d11a089c88d736386faf0af658`.
+- `main` contrôlé : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`.
+- PR #30 : fermée, non fusionnée (validation CI remplacée par le gate CircleCI).
+- Production : aucune modification par ce chantier documentaire.
+
+**Statut du niveau 1 : 🟢 VALIDÉ — DOCUMENTATION / TRAÇABILITÉ.**
+
+**Règle :** ce 🟢 ne valide ni SQL, ni CI, ni sécurité, ni fonctionnalité métier. Il verrouille uniquement la qualité documentaire et la traçabilité du chantier.
+
+
+# 10. NIVEAU 2 — GIT / STRUCTURE / HISTORIQUE — 08/10/2026
+
+## Problème 1 — Branches et PR concurrentes
+- Inventaire des branches effectué.
+- Branche courante : `rewrite/naxa-from-main-20261007`.
+- Source de vérité : `main`.
+- Base historique CI : `consolidation`.
+- PR #30 conservée comme PR technique active du gate Qualité.
+- PR #7, #22, #23, #24, #25, #33 et #34 fermées car historiques/supersédées.
+- Les commits et branches historiques restent conservés.
+- **Statut : 🟢.**
+
+## Problème 2 — Collision de numérotation des fichiers SQL de migration/test
+- Avant correction : deux migrations `064`, deux tests `060`.
+- Correction : Pharmacien → migration `065`, test `061`.
+- Contenu SQL inchangé ; références documentaires mises à jour.
+- Contrôle de l'arbre courant : chaque numéro concerné est désormais unique.
+- **Statut : 🟢.**
+
+## Problème 3 — Traçabilité de l'intégration
+- Aucun merge `main` effectué.
+- Aucun SHA `main` inventé.
+- Aucun déploiement Production effectué.
+- Les PR fermées conservent leur historique Git.
+- **Statut : 🟢.**
+
+**STATUT GLOBAL NIVEAU 2 : 🟢 VALIDÉ — GIT / STRUCTURE / HISTORIQUE.**
+
+
+# 11. NIVEAU 3 — QUALITÉ TECHNIQUE ÉLÉMENTAIRE — 08/10/2026
+
+## Périmètre
+Lint / TypeScript / compilation-build / dépendances et configuration.
+
+## Corrections
+- Ajout de `.eslintrc.json` avec `next/core-web-vitals`.
+- Ajout des dépendances ESLint compatibles Next 14.2.15.
+- Versions des dépendances de `package.json` figées.
+- Workflow qualité étendu à `npm run lint` et au déclenchement sur la branche de chantier.
+
+## Preuves disponibles
+- Fichiers corrigés présents sur `rewrite/naxa-from-main-20261007`.
+- Aucune exécution GitHub Actions associée aux commits du chantier n'est actuellement retournée par le connecteur ; aucune preuve TypeScript/lint/build ne peut donc être considérée comme passée.
+- `package-lock.json` absent du dépôt ; une génération locale a été bloquée par l'absence d'accès réseau/cache npm.
+
+**Statut Niveau 3 : 🔴 À CORRIGER / À PROUVER — ne pas confondre correction statique et validation exécutée.**
+
+
+## Mise à jour Niveau 3 — 08/10/2026
+Preuve CI réelle obtenue sur `rewrite/naxa-from-main-20261007` : commit `f1fcd801f37989bdd17e667a0e88c17dd3e5f4e6`, contexte CircleCI `ci/circleci: quality` = **success**, pipeline #167. Installation npm, TypeScript, ESLint et build Next.js sont tous passés. Le niveau 3 est donc **🟢 VERT**. `main` et Production n'ont pas été modifiés.
+
+
+## Niveau 4 — TESTS — chantier ouvert
+- Suite de tests SQL existante recensée jusqu'à supabase/tests/061_pharmacien_consultation_prescription.sql.
+- Infrastructure CircleCI sql_tests ajoutée au commit dfc58961fc2f55d501ac7c52ef95b44327258e6a.
+- Objectif du job : environnement Supabase local → replay complet → exécution de tous les tests SQL.
+- Preuve d'exécution : absente à ce stade.
+- Supabase distant : accès bloqué par « link_id must identify an eligible linked account ».
+- Docker local : indisponible dans l'environnement courant.
+- Contradiction supplémentaire : plusieurs tests exposent pass par SELECT sans mécanisme universel d'échec du processus.
+- Statut : 🔴 À CORRIGER.
+
+
+## AUDIT BULK N4–N15 — 08/10/2026
+
+Les niveaux 4 à 15 sont désormais traités simultanément par cause commune, et non comme quinze chantiers indépendants.
+
+**Cause commune retenue :** absence d'un environnement de validation reproductible aligné exactement sur le HEAD de la branche, permettant de rejouer le schéma + toutes les migrations + tous les tests et de produire une preuve exploitable.
+
+**Correction déjà engagée :** CircleCI `sql_tests` avec Supabase local et replay complet ; assertions SQL rendues bloquantes ; aucun changement de `main` ni de Production.
+
+**Important :** l'accès Supabase distant fonctionne désormais. Le problème actuel est la divergence entre son état live et les migrations de la branche, et non un problème de connexion.
+
+### Matrice bulk
+- N4 Tests → preuve SQL reproductible
+- N5 CI → exécution du gate et logs
+- N6 DB → replay schéma/migrations/RLS/RPC
+- N7 Métier → assertions métier sur le même replay
+- N8 Intégrations → contrats/flux sur le même artefact
+- N9 Sécurité/architecture → contrôles positifs et négatifs
+- N10 Auth/sessions → tests identité/session
+- N11 UI/UX → artefact + recette
+- N12 Services externes → configuration/contrats sans souscription payante
+- N13 Déploiement → validation avant autorisation Production
+- N14 Robustesse → régression/performance
+- N15 Conformité → croisement cahier v3.7 et preuves cumulées
+
+**Statut bulk N4–N15 : 🔴 un seul problème commun résiduel — preuve d'exécution reproductible au HEAD manquante.**
+
+
+## NAXA-CI-001 — Replay SQL Supabase reproductible — 08/10/2026
+- Cause racine corrigée : le harnais CircleCI fabriquait des noms de migrations incompatibles avec Supabase (timestamp-migration.sql au lieu de timestamp_migration.sql) et le schéma de base contenait des délimiteurs PL/pgSQL invalides (as $declare / end$;).
+- Correction : génération en timestamp 14 chiffres + underscore ; nettoyage des exclusions Supabase obsolètes ; délimiteurs PL/pgSQL restaurés dans le schéma existant.
+- Commits de correction : cf18a3d794b684dcf06401ebb88201a878942a65, 1f736303bcf13936e420ec84b25fc6f456728eaa.
+- Preuve finale : CircleCI run 192, statut `success` (« Your tests passed on CircleCI! »), commit `7c5155ce5fd3417e882be2523dfd0ce29f2ed0d6`.
+- Aucun merge main, aucun déploiement Production.
+- État : 🟢 VALIDÉ — CI/replay corrigé et prouvé.
+
+
+## RECTIFICATION DE CONTINUITÉ — 08/10/2026
+
+### Référence Git courante
+- Branche de validation : `rewrite/naxa-from-main-20261007`
+- HEAD courant : `5b24b96098ed240ddb9ade154e22f66969faa2df`
+- `main` courant : `2e96930c5d8fb0de4ad22cf4f3dd8dd95b4fd471`
+- Branche : **behind = 0**, ahead de `main`, merge-base = `main` HEAD.
+- PR #30 : ouverte / draft / non fusionnée.
+- Aucun merge `main`, aucun déploiement Production.
+
+### Règle de preuve
+Les preuves CircleCI antérieures, notamment run 192 sur `7c5155ce...`, restent historiques. Elles ne sont pas attribuées au HEAD `5b24b960...`.
+
+Les fonctionnalités actuellement 🟡 pour cause de preuve SQL/CI restent 🟡 jusqu'à l'exécution reproductible du replay Supabase + tests au HEAD courant.
+
+**Référence courante du registre : HEAD `5b24b960...`.**
+
+
+## NAXA-CI-001 — Correction replay migration_034 — 08/10/2026
+- **ID :** NAXA-CI-001
+- **Domaine :** Qualité / SQL / CI
+- **Description :** Correction du délimiteur PL/pgSQL invalide de `naxa_audit_session_delete()` dans `migration_034_promoteur_session_audit.sql`.
+- **Correction :** `end; $;` → `end; $$;`.
+- **Garde :** préflight CircleCI bloquant sur tout `$;` isolé dans le schéma ou les migrations.
+- **Commits :** `fa2854d6b123be34c9c5853c2f68e62bb4895594`, `6cfbd89302e509eea50fa03293483abe4a437ac0`.
+- **Validation :** correction statique vérifiée ; nouveau replay CI requis.
+- **Main / Production :** aucun changement.
+- **Statut :** 🟡 **CORRIGÉ — PREUVE D'EXÉCUTION MANQUANTE**.
+
+## RECTIFICATION NAXA-CI-001 — 08/10/2026
+La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c645c79bc380`. Les commits intermédiaires de correction de documentation/harnais restent historiques. **Statut : 🟡 corrigé statiquement, preuve CI/replay encore requise.**
+
