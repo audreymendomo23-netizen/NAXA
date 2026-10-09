@@ -7,7 +7,29 @@ jobs:
       - run:
           name: Sonde minimale CircleCI
           command: echo "CIRCLECI_TRIGGER_PROBE_OK"
+  quality:
+    docker:
+      - image: cimg/node:20.14
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
+    steps:
+      - checkout
+      - run:
+          name: Installer les dépendances
+          command: npm install --no-audit --no-fund
+      - run:
+          name: TypeScript
+          command: npx tsc --noEmit
+      - run:
+          name: ESLint
+          command: npm run lint
+      - run:
+          name: Build Next.js
+          command: npm run build
 workflows:
   probe:
     jobs:
       - trigger_probe
+      - quality
