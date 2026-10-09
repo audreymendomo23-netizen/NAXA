@@ -1293,7 +1293,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 ## Audit SQL du 9 octobre 2026 — état non vert
 
 - Base de test : `naxa-ci-replay-2`; aucune écriture Production.
-- Rejeu exact non validé : `migration_059_pos_ticket.sql` contient deux défauts d'exécution sur table ventes vide (fonction de fenêtre dans UPDATE ; puis `setval(0)`). Le fichier source n'a pas été modifié. Une variante diagnostique corrigée a été appliquée uniquement à la base de test pour examiner les migrations suivantes ; cette base doit être recréée avant la preuve finale.
+- Rejeu exact non validé : `migration_059_pos_ticket.sql` a été corrigée sur la branche d’intégration au commit `23bc21dab4ab4daaa8f5b818dd2f1015edb1ae53`. `row_number()` est calculé dans un CTE avant UPDATE ; le recalage `setval()` utilise `greatest(max_numero, 1)` et `is_called = max_numero > 0`, donc une table vide est prise en charge. Le test ciblé sur la base de diagnostic passe et `nextval()` renvoie 1. Cette base reste non canonique et doit être recréée pour le rejeu complet.
 - Tests SQL candidats exécutés individuellement : 18 sans erreur remontée, 13 en erreur/assertion, 1 bloqué par le contrôle de sécurité de l'outil. Cela ne vaut pas validation de la suite complète de 52 tests.
 - Contradictions de contraintes sur `profiles` confirmées ; plusieurs tests Promoteur échouent sur CHECK. Des tests comportementaux manquent aussi de fixtures autonomes.
 - RLS désactivée sur deux tables de la base de test (`abonnements`, `naxa_architecture_niveaux`) : politiques à auditer avant toute correction.
