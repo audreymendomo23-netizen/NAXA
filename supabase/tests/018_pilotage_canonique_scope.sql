@@ -26,7 +26,7 @@ begin
     '', now(), '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object(
       'username','naxa_admin_' || substr(replace(v_admin::text,'-',''),1,8),
-      'first_name','Test','last_name','Admin','phone',E'\\237600000000',
+      'first_name','Test','last_name','Admin','phone',E'\\\\237600000000',
       'phone_country','CM','date_of_birth','1990-01-01','consent_accepted',true
     ), now(), now()
   ),
@@ -36,7 +36,7 @@ begin
     '', now(), '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object(
       'username','naxa_prom_' || substr(replace(v_promoteur::text,'-',''),1,8),
-      'first_name','Test','last_name','Promoteur','phone',E'\\237600000001',
+      'first_name','Test','last_name','Promoteur','phone',E'\\\\237600000001',
       'phone_country','CM','date_of_birth','1990-01-01','consent_accepted',true
     ), now(), now()
   );
