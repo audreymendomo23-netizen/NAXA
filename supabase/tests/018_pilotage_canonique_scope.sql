@@ -12,18 +12,44 @@ declare
   v_json jsonb;
   v_failed boolean := false;
 begin
-  select id into v_admin from public.profiles order by created_at asc limit 1;
-  select id into v_promoteur from public.profiles where id <> v_admin order by created_at asc limit 1;
-  if v_admin is null or v_promoteur is null then
-    raise exception 'Fixture insuffisante: deux profils requis';
-  end if;
+  -- Fixtures autonomes : le test ne dépend pas de données préexistantes.
+  v_admin := gen_random_uuid();
+  v_promoteur := gen_random_uuid();
 
-  select id into v_a from public.pharmacies order by created_at asc limit 1;
-  select id into v_b from public.pharmacies where id <> v_a order by created_at asc limit 1;
-  select id into v_c from public.pharmacies where id not in (v_a,v_b) order by created_at asc limit 1;
-  if v_a is null or v_b is null or v_c is null then
-    raise exception 'Fixture insuffisante: trois pharmacies requises';
-  end if;
+  insert into auth.users (
+    id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  ) values
+  (
+    v_admin, 'authenticated', 'authenticated',
+    'naxa-sql-admin-' || replace(v_admin::text,'-','') || '@example.test',
+    '', now(), '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object(
+      'username','naxa_admin_' || substr(replace(v_admin::text,'-',''),1,8),
+      'first_name','Test','last_name','Admin','phone','+237600000000',
+      'phone_country','CM','date_of_birth','1990-01-01','consent_accepted',true
+    ), now(), now()
+  ),
+  (
+    v_promoteur, 'authenticated', 'authenticated',
+    'naxa-sql-promoteur-' || replace(v_promoteur::text,'-','') || '@example.test',
+    '', now(), '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object(
+      'username','naxa_prom_' || substr(replace(v_promoteur::text,'-',''),1,8),
+      'first_name','Test','last_name','Promoteur','phone','+237600000001',
+      'phone_country','CM','date_of_birth','1990-01-01','consent_accepted',true
+    ), now(), now()
+  );
+
+  insert into public.pharmacies(nom,ville,lat,lng,actif,est_demo)
+  values ('NAXA SQL A ' || substr(replace(gen_random_uuid()::text,'-',''),1,8),'Yaoundé',3.86,11.52,true,false)
+  returning id into v_a;
+  insert into public.pharmacies(nom,ville,lat,lng,actif,est_demo)
+  values ('NAXA SQL B ' || substr(replace(gen_random_uuid()::text,'-',''),1,8),'Yaoundé',3.87,11.53,true,false)
+  returning id into v_b;
+  insert into public.pharmacies(nom,ville,lat,lng,actif,est_demo)
+  values ('NAXA SQL C ' || substr(replace(gen_random_uuid()::text,'-',''),1,8),'Yaoundé',3.88,11.54,true,false)
+  returning id into v_c;
 
   update public.profiles set role='admin', actif=true, pharmacie_id=null where id=v_admin;
   update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a where id=v_promoteur;
