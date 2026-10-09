@@ -157,6 +157,8 @@ jobs:
           name: Préparer Supabase local
           command: |
             set -euo pipefail
+            export LC_ALL=C
+            echo "Locale de rejeu: LC_ALL=$LC_ALL"
             echo "Supabase CLI version: $(npx supabase@latest --version)"
             npx supabase@latest init --force
             cat > supabase/config.toml \<<'EOF'
@@ -208,11 +210,20 @@ jobs:
             fi
       - run:
           name: Replay complet des migrations
-          command: npx supabase@latest db reset
+          command: |
+            set -uo pipefail
+            if npx supabase@latest db reset 2>&1 | tee /tmp/naxa-sql-replay.log; then
+              echo "Replay complet: PASS"
+            else
+              rc=${PIPESTATUS[0]}
+              printf '%s\\n' "$rc" > /tmp/naxa-sql-replay.fail
+              exit "$rc"
+            fi
       - run:
           name: Exécuter tous les tests SQL
           command: |
             set -uo pipefail
+            exec > >(tee /tmp/naxa-sql-tests.log) 2>&1
             TEST_FAILS=()
             shopt -s nullglob
             test_files=(supabase/tests/*.sql)
@@ -242,6 +253,42 @@ jobs:
               exit 1
             fi
             echo "SQL tests: OK — tous les tests exécutés"
+      - run:
+          name: Commenter les 30 dernières lignes SQL en échec sur la PR
+          command: |
+            python3 - <<\'PY\'
+            import json, os, re, urllib.request
+            from pathlib import Path
+            repo = "audreymendomo23-netizen/NAXA"
+            replay_failed = Path("/tmp/naxa-sql-replay.fail").exists()
+            tests_failed = Path("/tmp/naxa-sql-tests.fail").exists()
+            if not (replay_failed or tests_failed):
+                print("Aucun échec SQL enregistré : aucun commentaire nécessaire.")
+                raise SystemExit(0)
+            pr_url = os.environ.get("CIRCLE_PULL_REQUEST", "")
+            token = os.environ.get("GITHUB_TOKEN", "")
+            match = re.search(r"/pull/(\\d+)", pr_url)
+            if not match:
+                print("Pas de pull request associée : commentaire ignoré.")
+                raise SystemExit(0)
+            if not token:
+                print("GITHUB_TOKEN absent : impossible de publier le commentaire.")
+                raise SystemExit(1)
+            log_path = Path("/tmp/naxa-sql-tests.log") if tests_failed else Path("/tmp/naxa-sql-replay.log")
+            lines = log_path.read_text(errors="replace").splitlines() if log_path.exists() else []
+            tail = "\\n".join(lines[-30:]) or "Aucune ligne de log disponible."
+            title = "Échec des tests SQL" if tests_failed else "Échec du rejeu des migrations"
+            body = f"## NAXA CI — {title}\\n\\nHEAD: \\`{os.environ.get(\'CIRCLE_SHA1\', \'inconnu\')}\\`\\n\\n\\`\\`\\`text\\n{tail}\\n\\`\\`\\`"
+            req = urllib.request.Request(
+                f"https://api.github.com/repos/{repo}/issues/{match.group(1)}/comments",
+                data=json.dumps({"body": body}).encode(),
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=20) as response:
+                print(f"Commentaire de diagnostic publié (HTTP {response.status}).")
+            PY
+          when: always
       - run:
           name: Arrêter Supabase local
           command: npx supabase@latest stop --no-backup
