@@ -406,3 +406,15 @@ La correction effective de `migration_034_promoteur_session_audit.sql` est le co
 - Statut d’exécution : aucun run CircleCI ni check GitHub n’est apparu pour ce commit dans les outils disponibles (`statuses=[]`, `workflow_runs=[]`). Donc aucun rejeu n’est considéré exécuté ; première migration fautive et résultat des 52 tests inconnus tant que le runner n’a pas démarré.
 - Une seule exécution finale est à déclencher sur la branche `ci/replay-rewrite-20261008` dans CircleCI (bouton **Trigger Pipeline**, branche exacte), après vérification que le projet CircleCI est bien associé au dépôt. Ne pas multiplier les reruns. Le job affichera `SOURCE[n]`, `PASS`/`FAIL` par contrôle de préflight, la première erreur de migration dans `/tmp/naxa-sql-replay.log`, puis les 52 tests si et seulement si le replay complet réussit. Si aucun pipeline ne démarre après le déclenchement manuel, le blocage est au niveau de l’intégration CircleCI/VCS, pas une preuve de succès SQL.
 - Pas de `GITHUB_TOKEN`, pas de commentaire PR automatique. Aucun check vert sans log réel. N4 reste 🟡.
+
+
+## Mise à jour opérationnelle — 2026-10-09
+- Preuve d'exécution : pause demandée pour `naxa-ci-replay` (`fnlyjlvflgiewrkmnisi`) retournée avec success=true ; le dernier état lu est encore `PAUSING`, donc la pause n'est pas confirmée comme terminée.
+- Preuve d'exécution : restauration de `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) retournée avec success=true ; le dernier état lu est `COMING_UP`, pas encore `ACTIVE_HEALTHY`.
+- Production `eouwtuusnsuxaejsxknf` relue avant/après les actions : `ACTIVE_HEALTHY`; aucune action d'écriture ciblée sur la Production.
+- Commit de l'auto-test du filtre : `09084d9cc57f6923fc6d4bb5e59a49122fd2b506`; correction du heredoc ajouté : `ffb0f377c78f47694ca3f98e0c1454f3387aca87`.
+- Le filtre a des cas fictifs t, f, zéro ligne, nom de colonne contenant f et erreur SQL. L'exécution CircleCI n'est pas encore prouvée. Le runner actuel n'emploie pas encore explicitement `ON_ERROR_STOP=1` : ne pas déclarer le filtre complet tant que ce point n'est pas corrigé et testé.
+- Grep du fichier CircleCI : 4 occurrences `\\<<` pour heredocs Python/EOF/SQL ; aucune occurrence `>>` relevée. Les opérateurs shell `< <(...)` sont des substitutions de processus, pas des heredocs et ne doivent pas être échappés comme `\\<<`.
+- Statut GitHub combiné du commit `ffb0f377...` : aucune status check ; workflow runs GitHub Actions retournés : liste vide. Aucun déclenchement CircleCI confirmé ; pas de surveillance de dix minutes effectuée.
+- Compare `4680e7d...HEAD` : 51 commits en avance, 0 en retard ; `.circleci/config.yml` modifié (+63/-14 dans le diff comparatif de branche). Le diff contient d'autres changements que les heredocs ; déclenchement non garanti.
+- Aucun rejeu des 78 migrations ni des 52 tests : le projet de test n'est pas encore `ACTIVE_HEALTHY`.
