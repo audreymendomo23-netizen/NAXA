@@ -244,15 +244,42 @@ jobs:
             for f in "${test_files[@]}"; do
               echo "=== TEST $f ==="
               out="$(mktemp)"
-              if npx supabase@latest db query --local --file "$f" 2>&1 | tee "$out"; then
-                if grep -Eiq '(^|[^[:alnum:]_])(false|f)([^[:alnum:]_]|$)' "$out"; then
-                  echo "FAIL: assertion booléenne fausse dans $f"
-                  TEST_FAILS+=("$f : assertion booléenne fausse")
+              if npx supabase@latest db query --local --output json --file "$f" > "$out" 2>&1; then
+                if python3 -c 'import json,sys
+p=sys.argv[1]
+try:
+ d=json.load(open(p))
+ if isinstance(d,dict):
+  rows=d.get("rows", d.get("data", d.get("result", None)))
+ else: rows=d
+ if not isinstance(rows,list) or len(rows)==0: raise SystemExit(2)
+ def walk(x):
+  if isinstance(x,dict):
+   for v in x.values(): yield from walk(v)
+  elif isinstance(x,list):
+   for v in x: yield from walk(v)
+  else: yield x
+ vals=list(walk(rows))
+ if any(v is False or (isinstance(v,str) and v.strip().lower() in ("f","false")) for v in vals): raise SystemExit(3)
+except (ValueError,TypeError,AttributeError): raise SystemExit(4)
+' "$out"; then
+                  echo "PASS: $f (résultat non vide; aucune valeur booléenne fausse)"
                 else
-                  echo "PASS: $f"
+                  rc=$?
+                  if [[ "$rc" -eq 2 ]]; then
+                    echo "FAIL: résultat SQL vide dans $f"
+                    TEST_FAILS+=("$f : zéro ligne")
+                  elif [[ "$rc" -eq 3 ]]; then
+                    echo "FAIL: assertion booléenne fausse dans $f"
+                    TEST_FAILS+=("$f : assertion booléenne fausse")
+                  else
+                    echo "FAIL: format de sortie JSON non interprétable dans $f"
+                    TEST_FAILS+=("$f : format JSON inattendu")
+                  fi
                 fi
               else
                 echo "FAIL: exécution SQL en erreur pour $f"
+                cat "$out"
                 TEST_FAILS+=("$f : commande SQL en erreur")
               fi
               rm -f "$out"
