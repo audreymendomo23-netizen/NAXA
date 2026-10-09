@@ -429,3 +429,11 @@ La correction effective de `migration_034_promoteur_session_audit.sql` est le co
 - **Sécurité Production :** zéro table `public` sans RLS détectée. `abonnements` et `naxa_architecture_niveaux` ont `relrowsecurity=true`. Policies lues : `abonnements_admin` (ALL, `private.is_admin()`) et `naxa_architecture_levels_read` (SELECT authentifié). Privilèges lus : pas d’accès `anon`; `authenticated` a ALL sur `abonnements` mais l’accès est filtré par RLS ; SELECT seulement sur `naxa_architecture_niveaux`. Aucun correctif Production appliqué.
 - **Code/doc :** changements uniquement sur `ci/replay-rewrite-20261008`; aucun commit sur `main`, aucune PR/fusion, aucune migration existante modifiée, aucun secret affiché. Les commits de correction du config sont visibles dans l’historique de la branche ; l’intégration CircleCI reste non prouvée.
 - **État global : NON VERT.** Le projet de test reste actif pour le rejeu ; aucun projet ne doit être supprimé, mis en pause ou restauré sans accord.
+
+
+## Sonde de déclenchement CircleCI — 09/10/2026
+- Branche de sonde déjà présente : `ci/probe-trigger-20261009`.
+- Config minimale poussée au commit `6e53d3e7cd110ce6920f612fd5c336dd46b113b9` ; Combined Status vide et aucun workflow GitHub associé.
+- Ajout du bloc `quality` au commit `46adb35581ae1994e017d13a455469c79ef679bb` ; Combined Status vide et aucun workflow GitHub associé.
+- Ajout du bloc `sql_tests` minimal au commit `e78248ca536d9080d1415965901a28270e51186a` ; Combined Status vide et aucun workflow GitHub associé.
+- Résultat strict : aucun pipeline CircleCI, numéro ou statut `quality`/`sql_tests` n’est observable via les connecteurs disponibles. Cela ne prouve pas que CircleCI n’a pas créé un pipeline, car aucun connecteur CircleCI n’est disponible pour lire ses pipelines/logs. La bisection de contenu est commencée, mais la cause finale n’est pas isolée sans cette observabilité. Pas de contrôle espacés d’une minute sur dix minutes.
