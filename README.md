@@ -274,3 +274,15 @@ Correction effective : `migration_034_promoteur_session_audit.sql` ne contient p
 - Statuts GitHub du commit de code `e450d343e7e045eabeb8e547d28fddc09927d279` : `statuses=[]`. Le seul workflow GitHub Actions remonté (run 446) est le workflow « NAXA — Promoteur Parties 4+5 — validation isolée », en échec ; il ne constitue pas une preuve CircleCI.
 - Rejeu des 78 migrations et exécution des 52 tests : NON exécutés. Le connecteur GitHub disponible ne fournit pas de lecture récursive de l’arbre des fichiers ; l’inventaire exact des chemins n’a pas été récupéré dans cette passe. Aucun échec SQL de migration n’a donc été observé et aucun message SQL d’échec ne doit être inventé.
 - Projet historique `naxa-ci-replay` (`fnlyjlvflgiewrkmnisi`) laissé `INACTIVE` ; aucun autre projet touché. Aucun commit sur `main`, aucune PR vers `main`, aucune fusion, aucune écriture Production.
+
+
+## Point de continuité — 9 octobre 2026 (mise à jour après contrôle outillé)
+
+- Inventaire GitHub figé au commit source `d29b8ef25b308f71544137fbe81156c8f5885951` : 78 migrations SQL sous `supabase/migration_*.sql` et 52 tests sous `supabase/tests/`.
+- Projet de test uniquement : `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`), région `eu-west-1`. Production `eouwtuusnsuxaejsxknf` n'a pas été écrite.
+- Rejeu lancé en ordre lexicographique sur la base de test après `schema_base`. 61 migrations sources, de `migration_001` à `migration_050` inclus (y compris les variantes alphabétiques), sont enregistrées comme appliquées. La migration suivante, `migration_051_ordonnancier_rpc.sql`, n'a pas été appliquée : l'outil a bloqué l'appel pour contrôle de sécurité avant de fournir un résultat SQL. Ce n'est pas une erreur SQL observée. Le rejeu est donc incomplet et doit reprendre à cette migration, sans réappliquer celles déjà enregistrées.
+- Les 52 tests SQL n'ont pas été exécutés ; aucun statut vert n'est revendiqué.
+- Cause de syntaxe identifiée dans `.circleci/config.yml` : les cinq heredocs écrits avec `\\<<` échouent à l'analyse Bash. Ils ont été corrigés en `<<` standard dans le commit de branche `d6e85e3cc3a25152a30f732e235c6f6c1fea0075`. Cette correction n'est pas encore validée par un pipeline CircleCI réel.
+- Le Combined Status GitHub du commit de correction reste vide. Aucun outil CircleCI direct n'est disponible dans cette session ; le déclenchement, les jobs `quality`/`sql_tests` et leurs logs restent à confirmer. Un statut GitHub vide ne prouve pas à lui seul qu'aucun pipeline CircleCI n'existe.
+- Garde-fous : aucun commit sur `main`, aucune PR/fusion vers `main`, aucune écriture Production, aucune migration existante modifiée, aucun changement de statut Supabase.
+- Statut global : NON VERT. Prochaine étape : résoudre l'accès sécurisé nécessaire pour exécuter la migration 051 sur la base de test, reprendre les migrations restantes une par une, puis exécuter les 52 tests individuellement et obtenir les preuves CI.
