@@ -114,3 +114,13 @@
 - Tests corrigés : fermeture du bloc dollar dans `supabase/tests/051_client_credit.sql` ; le test structurel `supabase/tests/049_assurances.sql` vérifie désormais aussi le registre de substances de la migration 049. Les contrôles de création voucher/promotion pour la migration 062 existaient déjà dans `supabase/tests/058_pos_avance_rapide_remises.sql`.
 - Migrations : aucune migration modifiée. `main` et Production : inchangés.
 - Validation CI : 🟡 en attente. Au moment de cette mise à jour, GitHub n'expose pas encore de statut CircleCI ni de logs pour le nouveau commit. Aucun vert SQL n'est déclaré avant preuve d'exécution.
+
+
+## CI NAXA — correctif exécutable N4 (09/10/2026)
+- Fichier modifié : `.circleci/config.yml` uniquement pour le code CI ; aucun SQL de migration modifié.
+- Préflight : contrôles SQL tolérants à la casse et aux retours à la ligne, nombres et lignes affichés, erreurs agrégées avant sortie.
+- Shell : heredoc `config.toml` corrigé ; base locale interrogée avec la CLI avant le rejeu.
+- Rejeu : liste des noms temporaires uniques affichée ; les tests sont tous tentés même si l'un échoue, puis les erreurs sont récapitulées.
+- Les migrations 010–012, 031, 034 et 037 restent absentes de la branche de la PR #36 au moment de l'audit. Elles ne sont ni restaurées ni modifiées ici : ce point peut nécessiter un arbitrage avant d'affirmer que le rejeu représente toute l'historique Production.
+- Aucun changement sur `main`, aucune exécution sur Supabase Production.
+- **État : 🟡 correctif CI commité ; validation CircleCI et résultat SQL en attente de logs réels.**

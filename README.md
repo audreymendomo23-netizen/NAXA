@@ -106,3 +106,14 @@ Le chantier suivant devra préserver les règles : aucune auto-inscription pharm
 - Le préflight doit afficher le nombre et les lignes des définitions ciblées, détecter les délimiteurs SQL malformés et récapituler tous les échecs sans s'arrêter au premier contrôle.
 - La validation dépend du résultat réel CircleCI : aucune réussite SQL n'est présumée à partir de la seule lecture des fichiers.
 - Les migrations restent inchangées dans ce correctif ; aucune modification de `main` ni de Production n'est autorisée sans validation explicite.
+
+
+## CI SQL N4 — correctif préflight et exécution (09/10/2026)
+
+- Préflight SQL réécrit pour exécuter tous les contrôles avant décision, afficher le nombre d'occurrences et les lignes, et agréger les échecs.
+- Correction du heredoc de `supabase/config.toml` (suppression de l'antislash parasite).
+- Rejeu Supabase conserve les noms de migrations temporaires uniques et affiche l'ordre préparé.
+- Ajout d'une vérification de disponibilité SQL locale avant le reset.
+- La boucle de tests continue après un test en erreur et fournit un récapitulatif complet.
+- Aucun fichier de migration modifié ; aucun changement sur `main` ou en Production.
+- Statut à confirmer uniquement par les logs du pipeline CircleCI déclenché par ce commit.

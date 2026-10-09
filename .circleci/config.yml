@@ -30,86 +30,133 @@ jobs:
           command: |
             set -uo pipefail
             echo "HEAD=$(git rev-parse HEAD)"
-            echo "BRANCH=${CIRCLE_BRANCH:-unknown}"
-            FAILS=()
-            check() {
-              local label="$1"
-              shift
-              echo "CHECK: $label"
-              if "$@"; then
-                echo "PASS: $label (résultat conforme)"
-              else
-                echo "FAIL: $label (résultat non conforme)"
-                FAILS+=("$label")
-              fi
-              return 0
-            }
-            check_count() {
-              local label="$1" expected="$2" pattern="$3" file="$4" count
-              echo "CHECK: $label"
-              count="$(grep -Eic -- "$pattern" "$file" || true)"
-              echo "TROUVÉ: $count ligne(s) correspondante(s) ; attendu: $expected"
-              echo "LIGNES:"
-              grep -Ein -- "$pattern" "$file" || true
-              if [[ "$count" -eq "$expected" ]]; then
-                echo "PASS: $label"
-              else
-                echo "FAIL: $label (trouvé $count, attendu $expected)"
-                FAILS+=("$label (trouvé $count, attendu $expected)")
-              fi
-              return 0
-            }
-            check "schema.sql présent et non vide" test -s supabase/schema.sql
-            check_count "my_pharmacie() : une définition attendue" 1 '^[[:space:]]*create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+(public[[:space:]]*\.[[:space:]]*)?my_pharmacie[[:space:]]*\(' supabase/schema.sql
-            check_count "restore_stock( : une définition attendue" 1 '^[[:space:]]*create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+(public[[:space:]]*\.[[:space:]]*)?restore_stock[[:space:]]*\(' supabase/schema.sql
-            check_count "expire_reservations() : une définition attendue" 1 '^[[:space:]]*create[[:space:]]+or[[:space:]]+replace[[:space:]]+function[[:space:]]+(public[[:space:]]*\.[[:space:]]*)?expire_reservations[[:space:]]*\(' supabase/schema.sql
-            check_count "on_auth_user_created : un trigger attendu" 1 '^[[:space:]]*create[[:space:]]+trigger[[:space:]]+on_auth_user_created([[:space:]]|$)' supabase/schema.sql
-            check_count 'as $select : zéro occurrence attendue' 0 'as[[:space:]]+\$select([[:space:]]|$)' supabase/schema.sql
-            check_count 'as $; : zéro occurrence attendue' 0 'as[[:space:]]+\$;' supabase/schema.sql
-            check "Délimiteurs dollar et blocs SQL valides (schéma, migrations, tests)" python3 - <<'PY'
+            echo "BRANCH=$CIRCLE_BRANCH"
+            python3 - <<'PY'
             import re
-            from collections import Counter
             from pathlib import Path
 
-            files = [Path("supabase/schema.sql")]
-            files += sorted(Path("supabase").glob("migration_*.sql"))
-            files += sorted(Path("supabase/tests").rglob("*.sql"))
-            errors = []
+            failures = []
+
+            def line_number(content, offset):
+                return content.count("\n", 0, offset) + 1
+
+            def check(label, found, expected, locations=None):
+                locations = locations or []
+                print(f"CHECK: {label}")
+                print(f"TROUVÉ: {found}; attendu: {expected}")
+                print("LIGNES: " + (", ".join(map(str, locations)) if locations else "—"))
+                if found == expected:
+                    print(f"PASS: {label}")
+                else:
+                    detail = f"{label} (trouvé {found}, attendu {expected})"
+                    print(f"FAIL: {detail}")
+                    failures.append(detail)
+
+            schema = Path("supabase/schema.sql")
+            schema_text = schema.read_text(encoding="utf-8") if schema.is_file() else ""
+            check(
+                "schema.sql présent et non vide",
+                int(schema.is_file() and bool(schema_text.strip())),
+                1,
+                [1] if schema.is_file() and schema_text.strip() else [],
+            )
+
+            definitions = [
+                (
+                    "my_pharmacie() : une définition attendue",
+                    re.compile(r"\bcreate\s+or\s+replace\s+function\s+(?:public\s*\.\s*)?my_pharmacie\s*\(", re.I),
+                    1,
+                ),
+                (
+                    "restore_stock( : une définition attendue",
+                    re.compile(r"\bcreate\s+or\s+replace\s+function\s+(?:public\s*\.\s*)?restore_stock\s*\(", re.I),
+                    1,
+                ),
+                (
+                    "expire_reservations() : une définition attendue",
+                    re.compile(r"\bcreate\s+or\s+replace\s+function\s+(?:public\s*\.\s*)?expire_reservations\s*\(", re.I),
+                    1,
+                ),
+                (
+                    "on_auth_user_created : un trigger attendu",
+                    re.compile(r"\bcreate\s+trigger\s+on_auth_user_created\b", re.I),
+                    1,
+                ),
+            ]
+            for label, pattern, expected in definitions:
+                matches = list(pattern.finditer(schema_text))
+                check(label, len(matches), expected, [line_number(schema_text, m.start()) for m in matches])
+
+            migration_files = sorted(Path("supabase").glob("migration_*.sql"))
+            test_files = sorted(Path("supabase/tests").rglob("*.sql"))
+            sql_files = ([schema] if schema.is_file() else []) + migration_files + test_files
+            check("Au moins un fichier SQL à inspecter", int(bool(sql_files)), 1, [len(sql_files)] if sql_files else [])
+
+            empty_tests = [str(p) for p in test_files if not p.read_text(encoding="utf-8").strip()]
+            check("Tests SQL vides", len(empty_tests), 0, empty_tests)
+
+            malformed_as = []
+            malformed_dollar = []
+            unmatched_dollar = []
             token_re = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
             invalid_as_re = re.compile(r"\bas\s+\$[A-Za-z_][A-Za-z0-9_]*(?=\s|;|,|$)", re.I)
 
-            for path in files:
+            for path in sql_files:
                 content = path.read_text(encoding="utf-8")
+                for match in invalid_as_re.finditer(content):
+                    malformed_as.append(f"{path}:{line_number(content, match.start())}: AS suivi d'un délimiteur dollar invalide ({match.group(0)})")
                 for line_no, line in enumerate(content.splitlines(), 1):
                     if "$;" in line:
-                        errors.append(f"{path}:{line_no}: délimiteur malformé $;")
-                    if invalid_as_re.search(line):
-                        errors.append(f"{path}:{line_no}: ouverture dollar-quote invalide après AS")
-                counts = Counter(token_re.findall(content))
-                for token, count in counts.items():
-                    if count % 2:
-                        errors.append(f"{path}: délimiteur {token} non apparié ({count} occurrence(s))")
+                        malformed_dollar.append(f"{path}:{line_no}: délimiteur malformé $;")
 
-            if errors:
-                print("\n".join(errors))
+                tokens = list(token_re.finditer(content))
+                i = 0
+                while i < len(tokens):
+                    opening = tokens[i]
+                    closing_index = next(
+                        (j for j in range(i + 1, len(tokens)) if tokens[j].group(0) == opening.group(0)),
+                        None,
+                    )
+                    if closing_index is None:
+                        unmatched_dollar.append(
+                            f"{path}:{line_number(content, opening.start())}: délimiteur {opening.group(0)} non apparié"
+                        )
+                        break
+                    i = closing_index + 1
+
+            check("Occurrences « as $select » / délimiteur dollar invalide", len(malformed_as), 0, malformed_as)
+            check("Occurrences « as $; » / délimiteur malformé", len(malformed_dollar), 0, malformed_dollar)
+            check("Délimiteurs dollar non appariés", len(unmatched_dollar), 0, unmatched_dollar)
+
+            duplicate_prefixes = {}
+            for path in migration_files:
+                match = re.match(r"migration_(\d+[a-z]?)_", path.name, re.I)
+                if match:
+                    duplicate_prefixes.setdefault(match.group(1).lower(), []).append(path.name)
+            duplicates = {k: v for k, v in duplicate_prefixes.items() if len(v) > 1}
+            print(f"INFO: {len(migration_files)} migrations sources ; {len(test_files)} tests SQL.")
+            if duplicates:
+                print("INFO: préfixes sources répétés (les noms de rejeu seront uniques) :")
+                for prefix, names in sorted(duplicates.items()):
+                    print(f"  {prefix}: {', '.join(names)}")
+
+            if failures:
+                print(f"RÉCAPITULATIF : {len(failures)} contrôle(s) en échec")
+                for failure in failures:
+                    print(f" - {failure}")
                 raise SystemExit(1)
-            print(f"PASS: {len(files)} fichiers SQL inspectés, délimiteurs appariés")
+            print("SQL preflight: OK — tous les contrôles exécutés sont conformes")
             PY
-            if (( ${#FAILS[@]} > 0 )); then
-              echo "RÉCAPITULATIF : ${#FAILS[@]} contrôle(s) en échec"
-              printf ' - %s\n' "${FAILS[@]}"
-              exit 1
-            fi
-            echo "SQL preflight: OK — tous les contrôles sont verts"
       - run:
           name: Installer les dépendances frontend
           command: npm install --no-audit --no-fund
       - run:
           name: Préparer Supabase local
           command: |
+            set -euo pipefail
             echo "Supabase CLI version: $(npx supabase@latest --version)"
             npx supabase@latest init --force
-            cat > supabase/config.toml \<<'EOF'
+            cat > supabase/config.toml <<'EOF'
             project_id = "naxa-tests-ci"
             [api]
             enabled = true
@@ -121,33 +168,77 @@ jobs:
             rm -rf supabase/migrations
             mkdir -p supabase/migrations
             cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
+            shopt -s nullglob
+            migration_files=(supabase/migration_*.sql)
             n=1
-            for f in supabase/migration_*.sql; do
+            for f in "${migration_files[@]}"; do
               ts=$(printf '202610060000%02d' "$n")
               cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
               n=$((n+1))
             done
+            echo "Migrations préparées pour le rejeu (ordre alphabétique source) :"
+            find supabase/migrations -maxdepth 1 -type f -printf '%f\n' | sort
       - run:
           name: Démarrer Supabase local
           command: npx supabase@latest start -x studio -x mailpit -x realtime -x imgproxy -x kong -x postgrest -x postgres-meta -x edge-runtime -x logflare -x vector -x supavisor
+      - run:
+          name: Vérifier la disponibilité SQL locale
+          command: |
+            set -uo pipefail
+            cat > /tmp/naxa-db-ready.sql <<'SQL'
+            select 1 as naxa_db_ready;
+            SQL
+            ready=0
+            for attempt in $(seq 1 30); do
+              if npx supabase@latest db query --local --file /tmp/naxa-db-ready.sql > /tmp/naxa-db-ready.log 2>&1; then
+                cat /tmp/naxa-db-ready.log
+                ready=1
+                break
+              fi
+              echo "Base locale pas encore prête (${attempt}/30)"
+              sleep 2
+            done
+            if [[ "$ready" -ne 1 ]]; then
+              echo "FAIL: la base SQL locale n'est pas devenue disponible après 60 secondes"
+              cat /tmp/naxa-db-ready.log
+              exit 1
+            fi
       - run:
           name: Replay complet des migrations
           command: npx supabase@latest db reset
       - run:
           name: Exécuter tous les tests SQL
           command: |
-            set -euo pipefail
-            for f in supabase/tests/*.sql; do
+            set -uo pipefail
+            TEST_FAILS=()
+            shopt -s nullglob
+            test_files=(supabase/tests/*.sql)
+            if [[ "${#test_files[@]}" -eq 0 ]]; then
+              echo "FAIL: aucun test SQL trouvé dans supabase/tests/*.sql"
+              exit 1
+            fi
+            for f in "${test_files[@]}"; do
               echo "=== TEST $f ==="
               out="$(mktemp)"
-              npx supabase@latest db query --local --file "$f" 2>&1 | tee "$out"
-              if grep -Eiq '(^|[^[:alnum:]_])(false|f)([^[:alnum:]_]|$)' "$out"; then
-                echo "ÉCHEC: au moins une assertion booléenne est fausse dans $f"
-                rm -f "$out"
-                exit 1
+              if npx supabase@latest db query --local --file "$f" 2>&1 | tee "$out"; then
+                if grep -Eiq '(^|[^[:alnum:]_])(false|f)([^[:alnum:]_]|$)' "$out"; then
+                  echo "FAIL: assertion booléenne fausse dans $f"
+                  TEST_FAILS+=("$f : assertion booléenne fausse")
+                else
+                  echo "PASS: $f"
+                fi
+              else
+                echo "FAIL: exécution SQL en erreur pour $f"
+                TEST_FAILS+=("$f : commande SQL en erreur")
               fi
               rm -f "$out"
             done
+            if [[ "${#TEST_FAILS[@]}" -gt 0 ]]; then
+              echo "RÉCAPITULATIF : ${#TEST_FAILS[@]} test(s) en échec"
+              printf ' - %s\n' "${TEST_FAILS[@]}"
+              exit 1
+            fi
+            echo "SQL tests: OK — tous les tests exécutés"
       - run:
           name: Arrêter Supabase local
           command: npx supabase@latest stop --no-backup
