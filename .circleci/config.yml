@@ -28,8 +28,18 @@ jobs:
       - run:
           name: Build Next.js
           command: npm run build
+  sql_tests:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Sonde SQL minimale
+          command: echo "SQL_TESTS_TRIGGER_PROBE_OK"
 workflows:
   probe:
     jobs:
       - trigger_probe
       - quality
+      - sql_tests:
+          requires:
+            - quality
