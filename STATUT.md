@@ -326,3 +326,18 @@ La correction effective de `migration_034_promoteur_session_audit.sql` est le co
 - **Écart Production (lecture seule) :** `public.naxa_architectures` absente en Production, alors que la migration source 020 la crée ; `public.pharmacie_architectures` existe mais n'est pas équivalente au catalogue d'architectures. Aucun objet Production modifié.
 - **Non établi :** le rejeu PostgreSQL complet, les 69 migrations, les 46 tests SQL et les logs des 30 dernières lignes de l'échec CircleCI restent à obtenir. La tentative de pousser la config exacte `d8067d2` sur la branche de sonde a été bloquée par les contrôles de sécurité de l'outil ; elle n'est donc pas déclarée exécutée.
 - **Garde-fous :** aucun commit sur `main`, aucune PR vers `main`, aucune fusion, aucune migration modifiée, aucune écriture Production.
+
+
+## Rejeu SQL isolé — état réel au 09/10/2026
+- **Statut : 🟡 BLOQUÉ, pas vert.** Le pipeline CircleCI du commit `49031203b68f7a2a3f22ee3633055b4c3eef9332` affiche `quality=success`, `sql_tests=pending` à la dernière lecture. Le run GitHub Actions #393 échoue sans étapes ni logs ; le quota reste inconnu faute d'accès à une preuve de facturation ou à un message explicite de quota.
+- **Environnement de test :** projet Supabase isolé `naxa-ci-replay`, région `eu-west-1`, coût annoncé **0/mois**, projet actif et sain. Aucune donnée Production copiée, aucune écriture Production.
+- **Preuves d'exécution dans ce projet :** `schema.sql`, migrations originales jusqu'à `054_client_credit` et les cinq migrations additives ci-dessous ont été appliquées avec succès après corrections. Le registre de test compte 64 entrées appliquées (base + migrations); `migration_055_rappel_lot.sql` n'est pas appliquée.
+- **Corrections additives sans modifier les migrations existantes :**
+  - `028b_private_schema_bootstrap.sql` : crée le schéma `private` avant la fonction de 029 ; 029 passe ensuite.
+  - `034b_reservations_ca_view_compat.sql` : rend les vues compatibles avec la forme canonique avant 035 ; 035 passe et le test de forme de vue passe.
+  - `042b_stocks_lots_schema_compat.sql` : ajoute les colonnes canoniques à la table historique des lots ; 043 passe et le test passe.
+  - `044b_prescription_privilege_seed_compat.sql` : complète les champs canoniques NOT NULL lors du seed 045 ; 045 passe et le test passe.
+  - `046b_stocks_lots_id_unique.sql` : ajoute une clé unique compatible pour la FK de 047 ; 047 passe et le test passe.
+- **Premier blocage restant :** l'application de `migration_055_rappel_lot.sql` a été bloquée par les contrôles de sécurité de l'outil. Je n'ai pas réessayé via une autre voie. Migrations 055–065 et tests SQL complets non exécutés.
+- **Écarts Production vérifiés en lecture seule :** `public.naxa_architectures` absente, contrairement à la migration source 020 ; `v_reservations_ca` a la forme canonique en Production mais la migration 014 source crée une forme legacy incompatible avec 035 sans préparation ; `stocks_lots` conserve `lot/peremption` et une PK composite, sans `id/numero_lot/date_peremption` ; `naxa_privileges` a les colonnes historiques et canoniques toutes deux NOT NULL, sans trigger de synchronisation. Le registre Production visible s'arrête dans la lignée 042 ; les migrations 043+ ne sont pas déclarées appliquées.
+- **Garde-fous :** aucun commit sur `main`, aucune PR vers `main`, aucune fusion, aucune migration existante modifiée, aucune écriture Production, aucun secret affiché. Cinq nouvelles migrations additives et quatre tests de régression ont été ajoutés uniquement à la branche de rejeu.
