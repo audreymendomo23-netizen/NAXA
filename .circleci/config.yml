@@ -261,7 +261,7 @@ jobs:
             cases = [
                 ("t", "assertion\nt", True, True),
                 ("f", "assertion\nf", True, False),
-                ("0 ligne", "assertion", True, False),
+                ("0 ligne", "", True, False),
                 ("en-tête contenant f", "flag\nt", True, True),
                 ("erreur SQL", "", False, False),
             ]
@@ -282,7 +282,7 @@ jobs:
             for f in "${test_files[@]}"; do
               echo "=== TEST $f ==="
               out="$(mktemp)"
-              if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -A -F $'\t' -f "$f" > "$out" 2>&1; then
+              if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -A -t -F $'\t' -f "$f" > "$out" 2>&1; then
                 if python3 - "$out" \<<'PY'
             import sys
             p = sys.argv[1]
