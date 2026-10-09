@@ -45,3 +45,12 @@ Date de mise à jour : 2026-10-09
 - Statut GitHub combiné du commit `ffb0f377...` : aucune status check ; workflow runs GitHub Actions retournés : liste vide. Aucun déclenchement CircleCI confirmé ; pas de surveillance de dix minutes effectuée.
 - Compare `4680e7d...HEAD` : 51 commits en avance, 0 en retard ; `.circleci/config.yml` modifié (+63/-14 dans le diff comparatif de branche). Le diff contient d'autres changements que les heredocs ; déclenchement non garanti.
 - Aucun rejeu des 78 migrations ni des 52 tests : le projet de test n'est pas encore `ACTIVE_HEALTHY`.
+
+
+## Reprise après contrôle — 09/10/2026
+
+1. **Projets :** `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) est `ACTIVE_HEALTHY`; son registre de migrations contient seulement `schema_base`. Le projet `naxa-ci-replay` (`fnlyjlvflgiewrkmnisi`) reste `INACTIVE`. Production `eouwtuusnsuxaejsxknf` a été relue `ACTIVE_HEALTHY`, sans écriture.
+2. **CircleCI :** la config courante contient cinq heredocs échappés et aucun `>>`. Le filtre contient `ON_ERROR_STOP=1`, un rejet des résultats vides et des booléens faux, plus les cinq auto-cas. Simulation locale des cas réussie ; pas de logs CircleCI. Trois lectures immédiates de Combined Status sur le commit de code `e450d343e7e045eabeb8e547d28fddc09927d279` ont retourné `statuses=[]`. Le run GitHub Actions 446 en échec n’est pas CircleCI. Aucun pipeline, numéro, statut `quality` ou `sql_tests` n’est prouvé.
+3. **Rejeu :** ne pas appliquer de migration tant que l’inventaire exact des chemins et l’ordre `LC_ALL=C` ne sont pas récupérés. Les outils GitHub disponibles dans cette session ne proposent pas la lecture récursive de l’arbre ; l’ancienne affirmation selon laquelle la liste complète avait été fournie n’est pas étayée par le rapport retrouvé. Les 78 migrations et 52 tests ne sont pas exécutés ; aucune erreur SQL réelle n’est disponible. Ne pas deviner les fichiers ni contourner un refus sur 023b.
+4. **RLS Production :** requête `pg_class.relrowsecurity` = zéro table publique sans RLS. `abonnements` et `naxa_architecture_niveaux` sont RLS activées. Policies et privilèges vérifiés en lecture seule ; aucun correctif appliqué. Migration source précise de création de ces tables : non identifiée, faute d’inventaire complet du dépôt.
+5. **Garde-fous :** aucune écriture Production, aucun commit/PR/fusion vers `main`, aucune migration existante modifiée, aucun projet supprimé. Ne pas toucher au statut des projets de test sans accord. N4 reste NON VERT jusqu’à preuve réelle du rejeu complet, des 52 tests et de CircleCI.
