@@ -1,4 +1,4 @@
-[object Object]
+# NAXA — Statut opérationnel consolidé
 
 ## ERP-008 — Socle assurances / tiers payant
 - Audit sans doublon : aucun socle assurance détecté.
@@ -104,3 +104,29 @@
 - Logos officiels Orange Money / MTN MoMo : assets officiels à intégrer ; aucun logo de substitution/redessiné.
 - Aucun changement Supabase live/Production.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+
+
+---
+
+## CHANTIER 360° INTÉGRÉ — 9 octobre 2026
+
+### Périmètre et garde-fous
+- Branche de travail : `integration/naxa-360-20261009`, créée depuis le commit `main` vérifié pendant l'audit.
+- Aucun commit, changement de référence ou fusion sur `main`.
+- Aucun changement de schéma ni aucune écriture dans Supabase Production.
+- Aucun déploiement Production autorisé à ce stade.
+
+### État constaté — ne pas confondre inventaire et validation
+- `main` : 45 migrations SQL et 22 tests SQL au moment du dernier inventaire.
+- `ci/replay-rewrite-20261008` : 78 migrations et 52 tests inventoriés, mais le rejeu complet et l'exécution intégrale des tests ne sont pas encore prouvés.
+- Base de test `naxa-ci-replay-2` : historique incomplet au dernier contrôle; la migration 051 a été bloquée par une barrière d'outil et n'est donc ni validée ni déclarée en échec SQL.
+- Supabase Production : historique enregistré distinct de la chaîne candidate; écart de schéma confirmé pour plusieurs objets caisse/vente/pharmacien utilisés par le code candidat.
+- Contrôles prioritaires : garde d'âge dans la RPC de réservation, matrice des transitions de réservation, portée d'écriture du catalogue produit et RLS des tables sensibles.
+- CI : aucune preuve d'un pipeline complet vert exécutant toutes les migrations et tous les tests SQL.
+- Documentation historique : cette entrée prévaut sur les affirmations antérieures non appuyées par une preuve récente.
+
+### Décision
+**ÉTAT GLOBAL : ROUGE / NO-GO POUR LA PRODUCTION.** Les fonctionnalités déjà construites ne doivent pas être reconstruites; elles doivent être intégrées sélectivement puis prouvées. Les corrections doivent être additives, testées en environnement isolé et consignées ici. Une déclaration verte exige des journaux de tests et des SHA vérifiables.
+
+### Méthode du chantier simultané
+Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont traités en parallèle sur cette branche. Les dépendances sont coordonnées dans le même chantier; aucun lot n'est considéré vert sur la seule base de sa présence dans le dépôt. Après chaque vague de corrections, les contrôles liés sont rejoués ensemble.
