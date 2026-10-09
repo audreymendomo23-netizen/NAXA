@@ -217,7 +217,7 @@ jobs:
               echo "Replay complet: PASS"
             else
               rc=${PIPESTATUS[0]}
-              printf '%s\\n' "$rc" > /tmp/naxa-sql-replay.fail
+              printf '%s\n' "$rc" > /tmp/naxa-sql-replay.fail
               exit "$rc"
             fi
       - run:
@@ -225,6 +225,7 @@ jobs:
           command: |
             set -uo pipefail
             exec > >(tee /tmp/naxa-sql-tests.log) 2>&1
+            rm -f /tmp/naxa-sql-tests.fail
             TEST_FAILS=()
             shopt -s nullglob
             test_files=(supabase/tests/*.sql)
@@ -250,7 +251,8 @@ jobs:
             done
             if [[ "${#TEST_FAILS[@]}" -gt 0 ]]; then
               echo "RÉCAPITULATIF : ${#TEST_FAILS[@]} test(s) en échec"
-              printf ' - %s\n' "${TEST_FAILS[@]}"
+              printf ' - %s\\n' "${TEST_FAILS[@]}"
+              : > /tmp/naxa-sql-tests.fail
               exit 1
             fi
             echo "SQL tests: OK — tous les tests exécutés"
