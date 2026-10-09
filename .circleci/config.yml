@@ -235,7 +235,7 @@ jobs:
             TEST_FAILS=()
             # Auto-test du filtre : booléen t accepté ; f, zéro ligne, et erreur SQL rejetés ;
             # un nom de colonne contenant la lettre f ne doit pas être interprété comme un booléen.
-            python3 - <<'PY'
+            python3 - \<<'PY'
             import json
             def check(raw, sql_ok=True):
                 if not sql_ok:
