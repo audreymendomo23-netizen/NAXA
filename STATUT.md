@@ -354,3 +354,10 @@ La correction effective de `migration_034_promoteur_session_audit.sql` est le co
 - Les 46 tests complets ne sont pas tous exécutés ; les migrations 056–065 ne sont pas appliquées car leur source exacte n'a pas été récupérée. Le registre isolé comporte maintenant 055 et 055b, avec deux entrées historiques 041b identiques.
 - Écart de schéma en lecture seule : `public.naxa_architectures` absente de Production et présente en rejeu. Aucune écriture Production.
 - **Statut global : NON VERT.** Pas de commit/PR/fusion vers main ; aucune migration existante modifiée ; aucun secret affiché.
+
+
+## Rectification N4 — après tests isolés — 09/10/2026
+- Test 024 corrigé par migration additive 055c : commit `1180928b62e03b0cb5aa707c4959d7e2a4a11ea9`; application sur `naxa-ci-replay` et test 024 rejoué **PASS**.
+- Test 051 corrigé par migration additive 055d : commit `7951032cdc9f98ca24d31162afb66c1d5a726fb3`; le POS utilise désormais la RPC `vente_ajouter_paiement` et le journal `vente_paiements`; test 051 rejoué **PASS**.
+- Test 023b bloqué par le contrôle de sécurité de l'outil ; aucun contournement.
+- Le projet de test est à la migration 055d. Les migrations 056–065 et les 46 tests complets restent non validés. **N4 reste NON VERT** tant que le replay complet et tous les tests ne sont pas prouvés.
