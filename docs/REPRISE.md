@@ -40,3 +40,9 @@ Traiter dans un seul chantier coordonné :
 
 ## État actuel
 **ROUGE / NO-GO Production.** Les corrections et validations se poursuivent en parallèle sur la branche de chantier. Aucune modification de Production n'a été faite par ce chantier.
+
+
+## Consolidation des versions candidates — 9 octobre 2026
+La branche `integration/naxa-360-20261009` contient désormais une consolidation sélective issue de `ci/replay-rewrite-20261008` : registre fonctionnel, parcours Client/Caisse/Pharmacien/Pilotage, administration de validité, composants partagés, documentation métier, migrations additives candidates et tests SQL additionnels. La configuration CircleCI de rejeu (78 migrations attendues et 52 tests) a aussi été reprise.
+
+Cette consolidation est **une intégration de fichiers sur une branche isolée**, pas une validation d’exécution. Le schéma `supabase/schema.sql` et les migrations historiques modifiées dans la branche source n’ont pas été remplacés; les migrations candidates ne doivent pas être appliquées à Production. Le contrôle CircleCI sur le nouveau SHA n’a pas encore de statut disponible. Le chantier reste **ROUGE / NO-GO Production** tant que le rejeu complet, les 52 tests, build/lint/TypeScript et les parcours intégrés ne sont pas réellement exécutés avec preuves.
