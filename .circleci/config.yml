@@ -243,23 +243,21 @@ jobs:
               echo "FAIL: DB_URL introuvable dans supabase status -o env"
               exit 1
             fi
-            # Auto-test du même filtre utilisé sur la sortie tabulée de psql.
-            python3 - \<<'PY'
-            import re
+            # Auto-test du même filtre utilisé sur la sortie tuples-only de psql.
+            python3 - \\<<'PY'
             def check(output, sql_ok=True):
                 if not sql_ok:
                     return False
                 lines = [line for line in output.splitlines() if line.strip()]
                 if not lines:
                     return False
-                values = [v.strip().lower() for row in lines for v in row.split("\t")]
-                return not any(v in ("f", "false") for v in values)
+                values = [v.strip().lower() for line in lines for v in line.split("\\t")]
                 return not any(v in ("f", "false") for v in values)
             cases = [
-                ("t", "assertion\nt", True, True),
-                ("f", "assertion\nf", True, False),
+                ("t", "t", True, True),
+                ("f", "f", True, False),
                 ("0 ligne", "", True, False),
-                ("en-tête contenant f", "flag\nt", True, True),
+                ("en-tête contenant f", "flag\\nt", True, True),
                 ("erreur SQL", "", False, False),
             ]
             for name, output, sql_ok, expected in cases:
@@ -280,16 +278,14 @@ jobs:
               echo "=== TEST $f ==="
               out="$(mktemp)"
               if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -A -t -F $'\t' -f "$f" > "$out" 2>&1; then
-                if python3 - "$out" \<<'PY'
+                if python3 - "$out" \\<<'PY'
             import sys
             p = sys.argv[1]
             try:
-                lines = [line.rstrip("\n") for line in open(p, encoding="utf-8") if line.strip()]
+                lines = [line.rstrip("\\n") for line in open(p, encoding="utf-8") if line.strip()]
                 if not lines:
                     raise SystemExit(2)
-                # Sortie tuples-only : aucune ligne de données = échec.
-                vals = [v.strip().lower() for row in lines for v in row.split("\t")]
-                if any(v in ("f", "false") for v in vals):
+                vals = [v.strip().lower() for line in lines for v in line.split("\\t")]
                 if any(v in ("f", "false") for v in vals):
                     raise SystemExit(3)
             except (UnicodeError, OSError):
