@@ -1297,6 +1297,6 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Tests SQL candidats exécutés individuellement : 18 sans erreur remontée, 13 en erreur/assertion, 1 bloqué par le contrôle de sécurité de l'outil. Cela ne vaut pas validation de la suite complète de 52 tests.
 - Contradictions de contraintes sur `profiles` confirmées ; plusieurs tests Promoteur échouent sur CHECK. Des tests comportementaux manquent aussi de fixtures autonomes.
 - RLS désactivée sur deux tables de la base de test (`abonnements`, `naxa_architecture_niveaux`) : politiques à auditer avant toute correction.
-- Les migrations candidates 051–063 doivent encore être réconciliées dans la branche d'intégration.
+- Les migrations candidates 051–065 sont présentes dans la branche d'intégration ; c'est le rejeu exact sur une base de test propre qui reste à valider.
 
 **Décision : ROUGE / NO-GO MAIN.** Aucun commit final sur `main` et aucun déploiement Production tant que ces blocages ne sont pas corrigés et que le rejeu exact + la suite complète n'ont pas fourni de preuves vertes.
