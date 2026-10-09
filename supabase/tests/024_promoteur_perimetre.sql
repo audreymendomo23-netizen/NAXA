@@ -33,6 +33,13 @@ begin
    (v_other,'pharmacie','Other','Test',true,null,4,null,null)
   on conflict(id) do update set role=excluded.role,actif=true,fonction_interne=excluded.fonction_interne,niveau_interne=excluded.niveau_interne,niveau_hierarchique=excluded.niveau_hierarchique,architecture_code=excluded.architecture_code;
 
+  insert into public.pharmacies(id,nom,lat,lng,est_demo)
+  values
+   (v_a,'NAXA test pharmacie A',0,0,false),
+   (v_b,'NAXA test pharmacie B',0,0,false),
+   (v_c,'NAXA test pharmacie C',0,0,false)
+  on conflict(id) do update set est_demo=false;
+
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
