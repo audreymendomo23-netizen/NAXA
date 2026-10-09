@@ -233,41 +233,40 @@ jobs:
             exec > >(tee /tmp/naxa-sql-tests.log) 2>&1
             rm -f /tmp/naxa-sql-tests.fail
             TEST_FAILS=()
-            # Auto-test du filtre : booléen t accepté ; f, zéro ligne, et erreur SQL rejetés ;
-            # un nom de colonne contenant la lettre f ne doit pas être interprété comme un booléen.
-            python3 - \<<'PY'
-            import json
-            def check(raw, sql_ok=True):
+            # Le client psql rend ON_ERROR_STOP effectif : une erreur SQL interrompt le fichier.
+            if ! command -v psql >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y postgresql-client
+            fi
+            DB_URL="$(npx supabase@latest status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
+            if [[ -z "$DB_URL" ]]; then
+              echo "FAIL: DB_URL introuvable dans supabase status -o env"
+              exit 1
+            fi
+            # Auto-test du même filtre utilisé sur la sortie tabulée de psql.
+            python3 - \\<<'PY'
+            import re
+            def check(output, sql_ok=True):
                 if not sql_ok:
                     return False
-                try:
-                    d = json.loads(raw)
-                    rows = d.get("rows", d.get("data", d.get("result"))) if isinstance(d, dict) else d
-                    if not isinstance(rows, list) or not rows:
-                        return False
-                    def values(x):
-                        if isinstance(x, dict):
-                            for v in x.values():
-                                yield from values(v)
-                        elif isinstance(x, list):
-                            for v in x:
-                                yield from values(v)
-                        else:
-                            yield x
-                    vals = list(values(rows))
-                    boolish = [v for v in vals if isinstance(v, bool) or (isinstance(v, str) and v.strip().lower() in ("t", "f", "true", "false"))]
-                    return boolish and all(v is True or (isinstance(v, str) and v.strip().lower() in ("t", "true")) for v in boolish)
-                except (ValueError, TypeError, AttributeError):
+                lines = [line for line in output.splitlines() if line.strip()]
+                if not lines:
                     return False
+                # psql est lancé sans tuples-only : ignorer la première ligne (en-tête).
+                rows = lines[1:]
+                if not rows:
+                    return False
+                values = [v.strip().lower() for row in rows for v in row.split("\\t")]
+                return not any(v in ("f", "false") for v in values)
             cases = [
-                ("t", '{"rows":[{"assertion":"t"}]}', True, True),
-                ("f", '{"rows":[{"assertion":"f"}]}', True, False),
-                ("0 ligne", '{"rows":[]}', True, False),
-                ("en-tête contenant f", '{"rows":[{"flag":"t"}]}', True, True),
-                ("erreur SQL", '', False, False),
+                ("t", "assertion\\nt", True, True),
+                ("f", "assertion\\nf", True, False),
+                ("0 ligne", "assertion", True, False),
+                ("en-tête contenant f", "flag\\nt", True, True),
+                ("erreur SQL", "", False, False),
             ]
-            for name, raw, sql_ok, expected in cases:
-                actual = check(raw, sql_ok)
+            for name, output, sql_ok, expected in cases:
+                actual = check(output, sql_ok)
                 if actual != expected:
                     raise SystemExit("FAIL filtre auto-test: %s attendu=%s obtenu=%s" % (name, expected, actual))
                 print("PASS filtre auto-test: %s" % name)
@@ -276,33 +275,33 @@ jobs:
             echo "Nombre de tests SQL détectés récursivement: ${#test_files[@]}"
             if [[ "${#test_files[@]}" -ne 52 ]]; then
               echo "FAIL: attendu 52 tests SQL, trouvé ${#test_files[@]}"
-              printf 'Tests trouvés:\n'
-              printf ' - %s\n' "${test_files[@]}"
+              printf 'Tests trouvés:\\n'
+              printf ' - %s\\n' "${test_files[@]}"
               exit 1
             fi
             for f in "${test_files[@]}"; do
               echo "=== TEST $f ==="
               out="$(mktemp)"
-              if npx supabase@latest db query --local --output json --file "$f" > "$out" 2>&1; then
-                if python3 -c 'import json,sys
-p=sys.argv[1]
-try:
- d=json.load(open(p))
- if isinstance(d,dict):
-  rows=d.get("rows", d.get("data", d.get("result", None)))
- else: rows=d
- if not isinstance(rows,list) or len(rows)==0: raise SystemExit(2)
- def walk(x):
-  if isinstance(x,dict):
-   for v in x.values(): yield from walk(v)
-  elif isinstance(x,list):
-   for v in x: yield from walk(v)
-  else: yield x
- vals=list(walk(rows))
- if any(v is False or (isinstance(v,str) and v.strip().lower() in ("f","false")) for v in vals): raise SystemExit(3)
-except (ValueError,TypeError,AttributeError): raise SystemExit(4)
-' "$out"; then
-                  echo "PASS: $f (résultat non vide; aucune valeur booléenne fausse)"
+              if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -A -F $'\\t' -f "$f" > "$out" 2>&1; then
+                if python3 - "$out" <<'PY'
+            import sys
+            p = sys.argv[1]
+            try:
+                lines = [line.rstrip("\\n") for line in open(p, encoding="utf-8") if line.strip()]
+                if not lines:
+                    raise SystemExit(2)
+                # En-tête exclu; toute valeur booléenne fausse fait échouer le test.
+                rows = lines[1:]
+                if not rows:
+                    raise SystemExit(2)
+                vals = [v.strip().lower() for row in rows for v in row.split("\\t")]
+                if any(v in ("f", "false") for v in vals):
+                    raise SystemExit(3)
+            except (UnicodeError, OSError):
+                raise SystemExit(4)
+            PY
+                then
+                  echo "PASS: $f (résultat non vide; aucune valeur booléenne fausse; ON_ERROR_STOP=1)"
                 else
                   rc=$?
                   if [[ "$rc" -eq 2 ]]; then
@@ -312,20 +311,20 @@ except (ValueError,TypeError,AttributeError): raise SystemExit(4)
                     echo "FAIL: assertion booléenne fausse dans $f"
                     TEST_FAILS+=("$f : assertion booléenne fausse")
                   else
-                    echo "FAIL: format de sortie JSON non interprétable dans $f"
-                    TEST_FAILS+=("$f : format JSON inattendu")
+                    echo "FAIL: format de sortie SQL non interprétable dans $f"
+                    TEST_FAILS+=("$f : sortie SQL inattendue")
                   fi
                 fi
               else
                 echo "FAIL: exécution SQL en erreur pour $f"
                 cat "$out"
-                TEST_FAILS+=("$f : commande SQL en erreur")
+                TEST_FAILS+=("$f : commande SQL en erreur (ON_ERROR_STOP=1)")
               fi
               rm -f "$out"
             done
             if [[ "${#TEST_FAILS[@]}" -gt 0 ]]; then
               echo "RÉCAPITULATIF : ${#TEST_FAILS[@]} test(s) en échec"
-              printf ' - %s\n' "${TEST_FAILS[@]}"
+              printf ' - %s\\n' "${TEST_FAILS[@]}"
               : > /tmp/naxa-sql-tests.fail
               exit 1
             fi
