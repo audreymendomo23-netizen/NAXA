@@ -102,3 +102,9 @@ La consolidation technique est terminée et la fonctionnalité Promoteur/Caisses
 6. former les équipes à `/pharmacie` (réservations, stock, statut de garde, hors connexion) ;
 7. valider le parcours complet sur données réelles avant de passer au chantier Qualité.
 Le chantier suivant devra préserver les règles : aucune auto-inscription pharmacie, aucun numéro WhatsApp côté client, aucune livraison, réservation/paiement facultatifs.
+
+
+## État de consolidation (9 octobre 2026)
+Une branche isolée `integration/naxa-360-20261009` rassemble les versions candidates les plus récentes du registre fonctionnel, des parcours Client/Caisse/Pharmacien/Pilotage, des composants partagés, des documents métier, des migrations additives et des tests SQL. La configuration CircleCI de contrôle des migrations et de la suite SQL a été reprise depuis la branche de rejeu.
+
+**Important :** cette consolidation n’est pas encore certifiée verte. Le rejeu et la suite de 52 tests doivent fournir des résultats vérifiables; aucun changement Production ni déploiement n’a été effectué. Ne pas appliquer manuellement les migrations de cette branche à Production.
