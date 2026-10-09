@@ -1286,3 +1286,17 @@ Les fonctionnalités actuellement 🟡 pour cause de preuve SQL/CI restent 🟡 
 ## RECTIFICATION NAXA-CI-001 — 08/10/2026
 La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c645c79bc380`. Les commits intermédiaires de correction de documentation/harnais restent historiques. **Statut : 🟡 corrigé statiquement, preuve CI/replay encore requise.**
 
+
+
+---
+
+## Audit SQL du 9 octobre 2026 — état non vert
+
+- Base de test : `naxa-ci-replay-2`; aucune écriture Production.
+- Rejeu exact non validé : `migration_059_pos_ticket.sql` contient deux défauts d'exécution sur table ventes vide (fonction de fenêtre dans UPDATE ; puis `setval(0)`). Le fichier source n'a pas été modifié. Une variante diagnostique corrigée a été appliquée uniquement à la base de test pour examiner les migrations suivantes ; cette base doit être recréée avant la preuve finale.
+- Tests SQL candidats exécutés individuellement : 18 sans erreur remontée, 13 en erreur/assertion, 1 bloqué par le contrôle de sécurité de l'outil. Cela ne vaut pas validation de la suite complète de 52 tests.
+- Contradictions de contraintes sur `profiles` confirmées ; plusieurs tests Promoteur échouent sur CHECK. Des tests comportementaux manquent aussi de fixtures autonomes.
+- RLS désactivée sur deux tables de la base de test (`abonnements`, `naxa_architecture_niveaux`) : politiques à auditer avant toute correction.
+- Les migrations candidates 051–063 doivent encore être réconciliées dans la branche d'intégration.
+
+**Décision : ROUGE / NO-GO MAIN.** Aucun commit final sur `main` et aucun déploiement Production tant que ces blocages ne sont pas corrigés et que le rejeu exact + la suite complète n'ont pas fourni de preuves vertes.
