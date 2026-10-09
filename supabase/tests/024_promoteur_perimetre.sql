@@ -40,6 +40,9 @@ begin
    (v_c,'NAXA test pharmacie C',0,0,false)
   on conflict(id) do update set est_demo=false;
 
+  insert into public.abonnements(pharmacie_id,statut,echeance)
+  values(v_a,'actif',current_date+30),(v_b,'actif',current_date+30);
+
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
