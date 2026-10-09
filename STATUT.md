@@ -130,3 +130,12 @@
 
 ### Méthode du chantier simultané
 Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont traités en parallèle sur cette branche. Les dépendances sont coordonnées dans le même chantier; aucun lot n'est considéré vert sur la seule base de sa présence dans le dépôt. Après chaque vague de corrections, les contrôles liés sont rejoués ensemble.
+
+
+## Consolidation fonctionnelle — 9 octobre 2026
+- Registre `FONCTIONNALITES_VALIDEES.md` remplacé par la version détaillée du rejeu le plus récent, qui distingue les fonctionnalités construites, les validations prouvées et les blocages.
+- Parcours repris sur cette branche : espace Client, Caisse, Pharmacien (consultations/prescriptions), Pilotage pharmacie, validité des pharmacies et composants liés.
+- Migrations additives reprises : historique client, architecture/accréditations, périmètres Caisse/Promoteur, validité, sessions, pilotage, compatibilité stocks/ordonnancier, modes opérateurs et consultation/prescription.
+- Tests SQL additionnels repris pour les périmètres, l’architecture, la validité, le pilotage, les stocks, la caisse et le pharmacien. Configuration CircleCI reprise pour détecter récursivement les 52 tests.
+- Aucun test complet n’est déclaré vert à ce stade : exécution CircleCI et rejeu intégral restent à obtenir; les incohérences entre code et schéma observées en Production restent bloquantes pour une mise en production.
+- Garde-fous maintenus : aucune modification de `main`, aucun changement Supabase Production, aucun déploiement.
