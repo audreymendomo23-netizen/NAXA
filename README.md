@@ -1,3 +1,7 @@
+> **AVERTISSEMENT DE CONTINUITÉ — 9 octobre 2026**
+>
+> Les instructions historiques ci-dessous ne constituent pas une procédure d'installation complète de la version actuelle. Elles ne doivent pas être utilisées pour reconstruire ou modifier la Production. La référence candidate contient des évolutions absentes de `main`, et le schéma Production observé ne correspond pas entièrement au code actuellement déployé. Toute intégration se fait sur la branche `integration/naxa-360-20261009` et toute validation SQL sur l'environnement de test. Aucun déploiement ni aucune écriture Supabase Production sans autorisation explicite.
+
 # NAXA : base de l'application
 
 Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % offre gratuite.
@@ -5,7 +9,7 @@ Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % of
 ## Démarrage
 1. npm install
 2. Créer un projet Supabase (gratuit). Dans Database > Extensions, activer pg_cron.
-3. Dans l'éditeur SQL, exécuter dans cet ordre : supabase/schema.sql, supabase/migration_002_catalogue_panier.sql, supabase/migration_003_security_hardening.sql, supabase/migration_004_corrections.sql, supabase/migration_006_auth_profile_age_gate.sql, supabase/migration_007_pharmacie_promoteur_caisses.sql, supabase/migration_008_pharmacie_promoteur_caisses.sql, puis (démo seulement) supabase/seed.sql.
+3. **Ne pas appliquer manuellement cette ancienne liste de migrations à une base existante.** Elle est conservée comme historique, mais ne représente pas la chaîne actuelle complète. Pour toute base de test, utiliser la chaîne canonique réconciliée de migrations après contrôle des dépendances et de l'historique. Ne jamais rejouer cette liste sur Production.
 4. Planifier l'expiration des réservations avec le job naxa-expire toutes les 5 minutes.
 5. Copier .env.example vers .env.local et renseigner les clés. La clé service_role ne doit jamais être exposée.
 6. npm run dev, puis ouvrir /admin après avoir configuré un compte administrateur.
