@@ -244,7 +244,7 @@ jobs:
               exit 1
             fi
             # Auto-test du même filtre utilisé sur la sortie tuples-only de psql.
-            python3 - \\<<'PY'
+            python3 - \<<'PY'
             def check(output, sql_ok=True):
                 if not sql_ok:
                     return False
@@ -278,7 +278,7 @@ jobs:
               echo "=== TEST $f ==="
               out="$(mktemp)"
               if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -A -t -F $'\t' -f "$f" > "$out" 2>&1; then
-                if python3 - "$out" \\<<'PY'
+                if python3 - "$out" \<<'PY'
             import sys
             p = sys.argv[1]
             try:
