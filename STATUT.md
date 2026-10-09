@@ -316,3 +316,13 @@ Audit transversal mené avant tout nouveau replay CircleCI : PostgreSQL/Supabase
 ## RECTIFICATION N4 — 08/10/2026
 La correction effective de `migration_034_promoteur_session_audit.sql` est le commit `0a13542b4e2917086f2f5264c139c645c79bc380` : le délimiteur isolé `$;` de `naxa_audit_session_delete()` a été remplacé par `$$;`. Les commits intermédiaires de tentative sont historiques et ne constituent pas la preuve de correction finale. Le préflight CI contient désormais une garde bloquante contre tout `$;` isolé. **N4 reste 🟡 jusqu'à un nouveau run CircleCI réussi au HEAD courant.**
 
+
+
+## Audit CI / Production — 09/10/2026
+- **Statut global : 🟡 — non vert.** La preuve de rejeu complet au HEAD courant manque toujours.
+- **Exécuté :** la sonde minimale a reçu le contexte CircleCI `ci/circleci: probe` en succès. Avec la config historique `70f21c1`, le statut `quality` est success et `sql_tests` est failure ; les logs détaillés de l'étape CircleCI ne sont pas accessibles par les connecteurs disponibles.
+- **Correction de config :** commit `4680e7d55246e68e209a618f6c331808982f0978`, échappement des trois heredocs littéraux par `\\<<` conformément à la documentation CircleCI 2.1. Le statut CircleCI `quality` du commit de test de cette correction était pending à la dernière lecture ; aucun vert n'est revendiqué.
+- **Workflows GitHub Actions :** `naxa-quality.yml` et `naxa-registry-guard.yml` ont été déplacés dans `.github/workflows-disabled/` sur la seule branche `ci/replay-rewrite-20261008` (commit `1b2e3c25d1f213f212ce0cec62e8708e281fee10`). Les exécutions #382, #383 et #384 ont échoué sans étapes ni logs ; l'exécution #386 était queued lors du dernier contrôle. **Quota épuisé : inconnu**, l'API de facturation n'est pas accessible par le connecteur et aucun message de quota exploitable n'est disponible.
+- **Écart Production (lecture seule) :** `public.naxa_architectures` absente en Production, alors que la migration source 020 la crée ; `public.pharmacie_architectures` existe mais n'est pas équivalente au catalogue d'architectures. Aucun objet Production modifié.
+- **Non établi :** le rejeu PostgreSQL complet, les 69 migrations, les 46 tests SQL et les logs des 30 dernières lignes de l'échec CircleCI restent à obtenir. La tentative de pousser la config exacte `d8067d2` sur la branche de sonde a été bloquée par les contrôles de sécurité de l'outil ; elle n'est donc pas déclarée exécutée.
+- **Garde-fous :** aucun commit sur `main`, aucune PR vers `main`, aucune fusion, aucune migration modifiée, aucune écriture Production.
