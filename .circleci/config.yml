@@ -233,6 +233,45 @@ jobs:
             exec > >(tee /tmp/naxa-sql-tests.log) 2>&1
             rm -f /tmp/naxa-sql-tests.fail
             TEST_FAILS=()
+            # Auto-test du filtre : booléen t accepté ; f, zéro ligne, et erreur SQL rejetés ;
+            # un nom de colonne contenant la lettre f ne doit pas être interprété comme un booléen.
+            python3 - <<'PY'
+            import json
+            def check(raw, sql_ok=True):
+                if not sql_ok:
+                    return False
+                try:
+                    d = json.loads(raw)
+                    rows = d.get("rows", d.get("data", d.get("result"))) if isinstance(d, dict) else d
+                    if not isinstance(rows, list) or not rows:
+                        return False
+                    def values(x):
+                        if isinstance(x, dict):
+                            for v in x.values():
+                                yield from values(v)
+                        elif isinstance(x, list):
+                            for v in x:
+                                yield from values(v)
+                        else:
+                            yield x
+                    vals = list(values(rows))
+                    boolish = [v for v in vals if isinstance(v, bool) or (isinstance(v, str) and v.strip().lower() in ("t", "f", "true", "false"))]
+                    return boolish and all(v is True or (isinstance(v, str) and v.strip().lower() in ("t", "true")) for v in boolish)
+                except (ValueError, TypeError, AttributeError):
+                    return False
+            cases = [
+                ("t", '{"rows":[{"assertion":"t"}]}', True, True),
+                ("f", '{"rows":[{"assertion":"f"}]}', True, False),
+                ("0 ligne", '{"rows":[]}', True, False),
+                ("en-tête contenant f", '{"rows":[{"flag":"t"}]}', True, True),
+                ("erreur SQL", '', False, False),
+            ]
+            for name, raw, sql_ok, expected in cases:
+                actual = check(raw, sql_ok)
+                if actual != expected:
+                    raise SystemExit("FAIL filtre auto-test: %s attendu=%s obtenu=%s" % (name, expected, actual))
+                print("PASS filtre auto-test: %s" % name)
+            PY
             mapfile -d '' test_files < <(find supabase/tests -type f -name '*.sql' -print0 | LC_ALL=C sort -z)
             echo "Nombre de tests SQL détectés récursivement: ${#test_files[@]}"
             if [[ "${#test_files[@]}" -ne 52 ]]; then
