@@ -251,13 +251,13 @@ jobs:
                 lines = [line for line in output.splitlines() if line.strip()]
                 if not lines:
                     return False
-                values = [v.strip().lower() for line in lines for v in line.split("\\t")]
+                values = [v.strip().lower() for line in lines for v in line.split("\t")]
                 return not any(v in ("f", "false") for v in values)
             cases = [
                 ("t", "t", True, True),
                 ("f", "f", True, False),
                 ("0 ligne", "", True, False),
-                ("en-tête contenant f", "flag\\nt", True, True),
+                ("en-tête contenant f", "flag\nt", True, True),
                 ("erreur SQL", "", False, False),
             ]
             for name, output, sql_ok, expected in cases:
@@ -282,10 +282,10 @@ jobs:
             import sys
             p = sys.argv[1]
             try:
-                lines = [line.rstrip("\\n") for line in open(p, encoding="utf-8") if line.strip()]
+                lines = [line.rstrip("\n") for line in open(p, encoding="utf-8") if line.strip()]
                 if not lines:
                     raise SystemExit(2)
-                vals = [v.strip().lower() for line in lines for v in line.split("\\t")]
+                vals = [v.strip().lower() for line in lines for v in line.split("\t")]
                 if any(v in ("f", "false") for v in vals):
                     raise SystemExit(3)
             except (UnicodeError, OSError):
