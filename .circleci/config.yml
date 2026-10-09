@@ -35,7 +35,7 @@ jobs:
             echo "PREFLIGHT_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "HEAD=$(git rev-parse HEAD)"
             echo "BRANCH=$CIRCLE_BRANCH"
-            python3 - \<<'PY'
+            python3 - <<'PY'
             import re
             from pathlib import Path
 
@@ -162,7 +162,7 @@ jobs:
             echo "Locale de rejeu: LC_ALL=$LC_ALL"
             echo "Supabase CLI version: $(npx supabase@latest --version)"
             npx supabase@latest init --force
-            cat > supabase/config.toml \<<'EOF'
+            cat > supabase/config.toml <<'EOF'
             project_id = "naxa-tests-ci"
             [api]
             enabled = true
@@ -191,7 +191,7 @@ jobs:
           name: Vérifier la disponibilité SQL locale
           command: |
             set -uo pipefail
-            cat > /tmp/naxa-db-ready.sql \<<'SQL'
+            cat > /tmp/naxa-db-ready.sql <<'SQL'
             select 1 as naxa_db_ready;
             SQL
             ready=0
@@ -251,7 +251,7 @@ jobs:
             done
             if [[ "${#TEST_FAILS[@]}" -gt 0 ]]; then
               echo "RÉCAPITULATIF : ${#TEST_FAILS[@]} test(s) en échec"
-              printf ' - %s\\n' "${TEST_FAILS[@]}"
+              printf ' - %s\n' "${TEST_FAILS[@]}"
               : > /tmp/naxa-sql-tests.fail
               exit 1
             fi
