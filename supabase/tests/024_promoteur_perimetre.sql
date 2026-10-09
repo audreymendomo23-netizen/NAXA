@@ -27,10 +27,10 @@ begin
 
   insert into public.profiles(id,role,first_name,last_name,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
   values
-   (v_promoteur,'promoteur','Promoteur','Test',true,'promoteur',1,1,'PARENTS_AINES_CADETS'),
+   (v_promoteur,'promoteur','Promoteur','Test',true,null,1,1,'PARENTS_AINES_CADETS'),
    (v_responsable,'pharmacie','Responsable','Test',true,'responsable',2,2,'PARENTS_AINES_CADETS'),
-   (v_caisse,'caisse','Caisse','Test',true,'caisse',3,3,'PARENTS_AINES_CADETS'),
-   (v_other,'pharmacie','Other','Test',true,null,0,null,null)
+   (v_caisse,'caisse','Caisse','Test',true,null,3,3,'PARENTS_AINES_CADETS'),
+   (v_other,'pharmacie','Other','Test',true,null,null,null,null)
   on conflict(id) do update set role=excluded.role,actif=true,fonction_interne=excluded.fonction_interne,niveau_interne=excluded.niveau_interne,niveau_hierarchique=excluded.niveau_hierarchique,architecture_code=excluded.architecture_code;
 
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
