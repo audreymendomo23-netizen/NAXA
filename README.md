@@ -169,3 +169,12 @@ Le replay SQL a révélé un défaut syntaxique ciblé dans `migration_034_promo
 ## Rectification N4 — 08/10/2026
 Correction effective : `migration_034_promoteur_session_audit.sql` ne contient plus le délimiteur PL/pgSQL isolé `$;` dans `naxa_audit_session_delete()` ; il est restauré en `$$;`. Commit effectif : `0a13542b4e2917086f2f5264c139c645c79bc380`. Le préflight CI bloque désormais ce défaut. Aucun vert N4 n'est déclaré avant une nouvelle exécution complète au HEAD courant.
 
+
+
+## Audit CI de rejeu — 09/10/2026
+- CircleCI 2.1 interprète `<<` comme un délimiteur de templating ; les heredocs shell littéraux doivent employer `\\<<`. Référence : https://circleci.com/docs/guides/orchestrate/config-templating/.
+- Correction additive de `.circleci/config.yml` au commit `4680e7d55246e68e209a618f6c331808982f0978` : échappement des heredocs Python, TOML et SQL.
+- Sur la branche de rejeu uniquement, les workflows Actions `naxa-quality` et `naxa-registry-guard` sont rangés dans `.github/workflows-disabled/` au commit `1b2e3c25d1f213f212ce0cec62e8708e281fee10`. Aucun changement sur `main` ni sur Production.
+- Sonde minimale : commit `7c356a530601b5431db08f5222bf86f11e019b8c`, contexte `ci/circleci: probe` = success. Essai de la config `70f21c1` : `quality` = success, `sql_tests` = failure au commit de test `e29550ee7a3b1e6ddef7cb799f20f2f20b8ca94b`; logs CircleCI détaillés non accessibles via les connecteurs disponibles.
+- Au HEAD `1b2e3c25d1f213f212ce0cec62e8708e281fee10`, `ci/circleci: quality` est encore pending à la dernière vérification. Aucun vert n'est déclaré.
+- Écart Production confirmé en lecture seule : `public.naxa_architectures` est absente alors que la migration source 020 la crée ; `public.pharmacie_architectures` existe mais représente une affectation par pharmacie, pas le catalogue `naxa_architectures`. Aucune écriture Production.
