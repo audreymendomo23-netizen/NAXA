@@ -32,6 +32,14 @@ insert into auth.users (
   now(), '{"provider":"email","providers":["email"]}'::jsonb,
   '{"username":"naxa-test-caisse-018","first_name":"Test","last_name":"Caisse","phone":"+237600000003","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
   now(), now()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '01800000-0000-4000-8000-000000000004',
+  'authenticated', 'authenticated', 'naxa-test-responsable-018@example.invalid', '',
+  now(), '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"username":"naxa-test-responsable-018","first_name":"Test","last_name":"Responsable","phone":"+237600000004","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
+  now(), now()
 );
 
 insert into public.pharmacies(id, nom, ville, lat, lng, slug, est_demo)
@@ -45,6 +53,7 @@ declare
   v_admin uuid;
   v_promoteur uuid;
   v_caisse uuid;
+  v_responsable uuid;
   v_a uuid;
   v_b uuid;
   v_c uuid;
@@ -54,6 +63,7 @@ begin
   v_admin := '01800000-0000-4000-8000-000000000001';
   v_promoteur := '01800000-0000-4000-8000-000000000002';
   v_caisse := '01800000-0000-4000-8000-000000000003';
+  v_responsable := '01800000-0000-4000-8000-000000000004';
   v_a := '01800000-0000-4000-8000-000000000101';
   v_b := '01800000-0000-4000-8000-000000000102';
   v_c := '01800000-0000-4000-8000-000000000103';
@@ -98,7 +108,8 @@ begin
     (v_promoteur,'VIEW_NETWORK_PILOTAGE',null,'RESEAU',v_admin,true),
     (v_promoteur,'VIEW_CAISSE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
     (v_caisse,'VIEW_CAISSE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
-    (v_promoteur,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
+    (v_promoteur,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
+    (v_responsable,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
   on conflict (profile_id,privilege_code,pharmacie_id,scope_type)
   do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
@@ -166,19 +177,23 @@ begin
     raise exception 'Client doit être refusé par stats_pilotage_scope';
   end if;
 
-  -- Responsable : fonction métier + niveau interne 2, sans utiliser role_type=responsable.
-  -- Le rôle technique historique reste 'pharmacie' ; le scope est celui de la pharmacie A.
+  -- Restaurer le parent Promoteur après le contrôle Client ; il reste valide pour la pharmacie A.
+  update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a, niveau_interne=1, architecture_code='PARENTS_AINES_CADETS' where id=v_promoteur;
+
+  -- Responsable distinct, enfant du Promoteur valide, avec le scope de la pharmacie A.
   update public.profiles
     set role='pharmacie',
         fonction_interne='responsable',
         niveau_interne=2,
         niveau_hierarchique=2,
         pharmacie_id=v_a,
-        actif=true
-  where id=v_promoteur;
+        parent_profile_id=v_promoteur,
+        actif=true,
+        architecture_code='PARENTS_AINES_CADETS'
+  where id=v_responsable;
 
-  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claim.sub',v_responsable::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_responsable::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 1 then
     raise exception 'Responsable scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
@@ -186,7 +201,7 @@ begin
   if (v_json->'recherches'->>'total')::int <> 1 then
     raise exception 'Responsable recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
   end if;
-  if exists(select 1 from public.profiles where id=v_promoteur and role::text='responsable') then
+  if exists(select 1 from public.profiles where id=v_responsable and role::text='responsable') then
     raise exception 'Responsable ne doit pas être porté par role_type=responsable';
   end if;
 
