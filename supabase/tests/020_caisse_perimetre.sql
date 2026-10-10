@@ -15,7 +15,7 @@ begin
   if pg_get_functiondef('public.set_reservation_status(uuid,resa_statut)'::regprocedure) not like '%CONFIRM_PAYMENT%' then raise exception 'C07 paiement non protégé'; end if; n:=n+1;
   if pg_get_functiondef('public.set_reservation_status(uuid,resa_statut)'::regprocedure) not like '%CONFIRM_WITHDRAWAL%' then raise exception 'C08 retrait non protégé'; end if; n:=n+1;
   if pg_get_functiondef('public.set_reservation_status(uuid,resa_statut)'::regprocedure) not like '%CANCEL_RESERVATION%' then raise exception 'C09 annulation non protégée'; end if; n:=n+1;
-  if pg_get_functiondef('public.naxa_has_privilege(text,uuid,text)'::regprocedure) not like '%naxa_architecture_privileges%' then raise exception 'C10 architecture non effective'; end if; n:=n+1;
+  if pg_get_functiondef('private.naxa_has_privilege(text,uuid,text)'::regprocedure) not like '%naxa_architecture_privileges%' then raise exception 'C10 architecture non effective'; end if; n:=n+1;
   if exists(select 1 from public.naxa_architecture_privileges where role_key='caisse' and privilege_code in ('IMPORT_STOCK','VIEW_PURCHASE_COST','EDIT_PURCHASE_COST','VIEW_MARGIN','MANAGE_GUARD_STATUS','MANAGE_CAISSES','CHANGE_ARCHITECTURE')) then raise exception 'C11 privilèges supérieurs exposés'; end if; n:=n+1;
   if not exists(select 1 from public.naxa_architecture_privileges where role_key='caisse' and privilege_code='EDIT_STOCK_QUANTITY') then raise exception 'C12 modification quantité absente'; end if; n:=n+1;
   if not exists(select 1 from public.naxa_architecture_privileges where role_key='caisse' and privilege_code='CONFIRM_PAYMENT') then raise exception 'C13 paiement absent'; end if; n:=n+1;
@@ -30,3 +30,5 @@ begin
 end $$;
 
 rollback;
+
+select '020_caisse_perimetre PASS — 20 assertions' as resultat;
