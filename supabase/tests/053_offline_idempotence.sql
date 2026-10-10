@@ -73,3 +73,5 @@ begin
 end $$;
 
 select '053_offline_idempotence PASS' as resultat;
+
+select '053_offline_idempotence PASS' as resultat;
