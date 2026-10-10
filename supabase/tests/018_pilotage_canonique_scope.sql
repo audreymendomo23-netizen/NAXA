@@ -31,7 +31,7 @@ values
   ('01800000-0000-4000-8000-000000000102','NAXA Test B 018','Yaoundé',3.8490,11.5031,'naxa-test-b-018',false),
   ('01800000-0000-4000-8000-000000000103','NAXA Test C 018','Yaoundé',3.8500,11.5041,'naxa-test-c-018',false);
 
-do $
+do $pilotage$
 declare
   v_admin uuid;
   v_promoteur uuid;
@@ -126,6 +126,6 @@ begin
   end if;
 
 end
-$$;
+$pilotage$;
 
 rollback;
