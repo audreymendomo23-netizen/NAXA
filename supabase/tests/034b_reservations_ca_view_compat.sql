@@ -21,3 +21,5 @@ begin
   if to_regclass('bi.activite_mensuelle') is null then raise exception 'bi.activite_mensuelle absente'; end if;
 end
 $$;
+
+select '034b_reservations_ca_view_compat PASS' as resultat;
