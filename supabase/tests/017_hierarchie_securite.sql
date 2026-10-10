@@ -60,3 +60,5 @@ DO $$ BEGIN
 END $$;
 
 ROLLBACK;
+
+select '017_hierarchie_securite PASS' as resultat;
