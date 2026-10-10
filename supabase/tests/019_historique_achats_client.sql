@@ -72,20 +72,19 @@ insert into _client_019_results values
   lower(regexp_replace(pg_get_functiondef('public.log_reservation_event()'::regprocedure), '\\s+', ' ', 'g')) like '%new.paiement_ref is not null%',
   'branche paiement présente');
 
--- Fixtures runtime autonomes, entièrement rollbackées à la fin du test.
--- Le test porte sur l'historique ; il ne revalide pas le trigger d'inscription.
-alter table auth.users disable trigger on_auth_user_created;
+-- Fixture client créée via le même trigger d'inscription que l'application.
+-- L'ensemble du scénario est rollbacké à la fin du test.
 insert into auth.users (
-  instance_id,id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+  instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+  raw_app_meta_data,raw_user_meta_data,created_at,updated_at
 ) values (
   '00000000-0000-0000-0000-000000000000',
   '01900000-0000-4000-8000-000000000001',
-  'authenticated','authenticated','naxa-test-client-019@example.invalid','',
-  '{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()
+  'authenticated','authenticated','naxa-test-client-019@example.invalid','',now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"username":"naxa-test-client-019","first_name":"Test","last_name":"Client","phone":"+237600000019","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
+  now(),now()
 );
-insert into public.profiles(id,role,username,first_name,last_name,actif)
-values ('01900000-0000-4000-8000-000000000001','client','naxa-test-client-019','Test','Client',true);
-alter table auth.users enable trigger on_auth_user_created;
 
 insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo)
 values ('01900000-0000-4000-8000-000000000101','NAXA Test 019','Yaoundé',3.8510,11.5050,'naxa-test-019',false);
