@@ -13,6 +13,9 @@ begin
   values(v_user,'authenticated','authenticated','naxa035_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now());
   set local session_replication_role = origin;
 
+  insert into public.pharmacies(id,nom,ville,lat,lng,actif)
+  values(v_pharmacie,'NAXA Test 035','Yaoundé',3.8570,11.5110,true);
+
   insert into public.profiles(id,role,username,actif,pharmacie_id)
   values(v_user,'caisse','naxa035_'||substr(replace(v_user::text,'-',''),1,10),true,v_pharmacie);
 
