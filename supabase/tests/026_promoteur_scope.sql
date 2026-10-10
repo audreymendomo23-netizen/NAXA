@@ -26,6 +26,12 @@ begin
   values(v_promoteur,'promoteur',true,'promoteur',1,1,'PARENTS_AINES_CADETS')
   on conflict(id) do update set role='promoteur',actif=true,fonction_interne='promoteur',niveau_interne=1,niveau_hierarchique=1,architecture_code='PARENTS_AINES_CADETS';
 
+  insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut)
+  values(v_a,'essentiel',30000,current_date,current_date+30,'actif'),
+        (v_b,'essentiel',30000,current_date,current_date+30,'actif')
+  on conflict (pharmacie_id) do update
+    set echeance=excluded.echeance,statut='actif',montant_mensuel=excluded.montant_mensuel;
+
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
