@@ -37,6 +37,10 @@ begin
         fonction_interne='responsable',niveau_interne=2,
         niveau_hierarchique=2,architecture_code='PARENTS_AINES_CADETS';
 
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
+  values(v_a,'PARENTS_AINES_CADETS',v_actor,true,5,5)
+  on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,assigned_by=excluded.assigned_by,active=true;
+
   insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
   values(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_actor,true)
   on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
