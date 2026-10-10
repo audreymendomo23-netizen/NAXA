@@ -227,12 +227,8 @@ $$;
 
 revoke all on function public.naxa_business_function(uuid) from public,anon;
 revoke all on function public.naxa_can(text,uuid,uuid) from public,anon;
-revoke all on function public.naxa_assign_privilege(uuid,text) from public,anon;
-revoke all on function public.naxa_revoke_privilege(uuid,text) from public,anon;
 grant execute on function public.naxa_business_function(uuid) to authenticated;
 grant execute on function public.naxa_can(text,uuid,uuid) to authenticated;
-grant execute on function public.naxa_assign_privilege(uuid,text) to authenticated;
-grant execute on function public.naxa_revoke_privilege(uuid,text) to authenticated;
 
 comment on table public.pharmacie_architectures is 'Architecture assignée par NAXA à une pharmacie; le Promoteur ne la choisit pas.';
 comment on table public.naxa_privileges is 'Catalogue atomique canonique des privilèges NAXA.';

@@ -8,7 +8,7 @@ create table pharmacies(id uuid primary key default gen_random_uuid(),nom text n
 create table profiles(id uuid primary key references auth.users on delete cascade,role role_type not null default 'client',username text unique,pharmacie_id uuid references pharmacies(id),created_at timestamptz not null default now());
 create table pharmacie_privee(pharmacie_id uuid primary key references pharmacies(id) on delete cascade,whatsapp text not null,code_marchand text);
 create table produits(id uuid primary key default gen_random_uuid(),nom text not null,dci text not null default '',dosage text not null default '',forme text not null default '',nom_norm text,unique(nom,dosage,forme));
-create or replace function produits_norm() returns trigger language plpgsql as $$begin new.nom_norm:=lower(unaccent(coalesce(new.nom,'')||' '||coalesce(new.dci,'')||' '||coalesce(new.dosage,''));return new;end$$;
+create or replace function produits_norm() returns trigger language plpgsql as $$begin new.nom_norm:=lower(unaccent(coalesce(new.nom,'')||' '||coalesce(new.dci,'')||' '||coalesce(new.dosage,'')));return new;end$$;
 create trigger trg_produits_norm before insert or update on produits for each row execute function produits_norm();
 create index produits_nom_trgm on produits using gin(nom_norm gin_trgm_ops);
 create table stocks(pharmacie_id uuid not null references pharmacies(id) on delete cascade,produit_id uuid not null references produits(id) on delete cascade,prix integer not null check(prix>=0),quantite integer not null default 0 check(quantite>=0),date_peremption date,updated_at timestamptz not null default now(),primary key(pharmacie_id,produit_id));

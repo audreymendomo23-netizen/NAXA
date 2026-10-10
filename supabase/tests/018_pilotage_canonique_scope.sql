@@ -98,7 +98,10 @@ begin
   perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 3 then
-    raise exception 'Admin scope attendu=3, obtenu=%',v_json->'pharmacies'->>'total';
+    raise exception 'Admin scope attendu=3, obtenu=% ; pharmacies non demo : %',
+      v_json->'pharmacies'->>'total',
+      (select string_agg(ph.id::text||' '||coalesce(to_jsonb(ph)->>'nom','?')||' '||coalesce(to_jsonb(ph)->>'slug','?')||' demo='||coalesce(ph.est_demo::text,'NULL'), ' | ' order by ph.id)
+       from public.pharmacies ph where ph.est_demo is not true);
   end if;
   if (v_json->'recherches'->>'total')::int <> 3 then
     raise exception 'Admin recherches attendu=3, obtenu=%',v_json->'recherches'->>'total';
