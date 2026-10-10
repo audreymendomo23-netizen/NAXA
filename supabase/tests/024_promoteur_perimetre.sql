@@ -13,6 +13,7 @@ declare
   v_b uuid := '00000000-0000-0000-0000-000000000002';
   v_c uuid := '00000000-0000-0000-0000-000000000003';
   v_arch text;
+  v_rejected boolean;
 begin
   -- Comptes temporaires uniquement dans la transaction.
   set local session_replication_role='replica';
@@ -87,11 +88,12 @@ begin
   -- Le Promoteur doit pouvoir créer son Responsable en A3, mais pas en A1/A2.
   update public.pharmacie_architectures set architecture_code='PARENTS_ENFANTS',max_responsables=0,max_caisses=5 where pharmacie_id=v_b;
   update public.profiles set pharmacie_id=v_b,architecture_code='PARENTS_ENFANTS' where id=v_responsable;
+  v_rejected:=false;
   begin
     perform public.accrediter_profile(v_responsable,v_b,2::smallint,v_promoteur);
-    raise exception 'A2 doit refuser Responsable';
-  exception when others then null;
+  exception when others then v_rejected:=true;
   end;
+  if not v_rejected then raise exception 'A2 doit refuser Responsable'; end if;
 
   update public.pharmacie_architectures set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5 where pharmacie_id=v_a;
   update public.profiles set pharmacie_id=v_a,architecture_code='PARENTS_AINES_CADETS' where id=v_responsable;
@@ -109,19 +111,21 @@ begin
   if not public.naxa_has_privilege('VIEW_STOCK',v_a,'POSTE_CAISSE') then raise exception 'Caisse VIEW_STOCK attendu'; end if;
 
   -- Le Promoteur ne peut pas attribuer de privilège de gouvernance.
+  v_rejected:=false;
   begin
     perform public.naxa_grant_privilege(v_responsable,'CHANGE_ARCHITECTURE',v_a,'PHARMACIE');
-    raise exception 'Gouvernance doit être refusée';
-  exception when others then null;
+  exception when others then v_rejected:=true;
   end;
+  if not v_rejected then raise exception 'Gouvernance doit être refusée'; end if;
 
   -- Il ne peut pas déléguer à une cible d'une autre pharmacie.
   update public.profiles set pharmacie_id=v_c,parent_profile_id=null,role='pharmacie',fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,architecture_code='PARENTS_AINES_CADETS',actif=true where id=v_other;
+  v_rejected:=false;
   begin
     perform public.naxa_grant_privilege(v_other,'VIEW_PHARMACY_PILOTAGE',v_c,'PHARMACIE');
-    raise exception 'Cible hors réseau doit être refusée';
-  exception when others then null;
+  exception when others then v_rejected:=true;
   end;
+  if not v_rejected then raise exception 'Cible hors réseau doit être refusée'; end if;
 
   -- Réseau : uniquement le Promoteur peut recevoir un scope RESEAU ; ici on vérifie la garde structurelle.
   if not exists(select 1 from public.naxa_privileges where code='VIEW_NETWORK_PILOTAGE' and delegable) then
