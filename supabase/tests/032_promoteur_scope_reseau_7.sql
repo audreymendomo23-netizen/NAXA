@@ -66,9 +66,13 @@ update public.naxa_profile_privileges
 set local role authenticated;
 
 -- 7.3 Désactivation du lien ferme immédiatement le scope, réactivation le restaure.
+set local role postgres;
 update public.promoteur_pharmacies set actif=false where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
+set local role authenticated;
 do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 désactivation'; end if; end $$;
+set local role postgres;
 update public.promoteur_pharmacies set actif=true where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
+set local role authenticated;
 do $$ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE') then raise exception '7.3 réactivation'; end if; end $$;
 
 -- 7.4 Le pilotage Promoteur suit les pharmacies A+B via le scope canonique et exclut C + non attribué.
