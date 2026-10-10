@@ -60,9 +60,10 @@ begin
   values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,assigned_by=excluded.assigned_by,active=true;
 
-  perform set_config('request.jwt.claim.sub',v_admin::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
-  perform public.naxa_grant_privilege(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE');
+  insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
+  values(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
+  on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+  do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
   insert into public.evenements(type,pharmacie_id,resultats)
   values ('recherche',v_a,1),('recherche',v_b,1);
