@@ -66,16 +66,47 @@ insert into _client_019_results values
   has_function_privilege('authenticated','public.log_reservation_event()','execute') is false,
   'EXECUTE refusé'),
 (15, 'création directe payee/retiree horodatée',
-  pg_get_functiondef('public.log_reservation_event()'::regprocedure) like '%new.statut in (''payee'',''retiree'')%',
+  lower(regexp_replace(pg_get_functiondef('public.log_reservation_event()'::regprocedure), '\\s+', ' ', 'g')) like '%new.statut in (''payee'',''retiree'')%',
   'branche terminal présente'),
 (16, 'référence de paiement à la création historisée',
-  pg_get_functiondef('public.log_reservation_event()'::regprocedure) like '%new.paiement_ref is not null%',
+  lower(regexp_replace(pg_get_functiondef('public.log_reservation_event()'::regprocedure), '\\s+', ' ', 'g')) like '%new.paiement_ref is not null%',
   'branche paiement présente');
+
+-- Fixtures runtime autonomes, entièrement rollbackées à la fin du test.
+-- Le test porte sur l'historique ; il ne revalide pas le trigger d'inscription.
+alter table auth.users disable trigger on_auth_user_created;
+insert into auth.users (
+  instance_id,id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '01900000-0000-4000-8000-000000000001',
+  'authenticated','authenticated','naxa-test-client-019@example.invalid','',
+  '{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()
+);
+insert into public.profiles(id,role,username,first_name,last_name,actif)
+values ('01900000-0000-4000-8000-000000000001','client','naxa-test-client-019','Test','Client',true);
+alter table auth.users enable trigger on_auth_user_created;
+
+insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo)
+values ('01900000-0000-4000-8000-000000000101','NAXA Test 019','Yaoundé',3.8510,11.5050,'naxa-test-019',false);
+
+insert into public.produits(id,nom,dci,dosage,forme,nom_norm)
+values ('01900000-0000-4000-8000-000000000201','Produit test 019','Produit test','100 mg','comprimé','produit test 019');
+
+insert into public.reservations(id,client_id,pharmacie_id,statut,total,expires_at,paiement_ref)
+values ('01900000-0000-4000-8000-000000000301',
+        '01900000-0000-4000-8000-000000000001',
+        '01900000-0000-4000-8000-000000000101',
+        'en_attente',100,now()+interval '1 hour',null);
+
+insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
+values ('01900000-0000-4000-8000-000000000301',
+        '01900000-0000-4000-8000-000000000201',1,100);
 
 -- Preuve runtime : une transition terminale et une référence de paiement
 -- doivent produire les événements attendus. La modification est rollbackée.
 with target as (
-  select id from public.reservations order by created_at desc limit 1
+  select '01900000-0000-4000-8000-000000000301'::uuid
 )
 update public.reservations
 set statut='payee', paiement_ref='TEST-CLIENT-019'
