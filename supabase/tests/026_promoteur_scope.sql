@@ -26,6 +26,10 @@ begin
   values(v_promoteur,'promoteur',true,'promoteur',1,1,'PARENTS_AINES_CADETS')
   on conflict(id) do update set role='promoteur',actif=true,fonction_interne='promoteur',niveau_interne=1,niveau_hierarchique=1,architecture_code='PARENTS_AINES_CADETS';
 
+  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+  values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
+  on conflict(promoteur_id) do update set architecture_code='PARENTS_AINES_CADETS',statut='active';
+
   insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut)
   values(v_a,'essentiel',30000,current_date,current_date+30,'actif'),
         (v_b,'essentiel',30000,current_date,current_date+30,'actif')
@@ -39,10 +43,6 @@ begin
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5),(v_b,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true;
-
-  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
-  values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
-  on conflict(promoteur_id) do update set architecture_code='PARENTS_AINES_CADETS',statut='active';
 
   if not public.naxa_scope_allows(v_promoteur,v_a,'PHARMACIE') then raise exception 'scope pharmacie A refusé'; end if;
   if not public.naxa_scope_allows(v_promoteur,v_b,'PHARMACIE') then raise exception 'scope pharmacie B refusé'; end if;
