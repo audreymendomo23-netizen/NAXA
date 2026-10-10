@@ -24,3 +24,5 @@ begin
   end loop;
 end
 $$;
+
+select '044b_prescription_privilege_seed_compat PASS' as resultat;
