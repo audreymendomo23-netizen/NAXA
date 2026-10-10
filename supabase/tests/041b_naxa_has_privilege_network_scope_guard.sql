@@ -9,3 +9,5 @@ begin
   end if;
 end
 $$;
+
+select '041b_naxa_has_privilege_network_scope_guard PASS' as resultat;
