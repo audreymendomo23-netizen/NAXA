@@ -1,37 +1,57 @@
--- NAXA PASS 6 — acceptance test Responsable, POST-COMMIT enum gate
--- Prérequis : migrations 016 + 018 déjà appliquées dans l'environnement de test.
--- Ce test ne doit PAS être exécuté dans une transaction qui contient ALTER TYPE ... ADD VALUE.
--- Aucun compte réel ne doit être créé ; les profils existants sont temporairement réutilisés puis rollback.
+-- NAXA 018b — acceptance test Responsable après replay complet.
+-- Responsable est une fonction interne portée par role='pharmacie', pas une valeur role_type.
+-- Toutes les données de test sont transactionnelles et rollbackées.
 
-BEGIN;
+begin;
 
-DO $$
+do $test$
 declare
-  v_admin uuid;
-  v_actor uuid;
-  v_a uuid;
-  v_b uuid;
+  v_actor uuid := '018b0000-0000-4000-8000-000000000001';
+  v_a uuid := '018b0000-0000-4000-8000-000000000101';
+  v_b uuid := '018b0000-0000-4000-8000-000000000102';
   v_json jsonb;
 begin
-  select id into v_admin from public.profiles order by created_at asc limit 1;
-  select id into v_actor from public.profiles where id<>v_admin order by created_at asc limit 1;
-  select id into v_a from public.pharmacies order by created_at asc limit 1;
-  select id into v_b from public.pharmacies where id<>v_a order by created_at asc limit 1;
+  set local session_replication_role = replica;
 
-  if v_admin is null or v_actor is null or v_a is null or v_b is null then
-    raise exception 'Fixture insuffisante';
-  end if;
+  insert into auth.users(
+    instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+    raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+  ) values (
+    '00000000-0000-0000-0000-000000000000',
+    v_actor,'authenticated','authenticated','naxa-test-018b@example.invalid','x',now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()
+  ) on conflict(id) do nothing;
 
-  update public.profiles set role='responsable', actif=true, pharmacie_id=v_a where id=v_actor;
+  set local session_replication_role = origin;
+
+  insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo,actif)
+  values
+    (v_a,'NAXA Test 018b A','Yaoundé',3.8511,11.5051,'naxa-test-018b-a',false,true),
+    (v_b,'NAXA Test 018b B','Yaoundé',3.8512,11.5052,'naxa-test-018b-b',false,true)
+  on conflict(id) do nothing;
+
+  insert into public.profiles(id,role,actif,pharmacie_id,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
+  values(v_actor,'pharmacie',true,v_a,'responsable',2,2,'PARENTS_AINES_CADETS')
+  on conflict(id) do update
+    set role='pharmacie',actif=true,pharmacie_id=v_a,
+        fonction_interne='responsable',niveau_interne=2,
+        niveau_hierarchique=2,architecture_code='PARENTS_AINES_CADETS';
+
+  insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
+  values(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_actor,true)
+  on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+  do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
   insert into public.evenements(type,pharmacie_id,resultats)
   values ('recherche',v_a,1),('recherche',v_b,1);
 
+  perform set_config('request.jwt.claim.sub',v_actor::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_actor::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
 
-  if v_json->>'role' <> 'responsable' then
-    raise exception 'Responsable role attendu, obtenu=%',v_json->>'role';
+  if v_json->>'role' <> 'pharmacie' or v_json->>'fonction_interne' <> 'responsable' then
+    raise exception 'Le profil Responsable doit être représenté par role=pharmacie + fonction_interne=responsable; obtenu role=%, fonction=%',
+      v_json->>'role',v_json->>'fonction_interne';
   end if;
   if (v_json->'pharmacies'->>'total')::int <> 1 then
     raise exception 'Responsable scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
@@ -39,6 +59,9 @@ begin
   if (v_json->'recherches'->>'total')::int <> 1 then
     raise exception 'Responsable recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
   end if;
-end $$;
+end
+$test$;
 
-ROLLBACK;
+rollback;
+
+select '018b Responsable — PASS transactionnel' as resultat;
