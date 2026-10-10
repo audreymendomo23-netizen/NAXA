@@ -44,6 +44,10 @@ begin
   on conflict(promoteur_id) do update set date_expiration=current_date+30,statut='active',architecture_code='PARENTS_AINES_CADETS'
   returning id into v_convention;
 
+  insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+  values(v_promoteur,v_convention,30000,current_date,current_date+30,'actif')
+  on conflict(promoteur_id) do update set convention_id=excluded.convention_id,montant_mensuel=excluded.montant_mensuel,debut=current_date,echeance=current_date+30,statut='actif';
+
   insert into public.profiles(id,role,actif,pharmacie_id,parent_profile_id,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
   values(v_actor,'pharmacie',true,v_a,v_promoteur,'responsable',2,2,'PARENTS_AINES_CADETS')
   on conflict(id) do update set role='pharmacie',actif=true,pharmacie_id=v_a,parent_profile_id=v_promoteur,fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,architecture_code='PARENTS_AINES_CADETS';
