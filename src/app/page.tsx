@@ -14,6 +14,9 @@ const ETAPES = {
 
 const DICTIONNAIRE: Record<string, string> = {
   "Se connecter": "Sign in",
+  "Espace client": "Customer area",
+  "Espace pharmacie": "Pharmacy area",
+  "Menu": "Menu",
   "Votre médicament,": "Your medicine,",
   "à 2 minutes.": "just 2 minutes away.",
   "Je cherche": "I search",
@@ -22,7 +25,7 @@ const DICTIONNAIRE: Record<string, string> = {
   "Je réserve": "I reserve",
   "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros 117 118 et 119, ou rendez-vous à la pharmacie la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call 117, 118 or 119, or go to the nearest pharmacy.",
   "Vous êtes une Pharmacie ?": "Are you a pharmacy?",
-  "Made With 💚": "Made With 💚",
+  "Built with 💚 by NAXA": "Built with 💚 by NAXA",
 };
 
 const TERMES_MEDICAUX: Record<string, string> = {
@@ -116,10 +119,12 @@ function variantesRechercheMedicament(nom: string) {
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const langueInitialisee = useRef(false);
+  const [menuOuvert, setMenuOuvert] = useState(false);
 
   useEffect(() => {
     const sauvegardee = window.localStorage.getItem("naxa-langue");
     if (sauvegardee === "fr" || sauvegardee === "en") setLangue(sauvegardee);
+    else if (window.navigator.language?.toLowerCase().startsWith("en")) setLangue("en");
     langueInitialisee.current = true;
   }, []);
 
@@ -134,9 +139,26 @@ export default function Accueil() {
       <section className="shrink-0 bg-naxa-green-900 px-5 pt-4 text-white">
         <div className="mx-auto flex max-w-xl items-center justify-between">
           <Logo />
-          <Link href="/connexion" className="text-sm font-semibold text-naxa-canari underline underline-offset-4">
-            {traduireInterface("Se connecter", langue)}
-          </Link>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 text-xs text-white" role="group" aria-label="Language">
+              <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-canari" : "font-medium text-white/70"} aria-pressed={langue === "fr"}>FR</button>
+              <span aria-hidden="true">|</span>
+              <button type="button" onClick={() => setLangue("en")} className={langue === "en" ? "font-bold text-naxa-canari" : "font-medium text-white/70"} aria-pressed={langue === "en"}>EN</button>
+            </div>
+            <Link href="/connexion" className="text-sm font-semibold text-naxa-canari underline underline-offset-4">
+              {traduireInterface("Espace client", langue)}
+            </Link>
+            <div className="relative">
+              <button type="button" onClick={() => setMenuOuvert((ouvert) => !ouvert)} className="flex h-10 w-10 items-center justify-center rounded-lg text-xl text-white" aria-label={traduireInterface("Menu", langue)} aria-expanded={menuOuvert} aria-haspopup="true">☰</button>
+              {menuOuvert && (
+                <div className="absolute right-0 z-20 mt-1 min-w-[10rem] rounded-lg bg-white py-1 text-sm text-naxa-green-900 shadow-lg">
+                  <Link href="/connexion" onClick={() => setMenuOuvert(false)} className="block px-4 py-3 font-semibold">
+                    {traduireInterface("Espace pharmacie", langue)}
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <h1 className="mx-auto mt-4 max-w-xl text-[clamp(1.7rem,5.5dvh,2.5rem)] font-extrabold leading-[1.1]">
           {traduireInterface("Votre médicament,", langue)}<br />
@@ -179,12 +201,7 @@ export default function Accueil() {
 
       <div className="shrink-0 bg-white px-5 py-1 text-xs text-slate-600">
         <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <span className="col-start-2 text-center font-semibold">{traduireInterface("Made With 💚", langue)}</span>
-          <div className="flex justify-end gap-1" role="group" aria-label="Language">
-            <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "fr"}>Fr</button>
-            <span aria-hidden="true">|</span>
-            <button type="button" onClick={() => setLangue("en")} className={langue === "en" ? "font-bold text-naxa-green-900" : "font-medium text-slate-500"} aria-pressed={langue === "en"}>En</button>
-          </div>
+          <span className="col-start-2 text-center font-semibold">{traduireInterface("Built with 💚 by NAXA", langue)}</span>
         </div>
       </div>
     </main>
