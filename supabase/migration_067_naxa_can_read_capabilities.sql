@@ -4,6 +4,32 @@
 
 begin;
 
+-- Validité Promoteur canonique : une convention et un abonnement au niveau réseau.
+-- Les anciennes lignes abonnements par pharmacie restent conservées, mais ne gouvernent plus
+-- l'expiration commerciale du Promoteur.
+create or replace function private.naxa_promoteur_valide(p_promoteur uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $naxavalid$
+  select exists (
+    select 1
+    from public.profiles p
+    join public.conventions_promoteurs c on c.promoteur_id=p.id
+    join public.abonnements_promoteurs a
+      on a.promoteur_id=p.id and a.convention_id=c.id
+    where p.id=p_promoteur
+      and p.role::text='promoteur'
+      and p.actif
+      and c.statut='active'
+      and c.date_expiration >= current_date
+      and a.statut='actif'
+      and a.echeance >= current_date
+  )
+$naxavalid$;
+
 create or replace function public.naxa_can(
   p_privilege text,
   p_pharmacie uuid default null,
