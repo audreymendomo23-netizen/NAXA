@@ -54,6 +54,30 @@ begin
   values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
   on conflict (promoteur_id,pharmacie_id) do update set actif=true;
 
+  -- Prépare l'architecture et la validité commerciale requises par le moteur canonique.
+  insert into public.conventions_promoteurs(id,promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+  values('01800000-0000-4000-8000-000000000201',v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
+  on conflict (promoteur_id) do nothing;
+
+  insert into public.abonnements_promoteurs(id,promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+  values('01800000-0000-4000-8000-000000000202',v_promoteur,
+         (select id from public.conventions_promoteurs where promoteur_id=v_promoteur),
+         30000,current_date,current_date+30,'actif')
+  on conflict (promoteur_id) do nothing;
+
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
+  values(v_a,'PARENTS_AINES_CADETS',v_admin,true,5,5),
+        (v_b,'PARENTS_AINES_CADETS',v_admin,true,5,5)
+  on conflict (pharmacie_id) do update
+    set architecture_code=excluded.architecture_code,active=true,
+        max_responsables=excluded.max_responsables,max_caisses=excluded.max_caisses;
+
+  insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
+  values
+    (v_promoteur,'VIEW_NETWORK_PILOTAGE',null,'RESEAU',v_admin,true),
+    (v_promoteur,'VIEW_CAISSE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
+    (v_promoteur,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true);
+
   update public.pharmacies set est_demo=false where id in (v_a,v_b,v_c);
 
   insert into public.evenements(type,pharmacie_id,resultats) values
@@ -82,7 +106,7 @@ begin
   end if;
 
   -- Caisse : même pharmacie A uniquement.
-  update public.profiles set role='caisse', actif=true, pharmacie_id=v_a where id=v_promoteur;
+  update public.profiles set role='caisse', actif=true, pharmacie_id=v_a, niveau_interne=3 where id=v_promoteur;
   perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
@@ -94,7 +118,7 @@ begin
   end if;
 
   -- Client : aucun accès au moteur de Pilotage.
-  update public.profiles set role='client', actif=true, pharmacie_id=null where id=v_promoteur;
+  update public.profiles set role='client', actif=true, pharmacie_id=null, niveau_interne=4 where id=v_promoteur;
   perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   begin
