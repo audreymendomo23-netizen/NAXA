@@ -68,8 +68,14 @@ select pg_temp.assert_raises(
   '6.1 cible inactive non délégable'
 );
 select public.naxa_set_caisse_status((select caisse from p4c_ids),true);
+
+-- Le test doit modifier les données commerciales en rôle propriétaire, pas sous RLS Client.
+reset role;
 update public.conventions_promoteurs set date_expiration=current_date-1,statut='expiree' where id=(select convention from p4c_ids);
 update public.abonnements_promoteurs set echeance=current_date-1,statut='impaye' where promoteur_id=(select promoteur from p4c_ids);
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from p4c_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from p4c_ids),'role','authenticated')::text,true);
 select pg_temp.assert_true(
   not public.naxa_promoteur_valide((select promoteur from p4c_ids)),
   '6.2 expiration commerciale effective'
