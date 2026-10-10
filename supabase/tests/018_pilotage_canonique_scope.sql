@@ -61,6 +61,7 @@ begin
     ('recherche',v_a,1),
     ('recherche',v_c,1);
 
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 3 then
@@ -70,6 +71,7 @@ begin
     raise exception 'Admin recherches attendu=3, obtenu=%',v_json->'recherches'->>'total';
   end if;
 
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 2 then
@@ -81,6 +83,7 @@ begin
 
   -- Caisse : même pharmacie A uniquement.
   update public.profiles set role='caisse', actif=true, pharmacie_id=v_a where id=v_promoteur;
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 1 then
@@ -92,6 +95,7 @@ begin
 
   -- Client : aucun accès au moteur de Pilotage.
   update public.profiles set role='client', actif=true, pharmacie_id=null where id=v_promoteur;
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   begin
     perform public.stats_pilotage_scope(7);
@@ -114,6 +118,7 @@ begin
         actif=true
   where id=v_promoteur;
 
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 1 then
