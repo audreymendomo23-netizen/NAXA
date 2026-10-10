@@ -9,3 +9,4 @@ if not exists(select 1 from pg_policies where schemaname='public' and tablename=
 if has_table_privilege('authenticated','public.ordonnancier','INSERT') then raise exception 'INSERT direct interdit';end if;
 if has_table_privilege('authenticated','public.registre_substances_controlees','INSERT') then raise exception 'INSERT registre direct interdit';end if;
 end $$;
+select '048_ordonnancier PASS' as resultat;
