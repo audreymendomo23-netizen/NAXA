@@ -6,3 +6,4 @@ if not exists(select 1 from pg_attribute where attrelid='public.inventaire_ligne
 if not exists(select 1 from pg_attribute where attrelid='public.vente_lignes'::regclass and attname='cout_unitaire_fige') then raise exception 'ERP-006: gel coût vente absent'; end if;
 if not exists(select 1 from pg_trigger where tgname='trg_vente_ligne_figer_cout') then raise exception 'ERP-006: trigger gel coût absent'; end if;
 end $$;
+select '047_inventaire_valorisation PASS' as resultat;
