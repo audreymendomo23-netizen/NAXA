@@ -14,3 +14,5 @@ begin
   end loop;
 end
 $$;
+
+select '042b_stocks_lots_schema_compat PASS' as resultat;
