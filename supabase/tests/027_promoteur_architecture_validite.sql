@@ -37,9 +37,9 @@ begin
   values(v_other,'promoteur',true,'promoteur',1,1,'PARENTS_AINES_CADETS')
   on conflict(id) do update set role='promoteur',actif=true,fonction_interne='promoteur',niveau_interne=1,niveau_hierarchique=1,architecture_code='PARENTS_AINES_CADETS';
 
-  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut)
-  values(v_promoteur,30000,current_date+30,'active')
-  on conflict(promoteur_id) do update set montant_mensuel=30000,date_expiration=current_date+30,statut='active';
+  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+  values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
+  on conflict(promoteur_id) do update set montant_mensuel=30000,date_expiration=current_date+30,statut='active',architecture_code='PARENTS_AINES_CADETS';
 
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
