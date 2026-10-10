@@ -99,3 +99,12 @@ Cette consolidation est **une intégration de fichiers sur une branche isolée**
 - **État CI du HEAD `07562da8b6b375297be0b319d5b1bf975dbb23d3`** : aucun statut GitHub ni workflow run retourné. La CI reste sans preuve d'exécution concluante. La branche est en avance sur `main`, sans retard; `main` n'a pas été modifiée.
 
 **Décision : ROUGE / NO-GO MAIN maintenu.** Les corrections de causes racines et plusieurs tests ciblés sont positifs, mais le rejeu exact sur base propre et la réussite de toute la suite SQL/qualité restent obligatoires. Aucun changement Supabase Production, aucune fusion et aucun déploiement.
+
+
+## CI CircleCI — correctif initial sur branche de travail
+
+- **Lu dans les fichiers de `main`** (HEAD `4c75dd41fcda6f7486e0afdc90971f809c6d3ea8`) : `.circleci/config.yml` contenait cinq ouvertures heredoc littérales non échappées (`<<'PY'`, `<<'EOF'`, `<<'SQL'`).
+- **Correctif proposé** sur `fix/ci-main` : les cinq marqueurs sont maintenant écrits `\\<<` pour empêcher leur interprétation par le moteur de configuration CircleCI. Aucune migration SQL existante n'a été modifiée.
+- **Contrôles lus dans le fichier** : les invocations `psql` utilisent déjà `-v ON_ERROR_STOP=1`; les listes de migrations/tests utilisent `LC_ALL=C sort`; le filtre rejette une sortie vide et les valeurs booléennes fausses (`f`/`false`). Ces contrôles structurels ne prouvent pas l'exécution des jobs.
+- **Prouvé par exécution** : aucun job CI n'est encore déclaré vert à ce stade; attendre les statuts et logs du pipeline déclenché par la PR.
+- **Prochaine action** : ouvrir une PR `fix/ci-main` → `main`, puis relever le pipeline CircleCI, `quality` et `sql_tests`, avec le premier message d'erreur exact si échec.
