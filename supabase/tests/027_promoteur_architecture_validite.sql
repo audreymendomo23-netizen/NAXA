@@ -127,8 +127,8 @@ begin
     if position('commercialement invalide' in sqlerrm)=0 then raise; end if;
   end;
 
-  if not public.naxa_scope_allows(v_promoteur,v_a,'PHARMACIE') then
-    raise exception 'le scope réseau a été cassé par la validité';
+  if public.naxa_scope_allows(v_promoteur,v_a,'PHARMACIE') then
+    raise exception 'le scope pharmacie reste ouvert après expiration commerciale';
   end if;
 end $$;
 
