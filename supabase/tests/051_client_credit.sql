@@ -20,3 +20,5 @@ begin
       and pg_get_functiondef(p.oid) like '%vente_ajouter_paiement%'
   ) then raise exception 'ERP-010: crédit POS non raccordé à vente_paiements'; end if;
 end $$;
+
+select '051_client_credit PASS' as resultat;
