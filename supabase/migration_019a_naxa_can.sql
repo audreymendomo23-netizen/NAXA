@@ -1,0 +1,7 @@
+-- NAXA 019a — définition anticipée de naxa_can pour satisfaire les droits déclarés par 020
+-- Copie exacte de la définition et des droits de migration_027_promoteur_architecture_validite.sql.
+
+create or replace function public.naxa_can(p_privilege text,p_pharmacie uuid default null,p_target uuid default null) returns boolean language plpgsql stable security definer set search_path='' as $$ declare uid uuid:=(select auth.uid()); v_fn text; v_scope text; begin if uid is null then return false; end if; select public.naxa_business_function(uid) into v_fn; if v_fn is null then return false; end if; if v_fn='admin' or exists(select 1 from public.profiles where id=uid and role::text='admin' and actif) then return true; end if; if v_fn='promoteur' and not public.naxa_promoteur_valide(uid) then return false; end if; v_scope:=case when p_pharmacie is null then 'RESEAU' else 'PHARMACIE' end; if not public.naxa_has_privilege(p_privilege,p_pharmacie,v_scope) then return false; end if; if p_target is not null and v_fn='promoteur' then return exists(select 1 from public.profiles t where t.id=p_target and t.actif and (p_pharmacie is null or t.pharmacie_id=p_pharmacie) and (t.id=uid or exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=uid and pp.pharmacie_id=t.pharmacie_id and pp.actif))); end if; return true; end; $$;
+
+revoke all on function public.naxa_can(text,uuid,uuid) from public,anon;
+grant execute on function public.naxa_can(text,uuid,uuid) to authenticated;
