@@ -14,6 +14,10 @@ begin
   values(p,'promoteur','v7promoteur','V7','Promoteur','+237690000071','CM','1990-01-01',true,now(),true,'promoteur',1,1);
   set local session_replication_role='origin';
   insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'V7 A',3.86,11.51,true),(b,'V7 B',3.87,11.52,true),(c,'V7 C',3.88,11.53,true);
+  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+  values(p,30000,current_date+30,'active','ORPHELIN');
+  insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+  select p,id,30000,current_date,current_date+30,'actif' from public.conventions_promoteurs where promoteur_id=p;
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(a,'ORPHELIN',p,true,0,1),(b,'ORPHELIN',p,true,0,1);
   -- Le lien Promoteur/pharmacie est créé après l'architecture afin que le trigger
@@ -62,9 +66,13 @@ update public.naxa_profile_privileges
 set local role authenticated;
 
 -- 7.3 Désactivation du lien ferme immédiatement le scope, réactivation le restaure.
+set local role postgres;
 update public.promoteur_pharmacies set actif=false where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
+set local role authenticated;
 do $$ begin if not (not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE')) then raise exception '7.3 désactivation'; end if; end $$;
+set local role postgres;
 update public.promoteur_pharmacies set actif=true where promoteur_id=(select promoteur from v7_ids) and pharmacie_id=(select b from v7_ids);
+set local role authenticated;
 do $$ begin if not public.naxa_scope_allows((select promoteur from v7_ids),(select b from v7_ids),'PHARMACIE') then raise exception '7.3 réactivation'; end if; end $$;
 
 -- 7.4 Le pilotage Promoteur suit les pharmacies A+B via le scope canonique et exclut C + non attribué.
