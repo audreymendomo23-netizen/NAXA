@@ -50,10 +50,6 @@ begin
 
   update public.profiles set role='admin', actif=true, pharmacie_id=null where id=v_admin;
   update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a where id=v_promoteur;
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
-  values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
-  on conflict (promoteur_id,pharmacie_id) do update set actif=true;
-
   -- Prépare l'architecture et la validité commerciale requises par le moteur canonique.
   insert into public.conventions_promoteurs(id,promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values('01800000-0000-4000-8000-000000000201',v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
@@ -64,6 +60,10 @@ begin
          (select id from public.conventions_promoteurs where promoteur_id=v_promoteur),
          30000,current_date,current_date+30,'actif')
   on conflict (promoteur_id) do nothing;
+
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
+  on conflict (promoteur_id,pharmacie_id) do update set actif=true;
 
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(v_a,'PARENTS_AINES_CADETS',v_admin,true,5,5),
