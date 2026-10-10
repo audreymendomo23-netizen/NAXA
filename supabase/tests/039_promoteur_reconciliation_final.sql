@@ -72,10 +72,12 @@ end $$;
 
 update public.abonnements set statut='impaye',echeance=current_date-1 where pharmacie_id=(select b from v39_ids);
 
-do $ begin
+do $v39legacy$
+begin
   if not public.naxa_promoteur_valide((select promoteur from v39_ids))
   then raise exception '39.7 abonnement historique par pharmacie ne doit pas remplacer la validité canonique réseau'; end if;
-end $;
+end
+$v39legacy$;
 
 rollback;
 select 'Vérification 039 — Réconciliation finale Promoteur : PASS transactionnel' as resultat;
