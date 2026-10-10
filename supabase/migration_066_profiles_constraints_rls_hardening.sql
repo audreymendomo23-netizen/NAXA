@@ -12,6 +12,21 @@ alter table public.profiles
 alter table public.profiles
   drop constraint if exists profiles_niveau_hierarchique_ck;
 
+-- La contrainte canonique niveau_interne=1..4 était incompatible avec le défaut 0,
+-- ce qui faisait échouer chaque création de profil Client via handle_new_user().
+alter table public.profiles
+  alter column niveau_interne set default 4;
+
+update public.profiles
+set niveau_interne = case
+  when role::text = 'promoteur' then 1
+  when fonction_interne = 'responsable' then 2
+  when role::text = 'caisse' then 3
+  when role::text = 'client' then 4
+  when role::text = 'admin' then 1
+  else greatest(1, least(coalesce(niveau_interne, 4), 4))
+end;
+
 -- Verrouille les abonnements historiques : les abonnements Promoteur canoniques
 -- sont gérés par abonnements_promoteurs/conventions_promoteurs.
 alter table public.abonnements enable row level security;
