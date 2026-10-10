@@ -24,6 +24,14 @@ insert into auth.users (
   now(), '{"provider":"email","providers":["email"]}'::jsonb,
   '{"username":"naxa-test-promoteur-018","first_name":"Test","last_name":"Promoteur","phone":"+237600000002","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
   now(), now()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '01800000-0000-4000-8000-000000000003',
+  'authenticated', 'authenticated', 'naxa-test-caisse-018@example.invalid', '',
+  now(), '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"username":"naxa-test-caisse-018","first_name":"Test","last_name":"Caisse","phone":"+237600000003","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
+  now(), now()
 );
 
 insert into public.pharmacies(id, nom, ville, lat, lng, slug, est_demo)
@@ -36,6 +44,7 @@ do $pilotage$
 declare
   v_admin uuid;
   v_promoteur uuid;
+  v_caisse uuid;
   v_a uuid;
   v_b uuid;
   v_c uuid;
@@ -44,12 +53,17 @@ declare
 begin
   v_admin := '01800000-0000-4000-8000-000000000001';
   v_promoteur := '01800000-0000-4000-8000-000000000002';
+  v_caisse := '01800000-0000-4000-8000-000000000003';
   v_a := '01800000-0000-4000-8000-000000000101';
   v_b := '01800000-0000-4000-8000-000000000102';
   v_c := '01800000-0000-4000-8000-000000000103';
 
   update public.profiles set role='admin', actif=true, pharmacie_id=null where id=v_admin;
   update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a, niveau_interne=1, architecture_code='PARENTS_AINES_CADETS' where id=v_promoteur;
+  -- La Caisse est un profil distinct, enfant du Promoteur valide : le scope hiérarchique l'exige.
+  update public.profiles set role='caisse', actif=true, pharmacie_id=v_a, parent_profile_id=v_promoteur,
+    fonction_interne='caisse', niveau_interne=3, niveau_hierarchique=3,
+    architecture_code='PARENTS_AINES_CADETS' where id=v_caisse;
   -- Prépare l'architecture et la validité commerciale requises par le moteur canonique.
   insert into public.conventions_promoteurs(id,promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values('01800000-0000-4000-8000-000000000201',v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
@@ -83,6 +97,7 @@ begin
   values
     (v_promoteur,'VIEW_NETWORK_PILOTAGE',null,'RESEAU',v_admin,true),
     (v_promoteur,'VIEW_CAISSE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
+    (v_caisse,'VIEW_CAISSE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
     (v_promoteur,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
   on conflict (profile_id,privilege_code,pharmacie_id,scope_type)
   do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
@@ -124,9 +139,11 @@ begin
   end if;
 
   -- Caisse : même pharmacie A uniquement.
-  update public.profiles set role='caisse', actif=true, pharmacie_id=v_a, niveau_interne=3 where id=v_promoteur;
-  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
+  update public.profiles set role='caisse', actif=true, pharmacie_id=v_a, parent_profile_id=v_promoteur,
+    fonction_interne='caisse', niveau_interne=3, niveau_hierarchique=3,
+    architecture_code='PARENTS_AINES_CADETS' where id=v_caisse;
+  perform set_config('request.jwt.claim.sub',v_caisse::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_caisse::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
   if (v_json->'pharmacies'->>'total')::int <> 1 then
     raise exception 'Caisse scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
