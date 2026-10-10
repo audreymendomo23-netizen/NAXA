@@ -19,3 +19,5 @@ begin
   end if;
 end
 $$;
+
+select '046b_stocks_lots_id_unique PASS' as resultat;
