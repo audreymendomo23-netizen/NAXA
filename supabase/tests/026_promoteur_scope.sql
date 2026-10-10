@@ -13,6 +13,13 @@ begin
   insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data,email_confirmed_at,created_at,updated_at,is_sso_user,is_anonymous)
   values(v_promoteur,'authenticated','authenticated','naxa.promoteur.p1@example.invalid','{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now(),now(),false,false)
   on conflict(id) do nothing;
+  insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo)
+  values
+    (v_a,'NAXA Test 026 A','Yaoundé',3.8520,11.5060,'naxa-test-026-a',false),
+    (v_b,'NAXA Test 026 B','Yaoundé',3.8530,11.5070,'naxa-test-026-b',false),
+    (v_c,'NAXA Test 026 C','Yaoundé',3.8540,11.5080,'naxa-test-026-c',false)
+  on conflict(id) do nothing;
+
   set local session_replication_role='origin';
 
   insert into public.profiles(id,role,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
