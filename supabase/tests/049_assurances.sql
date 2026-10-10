@@ -11,3 +11,5 @@ begin
  if not exists(select 1 from pg_policies where schemaname='public' and tablename='dossiers_assurance' and policyname='dossiers_assurance_scope_read') then raise exception 'RLS dossier absente'; end if;
  if has_table_privilege('authenticated','public.dossiers_assurance','INSERT') then raise exception 'INSERT direct dossier interdit'; end if;
 end $$;
+
+select '049_assurances PASS' as resultat;
