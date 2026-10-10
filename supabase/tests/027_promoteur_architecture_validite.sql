@@ -21,6 +21,12 @@ begin
   values(v_other,'authenticated','authenticated','naxa.promoteur.p2.other@example.invalid','{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now(),now(),false,false)
   on conflict(id) do nothing;
 
+  insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo)
+  values
+    (v_a,'NAXA Test 027 A','Yaoundé',3.8550,11.5090,'naxa-test-027-a',false),
+    (v_b,'NAXA Test 027 B','Yaoundé',3.8560,11.5100,'naxa-test-027-b',false)
+  on conflict(id) do nothing;
+
   set local session_replication_role='origin';
 
   insert into public.profiles(id,role,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
