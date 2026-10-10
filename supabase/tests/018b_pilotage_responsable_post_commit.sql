@@ -70,14 +70,6 @@ begin
 
   perform set_config('request.jwt.claim.sub',v_actor::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_actor::text,'role','authenticated')::text,true);
-  if not private.naxa_has_privilege('VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE') then
-    raise exception 'DIAG018b fn=% scope=% access=% arch=% profile_grant=%',
-      public.naxa_business_function(v_actor),
-      public.naxa_scope_allows(v_actor,v_a,'PHARMACIE'),
-      public.can_access_pharmacy(v_a),
-      (select architecture_code from public.pharmacie_architectures where pharmacie_id=v_a),
-      exists(select 1 from public.naxa_profile_privileges where profile_id=v_actor and privilege_code='VIEW_RESPONSABLE_PILOTAGE' and pharmacie_id=v_a and scope_type='PHARMACIE' and active);
-  end if;
   v_json := public.stats_pilotage_scope(7);
 
   if v_json->>'role' <> 'pharmacie' or v_json->>'fonction_interne' <> 'responsable' then
