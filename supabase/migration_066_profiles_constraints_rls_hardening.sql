@@ -65,8 +65,7 @@ declare
   v_dob date:=(new.raw_user_meta_data->>'date_of_birth')::date;
   v_consent boolean:=coalesce((new.raw_user_meta_data->>'consent_accepted')::boolean,false);
 begin
-  if v_username is null or v_username!~'^[a-z0-9][a-z0-9._-]{2,29}
- then raise exception 'Nom d''utilisateur invalide'; end if;
+  if v_username is null or v_username!~'^[a-z0-9][a-z0-9._-]{2,29}\Z' then raise exception 'Nom d''utilisateur invalide'; end if;
   if exists(select 1 from public.profiles where lower(username)=v_username) then raise exception 'Nom d''utilisateur déjà pris'; end if;
   if v_first_name is null or length(v_first_name)<2 or length(v_first_name)>80 then raise exception 'Prénom invalide'; end if;
   if v_last_name is null or length(v_last_name)<2 or length(v_last_name)>80 then raise exception 'Nom invalide'; end if;
@@ -74,38 +73,27 @@ begin
   if not v_consent then raise exception 'L''acceptation des conditions est obligatoire'; end if;
 
   if v_country='CM' then
-    if v_phone !~ '^\+237[0-9]{9}
- then raise exception 'Numéro de téléphone camerounais invalide'; end if;
+    if v_phone !~ '^\+237[0-9]{9}\Z' then raise exception 'Numéro de téléphone camerounais invalide'; end if;
   elsif v_country='CF' then
-    if v_phone !~ '^\+236[0-9]{8}
- then raise exception 'Numéro de téléphone centrafricain invalide'; end if;
+    if v_phone !~ '^\+236[0-9]{8}\Z' then raise exception 'Numéro de téléphone centrafricain invalide'; end if;
   elsif v_country='TD' then
-    if v_phone !~ '^\+235[0-9]{8}
- then raise exception 'Numéro de téléphone tchadien invalide'; end if;
+    if v_phone !~ '^\+235[0-9]{8}\Z' then raise exception 'Numéro de téléphone tchadien invalide'; end if;
   elsif v_country='CG' then
-    if v_phone !~ '^\+242[0-9]{9}
- then raise exception 'Numéro de téléphone congolais invalide'; end if;
+    if v_phone !~ '^\+242[0-9]{9}\Z' then raise exception 'Numéro de téléphone congolais invalide'; end if;
   elsif v_country='CD' then
-    if v_phone !~ '^\+243[0-9]{9}
- then raise exception 'Numéro de téléphone congolais (RDC) invalide'; end if;
+    if v_phone !~ '^\+243[0-9]{9}\Z' then raise exception 'Numéro de téléphone congolais (RDC) invalide'; end if;
   elsif v_country='GQ' then
-    if v_phone !~ '^\+240[0-9]{9}
- then raise exception 'Numéro de téléphone équato-guinéen invalide'; end if;
+    if v_phone !~ '^\+240[0-9]{9}\Z' then raise exception 'Numéro de téléphone équato-guinéen invalide'; end if;
   elsif v_country='GA' then
-    if v_phone !~ '^\+241[0-9]{8}
- then raise exception 'Numéro de téléphone gabonais invalide'; end if;
+    if v_phone !~ '^\+241[0-9]{8}\Z' then raise exception 'Numéro de téléphone gabonais invalide'; end if;
   elsif v_country='ST' then
-    if v_phone !~ '^\+239[0-9]{7}
- then raise exception 'Numéro de téléphone santoméen invalide'; end if;
+    if v_phone !~ '^\+239[0-9]{7}\Z' then raise exception 'Numéro de téléphone santoméen invalide'; end if;
   elsif v_country='AO' then
-    if v_phone !~ '^\+244[0-9]{9}
- then raise exception 'Numéro de téléphone angolais invalide'; end if;
+    if v_phone !~ '^\+244[0-9]{9}\Z' then raise exception 'Numéro de téléphone angolais invalide'; end if;
   elsif v_country='BI' then
-    if v_phone !~ '^\+257[0-9]{8}
- then raise exception 'Numéro de téléphone burundais invalide'; end if;
+    if v_phone !~ '^\+257[0-9]{8}\Z' then raise exception 'Numéro de téléphone burundais invalide'; end if;
   elsif v_country='RW' then
-    if v_phone !~ '^\+250[0-9]{9}
- then raise exception 'Numéro de téléphone rwandais invalide'; end if;
+    if v_phone !~ '^\+250[0-9]{9}\Z' then raise exception 'Numéro de téléphone rwandais invalide'; end if;
   else
     raise exception 'Pays ou numéro de téléphone invalide';
   end if;
@@ -114,8 +102,7 @@ begin
   values(new.id,'client',v_username,v_first_name,v_last_name,v_phone,v_country,v_dob,true,now());
   return new;
 end;
-$function$
-
+$function$;
 
 revoke all on function public.handle_new_user() from public;
 grant execute on function public.handle_new_user() to supabase_auth_admin;
