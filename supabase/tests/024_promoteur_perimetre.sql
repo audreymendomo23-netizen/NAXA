@@ -41,21 +41,29 @@ begin
   on conflict(id) do update set est_demo=false;
 
   insert into public.abonnements(pharmacie_id,statut,echeance)
-  values(v_a,'actif',current_date+30),(v_b,'actif',current_date+30);
-
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
-  values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
-  on conflict(promoteur_id,pharmacie_id) do update set actif=true;
+  values(v_a,'actif',current_date+30),(v_b,'actif',current_date+30)
+  on conflict(pharmacie_id) do update set statut='actif',echeance=current_date+30;
 
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
-  on conflict(promoteur_id) do update set architecture_code='PARENTS_AINES_CADETS',statut='active';
+  on conflict(promoteur_id) do update set architecture_code='PARENTS_AINES_CADETS',statut='active',date_expiration=current_date+30;
+
+  insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+  select v_promoteur,c.id,30000,current_date,current_date+30,'actif'
+  from public.conventions_promoteurs c where c.promoteur_id=v_promoteur
+  on conflict(promoteur_id) do update
+    set convention_id=excluded.convention_id,montant_mensuel=30000,debut=current_date,echeance=current_date+30,statut='actif';
 
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values
    (v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5),
    (v_b,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true,max_responsables=5,max_caisses=5;
+
+  -- Le lien est créé après la convention + abonnement valides et l'architecture opérationnelle.
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
+  on conflict(promoteur_id,pharmacie_id) do update set actif=true;
 
   perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
