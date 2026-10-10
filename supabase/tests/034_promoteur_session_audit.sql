@@ -57,3 +57,5 @@ begin
   if not v_service_grant then raise exception 'ASSERT 6: service_role absent'; end if;
   raise notice 'NAXA 034 — 6/6 assertions structurelles PASS';
 end $$;
+
+select '034_promoteur_session_audit PASS — 6/6 assertions' as resultat;
