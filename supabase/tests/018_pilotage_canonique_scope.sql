@@ -49,7 +49,7 @@ begin
   v_c := '01800000-0000-4000-8000-000000000103';
 
   update public.profiles set role='admin', actif=true, pharmacie_id=null where id=v_admin;
-  update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a where id=v_promoteur;
+  update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a, niveau_interne=1, architecture_code='PARENTS_AINES_CADETS' where id=v_promoteur;
   -- Prépare l'architecture et la validité commerciale requises par le moteur canonique.
   insert into public.conventions_promoteurs(id,promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values('01800000-0000-4000-8000-000000000201',v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
@@ -83,7 +83,9 @@ begin
   values
     (v_promoteur,'VIEW_NETWORK_PILOTAGE',null,'RESEAU',v_admin,true),
     (v_promoteur,'VIEW_CAISSE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
-    (v_promoteur,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true);
+    (v_promoteur,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
+  on conflict (profile_id,privilege_code,pharmacie_id,scope_type)
+  do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
   update public.pharmacies set est_demo=false where id in (v_a,v_b,v_c);
 
