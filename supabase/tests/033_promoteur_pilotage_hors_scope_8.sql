@@ -23,10 +23,18 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from v8_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v8_ids),'role','authenticated')::text,true);
 -- 8.1 uniquement A+B, jamais C/non attribué.
-select case when (public.stats_pilotage_scope(7)->'pharmacies'->>'total')::int=2 then 1 else 1/0 end;
-select case when (public.stats_pilotage_scope(7)->'recherches'->>'total')::int=2 then 1 else 1/0 end;
-select case when (public.stats_pilotage_scope(7)->'recherches'->>'sans_resultat')::int=1 then 1 else 1/0 end;
-select case when (public.stats_pilotage_scope(7)->'entonnoir'->>'fiches_vues')::int=2 then 1 else 1/0 end;
-select case when (public.stats_pilotage_scope(7)->'entonnoir'->>'paniers')::int=1 then 1 else 1/0 end;
+do $v8assert$
+declare v_json jsonb;
+begin
+  v_json := public.stats_pilotage_scope(7);
+  if (v_json->'pharmacies'->>'total')::int <> 2 then raise exception '8.1 pharmacies attendues=2, obtenu=%',v_json->'pharmacies'->>'total'; end if;
+  if (v_json->'recherches'->>'total')::int <> 2 then raise exception '8.2 recherches attendues=2, obtenu=%',v_json->'recherches'->>'total'; end if;
+  if (v_json->'recherches'->>'sans_resultat')::int <> 1 then raise exception '8.3 recherches sans résultat attendues=1, obtenu=%',v_json->'recherches'->>'sans_resultat'; end if;
+  if (v_json->'entonnoir'->>'fiches_vues')::int <> 2 then raise exception '8.4 fiches vues attendues=2, obtenu=%',v_json->'entonnoir'->>'fiches_vues'; end if;
+  if (v_json->'entonnoir'->>'paniers')::int <> 1 then raise exception '8.5 paniers attendus=1, obtenu=%',v_json->'entonnoir'->>'paniers'; end if;
+end
+$v8assert$;
+
+select true as naxa_033_pilotage_scope_pass;
 rollback;
 select 'Verification 8 — Pilotage hors périmètre : PASS transactionnel' as resultat;
