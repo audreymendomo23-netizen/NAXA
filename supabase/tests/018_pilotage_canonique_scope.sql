@@ -4,26 +4,33 @@ begin;
 
 -- Fixtures propres au test : elles sont créées dans la transaction puis rollbackées.
 -- Ne dépend ni d'un seed partagé ni de données préexistantes.
+-- Ce test porte sur le périmètre Pilotage, pas sur l'inscription.
+-- Le trigger d'inscription est neutralisé uniquement pendant la transaction fixture.
+alter table auth.users disable trigger on_auth_user_created;
+
 insert into auth.users (
-  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  instance_id, id, aud, role, email, encrypted_password,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values
 (
   '00000000-0000-0000-0000-000000000000',
   '01800000-0000-4000-8000-000000000001',
   'authenticated', 'authenticated', 'naxa-test-admin-018@example.invalid', '',
-  now(), '{"provider":"email","providers":["email"]}'::jsonb,
-  '{"username":"naxa-test-admin-018","first_name":"Test","last_name":"Admin","phone":"+237600000001","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
-  now(), now()
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
 ),
 (
   '00000000-0000-0000-0000-000000000000',
   '01800000-0000-4000-8000-000000000002',
   'authenticated', 'authenticated', 'naxa-test-promoteur-018@example.invalid', '',
-  now(), '{"provider":"email","providers":["email"]}'::jsonb,
-  '{"username":"naxa-test-promoteur-018","first_name":"Test","last_name":"Promoteur","phone":"+237600000002","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
-  now(), now()
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
 );
+
+insert into public.profiles(id, role, username, first_name, last_name, actif, niveau_interne)
+values
+  ('01800000-0000-4000-8000-000000000001','admin','naxa-test-admin-018','Test','Admin',true,1),
+  ('01800000-0000-4000-8000-000000000002','promoteur','naxa-test-promoteur-018','Test','Promoteur',true,1);
+
+alter table auth.users enable trigger on_auth_user_created;
 
 insert into public.pharmacies(id, nom, ville, lat, lng, slug, est_demo)
 values
