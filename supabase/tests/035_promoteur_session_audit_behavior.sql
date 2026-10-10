@@ -56,4 +56,5 @@ begin
   raise notice 'NAXA 035 — 6/6 PASS';
 end $$;
 
+select true as naxa_035_session_audit_pass;
 rollback;
