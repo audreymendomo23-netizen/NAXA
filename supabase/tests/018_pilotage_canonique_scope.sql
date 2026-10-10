@@ -61,6 +61,13 @@ begin
          30000,current_date,current_date+30,'actif')
   on conflict (promoteur_id) do nothing;
 
+  -- Le moteur de validité réseau historique vérifie encore l'abonnement par pharmacie.
+  insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut)
+  values(v_a,'essentiel',30000,current_date,current_date+30,'actif'),
+        (v_b,'essentiel',30000,current_date,current_date+30,'actif')
+  on conflict (pharmacie_id) do update
+    set echeance=excluded.echeance,statut='actif',montant_mensuel=excluded.montant_mensuel;
+
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
   on conflict (promoteur_id,pharmacie_id) do update set actif=true;
