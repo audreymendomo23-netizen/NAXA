@@ -42,6 +42,11 @@ begin
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true,max_responsables=5,max_caisses=5;
 
   set local session_replication_role='replica';
+  insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut)
+  values(v_a,'essentiel',30000,current_date,current_date+30,'actif')
+  on conflict (pharmacie_id) do update
+    set echeance=excluded.echeance,statut='actif',montant_mensuel=excluded.montant_mensuel;
+
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
