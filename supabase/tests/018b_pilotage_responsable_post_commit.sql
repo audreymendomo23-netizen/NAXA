@@ -31,8 +31,8 @@ begin
     (v_b,'NAXA Test 018b B','Yaoundé',3.8512,11.5052,'naxa-test-018b-b',false,true)
   on conflict(id) do nothing;
 
-  insert into public.profiles(id,role,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
-  values(v_admin,'admin',true,'admin',0,0,'PARENTS_AINES_CADETS')
+  insert into public.profiles(id,role,actif)
+  values(v_admin,'admin',true)
   on conflict(id) do update set role='admin',actif=true;
 
   insert into public.profiles(id,role,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
