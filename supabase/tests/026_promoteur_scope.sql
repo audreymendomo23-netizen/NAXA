@@ -30,6 +30,13 @@ begin
   values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
   on conflict(promoteur_id) do update set architecture_code='PARENTS_AINES_CADETS',statut='active';
 
+  insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+  select v_promoteur,id,30000,current_date,current_date+30,'actif'
+  from public.conventions_promoteurs where promoteur_id=v_promoteur
+  on conflict (promoteur_id) do update
+    set convention_id=excluded.convention_id,montant_mensuel=30000,
+        debut=current_date,echeance=current_date+30,statut='actif';
+
   insert into public.abonnements(pharmacie_id,formule,montant_mensuel,debut,echeance,statut)
   values(v_a,'essentiel',30000,current_date,current_date+30,'actif'),
         (v_b,'essentiel',30000,current_date,current_date+30,'actif')
