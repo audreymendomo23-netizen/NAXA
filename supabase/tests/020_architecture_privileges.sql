@@ -40,3 +40,5 @@ begin
 end $$;
 
 rollback;
+
+select '020_architecture_privileges PASS' as resultat;
