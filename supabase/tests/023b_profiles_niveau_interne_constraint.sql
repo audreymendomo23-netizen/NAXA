@@ -17,3 +17,5 @@ begin
   end if;
 end
 $$;
+
+select '023b_profiles_niveau_interne_constraint PASS' as resultat;
