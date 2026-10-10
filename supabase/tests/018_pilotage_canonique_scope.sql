@@ -167,4 +167,5 @@ begin
 end
 $pilotage$;
 
+select true as naxa_018_pilotage_scope_pass;
 rollback;
