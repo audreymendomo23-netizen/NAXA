@@ -39,10 +39,14 @@ do $$ begin
   then raise exception '39.2 privilège réseau attendu'; end if;
 end $$;
 
+reset role;
 update public.conventions_promoteurs set statut='expiree',date_expiration=current_date-1 where promoteur_id=(select promoteur from v39_ids);
 update public.abonnements_promoteurs set statut='impaye',echeance=current_date-1 where promoteur_id=(select promoteur from v39_ids);
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
-do $$ begin
+do $ begin
   if public.naxa_promoteur_valide((select promoteur from v39_ids))
   then raise exception '39.3 expiration réseau non bloquante'; end if;
 end $$;
@@ -62,15 +66,23 @@ begin
   end;
 end $$;
 
+reset role;
 update public.conventions_promoteurs set statut='active',date_expiration=current_date+30 where promoteur_id=(select promoteur from v39_ids);
 update public.abonnements_promoteurs set statut='actif',echeance=current_date+30 where promoteur_id=(select promoteur from v39_ids);
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
-do $$ begin
+do $ begin
   if not public.naxa_promoteur_valide((select promoteur from v39_ids))
   then raise exception '39.6 réactivation commerciale attendue'; end if;
 end $$;
 
+reset role;
 update public.abonnements set statut='impaye',echeance=current_date-1 where pharmacie_id=(select b from v39_ids);
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
 do $v39legacy$
 begin
