@@ -6,3 +6,5 @@ begin
  if not exists(select 1 from pg_proc where proname='vente_finaliser') then raise exception 'vente_finaliser absent'; end if;
  if not exists(select 1 from pg_policies where schemaname='public' and tablename='vente_paiements' and policyname='vente_paiements_scope') then raise exception 'RLS paiements absente'; end if;
 end $$;
+
+select '055_pos_paiements PASS' as resultat;
