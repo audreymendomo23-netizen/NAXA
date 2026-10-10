@@ -46,10 +46,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
-do $ begin
+do $v39check$ begin
   if public.naxa_promoteur_valide((select promoteur from v39_ids))
   then raise exception '39.3 expiration réseau non bloquante'; end if;
-end $$;
+end $v39check$;
 
 do $$ begin
   if public.naxa_has_privilege('VIEW_NETWORK_PILOTAGE',null,'RESEAU')
@@ -73,10 +73,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
-do $ begin
+do $v39check$ begin
   if not public.naxa_promoteur_valide((select promoteur from v39_ids))
   then raise exception '39.6 réactivation commerciale attendue'; end if;
-end $$;
+end $v39check$;
 
 reset role;
 update public.abonnements set statut='impaye',echeance=current_date-1 where pharmacie_id=(select b from v39_ids);
