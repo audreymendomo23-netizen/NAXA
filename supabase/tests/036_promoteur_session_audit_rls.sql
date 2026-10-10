@@ -60,4 +60,5 @@ begin
   raise notice 'NAXA 036 — 3/3 assertions RLS de cloisonnement PASS';
 end $$;
 
+select true as naxa_036_session_audit_rls_pass;
 rollback;
