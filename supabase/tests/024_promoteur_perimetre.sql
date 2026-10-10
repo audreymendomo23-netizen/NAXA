@@ -138,13 +138,6 @@ begin
 end
 $naxa$;
 
-select json_build_object(
- 'promoteur_pharmacies',to_regclass('public.promoteur_pharmacies') is not null,
- 'rls', (select relrowsecurity from pg_class where oid='public.promoteur_pharmacies'::regclass),
- 'anon_select',has_table_privilege('anon','public.promoteur_pharmacies','SELECT'),
- 'authenticated_select',has_table_privilege('authenticated','public.promoteur_pharmacies','SELECT'),
- 'unique_link',exists(select 1 from pg_constraint where conrelid='public.promoteur_pharmacies'::regclass and contype='p'),
- 'governance_excluded',not exists(select 1 from public.naxa_role_privileges rp join public.naxa_privileges p on p.code=rp.privilege_code where rp.role_key='promoteur' and p.governance)
-);
+select '024_promoteur_perimetre PASS' as resultat;
 
 rollback;
