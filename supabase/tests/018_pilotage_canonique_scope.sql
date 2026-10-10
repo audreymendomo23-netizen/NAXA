@@ -2,7 +2,36 @@
 -- Exécution attendue dans une transaction ; ce test ne doit laisser aucune donnée persistante.
 begin;
 
-do $$
+-- Fixtures propres au test : elles sont créées dans la transaction puis rollbackées.
+-- Ne dépend ni d'un seed partagé ni de données préexistantes.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values
+(
+  '00000000-0000-0000-0000-000000000000',
+  '01800000-0000-4000-8000-000000000001',
+  'authenticated', 'authenticated', 'naxa-test-admin-018@example.invalid', '',
+  now(), '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"username":"naxa-test-admin-018","first_name":"Test","last_name":"Admin","phone":"+237600000001","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
+  now(), now()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '01800000-0000-4000-8000-000000000002',
+  'authenticated', 'authenticated', 'naxa-test-promoteur-018@example.invalid', '',
+  now(), '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"username":"naxa-test-promoteur-018","first_name":"Test","last_name":"Promoteur","phone":"+237600000002","phone_country":"CM","date_of_birth":"1990-01-01","consent_accepted":true}'::jsonb,
+  now(), now()
+);
+
+insert into public.pharmacies(id, nom, ville, lat, lng, slug, est_demo)
+values
+  ('01800000-0000-4000-8000-000000000101','NAXA Test A 018','Yaoundé',3.8480,11.5021,'naxa-test-a-018',false),
+  ('01800000-0000-4000-8000-000000000102','NAXA Test B 018','Yaoundé',3.8490,11.5031,'naxa-test-b-018',false),
+  ('01800000-0000-4000-8000-000000000103','NAXA Test C 018','Yaoundé',3.8500,11.5041,'naxa-test-c-018',false);
+
+do $
 declare
   v_admin uuid;
   v_promoteur uuid;
@@ -12,18 +41,11 @@ declare
   v_json jsonb;
   v_failed boolean := false;
 begin
-  select id into v_admin from public.profiles order by created_at asc limit 1;
-  select id into v_promoteur from public.profiles where id <> v_admin order by created_at asc limit 1;
-  if v_admin is null or v_promoteur is null then
-    raise exception 'Fixture insuffisante: deux profils requis';
-  end if;
-
-  select id into v_a from public.pharmacies order by created_at asc limit 1;
-  select id into v_b from public.pharmacies where id <> v_a order by created_at asc limit 1;
-  select id into v_c from public.pharmacies where id not in (v_a,v_b) order by created_at asc limit 1;
-  if v_a is null or v_b is null or v_c is null then
-    raise exception 'Fixture insuffisante: trois pharmacies requises';
-  end if;
+  v_admin := '01800000-0000-4000-8000-000000000001';
+  v_promoteur := '01800000-0000-4000-8000-000000000002';
+  v_a := '01800000-0000-4000-8000-000000000101';
+  v_b := '01800000-0000-4000-8000-000000000102';
+  v_c := '01800000-0000-4000-8000-000000000103';
 
   update public.profiles set role='admin', actif=true, pharmacie_id=null where id=v_admin;
   update public.profiles set role='promoteur', actif=true, pharmacie_id=v_a where id=v_promoteur;
