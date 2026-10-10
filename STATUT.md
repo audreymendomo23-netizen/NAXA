@@ -449,3 +449,25 @@ La correction effective de `migration_034_promoteur_session_audit.sql` est le co
 - Le Combined Status GitHub du commit de correction reste vide. Aucun outil CircleCI direct n'est disponible dans cette session ; le déclenchement, les jobs `quality`/`sql_tests` et leurs logs restent à confirmer. Un statut GitHub vide ne prouve pas à lui seul qu'aucun pipeline CircleCI n'existe.
 - Garde-fous : aucun commit sur `main`, aucune PR/fusion vers `main`, aucune écriture Production, aucune migration existante modifiée, aucun changement de statut Supabase.
 - Statut global : NON VERT. Prochaine étape : résoudre l'accès sécurisé nécessaire pour exécuter la migration 051 sur la base de test, reprendre les migrations restantes une par une, puis exécuter les 52 tests individuellement et obtenir les preuves CI.
+
+
+## Handover — réconciliation outillée du 10/10/2026
+
+### Références et garde-fous
+- Branche de travail contrôlée : `ci/replay-rewrite-20261008`.
+- La configuration `.circleci/config.yml` a été relue sur cette branche (blob `141f08a97f267ad30acedd93d6ff9c238d586963`). Elle déclare les jobs `quality` et `sql_tests`, attend 78 migrations sources et 52 tests SQL, puis lance le replay et les tests dans Supabase local.
+- Aucun statut de réussite CircleCI n'est démontré par cette lecture de code. Aucun outil CircleCI direct n'est disponible dans la session ; les status checks GitHub consultés pour les commits cités restent vides.
+- Le fichier `docs/NAXA_REPRISE_EXACTE.md` n'a pas pu être récupéré par le connecteur (404). Ne pas le considérer comme vérifié dans ce handover.
+
+### Contrôle Supabase en lecture seule
+- `list_projects` a confirmé : Production `eouwtuusnsuxaejsxknf` = `ACTIVE_HEALTHY` ; ancien rejeu `fnlyjlvflgiewrkmnisi` = `INACTIVE` ; nouveau rejeu `pwfftcsjyeibxxqhwysw` = `ACTIVE_HEALTHY`.
+- Sur le nouveau rejeu uniquement, la lecture de `supabase_migrations.schema_migrations` retourne **83 enregistrements** (premier `20261009151747`, dernier `20261010085035`). Les derniers enregistrements comprennent `migration_059_pos_ticket_test_patch_20261009_v2`, puis des migrations diagnostiques `066`, `067` et `068`.
+- Cette preuve actualise l'ancien compte rendu qui s'arrêtait à 61 migrations enregistrées. Elle ne prouve pas que les 78 fichiers sources courants ont été rejoués de façon propre, dans l'ordre, depuis zéro : l'historique du projet de test contient des migrations de replay et de diagnostic supplémentaires.
+- L'inventaire de Production a également été lu, mais aucune requête de modification, application de migration ou action de cycle de vie n'a été exécutée sur Production.
+
+### Verdict et prochaine action
+- **N4 / replay SQL : NON VERT.** La base de test contient un historique de migrations non équivalent à un rejeu propre et reproductible depuis zéro.
+- **Tests SQL : NON VERT.** Aucune preuve d'exécution complète des 52 tests n'a été récupérée.
+- **Déclenchement CI : NON PROUVÉ.** Un statut GitHub vide ne prouve pas l'absence de pipeline CircleCI ; les logs CircleCI restent à obtenir.
+- Prochaine étape : obtenir une exécution réelle du job `quality_and_tests` sur la branche exacte `ci/replay-rewrite-20261008`, puis utiliser ses logs pour déterminer le premier échec du replay et les résultats individuels des tests. Si le pipeline ne démarre pas, traiter séparément l'association CircleCI/VCS avant tout changement SQL.
+- Aucune migration source modifiée ; aucun commit sur `main), aucune PR vers `main`, aucune fusion, aucune écriture Production et aucun secret affiché.
