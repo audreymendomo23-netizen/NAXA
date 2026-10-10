@@ -5,3 +5,4 @@ do $$ begin
  if not exists(select 1 from information_schema.tables where table_schema='public' and table_name='receptions_fournisseurs') then raise exception 'receptions absentes'; end if;
  if not exists(select 1 from pg_policies where schemaname='public' and tablename='commandes_fournisseurs' and policyname='commandes_fournisseurs_scope') then raise exception 'RLS commandes absente'; end if;
 end $$;
+select '046_fournisseurs_commandes PASS' as resultat;

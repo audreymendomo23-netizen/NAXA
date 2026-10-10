@@ -5,3 +5,6 @@ begin
  if not exists(select 1 from pg_proc where proname='vente_ajouter_produit') then raise exception 'vente_ajouter_produit absent'; end if;
  if not exists(select 1 from pg_proc where proname='vente_recalculer_totaux') then raise exception 'vente_recalculer_totaux absent'; end if;
 end $$;
+select '054_pos_lignes_fefo PASS' as resultat;
+
+select '054_pos_lignes_fefo PASS' as resultat;

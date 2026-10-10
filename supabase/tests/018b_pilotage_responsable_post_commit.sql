@@ -1,37 +1,80 @@
--- NAXA PASS 6 — acceptance test Responsable, POST-COMMIT enum gate
--- Prérequis : migrations 016 + 018 déjà appliquées dans l'environnement de test.
--- Ce test ne doit PAS être exécuté dans une transaction qui contient ALTER TYPE ... ADD VALUE.
--- Aucun compte réel ne doit être créé ; les profils existants sont temporairement réutilisés puis rollback.
+-- NAXA 018b — acceptance test Responsable après replay complet.
+-- Responsable est une fonction interne portée par role='pharmacie', pas une valeur role_type.
+-- Toutes les données de test sont transactionnelles et rollbackées.
 
-BEGIN;
+begin;
 
-DO $$
+do $test$
 declare
-  v_admin uuid;
-  v_actor uuid;
-  v_a uuid;
-  v_b uuid;
+  v_actor uuid := '018b0000-0000-4000-8000-000000000001';
+  v_admin uuid := '018b0000-0000-4000-8000-000000000002';
+  v_promoteur uuid := '018b0000-0000-4000-8000-000000000003';
+  v_a uuid := '018b0000-0000-4000-8000-000000000101';
+  v_b uuid := '018b0000-0000-4000-8000-000000000102';
+  v_convention uuid;
   v_json jsonb;
 begin
-  select id into v_admin from public.profiles order by created_at asc limit 1;
-  select id into v_actor from public.profiles where id<>v_admin order by created_at asc limit 1;
-  select id into v_a from public.pharmacies order by created_at asc limit 1;
-  select id into v_b from public.pharmacies where id<>v_a order by created_at asc limit 1;
+  set local session_replication_role = replica;
+  insert into auth.users(
+    instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+    raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+  ) values
+    ('00000000-0000-0000-0000-000000000000',v_actor,'authenticated','authenticated','naxa-test-018b-resp@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()),
+    ('00000000-0000-0000-0000-000000000000',v_admin,'authenticated','authenticated','naxa-test-018b-admin@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()),
+    ('00000000-0000-0000-0000-000000000000',v_promoteur,'authenticated','authenticated','naxa-test-018b-promoteur@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now())
+  on conflict(id) do nothing;
+  set local session_replication_role = origin;
 
-  if v_admin is null or v_actor is null or v_a is null or v_b is null then
-    raise exception 'Fixture insuffisante';
-  end if;
+  insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo,actif)
+  values
+    (v_a,'NAXA Test 018b A','Yaoundé',3.8511,11.5051,'naxa-test-018b-a',false,true),
+    (v_b,'NAXA Test 018b B','Yaoundé',3.8512,11.5052,'naxa-test-018b-b',false,true)
+  on conflict(id) do nothing;
 
-  update public.profiles set role='responsable', actif=true, pharmacie_id=v_a where id=v_actor;
+  insert into public.profiles(id,role,actif)
+  values(v_admin,'admin',true)
+  on conflict(id) do update set role='admin',actif=true;
+
+  insert into public.profiles(id,role,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
+  values(v_promoteur,'promoteur',true,'promoteur',1,1,'PARENTS_AINES_CADETS')
+  on conflict(id) do update set role='promoteur',actif=true,fonction_interne='promoteur',niveau_interne=1,niveau_hierarchique=1,architecture_code='PARENTS_AINES_CADETS';
+
+  insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+  values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
+  on conflict(promoteur_id) do update set date_expiration=current_date+30,statut='active',architecture_code='PARENTS_AINES_CADETS'
+  returning id into v_convention;
+
+  insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+  values(v_promoteur,v_convention,30000,current_date,current_date+30,'actif')
+  on conflict(promoteur_id) do update set convention_id=excluded.convention_id,montant_mensuel=excluded.montant_mensuel,debut=current_date,echeance=current_date+30,statut='actif';
+
+  insert into public.profiles(id,role,actif,pharmacie_id,parent_profile_id,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
+  values(v_actor,'pharmacie',true,v_a,v_promoteur,'responsable',2,2,'PARENTS_AINES_CADETS')
+  on conflict(id) do update set role='pharmacie',actif=true,pharmacie_id=v_a,parent_profile_id=v_promoteur,fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,architecture_code='PARENTS_AINES_CADETS';
+
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values(v_promoteur,v_a,true)
+  on conflict(promoteur_id,pharmacie_id) do update set actif=true;
+
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
+  values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
+  on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,assigned_by=excluded.assigned_by,active=true;
+
+  insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
+  values(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
+  on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+  do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
   insert into public.evenements(type,pharmacie_id,resultats)
   values ('recherche',v_a,1),('recherche',v_b,1);
 
+  perform set_config('request.jwt.claim.sub',v_actor::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_actor::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
 
-  if v_json->>'role' <> 'responsable' then
-    raise exception 'Responsable role attendu, obtenu=%',v_json->>'role';
+  if v_json->>'role' <> 'pharmacie' or v_json->>'fonction_interne' <> 'responsable' then
+    raise exception 'Le profil Responsable doit être représenté par role=pharmacie + fonction_interne=responsable; obtenu role=%, fonction=%',
+      v_json->>'role',v_json->>'fonction_interne';
   end if;
   if (v_json->'pharmacies'->>'total')::int <> 1 then
     raise exception 'Responsable scope attendu=1, obtenu=%',v_json->'pharmacies'->>'total';
@@ -39,6 +82,9 @@ begin
   if (v_json->'recherches'->>'total')::int <> 1 then
     raise exception 'Responsable recherches attendu=1 (A seulement), obtenu=%',v_json->'recherches'->>'total';
   end if;
-end $$;
+end
+$test$;
 
-ROLLBACK;
+rollback;
+
+select '018b Responsable — PASS transactionnel' as resultat;

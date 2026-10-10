@@ -9,3 +9,5 @@ begin
  if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='vente_lignes' and column_name='prix_unitaire') then raise exception 'vente_lignes.prix_unitaire absent'; end if;
  if not exists(select 1 from pg_policies where schemaname='public' and tablename='ventes' and policyname='ventes_scope') then raise exception 'RLS ventes absente'; end if;
 end $$;
+
+select '044_pos_caisse PASS' as resultat;

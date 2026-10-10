@@ -1,0 +1,5 @@
+select exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid where t.typname='mode_paiement_caisse' and e.enumlabel='orange_money') as orange_money_mode_exists;
+select exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid where t.typname='mode_paiement_caisse' and e.enumlabel='mtn_momo') as mtn_momo_mode_exists;
+select exists(select 1 from information_schema.columns where table_schema='public' and table_name='vente_paiements' and column_name='reference') as payment_reference_exists;
+select exists(select 1 from information_schema.routines where routine_schema='public' and routine_name='vente_encaisser') as encaissement_rpc_exists;
+select exists(select 1 from pg_indexes where schemaname='public' and indexname='vente_paiements_mode_date_idx') as payment_mode_index_exists;

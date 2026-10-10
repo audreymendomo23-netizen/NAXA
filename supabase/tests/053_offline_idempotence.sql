@@ -71,3 +71,7 @@ begin
     raise exception 'authenticated doit pouvoir exécuter la RPC offline';
   end if;
 end $$;
+
+select '053_offline_idempotence PASS' as resultat;
+
+select '053_offline_idempotence PASS' as resultat;

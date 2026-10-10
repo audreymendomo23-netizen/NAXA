@@ -14,3 +14,5 @@ begin
   if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='depense_creer') then raise exception 'ERP-009: RPC depense_creer absente'; end if;
   if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='depense_valider') then raise exception 'ERP-009: RPC depense_valider absente'; end if;
 end $$;
+
+select '050_tresorerie_depenses PASS' as resultat;

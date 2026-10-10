@@ -20,3 +20,5 @@ begin
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='prescriptions' and policyname='prescriptions_staff_read')
     then raise exception 'RLS coffre ordonnance absente'; end if;
 end $$;
+
+select '045_prescription_vente PASS' as resultat;
