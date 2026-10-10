@@ -32,6 +32,14 @@ begin
   if v_count <> 3 then
     raise exception 'Politiques RLS attendues=3, obtenues=%',v_count;
   end if;
+
+  if position('abonnements_promoteurs' in pg_get_functiondef('private.naxa_promoteur_valide(uuid)'::regprocedure)) = 0 then
+    raise exception 'Validité Promoteur ne référence pas l''abonnement canonique réseau';
+  end if;
+
+  if position('return p_privilege like ''VIEW_%''' in pg_get_functiondef('public.naxa_can(text,uuid,uuid)'::regprocedure)) = 0 then
+    raise exception 'naxa_can ne gère pas les capacités de lecture sans cible';
+  end if;
 end;
 $naxa066$;
 
