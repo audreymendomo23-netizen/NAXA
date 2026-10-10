@@ -99,9 +99,11 @@ select pg_temp.assert_true(
 -- Le même Promoteur ne peut ni attribuer ni révoquer un privilège sur
 -- un membre qui n'est plus son descendant direct.
 select public.naxa_grant_privilege((select caisse from p4b_ids),'VIEW_STOCK',(select pharmacie_a from p4b_ids),'PHARMACIE');
+set local role postgres;
 update public.profiles
 set parent_profile_id=(select responsable from p4b_ids)
 where id=(select caisse from p4b_ids);
+set local role authenticated;
 
 select pg_temp.assert_raises(
   format('select public.naxa_revoke_privilege(%L,%L,%L,%L)',(select caisse from p4b_ids),'VIEW_STOCK',(select pharmacie_a from p4b_ids),'PHARMACIE'),

@@ -88,6 +88,12 @@ begin
   do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
   update public.pharmacies set est_demo=false where id in (v_a,v_b,v_c);
+  -- Le test est transactionnel (ROLLBACK) : isoler l’assertion Admin des pharmacies du seed.
+  update public.pharmacies set est_demo=true where id in (
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000003'
+  );
 
   insert into public.evenements(type,pharmacie_id,resultats) values
     ('recherche',null,0),
