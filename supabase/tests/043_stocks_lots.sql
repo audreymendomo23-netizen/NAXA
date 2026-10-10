@@ -31,3 +31,5 @@ begin
       and indexname='stocks_lots_peremption_idx'
   ) then raise exception 'index péremption absent'; end if;
 end $$;
+
+select '043_stocks_lots PASS' as resultat;
