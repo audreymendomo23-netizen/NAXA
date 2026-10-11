@@ -39,10 +39,7 @@ insert into public.naxa_role_privileges(role_key,privilege_code) values
 ('pharmacien','REQUEST_PHARMACEUTICAL_INFO'),
 ('pharmacien','VIEW_PHARMACEUTICAL_AUDIT'),
 ('preparateur','SUBMIT_PHARMACEUTICAL_VALIDATION'),
-('preparateur','VIEW_PHARMACEUTICAL_VALIDATIONS'),
 ('agent_accueil','SUBMIT_PHARMACEUTICAL_VALIDATION'),
-('agent_accueil','VIEW_PHARMACEUTICAL_VALIDATIONS'),
-('responsable','VIEW_PHARMACEUTICAL_VALIDATIONS'),
 ('comptable','MANAGE_ACCOUNTING'),
 ('gestionnaire_stock','MANAGE_STOCK_OPERATIONS'),
 ('magasinier','RECEIVE_STOCK')
