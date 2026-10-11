@@ -29,6 +29,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Tests unitaires du croisement des gardes Yaoundé
+          command: python3 -m unittest scripts.test_compare_yaounde_garde_sources
+      - run:
           name: Préflight intégrité SQL N4
           command: |
             set -uo pipefail
