@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
@@ -10,7 +9,10 @@ import {
   type Langue,
 } from "@/lib/accueil-textes";
 
-export function Recherche({ langue }: { langue: Langue }) {
+type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; source: string[]; availability: string };
+const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
+
+export function Recherche({ langue }: { langue: "fr" | "en" }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
@@ -22,16 +24,37 @@ export function Recherche({ langue }: { langue: Langue }) {
   const listeRef = useRef<HTMLDivElement>(null);
   const fichier = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
-  const t = textes[langue];
+  const [choixScanner, setChoixScanner] = useState(false);
+  const [medicaments, setMedicaments] = useState<MedicamentRecherche[]>([]);
+  const [rechercheCatalogue, setRechercheCatalogue] = useState<"repos" | "chargement" | "erreur">("repos");
+  const [rechercheActive, setRechercheActive] = useState(false);
 
-  const terme = normaliserRecherche(q);
-  const correspondances = terme
-    ? suggestionsMedicaments.filter(
-        (item) =>
-          normaliserRecherche(item.fr).includes(terme) ||
-          normaliserRecherche(item.en).includes(terme)
-      )
-    : [];
+  useEffect(() => {
+    const terme = q.trim();
+    if (terme.length < 2) {
+      setMedicaments([]);
+      setRechercheCatalogue("repos");
+      setRechercheActive(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setRechercheCatalogue("chargement");
+      setRechercheActive(true);
+      try {
+        const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(terme), { signal: controller.signal });
+        if (!response.ok) throw new Error("catalogue indisponible");
+        const data = await response.json() as { results?: MedicamentRecherche[] };
+        setMedicaments(Array.isArray(data.results) ? data.results : []);
+        setRechercheCatalogue("repos");
+      } catch {
+        if (controller.signal.aborted) return;
+        setMedicaments([]);
+        setRechercheCatalogue("erreur");
+      }
+    }, 350);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [q]);
 
   const aller = (termes: string[]) => {
     const p = new URLSearchParams();
@@ -79,80 +102,54 @@ export function Recherche({ langue }: { langue: Langue }) {
 
   return (
     <div className="w-full space-y-3">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (q.trim()) aller([q.trim()]);
-        }}
-        className="flex gap-2"
-      >
-        <div className="relative min-w-0 flex-1">
-          <input
-            ref={champ}
-            className="champ"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setSuggestionsOuvertes(true);
-            }}
-            onFocus={() => setSuggestionsOuvertes(true)}
-            placeholder={t.recherchePlaceholder}
-            aria-label={langue === "fr" ? "Médicament recherché" : "Medicine searched"}
-            aria-autocomplete="list"
-            aria-expanded={suggestionsOuvertes && correspondances.length > 0}
-          />
-          {suggestionsOuvertes && correspondances.length > 0 && (
-            <div
-              ref={listeRef}
-              role="listbox"
-              className="absolute inset-x-0 top-full z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-naxa-green-100 bg-white p-1 text-naxa-green-900 shadow-lg"
-            >
-              {correspondances.map((item) => (
-                <button
-                  key={item.fr}
-                  type="button"
-                  role="option"
-                  aria-selected="false"
-                  onClick={() => {
-                    setQ(item.fr);
-                    aller([item.fr]);
-                  }}
-                  className="flex min-h-11 w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-naxa-green-100"
-                >
-                  {item[langue]}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <button className="btn btn-canari shrink-0 !px-5" type="submit">
-          {t.chercher}
-        </button>
+      <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) aller([q.trim()]); }} className="flex gap-2">
+        <input className="champ min-w-0 flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder={langue === "fr" ? "Ex. Paracétamol, Coartem, amoxicilline" : "E.g. Paracetamol, Coartem, amoxicillin"} aria-label={langue === "fr" ? "Médicament recherché" : "Medicine searched"} />
+        <button className="btn btn-canari shrink-0 !px-5" type="submit">{langue === "fr" ? "Chercher" : "Search"}</button>
       </form>
 
-      <input
-        ref={fichier}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])}
-      />
-      <input
-        ref={camera}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])}
-      />
+      {rechercheActive && (
+        <section className="max-h-[45dvh] space-y-3 overflow-y-auto rounded-xl border border-naxa-green-100 bg-white p-3" aria-live="polite" aria-label="Résultats du catalogue médicaments">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-extrabold text-naxa-green-900">Résultats du catalogue</h2>
+            {rechercheCatalogue === "chargement" && <span className="text-xs text-slate-500">Recherche…</span>}
+          </div>
+          {rechercheCatalogue === "erreur" && <p className="text-sm text-slate-600">Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires.</p>}
+          {rechercheCatalogue === "repos" && medicaments.length === 0 && <p className="text-sm text-slate-600">Aucun résultat confirmé par les sources interrogées. Essayez le nom de la substance active.</p>}
+          <ul className="space-y-3">
+            {medicaments.map((medicament) => (
+              <li key={medicament.id} className="rounded-lg border border-slate-100 p-3">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={medicament.imageUrl || PHOTO_MEDICAMENT_PAR_DEFAUT}
+                    onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
+                    alt={medicament.imageUrl ? "Image issue de l'étiquetage externe, pas nécessairement du conditionnement camerounais" : "Photo non disponible"}
+                    className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                    loading="lazy"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-naxa-green-900">{medicament.name}</h3>
+                    {medicament.brand && <p className="text-sm text-slate-700">{medicament.brand}</p>}
+                    {medicament.activeIngredient && <p className="text-sm"><span className="font-semibold">Substance active :</span> {medicament.activeIngredient}</p>}
+                    {medicament.form && <p className="text-sm"><span className="font-semibold">Forme :</span> {medicament.form}</p>}
+                  </div>
+                </div>
+                {medicament.definition && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Définition :</span> {medicament.definition}</p>}
+                {medicament.indications && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Indications générales :</span> {medicament.indications}</p>}
+                {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}</p>}
+                <p className="mt-2 text-xs text-slate-500">Sources : {medicament.source.join(", ") || "aucune source externe confirmée"}. Les données médicales sont informatives et ne remplacent pas l’avis d’un pharmacien.</p>
+                <button type="button" className="btn btn-vert mt-3 w-full" onClick={() => aller([medicament.name])}>
+                  Vérifier le stock des pharmacies partenaires
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-      <button
-        className="btn btn-clair w-full"
-        type="button"
-        onClick={() => setChoixScanner(true)}
-        disabled={etat === "lecture"}
-      >
-        {etat === "lecture" ? t.lectureOrdonnance : t.scanner}
+      <input ref={fichier} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
+      <button className="btn btn-clair w-full" type="button" onClick={() => setChoixScanner(true)} disabled={etat === "lecture"}>
+        {etat === "lecture" ? "Lecture de l'ordonnance…" : "Scanner mon ordonnance"}
       </button>
 
       <p className="flex items-start gap-1.5 text-xs text-slate-600">

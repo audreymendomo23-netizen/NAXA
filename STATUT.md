@@ -192,3 +192,115 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **État CI du HEAD `07562da8b6b375297be0b319d5b1bf975dbb23d3`** : aucun statut GitHub ni workflow run retourné. La CI reste sans preuve d'exécution concluante. La branche est en avance sur `main`, sans retard; `main` n'a pas été modifiée.
 
 **Décision : ROUGE / NO-GO MAIN maintenu.** Les corrections de causes racines et plusieurs tests ciblés sont positifs, mais le rejeu exact sur base propre et la réussite de toute la suite SQL/qualité restent obligatoires. Aucun changement Supabase Production, aucune fusion et aucun déploiement.
+
+
+## Chantier isolé — photos de pharmacies et périodes de garde à Yaoundé
+
+- Ajout d'une migration additive `supabase/migration_070_pharmacie_photos_garde.sql` : chemin de photo locale, source et licence, date de vérification, début/fin de garde et source/date de vérification de la garde.
+- Les RPC `search_pharmacies` et `search_pharmacies_panier` ne sont pas modifiées : les métadonnées sont chargées par une requête complémentaire, afin de ne pas casser leurs signatures de retour.
+- Les résultats utilisent `public/pharmacies/placeholder.svg` si aucune photo locale valide n'est enregistrée ou si l'image échoue à charger. Le chemin est limité à `/pharmacies/nom-de-fichier`; les URL externes ne sont pas utilisées comme images de fiche.
+- Une garde datée n'est annoncée comme confirmée que pendant l'intervalle `garde_debut <= maintenant < garde_fin`. L'ancien booléen `de_garde`, sans période datée, est présenté comme « Garde signalée · période à confirmer ».
+- Le test SQL `supabase/tests/070_pharmacy_photos_duty_period.sql` vérifie les huit colonnes et la contrainte de cohérence de période. Le préflight CircleCI est ajusté à 84 migrations et 54 tests.
+- Aucune photo réelle n'a encore été importée : la licence et l'association de chaque image doivent être vérifiées avant d'ajouter des fichiers dans `public/pharmacies/` et de renseigner `photo_path`.
+- La migration et le test n'ont pas été exécutés contre Supabase Production. Build, lint et CI du nouveau HEAD doivent être vérifiés avant tout feu vert. Aucune fusion, aucun déploiement et aucune écriture Production.
+
+**Statut : EN COURS — non certifié vert.**
+
+
+## Garde pharmacies — Yaoundé — 11 octobre 2026
+
+- Ajout de `docs/yaounde-garde/2026-10-10_2026-10-12.csv` : 19 entrées collectées depuis Mfasha, période déclarée du 10/10/2026 08:00 au 12/10/2026 08:00 (UTC+01:00).
+- Ajout de `docs/yaounde-garde/README.md` : traçabilité des sources, statut de corroboration et critères d'intégration.
+- Ajout de `scripts/validate_yaounde_garde.py` : contrôle du nombre de lignes, doublons, téléphones, dates timezone-aware et statut conservateur.
+- Contrôle préliminaire après correction du format CSV : PASS (19 lignes lues; 19 noms uniques; 0 anomalie(s)). Les vérifications ont été exécutées sur le contenu récupéré du dépôt via le connecteur, pas dans un runner Python local/CI.
+- FindGlocal/MboaPHARMA permettent seulement un recoupement partiel des identités/coordonnées; ils ne confirment pas indépendamment la période exacte de garde. La pharmacie Nsimeyong conserve une divergence sur le numéro principal.
+- **Statut global : EN COURS / NO-GO IMPORT CLIENT.** Aucun test SQL ni import sur base isolée propre n'a été exécuté; aucune écriture Supabase Production, aucun déploiement, aucune modification de `main`.
+
+
+### Contrôle SQL en lecture seule — 11 octobre 2026
+
+- Requête exécutée sur le projet de diagnostic isolé `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) : CTE temporaire en mémoire de requête, aucune insertion ni modification persistante.
+- Résultat PostgreSQL : `total_rows=19`, `distinct_names=19`, `all_periods_valid=true`, début `2026-10-10 07:00:00+00`, fin `2026-10-12 07:00:00+00` (équivalent à 08:00–08:00 heure du Cameroun, UTC+01:00).
+- Ce contrôle prouve la cohérence des 19 noms et intervalles dans PostgreSQL; il **ne prouve pas** l'application de la migration 070, le mapping vers les identifiants `pharmacies.id`, ni le comportement d'une base propre.
+- Les statuts CI GitHub du commit documentaire contrôlé étaient vides. Aucune preuve CI verte.
+- **Toujours NO-GO import client** : aucune écriture DB, aucune migration appliquée, aucune modification Production, aucune fusion ni déploiement.
+
+
+## Prototype catalogue médicaments — 11 octobre 2026
+
+- Branche isolée : feat/catalogue-medicaments-api-prototype, créée depuis feat/yaounde-pharmacy-geolocation au commit 7db7bd52d38e70d6b53c5a6690b663e2445caab3.
+- Ajout d'un endpoint serveur de recherche qui interroge RxNorm, OpenFDA et DailyMed; aucune dépendance payante ajoutée. RxImage n'est pas utilisé car son API a été arrêtée.
+- Ajout de dix termes pilotes pour vérifier les correspondances, pas pour prétendre qu'il s'agit des dix médicaments les plus vendus au Cameroun.
+- La recherche de la page d'accueil affiche les résultats au fur et à mesure de la saisie : nom, marque, substance active, forme, définition/indications si fournies, source et photo si une image pertinente est disponible. Sinon, une illustration neutre est utilisée.
+- Les photos DailyMed sont identifiées comme issues de l'étiquetage américain et ne sont pas présentées comme des boîtes locales camerounaises.
+- Aucun dosage n'est rendu dans les cartes de recherche, la liste de stocks, la fiche produit ou le panier. Les données de dosage ne font pas partie du contrat de réponse de l'API catalogue.
+- Le bouton de résultat utilise la recherche de stock existante. Disponibilité/prix/réservation restent issus des stocks réels des partenaires NAXA; le catalogue externe n'est jamais une source de stock.
+- Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
+- Aucun changement de schéma SQL, aucune écriture Supabase, aucun changement de main, aucune fusion ni aucun déploiement Production.
+- État : EN COURS — prototype implémenté sur branche isolée; CI et tests d'intégration à confirmer.
+
+
+## Chantier fonctions métier et validation pharmaceutique à distance — 11 octobre 2026
+
+- Branche isolée : `feat/naxa-fonctions-validation-distance`, créée depuis `main`. Aucun commit sur `main`, aucune écriture Supabase et aucun déploiement Production.
+- Audit initial : la migration 020 limite les clés de rôles techniques et le catalogue `fonction_interne` ne contient pas les fonctions métier demandées. Le workflow de validation pharmaceutique à distance n'a pas été trouvé sur `main`. La branche d'intégration mentionnée dans les notes antérieures n'est pas présente dans la liste des branches consultées ; cette divergence de source de vérité demeure un risque.
+- Spécification ajoutée : `docs/naxa-fonctions-validation-distance.md` (fonctions, menus, parcours, privilèges, partage de validation, quatre architectures et contradictions à fermer).
+- Migration candidate ajoutée : `supabase/migration_072_fonctions_validation_distance.sql`. Elle étend les fonctions internes sans modifier `role_type`, ajoute le catalogue de privilèges, une table de dossiers, un bucket privé et des RPC de création, soumission et décision.
+- Interface candidate ajoutée : `src/app/pharmacien/validations/page.tsx`, avec dépôt de document privé, suivi et décisions réservées au pharmacien.
+- Test SQL structurel ajouté : `supabase/tests/072_fonctions_validation_distance.sql`.
+- Préflight CircleCI ajusté aux nombres attendus de migrations (86) et de tests SQL (55) après ajout des deux fichiers.
+- **Aucune preuve de build, de lint, de rejeu SQL propre, de tests SQL complets ou de CI verte n'a encore été obtenue.** La migration candidate n'a pas été appliquée à une base Supabase réelle. Les politiques RLS/Storage, la compatibilité de `naxa_has_privilege()` avec les nouvelles clés, les chemins de documents et les parcours à distance restent à vérifier par exécution.
+- État : **EN COURS / ROUGE — ne pas fusionner, ne pas appliquer à Production, ne pas déclarer vert.** Prochaine étape : ouvrir une PR pour déclencher les contrôles, analyser les échecs exacts, corriger une cause à la fois et n'annoncer le vert qu'avec des preuves sur le HEAD final.
+
+
+### Correctifs de sécurité et audit — branche de travail
+
+- La migration 071 a été reconstruite proprement après détection d'une corruption de contenu générée pendant une modification automatisée ; le fichier courant a été relu, avec un seul bloc transactionnel et quatre fonctions SQL définies dans ce fichier.
+- Les dossiers et documents sont limités au scope pharmacie ; le stockage est privé, les documents sont liés au dossier, et les utilisateurs authentifiés n'ont pas de droits directs INSERT/UPDATE/DELETE sur les dossiers.
+- Ajout d'une piste d'audit et de notifications internes à la transition de statut ; les lectures de documents restent limitées au déposant, au pharmacien autorisé et à l'administration habilitée.
+- Le composant frontend utilise désormais un client Supabase stable pour éviter une boucle de rechargement React.
+- **Ces correctifs sont des changements source seulement. Ils ne sont pas encore validés par exécution PostgreSQL/CI.** La branche reste ROUGE jusqu'au résultat des contrôles sur le HEAD courant.
+
+
+### Correctif de compatibilité — migration 072 / schéma Supabase Production (11 octobre 2026)
+
+- **Erreur initiale CI :** `SQLSTATE 23502` lors de l'insertion du privilège `SUBMIT_PHARMACEUTICAL_VALIDATION`.
+- **Contrôle direct du schéma Production :** `public.naxa_privileges` expose `code,family,description,niveau_min,niveau_max,delegable,governance,active,created_at`; les colonnes `famille`, `libelle` et `governance_only` n'existent pas dans cette base.
+- **Correction source :** migration 072 rendue compatible avec les variantes du schéma : elle détecte les colonnes disponibles, écrit les colonnes correspondantes et synchronise les alias facultatifs uniquement lorsqu'ils existent.
+- **Test SQL :** contrôle des huit privilèges, des colonnes réelles requises et de la cohérence des alias facultatifs sans références statiques à des colonnes absentes.
+- **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase, aucune fusion et aucun déploiement Production à ce stade.
+- **Bloqueur avant Production :** l'historique Supabase observé s'arrête à `042_stats_pilotage_facade_security`; il faut auditer les dépendances des migrations 043–070 avant d'appliquer la migration 072.
+- **Validation : ROUGE / à rejouer.** Attendre CircleCI sur le HEAD corrigé, puis vérifier le rejeu PostgreSQL et l'ordre de migration avant fusion/déploiement.
+
+## Fonctions internes — correction moteur (11 octobre 2026)
+- Corrigé sur `feat/naxa-fonctions-validation-distance` : `private.naxa_business_function()` reconnaît les six nouvelles fonctions métier sans modifier `role_type` ni la hiérarchie N0–N4.
+- Corrigé : `private.naxa_has_privilege()` traite ces fonctions comme des clés de rôle natives et exige toujours l'architecture active, le périmètre autorisé et une délégation effective par profil. Le catalogue de rôle seul ne suffit pas.
+- Test 072 renforcé sur les définitions des deux fonctions et les garde-fous de scope/délégation.
+- État : **ROUGE / validation en cours**. Le contrôle statique du test ne remplace pas le rejeu SQL complet ni les contrôles CI du HEAD exact. Aucun merge, aucune écriture Supabase Production, aucun déploiement.
+
+
+## Correctif 072 — borne du scope RESEAU (11 octobre 2026)
+- Cause traitée : `private.naxa_has_privilege()` acceptait un privilège de scope `RESEAU` avec une pharmacie cible sans valider l'appartenance de cette pharmacie au réseau du Promoteur.
+- Correction additive dans `supabase/migration_072_fonctions_validation_distance.sql` : appel explicite à `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsque `p_pharmacie` n'est pas nulle.
+- Les privilèges réseau sans cible gardent leur usage normal; une cible hors réseau est refusée.
+- Les tests de garde 041b et de périmètre 024 doivent être rejoués sur le HEAD correctif. État : en attente de CI; NO-GO main, aucune écriture Production ni fusion.
+
+
+## Correctif inscription — validation pays/téléphone — 11 octobre 2026
+
+- Cause historique : `handle_new_user()` rejetait tous les pays connus après les contrôles de format, même lorsque le numéro était valide.
+- Correction additive : `supabase/migration_073_signup_phone_validation.sql` ajoute un validateur centralisé à accès restreint et remplace la fonction de trigger sans modifier la migration 006.
+- Tests SQL : `supabase/tests/073_signup_phone_validation.sql` contient 24 cas attendus, incluant les formats valides/invalides des 11 pays, un pays inconnu et un téléphone absent.
+- Préflight CI ajusté au nouveau total : 87 migrations sources et 56 tests SQL sur la branche candidate.
+- Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée ouverte : [#49](https://github.com/audreymendomo23-netizen/NAXA/pull/49), cible `feat/naxa-fonctions-validation-distance` (PR #48).
+- **État : EN ATTENTE DE CI ET DE REJEU SQL COMPLET — ROUGE / NO-GO MAIN.** Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
+
+
+## Sélecteur de pays téléphone — fermeture au clic extérieur (11 octobre 2026)
+
+- Le sélecteur de pays de `/creation-compte` se ferme désormais lorsqu’un pointeur est pressé n’importe où hors du composant, y compris sur mobile (événement `pointerdown`).
+- La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
+- La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
+- Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
+
+**Statut de validation :** modification commise; tests automatisés et résultat CI du HEAD final non encore confirmés. Ne pas déclarer vert avant ces preuves.

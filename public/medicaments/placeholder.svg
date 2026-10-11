@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-labelledby="title desc">
+  <title id="title">Photo de médicament non disponible</title>
+  <desc id="desc">Illustration neutre d'une boîte et d'une capsule, pas une représentation d'un produit commercial.</desc>
+  <rect width="240" height="180" rx="16" fill="#f0f7f2"/>
+  <rect x="58" y="38" width="92" height="106" rx="8" fill="#ffffff" stroke="#176b46" stroke-width="3"/>
+  <path d="M58 62h92" stroke="#176b46" stroke-width="8"/>
+  <path d="M91 90h26M104 77v26" stroke="#176b46" stroke-width="5" stroke-linecap="round"/>
+  <g transform="rotate(-25 169 112)">
+    <rect x="145" y="98" width="52" height="26" rx="13" fill="#f7d84a" stroke="#176b46" stroke-width="3"/>
+    <path d="M171 99v24" stroke="#176b46" stroke-width="2"/>
+  </g>
+  <text x="120" y="164" font-family="Arial,sans-serif" font-size="10" fill="#176b46" text-anchor="middle">PHOTO NON DISPONIBLE</text>
+</svg>
