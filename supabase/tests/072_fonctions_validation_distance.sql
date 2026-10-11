@@ -65,19 +65,29 @@ begin
 
   select count(*) into v_count
   from public.naxa_role_privileges
-  where (role_key='pharmacien' and privilege_code in ('VIEW_PHARMACEUTICAL_VALIDATIONS','VALIDATE_PHARMACEUTICAL_DOCUMENT','REQUEST_PHARMACEUTICAL_INFO'))
-     or (role_key in ('preparateur','agent_accueil') and privilege_code='SUBMIT_PHARMACEUTICAL_VALIDATION');
-  if v_count <> 5 then
-    raise exception 'Matrice de privilèges pharmaceutiques incomplète : % lignes',v_count;
+  where (role_key='pharmacien' and privilege_code in (
+      'SUBMIT_PHARMACEUTICAL_VALIDATION','VIEW_PHARMACEUTICAL_VALIDATIONS',
+      'VALIDATE_PHARMACEUTICAL_DOCUMENT','REQUEST_PHARMACEUTICAL_INFO','VIEW_PHARMACEUTICAL_AUDIT'
+    ))
+     or (role_key in ('preparateur','agent_accueil') and privilege_code='SUBMIT_PHARMACEUTICAL_VALIDATION')
+     or (role_key='comptable' and privilege_code='MANAGE_ACCOUNTING')
+     or (role_key='gestionnaire_stock' and privilege_code='MANAGE_STOCK_OPERATIONS')
+     or (role_key='magasinier' and privilege_code='RECEIVE_STOCK');
+  if v_count <> 10 then
+    raise exception 'Matrice des fonctions métier incomplète : % lignes sur 10',v_count;
   end if;
 
   select count(*) into v_count
   from public.naxa_architecture_privileges
   where architecture_code in ('ORPHELIN','PARENTS_ENFANTS','PARENTS_AINES_CADETS','HYBRIDE')
-    and role_key='pharmacien'
-    and privilege_code='VALIDATE_PHARMACEUTICAL_DOCUMENT';
-  if v_count <> 4 then
-    raise exception 'La validation pharmaceutique ne couvre pas les quatre architectures : %',v_count;
+    and role_key in ('pharmacien','preparateur','agent_accueil','comptable','gestionnaire_stock','magasinier')
+    and privilege_code in (
+      'SUBMIT_PHARMACEUTICAL_VALIDATION','VIEW_PHARMACEUTICAL_VALIDATIONS',
+      'VALIDATE_PHARMACEUTICAL_DOCUMENT','REQUEST_PHARMACEUTICAL_INFO',
+      'VIEW_PHARMACEUTICAL_AUDIT','MANAGE_ACCOUNTING','MANAGE_STOCK_OPERATIONS','RECEIVE_STOCK'
+    );
+  if v_count <> 40 then
+    raise exception 'Matrice métier/architecture incomplète : % lignes sur 40',v_count;
   end if;
 
   if coalesce((select public from storage.buckets where id='naxa-validations-pharmaceutiques'),true) then
