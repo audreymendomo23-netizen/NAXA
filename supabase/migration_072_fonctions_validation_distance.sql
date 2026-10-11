@@ -432,6 +432,12 @@ begin
 
   if p_scope='RESEAU' then
     if fn<>'promoteur' then return false; end if;
+    -- Un privilège RESEAU sans cible porte sur le réseau propre du Promoteur.
+    -- Si une pharmacie est explicitement ciblée, elle doit appartenir à ce réseau.
+    if p_pharmacie is not null
+       and not public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU') then
+      return false;
+    end if;
     return exists (
       select 1 from public.naxa_profile_privileges pp
       where pp.profile_id=uid and pp.privilege_code=p_privilege
