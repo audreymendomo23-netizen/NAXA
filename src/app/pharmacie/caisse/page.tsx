@@ -78,9 +78,8 @@ export default function CaissePage(){
     if(mode!=="especes"&&!reference.trim())return setMsg("La référence opérateur est obligatoire.");
     setBusy(true);
     try{
-      const p=await sb.rpc("vente_encaisser",{p_vente:vente,p_mode:mode,p_montant_percu:montant,p_reference:mode!=="especes"?reference:null});
+      const p=await sb.rpc("vente_encaisser_finaliser",{p_vente:vente,p_mode:mode,p_montant_percu:montant,p_reference:mode!=="especes"?reference:null});
       if(p.error)throw p.error;
-      const f=await sb.rpc("vente_finaliser",{p_vente:vente}); if(f.error)throw f.error;
       const t=await sb.rpc("vente_ticket",{p_vente:vente}); if(t.error)throw t.error;
       if(!Array.isArray(t.data)||t.data.length===0)throw new Error("Vente payée, mais aucun ticket n'a été retourné.");
       setTicketRows(t.data as TicketRow[]);
