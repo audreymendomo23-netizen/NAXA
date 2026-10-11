@@ -238,3 +238,69 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
 - Aucun changement de schéma SQL, aucune écriture Supabase, aucun changement de main, aucune fusion ni aucun déploiement Production.
 - État : EN COURS — prototype implémenté sur branche isolée; CI et tests d'intégration à confirmer.
+
+
+## Chantier fonctions métier et validation pharmaceutique à distance — 11 octobre 2026
+
+- Branche isolée : `feat/naxa-fonctions-validation-distance`, créée depuis `main`. Aucun commit sur `main`, aucune écriture Supabase et aucun déploiement Production.
+- Audit initial : la migration 020 limite les clés de rôles techniques et le catalogue `fonction_interne` ne contient pas les fonctions métier demandées. Le workflow de validation pharmaceutique à distance n'a pas été trouvé sur `main`. La branche d'intégration mentionnée dans les notes antérieures n'est pas présente dans la liste des branches consultées ; cette divergence de source de vérité demeure un risque.
+- Spécification ajoutée : `docs/naxa-fonctions-validation-distance.md` (fonctions, menus, parcours, privilèges, partage de validation, quatre architectures et contradictions à fermer).
+- Migration candidate ajoutée : `supabase/migration_072_fonctions_validation_distance.sql`. Elle étend les fonctions internes sans modifier `role_type`, ajoute le catalogue de privilèges, une table de dossiers, un bucket privé et des RPC de création, soumission et décision.
+- Interface candidate ajoutée : `src/app/pharmacien/validations/page.tsx`, avec dépôt de document privé, suivi et décisions réservées au pharmacien.
+- Test SQL structurel ajouté : `supabase/tests/072_fonctions_validation_distance.sql`.
+- Préflight CircleCI ajusté aux nombres attendus de migrations (86) et de tests SQL (55) après ajout des deux fichiers.
+- **Aucune preuve de build, de lint, de rejeu SQL propre, de tests SQL complets ou de CI verte n'a encore été obtenue.** La migration candidate n'a pas été appliquée à une base Supabase réelle. Les politiques RLS/Storage, la compatibilité de `naxa_has_privilege()` avec les nouvelles clés, les chemins de documents et les parcours à distance restent à vérifier par exécution.
+- État : **EN COURS / ROUGE — ne pas fusionner, ne pas appliquer à Production, ne pas déclarer vert.** Prochaine étape : ouvrir une PR pour déclencher les contrôles, analyser les échecs exacts, corriger une cause à la fois et n'annoncer le vert qu'avec des preuves sur le HEAD final.
+
+
+### Correctifs de sécurité et audit — branche de travail
+
+- La migration 071 a été reconstruite proprement après détection d'une corruption de contenu générée pendant une modification automatisée ; le fichier courant a été relu, avec un seul bloc transactionnel et quatre fonctions SQL définies dans ce fichier.
+- Les dossiers et documents sont limités au scope pharmacie ; le stockage est privé, les documents sont liés au dossier, et les utilisateurs authentifiés n'ont pas de droits directs INSERT/UPDATE/DELETE sur les dossiers.
+- Ajout d'une piste d'audit et de notifications internes à la transition de statut ; les lectures de documents restent limitées au déposant, au pharmacien autorisé et à l'administration habilitée.
+- Le composant frontend utilise désormais un client Supabase stable pour éviter une boucle de rechargement React.
+- **Ces correctifs sont des changements source seulement. Ils ne sont pas encore validés par exécution PostgreSQL/CI.** La branche reste ROUGE jusqu'au résultat des contrôles sur le HEAD courant.
+
+
+### Correctif de compatibilité — migration 072 / schéma Supabase Production (11 octobre 2026)
+
+- **Erreur initiale CI :** `SQLSTATE 23502` lors de l'insertion du privilège `SUBMIT_PHARMACEUTICAL_VALIDATION`.
+- **Contrôle direct du schéma Production :** `public.naxa_privileges` expose `code,family,description,niveau_min,niveau_max,delegable,governance,active,created_at`; les colonnes `famille`, `libelle` et `governance_only` n'existent pas dans cette base.
+- **Correction source :** migration 072 rendue compatible avec les variantes du schéma : elle détecte les colonnes disponibles, écrit les colonnes correspondantes et synchronise les alias facultatifs uniquement lorsqu'ils existent.
+- **Test SQL :** contrôle des huit privilèges, des colonnes réelles requises et de la cohérence des alias facultatifs sans références statiques à des colonnes absentes.
+- **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase, aucune fusion et aucun déploiement Production à ce stade.
+- **Bloqueur avant Production :** l'historique Supabase observé s'arrête à `042_stats_pilotage_facade_security`; il faut auditer les dépendances des migrations 043–070 avant d'appliquer la migration 072.
+- **Validation : ROUGE / à rejouer.** Attendre CircleCI sur le HEAD corrigé, puis vérifier le rejeu PostgreSQL et l'ordre de migration avant fusion/déploiement.
+
+## Fonctions internes — correction moteur (11 octobre 2026)
+- Corrigé sur `feat/naxa-fonctions-validation-distance` : `private.naxa_business_function()` reconnaît les six nouvelles fonctions métier sans modifier `role_type` ni la hiérarchie N0–N4.
+- Corrigé : `private.naxa_has_privilege()` traite ces fonctions comme des clés de rôle natives et exige toujours l'architecture active, le périmètre autorisé et une délégation effective par profil. Le catalogue de rôle seul ne suffit pas.
+- Test 072 renforcé sur les définitions des deux fonctions et les garde-fous de scope/délégation.
+- État : **ROUGE / validation en cours**. Le contrôle statique du test ne remplace pas le rejeu SQL complet ni les contrôles CI du HEAD exact. Aucun merge, aucune écriture Supabase Production, aucun déploiement.
+
+
+## Correctif 072 — borne du scope RESEAU (11 octobre 2026)
+- Cause traitée : `private.naxa_has_privilege()` acceptait un privilège de scope `RESEAU` avec une pharmacie cible sans valider l'appartenance de cette pharmacie au réseau du Promoteur.
+- Correction additive dans `supabase/migration_072_fonctions_validation_distance.sql` : appel explicite à `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsque `p_pharmacie` n'est pas nulle.
+- Les privilèges réseau sans cible gardent leur usage normal; une cible hors réseau est refusée.
+- Les tests de garde 041b et de périmètre 024 doivent être rejoués sur le HEAD correctif. État : en attente de CI; NO-GO main, aucune écriture Production ni fusion.
+
+
+## Correctif inscription — validation pays/téléphone — 11 octobre 2026
+
+- Cause historique : `handle_new_user()` rejetait tous les pays connus après les contrôles de format, même lorsque le numéro était valide.
+- Correction additive : `supabase/migration_073_signup_phone_validation.sql` ajoute un validateur centralisé à accès restreint et remplace la fonction de trigger sans modifier la migration 006.
+- Tests SQL : `supabase/tests/073_signup_phone_validation.sql` contient 24 cas attendus, incluant les formats valides/invalides des 11 pays, un pays inconnu et un téléphone absent.
+- Préflight CI ajusté au nouveau total : 87 migrations sources et 56 tests SQL sur la branche candidate.
+- Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée ouverte : [#49](https://github.com/audreymendomo23-netizen/NAXA/pull/49), cible `feat/naxa-fonctions-validation-distance` (PR #48).
+- **État : EN ATTENTE DE CI ET DE REJEU SQL COMPLET — ROUGE / NO-GO MAIN.** Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
+
+
+## Sélecteur de pays téléphone — fermeture au clic extérieur (11 octobre 2026)
+
+- Le sélecteur de pays de `/creation-compte` se ferme désormais lorsqu’un pointeur est pressé n’importe où hors du composant, y compris sur mobile (événement `pointerdown`).
+- La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
+- La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
+- Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
+
+**Statut de validation :** modification commise; tests automatisés et résultat CI du HEAD final non encore confirmés. Ne pas déclarer vert avant ces preuves.

@@ -204,3 +204,33 @@ Les cartes affichent nom, marque si disponible, substance active, forme, défini
 Le bouton de chaque résultat ouvre la recherche de stock existante. Disponibilité, prix et réservation restent exclusivement issus des données des pharmacies partenaires NAXA. Aucun stock n'est inféré des API externes. Les appels externes sont limités par délai et les réponses sont mises en cache une heure.
 
 Contrôle source : npm run test:catalogue-medicaments. Le test source et la compilation CI ne prouvent pas encore que les API répondent en production ni que les dix recherches renvoient toutes une photo. Aucune migration, écriture Supabase, modification de main ou déploiement Production n'est réalisée par ce prototype.
+
+
+## Chantier fonctions métier et validation pharmaceutique à distance
+
+La spécification de référence du chantier est `docs/naxa-fonctions-validation-distance.md`. Le travail est isolé sur `feat/naxa-fonctions-validation-distance`; il ne modifie pas `main` ni Production. Les fonctions métier restent distinctes de `role_type` et des niveaux N0–N4. La migration candidate `supabase/migration_072_fonctions_validation_distance.sql` ajoute le catalogue des fonctions, les privilèges de validation, un dossier de validation et un stockage privé pour les documents. La page candidate est `/pharmacien/validations`.
+
+**État : candidat non validé.** Ne pas appliquer la migration à Production. La migration SQL, le stockage privé, le parcours navigateur, le rejeu SQL complet et les contrôles CI doivent réussir sur le HEAD exact avant toute demande de validation métier ou fusion.
+
+Correctif de compatibilité du schéma Production (11 octobre 2026) : l'inspection de Supabase Production a confirmé que `public.naxa_privileges` expose `code`, `family`, `description`, `niveau_min`, `niveau_max`, `delegable`, `governance`, `active` et `created_at`, sans `famille`, `libelle` ni `governance_only`. La migration 072 insère maintenant uniquement les colonnes présentes, en synchronisant les alias facultatifs quand ils existent sur une base de test. Le test SQL vérifie les huit privilèges et la cohérence du schéma sans référencer directement les colonnes facultatives. Correctif source uniquement : ne pas fusionner ni appliquer à Production avant un rejeu SQL complet et la vérification des dépendances 043–070 absentes de l'historique Production.
+
+### Correction du moteur de privilèges — 11 octobre 2026
+La migration candidate 072 étend désormais `private.naxa_business_function()` et `private.naxa_has_privilege()` aux fonctions internes Pharmacien, Préparateur, Agent d'accueil, Comptable, Gestionnaire de stock et Magasinier. Les droits restent bornés par l'architecture active, le scope de la pharmacie et la délégation effective dans `naxa_profile_privileges`; aucune élévation de `role_type` et aucun droit implicite ne sont ajoutés. Le test 072 vérifie la présence de ces garde-fous. **Validation en attente :** le nouveau HEAD doit obtenir un rejeu SQL complet et les statuts CI finaux avant toute fusion. Aucune écriture Production.
+
+
+Correctif de périmètre réseau (11 octobre 2026) : `private.naxa_has_privilege(..., p_pharmacie, 'RESEAU')` vérifie maintenant explicitement `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsqu'une pharmacie cible est fournie. Un droit réseau sans cible reste valable pour le réseau du Promoteur, tandis qu'une pharmacie hors réseau est refusée. Correctif source sur la branche isolée; tests SQL/CI finaux encore requis, aucune écriture Production.
+
+
+## Correctif inscription — validation pays/téléphone (11 octobre 2026)
+
+La migration additive `supabase/migration_073_signup_phone_validation.sql` corrige le défaut de branchement de `handle_new_user()` : un numéro conforme dans un pays pris en charge est accepté; un numéro mal formé ou un pays inconnu est rejeté. La migration historique 006 n'est pas modifiée. Le test `supabase/tests/073_signup_phone_validation.sql` couvre les 11 pays pris en charge, les longueurs invalides, le pays inconnu et le téléphone absent.
+
+**État : correctif source isolé sur `fix/signup-phone-validation`; CI et rejeu SQL restent à vérifier. Aucun changement Supabase Production, aucune fusion et aucun déploiement.**
+
+
+## Sélecteur de pays téléphone — fermeture au clic extérieur (11 octobre 2026)
+
+- Le sélecteur de pays de `/creation-compte` se ferme désormais lorsqu’un pointeur est pressé n’importe où hors du composant, y compris sur mobile (événement `pointerdown`).
+- La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
+- La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
+- Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
