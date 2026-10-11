@@ -93,12 +93,43 @@ def source_url(row):
 
 
 def compare(facebook_rows, mfasha_rows):
+    # Match exact normalized names first, then unique shared phone numbers.
     facebook = {row["_key"]: row for row in facebook_rows}
     mfasha = {row["_key"]: row for row in mfasha_rows}
+    pairs = []
+    used_fb = set()
+    used_mf = set()
+
+    for key in sorted(set(facebook) & set(mfasha)):
+        pairs.append((facebook[key], mfasha[key]))
+        used_fb.add(key)
+        used_mf.add(key)
+
+    remaining_fb = {key: row for key, row in facebook.items() if key not in used_fb}
+    remaining_mf = {key: row for key, row in mfasha.items() if key not in used_mf}
+    fb_candidates = {
+        key: [other_key for other_key, other in remaining_mf.items()
+              if row["_phones"] & other["_phones"]]
+        for key, row in remaining_fb.items()
+    }
+    mf_candidates = {
+        key: [other_key for other_key, other in remaining_fb.items()
+              if row["_phones"] & other["_phones"]]
+        for key, row in remaining_mf.items()
+    }
+    for fb_key, candidates in fb_candidates.items():
+        if len(candidates) != 1:
+            continue
+        mf_key = candidates[0]
+        if len(mf_candidates.get(mf_key, [])) == 1:
+            pairs.append((remaining_fb[fb_key], remaining_mf[mf_key]))
+            used_fb.add(fb_key)
+            used_mf.add(mf_key)
+
+    pairs.extend((row, None) for key, row in facebook.items() if key not in used_fb)
+    pairs.extend((None, row) for key, row in mfasha.items() if key not in used_mf)
     results = []
-    for key in sorted(set(facebook) | set(mfasha)):
-        fb = facebook.get(key)
-        mf = mfasha.get(key)
+    for fb, mf in pairs:
         reference = fb or mf
         fb_phones = fb["_phones"] if fb else set()
         mf_phones = mf["_phones"] if mf else set()
@@ -125,7 +156,7 @@ def compare(facebook_rows, mfasha_rows):
         elif shared_phones:
             status = "cross_match_name_and_phone"
             publication = "corroboration_partielle_a_verifier"
-            notes = "Nom et au moins un téléphone concordent; confirmer la garde avant publication."
+            notes = "Identité corroborée par nom ou numéro commun; confirmer la garde avant publication."
         else:
             status = "name_only_match"
             publication = "a_verifier_ne_pas_publier"
@@ -133,7 +164,6 @@ def compare(facebook_rows, mfasha_rows):
         selected_location = ""
         selected_phones = set()
         if fb and mf:
-            # Prefer the fuller location only when normalized locations do not conflict.
             if not location_conflict:
                 selected_location = max([fb_location, mf_location], key=len)
             if not phone_conflict:
@@ -160,7 +190,6 @@ def compare(facebook_rows, mfasha_rows):
             "notes": notes,
         })
     return results
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
