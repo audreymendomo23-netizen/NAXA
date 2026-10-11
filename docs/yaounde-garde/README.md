@@ -46,7 +46,7 @@
 - Chaque source doit être capturée séparément pour la **même période exacte** avant comparaison. Le collecteur refuse de fusionner des périodes différentes.
 - Script candidat : `python scripts/compare_yaounde_garde_sources.py --facebook <snapshot.csv> --mfasha <snapshot.csv> --output <comparaison.csv>`.
 - Format d'entrée : les colonnes normalisées du jeu de données ci-dessus; `primary_source` doit contenir l'URL de la source principale de chaque capture.
-- Le script conserve les deux versions de nom, localisation, téléphones et URL source. Il fusionne les champs uniquement lorsqu'il n'existe pas de contradiction détectée.
+- Le script associe d'abord les noms normalisés, puis les variantes de nom seulement si un numéro commun identifie une correspondance unique dans les deux sens. Il conserve les deux versions de nom, localisation, téléphones et URL source. Il fusionne les champs uniquement lorsqu'il n'existe pas de contradiction détectée.
 - Une concordance de nom et téléphone reste une corroboration partielle; elle n'établit pas à elle seule que la pharmacie assure effectivement la garde.
 - Les enregistrements présents dans une seule source, les numéros divergents et les localisations contradictoires restent non confirmés et ne doivent pas être publiés comme garde vérifiée.
 - Tests unitaires candidats : `python -m unittest scripts.test_compare_yaounde_garde_sources`.
