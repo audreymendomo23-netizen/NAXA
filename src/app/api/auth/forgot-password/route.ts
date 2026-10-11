@@ -1,16 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 const GENERIC = "Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.";
 const NOT_FOUND = "Aucun compte NAXA ne correspond à ce nom d'utilisateur.";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) {
       return NextResponse.json({ ok: false, error: NOT_FOUND }, { status: 404 });
     }
+
+    const cookieName = `naxa_forgot_otp_${createHash("sha256").update(username).digest("hex").slice(0,20)}`;
+    if (request.cookies.get(cookieName)?.value === "1") return NextResponse.json({ ok: false, error: "Attendez la fin des 40 secondes avant de demander un nouveau code.", retryAfter: 40 }, { status: 429 });
 
     const { data: profile, error: profileError } = await supabaseAdmin()
       .from("profiles")
@@ -42,7 +46,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Impossible d'envoyer le code OTP. Réessayez." }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, message: GENERIC });
+    const response = NextResponse.json({ ok: true, message: GENERIC });
+    response.cookies.set(cookieName, "1", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 40 });
+    return response;
   } catch {
     return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 500 });
   }
