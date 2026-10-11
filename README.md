@@ -208,7 +208,7 @@ Contrôle source : npm run test:catalogue-medicaments. Le test source et la comp
 
 ## Chantier fonctions métier et validation pharmaceutique à distance
 
-La spécification de référence du chantier est `docs/naxa-fonctions-validation-distance.md`. Le travail est isolé sur `feat/naxa-fonctions-validation-distance`; il ne modifie pas `main` ni Production. Les fonctions métier restent distinctes de `role_type` et des niveaux N0–N4. La migration candidate `supabase/migration_071_fonctions_validation_distance.sql` ajoute le catalogue des fonctions, les privilèges de validation, un dossier de validation et un stockage privé pour les documents. La page candidate est `/pharmacien/validations`.
+La spécification de référence du chantier est `docs/naxa-fonctions-validation-distance.md`. Le travail est isolé sur `feat/naxa-fonctions-validation-distance`; il ne modifie pas `main` ni Production. Les fonctions métier restent distinctes de `role_type` et des niveaux N0–N4. La migration candidate `supabase/migration_072_fonctions_validation_distance.sql` ajoute le catalogue des fonctions, les privilèges de validation, un dossier de validation et un stockage privé pour les documents. La page candidate est `/pharmacien/validations`.
 
 **État : candidat non validé.** Ne pas appliquer la migration à Production. La migration SQL, le stockage privé, le parcours navigateur, le rejeu SQL complet et les contrôles CI doivent réussir sur le HEAD exact avant toute demande de validation métier ou fusion.
 
