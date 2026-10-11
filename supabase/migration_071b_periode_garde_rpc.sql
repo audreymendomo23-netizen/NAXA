@@ -28,8 +28,8 @@ begin
     raise exception 'Aucune pharmacie active associée au compte';
   end if;
 
-  if not (public.is_admin() or public.can_operate_pharmacy(v_pharmacie)) then
-    raise exception 'Modification de la garde non autorisée';
+  if not public.authorize('MANAGE_GUARD_STATUS', v_pharmacie, 'PHARMACIE') then
+    raise exception 'Privilège de gestion de garde insuffisant';
   end if;
 
   if p_debut is null and p_fin is null and nullif(trim(coalesce(p_source_url, '')), '') is null then
