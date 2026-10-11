@@ -180,3 +180,11 @@ Une branche isolée `integration/naxa-360-20261009` rassemble les versions candi
 - Le test SQL `supabase/tests/070_pharmacy_photos_duty_period.sql` vérifie les huit colonnes et la contrainte de cohérence de période. Le préflight CircleCI est ajusté à 84 migrations et 54 tests.
 - Aucune photo réelle n'a encore été importée : la licence et l'association de chaque image doivent être vérifiées avant d'ajouter des fichiers dans `public/pharmacies/` et de renseigner `photo_path`.
 - La migration et le test n'ont pas été exécutés contre Supabase Production. Build, lint et CI du nouveau HEAD doivent être vérifiés avant tout feu vert. Aucune fusion, aucun déploiement et aucune écriture Production.
+
+
+## Données de garde — Yaoundé (11 octobre 2026)
+
+- Jeu de collecte daté : `docs/yaounde-garde/2026-10-10_2026-10-12.csv` (19 lignes publiées par Mfasha pour le 10 octobre 08:00 au 12 octobre 08:00, heure du Cameroun).
+- Méthode, sources et divergences : `docs/yaounde-garde/README.md`.
+- Contrôle structurel reproductible : `python scripts/validate_yaounde_garde.py`.
+- **Ces données sont non confirmées pour publication client** : les sources secondaires disponibles concernent principalement d'autres dates. Elles servent à la vérification seulement; aucun import DB n'a été fait.
