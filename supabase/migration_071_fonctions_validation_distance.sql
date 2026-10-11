@@ -253,4 +253,92 @@ grant execute on function public.naxa_creer_dossier_validation_pharmaceutique(uu
 grant execute on function public.naxa_soumettre_dossier_validation_pharmaceutique(uuid) to authenticated;
 grant execute on function public.naxa_decider_validation_pharmaceutique(uuid,text,text) to authenticated;
 
+
+-- Piste d'audit append-only et notifications internes pour le partage à distance.
+create table if not exists public.naxa_validations_pharmaceutiques_audit (
+  id bigint generated always as identity primary key,
+  validation_id uuid not null references public.naxa_validations_pharmaceutiques(id) on delete restrict,
+  pharmacie_id uuid not null references public.pharmacies(id) on delete restrict,
+  acteur_id uuid references public.profiles(id) on delete restrict,
+  action text not null,
+  ancien_statut text,
+  nouveau_statut text not null,
+  commentaire text,
+  cree_le timestamptz not null default now()
+);
+create index if not exists naxa_validations_audit_dossier_idx
+  on public.naxa_validations_pharmaceutiques_audit(validation_id,cree_le desc);
+alter table public.naxa_validations_pharmaceutiques_audit enable row level security;
+drop policy if exists naxa_validations_audit_read on public.naxa_validations_pharmaceutiques_audit;
+create policy naxa_validations_audit_read on public.naxa_validations_pharmaceutiques_audit
+for select to authenticated
+using (
+  public.naxa_scope_allows(auth.uid(),pharmacie_id,'PHARMACIE')
+  and (public.naxa_can('VIEW_PHARMACEUTICAL_AUDIT',pharmacie_id,null) or public.is_admin())
+);
+revoke insert,update,delete on public.naxa_validations_pharmaceutiques_audit from anon,authenticated;
+grant select on public.naxa_validations_pharmaceutiques_audit to authenticated;
+
+create table if not exists public.naxa_validations_pharmaceutiques_notifications (
+  id uuid primary key default gen_random_uuid(),
+  validation_id uuid not null references public.naxa_validations_pharmaceutiques(id) on delete restrict,
+  pharmacie_id uuid not null references public.pharmacies(id) on delete restrict,
+  destinataire_id uuid not null references public.profiles(id) on delete restrict,
+  type text not null check (type in ('nouveau_dossier','decision','complement')),
+  message text not null,
+  cree_le timestamptz not null default now(),
+  lu_le timestamptz
+);
+create index if not exists naxa_validations_notifications_recipient_idx
+  on public.naxa_validations_pharmaceutiques_notifications(destinataire_id,lu_le,cree_le desc);
+alter table public.naxa_validations_pharmaceutiques_notifications enable row level security;
+drop policy if exists naxa_validations_notifications_read on public.naxa_validations_pharmaceutiques_notifications;
+create policy naxa_validations_notifications_read on public.naxa_validations_pharmaceutiques_notifications
+for select to authenticated using (destinataire_id=auth.uid());
+revoke insert,update,delete on public.naxa_validations_pharmaceutiques_notifications from anon,authenticated;
+grant select on public.naxa_validations_pharmaceutiques_notifications to authenticated;
+
+create or replace function public.naxa_auditer_validation_pharmaceutique()
+returns trigger language plpgsql security definer set search_path='' as $
+declare
+  v_action text;
+begin
+  if tg_op='INSERT' then
+    insert into public.naxa_validations_pharmaceutiques_audit(validation_id,pharmacie_id,acteur_id,action,nouveau_statut,commentaire)
+    values(new.id,new.pharmacie_id,new.soumis_par,'creation',new.statut,new.objet);
+    return new;
+  end if;
+  if old.statut is distinct from new.statut then
+    v_action := case
+      when new.statut='en_attente' then 'soumission'
+      when new.statut='approuvee' then 'validation'
+      when new.statut='refusee' then 'refus'
+      when new.statut='complement_requis' then 'complement_demande'
+      else 'changement_statut'
+    end;
+    insert into public.naxa_validations_pharmaceutiques_audit(validation_id,pharmacie_id,acteur_id,action,ancien_statut,nouveau_statut,commentaire)
+    values(new.id,new.pharmacie_id,coalesce(new.decide_par,new.soumis_par),v_action,old.statut,new.statut,new.decision_commentaire);
+    if new.statut='en_attente' then
+      insert into public.naxa_validations_pharmaceutiques_notifications(validation_id,pharmacie_id,destinataire_id,type,message)
+      select new.id,new.pharmacie_id,p.id,'nouveau_dossier','Un dossier pharmaceutique attend votre décision.'
+      from public.profiles p
+      where p.actif=true and p.fonction_interne='pharmacien' and p.pharmacie_id=new.pharmacie_id;
+    elsif new.statut in ('approuvee','refusee','complement_requis') then
+      insert into public.naxa_validations_pharmaceutiques_notifications(validation_id,pharmacie_id,destinataire_id,type,message)
+      values(new.id,new.pharmacie_id,new.soumis_par,
+        case when new.statut='complement_requis' then 'complement' else 'decision' end,
+        case new.statut when 'approuvee' then 'Le dossier a été validé par le pharmacien.'
+          when 'refusee' then 'Le dossier a été refusé par le pharmacien.'
+          else 'Le pharmacien demande un complément au dossier.' end);
+    end if;
+  end if;
+  return new;
+end;
+$;
+revoke all on function public.naxa_auditer_validation_pharmaceutique() from public,anon,authenticated;
+drop trigger if exists trg_naxa_auditer_validation_pharmaceutique on public.naxa_validations_pharmaceutiques;
+create trigger trg_naxa_auditer_validation_pharmaceutique
+after insert or update of statut on public.naxa_validations_pharmaceutiques
+for each row execute function public.naxa_auditer_validation_pharmaceutique();
+
 commit;
