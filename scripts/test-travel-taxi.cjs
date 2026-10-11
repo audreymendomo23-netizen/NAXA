@@ -41,7 +41,7 @@ test("coordonnées invalides : repli contrôlé", async () => {
   global.fetch = async () => { throw new Error("ne devrait pas être appelé"); };
   try {
     const result = await calculerTrajet({ lat: Number.NaN, lng: 11.5 }, { lat: 3.86, lng: 11.51 }, 3);
-    assert.equal(result.km, 4.2);
+    assert.ok(Math.abs(result.km - 4.2) < 1e-9);
     assert.equal(result.estime, true);
   } finally { global.fetch = originalFetch; }
 });
