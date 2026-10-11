@@ -21,4 +21,5 @@ begin
 end;
 $test$;
 
+select true as naxa_071e_pos_session_privilege_alignment_pass;
 rollback;
