@@ -23,7 +23,7 @@ alter table public.naxa_architecture_privileges add constraint naxa_architecture
 -- Schéma Production et branches de test ont divergé : certaines bases n'ont
 -- que family/description, d'autres exposent aussi famille/libelle/governance_only.
 -- Écrire uniquement les colonnes existantes, tout en synchronisant les alias présents.
-do $naxa071_privileges$
+do $naxa072_privileges$
 declare
   v_priv record;
   v_row jsonb;
@@ -70,7 +70,7 @@ begin
     ) using v_row;
   end loop;
 end;
-$naxa071_privileges$;
+$naxa072_privileges$;
 
 -- Droits atomiques attribués explicitement par fonction.
 insert into public.naxa_role_privileges(role_key,privilege_code) values
