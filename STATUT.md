@@ -294,3 +294,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Préflight CI ajusté au nouveau total : 87 migrations sources et 56 tests SQL sur la branche candidate.
 - Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée ouverte : [#49](https://github.com/audreymendomo23-netizen/NAXA/pull/49), cible `feat/naxa-fonctions-validation-distance` (PR #48).
 - **État : EN ATTENTE DE CI ET DE REJEU SQL COMPLET — ROUGE / NO-GO MAIN.** Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
+
+
+## Sélecteur de pays téléphone — fermeture au clic extérieur (11 octobre 2026)
+
+- Le sélecteur de pays de `/creation-compte` se ferme désormais lorsqu’un pointeur est pressé n’importe où hors du composant, y compris sur mobile (événement `pointerdown`).
+- La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
+- La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
+- Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
+
+**Statut de validation :** modification commise; tests automatisés et résultat CI du HEAD final non encore confirmés. Ne pas déclarer vert avant ces preuves.
