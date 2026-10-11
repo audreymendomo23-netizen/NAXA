@@ -24,4 +24,5 @@ begin
 end;
 $test$;
 
+select true as naxa_071c_prescription_validation_role_fix_pass;
 rollback;
