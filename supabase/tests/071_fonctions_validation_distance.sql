@@ -38,22 +38,25 @@ begin
     raise exception 'Catalogue 071 incomplet : % privilèges sur 8',v_count;
   end if;
 
+  -- Schéma Production et schéma de test peuvent différer. Contrôler les colonnes
+  -- garanties et les alias optionnels via JSON afin de ne pas référencer une colonne absente.
   select count(*) into v_count
-  from public.naxa_privileges
-  where code in (
+  from public.naxa_privileges p
+  where p.code in (
     'SUBMIT_PHARMACEUTICAL_VALIDATION','VIEW_PHARMACEUTICAL_VALIDATIONS',
     'VALIDATE_PHARMACEUTICAL_DOCUMENT','REQUEST_PHARMACEUTICAL_INFO',
     'VIEW_PHARMACEUTICAL_AUDIT','MANAGE_ACCOUNTING',
     'MANAGE_STOCK_OPERATIONS','RECEIVE_STOCK'
   )
   and (
-    family is null or famille is null or family is distinct from famille
-    or description is null or libelle is null or description is distinct from libelle
-    or governance_only is null or governance is null
-    or niveau_min is null or niveau_max is null or active is null
+    p.family is null or p.description is null or p.delegable is null
+    or p.governance is null or p.niveau_min is null or p.niveau_max is null or p.active is null
+    or (to_jsonb(p) ? 'famille' and (to_jsonb(p)->>'famille') is distinct from p.family)
+    or (to_jsonb(p) ? 'libelle' and (to_jsonb(p)->>'libelle') is distinct from p.description)
+    or (to_jsonb(p) ? 'governance_only' and (to_jsonb(p)->>'governance_only') is null)
   );
   if v_count <> 0 then
-    raise exception 'Colonnes de privilèges 071 désynchronisées ou NULL : % lignes',v_count;
+    raise exception 'Colonnes de privilèges 071 NULL ou alias désynchronisés : % lignes',v_count;
   end if;
 
   if not (select relrowsecurity from pg_class where oid='public.naxa_validations_pharmaceutiques'::regclass) then
