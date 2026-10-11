@@ -64,3 +64,7 @@ Les fonctions internes ne créent pas de niveaux hiérarchiques supplémentaires
 ## Gate de validation
 
 Ne déclarer vert que si : audit des fichiers réels achevé, migration additive rejouée sur une base de test propre, tests SQL complets réussis, build/lint/TypeScript réussis, contrôle CI attaché au HEAD exact, RLS/Storage testés avec profils autorisés et non autorisés, README/STATUT actualisés. Aucun merge ni déploiement Production avant validation explicite de l'utilisateur.
+
+
+## Correctif de sécurité du scope réseau — 11 octobre 2026
+Un appel `private.naxa_has_privilege(privilege, pharmacie, 'RESEAU')` avec pharmacie explicite doit vérifier que cette pharmacie appartient au réseau actif du Promoteur via `public.naxa_scope_allows(uid, pharmacie, 'RESEAU')`. Sans pharmacie explicite, le droit `RESEAU` reste évalué sur le réseau du Promoteur et nécessite toujours une délégation active. Le test structurel 041b impose la présence de ce garde-fou; le test comportemental 024 vérifie le refus d'une pharmacie extérieure. Validation complète encore requise avant fusion.
