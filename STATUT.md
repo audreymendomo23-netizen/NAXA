@@ -205,3 +205,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - La migration et le test n'ont pas été exécutés contre Supabase Production. Build, lint et CI du nouveau HEAD doivent être vérifiés avant tout feu vert. Aucune fusion, aucun déploiement et aucune écriture Production.
 
 **Statut : EN COURS — non certifié vert.**
+
+
+## Garde pharmacies — Yaoundé — 11 octobre 2026
+
+- Ajout de `docs/yaounde-garde/2026-10-10_2026-10-12.csv` : 19 entrées collectées depuis Mfasha, période déclarée du 10/10/2026 08:00 au 12/10/2026 08:00 (UTC+01:00).
+- Ajout de `docs/yaounde-garde/README.md` : traçabilité des sources, statut de corroboration et critères d'intégration.
+- Ajout de `scripts/validate_yaounde_garde.py` : contrôle du nombre de lignes, doublons, téléphones, dates timezone-aware et statut conservateur.
+- Contrôle préliminaire après correction du format CSV : PASS (19 lignes lues; 19 noms uniques; 0 anomalie(s)). Les vérifications ont été exécutées sur le contenu récupéré du dépôt via le connecteur, pas dans un runner Python local/CI.
+- FindGlocal/MboaPHARMA permettent seulement un recoupement partiel des identités/coordonnées; ils ne confirment pas indépendamment la période exacte de garde. La pharmacie Nsimeyong conserve une divergence sur le numéro principal.
+- **Statut global : EN COURS / NO-GO IMPORT CLIENT.** Aucun test SQL ni import sur base isolée propre n'a été exécuté; aucune écriture Supabase Production, aucun déploiement, aucune modification de `main`.
