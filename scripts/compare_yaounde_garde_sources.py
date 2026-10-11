@@ -92,6 +92,14 @@ def source_url(row):
     return row.get("primary_source", "").strip()
 
 
+def ensure_same_period(facebook_period, mfasha_period):
+    if facebook_period != mfasha_period:
+        raise ValueError(
+            "source periods differ; refusing to merge: "
+            f"Facebook={facebook_period}, Mfasha={mfasha_period}"
+        )
+
+
 def compare(facebook_rows, mfasha_rows):
     # Match exact normalized names first, then unique shared phone numbers.
     facebook = {row["_key"]: row for row in facebook_rows}
@@ -200,11 +208,7 @@ def main():
     try:
         facebook_rows, facebook_period = read_snapshot(args.facebook)
         mfasha_rows, mfasha_period = read_snapshot(args.mfasha)
-        if facebook_period != mfasha_period:
-            raise ValueError(
-                "source periods differ; refusing to merge: "
-                f"Facebook={facebook_period}, Mfasha={mfasha_period}"
-            )
+        ensure_same_period(facebook_period, mfasha_period)
         results = compare(facebook_rows, mfasha_rows)
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
