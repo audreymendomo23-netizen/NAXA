@@ -147,8 +147,10 @@ $naxa072$;
     raise exception 'Le moteur ne borne pas les nouvelles fonctions par architecture et délégation';
   end if;
 
-  if position('role::text' in v_def)=0 then
-    raise exception 'Contrôle du rôle de base manquant dans le moteur de privilèges';
+  if position('naxa_scope_allows' in v_def)=0
+     or position('scope_type' in v_def)=0
+     or position('RESEAU' in v_def)=0 then
+    raise exception 'Le contrôle du périmètre pharmacie/réseau est incomplet';
   end if;
 
 select true as naxa_072_fonctions_validation_distance_pass;
