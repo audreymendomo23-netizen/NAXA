@@ -277,3 +277,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Corrigé : `private.naxa_has_privilege()` traite ces fonctions comme des clés de rôle natives et exige toujours l'architecture active, le périmètre autorisé et une délégation effective par profil. Le catalogue de rôle seul ne suffit pas.
 - Test 072 renforcé sur les définitions des deux fonctions et les garde-fous de scope/délégation.
 - État : **ROUGE / validation en cours**. Le contrôle statique du test ne remplace pas le rejeu SQL complet ni les contrôles CI du HEAD exact. Aucun merge, aucune écriture Supabase Production, aucun déploiement.
+
+
+## Correctif 072 — borne du scope RESEAU (11 octobre 2026)
+- Cause traitée : `private.naxa_has_privilege()` acceptait un privilège de scope `RESEAU` avec une pharmacie cible sans valider l'appartenance de cette pharmacie au réseau du Promoteur.
+- Correction additive dans `supabase/migration_072_fonctions_validation_distance.sql` : appel explicite à `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsque `p_pharmacie` n'est pas nulle.
+- Les privilèges réseau sans cible gardent leur usage normal; une cible hors réseau est refusée.
+- Les tests de garde 041b et de périmètre 024 doivent être rejoués sur le HEAD correctif. État : en attente de CI; NO-GO main, aucune écriture Production ni fusion.
