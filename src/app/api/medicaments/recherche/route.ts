@@ -143,6 +143,7 @@ export async function GET(request: NextRequest) {
   for (const candidate of rxCandidates) {
     const cleaned = cleanName(candidate.rawName);
     if (!cleaned) continue;
+    if (pilot && pilot.alias[0].trim().split(/\s+/).length === 1 && cleaned.includes(" + ")) continue;
     const key = normaliserTerme(cleaned);
     if (!uniqueCandidates.has(key)) uniqueCandidates.set(key, { ...candidate, rawName: cleaned });
   }
@@ -180,7 +181,8 @@ export async function GET(request: NextRequest) {
     const candidateNorm = normaliserTerme(raw);
     const brand = fdaField(preferredFda, "brand_name").find((value) => candidateNorm.includes(normaliserTerme(value))) ?? null;
     const activeIngredient = pilot?.substanceFr ?? cleanName(genericName) ?? null;
-    const formValue = form || formInName || null;
+    const formValue = formFromText(form) || formInName || (form ? cleanName(form) : null);
+    const candidateHasIngredient = normaliserTerme(raw).includes(normaliserTerme(genericName)) || Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
     const title = typeof matchedDaily?.title === "string" ? matchedDaily.title : "";
     const titleNormalized = normaliserTerme(title);
     const imageMatches = Boolean(imageUrl && (candidate.tty === "IN" || candidate.tty === "PIN") && (
@@ -194,8 +196,8 @@ export async function GET(request: NextRequest) {
       brand: brand ? cleanName(brand) : null,
       activeIngredient: activeIngredient || null,
       form: formValue ? cleanName(formValue) : null,
-      definition: cleanPublicText(preferredFda?.description, 460),
-      indications: cleanPublicText(preferredFda?.indications_and_usage, 620),
+      definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
+      indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
       imageUrl: imageMatches ? imageUrl : null,
       imageSource: imageMatches ? "DailyMed — étiquetage américain, conditionnement local non garanti" : null,
       source: [
