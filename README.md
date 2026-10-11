@@ -211,8 +211,9 @@ Contrôle source : npm run test:catalogue-medicaments. Le test source et la comp
 Branche isolée : `fix/parcours-rpc-permissions-align-20261011` (base `main` `d9ce9e3af6f3818f4e059542cbc429dfe2df6b02`). Aucun changement sur `main`, aucune écriture Supabase Production et aucune migration existante modifiée.
 
 - Récupération des comportements de référence depuis les diffs historiques des PR #39 et #47 : ticket POS et numérotation (059), paiement opérateur (064), consultation/prescription Pharmacien (065), métadonnées de garde (070) et géolocalisation (071).
-- Caisse : la page utilise maintenant les lignes renvoyées par `vente_ticket` pour produire un ticket imprimable dédié ; le paiement électronique est refusé côté interface si la référence opérateur est vide. La chaîne d'encaissement et de finalisation demeure séparée et nécessite encore un test comportemental de reprise après erreur.
+- Caisse : la page utilise maintenant les lignes renvoyées par `vente_ticket` pour produire un ticket imprimable dédié ; le paiement électronique est refusé côté interface si la référence opérateur est vide ; le poste est choisi explicitement s'il existe plusieurs caisses.
+- POS : le nouveau RPC additif `vente_encaisser_finaliser` regroupe l'encaissement et la finalisation dans une seule transaction, et reprend un paiement complet déjà enregistré sans le dupliquer ; test structurel ajouté.
 - Garde : ajout additif de `migration_071b_periode_garde_rpc.sql` et de son test structurel ; le panneau pharmacie permet de saisir début/fin/source et d'enregistrer ou retirer une période par RPC, sans modifier la migration 070 ni le RPC historique `set_garde`.
-- Le compteur CircleCI de la branche est ajusté à 87 migrations et 56 tests SQL.
+- Le compteur CircleCI de la branche est ajusté à 88 migrations et 57 tests SQL.
 - CI au dernier contrôle : `quality` en attente sur le commit `3f0b9380092b3dad73982aa757607197b0d830eb`. Aucun feu vert n'est déclaré avant résultat final.
 - Rectification d'audit : la version de `migration_059_pos_ticket.sql` présente dans `main` utilise déjà un CTE pour calculer `row_number()` avant l'UPDATE et un `setval(..., greatest(max_numero, 1), max_numero > 0)`. La précédente conclusion affirmant que ces deux constructions problématiques restaient présentes dans `main` était erronée ; l'historique README décrit un diagnostic antérieur.
