@@ -30,7 +30,7 @@ function cleanPublicText(value: unknown, max = 520): string | null {
   const withoutMarkup = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   const safeSentences = withoutMarkup
     .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => !/\b(dosage|dose|mg|mcg|µg|milligram|milliliter|take\s+\d|administer|once daily|twice daily|every \d+ hours|posologie)\b/i.test(sentence))
+    .filter((sentence) => !/\b(dosage|dose|mg|mcg|µg|milligram|milliliter|take\b|administer|daily|every\b|once\b|twice\b|posologie)\b/i.test(sentence))
     .map((sentence) => cleanName(sentence))
     .filter(Boolean);
   const result = safeSentences.join(" ").slice(0, max).trim();
