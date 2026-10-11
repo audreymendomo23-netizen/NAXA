@@ -251,3 +251,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ajouté dans la branche : RPC additive `set_garde_periode`, saisie de période/source dans le panneau pharmacie, test SQL structurel, compteur CI ajusté à 89 migrations/58 tests.
 - CI : aucun résultat final disponible pour le dernier HEAD ; le runner SQL a déjà échoué sur un commit intermédiaire. Les tests nouvellement ajoutés ont été corrigés pour produire un résultat non vide, mais ce correctif doit encore être confirmé par un rejeu. État global NON VERT ; les tests comportementaux et la concordance complète des permissions restent à terminer.
 - Rectification : migration 059 dans main possède déjà la numérotation via CTE et le recalage sûr de séquence ; le constat contraire précédent était erroné.
+
+
+## Correctif CI SQL — 11 octobre 2026
+
+- Cause confirmée dans `.circleci/config.yml` : les contrôles comparaient le nombre de migrations à `85` et le nombre de tests SQL à `54`, alors que les messages et le dépôt indiquent respectivement `89` et `58`. Le préflight affichait donc `89 trouvé / 89 attendu` tout en quittant avec le code 1.
+- Les deux seuils ont été alignés sur `89` migrations et `58` tests dans le correctif `6c747312fc48534511023be2428f534ea75436d8`.
+- État : correctif poussé uniquement sur `fix/parcours-rpc-permissions-align-20261011`. Le nouveau résultat CI doit encore confirmer la correction; aucun feu vert SQL n'est déclaré. Aucun changement sur `main` ni en Production.
