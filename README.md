@@ -193,3 +193,14 @@ Une branche isolée `integration/naxa-360-20261009` rassemble les versions candi
 ## Géolocalisation des pharmacies — pilote Yaoundé
 
 Le référentiel initial est décrit dans [docs/STATUT-GEOLOCALISATION-PHARMACIES.md](docs/STATUT-GEOLOCALISATION-PHARMACIES.md). La migration candidate `supabase/migration_071_geolocalisation_pharmacies_yaounde.sql` stocke les coordonnées sourcées dans un référentiel distinct et ne crée aucune pharmacie partenaire. Seules les correspondances exactes avec des pharmacies déjà présentes peuvent recevoir ces coordonnées, avec le statut explicite `source_publique_a_confirmer`. Les positions publiées ne sont pas certifiées sur le terrain. Le contrôle statique se lance avec `npm run test:geolocalisation`. Aucun changement Production ni fusion dans `main` n'est autorisé par ce chantier.
+
+
+## Prototype de recherche catalogue médicaments — 11 octobre 2026
+
+La branche feat/catalogue-medicaments-api-prototype ajoute une recherche de catalogue informative en direct via RxNorm, OpenFDA et DailyMed. Le pilote contient dix termes de recherche : paracétamol, amoxicilline, artéméther/luméfantrine, ibuprofène, métronidazole, cétirizine, oméprazole, ciprofloxacine, diclofénac et azithromycine. Cette liste sert à tester les correspondances; ce n'est pas un classement des ventes au Cameroun.
+
+Les cartes affichent nom, marque si disponible, substance active, forme, définition et indications générales uniquement si les sources les renvoient. Aucun dosage n'est rendu dans les résultats, la fiche produit ou le panier. Les photos ne sont montrées que si DailyMed fournit une image d'un document correspondant à la recherche; sinon un visuel neutre signale l'absence de photo. Une image DailyMed peut représenter un produit américain, pas le conditionnement vendu au Cameroun.
+
+Le bouton de chaque résultat ouvre la recherche de stock existante. Disponibilité, prix et réservation restent exclusivement issus des données des pharmacies partenaires NAXA. Aucun stock n'est inféré des API externes. Les appels externes sont limités par délai et les réponses sont mises en cache une heure.
+
+Contrôle source : npm run test:catalogue-medicaments. Le test source et la compilation CI ne prouvent pas encore que les API répondent en production ni que les dix recherches renvoient toutes une photo. Aucune migration, écriture Supabase, modification de main ou déploiement Production n'est réalisée par ce prototype.
