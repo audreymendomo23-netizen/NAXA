@@ -25,6 +25,8 @@ if len(rows) != 19:
 
 seen = set()
 for number, row in enumerate(rows, start=2):
+    if None in row:
+        raise SystemExit(f"FAIL malformed CSV row {number}: too many fields")
     key = " ".join(row["pharmacy_name"].casefold().split())
     if key in seen:
         raise SystemExit(f"FAIL duplicate pharmacy name at CSV line {number}: {row['pharmacy_name']}")
