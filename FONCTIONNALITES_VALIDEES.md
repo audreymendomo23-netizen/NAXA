@@ -1338,3 +1338,10 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **État CI du HEAD `07562da8b6b375297be0b319d5b1bf975dbb23d3`** : aucun statut GitHub ni workflow run retourné. La CI reste sans preuve d'exécution concluante. La branche est en avance sur `main`, sans retard; `main` n'a pas été modifiée.
 
 **Décision : ROUGE / NO-GO MAIN maintenu.** Les corrections de causes racines et plusieurs tests ciblés sont positifs, mais le rejeu exact sur base propre et la réussite de toute la suite SQL/qualité restent obligatoires. Aucun changement Supabase Production, aucune fusion et aucun déploiement.
+
+
+## 2026-10-12 — Ajouts en cours, non validés
+
+- Branche `feat/naxa-messagerie-profil-yaounde` : fondations SQL additives 075 (préférences, fils, messages, notifications) et 076 (sur ordonnance/fabricant), composants de messagerie et pages de notifications/boîte pharmacie.
+- Tests ajoutés : `supabase/tests/075_messagerie_notifications_preferences.sql` et `supabase/tests/076_produits_ordonnance_fabricant.sql`.
+- Statut : **en cours — non validé**. Le build, ESLint, replay SQL, tests en navigateur, les droits réels des rôles pharmacie et le parcours OAuth doivent encore être exécutés/vérifiés. Aucun déploiement Production effectué.
