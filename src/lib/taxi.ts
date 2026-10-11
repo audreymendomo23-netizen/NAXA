@@ -5,8 +5,8 @@
  */
 export type EstimationTaxi = { minimumFcfa: number; maximumFcfa: number; indicative: true };
 
-function arrondirCentaines(valeur: number) {
-  return Math.ceil(valeur / 100) * 100;
+function arrondirCentaines(valeur: number): number {
+  return Number.isFinite(valeur) && valeur > 0 ? Math.ceil(valeur / 100) * 100 : 0;
 }
 
 export function estimerTaxiFcfa(distanceKm: number): EstimationTaxi {
@@ -19,6 +19,7 @@ export function estimerTaxiFcfa(distanceKm: number): EstimationTaxi {
   return { minimumFcfa, maximumFcfa: Math.max(minimumFcfa, maximumFcfa), indicative: true };
 }
 
-export function formaterFcfa(n: number) {
-  return `${Math.round(n).toLocaleString("fr-FR")} FCFA`;
+export function formaterFcfa(n: number): string {
+  const valeur = Number.isFinite(n) ? Math.round(n) : 0;
+  return `${valeur.toLocaleString("fr-FR")} FCFA`;
 }
