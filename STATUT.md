@@ -292,5 +292,5 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Correction additive : `supabase/migration_073_signup_phone_validation.sql` ajoute un validateur centralisé à accès restreint et remplace la fonction de trigger sans modifier la migration 006.
 - Tests SQL : `supabase/tests/073_signup_phone_validation.sql` contient 24 cas attendus, incluant les formats valides/invalides des 11 pays, un pays inconnu et un téléphone absent.
 - Préflight CI ajusté au nouveau total : 87 migrations sources et 56 tests SQL sur la branche candidate.
-- Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée à ouvrir vers `feat/naxa-fonctions-validation-distance`.
+- Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée ouverte : [#49](https://github.com/audreymendomo23-netizen/NAXA/pull/49), cible `feat/naxa-fonctions-validation-distance` (PR #48).
 - **État : EN ATTENTE DE CI ET DE REJEU SQL COMPLET — ROUGE / NO-GO MAIN.** Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
