@@ -188,3 +188,8 @@ Une branche isolée `integration/naxa-360-20261009` rassemble les versions candi
 - Méthode, sources et divergences : `docs/yaounde-garde/README.md`.
 - Contrôle structurel reproductible : `python scripts/validate_yaounde_garde.py`.
 - **Ces données sont non confirmées pour publication client** : les sources secondaires disponibles concernent principalement d'autres dates. Elles servent à la vérification seulement; aucun import DB n'a été fait.
+
+
+## Géolocalisation des pharmacies — pilote Yaoundé
+
+Le référentiel initial est décrit dans [docs/STATUT-GEOLOCALISATION-PHARMACIES.md](docs/STATUT-GEOLOCALISATION-PHARMACIES.md). La migration candidate `supabase/migration_071_geolocalisation_pharmacies_yaounde.sql` stocke les coordonnées sourcées dans un référentiel distinct et ne crée aucune pharmacie partenaire. Seules les correspondances exactes avec des pharmacies déjà présentes peuvent recevoir ces coordonnées, avec le statut explicite `source_publique_a_confirmer`. Les positions publiées ne sont pas certifiées sur le terrain. Le contrôle statique se lance avec `npm run test:geolocalisation`. Aucun changement Production ni fusion dans `main` n'est autorisé par ce chantier.
