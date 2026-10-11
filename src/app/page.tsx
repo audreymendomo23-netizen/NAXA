@@ -123,8 +123,6 @@ export default function Accueil() {
             ))}
           </div>
         </section>
-
-   </ol>
       </div>
 
       <footer className="mt-auto w-full shrink-0 bg-naxa-green-900 px-5 py-1 text-white">
