@@ -204,3 +204,10 @@ Les cartes affichent nom, marque si disponible, substance active, forme, défini
 Le bouton de chaque résultat ouvre la recherche de stock existante. Disponibilité, prix et réservation restent exclusivement issus des données des pharmacies partenaires NAXA. Aucun stock n'est inféré des API externes. Les appels externes sont limités par délai et les réponses sont mises en cache une heure.
 
 Contrôle source : npm run test:catalogue-medicaments. Le test source et la compilation CI ne prouvent pas encore que les API répondent en production ni que les dix recherches renvoient toutes une photo. Aucune migration, écriture Supabase, modification de main ou déploiement Production n'est réalisée par ce prototype.
+
+
+## Chantier fonctions métier et validation pharmaceutique à distance
+
+La spécification de référence du chantier est `docs/naxa-fonctions-validation-distance.md`. Le travail est isolé sur `feat/naxa-fonctions-validation-distance`; il ne modifie pas `main` ni Production. Les fonctions métier restent distinctes de `role_type` et des niveaux N0–N4. La migration candidate `supabase/migration_071_fonctions_validation_distance.sql` ajoute le catalogue des fonctions, les privilèges de validation, un dossier de validation et un stockage privé pour les documents. La page candidate est `/pharmacien/validations`.
+
+**État : candidat non validé.** Ne pas appliquer la migration à Production. La migration SQL, le stockage privé, le parcours navigateur, le rejeu SQL complet et les contrôles CI doivent réussir sur le HEAD exact avant toute demande de validation métier ou fusion.
