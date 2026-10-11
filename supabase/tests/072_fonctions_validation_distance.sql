@@ -119,10 +119,6 @@ begin
      or has_table_privilege('authenticated','public.naxa_validations_pharmaceutiques','DELETE') then
     raise exception 'Les utilisateurs authentifiés ne doivent pas modifier directement les validations';
   end if;
-end;
-$naxa072$;
-
-
   -- Régression du moteur : les fonctions internes doivent être résolues sans
   -- les convertir en role_type ni leur donner les droits d'un Promoteur.
   v_def := pg_get_functiondef('private.naxa_business_function(uuid)'::regprocedure);
@@ -152,6 +148,8 @@ $naxa072$;
      or position('RESEAU' in v_def)=0 then
     raise exception 'Le contrôle du périmètre pharmacie/réseau est incomplet';
   end if;
+end;
+$naxa072$;
 
 select true as naxa_072_fonctions_validation_distance_pass;
 rollback;
