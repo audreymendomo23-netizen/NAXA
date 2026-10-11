@@ -284,3 +284,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Correction additive dans `supabase/migration_072_fonctions_validation_distance.sql` : appel explicite à `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsque `p_pharmacie` n'est pas nulle.
 - Les privilèges réseau sans cible gardent leur usage normal; une cible hors réseau est refusée.
 - Les tests de garde 041b et de périmètre 024 doivent être rejoués sur le HEAD correctif. État : en attente de CI; NO-GO main, aucune écriture Production ni fusion.
+
+
+## Correctif inscription — validation pays/téléphone — 11 octobre 2026
+
+- Cause historique : `handle_new_user()` rejetait tous les pays connus après les contrôles de format, même lorsque le numéro était valide.
+- Correction additive : `supabase/migration_073_signup_phone_validation.sql` ajoute un validateur centralisé à accès restreint et remplace la fonction de trigger sans modifier la migration 006.
+- Tests SQL : `supabase/tests/073_signup_phone_validation.sql` contient 24 cas attendus, incluant les formats valides/invalides des 11 pays, un pays inconnu et un téléphone absent.
+- Préflight CI ajusté au nouveau total : 87 migrations sources et 56 tests SQL sur la branche candidate.
+- Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée à ouvrir vers `feat/naxa-fonctions-validation-distance`.
+- **État : EN ATTENTE DE CI ET DE REJEU SQL COMPLET — ROUGE / NO-GO MAIN.** Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
