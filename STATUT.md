@@ -238,3 +238,16 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
 - Aucun changement de schéma SQL, aucune écriture Supabase, aucun changement de main, aucune fusion ni aucun déploiement Production.
 - État : EN COURS — prototype implémenté sur branche isolée; CI et tests d'intégration à confirmer.
+
+
+## Chantier fonctions métier et validation pharmaceutique à distance — 11 octobre 2026
+
+- Branche isolée : `feat/naxa-fonctions-validation-distance`, créée depuis `main`. Aucun commit sur `main`, aucune écriture Supabase et aucun déploiement Production.
+- Audit initial : la migration 020 limite les clés de rôles techniques et le catalogue `fonction_interne` ne contient pas les fonctions métier demandées. Le workflow de validation pharmaceutique à distance n'a pas été trouvé sur `main`. La branche d'intégration mentionnée dans les notes antérieures n'est pas présente dans la liste des branches consultées ; cette divergence de source de vérité demeure un risque.
+- Spécification ajoutée : `docs/naxa-fonctions-validation-distance.md` (fonctions, menus, parcours, privilèges, partage de validation, quatre architectures et contradictions à fermer).
+- Migration candidate ajoutée : `supabase/migration_071_fonctions_validation_distance.sql`. Elle étend les fonctions internes sans modifier `role_type`, ajoute le catalogue de privilèges, une table de dossiers, un bucket privé et des RPC de création, soumission et décision.
+- Interface candidate ajoutée : `src/app/pharmacien/validations/page.tsx`, avec dépôt de document privé, suivi et décisions réservées au pharmacien.
+- Test SQL structurel ajouté : `supabase/tests/071_fonctions_validation_distance.sql`.
+- Préflight CircleCI ajusté aux nombres attendus de migrations (86) et de tests SQL (55) après ajout des deux fichiers.
+- **Aucune preuve de build, de lint, de rejeu SQL propre, de tests SQL complets ou de CI verte n'a encore été obtenue.** La migration candidate n'a pas été appliquée à une base Supabase réelle. Les politiques RLS/Storage, la compatibilité de `naxa_has_privilege()` avec les nouvelles clés, les chemins de documents et les parcours à distance restent à vérifier par exécution.
+- État : **EN COURS / ROUGE — ne pas fusionner, ne pas appliquer à Production, ne pas déclarer vert.** Prochaine étape : ouvrir une PR pour déclencher les contrôles, analyser les échecs exacts, corriger une cause à la fois et n'annoncer le vert qu'avec des preuves sur le HEAD final.
