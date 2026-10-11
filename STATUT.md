@@ -258,3 +258,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Cause confirmée dans `.circleci/config.yml` : les contrôles comparaient le nombre de migrations à `85` et le nombre de tests SQL à `54`, alors que les messages et le dépôt indiquent respectivement `89` et `58`. Le préflight affichait donc `89 trouvé / 89 attendu` tout en quittant avec le code 1.
 - Les deux seuils ont été alignés sur `89` migrations et `58` tests dans le correctif `6c747312fc48534511023be2428f534ea75436d8`.
 - État : correctif poussé uniquement sur `fix/parcours-rpc-permissions-align-20261011`. Le nouveau résultat CI doit encore confirmer la correction; aucun feu vert SQL n'est déclaré. Aucun changement sur `main` ni en Production.
+
+
+## OTP — délai de renvoi de 40 secondes — 11 octobre 2026
+- Modifiés sur `fix/parcours-rpc-permissions-align-20261011` : `src/app/creation-compte/page.tsx`, `src/app/mot-de-passe-oublie/page.tsx`, `src/app/api/auth/forgot-password/route.ts`.
+- Ajout de `src/app/api/auth/signup-otp-resend/route.ts` : renvoi signup côté serveur et cooldown cookie HttpOnly de 40 secondes.
+- Les deux interfaces affichent le compte à rebours et désactivent le renvoi jusqu'à zéro; le cooldown est relancé après un envoi réussi.
+- Limite de sécurité connue : le cookie applique le délai dans le même navigateur; il ne constitue pas une limite globale distribuée par IP/compte. Les limites natives Supabase Auth restent nécessaires.
+- Aucun changement de migration/base de données, aucun changement sur `main`, aucune fusion et aucun déploiement Production.
+- État : implémentation candidate; compilation, parcours réels et CI restent à confirmer avant déclaration au vert.
