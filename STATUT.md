@@ -271,3 +271,9 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase, aucune fusion et aucun déploiement Production à ce stade.
 - **Bloqueur avant Production :** l'historique Supabase observé s'arrête à `042_stats_pilotage_facade_security`; il faut auditer les dépendances des migrations 043–070 avant d'appliquer la migration 072.
 - **Validation : ROUGE / à rejouer.** Attendre CircleCI sur le HEAD corrigé, puis vérifier le rejeu PostgreSQL et l'ordre de migration avant fusion/déploiement.
+
+## Fonctions internes — correction moteur (11 octobre 2026)
+- Corrigé sur `feat/naxa-fonctions-validation-distance` : `private.naxa_business_function()` reconnaît les six nouvelles fonctions métier sans modifier `role_type` ni la hiérarchie N0–N4.
+- Corrigé : `private.naxa_has_privilege()` traite ces fonctions comme des clés de rôle natives et exige toujours l'architecture active, le périmètre autorisé et une délégation effective par profil. Le catalogue de rôle seul ne suffit pas.
+- Test 072 renforcé sur les définitions des deux fonctions et les garde-fous de scope/délégation.
+- État : **ROUGE / validation en cours**. Le contrôle statique du test ne remplace pas le rejeu SQL complet ni les contrôles CI du HEAD exact. Aucun merge, aucune écriture Supabase Production, aucun déploiement.
