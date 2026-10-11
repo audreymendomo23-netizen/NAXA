@@ -47,4 +47,5 @@ begin
 end;
 $test$;
 
+select true as naxa_071b_garde_period_rpc_pass;
 rollback;
