@@ -215,3 +215,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Contrôle préliminaire après correction du format CSV : PASS (19 lignes lues; 19 noms uniques; 0 anomalie(s)). Les vérifications ont été exécutées sur le contenu récupéré du dépôt via le connecteur, pas dans un runner Python local/CI.
 - FindGlocal/MboaPHARMA permettent seulement un recoupement partiel des identités/coordonnées; ils ne confirment pas indépendamment la période exacte de garde. La pharmacie Nsimeyong conserve une divergence sur le numéro principal.
 - **Statut global : EN COURS / NO-GO IMPORT CLIENT.** Aucun test SQL ni import sur base isolée propre n'a été exécuté; aucune écriture Supabase Production, aucun déploiement, aucune modification de `main`.
+
+
+### Contrôle SQL en lecture seule — 11 octobre 2026
+
+- Requête exécutée sur le projet de diagnostic isolé `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) : CTE temporaire en mémoire de requête, aucune insertion ni modification persistante.
+- Résultat PostgreSQL : `total_rows=19`, `distinct_names=19`, `all_periods_valid=true`, début `2026-10-10 07:00:00+00`, fin `2026-10-12 07:00:00+00` (équivalent à 08:00–08:00 heure du Cameroun, UTC+01:00).
+- Ce contrôle prouve la cohérence des 19 noms et intervalles dans PostgreSQL; il **ne prouve pas** l'application de la migration 070, le mapping vers les identifiants `pharmacies.id`, ni le comportement d'une base propre.
+- Les statuts CI GitHub du commit documentaire contrôlé étaient vides. Aucune preuve CI verte.
+- **Toujours NO-GO import client** : aucune écriture DB, aucune migration appliquée, aucune modification Production, aucune fusion ni déploiement.
