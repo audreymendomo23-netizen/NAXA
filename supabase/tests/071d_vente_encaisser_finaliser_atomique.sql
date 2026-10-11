@@ -27,4 +27,5 @@ begin
 end;
 $test$;
 
+select true as naxa_071d_vente_encaisser_finaliser_atomique_pass;
 rollback;
