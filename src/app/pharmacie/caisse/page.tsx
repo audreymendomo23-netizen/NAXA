@@ -24,6 +24,8 @@ export default function CaissePage(){
     const {data:p}=await sb.from("profiles").select("role,fonction_interne,pharmacie_id,actif").eq("id",u.user.id).single();
     if(!p?.pharmacie_id||p.actif===false||(!["caisse","promoteur"].includes(p.role) && !["caisse","pharmacien","pharmacien_assistant"].includes(p.fonction_interne??""))) return setMsg("Accès caisse non autorisé.");
     setPid(p.pharmacie_id);
+    const droits=await Promise.all(["POSTE_CAISSE","PHARMACIE"].map(p_scope=>sb.rpc("authorize",{p_privilege:"CREATE_SALE",p_pharmacie:p.pharmacie_id,p_scope})));
+    if(!droits.some(x=>Boolean(x.data&&!x.error)))return setMsg("Votre profil ne dispose pas du privilège de création de vente.");
     const {data:ph}=await sb.from("pharmacies").select("nom").eq("id",p.pharmacie_id).single(); setPharmacie(ph?.nom??"Pharmacie");
     const {data:cs,error}=await sb.from("caisses").select("id,nom").eq("pharmacie_id",p.pharmacie_id).eq("actif",true).order("created_at",{ascending:true});
     if(error)return setMsg("Impossible de charger les postes de caisse.");
