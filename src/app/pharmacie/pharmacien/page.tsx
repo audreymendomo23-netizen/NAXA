@@ -7,26 +7,27 @@ type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:strin
 
 export default function PharmacienPage(){
   const sb=supabaseBrowser();
-  const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"consultation"|"prescription"|"validation">("consultation");
+  const [pid,setPid]=useState<string|null>(null),[accessType,setAccessType]=useState<"pharmacien"|"pharmacien_assistant"|"promoteur"|null>(null),[tab,setTab]=useState<"consultation"|"prescription"|"validation">("consultation");
   const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]);
   const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({});
   const [consult,setConsult]=useState({patient:"",clientId:"",motif:"",observations:"",conclusion:"",recommandations:""});
   const [presc,setPresc]=useState({patient:"",clientId:"",consultationId:"",designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""});
 
-  async function charger(id:string){
-    const [mine,received]=await Promise.all([
-      sb.rpc("pharmacien_prescriptions_recentes",{p_pharmacie:id,p_limite:30}),
-      sb.from("prescriptions").select("id,document_ref,created_at,motif_rejet,client_id,statut").eq("pharmacie_id",id).eq("source","client").eq("statut","en_attente").order("created_at",{ascending:true})
-    ]);
-    if(mine.error||received.error)return setMsg(mine.error?.message??received.error?.message??"Impossible de charger les ordonnances.");
-    setInternal((mine.data??[]) as Ord[]);setIncoming((received.data??[]) as Ord[]);
+  async function charger(id:string,canCreer:boolean=true){
+    const receivedPromise=sb.from("prescriptions").select("id,document_ref,created_at,motif_rejet,client_id,statut").eq("pharmacie_id",id).eq("source","client").eq("statut","en_attente").order("created_at",{ascending:true});
+    const minePromise=canCreer?sb.rpc("pharmacien_prescriptions_recentes",{p_pharmacie:id,p_limite:30}):Promise.resolve({data:[],error:null});
+    const [mine,received]=await Promise.all([minePromise,receivedPromise]);
+    if((canCreer&&mine.error)||received.error)return setMsg((canCreer?mine.error?.message:null)??received.error?.message??"Impossible de charger les ordonnances.");
+    setInternal((canCreer?(mine.data??[]):[]) as Ord[]);setIncoming((received.data??[]) as Ord[]);
   }
 
   useEffect(()=>{(async()=>{
     const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
-    const {data:p}=await sb.from("profiles").select("fonction_interne,pharmacie_id,actif").eq("id",u.user.id).single();
-    if(!p?.pharmacie_id||p.actif===false||p.fonction_interne!=="pharmacien")return setMsg("Accès Pharmacien non autorisé.");
-    setPid(p.pharmacie_id);charger(p.pharmacie_id);
+    const {data:p}=await sb.from("profiles").select("role,fonction_interne,pharmacie_id,actif").eq("id",u.user.id).single();
+    const type=p?.role==="promoteur"?"promoteur":p?.fonction_interne;
+    if(!p?.pharmacie_id||p.actif===false||!["promoteur","pharmacien","pharmacien_assistant"].includes(type??""))return setMsg("Accès Pharmacien non autorisé.");
+    setPid(p.pharmacie_id);setAccessType(type as "promoteur"|"pharmacien"|"pharmacien_assistant");
+    const canCreer=type==="pharmacien";setTab(canCreer?"consultation":"validation");await charger(p.pharmacie_id,canCreer);
   })()},[sb]);
 
   async function creerConsultation(){
@@ -40,12 +41,12 @@ export default function PharmacienPage(){
     if(!pid)return;setBusy(true);
     const {data,error}=await sb.rpc("pharmacien_creer_prescription",{p_pharmacie:pid,p_patient_nom:presc.patient,p_client_id:presc.clientId.trim()||null,p_consultation_id:presc.consultationId.trim()||null,p_designation:presc.designation,p_quantite:Number(presc.quantite),p_posologie:presc.posologie,p_duree:presc.duree,p_instructions:presc.instructions,p_commentaire:presc.commentaire});
     setBusy(false);if(error)return setMsg(error.message);
-    setMsg("Prescription émise et enregistrée.");setPresc(x=>({...x,designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""}));if(pid)charger(pid);setTab("validation");
+    setMsg("Prescription émise et enregistrée.");setPresc(x=>({...x,designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""}));if(pid)charger(pid,true);setTab("validation");
   }
 
   async function decider(id:string,ok:boolean){
     const {error}=await sb.rpc("prescription_valider",{p_prescription:id,p_accepter:ok,p_motif:motif[id]??null});
-    setMsg(error?error.message:(ok?"Ordonnance validée.":"Ordonnance rejetée."));if(!error&&pid)charger(pid);
+    setMsg(error?error.message:(ok?"Ordonnance validée.":"Ordonnance rejetée."));if(!error&&pid)charger(pid,accessType==="pharmacien");
   }
 
   return <main className="mx-auto max-w-4xl px-4 pb-16">
@@ -53,15 +54,15 @@ export default function PharmacienPage(){
     {msg&&<p role="status" className="my-3 carte">{msg}</p>}
     <section className="carte mb-4">
       <h1 className="text-xl font-extrabold">Consultation, prescription et délivrance</h1>
-      <p className="mt-1 text-sm">Le Pharmacien peut enregistrer une consultation, émettre une prescription et contrôler les ordonnances reçues.</p>
+      <p className="mt-1 text-sm">{accessType==="pharmacien"?"Le Pharmacien peut enregistrer une consultation, émettre une prescription et contrôler les ordonnances reçues.":"Ce compte peut contrôler les ordonnances reçues ; la création de consultations et prescriptions est réservée à la fonction Pharmacien."}</p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className={tab==="consultation"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("consultation")}>Consultation</button>
-        <button className={tab==="prescription"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("prescription")}>Prescription</button>
+        {accessType==="pharmacien"&&<button className={tab==="consultation"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("consultation")}>Consultation</button>}
+        {accessType==="pharmacien"&&<button className={tab==="prescription"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("prescription")}>Prescription</button>}
         <button className={tab==="validation"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("validation")}>Ordonnances ({incoming.length})</button>
       </div>
     </section>
 
-    {tab==="consultation"&&<section className="carte space-y-3">
+    {tab==="consultation"&&accessType==="pharmacien"&&<section className="carte space-y-3">
       <h2 className="text-lg font-bold">Nouvelle consultation pharmaceutique</h2>
       <label className="block text-sm font-semibold">Nom du patient<input className="champ mt-1 w-full" value={consult.patient} onChange={e=>setConsult(x=>({...x,patient:e.target.value}))}/></label>
       <label className="block text-sm font-semibold">ID client NAXA (facultatif)<input className="champ mt-1 w-full" value={consult.clientId} onChange={e=>setConsult(x=>({...x,clientId:e.target.value}))}/></label>
@@ -72,7 +73,7 @@ export default function PharmacienPage(){
       <button disabled={busy} className="btn btn-vert w-full" onClick={creerConsultation}>{busy?"Enregistrement…":"Enregistrer la consultation et passer à la prescription"}</button>
     </section>}
 
-    {tab==="prescription"&&<section className="carte space-y-3">
+    {tab==="prescription"&&accessType==="pharmacien"&&<section className="carte space-y-3">
       <h2 className="text-lg font-bold">Émettre une prescription</h2>
       <label className="block text-sm font-semibold">Nom du patient<input className="champ mt-1 w-full" value={presc.patient} onChange={e=>setPresc(x=>({...x,patient:e.target.value}))}/></label>
       <label className="block text-sm font-semibold">ID client NAXA (facultatif)<input className="champ mt-1 w-full" value={presc.clientId} onChange={e=>setPresc(x=>({...x,clientId:e.target.value}))}/></label>
