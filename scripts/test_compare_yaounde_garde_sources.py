@@ -56,6 +56,16 @@ class CompareYaoundeGardeTests(unittest.TestCase):
             self.assertEqual(result["comparison_status"], "cross_match_name_and_phone")
             self.assertEqual(result["publication_status"], "corroboration_partielle_a_verifier")
 
+    def test_unique_shared_phone_matches_name_variant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fb = self.write_csv(directory, "facebook.csv", [row("Pharmacie Etoile", "699 11 22 33", source="https://facebook.com/post")])
+            mf = self.write_csv(directory, "mfasha.csv", [row("Etoile", "699 11 22 33", source="https://mfasha.com/")])
+            fb_rows, _ = read_snapshot(fb)
+            mf_rows, _ = read_snapshot(mf)
+            result = compare(fb_rows, mf_rows)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]["comparison_status"], "cross_match_name_and_phone")
+
     def test_conflicting_phones_are_not_silently_merged(self):
         with tempfile.TemporaryDirectory() as directory:
             fb = self.write_csv(directory, "facebook.csv", [row("Pharmacie Étoile", "699 11 22 33", source="https://facebook.com/post")])
