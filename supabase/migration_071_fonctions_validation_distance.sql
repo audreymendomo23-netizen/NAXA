@@ -20,31 +20,57 @@ alter table public.naxa_architecture_privileges drop constraint if exists naxa_a
 alter table public.naxa_architecture_privileges add constraint naxa_architecture_privileges_role_key_check
   check (role_key in ('admin','promoteur','responsable','caisse','pharmacien','preparateur','agent_accueil','comptable','gestionnaire_stock','magasinier'));
 
--- Le catalogue 020/020b conserve les colonnes historiques (family/description/governance_only)
--- ET leurs équivalents canoniques (famille/libelle/governance/niveaux/active), tous obligatoires.
--- Les deux familles de colonnes sont renseignées pour éviter SQLSTATE 23502 sur famille.
-insert into public.naxa_privileges(
-  code,family,famille,description,libelle,delegable,governance_only,governance,niveau_min,niveau_max,active
-) values
-('SUBMIT_PHARMACEUTICAL_VALIDATION','PHARMACIE','PHARMACIE','Soumettre un dossier au pharmacien habilité','Soumettre un dossier au pharmacien habilité',true,false,false,1,3,true),
-('VIEW_PHARMACEUTICAL_VALIDATIONS','PHARMACIE','PHARMACIE','Voir les dossiers pharmaceutiques autorisés dans le périmètre','Voir les dossiers pharmaceutiques autorisés dans le périmètre',true,false,false,1,3,true),
-('VALIDATE_PHARMACEUTICAL_DOCUMENT','PHARMACIE','PHARMACIE','Valider ou refuser un dossier pharmaceutique en qualité de pharmacien','Valider ou refuser un dossier pharmaceutique en qualité de pharmacien',false,false,false,1,3,true),
-('REQUEST_PHARMACEUTICAL_INFO','PHARMACIE','PHARMACIE','Demander un complément au dossier pharmaceutique','Demander un complément au dossier pharmaceutique',false,false,false,1,3,true),
-('VIEW_PHARMACEUTICAL_AUDIT','SECURITY','SECURITY','Consulter les décisions pharmaceutiques et leur piste d’audit','Consulter les décisions pharmaceutiques et leur piste d’audit',false,false,false,1,3,true),
-('MANAGE_ACCOUNTING','FINANCE','FINANCE','Gérer les opérations financières autorisées avec audit','Gérer les opérations financières autorisées avec audit',true,false,false,1,3,true),
-('MANAGE_STOCK_OPERATIONS','STOCK','STOCK','Gérer les mouvements et inventaires autorisés','Gérer les mouvements et inventaires autorisés',true,false,false,1,3,true),
-('RECEIVE_STOCK','STOCK','STOCK','Enregistrer une réception physique de stock','Enregistrer une réception physique de stock',true,false,false,1,3,true)
-on conflict (code) do update set
-  family=excluded.family,
-  famille=excluded.famille,
-  description=excluded.description,
-  libelle=excluded.libelle,
-  delegable=excluded.delegable,
-  governance_only=excluded.governance_only,
-  governance=excluded.governance,
-  niveau_min=excluded.niveau_min,
-  niveau_max=excluded.niveau_max,
-  active=excluded.active;
+-- Schéma Production et branches de test ont divergé : certaines bases n'ont
+-- que family/description, d'autres exposent aussi famille/libelle/governance_only.
+-- Écrire uniquement les colonnes existantes, tout en synchronisant les alias présents.
+do $naxa071_privileges$
+declare
+  v_priv record;
+  v_row jsonb;
+  v_cols text;
+  v_select text;
+  v_updates text;
+begin
+  for v_priv in
+    select * from (values
+      ('SUBMIT_PHARMACEUTICAL_VALIDATION','PHARMACIE','Soumettre un dossier au pharmacien habilité',true,false,1,3,true),
+      ('VIEW_PHARMACEUTICAL_VALIDATIONS','PHARMACIE','Voir les dossiers pharmaceutiques autorisés dans le périmètre',true,false,1,3,true),
+      ('VALIDATE_PHARMACEUTICAL_DOCUMENT','PHARMACIE','Valider ou refuser un dossier pharmaceutique en qualité de pharmacien',false,false,1,3,true),
+      ('REQUEST_PHARMACEUTICAL_INFO','PHARMACIE','Demander un complément au dossier pharmaceutique',false,false,1,3,true),
+      ('VIEW_PHARMACEUTICAL_AUDIT','SECURITY','Consulter les décisions pharmaceutiques et leur piste d’audit',false,false,1,3,true),
+      ('MANAGE_ACCOUNTING','FINANCE','Gérer les opérations financières autorisées avec audit',true,false,1,3,true),
+      ('MANAGE_STOCK_OPERATIONS','STOCK','Gérer les mouvements et inventaires autorisés',true,false,1,3,true),
+      ('RECEIVE_STOCK','STOCK','Enregistrer une réception physique de stock',true,false,1,3,true)
+    ) as p(code,family,description,delegable,governance,niveau_min,niveau_max,active)
+  loop
+    v_row := jsonb_build_object(
+      'code',v_priv.code,'family',v_priv.family,'famille',v_priv.family,
+      'description',v_priv.description,'libelle',v_priv.description,
+      'delegable',v_priv.delegable,'governance_only',false,'governance',v_priv.governance,
+      'niveau_min',v_priv.niveau_min,'niveau_max',v_priv.niveau_max,'active',v_priv.active
+    );
+    select string_agg(format('%I',a.attname),', ' order by a.attnum),
+           string_agg(format('r.%I',a.attname),', ' order by a.attnum)
+      into v_cols,v_select
+    from pg_attribute a
+    where a.attrelid='public.naxa_privileges'::regclass
+      and a.attnum > 0 and not a.attisdropped
+      and a.attname in ('code','family','famille','description','libelle','delegable',
+                        'governance_only','governance','niveau_min','niveau_max','active');
+    select string_agg(format('%I = excluded.%I',a.attname,a.attname),', ' order by a.attnum)
+      into v_updates
+    from pg_attribute a
+    where a.attrelid='public.naxa_privileges'::regclass
+      and a.attnum > 0 and not a.attisdropped and a.attname <> 'code'
+      and a.attname in ('family','famille','description','libelle','delegable',
+                        'governance_only','governance','niveau_min','niveau_max','active');
+    execute format(
+      'insert into public.naxa_privileges (%s) select %s from jsonb_populate_record(null::public.naxa_privileges, $1) r on conflict (code) do update set %s',
+      v_cols,v_select,v_updates
+    ) using v_row;
+  end loop;
+end;
+$naxa071_privileges$;
 
 -- Droits atomiques attribués explicitement par fonction.
 insert into public.naxa_role_privileges(role_key,privilege_code) values
