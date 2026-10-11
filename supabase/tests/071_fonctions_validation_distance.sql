@@ -25,6 +25,37 @@ begin
     raise exception 'Contrainte historique contradictoire encore présente';
   end if;
 
+  -- Contrat de compatibilité : les colonnes historiques et canoniques sont toutes remplies.
+  select count(*) into v_count
+  from public.naxa_privileges
+  where code in (
+    'SUBMIT_PHARMACEUTICAL_VALIDATION','VIEW_PHARMACEUTICAL_VALIDATIONS',
+    'VALIDATE_PHARMACEUTICAL_DOCUMENT','REQUEST_PHARMACEUTICAL_INFO',
+    'VIEW_PHARMACEUTICAL_AUDIT','MANAGE_ACCOUNTING',
+    'MANAGE_STOCK_OPERATIONS','RECEIVE_STOCK'
+  );
+  if v_count <> 8 then
+    raise exception 'Catalogue 071 incomplet : % privilèges sur 8',v_count;
+  end if;
+
+  select count(*) into v_count
+  from public.naxa_privileges
+  where code in (
+    'SUBMIT_PHARMACEUTICAL_VALIDATION','VIEW_PHARMACEUTICAL_VALIDATIONS',
+    'VALIDATE_PHARMACEUTICAL_DOCUMENT','REQUEST_PHARMACEUTICAL_INFO',
+    'VIEW_PHARMACEUTICAL_AUDIT','MANAGE_ACCOUNTING',
+    'MANAGE_STOCK_OPERATIONS','RECEIVE_STOCK'
+  )
+  and (
+    family is null or famille is null or family is distinct from famille
+    or description is null or libelle is null or description is distinct from libelle
+    or governance_only is null or governance is null
+    or niveau_min is null or niveau_max is null or active is null
+  );
+  if v_count <> 0 then
+    raise exception 'Colonnes de privilèges 071 désynchronisées ou NULL : % lignes',v_count;
+  end if;
+
   if not (select relrowsecurity from pg_class where oid='public.naxa_validations_pharmaceutiques'::regclass) then
     raise exception 'RLS absente sur les validations pharmaceutiques';
   end if;
