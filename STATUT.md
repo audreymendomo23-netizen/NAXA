@@ -248,6 +248,6 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Permissions UI : les commandes de garde/réservation sont conditionnées par `authorize` dans les scopes `PHARMACIE` et/ou `POSTE_CAISSE`, conformément aux contrôles SQL.
 - Pharmacien : le parcours est différencié pour Pharmacien, Pharmacien assistant et Promoteur ; consultation/émission réservées au Pharmacien, validation accessible aux profils autorisés par la migration 063.
 - SQL additif : `migration_071c_prescription_validation_role_fix.sql` corrige la détection du Promoteur dans `prescription_valider` (l’ancienne fonction pouvait le refuser si `fonction_interne` était NULL) ; test structurel ajouté.
-- Ajouté dans la branche : RPC additive `set_garde_periode`, saisie de période/source dans le panneau pharmacie, test SQL structurel, compteur CI ajusté à 87 migrations/56 tests.
+- Ajouté dans la branche : RPC additive `set_garde_periode`, saisie de période/source dans le panneau pharmacie, test SQL structurel, compteur CI ajusté à 88 migrations/57 tests.
 - CI : aucun résultat final disponible pour le dernier HEAD ; les contrôles de compilation et de rejeu SQL restent à obtenir. État global NON VERT ; les tests comportementaux et la concordance complète des permissions restent à terminer.
 - Rectification : migration 059 dans main possède déjà la numérotation via CTE et le recalage sûr de séquence ; le constat contraire précédent était erroné.
