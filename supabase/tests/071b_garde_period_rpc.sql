@@ -27,8 +27,8 @@ begin
 
   select pg_get_functiondef('public.set_garde_periode(timestamptz,timestamptz,text)'::regprocedure)
     into v_def;
-  if position('can_operate_pharmacy' in v_def)=0 then
-    raise exception 'La RPC ne vérifie pas le périmètre opérateur';
+  if position('MANAGE_GUARD_STATUS' in v_def)=0 or position('authorize' in v_def)=0 then
+    raise exception 'La RPC ne vérifie pas le privilège canonique de gestion de garde';
   end if;
   if position('garde_source_url' in v_def)=0 or position('garde_verifiee_le' in v_def)=0 then
     raise exception 'La RPC ne persiste pas la source et la vérification';
