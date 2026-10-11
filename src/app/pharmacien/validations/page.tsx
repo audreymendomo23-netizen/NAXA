@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Notification = { id: string; validation_id: string; type: "nouveau_dossier" | "decision" | "complement"; message: string; cree_le: string; lu_le: string | null; };
@@ -36,7 +36,7 @@ const STATUTS: Record<Dossier["statut"], string> = {
 };
 
 export default function ValidationsPharmaceutiquesPage() {
-  const sb = supabaseBrowser();
+  const sb = useMemo(() => supabaseBrowser(), []);
   const [userId, setUserId] = useState("");
   const [pharmacieId, setPharmacieId] = useState("");
   const [fonction, setFonction] = useState("");
