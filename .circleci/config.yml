@@ -20,6 +20,9 @@ jobs:
           name: Tests trajet et taxi
           command: npm run test:travel-taxi
       - run:
+          name: Tests géolocalisation des pharmacies
+          command: npm run test:geolocalisation
+      - run:
           name: ESLint
           command: npm run lint
       - run:
@@ -180,8 +183,8 @@ jobs:
             shopt -s nullglob
             mapfile -d '' migration_files < <(find supabase -maxdepth 1 -type f -name 'migration_*.sql' -print0 | LC_ALL=C sort -z)
             printf 'Nombre de migrations sources: %s\n' "${#migration_files[@]}"
-            if [[ "${#migration_files[@]}" -ne 84 ]]; then
-              echo "FAIL: attendu 84 migrations sources, trouvé ${#migration_files[@]}"
+            if [[ "${#migration_files[@]}" -ne 85 ]]; then
+              echo "FAIL: attendu 85 migrations sources, trouvé ${#migration_files[@]}"
               exit 1
             fi
             n=1
