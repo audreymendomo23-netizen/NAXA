@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const cookieName = `naxa_signup_otp_${createHash("sha256").update(email).digest("hex").slice(0, 20)}`;
-    if (mode === "resend" && request.cookies.get(cookieName)?.value === "1") {
+    if (request.cookies.get(cookieName)?.value === "1") {
       return NextResponse.json({
         ok: false,
         error: "Attendez la fin des 40 secondes avant de demander un nouveau code.",
