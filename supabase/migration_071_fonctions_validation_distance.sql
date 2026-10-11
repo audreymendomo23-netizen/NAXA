@@ -20,16 +20,31 @@ alter table public.naxa_architecture_privileges drop constraint if exists naxa_a
 alter table public.naxa_architecture_privileges add constraint naxa_architecture_privileges_role_key_check
   check (role_key in ('admin','promoteur','responsable','caisse','pharmacien','preparateur','agent_accueil','comptable','gestionnaire_stock','magasinier'));
 
-insert into public.naxa_privileges(code,family,description,delegable,governance_only) values
-('SUBMIT_PHARMACEUTICAL_VALIDATION','PHARMACIE','Soumettre un dossier au pharmacien habilité',true,false),
-('VIEW_PHARMACEUTICAL_VALIDATIONS','PHARMACIE','Voir les dossiers pharmaceutiques autorisés dans le périmètre',true,false),
-('VALIDATE_PHARMACEUTICAL_DOCUMENT','PHARMACIE','Valider ou refuser un dossier pharmaceutique en qualité de pharmacien',false,false),
-('REQUEST_PHARMACEUTICAL_INFO','PHARMACIE','Demander un complément au dossier pharmaceutique',false,false),
-('VIEW_PHARMACEUTICAL_AUDIT','SECURITY','Consulter les décisions pharmaceutiques et leur piste d’audit',false,false),
-('MANAGE_ACCOUNTING','FINANCE','Gérer les opérations financières autorisées avec audit',true,false),
-('MANAGE_STOCK_OPERATIONS','STOCK','Gérer les mouvements et inventaires autorisés',true,false),
-('RECEIVE_STOCK','STOCK','Enregistrer une réception physique de stock',true,false)
-on conflict (code) do update set family=excluded.family,description=excluded.description,delegable=excluded.delegable,governance_only=excluded.governance_only;
+-- Le catalogue 020/020b conserve les colonnes historiques (family/description/governance_only)
+-- ET leurs équivalents canoniques (famille/libelle/governance/niveaux/active), tous obligatoires.
+-- Les deux familles de colonnes sont renseignées pour éviter SQLSTATE 23502 sur famille.
+insert into public.naxa_privileges(
+  code,family,famille,description,libelle,delegable,governance_only,governance,niveau_min,niveau_max,active
+) values
+('SUBMIT_PHARMACEUTICAL_VALIDATION','PHARMACIE','PHARMACIE','Soumettre un dossier au pharmacien habilité','Soumettre un dossier au pharmacien habilité',true,false,false,1,3,true),
+('VIEW_PHARMACEUTICAL_VALIDATIONS','PHARMACIE','PHARMACIE','Voir les dossiers pharmaceutiques autorisés dans le périmètre','Voir les dossiers pharmaceutiques autorisés dans le périmètre',true,false,false,1,3,true),
+('VALIDATE_PHARMACEUTICAL_DOCUMENT','PHARMACIE','PHARMACIE','Valider ou refuser un dossier pharmaceutique en qualité de pharmacien','Valider ou refuser un dossier pharmaceutique en qualité de pharmacien',false,false,false,1,3,true),
+('REQUEST_PHARMACEUTICAL_INFO','PHARMACIE','PHARMACIE','Demander un complément au dossier pharmaceutique','Demander un complément au dossier pharmaceutique',false,false,false,1,3,true),
+('VIEW_PHARMACEUTICAL_AUDIT','SECURITY','SECURITY','Consulter les décisions pharmaceutiques et leur piste d’audit','Consulter les décisions pharmaceutiques et leur piste d’audit',false,false,false,1,3,true),
+('MANAGE_ACCOUNTING','FINANCE','FINANCE','Gérer les opérations financières autorisées avec audit','Gérer les opérations financières autorisées avec audit',true,false,false,1,3,true),
+('MANAGE_STOCK_OPERATIONS','STOCK','STOCK','Gérer les mouvements et inventaires autorisés','Gérer les mouvements et inventaires autorisés',true,false,false,1,3,true),
+('RECEIVE_STOCK','STOCK','STOCK','Enregistrer une réception physique de stock','Enregistrer une réception physique de stock',true,false,false,1,3,true)
+on conflict (code) do update set
+  family=excluded.family,
+  famille=excluded.famille,
+  description=excluded.description,
+  libelle=excluded.libelle,
+  delegable=excluded.delegable,
+  governance_only=excluded.governance_only,
+  governance=excluded.governance,
+  niveau_min=excluded.niveau_min,
+  niveau_max=excluded.niveau_max,
+  active=excluded.active;
 
 -- Droits atomiques attribués explicitement par fonction.
 insert into public.naxa_role_privileges(role_key,privilege_code) values
