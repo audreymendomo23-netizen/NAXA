@@ -161,3 +161,46 @@ Une branche isolée `integration/naxa-360-20261009` rassemble les versions candi
 - **État CI du HEAD `07562da8b6b375297be0b319d5b1bf975dbb23d3`** : aucun statut GitHub ni workflow run retourné. La CI reste sans preuve d'exécution concluante. La branche est en avance sur `main`, sans retard; `main` n'a pas été modifiée.
 
 **Décision : ROUGE / NO-GO MAIN maintenu.** Les corrections de causes racines et plusieurs tests ciblés sont positifs, mais le rejeu exact sur base propre et la réussite de toute la suite SQL/qualité restent obligatoires. Aucun changement Supabase Production, aucune fusion et aucun déploiement.
+
+## Chantier isolé — estimation taxi à Yaoundé (branche `feat/yaounde-taxi-estimate`)
+
+- Ajout de `src/lib/taxi.ts` : estimation en FCFA à partir de la distance routière calculée par le module de trajet existant.
+- La page `/resultats` affiche une fourchette de prix indicative et précise que le barème reste provisoire, non validé sur le terrain.
+- Aucun changement de schéma, aucune migration SQL, aucune clé/API payante, aucune écriture Supabase Production.
+- Limite connue : le facteur de circulation existant est une estimation par horaires, pas une mesure du trafic en temps réel. Le coût taxi n'est pas un tarif officiel et doit être calibré à partir de courses réelles à Yaoundé.
+- Validation encore requise : installation/build/lint et tests manuels sur mobile avec plusieurs distances, absence GPS et itinéraire OSRM indisponible. Ne pas fusionner ni déployer en Production avant validation explicite.
+
+
+## Chantier isolé — photos de pharmacies et périodes de garde à Yaoundé
+
+- Ajout d'une migration additive `supabase/migration_070_pharmacie_photos_garde.sql` : chemin de photo locale, source et licence, date de vérification, début/fin de garde et source/date de vérification de la garde.
+- Les RPC `search_pharmacies` et `search_pharmacies_panier` ne sont pas modifiées : les métadonnées sont chargées par une requête complémentaire, afin de ne pas casser leurs signatures de retour.
+- Les résultats utilisent `public/pharmacies/placeholder.svg` si aucune photo locale valide n'est enregistrée ou si l'image échoue à charger. Le chemin est limité à `/pharmacies/nom-de-fichier`; les URL externes ne sont pas utilisées comme images de fiche.
+- Une garde datée n'est annoncée comme confirmée que pendant l'intervalle `garde_debut <= maintenant < garde_fin`. L'ancien booléen `de_garde`, sans période datée, est présenté comme « Garde signalée · période à confirmer ».
+- Le test SQL `supabase/tests/070_pharmacy_photos_duty_period.sql` vérifie les huit colonnes et la contrainte de cohérence de période. Le préflight CircleCI est ajusté à 84 migrations et 54 tests.
+- Aucune photo réelle n'a encore été importée : la licence et l'association de chaque image doivent être vérifiées avant d'ajouter des fichiers dans `public/pharmacies/` et de renseigner `photo_path`.
+- La migration et le test n'ont pas été exécutés contre Supabase Production. Build, lint et CI du nouveau HEAD doivent être vérifiés avant tout feu vert. Aucune fusion, aucun déploiement et aucune écriture Production.
+
+
+## Données de garde — Yaoundé (11 octobre 2026)
+
+- Jeu de collecte daté : `docs/yaounde-garde/2026-10-10_2026-10-12.csv` (19 lignes publiées par Mfasha pour le 10 octobre 08:00 au 12 octobre 08:00, heure du Cameroun).
+- Méthode, sources et divergences : `docs/yaounde-garde/README.md`.
+- Contrôle structurel reproductible : `python scripts/validate_yaounde_garde.py`.
+- **Ces données sont non confirmées pour publication client** : les sources secondaires disponibles concernent principalement d'autres dates. Elles servent à la vérification seulement; aucun import DB n'a été fait.
+
+
+## Géolocalisation des pharmacies — pilote Yaoundé
+
+Le référentiel initial est décrit dans [docs/STATUT-GEOLOCALISATION-PHARMACIES.md](docs/STATUT-GEOLOCALISATION-PHARMACIES.md). La migration candidate `supabase/migration_071_geolocalisation_pharmacies_yaounde.sql` stocke les coordonnées sourcées dans un référentiel distinct et ne crée aucune pharmacie partenaire. Seules les correspondances exactes avec des pharmacies déjà présentes peuvent recevoir ces coordonnées, avec le statut explicite `source_publique_a_confirmer`. Les positions publiées ne sont pas certifiées sur le terrain. Le contrôle statique se lance avec `npm run test:geolocalisation`. Aucun changement Production ni fusion dans `main` n'est autorisé par ce chantier.
+
+
+## Prototype de recherche catalogue médicaments — 11 octobre 2026
+
+La branche feat/catalogue-medicaments-api-prototype ajoute une recherche de catalogue informative en direct via RxNorm, OpenFDA et DailyMed. Le pilote contient dix termes de recherche : paracétamol, amoxicilline, artéméther/luméfantrine, ibuprofène, métronidazole, cétirizine, oméprazole, ciprofloxacine, diclofénac et azithromycine. Cette liste sert à tester les correspondances; ce n'est pas un classement des ventes au Cameroun.
+
+Les cartes affichent nom, marque si disponible, substance active, forme, définition et indications générales uniquement si les sources les renvoient. Aucun dosage n'est rendu dans les résultats, la fiche produit ou le panier. Les photos ne sont montrées que si DailyMed fournit une image d'un document correspondant à la recherche; sinon un visuel neutre signale l'absence de photo. Une image DailyMed peut représenter un produit américain, pas le conditionnement vendu au Cameroun.
+
+Le bouton de chaque résultat ouvre la recherche de stock existante. Disponibilité, prix et réservation restent exclusivement issus des données des pharmacies partenaires NAXA. Aucun stock n'est inféré des API externes. Les appels externes sont limités par délai et les réponses sont mises en cache une heure.
+
+Contrôle source : npm run test:catalogue-medicaments. Le test source et la compilation CI ne prouvent pas encore que les API répondent en production ni que les dix recherches renvoient toutes une photo. Aucune migration, écriture Supabase, modification de main ou déploiement Production n'est réalisée par ce prototype.

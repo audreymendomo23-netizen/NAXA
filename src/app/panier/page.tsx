@@ -40,7 +40,7 @@ export default function Panier() {
             {lignes.map((l) => (
               <li key={l.produit_id} className="carte">
                 <Link href={`/produit/${l.produit_id}`} className="font-bold underline">
-                  {l.nom} {l.dosage}
+                  {l.nom}
                 </Link>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex gap-2">

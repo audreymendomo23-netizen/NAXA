@@ -192,3 +192,49 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **État CI du HEAD `07562da8b6b375297be0b319d5b1bf975dbb23d3`** : aucun statut GitHub ni workflow run retourné. La CI reste sans preuve d'exécution concluante. La branche est en avance sur `main`, sans retard; `main` n'a pas été modifiée.
 
 **Décision : ROUGE / NO-GO MAIN maintenu.** Les corrections de causes racines et plusieurs tests ciblés sont positifs, mais le rejeu exact sur base propre et la réussite de toute la suite SQL/qualité restent obligatoires. Aucun changement Supabase Production, aucune fusion et aucun déploiement.
+
+
+## Chantier isolé — photos de pharmacies et périodes de garde à Yaoundé
+
+- Ajout d'une migration additive `supabase/migration_070_pharmacie_photos_garde.sql` : chemin de photo locale, source et licence, date de vérification, début/fin de garde et source/date de vérification de la garde.
+- Les RPC `search_pharmacies` et `search_pharmacies_panier` ne sont pas modifiées : les métadonnées sont chargées par une requête complémentaire, afin de ne pas casser leurs signatures de retour.
+- Les résultats utilisent `public/pharmacies/placeholder.svg` si aucune photo locale valide n'est enregistrée ou si l'image échoue à charger. Le chemin est limité à `/pharmacies/nom-de-fichier`; les URL externes ne sont pas utilisées comme images de fiche.
+- Une garde datée n'est annoncée comme confirmée que pendant l'intervalle `garde_debut <= maintenant < garde_fin`. L'ancien booléen `de_garde`, sans période datée, est présenté comme « Garde signalée · période à confirmer ».
+- Le test SQL `supabase/tests/070_pharmacy_photos_duty_period.sql` vérifie les huit colonnes et la contrainte de cohérence de période. Le préflight CircleCI est ajusté à 84 migrations et 54 tests.
+- Aucune photo réelle n'a encore été importée : la licence et l'association de chaque image doivent être vérifiées avant d'ajouter des fichiers dans `public/pharmacies/` et de renseigner `photo_path`.
+- La migration et le test n'ont pas été exécutés contre Supabase Production. Build, lint et CI du nouveau HEAD doivent être vérifiés avant tout feu vert. Aucune fusion, aucun déploiement et aucune écriture Production.
+
+**Statut : EN COURS — non certifié vert.**
+
+
+## Garde pharmacies — Yaoundé — 11 octobre 2026
+
+- Ajout de `docs/yaounde-garde/2026-10-10_2026-10-12.csv` : 19 entrées collectées depuis Mfasha, période déclarée du 10/10/2026 08:00 au 12/10/2026 08:00 (UTC+01:00).
+- Ajout de `docs/yaounde-garde/README.md` : traçabilité des sources, statut de corroboration et critères d'intégration.
+- Ajout de `scripts/validate_yaounde_garde.py` : contrôle du nombre de lignes, doublons, téléphones, dates timezone-aware et statut conservateur.
+- Contrôle préliminaire après correction du format CSV : PASS (19 lignes lues; 19 noms uniques; 0 anomalie(s)). Les vérifications ont été exécutées sur le contenu récupéré du dépôt via le connecteur, pas dans un runner Python local/CI.
+- FindGlocal/MboaPHARMA permettent seulement un recoupement partiel des identités/coordonnées; ils ne confirment pas indépendamment la période exacte de garde. La pharmacie Nsimeyong conserve une divergence sur le numéro principal.
+- **Statut global : EN COURS / NO-GO IMPORT CLIENT.** Aucun test SQL ni import sur base isolée propre n'a été exécuté; aucune écriture Supabase Production, aucun déploiement, aucune modification de `main`.
+
+
+### Contrôle SQL en lecture seule — 11 octobre 2026
+
+- Requête exécutée sur le projet de diagnostic isolé `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) : CTE temporaire en mémoire de requête, aucune insertion ni modification persistante.
+- Résultat PostgreSQL : `total_rows=19`, `distinct_names=19`, `all_periods_valid=true`, début `2026-10-10 07:00:00+00`, fin `2026-10-12 07:00:00+00` (équivalent à 08:00–08:00 heure du Cameroun, UTC+01:00).
+- Ce contrôle prouve la cohérence des 19 noms et intervalles dans PostgreSQL; il **ne prouve pas** l'application de la migration 070, le mapping vers les identifiants `pharmacies.id`, ni le comportement d'une base propre.
+- Les statuts CI GitHub du commit documentaire contrôlé étaient vides. Aucune preuve CI verte.
+- **Toujours NO-GO import client** : aucune écriture DB, aucune migration appliquée, aucune modification Production, aucune fusion ni déploiement.
+
+
+## Prototype catalogue médicaments — 11 octobre 2026
+
+- Branche isolée : feat/catalogue-medicaments-api-prototype, créée depuis feat/yaounde-pharmacy-geolocation au commit 7db7bd52d38e70d6b53c5a6690b663e2445caab3.
+- Ajout d'un endpoint serveur de recherche qui interroge RxNorm, OpenFDA et DailyMed; aucune dépendance payante ajoutée. RxImage n'est pas utilisé car son API a été arrêtée.
+- Ajout de dix termes pilotes pour vérifier les correspondances, pas pour prétendre qu'il s'agit des dix médicaments les plus vendus au Cameroun.
+- La recherche de la page d'accueil affiche les résultats au fur et à mesure de la saisie : nom, marque, substance active, forme, définition/indications si fournies, source et photo si une image pertinente est disponible. Sinon, une illustration neutre est utilisée.
+- Les photos DailyMed sont identifiées comme issues de l'étiquetage américain et ne sont pas présentées comme des boîtes locales camerounaises.
+- Aucun dosage n'est rendu dans les cartes de recherche, la liste de stocks, la fiche produit ou le panier. Les données de dosage ne font pas partie du contrat de réponse de l'API catalogue.
+- Le bouton de résultat utilise la recherche de stock existante. Disponibilité/prix/réservation restent issus des stocks réels des partenaires NAXA; le catalogue externe n'est jamais une source de stock.
+- Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
+- Aucun changement de schéma SQL, aucune écriture Supabase, aucun changement de main, aucune fusion ni aucun déploiement Production.
+- État : EN COURS — prototype implémenté sur branche isolée; CI et tests d'intégration à confirmer.

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title desc">
+  <title id="title">Photo de pharmacie indisponible</title>
+  <desc id="desc">Visuel de remplacement NAXA, en attendant une photo vérifiée de cette pharmacie.</desc>
+  <rect width="640" height="360" rx="24" fill="#e8f2ed"/>
+  <rect x="205" y="66" width="230" height="230" rx="22" fill="#ffffff" stroke="#176b4d" stroke-width="8"/>
+  <path d="M320 111v140M250 181h140" stroke="#176b4d" stroke-width="30" stroke-linecap="round"/>
+  <text x="320" y="335" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#164b38">Photo à confirmer</text>
+</svg>
