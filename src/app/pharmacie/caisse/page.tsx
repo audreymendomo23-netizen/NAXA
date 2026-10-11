@@ -13,6 +13,9 @@ export default function CaissePage(){
   const [onglet,setOnglet]=useState<"caisse"|"recherche">("caisse"),[scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[bulk,setBulk]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
   const [percu,setPercu]=useState(""),[mode,setMode]=useState<"especes"|"orange_money"|"mtn_momo">("especes"),[reference,setReference]=useState(""),[msg,setMsg]=useState(""),[busy,setBusy]=useState(false);
   const [pharmacie,setPharmacie]=useState("");
+  type TicketRow={vente_id:string;numero_vente:string;pharmacie_id:string;client_id:string|null;statut:string;created_at:string;paid_at:string|null;total_brut:number;remise:number;total_net:number;mode_paiement:string|null;paiement_ref:string|null;produit_id:string|null;produit_nom:string|null;produit_dosage:string|null;quantite:number|null;prix_unitaire:number|null;total_ligne:number|null};
+  const [ticketRows,setTicketRows]=useState<TicketRow[]>([]);
+  const [printPending,setPrintPending]=useState(false);
 
   useEffect(()=>{(async()=>{
     const {data:u}=await sb.auth.getUser(); if(!u.user)return setMsg("Connexion requise.");
@@ -27,6 +30,8 @@ export default function CaissePage(){
     setSession(s.id);
     const v=await sb.rpc("vente_creer",{p_session:s.id}); if(v.error)return setMsg(v.error.message); setVente(v.data);
   })()},[sb]);
+
+  useEffect(()=>{if(!printPending||ticketRows.length===0)return;window.print();setPrintPending(false);setTicketRows([]);(async()=>{if(!session)return;const v=await sb.rpc("vente_creer",{p_session:session});if(v.error)setMsg("Ticket imprimé, mais impossible d'ouvrir la vente suivante : "+v.error.message);else setVente(v.data)})()},[printPending,ticketRows,session,sb]);
 
   const total=useMemo(()=>lignes.reduce((n,l)=>n+l.prix*l.q,0),[lignes]);
   const rendu=Math.max(Number(percu||0)-total,0);
@@ -58,20 +63,49 @@ export default function CaissePage(){
     const montant=Number(percu); if(!Number.isFinite(montant)||montant<=0)return setMsg("Indiquez le montant perçu.");
     if(mode!=="especes"&&montant!==total)return setMsg("Le paiement électronique doit être validé pour le montant exact.");
     if(mode==="especes"&&montant<total)return setMsg("Montant perçu insuffisant.");
+    if(mode!=="especes"&&!reference.trim())return setMsg("La référence opérateur est obligatoire.");
     setBusy(true);
     try{
       const p=await sb.rpc("vente_encaisser",{p_vente:vente,p_mode:mode,p_montant_percu:montant,p_reference:mode!=="especes"?reference:null});
       if(p.error)throw p.error;
       const f=await sb.rpc("vente_finaliser",{p_vente:vente}); if(f.error)throw f.error;
       const t=await sb.rpc("vente_ticket",{p_vente:vente}); if(t.error)throw t.error;
-      setMsg("Paiement validé. Monnaie rendue : "+fcfa(p.data?.[0]?.monnaie_rendue??0)+". Impression du ticket…");
-      window.print();
-      setLignes([]);setPercu("");setReference("");
-      const v=await sb.rpc("vente_creer",{p_session:session}); if(!v.error)setVente(v.data);
+      if(!Array.isArray(t.data)||t.data.length===0)throw new Error("Vente payée, mais aucun ticket n'a été retourné.");
+      setTicketRows(t.data as TicketRow[]);
+      setMsg("Paiement validé. Monnaie rendue : "+fcfa(p.data?.[0]?.monnaie_rendue??0)+". Préparation du ticket…");
+      setLignes([]);setPercu("");setReference("");setPrintPending(true);
     }catch(e:any){setMsg(e?.message??"Paiement impossible.")}finally{setBusy(false)}
   }
 
+  const ticket=ticketRows[0];
   return <main className="mx-auto max-w-5xl px-4 pb-16">
+    <style jsx global>{`
+      @media print {
+        body * { visibility: hidden !important; }
+        #naxa-ticket-print, #naxa-ticket-print * { visibility: visible !important; }
+        #naxa-ticket-print { position: absolute; left: 0; top: 0; width: 72mm; margin: 0; padding: 4mm; color: #000; background: #fff; font: 10pt monospace; }
+      }
+    `}</style>
+    {ticket&&<section id="naxa-ticket-print" className="hidden print:block">
+      <h1 className="text-center text-base font-bold">{pharmacie}</h1>
+      <p className="text-center">Ticket de vente</p>
+      <hr className="my-2 border-dashed border-black"/>
+      <p>N° : {ticket.numero_vente}</p>
+      <p>Date : {new Date(ticket.paid_at??ticket.created_at).toLocaleString("fr-FR")}</p>
+      <p>Statut : {ticket.statut}</p>
+      <hr className="my-2 border-dashed border-black"/>
+      {ticketRows.map((row,index)=><div key={row.produit_id??index} className="mb-2">
+        <p>{row.produit_nom??"Produit"} {row.produit_dosage??""}</p>
+        <p>{row.quantite??0} × {fcfa(row.prix_unitaire??0)} <span className="float-right">{fcfa(row.total_ligne??0)}</span></p>
+      </div>)}
+      <hr className="my-2 border-dashed border-black"/>
+      <p>Total brut : {fcfa(ticket.total_brut)}</p>
+      <p>Remise : {fcfa(ticket.remise)}</p>
+      <p className="font-bold">TOTAL PAYÉ : {fcfa(ticket.total_net)}</p>
+      <p>Mode : {ticket.mode_paiement??"—"}</p>
+      {ticket.paiement_ref&&<p>Référence : {ticket.paiement_ref}</p>}
+      <p className="mt-3 text-center">Merci de votre confiance.</p>
+    </section>}
     <header className="-mx-4 mb-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Caisse · {pharmacie}</b></header>
     <div className="mb-4 flex gap-2"><button className={onglet==="caisse"?"btn btn-vert":"btn btn-clair"} onClick={()=>setOnglet("caisse")}>Encaissement</button><button className={onglet==="recherche"?"btn btn-vert":"btn btn-clair"} onClick={()=>setOnglet("recherche")}>Recherche prix</button></div><div className="grid gap-4 lg:grid-cols-3">
       <section className="carte lg:col-span-2">
