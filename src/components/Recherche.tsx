@@ -14,6 +14,7 @@ const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 
 export function Recherche({ langue }: { langue: "fr" | "en" }) {
   const router = useRouter();
+  const t = textes[langue];
   const [q, setQ] = useState("");
   const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
   const [lecture, setLecture] = useState<LectureOrdonnance | null>(null);
