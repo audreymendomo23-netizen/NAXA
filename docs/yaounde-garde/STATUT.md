@@ -13,8 +13,8 @@ Périmètre : comparer les captures Facebook « Pharmacies de Garde (Yaoundé) �
 
 ## Modifications sur cette branche isolée
 
-- `scripts/compare_yaounde_garde_sources.py` : comparaison CSV conservatrice, validation des colonnes, dates avec fuseau, période unique par capture, noms normalisés, comparaison des numéros et localisations, conservation des deux provenances.
-- `scripts/test_compare_yaounde_garde_sources.py` : tests unitaires de concordance partielle, conflit de téléphone, source unique et dates sans fuseau.
+- `scripts/compare_yaounde_garde_sources.py` : comparaison CSV conservatrice, validation des colonnes, dates avec fuseau, période unique par capture, correspondance par nom normalisé puis par numéro commun unique, comparaison des localisations et conservation des deux provenances.
+- `scripts/test_compare_yaounde_garde_sources.py` : tests unitaires pour la concordance partielle, les variantes de nom, les conflits de téléphone, les périodes différentes, la source unique et les dates sans fuseau.
 - `.circleci/config.yml` : ajout d'une étape exécutant les tests unitaires dans le job `sql_tests`.
 - `docs/yaounde-garde/README.md` : règles d'utilisation et limites documentées.
 
