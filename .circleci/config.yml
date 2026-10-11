@@ -17,6 +17,9 @@ jobs:
           name: TypeScript
           command: npx tsc --noEmit
       - run:
+          name: Tests trajet et taxi
+          command: npm run test:travel-taxi
+      - run:
           name: ESLint
           command: npm run lint
       - run:
