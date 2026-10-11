@@ -161,3 +161,11 @@ Une branche isolée `integration/naxa-360-20261009` rassemble les versions candi
 - **État CI du HEAD `07562da8b6b375297be0b319d5b1bf975dbb23d3`** : aucun statut GitHub ni workflow run retourné. La CI reste sans preuve d'exécution concluante. La branche est en avance sur `main`, sans retard; `main` n'a pas été modifiée.
 
 **Décision : ROUGE / NO-GO MAIN maintenu.** Les corrections de causes racines et plusieurs tests ciblés sont positifs, mais le rejeu exact sur base propre et la réussite de toute la suite SQL/qualité restent obligatoires. Aucun changement Supabase Production, aucune fusion et aucun déploiement.
+
+## Chantier isolé — estimation taxi à Yaoundé (branche `feat/yaounde-taxi-estimate`)
+
+- Ajout de `src/lib/taxi.ts` : estimation en FCFA à partir de la distance routière calculée par le module de trajet existant.
+- La page `/resultats` affiche une fourchette de prix indicative et précise que le barème reste provisoire, non validé sur le terrain.
+- Aucun changement de schéma, aucune migration SQL, aucune clé/API payante, aucune écriture Supabase Production.
+- Limite connue : le facteur de circulation existant est une estimation par horaires, pas une mesure du trafic en temps réel. Le coût taxi n'est pas un tarif officiel et doit être calibré à partir de courses réelles à Yaoundé.
+- Validation encore requise : installation/build/lint et tests manuels sur mobile avec plusieurs distances, absence GPS et itinéraire OSRM indisponible. Ne pas fusionner ni déployer en Production avant validation explicite.
