@@ -1,7 +1,7 @@
 -- NAXA 072 — contrat structurel des fonctions métier et validations à distance.
 begin;
 
-do $naxa071$
+do $naxa072$
 declare
   v_count integer;
   v_def text;
@@ -35,7 +35,7 @@ begin
     'MANAGE_STOCK_OPERATIONS','RECEIVE_STOCK'
   );
   if v_count <> 8 then
-    raise exception 'Catalogue 071 incomplet : % privilèges sur 8',v_count;
+    raise exception 'Catalogue 072 incomplet : % privilèges sur 8',v_count;
   end if;
 
   -- Schéma Production et schéma de test peuvent différer. Contrôler les colonnes
@@ -56,7 +56,7 @@ begin
     or (to_jsonb(p) ? 'governance_only' and (to_jsonb(p)->>'governance_only') is null)
   );
   if v_count <> 0 then
-    raise exception 'Colonnes de privilèges 071 NULL ou alias désynchronisés : % lignes',v_count;
+    raise exception 'Colonnes de privilèges 072 NULL ou alias désynchronisés : % lignes',v_count;
   end if;
 
   if not (select relrowsecurity from pg_class where oid='public.naxa_validations_pharmaceutiques'::regclass) then
@@ -120,7 +120,7 @@ begin
     raise exception 'Les utilisateurs authentifiés ne doivent pas modifier directement les validations';
   end if;
 end;
-$naxa071$;
+$naxa072$;
 
 select true as naxa_072_fonctions_validation_distance_pass;
 rollback;
