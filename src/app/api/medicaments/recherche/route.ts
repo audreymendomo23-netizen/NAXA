@@ -174,18 +174,19 @@ export async function GET(request: NextRequest) {
   const candidates = [...uniqueCandidates.values()].slice(0, 10);
   const results = candidates.map((candidate, index) => {
     const raw = candidate.rawName;
-    const localizedGeneric = Boolean(pilot && normaliserTerme(raw).includes(normaliserTerme(pilot.alias[0])));
+    const localizedGeneric = Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
     const formInName = formFromText(raw);
     const name = localizedGeneric ? pilot!.nomFr + (formInName ? " — " + formInName.toLowerCase() : "") : raw;
-    const brand = fdaField(preferredFda, "brand_name")[0] ?? null;
+    const candidateNorm = normaliserTerme(raw);
+    const brand = fdaField(preferredFda, "brand_name").find((value) => candidateNorm.includes(normaliserTerme(value))) ?? null;
     const activeIngredient = pilot?.substanceFr ?? cleanName(genericName) ?? null;
     const formValue = form || formInName || null;
     const title = typeof matchedDaily?.title === "string" ? matchedDaily.title : "";
     const titleNormalized = normaliserTerme(title);
-    const imageMatches = Boolean(imageUrl && (
+    const imageMatches = Boolean(imageUrl && (candidate.tty === "IN" || candidate.tty === "PIN") && (
       titleNormalized.includes(normaliserTerme(genericName)) ||
       titleNormalized.includes(normaliserTerme(query)) ||
-      (pilot && titleNormalized.includes(normaliserTerme(pilot.alias[0])))
+      (pilot && pilot.alias.some((alias) => titleNormalized.includes(normaliserTerme(alias))))
     ));
     return {
       id: candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
