@@ -39,3 +39,17 @@
 - Rejeu SQL : NON exécuté; aucune base propre de test identifiée et prouvée pour ce jeu de données dans cette étape.
 - Production : aucune écriture, aucune migration appliquée, aucun déploiement.
 - Décision : **NO-GO pour l'import client**, jeu de données utilisable pour le travail de vérification uniquement.
+
+## Croisement Facebook + Mfasha — spécification et contrôle
+
+- Sources retenues : la page Facebook « Pharmacies de Garde (Yaoundé) » et Mfasha.
+- Chaque source doit être capturée séparément pour la **même période exacte** avant comparaison. Le collecteur refuse de fusionner des périodes différentes.
+- Script candidat : `python scripts/compare_yaounde_garde_sources.py --facebook <snapshot.csv> --mfasha <snapshot.csv> --output <comparaison.csv>`.
+- Format d'entrée : les colonnes normalisées du jeu de données ci-dessus; `primary_source` doit contenir l'URL de la source principale de chaque capture.
+- Le script conserve les deux versions de nom, localisation, téléphones et URL source. Il fusionne les champs uniquement lorsqu'il n'existe pas de contradiction détectée.
+- Une concordance de nom et téléphone reste une corroboration partielle; elle n'établit pas à elle seule que la pharmacie assure effectivement la garde.
+- Les enregistrements présents dans une seule source, les numéros divergents et les localisations contradictoires restent non confirmés et ne doivent pas être publiés comme garde vérifiée.
+- Tests unitaires candidats : `python -m unittest scripts.test_compare_yaounde_garde_sources`.
+- Limite actuelle : l'accès automatisé à Facebook n'est pas prouvé. Le script compare des captures CSV préparées; il ne collecte pas lui-même les pages Web et ne garantit pas une actualisation toutes les 30 minutes.
+- Statut : code candidat sur la branche isolée `feat/yaounde-garde-crosscheck`; tests et CI doivent encore être exécutés. Aucun import Supabase, aucune fusion vers `main`, aucun déploiement Production.
+
