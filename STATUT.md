@@ -244,7 +244,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 
 - Branche de travail isolée : `fix/parcours-rpc-permissions-align-20261011` ; base main SHA `d9ce9e3af6f3818f4e059542cbc429dfe2df6b02`.
 - Récupération des comportements de référence depuis les PR historiques #39 et #47 ; pas de remplacement global du code et aucune migration existante modifiée.
-- Corrigé dans la branche : ticket imprimable alimenté par `vente_ticket` et validation UI de la référence opérateur.
-- Ajouté dans la branche : RPC additive `set_garde_periode`, saisie de période/source dans le panneau pharmacie, test SQL structurel, compteur CI ajusté à 86 migrations/55 tests.
-- CI quality : pending au commit `3f0b9380092b3dad73982aa757607197b0d830eb`. État global NON VERT ; les tests comportementaux et la concordance complète des permissions restent à terminer.
+- Corrigé dans la branche : ticket imprimable alimenté par `vente_ticket`, validation UI de la référence opérateur et choix explicite du poste si plusieurs caisses sont actives.
+- Permissions UI : les commandes de garde/réservation sont conditionnées par `authorize` dans les scopes `PHARMACIE` et/ou `POSTE_CAISSE`, conformément aux contrôles SQL.
+- Pharmacien : le parcours est différencié pour Pharmacien, Pharmacien assistant et Promoteur ; consultation/émission réservées au Pharmacien, validation accessible aux profils autorisés par la migration 063.
+- SQL additif : `migration_071c_prescription_validation_role_fix.sql` corrige la détection du Promoteur dans `prescription_valider` (l’ancienne fonction pouvait le refuser si `fonction_interne` était NULL) ; test structurel ajouté.
+- Ajouté dans la branche : RPC additive `set_garde_periode`, saisie de période/source dans le panneau pharmacie, test SQL structurel, compteur CI ajusté à 87 migrations/56 tests.
+- CI : aucun résultat final disponible pour le dernier HEAD ; les contrôles de compilation et de rejeu SQL restent à obtenir. État global NON VERT ; les tests comportementaux et la concordance complète des permissions restent à terminer.
 - Rectification : migration 059 dans main possède déjà la numérotation via CTE et le recalage sûr de séquence ; le constat contraire précédent était erroné.
