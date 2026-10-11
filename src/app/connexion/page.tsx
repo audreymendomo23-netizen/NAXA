@@ -56,7 +56,37 @@ function Formulaire() {
         // Le choix ne pourra pas être mémorisé sur cet appareil.
       }
 
-      router.push(retour);
+      let destination = retour;
+
+      // Si aucune destination protégée n’a été demandée, ouvrir l’espace du profil réel.
+      if (!search.get("retour") || retour === "/") {
+        try {
+          const sb = supabaseBrowser();
+          const { data: auth } = await sb.auth.getUser();
+          if (auth.user) {
+            const { data: profile } = await sb
+              .from("profiles")
+              .select("role")
+              .eq("id", auth.user.id)
+              .maybeSingle();
+
+            const espacesParRole: Record<string, string> = {
+              client: "/client",
+              pharmacie: "/pharmacie",
+              promoteur: "/pharmacie",
+              caisse: "/pharmacie",
+              admin: "/admin",
+            };
+            if (profile?.role && espacesParRole[profile.role]) {
+              destination = espacesParRole[profile.role];
+            }
+          }
+        } catch {
+          // La connexion est déjà réussie : conserver la destination de repli.
+        }
+      }
+
+      router.push(destination);
       router.refresh();
     } catch {
       setError("Connexion impossible. Vérifiez votre connexion internet et réessayez.");
