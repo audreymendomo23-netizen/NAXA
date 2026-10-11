@@ -224,3 +224,17 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ce contrôle prouve la cohérence des 19 noms et intervalles dans PostgreSQL; il **ne prouve pas** l'application de la migration 070, le mapping vers les identifiants `pharmacies.id`, ni le comportement d'une base propre.
 - Les statuts CI GitHub du commit documentaire contrôlé étaient vides. Aucune preuve CI verte.
 - **Toujours NO-GO import client** : aucune écriture DB, aucune migration appliquée, aucune modification Production, aucune fusion ni déploiement.
+
+
+## Prototype catalogue médicaments — 11 octobre 2026
+
+- Branche isolée : feat/catalogue-medicaments-api-prototype, créée depuis feat/yaounde-pharmacy-geolocation au commit 7db7bd52d38e70d6b53c5a6690b663e2445caab3.
+- Ajout d'un endpoint serveur de recherche qui interroge RxNorm, OpenFDA et DailyMed; aucune dépendance payante ajoutée. RxImage n'est pas utilisé car son API a été arrêtée.
+- Ajout de dix termes pilotes pour vérifier les correspondances, pas pour prétendre qu'il s'agit des dix médicaments les plus vendus au Cameroun.
+- La recherche de la page d'accueil affiche les résultats au fur et à mesure de la saisie : nom, marque, substance active, forme, définition/indications si fournies, source et photo si une image pertinente est disponible. Sinon, une illustration neutre est utilisée.
+- Les photos DailyMed sont identifiées comme issues de l'étiquetage américain et ne sont pas présentées comme des boîtes locales camerounaises.
+- Aucun dosage n'est rendu dans les cartes de recherche, la liste de stocks, la fiche produit ou le panier. Les données de dosage ne font pas partie du contrat de réponse de l'API catalogue.
+- Le bouton de résultat utilise la recherche de stock existante. Disponibilité/prix/réservation restent issus des stocks réels des partenaires NAXA; le catalogue externe n'est jamais une source de stock.
+- Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
+- Aucun changement de schéma SQL, aucune écriture Supabase, aucun changement de main, aucune fusion ni aucun déploiement Production.
+- État : EN COURS — prototype implémenté sur branche isolée; CI et tests d'intégration à confirmer.

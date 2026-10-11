@@ -23,6 +23,9 @@ jobs:
           name: Tests géolocalisation des pharmacies
           command: npm run test:geolocalisation
       - run:
+          name: Tests catalogue médicaments
+          command: npm run test:catalogue-medicaments
+      - run:
           name: ESLint
           command: npm run lint
       - run:
