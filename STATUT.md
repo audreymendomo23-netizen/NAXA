@@ -238,3 +238,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
 - Aucun changement de schéma SQL, aucune écriture Supabase, aucun changement de main, aucune fusion ni aucun déploiement Production.
 - État : EN COURS — prototype implémenté sur branche isolée; CI et tests d'intégration à confirmer.
+
+
+## Reprise alignement RPC/parcours — 11 octobre 2026
+
+- Branche de travail isolée : `fix/parcours-rpc-permissions-align-20261011` ; base main SHA `d9ce9e3af6f3818f4e059542cbc429dfe2df6b02`.
+- Récupération des comportements de référence depuis les PR historiques #39 et #47 ; pas de remplacement global du code et aucune migration existante modifiée.
+- Corrigé dans la branche : ticket imprimable alimenté par `vente_ticket` et validation UI de la référence opérateur.
+- Ajouté dans la branche : RPC additive `set_garde_periode`, saisie de période/source dans le panneau pharmacie, test SQL structurel, compteur CI ajusté à 86 migrations/55 tests.
+- CI quality : pending au commit `3f0b9380092b3dad73982aa757607197b0d830eb`. État global NON VERT ; les tests comportementaux et la concordance complète des permissions restent à terminer.
+- Rectification : migration 059 dans main possède déjà la numérotation via CTE et le recalage sûr de séquence ; le constat contraire précédent était erroné.
