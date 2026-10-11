@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
+type Notification = { id: string; validation_id: string; type: "nouveau_dossier" | "decision" | "complement"; message: string; cree_le: string; lu_le: string | null; };
+
 type Dossier = {
   id: string;
   pharmacie_id: string;
@@ -39,6 +41,7 @@ export default function ValidationsPharmaceutiquesPage() {
   const [pharmacieId, setPharmacieId] = useState("");
   const [fonction, setFonction] = useState("");
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [type, setType] = useState<Dossier["type_document"]>("ordonnance");
   const [objet, setObjet] = useState("");
   const [fichier, setFichier] = useState<File | null>(null);
@@ -76,6 +79,13 @@ export default function ValidationsPharmaceutiquesPage() {
       return;
     }
     setPharmacieId(profil.pharmacie_id);
+    const { data: notes, error: notesError } = await sb
+      .from("naxa_validations_pharmaceutiques_notifications")
+      .select("id,validation_id,type,message,cree_le,lu_le")
+      .eq("destinataire_id", auth.user.id)
+      .order("cree_le", { ascending: false })
+      .limit(10);
+    if (!notesError) setNotifications((notes || []) as Notification[]);
     const { data, error: listeError } = await sb
       .from("naxa_validations_pharmaceutiques")
       .select("id,pharmacie_id,type_document,objet,soumis_par,document_storage_path,statut,decide_par,decision_commentaire,cree_le,soumis_le,decide_le")
@@ -206,6 +216,20 @@ export default function ValidationsPharmaceutiquesPage() {
             </label>
             <button className="btn btn-canari" disabled={occupé}>{occupé ? "Transmission…" : "Transmettre au pharmacien"}</button>
           </form>
+        </section>
+      )}
+
+      {notifications.length > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <h2 className="mb-2 font-bold">Notifications de validation</h2>
+          <ul className="space-y-2">
+            {notifications.map((n) => (
+              <li key={n.id} className="border-t border-amber-200 pt-2 text-sm">
+                <p>{n.message}</p>
+                <p className="text-xs text-slate-600">{new Date(n.cree_le).toLocaleString("fr-FR")}</p>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
