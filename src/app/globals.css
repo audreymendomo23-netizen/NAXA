@@ -81,15 +81,15 @@ body {
 }
 
 .home-ecran {
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow-y: auto;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
 body:has(.bandeau) .home-ecran {
-  min-height: calc(100vh - 4rem);
-  min-height: calc(100dvh - 4rem);
+  height: calc(100vh - 4.5rem - env(safe-area-inset-bottom, 0px));
+  height: calc(100dvh - 4.5rem - env(safe-area-inset-bottom, 0px));
 }
 
 .auth-ecran {
