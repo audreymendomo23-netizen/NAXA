@@ -105,10 +105,10 @@ async function dailyMedImage(setid: string): Promise<string | null> {
   const json = await jsonFetch("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls/" + setid + "/media.json");
   const data = json?.data as AnyRecord | undefined;
   const media = Array.isArray(data?.media) ? data.media as AnyRecord[] : [];
-  const image = media.find((item) =>
-    item.mime_type === "image/jpeg" &&
-    typeof item.url === "string" &&
-    item.url.startsWith("https://dailymed.nlm.nih.gov/")
+  const image = media.find((image) =>
+    image.mime_type === "image/jpeg" &&
+    typeof image.url === "string" &&
+    image.url.startsWith("https://dailymed.nlm.nih.gov/")
   );
   return typeof image?.url === "string" ? image.url : null;
 }
