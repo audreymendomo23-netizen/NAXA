@@ -13,6 +13,8 @@ export default function CaissePage(){
   const [onglet,setOnglet]=useState<"caisse"|"recherche">("caisse"),[scan,setScan]=useState(""),[recherche,setRecherche]=useState(""),[bulk,setBulk]=useState(""),[resultats,setResultats]=useState<Produit[]>([]),[lignes,setLignes]=useState<Ligne[]>([]);
   const [percu,setPercu]=useState(""),[mode,setMode]=useState<"especes"|"orange_money"|"mtn_momo">("especes"),[reference,setReference]=useState(""),[msg,setMsg]=useState(""),[busy,setBusy]=useState(false);
   const [pharmacie,setPharmacie]=useState("");
+  const [caisses,setCaisses]=useState<{id:string;nom:string}[]>([]);
+  const [caisseChoisie,setCaisseChoisie]=useState("");
   type TicketRow={vente_id:string;numero_vente:string;pharmacie_id:string;client_id:string|null;statut:string;created_at:string;paid_at:string|null;total_brut:number;remise:number;total_net:number;mode_paiement:string|null;paiement_ref:string|null;produit_id:string|null;produit_nom:string|null;produit_dosage:string|null;quantite:number|null;prix_unitaire:number|null;total_ligne:number|null};
   const [ticketRows,setTicketRows]=useState<TicketRow[]>([]);
   const [printPending,setPrintPending]=useState(false);
@@ -23,13 +25,23 @@ export default function CaissePage(){
     if(!p?.pharmacie_id||p.actif===false||(!["caisse","promoteur"].includes(p.role) && !["caisse","pharmacien","pharmacien_assistant"].includes(p.fonction_interne??""))) return setMsg("Accès caisse non autorisé.");
     setPid(p.pharmacie_id);
     const {data:ph}=await sb.from("pharmacies").select("nom").eq("id",p.pharmacie_id).single(); setPharmacie(ph?.nom??"Pharmacie");
-    const {data:c}=await sb.from("caisses").select("id").eq("pharmacie_id",p.pharmacie_id).eq("actif",true).limit(1).single();
-    if(!c)return setMsg("Aucune caisse configurée.");
-    let {data:s}=await sb.from("caisses_sessions").select("id").eq("caisse_id",c.id).eq("statut","ouverte").limit(1).single();
-    if(!s){const r=await sb.rpc("caisse_ouvrir",{p_caisse:c.id,p_fond_initial:0}); if(r.error)return setMsg(r.error.message); s={id:r.data};}
-    setSession(s.id);
-    const v=await sb.rpc("vente_creer",{p_session:s.id}); if(v.error)return setMsg(v.error.message); setVente(v.data);
+    const {data:cs,error}=await sb.from("caisses").select("id,nom").eq("pharmacie_id",p.pharmacie_id).eq("actif",true).order("created_at",{ascending:true});
+    if(error)return setMsg("Impossible de charger les postes de caisse.");
+    const options=(cs??[]) as {id:string;nom:string}[];setCaisses(options);
+    if(options.length===0)return setMsg("Aucune caisse active n'est configurée.");
+    if(options.length===1)setCaisseChoisie(options[0].id);
+    else setMsg("Choisissez le poste de caisse avant de commencer.");
   })()},[sb]);
+
+  useEffect(()=>{if(!pid||!caisseChoisie)return;let annule=false;(async()=>{
+    setSession(null);setVente(null);setLignes([]);
+    const {data:s}=await sb.from("caisses_sessions").select("id").eq("caisse_id",caisseChoisie).eq("statut","ouverte").limit(1).single();
+    let sessionId=s?.id as string|undefined;
+    if(!sessionId){const opened=await sb.rpc("caisse_ouvrir",{p_caisse:caisseChoisie,p_fond_initial:0});if(opened.error){if(!annule)setMsg(opened.error.message);return}sessionId=opened.data as string;}
+    if(annule||!sessionId)return;
+    setSession(sessionId);
+    const v=await sb.rpc("vente_creer",{p_session:sessionId});if(v.error){if(!annule)setMsg(v.error.message);return}if(!annule)setVente(v.data as string);
+  })();return()=>{annule=true}},[pid,caisseChoisie,sb]);
 
   useEffect(()=>{if(!printPending||ticketRows.length===0)return;window.print();setPrintPending(false);setTicketRows([]);(async()=>{if(!session)return;const v=await sb.rpc("vente_creer",{p_session:session});if(v.error)setMsg("Ticket imprimé, mais impossible d'ouvrir la vente suivante : "+v.error.message);else setVente(v.data)})()},[printPending,ticketRows,session,sb]);
 
@@ -107,6 +119,7 @@ export default function CaissePage(){
       <p className="mt-3 text-center">Merci de votre confiance.</p>
     </section>}
     <header className="-mx-4 mb-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Caisse · {pharmacie}</b></header>
+    {caisses.length>1&&<label className="carte mb-4 block text-sm font-semibold">Poste de caisse<select className="champ mt-1 w-full" value={caisseChoisie} disabled={busy||lignes.length>0} onChange={e=>{setCaisseChoisie(e.target.value);setMsg("");}}><option value="">Choisir un poste</option>{caisses.map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</select>{lignes.length>0&&<span className="mt-1 block text-xs font-normal">Terminez ou abandonnez la vente en cours avant de changer de poste.</span>}</label>}
     <div className="mb-4 flex gap-2"><button className={onglet==="caisse"?"btn btn-vert":"btn btn-clair"} onClick={()=>setOnglet("caisse")}>Encaissement</button><button className={onglet==="recherche"?"btn btn-vert":"btn btn-clair"} onClick={()=>setOnglet("recherche")}>Recherche prix</button></div><div className="grid gap-4 lg:grid-cols-3">
       <section className="carte lg:col-span-2">
         <h1 className="text-xl font-extrabold">{onglet==="caisse"?"Encaissement":"Recherche prix"}</h1>
