@@ -284,3 +284,23 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Correction additive dans `supabase/migration_072_fonctions_validation_distance.sql` : appel explicite à `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsque `p_pharmacie` n'est pas nulle.
 - Les privilèges réseau sans cible gardent leur usage normal; une cible hors réseau est refusée.
 - Les tests de garde 041b et de périmètre 024 doivent être rejoués sur le HEAD correctif. État : en attente de CI; NO-GO main, aucune écriture Production ni fusion.
+
+
+## Correctif inscription — validation pays/téléphone — 11 octobre 2026
+
+- Cause historique : `handle_new_user()` rejetait tous les pays connus après les contrôles de format, même lorsque le numéro était valide.
+- Correction additive : `supabase/migration_073_signup_phone_validation.sql` ajoute un validateur centralisé à accès restreint et remplace la fonction de trigger sans modifier la migration 006.
+- Tests SQL : `supabase/tests/073_signup_phone_validation.sql` contient 24 cas attendus, incluant les formats valides/invalides des 11 pays, un pays inconnu et un téléphone absent.
+- Préflight CI ajusté au nouveau total : 87 migrations sources et 56 tests SQL sur la branche candidate.
+- Branche isolée : `fix/signup-phone-validation`, basée sur le HEAD de la PR #48; PR empilée ouverte : [#49](https://github.com/audreymendomo23-netizen/NAXA/pull/49), cible `feat/naxa-fonctions-validation-distance` (PR #48).
+- **État : EN ATTENTE DE CI ET DE REJEU SQL COMPLET — ROUGE / NO-GO MAIN.** Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
+
+
+## Sélecteur de pays téléphone — fermeture au clic extérieur (11 octobre 2026)
+
+- Le sélecteur de pays de `/creation-compte` se ferme désormais lorsqu’un pointeur est pressé n’importe où hors du composant, y compris sur mobile (événement `pointerdown`).
+- La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
+- La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
+- Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
+
+**Statut de validation :** modification commise; tests automatisés et résultat CI du HEAD final non encore confirmés. Ne pas déclarer vert avant ces preuves.

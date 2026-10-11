@@ -219,3 +219,18 @@ La migration candidate 072 étend désormais `private.naxa_business_function()` 
 
 
 Correctif de périmètre réseau (11 octobre 2026) : `private.naxa_has_privilege(..., p_pharmacie, 'RESEAU')` vérifie maintenant explicitement `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsqu'une pharmacie cible est fournie. Un droit réseau sans cible reste valable pour le réseau du Promoteur, tandis qu'une pharmacie hors réseau est refusée. Correctif source sur la branche isolée; tests SQL/CI finaux encore requis, aucune écriture Production.
+
+
+## Correctif inscription — validation pays/téléphone (11 octobre 2026)
+
+La migration additive `supabase/migration_073_signup_phone_validation.sql` corrige le défaut de branchement de `handle_new_user()` : un numéro conforme dans un pays pris en charge est accepté; un numéro mal formé ou un pays inconnu est rejeté. La migration historique 006 n'est pas modifiée. Le test `supabase/tests/073_signup_phone_validation.sql` couvre les 11 pays pris en charge, les longueurs invalides, le pays inconnu et le téléphone absent.
+
+**État : correctif source isolé sur `fix/signup-phone-validation`; CI et rejeu SQL restent à vérifier. Aucun changement Supabase Production, aucune fusion et aucun déploiement.**
+
+
+## Sélecteur de pays téléphone — fermeture au clic extérieur (11 octobre 2026)
+
+- Le sélecteur de pays de `/creation-compte` se ferme désormais lorsqu’un pointeur est pressé n’importe où hors du composant, y compris sur mobile (événement `pointerdown`).
+- La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
+- La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
+- Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
