@@ -251,3 +251,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Préflight CircleCI ajusté aux nombres attendus de migrations (86) et de tests SQL (55) après ajout des deux fichiers.
 - **Aucune preuve de build, de lint, de rejeu SQL propre, de tests SQL complets ou de CI verte n'a encore été obtenue.** La migration candidate n'a pas été appliquée à une base Supabase réelle. Les politiques RLS/Storage, la compatibilité de `naxa_has_privilege()` avec les nouvelles clés, les chemins de documents et les parcours à distance restent à vérifier par exécution.
 - État : **EN COURS / ROUGE — ne pas fusionner, ne pas appliquer à Production, ne pas déclarer vert.** Prochaine étape : ouvrir une PR pour déclencher les contrôles, analyser les échecs exacts, corriger une cause à la fois et n'annoncer le vert qu'avec des preuves sur le HEAD final.
+
+
+### Correctifs de sécurité et audit — branche de travail
+
+- La migration 071 a été reconstruite proprement après détection d'une corruption de contenu générée pendant une modification automatisée ; le fichier courant a été relu, avec un seul bloc transactionnel et quatre fonctions SQL définies dans ce fichier.
+- Les dossiers et documents sont limités au scope pharmacie ; le stockage est privé, les documents sont liés au dossier, et les utilisateurs authentifiés n'ont pas de droits directs INSERT/UPDATE/DELETE sur les dossiers.
+- Ajout d'une piste d'audit et de notifications internes à la transition de statut ; les lectures de documents restent limitées au déposant, au pharmacien autorisé et à l'administration habilitée.
+- Le composant frontend utilise désormais un client Supabase stable pour éviter une boucle de rechargement React.
+- **Ces correctifs sont des changements source seulement. Ils ne sont pas encore validés par exécution PostgreSQL/CI.** La branche reste ROUGE jusqu'au résultat des contrôles sur le HEAD courant.
