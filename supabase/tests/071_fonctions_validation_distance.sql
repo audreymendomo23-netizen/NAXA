@@ -49,6 +49,23 @@ begin
   if coalesce((select public from storage.buckets where id='naxa-validations-pharmaceutiques'),true) then
     raise exception 'Le bucket des documents pharmaceutiques doit rester privé';
   end if;
+  if not (select relrowsecurity from pg_class where oid='public.naxa_validations_pharmaceutiques_audit'::regclass) then
+    raise exception 'RLS absente sur la piste d''audit pharmaceutique';
+  end if;
+
+  if not (select relrowsecurity from pg_class where oid='public.naxa_validations_pharmaceutiques_notifications'::regclass) then
+    raise exception 'RLS absente sur les notifications pharmaceutiques';
+  end if;
+
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid='public.naxa_validations_pharmaceutiques'::regclass
+      and tgname='trg_naxa_auditer_validation_pharmaceutique'
+      and not tgisinternal
+  ) then
+    raise exception 'Trigger de journalisation pharmaceutique absent';
+  end if;
+
 
   v_def := pg_get_functiondef('public.naxa_decider_validation_pharmaceutique(uuid,text,text)'::regprocedure);
   if position('Auto-validation interdite' in v_def)=0
