@@ -1,0 +1,43 @@
+-- Contrôle structurel de la RPC additive raccordée aux colonnes de migration 070.
+begin;
+
+do $test$
+declare
+  v_def text;
+begin
+  if to_regprocedure('public.set_garde_periode(timestamp with time zone,timestamp with time zone,text)') is null then
+    raise exception 'RPC set_garde_periode absente';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='pharmacies' and column_name='garde_debut'
+  ) or not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='pharmacies' and column_name='garde_fin'
+  ) or not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='pharmacies' and column_name='garde_source_url'
+  ) or not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='pharmacies' and column_name='garde_verifiee_le'
+  ) then
+    raise exception 'Colonnes de garde de migration 070 manquantes';
+  end if;
+
+  select pg_get_functiondef('public.set_garde_periode(timestamptz,timestamptz,text)'::regprocedure)
+    into v_def;
+  if position('can_operate_pharmacy' in v_def)=0 then
+    raise exception 'La RPC ne vérifie pas le périmètre opérateur';
+  end if;
+  if position('garde_source_url' in v_def)=0 or position('garde_verifiee_le' in v_def)=0 then
+    raise exception 'La RPC ne persiste pas la source et la vérification';
+  end if;
+  if has_function_privilege('anon','public.set_garde_periode(timestamptz,timestamptz,text)','EXECUTE')
+     or has_function_privilege('public','public.set_garde_periode(timestamptz,timestamptz,text)','EXECUTE') then
+    raise exception 'RPC accessible à anon ou public';
+  end if;
+end;
+$test$;
+
+rollback;
