@@ -122,5 +122,34 @@ begin
 end;
 $naxa072$;
 
+
+  -- Régression du moteur : les fonctions internes doivent être résolues sans
+  -- les convertir en role_type ni leur donner les droits d'un Promoteur.
+  v_def := pg_get_functiondef('private.naxa_business_function(uuid)'::regprocedure);
+  if position('pharmacien' in v_def)=0
+     or position('preparateur' in v_def)=0
+     or position('agent_accueil' in v_def)=0
+     or position('comptable' in v_def)=0
+     or position('gestionnaire_stock' in v_def)=0
+     or position('magasinier' in v_def)=0 then
+    raise exception 'Le moteur ne résout pas toutes les fonctions internes';
+  end if;
+
+  v_def := pg_get_functiondef('private.naxa_has_privilege(text,uuid,text)'::regprocedure);
+  if position('pharmacien' in v_def)=0
+     or position('preparateur' in v_def)=0
+     or position('agent_accueil' in v_def)=0
+     or position('comptable' in v_def)=0
+     or position('gestionnaire_stock' in v_def)=0
+     or position('magasinier' in v_def)=0
+     or position('naxa_profile_privileges' in v_def)=0
+     or position('naxa_architecture_privileges' in v_def)=0 then
+    raise exception 'Le moteur ne borne pas les nouvelles fonctions par architecture et délégation';
+  end if;
+
+  if position('role::text' in v_def)=0 then
+    raise exception 'Contrôle du rôle de base manquant dans le moteur de privilèges';
+  end if;
+
 select true as naxa_072_fonctions_validation_distance_pass;
 rollback;
