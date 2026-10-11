@@ -169,3 +169,14 @@ Une branche isolée `integration/naxa-360-20261009` rassemble les versions candi
 - Aucun changement de schéma, aucune migration SQL, aucune clé/API payante, aucune écriture Supabase Production.
 - Limite connue : le facteur de circulation existant est une estimation par horaires, pas une mesure du trafic en temps réel. Le coût taxi n'est pas un tarif officiel et doit être calibré à partir de courses réelles à Yaoundé.
 - Validation encore requise : installation/build/lint et tests manuels sur mobile avec plusieurs distances, absence GPS et itinéraire OSRM indisponible. Ne pas fusionner ni déployer en Production avant validation explicite.
+
+
+## Chantier isolé — photos de pharmacies et périodes de garde à Yaoundé
+
+- Ajout d'une migration additive `supabase/migration_070_pharmacie_photos_garde.sql` : chemin de photo locale, source et licence, date de vérification, début/fin de garde et source/date de vérification de la garde.
+- Les RPC `search_pharmacies` et `search_pharmacies_panier` ne sont pas modifiées : les métadonnées sont chargées par une requête complémentaire, afin de ne pas casser leurs signatures de retour.
+- Les résultats utilisent `public/pharmacies/placeholder.svg` si aucune photo locale valide n'est enregistrée ou si l'image échoue à charger. Le chemin est limité à `/pharmacies/nom-de-fichier`; les URL externes ne sont pas utilisées comme images de fiche.
+- Une garde datée n'est annoncée comme confirmée que pendant l'intervalle `garde_debut <= maintenant < garde_fin`. L'ancien booléen `de_garde`, sans période datée, est présenté comme « Garde signalée · période à confirmer ».
+- Le test SQL `supabase/tests/070_pharmacy_photos_duty_period.sql` vérifie les huit colonnes et la contrainte de cohérence de période. Le préflight CircleCI est ajusté à 84 migrations et 54 tests.
+- Aucune photo réelle n'a encore été importée : la licence et l'association de chaque image doivent être vérifiées avant d'ajouter des fichiers dans `public/pharmacies/` et de renseigner `photo_path`.
+- La migration et le test n'ont pas été exécutés contre Supabase Production. Build, lint et CI du nouveau HEAD doivent être vérifiés avant tout feu vert. Aucune fusion, aucun déploiement et aucune écriture Production.
