@@ -24,7 +24,6 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
   const listeRef = useRef<HTMLDivElement>(null);
   const fichier = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
-  const [choixScanner, setChoixScanner] = useState(false);
   const [medicaments, setMedicaments] = useState<MedicamentRecherche[]>([]);
   const [rechercheCatalogue, setRechercheCatalogue] = useState<"repos" | "chargement" | "erreur">("repos");
   const [rechercheActive, setRechercheActive] = useState(false);
