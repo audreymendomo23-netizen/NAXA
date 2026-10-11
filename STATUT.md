@@ -260,3 +260,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ajout d'une piste d'audit et de notifications internes à la transition de statut ; les lectures de documents restent limitées au déposant, au pharmacien autorisé et à l'administration habilitée.
 - Le composant frontend utilise désormais un client Supabase stable pour éviter une boucle de rechargement React.
 - **Ces correctifs sont des changements source seulement. Ils ne sont pas encore validés par exécution PostgreSQL/CI.** La branche reste ROUGE jusqu'au résultat des contrôles sur le HEAD courant.
+
+
+### Correctif CircleCI — migration 071 / catalogue des privilèges (11 octobre 2026)
+
+- **Erreur ciblée :** `SQLSTATE 23502` sur `public.naxa_privileges.famille` pendant l'insertion de `SUBMIT_PHARMACEUTICAL_VALIDATION`.
+- **Cause :** la migration 071 écrivait seulement les colonnes historiques `family`, `description` et `governance_only`, alors que les colonnes canoniques `famille`, `libelle`, `governance`, `niveau_min`, `niveau_max` et `active` sont également obligatoires après la migration 020b.
+- **Correction source :** insertion et mise à jour sur conflit des deux jeux de colonnes, avec valeurs cohérentes pour les huit privilèges du catalogue 071.
+- **Test ajouté :** le test SQL 071 exige les huit privilèges et échoue si une colonne requise est NULL ou si `family <> famille` ou `description <> libelle`.
+- **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase et aucun déploiement Production.
+- **Validation : ROUGE / en attente de preuve.** Le correctif source et le test ont été commités, mais aucun rejeu PostgreSQL propre ni résultat final `sql_tests` sur le HEAD final n'est encore confirmé. Ne pas fusionner avant preuve.
