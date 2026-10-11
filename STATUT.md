@@ -266,8 +266,8 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 
 - **Erreur initiale CI :** `SQLSTATE 23502` lors de l'insertion du privilège `SUBMIT_PHARMACEUTICAL_VALIDATION`.
 - **Contrôle direct du schéma Production :** `public.naxa_privileges` expose `code,family,description,niveau_min,niveau_max,delegable,governance,active,created_at`; les colonnes `famille`, `libelle` et `governance_only` n'existent pas dans cette base.
-- **Correction source :** migration 071 rendue compatible avec les variantes du schéma : elle détecte les colonnes disponibles, écrit les colonnes correspondantes et synchronise les alias facultatifs uniquement lorsqu'ils existent.
+- **Correction source :** migration 072 rendue compatible avec les variantes du schéma : elle détecte les colonnes disponibles, écrit les colonnes correspondantes et synchronise les alias facultatifs uniquement lorsqu'ils existent.
 - **Test SQL :** contrôle des huit privilèges, des colonnes réelles requises et de la cohérence des alias facultatifs sans références statiques à des colonnes absentes.
 - **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase, aucune fusion et aucun déploiement Production à ce stade.
-- **Bloqueur avant Production :** l'historique Supabase observé s'arrête à `042_stats_pilotage_facade_security`; il faut auditer les dépendances des migrations 043–070 avant d'appliquer la migration 071.
+- **Bloqueur avant Production :** l'historique Supabase observé s'arrête à `042_stats_pilotage_facade_security`; il faut auditer les dépendances des migrations 043–070 avant d'appliquer la migration 072.
 - **Validation : ROUGE / à rejouer.** Attendre CircleCI sur le HEAD corrigé, puis vérifier le rejeu PostgreSQL et l'ordre de migration avant fusion/déploiement.
