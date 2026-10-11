@@ -186,8 +186,8 @@ jobs:
             shopt -s nullglob
             mapfile -d '' migration_files < <(find supabase -maxdepth 1 -type f -name 'migration_*.sql' -print0 | LC_ALL=C sort -z)
             printf 'Nombre de migrations sources: %s\n' "${#migration_files[@]}"
-            if [[ "${#migration_files[@]}" -ne 90 ]]; then
-              echo "FAIL: attendu 90 migrations sources, trouvé ${#migration_files[@]}"
+            if [[ "${#migration_files[@]}" -ne 91 ]]; then
+              echo "FAIL: attendu 91 migrations sources, trouvé ${#migration_files[@]}"
               exit 1
             fi
             n=1
@@ -277,8 +277,8 @@ jobs:
             PY
             mapfile -d '' test_files < <(find supabase/tests -type f -name '*.sql' -print0 | LC_ALL=C sort -z)
             echo "Nombre de tests SQL détectés récursivement: ${#test_files[@]}"
-            if [[ "${#test_files[@]}" -ne 59 ]]; then
-              echo "FAIL: attendu 59 tests SQL, trouvé ${#test_files[@]}"
+            if [[ "${#test_files[@]}" -ne 60 ]]; then
+              echo "FAIL: attendu 60 tests SQL, trouvé ${#test_files[@]}"
               printf 'Tests trouvés:\n'
               printf ' - %s\n' "${test_files[@]}"
               exit 1
