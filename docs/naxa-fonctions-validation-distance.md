@@ -55,7 +55,7 @@ Les fonctions internes ne créent pas de niveaux hiérarchiques supplémentaires
 
 1. Le catalogue `fonction_interne` de la migration 020 est plus restreint que les fonctions métier demandées.
 2. Les clés de `naxa_role_privileges` et `naxa_architecture_privileges` sont contraintes ; l'extension doit rester distincte de `role_type`.
-3. Le moteur `naxa_can()` et son helper `naxa_has_privilege()` doivent réellement reconnaître les nouvelles fonctions et leurs privilèges sans hériter de tous les droits Responsable / Promoteur.
+3. Correction candidate dans la migration 072 : `naxa_business_function()` et `naxa_has_privilege()` reconnaissent les nouvelles fonctions métier en maintenant les garde-fous d'architecture, de scope et de délégation. Le rejeu SQL complet doit encore prouver ce contrat.
 4. Les documents médicaux ne doivent pas être accessibles via des URL publiques ou par tous les employés de la pharmacie sans nécessité.
 5. Les fonctions de soumission et de décision doivent refuser l'auto-validation lorsque la séparation des tâches s'applique, ainsi que les dossiers hors scope.
 6. Les tests doivent couvrir les quatre architectures, les profils sans privilège, le pharmacien hors site, les refus, les compléments, les documents absents et les tentatives de lecture inter-pharmacies.
