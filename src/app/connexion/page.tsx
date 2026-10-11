@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -30,6 +30,49 @@ function Formulaire() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (search.get("redirectionRole") !== "1") return;
+
+    let annule = false;
+    void (async () => {
+      try {
+        const sb = supabaseBrowser();
+        const { data: auth } = await sb.auth.getUser();
+        if (!auth.user) {
+          if (!annule) router.replace("/");
+          return;
+        }
+
+        const { data: profile } = await sb
+          .from("profiles")
+          .select("role")
+          .eq("id", auth.user.id)
+          .maybeSingle();
+        if (annule) return;
+
+        const espacesParRole: Record<string, string> = {
+          client: "/client",
+          pharmacie: "/pharmacie",
+          promoteur: "/pharmacie",
+          caisse: "/pharmacie",
+          admin: "/admin",
+        };
+        router.replace(
+          profile?.role && espacesParRole[profile.role]
+            ? espacesParRole[profile.role]
+            : "/"
+        );
+        router.refresh();
+      } catch {
+        if (!annule) router.replace("/");
+      }
+    })();
+
+    return () => {
+      annule = true;
+    };
+  }, [router, search]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -102,7 +145,11 @@ function Formulaire() {
       const { error: authError } = await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(retour)}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+            search.get("retour") && retour !== "/"
+              ? retour
+              : "/connexion?redirectionRole=1"
+          )}`,
         },
       });
 
