@@ -217,3 +217,10 @@ Branche isolée : `fix/parcours-rpc-permissions-align-20261011` (base `main` `d9
 - Le compteur CircleCI de la branche est ajusté à 89 migrations et 58 tests SQL.
 - CI : un précédent `sql_tests` a échoué sur le commit `eefb2218db500a64fad1ef363f159dcb73ee06a0`. Les nouveaux tests SQL ont été corrigés pour émettre une assertion positive, exigée par le runner ; ce correctif reste à confirmer par une exécution finale. Aucun feu vert n'est déclaré.
 - Rectification d'audit : la version de `migration_059_pos_ticket.sql` présente dans `main` utilise déjà un CTE pour calculer `row_number()` avant l'UPDATE et un `setval(..., greatest(max_numero, 1), max_numero > 0)`. La précédente conclusion affirmant que ces deux constructions problématiques restaient présentes dans `main` était erronée ; l'historique README décrit un diagnostic antérieur.
+
+
+## Correctif CI SQL — 11 octobre 2026
+
+- Cause confirmée dans `.circleci/config.yml` : les contrôles comparaient le nombre de migrations à `85` et le nombre de tests SQL à `54`, alors que les messages et le dépôt indiquent respectivement `89` et `58`. Le préflight affichait donc `89 trouvé / 89 attendu` tout en quittant avec le code 1.
+- Les deux seuils ont été alignés sur `89` migrations et `58` tests dans le correctif `6c747312fc48534511023be2428f534ea75436d8`.
+- État : correctif poussé uniquement sur `fix/parcours-rpc-permissions-align-20261011`. Le nouveau résultat CI doit encore confirmer la correction; aucun feu vert SQL n'est déclaré. Aucun changement sur `main` ni en Production.
