@@ -224,3 +224,10 @@ Branche isolée : `fix/parcours-rpc-permissions-align-20261011` (base `main` `d9
 - Cause confirmée dans `.circleci/config.yml` : les contrôles comparaient le nombre de migrations à `85` et le nombre de tests SQL à `54`, alors que les messages et le dépôt indiquent respectivement `89` et `58`. Le préflight affichait donc `89 trouvé / 89 attendu` tout en quittant avec le code 1.
 - Les deux seuils ont été alignés sur `89` migrations et `58` tests dans le correctif `6c747312fc48534511023be2428f534ea75436d8`.
 - État : correctif poussé uniquement sur `fix/parcours-rpc-permissions-align-20261011`. Le nouveau résultat CI doit encore confirmer la correction; aucun feu vert SQL n'est déclaré. Aucun changement sur `main` ni en Production.
+
+
+### Sécurité OTP — délai de renvoi de 40 secondes (branche candidate)
+- Création de compte et mot de passe oublié : compte à rebours visible de 40 secondes après l'envoi, bouton de renvoi désactivé pendant ce délai et réactivé à zéro.
+- Création de compte : le renvoi passe par `/api/auth/signup-otp-resend`; récupération : le renvoi réutilise `/api/auth/forgot-password`.
+- Les routes utilisent un cookie `HttpOnly`, `SameSite=Strict`, limité à 40 secondes et associé à l'adresse e-mail ou au nom d'utilisateur. La limite protège le même navigateur; elle n'est pas un limiteur global par IP/compte et ne remplace pas les limites Supabase Auth.
+- Validation requise avant tout feu vert : compilation TypeScript/Next, vérification manuelle des deux parcours, puis CI. Aucun déploiement ni changement Production dans cette branche.
