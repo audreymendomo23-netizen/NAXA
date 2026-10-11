@@ -34,7 +34,14 @@ begin
     raise exception 'La RPC ne persiste pas la source et la vérification';
   end if;
   if has_function_privilege('anon','public.set_garde_periode(timestamptz,timestamptz,text)','EXECUTE')
-     or has_function_privilege('public','public.set_garde_periode(timestamptz,timestamptz,text)','EXECUTE') then
+     or exists (
+       select 1
+       from pg_proc p,
+            lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+       where p.oid='public.set_garde_periode(timestamptz,timestamptz,text)'::regprocedure
+         and acl.grantee=0
+         and acl.privilege_type='EXECUTE'
+     ) then
     raise exception 'RPC accessible à anon ou public';
   end if;
 end;
