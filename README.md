@@ -216,3 +216,6 @@ Correctif de compatibilité du schéma Production (11 octobre 2026) : l'inspecti
 
 ### Correction du moteur de privilèges — 11 octobre 2026
 La migration candidate 072 étend désormais `private.naxa_business_function()` et `private.naxa_has_privilege()` aux fonctions internes Pharmacien, Préparateur, Agent d'accueil, Comptable, Gestionnaire de stock et Magasinier. Les droits restent bornés par l'architecture active, le scope de la pharmacie et la délégation effective dans `naxa_profile_privileges`; aucune élévation de `role_type` et aucun droit implicite ne sont ajoutés. Le test 072 vérifie la présence de ces garde-fous. **Validation en attente :** le nouveau HEAD doit obtenir un rejeu SQL complet et les statuts CI finaux avant toute fusion. Aucune écriture Production.
+
+
+Correctif de périmètre réseau (11 octobre 2026) : `private.naxa_has_privilege(..., p_pharmacie, 'RESEAU')` vérifie maintenant explicitement `public.naxa_scope_allows(uid, p_pharmacie, 'RESEAU')` lorsqu'une pharmacie cible est fournie. Un droit réseau sans cible reste valable pour le réseau du Promoteur, tandis qu'une pharmacie hors réseau est refusée. Correctif source sur la branche isolée; tests SQL/CI finaux encore requis, aucune écriture Production.
