@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.compare_yaounde_garde_sources import compare, read_snapshot
+from scripts.compare_yaounde_garde_sources import compare, ensure_same_period, read_snapshot
 
 
 FIELDS = [
@@ -83,6 +83,12 @@ class CompareYaoundeGardeTests(unittest.TestCase):
             result = compare(fb_rows, [])[0]
             self.assertEqual(result["comparison_status"], "single_source_only")
             self.assertEqual(result["publication_status"], "source_secondaire_non_confirmee")
+
+    def test_different_periods_are_rejected(self):
+        facebook_period = ("2026-10-10T08:00:00+01:00", "2026-10-11T08:00:00+01:00")
+        mfasha_period = ("2026-10-11T08:00:00+01:00", "2026-10-12T08:00:00+01:00")
+        with self.assertRaisesRegex(ValueError, "source periods differ"):
+            ensure_same_period(facebook_period, mfasha_period)
 
     def test_periods_must_be_timezone_aware_and_coherent(self):
         with tempfile.TemporaryDirectory() as directory:
