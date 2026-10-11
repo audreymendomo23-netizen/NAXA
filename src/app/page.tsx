@@ -1,209 +1,228 @@
 "use client";
 
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { Logo } from "@/components/Logo";
+import { EnTeteAccueil } from "@/components/EnTeteAccueil";
 import { Recherche } from "@/components/Recherche";
+import {
+  recherchesFrequentes,
+  textes,
+  type Langue,
+} from "@/lib/accueil-textes";
 
-type Langue = "fr" | "en";
+type EtatPosition = "inconnue" | "recherche" | "active" | "defaut";
 
-const ETAPES = {
-  fr: ["Je cherche", "Je trouve", "Je compare", "Je réserve"],
-  en: ["I search", "I find", "I compare", "I reserve"],
-};
+const puce =
+  "inline-flex min-h-11 items-center gap-2 rounded-full border border-naxa-green-100 bg-white px-3 text-sm font-semibold text-naxa-green-900 hover:bg-naxa-green-100";
 
-const DICTIONNAIRE: Record<string, string> = {
-  "Se connecter": "Sign in",
-  "Espace client": "Customer area",
-  "Espace pharmacie": "Pharmacy area",
-  "Menu": "Menu",
-  "Votre médicament,": "Your medicine,",
-  "à 2 minutes.": "just 2 minutes away.",
-  "Je cherche": "I search",
-  "Je trouve": "I find",
-  "Je compare": "I compare",
-  "Je réserve": "I reserve",
-  "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros 117 118 et 119, ou rendez-vous à la pharmacie la plus proche.": "NAXA provides availability information, not medical advice. In an emergency, call 117, 118 or 119, or go to the nearest pharmacy.",
-  "Vous êtes une Pharmacie ?": "Are you a pharmacy?",
-  "Built with 💚 by NAXA": "Built with 💚 by NAXA",
-};
+const lienPied =
+  "inline-flex min-h-11 items-center underline underline-offset-2 hover:text-naxa-canari-dark";
 
-const TERMES_MEDICAUX: Record<string, string> = {
-  "paracétamol": "paracetamol",
-  "ibuprofène": "ibuprofen",
-  "amoxicilline": "amoxicillin",
-  "acide clavulanique": "clavulanic acid",
-  "azithromycine": "azithromycin",
-  "métronidazole": "metronidazole",
-  "artéméther": "artemether",
-  "luméfantrine": "lumefantrine",
-  "ceftriaxone": "ceftriaxone",
-  "ciprofloxacine": "ciprofloxacin",
-  "doxycycline": "doxycycline",
-  "diclofénac": "diclofenac",
-  "oméprazole": "omeprazole",
-  "cétirizine": "cetirizine",
-  "aspirine": "aspirin",
-  "metformine": "metformin",
-  "insuline": "insulin",
-  "comprimé": "tablet",
-  "gélule": "capsule",
-  "sirop": "syrup",
-  "solution buvable": "oral solution",
-  "suspension buvable": "oral suspension",
-  "crème": "cream",
-  "pommade": "ointment",
-  "gel": "gel",
-  "collyre": "eye drops",
-  "injection": "injection",
-  "comprimé dispersible": "dispersible tablet",
-  "comprimé effervescent": "effervescent tablet",
-  "voie orale": "oral route",
-  "voie intraveineuse": "intravenous (IV)",
-  "voie intramusculaire": "intramuscular (IM)",
-  "voie sous-cutanée": "subcutaneous (SC)",
-  "posologie": "dosage / dose regimen",
-  "dose": "dose",
-  "dose quotidienne": "daily dose",
-  "contre-indication": "contraindication",
-  "effets indésirables": "adverse effects / side effects",
-  "effet indésirable": "adverse effect / side effect",
-  "ordonnance": "prescription",
-  "pharmacien": "pharmacist",
-  "pharmacie": "pharmacy",
-  "en stock": "in stock",
-  "rupture de stock": "out of stock",
-};
-
-function traduireInterface(texte: string, langue: Langue) {
-  if (langue === "fr") {
-    const entree = Object.entries(DICTIONNAIRE).find(([, en]) => en === texte);
-    return entree?.[0] ?? texte;
-  }
-  return DICTIONNAIRE[texte] ?? texte;
+function Svg({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-7 w-7 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
 }
 
-function traduireMedicament(nom: string, langue: Langue) {
-  if (langue === "fr") return nom;
-  return nom.replace(/paracétamol/gi, "paracetamol")
-    .replace(/ibuprofène/gi, "ibuprofen")
-    .replace(/amoxicilline/gi, "amoxicillin")
-    .replace(/acide clavulanique/gi, "clavulanic acid")
-    .replace(/azithromycine/gi, "azithromycin")
-    .replace(/métronidazole/gi, "metronidazole")
-    .replace(/artéméther/gi, "artemether")
-    .replace(/luméfantrine/gi, "lumefantrine")
-    .replace(/ceftriaxone/gi, "ceftriaxone")
-    .replace(/ciprofloxacine/gi, "ciprofloxacin")
-    .replace(/doxycycline/gi, "doxycycline")
-    .replace(/diclofénac/gi, "diclofenac")
-    .replace(/oméprazole/gi, "omeprazole")
-    .replace(/cétirizine/gi, "cetirizine")
-    .replace(/aspirine/gi, "aspirin")
-    .replace(/metformine/gi, "metformin")
-    .replace(/insuline/gi, "insulin");
+function IconeRecherche() {
+  return (
+    <Svg>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4.5 4.5" />
+    </Svg>
+  );
 }
 
-function variantesRechercheMedicament(nom: string) {
-  const variantes = new Set([nom.trim()]);
-  const normalise = nom.toLowerCase().trim();
-  if (normalise.includes("paracétamol")) variantes.add(nom.replace(/paracétamol/gi, "paracetamol"));
-  if (normalise.includes("acetaminophen") || normalise.includes("paracetamol")) {
-    variantes.add(nom.replace(/acetaminophen/gi, "paracetamol"));
-    variantes.add(nom.replace(/paracetamol/gi, "acetaminophen"));
-    variantes.add(nom.replace(/paracétamol/gi, "acetaminophen"));
-  }
-  return [...variantes];
+function IconeTrouve() {
+  return (
+    <Svg>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l3 3 5-6" />
+    </Svg>
+  );
 }
+
+function IconeCompare() {
+  return (
+    <Svg>
+      <path d="M4 8h15M15 4l4 4-4 4" />
+      <path d="M20 16H5M9 12l-4 4 4 4" />
+    </Svg>
+  );
+}
+
+function IconeReserve() {
+  return (
+    <Svg>
+      <rect x="4" y="5" width="16" height="15" rx="2.5" />
+      <path d="M4 10h16M8 3v4M16 3v4" />
+    </Svg>
+  );
+}
+
+const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const langueInitialisee = useRef(false);
-  const [menuOuvert, setMenuOuvert] = useState(false);
+  const [position, setPosition] = useState<EtatPosition>("inconnue");
+  const t = textes[langue];
 
   useEffect(() => {
-    const sauvegardee = window.localStorage.getItem("naxa-langue");
-    if (sauvegardee === "fr" || sauvegardee === "en") setLangue(sauvegardee);
-    else if (window.navigator.language?.toLowerCase().startsWith("en")) setLangue("en");
-    langueInitialisee.current = true;
+    try {
+      const sauvegardee = window.localStorage.getItem("naxa-langue");
+      if (sauvegardee === "fr" || sauvegardee === "en") {
+        setLangue(sauvegardee);
+      } else if (window.navigator.language?.toLowerCase().startsWith("en")) {
+        setLangue("en");
+      }
+    } catch {
+      // La page reste utilisable si le stockage local est indisponible.
+    } finally {
+      langueInitialisee.current = true;
+    }
   }, []);
 
   useEffect(() => {
     if (!langueInitialisee.current) return;
-    window.localStorage.setItem("naxa-langue", langue);
+    try {
+      window.localStorage.setItem("naxa-langue", langue);
+    } catch {
+      // La langue reste active pendant la session.
+    }
     document.documentElement.lang = langue;
   }, [langue]);
 
+  function localiser() {
+    if (!navigator.geolocation) {
+      setPosition("defaut");
+      return;
+    }
+    setPosition("recherche");
+    navigator.geolocation.getCurrentPosition(
+      () => setPosition("active"),
+      () => setPosition("defaut"),
+      { maximumAge: 300000, timeout: 8000 }
+    );
+  }
+
+  const messagePosition =
+    position === "active"
+      ? t.positionEnregistree
+      : position === "defaut"
+        ? t.yaoundeDefaut
+        : position === "recherche"
+          ? t.localisationEnCours
+          : null;
+
   return (
     <main className="home-ecran flex flex-col bg-naxa-green-50">
-      <section className="shrink-0 bg-naxa-green-900 px-5 pt-4 text-white">
-        <div className="mx-auto flex max-w-xl items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 text-xs text-white" role="group" aria-label="Language">
-              <button type="button" onClick={() => setLangue("fr")} className={langue === "fr" ? "font-bold text-naxa-canari" : "font-medium text-white/70"} aria-pressed={langue === "fr"}>FR</button>
-              <span aria-hidden="true">|</span>
-              <button type="button" onClick={() => setLangue("en")} className={langue === "en" ? "font-bold text-naxa-canari" : "font-medium text-white/70"} aria-pressed={langue === "en"}>EN</button>
-            </div>
-            <Link href="/connexion" className="text-sm font-semibold text-naxa-canari underline underline-offset-4">
-              {traduireInterface("Espace client", langue)}
-            </Link>
-            <div className="relative">
-              <button type="button" onClick={() => setMenuOuvert((ouvert) => !ouvert)} className="flex h-10 w-10 items-center justify-center rounded-lg text-xl text-white" aria-label={traduireInterface("Menu", langue)} aria-expanded={menuOuvert} aria-haspopup="true">☰</button>
-              {menuOuvert && (
-                <div className="absolute right-0 z-20 mt-1 min-w-[10rem] rounded-lg bg-white py-1 text-sm text-naxa-green-900 shadow-lg">
-                  <Link href="/connexion" onClick={() => setMenuOuvert(false)} className="block px-4 py-3 font-semibold">
-                    {traduireInterface("Espace pharmacie", langue)}
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <h1 className="mx-auto mt-4 max-w-xl text-[clamp(1.7rem,5.5dvh,2.5rem)] font-extrabold leading-[1.1]">
-          {traduireInterface("Votre médicament,", langue)}<br />
-          <span className="text-naxa-canari">{traduireInterface("à 2 minutes.", langue)}</span>
-        </h1>
-        <svg viewBox="0 0 340 40" preserveAspectRatio="none" className="mt-3 block h-8 w-full" aria-hidden="true">
-          <path d="M0 40 L0 22 Q85 0 170 18 T340 10 L340 40 Z" className="fill-naxa-green-50" />
-        </svg>
-      </section>
+      <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
-        <div className="carte"><Recherche langue={langue} /></div>
+        <div className="carte">
+          <Recherche langue={langue} />
+        </div>
       </div>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col gap-3 px-4 py-2">
-        <ol className="grid grid-cols-4 gap-2 [@media(max-height:600px)]:hidden">
-          {ETAPES[langue].map((etape, i) => (
-            <li key={etape} className="flex flex-col items-center gap-1 text-center">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-naxa-canari text-sm font-extrabold text-naxa-green-900">{i + 1}</span>
-              <span className="text-xs font-semibold">{etape}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-auto text-xs leading-relaxed text-slate-600">
-          {langue === "fr" ? (
-            <>NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence contactez les secours au numéros <a className="font-bold underline" href="tel:1510">1510</a> <a className="font-bold underline" href="tel:119">119</a> et <a className="font-bold underline" href="tel:1511">1511</a>, ou rendez-vous à la pharmacie la plus proche.</>
-          ) : (
-            <>NAXA provides availability information, not medical advice. In an emergency, call <a className="font-bold underline" href="tel:1510">1510</a>, <a className="font-bold underline" href="tel:119">119</a> or <a className="font-bold underline" href="tel:1511">1511</a>, or go to the nearest pharmacy.</>
-          )}
+      <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col gap-3 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={localiser}
+            disabled={position === "recherche"}
+            className={puce}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />
+              <circle cx="12" cy="10" r="2.3" />
+            </svg>
+            {t.presDeMoi}
+          </button>
+          <Link href="/gardes" className={puce}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            {t.gardes}
+          </Link>
+        </div>
+
+        <p className="min-h-4 text-xs text-slate-600" aria-live="polite">
+          {messagePosition}
         </p>
+
+        <section>
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-naxa-green-900">
+            {t.recherchesFrequentes}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {recherchesFrequentes.map((item) => (
+              <Link
+                key={item.fr}
+                href={`/resultats?q=${encodeURIComponent(item.fr)}`}
+                className={puce}
+              >
+                {item[langue]}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <ol className="mt-3 flex items-start justify-between gap-1 [@media(max-height:600px)]:hidden">
+          {t.etapes.map((etape, i) => {
+            const Icone = iconesEtapes[i];
+            return (
+              <Fragment key={etape}>
+                <li className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center text-naxa-green-900">
+                  <Icone />
+                  <span className="text-xs font-semibold">{etape}</span>
+                </li>
+                {i < t.etapes.length - 1 && (
+                  <li aria-hidden="true" className="shrink-0 pt-1.5 text-naxa-green-700">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </li>
+                )}
+              </Fragment>
+            );
+          })}
+        </ol>
       </div>
 
-      <div className="mx-auto w-full max-w-xl shrink-0 px-4 pb-2">
-        <div className="flex justify-start">
-          <a href={"https://wa.me/237681972237?text=" + encodeURIComponent("Hello team NAXA\nJe souhaite échanger avec vous.")} target="_blank" rel="noreferrer" className="btn btn-canari min-h-[48px] px-4 text-xs">
-            {traduireInterface("Vous êtes une Pharmacie ?", langue)}
-          </a>
+      <footer className="mt-2 w-full shrink-0 bg-naxa-green-900 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 text-naxa-canari">
+        <div className="mx-auto flex max-w-xl flex-col gap-1 text-xs">
+          <p>{t.avertissement}</p>
+          <div className="flex flex-wrap items-center gap-x-4">
+            <a className={lienPied} href="tel:117">117</a>
+            <a className={lienPied} href="tel:118">118</a>
+            <a className={lienPied} href="tel:119">119</a>
+            <a
+              className={lienPied}
+              href={
+                "https://wa.me/237681972237?text=" +
+                encodeURIComponent("Hello team NAXA\nJe souhaite échanger avec vous.")
+              }
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t.pharmacienCta}
+            </a>
+          </div>
+          <p className="pt-1 text-center font-semibold">{t.builtWith}</p>
         </div>
-      </div>
-
-      <div className="shrink-0 bg-white px-5 py-1 text-xs text-slate-600">
-        <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <span className="col-start-2 text-center font-semibold">{traduireInterface("Built with 💚 by NAXA", langue)}</span>
-        </div>
-      </div>
+      </footer>
     </main>
   );
 }
