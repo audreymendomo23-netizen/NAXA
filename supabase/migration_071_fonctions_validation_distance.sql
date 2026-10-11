@@ -71,7 +71,7 @@ create table if not exists public.naxa_validations_pharmaceutiques (
   soumis_le timestamptz,
   decide_le timestamptz,
   updated_at timestamptz not null default now(),
-  constraint naxa_validation_document_path_format check (document_storage_path like pharmacie_id::text || '/' || id::text || '/%')
+  constraint naxa_validation_document_path_format check (document_storage_path like (pharmacie_id::text || '/' || id::text || '/%'))
 );
 
 create index if not exists naxa_validations_pharmacie_statut_idx
@@ -84,7 +84,7 @@ drop policy if exists naxa_validations_pharmaceutiques_read on public.naxa_valid
 create policy naxa_validations_pharmaceutiques_read
 on public.naxa_validations_pharmaceutiques for select to authenticated
 using (
-  public.naxa_scope_allows(auth.uid(),pharmacie_id,'PHARMACIE')
+  (public.naxa_scope_allows(auth.uid(),pharmacie_id,'PHARMACIE') or public.is_admin())
   and (
     soumis_par=auth.uid()
     or public.naxa_can('VIEW_PHARMACEUTICAL_VALIDATIONS',pharmacie_id,null)
@@ -118,7 +118,7 @@ for select to authenticated
 using (
   bucket_id='naxa-validations-pharmaceutiques'
   and split_part(name,'/',1) ~* '^[0-9a-f-]{36}
-      and public.naxa_scope_allows(auth.uid(),v.pharmacie_id,'PHARMACIE')
+      and (public.naxa_scope_allows(auth.uid(),v.pharmacie_id,'PHARMACIE') or public.is_admin())
       and (
         v.soumis_par=auth.uid()
         or public.naxa_can('VIEW_PHARMACEUTICAL_VALIDATIONS',v.pharmacie_id,null)
@@ -251,7 +251,7 @@ drop policy if exists naxa_validations_audit_read on public.naxa_validations_pha
 create policy naxa_validations_audit_read on public.naxa_validations_pharmaceutiques_audit
 for select to authenticated
 using (
-  public.naxa_scope_allows(auth.uid(),pharmacie_id,'PHARMACIE')
+  (public.naxa_scope_allows(auth.uid(),pharmacie_id,'PHARMACIE') or public.is_admin())
   and (public.naxa_can('VIEW_PHARMACEUTICAL_AUDIT',pharmacie_id,null) or public.is_admin())
 );
 revoke insert,update,delete on public.naxa_validations_pharmaceutiques_audit from anon,authenticated;
