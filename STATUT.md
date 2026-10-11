@@ -262,11 +262,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Ces correctifs sont des changements source seulement. Ils ne sont pas encore validés par exécution PostgreSQL/CI.** La branche reste ROUGE jusqu'au résultat des contrôles sur le HEAD courant.
 
 
-### Correctif CircleCI — migration 071 / catalogue des privilèges (11 octobre 2026)
+### Correctif de compatibilité — migration 071 / schéma Supabase Production (11 octobre 2026)
 
-- **Erreur ciblée :** `SQLSTATE 23502` sur `public.naxa_privileges.famille` pendant l'insertion de `SUBMIT_PHARMACEUTICAL_VALIDATION`.
-- **Cause :** la migration 071 écrivait seulement les colonnes historiques `family`, `description` et `governance_only`, alors que les colonnes canoniques `famille`, `libelle`, `governance`, `niveau_min`, `niveau_max` et `active` sont également obligatoires après la migration 020b.
-- **Correction source :** insertion et mise à jour sur conflit des deux jeux de colonnes, avec valeurs cohérentes pour les huit privilèges du catalogue 071.
-- **Test ajouté :** le test SQL 071 exige les huit privilèges et échoue si une colonne requise est NULL ou si `family <> famille` ou `description <> libelle`.
-- **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase et aucun déploiement Production.
-- **Validation : ROUGE / en attente de preuve.** Le correctif source et le test ont été commités, mais aucun rejeu PostgreSQL propre ni résultat final `sql_tests` sur le HEAD final n'est encore confirmé. Ne pas fusionner avant preuve.
+- **Erreur initiale CI :** `SQLSTATE 23502` lors de l'insertion du privilège `SUBMIT_PHARMACEUTICAL_VALIDATION`.
+- **Contrôle direct du schéma Production :** `public.naxa_privileges` expose `code,family,description,niveau_min,niveau_max,delegable,governance,active,created_at`; les colonnes `famille`, `libelle` et `governance_only` n'existent pas dans cette base.
+- **Correction source :** migration 071 rendue compatible avec les variantes du schéma : elle détecte les colonnes disponibles, écrit les colonnes correspondantes et synchronise les alias facultatifs uniquement lorsqu'ils existent.
+- **Test SQL :** contrôle des huit privilèges, des colonnes réelles requises et de la cohérence des alias facultatifs sans références statiques à des colonnes absentes.
+- **Périmètre :** branche `feat/naxa-fonctions-validation-distance` / PR [#48](https://github.com/audreymendomo23-netizen/NAXA/pull/48). Aucun changement sur `main`, aucune écriture Supabase, aucune fusion et aucun déploiement Production à ce stade.
+- **Bloqueur avant Production :** l'historique Supabase observé s'arrête à `042_stats_pilotage_facade_security`; il faut auditer les dépendances des migrations 043–070 avant d'appliquer la migration 071.
+- **Validation : ROUGE / à rejouer.** Attendre CircleCI sur le HEAD corrigé, puis vérifier le rejeu PostgreSQL et l'ordre de migration avant fusion/déploiement.
