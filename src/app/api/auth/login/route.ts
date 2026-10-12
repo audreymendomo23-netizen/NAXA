@@ -85,7 +85,12 @@ export async function POST(request: NextRequest) {
     }
     const profile = matchingProfiles[0] as Record<string, unknown> & { id: string; actif?: boolean | null; pharmacie_id?: string | null };
     if (profile[S.profileActiveColumn] === false) {
-      return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+      if (espacePharmacie) {
+        const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
+        await rateLimit("login_user", loginKey, "fail", 20, 3600, 900, 900);
+        if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
+      }
+      return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
     if (espacePharmacie && (profile[S.profilePharmacyIdColumn] !== pharmacyId || !["pharmacie","promoteur","caisse"].includes(String(profile[S.profileRoleColumn])))) {
       const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
@@ -98,7 +103,12 @@ export async function POST(request: NextRequest) {
     const email = userData.user?.email;
 
     if (userError || !email) {
-      return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+      if (espacePharmacie) {
+        const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
+        await rateLimit("login_user", loginKey, "fail", 20, 3600, 900, 900);
+        if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
+      }
+      return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
 
     if (!(await sessionSlotAvailable(profile.id))) {
