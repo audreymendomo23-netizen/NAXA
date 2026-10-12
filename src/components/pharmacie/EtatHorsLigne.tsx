@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { enregistrerOperation, listPendingOperations, pendingCount, removeOperation, markOperationAttempt, saveReference, getUnlockedDevice } from "@/lib/offline-db";
+import { enregistrerOperation, listPendingOperations, pendingCount, removeOperation, markOperationAttempt, saveReference, readReference, markLocalSync, getUnlockedDevice } from "@/lib/offline-db";
 
 export function EtatHorsLigne() {
  const [online,setOnline]=useState(true),[count,setCount]=useState(0),[synced,setSynced]=useState(false);
@@ -12,10 +12,10 @@ export function EtatHorsLigne() {
    const pin=atob(devicePinSession);const device=await unlockLocalDevice(pin);
    const ops=await listPendingOperations();
    for(const op of ops){
-    try{const res=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+device.token},body:JSON.stringify({operations:[op]})});if(!res.ok)throw new Error("sync failed");const data=await res.json();const item=(data.results||[]).find((x:{id:string;status:string})=>x.id===op.id);if(!item||!["applied","already_applied"].includes(item.status)){await markOperationAttempt(op.id,true);break}if(data.reference!==undefined)await saveReference(data.reference);await removeOperation(op.id)}
+    try{const res=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+device.token},body:JSON.stringify({operations:[op]})});if(!res.ok)throw new Error("sync failed");const data=await res.json();const item=(data.results||[]).find((x:{id:string;status:string})=>x.id===op.id);if(!item||!["applied","already_applied"].includes(item.status)){await markOperationAttempt(op.id,true);break}if(data.reference!==undefined){const old=await readReference();const prev=old?.value&&typeof old.value==="object"?old.value as Record<string,unknown>:{};await saveReference({...prev,pharmacie:data.reference.pharmacie??data.reference})}await removeOperation(op.id)}
     catch{await markOperationAttempt(op.id,true);break}
    }
-   setSynced(true);await refresh();
+   await markLocalSync();setSynced(true);await refresh();
   }catch{ /* pas de PIN déverrouillé ou appareil expiré */ }
  },[refresh]);
  useEffect(()=>{void refresh();const on=()=>{void refresh();void sync()};window.addEventListener("online",on);window.addEventListener("offline",on);const timer=window.setInterval(()=>{if(navigator.onLine)void sync()},60_000);return()=>{window.removeEventListener("online",on);window.removeEventListener("offline",on);window.clearInterval(timer)}},[refresh,sync]);
