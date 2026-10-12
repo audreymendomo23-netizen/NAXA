@@ -116,6 +116,7 @@ export async function markOperationAttempt(id: string, failed: boolean) {
   });
 }
 export async function removeOperation(id: string) { await tx(QUEUE, "readwrite", s => s.delete(id)); }
+export async function markLocalSync() { const meta=await tx<Meta|undefined>(META,"readonly",s=>s.get("device"));if(!meta)return;meta.lastSync=Date.now();await tx(META,"readwrite",s=>s.put(meta));if(activeUnlocked)activeUnlocked.lastSync=meta.lastSync; }
 export async function pendingCount() { return (await listPendingOperations()).length; }
 export async function clearLocalDevice() {
   const d = await openDb();
