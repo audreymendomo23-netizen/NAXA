@@ -186,8 +186,8 @@ jobs:
             shopt -s nullglob
             mapfile -d '' migration_files < <(find supabase -maxdepth 1 -type f -name 'migration_*.sql' -print0 | LC_ALL=C sort -z)
             printf 'Nombre de migrations sources: %s\n' "${#migration_files[@]}"
-            if [[ "${#migration_files[@]}" -ne 93 ]]; then
-              echo "FAIL: attendu 93 migrations sources, trouvé ${#migration_files[@]}"
+            if [[ "${#migration_files[@]}" -ne 94 ]]; then
+              echo "FAIL: attendu 94 migrations sources, trouvé ${#migration_files[@]}"
               exit 1
             fi
             n=1
