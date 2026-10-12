@@ -43,7 +43,7 @@ export default function PanneauPharmacie(){
  useEffect(()=>{(async()=>{
   if(!navigator.onLine){
    const device=getUnlockedDevice();
-   if(!device){setMsg("Connexion requise. Déverrouillez d'abord cet appareil depuis /connexion?espace=pharmacie.");return}
+   if(!device){window.location.replace("/connexion?espace=pharmacie");return}
    setPid(device.pharmacyId);setNom(device.pharmacyName);
    const cached=await readReference().catch(()=>undefined);const value=cached?.value as {stock?:Ligne[];resas?:Resa[];pharmacie?:{nom:string;de_garde:boolean}}|undefined;
    if(value){setStock(value.stock??[]);setResas(value.resas??[]);setNom(value.pharmacie?.nom??device.pharmacyName);setGarde(Boolean(value.pharmacie?.de_garde))}
