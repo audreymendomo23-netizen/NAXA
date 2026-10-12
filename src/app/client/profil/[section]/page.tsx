@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { NAXA_EMAIL, NAXA_WHATSAPP, lienGmail, lienWhatsApp } from "@/lib/contact-naxa";
 import { Logo } from "@/components/Logo";
