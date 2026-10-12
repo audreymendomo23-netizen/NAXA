@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
+import { BoutonNAXA } from "@/components/BoutonNAXA";
 
 function GoogleIcon() {
   return (
