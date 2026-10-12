@@ -10,14 +10,11 @@ export async function POST(request:NextRequest){
  if(!/^\d{4}$/.test(code))return NextResponse.json({error:"Code invalide."},{status:400});
  const ip=trustedRequestIp(request);
  try{
-  const ipCheck=await rateLimit("ip_code",ip,"check",5,600,30,900);if(!ipCheck.allowed)return tooManyAttempts(ipCheck.retryAfter);
-  const codeCheck=await rateLimit("code",code,"check",20,3600,900,900);if(!codeCheck.allowed)return tooManyAttempts(codeCheck.retryAfter);
+  const ipCheck=await rateLimit("ip_code",ip,"attempt",5,600,30,900);if(!ipCheck.allowed)return tooManyAttempts(ipCheck.retryAfter);
+  const codeCheck=await rateLimit("code",code,"attempt",20,3600,900,900);if(!codeCheck.allowed)return tooManyAttempts(codeCheck.retryAfter);
   const {data,error}=await supabaseAdmin().from(S.pharmaciesTable).select(`${S.pharmacyIdColumn},${S.pharmacyNameColumn}`).eq(S.pharmacyCodeColumn,code).eq(S.pharmacyActiveColumn,true).limit(2);
   if(error)throw error;
   if(!data||data.length!==1){
-   const ipFail=await rateLimit("ip_code",ip,"fail",5,600,30,900);
-   await rateLimit("code",code,"fail",20,3600,900,900);
-   if(!ipFail.allowed)return tooManyAttempts(ipFail.retryAfter);
    return NextResponse.json({error:"Code pharmacie introuvable"},{status:404});
   }
   await rateLimit("ip_code",ip,"success",5,600,30,900);await rateLimit("code",code,"success",20,3600,900,900);
