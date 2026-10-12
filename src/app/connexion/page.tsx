@@ -441,11 +441,11 @@ export default function Connexion() {
   return (
     <main
       className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2 !h-auto !min-h-[100dvh] !overflow-y-auto"
-      style={{ backgroundColor: "#F2FAF5" }}
+      style={{ backgroundColor: "#F2FAF5", paddingTop: "max(24px, env(safe-area-inset-top))" }}
     >
       <BullesConnexion />
       <div className="relative z-10 flex w-full max-w-[360px] flex-col items-center justify-center gap-3 !items-stretch !gap-5">
-        <div className="self-start">
+        <div className="logo-pastille self-start">
           <Logo />
         </div>
         <Suspense>
