@@ -35,7 +35,15 @@ export async function POST(req: NextRequest) {
     }
     const now = new Date().toISOString();
     await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: now }).eq(S.deviceIdColumn, device[S.deviceIdColumn]);
-    const { data: reference } = await supabaseAdmin().from(S.pharmaciesTable).select([S.pharmacyIdColumn,S.pharmacyNameColumn,S.pharmacyStockUpdatedColumn].join(",")).eq(S.pharmacyIdColumn, device[S.devicePharmacyIdColumn]).maybeSingle();
+    const pharmacyId = device[S.devicePharmacyIdColumn];
+    const [{data:pharmacy},{data:stocks},{data:costs},{data:lots},{data:expenses}] = await Promise.all([
+      supabaseAdmin().from(S.pharmaciesTable).select([S.pharmacyIdColumn,S.pharmacyNameColumn,S.pharmacyOnCallColumn,S.pharmacyStockUpdatedColumn].join(",")).eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
+      supabaseAdmin().from(S.stocksTable).select(`*,${S.productsTable}(*)`).eq(S.pharmacyIdColumn,pharmacyId),
+      supabaseAdmin().from(S.stockCostsTable).select("*").eq(S.pharmacyIdColumn,pharmacyId),
+      supabaseAdmin().from(S.stockLotsTable).select("*").eq(S.pharmacyIdColumn,pharmacyId),
+      supabaseAdmin().from(S.expensesTable).select("*").eq(S.pharmacyIdColumn,pharmacyId).order("date_depense",{ascending:false}).limit(200)
+    ]);
+    const reference = pharmacy ? { pharmacie: pharmacy, stock: stocks ?? [], couts: costs ?? [], lots: lots ?? [], charges: expenses ?? [] } : null;
     return NextResponse.json({ ok: true, results, reference: reference ? { pharmacie: reference } : null, syncedAt: now });
   } catch (error) {
     console.error("NAXA_SYNC_FAILED", error);
