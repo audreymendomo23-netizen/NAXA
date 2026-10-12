@@ -14,7 +14,7 @@ export function EtatHorsLigne() {
    if(!ops.length){
     const ping=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+device.token},body:JSON.stringify({operations:[]})});
     if(!ping.ok)throw new Error("sync failed");
-    const data=await ping.json();if(data.reference!==undefined){const old=await readReference();const prev=old?.value&&typeof old.value==="object"?old.value as Record<string,unknown>:{};await saveReference({...prev,pharmacie:data.reference.pharmacie??data.reference})}
+    const data=await ping.json();if(data.reference!==undefined){const old=await readReference();const prev=old?.value&&typeof old.value==="object"?old.value as Record<string,unknown>:{};await saveReference({...prev,...data.reference})}
    }
    for(const op of ops){
     try{
