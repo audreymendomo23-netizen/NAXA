@@ -28,8 +28,8 @@ export function readPharmacyCookie(request: NextRequest): string | null {
     if (!value) return null;
     const [payload, sig, extra] = value.split(".");
     if (!payload || !sig || extra) return null;
-    const expected = Buffer.from(signature(payload));
-    const supplied = Buffer.from(sig);
+    const expected = new Uint8Array(Buffer.from(signature(payload)));
+    const supplied = new Uint8Array(Buffer.from(sig));
     if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return null;
     const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (typeof decoded.pharmacyId !== "string" || !decoded.pharmacyId || !Number.isInteger(decoded.exp) || decoded.exp <= Math.floor(Date.now()/1000)) return null;
