@@ -25,4 +25,7 @@ export const PHARMACIE_SCHEMA = {
   deviceInstallationColumn: "installation_id",
   operationsTable: "naxa_offline_operations",
   alertsTable: "naxa_offline_alertes",
+  promoterPharmaciesTable: "promoteur_pharmacies",
+  promoterProfileIdColumn: "promoteur_id",
+  promoterLinkActiveColumn: "actif",
 } as const;
