@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
-import { hasLocalDevice, activateLocalDevice, getLocalInstallationId } from "@/lib/offline-db";
+import { hasLocalDevice, activateLocalDevice, getLocalInstallationId, unlockLocalDevice, saveTokenEncryptedForSession } from "@/lib/offline-db";
 import { DebloquerAppareil } from "@/components/pharmacie/DebloquerAppareil";
 
 type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
@@ -508,7 +508,7 @@ function PharmacieFormulaire() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [offlineUnlock, setOfflineUnlock] = useState(false);
-  const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string}|null>(null);
+  const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
 
@@ -545,10 +545,10 @@ function PharmacieFormulaire() {
         if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
-      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
+      const existingLocal = await hasLocalDevice();\n      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
       const deviceData = await deviceResponse.json();
       if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }
-      setActivation(deviceData);
+      setActivation({ ...deviceData, existingLocal });
     } catch { setError("Connexion impossible. Vérifiez votre connexion internet."); }
     finally { setBusy(false); }
   }
@@ -599,10 +599,10 @@ function PharmacieFormulaire() {
           </div>
           {activation ? (
             <form onSubmit={confirmerActivation} className="space-y-3">
-              <p className="text-sm font-semibold">Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur.</p>
+              <p className="text-sm font-semibold">{activation.existingLocal ? "Cet appareil est déjà activé. Saisissez votre PIN local existant." : "Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur."}</p>
               <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
               <input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
-              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : "Activer cet appareil"}</button>
+              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : activation.existingLocal ? "Déverrouiller et continuer" : "Activer cet appareil"}</button>
             </form>
           ) : !showUpdate ? (
             <form onSubmit={login} className="space-y-3">
