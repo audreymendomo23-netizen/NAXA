@@ -177,7 +177,7 @@ ALTER TABLE public.naxa_offline_alertes ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.naxa_offline_alertes FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.naxa_offline_alertes TO service_role;
 
--- Nettoyage périodique manuel via SQL Editor; ne supprime que des clés de limiteur inactives > 24 h.
+-- Nettoyage des clés de limiteur inactives > 24 h; planifie un job si pg_cron est disponible.
 CREATE OR REPLACE FUNCTION public.naxa_cleanup_tentatives_code()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 DECLARE n integer;
@@ -188,5 +188,13 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.naxa_cleanup_tentatives_code() FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.naxa_cleanup_tentatives_code() TO service_role;
+DO $cleanup$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    EXECUTE 'SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = ''naxa-cleanup-tentatives-code''';
+    EXECUTE 'SELECT cron.schedule(''naxa-cleanup-tentatives-code'', ''17 * * * *'', ''SELECT public.naxa_cleanup_tentatives_code();'')';
+  END IF;
+END
+$cleanup$;
 
 COMMIT;
