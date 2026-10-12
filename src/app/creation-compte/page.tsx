@@ -9,8 +9,13 @@ const Check=()=> <span aria-label="Information valide" className="text-lg font-b
 const COUNTRIES=[["CM","🇨🇲","+237","Cameroun",9],["AO","🇦🇴","+244","Angola",9],["BI","🇧🇮","+257","Burundi",8],["CF","🇨🇫","+236","Centrafrique",8],["TD","🇹🇩","+235","Tchad",8],["CG","🇨🇬","+242","Congo",9],["CD","🇨🇩","+243","RDC",9],["GQ","🇬🇶","+240","Guinée équatoriale",9],["GA","🇬🇦","+241","Gabon",8],["RW","🇷🇼","+250","Rwanda",9],["ST","🇸🇹","+239","São Tomé-et-Príncipe",7]] as const;
 function ageOf(v:string){const d=new Date(v+"T00:00:00");if(!v||Number.isNaN(d.getTime()))return null;const n=new Date();let a=n.getFullYear()-d.getFullYear();const m=n.getMonth()-d.getMonth();if(m<0||(m===0&&n.getDate()<d.getDate()))a--;return a}
 
+function safeInternalPath(value:string|null){
+ if(!value||!value.startsWith("/"))return "/";
+ try{const target=new URL(value,"https://naxa.invalid");return target.origin==="https://naxa.invalid"?target.pathname+target.search+target.hash:"/"}catch{return "/"}
+}
+
 function Formulaire(){
- const router=useRouter(), search=useSearchParams(), retour=search.get("retour")||"/";
+ const router=useRouter(), search=useSearchParams(), retour=safeInternalPath(search.get("retour"));
  const [nom,setNom]=useState(""),[prenom,setPrenom]=useState(""),[username,setUsername]=useState("");
  const [uState,setUState]=useState<"idle"|"checking"|"available"|"taken">("idle");
  const [country,setCountry]=useState("CM"),[phone,setPhone]=useState(""),[countryOpen,setCountryOpen]=useState(false),[dob,setDob]=useState(""),[email,setEmail]=useState("");
