@@ -25,8 +25,18 @@ function ageOf(value: string) {
 function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
-  const rawNext = search.get("next") || "/";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const rawNext = search.get("next");
+  const next = (() => {
+    if (!rawNext || !rawNext.startsWith("/")) return "/";
+    try {
+      const target = new URL(rawNext, "https://naxa.invalid");
+      return target.origin === "https://naxa.invalid"
+        ? target.pathname + target.search + target.hash
+        : "/";
+    } catch {
+      return "/";
+    }
+  })();
   const [username,setUsername] = useState("");
   const [firstName,setFirstName] = useState("");
   const [lastName,setLastName] = useState("");
