@@ -7,10 +7,9 @@ const json = (body: Record<string, unknown>, status = 200, headers: HeadersInit 
   });
 
 function trustedClientIp(request: Request): string {
+  // Cloudflare overwrites cf-connecting-ip; if unavailable, use the last proxy-appended XFF value.
   const cfIp = request.headers.get("cf-connecting-ip")?.trim();
   if (cfIp && cfIp.length <= 64) return cfIp;
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp && realIp.length <= 64) return realIp;
   const forwarded = request.headers.get("x-forwarded-for")?.split(",").map((value) => value.trim()).filter(Boolean);
   const lastForwarded = forwarded?.at(-1);
   return lastForwarded && lastForwarded.length <= 64 ? lastForwarded : "unknown";
