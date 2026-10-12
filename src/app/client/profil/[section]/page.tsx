@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { NAXA_EMAIL, NAXA_WHATSAPP, lienGmail, lienWhatsApp } from "@/lib/contact-naxa";
 import { Logo } from "@/components/Logo";
@@ -17,7 +16,8 @@ export default function ProfilSectionPage() {
  const [prefs,setPrefs]=useState<Prefs>(initial),[nom,setNom]=useState("Client"),[busy,setBusy]=useState(false),[erreur,setErreur]=useState(""),[ok,setOk]=useState(false),[permission,setPermission]=useState("default");
  const [reçus,setRecus]=useState<LigneRecu[]>([]);
  const [chargementRecus,setChargementRecus]=useState(false);
- const groupesRecus=useMemo(()=>{const m=new Map<string,LigneRecu[]>();for(const ligne of reçus)m.set(ligne.reservation_id,[...(m.get(ligne.reservation_id)||[]),ligne]);return [...m.entries()].sort((a,b)=>new Date(b[1][0].achat_le||b[1][0].reservation_creee_le).getTime()-new Date(a[1][0].achat_le||a[1][0].reservation_creee_le).getTime());},[reçus]);
+ function grouperRecus(lignes:LigneRecu[]){const m=new Map<string,LigneRecu[]>();for(const ligne of lignes){const groupe=m.get(ligne.reservation_id)||[];groupe.push(ligne);m.set(ligne.reservation_id,groupe);}return Array.from(m.entries()).sort((a,b)=>new Date(b[1][0].achat_le||b[1][0].reservation_creee_le).getTime()-new Date(a[1][0].achat_le||a[1][0].reservation_creee_le).getTime());}
+ const groupesRecus=grouperRecus(reçus);
 
  useEffect(()=>{void(async()=>{const sb=supabaseBrowser();const {data:u}=await sb.auth.getUser();if(!u.user){router.replace("/connexion?retour="+encodeURIComponent("/client/profil/"+section));return;}setNom(String(u.user.user_metadata?.full_name||u.user.user_metadata?.name||"Client"));const {data}=await sb.from("client_preferences").select("*").eq("user_id",u.user.id).maybeSingle();if(data)setPrefs({...initial,...data});if(typeof Notification!=="undefined")setPermission(Notification.permission);})();},[router,section]);
  useEffect(()=>{if(section!=="factures")return;let actif=true;setChargementRecus(true);void(async()=>{const {data,error}=await supabaseBrowser().from("client_achats").select("reservation_id,produit_id,medicament,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,achat_le,reservation_creee_le,pharmacie,ville,statut").order("achat_le",{ascending:false,nullsFirst:false}).limit(200);if(!actif)return;if(error)setErreur("Impossible de charger les reçus. Réessayez plus tard.");else setRecus((data??[]) as LigneRecu[]);setChargementRecus(false);})();return()=>{actif=false;};},[section]);
