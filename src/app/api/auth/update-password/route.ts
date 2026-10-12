@@ -17,18 +17,15 @@ export async function POST(request: NextRequest) {
     const newPassword = String(body.newPassword ?? "");
     if (!username || !currentPassword || newPassword.length < 8) return NextResponse.json({ error: "Nom d'utilisateur, mot de passe actuel et nouveau mot de passe (8 caractères minimum) requis." }, { status: 400 });
     const ip = trustedRequestIp(request), userKey = "password:" + username;
-    const ipGate = await rateLimit("ip_password", ip, "check", 5, 600, 30, 900);
+    const ipGate = await rateLimit("ip_password", ip, "attempt", 5, 600, 30, 900);
     if (!ipGate.allowed) return tooManyAttempts(ipGate.retryAfter);
-    const userGate = await rateLimit("password_user", userKey, "check", 20, 3600, 900, 900);
+    const userGate = await rateLimit("password_user", userKey, "attempt", 20, 3600, 900, 900);
     if (!userGate.allowed) return tooManyAttempts(userGate.retryAfter);
 
     const { data: profiles, error: profileError } = await supabaseAdmin().from(S.profilesTable)
       .select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileUsernameColumn},${S.profileActiveColumn},${S.profileRoleColumn}`)
       .ilike(S.profileUsernameColumn, username).limit(2);
     if (profileError || !profiles || profiles.length !== 1 || profiles[0][S.profilePharmacyIdColumn] !== pharmacyId || profiles[0][S.profileActiveColumn] === false || !["pharmacie","promoteur","caisse"].includes(String(profiles[0][S.profileRoleColumn]))) {
-      const gate = await rateLimit("ip_password", ip, "fail", 5, 600, 30, 900);
-      await rateLimit("password_user", userKey, "fail", 20, 3600, 900, 900);
-      if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
       return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
     const userId = String(profiles[0][S.profileIdColumn]);
