@@ -23,17 +23,18 @@ export default function PanneauPharmacie(){
  const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[offline,setOffline]=useState(false),[garde,setGarde]=useState(false),[sync,setSync]=useState(false),[conflits,setConflits]=useState<Conflict[]>([]),syncing=useRef(false),[noteTest,setNoteTest]=useState("");
 
  const charger=useCallback(async(id:string)=>{
-  const [{data:s,error:se},{data:r,error:re},{data:ph,error:pe},{data:charges,error:ce},{data:couts,error:coe},{data:lots,error:le}]=await Promise.all([
+  const [{data:s,error:se},{data:r,error:re},{data:ph,error:pe},{data:charges,error:ce},{data:couts,error:coe},{data:lots,error:le},{data:catalogue,error:catError}]=await Promise.all([
     sb.from("stocks").select("produit_id,prix,quantite,date_peremption,updated_at,emplacement,produits(nom,dosage)").eq("pharmacie_id",id),
     sb.from("reservations").select("id,statut,total,expires_at,paiement_ref,reservation_items(quantite,produits(nom))").eq("pharmacie_id",id).in("statut",["en_attente","confirmee","payee"]),
     sb.from("pharmacies").select("nom,de_garde").eq("id",id).single(),
     sb.from("depenses").select("*").eq("pharmacie_id",id).order("date_depense",{ascending:false}).limit(200),
     sb.from("stocks_couts").select("*").eq("pharmacie_id",id),
-    sb.from("stocks_lots").select("*").eq("pharmacie_id",id)
+    sb.from("stocks_lots").select("*").eq("pharmacie_id",id),
+    sb.from("produits").select("*").limit(2000)
   ]);
-  if(se||re||pe||ce||coe||le)return setMsg("Impossible de charger les données de référence. Vérifiez la connexion.");
+  if(se||re||pe||ce||coe||le||catError)return setMsg("Impossible de charger les données de référence. Vérifiez la connexion.");
   setStock((s??[]) as unknown as Ligne[]);setResas((r??[]) as unknown as Resa[]);setNom(ph?.nom??"");setGarde(Boolean(ph?.de_garde));
-  await saveReference({stock:s??[],resas:r??[],pharmacie:{nom:ph?.nom??"",de_garde:Boolean(ph?.de_garde)},charges:charges??[],couts:couts??[],lots:lots??[]});
+  await saveReference({stock:s??[],resas:r??[],pharmacie:{nom:ph?.nom??"",de_garde:Boolean(ph?.de_garde)},charges:charges??[],couts:couts??[],lots:lots??[],catalogue:catalogue??[]});
  },[sb]);
 
  const synchroniser=useCallback(async(id:string)=>{if(syncing.current||!navigator.onLine)return;syncing.current=true;setSync(true);try{for(const p of await queueFor(id)){const {data:res,error}=await sb.rpc("offline_stock_set_quantity",{p_operation_id:p.operation_id,p_pharmacie_id:id,p_produit_id:p.produit_id,p_quantite:p.quantite,p_base_updated_at:p.base_updated_at});if(error){setMsg("Une modification hors ligne n'a pas pu être synchronisée.");continue}if(res?.status==="conflict"){setConflits(x=>x.some(c=>c.operation_id===p.operation_id)?x:[...x,{...p,server:{quantite:res.server_quantity,updated_at:res.server_updated_at}}]);continue}if(res?.status==="applied"||res?.status==="already_applied"||res?.status==="failed"){if(typeof p.id==="number")await removeQueue(p.id)}}await charger(id)}catch{setMsg("La synchronisation hors ligne est indisponible sur cet appareil.")}finally{syncing.current=false;setSync(false)}},[charger,sb]);
