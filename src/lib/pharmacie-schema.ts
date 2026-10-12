@@ -5,6 +5,7 @@ export const PHARMACIE_SCHEMA = {
   pharmacyNameColumn: "nom",
   pharmacyCodeColumn: "code_pharmacie",
   pharmacyActiveColumn: "actif",
+  pharmacyStockUpdatedColumn: "stock_updated_at",
   profilesTable: "profiles",
   profileIdColumn: "id",
   profilePharmacyIdColumn: "pharmacie_id",
@@ -21,6 +22,7 @@ export const PHARMACIE_SCHEMA = {
   deviceCreatedColumn: "cree_le",
   deviceLastSyncColumn: "derniere_synchro",
   deviceActiveColumn: "actif",
+  deviceInstallationColumn: "installation_id",
   operationsTable: "naxa_offline_operations",
   alertsTable: "naxa_offline_alertes",
 } as const;
