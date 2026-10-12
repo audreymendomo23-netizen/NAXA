@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BulleErreur } from "@/components/BulleErreur";
+import { BullesAuthentification } from "@/components/BullesAuthentification";
 
 const checks=(password:string)=>[
   password.length>=6,
@@ -47,4 +48,4 @@ function Formulaire(){
  </form>
 }
 
-export default function MotDePasseOublie(){return <main className="auth-ecran flex flex-col items-center justify-center gap-3 bg-naxa-green-900 px-5 py-2"><Logo/><Suspense><Formulaire/></Suspense></main>}
+export default function MotDePasseOublie(){return <main className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2"><BullesAuthentification/><div className="relative z-10 flex w-full flex-col items-center justify-center gap-3"><Logo/><Suspense><Formulaire/></Suspense></div></main>}

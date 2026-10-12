@@ -5,6 +5,7 @@ import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BulleErreur } from "@/components/BulleErreur";
+import { BullesAuthentification } from "@/components/BullesAuthentification";
 const Check=()=> <span aria-label="Information valide" className="text-lg font-black text-naxa-canari">✓</span>;
 
 const COUNTRIES=[["CM","🇨🇲","+237","Cameroun",9],["AO","🇦🇴","+244","Angola",9],["BI","🇧🇮","+257","Burundi",8],["CF","🇨🇫","+236","Centrafrique",8],["TD","🇹🇩","+235","Tchad",8],["CG","🇨🇬","+242","Congo",9],["CD","🇨🇩","+243","RDC",9],["GQ","🇬🇶","+240","Guinée équatoriale",9],["GA","🇬🇦","+241","Gabon",8],["RW","🇷🇼","+250","Rwanda",9],["ST","🇸🇹","+239","São Tomé-et-Príncipe",7]] as const;
@@ -70,4 +71,4 @@ function Formulaire(){
   {error&&<BulleErreur key={error} message={error}/>}<p className="text-center text-xs text-slate-600">Vous avez déjà un compte ? <Link href={`/connexion?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Se connecter</Link></p>
  </form>
 }
-export default function CreationCompte(){return <main className="auth-ecran flex flex-col items-center justify-center gap-2 bg-naxa-green-900 px-3 py-2 sm:px-5 sm:py-3"><Logo/><Suspense><Formulaire/></Suspense></main>}
+export default function CreationCompte(){return <main className="auth-ecran relative isolate flex flex-col items-center justify-center gap-2 overflow-hidden bg-naxa-green-900 px-3 py-2 sm:px-5 sm:py-3"><BullesAuthentification/><div className="relative z-10 flex w-full flex-col items-center justify-center gap-2"><Logo/><Suspense><Formulaire/></Suspense></div></main>}
