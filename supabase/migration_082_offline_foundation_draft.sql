@@ -101,7 +101,7 @@ BEGIN
   ON CONFLICT(scope,key_hash) DO UPDATE SET last_seen_at=EXCLUDED.last_seen_at;
   SELECT * INTO r FROM public.tentatives_code t WHERE t.scope=p_scope AND t.key_hash=p_key_hash FOR UPDATE;
   IF p_action='success' THEN
-    UPDATE public.tentatives_code SET failures=0, window_started_at=v_now, blocked_until=NULL, block_seconds=p_base_block_seconds,last_seen_at=v_now
+    UPDATE public.tentatives_code SET failures=0, window_started_at=v_now, blocked_until=NULL,last_seen_at=v_now
     WHERE scope=p_scope AND key_hash=p_key_hash;
     RETURN QUERY SELECT true,0,0; RETURN;
   END IF;
