@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { enregistrerOperation, listPendingOperations, pendingCount, removeOperation, markOperationAttempt, saveReference, unlockLocalDevice } from "@/lib/offline-db";
+import { enregistrerOperation, listPendingOperations, pendingCount, removeOperation, markOperationAttempt, saveReference, getUnlockedDevice } from "@/lib/offline-db";
 
 export function EtatHorsLigne() {
  const [online,setOnline]=useState(true),[count,setCount]=useState(0),[synced,setSynced]=useState(false);
