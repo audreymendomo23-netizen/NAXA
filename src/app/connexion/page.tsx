@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
-import { hasLocalDevice, activateLocalDevice } from "@/lib/offline-db";
+import { hasLocalDevice, activateLocalDevice, getLocalInstallationId } from "@/lib/offline-db";
 import { DebloquerAppareil } from "@/components/pharmacie/DebloquerAppareil";
 
 type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
@@ -545,7 +545,7 @@ function PharmacieFormulaire() {
         if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
-      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie" }) });
+      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
       const deviceData = await deviceResponse.json();
       if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }
       setActivation(deviceData);
