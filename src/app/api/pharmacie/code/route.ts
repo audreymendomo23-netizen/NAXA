@@ -1,9 +1,8 @@
 import { NextRequest,NextResponse } from "next/server";
-import { createHash } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
 import { setPharmacyCookie } from "@/lib/pharmacie-code-session";
-import { hashRateKey,rateLimit,tooManyAttempts,trustedRequestIp } from "@/lib/pharmacie-rate-limit";
+import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
 export async function POST(request:NextRequest){
  let body:{code?:unknown};try{body=await request.json()}catch{return NextResponse.json({error:"Code invalide."},{status:400})}
  const code=typeof body.code==="string"?body.code:"";
