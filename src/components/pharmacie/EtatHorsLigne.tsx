@@ -22,7 +22,7 @@ export function EtatHorsLigne() {
      if(!res.ok)throw new Error("sync failed");
      const data=await res.json();const item=(data.results||[]).find((x:{id:string;status:string})=>x.id===op.id);
      if(!item||!["applied","already_applied"].includes(item.status)){await markOperationAttempt(op.id,true);allOk=false;break}
-     if(data.reference!==undefined){const old=await readReference();const prev=old?.value&&typeof old.value==="object"?old.value as Record<string,unknown>:{};await saveReference({...prev,pharmacie:data.reference.pharmacie??data.reference})}
+     if(data.reference!==undefined){const old=await readReference();const prev=old?.value&&typeof old.value==="object"?old.value as Record<string,unknown>:{};await saveReference({...prev,...data.reference})}
      await removeOperation(op.id);
     }catch{await markOperationAttempt(op.id,true);allOk=false;break}
    }
