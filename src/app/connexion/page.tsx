@@ -633,7 +633,7 @@ export default function Connexion() {
       <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
         <div className="mt-[-60px] w-full max-w-[360px]">
           <Suspense>
-            {searchParamsPharmacie ? <PharmacieFormulaire /> : <Formulaire />}
+            <ChoixFormulaire />
           </Suspense>
         </div>
       </div>
