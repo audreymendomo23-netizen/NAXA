@@ -8,7 +8,7 @@ export async function POST(request:NextRequest){
  let body:{code?:unknown};try{body=await request.json()}catch{return NextResponse.json({error:"Code invalide."},{status:400})}
  const code=typeof body.code==="string"?body.code:"";
  if(!/^\d{4}$/.test(code))return NextResponse.json({error:"Code invalide."},{status:400});
- const ip=trustedRequestIp(request), codeKey=hashRateKey("code:"+code);
+ const ip=trustedRequestIp(request);
  try{
   const ipCheck=await rateLimit("ip_code",ip,"check",5,600,30,900);if(!ipCheck.allowed)return tooManyAttempts(ipCheck.retryAfter);
   const codeCheck=await rateLimit("code",code,"check",20,3600,900,900);if(!codeCheck.allowed)return tooManyAttempts(codeCheck.retryAfter);
