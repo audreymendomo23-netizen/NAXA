@@ -9,8 +9,9 @@ export async function POST(req: NextRequest) {
     const { data: actor } = await supabaseAdmin().from(S.profilesTable)
       .select([S.profileIdColumn,S.profilePharmacyIdColumn,S.profileRoleColumn,S.profileActiveColumn].join(","))
       .eq(S.profileIdColumn,user.id).maybeSingle();
-    const role = String(actor?.[S.profileRoleColumn] || "");
-    if (!actor || actor[S.profileActiveColumn] === false || !["promoteur","admin"].includes(role)) {
+    const actorRecord = actor as unknown as Record<string, unknown> | null;
+    const role = String(actorRecord?.[S.profileRoleColumn] || "");
+    if (!actorRecord || actorRecord[S.profileActiveColumn] === false || !["promoteur","admin"].includes(role)) {
       return NextResponse.json({ error: "Action réservée au promoteur ou à l'administrateur NAXA." }, { status: 403 });
     }
     const body = await req.json(), deviceId = String(body.deviceId || "");
