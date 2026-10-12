@@ -1,17 +1,26 @@
-/**
- * BROUILLON Preview — hypothèses basées sur supabase/schema.sql.
- * Après la requête de diagnostic, corriger uniquement ce fichier si nécessaire.
- * Les routes utilisent ces constantes pour les noms de tables/colonnes.
- */
+/** Schéma confirmé sur le projet Supabase de test : public.pharmacies(id, nom, code_pharmacie) et profiles.pharmacie_id -> pharmacies.id. */
 export const PHARMACIE_SCHEMA = {
   pharmaciesTable: "pharmacies",
   pharmacyIdColumn: "id",
   pharmacyNameColumn: "nom",
   pharmacyCodeColumn: "code_pharmacie",
+  pharmacyActiveColumn: "actif",
   profilesTable: "profiles",
   profileIdColumn: "id",
   profilePharmacyIdColumn: "pharmacie_id",
   profileUsernameColumn: "username",
   profileEmailColumn: "email",
   profileActiveColumn: "actif",
+  profileRoleColumn: "role",
+  devicesTable: "appareils",
+  deviceIdColumn: "id",
+  devicePharmacyIdColumn: "pharmacie_id",
+  deviceUserIdColumn: "utilisateur_id",
+  deviceNameColumn: "nom",
+  deviceTokenHashColumn: "jeton_hash",
+  deviceCreatedColumn: "cree_le",
+  deviceLastSyncColumn: "derniere_synchro",
+  deviceActiveColumn: "actif",
+  operationsTable: "naxa_offline_operations",
+  alertsTable: "naxa_offline_alertes",
 } as const;
