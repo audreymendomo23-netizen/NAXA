@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       supabaseAdmin().from(S.stocksTable).select(`*,${S.productsTable}(*)`).eq(S.pharmacyIdColumn,pharmacyId),
       supabaseAdmin().from(S.stockCostsTable).select("*").eq(S.pharmacyIdColumn,pharmacyId),
       supabaseAdmin().from(S.stockLotsTable).select("*").eq(S.pharmacyIdColumn,pharmacyId),
-      supabaseAdmin().from(S.expensesTable).select("*").eq(S.pharmacyIdColumn,pharmacyId).order("date_depense",{ascending:false}).limit(200),
+      supabaseAdmin().from(S.expensesTable).select("*").eq(S.pharmacyIdColumn,pharmacyId).order(S.expensesDateColumn,{ascending:false}).limit(200),
       supabaseAdmin().from(S.productsTable).select("*").limit(2000)
     ]);
     if(pharmacyError||stocksError||costsError||lotsError||expensesError||catalogueError) throw new Error("NAXA reference snapshot unavailable");
