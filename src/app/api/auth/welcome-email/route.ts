@@ -28,41 +28,39 @@ export async function POST() {
       return NextResponse.json({ sent: true, alreadySent: true });
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.NAXA_EMAIL_FROM;
+    const googleScriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
+    const googleScriptSecret = process.env.GOOGLE_APPS_SCRIPT_SECRET;
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-    const termsVersion = process.env.NAXA_TERMS_VERSION;
-    const privacyVersion = process.env.NAXA_PRIVACY_VERSION;
     const privacyContact = process.env.NAXA_PRIVACY_CONTACT_EMAIL;
-    if (!apiKey || !from || !siteUrl || !termsVersion || !privacyVersion || !privacyContact) {
-      return NextResponse.json({ sent: false, error: "Le service de bienvenue n’est pas encore configuré. L’envoi n’est pas confirmé." }, { status: 503 });
+    if (!googleScriptUrl || !googleScriptSecret || !siteUrl || !privacyContact) {
+      return NextResponse.json({ sent: false, error: "Le courrier Google n’est pas encore configuré. L’envoi n’est pas confirmé." }, { status: 503 });
     }
 
-    const email = user.email;
     const firstName = escapeHtml(String(user.user_metadata?.first_name ?? ""));
     const termsUrl = `${siteUrl}/conditions-utilisation`;
     const privacyUrl = `${siteUrl}/politique-confidentialite`;
-    const html = `<!doctype html><html lang="fr"><body style="font-family:Arial,sans-serif;color:#102a43;line-height:1.6"><h1 style="color:#047d78">Bienvenue sur NAXA${firstName ? `, ${firstName}` : ""} !</h1><p>Votre compte NAXA a été créé et votre adresse e-mail confirmée.</p><p>Pour consulter les documents applicables :</p><ul><li><a href="${termsUrl}">Conditions générales d’utilisation</a> — version ${escapeHtml(termsVersion)}</li><li><a href="${privacyUrl}">Politique de confidentialité</a> — version ${escapeHtml(privacyVersion)}</li></ul><p>Pour toute question relative à vos données personnelles, contactez <a href="mailto:${escapeHtml(privacyContact)}">${escapeHtml(privacyContact)}</a>.</p><p>À bientôt,<br><strong>L’équipe NAXA</strong></p></body></html>`;
+    const termsVersion = "12 octobre 2026";
+    const privacyVersion = "12 octobre 2026";
+    const html = `<!doctype html><html lang="fr"><body style="font-family:Arial,sans-serif;color:#102a43;line-height:1.65;max-width:640px;margin:auto;padding:24px"><div style="border-radius:16px;background:#e6fffb;padding:22px"><p style="margin:0;color:#047d78;font-weight:bold;letter-spacing:2px">NAXA</p><h1 style="color:#054a45;margin-bottom:8px">Bienvenue${firstName ? `, ${firstName}` : ""} !</h1><p style="margin-top:0">Votre adresse e-mail est confirmée et votre compte NAXA est prêt.</p></div><p>Merci de rejoindre NAXA. Vous pouvez maintenant accéder aux fonctionnalités disponibles pour votre compte.</p><h2 style="font-size:18px">Vos documents</h2><p><a href="${termsUrl}">Conditions générales d’utilisation</a> — version du ${termsVersion}<br><a href="${privacyUrl}">Politique de confidentialité</a> — version du ${privacyVersion}</p><p>Pour toute question relative à vos données personnelles, écrivez à <a href="mailto:${escapeHtml(privacyContact)}">${escapeHtml(privacyContact)}</a>.</p><p style="font-size:12px;color:#52606d">Ce message est automatique, envoyé à la suite de la confirmation de votre compte NAXA. Il ne s’agit pas d’un message publicitaire.</p><p>À bientôt,<br><strong>L’équipe NAXA</strong></p></body></html>`;
 
-    const response = await fetch("https://api.resend.com/emails", {
+    const response = await fetch(googleScriptUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "Idempotency-Key": `naxa-welcome-${user.id}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        from,
-        to: [email],
-        subject: "Bienvenue sur NAXA — votre compte est créé",
+        secret: googleScriptSecret,
+        to: user.email,
+        subject: "Bienvenue sur NAXA — votre compte est prêt",
         html,
+        idempotencyKey: `naxa-welcome-${user.id}`,
       }),
       cache: "no-store",
     });
 
-    if (!response.ok) {
-      console.error("welcome email provider rejected request", response.status);
-      return NextResponse.json({ sent: false, error: "Le service e-mail n’a pas confirmé l’envoi. Vous pourrez réessayer." }, { status: 502 });
+    let result: { sent?: boolean; alreadySent?: boolean } | null = null;
+    try { result = await response.json(); } catch { /* Invalid provider response: never claim success. */ }
+    if (!response.ok || result?.sent !== true) {
+      console.error("Google Apps Script did not confirm welcome email", response.status);
+      return NextResponse.json({ sent: false, error: "Google n’a pas confirmé l’envoi. Vous pourrez réessayer." }, { status: 502 });
     }
 
     const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
@@ -72,11 +70,10 @@ export async function POST() {
       },
     });
     if (updateError) {
-      console.error("welcome email sent but status could not be saved");
-      // Resend's idempotency key prevents a duplicate when this request is retried.
+      console.error("welcome email sent but Supabase status could not be saved; Google idempotency protects retries");
     }
-    return NextResponse.json({ sent: true });
+    return NextResponse.json({ sent: true, alreadySent: result.alreadySent === true });
   } catch {
-    return NextResponse.json({ sent: false, error: "Envoi impossible pour le moment. L’envoi n’est pas confirmé." }, { status: 500 });
+    return NextResponse.json({ sent: false, error: "Envoi impossible pour le moment. Google n’a pas confirmé l’envoi." }, { status: 500 });
   }
 }
