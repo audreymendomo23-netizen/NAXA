@@ -1,22 +1,29 @@
-# Configuration du courrier de bienvenue NAXA
+# Courrier automatique de bienvenue NAXA — Google gratuit
 
-Le parcours de bienvenue est déclenché après confirmation de l’adresse e-mail et enregistrement du mot de passe. L’interface n’annonce un envoi réussi que si l’API du fournisseur confirme la requête.
+NAXA utilise Gmail via Google Apps Script. Aucun compte Resend ni prestataire e-mail payant n'est requis. Le compte Google qui déploie le script est l'expéditeur. Cette solution convient au lancement et aux faibles volumes; les quotas gratuits Google s'appliquent.
 
-## Variables serveur requises
+## Configuration unique
 
-Configurer ces variables dans l’environnement de prévisualisation puis de production, sans les exposer au navigateur :
+1. Ouvrir Google Apps Script avec le compte Gmail qui enverra les courriers et créer un projet dédié.
+2. Copier `scripts/google-welcome-email.gs` dans le fichier `Code.gs`.
+3. Dans **Paramètres du projet → Propriétés du script**, ajouter `NAXA_WELCOME_SECRET` avec un secret aléatoire long (32 caractères minimum). Optionnel : `NAXA_WELCOME_FROM_NAME=NAXA`.
+4. Déployer comme **application Web**, exécuter en tant que propriétaire et autoriser Gmail.
+5. Copier l'URL de déploiement se terminant par `/exec`.
+6. Ajouter aux variables serveur de l'application :
+   - `GOOGLE_APPS_SCRIPT_URL` : URL /exec.
+   - `GOOGLE_APPS_SCRIPT_SECRET` : même secret que la propriété Apps Script.
+   - `NEXT_PUBLIC_SITE_URL` : URL HTTPS du site dans cet environnement, sans barre finale.
+   - `NAXA_PRIVACY_CONTACT_EMAIL` : adresse Gmail consultée par l'équipe pour les questions relatives aux données.
+7. Tester avec un compte confirmé et vérifier la réception réelle avant de considérer l'envoi opérationnel.
 
-- `RESEND_API_KEY` : clé API Resend.
-- `NAXA_EMAIL_FROM` : expéditeur vérifié par Resend, par exemple une adresse du domaine officiel validé par l’équipe.
-- `NEXT_PUBLIC_SITE_URL` : origine HTTPS officielle de NAXA, sans barre oblique finale.
-- `NAXA_TERMS_VERSION` : version réellement publiée des Conditions d’utilisation.
-- `NAXA_PRIVACY_VERSION` : version réellement publiée de la Politique de confidentialité.
-- `NAXA_PRIVACY_CONTACT_EMAIL` : adresse surveillée pour les questions relatives aux données personnelles.
+## Ce que signifie « domaine officiel »
 
-Les liens du message utilisent les routes existantes `/conditions-utilisation` et `/politique-confidentialite` sur `NEXT_PUBLIC_SITE_URL`. Ne pas renseigner de versions ou d’adresse de contact fictives. Tant que les variables requises ne sont pas configurées, l’API renvoie un échec explicite et l’interface ne prétend pas que le message a été envoyé.
+C'est l'adresse HTTPS stable du site contrôlée par NAXA, utilisée pour créer les liens vers les Conditions et la Politique de confidentialité. `NEXT_PUBLIC_SITE_URL` est une URL, pas un secret. En prévisualisation, elle pointe vers le preview; en Production, elle doit pointer vers le site public retenu par NAXA. Ne pas inventer de domaine. NAXA peut utiliser un compte Gmail pour envoyer les messages même si le site ne possède pas encore de domaine personnalisé.
 
-## Protection contre les doublons et reprises
+## Anti-doublon et limites
 
-L’API exige une session Supabase valide et une adresse confirmée, n’envoie qu’à l’adresse du compte connecté et utilise une clé d’idempotence Resend fondée sur l’identifiant utilisateur. Après confirmation par le fournisseur, un marqueur est enregistré dans les métadonnées serveur `app_metadata`. Une erreur de configuration ou du fournisseur reste visible et l’utilisateur peut relancer l’envoi depuis l’écran de réussite.
+Le serveur vérifie la session Supabase et la confirmation de l'adresse. Apps Script utilise un verrou et une clé d'idempotence enregistrée dans les propriétés du script. Google peut limiter temporairement les envois si les quotas du compte sont dépassés. Une réponse non confirmée n'est jamais affichée comme un succès.
 
-Avant toute mise en Production, vérifier les variables, le domaine expéditeur, les versions juridiques approuvées et l’adresse de contact.
+## Version des textes juridiques
+
+Le courrier indique la version initiale proposée du 12 octobre 2026. Cette date ne vaut pas validation juridique. Avant diffusion réelle, le responsable NAXA doit confirmer l'identité légale de l'opérateur, les coordonnées de contact et la conformité des textes à la loi camerounaise n° 2024/017 du 23 décembre 2024 relative à la protection des données à caractère personnel.
