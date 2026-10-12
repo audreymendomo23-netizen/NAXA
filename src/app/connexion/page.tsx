@@ -1,12 +1,187 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
-import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
+
+type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
+type Particule = { x: number; y: number; vx: number; vy: number; vie: number; rayon: number; couleur: string };
+type Halo = { x: number; y: number; vie: number };
+
+function BullesConnexion() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d", { alpha: true });
+    if (!canvas || !context) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let width = 0;
+    let height = 0;
+    let frame = 0;
+    let previous = 0;
+    let dernierGeste = 0;
+    const bulles: Bulle[] = [];
+    const particules: Particule[] = [];
+    const halos: Halo[] = [];
+    const couleurs = ["rgba(255, 227, 61,", "rgba(10, 107, 58,", "rgba(255, 255, 255,"];
+
+    const redimensionner = () => {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (bulles.length === 0) {
+        for (let i = 0; i < 10; i++) {
+          const r = 15 + Math.random() * 45;
+          bulles.push({
+            x: r + Math.random() * Math.max(1, width - r * 2),
+            y: r + Math.random() * Math.max(1, height - r * 2),
+            vx: (Math.random() - 0.5) * 0.34,
+            vy: (Math.random() - 0.5) * 0.34,
+            r,
+          });
+        }
+      } else {
+        bulles.forEach((b) => {
+          b.x = Math.min(width - b.r, Math.max(b.r, b.x));
+          b.y = Math.min(height - b.r, Math.max(b.r, b.y));
+        });
+      }
+      if (reduceMotion) dessiner(performance.now(), false);
+    };
+
+    const ajouterInteraction = (clientX: number, clientY: number, nombre: number) => {
+      if (reduceMotion) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      halos.push({ x, y, vie: 1 });
+      for (let i = 0; i < nombre; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const vitesse = 0.45 + Math.random() * 1.8;
+        particules.push({
+          x,
+          y,
+          vx: Math.cos(angle) * vitesse,
+          vy: Math.sin(angle) * vitesse,
+          vie: 1,
+          rayon: 1 + Math.random() * 1.8,
+          couleur: couleurs[Math.floor(Math.random() * couleurs.length)],
+        });
+      }
+      if (particules.length > 140) particules.splice(0, particules.length - 140);
+      if (halos.length > 12) halos.splice(0, halos.length - 12);
+    };
+
+    const pointerMove = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.buttons === 0) {
+        const now = performance.now();
+        if (now - dernierGeste < 42) return;
+        dernierGeste = now;
+        ajouterInteraction(event.clientX, event.clientY, 2);
+      } else {
+        const now = performance.now();
+        if (now - dernierGeste < 42) return;
+        dernierGeste = now;
+        ajouterInteraction(event.clientX, event.clientY, 3);
+      }
+    };
+    const pointerDown = (event: PointerEvent) => ajouterInteraction(event.clientX, event.clientY, 12);
+
+    function dessiner(now: number, animer = true) {
+      const delta = Math.min(2, previous ? (now - previous) / 16.67 : 1);
+      previous = now;
+      context!.clearRect(0, 0, width, height);
+
+      bulles.forEach((b, index) => {
+        if (animer && !reduceMotion) {
+          b.x += b.vx * delta;
+          b.y += b.vy * delta;
+          if (b.x < b.r || b.x > width - b.r) b.vx *= -1;
+          if (b.y < b.r || b.y > height - b.r) b.vy *= -1;
+          b.x = Math.min(width - b.r, Math.max(b.r, b.x));
+          b.y = Math.min(height - b.r, Math.max(b.r, b.y));
+        }
+        const reflet = context!.createRadialGradient(
+          b.x - b.r * 0.3, b.y - b.r * 0.35, 1, b.x, b.y, b.r
+        );
+        reflet.addColorStop(0, "rgba(255,255,255,0)");
+        reflet.addColorStop(0.78, index % 2 ? "rgba(10,107,58,0.015)" : "rgba(255,227,61,0.02)");
+        reflet.addColorStop(1, index % 2 ? "rgba(10,107,58,0.08)" : "rgba(184,143,0,0.12)");
+        context!.beginPath();
+        context!.fillStyle = reflet;
+        context!.strokeStyle = index % 2 ? "rgba(10,107,58,0.14)" : "rgba(184,143,0,0.19)";
+        context!.lineWidth = 1;
+        context!.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        context!.fill();
+        context!.stroke();
+      });
+
+      if (animer && !reduceMotion) {
+        halos.forEach((h) => {
+          h.vie -= delta / 60;
+          const progression = 1 - h.vie;
+          const rayon = 8 + progression * 35;
+          const gradient = context!.createRadialGradient(h.x, h.y, 0, h.x, h.y, rayon);
+          gradient.addColorStop(0, `rgba(255,227,61,${Math.max(0, h.vie) * 0.10})`);
+          gradient.addColorStop(1, "rgba(255,227,61,0)");
+          context!.beginPath();
+          context!..fillStyle = gradient;
+          context!.arc(h.x, h.y, rayon, 0, Math.PI * 2);
+          context!.fill();
+        });
+        halos.splice(0, halos.length, ...halos.filter((h) => h.vie > 0));
+
+        particules.forEach((p) => {
+          p.x += p.vx * delta;
+          p.y += p.vy * delta;
+          p.vx *= 0.985;
+          p.vy *= 0.985;
+          p.vie -= delta / 60;
+          context!.beginPath();
+          context!.fillStyle = `${p.couleur}${Math.max(0, p.vie) * 0.65})`;
+          context!.arc(p.x, p.y, p.rayon, 0, Math.PI * 2);
+          context!.fill();
+        });
+        particules.splice(0, particules.length, ...particules.filter((p) => p.vie > 0));
+        frame = window.requestAnimationFrame((t) => dessiner(t, true));
+      }
+    }
+
+    redimensionner();
+    const observer = new ResizeObserver(redimensionner);
+    observer.observe(canvas);
+    if (!reduceMotion) {
+      window.addEventListener("pointermove", pointerMove, { passive: true });
+      window.addEventListener("pointerdown", pointerDown, { passive: true });
+      frame = window.requestAnimationFrame((t) => dessiner(t, true));
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("pointermove", pointerMove);
+      window.removeEventListener("pointerdown", pointerDown);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      style={{ zIndex: 0, background: "transparent" }}
+    />
+  );
+}
 
 function GoogleIcon() {
   return (
@@ -19,10 +194,22 @@ function GoogleIcon() {
   );
 }
 
+function safeInternalPath(value: string | null) {
+  if (!value || !value.startsWith("/")) return "/";
+  try {
+    const target = new URL(value, "https://naxa.invalid");
+    return target.origin === "https://naxa.invalid"
+      ? target.pathname + target.search + target.hash
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
 function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
-  const retour = search.get("retour") || "/";
+  const retour = safeInternalPath(search.get("retour"));
   const espace = search.get("espace");
   const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
 
@@ -166,13 +353,16 @@ function Formulaire() {
   }
 
   return (
-    <form onSubmit={login} className="carte w-full max-w-sm space-y-3">
-      <h1 className="text-2xl font-extrabold">{titre}</h1>
+    <form onSubmit={login} className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900">
+      <h1 className="text-4xl font-extrabold leading-tight text-naxa-green-900">{titre}</h1>
+      <p className="text-sm font-semibold leading-5" style={{ color: "#9B7A00" }}>
+        Entrez votre Nom d'utilisateur et votre Mot de passe
+      </p>
 
-      <label className="block text-sm font-semibold">
+      <label className="block text-sm font-semibold text-naxa-green-900">
         Nom d'utilisateur
         <input
-          className="champ mt-1"
+          className="champ mt-1 !min-h-[54px] !border-naxa-green-100"
           required
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
@@ -180,11 +370,11 @@ function Formulaire() {
         />
       </label>
 
-      <label className="block text-sm font-semibold">
+      <label className="block text-sm font-semibold text-naxa-green-900">
         Mot de passe
         <span className="relative mt-1 block">
           <input
-            className="champ pr-20"
+            className="champ pr-20 !min-h-[54px] !border-naxa-green-100"
             required
             type={show ? "text" : "password"}
             value={password}
@@ -193,7 +383,7 @@ function Formulaire() {
           />
           <button
             type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-naxa-green-900"
             onClick={() => setShow(!show)}
           >
             {show ? "Masquer" : "Afficher"}
@@ -201,7 +391,7 @@ function Formulaire() {
         </span>
       </label>
 
-      <div className="flex items-center justify-between gap-3 text-sm">
+      <div className="flex items-center justify-between gap-3 text-sm text-naxa-green-900">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -213,32 +403,32 @@ function Formulaire() {
         </label>
         <Link
           href={`/mot-de-passe-oublie?retour=${encodeURIComponent(retour)}`}
-          className="font-semibold underline"
+          className="font-semibold underline text-naxa-green-900"
         >
           Mot de passe oublié ?
         </Link>
       </div>
 
-      <button className="btn btn-canari w-full" disabled={busy}>
+      <button className="btn btn-canari w-full !min-h-[54px] !mt-5" disabled={busy}>
         {busy ? "Connexion..." : "Connexion"}
       </button>
 
-      <div className="relative py-0.5 text-center text-xs text-slate-600">
-        <span className="bg-white px-2">ou</span>
+      <div className="relative py-0.5 text-center text-xs text-naxa-green-700">
+        <span className="bg-white !bg-transparent px-2">ou</span>
       </div>
 
-      <button type="button" onClick={google} className="btn btn-clair w-full" disabled={busy}>
+      <button type="button" onClick={google} className="btn btn-clair w-full !min-h-[54px]" disabled={busy}>
         <GoogleIcon />
         Connexion via Gmail
       </button>
 
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
 
-      <p className="text-center text-sm text-slate-600">
+      <p className="text-center text-sm text-slate-600 !text-naxa-green-900">
         Vous n'avez pas de compte ?{" "}
         <Link
           href={`/creation-compte?retour=${encodeURIComponent(retour)}`}
-          className="font-bold underline"
+          className="font-bold underline text-naxa-green-900"
         >
           Créer un compte
         </Link>
@@ -249,10 +439,15 @@ function Formulaire() {
 
 export default function Connexion() {
   return (
-    <main className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2">
-      <BullesAuthentification />
-      <div className="relative z-10 flex w-full flex-col items-center justify-center gap-3">
-        <Logo />
+    <main
+      className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 bg-naxa-green-900 px-5 py-2 !h-auto !min-h-[100dvh] !overflow-y-auto"
+      style={{ backgroundColor: "#F2FAF5" }}
+    >
+      <BullesConnexion />
+      <div className="relative z-10 flex w-full max-w-[360px] flex-col items-stretch justify-center gap-5">
+        <div className="self-start">
+          <Logo />
+        </div>
         <Suspense>
           <Formulaire />
         </Suspense>
