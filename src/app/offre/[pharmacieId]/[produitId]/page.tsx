@@ -12,7 +12,7 @@ import { Logo } from "@/components/Logo";
 
 type Produit={id:string;nom:string;dci:string|null;dosage:string|null;forme:string|null;description:string|null;photo_url:string|null;fabricant:string|null;sur_ordonnance:boolean};
 type Pharmacie={id:string;nom:string;quartier:string|null;adresse:string|null;garde_debut:string|null;garde_fin:string|null};
-type Stock={prix:number|null;quantite:number;updated_at:string|null};
+type Stock={prix:number|null;quantite:number};
 
 export default function OffrePage(){
  const {pharmacieId,produitId}=useParams<{pharmacieId:string;produitId:string}>();
@@ -25,7 +25,7 @@ export default function OffrePage(){
   const [pr,pharm,st]=await Promise.all([
    sb.from("produits").select("id,nom,dci,dosage,forme,description,photo_url,fabricant,sur_ordonnance").eq("id",produitId).maybeSingle(),
    sb.from("pharmacies").select("id,nom,quartier,adresse,garde_debut,garde_fin").eq("id",pharmacieId).maybeSingle(),
-   sb.from("stocks").select("prix,quantite,updated_at").eq("pharmacie_id",pharmacieId).eq("produit_id",produitId).maybeSingle()
+   sb.from("stocks").select("prix,quantite").eq("pharmacie_id",pharmacieId).eq("produit_id",produitId).maybeSingle()
   ]);
   if(pr.error||pharm.error||!pr.data||!pharm.data)setErreur("Cette fiche n'est pas disponible pour le moment.");
   else{setP(pr.data as Produit);setPh(pharm.data as Pharmacie);if(!st.error&&st.data)setStock(st.data as Stock);}
