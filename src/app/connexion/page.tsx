@@ -573,8 +573,32 @@ function PharmacieFormulaire() {
   async function changerPharmacie() {
     setBusy(true); setError(""); setMessage("");
     try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
-    finally { setEtape(1); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setBusy(false); }
+    finally { setEtape(1); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
   }
+
+
+  async function confirmerActivation(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    if (!activation) return;
+    if (!/^\d{4,6}$/.test(pinLocal) || (!activation.existingLocal && pinLocal !== pinConfirmation)) {
+      setError(activation.existingLocal ? "Saisissez le PIN local existant." : "Choisissez un PIN de 4 à 6 chiffres et confirmez-le.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (activation.existingLocal) {
+        await unlockLocalDevice(pinLocal);
+        await saveTokenEncryptedForSession(pinLocal, activation.token);
+        await unlockLocalDevice(pinLocal);
+      } else {
+        await activateLocalDevice({ pin: pinLocal, deviceId: activation.deviceId, pharmacyId: activation.pharmacyId, pharmacyName: activation.pharmacyName || nomPharmacie, token: activation.token });
+      }
+      router.push("/pharmacie"); router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de sécuriser les données locales sur cet appareil.");
+    } finally { setPinLocal(""); setPinConfirmation(""); setBusy(false); }
+  }
+
 
   return (
     <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
@@ -603,7 +627,7 @@ function PharmacieFormulaire() {
             <form onSubmit={confirmerActivation} className="space-y-3">
               <p className="text-sm font-semibold">{activation.existingLocal ? "Cet appareil est déjà activé. Saisissez votre PIN local existant." : "Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur."}</p>
               <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
-              <input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
+              {!activation.existingLocal && (<input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />)}
               <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : activation.existingLocal ? "Déverrouiller et continuer" : "Activer cet appareil"}</button>
             </form>
           ) : !showUpdate ? (
