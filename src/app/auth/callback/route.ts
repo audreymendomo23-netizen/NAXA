@@ -14,7 +14,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
   }
 
-  const response = NextResponse.redirect(new URL(next, url.origin));
+  // On conserve une seule réponse de redirection afin que les cookies de session
+  // écrits par exchangeCodeForSession soient bien renvoyés au navigateur.
+  const response = NextResponse.redirect(new URL("/", url.origin));
   const supabase = supabaseServer(response);
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
@@ -46,13 +48,24 @@ export async function GET(request: Request) {
     || !profile.consent_accepted_at
   ));
 
+  let destination = next;
   if (incomplete) {
-    response.headers.set(
-      "Location",
-      new URL("/completer-profil?next=" + encodeURIComponent(next), url.origin).toString()
+    destination = "/completer-profil?next=" + encodeURIComponent(
+      next === "/connexion?redirectionRole=1" ? "/" : next
     );
-    return response;
+  } else if (next === "/" || next === "/connexion?redirectionRole=1") {
+    const espacesParRole: Record<string, string> = {
+      client: "/client",
+      pharmacie: "/pharmacie",
+      promoteur: "/pharmacie",
+      caisse: "/pharmacie",
+      admin: "/admin",
+    };
+    destination = profile?.role && espacesParRole[profile.role]
+      ? espacesParRole[profile.role]
+      : "/";
   }
 
+  response.headers.set("Location", new URL(destination, url.origin).toString());
   return response;
 }
