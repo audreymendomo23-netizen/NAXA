@@ -545,7 +545,8 @@ function PharmacieFormulaire() {
         if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
-      const existingLocal = await hasLocalDevice();\n      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
+      const existingLocal = await hasLocalDevice();
+      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
       const deviceData = await deviceResponse.json();
       if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }
       setActivation({ ...deviceData, existingLocal });
