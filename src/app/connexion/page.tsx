@@ -17,10 +17,22 @@ function GoogleIcon() {
   );
 }
 
+function safeInternalPath(value: string | null) {
+  if (!value || !value.startsWith("/")) return "/";
+  try {
+    const target = new URL(value, "https://naxa.invalid");
+    return target.origin === "https://naxa.invalid"
+      ? target.pathname + target.search + target.hash
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
 function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
-  const retour = search.get("retour") || "/";
+  const retour = safeInternalPath(search.get("retour"));
   const espace = search.get("espace");
   const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
 
