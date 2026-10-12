@@ -1,5 +1,5 @@
 -- NAXA Preview: validation du code pharmacie sans exposer la clé service_role.
--- Le RPC SECURITY DEFINER garde le contrôle du code et le limiteur côté base.
+-- Le RPC SECURITY DEFINER est privé; seule la fonction Edge de confiance l'appelle.
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.naxa_validate_pharmacy_code_v1(
@@ -60,6 +60,6 @@ END
 $naxa$;
 
 REVOKE ALL ON FUNCTION public.naxa_validate_pharmacy_code_v1(text, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.naxa_validate_pharmacy_code_v1(text, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.naxa_validate_pharmacy_code_v1(text, text, text) TO service_role;
 
 COMMIT;
