@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     ]);
     if(pharmacyError||stocksError||costsError||lotsError||expensesError||catalogueError) throw new Error("NAXA reference snapshot unavailable");
     const reference = pharmacy ? { pharmacie: pharmacy, stock: stocks ?? [], couts: costs ?? [], lots: lots ?? [], charges: expenses ?? [], catalogue: catalogue ?? [] } : null;
-    return NextResponse.json({ ok: true, results, reference: reference ? { pharmacie: reference } : null, syncedAt: now });
+    return NextResponse.json({ ok: true, results, reference, syncedAt: now });
   } catch (error) {
     console.error("NAXA_SYNC_FAILED", error);
     return NextResponse.json({ error: "Synchronisation indisponible." }, { status: 503 });
