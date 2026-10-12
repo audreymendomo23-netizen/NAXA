@@ -76,14 +76,10 @@ export async function POST(request: NextRequest) {
       .ilike(S.profileUsernameColumn, username)
       .limit(2);
     if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
-      if (espacePharmacie) {
-      }
       return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
     const profile = matchingProfiles[0] as Record<string, unknown> & { id: string; actif?: boolean | null; pharmacie_id?: string | null };
     if (profile[S.profileActiveColumn] === false) {
-      if (espacePharmacie) {
-      }
       return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
     if (espacePharmacie && (profile[S.profilePharmacyIdColumn] !== pharmacyId || !["pharmacie","promoteur","caisse"].includes(String(profile[S.profileRoleColumn])))) {
@@ -94,8 +90,6 @@ export async function POST(request: NextRequest) {
     const email = userData.user?.email;
 
     if (userError || !email) {
-      if (espacePharmacie) {
-      }
       return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
 
@@ -108,8 +102,6 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      if (espacePharmacie) {
-      }
       if (error.message?.includes("NAXA_SESSION_LIMIT_REACHED")) {
         await auditSessionLimitRejected(request, profile, "password");
         return sessionLimitResponse();
