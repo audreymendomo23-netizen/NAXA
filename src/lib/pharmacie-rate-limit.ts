@@ -11,7 +11,7 @@ export function trustedRequestIp(request: Request): string {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return ip && ip.length <= 64 ? ip : "unknown";
 }
-export async function rateLimit(scope: string, key: string, action: "check"|"fail"|"success", limit: number, windowSeconds: number, baseBlockSeconds=30, maxBlockSeconds=900) {
+export async function rateLimit(scope: string, key: string, action: "check"|"attempt"|"fail"|"success", limit: number, windowSeconds: number, baseBlockSeconds=30, maxBlockSeconds=900) {
   const { data, error } = await supabaseAdmin().rpc("naxa_rate_limit_v1", {
     p_scope: scope, p_key_hash: hashRateKey(key), p_action: action,
     p_limit: limit, p_window_seconds: windowSeconds,
