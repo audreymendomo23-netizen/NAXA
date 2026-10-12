@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
     const { data: device, error } = await supabaseAdmin().from(S.devicesTable)
       .select([S.deviceIdColumn,S.devicePharmacyIdColumn,S.deviceUserIdColumn,S.deviceActiveColumn,S.deviceLastSyncColumn,S.deviceCreatedColumn].join(","))
       .eq(S.deviceTokenHashColumn, hashDeviceToken(token)).maybeSingle();
-    if (error || !device || !device[S.deviceActiveColumn]) return NextResponse.json({ error: "Appareil désactivé ou inconnu." }, { status: 401 });
-    if (Date.now() - new Date(device[S.deviceLastSyncColumn] || device[S.deviceCreatedColumn]).getTime() > 7 * 24 * 60 * 60 * 1000) {
+    const deviceRecord = device as unknown as Record<string, any> | null;
+    if (error || !deviceRecord || !deviceRecord[S.deviceActiveColumn]) return NextResponse.json({ error: "Appareil désactivé ou inconnu." }, { status: 401 });
+    if (Date.now() - new Date(deviceRecord[S.deviceLastSyncColumn] || deviceRecord[S.deviceCreatedColumn]).getTime() > 7 * 24 * 60 * 60 * 1000) {
       return NextResponse.json({ error: "Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.", code: "DEVICE_EXPIRED" }, { status: 401 });
     }
     const body = await req.json();
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
       }
       const payload = op.payload && typeof op.payload === "object" ? op.payload : {};
       const { data: result, error: applyError } = await supabaseAdmin().rpc("naxa_apply_offline_operation_v1", {
-        p_device_id: device[S.deviceIdColumn], p_operation_id: op.id, p_type: op.type, p_payload: payload,
+        p_device_id: deviceRecord[S.deviceIdColumn], p_operation_id: op.id, p_type: op.type, p_payload: payload,
         p_created_at_ms: Number.isFinite(Number(op.createdAt)) ? Number(op.createdAt) : Date.now(),
       });
       if (applyError) {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
     const now = new Date().toISOString();
     await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: now }).eq(S.deviceIdColumn, device[S.deviceIdColumn]);
-    const pharmacyId = device[S.devicePharmacyIdColumn];
+    const pharmacyId = deviceRecord[S.devicePharmacyIdColumn];
     const [{data:pharmacy,error:pharmacyError},{data:stocks,error:stocksError},{data:costs,error:costsError},{data:lots,error:lotsError},{data:expenses,error:expensesError},{data:catalogue,error:catalogueError}] = await Promise.all([
       supabaseAdmin().from(S.pharmaciesTable).select([S.pharmacyIdColumn,S.pharmacyNameColumn,S.pharmacyOnCallColumn,S.pharmacyStockUpdatedColumn].join(",")).eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
       supabaseAdmin().from(S.stocksTable).select(`*,${S.productsTable}(*)`).eq(S.pharmacyIdColumn,pharmacyId),
