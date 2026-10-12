@@ -8,7 +8,7 @@ const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; attempts: number; status: "pending" | "failed" };
 type StoredOperation = Omit<PendingOperation, "payload"> & { payloadCipher: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
-type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number };
+type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean };
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number } | null = null;
 
 function openDb(): Promise<IDBDatabase> {
@@ -68,6 +68,7 @@ export async function activateLocalDevice(input: { pin: string; deviceId: string
 export async function unlockLocalDevice(pin: string, allowExpired = false) {
   const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
   if (!meta || !meta.salt || !meta.pinHash || !meta.deviceId || !meta.pharmacyId || !meta.pharmacyName || !meta.tokenCipher) throw new Error("Aucun appareil activé sur cet appareil");
+  if (meta.serverLocked && !allowExpired) throw new Error("Appareil désactivé ou expiré côté serveur. Reconnectez-vous en ligne.");
   if ((meta.pinBlockedUntil || 0) > Date.now()) throw new Error("Trop d'essais. Réessayez dans " + Math.ceil(((meta.pinBlockedUntil || 0) - Date.now()) / 1000) + " secondes.");
   const { aes, hash } = await derive(pin, new Uint8Array(meta.salt));
   if (hash.length !== meta.pinHash.length || hash.some((v, i) => v !== meta.pinHash?.[i])) {
@@ -85,7 +86,7 @@ export async function unlockLocalDevice(pin: string, allowExpired = false) {
   const lastSync = meta.lastSync || 0;
   if (!allowExpired && Date.now() - lastSync > 7 * 24 * 60 * 60 * 1000) throw new Error("Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.");
   const token = await decrypt(aes, meta.tokenCipher);
-  meta.pinFailures = 0; meta.pinBlockedUntil = 0; meta.pinBlockSeconds = 30;
+  meta.pinFailures = 0; meta.pinBlockedUntil = 0; meta.pinBlockSeconds = 30; if (allowExpired) meta.serverLocked = false;
   await tx(META, "readwrite", s => s.put(meta));
   activeUnlocked = { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName, token, aes, lastSync };
   return activeUnlocked;
@@ -135,3 +136,5 @@ export async function saveTokenEncryptedForSession(pin: string, token: string) {
   meta.tokenCipher = await encrypt(aes, token);
   await tx(META, "readwrite", s => s.put(meta));
 }
+
+export async function markDeviceServerLocked() { const meta=await tx<Meta|undefined>(META,"readonly",s=>s.get("device"));if(!meta)return;meta.serverLocked=true;await tx(META,"readwrite",s=>s.put(meta)); }
