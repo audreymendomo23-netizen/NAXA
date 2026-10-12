@@ -36,14 +36,15 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
   }
 
-  const incomplete = !profile
-    || !profile.username
+  const incomplete = !profile || (profile.role === "client" && (
+    !profile.username
     || !profile.first_name
     || !profile.last_name
     || !profile.phone
     || !profile.date_of_birth
     || !profile.age_verified
-    || !profile.consent_accepted_at;
+    || !profile.consent_accepted_at
+  ));
 
   if (incomplete) {
     response.headers.set(
