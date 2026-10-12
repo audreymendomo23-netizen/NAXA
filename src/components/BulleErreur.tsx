@@ -57,7 +57,6 @@ export function BulleErreur({ message }: Props) {
         @media (prefers-reduced-motion: reduce) { .naxa-water-motion { animation-duration:.01ms !important; } }
       `}</style>
       <div
-        className="fixed bottom-5 right-4 z-[100] touch-none"
         style={{ transform: `translate(${offset.x}px,${offset.y}px)`, maxWidth: "min(86vw, 340px)" }}
         onPointerDown={(e) => {
           dragged.current = false;
