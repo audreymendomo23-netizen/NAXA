@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 
 function safeNext(value: string | null) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  if (!value || !value.startsWith("/")) return "/";
+  try {
+    const target = new URL(value, "https://naxa.invalid");
+    return target.origin === "https://naxa.invalid"
+      ? target.pathname + target.search + target.hash
+      : "/";
+  } catch {
+    return "/";
+  }
 }
 
 export async function GET(request: Request) {
