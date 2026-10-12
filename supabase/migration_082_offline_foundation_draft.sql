@@ -202,7 +202,7 @@ $cleanup$;
 CREATE OR REPLACE FUNCTION public.naxa_apply_offline_operation_v1(
   p_device_id uuid, p_operation_id uuid, p_type text, p_payload jsonb, p_created_at_ms bigint
 ) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $naxa_offline$
 DECLARE
   d public.appareils%ROWTYPE;
   existing public.naxa_offline_operations%ROWTYPE;
@@ -247,7 +247,7 @@ BEGIN
   ELSE
     RAISE EXCEPTION 'NAXA offline sync: type d’opération non pris en charge: %',p_type;
   END IF;
-END $;
+END $naxa_offline$;
 REVOKE ALL ON FUNCTION public.naxa_apply_offline_operation_v1(uuid,uuid,text,jsonb,bigint) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.naxa_apply_offline_operation_v1(uuid,uuid,text,jsonb,bigint) TO service_role;
 
