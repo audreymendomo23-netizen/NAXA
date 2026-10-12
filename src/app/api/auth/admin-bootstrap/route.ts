@@ -72,15 +72,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bootstrap administrateur impossible." }, { status: 500 });
   }
 
-  const { data: updated, error: metadataError } = await admin.auth.admin.updateUserById(user.id, {
-    app_metadata: { ...user.app_metadata, role: "admin" },
-  });
-  if (metadataError || !updated.user) {
-    return NextResponse.json(
-      { error: "Profil administrateur créé, mais actualisation des métadonnées Auth incomplète." },
-      { status: 500 },
-    );
-  }
 
   return NextResponse.json({ ok: true, message: "Premier administrateur NAXA créé." });
 }
