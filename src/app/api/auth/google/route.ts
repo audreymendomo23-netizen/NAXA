@@ -16,7 +16,9 @@ function safeNext(value: string | null) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const next = safeNext(url.searchParams.get("next"));
-  const response = NextResponse.redirect(new URL("/", url.origin));
+  // Réponse neutre : ne pas initialiser une redirection vers l’accueil avant OAuth.
+  // Les cookies PKCE sont ajoutés à cette même réponse avant la redirection Google.
+  const response = new NextResponse(null, { status: 302 });
   const supabase = supabaseServer(response);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
