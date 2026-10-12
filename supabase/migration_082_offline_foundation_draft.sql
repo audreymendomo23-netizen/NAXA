@@ -190,6 +190,13 @@ REVOKE ALL ON FUNCTION public.naxa_cleanup_tentatives_code() FROM PUBLIC,anon,au
 GRANT EXECUTE ON FUNCTION public.naxa_cleanup_tentatives_code() TO service_role;
 DO $cleanup$
 BEGIN
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+      EXECUTE 'CREATE EXTENSION pg_cron';
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_cron unavailable; cleanup function remains callable: %', SQLERRM;
+  END;
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     EXECUTE 'SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = ''naxa-cleanup-tentatives-code''';
     EXECUTE 'SELECT cron.schedule(''naxa-cleanup-tentatives-code'', ''17 * * * *'', ''SELECT public.naxa_cleanup_tentatives_code();'')';
