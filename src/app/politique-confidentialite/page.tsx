@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+const privacyContact = process.env.NAXA_PRIVACY_CONTACT_EMAIL;
+
 export default function Confidentialite(){
   return <main className="min-h-screen bg-naxa-green-50 px-5 py-8">
     <article className="mx-auto max-w-2xl rounded-xl2 bg-white p-6 shadow-sm">
@@ -8,7 +10,7 @@ export default function Confidentialite(){
       <p className="mt-4 text-sm leading-7">Cette politique décrit les catégories de données traitées par NAXA et les raisons du traitement. Elle doit être finalisée avec l’identité juridique de l’exploitant, ses coordonnées, les durées de conservation et les informations exactes sur les prestataires avant l’ouverture générale.</p>
       <p className="mt-4 text-sm leading-7"><strong className="naxa-text">NAXA</strong> traite uniquement les informations nécessaires à la création du compte, à l'authentification, à la sécurité et aux fonctionnalités demandées par l'utilisateur.</p>
       <h2 className="mt-6 text-lg font-bold">Responsable et contact</h2>
-      <p className="mt-2 text-sm leading-7">Le responsable du traitement est l’entité qui exploite NAXA. Son nom légal, son adresse et ses coordonnées doivent être complétés avant la mise en production. Pour les demandes relatives aux données personnelles, utilisez l’adresse de contact dédiée publiée par NAXA.</p>
+      <p className="mt-2 text-sm leading-7">Le responsable du traitement est l’entité qui exploite NAXA. Son nom légal, son adresse et ses coordonnées doivent être complétés avant la mise en production. Pour les demandes relatives aux données personnelles, écrivez à {privacyContact ? <a className="font-semibold underline" href={"mailto:" + privacyContact}>{privacyContact}</a> : "l’adresse de contact dédiée, à configurer avant publication"}.</p>
       <h2 className="mt-6 text-lg font-bold">Données de compte</h2>
       <p className="mt-2 text-sm leading-7">Selon le parcours utilisé, le compte peut associer notamment nom, prénom, nom d'utilisateur, adresse e-mail, téléphone, pays/indicatif et date de naissance. Ces informations servent à créer et sécuriser le compte, vérifier les conditions d'accès et fournir les fonctionnalités demandées.</p>
       <h2 className="mt-6 text-lg font-bold">Authentification et récupération</h2>
