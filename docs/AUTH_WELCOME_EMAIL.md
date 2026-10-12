@@ -1,13 +1,13 @@
 # Courrier automatique de bienvenue NAXA — Google gratuit
 
-NAXA utilise Gmail via Google Apps Script. Aucun compte Resend ni prestataire e-mail payant n'est requis. Le compte Google qui déploie le script est l'expéditeur. Cette solution convient au lancement et aux faibles volumes; les quotas gratuits Google s'appliquent.
+NAXA utilise Gmail via Google Apps Script (service MailApp, limité à l’envoi). Aucun compte Resend ni prestataire e-mail payant n'est requis. Le compte Google qui déploie le script est l'expéditeur. Cette solution convient au lancement et aux faibles volumes; les quotas gratuits Google s'appliquent.
 
 ## Configuration unique
 
 1. Ouvrir Google Apps Script avec le compte Gmail qui enverra les courriers et créer un projet dédié.
 2. Copier `scripts/google-welcome-email.gs` dans le fichier `Code.gs`.
 3. Dans **Paramètres du projet → Propriétés du script**, ajouter `NAXA_WELCOME_SECRET` avec un secret aléatoire long (32 caractères minimum). Optionnel : `NAXA_WELCOME_FROM_NAME=NAXA`.
-4. Déployer comme **application Web**, exécuter en tant que propriétaire et autoriser Gmail.
+4. Déployer comme **application Web**, exécuter en tant que propriétaire et autoriser l’envoi de courriels.
 5. Copier l'URL de déploiement se terminant par `/exec`.
 6. Ajouter aux variables serveur de l'application :
    - `GOOGLE_APPS_SCRIPT_URL` : URL /exec.
