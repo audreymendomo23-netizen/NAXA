@@ -413,7 +413,7 @@ function Formulaire() {
         {busy ? "Connexion..." : "Connexion"}
       </button>
 
-      <div className="relative py-0.5 text-center text-xs text-naxa-green-700">
+      <div className="relative py-0.5 text-center text-xs text-slate-600 !text-naxa-green-700">
         <span className="bg-white !bg-transparent px-2">ou</span>
       </div>
 
@@ -440,11 +440,11 @@ function Formulaire() {
 export default function Connexion() {
   return (
     <main
-      className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 bg-naxa-green-900 px-5 py-2 !h-auto !min-h-[100dvh] !overflow-y-auto"
+      className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2 !h-auto !min-h-[100dvh] !overflow-y-auto"
       style={{ backgroundColor: "#F2FAF5" }}
     >
       <BullesConnexion />
-      <div className="relative z-10 flex w-full max-w-[360px] flex-col items-stretch justify-center gap-5">
+      <div className="relative z-10 flex w-full max-w-[360px] flex-col items-center justify-center gap-3 !items-stretch !gap-5">
         <div className="self-start">
           <Logo />
         </div>
