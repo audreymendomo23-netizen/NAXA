@@ -91,7 +91,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 DECLARE r public.tentatives_code%ROWTYPE; v_now timestamptz:=clock_timestamp(); v_block integer; v_window interval;
 BEGIN
   IF p_scope NOT IN ('ip_code','code','ip_login','login_user','ip_password','password_user')
-    OR p_action NOT IN ('check','fail','success') OR p_key_hash !~ '^[a-f0-9]{64}$'
+    OR p_action NOT IN ('check','attempt','fail','success') OR p_key_hash !~ '^[a-f0-9]{64}$'
     OR p_limit < 1 OR p_window_seconds < 1 THEN
     RAISE EXCEPTION 'NAXA rate limit: paramètres invalides';
   END IF;
