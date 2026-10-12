@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
-import { hasLocalDevice, activateLocalDevice, getLocalInstallationId, unlockLocalDevice, saveTokenEncryptedForSession } from "@/lib/offline-db";
+import { hasLocalDevice, activateLocalDevice, getLocalInstallationId, unlockLocalDevice, saveTokenEncryptedForSession, markLocalSync } from "@/lib/offline-db";
 import { DebloquerAppareil } from "@/components/pharmacie/DebloquerAppareil";
 
 type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
