@@ -22,7 +22,7 @@ function doPost(e) {
     if (props.getProperty(key)) return json_({ sent: true, alreadySent: true });
 
     const fromName = props.getProperty("NAXA_WELCOME_FROM_NAME") || "NAXA";
-    GmailApp.sendEmail(String(p.to), String(p.subject), "Votre compte NAXA est prêt. Ouvrez ce message dans un client compatible HTML.", {
+    MailApp.sendEmail(String(p.to), String(p.subject), "Votre compte NAXA est prêt. Ouvrez ce message dans un client compatible HTML.", {
       htmlBody: p.html,
       name: fromName,
     });
