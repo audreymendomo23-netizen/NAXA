@@ -46,10 +46,11 @@ export async function GET(request: Request) {
     || !profile.consent_accepted_at;
 
   if (incomplete) {
-    return NextResponse.redirect(
-      new URL("/completer-profil?next=" + encodeURIComponent(next), url.origin),
-      { headers: response.headers }
+    response.headers.set(
+      "Location",
+      new URL("/completer-profil?next=" + encodeURIComponent(next), url.origin).toString()
     );
+    return response;
   }
 
   return response;
