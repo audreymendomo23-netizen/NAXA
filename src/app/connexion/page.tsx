@@ -11,6 +11,8 @@ type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
 type Particule = { x: number; y: number; vx: number; vy: number; vie: number; rayon: number; couleur: string };
 type Halo = { x: number; y: number; vie: number };
 
+const d = (n: number) => ({ "--i": n } as React.CSSProperties);
+
 function BullesConnexion() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -341,47 +343,73 @@ function Formulaire() {
   }
 
   return (
-    <form onSubmit={login} className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900">
+    <form
+      onSubmit={login}
+      className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900"
+    >
       <div className="connexion-titre">
-        <h1 className="!m-0 !p-0 text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]">{titre}</h1>
-        <p className="!mb-0 !mt-1 !p-0 text-sm font-semibold text-naxa-green-900 !leading-[1.3]" style={{ color: "#9B7A00" }}>
+        <h1
+          className="reveal !m-0 !p-0 text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]"
+          style={d(1)}
+        >
+          {titre}
+        </h1>
+        <p
+          className="reveal !mb-0 !mt-1 !p-0 text-sm font-semibold !leading-[1.3]"
+          style={{ ...d(2), color: "#9B7A00" }}
+        >
           Entrez votre Nom d'utilisateur et votre Mot de passe
         </p>
       </div>
 
-      <label className="!mt-6 block text-sm font-semibold text-naxa-green-900">
-        Nom d'utilisateur
+      <div className="reveal relative !mt-6" style={d(3)}>
         <input
-          className="champ mt-1 !min-h-[54px] !border-naxa-green-100"
+          id="username"
+          placeholder=" "
+          className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
           required
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
           autoComplete="username"
         />
-      </label>
+        <label
+          htmlFor="username"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-green-900 transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-green-900/60 peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-green-900"
+        >
+          Nom d'utilisateur
+        </label>
+      </div>
 
-      <label className="block text-sm font-semibold text-naxa-green-900">
-        Mot de passe
-        <span className="relative mt-1 block">
-          <input
-            className="champ pr-20 !min-h-[54px] !border-naxa-green-100"
-            required
-            type={show ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-naxa-green-900"
-            onClick={() => setShow(!show)}
-          >
-            {show ? "Masquer" : "Afficher"}
-          </button>
-        </span>
-      </label>
+      <div className="reveal relative" style={d(4)}>
+        <input
+          id="password"
+          placeholder=" "
+          className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
+          required
+          type={show ? "text" : "password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <label
+          htmlFor="password"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-green-900 transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-green-900/60 peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-green-900"
+        >
+          Mot de passe
+        </label>
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-naxa-green-900"
+          onClick={() => setShow(!show)}
+        >
+          {show ? "Masquer" : "Afficher"}
+        </button>
+      </div>
 
-      <div className="flex items-center justify-between gap-3 text-sm text-naxa-green-900">
+      <div
+        className="reveal flex items-center justify-between gap-3 text-sm text-naxa-green-900"
+        style={d(5)}
+      >
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -399,22 +427,42 @@ function Formulaire() {
         </Link>
       </div>
 
-      <button className="btn btn-canari w-full !min-h-[54px] !mt-5" disabled={busy}>
+      <button
+        className="reveal btn btn-canari w-full !min-h-[54px] !mt-5"
+        style={d(6)}
+        disabled={busy}
+      >
         {busy ? "Connexion..." : "Connexion"}
       </button>
 
-      <div className="relative py-0.5 text-center text-xs text-slate-600 !text-naxa-green-700">
+      <div
+        className="reveal relative py-0.5 text-center text-xs text-slate-600 !text-naxa-green-700"
+        style={d(7)}
+      >
         <span className="bg-white !bg-transparent px-2">ou</span>
       </div>
 
-      <button type="button" onClick={google} className="btn btn-clair w-full !min-h-[54px]" disabled={busy}>
+      <button
+        type="button"
+        onClick={google}
+        className="reveal btn btn-clair w-full !min-h-[54px]"
+        style={d(8)}
+        disabled={busy}
+      >
         <GoogleIcon />
         Connexion via Gmail
       </button>
 
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
-      <p className="text-center text-sm text-slate-600 !text-naxa-green-900">
+      <p
+        className="reveal text-center text-sm text-slate-600 !text-naxa-green-900"
+        style={d(9)}
+      >
         Vous n'avez pas de compte ?{" "}
         <Link
           href={`/creation-compte?retour=${encodeURIComponent(retour)}`}
@@ -438,7 +486,7 @@ export default function Connexion() {
         className="relative z-10 w-full shrink-0 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
       >
-        <div className="logo-pastille">
+        <div className="logo-pastille reveal" style={d(0)}>
           <Logo taille={30} />
         </div>
       </div>
