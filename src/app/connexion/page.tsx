@@ -508,15 +508,16 @@ function PharmacieFormulaire() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [offlineUnlock, setOfflineUnlock] = useState(false);
+  const [offlineUnavailable, setOfflineUnavailable] = useState(false);
   const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    const checkOffline = async () => { if (!navigator.onLine && await hasLocalDevice().catch(() => false) && mounted) setOfflineUnlock(true); };
+    const checkOffline = async () => { const has = await hasLocalDevice().catch(() => false); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
     void checkOffline();
-    const online = () => { if (mounted) setOfflineUnlock(false); };
+    const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
     const offline = () => { void checkOffline(); };
     window.addEventListener("online", online); window.addEventListener("offline", offline);
     return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
