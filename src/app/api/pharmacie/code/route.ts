@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabasePublic } from "@/lib/supabase/server";
-import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
 import { setPharmacyCookie } from "@/lib/pharmacie-code-session";
-import { hashRateKey, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
+import { tooManyAttempts } from "@/lib/pharmacie-rate-limit";
 
 export async function POST(request: NextRequest) {
   let body: { code?: unknown };
@@ -18,34 +16,44 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { data, error } = await supabasePublic().rpc("naxa_validate_pharmacy_code_v1", {
-      p_code: code,
-      p_ip_hash: hashRateKey(trustedRequestIp(request)),
-      p_code_hash: hashRateKey(code),
-    });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const publicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !publicKey) throw new Error("Supabase public configuration missing");
 
-    if (error) throw error;
+    const upstream = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/functions/v1/naxa-pharmacy-code`,
+      {
+        method: "POST",
+        headers: {
+          apikey: publicKey,
+          Authorization: `Bearer ${publicKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code }),
+        cache: "no-store",
+      },
+    );
 
-    const result = Array.isArray(data) ? data[0] : null;
-    if (result?.status === "rate_limited") {
-      return tooManyAttempts(Number(result.retry_after || 1));
+    const result = await upstream.json().catch(() => null);
+    if (upstream.status === 429) {
+      return tooManyAttempts(Number(result?.retry_after || upstream.headers.get("Retry-After") || 1));
     }
-    if (result?.status === "not_found") {
+    if (upstream.status === 404) {
       return NextResponse.json({ error: "Code pharmacie introuvable." }, { status: 404 });
     }
-    if (
-      result?.status !== "ok" ||
-      typeof result.pharmacy_id !== "string" ||
-      typeof result.pharmacy_name !== "string"
-    ) {
-      throw new Error("Invalid pharmacy code RPC response");
+    if (!upstream.ok) {
+      console.error("NAXA_PHARMACY_CODE_FAILED", { status: upstream.status });
+      return NextResponse.json({ error: "Vérification indisponible." }, { status: 503 });
+    }
+    if (typeof result?.pharmacy_id !== "string" || typeof result?.nom !== "string") {
+      throw new Error("Invalid pharmacy code response");
     }
 
-    const response = NextResponse.json({ nom: result.pharmacy_name });
+    const response = NextResponse.json({ nom: result.nom });
     setPharmacyCookie(response, result.pharmacy_id);
     return response;
   } catch (error) {
-    console.error("NAXA_PHARMACY_CODE_FAILED", error);
+    console.error("NAXA_PHARMACY_CODE_FAILED", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "Vérification indisponible." }, { status: 503 });
   }
 }
