@@ -6,6 +6,7 @@ const META = "meta";
 const QUEUE = "queue";
 const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; attempts: number; status: "pending" | "failed" };
+type StoredOperation = Omit<PendingOperation, "payload"> & { payloadCipher: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
 type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number };
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number } | null = null;
