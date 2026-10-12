@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
+import { clearPharmacyCookie, readPharmacyCookie } from "@/lib/pharmacie-code-session";
 import { isIP } from "node:net";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { hasAvailableSessionSlot, MAX_CONCURRENT_SESSIONS } from "@/lib/auth/session-limit";
@@ -40,7 +42,7 @@ function sessionLimitResponse() {
   );
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
@@ -50,14 +52,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nom d'utilisateur et mot de passe requis." }, { status: 400 });
     }
 
-    const { data: profile } = await supabaseAdmin()
-      .from("profiles")
-      .select("id,actif,pharmacie_id")
-      .ilike("username", username)
-      .maybeSingle();
+    const espacePharmacie = body.espace === "pharmacie";
+    const pharmacyId = espacePharmacie ? readPharmacyCookie(request) : null;
+    if (espacePharmacie && !pharmacyId) {
+      const response = NextResponse.json({ error: "Session expirée, entrez de nouveau votre code", code: "PHARMACY_SESSION_EXPIRED" }, { status: 401 });
+      clearPharmacyCookie(response);
+      return response;
+    }
 
-    if (!profile || profile.actif === false) {
+    // La liaison utilisateur/pharmacie est obligatoire pour l'espace pharmacie.
+    const { data: matchingProfiles, error: profileLookupError } = await supabaseAdmin()
+      .from(S.profilesTable)
+      .select(`${S.profileIdColumn},${S.profileActiveColumn},${S.profilePharmacyIdColumn}`)
+      .ilike(S.profileUsernameColumn, username)
+      .limit(2);
+    if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
+      return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
+    }
+    const profile = matchingProfiles[0] as Record<string, unknown> & { id: string; actif?: boolean | null; pharmacie_id?: string | null };
+    if (profile[S.profileActiveColumn] === false) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+    }
+    if (espacePharmacie && profile[S.profilePharmacyIdColumn] !== pharmacyId) {
+      return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
 
     const { data: userData, error: userError } = await supabaseAdmin().auth.admin.getUserById(profile.id);
