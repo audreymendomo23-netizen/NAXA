@@ -1,14 +1,14 @@
 {
-  "name": "NAXA",
+  "name": "NAXA — Gestion pharmacie",
   "short_name": "NAXA",
-  "description": "Votre médicament, à 2 minutes.",
-  "start_url": "/",
+  "description": "Gestion sécurisée des pharmacies, avec fondation hors ligne.",
+  "start_url": "/connexion?espace=pharmacie",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#054A29",
+  "background_color": "#ffffff",
   "theme_color": "#054A29",
-  "lang": "fr",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
