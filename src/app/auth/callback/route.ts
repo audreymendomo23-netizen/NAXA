@@ -24,7 +24,9 @@ export async function GET(request: Request) {
 
   // On conserve une seule réponse de redirection afin que les cookies de session
   // écrits par exchangeCodeForSession soient bien renvoyés au navigateur.
-  const response = NextResponse.redirect(new URL("/", url.origin));
+  // Une réponse unique conserve les cookies de session écrits pendant l’échange PKCE.
+  // Elle ne pointe pas vers l’accueil avant que le rôle et le profil soient connus.
+  const response = new NextResponse(null, { status: 302 });
   const supabase = supabaseServer(response);
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
