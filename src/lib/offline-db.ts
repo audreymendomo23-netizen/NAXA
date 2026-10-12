@@ -127,3 +127,11 @@ export async function clearLocalDevice() {
     t.oncomplete = () => { d.close(); activeUnlocked = null; resolve(); }; t.onerror = () => { d.close(); reject(t.error); };
   });
 }
+
+export async function saveTokenEncryptedForSession(pin: string, token: string) {
+  const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
+  if (!meta?.salt) throw new Error("Appareil absent");
+  const { aes } = await derive(pin, new Uint8Array(meta.salt));
+  meta.tokenCipher = await encrypt(aes, token);
+  await tx(META, "readwrite", s => s.put(meta));
+}
