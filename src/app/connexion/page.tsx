@@ -134,7 +134,7 @@ function BullesConnexion() {
           gradient.addColorStop(0, `rgba(255,227,61,${Math.max(0, h.vie) * 0.10})`);
           gradient.addColorStop(1, "rgba(255,227,61,0)");
           context!.beginPath();
-          context!..fillStyle = gradient;
+          context!.fillStyle = gradient;
           context!.arc(h.x, h.y, rayon, 0, Math.PI * 2);
           context!.fill();
         });
