@@ -342,12 +342,14 @@ function Formulaire() {
 
   return (
     <form onSubmit={login} className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900">
-      <h1 className="text-4xl font-extrabold leading-tight text-naxa-green-900">{titre}</h1>
-      <p className="text-sm font-semibold leading-5" style={{ color: "#9B7A00" }}>
-        Entrez votre Nom d'utilisateur et votre Mot de passe
-      </p>
+      <div className="connexion-titre">
+        <h1 className="!m-0 !p-0 text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]">{titre}</h1>
+        <p className="!mb-0 !mt-1 !p-0 text-sm font-semibold text-naxa-green-900 !leading-[1.3]" style={{ color: "#9B7A00" }}>
+          Entrez votre Nom d'utilisateur et votre Mot de passe
+        </p>
+      </div>
 
-      <label className="block text-sm font-semibold text-naxa-green-900">
+      <label className="!mt-6 block text-sm font-semibold text-naxa-green-900">
         Nom d'utilisateur
         <input
           className="champ mt-1 !min-h-[54px] !border-naxa-green-100"
@@ -428,17 +430,24 @@ function Formulaire() {
 export default function Connexion() {
   return (
     <main
-      className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2 !h-auto !min-h-[100dvh] !overflow-y-auto"
-      style={{ backgroundColor: "#F2FAF5", paddingTop: "max(24px, env(safe-area-inset-top))" }}
+      className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-6 !h-auto !min-h-[100dvh] !overflow-y-auto"
+      style={{ backgroundColor: "#F2FAF5" }}
     >
       <BullesConnexion />
-      <div className="relative z-10 flex w-full max-w-[360px] flex-col items-center justify-center gap-3 !items-stretch !gap-5">
-        <div className="logo-pastille self-start">
-          <Logo />
+      <div
+        className="relative z-10 w-full shrink-0 pt-3"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      >
+        <div className="logo-pastille">
+          <Logo taille={30} />
         </div>
-        <Suspense>
-          <Formulaire />
-        </Suspense>
+      </div>
+      <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
+        <div className="w-full max-w-[360px]">
+          <Suspense>
+            <Formulaire />
+          </Suspense>
+        </div>
       </div>
     </main>
   );
