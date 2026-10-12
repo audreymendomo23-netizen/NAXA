@@ -30,6 +30,7 @@ export const PHARMACIE_SCHEMA = {
   stockCostsTable: "stocks_couts",
   stockLotsTable: "stocks_lots",
   expensesTable: "depenses",
+  expensesDateColumn: "date_depense",
   reservationsTable: "reservations",
   alertsTable: "naxa_offline_alertes",
   promoterPharmaciesTable: "promoteur_pharmacies",
