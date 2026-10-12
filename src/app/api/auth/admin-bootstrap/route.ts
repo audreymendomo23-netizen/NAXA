@@ -9,10 +9,10 @@ const ALLOWED_EMAIL = "naxa.home@gmail.com";
 
 function secretMatches(provided: string | null, expected: string | undefined) {
   if (!provided || !expected) return false;
-  const providedBuffer = Buffer.from(provided);
-  const expectedBuffer = Buffer.from(expected);
-  return providedBuffer.length === expectedBuffer.length
-    && timingSafeEqual(providedBuffer, expectedBuffer);
+  const providedBytes = Uint8Array.from(Buffer.from(provided, "utf8"));
+  const expectedBytes = Uint8Array.from(Buffer.from(expected, "utf8"));
+  return providedBytes.length === expectedBytes.length
+    && timingSafeEqual(providedBytes, expectedBytes);
 }
 
 export async function POST(request: Request) {
