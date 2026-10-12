@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS public.appareils (
   installation_id text
 );
 ALTER TABLE public.appareils ADD COLUMN IF NOT EXISTS installation_id text;
-CREATE UNIQUE INDEX IF NOT EXISTS appareils_user_installation_uidx ON public.appareils(utilisateur_id, installation_id) WHERE installation_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS appareils_user_installation_uidx ON public.appareils(utilisateur_id, installation_id);
 CREATE INDEX IF NOT EXISTS appareils_pharmacie_idx ON public.appareils(pharmacie_id);
 CREATE INDEX IF NOT EXISTS appareils_utilisateur_idx ON public.appareils(utilisateur_id);
 ALTER TABLE public.appareils ENABLE ROW LEVEL SECURITY;
