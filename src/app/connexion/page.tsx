@@ -202,9 +202,13 @@ function TitreEspace() {
 
   return (
     <p
-      className="reveal whitespace-nowrap text-lg font-bold text-naxa-green-900 sm:text-xl"
+      className="reveal inline-flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-xl font-extrabold tracking-tight text-[#064B2A] shadow-sm"
       style={d(0)}
     >
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40"
+      />
       {titre}
     </p>
   );
@@ -385,7 +389,7 @@ function Formulaire() {
         />
         <label
           htmlFor="username"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-canari transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-canari peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-canari"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
         >
           Nom d'utilisateur
         </label>
@@ -404,7 +408,7 @@ function Formulaire() {
         />
         <label
           htmlFor="password"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-canari transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-canari peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-canari"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
         >
           Mot de passe
         </label>
@@ -418,10 +422,10 @@ function Formulaire() {
       </div>
 
       <div
-        className="reveal flex items-center justify-between gap-3 text-sm text-naxa-green-900"
+        className="reveal flex items-center justify-between gap-2 whitespace-nowrap text-base text-naxa-green-900"
         style={d(5)}
       >
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-1.5 whitespace-nowrap font-bold">
           <input
             type="checkbox"
             className="accent-naxa-canari h-5 w-5"
@@ -432,7 +436,7 @@ function Formulaire() {
         </label>
         <Link
           href={`/mot-de-passe-oublie?retour=${encodeURIComponent(retour)}`}
-          className="font-semibold underline text-naxa-green-900"
+          className="whitespace-nowrap text-base font-semibold underline text-naxa-green-900"
         >
           Mot de passe oublié ?
         </Link>
@@ -471,7 +475,7 @@ function Formulaire() {
       )}
 
       <p
-        className="reveal text-center text-sm text-slate-600 !text-naxa-green-900"
+        className="reveal text-center text-base text-slate-600 !text-naxa-green-900"
         style={d(9)}
       >
         Vous n'avez pas de compte ?{" "}
@@ -497,7 +501,7 @@ export default function Connexion() {
         className="relative z-10 w-full shrink-0 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
       >
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex w-full items-center justify-between gap-3">
           <div className="logo-pastille reveal" style={d(0)}>
             <Logo taille={30} />
           </div>
@@ -507,7 +511,7 @@ export default function Connexion() {
         </div>
       </div>
       <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
-        <div className="w-full max-w-[360px]">
+        <div className="mt-[-60px] w-full max-w-[360px]">
           <Suspense>
             <Formulaire />
           </Suspense>
