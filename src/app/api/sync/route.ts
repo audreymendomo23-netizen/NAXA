@@ -14,7 +14,8 @@ export async function POST(req:NextRequest){
   for(const op of operations){
    if(!op||typeof op.id!=="string"||!/^[0-9a-f-]{36}$/i.test(op.id)||typeof op.type!=="string") {results.push({id:op?.id,status:"rejected"});continue}
    const payload=op.payload&&typeof op.payload==="object"?op.payload:{};
-   if(op.type!=="note_caisse_test"){results.push({id:op.id,status:"unsupported_operation"});continue}\n   const status="appliquee";
+   if(op.type!=="note_caisse_test"){results.push({id:op.id,status:"unsupported_operation"});continue}
+   const status="appliquee";
    const {error:insertError}=await supabaseAdmin().from(S.operationsTable).insert({id:op.id,appareil_id:device.id,pharmacie_id:device.pharmacie_id,utilisateur_id:device.utilisateur_id,type:op.type,payload,statut:status});
    if(insertError?.code==="23505"){results.push({id:op.id,status:"already_applied"});continue}
    if(insertError){console.error("NAXA_SYNC_OPERATION_FAILED",insertError);results.push({id:op.id,status:"retry"});continue}
