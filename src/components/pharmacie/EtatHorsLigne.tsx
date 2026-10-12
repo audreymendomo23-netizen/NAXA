@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { enregistrerOperation, listPendingOperations, pendingCount, removeOperation, markOperationAttempt, saveReference, readReference, markLocalSync, getUnlockedDevice } from "@/lib/offline-db";
+import { enregistrerOperation, listPendingOperations, pendingCount, removeOperation, markOperationAttempt, saveReference, readReference, markLocalSync, markDeviceServerLocked, getUnlockedDevice } from "@/lib/offline-db";
 
 export function EtatHorsLigne() {
  const [online,setOnline]=useState(true),[count,setCount]=useState(0),[synced,setSynced]=useState(false);
@@ -19,7 +19,7 @@ export function EtatHorsLigne() {
    for(const op of ops){
     try{
      const res=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+device.token},body:JSON.stringify({operations:[op]})});
-     if(!res.ok)throw new Error("sync failed");
+     if(res.status===401){await markDeviceServerLocked();window.location.replace("/connexion?espace=pharmacie");return}if(!res.ok)throw new Error("sync failed");
      const data=await res.json();const item=(data.results||[]).find((x:{id:string;status:string})=>x.id===op.id);
      if(!item||!["applied","already_applied"].includes(item.status)){await markOperationAttempt(op.id,true);allOk=false;break}
      if(data.reference!==undefined){const old=await readReference();const prev=old?.value&&typeof old.value==="object"?old.value as Record<string,unknown>:{};await saveReference({...prev,...data.reference})}
