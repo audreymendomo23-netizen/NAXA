@@ -7,7 +7,7 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   workboxOptions: {
     navigateFallback: "/connexion?espace=pharmacie",
-    navigateFallbackDenylist: [/^\\/api\\//],
+    navigateFallbackDenylist: [/^\/api\//],
     runtimeCaching: [
       { urlPattern: ({ request, url }) => request.mode === "navigate" && url.origin === self.location.origin && !url.pathname.startsWith("/api/"), handler: "NetworkFirst", options: { cacheName: "naxa-navigation", networkTimeoutSeconds: 3, expiration: { maxEntries: 20, maxAgeSeconds: 7 * 24 * 60 * 60 }, cacheableResponse: { statuses: [0, 200] } } }
     ]
