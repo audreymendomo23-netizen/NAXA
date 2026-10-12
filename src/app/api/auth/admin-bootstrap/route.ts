@@ -16,9 +16,16 @@ function secretMatches(provided: string | null, expected: string | undefined) {
 }
 
 export async function POST(request: Request) {
+  const expectedSecret = process.env.NAXA_ADMIN_BOOTSTRAP_SECRET;
+  if (!expectedSecret) {
+    return NextResponse.json(
+      { error: "Bootstrap non configuré côté serveur. Définissez NAXA_ADMIN_BOOTSTRAP_SECRET dans l’environnement de déploiement." },
+      { status: 503 },
+    );
+  }
   if (!secretMatches(
     request.headers.get("x-naxa-bootstrap-secret"),
-    process.env.NAXA_ADMIN_BOOTSTRAP_SECRET,
+    expectedSecret,
   )) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 401 });
   }
