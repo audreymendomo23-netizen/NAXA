@@ -115,7 +115,7 @@ BEGIN
     r.failures:=0; r.window_started_at:=v_now;
   END IF;
   r.failures:=r.failures+1;
-  IF r.failures >= p_limit THEN
+  IF r.failures > p_limit THEN
     v_block := least(p_max_block_seconds, greatest(p_base_block_seconds, r.block_seconds));
     UPDATE public.tentatives_code SET failures=r.failures,window_started_at=r.window_started_at,
       blocked_until=v_now+make_interval(secs=>v_block),
