@@ -24,7 +24,7 @@ export async function POST() {
       console.error("welcome email user lookup failed");
       return NextResponse.json({ sent: false, error: "Impossible de vérifier le compte." }, { status: 503 });
     }
-    if (current.user.user_metadata?.naxa_welcome_email_sent_at) {
+    if (current.user.app_metadata?.naxa_welcome_email_sent_at) {
       return NextResponse.json({ sent: true, alreadySent: true });
     }
 
@@ -66,8 +66,8 @@ export async function POST() {
     }
 
     const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
-      user_metadata: {
-        ...current.user.user_metadata,
+      app_metadata: {
+        ...current.user.app_metadata,
         naxa_welcome_email_sent_at: new Date().toISOString(),
       },
     });
