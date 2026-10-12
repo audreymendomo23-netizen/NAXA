@@ -6,6 +6,7 @@ export const PHARMACIE_SCHEMA = {
   pharmacyCodeColumn: "code_pharmacie",
   pharmacyActiveColumn: "actif",
   pharmacyStockUpdatedColumn: "stock_updated_at",
+  pharmacyOnCallColumn: "de_garde",
   profilesTable: "profiles",
   profileIdColumn: "id",
   profilePharmacyIdColumn: "pharmacie_id",
