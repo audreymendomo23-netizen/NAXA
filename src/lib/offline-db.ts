@@ -7,7 +7,8 @@ const QUEUE = "queue";
 const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; attempts: number; status: "pending"|"failed" };
 type Encrypted = { iv: number[]; cipher: number[] };
-type Meta = { id: "device"; salt: number[]; pinHash: number[]; deviceId: string; pharmacyId: string; pharmacyName: string; tokenCipher: Encrypted; lastSync: number };
+type Meta = { id: "device"; salt: number[]; pinHash: number[]; deviceId: string; pharmacyId: string; pharmacyName: string; tokenCipher: Encrypted; lastSync: number; pinFailures?: number; pinBlockedUntil?: number };
+let activeUnlocked: {deviceId:string;pharmacyId:string;pharmacyName:string;token:string;aes:CryptoKey;lastSync:number}|null=null;
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve,reject)=>{ const r=indexedDB.open(DB_NAME,DB_VERSION); r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(META))d.createObjectStore(META,{keyPath:"id"});if(!d.objectStoreNames.contains(QUEUE))d.createObjectStore(QUEUE,{keyPath:"id"});if(!d.objectStoreNames.contains(REF))d.createObjectStore(REF,{keyPath:"id"});};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
 }
@@ -19,7 +20,7 @@ export async function hasLocalDevice(){try{return Boolean(await tx<Meta|undefine
 export async function activateLocalDevice(input:{pin:string;deviceId:string;pharmacyId:string;pharmacyName:string;token:string;reference?:unknown}) {
  if(!/^\d{4,6}$/.test(input.pin))throw new Error("Le PIN doit contenir 4 à 6 chiffres");
  const salt=crypto.getRandomValues(new Uint8Array(16));const {aes,hash}=await derive(input.pin,salt);
- const meta:Meta={id:"device",salt:Array.from(salt),pinHash:hash,deviceId:input.deviceId,pharmacyId:input.pharmacyId,pharmacyName:input.pharmacyName,tokenCipher:await encrypt(aes,input.token),lastSync:Date.now()};
+ const meta:Meta={id:"device",salt:Array.from(salt),pinHash:hash,deviceId:input.deviceId,pharmacyId:input.pharmacyId,pharmacyName:input.pharmacyName,tokenCipher:await encrypt(aes,input.token),lastSync:Date.now(),pinFailures:0,pinBlockedUntil:0};
  await tx(META,"readwrite",s=>s.put(meta));
  if(input.reference!==undefined)await saveReference(input.reference);
 }
@@ -31,7 +32,7 @@ export async function unlockLocalDevice(pin:string) {
  const token=await decrypt(aes,meta.tokenCipher);
  return {deviceId:meta.deviceId,pharmacyId:meta.pharmacyId,pharmacyName:meta.pharmacyName,token,aes,lastSync:meta.lastSync};
 }
-export async function saveReference(data:unknown){await tx(REF,"readwrite",s=>s.put({id:"snapshot",value:data,savedAt:Date.now()}))}
+export function getUnlockedDevice(){return activeUnlocked}\nexport async function saveReference(data:unknown){await tx(REF,"readwrite",s=>s.put({id:"snapshot",value:data,savedAt:Date.now()}))}
 export async function readReference(){return tx<{id:string;value:unknown;savedAt:number}|undefined>(REF,"readonly",s=>s.get("snapshot"))}
 export async function enregistrerOperation(type:string,payload:unknown):Promise<string>{
  const id=crypto.randomUUID();const operation:PendingOperation={id,type,payload,createdAt:Date.now(),attempts:0,status:"pending"};await tx(QUEUE,"readwrite",s=>s.add(operation));return id;
