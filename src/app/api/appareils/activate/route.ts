@@ -19,11 +19,11 @@ export async function POST(req:NextRequest){
     [S.deviceUserIdColumn]:user.id,
     [S.deviceNameColumn]:name,
     [S.deviceTokenHashColumn]:hashDeviceToken(token),
-    installation_id:installationId,
+    [S.deviceInstallationColumn]:installationId,
     [S.deviceActiveColumn]:true
-  },{onConflict:"utilisateur_id,installation_id"}).select("id").single();
+  },{onConflict:`${S.deviceUserIdColumn},${S.deviceInstallationColumn}`}).select(S.deviceIdColumn).single();
   if(error||!device){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
   const {data:ph}=await supabaseAdmin().from(S.pharmaciesTable).select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).single();
-  return NextResponse.json({deviceId:device.id,token,pharmacyId,pharmacyName:ph?.[S.pharmacyNameColumn]??""});
+  return NextResponse.json({deviceId:device[S.deviceIdColumn],token,pharmacyId,pharmacyName:ph?.[S.pharmacyNameColumn]??""});
  }catch(e){console.error("NAXA_DEVICE_ACTIVATION_FAILED",e);return NextResponse.json({error:"Activation impossible."},{status:500})}
 }
