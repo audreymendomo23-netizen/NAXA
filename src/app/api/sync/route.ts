@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       results.push({ id: op.id, status: result?.status || "applied", detail: result });
     }
     const now = new Date().toISOString();
-    await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: now }).eq(S.deviceIdColumn, device[S.deviceIdColumn]);
+    await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: now }).eq(S.deviceIdColumn, deviceRecord[S.deviceIdColumn]);
     const pharmacyId = deviceRecord[S.devicePharmacyIdColumn];
     const [{data:pharmacy,error:pharmacyError},{data:stocks,error:stocksError},{data:costs,error:costsError},{data:lots,error:lotsError},{data:expenses,error:expensesError},{data:catalogue,error:catalogueError}] = await Promise.all([
       supabaseAdmin().from(S.pharmaciesTable).select([S.pharmacyIdColumn,S.pharmacyNameColumn,S.pharmacyOnCallColumn,S.pharmacyStockUpdatedColumn].join(",")).eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
