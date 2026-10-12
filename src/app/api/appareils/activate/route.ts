@@ -8,7 +8,8 @@ export async function POST(req:NextRequest){
  try{
   const {data:{user},error:userError}=await supabaseServer().auth.getUser();if(userError||!user)return NextResponse.json({error:"Connexion requise."},{status:401});
   const {data:profile,error:pe}=await supabaseAdmin().from(S.profilesTable).select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileActiveColumn}`).eq(S.profileIdColumn,user.id).maybeSingle();
-  if(pe||!profile||profile[S.profileActiveColumn]===false||profile[S.profilePharmacyIdColumn]!==pharmacyId)return NextResponse.json({error:"Identifiants non valides pour cette pharmacie"},{status:403});
+  const profileRecord = profile as unknown as Record<string, unknown> | null;
+  if(pe||!profileRecord||profileRecord[S.profileActiveColumn]===false||profileRecord[S.profilePharmacyIdColumn]!==pharmacyId)return NextResponse.json({error:"Identifiants non valides pour cette pharmacie"},{status:403});
   const body=await req.json();
   const name=String(body.name||"Appareil pharmacie").trim().slice(0,100)||"Appareil pharmacie";
   const installationId=String(body.installationId||"");
@@ -23,8 +24,9 @@ export async function POST(req:NextRequest){
     [S.deviceActiveColumn]:true,
     [S.deviceLastSyncColumn]:new Date().toISOString()
   },{onConflict:`${S.deviceUserIdColumn},${S.deviceInstallationColumn}`}).select(S.deviceIdColumn).single();
-  if(error||!device){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
+  const deviceRecord = device as unknown as Record<string, unknown> | null;
+  if(error||!deviceRecord){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
   const {data:ph}=await supabaseAdmin().from(S.pharmaciesTable).select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).single();
-  return NextResponse.json({deviceId:device[S.deviceIdColumn],token,pharmacyId,pharmacyName:ph?.[S.pharmacyNameColumn]??""});
+  return NextResponse.json({deviceId:deviceRecord[S.deviceIdColumn],token,pharmacyId,pharmacyName:ph?.[S.pharmacyNameColumn]??""});
  }catch(e){console.error("NAXA_DEVICE_ACTIVATION_FAILED",e);return NextResponse.json({error:"Activation impossible."},{status:500})}
 }
