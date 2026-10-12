@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EnTeteAccueil } from "@/components/EnTeteAccueil";
 import { Recherche } from "@/components/Recherche";
@@ -18,11 +18,22 @@ const puce =
 const lienPied =
   "inline-flex min-h-11 items-center underline underline-offset-2 hover:text-naxa-canari-dark";
 
+function Svg({ children }: { children: ReactNode }) {
+  return <svg viewBox="0 0 24 24" className="h-7 w-7 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
+}
+function IconeRecherche() { return <Svg><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></Svg>; }
+function IconeTrouve() { return <Svg><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></Svg>; }
+function IconeCompare() { return <Svg><path d="M4 8h15M15 4l4 4-4 4" /><path d="M20 16H5M9 12l-4 4 4 4" /></Svg>; }
+function IconeReserve() { return <Svg><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M4 10h16M8 3v4M16 3v4" /></Svg>; }
+const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
+
+
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const langueInitialisee = useRef(false);
   const [position, setPosition] = useState<EtatPosition>("inconnue");
   const t = textes[langue];
+  const etapesAccueil = langue === "fr" ? ["Rechercher", "Trouver", "Comparer", "Réserver"] : ["Search", "Find", "Compare", "Reserve"];
 
   useEffect(() => {
     try {
@@ -123,12 +134,32 @@ export default function Accueil() {
             ))}
           </div>
         </section>
+
+        <ol className="mt-3 flex items-start justify-between gap-1 [@media(max-height:600px)]:hidden">
+          {etapesAccueil.map((etape, i) => {
+            const Icone = iconesEtapes[i];
+            return (
+              <Fragment key={etape}>
+                <li className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center text-naxa-green-900">
+                  <Icone />
+                  <span className="text-xs font-semibold">{etape}</span>
+                </li>
+                {i < etapesAccueil.length - 1 && (
+                  <li aria-hidden="true" className="shrink-0 pt-1.5 text-naxa-green-700">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                  </li>
+                )}
+              </Fragment>
+            );
+          })}
+        </ol>
       </div>
 
-      <footer className="mt-auto w-full shrink-0 bg-naxa-green-900 px-5 py-1 text-white">
+      <footer className="mt-auto w-full shrink-0 bg-naxa-green-900 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 text-naxa-canari">
         <div className="mx-auto flex max-w-xl flex-col gap-1 text-xs">
           <p>{t.avertissement}</p>
           <div className="flex flex-wrap items-center gap-x-4">
+            <a className={lienPied} href="tel:117">117</a>
             <a className={lienPied} href="tel:118">118</a>
             <a className={lienPied} href="tel:119">119</a>
             <a
