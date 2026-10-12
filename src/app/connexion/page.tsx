@@ -490,6 +490,126 @@ function Formulaire() {
   );
 }
 
+
+function PharmacieFormulaire() {
+  const router = useRouter();
+  const codeRef = useRef<HTMLInputElement | null>(null);
+  const [etape, setEtape] = useState<1 | 2>(1);
+  const [nomPharmacie, setNomPharmacie] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function verifierCode(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const code = codeRef.current?.value ?? "";
+      const response = await fetch("/api/pharmacie/code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      const data = await response.json();
+      if (!response.ok) { setError(data.error || "Code pharmacie invalide."); return; }
+      setNomPharmacie(String(data.nom || ""));
+      setEtape(2);
+      if (codeRef.current) codeRef.current.value = "";
+    } catch { setError("Vérification impossible. Réessayez."); }
+    finally { setBusy(false); }
+  }
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password, remember: false, espace: "pharmacie" }) });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
+      }
+      router.push("/pharmacie"); router.refresh();
+    } catch { setError("Connexion impossible. Vérifiez votre connexion internet."); }
+    finally { setBusy(false); }
+  }
+
+  async function updatePassword(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/auth/update-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, currentPassword, newPassword }) });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        setError(data.error || "Mise à jour impossible."); return;
+      }
+      setCurrentPassword(""); setNewPassword(""); setShowUpdate(false);
+      setMessage("Mot de passe mis à jour. Vous pouvez vous connecter.");
+    } catch { setError("Mise à jour momentanément indisponible."); }
+    finally { setBusy(false); }
+  }
+
+  async function changerPharmacie() {
+    setBusy(true); setError(""); setMessage("");
+    try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
+    finally { setEtape(1); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setBusy(false); }
+  }
+
+  return (
+    <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
+      <div className="connexion-titre text-center">
+        <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>Connexion</h1>
+        <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
+          {etape === 1 ? "Étape 1 — Code Pharmacie" : "Étape 2 — Identifiants de connexion"}
+        </p>
+      </div>
+
+      {etape === 1 ? (
+        <form onSubmit={verifierCode} className="space-y-3">
+          <div className="reveal relative !mt-6" style={d(3)}>
+            <input ref={codeRef} id="code-pharmacie" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder=" " required className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" aria-label="Code Pharmacie à 4 chiffres" />
+            <label htmlFor="code-pharmacie" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Code Pharmacie (4 chiffres)</label>
+          </div>
+          <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(4)} disabled={busy}>{busy ? "Vérification..." : "Continuer"}</button>
+        </form>
+      ) : (
+        <>
+          <div className="reveal flex items-center justify-between gap-3 rounded-xl border border-naxa-green-100 bg-white/70 px-4 py-3" style={d(3)}>
+            <span className="min-w-0 truncate font-extrabold text-[#064B2A]">{nomPharmacie}</span>
+            <button type="button" onClick={changerPharmacie} disabled={busy} className="shrink-0 text-xs font-bold underline">Changer de pharmacie</button>
+          </div>
+          {!showUpdate ? (
+            <form onSubmit={login} className="space-y-3">
+              <div className="reveal relative !mt-4" style={d(4)}>
+                <input id="pharmacy-username" placeholder=" " required autoComplete="username" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
+                <label htmlFor="pharmacy-username" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Nom d'utilisateur</label>
+              </div>
+              <div className="reveal relative" style={d(5)}>
+                <input id="pharmacy-password" placeholder=" " required type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
+                <label htmlFor="pharmacy-password" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Mot de passe</label>
+                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Masquer" : "Afficher"}</button>
+              </div>
+              <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(6)} disabled={busy}>{busy ? "Connexion..." : "Connexion"}</button>
+              <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
+            </form>
+          ) : (
+            <form onSubmit={updatePassword} className="space-y-3">
+              <p className="text-sm font-semibold">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
+              <input aria-label="Nom d'utilisateur" placeholder="Nom d'utilisateur" required value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ w-full !min-h-[54px]" autoComplete="username" />
+              <input aria-label="Mot de passe actuel" placeholder="Mot de passe actuel" required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="current-password" />
+              <input aria-label="Nouveau mot de passe" placeholder="Nouveau mot de passe (8 caractères minimum)" required minLength={8} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="new-password" />
+              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Mise à jour..." : "Confirmer le nouveau mot de passe"}</button>
+              <button type="button" onClick={() => { setShowUpdate(false); setError(""); }} className="w-full text-sm font-bold underline">Retour à la connexion</button>
+            </form>
+          )}
+        </>
+      )}
+      {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+      {message && <p role="status" className="text-sm font-semibold text-green-800">{message}</p>}
+    </div>
+  );
+}
+
 export default function Connexion() {
   return (
     <main
@@ -513,7 +633,7 @@ export default function Connexion() {
       <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
         <div className="mt-[-60px] w-full max-w-[360px]">
           <Suspense>
-            <Formulaire />
+            {searchParamsPharmacie ? <PharmacieFormulaire /> : <Formulaire />}
           </Suspense>
         </div>
       </div>
