@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // La liaison utilisateur/pharmacie est obligatoire pour l'espace pharmacie.
     const { data: matchingProfiles, error: profileLookupError } = await supabaseAdmin()
       .from(S.profilesTable)
-      .select(`${S.profileIdColumn},${S.profileActiveColumn},${S.profilePharmacyIdColumn}`)
+      .select(`${S.profileIdColumn},${S.profileActiveColumn},${S.profilePharmacyIdColumn},${S.profileRoleColumn}`)
       .ilike(S.profileUsernameColumn, username)
       .limit(2);
     if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (profile[S.profileActiveColumn] === false) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
-    if (espacePharmacie && profile[S.profilePharmacyIdColumn] !== pharmacyId) {
+    if (espacePharmacie && (profile[S.profilePharmacyIdColumn] !== pharmacyId || !["pharmacie","promoteur","caisse"].includes(String(profile[S.profileRoleColumn])))) {
       const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
       await rateLimit("login_user", loginKey, "fail", 20, 3600, 900, 900);
       if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
