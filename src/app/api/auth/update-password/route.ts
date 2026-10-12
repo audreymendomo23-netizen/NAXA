@@ -35,9 +35,6 @@ export async function POST(request: NextRequest) {
       ? await supabaseServer().auth.signInWithPassword({ email, password: currentPassword })
       : { error: new Error("Invalid user") };
     if (userError || !email || authError) {
-      const gate = await rateLimit("ip_password", ip, "fail", 5, 600, 30, 900);
-      await rateLimit("password_user", userKey, "fail", 20, 3600, 900, 900);
-      if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
       return NextResponse.json({ error: "Mot de passe actuel incorrect." }, { status: 401 });
     }
     const { error: updateError } = await supabaseAdmin().auth.admin.updateUserById(userId, { password: newPassword });
