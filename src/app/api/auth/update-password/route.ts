@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
     if (!userGate.allowed) return tooManyAttempts(userGate.retryAfter);
 
     const { data: profiles, error: profileError } = await supabaseAdmin().from(S.profilesTable)
-      .select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileUsernameColumn}`)
+      .select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileUsernameColumn},${S.profileActiveColumn},${S.profileRoleColumn}`)
       .ilike(S.profileUsernameColumn, username).limit(2);
-    if (profileError || !profiles || profiles.length !== 1 || profiles[0][S.profilePharmacyIdColumn] !== pharmacyId) {
+    if (profileError || !profiles || profiles.length !== 1 || profiles[0][S.profilePharmacyIdColumn] !== pharmacyId || profiles[0][S.profileActiveColumn] === false || !["pharmacie","promoteur","caisse"].includes(String(profiles[0][S.profileRoleColumn]))) {
       const gate = await rateLimit("ip_password", ip, "fail", 5, 600, 30, 900);
       await rateLimit("password_user", userKey, "fail", 20, 3600, 900, 900);
       if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
