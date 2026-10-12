@@ -216,6 +216,8 @@ DECLARE
   v_product uuid;
   v_quantity integer;
   v_current integer;
+  v_last_created timestamptz;
+  v_last_id text;
   v_status text;
   v_created timestamptz;
 BEGIN
@@ -240,6 +242,17 @@ BEGIN
     IF v_product IS NULL OR v_quantity IS NULL THEN RAISE EXCEPTION 'NAXA offline sync: produit ou quantité manquant'; END IF;
     SELECT quantite INTO v_current FROM public.stocks WHERE pharmacie_id=d.pharmacie_id AND produit_id=v_product FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'NAXA offline sync: stock introuvable pour cette pharmacie'; END IF;
+    SELECT cree_le, id::text INTO v_last_created, v_last_id
+      FROM public.naxa_offline_operations
+      WHERE pharmacie_id=d.pharmacie_id AND type='stock_set_quantity'
+        AND coalesce(payload->>'produit_id',payload->>'productId')=v_product::text
+      ORDER BY cree_le DESC, id::text DESC LIMIT 1;
+    IF v_last_created IS NOT NULL AND
+       (v_created < v_last_created OR (v_created = v_last_created AND p_operation_id::text < v_last_id)) THEN
+      INSERT INTO public.naxa_offline_operations(id,appareil_id,pharmacie_id,utilisateur_id,type,payload,cree_le,statut)
+      VALUES(p_operation_id,d.id,d.pharmacie_id,d.utilisateur_id,p_type,coalesce(p_payload,'{}'::jsonb),v_created,'appliquee');
+      RETURN jsonb_build_object('status','applied','stale',true,'quantity',v_current);
+    END IF;
     v_status:=CASE WHEN v_quantity<0 THEN 'alerte_stock_negatif' ELSE 'appliquee' END;
     INSERT INTO public.naxa_offline_operations(id,appareil_id,pharmacie_id,utilisateur_id,type,payload,cree_le,statut)
     VALUES(p_operation_id,d.id,d.pharmacie_id,d.utilisateur_id,p_type,coalesce(p_payload,'{}'::jsonb),v_created,v_status);
