@@ -117,7 +117,7 @@ BEGIN
   r.failures:=r.failures+1;
   IF r.failures > p_limit THEN
     v_block := least(p_max_block_seconds, greatest(p_base_block_seconds, r.block_seconds));
-    UPDATE public.tentatives_code SET failures=r.failures,window_started_at=r.window_started_at,
+    UPDATE public.tentatives_code SET failures=0,window_started_at=v_now,
       blocked_until=v_now+make_interval(secs=>v_block),
       block_seconds=least(p_max_block_seconds, greatest(p_base_block_seconds,r.block_seconds*2)),last_seen_at=v_now
     WHERE scope=p_scope AND key_hash=p_key_hash;
