@@ -4,6 +4,7 @@ import { clearPharmacyCookie, readPharmacyCookie } from "@/lib/pharmacie-code-se
 import { isIP } from "node:net";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { hasAvailableSessionSlot, MAX_CONCURRENT_SESSIONS } from "@/lib/auth/session-limit";
+import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
 
 function requestIp(request: Request): string | null {
   const candidate = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip")?.trim() ?? null;
@@ -53,6 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     const espacePharmacie = body.espace === "pharmacie";
+    const loginIp = trustedRequestIp(request);
+    const loginKey = "login:" + username;
+    if (espacePharmacie) {
+      const ipGate = await rateLimit("ip_login", loginIp, "check", 5, 600, 30, 900);
+      if (!ipGate.allowed) return tooManyAttempts(ipGate.retryAfter);
+      const userGate = await rateLimit("login_user", loginKey, "check", 20, 3600, 900, 900);
+      if (!userGate.allowed) return tooManyAttempts(userGate.retryAfter);
+    }
     const pharmacyId = espacePharmacie ? readPharmacyCookie(request) : null;
     if (espacePharmacie && !pharmacyId) {
       const response = NextResponse.json({ error: "Session expirée, entrez de nouveau votre code", code: "PHARMACY_SESSION_EXPIRED" }, { status: 401 });
@@ -67,6 +76,11 @@ export async function POST(request: NextRequest) {
       .ilike(S.profileUsernameColumn, username)
       .limit(2);
     if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
+      if (espacePharmacie) {
+        const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
+        await rateLimit("login_user", loginKey, "fail", 20, 3600, 900, 900);
+        if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
+      }
       return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
     const profile = matchingProfiles[0] as Record<string, unknown> & { id: string; actif?: boolean | null; pharmacie_id?: string | null };
@@ -74,6 +88,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
     if (espacePharmacie && profile[S.profilePharmacyIdColumn] !== pharmacyId) {
+      const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
+      await rateLimit("login_user", loginKey, "fail", 20, 3600, 900, 900);
+      if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
       return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
 
@@ -93,6 +110,11 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      if (espacePharmacie) {
+        const gate = await rateLimit("ip_login", loginIp, "fail", 5, 600, 30, 900);
+        await rateLimit("login_user", loginKey, "fail", 20, 3600, 900, 900);
+        if (!gate.allowed) return tooManyAttempts(gate.retryAfter);
+      }
       if (error.message?.includes("NAXA_SESSION_LIMIT_REACHED")) {
         await auditSessionLimitRejected(request, profile, "password");
         return sessionLimitResponse();
@@ -100,6 +122,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
+    if (espacePharmacie) {
+      await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
+      await rateLimit("login_user", loginKey, "success", 20, 3600, 900, 900);
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Connexion momentanément indisponible." }, { status: 500 });
