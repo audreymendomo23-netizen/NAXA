@@ -512,7 +512,17 @@ function PharmacieFormulaire() {
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
 
-  useEffect(() => {\n    let mounted = true;\n    const checkOffline = async () => { if (!navigator.onLine && await hasLocalDevice().catch(() => false) && mounted) setOfflineUnlock(true); };\n    void checkOffline();\n    const online = () => { if (mounted) setOfflineUnlock(false); };\n    const offline = () => { void checkOffline(); };\n    window.addEventListener("online", online); window.addEventListener("offline", offline);\n    return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };\n  }, []);\n\n  async function verifierCode(e: React.FormEvent) {
+  useEffect(() => {
+    let mounted = true;
+    const checkOffline = async () => { if (!navigator.onLine && await hasLocalDevice().catch(() => false) && mounted) setOfflineUnlock(true); };
+    void checkOffline();
+    const online = () => { if (mounted) setOfflineUnlock(false); };
+    const offline = () => { void checkOffline(); };
+    window.addEventListener("online", online); window.addEventListener("offline", offline);
+    return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
+  }, []);
+
+  async function verifierCode(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError(""); setMessage("");
     try {
       const code = codeRef.current?.value ?? "";
@@ -535,7 +545,10 @@ function PharmacieFormulaire() {
         if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
-      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie" }) });\n      const deviceData = await deviceResponse.json();\n      if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }\n      setActivation(deviceData);
+      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie" }) });
+      const deviceData = await deviceResponse.json();
+      if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }
+      setActivation(deviceData);
     } catch { setError("Connexion impossible. Vérifiez votre connexion internet."); }
     finally { setBusy(false); }
   }
@@ -584,7 +597,14 @@ function PharmacieFormulaire() {
             <span className="min-w-0 truncate font-extrabold text-[#064B2A]">{nomPharmacie}</span>
             <button type="button" onClick={changerPharmacie} disabled={busy} className="shrink-0 text-xs font-bold underline">Changer de pharmacie</button>
           </div>
-          {activation ? (\n            <form onSubmit={confirmerActivation} className="space-y-3">\n              <p className="text-sm font-semibold">Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur.</p>\n              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />\n              <input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />\n              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : "Activer cet appareil"}</button>\n            </form>\n          ) : !showUpdate ? (
+          {activation ? (
+            <form onSubmit={confirmerActivation} className="space-y-3">
+              <p className="text-sm font-semibold">Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur.</p>
+              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
+              <input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
+              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : "Activer cet appareil"}</button>
+            </form>
+          ) : !showUpdate ? (
             <form onSubmit={login} className="space-y-3">
               <div className="reveal relative !mt-4" style={d(4)}>
                 <input id="pharmacy-username" placeholder=" " required autoComplete="username" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
