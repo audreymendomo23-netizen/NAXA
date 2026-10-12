@@ -65,7 +65,7 @@ export async function activateLocalDevice(input: { pin: string; deviceId: string
   activeUnlocked = { deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, token: input.token, aes, lastSync: Date.now() };
   if (input.reference !== undefined) await saveReference(input.reference);
 }
-export async function unlockLocalDevice(pin: string) {
+export async function unlockLocalDevice(pin: string, allowExpired = false) {
   const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
   if (!meta || !meta.salt || !meta.pinHash || !meta.deviceId || !meta.pharmacyId || !meta.pharmacyName || !meta.tokenCipher) throw new Error("Aucun appareil activé sur cet appareil");
   if ((meta.pinBlockedUntil || 0) > Date.now()) throw new Error("Trop d'essais. Réessayez dans " + Math.ceil(((meta.pinBlockedUntil || 0) - Date.now()) / 1000) + " secondes.");
@@ -83,7 +83,7 @@ export async function unlockLocalDevice(pin: string) {
     throw new Error(meta.pinBlockedUntil && meta.pinBlockedUntil > Date.now() ? "Trop d'essais. Réessayez dans " + Math.ceil((meta.pinBlockedUntil - Date.now()) / 1000) + " secondes." : "PIN incorrect");
   }
   const lastSync = meta.lastSync || 0;
-  if (Date.now() - lastSync > 7 * 24 * 60 * 60 * 1000) throw new Error("Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.");
+  if (!allowExpired && Date.now() - lastSync > 7 * 24 * 60 * 60 * 1000) throw new Error("Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.");
   const token = await decrypt(aes, meta.tokenCipher);
   meta.pinFailures = 0; meta.pinBlockedUntil = 0; meta.pinBlockSeconds = 30;
   await tx(META, "readwrite", s => s.put(meta));
