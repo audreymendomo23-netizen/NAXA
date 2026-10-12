@@ -196,13 +196,24 @@ function GoogleIcon() {
   );
 }
 
+function TitreEspace() {
+  const search = useSearchParams();
+  const titre = search.get("espace") === "pharmacie" ? "Espace pharmacie" : "Espace client";
+
+  return (
+    <p
+      className="reveal whitespace-nowrap text-lg font-bold text-naxa-green-900 sm:text-xl"
+      style={d(0)}
+    >
+      {titre}
+    </p>
+  );
+}
+
 function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
   const retour = search.get("retour") || "/";
-  const espace = search.get("espace");
-  const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
-
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -347,15 +358,15 @@ function Formulaire() {
       onSubmit={login}
       className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900"
     >
-      <div className="connexion-titre">
+      <div className="connexion-titre text-center">
         <h1
-          className="reveal !m-0 !p-0 text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]"
+          className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]"
           style={d(1)}
         >
-          {titre}
+          Connexion
         </h1>
         <p
-          className="reveal !mb-0 !mt-1 !p-0 text-sm font-semibold !leading-[1.3]"
+          className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]"
           style={{ ...d(2), color: "#9B7A00" }}
         >
           Entrez votre Nom d'utilisateur et votre Mot de passe
@@ -374,7 +385,7 @@ function Formulaire() {
         />
         <label
           htmlFor="username"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-green-900 transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-green-900/60 peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-green-900"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-canari transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-canari peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-canari"
         >
           Nom d'utilisateur
         </label>
@@ -393,7 +404,7 @@ function Formulaire() {
         />
         <label
           htmlFor="password"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-green-900 transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-green-900/60 peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-green-900"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold text-naxa-canari transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-naxa-canari peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:text-naxa-canari"
         >
           Mot de passe
         </label>
@@ -486,8 +497,13 @@ export default function Connexion() {
         className="relative z-10 w-full shrink-0 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
       >
-        <div className="logo-pastille reveal" style={d(0)}>
-          <Logo taille={30} />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="logo-pastille reveal" style={d(0)}>
+            <Logo taille={30} />
+          </div>
+          <Suspense fallback={<span aria-hidden="true" className="h-6 w-28" />}>
+            <TitreEspace />
+          </Suspense>
         </div>
       </div>
       <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
