@@ -1,7 +1,11 @@
 -- Test structurel NAXA 075 ; rollback systématique.
 begin;
 do $test$
-declare t text; fn regprocedure;
+declare
+  t text;
+  fn regprocedure;
+  v_security_definer boolean;
+  v_config text[];
 begin
   if not (select relrowsecurity from pg_class where oid='public.client_preferences'::regclass) then raise exception 'RLS absente client_preferences'; end if;
   if not (select relrowsecurity from pg_class where oid='public.fils_messages'::regclass) then raise exception 'RLS absente fils_messages'; end if;
@@ -11,6 +15,13 @@ begin
     fn := to_regprocedure('public.'||t);
     if fn is null then raise exception 'Fonction absente: %',t; end if;
     if has_function_privilege('anon',fn,'EXECUTE') then raise exception 'Fonction exécutable par anon: %',t; end if;
+    if not has_function_privilege('authenticated',fn,'EXECUTE') then raise exception 'Fonction non exécutable par authenticated: %',t; end if;
+    select p.prosecdef, p.proconfig into v_security_definer, v_config
+      from pg_proc p where p.oid=fn;
+    if not coalesce(v_security_definer,false) then raise exception 'Fonction sans SECURITY DEFINER: %',t; end if;
+    if not coalesce(v_config @> array['search_path=""']::text[],false) then
+      raise exception 'search_path non vide ou non fixé: % (configuration=%)',t,v_config;
+    end if;
   end loop;
   if has_table_privilege('authenticated','public.fils_messages','INSERT') or has_table_privilege('authenticated','public.fils_messages','UPDATE') or has_table_privilege('authenticated','public.fils_messages','DELETE') then raise exception 'Écriture directe autorisée sur fils_messages'; end if;
   if has_table_privilege('authenticated','public.messages_pharmacie','INSERT') or has_table_privilege('authenticated','public.messages_pharmacie','UPDATE') or has_table_privilege('authenticated','public.messages_pharmacie','DELETE') then raise exception 'Écriture directe autorisée sur messages_pharmacie'; end if;
