@@ -12,7 +12,7 @@ export function EtatHorsLigne() {
    const pin=atob(devicePinSession);const device=await unlockLocalDevice(pin);
    const ops=await listPendingOperations();
    for(const op of ops){
-    try{const res=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+device.token},body:JSON.stringify({operations:[op]})});if(!res.ok)throw new Error("sync failed");const data=await res.json();if(data.reference!==undefined)await saveReference(data.reference);await removeOperation(op.id)}
+    try{const res=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+device.token},body:JSON.stringify({operations:[op]})});if(!res.ok)throw new Error("sync failed");const data=await res.json();const item=(data.results||[]).find((x:{id:string;status:string})=>x.id===op.id);if(!item||!["applied","already_applied"].includes(item.status)){await markOperationAttempt(op.id,true);break}if(data.reference!==undefined)await saveReference(data.reference);await removeOperation(op.id)}
     catch{await markOperationAttempt(op.id,true);break}
    }
    setSynced(true);await refresh();
