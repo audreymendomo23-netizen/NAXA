@@ -197,4 +197,59 @@ BEGIN
 END
 $cleanup$;
 
+
+-- Applique une opération sous verrou transactionnel, avec déduplication et alerte de stock négatif.
+CREATE OR REPLACE FUNCTION public.naxa_apply_offline_operation_v1(
+  p_device_id uuid, p_operation_id uuid, p_type text, p_payload jsonb, p_created_at_ms bigint
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $
+DECLARE
+  d public.appareils%ROWTYPE;
+  existing public.naxa_offline_operations%ROWTYPE;
+  v_product uuid;
+  v_quantity integer;
+  v_current integer;
+  v_status text;
+  v_created timestamptz;
+BEGIN
+  SELECT * INTO d FROM public.appareils WHERE id=p_device_id FOR UPDATE;
+  IF NOT FOUND OR NOT d.actif THEN RAISE EXCEPTION 'NAXA offline sync: appareil désactivé ou inconnu'; END IF;
+  IF now()-coalesce(d.derniere_synchro,d.cree_le) > interval '7 days' THEN
+    RAISE EXCEPTION 'NAXA offline sync: appareil expiré après 7 jours sans synchronisation';
+  END IF;
+  SELECT * INTO existing FROM public.naxa_offline_operations WHERE id=p_operation_id;
+  IF FOUND THEN
+    IF existing.appareil_id<>p_device_id THEN RAISE EXCEPTION 'NAXA offline sync: identifiant d’opération déjà utilisé'; END IF;
+    RETURN jsonb_build_object('status','already_applied','operation_status',existing.statut);
+  END IF;
+  v_created:=to_timestamp(greatest(0,p_created_at_ms)::double precision/1000.0);
+  IF p_type='note_caisse_test' THEN
+    INSERT INTO public.naxa_offline_operations(id,appareil_id,pharmacie_id,utilisateur_id,type,payload,cree_le,statut)
+    VALUES(p_operation_id,d.id,d.pharmacie_id,d.utilisateur_id,p_type,coalesce(p_payload,'{}'::jsonb),v_created,'appliquee');
+    RETURN jsonb_build_object('status','applied');
+  ELSIF p_type='stock_set_quantity' THEN
+    v_product:=coalesce(nullif(p_payload->>'produit_id','')::uuid,nullif(p_payload->>'productId','')::uuid);
+    v_quantity:=coalesce(nullif(p_payload->>'quantite','')::integer,nullif(p_payload->>'quantity','')::integer);
+    IF v_product IS NULL OR v_quantity IS NULL THEN RAISE EXCEPTION 'NAXA offline sync: produit ou quantité manquant'; END IF;
+    SELECT quantite INTO v_current FROM public.stocks WHERE pharmacie_id=d.pharmacie_id AND produit_id=v_product FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'NAXA offline sync: stock introuvable pour cette pharmacie'; END IF;
+    v_status:=CASE WHEN v_quantity<0 THEN 'alerte_stock_negatif' ELSE 'appliquee' END;
+    INSERT INTO public.naxa_offline_operations(id,appareil_id,pharmacie_id,utilisateur_id,type,payload,cree_le,statut)
+    VALUES(p_operation_id,d.id,d.pharmacie_id,d.utilisateur_id,p_type,coalesce(p_payload,'{}'::jsonb),v_created,v_status);
+    UPDATE public.stocks SET quantite=v_quantity,updated_at=now()
+      WHERE pharmacie_id=d.pharmacie_id AND produit_id=v_product;
+    IF v_quantity<0 THEN
+      INSERT INTO public.naxa_offline_alertes(pharmacie_id,appareil_id,operation_id,type,message)
+      VALUES(d.pharmacie_id,d.id,p_operation_id,'stock_negatif',
+        'Stock négatif après synchronisation hors ligne : produit '||v_product::text||', quantité '||v_quantity::text);
+    END IF;
+    RETURN jsonb_build_object('status','applied','quantity',v_quantity,'alert',v_quantity<0);
+  ELSE
+    RAISE EXCEPTION 'NAXA offline sync: type d’opération non pris en charge: %',p_type;
+  END IF;
+END $;
+REVOKE ALL ON FUNCTION public.naxa_apply_offline_operation_v1(uuid,uuid,text,jsonb,bigint) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.naxa_apply_offline_operation_v1(uuid,uuid,text,jsonb,bigint) TO service_role;
+
+
 COMMIT;
