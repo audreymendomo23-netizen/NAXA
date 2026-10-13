@@ -18,9 +18,10 @@ export async function POST(request: Request) {
     const admin = supabaseAdmin();
     const perPage = 1000;
     let phoneAlreadyUsed = false;
+    let pendingEmailUserId: string | null = null;
 
-    // L’adresse et le téléphone sont recherchés dans les métadonnées Auth :
-    // le téléphone est fourni à Supabase au moment de l’inscription OTP.
+    // Une inscription non confirmée peut être reprise avec la même adresse.
+    // Une adresse déjà confirmée reste indisponible pour une nouvelle inscription.
     for (let page = 1; page <= 100; page += 1) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
       if (error) {
@@ -30,18 +31,24 @@ export async function POST(request: Request) {
 
       const users = data.users ?? [];
       for (const user of users) {
-        if (user.email?.trim().toLowerCase() === email) {
-          return NextResponse.json({ ok: false, field: "email", error: "Cette adresse e-mail est déjà prise." }, { status: 409 });
+        const sameEmail = user.email?.trim().toLowerCase() === email;
+        if (sameEmail) {
+          if (user.email_confirmed_at) {
+            return NextResponse.json({ ok: false, field: "email", error: "Cette adresse e-mail possède déjà un compte confirmé. Connectez-vous ou utilisez « Mot de passe oublié »." }, { status: 409 });
+          }
+          pendingEmailUserId = user.id;
         }
-        const existingPhone = String(user.user_metadata?.phone ?? "").replace(/\D/g, "");
-        if (existingPhone && existingPhone === phoneDigits) phoneAlreadyUsed = true;
+        if (user.id !== pendingEmailUserId) {
+          const existingPhone = String(user.user_metadata?.phone ?? "").replace(/\D/g, "");
+          if (existingPhone && existingPhone === phoneDigits) phoneAlreadyUsed = true;
+        }
       }
 
       if (users.length < perPage) {
         if (phoneAlreadyUsed) {
-          return NextResponse.json({ ok: false, field: "phone", error: "Ce numéro de téléphone est déjà utilisé." }, { status: 409 });
+          return NextResponse.json({ ok: false, field: "phone", error: "Ce numéro de téléphone est déjà utilisé par un autre compte." }, { status: 409 });
         }
-        return NextResponse.json({ ok: true, available: true });
+        return NextResponse.json({ ok: true, available: true, pendingSignup: Boolean(pendingEmailUserId) });
       }
     }
 
