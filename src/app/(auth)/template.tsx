@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useAuthFlow } from "@/components/auth/AuthFlowContext";
 
 export default function AuthTemplate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
