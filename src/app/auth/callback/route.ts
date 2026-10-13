@@ -31,12 +31,14 @@ export async function GET(request: Request) {
     ? await supabase.auth.exchangeCodeForSession(code)
     : await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: tokenType as "signup" | "email" });
   if (exchangeError) {
-    return NextResponse.redirect(new URL("/connexion?erreur=confirmation", url.origin));
+    response.headers.set("Location", new URL("/connexion?erreur=confirmation", url.origin).toString());
+    return response;
   }
 
   const { data: auth, error: userError } = await supabase.auth.getUser();
   if (userError || !auth.user) {
-    return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
+    response.headers.set("Location", new URL("/connexion?erreur=oauth", url.origin).toString());
+    return response;
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -46,7 +48,8 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (profileError) {
-    return NextResponse.redirect(new URL("/connexion?erreur=profil", url.origin));
+    response.headers.set("Location", new URL("/connexion?erreur=profil", url.origin).toString());
+    return response;
   }
 
   const isGoogleUser = auth.user.app_metadata?.provider === "google";
@@ -65,7 +68,7 @@ export async function GET(request: Request) {
   let destination = next;
   if (incompleteGoogleClient) {
     destination = "/completer-profil?next=" + encodeURIComponent(
-      next === "/connexion?redirectionRole=1" ? "/" : next
+      next === "/" || next === "/connexion?redirectionRole=1" ? "/client" : next
     );
   } else if (next === "/" || next === "/connexion?redirectionRole=1") {
     const espacesParRole: Record<string, string> = {
