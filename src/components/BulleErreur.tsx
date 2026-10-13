@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 type Props = { message: string };
 type Drop = { x: number; y: number; vx: number; vy: number; radius: number; life: number; alpha: number };
 
-const DROP_COUNT = 1400;
+const DROP_COUNT = 50;
 
 const MICRO_BUBBLES = [
   { left: "8%", delay: "0ms", size: 4 }, { left: "19%", delay: "420ms", size: 3 },
@@ -45,7 +45,7 @@ export function BulleErreur({ message }: Props) {
       const rect = bubbleRef.current?.getBoundingClientRect();
       if (rect) origin.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
       setBurst(true);
-    }, 2600);
+    }, 5000);
     return () => window.clearTimeout(timer);
   }, [shown, message, burst]);
 
@@ -82,7 +82,7 @@ export function BulleErreur({ message }: Props) {
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - Math.random() * 2.5,
         radius: 0.45 + Math.random() * 1.8,
-        life: 35 + Math.random() * 45,
+        life: 70 + Math.random() * 50,
         alpha: 0.45 + Math.random() * 0.5,
       };
     });
@@ -112,7 +112,7 @@ export function BulleErreur({ message }: Props) {
         context.stroke();
       }
       tick += 1;
-      if (alive && tick < 90) frame = window.requestAnimationFrame(draw);
+      if (alive && tick < 120) frame = window.requestAnimationFrame(draw);
       else setGone(true);
     };
     frame = window.requestAnimationFrame(draw);
@@ -160,7 +160,7 @@ export function BulleErreur({ message }: Props) {
         aria-live="assertive"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") pop(); }}
-        className="fixed right-4 top-4 z-[100] touch-none cursor-grab select-none sm:right-6 sm:top-5"
+        className="fixed right-4 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[100] touch-none cursor-grab select-none sm:right-6"
       >
         {!burst ? (
           <div className="relative isolate overflow-hidden rounded-[28px] border border-white/55 bg-gradient-to-br from-white/35 via-cyan-100/20 to-teal-200/30 px-5 py-4 text-sm font-semibold text-slate-900 shadow-[0_12px_38px_rgba(10,70,85,.20)] backdrop-blur-2xl">

@@ -77,6 +77,16 @@ export function BullesAuthentification() {
       });
     };
 
+    const pointerDown = (event: PointerEvent) => {
+      if (reduceMotion) return;
+      const bubble = randomBubble(width, height);
+      bubble.x = Math.max(bubble.r, Math.min(width - bubble.r, event.clientX));
+      bubble.y = Math.max(bubble.r, Math.min(height - bubble.r, event.clientY));
+      bubble.r = 13;
+      bubbles.push(bubble);
+      pop(bubble, performance.now());
+      if (bubbles.length > COUNT_DESKTOP + 5) bubbles.shift();
+    };
     const draw = (now: number) => {
       if (!context) return;
       const delta = Math.min(2, previous ? (now - previous) / 16.67 : 1);
@@ -173,10 +183,11 @@ export function BullesAuthentification() {
     });
     observer.observe(canvas);
     frame = window.requestAnimationFrame(draw);
-
+    window.addEventListener("pointerdown", pointerDown, { passive: true });
     return () => {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
+      window.removeEventListener("pointerdown", pointerDown);
     };
   }, []);
 
