@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useAuthFlow } from "@/components/auth/AuthFlowContext";
 
 export default function AuthTemplate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const search = useSearchParams();
-  const { direction, setDirection } = useAuthFlow();
+  const { direction } = useAuthFlow();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const stepLabel = useMemo(() => {
     if (pathname === "/creation-compte") return "Créer mon compte";
@@ -24,9 +23,7 @@ export default function AuthTemplate({ children }: { children: React.ReactNode }
     } else {
       contentRef.current?.querySelector<HTMLElement>("input:not([type=hidden])")?.focus({ preventScroll: true });
     }
-    const timer = window.setTimeout(() => setDirection("forward"), 260);
-    return () => window.clearTimeout(timer);
-  }, [pathname, search, setDirection]);
+  }, [pathname, search]);
   return <div ref={contentRef} className={`auth-stage auth-stage-${direction}`}>
     <p className="sr-only" aria-live="polite" aria-atomic="true">{stepLabel}</p>
     {children}
