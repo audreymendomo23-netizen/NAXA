@@ -279,3 +279,52 @@ body:has(.bandeau) .home-ecran {
     filter: none !important;
   }
 }
+
+
+/* NAXA Design System — tokens partagés */
+:root {
+  --naxa-green-dark: #064B2A;
+  --naxa-green: #0A6B3A;
+  --naxa-bg: #F2FAF5;
+  --naxa-canary: #FFE33D;
+  --naxa-gold: #9B7A00;
+  --naxa-blue: #2D9CFF;
+  --naxa-orange: #FF9F1C;
+  --naxa-violet: #8B5CF6;
+  --naxa-burgundy: #B3123F;
+  --naxa-danger: #B42332;
+  --naxa-radius-card: 18px;
+  --naxa-radius-field: 16px;
+  --naxa-shadow-soft: 0 6px 22px rgb(6 75 42 / 7%);
+  --naxa-space-field: 10px;
+  --naxa-motion-fast: 160ms;
+  --naxa-motion: 250ms;
+  --naxa-motion-slow: 300ms;
+}
+html { color-scheme: light; }
+body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
+.naxa-surface { background: #fff; border: 1px solid #D8E9DE; border-radius: var(--naxa-radius-card); box-shadow: var(--naxa-shadow-soft); }
+.naxa-field { position: relative; display: block; min-width: 0; }
+.naxa-field-control {
+  box-sizing: border-box; width: 100%; min-height: 52px; border: 1px solid #B8D9C4;
+  border-radius: var(--naxa-radius-field); background: #fff; color: var(--naxa-green-dark);
+  padding: 20px 44px 7px 14px; font: inherit; outline: none;
+  transition: border-color var(--naxa-motion-fast), box-shadow var(--naxa-motion-fast);
+}
+.naxa-field-control:focus { border-color: var(--naxa-canary); box-shadow: 0 0 0 3px var(--naxa-canary); }
+.naxa-field-label {
+  position: absolute; z-index: 1; left: 14px; top: 50%; max-width: calc(100% - 60px);
+  transform: translateY(-50%); color: var(--naxa-gold); font-size: 14px; line-height: 1;
+  pointer-events: none; transition: top var(--naxa-motion-fast), transform var(--naxa-motion-fast), font-size var(--naxa-motion-fast);
+}
+.naxa-field:focus-within .naxa-field-label,
+.naxa-field[data-filled="true"] .naxa-field-label { top: 9px; transform: none; font-size: 12px; }
+.naxa-field-helper { display:block; margin-top:3px; color:var(--naxa-green-dark); font-size:13px; line-height:1.25; }
+.naxa-check { position:absolute; right:14px; top:50%; display:grid; width:22px; height:22px; place-items:center; border-radius:50%; color:#fff; transform:translateY(-50%) scale(.6); opacity:0; transition:transform 200ms ease, opacity 200ms ease; pointer-events:none; }
+.naxa-check[data-visible="true"] { transform:translateY(-50%) scale(1); opacity:1; }
+.naxa-check svg { width:13px; height:13px; }
+.naxa-reveal { animation: naxa-reveal-in var(--naxa-motion) ease-out both; animation-delay: var(--reveal-delay, 0ms); }
+@keyframes naxa-reveal-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .naxa-reveal, .naxa-field-label, .naxa-field-control, .naxa-check { animation:none !important; transition:none !important; }
+}
