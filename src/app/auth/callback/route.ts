@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
   const isGoogleUser = auth.user.app_metadata?.provider === "google";
   const incompleteGoogleClient = isGoogleUser && (
-    !profile || (profile.role === "client" && (
+    !profile || !profile.role || (profile.role === "client" && (
       !profile.username
       || !profile.first_name
       || !profile.last_name
