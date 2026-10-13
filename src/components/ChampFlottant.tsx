@@ -1,5 +1,5 @@
 "use client";
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, ReactNode, CSSProperties } from "react";
 type Props = {
   id: string; label: string; value: string; onChange: (value: string) => void;
   type?: string; autoComplete?: string; required?: boolean; maxLength?: number;
@@ -10,7 +10,7 @@ type Props = {
 };
 export function ChampFlottant({id,label,value,onChange,type="text",autoComplete,required,maxLength,inputMode,helper,valid=false,validColor="#FFE33D",delayMs=0,prefix,trailing,min,max,onBlur,disabled,name}:Props) {
   const filled=Boolean(value);
-  return <div className="naxa-field" data-filled={filled ? "true":"false"} style={{"--reveal-delay":`${delayMs}ms`} as React.CSSProperties}>
+  return <div className="naxa-field" data-filled={filled ? "true":"false"} style={{"--reveal-delay":`${delayMs}ms`} as CSSProperties}>
     {prefix && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2">{prefix}</span>}
     <input id={id} name={name} className="naxa-field-control" style={prefix ? {paddingLeft:"94px"}:undefined} aria-label={label} type={type} value={value} onChange={(e:ChangeEvent<HTMLInputElement>)=>onChange(e.target.value)} autoComplete={autoComplete} required={required} maxLength={maxLength} inputMode={inputMode} min={min} max={max} onBlur={onBlur} disabled={disabled}/>
     <label htmlFor={id} className="naxa-field-label" style={prefix ? {left:"94px"}:undefined}>{label}</label>
