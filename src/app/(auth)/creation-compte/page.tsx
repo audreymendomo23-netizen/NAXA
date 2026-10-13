@@ -5,6 +5,7 @@ import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { CodeOtp } from "@/components/CodeOtp";
+import { useAuthDraftState } from "@/components/auth/AuthDraftContext";
 import { BulleErreur } from "@/components/BulleErreur";
 import { SuccesCreationCompte } from "@/components/SuccesCreationCompte";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
@@ -18,12 +19,12 @@ function safeInternalPath(value:string|null){
 }
 function Formulaire(){
  const router=useRouter(), search=useSearchParams(), retour=safeInternalPath(search.get("retour"));
- const [nom,setNom]=useState(""),[prenom,setPrenom]=useState(""),[username,setUsername]=useState("");
+ const [nom,setNom]=useAuthDraftState("signup.nom",""),[prenom,setPrenom]=useAuthDraftState("signup.prenom",""),[username,setUsername]=useAuthDraftState("signup.username","");
  const [uState,setUState]=useState<"idle"|"checking"|"available"|"taken">("idle");
- const [country,setCountry]=useState("CM"),[phone,setPhone]=useState(""),[countryOpen,setCountryOpen]=useState(false),[dob,setDob]=useState(""),[email,setEmail]=useState("");
+ const [country,setCountry]=useAuthDraftState("signup.country","CM"),[phone,setPhone]=useAuthDraftState("signup.phone",""),[countryOpen,setCountryOpen]=useState(false),[dob,setDob]=useAuthDraftState("signup.dob",""),[email,setEmail]=useAuthDraftState("signup.email","");
  const countryPickerRef=useRef<HTMLSpanElement|null>(null);
  useEffect(()=>{if(!countryOpen)return;const outside=(event:PointerEvent)=>{if(!countryPickerRef.current?.contains(event.target as Node))setCountryOpen(false)};const escape=(event:KeyboardEvent)=>{if(event.key==="Escape")setCountryOpen(false)};document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape)}},[countryOpen]);
- const [consent,setConsent]=useState(false),[step,setStep]=useState<"details"|"otp"|"password">("details"),[otpVersion,setOtpVersion]=useState(0);
+ const [consent,setConsent]=useAuthDraftState("signup.consent",false); const [step,setStep]=useState<"details"|"otp"|"password">("details"),[otpVersion,setOtpVersion]=useState(0);
  const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState(""),[show,setShow]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false),[otpSeconds,setOtpSeconds]=useState(28),[resending,setResending]=useState(false),[successDestination,setSuccessDestination]=useState<string|null>(null);
  const selected=COUNTRIES.find(c=>c[0]===country)??COUNTRIES[0], digits=phone.replace(/\D/g,""), age=useMemo(()=>ageOf(dob),[dob]);
  useEffect(()=>{const v=username.trim().toLowerCase();if(!v){setUState("idle");return}if(!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v)){setUState("taken");return}setUState("checking");const t=setTimeout(async()=>{try{const r=await fetch("/api/auth/username-availability",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:v})});const d=await r.json();setUState(d.available?"available":"taken")}catch{setUState("taken")}},350);return()=>clearTimeout(t)},[username]);
