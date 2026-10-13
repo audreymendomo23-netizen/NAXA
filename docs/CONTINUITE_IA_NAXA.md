@@ -37,3 +37,12 @@ Vérifier l'état Git/PR/CI et les différences réelles avec les branches appar
 - Correction ciblée dans `src/components/BullesAuthentification.tsx` : lorsque `prefers-reduced-motion` est actif, le canvas est dessiné sans boucle permanente de requestAnimationFrame; il est redessiné après redimensionnement. Les animations restent désactivées.
 - Aucun changement sur `main`, aucune fusion et aucun déploiement Production.
 - Validation restante : vérifier la CI sur le commit exact et construire une Preview Vercel. Le lot ne doit être déclaré vert qu'après preuve réelle des contrôles et, pour le visuel, contrôle du rendu en Preview.
+
+
+## Journal de continuité — test pré-déploiement (2026-10-13, dernière vérification)
+- PR #63 ouverte, non fusionnée : https://github.com/audreymendomo23-netizen/NAXA/pull/63. La PR porte uniquement sur le correctif canvas et ce document.
+- Preview Vercel READY sur le commit `cee3de028227bfaabea3c74a145b0e34e110f612` : https://naxa-git-feat-auth-water-bubbles-naxa3.vercel.app/connexion. Les logs confirment `Compiled successfully`, puis lint/types et génération des pages statiques; statut Vercel final `success`.
+- Blocage qualité : CircleCI `ci/circleci: quality = failure` sur les commits `4c184af270d7ef9ed82cdeb68e3ef098a6ad5b1a` (pipeline 1415) et `cee3de028227bfaabea3c74a145b0e34e110f612` (pipeline 1417). Le connecteur disponible ne donne pas accès aux logs CircleCI détaillés; la page du job n'est pas accessible via les outils de lecture. Ne pas déclarer le lot vert tant que la cause de cet échec n'est pas établie et que le statut CircleCI n'est pas success.
+- Tentative de synchroniser la branche avec `main` afin de relancer les tests sur le dernier arbre : bloquée par les contrôles de sécurité de l'outil GitHub; aucune synchronisation ni commit de fusion n'a été effectué. Ne pas contourner ce refus.
+- Aucun merge, aucun déploiement Production, aucune écriture Supabase Production.
+- Prochaine action : obtenir l'accès aux logs CircleCI du job quality ou un rapport d'échec équivalent, corriger uniquement la cause prouvée, puis revalider le SHA exact.
