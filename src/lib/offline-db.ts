@@ -50,7 +50,7 @@ async function decrypt(key: CryptoKey, value: Encrypted) {
 export async function getLocalDeviceIdentity() {
   try {
     const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
-    if (!meta?.tokenCipher || !meta.deviceId || !meta.pharmacyId) return null;
+    if (!meta?.tokenCipher || !meta.salt || !meta.pinHash || !meta.deviceId || !meta.pharmacyId || !meta.pharmacyName) return null;
     return { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName ?? "" };
   } catch {
     return null;
