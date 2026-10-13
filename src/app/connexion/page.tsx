@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
+import { BulleErreur } from "@/components/BulleErreur";
 import { hasLocalDevice, activateLocalDevice, getLocalInstallationId, unlockLocalDevice, saveTokenEncryptedForSession, markLocalSync } from "@/lib/offline-db";
 import { DebloquerAppareil } from "@/components/pharmacie/DebloquerAppareil";
 
@@ -228,6 +229,12 @@ function Formulaire() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (search.get("erreur") === "oauth") {
+      setError("La connexion Google a échoué. Vérifiez la configuration du fournisseur Google et les URL de redirection dans Supabase Auth.");
+    }
+  }, [search]);
+
+  useEffect(() => {
     if (search.get("redirectionRole") !== "1") return;
 
     let annule = false;
@@ -444,13 +451,16 @@ function Formulaire() {
         </Link>
       </div>
 
-      <button
-        className="reveal btn btn-canari w-full !min-h-[54px] !mt-5"
+      <BoutonNAXA
+        type="submit"
+        importance="importante"
+        loading={busy}
+        className="reveal btn-canari w-full !min-h-[54px] !mt-5"
         style={d(6)}
         disabled={busy}
       >
         {busy ? "Connexion..." : "Connexion"}
-      </button>
+      </BoutonNAXA>
 
       <div
         className="reveal relative py-0.5 text-center text-xs text-slate-600 !text-naxa-green-700"
@@ -459,22 +469,20 @@ function Formulaire() {
         <span className="bg-white !bg-transparent px-2">ou</span>
       </div>
 
-      <button
+      <BoutonNAXA
         type="button"
+        importance="importante"
+        loading={busy}
         onClick={google}
-        className="reveal btn btn-clair w-full !min-h-[54px]"
+        className="reveal btn-clair w-full !min-h-[54px]"
         style={d(8)}
         disabled={busy}
       >
         <GoogleIcon />
         Connexion via Gmail
-      </button>
+      </BoutonNAXA>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <BulleErreur message={error} />}
 
       <p
         className="reveal text-center text-base text-slate-600 !text-naxa-green-900"
