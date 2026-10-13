@@ -165,3 +165,10 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Job `quality` `17126641593` = `success` (142,99 s). Le journal confirme Node `v20.20.2`, npm `10.8.2`, `npx tsc --noEmit` passé, `npm run lint` exécuté et build inclus dans le job; avertissements ESLint et avertissements de dépendances npm visibles, sans empêcher la réussite. Lien : https://gitlab.com/audreymendomo23-netizen/NAXA/-/jobs/17126641593.
 - Job `full_migration_replay` `17126641594` = `success` (29,64 s), journal précédemment terminé par `FINAL_FAILURE_COUNT=0`. Lien : https://gitlab.com/audreymendomo23-netizen/NAXA/-/jobs/17126641594.
 - Conclusion limitée : la CI GitLab sur cette branche et ce commit est verte. Cela ne prouve pas que CircleCI est vert, ni que la Production est déployée ou validée. Aucun changement de code, aucune fusion et aucun déploiement réalisés pendant ce contrôle.
+
+
+### Décision utilisateur — CI verte, tests complémentaires en attente (2026-10-13)
+- L'utilisateur valide le statut actuel comme **VERT**, avec les tests complémentaires encore en attente.
+- Référence de preuve : pipeline GitLab 2940580641, commit 25c798ed225333ea3e8530533c8f0ca187b601fc, branche gl-ci-test; jobs quality et full_migration_replay réussis.
+- Portée : ce vert concerne uniquement cette validation GitLab. Les tests complémentaires ne sont pas déclarés exécutés; ne pas présenter ce statut comme une validation de GitHub main, de CircleCI ou de Production.
+- Méthode : GitLab reste le banc de validation courant; éviter les exécutions redondantes de CircleCI. Relancer seulement les tests complémentaires ciblés lorsqu'ils seront demandés ou nécessaires. Aucun merge ni déploiement autorisé par cette décision.
