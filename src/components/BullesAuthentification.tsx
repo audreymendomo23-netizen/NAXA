@@ -12,7 +12,7 @@ type Bubble = {
   particles: Array<{ x: number; y: number; vx: number; vy: number; life: number }>;
 };
 
-const COUNT = 14;
+const COUNT_DESKTOP = 14;
 
 function randomBubble(width: number, height: number): Bubble {
   const r = 9 + Math.random() * 14;
@@ -46,12 +46,12 @@ export function BullesAuthentification() {
       const rect = canvas.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (bubbles.length === 0) {
-        for (let i = 0; i < COUNT; i++) bubbles.push(randomBubble(width, height));
+        const count = width < 520 ? 7 : COUNT_DESKTOP;\n        for (let i = 0; i < count; i++) bubbles.push(randomBubble(width, height));
       } else {
         bubbles.forEach((bubble) => {
           bubble.x = Math.min(width - bubble.r, Math.max(bubble.r, bubble.x));
@@ -183,8 +183,9 @@ export function BullesAuthentification() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className="pointer-events-none fixed inset-0 h-full w-full"
       style={{ zIndex: 0 }}
     />
   );
 }
+\nexport const FondBulles = BullesAuthentification;\n
