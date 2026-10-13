@@ -223,6 +223,7 @@ function Formulaire() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const showLoginButton = username.trim().length > 0 || password.length > 0 || busy || Boolean(error);
 
   useEffect(() => {
     if (search.get("redirectionRole") !== "1") return;
@@ -427,13 +428,19 @@ function Formulaire() {
         </Link>
       </div>
 
-      <button
-        className="reveal btn btn-canari w-full !min-h-[54px] !mt-5"
-        style={d(6)}
-        disabled={busy}
+      <div
+        aria-hidden={!showLoginButton}
+        className={`overflow-hidden transition-all duration-200 ease-out ${showLoginButton ? "max-h-24 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"}`}
       >
-        {busy ? "Connexion..." : "Connexion"}
-      </button>
+        <button
+          className="reveal btn btn-canari w-full !min-h-[54px] !mt-5"
+          style={d(6)}
+          disabled={busy || !showLoginButton}
+          tabIndex={showLoginButton ? 0 : -1}
+        >
+          {busy ? "Connexion..." : "Connexion"}
+        </button>
+      </div>
 
       <div
         className="reveal relative py-0.5 text-center text-xs text-slate-600 !text-naxa-green-700"
