@@ -158,7 +158,7 @@ export function CodeOtp({
         setAnnonce("Code incorrect, réessayez");
         inputRef.current?.focus({ preventScroll: true });
         failureRef.current?.();
-      }, reduced ? 0 : 600);
+      }, 600);
     }
   }, [clearTimers, makeParticles, reducedMotion, schedule, vibrate, waitFor]);
 
@@ -166,7 +166,6 @@ export function CodeOtp({
     const digits = next.replace(/\D/g, "").slice(0, longueur);
     setCode(digits);
     codeRef.current = digits;
-    if (animate && digits.length > codeRef.current.length) setPopIndex(digits.length - 1);
     if (digits.length > 0) {
       setPopIndex(digits.length - 1);
       if (animate && !reducedMotion) vibrate(10);
@@ -180,7 +179,7 @@ export function CodeOtp({
     if (phaseRef.current !== "saisie" || disabled) return;
     const raw = event.currentTarget.value;
     const digits = raw.replace(/\D/g, "").slice(0, longueur);
-    if (digits.length > 1 && digits.length > codeRef.current.length) {
+    if (digits.length > codeRef.current.length + 1) {
       clearTimers();
       setCode("");
       codeRef.current = "";
