@@ -286,3 +286,13 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Commit de correction : `585676482dc79ff4bb3e7c8b88591fe8ca117e6f` (`fix(build): exclude Deno Edge Functions from Next.js typecheck`).
 - Nouveau déploiement Vercel déclenché sur ce SHA : `dpl_7P82HoxwfcZPB9WM9cxCGZsSde9q`, URL https://naxa-3nxh9k0dz-naxa3.vercel.app. Dernier état vérifié : `BUILDING`; le build n'est pas encore confirmé vert et le lien ne doit pas être présenté comme prêt à tester.
 - Prochaine action : lire les journaux et l'état terminal de ce nouveau déploiement. Si un autre échec survient, corriger uniquement après avoir identifié l'erreur précise. Tests applicatifs utilisateur à faire seulement quand Vercel indique `READY`.
+
+
+### Incident Google OAuth sur l’aperçu Vercel — diagnostic ciblé (2026-10-13)
+- Symptôme rapporté : après le choix Google/Gmail, page blanche avec un court message en haut, puis bascule vers la page de panne/hors-ligne.
+- Preview inspectée : déploiement dpl_7P82HoxwfcZPB9WM9cxCGZsSde9q, URL https://naxa-3nxh9k0dz-naxa3.vercel.app, commit 585676482dc79ff4bb3e7c8b88591fe8ca117e6f, état du build READY. Cela ne valide pas le parcours OAuth.
+- Lecture statique de src/app/connexion/page.tsx sur fix/login-page-layout-20261012 : le bouton appelle Supabase signInWithOAuth(provider=google), redirige vers l’origine de la preview /auth/callback, puis vers /connexion?redirectionRole=1 par défaut. La page ne lit pas le paramètre erreur=oauth.
+- Lecture statique de src/app/auth/callback/route.ts : le callback échange le code contre une session; si le code manque ou si l’échange échoue, il redirige vers /connexion?erreur=oauth. L’interface n’affiche pas explicitement cette erreur : défaut de diagnostic UX confirmé, mais pas encore preuve de la cause primaire.
+- Runtime logs Vercel : la requête sur 24 h a été refusée par l’API car le plan Hobby ne conserve pas les logs runtime sur cette fenêtre. Ce refus ne prouve pas l’absence d’erreurs. Prochain contrôle : fenêtre courte, idéalement 30 min, et requêtes /auth/callback.
+- Hypothèses non prouvées : URI de redirection preview absente de la liste autorisée Supabase Auth; fournisseur Google désactivé/mal configuré; échec de exchangeCodeForSession; ou service worker/cache hors ligne interceptant une navigation échouée. Ne pas modifier configuration OAuth ou code avant de distinguer ces cas.
+- Aucun changement applicatif, aucune modification de main, aucune fusion, aucun déploiement Production, aucune écriture Supabase dans ce diagnostic.
