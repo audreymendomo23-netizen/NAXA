@@ -14,5 +14,5 @@
     .status{display:inline-flex;align-items:center;gap:8px;margin-top:18px;color:var(--green);font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#8B9290}
   </style>
 </head>
-<body><main><div class="logo" aria-label="NAXA"><b>N</b>AXA</div><h1>Connexion impossible pour le moment</h1><p>Vérifiez votre connexion puis réessayez.</p><button type="button" onclick="location.reload()">Réessayer</button><div class="status" role="status"><span class="dot"></span><span>Hors ligne</span></div></main></body>
+<body><main><div class="logo" aria-label="NAXA"><b>N</b>AXA</div><h1>Connexion impossible pour le moment</h1><p>Vérifiez votre connexion puis réessayez.</p><button type="button" onclick="location.reload()">Réessayer</button><div class="status" role="status" aria-live="polite"><span id="status-dot" class="dot"></span><span id="status-text">Hors ligne</span></div><script>function actualiserEtat(){const enLigne=navigator.onLine;document.getElementById("status-text").textContent=enLigne?"Synchronisé":"Hors ligne";document.getElementById("status-dot").style.background=enLigne?"#0A6B3A":"#8B9290"}window.addEventListener("online",actualiserEtat,{passive:true});window.addEventListener("offline",actualiserEtat,{passive:true});actualiserEtat();</script></main></body>
 </html>
