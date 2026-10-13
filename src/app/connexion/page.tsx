@@ -8,6 +8,8 @@ import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
+import { ChampFlottant } from "@/components/ChampFlottant";
+import { PanneauGlissant } from "@/components/PanneauGlissant";
 import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
 
 function d(index: number): React.CSSProperties {
@@ -478,7 +480,7 @@ function PharmacieFormulaire() {
   const [nomPharmacie, setNomPharmacie] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");\n  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -571,7 +573,7 @@ function PharmacieFormulaire() {
         if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
         setError(data.error || "Mise à jour impossible."); return;
       }
-      setCurrentPassword(""); setNewPassword(""); setShowUpdate(false);
+      setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); setShowUpdate(false);
       setMessage("Mot de passe mis à jour. Vous pouvez vous connecter.");
     } catch { setError("Mise à jour momentanément indisponible."); }
     finally { setBusy(false); }
@@ -683,14 +685,15 @@ function PharmacieFormulaire() {
               <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
             </form>
           ) : (
-            <form onSubmit={updatePassword} className="space-y-3">
-              <p className="text-sm font-semibold">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
-              <input aria-label="Nom d'utilisateur" placeholder="Nom d'utilisateur" required value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ w-full !min-h-[54px]" autoComplete="username" />
-              <input aria-label="Mot de passe actuel" placeholder="Mot de passe actuel" required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="current-password" />
-              <input aria-label="Nouveau mot de passe" placeholder="Nouveau mot de passe (8 caractères minimum)" required minLength={8} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="new-password" />
-              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Mise à jour..." : "Confirmer le nouveau mot de passe"}</button>
-              <button type="button" onClick={() => { setShowUpdate(false); setError(""); }} className="w-full text-sm font-bold underline">Retour à la connexion</button>
-            </form>
+            <PanneauGlissant ouvert={showUpdate} onFermer={() => { setShowUpdate(false); setError(""); }} titre="Mettre à jour le mot de passe">
+              <form onSubmit={updatePassword} className="space-y-3">
+                <p className="text-sm text-[#846600]">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
+                <ChampFlottant id="pharmacy-current-password" label="Mot de passe actuel" type="password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password" required/>
+                <ChampFlottant id="pharmacy-new-password" label="Nouveau mot de passe" type="password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" required/>
+                <ChampFlottant id="pharmacy-confirm-password" label="Confirmer le mot de passe" type="password" value={confirmNewPassword} onChange={setConfirmNewPassword} autoComplete="new-password" required/>
+                <button className="btn btn-canari w-full !min-h-[52px] rounded-2xl" disabled={busy || !currentPassword || !newPassword || !confirmNewPassword}>{busy ? "Mise à jour..." : "Mettre à jour"}</button>
+              </form>
+            </PanneauGlissant>
           )}
         </>
       )}
