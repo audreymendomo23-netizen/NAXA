@@ -655,7 +655,7 @@ function PharmacieFormulaire() {
         <form onSubmit={verifierCode} className="space-y-3">
           <div className="reveal relative !mt-6" style={d(3)}>
             <input ref={codeRef} id="code-pharmacie" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder=" " required className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" aria-label="Code Pharmacie à 4 chiffres" />
-            <label htmlFor="code-pharmacie" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Code Pharmacie (4 chiffres)</label>
+            <label htmlFor="code-pharmacie" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Code</label>
           </div>
           <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(4)} disabled={busy}>{busy ? "Vérification..." : "Continuer"}</button>
         </form>
