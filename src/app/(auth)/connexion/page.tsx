@@ -299,7 +299,10 @@ function Formulaire() {
 function PharmacieFormulaire() {
   const router = useRouter();
   const codeRef = useRef<HTMLInputElement | null>(null);
-  const [etape, setEtape] = useState<1 | 2>(1);
+  const searchParams = useSearchParams();
+  const [etape, setEtape] = useState<1 | 2>(searchParams.get("etape") === "identifiants" ? 2 : 1);
+  useEffect(() => { setEtape(searchParams.get("etape") === "identifiants" ? 2 : 1); }, [searchParams]);
+  const allerEtape = (next: 1 | 2, replace = false) => { setEtape(next); const target = next === 2 ? "/connexion?espace=pharmacie&etape=identifiants" : "/connexion?espace=pharmacie"; if (replace) router.replace(target); else router.push(target); };
   const [nomPharmacie, setNomPharmacie] = useState("");
   const [username, setUsername] = useAuthDraftState("pharmacy.username", "");
   const [password, setPassword] = useState("");
@@ -366,7 +369,7 @@ function PharmacieFormulaire() {
       const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password, remember: false, espace: "pharmacie" }) });
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); }
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { allerEtape(1, true); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
       const existingLocal = await hasLocalDevice();
@@ -395,7 +398,7 @@ function PharmacieFormulaire() {
       const response = await fetch("/api/auth/update-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, currentPassword, newPassword }) });
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { allerEtape(1, true); setNomPharmacie(""); }
         setError(data.error || "Mise à jour impossible."); return;
       }
       setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); setShowUpdate(false);
