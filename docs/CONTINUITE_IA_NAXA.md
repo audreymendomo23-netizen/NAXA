@@ -29,3 +29,11 @@ PR #59 : fond animé de bulles sur connexion, inscription et mot de passe oubli�
 
 ## Prochaine action autorisée
 Vérifier l'état Git/PR/CI et les différences réelles avec les branches apparentées. Toute modification future reste limitée à ce document, sauf nouvelle autorisation explicite.
+
+
+## Journal de continuité — 2026-10-13 (point 1 : identité visuelle)
+- Autorisation utilisateur reçue pour corriger le lot identité visuelle avant le test final pré-déploiement.
+- Branche active : `feat/auth-water-bubbles`; commit code : `4c184af270d7ef9ed82cdeb68e3ef098a6ad5b1a`.
+- Correction ciblée dans `src/components/BullesAuthentification.tsx` : lorsque `prefers-reduced-motion` est actif, le canvas est dessiné sans boucle permanente de requestAnimationFrame; il est redessiné après redimensionnement. Les animations restent désactivées.
+- Aucun changement sur `main`, aucune fusion et aucun déploiement Production.
+- Validation restante : vérifier la CI sur le commit exact et construire une Preview Vercel. Le lot ne doit être déclaré vert qu'après preuve réelle des contrôles et, pour le visuel, contrôle du rendu en Preview.
