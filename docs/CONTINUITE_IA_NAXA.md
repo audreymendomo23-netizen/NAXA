@@ -179,3 +179,10 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Référence de validation courante : GitLab uniquement, pipeline 2940580641 sur `gl-ci-test`, commit `25c798ed225333ea3e8530533c8f0ca187b601fc`, statut `success`; jobs `quality` et `full_migration_replay` réussis.
 - Ne plus lancer, consulter ni évoquer CircleCI comme étape attendue, sauf demande explicite ultérieure de l'utilisateur.
 - Les tests complémentaires restent en attente. Ne pas confondre le vert GitLab validé avec des tests complémentaires non exécutés. Aucun merge ou déploiement n'est autorisé par cette consigne.
+
+
+### Tests manuels utilisateur via Vercel — préparation (2026-10-13)
+- Preview Vercel à tester : https://naxa-3870fdsp8-naxa3.vercel.app ; état Vercel `READY`, déploiement `dpl_G2tTyx9ZrrL7X2EELCoNSCdmX9xX`, branche `fix/login-page-layout-20261012`, commit `fa7b72b4f253391ab45eef1d1cd9c77a77a0a055`.
+- Cette preview concerne l'interface de connexion; la validation visuelle/fonctionnelle par l'utilisateur reste à faire. Commencer par connexion, puis inscription, mot de passe oublié et maintien de session.
+- Préparer une checklist manuelle : affichage/mobile, champs et validations, erreurs identifiants, navigation inscription/récupération, maintien de session, chargement/erreurs réseau et comportement après actualisation. Pour chaque test, distinguer réussi, échoué et non testé; noter le message exact et une capture si échec.
+- Aucun code, déploiement ou configuration modifié pendant cette préparation.
