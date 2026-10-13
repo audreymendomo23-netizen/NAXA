@@ -6,6 +6,11 @@ const withPWA = withPWAInit({
   register: true,
   cacheOnFrontEndNav: true,
   workboxOptions: {
+    // Précharger les deux pages d’entrée pour qu’elles existent dès l’installation du SW.
+    additionalManifestEntries: [
+      { url: "/", revision: process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_REF || "naxa-local" },
+      { url: "/pharmacie", revision: process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_REF || "naxa-local" },
+    ],
     navigateFallback: "/offline.html",
     // La connexion pharmacie doit être servie par le réseau quand il est disponible.
     // Hors ligne, la stratégie NetworkFirst peut réutiliser la dernière réponse en cache.
