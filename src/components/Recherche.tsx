@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
+import { BoutonNAXA } from "@/components/BoutonNAXA";
+import { BulleErreur } from "@/components/BulleErreur";
 import {
   normaliserRecherche,
   suggestionsMedicaments,
@@ -104,7 +106,7 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
     <div className="w-full space-y-3">
       <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) aller([q.trim()]); }} className="flex gap-2">
         <input className="champ min-w-0 flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder={langue === "fr" ? "Ex. Paracétamol, Coartem, amoxicilline" : "E.g. Paracetamol, Coartem, amoxicillin"} aria-label={langue === "fr" ? "Médicament recherché" : "Medicine searched"} />
-        <button className="btn btn-canari shrink-0 !px-5" type="submit">{langue === "fr" ? "Chercher" : "Search"}</button>
+        <BoutonNAXA importance="importante" className="btn-canari shrink-0 !px-5" type="submit">{langue === "fr" ? "Chercher" : "Search"}</BoutonNAXA>
       </form>
 
       {rechercheActive && (
@@ -113,7 +115,7 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
             <h2 className="text-sm font-extrabold text-naxa-green-900">Résultats du catalogue</h2>
             {rechercheCatalogue === "chargement" && <span className="text-xs text-slate-500">Recherche…</span>}
           </div>
-          {rechercheCatalogue === "erreur" && <p className="text-sm text-slate-600">Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires.</p>}
+          {rechercheCatalogue === "erreur" && <><p className="text-sm text-slate-600">Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires.</p><BulleErreur message="Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires." /></>}
           {rechercheCatalogue === "repos" && medicaments.length === 0 && <p className="text-sm text-slate-600">Aucun résultat confirmé par les sources interrogées. Essayez le nom de la substance active.</p>}
           <ul className="space-y-3">
             {medicaments.map((medicament) => (

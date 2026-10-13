@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
+import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { BulleErreur } from "@/components/BulleErreur";
 
 function GoogleIcon() {
@@ -19,10 +20,22 @@ function GoogleIcon() {
   );
 }
 
+function safeInternalPath(value: string | null) {
+  if (!value || !value.startsWith("/")) return "/";
+  try {
+    const target = new URL(value, "https://naxa.invalid");
+    return target.origin === "https://naxa.invalid"
+      ? target.pathname + target.search + target.hash
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
 function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
-  const retour = search.get("retour") || "/";
+  const retour = safeInternalPath(search.get("retour"));
   const espace = search.get("espace");
   const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
 
@@ -32,6 +45,12 @@ function Formulaire() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (search.get("erreur") === "oauth") {
+      setError("La connexion Google a échoué. Vérifiez la configuration Google et les URL de redirection dans Supabase Auth.");
+    }
+  }, [search]);
 
   useEffect(() => {
     if (search.get("redirectionRole") !== "1") return;
@@ -143,26 +162,12 @@ function Formulaire() {
   async function google() {
     setError("");
     setBusy(true);
-    try {
-      const { error: authError } = await supabaseBrowser().auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-            search.get("retour") && retour !== "/"
-              ? retour
-              : "/connexion?redirectionRole=1"
-          )}`,
-        },
-      });
-
-      if (authError) {
-        setBusy(false);
-        setError("Connexion via Gmail indisponible : le fournisseur Google n'est pas encore activé dans NAXA.");
-      }
-    } catch {
-      setBusy(false);
-      setError("Connexion via Gmail indisponible. Réessayez plus tard.");
-    }
+    const next = search.get("retour") && retour !== "/"
+      ? retour
+      : "/connexion?redirectionRole=1";
+    // Le démarrage OAuth côté serveur garde le verifier PKCE dans un cookie
+    // lisible par la route /auth/callback, contrairement au stockage local seul.
+    window.location.assign("/api/auth/google?next=" + encodeURIComponent(next));
   }
 
   return (
@@ -219,20 +224,20 @@ function Formulaire() {
         </Link>
       </div>
 
-      <button className="btn btn-canari w-full" disabled={busy}>
+      <BoutonNAXA type="submit" importance="importante" loading={busy} className="btn-canari w-full" disabled={busy}>
         {busy ? "Connexion..." : "Connexion"}
-      </button>
+      </BoutonNAXA>
 
       <div className="relative py-0.5 text-center text-xs text-slate-600">
         <span className="bg-white px-2">ou</span>
       </div>
 
-      <button type="button" onClick={google} className="btn btn-clair w-full" disabled={busy}>
+      <BoutonNAXA type="button" importance="importante" loading={busy} onClick={google} className="btn-clair w-full" disabled={busy}>
         <GoogleIcon />
         Connexion via Gmail
-      </button>
+      </BoutonNAXA>
 
-      {error && <BulleErreur key={error} message={error} />}
+      {error && <BulleErreur message={error} />}
 
       <p className="text-center text-sm text-slate-600">
         Vous n'avez pas de compte ?{" "}
