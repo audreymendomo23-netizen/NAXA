@@ -8,6 +8,11 @@ import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
+import { activateLocalDevice, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
+
+function d(index: number): React.CSSProperties {
+  return { "--i": index } as React.CSSProperties;
+}
 
 function GoogleIcon() {
   return (
@@ -464,13 +469,19 @@ function ChoixFormulaire() {
   return searchParams.get("espace") === "pharmacie" ? <PharmacieFormulaire /> : <Formulaire />;
 }
 
+function TitreEspace() {
+  const searchParams = useSearchParams();
+  const titre = searchParams.get("espace") === "pharmacie" ? "Espace pharmacie" : "Espace client";
+  return <span className="reveal text-sm font-extrabold text-naxa-green-900" style={d(0)}>{titre}</span>;
+}
+
 export default function Connexion() {
   return (
     <main
       className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-6 !h-auto !min-h-[100dvh] !overflow-y-auto"
       style={{ backgroundColor: "#F2FAF5" }}
     >
-      <BullesConnexion />
+      <BullesAuthentification />
       <div
         className="relative z-10 w-full shrink-0 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
