@@ -579,6 +579,11 @@ function PharmacieFormulaire() {
   );
 }
 
+function ChoixFormulaire() {
+  const searchParams = useSearchParams();
+  return searchParams.get("espace") === "pharmacie" ? <PharmacieFormulaire /> : <Formulaire />;
+}
+
 export default function Connexion() {
   return (
     <div className="w-full">
