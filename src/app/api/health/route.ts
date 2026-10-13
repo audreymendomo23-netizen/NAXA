@@ -17,7 +17,7 @@ export async function GET() {
   if (!url || !key) return unavailable();
 
   try {
-    const endpoint = url.replace(/\\/+$/, "") + "/auth/v1/health";
+    const endpoint = url.replace(/\/+$/, "") + "/auth/v1/health";
     const response = await fetch(endpoint, {
       headers: { apikey: key, Accept: "application/json" },
       cache: "no-store",
