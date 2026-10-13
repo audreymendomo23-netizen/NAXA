@@ -36,6 +36,7 @@ export default function NouveauMotDePasse() {
   }
 
   const score = [password.length >= 6, /[A-Z]/.test(password), /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length;
+  const showSubmit = password.length > 0 || confirmation.length > 0 || Boolean(message);
 
   return <form onSubmit={submit} className="carte w-full max-w-sm space-y-4">
     <h1 className="text-2xl font-extrabold">Créer un nouveau mot de passe</h1>
@@ -46,7 +47,7 @@ export default function NouveauMotDePasse() {
     <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-naxa-canari transition-all" style={{width:`${score*25}%`}}/></div>
     <p className="text-xs text-slate-500">6 caractères minimum · 1 majuscule · 1 chiffre · 1 caractère spécial</p>
     <ChampFlottant id="reset-password-confirm" label="Confirmer le mot de passe" type={show?"text":"password"} value={confirmation} onChange={setConfirmation} autoComplete="new-password" required/>
-    <button className="btn btn-canari w-full" disabled={!ready}>Enregistrer</button>
+    <div aria-hidden={!showSubmit} className={`overflow-hidden transition-all duration-200 ease-out ${showSubmit ? "max-h-24 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"}`}><button className="btn btn-canari w-full" disabled={!ready || !showSubmit} tabIndex={showSubmit ? 0 : -1}>Enregistrer</button></div>
     {message && <p role="alert" className="text-sm text-red-700">{message}</p>}
   </form>;
 }
