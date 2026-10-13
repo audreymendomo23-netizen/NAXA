@@ -39,7 +39,7 @@ function Formulaire(){
    setBusy(true);setError("");const {error}=await supabaseBrowser().auth.updateUser({password});if(error){setBusy(false);setError("Impossible de mettre à jour le mot de passe.");return}
    await supabaseBrowser().auth.signOut();setBusy(false);router.push(`/connexion?retour=${encodeURIComponent(retour)}&motDePasseMisAJour=1`);
  }
- return <form onSubmit={step==="username"?envoyer:step==="otp"?verifier:mettreAJour} onInvalidCapture={(e)=>{e.preventDefault();const field=e.target as HTMLInputElement;setError(field.validity.typeMismatch?"Format invalide.":field.validity.valueMissing?"Ce champ est obligatoire.":"Vérifiez les informations saisies.")}} className="carte w-full max-w-sm space-y-3">
+ return <form onSubmit={step==="username"?envoyer:step==="otp"?verifier:mettreAJour} onInvalidCapture={(e)=>{e.preventDefault();const field=e.target as HTMLInputElement;setError(field.validity.typeMismatch?"Format invalide.":field.validity.valueMissing?"Ce champ est obligatoire.":"Vérifiez les informations saisies.")}} className="relative z-10 w-full max-w-[420px] space-y-4 rounded-3xl border border-naxa-green-100 bg-white/90 p-5 shadow-xl backdrop-blur-md sm:p-7">
   <h1 className="text-2xl font-extrabold">{step==="password"?"Modifier mot de passe":"Mot de passe oublié"}</h1>
   {step==="username"&&<><p className="text-sm leading-relaxed text-slate-600">Saisissez le nom d'utilisateur utilisé lors de la création du compte. NAXA enverra un code OTP à l'adresse e-mail associée.</p><label className="block text-sm font-semibold">Nom d'utilisateur<input className="champ mt-1" required value={username} onChange={e=>setUsername(e.target.value.replace(/\s/g,""))} autoComplete="username"/></label><BoutonNAXA type="submit" importance="importante" className="btn-canari w-full" loading={busy}>{busy?"Envoi...":"Recevoir l'OTP"}</BoutonNAXA></>}
   {step==="otp"&&<><p className="rounded-xl2 bg-naxa-green-50 p-3 text-sm">{message||"Un code OTP a été envoyé à l'adresse e-mail associée."}</p><p role="timer" aria-live="polite" className="text-center text-sm font-bold">{otpSeconds>0?"Nouveau code disponible dans : 00:"+String(otpSeconds).padStart(2,"0"):"Vous pouvez demander un nouveau code."}</p><label className="block text-sm font-semibold">Code OTP<input className="champ mt-1 tracking-widest" required inputMode="numeric" value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))} autoComplete="one-time-code"/></label><BoutonNAXA type="submit" importance="importante" className="btn-canari w-full" loading={busy} disabled={!code.trim()}>{busy?"Vérification...":"Valider l'OTP"}</BoutonNAXA><button type="button" className="btn btn-clair w-full" disabled={otpSeconds>0||resending} onClick={renvoyer}>{resending?"Renvoi...":otpSeconds>0?"Renvoyer le code dans 00:"+String(otpSeconds).padStart(2,"0"):"Renvoyer un code"}</button><button type="button" className="btn btn-clair w-full" onClick={()=>{setStep("username");setCode("");setOtpSeconds(40)}}>Modifier le nom d'utilisateur</button></>}
@@ -49,4 +49,24 @@ function Formulaire(){
  </form>
 }
 
-export default function MotDePasseOublie(){return <main className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2"><BullesAuthentification/><div className="relative z-10 flex w-full flex-col items-center justify-center gap-3"><Logo/><Suspense><Formulaire/></Suspense></div></main>}
+export default function MotDePasseOublie(){
+ return (
+  <main className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-4 !h-auto !min-h-[100dvh] !overflow-y-auto sm:px-6" style={{backgroundColor:"#F2FAF5"}}>
+   <BullesAuthentification/>
+   <header className="relative z-10 w-full shrink-0 pt-3" style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 12px)"}}>
+    <div className="flex w-full items-center justify-between gap-3">
+     <div className="logo-pastille"><Logo taille={30}/></div>
+     <span className="inline-flex min-w-0 items-center gap-2 rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-3 py-2 text-sm font-extrabold tracking-tight text-[#064B2A] shadow-sm sm:px-4 sm:text-base">
+      <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40"/>
+      Récupération du compte
+     </span>
+    </div>
+   </header>
+   <div className="relative z-10 flex w-full flex-1 items-start justify-center py-8">
+    <div className="w-full max-w-[420px]">
+     <Suspense><Formulaire/></Suspense>
+    </div>
+   </div>
+  </main>
+ );
+}
