@@ -329,3 +329,12 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 @media (prefers-reduced-motion: reduce) {
   .naxa-reveal, .naxa-field-label, .naxa-field-control, .naxa-check { animation:none !important; transition:none !important; }
 }
+
+
+.auth-stage { width:100%; animation-duration:var(--naxa-motion); animation-timing-function:cubic-bezier(.22,1,.36,1); animation-fill-mode:both; }
+.auth-stage-forward { animation-name:naxa-auth-forward; }
+.auth-stage-backward { animation-name:naxa-auth-backward; }
+@keyframes naxa-auth-forward { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:translateX(0); } }
+@keyframes naxa-auth-backward { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:translateX(0); } }
+.auth-content { min-height:calc(100dvh - 110px); }
+@media (prefers-reduced-motion: reduce) { .auth-stage-forward,.auth-stage-backward { animation:none !important; } }
