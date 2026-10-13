@@ -269,3 +269,11 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Tous les aperçus applicatifs et tests visuels du projet passent exclusivement par Vercel.
 - Ne fournir aucun lien de test d'une autre plateforme. Avant d'inviter l'utilisateur à tester, retrouver le déploiement Vercel du SHA exact et vérifier son état et son URL.
 - Le SHA `9c52163adb6669d85ee886f68215b84940589684` de la PR #62 doit être publié en aperçu Vercel avant le test pharmacie. Ne pas fusionner dans `main` ni déployer en Production sans autorisation explicite.
+
+
+## Aperçu Vercel du chantier pharmacie — suivi du 2026-10-13
+- Déploiement Vercel déclenché manuellement sur le commit exact `9c52163adb6669d85ee886f68215b84940589684`, branche `fix/login-page-layout-20261012`.
+- ID de déploiement : `dpl_Dbwgiejo4KCpQBa7N4eq8AdHbBYi`.
+- URL prévue : https://naxa-6npi1dzow-naxa3.vercel.app
+- Dernier état observé : `BUILDING`; ne pas présenter l'URL comme prête avant l'état `READY` et le contrôle des journaux de build.
+- Inventaire Git de `main` : aucun fichier ou chemin de configuration dédié à une autre plateforme de déploiement. Les anciennes mentions documentaires ont été retirées de ce document.
