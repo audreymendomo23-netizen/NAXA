@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -172,43 +172,74 @@ function Formulaire() {
   }
 
   return (
-    <form onSubmit={login} className="carte w-full max-w-sm space-y-3">
-      <h1 className="text-2xl font-extrabold">{titre}</h1>
+    <form
+      onSubmit={login}
+      className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900"
+    >
+      <div className="connexion-titre text-center">
+        <h1
+          className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]"
+          style={d(1)}
+        >
+          Connexion
+        </h1>
+        <p
+          className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]"
+          style={{ ...d(2), color: "#9B7A00" }}
+        >
+          Entrez votre Nom d'utilisateur et votre Mot de passe
+        </p>
+      </div>
 
-      <label className="block text-sm font-semibold">
-        Nom d'utilisateur
+      <div className="reveal relative !mt-6" style={d(3)}>
         <input
-          className="champ mt-1"
+          id="username"
+          placeholder=" "
+          className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
           required
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
           autoComplete="username"
         />
-      </label>
+        <label
+          htmlFor="username"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
+        >
+          Nom d'utilisateur
+        </label>
+      </div>
 
-      <label className="block text-sm font-semibold">
-        Mot de passe
-        <span className="relative mt-1 block">
-          <input
-            className="champ pr-20"
-            required
-            type={show ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold"
-            onClick={() => setShow(!show)}
-          >
-            {show ? "Masquer" : "Afficher"}
-          </button>
-        </span>
-      </label>
+      <div className="reveal relative" style={d(4)}>
+        <input
+          id="password"
+          placeholder=" "
+          className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
+          required
+          type={show ? "text" : "password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <label
+          htmlFor="password"
+          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
+        >
+          Mot de passe
+        </label>
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-naxa-green-900"
+          onClick={() => setShow(!show)}
+        >
+          {show ? "Masquer" : "Afficher"}
+        </button>
+      </div>
 
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <label className="flex items-center gap-2">
+      <div
+        className="reveal flex items-center justify-between gap-2 whitespace-nowrap text-base text-naxa-green-900"
+        style={d(5)}
+      >
+        <label className="flex items-center gap-1.5 whitespace-nowrap font-bold">
           <input
             type="checkbox"
             className="accent-naxa-canari h-5 w-5"
@@ -219,7 +250,7 @@ function Formulaire() {
         </label>
         <Link
           href={`/mot-de-passe-oublie?retour=${encodeURIComponent(retour)}`}
-          className="font-semibold underline"
+          className="whitespace-nowrap text-base font-semibold underline text-naxa-green-900"
         >
           Mot de passe oublié ?
         </Link>
@@ -229,8 +260,11 @@ function Formulaire() {
         {busy ? "Connexion..." : "Connexion"}
       </BoutonNAXA>
 
-      <div className="relative py-0.5 text-center text-xs text-slate-600">
-        <span className="bg-white px-2">ou</span>
+      <div
+        className="reveal relative py-0.5 text-center text-xs text-slate-600 !text-naxa-green-700"
+        style={d(7)}
+      >
+        <span className="bg-white !bg-transparent px-2">ou</span>
       </div>
 
       <BoutonNAXA type="button" importance="importante" loading={busy} onClick={google} className="btn-clair w-full" disabled={busy}>
@@ -240,11 +274,14 @@ function Formulaire() {
 
       {error && <BulleErreur message={error} />}
 
-      <p className="text-center text-sm text-slate-600">
+      <p
+        className="reveal text-center text-base text-slate-600 !text-naxa-green-900"
+        style={d(9)}
+      >
         Vous n'avez pas de compte ?{" "}
         <Link
           href={`/creation-compte?retour=${encodeURIComponent(retour)}`}
-          className="font-bold underline"
+          className="font-bold underline text-naxa-green-900"
         >
           Créer un compte
         </Link>
@@ -253,15 +290,207 @@ function Formulaire() {
   );
 }
 
+
+function PharmacieFormulaire() {
+  const router = useRouter();
+  const codeRef = useRef<HTMLInputElement | null>(null);
+  const [etape, setEtape] = useState<1 | 2>(1);
+  const [nomPharmacie, setNomPharmacie] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [offlineUnlock, setOfflineUnlock] = useState(false);
+  const [offlineUnavailable, setOfflineUnavailable] = useState(false);
+  const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
+  const [pinLocal, setPinLocal] = useState("");
+  const [pinConfirmation, setPinConfirmation] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    const checkOffline = async () => { const has = await hasLocalDevice().catch(() => false); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
+    void checkOffline();
+    const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
+    const offline = () => { void checkOffline(); };
+    window.addEventListener("online", online); window.addEventListener("offline", offline);
+    return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
+  }, []);
+
+  async function verifierCode(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const code = codeRef.current?.value ?? "";
+      const response = await fetch("/api/pharmacie/code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      const data = await response.json();
+      if (!response.ok) { setError(data.error || "Code pharmacie invalide."); return; }
+      setNomPharmacie(String(data.nom || ""));
+      setEtape(2);
+      if (codeRef.current) codeRef.current.value = "";
+    } catch { setError("Vérification impossible. Réessayez."); }
+    finally { setBusy(false); }
+  }
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password, remember: false, espace: "pharmacie" }) });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
+      }
+      const existingLocal = await hasLocalDevice();
+      const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
+      const deviceData = await deviceResponse.json();
+      if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }
+      setActivation({ ...deviceData, existingLocal });
+    } catch { setError("Connexion impossible. Vérifiez votre connexion internet."); }
+    finally { setBusy(false); }
+  }
+
+  async function updatePassword(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/auth/update-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, currentPassword, newPassword }) });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        setError(data.error || "Mise à jour impossible."); return;
+      }
+      setCurrentPassword(""); setNewPassword(""); setShowUpdate(false);
+      setMessage("Mot de passe mis à jour. Vous pouvez vous connecter.");
+    } catch { setError("Mise à jour momentanément indisponible."); }
+    finally { setBusy(false); }
+  }
+
+  async function changerPharmacie() {
+    setBusy(true); setError(""); setMessage("");
+    try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
+    finally { setEtape(1); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
+  }
+
+
+  async function confirmerActivation(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    if (!activation) return;
+    if (!/^\d{4,6}$/.test(pinLocal) || (!activation.existingLocal && pinLocal !== pinConfirmation)) {
+      setError(activation.existingLocal ? "Saisissez le PIN local existant." : "Choisissez un PIN de 4 à 6 chiffres et confirmez-le.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (activation.existingLocal) {
+        await unlockLocalDevice(pinLocal);
+        await saveTokenEncryptedForSession(pinLocal, activation.token);
+        await unlockLocalDevice(pinLocal);
+      } else {
+        await activateLocalDevice({ pin: pinLocal, deviceId: activation.deviceId, pharmacyId: activation.pharmacyId, pharmacyName: activation.pharmacyName || nomPharmacie, token: activation.token });
+      }
+      router.push("/pharmacie"); router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de sécuriser les données locales sur cet appareil.");
+    } finally { setPinLocal(""); setPinConfirmation(""); setBusy(false); }
+  }
+
+
+  return (
+    <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
+      <div className="connexion-titre text-center">
+        <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>Connexion</h1>
+        <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
+          {etape === 1 ? "Étape 1 — Code Pharmacie" : "Étape 2 — Identifiants de connexion"}
+        </p>
+      </div>
+
+      {etape === 1 ? (
+        <form onSubmit={verifierCode} className="space-y-3">
+          <div className="reveal relative !mt-6" style={d(3)}>
+            <input ref={codeRef} id="code-pharmacie" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder=" " required className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" aria-label="Code Pharmacie à 4 chiffres" />
+            <label htmlFor="code-pharmacie" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Code Pharmacie (4 chiffres)</label>
+          </div>
+          <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(4)} disabled={busy}>{busy ? "Vérification..." : "Continuer"}</button>
+        </form>
+      ) : (
+        <>
+          <div className="reveal flex items-center justify-between gap-3 rounded-xl border border-naxa-green-100 bg-white/70 px-4 py-3" style={d(3)}>
+            <span className="min-w-0 truncate font-extrabold text-[#064B2A]">{nomPharmacie}</span>
+            <button type="button" onClick={changerPharmacie} disabled={busy} className="shrink-0 text-xs font-bold underline">Changer de pharmacie</button>
+          </div>
+          {activation ? (
+            <form onSubmit={confirmerActivation} className="space-y-3">
+              <p className="text-sm font-semibold">{activation.existingLocal ? "Cet appareil est déjà activé. Saisissez votre PIN local existant." : "Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur."}</p>
+              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
+              {!activation.existingLocal && (<input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />)}
+              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : activation.existingLocal ? "Déverrouiller et continuer" : "Activer cet appareil"}</button>
+            </form>
+          ) : !showUpdate ? (
+            <form onSubmit={login} className="space-y-3">
+              <div className="reveal relative !mt-4" style={d(4)}>
+                <input id="pharmacy-username" placeholder=" " required autoComplete="username" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
+                <label htmlFor="pharmacy-username" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Nom d&apos;utilisateur</label>
+              </div>
+              <div className="reveal relative" style={d(5)}>
+                <input id="pharmacy-password" placeholder=" " required type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
+                <label htmlFor="pharmacy-password" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Mot de passe</label>
+                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Masquer" : "Afficher"}</button>
+              </div>
+              <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(6)} disabled={busy}>{busy ? "Connexion..." : "Connexion"}</button>
+              <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
+            </form>
+          ) : (
+            <form onSubmit={updatePassword} className="space-y-3">
+              <p className="text-sm font-semibold">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
+              <input aria-label="Nom d'utilisateur" placeholder="Nom d'utilisateur" required value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ w-full !min-h-[54px]" autoComplete="username" />
+              <input aria-label="Mot de passe actuel" placeholder="Mot de passe actuel" required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="current-password" />
+              <input aria-label="Nouveau mot de passe" placeholder="Nouveau mot de passe (8 caractères minimum)" required minLength={8} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="new-password" />
+              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Mise à jour..." : "Confirmer le nouveau mot de passe"}</button>
+              <button type="button" onClick={() => { setShowUpdate(false); setError(""); }} className="w-full text-sm font-bold underline">Retour à la connexion</button>
+            </form>
+          )}
+        </>
+      )}
+      {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+      {message && <p role="status" className="text-sm font-semibold text-green-800">{message}</p>}
+    </div>
+  );
+}
+
+function ChoixFormulaire() {
+  const searchParams = useSearchParams();
+  return searchParams.get("espace") === "pharmacie" ? <PharmacieFormulaire /> : <Formulaire />;
+}
+
 export default function Connexion() {
   return (
-    <main className="auth-ecran relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden bg-naxa-green-900 px-5 py-2">
-      <BullesAuthentification />
-      <div className="relative z-10 flex w-full flex-col items-center justify-center gap-3">
-        <Logo />
-        <Suspense>
-          <Formulaire />
-        </Suspense>
+    <main
+      className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-6 !h-auto !min-h-[100dvh] !overflow-y-auto"
+      style={{ backgroundColor: "#F2FAF5" }}
+    >
+      <BullesConnexion />
+      <div
+        className="relative z-10 w-full shrink-0 pt-3"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      >
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="logo-pastille reveal" style={d(0)}>
+            <Logo taille={30} />
+          </div>
+          <Suspense fallback={<span aria-hidden="true" className="h-6 w-28" />}>
+            <TitreEspace />
+          </Suspense>
+        </div>
+      </div>
+      <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
+        <div className="mt-[-60px] w-full max-w-[360px]">
+          <Suspense>
+            <ChoixFormulaire />
+          </Suspense>
+        </div>
       </div>
     </main>
   );

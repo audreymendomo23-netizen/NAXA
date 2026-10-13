@@ -150,9 +150,9 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
 
       <input ref={fichier} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && scanner(e.target.files[0])} />
-      <button className="btn btn-clair w-full" type="button" onClick={() => setChoixScanner(true)} disabled={etat === "lecture"}>
+      <BoutonNAXA importance="importante" className="btn-clair w-full" type="button" onClick={() => setChoixScanner(true)} disabled={etat === "lecture"}>
         {etat === "lecture" ? "Lecture de l'ordonnance…" : "Scanner mon ordonnance"}
-      </button>
+      </BoutonNAXA>
 
       <p className="flex items-start gap-1.5 text-xs text-slate-600">
         <svg viewBox="0 0 24 24" className="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -192,7 +192,10 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
       )}
 
       {etat === "erreur" && (
-        <p role="alert" className="text-sm text-red-700">{t.erreurLecture}</p>
+        <>
+          <p role="alert" className="text-sm text-red-700">{t.erreurLecture}</p>
+          <BulleErreur message={t.erreurLecture} />
+        </>
       )}
 
       {lecture && (

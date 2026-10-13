@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
+import { clearPharmacyCookie, readPharmacyCookie } from "@/lib/pharmacie-code-session";
 import { isIP } from "node:net";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { hasAvailableSessionSlot, MAX_CONCURRENT_SESSIONS } from "@/lib/auth/session-limit";
+import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
 
 function requestIp(request: Request): string | null {
   const candidate = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip")?.trim() ?? null;
@@ -10,10 +13,10 @@ function requestIp(request: Request): string | null {
 
 // Journalise le refus pour plafond de sessions. Ne bloque jamais la réponse :
 // toute défaillance laisse une trace dans les logs serveur.
-async function auditSessionLimitRejected(request: Request, profile: { id: string; pharmacie_id?: string | null }, provider: string) {
+async function auditSessionLimitRejected(request: Request, profile: Record<string, unknown>, provider: string) {
   try {
     const { error } = await supabaseAdmin().rpc("naxa_record_session_limit_rejected", {
-      p_session_id: crypto.randomUUID(), p_user_id: profile.id, p_pharmacie_id: profile.pharmacie_id ?? null,
+      p_session_id: crypto.randomUUID(), p_user_id: String(profile[S.profileIdColumn]), p_pharmacie_id: profile[S.profilePharmacyIdColumn] ? String(profile[S.profilePharmacyIdColumn]) : null,
       p_ip_address: requestIp(request), p_user_agent: request.headers.get("user-agent"), p_provider: provider,
     });
     if (error) console.error("NAXA_SESSION_LIMIT_AUDIT_FAILED", error);
@@ -40,7 +43,7 @@ function sessionLimitResponse() {
   );
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
@@ -50,24 +53,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nom d'utilisateur et mot de passe requis." }, { status: 400 });
     }
 
-    const { data: profile } = await supabaseAdmin()
-      .from("profiles")
-      .select("id,actif,pharmacie_id")
-      .ilike("username", username)
-      .maybeSingle();
-
-    if (!profile || profile.actif === false) {
-      return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+    const espacePharmacie = body.espace === "pharmacie";
+    const loginIp = trustedRequestIp(request);
+    const loginKey = "login:" + username;
+    if (espacePharmacie) {
+      const ipGate = await rateLimit("ip_login", loginIp, "attempt", 5, 600, 30, 900);
+      if (!ipGate.allowed) return tooManyAttempts(ipGate.retryAfter);
+      const userGate = await rateLimit("login_user", loginKey, "attempt", 20, 3600, 900, 900);
+      if (!userGate.allowed) return tooManyAttempts(userGate.retryAfter);
+    }
+    const pharmacyId = espacePharmacie ? readPharmacyCookie(request) : null;
+    if (espacePharmacie && !pharmacyId) {
+      const response = NextResponse.json({ error: "Session expirée, entrez de nouveau votre code", code: "PHARMACY_SESSION_EXPIRED" }, { status: 401 });
+      clearPharmacyCookie(response);
+      return response;
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin().auth.admin.getUserById(profile.id);
+    // La liaison utilisateur/pharmacie est obligatoire pour l'espace pharmacie.
+    const { data: matchingProfiles, error: profileLookupError } = await supabaseAdmin()
+      .from(S.profilesTable)
+      .select(`${S.profileIdColumn},${S.profileActiveColumn},${S.profilePharmacyIdColumn},${S.profileRoleColumn}`)
+      .ilike(S.profileUsernameColumn, username)
+      .limit(2);
+    if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
+      return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
+    }
+    const profile = matchingProfiles[0] as Record<string, unknown>;
+    if (profile[S.profileActiveColumn] === false) {
+      return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
+    }
+    if (espacePharmacie && (profile[S.profilePharmacyIdColumn] !== pharmacyId || !["pharmacie","promoteur","caisse"].includes(String(profile[S.profileRoleColumn])))) {
+      return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
+    }
+
+    const { data: userData, error: userError } = await supabaseAdmin().auth.admin.getUserById(String(profile[S.profileIdColumn]));
     const email = userData.user?.email;
 
     if (userError || !email) {
-      return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+      return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
 
-    if (!(await sessionSlotAvailable(profile.id))) {
+    if (!(await sessionSlotAvailable(String(profile[S.profileIdColumn])))) {
       await auditSessionLimitRejected(request, profile, "password");
       return sessionLimitResponse();
     }
@@ -83,6 +109,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
+    if (espacePharmacie) {
+      await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
+      await rateLimit("login_user", loginKey, "success", 20, 3600, 900, 900);
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Connexion momentanément indisponible." }, { status: 500 });

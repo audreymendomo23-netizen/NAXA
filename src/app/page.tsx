@@ -181,6 +181,7 @@ export default function Accueil() {
           <p className="pt-1 text-center font-semibold">{t.builtWith}</p>
         </div>
       </footer>
+      {position === "defaut" && messagePosition && <BulleErreur message={messagePosition} />}
     </main>
   );
 }
