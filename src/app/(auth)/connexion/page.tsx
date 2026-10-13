@@ -337,7 +337,10 @@ function PharmacieFormulaire() {
     const wasUpdate = previousStage.current.endsWith(":true");
     previousStage.current = currentStage;
     setStageMotion("auth-stage-idle");
-    const frame = window.requestAnimationFrame(() => setStageMotion(showUpdate ? "auth-stage-forward" : wasUpdate ? "auth-stage-backward" : etape === 2 ? "auth-stage-forward" : "auth-stage-backward"));
+    const frame = window.requestAnimationFrame(() => {
+      setStageMotion(showUpdate ? "auth-stage-forward" : wasUpdate ? "auth-stage-backward" : etape === 2 ? "auth-stage-forward" : "auth-stage-backward");
+      document.querySelector<HTMLElement>(".auth-stage h1")?.focus({ preventScroll: true });
+    });
     return () => window.cancelAnimationFrame(frame);
   }, [etape, showUpdate]);
 
