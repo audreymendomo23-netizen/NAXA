@@ -22,10 +22,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
   }
 
-  // On conserve une seule réponse de redirection afin que les cookies de session
-  // écrits par exchangeCodeForSession soient bien renvoyés au navigateur.
-  // Une réponse unique conserve les cookies de session écrits pendant l’échange PKCE.
-  // Elle ne pointe pas vers l’accueil avant que le rôle et le profil soient connus.
+  // Conserver une réponse unique pour renvoyer les cookies de session PKCE.
   const response = new NextResponse(null, { status: 302 });
   const supabase = supabaseServer(response);
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -45,21 +42,24 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (profileError) {
-    return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
+    return NextResponse.redirect(new URL("/connexion?erreur=profil", url.origin));
   }
 
-  const incomplete = !profile || (profile.role === "client" && (
-    !profile.username
-    || !profile.first_name
-    || !profile.last_name
-    || !profile.phone
-    || !profile.date_of_birth
-    || !profile.age_verified
-    || !profile.consent_accepted_at
-  ));
+  const isGoogleUser = auth.user.app_metadata?.provider === "google";
+  const incompleteGoogleClient = isGoogleUser && (
+    !profile || (profile.role === "client" && (
+      !profile.username
+      || !profile.first_name
+      || !profile.last_name
+      || !profile.phone
+      || !profile.date_of_birth
+      || !profile.age_verified
+      || !profile.consent_accepted_at
+    ))
+  );
 
   let destination = next;
-  if (incomplete) {
+  if (incompleteGoogleClient) {
     destination = "/completer-profil?next=" + encodeURIComponent(
       next === "/connexion?redirectionRole=1" ? "/" : next
     );
