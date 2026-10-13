@@ -494,7 +494,7 @@ function PharmacieFormulaire() {
 
   useEffect(() => {
     let mounted = true;
-    const checkOffline = async () => { const has = await hasLocalDevice().catch(() => false); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
+    const checkOffline = async () => { const has = Boolean(await getLocalDeviceIdentity().catch(() => null)); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
     void checkOffline();
     const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
     const offline = () => { void checkOffline(); };
