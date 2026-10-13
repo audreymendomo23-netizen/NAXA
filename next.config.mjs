@@ -4,7 +4,11 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  cacheOnFrontEndNav: true,\n  cacheId: "naxa-design-20261013",\n  skipWaiting: true,\n  clientsClaim: true,\n  cleanupOutdatedCaches: true,
+  cacheOnFrontEndNav: true,
+  cacheId: "naxa-design-20261013",
+  skipWaiting: true,
+  clientsClaim: true,
+  cleanupOutdatedCaches: true,
   workboxOptions: {
     navigateFallback: "/offline.html",
     // La connexion pharmacie doit être servie par le réseau quand il est disponible.
