@@ -1,7 +1,10 @@
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    const obsolete = new Set(["naxa-pharmacy-login", "naxa-navigation"]);
     const names = await caches.keys();
-    await Promise.all(names.filter((name) => obsolete.has(name)).map((name) => caches.delete(name)));
+    const obsolete = names.filter((name) =>
+      name.startsWith("naxa-pharmacy-login") || name.startsWith("naxa-navigation")
+    );
+    await Promise.all(obsolete.map((name) => caches.delete(name)));
+    await self.clients.claim();
   })());
 });

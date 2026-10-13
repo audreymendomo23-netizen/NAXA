@@ -4,15 +4,81 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#064B2A">
-  <title>NAXA — hors ligne</title>
+  <title>NAXA — connexion</title>
   <style>
-    :root{--green:#064B2A;--brand:#0A6B3A;--bg:#F2FAF5;--yellow:#FFE33D;--gold:#9B7A00}
+    :root{--green:#064B2A;--bg:#F2FAF5;--yellow:#FFE33D;--gold:#9B7A00}
     *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px 20px calc(32px + env(safe-area-inset-bottom,0px));font-family:system-ui,sans-serif;background:var(--bg);color:var(--green)}
     main{width:100%;max-width:420px;text-align:center}.logo{display:inline-flex;align-items:center;justify-content:center;width:88px;height:64px;margin-bottom:24px;border-radius:18px;background:var(--green);color:#fff;font-size:26px;font-weight:900;letter-spacing:-2px}.logo b{color:var(--yellow)}
     h1{font-size:clamp(24px,6vw,32px);line-height:1.15;margin:0 0 12px}p{color:var(--gold);line-height:1.5;margin:0 0 24px}
-    button{min-height:52px;width:100%;border:0;border-radius:16px;background:var(--yellow);color:var(--green);font:inherit;font-weight:800;cursor:pointer}
+    button{min-height:52px;width:100%;border:0;border-radius:16px;background:var(--yellow);color:var(--green);font:inherit;font-weight:800;cursor:pointer}button:disabled{opacity:.65;cursor:wait}
     .status{display:inline-flex;align-items:center;gap:8px;margin-top:18px;color:var(--green);font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#8B9290}
   </style>
 </head>
-<body><main><div class="logo" aria-label="NAXA"><b>N</b>AXA</div><h1>Connexion impossible pour le moment</h1><p>Vérifiez votre connexion puis réessayez.</p><button type="button" onclick="location.reload()">Réessayer</button><div class="status" role="status" aria-live="polite"><span id="status-dot" class="dot"></span><span id="status-text">Hors ligne</span></div><script>async function actualiserEtat(){let enLigne=false;try{const r=await fetch("/api/health",{cache:"no-store",headers:{Accept:"application/json"}});enLigne=r.ok}catch{}document.getElementById("status-text").textContent=enLigne?"Synchronisé":"Hors ligne";document.getElementById("status-dot").style.background=enLigne?"#0A6B3A":"#8B9290"}window.addEventListener("online",actualiserEtat,{passive:true});window.addEventListener("offline",actualiserEtat,{passive:true});actualiserEtat();</script></main></body>
+<body>
+  <main>
+    <div class="logo" aria-label="NAXA"><b>N</b>AXA</div>
+    <h1>Connexion impossible pour le moment</h1>
+    <p id="message">Vérifiez votre connexion puis réessayez.</p>
+    <button id="retry" type="button">Réessayer la connexion pharmacie</button>
+    <div class="status" role="status" aria-live="polite"><span id="status-dot" class="dot"></span><span id="status-text">Vérification de la connexion…</span></div>
+  </main>
+  <script>
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
+    const retryButton = document.getElementById("retry");
+    const message = document.getElementById("message");
+    function afficherEtat(enLigne, texte) {
+      statusText.textContent = texte || (enLigne ? "Connexion Internet disponible" : "Hors ligne");
+      statusDot.style.background = enLigne ? "#0A6B3A" : "#8B9290";
+    }
+    async function verifierServeur() {
+      try {
+        const response = await fetch("/api/health?check=" + Date.now(), {
+          method: "GET", cache: "no-store", headers: { "Accept": "application/json" }
+        });
+        return response.ok;
+      } catch { return false; }
+    }
+    async function actualiserEtat() {
+      const ok = await verifierServeur();
+      afficherEtat(ok, ok ? "Serveur NAXA accessible" : "Serveur NAXA injoignable");
+    }
+    async function retenterConnexion() {
+      retryButton.disabled = true;
+      retryButton.textContent = "Vérification en cours…";
+      message.textContent = "Recherche du serveur et nettoyage du cache local…";
+      afficherEtat(false, "Réinitialisation de la connexion…");
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+        if ("caches" in window) {
+          const names = await caches.keys();
+          await Promise.all(names.filter(name =>
+            name.startsWith("naxa-") || name.startsWith("workbox-precache")
+          ).map(name => caches.delete(name)));
+        }
+        const ok = await verifierServeur();
+        if (ok) {
+          afficherEtat(true, "Serveur accessible — ouverture de l’espace pharmacie…");
+          window.location.replace("/connexion?espace=pharmacie&retry=" + Date.now());
+          return;
+        }
+        message.textContent = "Le serveur reste inaccessible. Vérifiez Internet puis réessayez.";
+        afficherEtat(false, "Connexion au serveur impossible");
+      } catch {
+        message.textContent = "Impossible de rétablir la connexion. Vérifiez Internet puis réessayez.";
+        afficherEtat(false, "Connexion au serveur impossible");
+      } finally {
+        retryButton.disabled = false;
+        retryButton.textContent = "Réessayer la connexion pharmacie";
+      }
+    }
+    retryButton.addEventListener("click", retenterConnexion);
+    window.addEventListener("online", actualiserEtat, { passive: true });
+    window.addEventListener("offline", () => afficherEtat(false, "Pas de réseau détecté"), { passive: true });
+    actualiserEtat();
+  </script>
+</body>
 </html>
