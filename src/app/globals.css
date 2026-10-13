@@ -340,6 +340,8 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .auth-ecran-sans-flou .naxa-reveal { filter:none !important; transition-property:opacity,transform !important; will-change:opacity,transform; }
 .auth-ecran-sans-flou .naxa-reveal[data-visible="true"], .auth-ecran-sans-flou .naxa-reveal.is-visible { filter:none !important; }
 .auth-ecran-sans-flou .naxa-reveal-enter, .auth-ecran-sans-flou [class*="naxa-reveal"] { animation-name:none; }
+/* Le mode sans flou désactive les animations, mais ne doit jamais masquer le formulaire. */
+.auth-ecran-sans-flou .naxa-reveal { opacity:1 !important; transform:none !important; filter:none !important; }
 @media (prefers-reduced-motion: reduce) { .auth-stage-forward,.auth-stage-backward { animation:none !important; } }
 
 .auth-badge-text { animation: naxa-badge-in 180ms ease-out both; }
