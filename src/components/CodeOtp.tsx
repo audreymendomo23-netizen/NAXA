@@ -276,7 +276,7 @@ export function CodeOtp({
     <section className={styles.root} aria-labelledby={`${id}-title`}>
       <div className={styles.heading}>
         <h2 id={`${id}-title`} className={`${styles.title} ${isSuccess ? styles.titleSuccess : ""}`}>{isSuccess ? "Code vérifié" : titre}</h2>
-        <p className={styles.description}>{isSuccess ? "Vous pouvez continuer." : description}</p>
+        {(description || isSuccess) && <p className={styles.description}>{isSuccess ? "Vous pouvez continuer." : description}</p>}
       </div>
       <div className={styles.stage} data-phase={phase} data-length={longueur} data-reduced={reducedMotion ? "true" : "false"}>
         <input
@@ -317,7 +317,7 @@ export function CodeOtp({
         {isSuccess && !reducedMotion && <div className={styles.waves} aria-hidden="true"><span /><span /><span /></div>}
         {isSuccess && !reducedMotion && <div className={styles.sparkles} aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>}
       </div>
-      <p id={descriptionId} className={styles.hint}>{isFailure ? "Code incorrect, réessayez" : isSuccess ? "Vérification terminée" : description}</p>
+      {(isFailure || isSuccess || description) && <p id={descriptionId} className={styles.hint}>{isFailure ? "Code incorrect, réessayez" : isSuccess ? "Vérification terminée" : description}</p>}
       <p id={liveId} className={styles.srOnly} aria-live="polite" aria-atomic="true">{annonce}</p>
       {phase === "saisie" && !disabled && <button type="button" className={styles.resetButton} onClick={() => { reset(); }} aria-label="Effacer le code">Effacer</button>}
     </section>

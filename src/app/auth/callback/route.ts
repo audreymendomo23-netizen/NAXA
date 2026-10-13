@@ -16,18 +16,22 @@ function safeNext(value: string | null) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const tokenHash = url.searchParams.get("token_hash");
+  const tokenType = url.searchParams.get("type");
   const next = safeNext(url.searchParams.get("next"));
 
-  if (!code) {
+  if (!code && !(tokenHash && (tokenType === "signup" || tokenType === "email"))) {
     return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
   }
 
-  // Conserver une réponse unique pour renvoyer les cookies de session PKCE.
+  // Une réponse unique permet de conserver les cookies de session.
   const response = new NextResponse(null, { status: 302 });
   const supabase = supabaseServer(response);
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const { error: exchangeError } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: tokenType as "signup" | "email" });
   if (exchangeError) {
-    return NextResponse.redirect(new URL("/connexion?erreur=oauth", url.origin));
+    return NextResponse.redirect(new URL("/connexion?erreur=confirmation", url.origin));
   }
 
   const { data: auth, error: userError } = await supabase.auth.getUser();

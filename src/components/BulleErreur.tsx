@@ -45,7 +45,7 @@ export function BulleErreur({ message }: Props) {
       const rect = bubbleRef.current?.getBoundingClientRect();
       if (rect) origin.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
       setBurst(true);
-    }, 5000);
+    }, 500);
     return () => window.clearTimeout(timer);
   }, [shown, message, burst]);
 
@@ -81,7 +81,7 @@ export function BulleErreur({ message }: Props) {
         y: centerY + (Math.random() - 0.5) * origin.current.height * 0.8,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - Math.random() * 2.5,
-        radius: 0.45 + Math.random() * 1.8,
+        radius: 0.7 + Math.random() * 2.1,
         life: 70 + Math.random() * 50,
         alpha: 0.45 + Math.random() * 0.5,
       };

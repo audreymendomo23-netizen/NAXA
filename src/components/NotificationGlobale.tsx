@@ -51,7 +51,7 @@ export function NotificationGlobale() {
       const next = queue.current.shift() ?? null;
       activeRef.current = Boolean(next);
       setActive(next);
-    }, active.message.length * 28 + 7200);
+    }, active.message.length * 28 + 2500);
     return () => window.clearTimeout(timer);
   }, [active]);
   return active ? <BulleErreur key={active.id} message={active.message} /> : null;
