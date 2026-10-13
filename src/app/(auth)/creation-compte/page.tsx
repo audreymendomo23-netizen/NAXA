@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { CodeOtp } from "@/components/CodeOtp";
 import { useAuthDraftState } from "@/components/auth/AuthDraftContext";
-import { BulleErreur } from "@/components/BulleErreur";
+import { notifierNAXA } from "@/components/NotificationGlobale";
 import { SuccesCreationCompte } from "@/components/SuccesCreationCompte";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 
@@ -30,6 +30,7 @@ function Formulaire(){
  useEffect(()=>{setStep(urlStep==="otp"||urlStep==="password"?urlStep:"details")},[urlStep]);
  useEffect(()=>{if(step!=="password"){setPassword("");setConfirmation("")}},[step]);
  const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState(""),[show,setShow]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false),[otpSeconds,setOtpSeconds]=useState(28),[resending,setResending]=useState(false),[successDestination,setSuccessDestination]=useState<string|null>(null);
+ useEffect(()=>{if(error)notifierNAXA(error)},[error]);
  const selected=COUNTRIES.find(c=>c[0]===country)??COUNTRIES[0], digits=phone.replace(/\D/g,""), age=useMemo(()=>ageOf(dob),[dob]);
  useEffect(()=>{const v=username.trim().toLowerCase();if(!v){setUState("idle");return}if(!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v)){setUState("taken");return}setUState("checking");const t=setTimeout(async()=>{try{const r=await fetch("/api/auth/username-availability",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:v})});const d=await r.json();setUState(d.available?"available":"taken")}catch{setUState("taken")}},350);return()=>clearTimeout(t)},[username]);
  useEffect(()=>{if(step!=="otp"||otpSeconds<=0)return;const timer=window.setTimeout(()=>setOtpSeconds(s=>Math.max(0,s-1)),1000);return()=>window.clearTimeout(timer)},[step,otpSeconds]);
@@ -75,7 +76,7 @@ function Formulaire(){
   <BoutonNAXA type="submit" importance="importante" className="btn-canari w-full min-h-[52px] rounded-2xl" loading={busy} disabled={uState!=="available"||!phoneValid||age===null||age<18||!consent}>{busy?"Création...":"Valider"}</BoutonNAXA></>}
   {step==="otp"&&<><p className="text-center text-sm leading-snug text-[#064B2A]">Un code de confirmation a été envoyé à <strong>{email.replace(/^(.).+(@.+)$/, "$1•••$2")}</strong>.</p><CodeOtp key={otpVersion} longueur={6} verifier={verifierCode} onSucces={()=>allerEtape("password")} titre="Vérifiez votre code" description={`Entrez le code à 6 chiffres envoyé à ${email.replace(/^(.).+(@.+)$/, "$1•••$2")}`} disabled={busy}/><p className="text-center text-sm leading-snug text-[#064B2A]">Vous n’avez pas reçu le code ? {otpSeconds>0?<span>Renvoyer dans {otpSeconds} s</span>:<button type="button" className="font-bold underline" disabled={resending} onClick={resendOtp}>{resending?"Envoi…":"Renvoyer le code"}</button>}</p><button type="button" className="btn btn-clair w-full" onClick={()=>{allerEtape("details");setOtpSeconds(28)}}>Modifier mes informations</button></>}
   {step==="password"&&<><ChampFlottant id="signup-password" label="Mot de passe" type={show?"text":"password"} value={password} onChange={setPassword} autoComplete="new-password" required trailing={<button type="button" className="rounded-full px-2 text-xs font-bold" onClick={()=>setShow(!show)}>{show?"Masquer":"Afficher"}</button>}/><div aria-label={"Force du mot de passe : "+score+" critères sur 4"} className="grid h-2 grid-cols-4 gap-1 overflow-hidden rounded-full bg-slate-200">{checks.map((ok,i)=><span key={i} className="rounded-full transition-all duration-300" style={{backgroundColor:ok?meterColors[i]:"#d1d5db"}}/>)}</div><ul className="grid grid-cols-2 gap-1 text-xs text-slate-600">{checks.map((ok,i)=><li key={i} className={ok?"text-naxa-green-700":"text-slate-500"}>{ok?"✓":"○"} {["6 caractères minimum","1 majuscule","1 chiffre","1 caractère spécial"][i]}</li>)}</ul><ChampFlottant id="signup-password-confirm" label="Confirmer le mot de passe" type={show?"text":"password"} value={confirmation} onChange={setConfirmation} autoComplete="new-password" required/><BoutonNAXA type="submit" importance="importante" className="btn-canari w-full" loading={busy} disabled={!passwordValid}>{busy?"Enregistrement...":"Se connecter"}</BoutonNAXA></>}
-  {error&&<BulleErreur key={error} message={error}/>}<p className="text-center text-xs text-slate-600">Vous avez déjà un compte ? <Link href={`/connexion?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Se connecter</Link></p>
+  <p className="text-center text-xs text-slate-600">Vous avez déjà un compte ? <Link href={`/connexion?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Se connecter</Link></p>
  </form>
 }
 export default function CreationCompte(){return <Suspense><Formulaire/></Suspense>;}
