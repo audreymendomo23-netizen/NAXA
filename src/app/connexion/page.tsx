@@ -8,7 +8,7 @@ import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
-import { activateLocalDevice, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
+import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
 
 function d(index: number): React.CSSProperties {
   return { "--i": index } as React.CSSProperties;
@@ -490,16 +490,34 @@ function PharmacieFormulaire() {
   const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
+  const [pinOffline, setPinOffline] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    const checkOffline = async () => { const has = await hasLocalDevice().catch(() => false); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
+    const checkOffline = async () => { const has = Boolean(await getLocalDeviceIdentity().catch(() => null)); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
     void checkOffline();
     const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
     const offline = () => { void checkOffline(); };
     window.addEventListener("online", online); window.addEventListener("offline", offline);
     return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
   }, []);
+
+  async function deverrouillerHorsLigne(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await unlockLocalDevice(pinOffline);
+      router.push("/pharmacie");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Déverrouillage hors ligne impossible.");
+    } finally {
+      setPinOffline("");
+      setBusy(false);
+    }
+  }
 
   async function verifierCode(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError(""); setMessage("");
@@ -528,6 +546,17 @@ function PharmacieFormulaire() {
       const deviceResponse = await fetch("/api/appareils/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: navigator.userAgent.includes("Mobile") ? "Appareil mobile pharmacie" : "Poste pharmacie", installationId: await getLocalInstallationId() }) });
       const deviceData = await deviceResponse.json();
       if (!deviceResponse.ok) { setError(deviceData.error || "Activation de cet appareil impossible."); return; }
+      if (existingLocal) {
+        const localIdentity = await getLocalDeviceIdentity();
+        if (!localIdentity ||
+            localIdentity.deviceId !== String(deviceData.deviceId) ||
+            localIdentity.pharmacyId !== String(deviceData.pharmacyId)) {
+          await supabaseBrowser().auth.signOut().catch(() => undefined);
+          setActivation(null);
+          setError("Les données hors ligne de cet appareil appartiennent à une autre pharmacie. Elles ont été conservées. Reconnectez-vous depuis le profil d’appareil de cette pharmacie ; aucune donnée locale ni opération en attente n’a été supprimée.");
+          return;
+        }
+      }
       setActivation({ ...deviceData, existingLocal });
     } catch { setError("Connexion impossible. Vérifiez votre connexion internet."); }
     finally { setBusy(false); }
@@ -583,11 +612,42 @@ function PharmacieFormulaire() {
       <div className="connexion-titre text-center">
         <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>Connexion</h1>
         <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
-          {etape === 1 ? "Étape 1 — Code Pharmacie" : "Étape 2 — Identifiants de connexion"}
+          {offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Étape 1 — Code Pharmacie" : "Étape 2 — Identifiants de connexion"}
         </p>
       </div>
 
-      {etape === 1 ? (
+      {offlineUnlock ? (
+        <form onSubmit={deverrouillerHorsLigne} className="space-y-3">
+          <p className="rounded-xl border border-naxa-green-100 bg-white/70 px-4 py-3 text-sm font-semibold">
+            Aucun réseau détecté. Déverrouillez l’appareil déjà activé avec son PIN local.
+          </p>
+          <input
+            aria-label="PIN local hors ligne"
+            placeholder="PIN local (4 à 6 chiffres)"
+            required
+            inputMode="numeric"
+            minLength={4}
+            maxLength={6}
+            pattern="[0-9]{4,6}"
+            autoComplete="off"
+            value={pinOffline}
+            onChange={e => setPinOffline(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            className="champ w-full !min-h-[54px]"
+          />
+          <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>
+            {busy ? "Déverrouillage..." : "Déverrouiller hors ligne"}
+          </button>
+          {offlineUnavailable && (
+            <p role="status" className="text-sm font-semibold text-red-700">
+              Aucun appareil pharmacie activé n’est enregistré sur cet appareil. Une première activation nécessite une connexion.
+            </p>
+          )}
+        </form>
+      ) : offlineUnavailable ? (
+        <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold">
+          Vous êtes hors connexion et aucun appareil pharmacie n’est activé ici. Reconnectez-vous pour vous authentifier et activer cet appareil.
+        </p>
+      ) : etape === 1 ? (
         <form onSubmit={verifierCode} className="space-y-3">
           <div className="reveal relative !mt-6" style={d(3)}>
             <input ref={codeRef} id="code-pharmacie" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder=" " required className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" aria-label="Code Pharmacie à 4 chiffres" />

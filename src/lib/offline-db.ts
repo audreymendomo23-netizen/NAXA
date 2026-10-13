@@ -47,6 +47,15 @@ async function decrypt(key: CryptoKey, value: Encrypted) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(value.iv) }, key, new Uint8Array(value.cipher));
   return new TextDecoder().decode(plain);
 }
+export async function getLocalDeviceIdentity() {
+  try {
+    const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
+    if (!meta?.tokenCipher || !meta.salt || !meta.pinHash || !meta.deviceId || !meta.pharmacyId || !meta.pharmacyName) return null;
+    return { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName ?? "" };
+  } catch {
+    return null;
+  }
+}
 export async function hasLocalDevice() {
   try { const m = await tx<Meta | undefined>(META, "readonly", s => s.get("device")); return Boolean(m?.tokenCipher); } catch { return false; }
 }
