@@ -52,6 +52,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Cette adresse e-mail possède déjà un compte confirmé. Connectez-vous ou utilisez « Mot de passe oublié »." }, { status: 409 });
     }
 
+    if (existing) {
+      // Les informations personnelles restent uniquement dans le formulaire jusqu’à la création effective du compte.
+      const { error: clearError } = await admin.auth.admin.updateUserById(existing.id, { user_metadata: {} });
+      if (clearError) {
+        console.error("signup OTP pending metadata cleanup:", clearError.message);
+        return NextResponse.json({ ok: false, error: "Impossible de reprendre cette inscription. Réessayez." }, { status: 503 });
+      }
+    }
+
     const authClient = supabaseServer();
     const { error } = existing
       ? await authClient.auth.resend({ type: "signup", email })
