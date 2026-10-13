@@ -95,7 +95,7 @@ export function BullesAuthentification() {
             particle.y += particle.vy * delta;
             particle.life = 1 - age;
             context.beginPath();
-            context.fillStyle = `rgba(176, 255, 250, ${Math.max(0, particle.life * 0.55)})`;
+            context.fillStyle = `rgba(255, 227, 61, ${Math.max(0, particle.life * 0.55)})`;
             context.arc(particle.x, particle.y, 1.2 + particle.life, 0, Math.PI * 2);
             context.fill();
           });
@@ -119,12 +119,12 @@ export function BullesAuthentification() {
           bubble.y,
           bubble.r,
         );
-        gradient.addColorStop(0, "rgba(226, 255, 253, 0.16)");
-        gradient.addColorStop(0.72, "rgba(87, 226, 219, 0.055)");
-        gradient.addColorStop(1, "rgba(159, 255, 247, 0.13)");
+        gradient.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+        gradient.addColorStop(0.72, "rgba(10, 107, 58, 0.045)");
+        gradient.addColorStop(1, "rgba(255, 227, 61, 0.10)");
         context.beginPath();
         context.fillStyle = gradient;
-        context.strokeStyle = "rgba(181, 255, 249, 0.25)";
+        context.strokeStyle = "rgba(10, 107, 58, 0.18)";
         context.lineWidth = 1;
         context.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2);
         context.fill();
