@@ -141,7 +141,9 @@
   animation: otp-particle 760ms cubic-bezier(.16, .7, .3, 1) var(--delay) both;
 }
 .greenParticle { background: #0A6B3A; box-shadow: 0 0 7px rgb(10 107 58 / 60%); }
-.stage[data-phase="succes"] .cells { animation: otp-spiral 620ms cubic-bezier(.22, 1, .36, 1) both; }
+.stage[data-phase="succes"] .cells { width: 0; height: 0; animation: otp-spiral 620ms cubic-bezier(.22, 1, .36, 1) both; }
+.stage[data-phase="succes"] .cell { position: absolute; left: -26px; top: -30px; width: 52px; height: 60px; flex: none; }
+.stage[data-length="6"][data-phase="succes"] .cell { left: -22px; top: -29px; width: 44px; height: 58px; }
 .stage[data-phase="succes"] .cell {
   border-color: #0A6B3A;
   background: #0A6B3A;
