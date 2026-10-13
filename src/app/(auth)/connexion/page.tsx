@@ -45,7 +45,7 @@ function Formulaire() {
   const espace = search.get("espace");
   const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
 
-  const [username, setUsername] = useAuthDraftState("pharmacy.username", "");
+  const [username, setUsername] = useAuthDraftState("client.username", "");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -301,7 +301,7 @@ function PharmacieFormulaire() {
   const codeRef = useRef<HTMLInputElement | null>(null);
   const [etape, setEtape] = useState<1 | 2>(1);
   const [nomPharmacie, setNomPharmacie] = useState("");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useAuthDraftState("pharmacy.username", "");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
