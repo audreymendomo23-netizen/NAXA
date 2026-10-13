@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ChampFlottant } from "@/components/ChampFlottant";
 
 function forceValidPassword(value: string) {
   return value.length >= 6 && /[A-Z]/.test(value) && /[0-9]/.test(value) && /[^A-Za-z0-9]/.test(value);
@@ -44,7 +45,7 @@ export default function NouveauMotDePasse() {
     </label>
     <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-naxa-canari transition-all" style={{width:`${score*25}%`}}/></div>
     <p className="text-xs text-slate-500">6 caractères minimum · 1 majuscule · 1 chiffre · 1 caractère spécial</p>
-    <label className="block text-sm font-semibold">Confirmer le mot de passe<input className="champ mt-1" required type={show?"text":"password"} value={confirmation} onChange={e=>setConfirmation(e.target.value)} autoComplete="new-password"/></label>
+    <ChampFlottant id="reset-password-confirm" label="Confirmer le mot de passe" type={show?"text":"password"} value={confirmation} onChange={setConfirmation} autoComplete="new-password" required/>
     <button className="btn btn-canari w-full" disabled={!ready}>Enregistrer</button>
     {message && <p role="alert" className="text-sm text-red-700">{message}</p>}
   </form>;
