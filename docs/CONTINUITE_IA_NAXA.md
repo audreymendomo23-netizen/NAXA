@@ -349,3 +349,31 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Aperçu Vercel du SHA `6774b1658b9486c4ffda2d6c798fc34a63436f82` lancé : `dpl_3m9FENpszy9rb2P5X3etwyHtVpEu`, https://naxa-fccyee44k-naxa3.vercel.app. État encore `BUILDING` lors du dernier contrôle; pas de validation navigateur mobile.
 - Après la fusion, Vercel a créé le déploiement Production `dpl_ARwxmC1eioZkHqTX2Pmg94QAMBH1` sur le SHA exact `9d07f415fc37882d79e552c8f0ef19237343e396`, URL https://naxa-5uyb57fpx-naxa3.vercel.app, état `QUEUED` lors du dernier relevé. Le déploiement de production n'est donc pas encore confirmé `READY`.
 - Google OAuth : la cause `Unsupported provider: provider is not enabled` est confirmée côté projet Supabase de test. Aucun paramètre Google n'a été changé; cette configuration n'est pas corrigée par le merge et nécessite l'activation du provider et les credentials Google dans le projet de test uniquement. Aucun accès ou changement à Supabase Production.
+
+
+## Rapport des branches — état vérifié le 2026-10-13
+
+### Source de vérité et production
+- `main` contient le merge squash de la PR #65 : commit `9d07f415fc37882d79e552c8f0ef19237343e396`.
+- Déploiement Vercel Production lié à ce SHA : `dpl_ARwxmC1eioZkHqTX2Pmg94QAMBH1`, état **READY**, alias `https://naxa-naxa3.vercel.app`. Cela confirme le déploiement technique, pas encore un test fonctionnel mobile.
+- PR #65 (`feat/main-ui-water-ambulance-20261013` → `main`) : **fusionnée** le 2026-10-13. Les changements UI ont été intégrés : bouton animé sur l’action de localisation, bulle de message sur l’accueil/recherche/connexion, affichage du retour OAuth en erreur, ambulance portée à 1,8 s.
+
+### PR ouvertes à ne pas confondre avec le lot déployé
+- PR #64 — `feat/auth-visual-identity` → `main` : **ouverte, non fusionnée**. Son descriptif indique CircleCI `quality` en échec sur SHA `4d3b475931124b76970d40ab4efa7f9ad6eedf9a` (pipeline 1511). Cause détaillée non récupérée; pas de preuve CI verte.
+- PR #63 — `feat/auth-water-bubbles` → `main` : **ouverte, non fusionnée**. Son descriptif indique Vercel Preview READY sur `c4316a3619115f2597828ab8e29ed7fa71b2d4d2`, mais CircleCI `quality` en échec (pipeline 1419); aucun statut vert global.
+- PR #62 — `fix/login-page-layout-20261012` → `main` : **ouverte, brouillon**, 153 commits. Vercel Preview signalée READY sur `0e126ef5ae3b7d09610d5392be490ff8f6aed593`; les parcours réels hors ligne et la connexion pharmacie restent à valider. Cette PR n’a pas été fusionnée et ne fait pas partie du déploiement #65.
+
+### Branches de travail concernées
+- `feat/main-ui-water-ambulance-20261013` : source de la PR #65 désormais fusionnée; branche encore présente dans l’inventaire GitHub. Le commit de tête utilisé pour la PR était `6774b1658b9486c4ffda2d6c798fc34a63436f82`.
+- `feat/auth-water-bubbles` : branche documentaire et visuelle de la PR #63; non fusionnée, CI qualité signalée en échec. Ne pas considérer ses derniers changements comme présents dans `main` au-delà des éléments explicitement intégrés par #65.
+- `feat/auth-visual-identity` : branche de la PR #64; non fusionnée, CI qualité signalée en échec.
+- `fix/login-page-layout-20261012` : branche de la PR #62; brouillon, non fusionnée.
+- Autres branches retournées par l’inventaire GitHub (à classer par PR/commits avant toute suppression ou fusion) : `Test`, `Test-claude`, `docs/juridique-cgu-confidentialite-20261012`, `feat/accueil-entete`, `feat/accueil-etape-a`, `feat/catalogue-medicaments-api-prototype`, `feat/login-session-limit`, `feat/logo-navigation-role`, `feat/naxa-fonctions-validation-distance`, `feat/naxa-messagerie-profil-yaounde`, `feat/session-audit`, `feat/yaounde-garde-crosscheck`, `feat/yaounde-pharmacy-geolocation`, `feat/yaounde-taxi-estimate`, `fix/accueil-footer-signature-verte`, `fix/auth-restore-otp-flow`, `fix/auth-signup-feedback-otp`, `fix/ci-main`, `fix/parcours-rpc-permissions-align-20261011`, `fix/signup-phone-validation`, `fix/signup-trigger-production`, `fix/sql-test-032`, `fix/sql-tests-green`, ainsi que `main`. L’inventaire GitHub a renvoyé 28 branches au total.
+
+### Blocage Google OAuth distinct
+- L’erreur fournie par l’utilisateur `400 validation_failed / Unsupported provider: provider is not enabled` confirme que Google n’est pas activé dans le projet Supabase de test. Le merge #65 ne modifie pas cette configuration. Il faut activer le provider Google et renseigner les credentials dans le projet de test uniquement; aucune configuration Supabase Production n’a été changée.
+
+### Garde-fous et prochaines actions
+- Aucun changement de code hors périmètre n’est inclus par le présent rapport; aucun secret OAuth consigné.
+- Ne pas fusionner les PR #62/#63/#64 sur la seule base d’un aperçu Vercel READY : vérifier d’abord les checks CI sur le SHA courant et réaliser les tests fonctionnels attendus.
+- Prochaine vérification : tests visuels mobile sur Production/Preview pour le lot #65; configurer Google uniquement dans Supabase test; récupérer les logs CircleCI détaillés pour #63/#64 avant de déclarer ces lots validés.
