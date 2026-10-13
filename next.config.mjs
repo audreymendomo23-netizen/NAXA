@@ -35,7 +35,7 @@ const withPWA = withPWAInit({
           cacheName: "naxa-navigation",
           expiration: {
             maxEntries: 20,
-            maxAgeSeconds: 7 * 24 * 60 * 60,
+            maxAgeSeconds: 90 * 24 * 60 * 60,
           },
           cacheableResponse: { statuses: [0, 200] },
         },
