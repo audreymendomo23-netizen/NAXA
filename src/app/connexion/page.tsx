@@ -8,7 +8,6 @@ import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
-import { BulleErreur } from "@/components/BulleErreur";
 
 function GoogleIcon() {
   return (
