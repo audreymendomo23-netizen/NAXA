@@ -9,6 +9,7 @@ import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
+import { isNaxaBackendReachable } from "@/lib/network-status";
 
 function d(index: number): React.CSSProperties {
   return { "--i": index } as React.CSSProperties;
@@ -487,6 +488,7 @@ function PharmacieFormulaire() {
   const [message, setMessage] = useState("");
   const [offlineUnlock, setOfflineUnlock] = useState(false);
   const [offlineUnavailable, setOfflineUnavailable] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(true);
   const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
@@ -494,12 +496,28 @@ function PharmacieFormulaire() {
 
   useEffect(() => {
     let mounted = true;
-    const checkOffline = async () => { const has = Boolean(await getLocalDeviceIdentity().catch(() => null)); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
+    const checkOffline = async () => {
+      const [identity, reachable] = await Promise.all([
+        getLocalDeviceIdentity().catch(() => null),
+        isNaxaBackendReachable(),
+      ]);
+      if (!mounted) return;
+      setOfflineUnlock(!reachable && Boolean(identity));
+      setOfflineUnavailable(!reachable && !identity);
+      setCheckingConnection(false);
+    };
+    const refresh = () => {
+      if (mounted) setCheckingConnection(true);
+      void checkOffline();
+    };
     void checkOffline();
-    const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
-    const offline = () => { void checkOffline(); };
-    window.addEventListener("online", online); window.addEventListener("offline", offline);
-    return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
+    window.addEventListener("online", refresh);
+    window.addEventListener("offline", refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", refresh);
+    };
   }, []);
 
   async function deverrouillerHorsLigne(e: React.FormEvent) {
@@ -616,7 +634,11 @@ function PharmacieFormulaire() {
         </p>
       </div>
 
-      {offlineUnlock ? (
+      {checkingConnection ? (
+        <p role="status" className="rounded-xl border border-naxa-green-100 bg-white/70 px-4 py-3 text-sm font-semibold">
+          Vérification de la connexion…
+        </p>
+      ) : offlineUnlock ? (
         <form onSubmit={deverrouillerHorsLigne} className="space-y-3">
           <p className="rounded-xl border border-naxa-green-100 bg-white/70 px-4 py-3 text-sm font-semibold">
             Aucun réseau détecté. Déverrouillez l’appareil déjà activé avec son PIN local.
