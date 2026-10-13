@@ -307,7 +307,7 @@ function PharmacieFormulaire() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showUpdate, setShowUpdate] = useState(false);
+  const showUpdate = searchParams.get("panneau") === "mot-de-passe";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -320,10 +320,23 @@ function PharmacieFormulaire() {
   const [pinOffline, setPinOffline] = useState("");
   const allerEtape = (next: 1 | 2, replace = false) => {
     setDirection(next === 2 ? "forward" : "backward");
-    if (next === 1) setPharmacyName("");
+    if (next === 1) {
+      setPharmacyName("");
+      setPassword("");
+      setCurrentPassword("");
+      setNewPassword("");
+    }
     const target = next === 2 ? "/connexion?espace=pharmacie&etape=identifiants" : "/connexion?espace=pharmacie";
     if (replace) router.replace(target); else router.push(target);
   };
+
+  useEffect(() => {
+    if (etape === 1) {
+      setPassword("");
+      setCurrentPassword("");
+      setNewPassword("");
+    }
+  }, [etape]);
 
   useEffect(() => {
     let mounted = true;
@@ -422,7 +435,7 @@ function PharmacieFormulaire() {
         if (data.code === "PHARMACY_SESSION_EXPIRED") { allerEtape(1, true); setNomPharmacie(""); }
         setError(data.error || "Mise à jour impossible."); return;
       }
-      setCurrentPassword(""); setNewPassword(""); setShowUpdate(false);
+      setCurrentPassword(""); setNewPassword(""); router.replace("/connexion?espace=pharmacie&etape=identifiants");
       setMessage("Mot de passe mis à jour. Vous pouvez vous connecter.");
     } catch { setError("Mise à jour momentanément indisponible."); }
     finally { setBusy(false); }
@@ -431,7 +444,7 @@ function PharmacieFormulaire() {
   async function changerPharmacie() {
     setBusy(true); setError(""); setMessage("");
     try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
-    finally { allerEtape(1, true); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
+    finally { allerEtape(1, true); setNomPharmacie(""); setUsername(""); setPassword(""); setActivation(null); setBusy(false); }
   }
 
 
@@ -535,7 +548,7 @@ function PharmacieFormulaire() {
                 <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Masquer" : "Afficher"}</button>
               </div>
               <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(6)} disabled={busy}>{busy ? "Connexion..." : "Connexion"}</button>
-              <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
+              <button type="button" onClick={() => { setDirection("forward"); router.push("/connexion?espace=pharmacie&etape=identifiants&panneau=mot-de-passe"); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
             </form>
           ) : (
             <form onSubmit={updatePassword} className="space-y-3">
@@ -544,7 +557,7 @@ function PharmacieFormulaire() {
               <input aria-label="Mot de passe actuel" placeholder="Mot de passe actuel" required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="current-password" />
               <input aria-label="Nouveau mot de passe" placeholder="Nouveau mot de passe (8 caractères minimum)" required minLength={8} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="new-password" />
               <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Mise à jour..." : "Confirmer le nouveau mot de passe"}</button>
-              <button type="button" onClick={() => { setShowUpdate(false); setError(""); }} className="w-full text-sm font-bold underline">Retour à la connexion</button>
+              <button type="button" onClick={() => { setDirection("backward"); router.push("/connexion?espace=pharmacie&etape=identifiants"); setError(""); }} className="w-full text-sm font-bold underline">Retour à la connexion</button>
             </form>
           )}
         </>
