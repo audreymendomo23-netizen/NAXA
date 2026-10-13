@@ -28,6 +28,7 @@ export const textes = {
     erreurLecture:
       "La lecture a échoué. Prenez la photo bien à plat, avec de la lumière, ou tapez le nom du médicament.",
     recherchesFrequentes: "Recherches fréquentes",
+    etapes: ["Rechercher", "Trouver", "Comparer", "Réserver"],
     pharmacienCta: "Rejoindre NAXA",
     avertissement:
       "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours au 118 (pompiers) ou 119 (SAMU), ou rendez-vous à la pharmacie la plus proche.",
@@ -65,6 +66,7 @@ export const textes = {
     erreurLecture:
       "Reading failed. Take a well-lit, flat photo or type the medicine name.",
     recherchesFrequentes: "Frequent searches",
+    etapes: ["Search", "Find", "Compare", "Reserve"],
     pharmacienCta: "Join NAXA",
     avertissement:
       "NAXA provides availability information, not medical advice. In an emergency, call 118 (fire) or 119 (ambulance), or go to the nearest pharmacy.",
