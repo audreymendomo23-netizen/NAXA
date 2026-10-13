@@ -152,3 +152,9 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Pipeline `2940580641`, SHA `25c798ed225333ea3e8530533c8f0ca187b601fc` : job `full_migration_replay` réussi en 29,64 s. Le journal termine par `FINAL_FAILURE_COUNT=0`, les migrations jusqu'à `migration_068_hierarchical_pharmacy_scope.sql` indiquent PASS. Lien du job : https://gitlab.com/audreymendomo23-netizen/NAXA/-/jobs/17126641594.
 - Job `quality` (`17126641593`) toujours `running` après environ 59 s; son journal récupéré via API reste bloqué à la phase `Preparing the "docker+machine" executor` / téléchargement de l'image helper, sans encore afficher la version Node ou les commandes npm. Le runner et son manager sont signalés online/active; la cause du blocage n'est pas établie. Lien : https://gitlab.com/audreymendomo23-netizen/NAXA/-/jobs/17126641593.
 - Le pipeline global reste donc `running`; il ne faut pas le déclarer vert tant que `quality` n'a pas un statut final. Aucun nouveau changement de configuration après le commit `25c798ed...`.
+
+
+### Règle d'économie des crédits CI — 2026-10-13
+- Demande utilisateur : limiter les vérifications CI/tests répétitifs et regrouper les contrôles en un seul appel lorsque possible, afin de préserver les crédits.
+- Méthode : consulter ensemble l'état du pipeline, les jobs et les journaux utiles; ne relancer ni multiplier les tests sans cause identifiée; diagnostiquer d'abord à partir des journaux existants et n'ajouter qu'un test ciblé s'il tranche une incertitude réelle.
+- Ne jamais déclarer un pipeline réussi avant les statuts finaux et leurs journaux. La validation GitLab reste distincte de CircleCI. Portée inchangée : essais autorisés sur GitLab `gl-ci-test`; aucune modification de `main`, fusion ou déploiement sans autorisation explicite.
