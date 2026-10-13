@@ -126,7 +126,7 @@ body:has(.bandeau) .home-ecran {
 @keyframes naxa-ripple { to { transform: translate(-50%, -50%) scale(18); opacity: 0; } }
 .naxa-ambulance {
   position: absolute; z-index: 2; left: -2.5rem; top: 50%; font-size: 1.35rem; line-height: 1;
-  transform: translateY(-50%); animation: naxa-ambulance-cross 720ms cubic-bezier(.2,.7,.2,1) forwards;
+  transform: translateY(-50%); animation: naxa-ambulance-cross 1800ms cubic-bezier(.2,.7,.2,1) forwards;
   pointer-events: none;
 }
 .naxa-ambulance-trail { position: absolute; right: 85%; top: 48%; width: 2.8rem; height: 3px; border-radius: 99px; background: linear-gradient(90deg, transparent, rgba(45,212,191,.9)); }
