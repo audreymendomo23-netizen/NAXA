@@ -88,3 +88,13 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - La page Billing et le feedback exact du quota privé ne sont pas accessibles via les outils disponibles. Le quota ne peut donc pas être confirmé à distance; il faut consulter la page de facturation de l'utilisateur.
 - Aucun code applicatif modifié, aucune action de facturation, aucune modification de visibilité, aucune fusion ni aucun déploiement Production. La mise à jour de continuité précédente est le seul commit récent sur la branche.
 - Prochaine action : obtenir les logs détaillés de CircleCI pipeline 1425 ou la cause exacte du message de quota dans GitHub Billing; ne pas traiter les succès de preview comme preuve de CI complète.
+
+
+## Journal de continuité — nouvelle vérification CI GitHub (2026-10-13, reprise utilisateur)
+- Relecture directe de la PR #63 : https://github.com/audreymendomo23-netizen/NAXA/pull/63. Elle est toujours ouverte. La tête de branche actuelle retournée par GitHub est désormais `e8db412820cd963281d48628ece3cbd5f417801f` (la vérification précédente avait relevé `be866cbd...`; l'état de tête a avancé depuis).
+- Statuts exacts du SHA de tête `e8db412820cd963281d48628ece3cbd5f417801f` : `ci/circleci: quality = failure`, pipeline 1427 : https://circleci.com/gh/audreymendomo23-netizen/NAXA/1427 ; `netlify/naxxa/deploy-preview = success`, https://deploy-preview-63--naxxa.netlify.app.
+- L'API GitHub Actions a retourné `total_count: 0` pour les exécutions associées à ce SHA. Cela ne change pas le statut CircleCI.
+- Tentative de lecture de la page CircleCI 1427 par l'outil web : inaccessible (erreur de lecture). Les outils GitHub disponibles ne fournissent pas les logs internes CircleCI. La cause racine du statut `quality = failure` n'est donc toujours pas déterminée; aucune correction de code ne doit être devinée.
+- Vérification documentaire du statut public CircleCI : son historique signale plusieurs incidents d'exécution début octobre 2026, dont une perturbation du 9 octobre résolue le 10 octobre. Rien dans ces incidents ne prouve que le pipeline 1427 est affecté. Source : https://status.circleci.com/history.
+- Aucun code, workflow ou réglage CI modifié; aucun nouveau pipeline déclenché, aucun paiement, aucune fusion et aucun déploiement Production. Seul ce document de continuité est mis à jour.
+- Prochaine action : récupérer le détail du job `quality` de pipeline 1427 depuis les logs CircleCI ou une API autorisée; ensuite seulement identifier la cause et proposer une correction ciblée. CI toujours NON VERTE.
