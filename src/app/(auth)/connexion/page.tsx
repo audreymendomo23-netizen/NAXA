@@ -357,7 +357,7 @@ function PharmacieFormulaire() {
       if (!response.ok) { setError(data.error || "Code pharmacie invalide."); return; }
       setNomPharmacie(String(data.nom || ""));
       window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: String(data.nom || "") }));
-      setEtape(2);
+      allerEtape(2);
       if (codeRef.current) codeRef.current.value = "";
     } catch { setError("Vérification impossible. Réessayez."); }
     finally { setBusy(false); }
@@ -410,7 +410,7 @@ function PharmacieFormulaire() {
   async function changerPharmacie() {
     setBusy(true); setError(""); setMessage("");
     try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
-    finally { setEtape(1); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
+    finally { allerEtape(1, true); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
   }
 
 
