@@ -45,7 +45,7 @@ export function BulleErreur({ message }: Props) {
       const rect = bubbleRef.current?.getBoundingClientRect();
       if (rect) origin.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
       setBurst(true);
-    }, 500);
+    }, 2600);
     return () => window.clearTimeout(timer);
   }, [shown, message, burst]);
 
