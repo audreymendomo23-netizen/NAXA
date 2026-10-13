@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
+import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 
 function GoogleIcon() {
@@ -232,7 +233,7 @@ function Formulaire() {
         Connexion via Gmail
       </button>
 
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && <BulleErreur key={error} message={error} />}
 
       <p className="text-center text-sm text-slate-600">
         Vous n'avez pas de compte ?{" "}
