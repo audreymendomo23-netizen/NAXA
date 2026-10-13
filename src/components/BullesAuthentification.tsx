@@ -51,7 +51,8 @@ export function BullesAuthentification() {
       canvas.height = Math.max(1, Math.floor(height * dpr));
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (bubbles.length === 0) {
-        const count = width < 520 ? 7 : COUNT_DESKTOP;\n        for (let i = 0; i < count; i++) bubbles.push(randomBubble(width, height));
+        const count = width < 520 ? 7 : COUNT_DESKTOP;
+        for (let i = 0; i < count; i++) bubbles.push(randomBubble(width, height));
       } else {
         bubbles.forEach((bubble) => {
           bubble.x = Math.min(width - bubble.r, Math.max(bubble.r, bubble.x));
@@ -188,4 +189,5 @@ export function BullesAuthentification() {
     />
   );
 }
-\nexport const FondBulles = BullesAuthentification;\n
+
+export const FondBulles = BullesAuthentification;
