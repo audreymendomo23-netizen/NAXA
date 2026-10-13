@@ -28,10 +28,12 @@ export function NotificationGlobale() {
   useEffect(() => {
     const seen = new WeakMap<HTMLElement, string>();
     const scan = () => {
-      document.querySelectorAll<HTMLElement>('[role="alert"], [aria-live="assertive"]').forEach((element) => {
+      const selector = '[role="alert"], [aria-live="assertive"], p.text-red-700, p.text-red-600, p.text-red-500, span.text-red-700, span.text-red-600, span.text-red-500, div.text-red-700, div.text-red-600, div.text-red-500';
+      document.querySelectorAll<HTMLElement>(selector).forEach((element) => {
         if (element.dataset.naxaToast !== undefined || element.closest("[data-naxa-toast]")) return;
+        if (element.closest("button, a, label") || element.querySelector(selector)) return;
         const message = (element.innerText || element.textContent || "").trim();
-        if (!message || seen.get(element) === message) return;
+        if (!message || message.length > 400 || seen.get(element) === message) return;
         seen.set(element, message);
         element.classList.add("sr-only");
         notifierNAXA(message);
