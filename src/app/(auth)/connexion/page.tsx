@@ -183,7 +183,6 @@ function Formulaire() {
       className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900"
     >
       <div className="connexion-titre text-center">
-        {!checkingConnection && <div className="mb-3 flex justify-center"><BandeauHorsLigne etat={pendingCountState>0?"attente":offlineUnlock||offlineUnavailable?"hors-ligne":"synchronise"} attente={pendingCountState}/></div>}
         <h1
           className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]"
           style={d(1)}
@@ -279,6 +278,8 @@ function PharmacieFormulaire() {
   const [message, setMessage] = useState("");
   const [offlineUnlock, setOfflineUnlock] = useState(false);
   const [offlineUnavailable, setOfflineUnavailable] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [pendingCountState, setPendingCountState] = useState(0);
   const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
@@ -286,12 +287,23 @@ function PharmacieFormulaire() {
 
   useEffect(() => {
     let mounted = true;
-    const checkOffline = async () => { const has = Boolean(await getLocalDeviceIdentity().catch(() => null)); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
+    const checkOffline = async () => {
+      const [identity, pending, reachable] = await Promise.all([
+        getLocalDeviceIdentity().catch(() => null),
+        pendingCount().catch(() => 0),
+        (async () => { if (!navigator.onLine) return false; try { return (await fetch("/api/health", { cache: "no-store", headers: { Accept: "application/json" } })).ok; } catch { return false; } })(),
+      ]);
+      if (!mounted) return;
+      setOfflineUnlock(!reachable && Boolean(identity));
+      setOfflineUnavailable(!reachable && !identity);
+      setPendingCountState(pending);
+      setCheckingConnection(false);
+    };
+    const refresh = () => { if (mounted) setCheckingConnection(true); void checkOffline(); };
     void checkOffline();
-    const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
-    const offline = () => { void checkOffline(); };
-    window.addEventListener("online", online); window.addEventListener("offline", offline);
-    return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
+    window.addEventListener("online", refresh, { passive: true });
+    window.addEventListener("offline", refresh, { passive: true });
+    return () => { mounted = false; window.removeEventListener("online", refresh); window.removeEventListener("offline", refresh); };
   }, []);
 
   async function deverrouillerHorsLigne(e: React.FormEvent) {
@@ -403,6 +415,7 @@ function PharmacieFormulaire() {
   return (
     <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
       <div className="connexion-titre text-center">
+        {!checkingConnection && <div className="mb-3 flex justify-center"><BandeauHorsLigne etat={pendingCountState>0?"attente":offlineUnlock||offlineUnavailable?"hors-ligne":"synchronise"} attente={pendingCountState}/></div>}
         <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>Connexion</h1>
         <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
           {offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Veuillez entrer votre Code Pharmacie" : "Veuillez entrer vos identifiants de connexion"}
