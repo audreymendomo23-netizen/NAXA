@@ -367,36 +367,8 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 @media (prefers-reduced-motion:reduce) { .naxa-ambulance-global { display:none !important; } }
 
 
-/* Inscription : tout le contenu interactif reste au premier plan et entièrement visible. */
+/* Inscription : conserver le design et placer seulement le contenu devant le fond. */
 .auth-ecran-sans-flou .auth-content {
-  position: relative !important;
-  z-index: 20 !important;
-  isolation: isolate;
-}
-.auth-ecran-sans-flou .auth-content > form {
   position: relative;
   z-index: 20;
-}
-.auth-ecran-sans-flou .auth-content form :is(h1,h2,h3,p,label,span,a,button,input,select,textarea,ul,ol,li) {
-  position: relative;
-  z-index: 1;
-}
-.auth-ecran-sans-flou .auth-content .naxa-reveal,
-.auth-ecran-sans-flou .auth-content .naxa-reveal[data-visible="true"],
-.auth-ecran-sans-flou .auth-content .naxa-reveal.is-visible,
-.auth-ecran-sans-flou .auth-content [class*="naxa-reveal"] {
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: none !important;
-  filter: none !important;
-  animation: none !important;
-  transition: none !important;
-}
-.auth-ecran-sans-flou .auth-content input,
-.auth-ecran-sans-flou .auth-content button,
-.auth-ecran-sans-flou .auth-content a,
-.auth-ecran-sans-flou .auth-content label,
-.auth-ecran-sans-flou .auth-content p,
-.auth-ecran-sans-flou .auth-content h1 {
-  text-shadow: none;
 }
