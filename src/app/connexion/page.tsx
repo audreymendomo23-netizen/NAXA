@@ -634,7 +634,7 @@ function PharmacieFormulaire() {
             <form onSubmit={login} className="space-y-3">
               <div className="reveal relative !mt-4" style={d(4)}>
                 <input id="pharmacy-username" placeholder=" " required autoComplete="username" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
-                <label htmlFor="pharmacy-username" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Nom d'utilisateur</label>
+                <label htmlFor="pharmacy-username" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Nom d&apos;utilisateur</label>
               </div>
               <div className="reveal relative" style={d(5)}>
                 <input id="pharmacy-password" placeholder=" " required type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
