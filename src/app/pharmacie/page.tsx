@@ -63,8 +63,32 @@ export default function PanneauPharmacie(){
  async function conflit(c:Conflict,mode:"server"|"local"){if(!pid)return;if(typeof c.id==="number")await removeQueue(c.id);if(mode==="server"){setConflits(x=>x.filter(v=>v.operation_id!==c.operation_id));return charger(pid)}await enregistrerOperation("stock_set_quantity",{produit_id:c.produit_id,quantite:c.quantite,base_updated_at:c.server.updated_at});setConflits(x=>x.filter(v=>v.operation_id!==c.operation_id));setMsg("Modification mise en file pour synchronisation.")}
 
  const vus=stock.filter(l=>(l.produits?.nom??"").toLowerCase().includes(filtre.toLowerCase()));
- return <main className="mx-auto max-w-4xl px-4 pb-16">
+ return <main className="mx-auto min-h-dvh max-w-4xl px-4 pb-16">
   <header className="-mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white"><Logo taille={32}/><span className="font-semibold">{nom}</span><EtatHorsLigne /></header>
+  {pid&&<section aria-label="Vue d’ensemble de la pharmacie" className="mb-5 pt-2">
+   <div className="mb-4">
+    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-naxa-green-700">Tableau de bord</p>
+    <h1 className="mt-1 text-2xl font-extrabold leading-tight text-naxa-green-900">Bonjour, {nom||"équipe pharmacie"}</h1>
+    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">Retrouvez en un coup d’œil vos réservations, votre stock et le statut de votre pharmacie.</p>
+   </div>
+   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <article className="carte flex min-h-28 flex-col justify-between">
+     <p className="text-sm font-semibold text-slate-600">Produits suivis</p>
+     <p className="text-3xl font-extrabold tabular-nums text-naxa-green-900">{stock.length}</p>
+     <p className="text-xs text-slate-500">Références dans votre stock</p>
+    </article>
+    <article className="carte flex min-h-28 flex-col justify-between">
+     <p className="text-sm font-semibold text-slate-600">Réservations en cours</p>
+     <p className="text-3xl font-extrabold tabular-nums text-naxa-green-900">{resas.length}</p>
+     <p className="text-xs text-slate-500">À traiter par votre équipe</p>
+    </article>
+    <article className="carte flex min-h-28 flex-col justify-between">
+     <p className="text-sm font-semibold text-slate-600">Statut de garde</p>
+     <p className="text-xl font-extrabold text-naxa-green-900">{garde?"De garde":"Hors garde"}</p>
+     <span className={garde?"inline-flex w-fit items-center rounded-full bg-naxa-canari px-3 py-1 text-xs font-bold text-naxa-green-900":"inline-flex w-fit items-center rounded-full border border-naxa-green-100 bg-naxa-green-50 px-3 py-1 text-xs font-bold text-slate-600"}>{garde?"Visible comme pharmacie de garde":"Non déclarée de garde"}</span>
+    </article>
+   </div>
+  </section>}
   {offline&&<p role="status" className="carte mb-3 border-2 border-naxa-yellow bg-yellow-50 font-bold">Hors connexion — les modifications de stock sont enregistrées sur cet appareil et synchronisées au retour du réseau.</p>}
   {sync&&<p role="status" className="mb-3 text-sm">Synchronisation du stock…</p>}{msg&&<p role="status" className="mb-3 text-sm">{msg}</p>}
   <div className="mb-3 flex flex-wrap justify-end gap-2"><a href="/pharmacie/caisses" className="btn btn-clair" onClick={e=>{if(!navigator.onLine){e.preventDefault();setMsg("Disponible avec une connexion");}}}>Gestion des caisses</a><a href="/pharmacie/caisse" className="btn btn-vert" onClick={e=>{if(!navigator.onLine){e.preventDefault();setMsg("L’encaissement réel hors ligne n’est pas encore activé. Disponible avec une connexion.");}}}>Caisse / Encaissement</a><a href="/pharmacie/pharmacien" className="btn btn-clair">Espace Pharmacien</a></div><section className="carte mb-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-extrabold">Statut de la pharmacie</h1><p className="text-sm">Indiquez si l&apos;équipe est actuellement de garde.</p></div><button type="button" className={garde?"btn btn-canari":"btn btn-clair"} onClick={()=>changerGarde(!garde)} aria-pressed={garde}>{garde?"✓ De garde":"Déclarer de garde"}</button></div></section>
