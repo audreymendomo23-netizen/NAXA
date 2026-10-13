@@ -7,10 +7,40 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   workboxOptions: {
     navigateFallback: "/offline.html",
-    navigateFallbackDenylist: [/^\/api\//],
+    // La connexion pharmacie doit être servie par le réseau quand il est disponible.
+    // Hors ligne, la stratégie NetworkFirst peut réutiliser la dernière réponse en cache.
+    navigateFallbackDenylist: [/^\/api\//, /^\/connexion(?:\/|$)/],
     runtimeCaching: [
-      { urlPattern: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/api/"), handler: "StaleWhileRevalidate", options: { cacheName: "naxa-navigation", expiration: { maxEntries: 20, maxAgeSeconds: 7 * 24 * 60 * 60 }, cacheableResponse: { statuses: [0, 200] } } }
-    ]
+      {
+        urlPattern: ({ request, url }) =>
+          request.mode === "navigate" && url.pathname === "/connexion",
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "naxa-pharmacy-login",
+          networkTimeoutSeconds: 5,
+          expiration: {
+            maxEntries: 5,
+            maxAgeSeconds: 7 * 24 * 60 * 60,
+          },
+          cacheableResponse: { statuses: [200] },
+        },
+      },
+      {
+        urlPattern: ({ request, url }) =>
+          request.mode === "navigate" &&
+          !url.pathname.startsWith("/api/") &&
+          url.pathname !== "/connexion",
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "naxa-navigation",
+          expiration: {
+            maxEntries: 20,
+            maxAgeSeconds: 7 * 24 * 60 * 60,
+          },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+    ],
   },
 });
 
