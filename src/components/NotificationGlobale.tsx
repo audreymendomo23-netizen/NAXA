@@ -26,6 +26,24 @@ export function NotificationGlobale() {
     return () => window.removeEventListener("naxa:notification", receive);
   }, []);
   useEffect(() => {
+    const seen = new WeakMap<HTMLElement, string>();
+    const scan = () => {
+      document.querySelectorAll<HTMLElement>('[role="alert"], [aria-live="assertive"]').forEach((element) => {
+        if (element.dataset.naxaToast !== undefined || element.closest("[data-naxa-toast]")) return;
+        const message = (element.innerText || element.textContent || "").trim();
+        if (!message || seen.get(element) === message) return;
+        seen.set(element, message);
+        element.classList.add("sr-only");
+        notifierNAXA(message);
+      });
+    };
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    scan();
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (!active) return;
     const timer = window.setTimeout(() => {
       const next = queue.current.shift() ?? null;

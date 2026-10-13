@@ -160,7 +160,7 @@ export function BulleErreur({ message }: Props) {
         aria-live="assertive"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") pop(); }}
-        className="fixed right-4 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[100] touch-none cursor-grab select-none sm:right-6"
+        data-naxa-toast="true" className="fixed right-4 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[100] touch-none cursor-grab select-none sm:right-6"
       >
         {!burst ? (
           <div className="relative isolate overflow-hidden rounded-[28px] border border-white/55 bg-gradient-to-br from-white/35 via-cyan-100/20 to-teal-200/30 px-5 py-4 text-sm font-semibold text-slate-900 shadow-[0_12px_38px_rgba(10,70,85,.20)] backdrop-blur-2xl">
