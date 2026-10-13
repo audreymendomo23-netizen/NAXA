@@ -303,7 +303,7 @@ function PharmacieFormulaire() {
   const [etape, setEtape] = useState<1 | 2>(searchParams.get("etape") === "identifiants" ? 2 : 1);
   useEffect(() => { setEtape(searchParams.get("etape") === "identifiants" ? 2 : 1); }, [searchParams]);
   const allerEtape = (next: 1 | 2, replace = false) => { setEtape(next); const target = next === 2 ? "/connexion?espace=pharmacie&etape=identifiants" : "/connexion?espace=pharmacie"; if (replace) router.replace(target); else router.push(target); };
-  const [nomPharmacie, setNomPharmacie] = useState("");
+  const [nomPharmacie, setNomPharmacie] = useAuthDraftState("pharmacy.name", "");
   const [username, setUsername] = useAuthDraftState("pharmacy.username", "");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -513,7 +513,7 @@ function PharmacieFormulaire() {
               <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
             </form>
           ) : (
-            <PanneauGlissant ouvert={showUpdate} onFermer={() => { setShowUpdate(false); setError(""); }} titre="Mettre à jour le mot de passe">
+            <PanneauGlissant ouvert={showUpdate} onFermer={() => { setShowUpdate(false); setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); setError(""); }} titre="Mettre à jour le mot de passe">
               <form onSubmit={updatePassword} className="space-y-3">
                 <p className="text-sm text-[#846600]">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
                 <ChampFlottant id="pharmacy-current-password" label="Mot de passe actuel" type="password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password" required/>
