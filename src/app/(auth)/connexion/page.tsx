@@ -334,26 +334,14 @@ function Formulaire() {
   async function google() {
     setError("");
     setBusy(true);
-    try {
-      const { error: authError } = await supabaseBrowser().auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-            search.get("retour") && retour !== "/"
-              ? retour
-              : "/connexion?redirectionRole=1"
-          )}`,
-        },
-      });
 
-      if (authError) {
-        setBusy(false);
-        setError("Connexion via Gmail indisponible : le fournisseur Google n'est pas encore activé dans NAXA.");
-      }
-    } catch {
-      setBusy(false);
-      setError("Connexion via Gmail indisponible. Réessayez plus tard.");
-    }
+    const next = search.get("retour") && retour !== "/"
+      ? retour
+      : "/connexion?redirectionRole=1";
+
+    // Le flux OAuth doit être démarré côté serveur pour conserver le cookie PKCE
+    // utilisé ensuite par /auth/callback lors de l'échange du code.
+    window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`);
   }
 
   return (
