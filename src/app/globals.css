@@ -279,3 +279,17 @@ body:has(.bandeau) .home-ecran {
     filter: none !important;
   }
 }
+
+
+/* Parcours d'authentification : seul le contenu bouge, le shell reste monté. */
+.auth-badge-text { animation: auth-badge-fade-in 180ms ease-out both; }
+.auth-stage { width: 100%; min-width: 0; }
+.auth-stage-forward { animation: auth-stage-from-right 250ms cubic-bezier(.22, 1, .36, 1) both; }
+.auth-stage-backward { animation: auth-stage-from-left 250ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes auth-stage-from-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes auth-stage-from-left { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes auth-badge-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-stage-forward, .auth-stage-backward { animation: auth-stage-reduced-fade 160ms ease-out both !important; }
+  @keyframes auth-stage-reduced-fade { from { opacity: 0; } to { opacity: 1; } }
+}
