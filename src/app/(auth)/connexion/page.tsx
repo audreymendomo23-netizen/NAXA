@@ -298,7 +298,7 @@ function Formulaire() {
 function PharmacieFormulaire() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setPharmacyName } = useAuthFlow();
+  const { setPharmacyName, setDirection } = useAuthFlow();
   const codeRef = useRef<HTMLInputElement | null>(null);
   const etape: 1 | 2 = searchParams.get("etape") === "identifiants" ? 2 : 1;
   const [nomPharmacie, setNomPharmacie] = useState("");
@@ -319,6 +319,7 @@ function PharmacieFormulaire() {
   const [pinConfirmation, setPinConfirmation] = useState("");
   const [pinOffline, setPinOffline] = useState("");
   const allerEtape = (next: 1 | 2, replace = false) => {
+    setDirection(next === 2 ? "forward" : "backward");
     if (next === 1) setPharmacyName("");
     const target = next === 2 ? "/connexion?espace=pharmacie&etape=identifiants" : "/connexion?espace=pharmacie";
     if (replace) router.replace(target); else router.push(target);
@@ -460,7 +461,7 @@ function PharmacieFormulaire() {
   return (
     <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
       <div className="connexion-titre text-center">
-        <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>Connexion</h1>
+        <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>{offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Code Pharmacie" : showUpdate ? "Mettre à jour le mot de passe" : "Identifiants de connexion"}</h1>
         <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
           {offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Étape 1 — Code Pharmacie" : "Étape 2 — Identifiants de connexion"}
         </p>
