@@ -9,6 +9,7 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,
+  customWorkerDir: "worker",
   workboxOptions: {
     navigateFallback: "/offline.html",
     // La connexion pharmacie doit être servie par le réseau quand il est disponible.
