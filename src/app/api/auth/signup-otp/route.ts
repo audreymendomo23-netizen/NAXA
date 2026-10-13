@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 type SignupBody = {
   email?: unknown;
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error } = await admin.auth.signInWithOtp({
+    const { error } = await supabaseServer().auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: !existing,
