@@ -11,6 +11,17 @@ const onboardingExempt = [
   "/politique-securite",
 ];
 
+const protectedPrefixes = [
+  "/client",
+  "/pharmacie",
+  "/admin",
+  "/reservation",
+  "/go",
+  "/produit",
+  "/panier",
+  "/verification-age",
+];
+
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(
@@ -27,50 +38,68 @@ export async function middleware(req: NextRequest) {
       },
     }
   );
+
   const { data } = await supabase.auth.getUser();
+  // Les visiteurs non connectés peuvent parcourir l'accueil et les pages publiques.
   if (!data.user) return res;
 
   const path = req.nextUrl.pathname;
   const isOnboardingExempt = onboardingExempt.some(
     (allowed) => path === allowed || path.startsWith(allowed + "/")
   );
+  if (isOnboardingExempt || path.startsWith("/api/")) return res;
 
-  if (!isOnboardingExempt && !path.startsWith("/api/")) {
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("role,username,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
-      .eq("id", data.user.id)
-      .maybeSingle();
+  // Ne vérifier la complétion du profil que lorsqu'une route protégée est demandée.
+  // Un profil incomplet ne doit pas bloquer l'accueil ni les actions publiques.
+  const protectedPath = protectedPrefixes.some(
+    (prefix) => path === prefix || path.startsWith(prefix + "/")
+  );
+  if (!protectedPath) return res;
 
-    // Fail closed: aucun accès applicatif tant que l'état du profil n'est pas lisible/complet.
-    const incomplete = !!error || !profile
-      || (profile.role === "client" && (
-        !profile.username || !profile.first_name || !profile.last_name || !profile.phone
-        || !profile.date_of_birth || !profile.age_verified || !profile.consent_accepted_at
-      ));
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("role,username,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
+    .eq("id", data.user.id)
+    .maybeSingle();
 
-    if (incomplete) {
+  if (error) {
+    const target = req.nextUrl.clone();
+    target.pathname = "/connexion";
+    target.search = "?erreur=profil";
+    return NextResponse.redirect(target);
+  }
+
+  const isGoogleUser = data.user.app_metadata?.provider === "google";
+  if (!profile) {
+    if (isGoogleUser) {
       const target = req.nextUrl.clone();
       target.pathname = "/completer-profil";
       target.search = "";
       target.searchParams.set("next", path + req.nextUrl.search);
       return NextResponse.redirect(target);
     }
+    const target = req.nextUrl.clone();
+    target.pathname = "/connexion";
+    target.search = "?erreur=profil";
+    return NextResponse.redirect(target);
   }
 
-  const protectedPath = ["/pharmacie", "/admin", "/reservation", "/go", "/produit", "/panier"]
-    .some((prefix) => path.startsWith(prefix));
-  if (!protectedPath) return res;
+  const incompleteClient = profile.role === "client" && (
+    !profile.username || !profile.first_name || !profile.last_name || !profile.phone
+    || !profile.date_of_birth || !profile.age_verified || !profile.consent_accepted_at
+  );
+  if (incompleteClient && isGoogleUser) {
+    const target = req.nextUrl.clone();
+    target.pathname = "/completer-profil";
+    target.search = "";
+    target.searchParams.set("next", path + req.nextUrl.search);
+    return NextResponse.redirect(target);
+  }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role,age_verified")
-    .eq("id", data.user.id)
-    .maybeSingle();
-
-  if (profile?.role === "client" && !profile.age_verified) {
+  if (profile.role === "client" && !profile.age_verified && path !== "/verification-age") {
     const target = req.nextUrl.clone();
     target.pathname = "/verification-age";
+    target.search = "";
     target.searchParams.set("retour", path + req.nextUrl.search);
     return NextResponse.redirect(target);
   }
