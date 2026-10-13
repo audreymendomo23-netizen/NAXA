@@ -32,8 +32,14 @@ export function AuthFlowProvider({ children }: { children: ReactNode }) {
       if (next.origin !== window.location.origin) return;
       const currentPath = window.location.pathname;
       const nextPath = next.pathname;
-      setDirection(nextPath === "/creation-compte" || nextPath === "/mot-de-passe-oublie" || (nextPath === "/connexion" && next.searchParams.get("etape") === "identifiants") ? "forward" : "backward");
-      if (currentPath === nextPath && next.searchParams.get("etape") === "identifiants") setDirection("forward");
+      const rank = (path: string, query: URLSearchParams) => {
+        if (path === "/connexion" && query.get("espace") === "pharmacie") return query.get("etape") === "identifiants" ? 1 : 0;
+        if (path === "/connexion") return 0;
+        if (path === "/creation-compte" || path === "/mot-de-passe-oublie") return 1;
+        if (path === "/nouveau-mot-de-passe") return 2;
+        return -1;
+      };
+      setDirection(rank(nextPath, next.searchParams) >= rank(currentPath, new URLSearchParams(window.location.search)) ? "forward" : "backward");
     };
     document.addEventListener("click", onClick, true);
     window.addEventListener("popstate", onPopState);
