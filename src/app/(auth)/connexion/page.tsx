@@ -9,7 +9,8 @@ import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { PanneauGlissant } from "@/components/PanneauGlissant";
 import { useAuthDraftState } from "@/components/auth/AuthDraftContext";
-import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
+import { BandeauHorsLigne } from "@/components/BandeauHorsLigne";
+import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice, pendingCount } from "@/lib/offline-db";
 
 function d(index: number): React.CSSProperties {
   return { "--i": index } as React.CSSProperties;
@@ -182,6 +183,7 @@ function Formulaire() {
       className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none !space-y-3 text-naxa-green-900"
     >
       <div className="connexion-titre text-center">
+        {!checkingConnection && <div className="mb-3 flex justify-center"><BandeauHorsLigne etat={pendingCountState>0?"attente":offlineUnlock||offlineUnavailable?"hors-ligne":"synchronise"} attente={pendingCountState}/></div>}
         <h1
           className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]"
           style={d(1)}
