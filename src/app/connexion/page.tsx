@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
+import { BulleErreur } from "@/components/BulleErreur";
 
 function GoogleIcon() {
   return (
@@ -32,6 +33,12 @@ function Formulaire() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (search.get("erreur") === "oauth") {
+      setError("La connexion Google a échoué. Vérifiez la configuration Google et les URL de redirection dans Supabase Auth.");
+    }
+  }, [search]);
 
   useEffect(() => {
     if (search.get("redirectionRole") !== "1") return;
@@ -219,20 +226,20 @@ function Formulaire() {
         </Link>
       </div>
 
-      <button className="btn btn-canari w-full" disabled={busy}>
+      <BoutonNAXA type="submit" importance="importante" loading={busy} className="btn-canari w-full" disabled={busy}>
         {busy ? "Connexion..." : "Connexion"}
-      </button>
+      </BoutonNAXA>
 
       <div className="relative py-0.5 text-center text-xs text-slate-600">
         <span className="bg-white px-2">ou</span>
       </div>
 
-      <button type="button" onClick={google} className="btn btn-clair w-full" disabled={busy}>
+      <BoutonNAXA type="button" importance="importante" loading={busy} onClick={google} className="btn-clair w-full" disabled={busy}>
         <GoogleIcon />
         Connexion via Gmail
-      </button>
+      </BoutonNAXA>
 
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && <BulleErreur message={error} />}
 
       <p className="text-center text-sm text-slate-600">
         Vous n'avez pas de compte ?{" "}
