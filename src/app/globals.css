@@ -324,7 +324,7 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-check { position:absolute; right:14px; top:50%; display:grid; width:22px; height:22px; place-items:center; border-radius:50%; color:#fff; transform:translateY(-50%) scale(.6); opacity:0; transition:transform 200ms ease, opacity 200ms ease; transition-delay:var(--reveal-delay, 0ms); pointer-events:none; }
 .naxa-check[data-visible="true"] { transform:translateY(-50%) scale(1); opacity:1; }
 .naxa-check svg { width:13px; height:13px; }
-.naxa-reveal { animation: naxa-reveal-in var(--naxa-motion) ease-out both; animation-delay: var(--reveal-delay, 0ms); }
+.naxa-reveal { animation: naxa-reveal-in var(--naxa-motion) ease-out both; animation-delay: var(--naxa-reveal-delay, 0ms); }
 @keyframes naxa-reveal-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .naxa-reveal, .naxa-field-label, .naxa-field-control, .naxa-check { animation:none !important; transition:none !important; }
