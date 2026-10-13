@@ -338,3 +338,7 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 @keyframes naxa-auth-backward { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:translateX(0); } }
 .auth-content { min-height:calc(100dvh - 110px); }
 @media (prefers-reduced-motion: reduce) { .auth-stage-forward,.auth-stage-backward { animation:none !important; } }
+
+.auth-badge-text { animation: naxa-badge-in 180ms ease-out both; }
+@keyframes naxa-badge-in { from { opacity:0; } to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .auth-badge-text { animation:none !important; } }
