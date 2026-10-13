@@ -2,16 +2,17 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#054A29">
-  <title>NAXA — mode hors ligne</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#064B2A">
+  <title>NAXA — hors ligne</title>
+  <style>
+    :root{--green:#064B2A;--brand:#0A6B3A;--bg:#F2FAF5;--yellow:#FFE33D;--gold:#9B7A00}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px 20px calc(32px + env(safe-area-inset-bottom,0px));font-family:system-ui,sans-serif;background:var(--bg);color:var(--green)}
+    main{width:100%;max-width:420px;text-align:center}.logo{display:inline-flex;align-items:center;justify-content:center;width:88px;height:64px;margin-bottom:24px;border-radius:18px;background:var(--green);color:#fff;font-size:26px;font-weight:900;letter-spacing:-2px}.logo b{color:var(--yellow)}
+    h1{font-size:clamp(24px,6vw,32px);line-height:1.15;margin:0 0 12px}p{color:var(--gold);line-height:1.5;margin:0 0 24px}
+    button{min-height:52px;width:100%;border:0;border-radius:16px;background:var(--yellow);color:var(--green);font:inherit;font-weight:800;cursor:pointer}
+    .status{display:inline-flex;align-items:center;gap:8px;margin-top:18px;color:var(--green);font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#8B9290}
+  </style>
 </head>
-<body style="font-family:system-ui,sans-serif;background:#f7faf7;color:#064b2a;padding:2rem;text-align:center">
-  <main style="max-width:32rem;margin:10vh auto">
-    <h1>NAXA — Mode hors ligne</h1>
-    <p>La page de connexion pharmacie n’est pas disponible dans le cache de cet appareil.</p>
-    <p>Pour éviter une boucle d’actualisation, cette page ne redirige pas automatiquement. Reconnectez-vous à Internet, ouvrez la connexion pharmacie, puis réessayez le mode hors ligne.</p>
-    <a href="/connexion?espace=pharmacie" style="display:inline-block;margin-top:1rem;padding:.9rem 1.2rem;border-radius:.75rem;background:#ffe33d;color:#064b2a;font-weight:700;text-decoration:none">Réessayer la connexion pharmacie</a>
-  </main>
-</body>
+<body><main><div class="logo" aria-label="NAXA"><b>N</b>AXA</div><h1>Connexion impossible pour le moment</h1><p>Vérifiez votre connexion puis réessayez.</p><button type="button" onclick="location.reload()">Réessayer</button><div class="status" role="status"><span class="dot"></span><span>Hors ligne</span></div></main></body>
 </html>
