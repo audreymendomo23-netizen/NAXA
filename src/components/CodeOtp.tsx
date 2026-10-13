@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ClipboardEvent, ChangeEvent, KeyboardEvent } from "react";
 import styles from "./CodeOtp.module.css";
 
@@ -28,6 +28,9 @@ export function CodeOtp({
   description = "Entrez le code reçu pour continuer.",
   disabled = false,
 }: CodeOtpProps) {
+  const id = useId();
+  const descriptionId = `${id}-description`;
+  const liveId = `${id}-live`;
   const [code, setCode] = useState("");
   const [phase, setPhase] = useState<Phase>("saisie");
   const [popIndex, setPopIndex] = useState(-1);
@@ -250,7 +253,6 @@ export function CodeOtp({
       mountedRef.current = false;
       attemptRef.current += 1;
       clearTimers();
-      setParticles([]);
       media.removeEventListener?.("change", updateMotion);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -261,9 +263,9 @@ export function CodeOtp({
   const isFailure = phase === "echec";
 
   return (
-    <section className={styles.root} aria-labelledby="code-otp-title">
+    <section className={styles.root} aria-labelledby={`${id}-title`}>
       <div className={styles.heading}>
-        <h2 id="code-otp-title" className={`${styles.title} ${isSuccess ? styles.titleSuccess : ""}`}>{isSuccess ? "Code vérifié" : titre}</h2>
+        <h2 id={`${id}-title`} className={`${styles.title} ${isSuccess ? styles.titleSuccess : ""}`}>{isSuccess ? "Code vérifié" : titre}</h2>
         <p className={styles.description}>{isSuccess ? "Vous pouvez continuer." : description}</p>
       </div>
       <div className={styles.stage} data-phase={phase} data-length={longueur} data-reduced={reducedMotion ? "true" : "false"}>
@@ -281,7 +283,7 @@ export function CodeOtp({
           onPaste={onPaste}
           onKeyDown={onKeyDown}
           aria-label={`Code de vérification, ${longueur} chiffres`}
-          aria-describedby="code-otp-description code-otp-live"
+          aria-describedby={`${descriptionId} ${liveId}`}
           onClick={() => { if (phaseRef.current === "saisie") inputRef.current?.focus(); }}
         />
         <div className={styles.orbitRing} aria-hidden="true" />
@@ -303,8 +305,8 @@ export function CodeOtp({
         {isSuccess && !reducedMotion && <div className={styles.waves} aria-hidden="true"><span /><span /><span /></div>}
         {isSuccess && !reducedMotion && <div className={styles.sparkles} aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>}
       </div>
-      <p id="code-otp-description" className={styles.hint}>{isFailure ? "Code incorrect, réessayez" : isSuccess ? "Vérification terminée" : description}</p>
-      <p id="code-otp-live" className={styles.srOnly} aria-live="polite" aria-atomic="true">{annonce}</p>
+      <p id={descriptionId} className={styles.hint}>{isFailure ? "Code incorrect, réessayez" : isSuccess ? "Vérification terminée" : description}</p>
+      <p id={liveId} className={styles.srOnly} aria-live="polite" aria-atomic="true">{annonce}</p>
       {phase === "saisie" && !disabled && <button type="button" className={styles.resetButton} onClick={() => { reset(); }} aria-label="Effacer le code">Effacer</button>}
     </section>
   );
