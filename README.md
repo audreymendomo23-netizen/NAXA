@@ -234,3 +234,8 @@ La migration additive `supabase/migration_073_signup_phone_validation.sql` corri
 - La flèche continue d’ouvrir/fermer la liste; choisir un pays met à jour le pays et l’indicatif, vide l’ancien numéro et ferme la liste.
 - La touche Échap ferme également la liste. Les écouteurs globaux ne sont installés que pendant l’ouverture et sont retirés à la fermeture/démontage.
 - Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
+
+
+## Messagerie et préférences client (branche de travail)
+
+Les migrations additives `075_messagerie_notifications_preferences.sql` et `076_produits_ordonnance_fabricant.sql` ajoutent les fondations de messagerie sécurisée, les préférences client et les métadonnées produit. Tests structurels associés : `supabase/tests/075_messagerie_notifications_preferences.sql` et `supabase/tests/076_produits_ordonnance_fabricant.sql`. Voir `docs/MESSAGERIE-CLIENT-PHARMACIE.md` pour les limites et la configuration OAuth. Ces changements sont en cours de revue sur une branche et ne sont pas déclarés validés ni déployés.
