@@ -114,8 +114,8 @@ body:has(.bandeau) .home-ecran {
   transform: translateX(-110%) skewX(-8deg);
   background: linear-gradient(105deg, transparent 0%, rgba(40, 207, 192, .08) 28%, rgba(40, 207, 192, .32) 50%, rgba(255,255,255,.10) 72%, transparent 100%);
 }
-.naxa-page-sweep-active { animation: naxa-page-sweep 340ms cubic-bezier(.2,.7,.2,1) both; }
-.naxa-page-content-active { animation: naxa-page-content 340ms ease-out both; }
+.naxa-page-sweep-active { animation: naxa-page-sweep 700ms cubic-bezier(.2,.7,.2,1) both; }
+.naxa-page-content-active { animation: naxa-page-content 700ms ease-out both; }
 @keyframes naxa-page-sweep { 0% { transform: translateX(-110%) skewX(-8deg); } 100% { transform: translateX(110%) skewX(-8deg); } }
 @keyframes naxa-page-content { 0% { opacity: .78; transform: translateY(5px); } 100% { opacity: 1; transform: translateY(0); } }
 .naxa-button-ripple {
