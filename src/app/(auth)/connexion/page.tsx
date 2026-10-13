@@ -196,49 +196,9 @@ function Formulaire() {
         </p>
       </div>
 
-      <div className="reveal relative !mt-6" style={d(3)}>
-        <input
-          id="username"
-          placeholder=" "
-          className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
-          required
-          value={username}
-          onChange={(e) => setUsername(e.target.value.toLowerCase())}
-          autoComplete="username"
-        />
-        <label
-          htmlFor="username"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
-        >
-          Nom d'utilisateur
-        </label>
-      </div>
+      <ChampFlottant id="username" label="Nom d’utilisateur" className="reveal !mt-6" minHeight={62} inset={20} value={username} onChange={v=>setUsername(v.toLowerCase())} autoComplete="username" required/>
 
-      <div className="reveal relative" style={d(4)}>
-        <input
-          id="password"
-          placeholder=" "
-          className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
-          required
-          type={show ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-        />
-        <label
-          htmlFor="password"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
-        >
-          Mot de passe
-        </label>
-        <button
-          type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-naxa-green-900"
-          onClick={() => setShow(!show)}
-        >
-          {show ? "Masquer" : "Afficher"}
-        </button>
-      </div>
+      <ChampFlottant id="password" label="Mot de passe" className="reveal" minHeight={62} inset={20} value={password} onChange={setPassword} type={show?"text":"password"} autoComplete="current-password" required trailing={<button type="button" className="px-2 text-xs font-bold text-[#064B2A]" onClick={()=>setShow(!show)}>{show?"Masquer":"Afficher"}</button>}/>
 
       <div
         className="reveal flex items-center justify-between gap-2 whitespace-nowrap text-base text-naxa-green-900"
