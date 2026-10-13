@@ -3,6 +3,7 @@ import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 function AuthTemplateInner({children}:{children:ReactNode}) {
  const pathname=usePathname(), search=useSearchParams();
+ if (pathname === "/connexion") return <>{children}</>;
  const routeKey=pathname+"?"+search.toString();
  const step=search.get("etape");
  const direction=(step==="otp"||step==="password"||step==="identifiants"||pathname==="/nouveau-mot-de-passe")?"auth-stage-forward":"auth-stage-backward";
