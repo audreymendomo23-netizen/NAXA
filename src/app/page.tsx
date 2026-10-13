@@ -21,65 +21,21 @@ const lienPied =
   "inline-flex min-h-11 items-center underline underline-offset-2 hover:text-naxa-canari-dark";
 
 function Svg({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-7 w-7 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
+  return <svg viewBox="0 0 24 24" className="h-7 w-7 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
 }
-
-function IconeRecherche() {
-  return (
-    <Svg>
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M16 16l4.5 4.5" />
-    </Svg>
-  );
-}
-
-function IconeTrouve() {
-  return (
-    <Svg>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8 12.5l3 3 5-6" />
-    </Svg>
-  );
-}
-
-function IconeCompare() {
-  return (
-    <Svg>
-      <path d="M4 8h15M15 4l4 4-4 4" />
-      <path d="M20 16H5M9 12l-4 4 4 4" />
-    </Svg>
-  );
-}
-
-function IconeReserve() {
-  return (
-    <Svg>
-      <rect x="4" y="5" width="16" height="15" rx="2.5" />
-      <path d="M4 10h16M8 3v4M16 3v4" />
-    </Svg>
-  );
-}
-
+function IconeRecherche() { return <Svg><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></Svg>; }
+function IconeTrouve() { return <Svg><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></Svg>; }
+function IconeCompare() { return <Svg><path d="M4 8h15M15 4l4 4-4 4" /><path d="M20 16H5M9 12l-4 4 4 4" /></Svg>; }
+function IconeReserve() { return <Svg><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M4 10h16M8 3v4M16 3v4" /></Svg>; }
 const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
+
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const langueInitialisee = useRef(false);
   const [position, setPosition] = useState<EtatPosition>("inconnue");
   const t = textes[langue];
+  const etapesAccueil = langue === "fr" ? ["Rechercher", "Trouver", "Comparer", "Réserver"] : ["Search", "Find", "Compare", "Reserve"];
 
   useEffect(() => {
     try {
@@ -129,7 +85,10 @@ export default function Accueil() {
           : null;
 
   return (
-    <main className="home-ecran flex flex-col bg-naxa-green-50">
+    <main
+      className="home-ecran flex flex-col bg-white"
+      style={{ height: "100dvh", overflow: "hidden" }}
+    >
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
@@ -161,9 +120,7 @@ export default function Accueil() {
           </Link>
         </div>
 
-        <p className="min-h-4 text-xs text-slate-600" aria-live="polite">
-          {messagePosition}
-        </p>
+        {messagePosition && <BulleErreur message={messagePosition} />}
 
         <section>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-naxa-green-900">
@@ -183,7 +140,7 @@ export default function Accueil() {
         </section>
 
         <ol className="mt-3 flex items-start justify-between gap-1 [@media(max-height:600px)]:hidden">
-          {t.etapes.map((etape, i) => {
+          {etapesAccueil.map((etape, i) => {
             const Icone = iconesEtapes[i];
             return (
               <Fragment key={etape}>
@@ -191,11 +148,9 @@ export default function Accueil() {
                   <Icone />
                   <span className="text-xs font-semibold">{etape}</span>
                 </li>
-                {i < t.etapes.length - 1 && (
+                {i < etapesAccueil.length - 1 && (
                   <li aria-hidden="true" className="shrink-0 pt-1.5 text-naxa-green-700">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
                   </li>
                 )}
               </Fragment>
@@ -204,7 +159,7 @@ export default function Accueil() {
         </ol>
       </div>
 
-      <footer className="mt-2 w-full shrink-0 bg-naxa-green-900 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 text-naxa-canari">
+      <footer className="mt-auto w-full shrink-0 bg-naxa-green-900 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 text-naxa-canari">
         <div className="mx-auto flex max-w-xl flex-col gap-1 text-xs">
           <p>{t.avertissement}</p>
           <div className="flex flex-wrap items-center gap-x-4">
@@ -215,7 +170,7 @@ export default function Accueil() {
               className={lienPied}
               href={
                 "https://wa.me/237681972237?text=" +
-                encodeURIComponent("Hello team NAXA\nJe souhaite échanger avec vous.")
+                encodeURIComponent(langue === "fr" ? "Bonjour NAXA, je suis pharmacien(ne) et je souhaite rejoindre NAXA. Pouvez-vous me contacter ?" : "Hello NAXA, I am a pharmacist and would like to join NAXA. Could you contact me?")
               }
               target="_blank"
               rel="noreferrer"

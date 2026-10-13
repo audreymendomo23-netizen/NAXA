@@ -160,11 +160,16 @@ export function BullesAuthentification() {
         }
       }
 
-      frame = window.requestAnimationFrame(draw);
+      // En réduction des animations, dessiner une image statique et ne pas boucler à 60 FPS.
+      if (!reduceMotion) frame = window.requestAnimationFrame(draw);
     };
 
     resize();
-    const observer = new ResizeObserver(resize);
+    const observer = new ResizeObserver(() => {
+      resize();
+      // Le canvas est effacé par resize : redessiner l'image statique si les animations sont réduites.
+      if (reduceMotion) draw(performance.now());
+    });
     observer.observe(canvas);
     frame = window.requestAnimationFrame(draw);
 
