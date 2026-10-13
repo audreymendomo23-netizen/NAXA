@@ -186,3 +186,11 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Cette preview concerne l'interface de connexion; la validation visuelle/fonctionnelle par l'utilisateur reste à faire. Commencer par connexion, puis inscription, mot de passe oublié et maintien de session.
 - Préparer une checklist manuelle : affichage/mobile, champs et validations, erreurs identifiants, navigation inscription/récupération, maintien de session, chargement/erreurs réseau et comportement après actualisation. Pour chaque test, distinguer réussi, échoué et non testé; noter le message exact et une capture si échec.
 - Aucun code, déploiement ou configuration modifié pendant cette préparation.
+
+
+### Écart constaté sur la preview d'accueil — ne pas refaire le design validé (2026-10-13)
+- L'utilisateur signale que la page affichée ne correspond pas au design d'accueil déjà validé; il ne faut pas lui demander de revalider ce design ni recommencer sa conception.
+- Le lien envoyé précédemment `naxa-3870fdsp8-naxa3.vercel.app` est associé au commit `fa7b72b4f253391ab45eef1d1cd9c77a77a0a055` (`style(auth): préserver les classes existantes de connexion`), donc il n'était pas suffisamment justifié comme preuve du design d'accueil approuvé.
+- Le design d'accueil précédemment accepté comprenait un accueil sans défilement, recherche texte/OCR, étapes « Je cherche… Je réserve », avertissement médical; une validation ultérieure demandait fond blanc, footer supprimé, « Made With 💚 » centré et sélecteur Fr|En à droite. Référence mémorisée : commits `d751a3a` puis `9f8e8da` (à confirmer dans l'historique Git avant de choisir un déploiement).
+- Prochaine action : identifier dans l'historique Git/Vercel le commit exact qui contient le design approuvé et fournir uniquement un lien de preview qui correspond à ce commit. Ne pas modifier ni refaire le design sans audit et preuve de la différence.
+- Aucun code ni déploiement modifié par ce diagnostic.
