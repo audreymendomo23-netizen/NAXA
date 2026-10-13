@@ -472,7 +472,19 @@ function ChoixFormulaire() {
 function TitreEspace() {
   const searchParams = useSearchParams();
   const titre = searchParams.get("espace") === "pharmacie" ? "Espace pharmacie" : "Espace client";
-  return <span className="reveal text-sm font-extrabold text-naxa-green-900" style={d(0)}>{titre}</span>;
+
+  return (
+    <p
+      className="reveal inline-flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-xl font-extrabold tracking-tight text-[#064B2A] shadow-sm"
+      style={d(0)}
+    >
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40"
+      />
+      {titre}
+    </p>
+  );
 }
 
 export default function Connexion() {
