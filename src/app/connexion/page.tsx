@@ -480,7 +480,8 @@ function PharmacieFormulaire() {
   const [nomPharmacie, setNomPharmacie] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");\n  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
