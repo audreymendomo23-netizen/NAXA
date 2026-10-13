@@ -129,7 +129,10 @@ export default function Accueil() {
           : null;
 
   return (
-    <main className="home-ecran flex flex-col bg-naxa-green-50">
+    <main
+      className="home-ecran flex flex-col bg-white"
+      style={{ height: "100dvh", overflow: "hidden" }}
+    >
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
