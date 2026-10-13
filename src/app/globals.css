@@ -363,7 +363,7 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-ambulance-global-particle { position:absolute; top:0; left:-1.5rem; width:4px; height:4px; border-radius:50%; opacity:0; background:rgba(126,220,255,.9); box-shadow:0 0 5px rgba(45,156,255,.45); animation:naxa-ambulance-global-particle 1250ms ease-out both; }
 .naxa-ambulance-global-particle-two { animation-delay:280ms; }
 .naxa-ambulance-global-particle-three { animation-delay:560ms; }
-@keyframes naxa-ambulance-global-cross { 0% { transform:translateX(0) translateY(0); opacity:0; } 6% { opacity:1; } 94% { opacity:1; } 100% { transform:translateX(calc(100% + 5rem)) translateY(-1px); opacity:0; } }
+@keyframes naxa-ambulance-global-cross { 0% { left:-2.4rem; transform:translateY(0); opacity:0; } 6% { opacity:1; } 94% { opacity:1; } 100% { left:calc(100% + 2.4rem); transform:translateY(-1px); opacity:0; } }
 @keyframes naxa-ambulance-global-trail { 10% { opacity:.9; transform:scaleX(.35); transform-origin:left; } 65% { opacity:.55; transform:scaleX(1); } 100% { opacity:0; transform:scaleX(.25); } }
 @keyframes naxa-ambulance-global-particle { 0% { transform:translate(0,0) scale(.5); opacity:0; } 20% { opacity:.8; } 100% { transform:translate(-22px,-9px) scale(.1); opacity:0; } }
 @media (prefers-reduced-motion:reduce) { .naxa-ambulance-global { display:none !important; } }
