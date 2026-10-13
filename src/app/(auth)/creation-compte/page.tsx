@@ -35,7 +35,6 @@ function Formulaire(){
  useEffect(()=>{const v=username.trim().toLowerCase();if(!v){setUState("idle");return}if(!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v)){setUState("taken");return}setUState("checking");const t=setTimeout(async()=>{try{const r=await fetch("/api/auth/username-availability",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:v,email:email.trim().toLowerCase()})});const d=await r.json();setUState(d.available?"available":"taken")}catch{setUState("taken")}},350);return()=>clearTimeout(t)},[username,email]);
  useEffect(()=>{if(step!=="otp"||otpSeconds<=0)return;const timer=window.setTimeout(()=>setOtpSeconds(s=>Math.max(0,s-1)),1000);return()=>window.clearTimeout(timer)},[step,otpSeconds]);
  const phoneValid=digits.length===selected[4], checks=[password.length>=6,/[A-Z]/.test(password),/[0-9]/.test(password),/[^A-Za-z0-9]/.test(password)], score=checks.filter(Boolean).length, passwordValid=score===4&&password===confirmation;
- const meterColors=["#16A34A","#16A34A","#16A34A","#16A34A"];
  const detailsHasInput=[nom,prenom,username,phone,dob,email].some(value=>value.trim().length>0);
  const passwordHasInput=password.length>0||confirmation.length>0;
  const showDetailsSubmit=detailsHasInput||busy||Boolean(error);
