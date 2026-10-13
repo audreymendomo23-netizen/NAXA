@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { ClipboardEvent, ChangeEvent, KeyboardEvent } from "react";
+import type { ClipboardEvent, ChangeEvent, KeyboardEvent, CSSProperties } from "react";
 import styles from "./CodeOtp.module.css";
 
 export type CodeOtpProps = {
@@ -16,8 +16,6 @@ export type CodeOtpProps = {
 
 type Phase = "saisie" | "orbite" | "attente" | "succes" | "echec";
 type Particle = { id: number; x: number; y: number; delay: number; size: number; green: boolean };
-
-const wait = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 
 export function CodeOtp({
   longueur = 6,
@@ -40,6 +38,7 @@ export function CodeOtp({
   const inputRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef(0);
   const timersRef = useRef<number[]>([]);
+  const waitResolversRef = useRef<Array<() => void>>([]);
   const mountedRef = useRef(true);
   const phaseRef = useRef<Phase>("saisie");
   const codeRef = useRef("");
@@ -65,7 +64,19 @@ export function CodeOtp({
   const clearTimers = useCallback(() => {
     timersRef.current.forEach(window.clearTimeout);
     timersRef.current = [];
+    waitResolversRef.current.splice(0).forEach(resolve => resolve());
   }, []);
+
+  const waitFor = useCallback((ms: number) => new Promise<void>(resolve => {
+    const finish = () => {
+      timersRef.current = timersRef.current.filter(item => item !== timer);
+      waitResolversRef.current = waitResolversRef.current.filter(item => item !== finish);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, ms);
+    timersRef.current.push(timer);
+    waitResolversRef.current.push(finish);
+  }), []);
 
   const vibrate = useCallback((pattern: number | number[]) => {
     if (!reducedMotion && typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -115,7 +126,7 @@ export function CodeOtp({
       .catch(() => { result = false; return false; });
 
     if (!reduced) {
-      await wait(900);
+      await waitFor(900);
       if (!mountedRef.current || attemptRef.current !== attempt) return;
       if (result === undefined) {
         setPhase("attente");
@@ -149,7 +160,7 @@ export function CodeOtp({
         failureRef.current?.();
       }, reduced ? 0 : 600);
     }
-  }, [clearTimers, makeParticles, reducedMotion, schedule, vibrate]);
+  }, [clearTimers, makeParticles, reducedMotion, schedule, vibrate, waitFor]);
 
   const applyDigit = useCallback((next: string, animate = true) => {
     const digits = next.replace(/\D/g, "").slice(0, longueur);
@@ -288,12 +299,14 @@ export function CodeOtp({
         />
         <div className={styles.orbitRing} aria-hidden="true" />
         <div className={styles.orbitTrail} aria-hidden="true" />
-        <div className={styles.cells} aria-hidden="true">
+        <div className={styles.cells}>
           {Array.from({ length: longueur }, (_, index) => (
             <div
               key={index}
+              role="img"
+              aria-label={`Chiffre ${index + 1} sur ${longueur}${code[index] ? `: ${code[index]}` : ", vide"}`}
               className={`${styles.cell} ${index === code.length && phase === "saisie" ? styles.active : ""} ${index === popIndex ? styles.pop : ""} ${isFailure ? styles.invalid : ""} ${isSuccess ? styles.successCell : ""}`}
-              style={{ "--index": index, "--count": longueur, "--pop-delay": "0ms" } as React.CSSProperties}
+              style={{ "--index": index, "--count": longueur, "--pop-delay": "0ms" } as CSSProperties}
             >
               {isSuccess ? (index === 0 ? <svg className={styles.check} viewBox="0 0 48 48"><path d="M10 25 L20 34 L38 14" /></svg> : null) : code[index] ?? ""}
             </div>
