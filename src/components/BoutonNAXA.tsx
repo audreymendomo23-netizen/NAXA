@@ -31,7 +31,7 @@ export function BoutonNAXA({
     if (importance === "importante") {
       setAmbulance(true);
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setAmbulance(false), 1850);
+      timer.current = setTimeout(() => setAmbulance(false), 1800);
     }
     onClick?.(event);
   }

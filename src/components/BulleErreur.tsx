@@ -7,6 +7,13 @@ type Drop = { x: number; y: number; vx: number; vy: number; radius: number; life
 
 const DROP_COUNT = 1400;
 
+const MICRO_BUBBLES = [
+  { left: "8%", delay: "0ms", size: 4 }, { left: "19%", delay: "420ms", size: 3 },
+  { left: "31%", delay: "180ms", size: 5 }, { left: "44%", delay: "760ms", size: 3 },
+  { left: "57%", delay: "300ms", size: 4 }, { left: "69%", delay: "620ms", size: 3 },
+  { left: "81%", delay: "120ms", size: 5 }, { left: "92%", delay: "500ms", size: 3 },
+];
+
 export function BulleErreur({ message }: Props) {
   const [shown, setShown] = useState("");
   const [burst, setBurst] = useState(false);
@@ -19,7 +26,8 @@ export function BulleErreur({ message }: Props) {
     setShown("");
     setBurst(false);
     setGone(false);
-    let index = 0;
+    setOffset({ x: 0, y: 0 });
+    let i = 0;
     const typing = window.setInterval(() => {
       index += 1;
       setShown(message.slice(0, index));
@@ -120,33 +128,56 @@ export function BulleErreur({ message }: Props) {
   return (
     <>
       <style>{`
-        @keyframes naxa-micro-water { 0% { transform: translateY(5px) scale(.55); opacity: 0; } 25% { opacity: .8; } 100% { transform: translateY(-25px) scale(1.1); opacity: 0; } }
-        @keyframes naxa-water-glint { 0%,100% { transform: translateX(-18%) rotate(-12deg); opacity: .18; } 50% { transform: translateX(18%) rotate(-12deg); opacity: .42; } }
-        @media (prefers-reduced-motion: reduce) { .naxa-error-water-motion { animation: none !important; } }
+        @keyframes naxa-water-pop { 0% { transform:scale(1); opacity:1; border-radius:48% 52% 62% 38% / 43% 40% 60% 57%; } 45% { transform:scale(1.06); opacity:.92; } 100% { transform:scale(.12); opacity:0; filter:blur(5px); } }
+        @keyframes naxa-water-drop { 0% { transform:translate(0,0) scale(1); opacity:.9; } 100% { transform:translate(var(--drop-x),var(--drop-y)) scale(.08); opacity:0; filter:blur(2px); } }
+        @keyframes naxa-micro-bubble { 0% { transform:translateY(8px) scale(.55); opacity:0; } 20% { opacity:.85; } 75% { opacity:.55; } 100% { transform:translateY(-30px) scale(1.15); opacity:0; } }
+        @keyframes naxa-water-sheen { 0%,100% { transform:translateX(-16%) rotate(-12deg); opacity:.22; } 50% { transform:translateX(16%) rotate(-12deg); opacity:.48; } }
+        @media (prefers-reduced-motion: reduce) { .naxa-water-motion,.naxa-micro-bubble,.naxa-water-sheen { animation-duration:.01ms !important; animation-iteration-count:1 !important; } }
       `}</style>
-      {!burst && (
-        <div
-          ref={bubbleRef}
-          role="alert"
-          aria-live="assertive"
-          onClick={pop}
-          className="fixed right-4 top-4 z-[100] max-w-[min(88vw,380px)] cursor-pointer overflow-hidden rounded-[28px] border border-white/50 bg-cyan-100/[0.12] px-5 py-4 text-sm font-semibold leading-relaxed text-white shadow-[0_10px_36px_rgba(8,145,178,.12)] backdrop-blur-2xl sm:right-6 sm:top-5"
-          style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,.4), 0 10px 36px rgba(8,145,178,.12)" }}
-        >
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/15" />
-          <span aria-hidden="true" className="naxa-error-water-motion pointer-events-none absolute -inset-y-6 left-1/4 w-1/3 bg-gradient-to-r from-transparent via-white/35 to-transparent blur-md" style={{ animation: "naxa-water-glint 4.8s ease-in-out infinite" }} />
-          {[8, 20, 33, 47, 61, 74, 88].map((left, index) => (
-            <span
-              key={left}
-              aria-hidden="true"
-              className="naxa-error-water-motion pointer-events-none absolute bottom-1 rounded-full border border-white/70 bg-white/30"
-              style={{ left: `${left}%`, width: index % 3 === 0 ? 4 : 3, height: index % 3 === 0 ? 4 : 3, animation: `naxa-micro-water ${1.8 + index * 0.12}s ${index * 170}ms ease-out infinite` }}
-            />
-          ))}
-          <span className="relative z-10 block min-h-5">{shown}</span>
-        </div>
-      )}
-      {burst && <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[110] h-full w-full" />}
+      <div
+        style={{ transform: `translate(${offset.x}px,${offset.y}px)`, maxWidth: "min(86vw, 360px)" }}
+        onPointerDown={(e) => {
+          dragged.current = false;
+          start.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          if (!start.current) return;
+          const dx = e.clientX - start.current.x;
+          const dy = e.clientY - start.current.y;
+          if (Math.abs(dx) + Math.abs(dy) > 7) dragged.current = true;
+          if (dragged.current) setOffset({ x: start.current.ox + dx, y: start.current.oy + dy });
+        }}
+        onPointerUp={() => {
+          if (!dragged.current) pop();
+          start.current = null;
+        }}
+        onPointerCancel={() => { start.current = null; }}
+        role="alert"
+        aria-live="assertive"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") pop(); }}
+        className="fixed right-4 top-4 z-[100] touch-none cursor-grab select-none sm:right-6 sm:top-5"
+      >
+        {!burst ? (
+          <div className="relative isolate overflow-hidden rounded-[28px] border border-white/55 bg-gradient-to-br from-white/35 via-cyan-100/20 to-teal-200/30 px-5 py-4 text-sm font-semibold text-slate-900 shadow-[0_12px_38px_rgba(10,70,85,.20)] backdrop-blur-2xl">
+            <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/25" />
+            <span aria-hidden="true" className="naxa-water-sheen pointer-events-none absolute -inset-y-8 left-1/4 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-md" style={{ animation: "naxa-water-sheen 4s ease-in-out infinite" }} />
+            {MICRO_BUBBLES.map((bubble, i) => (
+              <span key={i} aria-hidden="true" className="naxa-micro-bubble pointer-events-none absolute bottom-1 rounded-full border border-white/80 bg-white/55 shadow-[0_0_5px_rgba(255,255,255,.65)]" style={{ left: bubble.left, width: bubble.size, height: bubble.size, animation: `naxa-micro-bubble 1.9s ${bubble.delay} ease-out infinite` }} />
+            ))}
+            <span className="relative z-10 block min-h-5 pr-1">{shown}<span className="ml-0.5 animate-pulse">▏</span></span>
+            <span className="relative z-10 mt-1 block text-[10px] font-medium text-slate-700/80">Touchez pour fermer · Maintenez pour déplacer</span>
+          </div>
+        ) : (
+          <div className="relative h-24 w-64">
+            <div className="naxa-water-motion absolute inset-0 rounded-[50%] border border-white/70 bg-gradient-to-br from-white/70 via-cyan-100/55 to-sky-300/60 shadow-[0_8px_24px_rgba(30,140,170,.2)] backdrop-blur-xl" style={{ animation: "naxa-water-pop .45s ease-out forwards" }} />
+            {DROPS.map(([x, y], i) => (
+              <span key={i} className="naxa-water-motion absolute left-1/2 top-1/2 h-3 w-3 rounded-full border border-white/70 bg-gradient-to-br from-white/90 to-sky-300/60 shadow-sm" style={{ ["--drop-x" as string]: x, ["--drop-y" as string]: y, animation: `naxa-water-drop .75s ${i * 18}ms ease-out forwards` }} />
+            ))}
+          </div>
+        )}
+      </div>
     </>
   );
 }
