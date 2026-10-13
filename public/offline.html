@@ -1,11 +1,17 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#054A29"><title>NAXA — mode hors ligne</title></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#054A29">
+  <title>NAXA — mode hors ligne</title>
+</head>
 <body style="font-family:system-ui,sans-serif;background:#f7faf7;color:#064b2a;padding:2rem;text-align:center">
-  <h1>NAXA — Mode hors ligne</h1>
-  <p>Ouverture de l’écran de déverrouillage local…</p>
-  <p>Si rien ne se passe, cet appareil doit avoir ouvert la connexion pharmacie au moins une fois en ligne.</p>
-  <a href="/connexion?espace=pharmacie">Ouvrir la connexion pharmacie</a>
-  <script>location.replace("/connexion?espace=pharmacie");</script>
+  <main style="max-width:32rem;margin:10vh auto">
+    <h1>NAXA — Mode hors ligne</h1>
+    <p>La page de connexion pharmacie n’est pas disponible dans le cache de cet appareil.</p>
+    <p>Pour éviter une boucle d’actualisation, cette page ne redirige pas automatiquement. Reconnectez-vous à Internet, ouvrez la connexion pharmacie, puis réessayez le mode hors ligne.</p>
+    <a href="/connexion?espace=pharmacie" style="display:inline-block;margin-top:1rem;padding:.9rem 1.2rem;border-radius:.75rem;background:#ffe33d;color:#064b2a;font-weight:700;text-decoration:none">Réessayer la connexion pharmacie</a>
+  </main>
 </body>
 </html>
