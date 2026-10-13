@@ -5,23 +5,22 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   cacheOnFrontEndNav: true,
-  cacheId: "naxa-design-20261013",
+  cacheId: "naxa-design-20261014",
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,
   customWorkerDir: "worker",
   workboxOptions: {
-    navigateFallback: "/offline.html",
-    // La connexion pharmacie doit être servie par le réseau quand il est disponible.
-    // Hors ligne, la stratégie NetworkFirst peut réutiliser la dernière réponse en cache.
-    navigateFallbackDenylist: [/^\/api\//, /^\/connexion(?:\/|$)/],
+    // Ne pas déclarer offline.html comme navigateFallback : Workbox peut alors
+    // le servir à chaque navigation non précachée, même quand le réseau est disponible.
+    // Chaque page utilise plutôt NetworkFirst et sa copie en cache en secours.
     runtimeCaching: [
       {
         urlPattern: ({ request, url }) =>
           request.mode === "navigate" && url.pathname === "/connexion",
         handler: "NetworkFirst",
         options: {
-          cacheName: "naxa-pharmacy-login-v2",
+          cacheName: "naxa-pharmacy-login-v3",
           networkTimeoutSeconds: 5,
           expiration: {
             maxEntries: 5,
@@ -35,14 +34,15 @@ const withPWA = withPWAInit({
           request.mode === "navigate" &&
           !url.pathname.startsWith("/api/") &&
           url.pathname !== "/connexion",
-        handler: "StaleWhileRevalidate",
+        handler: "NetworkFirst",
         options: {
-          cacheName: "naxa-navigation-v2",
+          cacheName: "naxa-navigation-v3",
+          networkTimeoutSeconds: 8,
           expiration: {
-            maxEntries: 20,
+            maxEntries: 30,
             maxAgeSeconds: 7 * 24 * 60 * 60,
           },
-          cacheableResponse: { statuses: [0, 200] },
+          cacheableResponse: { statuses: [200] },
         },
       },
     ],

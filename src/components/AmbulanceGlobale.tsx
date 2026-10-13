@@ -25,7 +25,7 @@ export function AmbulanceGlobale() {
   }, []);
   if (!passage) return null;
   return <div key={passage.id} aria-hidden="true" className="naxa-ambulance-global" style={{ left: passage.left, top: passage.top, width: passage.width }}>
-    <span className="naxa-ambulance-global-car">🚑</span><span className="naxa-ambulance-global-trail"/>
+    <span className="naxa-ambulance-global-car"><span className="naxa-ambulance-global-car-emoji">🚑</span></span><span className="naxa-ambulance-global-trail"/>
     <span className="naxa-ambulance-global-particle naxa-ambulance-global-particle-one"/>
     <span className="naxa-ambulance-global-particle naxa-ambulance-global-particle-two"/>
     <span className="naxa-ambulance-global-particle naxa-ambulance-global-particle-three"/>

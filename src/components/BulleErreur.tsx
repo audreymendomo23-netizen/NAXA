@@ -171,10 +171,16 @@ export function BulleErreur({ message }: Props) {
             ))}
             <span className="relative z-10 block min-h-5 pr-1">{shown}<span className="ml-0.5 animate-pulse">▏</span></span>
           </div>
-        ) : (
-          <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[99] h-full w-full" />
-        )}
+        ) : null}
       </div>
+      {burst && (
+        <canvas
+          ref={canvasRef}
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-[9999] h-full w-full"
+          style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh" }}
+        />
+      )}
     </>
   );
 }
