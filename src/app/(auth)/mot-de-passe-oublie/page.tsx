@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { CodeOtp } from "@/components/CodeOtp";
+import { useAuthDraftState } from "@/components/auth/AuthDraftContext";
 
 const checks=(password:string)=>[
   password.length>=6,
@@ -19,7 +20,7 @@ function Formulaire(){
  const router=useRouter(), retour=useSearchParams().get("retour")||"/";
  const [step,setStep]=useState<"username"|"otp"|"password">("username");
  const [otpVersion,setOtpVersion]=useState(0);
- const [username,setUsername]=useState(""),[password,setPassword]=useState(""),[confirmation,setConfirmation]=useState("");
+ const [username,setUsername]=useAuthDraftState("forgot.username",""); const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState("");
  const [show,setShow]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[otpSeconds,setOtpSeconds]=useState(28),[resending,setResending]=useState(false);
  useEffect(()=>{if(step!=="otp"||otpSeconds<=0)return;const timer=window.setTimeout(()=>setOtpSeconds(s=>Math.max(0,s-1)),1000);return()=>window.clearTimeout(timer)},[step,otpSeconds]);
  const passwordChecks=checks(password), passwordValid=passwordChecks.every(Boolean)&&password===confirmation;
