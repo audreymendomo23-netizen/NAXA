@@ -86,13 +86,13 @@ export default function Accueil() {
 
   return (
     <main
-      className="home-ecran flex flex-col bg-[#F2FAF5]"
+      className="home-ecran flex flex-col bg-naxa-green-50"
       style={{ height: "100dvh", overflow: "hidden" }}
     >
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
-        <div className="carte rounded-[18px] border border-[#D8E9DE] bg-white shadow-[0_6px_22px_rgba(6,75,42,0.07)]">
+        <div className="carte naxa-surface">
           <Recherche langue={langue} />
         </div>
       </div>
