@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     const admin = supabaseAdmin();
     const perPage = 1000;
-    let phoneAlreadyUsed = false;
+    const usersWithPhone: string[] = [];
     let pendingEmailUserId: string | null = null;
 
     // Une inscription non confirmée peut être reprise avec la même adresse.
@@ -38,14 +38,12 @@ export async function POST(request: Request) {
           }
           pendingEmailUserId = user.id;
         }
-        if (!sameEmail && user.id !== pendingEmailUserId) {
-          const existingPhone = String(user.user_metadata?.phone ?? "").replace(/\D/g, "");
-          if (existingPhone && existingPhone === phoneDigits) phoneAlreadyUsed = true;
-        }
+        const existingPhone = String(user.user_metadata?.phone ?? "").replace(/\D/g, "");
+        if (existingPhone && existingPhone === phoneDigits) usersWithPhone.push(user.id);
       }
 
       if (users.length < perPage) {
-        if (phoneAlreadyUsed) {
+        // Identifier d’abord le compte e-mail en attente évite un faux doublon dû à l’ordre de pagination.\n        const phoneAlreadyUsed = usersWithPhone.some((userId) => userId !== pendingEmailUserId);\n        if (phoneAlreadyUsed) {
           return NextResponse.json({ ok: false, field: "phone", error: "Ce numéro de téléphone est déjà utilisé par un autre compte." }, { status: 409 });
         }
         return NextResponse.json({ ok: true, available: true, pendingSignup: Boolean(pendingEmailUserId) });
