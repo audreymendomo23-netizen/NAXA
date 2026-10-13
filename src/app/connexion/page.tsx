@@ -530,6 +530,7 @@ function PharmacieFormulaire() {
       const data = await response.json();
       if (!response.ok) { setError(data.error || "Code pharmacie invalide."); return; }
       setNomPharmacie(String(data.nom || ""));
+      window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: String(data.nom || "") }));
       setEtape(2);
       if (codeRef.current) codeRef.current.value = "";
     } catch { setError("Vérification impossible. Réessayez."); }
@@ -542,7 +543,7 @@ function PharmacieFormulaire() {
       const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password, remember: false, espace: "pharmacie" }) });
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
       const existingLocal = await hasLocalDevice();
@@ -583,7 +584,7 @@ function PharmacieFormulaire() {
   async function changerPharmacie() {
     setBusy(true); setError(""); setMessage("");
     try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
-    finally { setEtape(1); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
+    finally { setEtape(1); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
   }
 
 
