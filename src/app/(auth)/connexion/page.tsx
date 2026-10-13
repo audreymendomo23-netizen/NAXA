@@ -454,8 +454,8 @@ function PharmacieFormulaire() {
           {activation ? (
             <form onSubmit={confirmerActivation} className="space-y-3">
               <p className="text-sm font-semibold">{activation.existingLocal ? "Cet appareil est déjà activé. Saisissez votre PIN local existant." : "Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur."}</p>
-              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
-              {!activation.existingLocal && (<input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />)}
+              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
+              {!activation.existingLocal && (<input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />)}
               <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : activation.existingLocal ? "Déverrouiller et continuer" : "Activer cet appareil"}</button>
             </form>
           ) : !showUpdate ? (
