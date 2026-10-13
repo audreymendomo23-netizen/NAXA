@@ -333,3 +333,10 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - État CI observé sur le SHA `a6b6811271eaee4cd60d4d8843ec116d06618a1b` : `ci/circleci: quality = failure`, pipeline 1497 : https://circleci.com/gh/audreymendomo23-netizen/NAXA/1497. Aucune preuve de réussite CI; cause détaillée à examiner.
 - Aucun déploiement Vercel n’est encore répertorié pour le SHA `a6b681...`; les previews READY déjà répertoriées concernent des SHA antérieurs. Il faut publier une preview du SHA exact puis contrôler l’état et les logs avant de demander un test visuel.
 - Prochaine action : créer une preview Vercel explicitement depuis `feat/auth-water-bubbles` au SHA `a6b681...`, contrôler le build et les logs; puis traiter l’échec CircleCI à partir des logs disponibles, sans déclarer le CI vert prématurément.
+
+
+### Résultat de la preview — 2026-10-13
+- Preview Vercel créée sur le SHA `ad1d48db11aa4985e1c677cfaadbf49380009b85`, déploiement `dpl_FYaHosgx8k82ewMorXMeqH43wdk1`, URL https://naxa-709zlv58i-naxa3.vercel.app.
+- État terminal vérifié : `READY`. Le statut Vercel du SHA est `success`; Netlify Deploy Preview est également `success`.
+- Le statut CircleCI `ci/circleci: quality` reste `failure` sur le même SHA, pipeline 1499 : https://circleci.com/gh/audreymendomo23-netizen/NAXA/1499. Donc la preview compile/déploie, mais le CI global n’est pas vert. Les logs détaillés du job CircleCI restent nécessaires pour expliquer l’échec.
+- Les parcours visuels connexion/inscription et la notification en haut n’ont pas été validés physiquement sur un téléphone; la preview est disponible pour ce contrôle. Aucun merge, aucun déploiement Production, aucune écriture Supabase Production.
