@@ -43,7 +43,9 @@ export async function POST(request: Request) {
       }
 
       if (users.length < perPage) {
-        // Identifier d’abord le compte e-mail en attente évite un faux doublon dû à l’ordre de pagination.\n        const phoneAlreadyUsed = usersWithPhone.some((userId) => userId !== pendingEmailUserId);\n        if (phoneAlreadyUsed) {
+        // Identifier d’abord le compte e-mail en attente évite un faux doublon dû à l’ordre de pagination.
+        const phoneAlreadyUsed = usersWithPhone.some((userId) => userId !== pendingEmailUserId);
+        if (phoneAlreadyUsed) {
           return NextResponse.json({ ok: false, field: "phone", error: "Ce numéro de téléphone est déjà utilisé par un autre compte." }, { status: 409 });
         }
         return NextResponse.json({ ok: true, available: true, pendingSignup: Boolean(pendingEmailUserId) });
