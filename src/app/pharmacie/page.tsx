@@ -6,7 +6,8 @@ import { importerStock } from "@/lib/importStock";
 import { fcfa } from "@/lib/ranking";
 import { Logo } from "@/components/Logo";
 import { EtatHorsLigne, enregistrerNoteDeCaisse } from "@/components/pharmacie/EtatHorsLigne";
-import { getUnlockedDevice, readReference, saveReference, enregistrerOperation } from "@/lib/offline-db";
+import { getUnlockedDevice, readReference, saveReference, enregistrerOperation, markLocalSync } from "@/lib/offline-db";
+import { isNaxaBackendReachable } from "@/lib/network-status";
 
 type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string|null;updated_at:string;emplacement:string|null;produits:{nom:string;dosage:string}|null};
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
@@ -35,31 +36,49 @@ export default function PanneauPharmacie(){
   if(se||re||pe||ce||coe||le||catError)return setMsg("Impossible de charger les données de référence. Vérifiez la connexion.");
   setStock((s??[]) as unknown as Ligne[]);setResas((r??[]) as unknown as Resa[]);setNom(ph?.nom??"");setGarde(Boolean(ph?.de_garde));
   await saveReference({stock:s??[],resas:r??[],pharmacie:{nom:ph?.nom??"",de_garde:Boolean(ph?.de_garde)},charges:charges??[],couts:couts??[],lots:lots??[],catalogue:catalogue??[]});
+  await markLocalSync().catch(()=>undefined);
  },[sb]);
 
- const synchroniser=useCallback(async(id:string)=>{if(syncing.current||!navigator.onLine)return;syncing.current=true;setSync(true);try{for(const p of await queueFor(id)){const {data:res,error}=await sb.rpc("offline_stock_set_quantity",{p_operation_id:p.operation_id,p_pharmacie_id:id,p_produit_id:p.produit_id,p_quantite:p.quantite,p_base_updated_at:p.base_updated_at});if(error){setMsg("Une modification hors ligne n'a pas pu être synchronisée.");continue}if(res?.status==="conflict"){setConflits(x=>x.some(c=>c.operation_id===p.operation_id)?x:[...x,{...p,server:{quantite:res.server_quantity,updated_at:res.server_updated_at}}]);continue}if(res?.status==="applied"||res?.status==="already_applied"||res?.status==="failed"){if(typeof p.id==="number")await removeQueue(p.id)}}await charger(id)}catch{setMsg("La synchronisation hors ligne est indisponible sur cet appareil.")}finally{syncing.current=false;setSync(false)}},[charger,sb]);
+ const synchroniser=useCallback(async(id:string)=>{if(syncing.current||!(await isNaxaBackendReachable()))return;syncing.current=true;setSync(true);try{for(const p of await queueFor(id)){const {data:res,error}=await sb.rpc("offline_stock_set_quantity",{p_operation_id:p.operation_id,p_pharmacie_id:id,p_produit_id:p.produit_id,p_quantite:p.quantite,p_base_updated_at:p.base_updated_at});if(error){setMsg("Une modification hors ligne n'a pas pu être synchronisée.");continue}if(res?.status==="conflict"){setConflits(x=>x.some(c=>c.operation_id===p.operation_id)?x:[...x,{...p,server:{quantite:res.server_quantity,updated_at:res.server_updated_at}}]);continue}if(res?.status==="applied"||res?.status==="already_applied"||res?.status==="failed"){if(typeof p.id==="number")await removeQueue(p.id)}}await charger(id)}catch{setMsg("La synchronisation hors ligne est indisponible sur cet appareil.")}finally{syncing.current=false;setSync(false)}},[charger,sb]);
 
- useEffect(()=>{const f=()=>setOffline(!navigator.onLine);f();addEventListener("online",f);addEventListener("offline",f);return()=>{removeEventListener("online",f);removeEventListener("offline",f)}},[]);
- useEffect(()=>{(async()=>{
-  if(!navigator.onLine){
+ useEffect(()=>{let mounted=true;const f=async()=>{const reachable=await isNaxaBackendReachable();if(mounted)setOffline(!reachable)};void f();addEventListener("online",f);addEventListener("offline",f);return()=>{mounted=false;removeEventListener("online",f);removeEventListener("offline",f)}},[]);
+ useEffect(()=>{let cancelled=false;
+  const afficherHorsLigne=async()=>{
    const device=getUnlockedDevice();
    if(!device){window.location.replace("/connexion?espace=pharmacie");return}
+   const cached=await readReference().catch(()=>undefined);
+   if(cancelled)return;
+   const value=cached?.value as {stock?:Ligne[];resas?:Resa[];pharmacie?:{nom:string;de_garde:boolean}}|undefined;
    setPid(device.pharmacyId);setNom(device.pharmacyName);
-   const cached=await readReference().catch(()=>undefined);const value=cached?.value as {stock?:Ligne[];resas?:Resa[];pharmacie?:{nom:string;de_garde:boolean}}|undefined;
    if(value){setStock(value.stock??[]);setResas(value.resas??[]);setNom(value.pharmacie?.nom??device.pharmacyName);setGarde(Boolean(value.pharmacie?.de_garde))}
-   setOffline(true);setMsg("Mode hors ligne : les données affichées proviennent du dernier cache disponible.");return;
-  }
-  const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
-  const {data:p}=await sb.from("profiles").select("pharmacie_id,role,actif").eq("id",u.user.id).single();
-  if(!p?.pharmacie_id||p.actif===false||!["pharmacie","promoteur","caisse"].includes(p.role))return setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");
-  setPid(p.pharmacie_id);await charger(p.pharmacie_id);await synchroniser(p.pharmacie_id)
-})()},[charger,sb,synchroniser]);
+   setOffline(true);setMsg("Mode hors ligne : les données affichées proviennent du dernier cache disponible.");
+  };
+  void (async()=>{
+   const reachable=await isNaxaBackendReachable();
+   if(cancelled)return;
+   setOffline(!reachable);
+   if(!reachable){await afficherHorsLigne();return}
+   try{
+    const {data:u,error:authError}=await sb.auth.getUser();
+    if(cancelled)return;
+    if(authError){await afficherHorsLigne();return}
+    if(!u.user){setMsg("Connexion requise.");return}
+    const {data:p,error:profileError}=await sb.from("profiles").select("pharmacie_id,role,actif").eq("id",u.user.id).single();
+    if(cancelled)return;
+    if(profileError||!p?.pharmacie_id||p.actif===false||!["pharmacie","promoteur","caisse"].includes(p.role)){setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");return}
+    setPid(p.pharmacie_id);await charger(p.pharmacie_id);await synchroniser(p.pharmacie_id)
+   }catch{
+    if(!cancelled)await afficherHorsLigne()
+   }
+  })();
+  return()=>{cancelled=true}
+ },[charger,sb,synchroniser]);
  useEffect(()=>{if(!pid)return;const f=()=>synchroniser(pid);addEventListener("online",f);return()=>removeEventListener("online",f)},[pid,synchroniser]);
 
  async function statut(id:string,s:string){const {error}=await sb.rpc("set_reservation_status",{p_id:id,p_statut:s});setMsg(error?"Action impossible.":"Réservation mise à jour.");if(pid&&!error)charger(pid)}
- async function importer(f:File){if(!pid)return;if(!navigator.onLine)return setMsg("L'import Excel nécessite une connexion.");try{const r=await importerStock(f,pid);setMsg(`${r.importes} produits importés, ${r.ignores} lignes ignorées.`);charger(pid)}catch{setMsg("Import impossible. Vérifiez les colonnes Nom, Prix et Quantité.")}}
- async function quantite(l:Ligne,q:number){if(!pid)return;q=Math.max(0,Math.round(q)||0);setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:q}:v));const p:Patch={operation_id:crypto.randomUUID(),pharmacie_id:pid,produit_id:l.produit_id,quantite:q,base_updated_at:l.updated_at};if(!navigator.onLine){try{await enregistrerOperation("stock_set_quantity",{produit_id:p.produit_id,quantite:p.quantite,base_updated_at:p.base_updated_at});setMsg("Stock modifié localement. Synchronisation au retour du réseau.")}catch{setMsg("Impossible d'enregistrer la modification hors connexion.")};return}const {data:res,error}=await sb.rpc("offline_stock_set_quantity",{p_operation_id:p.operation_id,p_pharmacie_id:pid,p_produit_id:p.produit_id,p_quantite:p.quantite,p_base_updated_at:p.base_updated_at});if(error||res?.status==="failed"){try{await enregistrerOperation("stock_set_quantity",{produit_id:p.produit_id,quantite:p.quantite,base_updated_at:p.base_updated_at});setMsg("Réseau instable : modification mise en file.")}catch{setMsg("Impossible d'enregistrer la modification.")};return}if(res?.status==="conflict"){setConflits(x=>[...x,{...p,server:{quantite:res.server_quantity,updated_at:res.server_updated_at}}]);setMsg("Conflit détecté : choisissez la valeur à conserver.");return}setMsg("Stock mis à jour.");charger(pid)}
- async function changerGarde(v:boolean){if(!navigator.onLine)return setMsg("Le statut de garde nécessite une connexion.");const {error}=await sb.rpc("set_garde",{p_garde:v});if(error)return setMsg("Impossible de modifier le statut de garde.");setGarde(v);setMsg(v?"Pharmacie déclarée de garde.":"Pharmacie retirée de la garde.")}
+ async function importer(f:File){if(!pid)return;if(!(await isNaxaBackendReachable()))return setMsg("L'import Excel nécessite une connexion.");try{const r=await importerStock(f,pid);setMsg(`${r.importes} produits importés, ${r.ignores} lignes ignorées.`);charger(pid)}catch{setMsg("Import impossible. Vérifiez les colonnes Nom, Prix et Quantité.")}}
+ async function quantite(l:Ligne,q:number){if(!pid)return;q=Math.max(0,Math.round(q)||0);setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:q}:v));const p:Patch={operation_id:crypto.randomUUID(),pharmacie_id:pid,produit_id:l.produit_id,quantite:q,base_updated_at:l.updated_at};if(!(await isNaxaBackendReachable())){try{await enregistrerOperation("stock_set_quantity",{produit_id:p.produit_id,quantite:p.quantite,base_updated_at:p.base_updated_at});setMsg("Stock modifié localement. Synchronisation au retour du réseau.")}catch{setMsg("Impossible d'enregistrer la modification hors connexion.")};return}const {data:res,error}=await sb.rpc("offline_stock_set_quantity",{p_operation_id:p.operation_id,p_pharmacie_id:pid,p_produit_id:p.produit_id,p_quantite:p.quantite,p_base_updated_at:p.base_updated_at});if(error||res?.status==="failed"){try{await enregistrerOperation("stock_set_quantity",{produit_id:p.produit_id,quantite:p.quantite,base_updated_at:p.base_updated_at});setMsg("Réseau instable : modification mise en file.")}catch{setMsg("Impossible d'enregistrer la modification.")};return}if(res?.status==="conflict"){setConflits(x=>[...x,{...p,server:{quantite:res.server_quantity,updated_at:res.server_updated_at}}]);setMsg("Conflit détecté : choisissez la valeur à conserver.");return}setMsg("Stock mis à jour.");charger(pid)}
+ async function changerGarde(v:boolean){if(!(await isNaxaBackendReachable()))return setMsg("Le statut de garde nécessite une connexion.");const {error}=await sb.rpc("set_garde",{p_garde:v});if(error)return setMsg("Impossible de modifier le statut de garde.");setGarde(v);setMsg(v?"Pharmacie déclarée de garde.":"Pharmacie retirée de la garde.")}
  async function conflit(c:Conflict,mode:"server"|"local"){if(!pid)return;if(typeof c.id==="number")await removeQueue(c.id);if(mode==="server"){setConflits(x=>x.filter(v=>v.operation_id!==c.operation_id));return charger(pid)}await enregistrerOperation("stock_set_quantity",{produit_id:c.produit_id,quantite:c.quantite,base_updated_at:c.server.updated_at});setConflits(x=>x.filter(v=>v.operation_id!==c.operation_id));setMsg("Modification mise en file pour synchronisation.")}
 
  const vus=stock.filter(l=>(l.produits?.nom??"").toLowerCase().includes(filtre.toLowerCase()));
