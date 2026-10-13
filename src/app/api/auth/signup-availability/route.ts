@@ -38,7 +38,7 @@ export async function POST(request: Request) {
           }
           pendingEmailUserId = user.id;
         }
-        if (user.id !== pendingEmailUserId) {
+        if (!sameEmail && user.id !== pendingEmailUserId) {
           const existingPhone = String(user.user_metadata?.phone ?? "").replace(/\D/g, "");
           if (existingPhone && existingPhone === phoneDigits) phoneAlreadyUsed = true;
         }
