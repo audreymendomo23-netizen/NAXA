@@ -259,6 +259,7 @@ function Formulaire() {
 function PharmacieFormulaire() {
   const router = useRouter();
   const codeRef = useRef<HTMLInputElement | null>(null);
+  const [codeValue, setCodeValue] = useState("");
   const searchParams = useSearchParams();
   const [etape, setEtape] = useState<1 | 2>(searchParams.get("etape") === "identifiants" ? 2 : 1);
   useEffect(() => { setEtape(searchParams.get("etape") === "identifiants" ? 2 : 1); }, [searchParams]);
@@ -318,7 +319,7 @@ function PharmacieFormulaire() {
       setNomPharmacie(String(data.nom || ""));
       window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: String(data.nom || "") }));
       allerEtape(2);
-      if (codeRef.current) codeRef.current.value = "";
+      if (codeRef.current) codeRef.current.value = ""; setCodeValue("");
     } catch { setError("Vérification impossible. Réessayez."); }
     finally { setBusy(false); }
   }
@@ -439,10 +440,7 @@ function PharmacieFormulaire() {
         </p>
       ) : etape === 1 ? (
         <form onSubmit={verifierCode} className="space-y-3">
-          <div className="reveal relative !mt-6" style={d(3)}>
-            <input ref={codeRef} id="code-pharmacie" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder=" " required className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" aria-label="Code Pharmacie à 4 chiffres" />
-            <label htmlFor="code-pharmacie" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Code</label>
-          </div>
+          <ChampFlottant id="code-pharmacie" label="Code" inputRef={codeRef} className="naxa-reveal !mt-6" minHeight={62} inset={20} value={codeValue} onChange={setCodeValue} inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" required delayMs={240}/>
           <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(4)} disabled={busy}>{busy ? "Vérification..." : "Continuer"}</button>
         </form>
       ) : (
@@ -460,15 +458,8 @@ function PharmacieFormulaire() {
             </form>
           ) : !showUpdate ? (
             <form onSubmit={login} className="space-y-3">
-              <div className="reveal relative !mt-4" style={d(4)}>
-                <input id="pharmacy-username" placeholder=" " required autoComplete="username" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
-                <label htmlFor="pharmacy-username" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Nom d&apos;utilisateur</label>
-              </div>
-              <div className="reveal relative" style={d(5)}>
-                <input id="pharmacy-password" placeholder=" " required type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
-                <label htmlFor="pharmacy-password" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Mot de passe</label>
-                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Masquer" : "Afficher"}</button>
-              </div>
+              <ChampFlottant id="pharmacy-username" label="Nom d’utilisateur" className="naxa-reveal !mt-4" minHeight={62} inset={20} value={username} onChange={v=>setUsername(v.toLowerCase())} autoComplete="username" required delayMs={320}/>
+              <ChampFlottant id="pharmacy-password" label="Mot de passe" className="naxa-reveal" minHeight={62} inset={20} value={password} onChange={setPassword} type={showPassword?"text":"password"} autoComplete="current-password" required delayMs={400} trailing={<button type="button" className="rounded-full px-2 py-1 text-xs font-bold" onClick={()=>setShowPassword(v=>!v)}>{showPassword?"Masquer":"Afficher"}</button>}/>
               <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(6)} disabled={busy}>{busy ? "Connexion..." : "Connexion"}</button>
               <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
             </form>
