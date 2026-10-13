@@ -30,7 +30,11 @@ export function BulleErreur({ message }: Props) {
 
   useEffect(() => {
     if (shown.length !== message.length || !message || burst) return;
-    const timer = window.setTimeout(pop, 2600);
+    const timer = window.setTimeout(() => {
+      const rect = bubbleRef.current?.getBoundingClientRect();
+      if (rect) origin.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+      setBurst(true);
+    }, 2600);
     return () => window.clearTimeout(timer);
   }, [shown, message, burst]);
 
