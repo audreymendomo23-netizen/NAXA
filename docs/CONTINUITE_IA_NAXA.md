@@ -172,3 +172,10 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Référence de preuve : pipeline GitLab 2940580641, commit 25c798ed225333ea3e8530533c8f0ca187b601fc, branche gl-ci-test; jobs quality et full_migration_replay réussis.
 - Portée : ce vert concerne uniquement cette validation GitLab. Les tests complémentaires ne sont pas déclarés exécutés; ne pas présenter ce statut comme une validation de GitHub main, de CircleCI ou de Production.
 - Méthode : GitLab reste le banc de validation courant; éviter les exécutions redondantes de CircleCI. Relancer seulement les tests complémentaires ciblés lorsqu'ils seront demandés ou nécessaires. Aucun merge ni déploiement autorisé par cette décision.
+
+
+### Consigne prioritaire — ne plus utiliser CircleCI (2026-10-13)
+- L'utilisateur demande explicitement d'oublier CircleCI pour la suite du travail NAXA.
+- Référence de validation courante : GitLab uniquement, pipeline 2940580641 sur `gl-ci-test`, commit `25c798ed225333ea3e8530533c8f0ca187b601fc`, statut `success`; jobs `quality` et `full_migration_replay` réussis.
+- Ne plus lancer, consulter ni évoquer CircleCI comme étape attendue, sauf demande explicite ultérieure de l'utilisateur.
+- Les tests complémentaires restent en attente. Ne pas confondre le vert GitLab validé avec des tests complémentaires non exécutés. Aucun merge ou déploiement n'est autorisé par cette consigne.
