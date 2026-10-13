@@ -20,7 +20,7 @@ const withPWA = withPWAInit({
           networkTimeoutSeconds: 5,
           expiration: {
             maxEntries: 5,
-            maxAgeSeconds: 7 * 24 * 60 * 60,
+            maxAgeSeconds: 90 * 24 * 60 * 60,
           },
           cacheableResponse: { statuses: [200] },
         },
