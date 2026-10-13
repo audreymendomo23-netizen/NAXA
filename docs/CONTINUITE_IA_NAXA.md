@@ -35,7 +35,7 @@ Vérifier l'état Git/PR/CI et les différences réelles avec les branches appar
 - Branche active : `feat/auth-water-bubbles`; commit de correction code précédemment relevé : `4c184af270d7ef9ed82cdeb68e3ef098a6ad5b1a`.
 - Correction ciblée dans `src/components/BullesAuthentification.tsx` : lorsque `prefers-reduced-motion` est actif, le canvas est dessiné sans boucle permanente de requestAnimationFrame; il est redessiné après redimensionnement. Les animations restent désactivées.
 - PR #63 : https://github.com/audreymendomo23-netizen/NAXA/pull/63 — ouverte et non fusionnée à la dernière vérification rapportée.
-- Preview Vercel et Netlify ont précédemment été signalées comme réussies sur le SHA `c4316a3619115f2597828ab8e29ed7fa71b2d4d2`; liens : https://naxa-git-feat-auth-water-bubbles-naxa3.vercel.app/connexion et https://deploy-preview-63--naxxa.netlify.app/connexion. Ces résultats ne prouvent pas le succès CircleCI.
+- Un aperçu Vercel a précédemment été signalé prêt sur le SHA `c4316a3619115f2597828ab8e29ed7fa71b2d4d2` : https://naxa-git-feat-auth-water-bubbles-naxa3.vercel.app/connexion. Ce résultat ne prouve pas le succès des vérifications de code.
 - Blocage CI : CircleCI `ci/circleci: quality = failure` sur le SHA `c4316a3619115f2597828ab8e29ed7fa71b2d4d2`, pipeline 1419 : https://circleci.com/gh/audreymendomo23-netizen/NAXA/1419. Les logs détaillés n'étaient pas accessibles via les outils disponibles; cause racine non établie. Ne pas déclarer le point vert sans preuve.
 - Tentative antérieure de synchroniser la branche avec `main` bloquée par les contrôles de sécurité de l'outil GitHub; aucune synchronisation ni commit de fusion n'a été effectué. Ne pas contourner ce refus.
 - Aucun merge, aucun déploiement Production, aucune écriture Supabase Production.
@@ -56,7 +56,7 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 
 ## Journal de continuité — message de crédits (2026-10-13)
 - L'utilisateur a fourni le message suivant d'une plateforme de build : « Build could not be completed because you are out of credits »; renouvellement annoncé le 7 novembre 2026; offre suggérée : Performance à partir de 15 $/mois avec 30 000 crédits supplémentaires par cycle.
-- Plateforme exacte et projet/build concerné non identifiés avec certitude dans le message. Ne pas attribuer ce blocage à Vercel, Netlify ou CircleCI sans vérification.
+- Ne pas attribuer ce blocage à une plateforme ou à un contrôle précis sans vérification des journaux.
 - Décision : aucune souscription payante recommandée ni autorisée. Le manque de crédits signifie que ce build n'a pas abouti; ce n'est ni une preuve d'échec du code ni une preuve de réussite.
 - État du point 1 : NON VERT. Les prévisualisations précédentes avaient été signalées READY/success, mais CircleCI quality était en échec sur le SHA vérifié le plus récent dans les informations disponibles; logs détaillés et cause racine toujours à obtenir.
 - Prochaine action : identifier la plateforme et le build concernés, retrouver les logs CircleCI détaillés ou un rapport d'échec équivalent, corriger seulement la cause démontrée, puis exécuter et vérifier les contrôles sur le SHA exact. Ne pas fusionner ni déployer avant CI verte et validation utilisateur.
@@ -82,8 +82,7 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 ## Journal de continuité — vérification GitHub et feedback PR (2026-10-13)
 - État actuel de la PR #63 vérifié via GitHub : ouverte, non fusionnée, branche source `feat/auth-water-bubbles`, SHA de tête `be866cbd71520c4246644bbc04275caba24c2acb`. Aucun commentaire humain ni review soumise, aucun thread de review en ligne. Les seuls retours visibles sont des bots de déploiement.
 - Feedback Vercel : Preview READY sur le SHA `be866cbd...`, déploiement `2iCajveNHPt12ToPj3nnHs3yuNec`, URL https://naxa-git-feat-auth-water-bubbles-naxa3.vercel.app. Commentaire GitHub daté du 13 octobre 2026 à 00:36 UTC.
-- Feedback Netlify : Deploy Preview success sur le SHA `be866cbd...`, déploiement `6acd7f50df53d88bf5631364`, URL https://deploy-preview-63--naxxa.netlify.app. Commentaire GitHub : https://github.com/audreymendomo23-netizen/NAXA/pull/63#issuecomment-6135372009.
-- Vérification du statut GitHub sur ce SHA : `ci/circleci: quality = failure`, pipeline 1425 https://circleci.com/gh/audreymendomo23-netizen/NAXA/1425 ; `netlify/naxxa/deploy-preview = success`. Aucune exécution GitHub Actions n'est retournée pour ce SHA. Aucun contrôle CircleCI vert.
+- Vérification du statut GitHub sur ce SHA : `ci/circleci: quality = failure`, pipeline 1425 https://circleci.com/gh/audreymendomo23-netizen/NAXA/1425. Ce statut rouge ne doit pas être confondu avec la disponibilité d'un aperçu.
 - État public de GitHub Status consulté : services actuellement « All Systems Operational ». L'historique mentionne un incident Actions / Pull Requests / Issues le 12 octobre 2026, avec mitigations et surveillance; cet incident passé ne suffit pas à expliquer l'échec CircleCI actuel. Source : https://www.githubstatus.com/.
 - La page Billing et le feedback exact du quota privé ne sont pas accessibles via les outils disponibles. Le quota ne peut donc pas être confirmé à distance; il faut consulter la page de facturation de l'utilisateur.
 - Aucun code applicatif modifié, aucune action de facturation, aucune modification de visibilité, aucune fusion ni aucun déploiement Production. La mise à jour de continuité précédente est le seul commit récent sur la branche.
@@ -92,7 +91,6 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 
 ## Journal de continuité — nouvelle vérification CI GitHub (2026-10-13, reprise utilisateur)
 - Relecture directe de la PR #63 : https://github.com/audreymendomo23-netizen/NAXA/pull/63. Elle est toujours ouverte. La tête de branche actuelle retournée par GitHub est désormais `e8db412820cd963281d48628ece3cbd5f417801f` (la vérification précédente avait relevé `be866cbd...`; l'état de tête a avancé depuis).
-- Statuts exacts du SHA de tête `e8db412820cd963281d48628ece3cbd5f417801f` : `ci/circleci: quality = failure`, pipeline 1427 : https://circleci.com/gh/audreymendomo23-netizen/NAXA/1427 ; `netlify/naxxa/deploy-preview = success`, https://deploy-preview-63--naxxa.netlify.app.
 - L'API GitHub Actions a retourné `total_count: 0` pour les exécutions associées à ce SHA. Cela ne change pas le statut CircleCI.
 - Tentative de lecture de la page CircleCI 1427 par l'outil web : inaccessible (erreur de lecture). Les outils GitHub disponibles ne fournissent pas les logs internes CircleCI. La cause racine du statut `quality = failure` n'est donc toujours pas déterminée; aucune correction de code ne doit être devinée.
 - Vérification documentaire du statut public CircleCI : son historique signale plusieurs incidents d'exécution début octobre 2026, dont une perturbation du 9 octobre résolue le 10 octobre. Rien dans ces incidents ne prouve que le pipeline 1427 est affecté. Source : https://status.circleci.com/history.
@@ -252,7 +250,7 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Ajout d'un tableau de bord visuel mobile-first avec indicateurs issus des données réelles : nombre de références en stock, réservations en cours, statut de garde. Le stock, les réservations, la garde, les conflits et les fonctions hors ligne existantes sont conservés.
 - Relecture du fichier après commit : présence des trois cartes confirmée.
 - PR #62 : https://github.com/audreymendomo23-netizen/NAXA/pull/62 — reste en brouillon pour validation utilisateur, sans fusion.
-- Netlify Deploy Preview confirmé SUCCESS pour le SHA ci-dessus : https://deploy-preview-62--naxxa.netlify.app
+- Aperçu Vercel : ne pas annoncer qu'il est prêt tant qu'un déploiement Vercel du SHA concerné n'a pas été retrouvé et vérifié.
 - Routes à tester : accueil client `/`, connexion pharmacie `/connexion?espace=pharmacie`, espace pharmacie `/pharmacie` après authentification.
 
 ### Trois branches d'authentification
@@ -264,4 +262,10 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 
 ### Point d'arrêt et validation
 - Aucun changement sur `main`, aucune fusion, aucun déploiement Production, aucune écriture Supabase Production.
-- Le preview pharmacie est vert côté Netlify pour le commit `9c52163adb6669d85ee886f68215b84940589684`. Le chantier est remis à l'utilisateur pour test visuel et fonctionnel sur l'aperçu; ne pas annoncer la validation métier avant retour de test.
+- Pour le commit `9c52163adb6669d85ee886f68215b84940589684`, aucun déploiement Vercel correspondant n'avait encore été confirmé à la date de cette note. Le chantier attend un aperçu Vercel vérifié avant le test utilisateur.
+
+
+## Règle de validation et d'aperçu — 2026-10-13
+- Tous les aperçus applicatifs et tests visuels du projet passent exclusivement par Vercel.
+- Ne fournir aucun lien de test d'une autre plateforme. Avant d'inviter l'utilisateur à tester, retrouver le déploiement Vercel du SHA exact et vérifier son état et son URL.
+- Le SHA `9c52163adb6669d85ee886f68215b84940589684` de la PR #62 doit être publié en aperçu Vercel avant le test pharmacie. Ne pas fusionner dans `main` ni déployer en Production sans autorisation explicite.
