@@ -329,6 +329,17 @@ function PharmacieFormulaire() {
     const target = next === 2 ? "/connexion?espace=pharmacie&etape=identifiants" : "/connexion?espace=pharmacie";
     if (replace) router.replace(target); else router.push(target);
   };
+  const [stageMotion, setStageMotion] = useState<"auth-stage-idle" | "auth-stage-forward" | "auth-stage-backward">("auth-stage-idle");
+  const previousStage = useRef(`${etape}:${showUpdate}`);
+  useEffect(() => {
+    const currentStage = `${etape}:${showUpdate}`;
+    if (previousStage.current === currentStage) return;
+    const wasUpdate = previousStage.current.endsWith(":true");
+    previousStage.current = currentStage;
+    setStageMotion("auth-stage-idle");
+    const frame = window.requestAnimationFrame(() => setStageMotion(showUpdate ? "auth-stage-forward" : wasUpdate ? "auth-stage-backward" : etape === 2 ? "auth-stage-forward" : "auth-stage-backward"));
+    return () => window.cancelAnimationFrame(frame);
+  }, [etape, showUpdate]);
 
   useEffect(() => {
     if (etape === 1) {
@@ -472,7 +483,7 @@ function PharmacieFormulaire() {
 
 
   return (
-    <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
+    <div className={`auth-stage ${stageMotion} carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900`}>
       <div className="connexion-titre text-center">
         <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>{offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Code Pharmacie" : showUpdate ? "Mettre à jour le mot de passe" : "Identifiants de connexion"}</h1>
         <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
