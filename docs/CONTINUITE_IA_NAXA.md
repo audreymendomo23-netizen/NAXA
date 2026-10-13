@@ -238,3 +238,30 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - `feat/auth-visual-identity` — PR #60, fusionnée et empilée sur la PR #59 `feat/auth-water-bubbles` : identité visuelle et transitions du parcours. Écran de création réussie avec goutte lumineuse, coche, onde turquoise, message de succès et bouton Continuer; e-mail de bienvenue après confirmation réelle de l’adresse via Google Apps Script/MailApp gratuit (sans Resend), avec clé d’idempotence et sans prétendre que l’e-mail est envoyé avant confirmation du service; bouton NAXA avec onde au clic et animation « ambulance » réservée aux actions importantes; transition turquoise de 340 ms entre pages; animations cohérentes sur inscription, connexion et récupération de mot de passe, respectant la préférence de réduction des mouvements. Le lot comprend aussi les brouillons datés du 12 octobre 2026 des CGU et de la politique de confidentialité.
 - Configuration et limites associées au lot identité : déployer le script Apps Script avec le compte Gmail NAXA et configurer côté serveur `GOOGLE_APPS_SCRIPT_URL`, `GOOGLE_APPS_SCRIPT_SECRET`, `NEXT_PUBLIC_SITE_URL`, `NAXA_PRIVACY_CONTACT_EMAIL`; aucun secret ne doit être commité. Les informations légales/prestataires doivent être confirmées avant Production; les textes sont des brouillons, pas un avis juridique.
 - Vérification GitHub actuelle : les PR #57, #58 et #60 sont fermées et marquées fusionnées. Le fait que les branches distantes existent encore ne signifie pas que ces besoins sont absents de `main`. Ne supprimer les branches historiques qu’après confirmation que leurs changements utiles sont intégralement présents dans la référence et qu’aucun travail unique non intégré ne subsiste.
+
+
+## Chantier accueil client/pharmacie + authentification — 2026-10-13
+
+### Accueil client
+- Comparaison réelle de `src/app/page.tsx` sur `main` et `feat/accueil-etape-a` : SHA de blob identique `e3d26fc7f1cb5983b20ce96d15d2c7e961bcc618`. Le parcours client validé est donc déjà présent sur `main` : en-tête bilingue FR/EN, menu avec espaces client/pharmacie, recherche, scan d'ordonnance avec import/caméra, recherches fréquentes, géolocalisation facultative, pharmacies de garde, étapes du parcours, avertissement médical et pied de page vert.
+- Aucune copie ni modification inutile de la page client n'a été faite.
+
+### Accueil pharmacie
+- Modification de code autorisée explicitement par l'utilisateur et réalisée sur la branche existante `fix/login-page-layout-20261012`, fichier `src/app/pharmacie/page.tsx`.
+- Commit : `9c52163adb6669d85ee886f68215b84940589684`.
+- Ajout d'un tableau de bord visuel mobile-first avec indicateurs issus des données réelles : nombre de références en stock, réservations en cours, statut de garde. Le stock, les réservations, la garde, les conflits et les fonctions hors ligne existantes sont conservés.
+- Relecture du fichier après commit : présence des trois cartes confirmée.
+- PR #62 : https://github.com/audreymendomo23-netizen/NAXA/pull/62 — reste en brouillon pour validation utilisateur, sans fusion.
+- Netlify Deploy Preview confirmé SUCCESS pour le SHA ci-dessus : https://deploy-preview-62--naxxa.netlify.app
+- Routes à tester : accueil client `/`, connexion pharmacie `/connexion?espace=pharmacie`, espace pharmacie `/pharmacie` après authentification.
+
+### Trois branches d'authentification
+- PR #57 `fix/auth-restore-otp-flow`, PR #58 `fix/auth-signup-feedback-otp` et PR #60 `feat/auth-visual-identity` sont déjà fusionnées.
+- Vérification de `main` : `src/app/creation-compte/page.tsx` contient `signInWithOtp`, `verifyOtp`, le compte à rebours OTP, la bulle d'erreur, les quatre critères de mot de passe, l'écran `SuccesCreationCompte` et la redirection par rôle.
+- `src/app/mot-de-passe-oublie/page.tsx` contient aussi le compte à rebours, le renvoi OTP, la bulle d'erreur et l'indicateur de force du mot de passe.
+- `src/app/layout.tsx` enveloppe le contenu avec `TransitionNAXA`; `BoutonNAXA`, `BullesAuthentification`, `SuccesCreationCompte` et la route serveur de courrier de bienvenue sont présents.
+- Ces contrôles sont des vérifications statiques de code, pas une preuve d'un parcours E2E réel. Les branches sont intégrées; ne pas recopier leurs changements.
+
+### Point d'arrêt et validation
+- Aucun changement sur `main`, aucune fusion, aucun déploiement Production, aucune écriture Supabase Production.
+- Le preview pharmacie est vert côté Netlify pour le commit `9c52163adb6669d85ee886f68215b84940589684`. Le chantier est remis à l'utilisateur pour test visuel et fonctionnel sur l'aperçu; ne pas annoncer la validation métier avant retour de test.
