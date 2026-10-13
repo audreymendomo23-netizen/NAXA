@@ -277,3 +277,12 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - URL prévue : https://naxa-6npi1dzow-naxa3.vercel.app
 - Dernier état observé : `BUILDING`; ne pas présenter l'URL comme prête avant l'état `READY` et le contrôle des journaux de build.
 - Inventaire Git de `main` : aucun fichier ou chemin de configuration dédié à une autre plateforme de déploiement. Les anciennes mentions documentaires ont été retirées de ce document.
+
+
+## Déploiement Vercel en échec puis correction ciblée — 2026-10-13
+- Le déploiement Vercel `dpl_Dbwgiejo4KCpQBa7N4eq8AdHbBYi` a terminé en `ERROR` sur le commit pharmacie `9c52163adb6669d85ee886f68215b84940589684`. Logs : `npm run build` échoue pendant la vérification TypeScript, avec l'erreur `Cannot find module 'https://esm.sh/@supabase/supabase-js@2.45.4'` dans `supabase/functions/naxa-pharmacy-code/index.ts:1`.
+- Cause racine démontrée : le `tsconfig.json` inclut tous les fichiers `**/*.ts`, y compris la fonction Edge Supabase écrite pour Deno, dont l'import HTTPS n'est pas résolu par le compilateur Next.js. Ce fichier n'est pas une page/app Next.js et doit rester déployé comme fonction Supabase.
+- Correction ciblée commise uniquement sur la branche existante `fix/login-page-layout-20261012` : ajout de `supabase/functions/**` à `exclude` dans `tsconfig.json`. Aucun changement du code de la fonction, aucun secret affiché, aucune écriture Production Supabase, aucune modification de `main), aucune fusion.
+- Commit de correction : `585676482dc79ff4bb3e7c8b88591fe8ca117e6f` (`fix(build): exclude Deno Edge Functions from Next.js typecheck`).
+- Nouveau déploiement Vercel déclenché sur ce SHA : `dpl_7P82HoxwfcZPB9WM9cxCGZsSde9q`, URL https://naxa-3nxh9k0dz-naxa3.vercel.app. Dernier état vérifié : `BUILDING`; le build n'est pas encore confirmé vert et le lien ne doit pas être présenté comme prêt à tester.
+- Prochaine action : lire les journaux et l'état terminal de ce nouveau déploiement. Si un autre échec survient, corriger uniquement après avoir identifié l'erreur précise. Tests applicatifs utilisateur à faire seulement quand Vercel indique `READY`.
