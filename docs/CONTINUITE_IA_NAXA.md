@@ -158,3 +158,10 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Demande utilisateur : limiter les vérifications CI/tests répétitifs et regrouper les contrôles en un seul appel lorsque possible, afin de préserver les crédits.
 - Méthode : consulter ensemble l'état du pipeline, les jobs et les journaux utiles; ne relancer ni multiplier les tests sans cause identifiée; diagnostiquer d'abord à partir des journaux existants et n'ajouter qu'un test ciblé s'il tranche une incertitude réelle.
 - Ne jamais déclarer un pipeline réussi avant les statuts finaux et leurs journaux. La validation GitLab reste distincte de CircleCI. Portée inchangée : essais autorisés sur GitLab `gl-ci-test`; aucune modification de `main`, fusion ou déploiement sans autorisation explicite.
+
+
+### Statut final CI GitLab — pipeline 2940580641 (contrôle groupé, 2026-10-13)
+- Statut API confirmé : pipeline `2940580641` = `success` / `passed`, SHA `25c798ed225333ea3e8530533c8f0ca187b601fc`, branche `gl-ci-test`, durée totale 142 s. Lien : https://gitlab.com/audreymendomo23-netizen/NAXA/-/pipelines/2940580641.
+- Job `quality` `17126641593` = `success` (142,99 s). Le journal confirme Node `v20.20.2`, npm `10.8.2`, `npx tsc --noEmit` passé, `npm run lint` exécuté et build inclus dans le job; avertissements ESLint et avertissements de dépendances npm visibles, sans empêcher la réussite. Lien : https://gitlab.com/audreymendomo23-netizen/NAXA/-/jobs/17126641593.
+- Job `full_migration_replay` `17126641594` = `success` (29,64 s), journal précédemment terminé par `FINAL_FAILURE_COUNT=0`. Lien : https://gitlab.com/audreymendomo23-netizen/NAXA/-/jobs/17126641594.
+- Conclusion limitée : la CI GitLab sur cette branche et ce commit est verte. Cela ne prouve pas que CircleCI est vert, ni que la Production est déployée ou validée. Aucun changement de code, aucune fusion et aucun déploiement réalisés pendant ce contrôle.
