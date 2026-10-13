@@ -4,6 +4,8 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EnTeteAccueil } from "@/components/EnTeteAccueil";
 import { Recherche } from "@/components/Recherche";
+import { BoutonNAXA } from "@/components/BoutonNAXA";
+import { BulleErreur } from "@/components/BulleErreur";
 import {
   recherchesFrequentes,
   textes,
@@ -138,8 +140,9 @@ export default function Accueil() {
 
       <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col gap-3 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <BoutonNAXA
             type="button"
+            importance="importante"
             onClick={localiser}
             disabled={position === "recherche"}
             className={puce}
@@ -149,7 +152,7 @@ export default function Accueil() {
               <circle cx="12" cy="10" r="2.3" />
             </svg>
             {t.presDeMoi}
-          </button>
+          </BoutonNAXA>
           <Link href="/gardes" className={puce}>
             <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
               <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
@@ -223,6 +226,7 @@ export default function Accueil() {
           <p className="pt-1 text-center font-semibold">{t.builtWith}</p>
         </div>
       </footer>
+      {position === "defaut" && messagePosition && <BulleErreur message={messagePosition} />}
     </main>
   );
 }
