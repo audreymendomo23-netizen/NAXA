@@ -70,13 +70,16 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error } = await supabaseServer().auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: !existing,
-        data: userMetadata,
-      },
-    });
+    const authClient = supabaseServer();
+    const { error } = existing
+      ? await authClient.auth.resend({ type: "signup", email })
+      : await authClient.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: true,
+            data: userMetadata,
+          },
+        });
     if (error) {
       console.error("signup OTP send:", error.message);
       const rateLimited = /rate|too many/i.test(error.message);
