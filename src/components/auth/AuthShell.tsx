@@ -12,7 +12,7 @@ function BadgeEspace() {
   const pharmacie = search.get("espace") === "pharmacie";
   const etapeIdentifiants = search.get("etape") === "identifiants";
   const titre = pharmacie ? (etapeIdentifiants && pharmacyName ? pharmacyName : "Espace pharmacie") : "Espace client";
-  return <span className="inline-flex min-w-0 max-w-[65vw] items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-sm font-extrabold tracking-tight text-[#064B2A] shadow-sm sm:text-xl">
+  return <span className="reveal inline-flex min-w-0 max-w-[65vw] items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-base font-extrabold tracking-tight text-[#064B2A] shadow-sm sm:text-xl">
     <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40" />
     <span key={titre} className="truncate auth-badge-text">{titre}</span>
   </span>;
@@ -29,7 +29,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
     <FondBulles />
     <header className="relative z-10 w-full shrink-0 pt-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
       <div className="flex w-full items-center justify-between gap-3">
-        <div className="logo-pastille"><Logo taille={30} /></div>
+        <div className="logo-pastille reveal"><Logo taille={30} /></div>
         <Suspense fallback={<span aria-hidden="true" className="h-10 w-32 rounded-full border border-naxa-green-100 bg-white/70" />}><BadgeEspace /></Suspense>
       </div>
     </header>
