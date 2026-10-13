@@ -30,19 +30,33 @@ PR #59 : fond animé de bulles sur connexion, inscription et mot de passe oubli�
 ## Prochaine action autorisée
 Vérifier l'état Git/PR/CI et les différences réelles avec les branches apparentées. Toute modification future reste limitée à ce document, sauf nouvelle autorisation explicite.
 
-
-## Journal de continuité — 2026-10-13 (point 1 : identité visuelle)
+## Journal de continuité — point 1 : identité visuelle (2026-10-13)
 - Autorisation utilisateur reçue pour corriger le lot identité visuelle avant le test final pré-déploiement.
-- Branche active : `feat/auth-water-bubbles`; commit code : `4c184af270d7ef9ed82cdeb68e3ef098a6ad5b1a`.
+- Branche active : `feat/auth-water-bubbles`; commit de correction code précédemment relevé : `4c184af270d7ef9ed82cdeb68e3ef098a6ad5b1a`.
 - Correction ciblée dans `src/components/BullesAuthentification.tsx` : lorsque `prefers-reduced-motion` est actif, le canvas est dessiné sans boucle permanente de requestAnimationFrame; il est redessiné après redimensionnement. Les animations restent désactivées.
-- Aucun changement sur `main`, aucune fusion et aucun déploiement Production.
-- Validation restante : vérifier la CI sur le commit exact et construire une Preview Vercel. Le lot ne doit être déclaré vert qu'après preuve réelle des contrôles et, pour le visuel, contrôle du rendu en Preview.
-
-
-## Journal de continuité — test pré-déploiement (2026-10-13, dernière vérification)
-- PR #63 ouverte, non fusionnée : https://github.com/audreymendomo23-netizen/NAXA/pull/63. La PR porte uniquement sur le correctif canvas et ce document.
-- Preview Vercel READY sur le commit `cee3de028227bfaabea3c74a145b0e34e110f612` : https://naxa-git-feat-auth-water-bubbles-naxa3.vercel.app/connexion. Les logs confirment `Compiled successfully`, puis lint/types et génération des pages statiques; statut Vercel final `success`.
-- Blocage qualité : CircleCI `ci/circleci: quality = failure` sur les commits `4c184af270d7ef9ed82cdeb68e3ef098a6ad5b1a` (pipeline 1415) et `cee3de028227bfaabea3c74a145b0e34e110f612` (pipeline 1417). Le connecteur disponible ne donne pas accès aux logs CircleCI détaillés; la page du job n'est pas accessible via les outils de lecture. Ne pas déclarer le lot vert tant que la cause de cet échec n'est pas établie et que le statut CircleCI n'est pas success.
-- Tentative de synchroniser la branche avec `main` afin de relancer les tests sur le dernier arbre : bloquée par les contrôles de sécurité de l'outil GitHub; aucune synchronisation ni commit de fusion n'a été effectué. Ne pas contourner ce refus.
+- PR #63 : https://github.com/audreymendomo23-netizen/NAXA/pull/63 — ouverte et non fusionnée à la dernière vérification rapportée.
+- Preview Vercel et Netlify ont précédemment été signalées comme réussies sur le SHA `c4316a3619115f2597828ab8e29ed7fa71b2d4d2`; liens : https://naxa-git-feat-auth-water-bubbles-naxa3.vercel.app/connexion et https://deploy-preview-63--naxxa.netlify.app/connexion. Ces résultats ne prouvent pas le succès CircleCI.
+- Blocage CI : CircleCI `ci/circleci: quality = failure` sur le SHA `c4316a3619115f2597828ab8e29ed7fa71b2d4d2`, pipeline 1419 : https://circleci.com/gh/audreymendomo23-netizen/NAXA/1419. Les logs détaillés n'étaient pas accessibles via les outils disponibles; cause racine non établie. Ne pas déclarer le point vert sans preuve.
+- Tentative antérieure de synchroniser la branche avec `main` bloquée par les contrôles de sécurité de l'outil GitHub; aucune synchronisation ni commit de fusion n'a été effectué. Ne pas contourner ce refus.
 - Aucun merge, aucun déploiement Production, aucune écriture Supabase Production.
-- Prochaine action : obtenir l'accès aux logs CircleCI du job quality ou un rapport d'échec équivalent, corriger uniquement la cause prouvée, puis revalider le SHA exact.
+
+## RÈGLE ABSOLUE — continuité à chaque réponse
+Cette procédure est obligatoire à chaque réponse liée à NAXA, y compris une réponse courte, une clarification, un audit, un blocage, une demande de code ou une réponse indiquant qu'aucun changement de code n'est nécessaire. La continuité est une tâche de livraison, pas une intention facultative.
+
+Avant de terminer chaque intervention :
+1. Lire l'état actuel du document et vérifier les faits nouveaux sur le dépôt, les branches, les PR et les contrôles pertinents.
+2. Ajouter les faits nouveaux vérifiés, les actions réellement exécutées, les résultats, les liens de preuve, les blocages et la prochaine action autorisée. Éviter les doublons; ne pas écraser l'historique utile.
+3. Enregistrer le document sur la branche existante autorisée, sans commit direct sur `main`, sans nouvelle branche et sans modifier d'autres fichiers sous cette autorisation.
+4. Relire le document enregistré et vérifier le commit résultant.
+5. Dans la réponse finale, indiquer le chemin, la branche, le commit confirmé et le lien.
+
+Interdiction de prétendre qu'une mise à jour a été enregistrée si l'opération ou sa vérification a échoué. Si l'accès ou l'écriture est impossible, terminer par « CONTINUITÉ NON ENREGISTRÉE — BLOCAGE », nommer la cause vérifiée et maintenir cette mise à jour comme prochaine action obligatoire. Un texte dans le chat seul ne constitue pas une mise à jour du dépôt.
+
+Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `main`; aucune fusion ni aucun déploiement Production sans autorisation explicite; pour un déploiement, attendre exactement `OUI, DÉPLOIE`; Supabase Production en lecture seule; aucun secret affiché; aucun contournement de refus de sécurité; aucune dépense ou souscription sans autorisation; aucun travail Jobly pendant une tâche NAXA. Aucun statut « vert » sans preuve réelle sur le SHA exact.
+
+## Journal de continuité — message de crédits (2026-10-13)
+- L'utilisateur a fourni le message suivant d'une plateforme de build : « Build could not be completed because you are out of credits »; renouvellement annoncé le 7 novembre 2026; offre suggérée : Performance à partir de 15 $/mois avec 30 000 crédits supplémentaires par cycle.
+- Plateforme exacte et projet/build concerné non identifiés avec certitude dans le message. Ne pas attribuer ce blocage à Vercel, Netlify ou CircleCI sans vérification.
+- Décision : aucune souscription payante recommandée ni autorisée. Le manque de crédits signifie que ce build n'a pas abouti; ce n'est ni une preuve d'échec du code ni une preuve de réussite.
+- État du point 1 : NON VERT. Les prévisualisations précédentes avaient été signalées READY/success, mais CircleCI quality était en échec sur le SHA vérifié le plus récent dans les informations disponibles; logs détaillés et cause racine toujours à obtenir.
+- Prochaine action : identifier la plateforme et le build concernés, retrouver les logs CircleCI détaillés ou un rapport d'échec équivalent, corriger seulement la cause démontrée, puis exécuter et vérifier les contrôles sur le SHA exact. Ne pas fusionner ni déployer avant CI verte et validation utilisateur.
