@@ -7,14 +7,15 @@ export default function AuthTemplate({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const search = useSearchParams();
   const { direction } = useAuthFlow();
+  const query = search.toString();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const stepLabel = useMemo(() => {
     if (pathname === "/creation-compte") return "Créer mon compte";
     if (pathname === "/mot-de-passe-oublie") return "Mot de passe oublié";
     if (pathname === "/nouveau-mot-de-passe") return "Créer un nouveau mot de passe";
-    if (search.get("espace") === "pharmacie") return search.get("etape") === "identifiants" ? "Identifiants de connexion pharmacie" : "Code pharmacie";
+    if (new URLSearchParams(query).get("espace") === "pharmacie") return new URLSearchParams(query).get("etape") === "identifiants" ? "Identifiants de connexion pharmacie" : "Code pharmacie";
     return "Connexion";
-  }, [pathname, search]);
+  }, [pathname, query]);
   useEffect(() => {
     const title = contentRef.current?.querySelector<HTMLElement>("h1");
     if (title) {
@@ -23,7 +24,7 @@ export default function AuthTemplate({ children }: { children: React.ReactNode }
     } else {
       contentRef.current?.querySelector<HTMLElement>("input:not([type=hidden])")?.focus({ preventScroll: true });
     }
-  }, [pathname, search]);
+  }, [pathname, query]);
   return <div ref={contentRef} className={`auth-stage auth-stage-${direction}`}>
     <p className="sr-only" aria-live="polite" aria-atomic="true">{stepLabel}</p>
     {children}
