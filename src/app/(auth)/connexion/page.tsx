@@ -345,12 +345,10 @@ function PharmacieFormulaire() {
   }, [etape, showUpdate]);
 
   useEffect(() => {
-    if (etape === 1) {
-      setPassword("");
-      setCurrentPassword("");
-      setNewPassword("");
-    }
-  }, [etape]);
+    setPassword("");
+    setCurrentPassword("");
+    setNewPassword("");
+  }, [etape, showUpdate]);
 
   useEffect(() => {
     let mounted = true;
