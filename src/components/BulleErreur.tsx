@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 type Props = { message: string };
 type Drop = { x: number; y: number; vx: number; vy: number; radius: number; life: number; alpha: number };
 
-const DROP_COUNT = 1400;
+const DROP_COUNT = 100;
 
 const MICRO_BUBBLES = [
   { left: "8%", delay: "0ms", size: 4 }, { left: "19%", delay: "420ms", size: 3 },
@@ -30,22 +30,23 @@ export function BulleErreur({ message }: Props) {
     setBurst(false);
     setGone(false);
     setOffset({ x: 0, y: 0 });
+    const words = message.match(/\\S+\\s*/g) ?? [];
     let index = 0;
     const typing = window.setInterval(() => {
       index += 1;
-      setShown(message.slice(0, index));
-      if (index >= message.length) window.clearInterval(typing);
-    }, 28);
+      setShown(words.slice(0, index).join(""));
+      if (index >= words.length) window.clearInterval(typing);
+    }, 180);
     return () => window.clearInterval(typing);
   }, [message]);
 
   useEffect(() => {
-    if (shown.length !== message.length || !message || burst) return;
+    if (shown !== message || !message || burst) return;
     const timer = window.setTimeout(() => {
       const rect = bubbleRef.current?.getBoundingClientRect();
       if (rect) origin.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
       setBurst(true);
-    }, 2600);
+    }, 5000);
     return () => window.clearTimeout(timer);
   }, [shown, message, burst]);
 
