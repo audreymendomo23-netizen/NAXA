@@ -18,6 +18,9 @@ export function BulleErreur({ message }: Props) {
   const [shown, setShown] = useState("");
   const [burst, setBurst] = useState(false);
   const [gone, setGone] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const start = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const dragged = useRef(false);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const origin = useRef({ x: 0, y: 0, width: 0, height: 0 });
@@ -27,7 +30,7 @@ export function BulleErreur({ message }: Props) {
     setBurst(false);
     setGone(false);
     setOffset({ x: 0, y: 0 });
-    let i = 0;
+    let index = 0;
     const typing = window.setInterval(() => {
       index += 1;
       setShown(message.slice(0, index));
@@ -167,15 +170,9 @@ export function BulleErreur({ message }: Props) {
               <span key={i} aria-hidden="true" className="naxa-micro-bubble pointer-events-none absolute bottom-1 rounded-full border border-white/80 bg-white/55 shadow-[0_0_5px_rgba(255,255,255,.65)]" style={{ left: bubble.left, width: bubble.size, height: bubble.size, animation: `naxa-micro-bubble 1.9s ${bubble.delay} ease-out infinite` }} />
             ))}
             <span className="relative z-10 block min-h-5 pr-1">{shown}<span className="ml-0.5 animate-pulse">▏</span></span>
-            <span className="relative z-10 mt-1 block text-[10px] font-medium text-slate-700/80">Touchez pour fermer · Maintenez pour déplacer</span>
           </div>
         ) : (
-          <div className="relative h-24 w-64">
-            <div className="naxa-water-motion absolute inset-0 rounded-[50%] border border-white/70 bg-gradient-to-br from-white/70 via-cyan-100/55 to-sky-300/60 shadow-[0_8px_24px_rgba(30,140,170,.2)] backdrop-blur-xl" style={{ animation: "naxa-water-pop .45s ease-out forwards" }} />
-            {DROPS.map(([x, y], i) => (
-              <span key={i} className="naxa-water-motion absolute left-1/2 top-1/2 h-3 w-3 rounded-full border border-white/70 bg-gradient-to-br from-white/90 to-sky-300/60 shadow-sm" style={{ ["--drop-x" as string]: x, ["--drop-y" as string]: y, animation: `naxa-water-drop .75s ${i * 18}ms ease-out forwards` }} />
-            ))}
-          </div>
+          <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[99] h-full w-full" />
         )}
       </div>
     </>
