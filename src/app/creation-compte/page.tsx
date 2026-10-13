@@ -59,7 +59,7 @@ function Formulaire(){
  async function savePassword(e:React.FormEvent){e.preventDefault();if(!passwordValid)return setError("Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");setBusy(true);setError("");const sb=supabaseBrowser();const {error}=await sb.auth.updateUser({password});if(error){setBusy(false);return setError("Impossible d’enregistrer le mot de passe.")}let destination=retour;if(!search.get("retour")||retour==="/"){try{const {data}=await sb.auth.getUser();if(data.user){const {data:profile}=await sb.from("profiles").select("role").eq("id",data.user.id).maybeSingle();const role=String(profile?.role||"client");const destinations:Record<string,string>={client:"/client",pharmacie:"/pharmacie",promoteur:"/pharmacie",caisse:"/pharmacie",admin:"/admin"};destination=destinations[role]||"/client"}else destination="/connexion?compteCree=1"}catch{destination="/client"}}setBusy(false);setSuccessDestination(destination)}
 
  if(successDestination)return <SuccesCreationCompte destination={successDestination}/>;
- return <form onSubmit={step==="details"?signup:step==="otp"?verify:savePassword} onInvalidCapture={(e)=>{e.preventDefault();const field=e.target as HTMLInputElement;setError(field.validity.typeMismatch?"Le format de l’adresse e-mail est invalide.":field.validity.valueMissing?"Ce champ est obligatoire.":"Vérifiez les informations saisies.")}} className="carte w-full max-w-lg space-y-2 p-4 sm:space-y-3 sm:p-5">
+ return <form onSubmit={step==="details"?signup:step==="otp"?verify:savePassword} onInvalidCapture={(e)=>{e.preventDefault();const field=e.target as HTMLInputElement;setError(field.validity.typeMismatch?"Le format de l’adresse e-mail est invalide.":field.validity.valueMissing?"Ce champ est obligatoire.":"Vérifiez les informations saisies.")}} className="relative z-10 w-full max-w-[560px] space-y-3 rounded-3xl border border-naxa-green-100 bg-white/90 p-4 shadow-xl backdrop-blur-md sm:space-y-4 sm:p-6">
   <div className="text-center"><h1 className="text-xl font-extrabold sm:text-2xl">Créer mon compte</h1><p className="mt-1 text-xs leading-snug text-slate-600 sm:mt-2 sm:text-sm">{step==="details"?<>Renseignez vos informations pour créer votre compte <strong className="naxa-text">NAXA</strong>.</>:step==="otp"?"Un code de confirmation a été envoyé à votre adresse e-mail.":"Votre e-mail est validé. Choisissez maintenant votre mot de passe."}</p></div>
   {step==="details"&&<><div className="grid grid-cols-2 gap-3"><label className="block text-xs font-semibold sm:text-sm">Nom<span className="relative mt-1 block"><input className="champ pr-10" required value={nom} onChange={e=>setNom(e.target.value)} autoComplete="family-name"/>{nom.trim()&&<span className="absolute right-3 top-1/2 -translate-y-1/2"><Check/></span>}</span></label><label className="block text-xs font-semibold sm:text-sm">Prénom<span className="relative mt-1 block"><input className="champ pr-10" required value={prenom} onChange={e=>setPrenom(e.target.value)} autoComplete="given-name"/>{prenom.trim()&&<span className="absolute right-3 top-1/2 -translate-y-1/2"><Check/></span>}</span></label></div>
   <label className="block text-sm font-semibold">Nom d'utilisateur<span className="relative mt-1 block"><input className={`champ pr-12 ${uState==="taken"?"border-red-500":uState==="available"?"border-naxa-canari":""}`} required minLength={3} maxLength={30} value={username} onChange={e=>setUsername(e.target.value.replace(/\s/g,""))} autoComplete="username"/>{uState==="available"&&<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-naxa-canari">✓</span>}{uState==="taken"&&<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-red-600">✕</span>}</span><span className={`mt-1 block text-xs ${uState==="available"?"text-naxa-green-700":"text-red-700"}`}>{uState==="checking"?"Vérification...":uState==="available"?"Nom d'utilisateur disponible":uState==="taken"?"Nom d'utilisateur pris ou invalide":"3 à 30 caractères : lettres, chiffres, point, tiret ou underscore."}</span></label>
@@ -74,4 +74,24 @@ function Formulaire(){
   {error&&<BulleErreur key={error} message={error}/>}<p className="text-center text-xs text-slate-600">Vous avez déjà un compte ? <Link href={`/connexion?retour=${encodeURIComponent(retour)}`} className="font-bold underline">Se connecter</Link></p>
  </form>
 }
-export default function CreationCompte(){return <main className="auth-ecran relative isolate flex flex-col items-center justify-center gap-2 overflow-hidden bg-naxa-green-900 px-3 py-2 sm:px-5 sm:py-3"><BullesAuthentification/><div className="relative z-10 flex w-full flex-col items-center justify-center gap-2"><Logo/><Suspense><Formulaire/></Suspense></div></main>}
+export default function CreationCompte(){
+ return (
+  <main className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-4 !h-auto !min-h-[100dvh] !overflow-y-auto sm:px-6" style={{backgroundColor:"#F2FAF5"}}>
+   <BullesAuthentification/>
+   <header className="relative z-10 w-full shrink-0 pt-3" style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 12px)"}}>
+    <div className="flex w-full items-center justify-between gap-3">
+     <div className="logo-pastille"><Logo taille={30}/></div>
+     <span className="inline-flex min-w-0 items-center gap-2 rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-3 py-2 text-sm font-extrabold tracking-tight text-[#064B2A] shadow-sm sm:px-4 sm:text-base">
+      <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40"/>
+      Créer un compte
+     </span>
+    </div>
+   </header>
+   <div className="relative z-10 flex w-full flex-1 items-start justify-center py-5 sm:py-8">
+    <div className="w-full max-w-[560px]">
+     <Suspense><Formulaire/></Suspense>
+    </div>
+   </div>
+  </main>
+ );
+}
