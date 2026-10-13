@@ -10,7 +10,7 @@
 .heading { margin: 0 auto 22px; }
 .title { margin: 0; color: #064B2A; font-size: 1.25rem; font-weight: 800; line-height: 1.25; }
 .titleSuccess { color: #0A6B3A; }
-.description { margin: 8px 0 0; color: #496557; font-size: .92rem; line-height: 1.45; }
+.description { margin: 8px 0 0; color: #846600; font-size: .92rem; line-height: 1.45; }
 .stage {
   position: relative;
   display: flex;

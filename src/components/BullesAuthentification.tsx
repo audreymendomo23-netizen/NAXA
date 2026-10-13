@@ -12,7 +12,7 @@ type Bubble = {
   particles: Array<{ x: number; y: number; vx: number; vy: number; life: number }>;
 };
 
-const COUNT = 14;
+const COUNT_DESKTOP = 14;
 
 function randomBubble(width: number, height: number): Bubble {
   const r = 9 + Math.random() * 14;
@@ -46,12 +46,13 @@ export function BullesAuthentification() {
       const rect = canvas.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (bubbles.length === 0) {
-        for (let i = 0; i < COUNT; i++) bubbles.push(randomBubble(width, height));
+        const count = width < 520 ? 7 : COUNT_DESKTOP;
+        for (let i = 0; i < count; i++) bubbles.push(randomBubble(width, height));
       } else {
         bubbles.forEach((bubble) => {
           bubble.x = Math.min(width - bubble.r, Math.max(bubble.r, bubble.x));
@@ -94,7 +95,7 @@ export function BullesAuthentification() {
             particle.y += particle.vy * delta;
             particle.life = 1 - age;
             context.beginPath();
-            context.fillStyle = `rgba(176, 255, 250, ${Math.max(0, particle.life * 0.55)})`;
+            context.fillStyle = `rgba(255, 227, 61, ${Math.max(0, particle.life * 0.55)})`;
             context.arc(particle.x, particle.y, 1.2 + particle.life, 0, Math.PI * 2);
             context.fill();
           });
@@ -118,12 +119,12 @@ export function BullesAuthentification() {
           bubble.y,
           bubble.r,
         );
-        gradient.addColorStop(0, "rgba(226, 255, 253, 0.16)");
-        gradient.addColorStop(0.72, "rgba(87, 226, 219, 0.055)");
-        gradient.addColorStop(1, "rgba(159, 255, 247, 0.13)");
+        gradient.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+        gradient.addColorStop(0.72, "rgba(10, 107, 58, 0.045)");
+        gradient.addColorStop(1, "rgba(255, 227, 61, 0.10)");
         context.beginPath();
         context.fillStyle = gradient;
-        context.strokeStyle = "rgba(181, 255, 249, 0.25)";
+        context.strokeStyle = "rgba(10, 107, 58, 0.18)";
         context.lineWidth = 1;
         context.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2);
         context.fill();
@@ -183,8 +184,10 @@ export function BullesAuthentification() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className="pointer-events-none fixed inset-0 h-full w-full"
       style={{ zIndex: 0 }}
     />
   );
 }
+
+export const FondBulles = BullesAuthentification;

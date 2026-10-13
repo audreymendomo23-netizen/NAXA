@@ -5,6 +5,11 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   cacheOnFrontEndNav: true,
+  cacheId: "naxa-design-20261013",
+  skipWaiting: true,
+  clientsClaim: true,
+  cleanupOutdatedCaches: true,
+  customWorkerDir: "worker",
   workboxOptions: {
     navigateFallback: "/offline.html",
     // La connexion pharmacie doit être servie par le réseau quand il est disponible.
@@ -16,11 +21,11 @@ const withPWA = withPWAInit({
           request.mode === "navigate" && url.pathname === "/connexion",
         handler: "NetworkFirst",
         options: {
-          cacheName: "naxa-pharmacy-login",
+          cacheName: "naxa-pharmacy-login-v2",
           networkTimeoutSeconds: 5,
           expiration: {
             maxEntries: 5,
-            maxAgeSeconds: 7 * 24 * 60 * 60,
+            maxAgeSeconds: 90 * 24 * 60 * 60,
           },
           cacheableResponse: { statuses: [200] },
         },
@@ -32,7 +37,7 @@ const withPWA = withPWAInit({
           url.pathname !== "/connexion",
         handler: "StaleWhileRevalidate",
         options: {
-          cacheName: "naxa-navigation",
+          cacheName: "naxa-navigation-v2",
           expiration: {
             maxEntries: 20,
             maxAgeSeconds: 7 * 24 * 60 * 60,

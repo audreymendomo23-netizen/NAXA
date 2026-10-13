@@ -4,190 +4,16 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { Logo } from "@/components/Logo";
-import { BullesAuthentification } from "@/components/BullesAuthentification";
 import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
-import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
+import { ChampFlottant } from "@/components/ChampFlottant";
+import { PanneauGlissant } from "@/components/PanneauGlissant";
+import { useAuthDraftState } from "@/components/auth/AuthDraftContext";
+import { BandeauHorsLigne } from "@/components/BandeauHorsLigne";
+import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice, pendingCount } from "@/lib/offline-db";
 
 function d(index: number): React.CSSProperties {
   return { "--i": index } as React.CSSProperties;
-}
-
-type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
-type Particule = { x: number; y: number; vx: number; vy: number; vie: number; rayon: number; couleur: string };
-type Halo = { x: number; y: number; vie: number };
-
-function BullesConnexion() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d", { alpha: true });
-    if (!canvas || !context) return;
-
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let width = 0;
-    let height = 0;
-    let frame = 0;
-    let previous = 0;
-    let dernierGeste = 0;
-    const bulles: Bulle[] = [];
-    const particules: Particule[] = [];
-    const halos: Halo[] = [];
-    const couleurs = ["rgba(255, 227, 61,", "rgba(10, 107, 58,", "rgba(255, 255, 255,"];
-
-    const redimensionner = () => {
-      const rect = canvas.getBoundingClientRect();
-      width = rect.width;
-      height = rect.height;
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      canvas.width = Math.max(1, Math.floor(width * dpr));
-      canvas.height = Math.max(1, Math.floor(height * dpr));
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (bulles.length === 0) {
-        for (let i = 0; i < 10; i++) {
-          const r = 15 + Math.random() * 45;
-          bulles.push({
-            x: r + Math.random() * Math.max(1, width - r * 2),
-            y: r + Math.random() * Math.max(1, height - r * 2),
-            vx: (Math.random() - 0.5) * 0.34,
-            vy: (Math.random() - 0.5) * 0.34,
-            r,
-          });
-        }
-      } else {
-        bulles.forEach((b) => {
-          b.x = Math.min(width - b.r, Math.max(b.r, b.x));
-          b.y = Math.min(height - b.r, Math.max(b.r, b.y));
-        });
-      }
-      if (reduceMotion) dessiner(performance.now(), false);
-    };
-
-    const ajouterInteraction = (clientX: number, clientY: number, nombre: number) => {
-      if (reduceMotion) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      halos.push({ x, y, vie: 1 });
-      for (let i = 0; i < nombre; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const vitesse = 0.45 + Math.random() * 1.8;
-        particules.push({
-          x,
-          y,
-          vx: Math.cos(angle) * vitesse,
-          vy: Math.sin(angle) * vitesse,
-          vie: 1,
-          rayon: 1 + Math.random() * 1.8,
-          couleur: couleurs[Math.floor(Math.random() * couleurs.length)],
-        });
-      }
-      if (particules.length > 140) particules.splice(0, particules.length - 140);
-      if (halos.length > 12) halos.splice(0, halos.length - 12);
-    };
-
-    const pointerMove = (event: PointerEvent) => {
-      if (event.pointerType === "mouse" && event.buttons === 0) {
-        const now = performance.now();
-        if (now - dernierGeste < 42) return;
-        dernierGeste = now;
-        ajouterInteraction(event.clientX, event.clientY, 2);
-      } else {
-        const now = performance.now();
-        if (now - dernierGeste < 42) return;
-        dernierGeste = now;
-        ajouterInteraction(event.clientX, event.clientY, 3);
-      }
-    };
-    const pointerDown = (event: PointerEvent) => ajouterInteraction(event.clientX, event.clientY, 12);
-
-    function dessiner(now: number, animer = true) {
-      const delta = Math.min(2, previous ? (now - previous) / 16.67 : 1);
-      previous = now;
-      context!.clearRect(0, 0, width, height);
-
-      bulles.forEach((b, index) => {
-        if (animer && !reduceMotion) {
-          b.x += b.vx * delta;
-          b.y += b.vy * delta;
-          if (b.x < b.r || b.x > width - b.r) b.vx *= -1;
-          if (b.y < b.r || b.y > height - b.r) b.vy *= -1;
-          b.x = Math.min(width - b.r, Math.max(b.r, b.x));
-          b.y = Math.min(height - b.r, Math.max(b.r, b.y));
-        }
-        const reflet = context!.createRadialGradient(
-          b.x - b.r * 0.3, b.y - b.r * 0.35, 1, b.x, b.y, b.r
-        );
-        reflet.addColorStop(0, "rgba(255,255,255,0)");
-        reflet.addColorStop(0.78, index % 2 ? "rgba(10,107,58,0.015)" : "rgba(255,227,61,0.02)");
-        reflet.addColorStop(1, index % 2 ? "rgba(10,107,58,0.08)" : "rgba(184,143,0,0.12)");
-        context!.beginPath();
-        context!.fillStyle = reflet;
-        context!.strokeStyle = index % 2 ? "rgba(10,107,58,0.14)" : "rgba(184,143,0,0.19)";
-        context!.lineWidth = 1;
-        context!.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        context!.fill();
-        context!.stroke();
-      });
-
-      if (animer && !reduceMotion) {
-        halos.forEach((h) => {
-          h.vie -= delta / 60;
-          const progression = 1 - h.vie;
-          const rayon = 8 + progression * 35;
-          const gradient = context!.createRadialGradient(h.x, h.y, 0, h.x, h.y, rayon);
-          gradient.addColorStop(0, `rgba(255,227,61,${Math.max(0, h.vie) * 0.10})`);
-          gradient.addColorStop(1, "rgba(255,227,61,0)");
-          context!.beginPath();
-          context!.fillStyle = gradient;
-          context!.arc(h.x, h.y, rayon, 0, Math.PI * 2);
-          context!.fill();
-        });
-        halos.splice(0, halos.length, ...halos.filter((h) => h.vie > 0));
-
-        particules.forEach((p) => {
-          p.x += p.vx * delta;
-          p.y += p.vy * delta;
-          p.vx *= 0.985;
-          p.vy *= 0.985;
-          p.vie -= delta / 60;
-          context!.beginPath();
-          context!.fillStyle = `${p.couleur}${Math.max(0, p.vie) * 0.65})`;
-          context!.arc(p.x, p.y, p.rayon, 0, Math.PI * 2);
-          context!.fill();
-        });
-        particules.splice(0, particules.length, ...particules.filter((p) => p.vie > 0));
-        frame = window.requestAnimationFrame((t) => dessiner(t, true));
-      }
-    }
-
-    redimensionner();
-    const observer = new ResizeObserver(redimensionner);
-    observer.observe(canvas);
-    if (!reduceMotion) {
-      window.addEventListener("pointermove", pointerMove, { passive: true });
-      window.addEventListener("pointerdown", pointerDown, { passive: true });
-      frame = window.requestAnimationFrame((t) => dessiner(t, true));
-    }
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener("pointermove", pointerMove);
-      window.removeEventListener("pointerdown", pointerDown);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
-      style={{ zIndex: 0, background: "transparent" }}
-    />
-  );
 }
 
 function GoogleIcon() {
@@ -220,7 +46,7 @@ function Formulaire() {
   const espace = search.get("espace");
   const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
 
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useAuthDraftState("client.username", "");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -371,49 +197,9 @@ function Formulaire() {
         </p>
       </div>
 
-      <div className="reveal relative !mt-6" style={d(3)}>
-        <input
-          id="username"
-          placeholder=" "
-          className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
-          required
-          value={username}
-          onChange={(e) => setUsername(e.target.value.toLowerCase())}
-          autoComplete="username"
-        />
-        <label
-          htmlFor="username"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
-        >
-          Nom d'utilisateur
-        </label>
-      </div>
+      <ChampFlottant id="username" label="Nom d’utilisateur" className="reveal !mt-6" minHeight={62} inset={20} value={username} onChange={v=>setUsername(v.toLowerCase())} autoComplete="username" required/>
 
-      <div className="reveal relative" style={d(4)}>
-        <input
-          id="password"
-          placeholder=" "
-          className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
-          required
-          type={show ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-        />
-        <label
-          htmlFor="password"
-          className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all duration-200 ease-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:!text-[#9B7A00] peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-semibold peer-focus:!text-[#9B7A00]"
-        >
-          Mot de passe
-        </label>
-        <button
-          type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-naxa-green-900"
-          onClick={() => setShow(!show)}
-        >
-          {show ? "Masquer" : "Afficher"}
-        </button>
-      </div>
+      <ChampFlottant id="password" label="Mot de passe" className="reveal" minHeight={62} inset={20} value={password} onChange={setPassword} type={show?"text":"password"} autoComplete="current-password" required trailing={<button type="button" className="px-2 text-xs font-bold text-[#064B2A]" onClick={()=>setShow(!show)}>{show?"Masquer":"Afficher"}</button>}/>
 
       <div
         className="reveal flex items-center justify-between gap-2 whitespace-nowrap text-base text-naxa-green-900"
@@ -474,11 +260,16 @@ function Formulaire() {
 function PharmacieFormulaire() {
   const router = useRouter();
   const codeRef = useRef<HTMLInputElement | null>(null);
-  const [etape, setEtape] = useState<1 | 2>(1);
-  const [nomPharmacie, setNomPharmacie] = useState("");
-  const [username, setUsername] = useState("");
+  const [codeValue, setCodeValue] = useState("");
+  const searchParams = useSearchParams();
+  const [etape, setEtape] = useState<1 | 2>(searchParams.get("etape") === "identifiants" ? 2 : 1);
+  useEffect(() => { setEtape(searchParams.get("etape") === "identifiants" ? 2 : 1); }, [searchParams]);
+  const allerEtape = (next: 1 | 2, replace = false) => { setEtape(next); const target = next === 2 ? "/connexion?espace=pharmacie&etape=identifiants" : "/connexion?espace=pharmacie"; if (replace) router.replace(target); else router.push(target); };
+  const [nomPharmacie, setNomPharmacie] = useAuthDraftState("pharmacy.name", "");
+  const [username, setUsername] = useAuthDraftState("pharmacy.username", "");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -487,6 +278,8 @@ function PharmacieFormulaire() {
   const [message, setMessage] = useState("");
   const [offlineUnlock, setOfflineUnlock] = useState(false);
   const [offlineUnavailable, setOfflineUnavailable] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [pendingCountState, setPendingCountState] = useState(0);
   const [activation, setActivation] = useState<{deviceId:string;token:string;pharmacyId:string;pharmacyName:string;existingLocal:boolean}|null>(null);
   const [pinLocal, setPinLocal] = useState("");
   const [pinConfirmation, setPinConfirmation] = useState("");
@@ -494,12 +287,23 @@ function PharmacieFormulaire() {
 
   useEffect(() => {
     let mounted = true;
-    const checkOffline = async () => { const has = Boolean(await getLocalDeviceIdentity().catch(() => null)); if (mounted) { setOfflineUnlock(!navigator.onLine && has); setOfflineUnavailable(!navigator.onLine && !has); } };
+    const checkOffline = async () => {
+      const [identity, pending, reachable] = await Promise.all([
+        getLocalDeviceIdentity().catch(() => null),
+        pendingCount().catch(() => 0),
+        (async () => { if (!navigator.onLine) return false; try { return (await fetch("/api/health", { cache: "no-store", headers: { Accept: "application/json" } })).ok; } catch { return false; } })(),
+      ]);
+      if (!mounted) return;
+      setOfflineUnlock(!reachable && Boolean(identity));
+      setOfflineUnavailable(!reachable && !identity);
+      setPendingCountState(pending);
+      setCheckingConnection(false);
+    };
+    const refresh = () => { if (mounted) setCheckingConnection(true); void checkOffline(); };
     void checkOffline();
-    const online = () => { if (mounted) { setOfflineUnlock(false); setOfflineUnavailable(false); } };
-    const offline = () => { void checkOffline(); };
-    window.addEventListener("online", online); window.addEventListener("offline", offline);
-    return () => { mounted = false; window.removeEventListener("online", online); window.removeEventListener("offline", offline); };
+    window.addEventListener("online", refresh, { passive: true });
+    window.addEventListener("offline", refresh, { passive: true });
+    return () => { mounted = false; window.removeEventListener("online", refresh); window.removeEventListener("offline", refresh); };
   }, []);
 
   async function deverrouillerHorsLigne(e: React.FormEvent) {
@@ -527,8 +331,9 @@ function PharmacieFormulaire() {
       const data = await response.json();
       if (!response.ok) { setError(data.error || "Code pharmacie invalide."); return; }
       setNomPharmacie(String(data.nom || ""));
-      setEtape(2);
-      if (codeRef.current) codeRef.current.value = "";
+      window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: String(data.nom || "") }));
+      allerEtape(2);
+      if (codeRef.current) codeRef.current.value = ""; setCodeValue("");
     } catch { setError("Vérification impossible. Réessayez."); }
     finally { setBusy(false); }
   }
@@ -539,7 +344,7 @@ function PharmacieFormulaire() {
       const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password, remember: false, espace: "pharmacie" }) });
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { allerEtape(1, true); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); }
         setError(data.error || "Identifiants non valides pour cette pharmacie."); return;
       }
       const existingLocal = await hasLocalDevice();
@@ -568,10 +373,10 @@ function PharmacieFormulaire() {
       const response = await fetch("/api/auth/update-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, currentPassword, newPassword }) });
       const data = await response.json();
       if (!response.ok) {
-        if (data.code === "PHARMACY_SESSION_EXPIRED") { setEtape(1); setNomPharmacie(""); }
+        if (data.code === "PHARMACY_SESSION_EXPIRED") { allerEtape(1, true); setNomPharmacie(""); }
         setError(data.error || "Mise à jour impossible."); return;
       }
-      setCurrentPassword(""); setNewPassword(""); setShowUpdate(false);
+      setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); setShowUpdate(false);
       setMessage("Mot de passe mis à jour. Vous pouvez vous connecter.");
     } catch { setError("Mise à jour momentanément indisponible."); }
     finally { setBusy(false); }
@@ -580,7 +385,7 @@ function PharmacieFormulaire() {
   async function changerPharmacie() {
     setBusy(true); setError(""); setMessage("");
     try { await fetch("/api/pharmacie/code/reset", { method: "POST" }); }
-    finally { setEtape(1); setNomPharmacie(""); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
+    finally { allerEtape(1, true); setNomPharmacie(""); window.dispatchEvent(new CustomEvent("naxa:pharmacy-name", { detail: "" })); setUsername(""); setPassword(""); setShowUpdate(false); setActivation(null); setBusy(false); }
   }
 
 
@@ -610,9 +415,10 @@ function PharmacieFormulaire() {
   return (
     <div className="carte w-full max-w-sm space-y-3 !max-w-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none text-naxa-green-900">
       <div className="connexion-titre text-center">
+        {!checkingConnection && <div className="mb-3 flex justify-center"><BandeauHorsLigne etat={pendingCountState>0?"attente":offlineUnlock||offlineUnavailable?"hors-ligne":"synchronise"} attente={pendingCountState}/></div>}
         <h1 className="reveal !m-0 !p-0 text-center text-4xl font-extrabold text-naxa-green-900 !leading-[1.05]" style={d(1)}>Connexion</h1>
         <p className="reveal !mb-0 !mt-1 !p-0 text-center text-sm font-semibold !leading-[1.3]" style={{ ...d(2), color: "#9B7A00" }}>
-          {offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Étape 1 — Code Pharmacie" : "Étape 2 — Identifiants de connexion"}
+          {offlineUnlock ? "Déverrouillage hors ligne" : etape === 1 ? "Veuillez entrer votre Code Pharmacie" : "Veuillez entrer vos identifiants de connexion"}
         </p>
       </div>
 
@@ -649,10 +455,7 @@ function PharmacieFormulaire() {
         </p>
       ) : etape === 1 ? (
         <form onSubmit={verifierCode} className="space-y-3">
-          <div className="reveal relative !mt-6" style={d(3)}>
-            <input ref={codeRef} id="code-pharmacie" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder=" " required className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" aria-label="Code Pharmacie à 4 chiffres" />
-            <label htmlFor="code-pharmacie" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Code Pharmacie (4 chiffres)</label>
-          </div>
+          <ChampFlottant id="code-pharmacie" label="Code" inputRef={codeRef} className="naxa-reveal !mt-6" minHeight={62} inset={20} value={codeValue} onChange={setCodeValue} inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" required delayMs={240}/>
           <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(4)} disabled={busy}>{busy ? "Vérification..." : "Continuer"}</button>
         </form>
       ) : (
@@ -664,33 +467,27 @@ function PharmacieFormulaire() {
           {activation ? (
             <form onSubmit={confirmerActivation} className="space-y-3">
               <p className="text-sm font-semibold">{activation.existingLocal ? "Cet appareil est déjà activé. Saisissez votre PIN local existant." : "Activez cet appareil pour le mode hors ligne. Le PIN ne sera jamais envoyé au serveur."}</p>
-              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
-              {!activation.existingLocal && (<input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />)}
+              <input aria-label="PIN local" placeholder="PIN local (4 à 6 chiffres)" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinLocal} onChange={e => setPinLocal(e.target.value.replace(/\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />
+              {!activation.existingLocal && (<input aria-label="Confirmer le PIN local" placeholder="Confirmer le PIN local" required inputMode="numeric" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinConfirmation} onChange={e => setPinConfirmation(e.target.value.replace(/\D/g, "").slice(0,6))} className="champ w-full !min-h-[54px]" autoComplete="off" />)}
               <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Sécurisation..." : activation.existingLocal ? "Déverrouiller et continuer" : "Activer cet appareil"}</button>
             </form>
           ) : !showUpdate ? (
             <form onSubmit={login} className="space-y-3">
-              <div className="reveal relative !mt-4" style={d(4)}>
-                <input id="pharmacy-username" placeholder=" " required autoComplete="username" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
-                <label htmlFor="pharmacy-username" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Nom d&apos;utilisateur</label>
-              </div>
-              <div className="reveal relative" style={d(5)}>
-                <input id="pharmacy-password" placeholder=" " required type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="champ peer w-full pr-20 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100" />
-                <label htmlFor="pharmacy-password" className="pointer-events-none absolute left-5 top-2 text-xs font-semibold !text-[#9B7A00] transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs">Mot de passe</label>
-                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-xs font-bold" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Masquer" : "Afficher"}</button>
-              </div>
+              <ChampFlottant id="pharmacy-username" label="Nom d’utilisateur" className="naxa-reveal !mt-4" minHeight={62} inset={20} value={username} onChange={v=>setUsername(v.toLowerCase())} autoComplete="username" required delayMs={320}/>
+              <ChampFlottant id="pharmacy-password" label="Mot de passe" className="naxa-reveal" minHeight={62} inset={20} value={password} onChange={setPassword} type={showPassword?"text":"password"} autoComplete="current-password" required delayMs={400} trailing={<button type="button" className="rounded-full px-2 py-1 text-xs font-bold" onClick={()=>setShowPassword(v=>!v)}>{showPassword?"Masquer":"Afficher"}</button>}/>
               <button className="reveal btn btn-canari w-full !min-h-[54px] !mt-5" style={d(6)} disabled={busy}>{busy ? "Connexion..." : "Connexion"}</button>
               <button type="button" onClick={() => { setShowUpdate(true); setError(""); setMessage(""); }} className="reveal w-full text-center text-sm font-bold underline text-naxa-green-900" style={d(7)}>Mettre à jour le mot de passe</button>
             </form>
           ) : (
-            <form onSubmit={updatePassword} className="space-y-3">
-              <p className="text-sm font-semibold">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
-              <input aria-label="Nom d'utilisateur" placeholder="Nom d'utilisateur" required value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className="champ w-full !min-h-[54px]" autoComplete="username" />
-              <input aria-label="Mot de passe actuel" placeholder="Mot de passe actuel" required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="current-password" />
-              <input aria-label="Nouveau mot de passe" placeholder="Nouveau mot de passe (8 caractères minimum)" required minLength={8} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="champ w-full !min-h-[54px]" autoComplete="new-password" />
-              <button className="btn btn-canari w-full !min-h-[54px]" disabled={busy}>{busy ? "Mise à jour..." : "Confirmer le nouveau mot de passe"}</button>
-              <button type="button" onClick={() => { setShowUpdate(false); setError(""); }} className="w-full text-sm font-bold underline">Retour à la connexion</button>
-            </form>
+            <PanneauGlissant ouvert={showUpdate} onFermer={() => { setShowUpdate(false); setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); setError(""); }} titre="Mettre à jour le mot de passe">
+              <form onSubmit={updatePassword} className="space-y-3">
+                <p className="text-sm text-[#846600]">Vérifiez votre mot de passe actuel avant d’en choisir un nouveau.</p>
+                <ChampFlottant id="pharmacy-current-password" label="Mot de passe actuel" type="password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password" required/>
+                <ChampFlottant id="pharmacy-new-password" label="Nouveau mot de passe" type="password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" required/>
+                <ChampFlottant id="pharmacy-confirm-password" label="Confirmer le mot de passe" type="password" value={confirmNewPassword} onChange={setConfirmNewPassword} autoComplete="new-password" required/>
+                <button className="btn btn-canari w-full !min-h-[52px] rounded-2xl" disabled={busy || !currentPassword || !newPassword || !confirmNewPassword}>{busy ? "Mise à jour..." : "Mettre à jour"}</button>
+              </form>
+            </PanneauGlissant>
           )}
         </>
       )}
@@ -700,63 +497,9 @@ function PharmacieFormulaire() {
   );
 }
 
-function FondConnexion() {
-  const searchParams = useSearchParams();
-  return searchParams.get("espace") === "pharmacie"
-    ? <BullesAuthentification />
-    : <BullesConnexion />;
-}
-
 function ChoixFormulaire() {
   const searchParams = useSearchParams();
   return searchParams.get("espace") === "pharmacie" ? <PharmacieFormulaire /> : <Formulaire />;
 }
 
-function TitreEspace() {
-  const searchParams = useSearchParams();
-  const titre = searchParams.get("espace") === "pharmacie" ? "Espace pharmacie" : "Espace client";
-
-  return (
-    <p
-      className="reveal inline-flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-xl font-extrabold tracking-tight text-[#064B2A] shadow-sm"
-      style={d(0)}
-    >
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40"
-      />
-      {titre}
-    </p>
-  );
-}
-
-export default function Connexion() {
-  return (
-    <main
-      className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-6 !h-auto !min-h-[100dvh] !overflow-y-auto"
-      style={{ backgroundColor: "#F2FAF5" }}
-    >
-      <Suspense fallback={null}><FondConnexion /></Suspense>
-      <div
-        className="relative z-10 w-full shrink-0 pt-3"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
-      >
-        <div className="flex w-full items-center justify-between gap-3">
-          <div className="logo-pastille reveal" style={d(0)}>
-            <Logo taille={30} />
-          </div>
-          <Suspense fallback={<span aria-hidden="true" className="h-6 w-28" />}>
-            <TitreEspace />
-          </Suspense>
-        </div>
-      </div>
-      <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">
-        <div className="mt-[-60px] w-full max-w-[360px]">
-          <Suspense>
-            <ChoixFormulaire />
-          </Suspense>
-        </div>
-      </div>
-    </main>
-  );
-}
+export default function Connexion() { return <Suspense fallback={null}><ChoixFormulaire /></Suspense>; }
