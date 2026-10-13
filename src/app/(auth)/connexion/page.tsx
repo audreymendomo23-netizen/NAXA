@@ -8,6 +8,7 @@ import { BulleErreur } from "@/components/BulleErreur";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { PanneauGlissant } from "@/components/PanneauGlissant";
+import { useAuthDraftState } from "@/components/auth/AuthDraftContext";
 import { activateLocalDevice, getLocalDeviceIdentity, getLocalInstallationId, hasLocalDevice, saveTokenEncryptedForSession, unlockLocalDevice } from "@/lib/offline-db";
 
 function d(index: number): React.CSSProperties {
@@ -44,7 +45,7 @@ function Formulaire() {
   const espace = search.get("espace");
   const titre = espace === "pharmacie" ? "Espace pharmacie" : "Espace client";
 
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useAuthDraftState("pharmacy.username", "");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -530,24 +531,6 @@ function PharmacieFormulaire() {
 function ChoixFormulaire() {
   const searchParams = useSearchParams();
   return searchParams.get("espace") === "pharmacie" ? <PharmacieFormulaire /> : <Formulaire />;
-}
-
-function TitreEspace() {
-  const searchParams = useSearchParams();
-  const pharmacie = searchParams.get("espace") === "pharmacie";
-  const [nomPharmacie, setNomPharmacie] = useState("");
-  useEffect(() => {
-    const actualiser = (event: Event) => setNomPharmacie(String((event as CustomEvent<string>).detail || ""));
-    window.addEventListener("naxa:pharmacy-name", actualiser);
-    return () => window.removeEventListener("naxa:pharmacy-name", actualiser);
-  }, []);
-  const titre = pharmacie ? (nomPharmacie || "Espace Pharmacie") : "Espace client";
-  return (
-    <p className="reveal inline-flex min-w-0 max-w-[65vw] items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-base font-extrabold tracking-tight text-[#064B2A] shadow-sm sm:text-xl" style={d(0)}>
-      {pharmacie && nomPharmacie ? <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="#064B2A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6M7 10h2M15 10h2"/></svg> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#FFE33D] ring-[3px] ring-[#FFE33D]/40" />}
-      <span className="truncate">{titre}</span>
-    </p>
-  );
 }
 
 export default function Connexion() { return <Suspense fallback={null}><ChoixFormulaire /></Suspense>; }
