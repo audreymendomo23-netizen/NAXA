@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
+import { CocheValidation } from "@/components/CocheValidation";
 
 type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
 type Particule = { x: number; y: number; vx: number; vy: number; vie: number; rayon: number; couleur: string };
@@ -218,12 +219,45 @@ function Formulaire() {
   const search = useSearchParams();
   const retour = search.get("retour") || "/";
   const [username, setUsername] = useState("");
+  const [usernameRecognition, setUsernameRecognition] = useState<"idle" | "checking" | "recognized">("idle");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const showLoginButton = username.trim().length > 0 || password.length > 0 || busy || Boolean(error);
+
+  useEffect(() => {
+    const value = username.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(value)) {
+      setUsernameRecognition("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    setUsernameRecognition("checking");
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/auth/username-recognition", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: value }),
+          signal: controller.signal,
+        });
+        const result = await response.json();
+        if (!controller.signal.aborted) {
+          setUsernameRecognition(result.recognized ? "recognized" : "idle");
+        }
+      } catch {
+        if (!controller.signal.aborted) setUsernameRecognition("idle");
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [username]);
 
   useEffect(() => {
     if (search.get("redirectionRole") !== "1") return;
@@ -367,7 +401,7 @@ function Formulaire() {
         <input
           id="username"
           placeholder=" "
-          className="champ peer w-full !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
+          className="champ peer w-full pr-12 !min-h-[62px] !pt-6 !pb-1 !border-naxa-green-100"
           required
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
@@ -379,6 +413,7 @@ function Formulaire() {
         >
           Nom d'utilisateur
         </label>
+        <CocheValidation visible={usernameRecognition === "recognized"} label="Nom d’utilisateur reconnu" right="14px" />
       </div>
 
       <div className="reveal relative" style={d(4)}>
