@@ -1,5 +1,6 @@
 "use client";
 import { Suspense,useEffect,useMemo,useRef,useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -24,8 +25,29 @@ function Formulaire(){
  const [nom,setNom]=useAuthDraftState("signup.nom",""),[prenom,setPrenom]=useAuthDraftState("signup.prenom",""),[username,setUsername]=useAuthDraftState("signup.username","");
  const [uState,setUState]=useState<"idle"|"checking"|"available"|"taken">("idle");
  const [country,setCountry]=useAuthDraftState("signup.country","CM"),[phone,setPhone]=useAuthDraftState("signup.phone",""),[countryOpen,setCountryOpen]=useState(false),[dob,setDob]=useAuthDraftState("signup.dob",""),[email,setEmail]=useAuthDraftState("signup.email","");
- const countryPickerRef=useRef<HTMLSpanElement|null>(null);
- useEffect(()=>{if(!countryOpen)return;const outside=(event:PointerEvent)=>{if(!countryPickerRef.current?.contains(event.target as Node))setCountryOpen(false)};const escape=(event:KeyboardEvent)=>{if(event.key==="Escape")setCountryOpen(false)};document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape)}},[countryOpen]);
+ const countryPickerRef=useRef<HTMLSpanElement|null>(null), countryMenuRef=useRef<HTMLSpanElement|null>(null);
+ const [countryMenuPosition,setCountryMenuPosition]=useState<{left:number;top:number;maxHeight:number;width:number}|null>(null);
+ useEffect(()=>{
+  if(!countryOpen)return;
+  const positionMenu=()=>{
+   const rect=countryPickerRef.current?.getBoundingClientRect();if(!rect)return;
+   const viewport=window.visualViewport, viewportTop=viewport?.offsetTop??0, viewportHeight=viewport?.height??window.innerHeight;
+   const width=Math.min(256,Math.max(180,window.innerWidth-24));
+   const left=Math.max(12,Math.min(rect.left,window.innerWidth-width-12));
+   const below=Math.max(0,viewportTop+viewportHeight-rect.bottom-12), above=Math.max(0,rect.top-viewportTop-12);
+   const belowPreferred=below>=Math.min(180,viewportHeight-24)||below>=above;
+   const maxHeight=Math.max(96,Math.min(260,belowPreferred?below:above));
+   const top=belowPreferred?rect.bottom+4:Math.max(viewportTop+12,rect.top-maxHeight-4);
+   setCountryMenuPosition({left,top,maxHeight,width});
+  };
+  positionMenu();
+  const outside=(event:PointerEvent)=>{const target=event.target as Node;if(!countryPickerRef.current?.contains(target)&&!countryMenuRef.current?.contains(target))setCountryOpen(false)};
+  const escape=(event:KeyboardEvent)=>{if(event.key==="Escape")setCountryOpen(false)};
+  window.addEventListener("resize",positionMenu);window.addEventListener("scroll",positionMenu,true);
+  window.visualViewport?.addEventListener("resize",positionMenu);window.visualViewport?.addEventListener("scroll",positionMenu);
+  document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);
+  return()=>{window.removeEventListener("resize",positionMenu);window.removeEventListener("scroll",positionMenu,true);window.visualViewport?.removeEventListener("resize",positionMenu);window.visualViewport?.removeEventListener("scroll",positionMenu);document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape)};
+ },[countryOpen]);
  const [consent,setConsent]=useAuthDraftState("signup.consent",false); const [step,setStep]=useState<"details"|"otp"|"password">("details"),[otpVersion,setOtpVersion]=useState(0);
  useEffect(()=>{setStep(urlStep==="otp"||urlStep==="password"?urlStep:"details")},[urlStep]);
  useEffect(()=>{if(step!=="password"){setPassword("");setConfirmation("")}},[step]);
@@ -92,7 +114,7 @@ function Formulaire(){
   <div className={`naxa-reveal relative top-[10px] text-center ${step==="details"?"mb-[76px]":""}`} style={{"--reveal-delay":"80ms"} as React.CSSProperties}>{step!=="otp"&&<><h1 className="text-2xl font-extrabold sm:text-3xl">{step==="password"?"Choisissez votre mot de passe":"Créer mon compte"}</h1><p className={`mt-1 text-xs leading-snug sm:mt-2 sm:text-sm ${step==="details"?"font-bold text-[#9B7A00]":"text-slate-600"}`}>{step==="details"?<>Renseignez vos informations pour créer votre compte <strong className="naxa-text">NAXA</strong>.</>:"Votre e-mail est validé. Choisissez maintenant votre mot de passe."}</p></>}</div>
   {step==="details"&&<><div className="grid grid-cols-2 gap-[10px]"><ChampFlottant id="signup-nom" label="Nom" className="naxa-reveal" revealDelayMs={0} value={nom} onChange={setNom} autoComplete="family-name" required valid={nom.trim().length>=2&&/\p{L}/u.test(nom.trim())} validColor="#FFE33D"/><ChampFlottant id="signup-prenom" label="Prénom" className="naxa-reveal" revealDelayMs={80} value={prenom} onChange={setPrenom} autoComplete="given-name" required valid={prenom.trim().length>=2&&/\p{L}/u.test(prenom.trim())} validColor="#FFE33D" delayMs={80}/></div>
   <div><ChampFlottant id="signup-username" label="Nom d’utilisateur" className="naxa-reveal" revealDelayMs={160} value={username} onChange={v=>setUsername(v.replace(/\s/g,""))} autoComplete="username" required maxLength={30} valid={uState==="available"} validColor="#2D9CFF" delayMs={400}/><span aria-live="polite" className={`mt-1 block min-h-[1px] text-[13px] leading-tight ${uState==="taken"?"text-red-700":"text-[#064B2A]"}`}>{uState==="checking"?"Vérification…":uState==="taken"?"Nom d’utilisateur pris ou invalide":""}</span></div>
-  <div><ChampFlottant id="signup-phone" label="Numéro de téléphone" className="naxa-reveal" revealDelayMs={240} value={phone} onChange={v=>setPhone(v.replace(/\D/g,"").slice(0,selected[4]))} inputMode="numeric" autoComplete="tel-national" required valid={phoneValid} validColor="#FF9F1C" prefix={<span ref={countryPickerRef} className="relative"><button type="button" aria-haspopup="listbox" aria-expanded={countryOpen} onClick={()=>setCountryOpen(v=>!v)} className="flex min-h-8 min-w-[132px] items-center gap-1.5 rounded-full border border-[#D8E9DE] bg-white px-3 text-xs font-bold"><span>{selected[1]}</span><span>{selected[2]}</span><span aria-hidden>⌄</span></button>{countryOpen&&<span role="listbox" className="absolute left-0 top-10 z-[1001] max-h-[min(15rem,40dvh)] w-64 overscroll-contain overflow-auto rounded-2xl border bg-white p-1 shadow-lg">{COUNTRIES.map(c=><button key={c[0]} type="button" role="option" aria-selected={country===c[0]} onClick={()=>{setCountry(c[0]);setPhone("");setCountryOpen(false)}} className="flex min-h-[44px] w-full items-center gap-2 rounded-xl px-3 text-left text-sm hover:bg-slate-50"><span className="text-lg">{c[1]}</span><span className="flex-1">{c[3]}</span><span className="font-bold">{c[2]}</span></button>)}</span>}</span>}/>{phone&&!phoneValid&&<span role="alert" className="mt-1 block text-[13px] text-red-700">Numéro invalide — {selected[4]} chiffres attendus</span>}</div>
+  <div><ChampFlottant id="signup-phone" label="Numéro de téléphone" className="naxa-reveal" revealDelayMs={240} value={phone} onChange={v=>setPhone(v.replace(/\D/g,"").slice(0,selected[4]))} inputMode="numeric" autoComplete="tel-national" required valid={phoneValid} validColor="#FF9F1C" prefix={<span ref={countryPickerRef} className="relative"><button type="button" aria-haspopup="listbox" aria-expanded={countryOpen} onClick={()=>setCountryOpen(v=>!v)} className="flex min-h-8 min-w-[144px] items-center gap-1.5 rounded-full border border-[#D8E9DE] bg-white px-3 text-xs font-bold"><span>{selected[1]}</span><span>{selected[2]}</span><span aria-hidden>⌄</span></button>{countryOpen&&countryMenuPosition&&createPortal(<span ref={countryMenuRef} role="listbox" aria-label="Choisir un pays" style={{position:"fixed",left:countryMenuPosition.left,top:countryMenuPosition.top,width:countryMenuPosition.width,maxHeight:countryMenuPosition.maxHeight,zIndex:2147483647}} className="overscroll-contain overflow-y-auto rounded-2xl border border-[#D8E9DE] bg-white p-1 shadow-xl">{COUNTRIES.map(c=><button key={c[0]} type="button" role="option" aria-selected={country===c[0]} onClick={()=>{setCountry(c[0]);setPhone("");setCountryOpen(false)}} className="flex min-h-[44px] w-full items-center gap-2 rounded-xl px-3 text-left text-sm hover:bg-slate-50"><span className="text-lg">{c[1]}</span><span className="flex-1">{c[3]}</span><span className="font-bold">{c[2]}</span></button>)}</span>,document.body)}</span>}/>{phone&&!phoneValid&&<span role="alert" className="mt-1 block text-[13px] text-red-700">Numéro invalide — {selected[4]} chiffres attendus</span>}</div>
   <ChampFlottant id="signup-dob" label="Date de naissance" className="naxa-reveal" revealDelayMs={320} type="date" value={dob} onChange={setDob} required max={new Date().toISOString().slice(0,10)} valid={age!==null&&age>=18} validColor="#8B5CF6"/>
   {age!==null&&age<18&&<p role="alert" className="rounded-xl2 bg-red-50 p-3 text-sm font-semibold text-red-700">NAXA est réservé aux personnes âgées de 18 ans ou plus.</p>}
   <ChampFlottant id="signup-email" label="Adresse e-mail" className="naxa-reveal" revealDelayMs={400} type="email" required value={email} onChange={setEmail} autoComplete="email" valid={/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)} validColor="#B3123F" delayMs={400}/>
