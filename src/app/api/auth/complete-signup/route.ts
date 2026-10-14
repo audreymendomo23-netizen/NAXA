@@ -114,6 +114,7 @@ export async function POST(request: Request) {
         phone_country: phoneCountry,
         date_of_birth: dateOfBirth,
         consent_accepted: true,
+        naxa_signup_pending: false,
         naxa_signup_completed: true,
       },
     });
