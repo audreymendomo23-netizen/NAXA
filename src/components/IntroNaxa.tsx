@@ -49,7 +49,7 @@ export function IntroNaxa({onFinish}:Props) {
       const clipRight=`polygon(${x}% 0,100% 0,100% 100%,${x}% 100%)`;
       const vis=[
         {on:t<1.8,clip:t>=1.2&&t<1.8?clipRight:"none"},
-        {on:t>=1.2&&t<2.4,clip:t>=1.2&&t<1.8?clipLeft:"none"},
+        {on:t>=1.2&&t<3.2,clip:t>=1.2&&t<1.8?clipLeft:t>=2.4&&t<3.2?clipLeft:"none"},
         {on:t>=2.4&&t<4.6,clip:t>=2.4&&t<3.2||t>=4&&t<4.6?clipRight:"none"},
         {on:t>=4,clip:t>=4&&t<4.6?clipLeft:"none"},
       ];
