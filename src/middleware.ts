@@ -23,6 +23,18 @@ const protectedPrefixes = [
 ];
 
 export async function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
+  // Ne pas laisser le middleware rafraîchir ou réécrire les cookies pendant
+  // les échanges OAuth/OTP : ces routes gèrent elles-mêmes leurs cookies.
+  // En particulier, le verifier PKCE doit rester celui émis au démarrage OAuth.
+  const authFlow =
+    path === "/auth/callback" ||
+    path === "/api/auth/google" ||
+    path === "/api/auth/signup-otp" ||
+    path.startsWith("/api/auth/signup-otp/");
+  if (authFlow) return NextResponse.next({ request: req });
+
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +55,6 @@ export async function middleware(req: NextRequest) {
   // Les visiteurs non connectés peuvent parcourir l'accueil et les pages publiques.
   if (!data.user) return res;
 
-  const path = req.nextUrl.pathname;
   const isOnboardingExempt = onboardingExempt.some(
     (allowed) => path === allowed || path.startsWith(allowed + "/")
   );
