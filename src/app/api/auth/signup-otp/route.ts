@@ -67,8 +67,10 @@ export async function POST(request: Request) {
       // d'inscription éventuelles, sans supprimer l'utilisateur Auth ni ses autres métadonnées.
       const metadata = { ...(existing.user_metadata ?? {}) };
       const metadataKeys = ["username", "first_name", "last_name", "phone", "phone_country", "date_of_birth", "consent_accepted", "naxa_signup_completed"];
-      const hadSignupMetadata = metadataKeys.some((key) => Object.prototype.hasOwnProperty.call(metadata, key));
+      const hadSignupMetadata = metadataKeys.some((key) => Object.prototype.hasOwnProperty.call(metadata, key))
+        || metadata.naxa_signup_pending !== true;
       for (const key of metadataKeys) delete metadata[key];
+      metadata.naxa_signup_pending = true;
       if (hadSignupMetadata) {
         const { error: clearError } = await admin.auth.admin.updateUserById(existing.id, { user_metadata: metadata });
         if (clearError) {
@@ -84,6 +86,7 @@ export async function POST(request: Request) {
       email,
       options: {
         shouldCreateUser: true,
+        data: { naxa_signup_pending: true },
       },
     });
     if (error) {
