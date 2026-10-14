@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     });
     if (error) {
       console.error("password reset OTP:", error.message);
-      const rateLimited = /rate|too many|for security purposes|only request this after|after \\d+ seconds/i.test(error.message);
+      const rateLimited = /rate|too many|for security purposes|only request this after|after \d+ seconds/i.test(error.message);
       return NextResponse.json({
         ok: false,
         error: rateLimited
