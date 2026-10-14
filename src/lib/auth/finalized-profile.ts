@@ -1,6 +1,7 @@
 export type NaxaAuthUser = {
   id: string;
   email?: string | null;
+  email_confirmed_at?: string | null;
   user_metadata?: Record<string, unknown> | null;
 };
 
@@ -18,7 +19,7 @@ export function isFinalizedNaxaProfile(
   profile: NaxaProfile | null | undefined,
   user: NaxaAuthUser | null | undefined,
 ): boolean {
-  if (!profile?.id || !user || profile.id !== user.id) return false;
+  if (!profile?.id || !user || profile.id !== user.id || !user.email_confirmed_at) return false;
   if (user.user_metadata?.naxa_signup_completed === true) return true;
 
   const username = String(profile.username ?? "").trim().toLowerCase();
