@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: false,
         error: rateLimited
-          ? "Attendez environ 55 secondes avant de demander un nouveau code."
+          ? "Attendez 60 secondes avant de demander un nouveau code."
           : "Impossible d'envoyer le code OTP. Réessayez.",
       }, { status: rateLimited ? 429 : 500 });
     }

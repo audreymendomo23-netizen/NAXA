@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: false,
         error: rateLimited
-          ? "Attendez environ 55 secondes avant de demander un nouveau code."
+          ? "Attendez 60 secondes avant de demander un nouveau code."
           : "L’envoi du code a échoué. Vérifiez l’adresse e-mail et réessayez.",
       }, { status: rateLimited ? 429 : 502 });
     }
