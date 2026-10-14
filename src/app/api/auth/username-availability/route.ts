@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
-    const email = String(body.email ?? "").trim().toLowerCase();
 
     if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) {
       return NextResponse.json({ valid: false, available: false });
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const admin = supabaseAdmin();
     const { data: profile, error } = await admin
       .from("profiles")
-      .select("id")
+      .select("id, username")
       .ilike("username", username)
       .maybeSingle();
 
@@ -24,14 +24,15 @@ export async function POST(request: Request) {
     }
     if (!profile) return NextResponse.json({ valid: true, available: true });
 
-    // Autoriser uniquement la reprise du même nom sur le même compte non confirmé.
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const { data: userData, error: userError } = await admin.auth.admin.getUserById(profile.id);
-      if (!userError && userData.user
-        && userData.user.email?.trim().toLowerCase() === email
-        && !userData.user.email_confirmed_at) {
-        return NextResponse.json({ valid: true, available: true, pendingSignup: true });
-      }
+    const { data: userData, error: userError } = await admin.auth.admin.getUserById(profile.id);
+    if (userError) {
+      console.error("username availability auth lookup:", userError.message);
+      return NextResponse.json({ valid: true, available: false }, { status: 503 });
+    }
+
+    // Les profils provisoires générés par le trigger Auth ne réservent pas le nom.
+    if (userData.user && !isFinalizedNaxaProfile(profile, userData.user)) {
+      return NextResponse.json({ valid: true, available: true, pendingSignup: true });
     }
 
     return NextResponse.json({ valid: true, available: false });
