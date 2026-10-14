@@ -12,6 +12,8 @@ export function AmbulanceGlobale() {
         ? event.target.closest<HTMLElement>('button:not(:disabled):not([aria-disabled="true"]), input[type="submit"]:not(:disabled), [role="button"]:not([aria-disabled="true"])')
         : null;
       if (!target || target.closest("[data-naxa-no-ambulance]")) return;
+      // Activation opt-in : seuls les boutons explicitement autorisés peuvent lancer l’ambulance.
+      if (target.dataset.naxaAmbulance !== "true") return;
       const rect = target.getBoundingClientRect();
       const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
       const network = (navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number } }).connection;
