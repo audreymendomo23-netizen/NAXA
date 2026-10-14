@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
 type SignupBody = {
   email?: unknown;
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     const admin = supabaseAdmin();
-    let existing: { id: string; email_confirmed_at?: string | null } | null = null;
+    let existing: { id: string; email_confirmed_at?: string | null; email?: string | null; user_metadata?: Record<string, unknown> | null } | null = null;
     for (let page = 1; page <= 100; page += 1) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) {
@@ -42,22 +43,38 @@ export async function POST(request: Request) {
       }
       const user = (data.users ?? []).find((item) => item.email?.trim().toLowerCase() === email);
       if (user) {
-        existing = { id: user.id, email_confirmed_at: user.email_confirmed_at };
+        existing = { id: user.id, email_confirmed_at: user.email_confirmed_at, email: user.email, user_metadata: user.user_metadata as Record<string, unknown> | null };
         break;
       }
       if ((data.users ?? []).length < 1000) break;
     }
 
-    if (existing?.email_confirmed_at) {
-      return NextResponse.json({ ok: false, error: "Cette adresse e-mail possède déjà un compte confirmé. Connectez-vous ou utilisez « Mot de passe oublié »." }, { status: 409 });
-    }
-
     if (existing) {
-      // Les informations personnelles restent uniquement dans le formulaire jusqu’à la création effective du compte.
-      const { error: clearError } = await admin.auth.admin.updateUserById(existing.id, { user_metadata: {} });
-      if (clearError) {
-        console.error("signup OTP pending metadata cleanup:", clearError.message);
-        return NextResponse.json({ ok: false, error: "Impossible de reprendre cette inscription. Réessayez." }, { status: 503 });
+      const { data: profile, error: profileError } = await admin
+        .from("profiles")
+        .select("id, username")
+        .eq("id", existing.id)
+        .maybeSingle();
+      if (profileError) {
+        console.error("signup OTP profile lookup:", profileError.message);
+        return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 503 });
+      }
+      if (profile && isFinalizedNaxaProfile(profile, existing)) {
+        return NextResponse.json({ ok: false, error: "Cette adresse e-mail possède déjà un compte confirmé. Connectez-vous ou utilisez « Mot de passe oublié »." }, { status: 409 });
+      }
+
+      // Un profil provisoire n'est pas un compte NAXA : effacer les seules métadonnées
+      // d'inscription éventuelles, sans supprimer l'utilisateur Auth ni ses autres métadonnées.
+      const metadata = { ...(existing.user_metadata ?? {}) };
+      const metadataKeys = ["username", "first_name", "last_name", "phone", "phone_country", "date_of_birth", "consent_accepted", "naxa_signup_completed"];
+      const hadSignupMetadata = metadataKeys.some((key) => Object.prototype.hasOwnProperty.call(metadata, key));
+      for (const key of metadataKeys) delete metadata[key];
+      if (hadSignupMetadata) {
+        const { error: clearError } = await admin.auth.admin.updateUserById(existing.id, { user_metadata: metadata });
+        if (clearError) {
+          console.error("signup OTP pending metadata cleanup:", clearError.message);
+          return NextResponse.json({ ok: false, error: "Impossible de reprendre cette inscription. Réessayez." }, { status: 503 });
+        }
       }
     }
 
