@@ -1,8 +1,14 @@
-> **AVERTISSEMENT DE CONTINUITÉ — 9 octobre 2026**
+> **ÉTAT OPÉRATIONNEL — 14 octobre 2026**
 >
-> Les instructions historiques ci-dessous ne constituent pas une procédure d'installation complète de la version actuelle. Elles ne doivent pas être utilisées pour reconstruire ou modifier la Production. La référence candidate contient des évolutions absentes de `main`, et le schéma Production observé ne correspond pas entièrement au code actuellement déployé. Toute intégration se fait sur la branche `integration/naxa-360-20261009` et toute validation SQL sur l'environnement de test. Aucun déploiement ni aucune écriture Supabase Production sans autorisation explicite.
+> La branche GitHub `main` est la seule source de vérité du code NAXA. Le protocole d'exécution canonique est défini dans `AGENTS.md` : corrections ciblées sur `main`, vérifications et déploiement Vercel lorsque les preuves sont suffisantes. Ne pas reprendre les anciennes branches ni les anciennes consignes de workflow de cet historique. Supabase Production reste en lecture seule pour les interventions de code ; aucune migration ni écriture directe n'est effectuée sans périmètre explicite.
 
 # NAXA : base de l'application
+
+## Authentification et introduction (état du 14 octobre 2026)
+
+- Le flux Google utilise une route serveur OAuth et un callback qui échange le code contre une session. Les comptes ayant une identité Google liée sont traités comme des accès clients ; les gardes de route conservent le contrôle du profil incomplet.
+- L'OTP d'inscription est natif Supabase : émission par `signInWithOtp`, validation par `verifyOtp` de type `email`, code conservé comme texte, verrou anti-double vérification et contrôle du délai de renvoi. Les erreurs de session (plafond de quatre appareils), de code expiré et de limitation d'envoi sont des cas distincts.
+- L'introduction animée `IntroNaxa` est une animation React/CSS pilotée par `requestAnimationFrame`, sans fichier vidéo ni ressource externe. L'ambulance globale est opt-in et n'est activée que par les boutons autorisés.
 
 Votre médicament, à 2 minutes. Next.js 14 + Supabase + Tailwind, PWA, 100 % offre gratuite.
 

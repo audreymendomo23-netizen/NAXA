@@ -52,7 +52,13 @@ export async function GET(request: Request) {
     return response;
   }
 
-  const isGoogleUser = auth.user.app_metadata?.provider === "google";
+  const appProviders = Array.isArray(auth.user.app_metadata?.providers) ? auth.user.app_metadata.providers : [];
+  const identityProviders = Array.isArray(auth.user.identities) ? auth.user.identities.map((identity) => identity.provider) : [];
+  // Un compte e-mail ensuite lié à Google peut garder provider=email dans app_metadata.
+  // Détecter aussi les identités liées évite de traiter cette connexion comme un accès public.
+  const isGoogleUser = auth.user.app_metadata?.provider === "google"
+    || appProviders.includes("google")
+    || identityProviders.includes("google");
   const incompleteGoogleClient = isGoogleUser && (
     !profile || !profile.role || (profile.role === "client" && (
       !profile.username
