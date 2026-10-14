@@ -26,7 +26,7 @@ function Formulaire(){
  useEffect(()=>{if(step!=="password"){setPassword("");setConfirmation("")}},[step]);
  const [otpVersion,setOtpVersion]=useState(0);
  const [username,setUsername]=useAuthDraftState("forgot.username",""); const [usernameRecognition,setUsernameRecognition]=useState<"idle"|"checking"|"recognized"|"unrecognized">("idle"); const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState("");
- const [show,setShow]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[otpSeconds,setOtpSeconds]=useState(28),[resending,setResending]=useState(false);
+ const [show,setShow]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[otpSeconds,setOtpSeconds]=useState(28),[resending,setResending]=useState(false);
  useEffect(()=>{if(error)notifierNAXA(error)},[error]);
  useEffect(()=>{
    const value=username.trim().toLowerCase();
@@ -47,11 +47,11 @@ function Formulaire(){
  const showUsernameSubmit=username.trim().length>0||busy||Boolean(error);
  const showPasswordSubmit=password.length>0||confirmation.length>0||busy||Boolean(error);
  async function envoyer(e:React.FormEvent){
-   e.preventDefault();setBusy(true);setError("");setMessage("");
+   e.preventDefault();setBusy(true);setError("");
    const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});
-   const data=await res.json();if(!res.ok){setBusy(false);if(res.status===404)setUsernameRecognition("unrecognized");setError(data.error||"Impossible de vérifier ce compte. Réessayez.");return}setUsernameRecognition("recognized");setMessage("");setOtpVersion(v=>v+1);setOtpSeconds(28);window.setTimeout(()=>{setBusy(false);allerEtape("otp");notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")},450);
+   const data=await res.json();if(!res.ok){setBusy(false);if(res.status===404)setUsernameRecognition("unrecognized");setError(data.error||"Impossible de vérifier ce compte. Réessayez.");return}setUsernameRecognition("recognized");setOtpVersion(v=>v+1);setOtpSeconds(28);window.setTimeout(()=>{setBusy(false);allerEtape("otp");notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")},450);
  }
- async function renvoyer(){if(otpSeconds>0||resending)return;setResending(true);setError("");try{const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});const data=await res.json();if(!res.ok){setError(data.error||"Impossible de renvoyer le code.");return}setOtpVersion(v=>v+1);setMessage("");setOtpSeconds(28);notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")}catch{setError("Impossible de renvoyer le code. Vérifiez votre connexion.")}finally{setResending(false)}}
+ async function renvoyer(){if(otpSeconds>0||resending)return;setResending(true);setError("");try{const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});const data=await res.json();if(!res.ok){setError(data.error||"Impossible de renvoyer le code.");return}setOtpVersion(v=>v+1);setOtpSeconds(28);notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")}catch{setError("Impossible de renvoyer le code. Vérifiez votre connexion.")}finally{setResending(false)}}
  async function verifierCode(value:string){setBusy(true);setError("");try{const res=await fetch("/api/auth/forgot-password/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,token:value})});const data=await res.json();if(!res.ok){setError(data.error||"Code incorrect ou expiré.");return false}return true}catch{setError("Vérification impossible. Vérifiez votre connexion.");return false}finally{setBusy(false)}}
  async function mettreAJour(e:React.FormEvent){
    e.preventDefault();if(!passwordValid){setError(password!==confirmation?"Les deux mots de passe ne correspondent pas.":"Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");return}
