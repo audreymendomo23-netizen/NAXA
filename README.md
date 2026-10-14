@@ -259,3 +259,9 @@ Les migrations additives `075_messagerie_notifications_preferences.sql` et `076_
 - OAuth Google : la route serveur construit déjà le callback depuis l’origine de la requête et conserve `next` dans `/auth/callback`. La liste des URL autorisées Supabase et l’URI Google Cloud doivent être vérifiées côté fournisseur ; cette configuration externe n’est pas modifiable via les outils de dépôt.
 
 - Reprise d’inscription après rafraîchissement : les champs `signup.*` sont conservés uniquement dans `sessionStorage` pour 30 minutes, jamais envoyés comme profil applicatif avant confirmation OTP et finalisation; ils sont effacés après création complète du profil.
+
+
+## Correctif OTP inscription — 14 octobre 2026
+- La validation de l’OTP d’inscription passe par `/api/auth/signup-otp/verify`, qui contrôle le plafond de 4 sessions avant d’appeler `verifyOtp(type: "email")`.
+- Si le compteur de sessions est indisponible ou si le plafond est atteint, le code n’est pas consommé par l’étape de vérification ; le serveur renvoie une erreur explicite.
+- Le parcours continue d’utiliser l’OTP natif Supabase. Le modèle d’e-mail, l’expiration OTP et les Redirect URLs restent des réglages Supabase distincts du code applicatif.
