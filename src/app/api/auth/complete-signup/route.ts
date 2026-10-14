@@ -2,6 +2,21 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
+function validAge(dateOfBirth: string): boolean {
+  const birth = new Date(`${dateOfBirth}T00:00:00.000Z`);
+  if (Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== dateOfBirth) return false;
+  const now = new Date();
+  let age = now.getUTCFullYear() - birth.getUTCFullYear();
+  if (now.getUTCMonth() < birth.getUTCMonth() || (now.getUTCMonth() === birth.getUTCMonth() && now.getUTCDate() < birth.getUTCDate())) age -= 1;
+  return age >= 18;
+}
+
+const phonePatterns: Record<string, RegExp> = {
+  CM: /^\+237\d{9}$/, CF: /^\+236\d{8}$/, TD: /^\+235\d{8}$/, CG: /^\+242\d{9}$/,
+  CD: /^\+243\d{9}$/, GQ: /^\+240\d{9}$/, GA: /^\+241\d{8}$/, ST: /^\+239\d{7}$/,
+  AO: /^\+244\d{9}$/, BI: /^\+257\d{8}$/, RW: /^\+250\d{9}$/,
+};
+
 export async function POST(request: Request) {
   try {
     const authorization = request.headers.get("authorization") ?? "";
@@ -30,21 +45,23 @@ export async function POST(request: Request) {
     if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)
       || firstName.length < 2 || firstName.length > 80
       || lastName.length < 2 || lastName.length > 80
-      || !/^\+[1-9]\d{6,14}$/.test(phone)
-      || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)
-      || !["CM", "CF", "TD", "CG", "CD", "GQ", "GA", "ST", "AO", "BI", "RW"].includes(phoneCountry)
+      || !phonePatterns[phoneCountry]?.test(phone)
+      || !validAge(dateOfBirth)
       || body.consent_accepted !== true) {
       return NextResponse.json({ ok: false, error: "Certaines informations du profil sont invalides." }, { status: 400 });
     }
 
     const { data: currentProfile, error: currentProfileError } = await admin
       .from("profiles")
-      .select("id, username, first_name, last_name, phone, phone_country, date_of_birth, age_verified, consent_accepted_at")
+      .select("id, role, username, first_name, last_name, phone, phone_country, date_of_birth, age_verified, consent_accepted_at")
       .eq("id", user.id)
       .maybeSingle();
     if (currentProfileError) {
       console.error("signup profile lookup:", currentProfileError.message);
       return NextResponse.json({ ok: false, error: "Impossible de vérifier le profil. Réessayez." }, { status: 503 });
+    }
+    if (currentProfile && currentProfile.role !== "client") {
+      return NextResponse.json({ ok: false, error: "Ce parcours est réservé aux comptes clients." }, { status: 403 });
     }
     if (currentProfile && isFinalizedNaxaProfile(currentProfile, user)) {
       return NextResponse.json({ ok: true, alreadyCompleted: true });
