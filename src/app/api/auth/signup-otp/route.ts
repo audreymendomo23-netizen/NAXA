@@ -91,11 +91,11 @@ export async function POST(request: Request) {
     });
     if (error) {
       console.error("signup OTP send:", error.message);
-      const rateLimited = /rate|too many/i.test(error.message);
+      const rateLimited = /rate|too many|for security purposes|only request this after|after \\d+ seconds/i.test(error.message);
       return NextResponse.json({
         ok: false,
         error: rateLimited
-          ? "Trop de demandes. Attendez un peu avant de réessayer."
+          ? "Attendez environ 55 secondes avant de demander un nouveau code."
           : "L’envoi du code a échoué. Vérifiez l’adresse e-mail et réessayez.",
       }, { status: rateLimited ? 429 : 502 });
     }
