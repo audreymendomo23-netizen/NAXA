@@ -38,7 +38,7 @@ export default function NouveauMotDePasse() {
   const score = [password.length >= 6, /[A-Z]/.test(password), /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length;
   const showSubmit = password.length > 0 || confirmation.length > 0 || Boolean(message);
 
-  return <form onSubmit={submit} className="carte w-full max-w-sm space-y-4">
+  return <form onSubmit={submit} className="carte mt-[54px] w-full max-w-sm space-y-4">
     <h1 className="text-2xl font-extrabold">Créer un nouveau mot de passe</h1>
     {!ready && <p className="text-sm text-slate-600">Vérification du lien en cours...</p>}
     <label className="block text-sm font-semibold">Mot de passe

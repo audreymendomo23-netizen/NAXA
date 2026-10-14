@@ -257,3 +257,5 @@ Les migrations additives `075_messagerie_notifications_preferences.sql` et `076_
 - Ambulance : le composant global est désormais opt-in via `data-naxa-ambulance="true"`; seules les actions « Connexion » et « Chercher » portent cet attribut.
 - Introduction : correction du calque de l’ancienne phrase pendant le balayage du pendule ; l’animation reste codée en React/CSS/SVG, sans fichier vidéo ni dépendance externe.
 - OAuth Google : la route serveur construit déjà le callback depuis l’origine de la requête et conserve `next` dans `/auth/callback`. La liste des URL autorisées Supabase et l’URI Google Cloud doivent être vérifiées côté fournisseur ; cette configuration externe n’est pas modifiable via les outils de dépôt.
+
+- Reprise d’inscription après rafraîchissement : les champs `signup.*` sont conservés uniquement dans `sessionStorage` pour 30 minutes, jamais envoyés comme profil applicatif avant confirmation OTP et finalisation; ils sont effacés après création complète du profil.
