@@ -324,3 +324,9 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Limites de validation :** un test complet avec une nouvelle adresse e-mail et une authentification Google interactive n’est pas automatisable ici sans utiliser un compte réel ; aucun OTP n’a été envoyé par ce chantier, aucun compte de test créé et aucune écriture dans Supabase Production.
 
 - **Reprise OTP après rafraîchissement :** le brouillon d’inscription est conservé localement dans `sessionStorage` pendant 30 minutes, sans créer de profil NAXA avant la confirmation du code et la finalisation; le brouillon est effacé une fois le compte finalisé.
+
+
+## Auth — correction OTP inscription (14/10/2026)
+- Cause identifiée dans le code : la page d’inscription appelait directement `verifyOtp` depuis le navigateur sans précontrôle du plafond métier de 4 sessions ; le trigger Supabase peut refuser la création de session après traitement du code.
+- Correction appliquée : route serveur `/api/auth/signup-otp/verify`, contrôle de `naxa_session_count` avant vérification, refus explicite sans consommer le code si le plafond est atteint ou si le contrôle échoue, puis vérification Supabase `type: "email"` avec cookies de session côté serveur.
+- Le composant OTP possède déjà un verrou anti-double vérification et traite le code comme texte. Le parcours réel e-mail → session reste à confirmer par un test avec un compte dédié ; aucune écriture directe en base Supabase Production n’a été effectuée.
