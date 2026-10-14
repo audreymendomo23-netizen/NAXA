@@ -2,13 +2,10 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 type Drafts = Record<string, unknown>;
 type DraftContextValue = { drafts: Drafts; hydrated: boolean; setDraft: (key: string, value: unknown) => void; clearSignupDrafts: () => void; };
-const STORAGE_KEY = "naxa.signup-draft.v1";
-const DRAFT_TTL_MS = 60 * 1000;
 const DraftContext = createContext<DraftContextValue | null>(null);
 export function AuthDraftProvider({ children }: { children: ReactNode }) {
  const [drafts, setDrafts] = useState<Drafts>({}); const [hydrated, setHydrated] = useState(false);
- useEffect(() => { try { const raw = window.sessionStorage.getItem(STORAGE_KEY); if (raw) { const saved = JSON.parse(raw) as { savedAt?: number; drafts?: Drafts }; const fresh = typeof saved.savedAt === "number" && Date.now() - saved.savedAt < DRAFT_TTL_MS; if (fresh && saved.drafts && typeof saved.drafts === "object") setDrafts(Object.fromEntries(Object.entries(saved.drafts).filter(([key]) => key.startsWith("signup.")))); else window.sessionStorage.removeItem(STORAGE_KEY); } } catch { } finally { setHydrated(true); } }, []);
- useEffect(() => { if (!hydrated) return; const signupDrafts = Object.fromEntries(Object.entries(drafts).filter(([key]) => key.startsWith("signup."))); try { if (Object.keys(signupDrafts).length) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), drafts: signupDrafts })); else window.sessionStorage.removeItem(STORAGE_KEY); } catch { } }, [drafts, hydrated]);
+ useEffect(() => { setHydrated(true); }, []);
  const setDraft = useCallback((key: string, value: unknown) => setDrafts(previous => ({ ...previous, [key]: value })), []);
  const clearSignupDrafts = useCallback(() => setDrafts(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => !key.startsWith("signup.")))), []);
  return <DraftContext.Provider value={{ drafts, hydrated, setDraft, clearSignupDrafts }}>{children}</DraftContext.Provider>;
