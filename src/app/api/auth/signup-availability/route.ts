@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const admin = supabaseAdmin();
     const perPage = 1000;
-    const usersWithPhone: Array<{ id: string; user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> | null } }> = [];
+    const usersWithPhone: Array<{ id: string; user: { id: string; email?: string | null; email_confirmed_at?: string | null; user_metadata?: Record<string, unknown> | null } }> = [];
     let pendingEmailUserId: string | null = null;
     let finished = false;
 
