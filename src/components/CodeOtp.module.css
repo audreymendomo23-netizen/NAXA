@@ -77,7 +77,7 @@
   background: #064B2A;
   animation: otp-caret 900ms steps(2, start) infinite;
 }
-.cell.pop { animation: otp-pop 160ms cubic-bezier(.2, .9, .25, 1.25) both; }
+.cell.pop { animation: none; }
 .cell.pop::before {
   content: "";
   position: absolute;
