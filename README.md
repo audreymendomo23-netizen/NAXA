@@ -265,3 +265,17 @@ Les migrations additives `075_messagerie_notifications_preferences.sql` et `076_
 - La validation de l’OTP d’inscription passe par `/api/auth/signup-otp/verify`, qui contrôle le plafond de 4 sessions avant d’appeler `verifyOtp(type: "email")`.
 - Si le compteur de sessions est indisponible ou si le plafond est atteint, le code n’est pas consommé par l’étape de vérification ; le serveur renvoie une erreur explicite.
 - Le parcours continue d’utiliser l’OTP natif Supabase. Le modèle d’e-mail, l’expiration OTP et les Redirect URLs restent des réglages Supabase distincts du code applicatif.
+
+## Configuration OAuth Google — contrôle externe requis (14 octobre 2026)
+Le code utilise une URL de retour dynamique (`window.location.origin` via la route serveur `/api/auth/google`) et `/auth/callback` échange le code OAuth contre une session en conservant les cookies. Si Google revient sur l’accueil public, contrôler l’autorisation du domaine de prévisualisation dans Supabase : une URL non autorisée peut empêcher le retour vers le domaine demandé.
+
+Dans **Supabase → Authentication → URL Configuration** :
+- **Site URL (production)** : `https://naxa-naxa3.vercel.app`
+- **Redirect URLs** : `https://naxa-naxa3.vercel.app/auth/callback`
+- **Redirect URLs (prévisualisations Vercel)** : `https://naxa-*-naxa3.vercel.app/auth/callback`
+- Si un domaine de production personnalisé est utilisé, ajouter également `https://VOTRE-DOMAINE/auth/callback` et le définir comme Site URL canonique.
+
+Dans **Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID → Authorized redirect URIs**, l’URI doit pointer vers le callback Supabase du projet, et non vers Vercel :
+`https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback`
+
+Ces valeurs sont documentées à partir des domaines actuellement connus. Les paramètres Supabase et Google Cloud ne peuvent pas être prouvés par le seul build du dépôt ; aucun secret ni aucune configuration fournisseur n’a été modifié par ce correctif.
