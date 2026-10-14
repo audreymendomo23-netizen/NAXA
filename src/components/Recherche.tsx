@@ -106,7 +106,7 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
     <div className="w-full space-y-3">
       <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) aller([q.trim()]); }} className="flex gap-2">
         <input className="champ min-w-0 flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder={langue === "fr" ? "Ex. Paracétamol, Coartem, amoxicilline" : "E.g. Paracetamol, Coartem, amoxicillin"} aria-label={langue === "fr" ? "Médicament recherché" : "Medicine searched"} />
-        <BoutonNAXA importance="importante" className="btn-canari shrink-0 !px-5" type="submit">{langue === "fr" ? "Chercher" : "Search"}</BoutonNAXA>
+        <BoutonNAXA importance="importante" className="btn-canari shrink-0 !px-5" type="submit" data-naxa-ambulance="true">{langue === "fr" ? "Chercher" : "Search"}</BoutonNAXA>
       </form>
 
       {rechercheActive && (
