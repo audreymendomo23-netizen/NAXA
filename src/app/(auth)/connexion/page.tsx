@@ -521,7 +521,7 @@ function Formulaire() {
 export default function Connexion() {
   return (
     <main
-      className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-6 !h-auto !min-h-[100dvh] !overflow-y-auto"
+      className="auth-ecran relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-naxa-green-900 px-[30px] !h-auto !min-h-[100dvh] !overflow-y-auto"
       style={{ backgroundColor: "#F2FAF5" }}
     >
       <BullesConnexion />
