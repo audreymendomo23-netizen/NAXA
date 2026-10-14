@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
 export async function POST(request: Request) {
   try {
@@ -31,18 +32,81 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Certaines informations du profil sont invalides." }, { status: 400 });
     }
 
-    const { data: otherProfile, error: lookupError } = await admin
-      .from("profiles").select("id").ilike("username", username).neq("id", user.id).maybeSingle();
+    const { data: currentProfile, error: currentProfileError } = await admin
+      .from("profiles")
+      .select("id, username")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (currentProfileError || !currentProfile) {
+      console.error("signup profile prerequisite:", currentProfileError?.message ?? "profile missing");
+      return NextResponse.json({ ok: false, error: "Le profil provisoire est introuvable. Réessayez l’inscription." }, { status: 503 });
+    }
+
+    const { data: matchingProfiles, error: lookupError } = await admin
+      .from("profiles")
+      .select("id")
+      .ilike("username", username)
+      .neq("id", user.id)
+      .limit(2);
     if (lookupError) {
       console.error("signup profile username lookup:", lookupError.message);
       return NextResponse.json({ ok: false, error: "Impossible de vérifier le nom d’utilisateur. Réessayez." }, { status: 503 });
     }
-    if (otherProfile) {
+    if (matchingProfiles?.length) {
       return NextResponse.json({ ok: false, error: "Ce nom d’utilisateur est déjà utilisé. Revenez au formulaire et choisissez-en un autre." }, { status: 409 });
+    }
+
+    // Vérifier à nouveau le téléphone au moment de finaliser, en ignorant les profils provisoires.
+    const phoneDigits = phone.replace(/\D/g, "");
+    let usersPage = 1;
+    while (usersPage <= 100) {
+      const { data, error } = await admin.auth.admin.listUsers({ page: usersPage, perPage: 1000 });
+      if (error) {
+        console.error("signup profile phone lookup:", error.message);
+        return NextResponse.json({ ok: false, error: "Impossible de vérifier le numéro de téléphone. Réessayez." }, { status: 503 });
+      }
+      const users = data.users ?? [];
+      for (const candidate of users) {
+        if (candidate.id === user.id) continue;
+        const existingPhone = String(candidate.user_metadata?.phone ?? "").replace(/\D/g, "");
+        if (!existingPhone || existingPhone !== phoneDigits) continue;
+
+        const { data: otherProfile, error: otherProfileError } = await admin
+          .from("profiles")
+          .select("id, username")
+          .eq("id", candidate.id)
+          .maybeSingle();
+        if (otherProfileError) {
+          console.error("signup profile phone profile lookup:", otherProfileError.message);
+          return NextResponse.json({ ok: false, error: "Impossible de vérifier le numéro de téléphone. Réessayez." }, { status: 503 });
+        }
+        if (otherProfile && isFinalizedNaxaProfile(otherProfile, candidate)) {
+          return NextResponse.json({ ok: false, error: "Ce numéro de téléphone est déjà utilisé par un autre compte." }, { status: 409 });
+        }
+      }
+      if (users.length < 1000) break;
+      usersPage += 1;
+    }
+    if (usersPage > 100) {
+      return NextResponse.json({ ok: false, error: "Vérification du numéro impossible pour le moment. Réessayez." }, { status: 503 });
+    }
+
+    // Mettre à jour le profil d'abord. Si l'écriture des métadonnées échoue, restaurer
+    // le nom précédent afin de ne pas laisser une inscription partiellement finalisée.
+    const { data: updatedProfile, error: profileError } = await admin
+      .from("profiles")
+      .update({ username })
+      .eq("id", user.id)
+      .select("id")
+      .maybeSingle();
+    if (profileError || !updatedProfile) {
+      console.error("signup profile save:", profileError?.message ?? "profile update affected no rows");
+      return NextResponse.json({ ok: false, error: "Impossible d’enregistrer le profil. Réessayez." }, { status: 503 });
     }
 
     const { error: metadataError } = await admin.auth.admin.updateUserById(user.id, {
       user_metadata: {
+        ...(user.user_metadata ?? {}),
         username,
         first_name: firstName,
         last_name: lastName,
@@ -50,17 +114,17 @@ export async function POST(request: Request) {
         phone_country: phoneCountry,
         date_of_birth: dateOfBirth,
         consent_accepted: true,
+        naxa_signup_completed: true,
       },
     });
     if (metadataError) {
       console.error("signup profile metadata save:", metadataError.message);
-      return NextResponse.json({ ok: false, error: "Impossible d’enregistrer les informations du compte. Réessayez." }, { status: 503 });
-    }
-
-    const { error: profileError } = await admin.from("profiles").update({ username }).eq("id", user.id);
-    if (profileError) {
-      console.error("signup profile save:", profileError.message);
-      return NextResponse.json({ ok: false, error: "Le compte est créé, mais le nom d’utilisateur n’a pas pu être enregistré. Réessayez." }, { status: 503 });
+      const { error: rollbackError } = await admin
+        .from("profiles")
+        .update({ username: currentProfile.username })
+        .eq("id", user.id);
+      if (rollbackError) console.error("signup profile rollback failed:", rollbackError.message);
+      return NextResponse.json({ ok: false, error: "Impossible de finaliser le compte. Réessayez sans quitter le formulaire." }, { status: 503 });
     }
 
     return NextResponse.json({ ok: true });
