@@ -12,7 +12,7 @@ type Props = {
 export function ChampFlottant({id,label,value,onChange,type="text",autoComplete,required,maxLength,inputMode,helper,valid=false,validColor="#FFE33D",delayMs=0,revealDelayMs=0,prefix,trailing,min,max,onBlur,disabled,name,className="",minHeight=52,inset=14,pattern,inputRef}:Props) {
   const filled=Boolean(value);
   return <div className={`naxa-field ${className}`} data-filled={filled ? "true":"false"} style={{"--reveal-delay":`${delayMs}ms`,"--naxa-reveal-delay":`${revealDelayMs}ms`} as CSSProperties}>
-    {prefix && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2">{prefix}</span>}
+    {prefix && <span className="absolute left-2 top-1/2 z-[1000] -translate-y-1/2">{prefix}</span>}
     <input ref={inputRef} id={id} name={name} className="naxa-field-control" style={{minHeight,paddingLeft:prefix ? "94px":`${inset}px`,paddingTop:minHeight>52?"24px":undefined}} aria-label={label} type={type} value={value} onChange={(e:ChangeEvent<HTMLInputElement>)=>onChange(e.target.value)} autoComplete={autoComplete} required={required} maxLength={maxLength} inputMode={inputMode} pattern={pattern} min={min} max={max} onBlur={onBlur} disabled={disabled}/>
     <label htmlFor={id} className="naxa-field-label" style={{left:prefix ? "94px":`${inset}px`}}>{label}</label>
     <CocheValidation couleur={validColor} visible={valid} right={type==="date"?"42px":"14px"}/>

@@ -304,3 +304,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Correctif source uniquement sur `fix/signup-phone-validation`. Aucun changement `main`, aucune écriture Supabase Production et aucun déploiement. Les contrôles CI/build restent à confirmer.
 
 **Statut de validation :** modification commise; tests automatisés et résultat CI du HEAD final non encore confirmés. Ne pas déclarer vert avant ces preuves.
+
+
+## Correctifs Auth + intro pendulaire — 14 octobre 2026
+
+- **Gmail/OAuth :** le callback échange le code et conserve les cookies de session ; il force le parcours Google vers l'espace client et ne choisit plus l'accueil public à cause d'un rôle inattendu. Les profils incomplets passent par le formulaire de complétion avec destination finale `/client`.
+- **OTP inscription :** mécanisme confirmé comme OTP natif Supabase (`signInWithOtp` + `verifyOtp(type: "email")`). Ajout d'un verrou anti-double vérification, validation du token comme texte de six chiffres et journalisation diagnostique sans enregistrer le code ou l'adresse e-mail.
+- **Sélecteur pays :** superposition rehaussée, bouton élargi et liste limitée en hauteur.
+- **Intro :** composant `IntroNaxa` ajouté, horloge RAF, annulation par clic/tap/Échap/Entrée, fondu de sortie et prise en charge de `prefers-reduced-motion`.
+- **Reste à vérifier :** les logs Supabase montrent aussi des erreurs `NAXA_SESSION_LIMIT_REACHED` lors de créations de session ; elles sont distinctes d'un code OTP expiré. La liste Redirect URLs Supabase/Google Cloud est une configuration fournisseur indépendante du code.

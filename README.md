@@ -239,3 +239,11 @@ La migration additive `supabase/migration_073_signup_phone_validation.sql` corri
 ## Messagerie et préférences client (branche de travail)
 
 Les migrations additives `075_messagerie_notifications_preferences.sql` et `076_produits_ordonnance_fabricant.sql` ajoutent les fondations de messagerie sécurisée, les préférences client et les métadonnées produit. Tests structurels associés : `supabase/tests/075_messagerie_notifications_preferences.sql` et `supabase/tests/076_produits_ordonnance_fabricant.sql`. Voir `docs/MESSAGERIE-CLIENT-PHARMACIE.md` pour les limites et la configuration OAuth. Ces changements sont en cours de revue sur une branche et ne sont pas déclarés validés ni déployés.
+
+## Authentification et introduction animée — 14 octobre 2026
+
+- OAuth Google conserve le callback serveur et force les utilisateurs Google vers le parcours client ; un profil Google incomplet passe par `/completer-profil` avec `/client` comme destination finale.
+- L'inscription utilise l'OTP natif Supabase (`signInWithOtp` puis `verifyOtp(type: "email")`). Le composant OTP bloque les doubles vérifications et journalise le code d'erreur Supabase sans exposer le code OTP ni l'adresse e-mail.
+- Le sélecteur de pays a une couche d'affichage supérieure et une hauteur plafonnée.
+- `IntroNaxa` est une animation React/CSS/SVG sans fichier vidéo ni dépendance externe, ouverte depuis le logo quand sa destination est l'accueil public.
+- URI Google Cloud autorisée : `https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback`. Les Redirect URLs Supabase doivent inclure le domaine de production et les previews Vercel.

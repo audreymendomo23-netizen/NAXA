@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { IntroNaxa } from "@/components/IntroNaxa";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 function destinationInitiale(pathname: string): string {
@@ -26,6 +27,7 @@ function estPhaseAuthentification(pathname: string): boolean {
 export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: number }) {
   const pathname = usePathname();
   const [destination, setDestination] = useState(() => destinationInitiale(pathname));
+  const [introOpen, setIntroOpen] = useState(false);
 
   useEffect(() => {
     let actif = true;
@@ -66,7 +68,13 @@ export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: 
   const libelle = destination === "/" ? "Accueil NAXA" : "Tableau de bord NAXA";
 
   return (
-    <Link href={destination} aria-label={libelle} title={libelle} className="inline-flex shrink-0">
+    <>
+    <Link href={destination} aria-label={libelle} title={libelle} className="inline-flex shrink-0" onClick={(event) => {
+      if (destination !== "/") return;
+      event.preventDefault();
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.location.assign("/"); return; }
+      setIntroOpen(true);
+    }}>
       <Image
         src={clair ? "/naxa-logo.png" : "/naxa-logo-sombre.png"}
         alt="NAXA"
@@ -75,5 +83,7 @@ export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: 
         priority
       />
     </Link>
+    {introOpen && <IntroNaxa onFinish={() => { setIntroOpen(false); window.location.assign("/"); }} />}
+    </>
   );
 }

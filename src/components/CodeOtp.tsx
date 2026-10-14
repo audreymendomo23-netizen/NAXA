@@ -37,6 +37,7 @@ export function CodeOtp({
   const [reducedMotion, setReducedMotion] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef(0);
+  const verificationInFlightRef = useRef(false);
   const timersRef = useRef<number[]>([]);
   const waitResolversRef = useRef<Array<() => void>>([]);
   const mountedRef = useRef(true);
@@ -97,6 +98,7 @@ export function CodeOtp({
   }, [reducedMotion]);
 
   const reset = useCallback((focus = true) => {
+    verificationInFlightRef.current = false;
     attemptRef.current += 1;
     clearTimers();
     setCode("");
@@ -110,6 +112,8 @@ export function CodeOtp({
   }, [clearTimers, schedule]);
 
   const verify = useCallback(async (value: string) => {
+    if (verificationInFlightRef.current) return;
+    verificationInFlightRef.current = true;
     const attempt = ++attemptRef.current;
     clearTimers();
     setPhase("orbite");
@@ -152,6 +156,7 @@ export function CodeOtp({
         if (attemptRef.current !== attempt) return;
         setCode("");
         codeRef.current = "";
+        verificationInFlightRef.current = false;
         setPhase("saisie");
         phaseRef.current = "saisie";
         setPopIndex(-1);
@@ -248,6 +253,7 @@ export function CodeOtp({
         clearTimers();
         setParticles([]);
         if (phaseRef.current === "orbite" || phaseRef.current === "attente") {
+          verificationInFlightRef.current = false;
           attemptRef.current += 1;
           setPhase("saisie");
           phaseRef.current = "saisie";

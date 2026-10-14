@@ -66,10 +66,12 @@ export async function GET(request: Request) {
   );
 
   let destination = next;
-  if (incompleteGoogleClient) {
-    destination = "/completer-profil?next=" + encodeURIComponent(
-      next === "/" || next === "/connexion?redirectionRole=1" ? "/client" : next
-    );
+  if (isGoogleUser) {
+    // Google est exclusivement une méthode d'accès client : un rôle inattendu ne renvoie jamais vers "/".
+    const clientDestination = next.startsWith("/client") ? next : "/client";
+    destination = incompleteGoogleClient
+      ? "/completer-profil?next=" + encodeURIComponent("/client")
+      : clientDestination;
   } else if (next === "/" || next === "/connexion?redirectionRole=1") {
     const espacesParRole: Record<string, string> = {
       client: "/client",
