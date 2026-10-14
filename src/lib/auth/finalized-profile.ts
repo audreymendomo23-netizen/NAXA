@@ -20,6 +20,7 @@ export function isFinalizedNaxaProfile(
   user: NaxaAuthUser | null | undefined,
 ): boolean {
   if (!profile?.id || !user || profile.id !== user.id || !user.email_confirmed_at) return false;
+  if (user.user_metadata?.naxa_signup_pending === true) return false;
   if (user.user_metadata?.naxa_signup_completed === true) return true;
 
   const username = String(profile.username ?? "").trim().toLowerCase();
