@@ -469,6 +469,7 @@ function Formulaire() {
       >
         <button
           className="reveal btn btn-canari w-full !min-h-[54px] !mt-5"
+          data-naxa-ambulance="true"
           style={d(6)}
           disabled={busy || !showLoginButton}
           tabIndex={showLoginButton ? 0 : -1}
