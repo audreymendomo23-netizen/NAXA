@@ -66,8 +66,8 @@ function Formulaire(){
   }
  }
   async function verifierCode(value:string){
-    const token=value.replace(/\\s/g,"");
-    if(!/^\\d{6}$/.test(token)){setError("Saisissez les 6 chiffres du code reçu par e-mail.");return false}
+    const token=value.replace(/\s/g,"");
+    if(!/^\d{6}$/.test(token)){setError("Saisissez les 6 chiffres du code reçu par e-mail.");return false}
     setBusy(true);setError("");
     try{
       const {error}=await supabaseBrowser().auth.verifyOtp({email:email.trim().toLowerCase(),token,type:"email"});
