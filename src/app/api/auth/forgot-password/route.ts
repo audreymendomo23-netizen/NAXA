@@ -43,7 +43,13 @@ export async function POST(request: Request) {
     });
     if (error) {
       console.error("password reset OTP:", error.message);
-      return NextResponse.json({ ok: false, error: "Impossible d'envoyer le code OTP. Réessayez." }, { status: 500 });
+      const rateLimited = /rate|too many|for security purposes|only request this after|after \\d+ seconds/i.test(error.message);
+      return NextResponse.json({
+        ok: false,
+        error: rateLimited
+          ? "Attendez environ 55 secondes avant de demander un nouveau code."
+          : "Impossible d'envoyer le code OTP. Réessayez.",
+      }, { status: rateLimited ? 429 : 500 });
     }
 
     return NextResponse.json({ ok: true, message: GENERIC });
