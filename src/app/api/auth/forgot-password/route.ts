@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
 const GENERIC = "Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.";
 const NOT_FOUND = "Aucun compte NAXA ne correspond à ce nom d'utilisateur.";
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
 
     const { data: profile, error: profileError } = await supabaseAdmin()
       .from("profiles")
-      .select("id")
+      .select("id, username")
       .ilike("username", username)
       .maybeSingle();
 
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
     if (userError || !userData.user?.email) {
       console.error("password reset auth lookup:", userError?.message ?? "email missing");
       return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 500 });
+    }
+    if (!isFinalizedNaxaProfile(profile, userData.user)) {
+      return NextResponse.json({ ok: false, error: NOT_FOUND }, { status: 404 });
     }
 
     const { error } = await supabaseAdmin().auth.signInWithOtp({
