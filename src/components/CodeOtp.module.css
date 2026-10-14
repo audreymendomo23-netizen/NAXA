@@ -8,9 +8,9 @@
   --otp-red: #B42332;
 }
 .heading { margin: 0 auto 22px; }
-.title { margin: 0; color: #064B2A; font-size: 1.25rem; font-weight: 800; line-height: 1.25; }
+.title { margin: 0; color: #064B2A; font-size: clamp(1.5rem, 8vw, 2.25rem); font-weight: 800; line-height: 1.08; }
 .titleSuccess { color: #0A6B3A; }
-.description { margin: 8px 0 0; color: #846600; font-size: .92rem; line-height: 1.45; }
+.description { margin: 8px 0 0; color: #9B7A00; font-size: .92rem; font-weight: 700; line-height: 1.45; }
 .stage {
   position: relative;
   display: flex;
@@ -65,18 +65,7 @@
 }
 .stage[data-length="6"] .cells { gap: 6px; }
 .stage[data-length="6"] .cell { width: 44px; height: 58px; flex-basis: 44px; border-radius: 14px; }
-.cell.active {
-  border-color: var(--otp-yellow);
-  box-shadow: 0 0 0 3px var(--otp-yellow), 0 0 18px rgb(255 227 61 / 38%);
-}
-.cell.active::after {
-  content: "";
-  width: 2px;
-  height: 24px;
-  border-radius: 2px;
-  background: #064B2A;
-  animation: otp-caret 900ms steps(2, start) infinite;
-}
+.cell.active { border-color: var(--otp-yellow); box-shadow: none; }
 .cell.pop { animation: none; }
 .cell.pop::before {
   content: "";
