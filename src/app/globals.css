@@ -124,13 +124,6 @@ body:has(.bandeau) .home-ecran {
   transform: translate(-50%, -50%) scale(0); animation: naxa-ripple 520ms ease-out forwards;
 }
 @keyframes naxa-ripple { to { transform: translate(-50%, -50%) scale(18); opacity: 0; } }
-.naxa-ambulance {
-  position: absolute; z-index: 2; left: -2.5rem; top: 50%; font-size: 1.35rem; line-height: 1;
-  transform: translateY(-50%); animation: naxa-ambulance-cross 1800ms cubic-bezier(.2,.7,.2,1) forwards;
-  pointer-events: none;
-}
-.naxa-ambulance-trail { position: absolute; right: 85%; top: 48%; width: 2.8rem; height: 3px; border-radius: 99px; background: linear-gradient(90deg, transparent, rgba(45,212,191,.9)); }
-@keyframes naxa-ambulance-cross { 0% { left: -2.5rem; opacity: 0; } 12% { opacity: 1; } 100% { left: calc(100% + 2.5rem); opacity: 0; } }
 .naxa-success-stage { position: relative; }
 .naxa-success-drop {
   position: absolute; width: 3.7rem; height: 4.5rem; border-radius: 55% 45% 58% 42% / 68% 65% 35% 32%;
