@@ -323,7 +323,7 @@ export function CodeOtp({
         {isSuccess && !reducedMotion && <div className={styles.waves} aria-hidden="true"><span /><span /><span /></div>}
         {isSuccess && !reducedMotion && <div className={styles.sparkles} aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>}
       </div>
-      {(isFailure || isSuccess || description) && <p id={descriptionId} className={styles.hint}>{isFailure ? "Code incorrect, réessayez" : isSuccess ? "Vérification terminée" : description}</p>}
+      {(isFailure || isSuccess) && <p id={descriptionId} className={styles.hint}>{isFailure ? "Code incorrect, réessayez" : "Vérification terminée"}</p>}
       <p id={liveId} className={styles.srOnly} aria-live="polite" aria-atomic="true">{annonce}</p>
       {phase === "saisie" && !disabled && <button type="button" className={styles.resetButton} onClick={() => { reset(); }} aria-label="Effacer le code">Effacer</button>}
     </section>
