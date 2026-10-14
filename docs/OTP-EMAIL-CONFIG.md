@@ -8,11 +8,18 @@ Le code côté navigateur demande un code de confirmation à Supabase Auth. Le s
 2. Dans **Authentication → Email Templates**, configurer le modèle de confirmation pour afficher le code OTP avec `{{ .Token }}` (et non uniquement un lien `{{ .ConfirmationURL }}`), puisque l’écran NAXA demande à l’utilisateur de saisir le code.
 3. Configurer un fournisseur SMTP fonctionnel dans **Project Settings → Authentication/SMTP Settings** selon l’interface Supabase du projet. Vérifier le domaine expéditeur, les identifiants et les limites d’envoi.
 4. Tester avec une adresse réelle, puis vérifier les journaux Auth et SMTP sans consigner le code OTP ni les secrets.
-5. Vérifier la boîte de réception, les indésirables et les restrictions du fournisseur. Le bouton de renvoi NAXA est disponible après le délai de 40 secondes.
+5. Vérifier la boîte de réception, les indésirables et les restrictions du fournisseur. Le bouton de renvoi NAXA est disponible après le délai de 60 secondes.
 
 ## Limites et sécurité
 
-- Le délai de 40 secondes est un délai avant **renvoi**; il ne rend pas automatiquement invalide un code déjà reçu. La validité réelle du code est contrôlée par Supabase Auth.
+- Le délai de 60 secondes est un délai avant **renvoi**; il ne rend pas automatiquement invalide un code déjà reçu. La validité réelle du code est contrôlée par Supabase Auth.
 - Si Supabase retourne une session dès l’inscription, la confirmation e-mail est probablement désactivée; NAXA affiche alors une erreur de configuration au lieu de prétendre qu’un OTP a été envoyé.
 - Ne jamais désactiver la confirmation pour contourner un problème SMTP.
 - La configuration de Production doit être vérifiée séparément et ne doit pas être modifiée dans le cadre de cette PR sans autorisation distincte.
+
+
+## Diagnostic opérationnel — 14 octobre 2026
+
+- Le flux d’inscription est l’OTP natif Supabase : `signInWithOtp` avec `shouldCreateUser: true`, puis `verifyOtp` de type `email`. Ce couple est cohérent et n’utilise pas de table OTP maison.
+- Les journaux Auth de Production consultés en lecture seule montrent des vérifications `/verify` en erreur `500 unexpected_failure` liées à `NAXA_SESSION_LIMIT_REACHED`, ainsi que des réponses `403 otp_expired`. Le refus `500` n’indique donc pas nécessairement un code faux : la limite de quatre sessions actives est appliquée par la base.
+- Le code pré-vérifie maintenant la disponibilité d’une session dans le parcours de récupération, journalise le code/status/message Supabase sans l’adresse ni le token, et distingue le plafond de sessions d’un OTP invalide. Aucun changement de base Production n’a été appliqué.

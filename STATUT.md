@@ -313,3 +313,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Sélecteur pays :** superposition rehaussée, bouton élargi et liste limitée en hauteur.
 - **Intro :** composant `IntroNaxa` ajouté, horloge RAF, annulation par clic/tap/Échap/Entrée, fondu de sortie et prise en charge de `prefers-reduced-motion`.
 - **Reste à vérifier :** les logs Supabase montrent aussi des erreurs `NAXA_SESSION_LIMIT_REACHED` lors de créations de session ; elles sont distinctes d'un code OTP expiré. La liste Redirect URLs Supabase/Google Cloud est une configuration fournisseur indépendante du code.
+
+
+## Authentification et introduction — 14 octobre 2026
+
+- **Modifié sur `main` :** sélecteur de pays en portail fixe, marges communes de 30 px, styles de titre/sous-titre des pages d’authentification, suppression du doublon d’aide OTP, cases OTP à taille stable, délai de renvoi de 60 s, transition du pendule corrigée.
+- **Ambulance :** activation désactivée par défaut et explicitement autorisée uniquement sur le bouton « Connexion » de la page de connexion et « Chercher » de l’accueil public.
+- **Preuve de diagnostic OTP :** les journaux Auth de Production ont montré des `/verify` en `500 unexpected_failure` dus à `NAXA_SESSION_LIMIT_REACHED`, plus des `403 otp_expired`. Le plafond de quatre sessions actives est volontaire et n’a pas été modifié ; le parcours de récupération pré-vérifie maintenant le plafond pour éviter de consommer le code lorsqu’aucun créneau n’est disponible.
+- **Google OAuth :** le code utilise l’origine réelle de la requête, le callback serveur échange le code et conserve les cookies. Les logs Auth montrent des retours `/callback` en `302`, mais ne prouvent pas le passage complet jusqu’à `/client`. Les paramètres Supabase URL Configuration / Google Cloud restent à vérifier dans les consoles fournisseur.
+- **Limites de validation :** un test complet avec une nouvelle adresse e-mail et une authentification Google interactive n’est pas automatisable ici sans utiliser un compte réel ; aucun OTP n’a été envoyé par ce chantier, aucun compte de test créé et aucune écriture dans Supabase Production.

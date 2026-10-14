@@ -247,3 +247,13 @@ Les migrations additives `075_messagerie_notifications_preferences.sql` et `076_
 - Le sélecteur de pays a une couche d'affichage supérieure et une hauteur plafonnée.
 - `IntroNaxa` est une animation React/CSS/SVG sans fichier vidéo ni dépendance externe, ouverte depuis le logo quand sa destination est l'accueil public.
 - URI Google Cloud autorisée : `https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback`. Les Redirect URLs Supabase doivent inclure le domaine de production et les previews Vercel.
+
+
+## Corrections authentification et animation — 14 octobre 2026
+
+- Sélecteur de pays de l’inscription : menu rendu en portail fixe, au-dessus du contenu, avec fermeture au clic extérieur, repositionnement sur redimensionnement/défilement et hauteur défilante adaptée au viewport mobile.
+- OTP : type d’inscription confirmé (`signInWithOtp` puis `verifyOtp(type: "email")`), délai de renvoi porté à 60 secondes, texte d’aide en double supprimé et dimensions des cases stabilisées.
+- Diagnostic Production : les journaux Auth montrent des refus `500 unexpected_failure` associés à `NAXA_SESSION_LIMIT_REACHED` (plafond de quatre sessions actives), distincts des `403 otp_expired`. Le plafond métier reste intact et aucune écriture Production n’a été faite.
+- Ambulance : le composant global est désormais opt-in via `data-naxa-ambulance="true"`; seules les actions « Connexion » et « Chercher » portent cet attribut.
+- Introduction : correction du calque de l’ancienne phrase pendant le balayage du pendule ; l’animation reste codée en React/CSS/SVG, sans fichier vidéo ni dépendance externe.
+- OAuth Google : la route serveur construit déjà le callback depuis l’origine de la requête et conserve `next` dans `/auth/callback`. La liste des URL autorisées Supabase et l’URI Google Cloud doivent être vérifiées côté fournisseur ; cette configuration externe n’est pas modifiable via les outils de dépôt.
