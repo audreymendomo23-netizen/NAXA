@@ -3,6 +3,7 @@ import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
 import { clearPharmacyCookie, readPharmacyCookie } from "@/lib/pharmacie-code-session";
 import { isIP } from "node:net";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 import { hasAvailableSessionSlot, MAX_CONCURRENT_SESSIONS } from "@/lib/auth/session-limit";
 import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
 
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     // La liaison utilisateur/pharmacie est obligatoire pour l'espace pharmacie.
     const { data: matchingProfiles, error: profileLookupError } = await supabaseAdmin()
       .from(S.profilesTable)
-      .select(`${S.profileIdColumn},${S.profileActiveColumn},${S.profilePharmacyIdColumn},${S.profileRoleColumn}`)
+      .select(`${S.profileIdColumn},${S.profileUsernameColumn},${S.profileActiveColumn},${S.profilePharmacyIdColumn},${S.profileRoleColumn}`)
       .ilike(S.profileUsernameColumn, username)
       .limit(2);
     if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
@@ -89,7 +90,11 @@ export async function POST(request: NextRequest) {
     const { data: userData, error: userError } = await supabaseAdmin().auth.admin.getUserById(String(profile[S.profileIdColumn]));
     const email = userData.user?.email;
 
-    if (userError || !email) {
+    if (userError || !email || !userData.user
+      || !isFinalizedNaxaProfile(
+        { id: String(profile[S.profileIdColumn]), username: String(profile[S.profileUsernameColumn] ?? "") },
+        userData.user,
+      )) {
       return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
 
