@@ -1,4 +1,4 @@
-# NAXA — Politique de confidentialité et de sécurité des données
+# Politique de confidentialité
 
 **Version de travail 1.4 — 15 octobre 2026**  
 **Statut : BROUILLON JURIDIQUE — NON PUBLIABLE EN L’ÉTAT**
