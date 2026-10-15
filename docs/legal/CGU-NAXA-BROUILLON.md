@@ -1,112 +1,120 @@
 # NAXA — Conditions générales d’utilisation (CGU)
 
-**Version de travail 1.1 — 12 octobre 2026**  
+**Version de travail 1.2 — 15 octobre 2026**  
 **Statut : BROUILLON JURIDIQUE — NON PUBLIABLE EN L’ÉTAT**
 
-> Ce document est un projet de travail et ne constitue pas un avis juridique. Il doit être relu par un conseil connaissant le droit camerounais et adapté aux services effectivement activés avant toute publication ou acceptation par les utilisateurs.
+> Document de travail à faire vérifier par un conseil connaissant le droit camerounais. Il ne constitue pas un avis juridique et ne doit pas être présenté comme validé. Les services, flux de données et conditions commerciales doivent correspondre au fonctionnement effectivement déployé.
 
-## 1. Éditeur et contact
+## 1. Éditeur, exploitant et contact
 
 Le service est présenté sous le nom **NAXA**, accessible notamment à l’adresse https://naxa.cm.
 
-- Nom déclaré : NAXA
-- Forme juridique et immatriculation : **à confirmer**
-- Adresse : Yaoundé, Cameroun — **adresse complète à renseigner**
-- E-mail : naxa.home@gmail.com
-- Téléphone : +237 681 972 237
+- **Responsable déclaré :** BITSEKI MAYAKA Bienvenu.
+- **Forme déclarée :** entreprise individuelle (EI).
+- **Adresse communiquée :** Yaoundé, Cameroun.
+- **Adresse physique et postale complète :** à compléter avant publication.
+- **Immatriculation et identifiants applicables :** numéro et justificatifs à fournir/vérifier avant publication.
+- **Contact :** naxa.home@gmail.com.
+- **Téléphone communiqué :** +237 681 97 22 37.
 
-L’identité juridique exacte de l’opérateur, son adresse complète et ses informations d’immatriculation doivent être renseignées avant publication.
+La mention « EI » et le nom du responsable sont les informations communiquées par l’exploitant ; elles ne remplacent pas la vérification des justificatifs d’immatriculation, de l’identifiant fiscal et des mentions légalement requises. Le nom commercial NAXA ne doit pas être confondu avec la dénomination ou l’identité juridique exacte de l’exploitant.
 
-## 2. Objet et périmètre
+## 2. Objet du service et limites
 
-NAXA propose des espaces distincts aux clients et aux pharmacies, notamment des fonctions de recherche d’informations sur les pharmacies et les produits, de localisation approximative, de gestion de stock, de réservation ou de commande lorsque ces fonctions sont activées, ainsi qu’un outil de scan d’ordonnance.
+NAXA propose des espaces distincts aux clients et aux pharmacies, pouvant notamment inclure la recherche de pharmacies, l’affichage d’informations sur les produits et leur disponibilité, la localisation ou recherche de proximité, des outils de gestion pour les pharmacies, des réservations ou commandes si elles sont activées, et un outil de lecture OCR d’ordonnance.
 
-Les fonctions réellement disponibles peuvent dépendre de la version du service, du compte et de la zone géographique. Les présentes CGU ne doivent pas être utilisées pour présenter comme disponible une fonction qui n’a pas été vérifiée.
+La disponibilité des fonctionnalités dépend de la version du service et des parcours activés. Aucune clause ne doit laisser croire qu’une fonction est disponible si elle ne l’est pas réellement. NAXA est un service numérique d’information et de mise en relation ; il ne remplace ni un pharmacien, ni un médecin, ni les autorités de santé.
 
-## 3. Conditions d’accès et comptes
+## 3. Accès, âge minimum et comptes
 
-Le service est destiné aux personnes âgées d’au moins **18 ans**. L’utilisateur fournit des informations exactes, protège ses identifiants et signale toute utilisation non autorisée de son compte. Les actions effectuées depuis son compte lui sont imputables, sous réserve des règles impératives applicables.
+Le service est destiné aux personnes âgées d’au moins **18 ans**. La mise en œuvre technique du contrôle d’âge reste à vérifier. Tant que cette vérification n’est pas achevée, cette clause exprime la règle prévue mais ne prouve pas qu’un contrôle efficace est actif.
 
-Les pharmacies et leurs collaborateurs doivent utiliser l’espace et les autorisations correspondant à leurs fonctions. Ils restent responsables de l’exactitude des informations qu’ils publient, notamment les prix, stocks, horaires, périodes de garde et informations de contact.
+L’utilisateur doit fournir des informations exactes, protéger ses moyens d’authentification et signaler tout accès suspect. Il ne doit pas utiliser le compte d’un tiers sans autorisation. Les mesures de suspension ou de fermeture doivent être proportionnées et respecter les droits impératifs applicables.
 
-## 4. Informations sur les pharmacies et les produits
+Les collaborateurs d’une pharmacie doivent utiliser leur propre compte et les autorisations attribuées à leur fonction. L’exploitant de la pharmacie demeure responsable de la gestion de ses utilisateurs et de la fiabilité des informations qu’il publie, dans les limites de la loi.
 
-Les informations d’une fiche peuvent évoluer. Sauf confirmation explicite et horodatée, une information affichée ne garantit pas la disponibilité immédiate d’un produit, le prix final, l’ouverture d’une pharmacie ni son statut de garde. L’utilisateur doit confirmer les éléments déterminants auprès de la pharmacie avant de se déplacer ou de conclure une transaction.
+## 4. Conditions applicables aux pharmacies
 
-NAXA ne remplace ni un pharmacien ni un professionnel de santé. Les contenus informatifs et les outils numériques ne constituent pas un diagnostic, une prescription ou un avis médical. En cas d’urgence, l’utilisateur doit contacter les services d’urgence compétents.
+Toute pharmacie souhaitant utiliser les fonctions professionnelles de NAXA doit pouvoir justifier de son existence légale au Cameroun et de l’autorisation valide délivrée par l’autorité compétente pour créer et/ou exploiter l’établissement pharmaceutique concerné, selon les exigences applicables. Les pièces exigées, leur vérification, leur actualisation et les conséquences d’une autorisation expirée ou retirée doivent être définies dans le processus d’admission des pharmacies.
 
-## 5. Scan d’ordonnance
+L’affichage d’une pharmacie sur NAXA ne doit pas être interprété comme une certification officielle par NAXA ni comme une garantie de conformité réglementaire permanente. NAXA doit vérifier les documents selon une procédure adaptée et suspendre l’accès professionnel lorsqu’une vérification obligatoire échoue ou qu’une autorisation valide ne peut plus être établie.
 
-L’outil de scan peut permettre de sélectionner ou de photographier une ordonnance et d’en traiter le contenu afin de faciliter la recherche. Il ne valide pas l’authenticité, la légalité, la lisibilité ou la pertinence médicale d’une ordonnance et ne remplace pas le contrôle du pharmacien.
+Les pharmacies restent responsables des informations qu’elles fournissent, notamment identité, autorisations, prix, stocks, horaires, gardes et coordonnées. Le processus de vérification et les obligations précises doivent être validés au regard de la réglementation camerounaise du secteur pharmaceutique.
 
-**Avant publication, NAXA doit confirmer le fonctionnement technique exact** : traitement local ou distant, transmission éventuelle de l’image, du texte OCR ou des métadonnées, durée de conservation et prestataires ayant accès aux données. La politique de confidentialité doit décrire fidèlement ce fonctionnement. Ne pas affirmer que les images restent exclusivement sur l’appareil tant que cela n’a pas été vérifié dans le code déployé et par un contrôle des requêtes réseau.
+## 5. Informations sur les produits et la disponibilité
 
-L’utilisateur ne doit scanner que des documents qu’il est autorisé à utiliser. Les ordonnances peuvent contenir des données de santé particulièrement sensibles.
+Les stocks, prix, horaires, périodes de garde et autres informations peuvent changer. Sauf confirmation explicite, datée et liée au parcours concerné, une information affichée ne garantit pas la disponibilité immédiate d’un produit, son prix final, l’ouverture de la pharmacie ou la délivrance du produit. L’utilisateur doit confirmer les éléments déterminants auprès de la pharmacie.
 
-## 6. Réservations, commandes et paiements
+Les contenus et outils numériques de NAXA ne constituent pas un diagnostic, une prescription ou un avis médical. En cas d’urgence, l’utilisateur doit contacter les services compétents ou se rendre dans un établissement de santé.
 
-Lorsqu’une fonction de réservation ou de commande est activée, l’interface doit préciser avant confirmation l’objet, la pharmacie concernée, le prix ou son mode de calcul, les frais éventuels, le délai, le mode de paiement et les règles d’annulation applicables.
+## 6. Scan d’ordonnance
 
-Une réservation ne garantit pas, à elle seule, la disponibilité définitive du produit ni sa délivrance. Les modalités de paiement, de remboursement, de réclamation et la partie responsable de la vente doivent être précisées pour chaque parcours effectivement proposé.
+Le code consulté sur la branche `main` contient une fonction OCR utilisant `tesseract.js` pour reconnaître du texte à partir d’un fichier image fourni à la fonction. Cela est compatible avec un traitement côté navigateur, mais ne suffit pas à démontrer à lui seul que l’ensemble du parcours est exclusivement local : l’appelant, les requêtes réseau, les ressources OCR, les journaux et tout éventuel envoi du texte reconnu doivent aussi être vérifiés.
 
-**À compléter avant activation ou publication :** parcours contractuels réels, rôle de NAXA et de la pharmacie, prestataire de paiement éventuel, frais, reçus, annulations et remboursements.
+Le scanner facilite la lecture du texte et ne vérifie ni l’authenticité ni la validité médicale ou juridique de l’ordonnance. Le pharmacien reste responsable des contrôles relevant de sa profession. L’utilisateur ne doit traiter que les documents qu’il est autorisé à utiliser.
 
-## 7. Abonnements des pharmacies et commissions
+**Aucune promesse absolue de traitement exclusivement local ou d’absence de transmission ne doit être publiée avant vérification complète du parcours réel et du code déployé.** La politique de confidentialité doit préciser séparément le traitement de l’image, du texte OCR, des métadonnées et des ressources techniques.
 
-Le modèle économique envisagé comprend des abonnements de pharmacies et des commissions. Les tarifs, la base de calcul, le fait générateur de la commission, les taxes, la périodicité, les factures, les moyens de paiement, les conditions de renouvellement et de résiliation doivent être communiqués clairement à la pharmacie avant son engagement.
+## 7. Réservations, commandes, paiements et réclamations
 
-Aucun montant ni taux n’est fixé par le présent brouillon. Les tarifs et modalités définitifs doivent figurer dans une grille ou un contrat commercial distinct, accessible avant souscription.
+Lorsqu’une réservation ou commande est activée, l’interface doit préciser avant confirmation la pharmacie concernée, le produit ou service, le prix ou son mode de calcul, les frais éventuels, les délais, le mode de paiement, les conditions d’annulation et les modalités de réclamation ou de remboursement.
 
-## 8. Utilisations interdites
+Une réservation ne garantit pas à elle seule la disponibilité définitive du produit ni sa délivrance. Avant l’activation de chaque parcours, NAXA doit clarifier le rôle contractuel de NAXA et de la pharmacie, la partie qui vend ou délivre le produit, la gestion des paiements, les justificatifs et les responsabilités applicables.
 
-Il est interdit notamment de :
-- fournir volontairement des informations fausses ou trompeuses ;
-- accéder à un compte, à des données ou à une pharmacie sans autorisation ;
-- contourner les contrôles d’accès ou perturber le service ;
-- utiliser le service pour une activité illicite ou pour diffuser des informations pharmaceutiques trompeuses ;
-- téléverser un document ou des données personnelles sans disposer des droits ou autorisations nécessaires.
+## 8. Abonnements et commissions
 
-## 9. Disponibilité, suspension et fermeture
+Le modèle économique annoncé comprend des **abonnements de pharmacies et des commissions**. Les montants sont personnalisés et ne sont pas fixés par les présentes CGU. Avant tout engagement, chaque pharmacie doit recevoir les conditions commerciales applicables : prix, base de calcul et fait générateur des commissions, taxes, périodicité, facturation, moyens de paiement, renouvellement, suspension, résiliation et traitement des éventuels impayés ou remboursements.
 
-NAXA s’efforce d’assurer le fonctionnement du service, sans garantir une disponibilité ininterrompue. Des interruptions peuvent survenir pour maintenance, sécurité ou incident technique.
+Ces conditions doivent être remises dans une grille, un devis ou un contrat distinct, accepté avant la souscription. Elles ne doivent pas être inventées ou déduites de la présente clause.
 
-Un compte peut être suspendu ou limité en cas d’usage illicite, de risque de sécurité ou de violation des CGU, dans le respect des droits et procédures applicables. Les conditions de fermeture du compte et les conséquences sur les réservations, paiements et données doivent être expliquées dans les parcours concernés.
+## 9. Utilisations interdites
 
-## 10. Données personnelles
+Il est notamment interdit de fournir volontairement des informations trompeuses, d’accéder sans autorisation à un compte ou à des données, de contourner les contrôles de sécurité, de perturber le service, d’utiliser NAXA à des fins illicites, de publier des informations pharmaceutiques trompeuses ou de soumettre des données personnelles sans disposer des droits ou autorisations nécessaires.
 
-Les données personnelles sont traitées selon la politique de confidentialité de NAXA, qui fait partie des documents d’information du service. Cette politique doit préciser les finalités, bases juridiques, destinataires, transferts éventuels, durées de conservation et modalités d’exercice des droits.
+## 10. Disponibilité, suspension et fermeture du compte
 
-Contact relatif aux données : **naxa.home@gmail.com**. L’adresse complète de l’opérateur et les informations de conformité restent à compléter.
+NAXA s’efforce de maintenir le service, sans garantir une disponibilité ininterrompue. Des interruptions peuvent survenir pour maintenance, sécurité ou incident technique. Un compte peut être suspendu ou limité en cas d’usage illicite, de risque de sécurité ou de violation des CGU, dans le respect des règles applicables.
 
-## 11. Propriété intellectuelle
+Les effets d’une fermeture de compte sur les réservations, opérations commerciales, factures et données doivent être expliqués dans les parcours concernés. La suppression du compte et la conservation résiduelle des données sont décrites dans la politique de confidentialité.
 
-Sous réserve des droits de tiers, les éléments propres au service NAXA — notamment sa présentation, ses textes et ses composants — sont protégés par les règles applicables. Les contenus publiés par les pharmacies demeurent sous la responsabilité de leurs titulaires, qui doivent disposer des droits nécessaires à leur publication.
+## 11. Données personnelles et communications
 
-## 12. Modifications des CGU
+Les traitements de données sont décrits dans la politique de confidentialité, qui doit être lue avec les présentes CGU. Les demandes relatives aux données personnelles peuvent être adressées à **naxa.home@gmail.com**.
 
-Les CGU peuvent évoluer. La version applicable, sa date d’entrée en vigueur et les modalités de notification des modifications substantielles doivent être affichées clairement. Lorsque la loi ou la nature du changement l’exige, un consentement ou une nouvelle acceptation sera recueilli.
+WhatsApp Business est indiqué par l’exploitant comme canal/prestataire supplémentaire envisagé ou utilisé. Avant publication, NAXA doit confirmer les parcours qui l’utilisent, les données effectivement échangées et les conditions du fournisseur. Les utilisateurs doivent être informés lorsqu’un échange implique ce canal ; les données et métadonnées éventuellement traitées par WhatsApp/Meta ne doivent pas être omises de la politique.
 
-## 13. Droit applicable et litiges
+## 12. Propriété intellectuelle et contenus tiers
 
-Le droit camerounais est envisagé comme droit applicable, sous réserve des règles impératives et des règles de compétence juridictionnelle applicables. Les voies de réclamation et l’identification du tribunal compétent doivent être confirmées par un conseil juridique avant publication.
+Sous réserve des droits de tiers, les éléments propres au service NAXA sont protégés par les règles applicables. Les pharmacies restent responsables des droits nécessaires à la publication des contenus qu’elles fournissent. Toute licence ou réutilisation de contenus doit respecter les droits applicables.
 
-## 14. Textes de référence à vérifier
+## 13. Modifications des CGU
+
+La version et la date d’entrée en vigueur doivent être indiquées. Les modifications substantielles doivent être communiquées de manière adaptée ; une nouvelle acceptation doit être recueillie lorsque la loi ou la nature du changement l’exige.
+
+## 14. Droit applicable et règlement des différends
+
+Le droit camerounais est envisagé comme droit applicable, sous réserve des règles impératives et de compétence applicables. Les voies de réclamation, les formalités préalables éventuelles et la juridiction compétente doivent être confirmées par un conseil juridique avant publication.
+
+## 15. Références à vérifier
 
 - Loi camerounaise n° 2024/017 du 23 décembre 2024 relative à la protection des données à caractère personnel : https://prc.cm/fr/multimedia/documents/10258-loi-n-2024-017-du-23-12-2024-web
 - Loi n° 2010/021 du 21 décembre 2010 régissant le commerce électronique au Cameroun : https://www.minpostel.gov.cm/index.php/fr/les-textes/telecoms-tic/lois-telecoms-tic/274-loi-n-2010-021-du-21-decembre-2010-regissant-le-commerce-electronique-au-cameroun
-- Normes et législation des établissements pharmaceutiques (Ministère de la Santé publique / DPML) : https://www.dpml.cm/index.php/fr/publications/normes-et-legislation/etablissements-pharmaceutiques
+- Textes relatifs aux établissements pharmaceutiques (Ministère de la Santé publique / DPML) : https://www.dpml.cm/index.php/fr/publications/normes-et-legislation/etablissements-pharmaceutiques
 
-Cette liste n’est pas exhaustive. L’applicabilité et les obligations concrètes doivent être vérifiées par un professionnel du droit.
+Cette liste n’est pas exhaustive et ne remplace pas une validation juridique.
 
 ---
 
 ## Points bloquants avant publication
 
-- [ ] Confirmer la dénomination juridique, la forme, le numéro d’immatriculation et, le cas échéant, l’identifiant fiscal.
-- [ ] Ajouter l’adresse postale complète à Yaoundé.
-- [ ] Vérifier le parcours réel du scan d’ordonnance et aligner les CGU sur le traitement technique constaté.
-- [ ] Finaliser les conditions contractuelles de réservation, commande, paiement, annulation et remboursement.
-- [ ] Fixer et publier les tarifs d’abonnement, les commissions et les conditions de facturation/résiliation.
-- [ ] Confirmer les rôles respectifs de NAXA et des pharmacies dans chaque transaction.
-- [ ] Faire relire les CGU par un conseil juridique au regard du droit camerounais et des règles applicables à la pharmacie et à la publicité des médicaments.
-- [ ] Vérifier la cohérence avec la politique de confidentialité et les écrans d’acceptation du service.
+- [ ] Confirmer l’immatriculation de l’EI, le numéro et les identifiants légaux/fiscaux requis.
+- [ ] Renseigner l’adresse physique et postale complète, au-delà de « Yaoundé, Cameroun ».
+- [ ] Vérifier dans le code déployé et par contrôle réseau le parcours OCR complet, y compris les ressources téléchargées, l’image, le texte reconnu et les métadonnées.
+- [ ] Vérifier l’application effective de la limite de 18 ans.
+- [ ] Documenter le contrôle des autorisations des pharmacies et faire valider les exigences par un conseil compétent.
+- [ ] Définir les contrats commerciaux, abonnements, commissions, taxes, facturation, résiliation et impayés.
+- [ ] Clarifier les parcours de réservation, commande, paiement, annulation et remboursement.
+- [ ] Inventorier les traitements liés à WhatsApp Business et aux autres prestataires.
+- [ ] Faire valider les CGU par un conseil connaissant le droit camerounais et la réglementation pharmaceutique.
+- [ ] Vérifier la cohérence avec la politique de confidentialité, les écrans de consentement et les contrats.
+- [ ] Ne publier qu’après validation juridique et autorisation explicite de l’exploitant.
