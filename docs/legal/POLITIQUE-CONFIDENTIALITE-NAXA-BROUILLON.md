@@ -1,6 +1,6 @@
 # NAXA — Politique de confidentialité et de sécurité des données
 
-**Version de travail 1.3 — 15 octobre 2026**  
+**Version de travail 1.4 — 15 octobre 2026**  
 **Statut : BROUILLON JURIDIQUE — NON PUBLIABLE EN L’ÉTAT**
 
 > Projet de travail, non avis juridique. Avant publication, il faut vérifier le code et les services effectivement déployés, les flux de données, les durées de conservation, les prestataires et les formalités applicables au Cameroun. Les mesures décrites comme objectifs ou principes ne prouvent pas qu’elles sont déjà toutes actives.
@@ -30,7 +30,7 @@ Selon les fonctionnalités effectivement utilisées, NAXA peut traiter :
 - **Activité des pharmacies :** identité et comptes des collaborateurs, informations d’établissement, stocks, horaires, gardes, réservations et opérations effectuées dans l’espace professionnel.
 - **Données commerciales :** abonnements, commissions, commandes, réservations, factures et états de paiement lorsque ces fonctions sont activées.
 - **Assistance et communications :** messages et coordonnées transmis par e-mail ou via WhatsApp Business lorsque l’utilisateur choisit ce canal.
-- **Ordonnances et données de santé éventuelles :** image sélectionnée, texte reconnu par OCR, extraits ou métadonnées, selon le fonctionnement réel du scanner.
+- **Ordonnances et données de santé éventuelles :** image sélectionnée, texte reconnu par OCR, candidats de médicaments extraits et termes de recherche choisis, selon le fonctionnement réel du scanner.
 - **Données techniques :** informations du navigateur/appareil, journaux, cookies et stockage local, dans la mesure où ils sont effectivement utilisés.
 
 Cette liste décrit les catégories susceptibles d’être concernées ; elle ne prouve pas que toutes sont actuellement collectées. L’inventaire final doit être aligné sur le code, les bases de données, les API, les journaux et les prestataires. Toute catégorie non utilisée doit être retirée du texte publié.
@@ -41,26 +41,28 @@ Les finalités envisagées comprennent la création et la gestion des comptes, l
 
 Pour chaque finalité, NAXA doit déterminer et documenter le fondement applicable au regard du droit camerounais : par exemple, exécution d’un service ou contrat, obligation légale, consentement lorsque requis, ou autre fondement légalement admis. La présente liste ne vaut pas validation de ces fondements. Les traitements de données de santé, les communications via un service tiers et les transferts internationaux nécessitent une analyse spécifique avant publication.
 
-## 4. Scan d’ordonnance et données de santé — vérification prioritaire
+## 4. Scan d’ordonnance : image locale, texte OCR et recherche
 
-Le fichier `src/lib/ocr.ts` de la branche `main` utilise `tesseract.js` : une fonction reçoit un `File` ou un `Blob`, exécute la reconnaissance OCR et renvoie le texte reconnu, un score de confiance et une liste de candidats. Cet élément est compatible avec un traitement de l’image côté navigateur, mais il ne prouve pas à lui seul que le parcours complet est exclusivement local.
+Le code de la branche `main` contient `src/lib/ocr.ts`, qui utilise `tesseract.js` : la fonction OCR reçoit un fichier image, reconnaît le texte et renvoie le texte, un score de confiance et une liste de candidats. Le composant `src/components/Recherche.tsx` appelle cette fonction dans le navigateur et présente les candidats à l’utilisateur pour vérification ou modification.
 
-Avant publication, il faut vérifier dans le code d’appel et dans le navigateur :
+Dans le composant examiné, l’image n’est pas directement envoyée par l’appel OCR et l’interface indique qu’elle reste dans le navigateur. Cependant, l’absence de transmission de l’image doit être confirmée par un contrôle réseau sur la version déployée ; les ressources OCR téléchargées, métadonnées et éventuels journaux doivent aussi être vérifiés.
 
-1. si l’image reste sur l’appareil et n’est jamais envoyée à un serveur ;
-2. si le texte OCR, les candidats, des extraits, métadonnées ou journaux sont transmis, enregistrés ou associés à un compte ;
-3. quelles ressources OCR sont téléchargées, depuis quel fournisseur et avec quelles requêtes réseau ;
-4. si un autre service reçoit le contenu à un stade ultérieur du parcours ;
-5. la durée de vie en mémoire, les mécanismes d’effacement et les éventuelles copies ;
-6. les fondements juridiques, mesures de sécurité et formalités applicables aux données de santé.
+**Point important :** lorsque l’utilisateur appuie sur l’action de recherche des stocks, les termes de médicament qu’il a retenus ou modifiés sont envoyés comme paramètres de recherche. Ils servent à rechercher des informations dans le catalogue et/ou les stocks des pharmacies partenaires. Ainsi, même si l’image reste locale, les termes de recherche issus de l’ordonnance peuvent quitter le navigateur après cette action. Ces termes peuvent révéler des informations liées à la santé et doivent être décrits comme tels dans l’information donnée à l’utilisateur.
 
-Tant que ces vérifications ne sont pas achevées, NAXA ne doit pas promettre de manière absolue que l’image et toutes les données dérivées restent sur l’appareil ou ne quittent jamais le navigateur. Si le traitement local exclusif est confirmé, la version publiée devra décrire précisément ce qui reste local et distinguer le contenu de l’ordonnance des requêtes techniques nécessaires au chargement des ressources OCR.
+Avant publication, il faut vérifier :
+1. les requêtes réseau de bout en bout et les ressources OCR chargées ;
+2. si le texte OCR complet, seuls les candidats choisis ou d’autres données sont transmis ou conservés ;
+3. les destinataires, journaux et durées de conservation des termes de recherche ;
+4. si les requêtes sont associées à un compte, à un identifiant ou à d’autres données ;
+5. les fondements juridiques, informations/consentements et formalités applicables aux données de santé.
 
-L’OCR peut produire des erreurs. Le résultat ne confirme ni l’authenticité ni la validité d’une ordonnance et ne remplace pas le contrôle du pharmacien. L’utilisateur ne doit traiter que des documents qu’il est autorisé à utiliser.
+Ne pas promettre que toutes les données issues de l’ordonnance restent exclusivement sur l’appareil. Si le traitement local exclusif de l’image est confirmé, la politique finale devra distinguer explicitement l’image, le texte OCR, les termes de recherche et les requêtes techniques.
+
+L’OCR peut produire des erreurs. Il ne vérifie ni l’authenticité ni la validité d’une ordonnance et ne remplace pas le contrôle du pharmacien. L’utilisateur ne doit traiter que les documents qu’il est autorisé à utiliser.
 
 ## 5. Âge minimum
 
-Le service est prévu pour les personnes âgées d’au moins **18 ans**. Le code et les parcours doivent être vérifiés pour établir si l’âge est demandé, comment il est contrôlé, et si l’accès est réellement bloqué en cas de non-respect. La mention de cet âge dans le présent brouillon ne constitue pas une preuve d’un contrôle technique effectif. La procédure applicable aux données d’un mineur doit être définie avec un conseil compétent.
+Le service est prévu pour les personnes âgées d’au moins **18 ans**. Sur la branche `main`, la page `/verification-age` demande une date de naissance et l’acceptation des trois documents présentés ; la route serveur `/api/auth/verify-age` vérifie l’âge et refuse les moins de 18 ans. Le parcours `/api/auth/complete-signup` vérifie également que la date de naissance correspond à un âge d’au moins 18 ans. Cela confirme la présence de contrôles dans le code consulté, mais pas leur test complet sur la version actuellement déployée. Le contrôle doit être testé sur les parcours réels avant de déclarer la protection pleinement validée.
 
 ## 6. Localisation
 
@@ -75,7 +77,7 @@ Les prestataires ou canaux déclarés à ce stade sont :
 - **Google / Gmail / Google Apps Script** : l’envoi de courriers automatiques de bienvenue est documenté comme utilisant Google Apps Script et le service MailApp ;
 - **WhatsApp Business** : canal supplémentaire déclaré par l’exploitant, dont l’usage précis, le compte et les flux de données doivent encore être vérifiés.
 
-Lorsque l’utilisateur contacte NAXA via WhatsApp Business, des données de message, de compte, de numéro et des métadonnées peuvent être traitées par le fournisseur conformément à ses propres conditions. La version publiée devra préciser les catégories réellement échangées, les finalités, les rôles des parties et les éventuels transferts. Il ne faut pas laisser entendre que WhatsApp est utilisé pour tous les parcours si ce n’est pas le cas.
+L’audit du dépôt n’a pas identifié, dans les fichiers consultés, une intégration technique WhatsApp Business clairement documentée. Son utilisation peut être manuelle ou externe au code ; il faut la confirmer avant de la décrire comme un prestataire intégré. Lorsque l’utilisateur contacte NAXA via WhatsApp Business, des données de message, de compte, de numéro et des métadonnées peuvent être traitées par le fournisseur conformément à ses propres conditions. La version publiée devra préciser les catégories réellement échangées, les finalités, les rôles des parties et les éventuels transferts.
 
 La liste ci-dessus n’est pas réputée exhaustive. NAXA doit vérifier les sous-traitants ultérieurs, les régions d’hébergement, les accès techniques, les contrats, les pays de traitement et les garanties applicables. Les données ne doivent être communiquées qu’aux destinataires nécessaires et dans le cadre d’un fondement légal approprié.
 
@@ -91,6 +93,7 @@ Avant publication, NAXA doit établir, justifier et appliquer une grille de cons
 - les données de compte et de profil ;
 - les recherches et la localisation ;
 - les images d’ordonnance et les résultats OCR éventuels ;
+- les termes de recherche issus d’une ordonnance ;
 - les réservations, commandes, abonnements, commissions, factures et pièces comptables ;
 - les journaux de sécurité et d’authentification ;
 - les messages d’assistance et échanges WhatsApp ;
@@ -151,10 +154,10 @@ L’applicabilité des textes, les formalités préalables, les obligations conc
 
 - [ ] Confirmer l’identité légale, l’immatriculation de l’EI, les identifiants légaux/fiscaux requis et l’adresse complète.
 - [ ] Cartographier les données réellement collectées par le code, les API, bases, journaux et services tiers.
-- [ ] Tester le parcours OCR complet, notamment l’image, le texte, les métadonnées, les requêtes réseau et la suppression.
-- [ ] Vérifier le contrôle technique de l’âge minimum de 18 ans.
+- [ ] Tester le parcours OCR complet, notamment l’image, le texte, les candidats, les termes de recherche, les requêtes réseau et la suppression.
+- [ ] Tester le contrôle d’âge sur la version déployée.
 - [ ] Confirmer les prestataires, les régions, les sous-traitants et les transferts internationaux.
-- [ ] Définir et mettre en œuvre les durées de conservation et de suppression par catégorie, y compris sauvegardes.
+- [ ] Définir et mettre en œuvre les durées de conservation et de suppression par catégorie, y compris sauvegardes et termes de recherche.
 - [ ] Auditer cookies, stockage local, analytics, publicité, e-mails et WhatsApp Business.
 - [ ] Définir les bases juridiques, les formalités applicables aux données de santé et les mesures d’information/consentement.
 - [ ] Vérifier la sécurité réelle des accès, RLS, sessions, secrets, journaux, sauvegardes et du script Google Apps Script/Gmail.
