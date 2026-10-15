@@ -1,6 +1,6 @@
 # NAXA — Conditions générales d’utilisation (CGU)
 
-**Version de travail 1.2 — 15 octobre 2026**  
+**Version de travail 1.3 — 15 octobre 2026**  
 **Statut : BROUILLON JURIDIQUE — NON PUBLIABLE EN L’ÉTAT**
 
 > Document de travail à faire vérifier par un conseil connaissant le droit camerounais. Il ne constitue pas un avis juridique et ne doit pas être présenté comme validé. Les services, flux de données et conditions commerciales doivent correspondre au fonctionnement effectivement déployé.
@@ -27,7 +27,7 @@ La disponibilité des fonctionnalités dépend de la version du service et des p
 
 ## 3. Accès, âge minimum et comptes
 
-Le service est destiné aux personnes âgées d’au moins **18 ans**. La mise en œuvre technique du contrôle d’âge reste à vérifier. Tant que cette vérification n’est pas achevée, cette clause exprime la règle prévue mais ne prouve pas qu’un contrôle efficace est actif.
+Le service est destiné aux personnes âgées d’au moins **18 ans**. Le code consulté sur `main` comporte un parcours de vérification demandant une date de naissance et vérifiant côté serveur que l’utilisateur a au moins 18 ans, ainsi qu’une finalisation d’inscription qui valide également l’âge. Les contrôles doivent néanmoins être testés de bout en bout sur la version déployée avant de considérer cette protection comme validée.
 
 L’utilisateur doit fournir des informations exactes, protéger ses moyens d’authentification et signaler tout accès suspect. Il ne doit pas utiliser le compte d’un tiers sans autorisation. Les mesures de suspension ou de fermeture doivent être proportionnées et respecter les droits impératifs applicables.
 
@@ -49,11 +49,11 @@ Les contenus et outils numériques de NAXA ne constituent pas un diagnostic, une
 
 ## 6. Scan d’ordonnance
 
-Le code consulté sur la branche `main` contient une fonction OCR utilisant `tesseract.js` pour reconnaître du texte à partir d’un fichier image fourni à la fonction. Cela est compatible avec un traitement côté navigateur, mais ne suffit pas à démontrer à lui seul que l’ensemble du parcours est exclusivement local : l’appelant, les requêtes réseau, les ressources OCR, les journaux et tout éventuel envoi du texte reconnu doivent aussi être vérifiés.
+Le code consulté sur la branche `main` utilise `tesseract.js` pour reconnaître du texte à partir d’un fichier image fourni à la fonction OCR. Dans le composant de recherche examiné, l’image est passée à cette fonction dans le navigateur ; le texte reconnu et les candidats sont présentés à l’utilisateur. Le composant indique que l’image n’est pas envoyée à NAXA. Lorsqu’un utilisateur choisit ensuite de rechercher les médicaments identifiés ou modifiés, les termes retenus sont envoyés comme requête de recherche pour obtenir des informations du catalogue et/ou rechercher les stocks des pharmacies partenaires.
 
-Le scanner facilite la lecture du texte et ne vérifie ni l’authenticité ni la validité médicale ou juridique de l’ordonnance. Le pharmacien reste responsable des contrôles relevant de sa profession. L’utilisateur ne doit traiter que les documents qu’il est autorisé à utiliser.
+Le code examiné ne montre pas que l’image elle-même est transmise par ce parcours, mais l’absence de transmission de l’image doit encore être confirmée par un contrôle réseau sur la version déployée. Le chargement des ressources OCR, les journaux, les métadonnées et les flux d’autres composants doivent également être examinés. Il ne faut pas affirmer que rien ne quitte l’appareil : les termes de recherche choisis par l’utilisateur peuvent quitter le navigateur lorsqu’il lance la recherche.
 
-**Aucune promesse absolue de traitement exclusivement local ou d’absence de transmission ne doit être publiée avant vérification complète du parcours réel et du code déployé.** La politique de confidentialité doit préciser séparément le traitement de l’image, du texte OCR, des métadonnées et des ressources techniques.
+Le scanner facilite la lecture du texte et ne vérifie ni l’authenticité ni la validité médicale ou juridique de l’ordonnance. L’OCR peut produire des erreurs ; le pharmacien reste responsable des contrôles relevant de sa profession. L’utilisateur ne doit traiter que les documents qu’il est autorisé à utiliser.
 
 ## 7. Réservations, commandes, paiements et réclamations
 
@@ -109,8 +109,8 @@ Cette liste n’est pas exhaustive et ne remplace pas une validation juridique.
 
 - [ ] Confirmer l’immatriculation de l’EI, le numéro et les identifiants légaux/fiscaux requis.
 - [ ] Renseigner l’adresse physique et postale complète, au-delà de « Yaoundé, Cameroun ».
-- [ ] Vérifier dans le code déployé et par contrôle réseau le parcours OCR complet, y compris les ressources téléchargées, l’image, le texte reconnu et les métadonnées.
-- [ ] Vérifier l’application effective de la limite de 18 ans.
+- [ ] Vérifier le parcours OCR de bout en bout et les requêtes réseau sur la version déployée, notamment les ressources OCR, les journaux et les données dérivées.
+- [ ] Vérifier le contrôle d’âge dans la version déployée.
 - [ ] Documenter le contrôle des autorisations des pharmacies et faire valider les exigences par un conseil compétent.
 - [ ] Définir les contrats commerciaux, abonnements, commissions, taxes, facturation, résiliation et impayés.
 - [ ] Clarifier les parcours de réservation, commande, paiement, annulation et remboursement.
