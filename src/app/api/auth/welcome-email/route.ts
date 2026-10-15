@@ -30,9 +30,9 @@ export async function POST() {
 
     const googleScriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
     const googleScriptSecret = process.env.GOOGLE_APPS_SCRIPT_SECRET;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-    const privacyContact = process.env.NAXA_PRIVACY_CONTACT_EMAIL;
-    if (!googleScriptUrl || !googleScriptSecret || !siteUrl || !privacyContact) {
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://naxa-naxa3.vercel.app").replace(/\/$/, "");
+    const privacyContact = process.env.NAXA_PRIVACY_CONTACT_EMAIL || "naxa.home@gmail.com";
+    if (!googleScriptUrl || !googleScriptSecret) {
       return NextResponse.json({ sent: false, error: "Le courrier Google n’est pas encore configuré. L’envoi n’est pas confirmé." }, { status: 503 });
     }
 
