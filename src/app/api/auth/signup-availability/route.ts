@@ -63,18 +63,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Vérification impossible pour le moment. Réessayez." }, { status: 503 });
     }
 
+    // Métadonnées Auth et profil peuvent diverger : vérifier les deux sources.
+    // Seul un compte NAXA finalisé réserve le numéro; un profil provisoire ne le bloque pas.
+    const checkedUserIds = new Set<string>();
     for (const candidate of usersWithPhone) {
       if (candidate.id === pendingEmailUserId) continue;
+      checkedUserIds.add(candidate.id);
       const { data: profile, error: profileError } = await admin
         .from("profiles")
-        .select("id, username")
+        .select("id, username, phone")
         .eq("id", candidate.id)
         .maybeSingle();
       if (profileError) {
         console.error("signup availability phone profile lookup:", profileError.message);
         return NextResponse.json({ ok: false, error: "Vérification des coordonnées impossible. Réessayez." }, { status: 503 });
       }
-      if (profile && isFinalizedNaxaProfile(profile, candidate.user)) {
+      const metadataPhone = String(candidate.user.user_metadata?.phone ?? "").replace(/\D/g, "");
+      const profilePhone = String(profile?.phone ?? "").replace(/\D/g, "");
+      if ((metadataPhone === phoneDigits || profilePhone === phoneDigits)
+        && profile && isFinalizedNaxaProfile(profile, candidate.user)) {
+        return NextResponse.json({ ok: false, field: "phone", error: "Ce numéro de téléphone est déjà utilisé par un autre compte." }, { status: 409 });
+      }
+    }
+
+    // Inclure les comptes finalisés dont le téléphone n'est présent que dans profiles.phone.
+    const { data: matchingProfiles, error: matchingProfilesError } = await admin
+      .from("profiles")
+      .select("id, username, phone")
+      .eq("phone", phone);
+    if (matchingProfilesError) {
+      console.error("signup availability profile phone lookup:", matchingProfilesError.message);
+      return NextResponse.json({ ok: false, error: "Vérification des coordonnées impossible. Réessayez." }, { status: 503 });
+    }
+    for (const profile of matchingProfiles ?? []) {
+      if (profile.id === pendingEmailUserId || checkedUserIds.has(profile.id)) continue;
+      const { data: authResult, error: authLookupError } = await admin.auth.admin.getUserById(profile.id);
+      if (authLookupError) {
+        console.error("signup availability profile auth lookup:", authLookupError.message);
+        return NextResponse.json({ ok: false, error: "Vérification des coordonnées impossible. Réessayez." }, { status: 503 });
+      }
+      if (authResult.user && isFinalizedNaxaProfile(profile, authResult.user)) {
         return NextResponse.json({ ok: false, field: "phone", error: "Ce numéro de téléphone est déjà utilisé par un autre compte." }, { status: 409 });
       }
     }
