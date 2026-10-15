@@ -13,8 +13,8 @@ export function ChampFlottant({id,label,value,onChange,type="text",autoComplete,
   const filled=Boolean(value);
   return <div className={`naxa-field ${className}`} data-filled={filled ? "true":"false"} style={{"--reveal-delay":`${delayMs}ms`,"--naxa-reveal-delay":`${revealDelayMs}ms`} as CSSProperties}>
     {prefix && <span className="absolute left-2 top-1/2 z-[1000] -translate-y-1/2">{prefix}</span>}
-    <input ref={inputRef} id={id} name={name} className="naxa-field-control" style={{minHeight,paddingLeft:prefix ? "94px":`${inset}px`,paddingTop:minHeight>52?"24px":undefined}} aria-label={label} type={type} value={value} onChange={(e:ChangeEvent<HTMLInputElement>)=>onChange(e.target.value)} autoComplete={autoComplete} required={required} maxLength={maxLength} inputMode={inputMode} pattern={pattern} min={min} max={max} onBlur={onBlur} disabled={disabled}/>
-    <label htmlFor={id} className="naxa-field-label" style={{left:prefix ? "94px":`${inset}px`}}>{label}</label>
+    <input ref={inputRef} id={id} name={name} className="naxa-field-control" style={{minHeight,paddingLeft:prefix ? "172px":`${inset}px`,paddingTop:minHeight>52?"24px":undefined}} aria-label={label} type={type} value={value} onChange={(e:ChangeEvent<HTMLInputElement>)=>onChange(e.target.value)} autoComplete={autoComplete} required={required} maxLength={maxLength} inputMode={inputMode} pattern={pattern} min={min} max={max} onBlur={onBlur} disabled={disabled}/>
+    <label htmlFor={id} className="naxa-field-label" style={{left:prefix ? "172px":`${inset}px`}}>{label}</label>
     <CocheValidation couleur={validColor} visible={valid} right={type==="date"?"42px":"14px"}/>
     {trailing && <span className="absolute right-3 top-1/2 z-10 -translate-y-1/2">{trailing}</span>}
     {helper && <span className="naxa-field-helper">{helper}</span>}
