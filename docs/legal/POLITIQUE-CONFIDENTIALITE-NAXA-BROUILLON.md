@@ -1,187 +1,164 @@
-# NAXA — Politique de confidentialité
+# NAXA — Politique de confidentialité et de sécurité des données
 
-**Version de travail 1.2 — 12 octobre 2026**  
+**Version de travail 1.3 — 15 octobre 2026**  
 **Statut : BROUILLON JURIDIQUE — NON PUBLIABLE EN L’ÉTAT**
 
-> Projet de travail, et non avis juridique. Cette politique ne doit être publiée qu’après vérification du code réellement déployé, des flux de données, des prestataires, des durées de conservation et des formalités applicables au Cameroun.
+> Projet de travail, non avis juridique. Avant publication, il faut vérifier le code et les services effectivement déployés, les flux de données, les durées de conservation, les prestataires et les formalités applicables au Cameroun. Les mesures décrites comme objectifs ou principes ne prouvent pas qu’elles sont déjà toutes actives.
 
 ## 1. Responsable du traitement et contact
 
-Le service est présenté sous le nom **NAXA** et accessible notamment à https://naxa.cm.
+Le service est présenté sous le nom **NAXA**, accessible notamment à l’adresse https://naxa.cm.
 
-- Nom déclaré : NAXA
-- Forme juridique et immatriculation : **à confirmer**
-- Adresse : Yaoundé, Cameroun — **adresse complète à renseigner**
-- Contact : naxa.home@gmail.com
-- Téléphone : +237 681 972 237
+- **Responsable déclaré :** BITSEKI MAYAKA Bienvenu.
+- **Forme déclarée :** entreprise individuelle (EI).
+- **Adresse communiquée :** Yaoundé, Cameroun.
+- **Adresse physique et postale complète :** à compléter avant publication.
+- **Immatriculation et identifiants légaux/fiscaux :** à renseigner et vérifier.
+- **Contact données personnelles :** naxa.home@gmail.com.
+- **Téléphone communiqué :** +237 681 97 22 37.
 
-L’identité juridique exacte du responsable du traitement doit être confirmée avant publication.
+Ces informations ont été communiquées par l’exploitant, mais l’immatriculation, les identifiants requis et l’adresse complète doivent être vérifiés. La politique définitive devra identifier sans ambiguïté la personne ou l’entité responsable du traitement et, le cas échéant, ses coordonnées réglementaires.
 
-## 2. Personnes concernées et données susceptibles d’être traitées
+## 2. Personnes concernées et catégories de données
 
-Selon les fonctions utilisées, NAXA peut traiter les catégories suivantes :
+Selon les fonctionnalités effectivement utilisées, NAXA peut traiter :
 
-- **Identité et compte** : nom ou informations de profil, identifiant de compte, date de naissance ou confirmation d’âge, identifiants d’authentification.
-- **Contact** : adresse e-mail, numéro de téléphone et échanges avec l’assistance.
-- **Localisation approximative** : position approximative ou localisation utilisée pour rechercher des pharmacies à proximité, si l’utilisateur autorise ou saisit cette information.
-- **Données liées aux pharmacies** : informations de l’établissement, comptes des collaborateurs, stocks, horaires, garde, réservations et opérations réalisées depuis l’espace pharmacie.
-- **Données de transaction** : abonnement, commissions, commandes, réservations, factures, reçus et statut de paiement si ces parcours sont activés.
-- **Données techniques et de sécurité** : journaux de connexion, événements nécessaires à la prévention des abus, données techniques du navigateur ou de l’appareil lorsque celles-ci sont effectivement collectées.
-- **Ordonnances et données de santé éventuelles** : image d’une ordonnance, texte reconnu par OCR ou données qui en sont extraites, selon le fonctionnement réel du scanner.
+- **Compte et identité :** nom, prénom, nom d’utilisateur, date de naissance ou information d’âge, identifiant du compte et données nécessaires à son administration.
+- **Coordonnées :** adresse e-mail, téléphone et échanges avec l’assistance.
+- **Authentification et sécurité :** informations de connexion, événements de session, mécanismes de vérification et de récupération, journaux de sécurité.
+- **Localisation et recherche :** localisation saisie ou approximative, requêtes et critères utilisés pour rechercher des pharmacies, si ces données sont réellement collectées.
+- **Activité des pharmacies :** identité et comptes des collaborateurs, informations d’établissement, stocks, horaires, gardes, réservations et opérations effectuées dans l’espace professionnel.
+- **Données commerciales :** abonnements, commissions, commandes, réservations, factures et états de paiement lorsque ces fonctions sont activées.
+- **Assistance et communications :** messages et coordonnées transmis par e-mail ou via WhatsApp Business lorsque l’utilisateur choisit ce canal.
+- **Ordonnances et données de santé éventuelles :** image sélectionnée, texte reconnu par OCR, extraits ou métadonnées, selon le fonctionnement réel du scanner.
+- **Données techniques :** informations du navigateur/appareil, journaux, cookies et stockage local, dans la mesure où ils sont effectivement utilisés.
 
-Cette liste décrit les catégories possibles, et non la preuve que chaque donnée est actuellement collectée. NAXA doit supprimer de la version publiée toute catégorie qui n’est pas effectivement traitée et ajouter toute catégorie réellement collectée qui manque ici.
+Cette liste décrit les catégories susceptibles d’être concernées ; elle ne prouve pas que toutes sont actuellement collectées. L’inventaire final doit être aligné sur le code, les bases de données, les API, les journaux et les prestataires. Toute catégorie non utilisée doit être retirée du texte publié.
 
 ## 3. Finalités et bases juridiques
 
-Les finalités possibles sont :
-- créer et sécuriser les comptes ;
-- fournir les espaces Client et Pharmacie ;
-- rechercher des pharmacies et afficher des informations de proximité ;
-- gérer les stocks, réservations et commandes lorsque ces fonctions sont activées ;
-- gérer les abonnements, commissions, factures et paiements ;
-- répondre aux demandes d’assistance ;
-- prévenir la fraude, les accès non autorisés et les incidents ;
-- satisfaire aux obligations légales applicables.
+Les finalités envisagées comprennent la création et la gestion des comptes, l’authentification et la sécurité, la recherche de pharmacies, la fourniture des espaces Client et Pharmacie, la gestion des stocks et réservations, la gestion des abonnements et commissions, l’assistance et le respect des obligations légales.
 
-La base juridique doit être déterminée pour chaque finalité, selon le droit applicable : exécution du service ou d’un contrat, obligation légale, consentement lorsque nécessaire, ou autre fondement autorisé. **La base juridique précise pour les données de santé, l’OCR et les transferts éventuels reste à valider avant publication.**
+Pour chaque finalité, NAXA doit déterminer et documenter le fondement applicable au regard du droit camerounais : par exemple, exécution d’un service ou contrat, obligation légale, consentement lorsque requis, ou autre fondement légalement admis. La présente liste ne vaut pas validation de ces fondements. Les traitements de données de santé, les communications via un service tiers et les transferts internationaux nécessitent une analyse spécifique avant publication.
 
-## 4. Scan d’ordonnance : vérification prioritaire
+## 4. Scan d’ordonnance et données de santé — vérification prioritaire
 
-Une ordonnance peut contenir des données de santé sensibles. Avant publication de cette politique, NAXA doit vérifier et documenter :
-1. si l’image est traitée uniquement dans le navigateur ou transmise à un serveur ;
-2. si le texte OCR, des extraits, métadonnées ou journaux sont envoyés ou conservés ;
-3. quels fournisseurs techniques peuvent recevoir ou traiter ces éléments ;
-4. les finalités, le fondement juridique, les durées de conservation et les mesures de sécurité ;
-5. si une autorisation ou une formalité particulière est requise.
+Le fichier `src/lib/ocr.ts` de la branche `main` utilise `tesseract.js` : une fonction reçoit un `File` ou un `Blob`, exécute la reconnaissance OCR et renvoie le texte reconnu, un score de confiance et une liste de candidats. Cet élément est compatible avec un traitement de l’image côté navigateur, mais il ne prouve pas à lui seul que le parcours complet est exclusivement local.
 
-Ne pas affirmer que l’image ou le texte reste exclusivement sur l’appareil tant que cela n’a pas été confirmé par l’inspection du code déployé et par un contrôle réseau. Si le traitement est réellement local et qu’aucune image, texte ou métadonnée d’ordonnance ne quitte l’appareil, la politique finale devra le dire précisément, sans généraliser cette affirmation aux autres données du service.
+Avant publication, il faut vérifier dans le code d’appel et dans le navigateur :
 
-## 5. Localisation
+1. si l’image reste sur l’appareil et n’est jamais envoyée à un serveur ;
+2. si le texte OCR, les candidats, des extraits, métadonnées ou journaux sont transmis, enregistrés ou associés à un compte ;
+3. quelles ressources OCR sont téléchargées, depuis quel fournisseur et avec quelles requêtes réseau ;
+4. si un autre service reçoit le contenu à un stade ultérieur du parcours ;
+5. la durée de vie en mémoire, les mécanismes d’effacement et les éventuelles copies ;
+6. les fondements juridiques, mesures de sécurité et formalités applicables aux données de santé.
 
-La localisation peut servir à ordonner ou filtrer les pharmacies proches. L’application doit expliquer si elle utilise la position de l’appareil, une position saisie manuellement ou une localisation approximative. L’utilisateur devrait pouvoir utiliser une recherche manuelle lorsque cela est compatible avec le service.
+Tant que ces vérifications ne sont pas achevées, NAXA ne doit pas promettre de manière absolue que l’image et toutes les données dérivées restent sur l’appareil ou ne quittent jamais le navigateur. Si le traitement local exclusif est confirmé, la version publiée devra décrire précisément ce qui reste local et distinguer le contenu de l’ordonnance des requêtes techniques nécessaires au chargement des ressources OCR.
 
-La précision, la fréquence de collecte, la conservation et la transmission de la localisation doivent être confirmées dans le code et les paramètres déployés avant publication.
+L’OCR peut produire des erreurs. Le résultat ne confirme ni l’authenticité ni la validité d’une ordonnance et ne remplace pas le contrôle du pharmacien. L’utilisateur ne doit traiter que des documents qu’il est autorisé à utiliser.
 
-## 6. Destinataires et prestataires
+## 5. Âge minimum
 
-Les prestataires déclarés à ce stade sont :
-- **Supabase** : infrastructure de données et fonctions liées aux comptes, selon la configuration réelle ;
+Le service est prévu pour les personnes âgées d’au moins **18 ans**. Le code et les parcours doivent être vérifiés pour établir si l’âge est demandé, comment il est contrôlé, et si l’accès est réellement bloqué en cas de non-respect. La mention de cet âge dans le présent brouillon ne constitue pas une preuve d’un contrôle technique effectif. La procédure applicable aux données d’un mineur doit être définie avec un conseil compétent.
+
+## 6. Localisation
+
+La localisation peut être utilisée pour proposer ou classer les pharmacies proches. Avant publication, NAXA doit confirmer si la position provient du GPS/navigateur, d’une saisie manuelle, d’une adresse approximative ou d’une autre source ; sa précision, son caractère facultatif, les destinataires, la durée de conservation et les possibilités de recherche manuelle doivent être documentés.
+
+## 7. Destinataires, prestataires et communications
+
+Les prestataires ou canaux déclarés à ce stade sont :
+
+- **Supabase** : base de données, authentification et fonctions associées, selon la configuration réelle ;
 - **Vercel** : hébergement et distribution de l’application ;
-- **Google** : services Google utilisés, notamment si l’authentification Google est activée.
+- **Google / Gmail / Google Apps Script** : l’envoi de courriers automatiques de bienvenue est documenté comme utilisant Google Apps Script et le service MailApp ;
+- **WhatsApp Business** : canal supplémentaire déclaré par l’exploitant, dont l’usage précis, le compte et les flux de données doivent encore être vérifiés.
 
-Les rôles précis, sous-traitants ultérieurs, régions d’hébergement, accès aux données et éventuels transferts hors du Cameroun doivent être vérifiés dans les configurations et contrats applicables. Cette liste ne doit pas être considérée comme exhaustive tant que l’inventaire technique n’est pas achevé.
+Lorsque l’utilisateur contacte NAXA via WhatsApp Business, des données de message, de compte, de numéro et des métadonnées peuvent être traitées par le fournisseur conformément à ses propres conditions. La version publiée devra préciser les catégories réellement échangées, les finalités, les rôles des parties et les éventuels transferts. Il ne faut pas laisser entendre que WhatsApp est utilisé pour tous les parcours si ce n’est pas le cas.
 
-NAXA ne doit partager les données qu’en fonction des finalités déclarées, des autorisations nécessaires et des obligations applicables.
+La liste ci-dessus n’est pas réputée exhaustive. NAXA doit vérifier les sous-traitants ultérieurs, les régions d’hébergement, les accès techniques, les contrats, les pays de traitement et les garanties applicables. Les données ne doivent être communiquées qu’aux destinataires nécessaires et dans le cadre d’un fondement légal approprié.
 
-## 7. Durées de conservation
+## 8. Transferts internationaux
 
-Le principe déclaré est la conservation des données de compte jusqu’à la suppression du compte, sous réserve des obligations légales et des nécessités de sécurité. Cette règle générale ne suffit pas à définir toutes les durées.
+Selon les régions et services effectivement configurés, certaines données peuvent être hébergées ou traitées en dehors du Cameroun. Les pays, destinataires, catégories de données, garanties et formalités éventuellement requises doivent être identifiés avant publication. NAXA ne doit pas affirmer qu’il n’existe aucun transfert international tant que l’inventaire des fournisseurs et de leurs configurations n’est pas achevé.
 
-Avant publication, NAXA doit établir une grille distincte pour :
-- données du compte et du profil ;
-- localisation et recherches ;
-- ordonnances, images et résultats OCR éventuels ;
-- réservations, commandes, factures et données comptables ;
-- journaux de sécurité et d’authentification ;
-- demandes d’assistance ;
-- sauvegardes et copies résiduelles après suppression.
+## 9. Durées de conservation et suppression
 
-Chaque durée doit être justifiée, mise en œuvre techniquement et communiquée de façon claire. Ne pas promettre l’effacement immédiat de toutes les copies si les sauvegardes ou obligations légales imposent un délai.
+Le principe communiqué par l’exploitant est de supprimer les données **dès que possible après la suppression du compte**, sous réserve des obligations légales applicables et des besoins légitimes de sécurité. Cela ne signifie pas nécessairement l’effacement instantané de toutes les copies techniques, journaux ou sauvegardes.
 
-## 8. Politique de sécurité des données et du service
+Avant publication, NAXA doit établir, justifier et appliquer une grille de conservation par catégorie, notamment pour :
+- les données de compte et de profil ;
+- les recherches et la localisation ;
+- les images d’ordonnance et les résultats OCR éventuels ;
+- les réservations, commandes, abonnements, commissions, factures et pièces comptables ;
+- les journaux de sécurité et d’authentification ;
+- les messages d’assistance et échanges WhatsApp ;
+- les sauvegardes, archives et copies résiduelles.
 
-Cette section intègre à la présente politique de confidentialité les principes de sécurité de NAXA. Elle décrit les mesures à appliquer et à vérifier ; elle ne constitue pas une certification et ne garantit pas l’absence absolue d’incident. Les contrôles effectivement actifs doivent être confirmés dans le code, la configuration et les services déployés avant publication.
+Pour chaque catégorie, la durée ou le critère de durée, le point de départ, le processus de suppression, les exceptions légales et le délai d’expiration des sauvegardes doivent être confirmés. Aucune durée précise n’est affirmée dans cette version faute d’inventaire vérifié.
 
-### 8.1. Contrôle des accès et séparation des espaces
+## 10. Sécurité des données et du service
 
-- Les accès aux comptes, aux données et aux fonctions d’administration doivent être limités aux personnes et services qui en ont besoin.
-- Les espaces Client et Pharmacie doivent rester séparés. Une pharmacie ne doit accéder qu’aux données autorisées pour son établissement et ses utilisateurs.
-- Les permissions doivent être contrôlées côté serveur et dans la base de données ; masquer un bouton ou une page dans l’interface ne suffit pas.
-- Les règles d’accès à la base de données, notamment les politiques Row Level Security (RLS) lorsqu’elles sont applicables, doivent être testées contre les accès autorisés et non autorisés.
-- Les privilèges doivent suivre le principe du moindre privilège et être réexaminés lors des changements de rôle, de départ d’un collaborateur ou d’évolution du service.
+Cette section expose les principes de sécurité à appliquer et à vérifier ; elle ne constitue ni une certification ni une garantie d’absence d’incident.
 
-### 8.2. Authentification et sessions
+### 10.1 Contrôle d’accès et séparation des espaces
+- Limiter les accès aux personnes et services qui en ont besoin.
+- Séparer les espaces Client, Pharmacie et administration.
+- Vérifier les permissions côté serveur et dans la base ; masquer un bouton ne suffit pas.
+- Tester les politiques RLS et les autorisations pour les accès permis et interdits.
+- Appliquer le moindre privilège et réexaminer les accès lors d’un changement de rôle ou du départ d’un collaborateur.
 
-NAXA doit protéger les parcours de connexion, de création de compte, de vérification d’adresse e-mail, de récupération de compte et de gestion des sessions. Les jetons et mécanismes de récupération ne doivent pas être exposés dans les URL, journaux ou interfaces non prévues à cet effet. Les erreurs affichées ne doivent pas révéler de secrets ni de détails internes facilitant un abus. Les paramètres réellement activés (durée de session, expiration, révocation et protection contre les tentatives abusives) doivent être vérifiés avant publication.
+### 10.2 Authentification et sessions
+Les parcours de création de compte, vérification d’adresse e-mail, connexion, récupération et gestion des sessions doivent être contrôlés. Les jetons de session et de récupération ne doivent pas être exposés dans des URL, journaux ou interfaces non prévues. Les erreurs ne doivent pas révéler de secrets. Les durées de session, révocations et protections contre les tentatives abusives doivent être vérifiées dans la configuration réelle.
 
-### 8.3. Secrets, clés et configuration
+### 10.3 Secrets et configuration
+Les mots de passe, clés privilégiées, jetons et secrets d’intégration doivent être conservés dans des mécanismes protégés, non dans le code public, le navigateur ou les journaux. Les variables exposées au navigateur ne doivent contenir aucun secret privilégié. Les secrets doivent être accessibles au seul composant qui en a besoin et renouvelés en cas d’exposition suspectée.
 
-- Les mots de passe, clés API, jetons et secrets d’intégration doivent être conservés dans des mécanismes de configuration protégés, jamais dans le code public, les dépôts, le navigateur ou les journaux.
-- Les secrets doivent être accessibles uniquement aux composants qui en ont besoin et être renouvelés en cas d’exposition suspectée.
-- Les variables d’environnement exposées au navigateur ne doivent jamais contenir de secret privilégié.
-- Aucun mot de passe ni secret d’accès ne doit être communiqué par e-mail à l’assistance.
+### 10.4 Transmissions et prestataires
+Les connexions doivent utiliser le chiffrement lorsqu’il est pris en charge. Les protections, régions et accès dépendent des services et paramètres réellement configurés. Les accès des prestataires, leurs sous-traitants et les transferts éventuels doivent être documentés et vérifiés.
 
-### 8.4. Transmissions et prestataires techniques
+### 10.5 Journaux, sauvegardes et incidents
+Les journaux doivent être limités aux besoins opérationnels et de sécurité et ne pas contenir inutilement des mots de passe, secrets, jetons ou contenus d’ordonnance. Les sauvegardes doivent être protégées, leurs accès limités et leur durée de conservation définie. NAXA doit disposer d’une procédure de détection, de traitement et de notification des incidents conformément aux obligations applicables. L’existence et l’efficacité de ces mesures doivent être testées avant qu’elles soient présentées comme pleinement opérationnelles.
 
-Les communications doivent utiliser des connexions chiffrées lorsque prises en charge par les services utilisés. Les protections fournies par Supabase, Vercel, Google et tout autre prestataire dépendent de la configuration effective, des autorisations et des régions sélectionnées. Les rôles de ces prestataires, leurs accès, leurs sous-traitants et les éventuels transferts internationaux doivent être inventoriés et vérifiés ; leur simple mention ne prouve pas qu’une configuration est sécurisée.
+## 11. Cookies, stockage local et communications
 
-### 8.5. Courriels transactionnels et Google Apps Script
+Les cookies, le stockage local, les outils de mesure d’audience, pixels publicitaires et autres traceurs doivent être audités. Cette version ne prétend pas qu’aucun traceur n’est utilisé. Les traceurs non essentiels, s’ils existent, doivent être décrits et soumis au choix de l’utilisateur lorsque la loi l’exige.
 
-Le projet NAXA prévoit un mécanisme d’envoi de courriels transactionnels reposant sur Google Apps Script et Gmail. Son activation et son déploiement doivent être confirmés avant de le présenter comme opérationnel. Si ce mécanisme est utilisé, le point d’entrée doit vérifier les requêtes entrantes et le secret partagé côté serveur, valider les champs attendus, limiter les destinataires et contenus acceptés, et éviter les envois répétés au moyen d’une clé d’idempotence. Le secret ne doit jamais être inclus dans le code client, rendu public ou écrit dans les journaux. Les accès au compte Google et au script doivent être limités et révocables. Les données présentes dans les e-mails doivent être réduites au strict nécessaire ; les ordonnances et autres données de santé ne doivent pas être jointes ou transmises par ce mécanisme sans analyse et autorisation spécifiques.
+Les messages nécessaires au fonctionnement du service doivent être distingués des communications promotionnelles. NAXA doit préciser les canaux utilisés, les bases juridiques, les durées de conservation et les moyens de s’opposer aux communications lorsque cela s’applique.
 
-### 8.6. Données sensibles et scanner d’ordonnance
+## 12. Droits et demandes
 
-Les images d’ordonnances, les résultats OCR et les données de santé éventuelles nécessitent une protection renforcée. NAXA doit vérifier les flux réseau, le stockage, les journaux, les accès internes et les durées de conservation associés à cette fonction. Aucun texte ne doit affirmer que les ordonnances restent sur l’appareil ou ne sont jamais transmises à un tiers tant que cela n’a pas été établi par l’inspection du code déployé et des flux réseau. Les exigences légales et le fondement autorisant ce traitement doivent être validés avant activation ou publication.
+Sous réserve des conditions et limites prévues par le droit applicable, une personne peut demander l’accès aux données la concernant, leur rectification ou suppression, la limitation ou l’opposition à certains traitements, et retirer un consentement lorsque le traitement repose sur celui-ci. Elle peut également introduire une réclamation auprès de l’autorité compétente selon la procédure applicable.
 
-### 8.7. Journaux, sauvegardes et conservation
+Les demandes peuvent être adressées à **naxa.home@gmail.com**. NAXA doit définir une procédure permettant de vérifier raisonnablement l’identité du demandeur, de suivre la demande, de respecter les délais applicables et de traiter les exceptions légales. Les droits et procédures exacts doivent être validés par un conseil au regard du droit camerounais.
 
-Les journaux de sécurité doivent être limités aux informations nécessaires à la détection, à l’investigation et à la prévention des abus. Ils ne doivent pas enregistrer de mots de passe, secrets, jetons complets ni contenu sensible inutile. L’accès aux journaux et sauvegardes doit être restreint. Les durées de conservation, les procédures de restauration et la suppression des données dans les sauvegardes doivent être documentées et cohérentes avec la grille de conservation de la présente politique.
+## 13. Modifications de la politique
 
-### 8.8. Prévention, détection et réponse aux incidents
-
-NAXA doit prévoir un processus de réception des alertes, de qualification des incidents, de limitation de leur impact, de conservation des éléments utiles, de correction et de suivi. En cas d’incident affectant des données personnelles, NAXA doit évaluer sans délai les obligations d’information ou de notification applicables, les personnes concernées et les autorités compétentes, selon le droit applicable. Les coordonnées de contact pour signaler un problème de sécurité doivent être maintenues à jour ; le contact général est naxa.home@gmail.com.
-
-### 8.9. Limites et responsabilité de chacun
-
-Les utilisateurs doivent protéger leurs moyens d’accès, choisir des mots de passe appropriés lorsqu’ils en définissent, fermer les sessions sur les appareils partagés et signaler rapidement toute activité suspecte. Ils ne doivent pas envoyer de mots de passe, de codes de vérification ni de secrets au support. NAXA ne peut promettre une sécurité absolue ; il s’engage à maintenir des mesures proportionnées aux risques et à les améliorer en fonction des incidents et des évolutions techniques.
-
-## 9. Droits des personnes et demandes
-
-Pour toute demande relative aux données personnelles, contacter **naxa.home@gmail.com**. Il peut être nécessaire de vérifier l’identité du demandeur afin d’éviter la divulgation à un tiers.
-
-Selon le droit applicable et les circonstances, les personnes peuvent disposer de droits d’accès, de rectification, d’effacement, d’opposition, de limitation, de retrait du consentement ou d’autres droits prévus par la loi. Les modalités, délais de réponse, exceptions et voie de recours doivent être confirmés juridiquement avant publication.
-
-La suppression d’un compte peut être demandée selon le parcours proposé par NAXA ou par e-mail. Certaines données peuvent devoir être conservées pendant une durée légale ou pour la défense de droits ; ces exceptions doivent être expliquées à la personne concernée.
-
-## 10. Cookies, mesures d’audience et communications
-
-L’utilisation de cookies, de stockage local, d’outils de mesure d’audience, de pixels publicitaires ou d’autres traceurs doit être auditée. Cette version ne prétend pas qu’aucun traceur n’est utilisé. Les traceurs non essentiels, s’ils existent, doivent être décrits et soumis au choix de l’utilisateur lorsque la loi l’exige.
-
-Les communications de service doivent être distinguées des communications promotionnelles. Les canaux utilisés, les bases juridiques et les moyens de désinscription doivent être précisés selon le fonctionnement réel.
-
-## 11. Transferts internationaux
-
-Les données peuvent être hébergées ou traitées dans des pays autres que le Cameroun selon les régions et services effectivement configurés. NAXA doit identifier les pays, destinataires, garanties et formalités applicables avant toute déclaration définitive sur les transferts internationaux.
-
-## 12. Mineurs
-
-Le service est prévu pour les personnes âgées d’au moins **18 ans**. Les mécanismes de contrôle d’âge doivent être décrits conformément au comportement réel du service. Les procédures applicables en cas de données concernant un mineur doivent être déterminées avant publication.
-
-## 13. Évolution de la politique
-
-La date et la version de la politique doivent être affichées. En cas de changement substantiel des finalités, des destinataires ou du traitement des données sensibles, les personnes doivent être informées et un consentement doit être recueilli lorsque la loi l’exige.
+La version et la date de mise à jour doivent être affichées. En cas de changement substantiel des finalités, des destinataires, des transferts ou des traitements de données sensibles, les personnes doivent être informées et un consentement recueilli lorsque la loi l’exige.
 
 ## 14. Cadre juridique à vérifier
 
 - Loi camerounaise n° 2024/017 du 23 décembre 2024 relative à la protection des données à caractère personnel : https://prc.cm/fr/multimedia/documents/10258-loi-n-2024-017-du-23-12-2024-web
 - Loi n° 2010/021 du 21 décembre 2010 régissant le commerce électronique au Cameroun : https://www.minpostel.gov.cm/index.php/fr/les-textes/telecoms-tic/lois-telecoms-tic/274-loi-n-2010-021-du-21-decembre-2010-regissant-le-commerce-electronique-au-cameroun
-- Normes et législation des établissements pharmaceutiques (Ministère de la Santé publique / DPML) : https://www.dpml.cm/index.php/fr/publications/normes-et-legislation/etablissements-pharmaceutiques
+- Textes relatifs aux établissements pharmaceutiques (Ministère de la Santé publique / DPML) : https://www.dpml.cm/index.php/fr/publications/normes-et-legislation/etablissements-pharmaceutiques
 
-La conformité, les formalités préalables, les exigences relatives aux données de santé et les transferts internationaux doivent être validés par un conseil juridique compétent. Les liens ci-dessus ne remplacent pas cette analyse.
+L’applicabilité des textes, les formalités préalables, les obligations concernant les données de santé et les transferts internationaux doivent être validés par un conseil juridique compétent.
 
 ---
 
 ## Liste de contrôle obligatoire avant publication
 
-- [ ] Confirmer l’identité juridique, la forme, l’immatriculation et l’adresse complète de NAXA.
-- [ ] Cartographier les données collectées par le code réellement déployé, les API, les journaux et les services tiers.
-- [ ] Tester le flux complet du scanner d’ordonnance : image, OCR, métadonnées, réseau, stockage et suppression.
-- [ ] Identifier les bases juridiques et les formalités applicables, notamment pour les données de santé.
-- [ ] Confirmer Supabase, Vercel, Google et tout autre fournisseur : rôle, région, sous-traitants et transferts.
-- [ ] Définir et appliquer des durées de conservation par catégorie, y compris journaux et sauvegardes.
-- [ ] Auditer cookies, stockage local, analytics, publicité et communications e-mail.
-- [ ] Définir et tester les procédures de demande d’accès, rectification, suppression, opposition et réponse aux incidents.\n- [ ] Auditer la sécurité réelle des accès, politiques RLS, sessions, secrets, journaux, sauvegardes et du script Google Apps Script/Gmail avant de présenter ces contrôles comme actifs.
-- [ ] Vérifier que les CGU, l’interface, les consentements et la présente politique sont cohérents.
-- [ ] Faire valider le texte et les formalités par un conseil juridique au regard de la loi camerounaise n° 2024/017 et des règles sectorielles.
-- [ ] Obtenir une validation explicite de NAXA avant toute publication sur le site ou déploiement.
-
+- [ ] Confirmer l’identité légale, l’immatriculation de l’EI, les identifiants légaux/fiscaux requis et l’adresse complète.
+- [ ] Cartographier les données réellement collectées par le code, les API, bases, journaux et services tiers.
+- [ ] Tester le parcours OCR complet, notamment l’image, le texte, les métadonnées, les requêtes réseau et la suppression.
+- [ ] Vérifier le contrôle technique de l’âge minimum de 18 ans.
+- [ ] Confirmer les prestataires, les régions, les sous-traitants et les transferts internationaux.
+- [ ] Définir et mettre en œuvre les durées de conservation et de suppression par catégorie, y compris sauvegardes.
+- [ ] Auditer cookies, stockage local, analytics, publicité, e-mails et WhatsApp Business.
+- [ ] Définir les bases juridiques, les formalités applicables aux données de santé et les mesures d’information/consentement.
+- [ ] Vérifier la sécurité réelle des accès, RLS, sessions, secrets, journaux, sauvegardes et du script Google Apps Script/Gmail.
+- [ ] Définir une procédure opérationnelle de réponse aux demandes de droits et aux incidents.
+- [ ] Harmoniser la politique avec les CGU, les écrans de consentement et les contrats commerciaux.
+- [ ] Faire valider les documents et formalités par un conseil juridique connaissant le droit camerounais et la réglementation pharmaceutique.
+- [ ] Obtenir l’autorisation explicite de l’exploitant avant toute publication ou déploiement.
