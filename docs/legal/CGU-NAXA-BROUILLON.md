@@ -1,4 +1,4 @@
-# NAXA — Conditions générales d’utilisation (CGU)
+# Conditions générales d’utilisation
 
 **Version de travail 1.3 — 15 octobre 2026**  
 **Statut : BROUILLON JURIDIQUE — NON PUBLIABLE EN L’ÉTAT**
