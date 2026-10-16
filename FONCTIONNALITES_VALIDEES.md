@@ -1372,3 +1372,12 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Correction sur `main` : réinitialisation des résultats et de l'erreur à chaque changement de recherche, capture des exceptions, état d'erreur explicite et garde contre les réponses asynchrones obsolètes lorsque l'utilisateur change rapidement de recherche.
 - Charte conservée : en-tête vert NAXA, composants `carte` et `btn`, palette Tailwind NAXA ; le message d'erreur utilise un panneau blanc arrondi avec bordure rouge sémantique, sans nouvelle couleur de marque.
 - Niveau de preuve à la consignation : code corrigé sur `main`; validation Production dépend du déploiement Vercel correspondant. Pas de simulation navigateur mobile déclarée.
+
+
+## Complément — Fiabilisation de la page de réservation (16/10/2026)
+
+- Fichier : `src/app/reservation/[id]/page.tsx`.
+- Défauts confirmés dans le code : les erreurs de lecture pouvaient laisser indéfiniment un écran « Chargement… » ; le chargement du paiement et les actions de référence/annulation ne capturaient pas toutes les exceptions réseau et n’empêchaient pas systématiquement les doubles soumissions.
+- Correction sur `main` : état d’échec explicite avec bouton Réessayer, capture des erreurs de paiement et des actions, états occupés et boutons désactivés pendant les opérations, validation minimale de la référence, affichage du quartier et de la référence communiquée.
+- Charte conservée : en-tête vert NAXA, logo existant, composants `carte`, `btn-vert`, `btn-clair` et couleurs Tailwind déjà définies ; aucun changement de palette.
+- Niveau de preuve : changement commité sur `main`. Le build et l’état du déploiement correspondant doivent être confirmés par Vercel ; aucun test navigateur réel n’est revendiqué.
