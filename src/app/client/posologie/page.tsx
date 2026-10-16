@@ -251,7 +251,7 @@ export default function ConfigurerPosologiePage() {
 
       <section className="naxa-enter rounded-[22px] border border-[#E9DDA2] bg-[#FFF9D9] p-4">
         <h2 className="text-sm font-extrabold">À propos des notifications</h2>
-        <p className="mt-1 text-xs leading-5 text-[#5C5124]">Les rappels locaux fonctionnent lorsque cette page NAXA reste ouverte dans ce navigateur. Une notification système nécessite l’autorisation du navigateur. Pour garantir des rappels lorsque l’application est complètement fermée, il reste à connecter un service Push et une planification côté serveur : cette fonction n’est pas encore active.</p>
+        <p className="mt-1 text-xs leading-5 text-[#5C5124]">Les rappels locaux fonctionnent tant que NAXA reste ouvert dans ce navigateur. Une notification système nécessite l’autorisation du navigateur. Pour garantir des rappels lorsque l’application est complètement fermée, il reste à connecter un service Push et une planification côté serveur : cette fonction n’est pas encore active.</p>
         {permission==="denied" && <p className="mt-2 text-xs font-bold text-[#7A3C16]">Les notifications sont bloquées dans les réglages du navigateur.</p>}
       </section>
 
