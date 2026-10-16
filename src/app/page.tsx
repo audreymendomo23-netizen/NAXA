@@ -78,8 +78,7 @@ const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const [introVisible, setIntroVisible] = useState(false);
-  const [introReady, setIntroReady] = useState(false);
-  const [ageGate, setAgeGate] = useState<"required" | "minor" | null>(null);
+  const [ageGate, setAgeGate] = useState<"required" | "minor" | null>("required");
 
   function ageStatus(): "adult" | "minor" | "missing" {
     try {
@@ -137,7 +136,6 @@ export default function Accueil() {
     }
     setAgeGate(ageInitial === "adult" ? null : ageInitial === "minor" ? "minor" : "required");
     setIntroVisible(false);
-    setIntroReady(true);
 
     const sb = supabaseBrowser();
 
@@ -145,7 +143,6 @@ export default function Accueil() {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
-        setIntroReady(true);
         return;
       }
       if (event === "SIGNED_OUT") {
@@ -165,25 +162,21 @@ export default function Accueil() {
       if (age === "missing") {
         setAgeGate("required");
         setIntroVisible(false);
-        setIntroReady(true);
         return;
       }
       if (age === "minor") {
         setAgeGate("minor");
         setIntroVisible(false);
-        setIntroReady(true);
         return;
       }
       setAgeGate(null);
       if (session) {
         setIntroVisible(false);
-        setIntroReady(true);
         return;
       }
       try {
         if (window.sessionStorage.getItem(key) === "1") {
           setIntroVisible(false);
-          setIntroReady(true);
           return;
         }
         window.sessionStorage.setItem(key, "1");
@@ -191,13 +184,11 @@ export default function Accueil() {
         // En cas de stockage indisponible, privilégier l'accès à l'accueil.
       }
       setIntroVisible(true);
-      setIntroReady(true);
     }).catch(() => {
       if (actif) {
         const age = ageStatus();
         setAgeGate(age === "adult" ? null : age === "minor" ? "minor" : "required");
         setIntroVisible(false);
-        setIntroReady(true);
       }
     });
 
@@ -360,7 +351,6 @@ export default function Accueil() {
         </div>
       </footer>
     </main>
-    {!introReady && <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 2147483646, background: "#064B2A" }} />}
     {ageGate && <div className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-[#064B2A] p-4" role="dialog" aria-modal="true" aria-labelledby="naxa-age-gate-title">
       <section className="w-full max-w-md rounded-3xl border border-white/15 bg-white p-6 shadow-2xl sm:p-8">
         <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2FAF5] text-[#064B2A]" aria-hidden="true">
