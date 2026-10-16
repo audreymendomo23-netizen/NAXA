@@ -24,8 +24,15 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
         && Date.now() - declaration.at >= 0 && Date.now() - declaration.at < 30 * 24 * 60 * 60 * 1000;
     } catch { return false; }
   };
-  function ouvrirContact() {
+  async function ouvrirContact() {
     setEnvoye(false);
+    const sb = supabaseBrowser();
+    const { data } = await sb.auth.getUser();
+    if (!data.user) {
+      const retour = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      router.push(`/connexion?espace=client&retour=${encodeURIComponent(retour)}`);
+      return;
+    }
     if (ageValide()) setOuvert(true);
     else { setControleAge(true); setMineur(false); }
   }
@@ -46,7 +53,7 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
     setEnvoye(true); setCorps("");
   }
   return <>
-    <button type="button" onClick={ouvrirContact} className={variante === "flottant" ? "fixed bottom-[5.5rem] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-naxa-canari text-naxa-green-900 shadow-lg" : "btn btn-canari"} aria-label="Contacter la pharmacie">
+    <button type="button" onClick={() => void ouvrirContact()} className={variante === "flottant" ? "fixed bottom-[5.5rem] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-naxa-canari text-naxa-green-900 shadow-lg" : "btn btn-canari"} aria-label="Contacter la pharmacie">
       {variante === "flottant" ? <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 20l1.1-4.7A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 11h8M8 14h5"/></svg> : "Contacter"}
     </button>
     {controleAge && <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="contact-age-title"><section className="carte w-full max-w-sm space-y-4"><h2 id="contact-age-title" className="text-xl font-extrabold">{mineur ? "Accès réservé aux adultes" : "Avant de continuer"}</h2><p className="text-sm leading-relaxed text-slate-600">{mineur ? "Vous avez indiqué avoir moins de 18 ans. Vous ne pouvez pas effectuer cette action." : "NAXA est destiné aux personnes âgées de 18 ans ou plus. Confirmez votre âge avant de contacter une pharmacie. Cette déclaration ne remplace pas la vérification du compte."}</p>{!mineur && <><button type="button" className="btn btn-canari w-full" onClick={confirmerMajeur}>Je confirme avoir 18 ans ou plus</button><button type="button" className="btn btn-clair w-full" onClick={() => setMineur(true)}>J’ai moins de 18 ans</button></>}<button type="button" className="btn btn-clair w-full" onClick={() => setControleAge(false)}>Fermer</button></section></div>}
