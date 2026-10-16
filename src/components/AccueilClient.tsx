@@ -45,8 +45,6 @@ const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 };
-const arrivee = { opacity: 1, y: 0 };
-const apparition = { hidden: { opacity: 0, y: 12 }, show: arrivee };
 const demoToProduit = (p: (typeof ACCUEIL_PRODUITS_DEMO)[number]): Produit => ({
   id: p.id, nom: p.nom, dosage: p.dosage, photo_url: p.photoUrl, prix: p.prix,
   quantite: p.stock, pharmacie_id: null, pharmacie: p.pharmacie, distanceKm: null,
