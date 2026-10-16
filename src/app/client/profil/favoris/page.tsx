@@ -61,7 +61,7 @@ export default function FavorisClientPage() {
         <p className="mx-auto mt-2 max-w-xs text-sm leading-5 text-[#64776B]">Touchez le cœur d’un médicament sur l’accueil pour le garder ici et le retrouver plus tard.</p>
         <Link href="/" className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-5 text-sm font-extrabold text-[#0B3D26] shadow-sm transition-transform active:scale-[0.98]"><IconeNAXA name="search" size={17}/> Découvrir les médicaments</Link>
       </div> : <div className="grid grid-cols-2 gap-3">
-        {favoris.map((item, index) => <article key={item.id} {...(reducedMotion ? {} : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.25, delay: Math.min(index * 0.05, 0.25) } })} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+        {favoris.map((item, index) => <article key={item.id} style={{ animationDelay: `${Math.min(index * 50, 250)}ms` }} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
           <Link href={item.demo ? "/resultats?q="+encodeURIComponent(item.nom) : "/produit/"+encodeURIComponent(item.id)} aria-label={`Consulter ${item.nom}`} className="flex min-h-24 items-center justify-center rounded-2xl">
             <VisuelProduit item={item}/>
           </Link>
