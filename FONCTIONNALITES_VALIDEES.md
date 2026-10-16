@@ -1422,3 +1422,13 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Les validations, l’étape OTP, les textes et les composants visuels existants sont conservés. Aucune écriture directe en base Production ni migration n’a été exécutée.
 - Commit code : `c6c2597fd16852b0a742d6defd222c1116cdde0d`.
 - Niveau de preuve au commit : correction statique intégrée à `main`; compilation et déploiement Production à confirmer. Aucun test navigateur de bout en bout n’est revendiqué.
+
+
+## Complément — Résilience et contrôle d’accès à l’affichage du reçu (16/10/2026)
+
+- Fichier : `src/app/reservation/[id]/recu/page.tsx`.
+- Contradiction : si le reçu était fiable, une panne Supabase ne devait pas laisser un « Chargement… » infini, et une réservation non payée/non retirée ne devait pas afficher un reçu via un accès direct à l’URL.
+- Correction sur `main` : capture des erreurs de lecture, bouton Réessayer, message d’état explicite, contrôle du statut `payee` ou `retiree` avant d’afficher le reçu et vérification de la présence des lignes de réservation.
+- La présentation NAXA et l’action d’impression/enregistrement PDF sont conservées. Aucun accès à la base Production ni aucune modification de données n’a été effectué.
+- Commit code : `dfb040fac4c8d32eb346150ca7716354679d0f54`.
+- Niveau de preuve : modification commise sur `main`; build et déploiement Production à confirmer. Aucun test navigateur de bout en bout revendiqué.
