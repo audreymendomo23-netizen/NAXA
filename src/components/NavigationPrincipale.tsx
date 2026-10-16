@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
-type IconName = "home" | "search" | "scan" | "heart" | "user";
+type IconName = "home" | "search" | "scan" | "shopping" | "user";
 
 function Icon({ name }: { name: IconName }) {
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true as const };
@@ -11,7 +12,7 @@ function Icon({ name }: { name: IconName }) {
     {name === "home" && <><path d="m3 10 9-7 9 7" /><path d="M5.5 9v11h13V9M9 20v-6h6v6" /></>}
     {name === "search" && <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>}
     {name === "scan" && <><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" /></>}
-    {name === "heart" && <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" /> }
+    {name === "shopping" && <><path d="M5 8h14l1 13H4L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></>}
     {name === "user" && <><circle cx="12" cy="8" r="3.3" /><path d="M5 20c.5-3.4 2.9-5.2 7-5.2s6.5 1.8 7 5.2" /></>}
   </svg>;
 }
@@ -19,6 +20,13 @@ function Icon({ name }: { name: IconName }) {
 export function NavigationPrincipale() {
   const pathname = usePathname();
   const favorisActifs = pathname === "/client/profil/favoris";
+  const [ongletAchats, setOngletAchats] = useState(false);
+  useEffect(() => {
+    const actualiser = () => setOngletAchats(new URLSearchParams(window.location.search).get("onglet") === "achats");
+    actualiser();
+    window.addEventListener("popstate", actualiser);
+    return () => window.removeEventListener("popstate", actualiser);
+  }, [pathname]);
   const visible = pathname === "/" || pathname === "/recherche" || pathname === "/scanner" ||
     pathname === "/resultats" || pathname === "/panier" || pathname === "/gardes" ||
     pathname === "/client" || pathname.startsWith("/client/profil/") ||
@@ -29,8 +37,8 @@ export function NavigationPrincipale() {
     { label: "Accueil", href: "/", icon: "home", active: pathname === "/" },
     { label: "Recherche", href: "/recherche", icon: "search", active: pathname === "/recherche" || pathname === "/resultats" || pathname === "/panier" || pathname === "/gardes" || pathname.startsWith("/produit/") || pathname.startsWith("/offre/") },
     { label: "Scanner", href: "/scanner", icon: "scan", active: pathname === "/scanner" },
-    { label: "Favoris", href: "/client/profil/favoris", icon: "heart", active: favorisActifs },
-    { label: "Profil", href: "/client", icon: "user", active: (pathname === "/client" || pathname.startsWith("/client/profil/")) && !favorisActifs || pathname.startsWith("/reservation/") },
+    { label: "Achats", href: "/client?onglet=achats", icon: "shopping", active: (pathname === "/client" && ongletAchats) || favorisActifs },
+    { label: "Profil", href: "/client", icon: "user", active: ((pathname === "/client" || pathname.startsWith("/client/profil/")) && !favorisActifs && !(pathname === "/client" && ongletAchats)) || pathname.startsWith("/reservation/") },
   ];
 
   return <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-100 bg-white/95 px-1.5 pt-2 shadow-[0_-5px_20px_rgba(6,75,42,0.08)] backdrop-blur-sm" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 6px)" }}>

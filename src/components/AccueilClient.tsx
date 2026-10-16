@@ -105,6 +105,8 @@ export function AccueilClient() {
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState("Client");
+  const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [quartier, setQuartier] = useState("Douala");
   const [coord, setCoord] = useState<{lat:number;lng:number}|null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
@@ -114,6 +116,8 @@ export function AccueilClient() {
   const [added, setAdded] = useState<string|null>(null);
   const [userId, setUserId] = useState<string|null>(null);
   const [favoris, setFavoris] = useState<string[]>([]);
+
+  useEffect(() => { setHourLocale(new Date().getHours()); }, []);
 
   useEffect(() => {
     const actualiser = () => setFavoris(lireFavoris().map(f => f.id));
@@ -134,6 +138,7 @@ export function AccueilClient() {
         if (user) {
           setUserId(user.id);
           const { data: profile } = await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
+          setFirstName(typeof profile?.first_name === "string" && profile.first_name.trim() ? profile.first_name.trim().split(/\s+/)[0] : typeof user.user_metadata?.first_name === "string" && user.user_metadata.first_name.trim() ? user.user_metadata.first_name.trim().split(/\s+/)[0] : "Client");
           const meta = user.user_metadata ?? {};
           const photo = profile?.avatar_url || meta.avatar_url || meta.picture || meta.photo_url || null;
           if (typeof photo === "string" && /^https:\/\//i.test(photo)) setAvatarUrl(photo);
@@ -234,9 +239,9 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh bg-[#F4F8F5] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative z-10 h-[110px] bg-[#0F6B3F] px-4 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
+    <header className="relative z-10 min-h-[118px] bg-[#0F6B3F] px-4 pb-3 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
-        <div><LogoNAXA/></div>
+        <div className="min-w-0"><LogoNAXA/><p className="mt-1 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-2">
           <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{avatarUrl ? <Image src={avatarUrl} alt="Photo de profil" width={48} height={48} className="h-full w-full object-cover" unoptimized /> : <IconeNAXA name="user-round" size={23}/>}</Link>
           <Link href="/notifications" aria-label="Notifications" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white">
@@ -247,8 +252,14 @@ export function AccueilClient() {
     </header>
     <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] px-4 pt-6">
       <div className="naxa-enter mb-5">
-        <h1 className="whitespace-nowrap text-[clamp(22px,6.7vw,28px)] font-extrabold leading-tight tracking-[-0.04em] text-[#0B3D26]">Votre médicament, à 2 minutes.</h1>
-        <p className="mt-1 text-[16px] leading-6 text-[#0F6B3F]">Livraison rapide à Douala • Pharmacies vérifiées</p>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF3B0] text-[#0F6B3F]" aria-hidden="true">
+            {hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg> : <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>}
+          </span>
+          <h1 className="min-w-0 text-[clamp(20px,5.7vw,26px)] font-extrabold leading-tight tracking-[-0.035em] text-[#0B3D26]">{hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? "Bonsoir" : "Bonjour"}, <span className="text-[#B18A00]">{firstName}</span> !</h1>
+        </div>
+        <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Quel médicament recherches-tu aujourd’hui ?</p>
+        <p className="mt-1 text-[13px] leading-5 text-[#53685C]">Livraison rapide par les pharmacies vérifiées</p>
       </div>
 
       <form onSubmit={soumettre} className="naxa-enter mb-4 flex gap-2">
@@ -270,20 +281,16 @@ export function AccueilClient() {
       <section className="naxa-enter mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
         <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} /></button>
         <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
-          <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à 1,2 km` : `${pharmacies.length} pharmacie${pharmacies.length === 1 ? "" : "s"} partenaire${pharmacies.length === 1 ? "" : "s"}`}</p>
-          <div><Link href="/gardes" className="inline-flex min-h-11 items-center justify-center rounded-[14px] bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir tout</Link></div>
+          <p className="w-full text-[16px] font-extrabold leading-5 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à proximité` : "Activez la localisation pour voir les pharmacies proches"}</p>
+          <div><button type="button" onClick={() => { if (!coord) { localiser(); return; } notifierNAXA("La liste complète des pharmacies à proximité sera bientôt disponible."); }} className="inline-flex min-h-10 items-center justify-center rounded-[14px] bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir plus</button></div>
         </div>
       </section>
 
       <section className="mb-6">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
-          <Link href="/resultats?q=paracétamol" className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#FFF3B0] px-2.5 text-xs font-extrabold text-[#0B3D26]">Voir tout <IconeNAXA name="chevron-right" size={16}/></Link>
-        </div>
-        {loading ? <div className="grid grid-cols-2 gap-3.5"><Squelette/><Squelette/></div> : <div className="naxa-reveal-list grid grid-cols-2 gap-3.5">
-          {produits.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
-            <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
-              {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
+        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : <div className="naxa-reveal-list grid grid-cols-2 gap-2.5">
+          {produits.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[18px] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+            <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
+              {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={160} height={88} className="h-[88px] w-full object-contain" unoptimized/> : <div className="scale-[0.78]"><Blister/></div>}
             </Link>
             <button type="button" onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white/95 text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
               <IconeNAXA name="heart" size={19} filled={favoris.includes(p.id)} />
@@ -294,9 +301,9 @@ export function AccueilClient() {
               {p.demo && <span className="inline-flex min-h-6 items-center rounded-full bg-[#FFF3B0] px-2 py-1 text-[11px] font-extrabold leading-4 text-[#0B3D26]">Exemple</span>}
               {!p.demo && (!p.quantite || !p.pharmacie_id) && <span className="inline-flex min-h-6 items-center rounded-full bg-[#FFF3B0] px-2 py-1 text-[11px] font-extrabold leading-4 text-[#0B3D26]">Stock à confirmer</span>}
             </div>
-            <h3 className="mt-2 line-clamp-2 min-h-12 text-[16px] font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h3>
-            <p className="min-h-10 text-[11px] leading-4 text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
-            <p className="mt-1 text-[18px] font-extrabold leading-6 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
+            <h3 className="mt-1.5 line-clamp-2 min-h-10 text-[14px] font-extrabold leading-[18px] text-[#0B3D26]">{p.nom}</h3>
+            <p className="min-h-8 text-[10px] leading-[14px] text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
+            <p className="mt-1 text-[15px] font-extrabold leading-5 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
             <div className="mt-auto flex items-end justify-between gap-1 pt-3">
               <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.demo?"Donnée illustrative":p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}{distanceProduit(p)!=null?`, ${distanceProduit(p)!.toFixed(1)} km`:""}</p>
               <button onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
@@ -309,15 +316,15 @@ export function AccueilClient() {
       </section>
 
       <section className="pb-2">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde aujourd'hui</h2>
-          <Link href="/gardes" aria-label="Voir toutes les pharmacies de garde" className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF3B0] text-[#0B3D26]"><IconeNAXA name="chevron-right" size={20}/></Link>
+        <div className="mb-3 flex flex-col items-start gap-1">
+          <h2 className="text-[20px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacie de garde proche de vous</h2>
+          <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="inline-flex min-h-8 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
         </div>
         {gardes.length ? <div className="space-y-3">{gardes.map((p)=><Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
           <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
           <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">Pharmacie de garde{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
           <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span><span className="flex-1"><strong className="block">Pharmacies de garde à Douala</strong><span className="text-sm text-[#64776B]">Consulter la liste disponible</span></span><IconeNAXA name="chevron-right" size={18}/></Link>}
+        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span><span className="flex-1"><strong className="block">Aucune pharmacie de garde proche n’est indiquée</strong><span className="text-sm text-[#64776B]">Consulter la liste complète</span></span><IconeNAXA name="chevron-right" size={18}/></Link>}
       </section>
     </main>
   </div>;
