@@ -1401,3 +1401,13 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Correction sur `main` : vérification de la limite avant l’ajout et message explicite indiquant la limite de ${10} produits distincts et l’action nécessaire.
 - Charte conservée : boutons NAXA existants ; message d’erreur dans un panneau blanc arrondi avec bordure rouge sémantique, cohérent avec les autres erreurs.
 - Preuve Vercel : déploiement Production du code `dpl_EyS7zrHZCGnQ2mdtvtsUurEuKq3Y` (`d6beaef7c665a1dbd7ce30ca6cd1a801ba3d07c7`) et déploiement documentaire `dpl_Ep5BbxD1PMxnQohxCg8ziudSiwGU` (`87605b9ccf8c4467e2c22c4f31af2273753bc56e`) tous deux `READY`; alias `naxa-naxa3.vercel.app` et `naxa-git-main-naxa3.vercel.app` observés. Aucun test navigateur réel n’est revendiqué.
+
+
+## Complément — Résilience du parcours « Mot de passe oublié » (16/10/2026)
+
+- Fichier : `src/app/(auth)/mot-de-passe-oublie/page.tsx`.
+- Défaut confirmé : les appels réseau d'envoi OTP et de mise à jour du mot de passe pouvaient rejeter une promesse sans gestion locale, laissant l'interface bloquée en chargement.
+- Correction sur `main` : erreurs réseau capturées avec notification claire en français, indicateur d'activité réinitialisé, prévention d'une soumission en double pour l'envoi OTP et normalisation du nom d'utilisateur envoyé.
+- La validation métier, les étapes OTP, les critères du mot de passe et les composants visuels NAXA sont conservés.
+- Commit : `a0c1160c2eaebbd2c173ef0b6494bb00f7ba8b2b`.
+- Niveau de preuve : correction commise sur `main`; build et déploiement Production à vérifier dans le lot. Aucun test navigateur réel revendiqué.
