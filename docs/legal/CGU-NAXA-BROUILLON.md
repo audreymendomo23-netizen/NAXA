@@ -5,8 +5,10 @@ NAXA est une plateforme numérique qui facilite la recherche d’informations su
 
 NAXA est un intermédiaire d’information et de mise en relation. NAXA ne vend, ne délivre ni ne prescrit les médicaments et n’encaisse pas le paiement des médicaments pour le compte des pharmacies.
 
-## 2. Accès et compte
-Le service est destiné aux personnes âgées d’au moins 18 ans. L’utilisateur s’engage à fournir des informations exactes, à protéger ses identifiants et à signaler tout accès non autorisé. Les comptes professionnels sont réservés aux personnes autorisées par la pharmacie et peuvent être soumis à vérification.
+## 2. Accès et âge minimum
+Le service est destiné aux personnes âgées d’au moins 18 ans. Les personnes de moins de 18 ans ne sont pas autorisées à créer un compte ni à effectuer les actions réservées aux utilisateurs majeurs. La consultation publique d’informations générales peut rester accessible, mais toute action concrète soumise au contrôle d’âge exige une déclaration préalable indiquant que l’utilisateur a 18 ans ou plus.
+
+Cette déclaration peut être mémorisée sur l’appareil pendant une durée limitée de 30 jours. Elle est renouvelée à son expiration ou si les données locales sont supprimées. Elle constitue un contrôle préliminaire et non une preuve d’âge ou une garantie que l’appareil est utilisé par la même personne. Elle ne remplace pas la vérification de la date de naissance demandée pour le compte client. L’utilisateur s’engage à fournir des informations exactes et à ne pas contourner les contrôles d’âge. NAXA peut bloquer une action ou demander une vérification supplémentaire en cas de doute ou de risque.
 
 ## 3. Informations pharmaceutiques
 Les prix, stocks, horaires et périodes de garde sont communiqués ou mis à jour par les pharmacies et peuvent évoluer. Leur affichage ne constitue pas une garantie de disponibilité au moment du déplacement. La pharmacie reste responsable de l’exactitude et de la mise à jour de ses informations, de la délivrance, des conseils pharmaceutiques et du respect des règles professionnelles.
