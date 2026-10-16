@@ -1383,6 +1383,17 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Preuve Vercel : déploiement Production `dpl_FJ4kBq5XBxh19vXhij7sEPGorucT`, état `READY`, alias `naxa-naxa3.vercel.app` et `naxa-git-main-naxa3.vercel.app` observés lors du contrôle du 16/10/2026. Aucun test navigateur réel n’est revendiqué.
 
 
+
+
+## Complément — Robustesse de la réservation depuis les résultats (16/10/2026)
+
+- Fichier : `src/app/resultats/page.tsx`.
+- Défaut confirmé : une exception pendant la récupération de session ou l'appel RPC `reserve_stock` pouvait laisser une promesse rejetée sans message client ; les doubles tentatives n'étaient pas gardées par l'état de la fonction.
+- Correction sur `main` : capture des erreurs, message explicite en cas d'échec, validation de la référence retournée avant navigation, remise à zéro systématique de l'état occupé et libellé « Réservation en cours… » pendant l'opération.
+- Charte conservée : composants protégés et boutons NAXA existants ; aucun changement de palette ou de structure visuelle.
+- Commits : `5679b554bc5f8d5c0782913e58de35d48cf22799`, `5ff269743f1159b7331f7450216b34bc53dc3c93`.
+- Niveau de preuve : correction intégrée à `main`; compilation et déploiement Production à confirmer dans la vérification groupée. Aucun test navigateur réel n'est revendiqué.
+
 ## Complément — Limite du panier expliquée au client (16/10/2026)
 
 - Fichier : `src/components/AjouterPanier.tsx`.
