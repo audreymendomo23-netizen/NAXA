@@ -7,12 +7,13 @@ import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Bell, ChevronRight, Lock, MapPin, Search,
-  ShoppingCart, Store,
+  Heart, ShoppingCart, Store,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { ACCUEIL_PRODUITS_DEMO } from "@/lib/accueil-client-mock";
+import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 
 type Produit = {
   id: string;
@@ -122,6 +123,13 @@ export function AccueilClient() {
   const [error, setError] = useState(false);
   const [added, setAdded] = useState<string|null>(null);
   const [userId, setUserId] = useState<string|null>(null);
+  const [favoris, setFavoris] = useState<string[]>([]);
+
+  useEffect(() => {
+    const actualiser = () => setFavoris(lireFavoris().map(f => f.id));
+    actualiser();
+    return ecouterFavoris(actualiser);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -211,6 +219,11 @@ export function AccueilClient() {
     }, () => setQuartier("Douala"), {maximumAge:300000,timeout:8000});
   }, [pharmacies]);
   const pharmacyCount = pharmaciesProches.filter(p => p.distanceKm !== null && p.distanceKm <= 1.2).length;
+  const toggleFavori = (p: Produit) => {
+    const suivants = basculerFavori({ id: p.id, nom: p.nom, dosage: p.dosage, photo_url: p.photo_url, prix: p.prix, pharmacie: p.pharmacie, demo: !!p.demo });
+    setFavoris(suivants.map(f => f.id));
+    notifierNAXA(suivants.some(f => f.id === p.id) ? `${p.nom} ajouté aux favoris.` : `${p.nom} retiré des favoris.`);
+  };
   const addToCart = (p:Produit) => {
     if (p.demo || !p.pharmacie_id) {
       notifierNAXA("La disponibilité réelle de ce médicament doit être confirmée auprès d’une pharmacie partenaire.");
@@ -270,10 +283,13 @@ export function AccueilClient() {
           <Link href="/resultats?q=paracétamol" className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#FFF3B0] px-2.5 text-xs font-extrabold text-[#0B3D26]">Voir tout <ChevronRight size={16}/></Link>
         </div>
         {loading ? <div className="grid grid-cols-2 gap-3.5"><Squelette/><Squelette/></div> : <div className="grid grid-cols-2 gap-3.5">
-          {produits.map((p,i)=><motion.article key={p.id} {...motionProps} transition={{duration:0.32,delay:reducedMotion?0:i*0.08}} whileTap={reducedMotion?undefined:{scale:0.985}} className="flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+          {produits.map((p,i)=><motion.article key={p.id} {...motionProps} transition={{duration:0.32,delay:reducedMotion?0:i*0.08}} whileTap={reducedMotion?undefined:{scale:0.985}} className="relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
+            <button type="button" onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white/95 text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
+              <Heart size={19} fill={favoris.includes(p.id) ? "currentColor" : "none"} aria-hidden="true" />
+            </button>
             <span className={`mt-2 inline-flex min-h-6 w-fit items-center rounded-full px-2 py-1 text-[11px] font-extrabold leading-4 ${p.ordonnance?"bg-[#0F6B3F] text-white":"bg-[#FFE23D] text-[#0B3D26]"}`}>{p.demo ? "Exemple" : p.ordonnance ? "Sur ordonnance" : "Disponible"}</span>
             <h3 className="mt-2 line-clamp-2 min-h-12 text-[16px] font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h3>
             <p className="min-h-10 text-[11px] leading-4 text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
