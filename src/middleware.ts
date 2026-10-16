@@ -54,6 +54,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(target);
   }
 
+  const isOnboardingExempt = onboardingExempt.some(
+    (allowed) => path === allowed || path.startsWith(allowed + "/")
+  );
+  const protectedPath = protectedPrefixes.some(
+    (prefix) => path === prefix || path.startsWith(prefix + "/")
+  );
+
+  // Les pages publiques et les écrans d'authentification ne doivent pas attendre
+  // Supabase : une panne réseau ne doit jamais bloquer l'affichage du site.
+  if (isOnboardingExempt || path.startsWith("/api/") || !protectedPath) {
+    return NextResponse.next({ request: req });
+  }
+
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,16 +84,6 @@ export async function middleware(req: NextRequest) {
   );
 
   const { data } = await supabase.auth.getUser();
-  const isOnboardingExempt = onboardingExempt.some(
-    (allowed) => path === allowed || path.startsWith(allowed + "/")
-  );
-  if (isOnboardingExempt || path.startsWith("/api/")) return res;
-
-  const protectedPath = protectedPrefixes.some(
-    (prefix) => path === prefix || path.startsWith(prefix + "/")
-  );
-  if (!protectedPath) return res;
-
   if (!data.user) {
     const target = req.nextUrl.clone();
     target.pathname = "/connexion";
