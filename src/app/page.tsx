@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EnTeteAccueil } from "@/components/EnTeteAccueil";
+import { IntroNaxa } from "@/components/IntroNaxa";
 import { Recherche } from "@/components/Recherche";
 import {
   recherchesFrequentes,
@@ -75,6 +76,19 @@ const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
+  const [introVisible, setIntroVisible] = useState(false);
+
+  useEffect(() => {
+    try {
+      const key = "naxa-intro-seen-v1";
+      if (window.sessionStorage.getItem(key) === "1") return;
+      window.sessionStorage.setItem(key, "1");
+      setIntroVisible(true);
+    } catch {
+      // Le stockage peut être indisponible : l’introduction reste accessible.
+      setIntroVisible(true);
+    }
+  }, []);
   const langueInitialisee = useRef(false);
   const [position, setPosition] = useState<EtatPosition>("inconnue");
   const t = textes[langue];
@@ -127,6 +141,7 @@ export default function Accueil() {
           : null;
 
   return (
+    <>
     <main className="home-ecran flex flex-col bg-naxa-green-50">
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
@@ -224,5 +239,7 @@ export default function Accueil() {
         </div>
       </footer>
     </main>
+    {introVisible && <IntroNaxa onFinish={() => setIntroVisible(false)} />}
+    </>
   );
 }
