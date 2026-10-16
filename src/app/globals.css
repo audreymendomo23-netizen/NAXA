@@ -380,6 +380,7 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 
 /* Accueil et favoris : animations CSS légères, sans bibliothèque runtime. */
 .naxa-enter { animation: naxa-enter 280ms ease-out both; }
+.naxa-reveal-list > .naxa-enter { animation-delay: calc(var(--reveal-index, 0) * 85ms); }
 .naxa-pin-marker { animation: naxa-enter 300ms ease-out both; }
 @keyframes naxa-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .naxa-enter, .naxa-pin-marker, .naxa-pin-pulse, .naxa-shimmer::after, .animate-pulse { animation: none !important; transition: none !important; } }
