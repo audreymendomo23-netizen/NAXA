@@ -38,7 +38,7 @@ export function NavigationPrincipale() {
     { label: "Favoris", href: "/client/profil/favoris", icon: "heart", active: favorisActifs },
     { label: "Scanner", href: "/scanner", icon: "scan", active: pathname === "/scanner" },
     { label: "Achats", href: "/client?onglet=achats", icon: "shopping", active: (pathname === "/client" && ongletAchats) || pathname === "/panier" },
-    { label: "Profil", href: "/client", icon: "user", active: ((pathname === "/client" || pathname.startsWith("/client/profil/")) && !favorisActifs && !(pathname === "/client" && ongletAchats)) || pathname.startsWith("/reservation/") },
+    { label: "Profil", href: "/client", icon: "user", active: ((pathname === "/client" || pathname === "/client/posologie" || pathname.startsWith("/client/profil/")) && !favorisActifs && !(pathname === "/client" && ongletAchats)) || pathname.startsWith("/reservation/") },
   ];
 
   return <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-100 bg-white/95 px-1.5 pt-2 shadow-[0_-5px_20px_rgba(6,75,42,0.08)] backdrop-blur-sm" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 6px)" }}>
