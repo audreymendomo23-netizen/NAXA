@@ -384,3 +384,13 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-pin-marker { animation: naxa-enter 300ms ease-out both; }
 @keyframes naxa-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .naxa-enter, .naxa-pin-marker, .naxa-pin-pulse, .naxa-shimmer::after, .animate-pulse { animation: none !important; transition: none !important; } }
+
+
+@keyframes naxa-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe\\:animate-\\[naxa-breathe_3s_ease-in-out_infinite\\] { animation: none !important; }
+}
