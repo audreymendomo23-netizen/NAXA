@@ -8,7 +8,7 @@ import { fcfa } from "@/lib/ranking";
 import { Logo } from "@/components/Logo";
 
 type Achat={reservation_id:string;produit_id:string;medicament:string;dci:string;dosage:string;forme:string;photo_url:string|null;quantite:number;prix_unitaire:number;total_ligne:number;total_transaction:number;reference_paiement:string|null;reservation_creee_le:string;pharmacie_id:string;pharmacie:string;ville:string;quartier:string|null;adresse:string|null;confirmee_le:string|null; paiement_declare_le:string|null;payee_le:string|null;retiree_le:string|null;achat_le:string|null;horodatage_achat_exact:boolean;statut:string};
-type Reservation={id:string;statut:string;total:number;expires_at:string;created_at:string;pharmacie_id:string;pharmacies:{nom:string;ville:string;quartier:string|null;adresse:string|null}|null;reservation_items:{quantite:number;prix_unitaire:number;produits:{id:string;nom:string;dci:string;dosage:string;forme:string;photo_url:string|null}|null}[]};
+type Reservation={id:string;statut:string;total:number;expires_at:string;created_at:string;paiement_ref:string|null;pharmacie_id:string;pharmacies:{nom:string;ville:string;quartier:string|null;adresse:string|null}|null;reservation_items:{quantite:number;prix_unitaire:number;produits:{id:string;nom:string;dci:string;dosage:string;forme:string;photo_url:string|null}|null}[]};
 const STATUS:Record<string,string>={en_attente:"En attente",confirmee:"Confirmée",payee:"Payée",retiree:"Retirée",expiree:"Expirée",annulee:"Annulée"};
 const PERIODS=[["7","7 j"],["30","30 j"],["90","3 mois"],["365","1 an"],["all","Tout"]] as const;
 const fmt=(v:string|null)=>v?new Intl.DateTimeFormat("fr-FR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"—";
@@ -30,7 +30,7 @@ export default function ClientPage(){
  if(profileError) throw profileError;
  if(reservationError) throw reservationError;
  if(p?.role!=="client"){router.replace("/");return}
- const rows=(r??[]) as unknown as Reservation[] & {paiement_ref?:string|null}[];
+ const rows=(r??[]) as unknown as Reservation[];
  if(cancelled) return;
  setName([p?.first_name,p?.last_name].filter(Boolean).join(" ")||"Client");
  setReservations(rows);
@@ -40,7 +40,7 @@ export default function ClientPage(){
   reservation_id:x.id,produit_id:item.produits?.id??"inconnu",medicament:item.produits?.nom??"Produit",
   dci:item.produits?.dci??"",dosage:item.produits?.dosage??"",forme:item.produits?.forme??"",
   photo_url:item.produits?.photo_url??null,quantite:item.quantite,prix_unitaire:item.prix_unitaire,
-  total_ligne:item.quantite*item.prix_unitaire,total_transaction:x.total,reference_paiement:rows.find(y=>y.id===x.id)?.paiement_ref??null,
+  total_ligne:item.quantite*item.prix_unitaire,total_transaction:x.total,reference_paiement:x.paiement_ref??null,
   reservation_creee_le:x.created_at,pharmacie_id:x.pharmacie_id,pharmacie:x.pharmacies?.nom??"Pharmacie",
   ville:x.pharmacies?.ville??"Yaoundé",quartier:x.pharmacies?.quartier??null,adresse:x.pharmacies?.adresse??null,
   confirmee_le:null,paiement_declare_le:null,payee_le:null,retiree_le:null,achat_le:null,
