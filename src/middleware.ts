@@ -51,10 +51,6 @@ export async function middleware(req: NextRequest) {
   );
 
   const { data } = await supabase.auth.getUser();
-  // Les visiteurs non connectés peuvent parcourir l'accueil, les fiches
-  // médicaments et les pages publiques. Les actions sont contrôlées au clic.
-  if (!data.user) return res;
-
   const isOnboardingExempt = onboardingExempt.some(
     (allowed) => path === allowed || path.startsWith(allowed + "/")
   );
@@ -64,6 +60,15 @@ export async function middleware(req: NextRequest) {
     (prefix) => path === prefix || path.startsWith(prefix + "/")
   );
   if (!protectedPath) return res;
+
+  if (!data.user) {
+    const target = req.nextUrl.clone();
+    target.pathname = "/connexion";
+    target.search = "";
+    target.searchParams.set("espace", path.startsWith("/pharmacie") ? "pharmacie" : "client");
+    target.searchParams.set("retour", path + req.nextUrl.search);
+    return NextResponse.redirect(target);
+  }
 
   const { data: profile, error } = await supabase
     .from("profiles")
