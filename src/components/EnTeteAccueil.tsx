@@ -72,6 +72,10 @@ export function EnTeteAccueil({
       <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
         <Logo />
 
+        <div className="flex items-center gap-2">
+          <Link href="/connexion?espace=client" className="inline-flex min-h-10 items-center justify-center rounded-full bg-naxa-canari px-3 text-xs font-extrabold text-naxa-green-900 shadow-sm transition hover:bg-naxa-canari-dark sm:px-4 sm:text-sm">
+            {t.espaceClient}
+          </Link>
         <div ref={conteneur} className="relative">
           <button
             ref={bouton}
@@ -149,6 +153,7 @@ export function EnTeteAccueil({
               </div>
             </nav>
           )}
+        </div>
         </div>
       </div>
 
