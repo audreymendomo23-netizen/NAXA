@@ -17,7 +17,6 @@ const protectedPrefixes = [
   "/admin",
   "/reservation",
   "/go",
-  "/produit",
   "/panier",
   "/verification-age",
 ];
@@ -52,7 +51,8 @@ export async function middleware(req: NextRequest) {
   );
 
   const { data } = await supabase.auth.getUser();
-  // Les visiteurs non connectés peuvent parcourir l'accueil et les pages publiques.
+  // Les visiteurs non connectés peuvent parcourir l'accueil, les fiches
+  // médicaments et les pages publiques. Les actions sont contrôlées au clic.
   if (!data.user) return res;
 
   const isOnboardingExempt = onboardingExempt.some(
@@ -60,8 +60,6 @@ export async function middleware(req: NextRequest) {
   );
   if (isOnboardingExempt || path.startsWith("/api/")) return res;
 
-  // Ne vérifier la complétion du profil que lorsqu'une route protégée est demandée.
-  // Un profil incomplet ne doit pas bloquer l'accueil ni les actions publiques.
   const protectedPath = protectedPrefixes.some(
     (prefix) => path === prefix || path.startsWith(prefix + "/")
   );
