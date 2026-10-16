@@ -1,4 +1,7 @@
 # NAXA — Continuité opérationnelle IA
+
+> **Priorité documentaire (mise à jour 2026-10-16) :** `AGENTS.md` est la règle opérationnelle prioritaire. Toute consigne historique de ce document qui impose CircleCI, interdit une modification autorisée de `main`, ou exige une PR/branche de travail est obsolète et ne doit pas être appliquée contre `AGENTS.md` et les ordres explicites plus récents de l’utilisateur. La Production Supabase reste en lecture seule sans autorisation explicite et aucun secret ne doit être affiché.
+
 Dernière mise à jour : 2026-10-13
 
 ## Règles impératives
@@ -377,3 +380,11 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Aucun changement de code hors périmètre n’est inclus par le présent rapport; aucun secret OAuth consigné.
 - Ne pas fusionner les PR #62/#63/#64 sur la seule base d’un aperçu Vercel READY : vérifier d’abord les checks CI sur le SHA courant et réaliser les tests fonctionnels attendus.
 - Prochaine vérification : tests visuels mobile sur Production/Preview pour le lot #65; configurer Google uniquement dans Supabase test; récupérer les logs CircleCI détaillés pour #63/#64 avant de déclarer ces lots validés.
+
+## Journal de continuité — correction des rappels de posologie Web Push (2026-10-16)
+- Réconciliation effectuée sur `main` avec les composants Web Push déjà présents : `src/app/client/posologie/page.tsx`, `src/app/api/posologie/push-key/route.ts`, `src/app/api/cron/posologie/route.ts` et `public/naxa-push-sw.js`. Aucun de ces composants existants n'a été remplacé par une seconde implémentation.
+- Migration `supabase/migration_092_posologie_web_push.sql` corrigée pour refuser les tableaux d'heures vides, les valeurs non conformes à `HH:MM`, les heures nulles et les abonnements Push dont les clés `p256dh`/`auth` manquent. La migration n'a pas été exécutée sur Supabase Production.
+- Route cron corrigée : utilise `NAXA_VAPID_SUBJECT` avec repli sur le sujet NAXA, inclut les colonnes `last_notified_key IS NULL` dans la prise atomique (le filtre `neq` seul ignorait les NULL), examine les six dernières minutes pour tolérer un déclencheur gratuit toutes les cinq minutes et libère la clé de déduplication si aucun envoi n'a réussi, afin de permettre une nouvelle tentative.
+- Le workflow `.github/workflows/naxa-posologie-reminders.yml` a été retiré car il dépendait de variables/secrets GitHub non prouvés comme configurés et de minutes Actions privées non confirmées disponibles. Aucun déclencheur externe gratuit n'est encore configuré : l'API cron existe, mais les rappels en arrière-plan ne sont pas déclarés fonctionnels.
+- Commits appliqués à `main` : migration `0ec7eb5249b67e3d5ad731bcab78e2c45973454c`; retrait workflow `7d17ddc52acbc81faedf6227fc937212f84012d7`; correction route `4dfe2d3c171fdecc196eea3263243ea8e16bba5f`.
+- Aucun build/test automatisé n'a été exécuté dans cet environnement et aucun déploiement Production n'a été lancé. Prochaine étape : vérification statique/test de compilation accessible, puis choisir/configurer un déclencheur gratuit réellement disponible; ne pas exécuter la migration ni déployer sans autorisation explicite.
