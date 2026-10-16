@@ -165,7 +165,9 @@ Branches historiques : `feat/auth-flow-age-gate`, `fix/auth-reset-google-ux`, `f
 
 Preuve de consolidation : commit `d69bec6742bc475e6aadac317fa4317edd894567`.
 
-**Statut : 🟡 CONSTRUIT — PREUVE MANQUANTE**
+**Validation fonctionnelle récente déclarée par l’utilisateur : le parcours d’authentification est vert.**
+
+**Statut registre : 🟡 CONSTRUIT — PREUVE MANQUANTE** (la preuve E2E reproductible reste à joindre; ne pas reconstruire l’authentification sans régression démontrée).
 
 ---
 
@@ -183,7 +185,9 @@ Branches : `feat/creation-compte`, `docs/creation-compte-consolidation-20261004`
 ## NAXA-F003 — Validation d'âge
 Route : `/verification-age`.
 
-Trois politiques, contrôles interface + serveur, hardening.
+Trois politiques, contrôles interface + serveur, hardening. Le contrôle d’accueil est également distinct de la vérification d’âge du compte.
+
+Correction du parcours direct constatée le 16/10/2026 : la route protégée est désormais conservée dans `retourAge` et reprise après déclaration adulte. Voir l’audit opérationnel ci-dessous.
 
 Branche historique : `fix/age-gate-production-hardening`.
 
