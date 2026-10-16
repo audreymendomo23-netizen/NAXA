@@ -23,6 +23,8 @@ type Produit = {
   pharmacie_id: string | null;
   pharmacie: string;
   distanceKm: number | null;
+  pharmacieLat?: number | null;
+  pharmacieLng?: number | null;
   laboratoire: string;
   conditionnement: string;
   ordonnance: boolean;
@@ -156,6 +158,7 @@ export function AccueilClient() {
             id:p.id, nom:name, dosage:p.dosage||"", photo_url:p.photo_url, prix:Number(chosen?.prix ?? 0),
             quantite:Number(chosen?.quantite ?? 0), pharmacie_id:chosen?.pharmacie_id ?? null,
             pharmacie:chosen?.pharmacies?.nom ?? "Pharmacie partenaire",
+            pharmacieLat:chosen?.pharmacies?.lat ?? null, pharmacieLng:chosen?.pharmacies?.lng ?? null,
             distanceKm:chosen?.pharmacies?.lat != null && chosen.pharmacies.lng != null ? distance(4.05,9.70,chosen.pharmacies.lat,chosen.pharmacies.lng) : null,
             laboratoire:demoMatch?.laboratoire ?? "Laboratoire",
             conditionnement:demoMatch?.conditionnement ?? p.forme ?? "Conditionnement non précisé",
@@ -184,8 +187,9 @@ export function AccueilClient() {
 
   const pharmaciesProches = useMemo(() => pharmacies.map(p => ({
     ...p,
-    distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
+    distanceKm: p.lat != null && p.lng != null ? distance(coord?.lat ?? 4.05,coord?.lng ?? 9.70,p.lat,p.lng) : null,
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
+  const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,3);
   const soumettre = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -250,7 +254,7 @@ export function AccueilClient() {
       </motion.div>
 
       <motion.section {...motionProps} className="mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
-        <CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} reducedMotion={reducedMotion}/>
+        <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} reducedMotion={reducedMotion}/></button>
         <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
           <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{pharmacies.length ? pharmacyCount : 3} pharmacies à {pharmaciesProches[0]?.distanceKm?.toFixed(1) ?? "1.2"} km</p>
           <motion.div whileTap={reducedMotion?undefined:{scale:0.96}}><Link href="/gardes" className="inline-flex min-h-11 items-center justify-center rounded-[14px] bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir tout</Link></motion.div>
