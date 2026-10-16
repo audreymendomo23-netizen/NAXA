@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import {
   Bell, ChevronRight, Lock, MapPin, Search,
   Heart, ShoppingCart, Store,
@@ -76,10 +76,10 @@ function CarteIllustrative({ quartier, reducedMotion }: { quartier: string; redu
       <path d="M93 -10C79 19 106 34 96 55S113 79 103 99 122 130 109 171" stroke="#D8C8A8" strokeWidth="2" fill="none"/>
       <path d="M119 10l30 25M115 52l43 18M124 94l34 22M137 135l23 10" stroke="#D9CBB2" strokeWidth="2"/>
     </svg>
-    <motion.span initial={reducedMotion ? false : { scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 16 }} className="absolute bottom-[48px] left-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#FFE23D] text-[#0B3D26] shadow-lg">
+    <m.span initial={reducedMotion ? false : { scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 16 }} className="absolute bottom-[48px] left-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#FFE23D] text-[#0B3D26] shadow-lg">
       <MapPin size={21} strokeWidth={2.4} aria-hidden="true"/>
       <span className="naxa-pin-pulse" />
-    </motion.span>
+    </m.span>
     <span className="absolute inset-x-2 bottom-2 z-10 rounded-lg bg-white/90 px-2 py-1 text-[12px] font-semibold leading-4 text-[#0B3D26] shadow-sm">{quartier}</span>
   </div>;
 }
@@ -236,10 +236,10 @@ export function AccueilClient() {
   };
   const motionProps = reducedMotion ? {} : { initial: "hidden", whileInView: "show", viewport: { once: true, amount: 0.12 }, variants: apparition, transition: { duration: 0.32, ease: "easeOut" as const } };
 
-  return <div className="naxa-home-shell min-h-dvh bg-[#F4F8F5] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+  return <LazyMotion features={domAnimation}><div className="naxa-home-shell min-h-dvh bg-[#F4F8F5] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
     <header className="relative z-10 h-[110px] bg-[#0F6B3F] px-4 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
-        <motion.div initial={reducedMotion?false:{opacity:0,x:-14}} animate={{opacity:1,x:0}} transition={{duration:0.3}}><LogoNAXA/></motion.div>
+        <m.div initial={reducedMotion?false:{opacity:0,x:-14}} animate={{opacity:1,x:0}} transition={{duration:0.3}}><LogoNAXA/></m.div>
         <div className="flex items-center gap-2">
           <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{initiales}</Link>
           <Link href="/notifications" aria-label="Notifications" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white">
@@ -249,33 +249,33 @@ export function AccueilClient() {
       </div>
     </header>
     <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] px-4 pt-6">
-      <motion.div {...motionProps} className="mb-5">
+      <m.div {...motionProps} className="mb-5">
         <h1 className="whitespace-nowrap text-[clamp(22px,6.7vw,28px)] font-extrabold leading-tight tracking-[-0.04em] text-[#0B3D26]">Votre médicament, à 2 minutes.</h1>
         <p className="mt-1 text-[16px] leading-6 text-[#0F6B3F]">Livraison rapide à Douala • Pharmacies vérifiées</p>
-      </motion.div>
+      </m.div>
 
-      <motion.form {...motionProps} onSubmit={soumettre} className="mb-4 flex gap-2">
+      <m.form {...motionProps} onSubmit={soumettre} className="mb-4 flex gap-2">
         <label className="group flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D8E5DC] bg-[#FBFDFC] px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10">
           <Search size={21} className="shrink-0 text-[#0B3D26] transition-transform group-focus-within:scale-110" aria-hidden="true"/>
           <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ex. Paracétamol, Coartem..." aria-label="Rechercher un médicament" className="min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-[#7D8E84]"/>
         </label>
-        <motion.button whileTap={reducedMotion?undefined:{scale:0.96}} type="submit" className="h-14 min-w-[92px] rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-[0_6px_18px_rgba(255,226,61,0.25)]">Chercher</motion.button>
-      </motion.form>
+        <m.button whileTap={reducedMotion?undefined:{scale:0.96}} type="submit" className="h-14 min-w-[92px] rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-[0_6px_18px_rgba(255,226,61,0.25)]">Chercher</m.button>
+      </m.form>
 
-      <motion.div {...motionProps} className="mb-4">
+      <m.div {...motionProps} className="mb-4">
         <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#0F6B3F] px-4 py-3 transition active:scale-[0.99]">
-          <motion.span animate={reducedMotion?undefined:{rotate:[0,-7,7,0]}} transition={{duration:0.38,delay:0.1}} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/60"><Lock size={24} aria-hidden="true"/></motion.span>
+          <m.span animate={reducedMotion?undefined:{rotate:[0,-7,7,0]}} transition={{duration:0.38,delay:0.1}} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/60"><Lock size={24} aria-hidden="true"/></m.span>
           <span className="min-w-0"><strong className="block text-[18px] font-extrabold leading-6">Scanner mon ordonnance</strong><span className="mt-1 block text-[13px] leading-5 text-[#466455]">Votre ordonnance reste privée • Traitée localement</span></span>
         </Link>
-      </motion.div>
+      </m.div>
 
-      <motion.section {...motionProps} className="mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
+      <m.section {...motionProps} className="mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
         <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} reducedMotion={reducedMotion}/></button>
         <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
           <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à 1,2 km` : `${pharmacies.length} pharmacie${pharmacies.length === 1 ? "" : "s"} partenaire${pharmacies.length === 1 ? "" : "s"}`}</p>
-          <motion.div whileTap={reducedMotion?undefined:{scale:0.96}}><Link href="/gardes" className="inline-flex min-h-11 items-center justify-center rounded-[14px] bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir tout</Link></motion.div>
+          <m.div whileTap={reducedMotion?undefined:{scale:0.96}}><Link href="/gardes" className="inline-flex min-h-11 items-center justify-center rounded-[14px] bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir tout</Link></m.div>
         </div>
-      </motion.section>
+      </m.section>
 
       <section className="mb-6">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -283,7 +283,7 @@ export function AccueilClient() {
           <Link href="/resultats?q=paracétamol" className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#FFF3B0] px-2.5 text-xs font-extrabold text-[#0B3D26]">Voir tout <ChevronRight size={16}/></Link>
         </div>
         {loading ? <div className="grid grid-cols-2 gap-3.5"><Squelette/><Squelette/></div> : <div className="grid grid-cols-2 gap-3.5">
-          {produits.map((p,i)=><motion.article key={p.id} {...motionProps} transition={{duration:0.32,delay:reducedMotion?0:i*0.08}} whileTap={reducedMotion?undefined:{scale:0.985}} className="relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+          {produits.map((p,i)=><m.article key={p.id} {...motionProps} transition={{duration:0.32,delay:reducedMotion?0:i*0.08}} whileTap={reducedMotion?undefined:{scale:0.985}} className="relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
@@ -296,11 +296,11 @@ export function AccueilClient() {
             <p className="mt-1 text-[18px] font-extrabold leading-6 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
             <div className="mt-auto flex items-end justify-between gap-1 pt-3">
               <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.demo?"Donnée illustrative":p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}{distanceProduit(p)!=null?`, ${distanceProduit(p)!.toFixed(1)} km`:""}</p>
-              <motion.button whileTap={reducedMotion?undefined:{scale:0.96}} onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
+              <m.button whileTap={reducedMotion?undefined:{scale:0.96}} onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
                 <ShoppingCart size={14} aria-hidden="true"/>{added===p.id?"Ajouté ✓":"Ajouter"}
-              </motion.button>
+              </m.button>
             </div>
-          </motion.article>)}
+          </m.article>)}
         </div>}
         {error && <span className="sr-only" role="status">Données de démonstration affichées tant que le catalogue réel n'est pas disponible.</span>}
       </section>
@@ -317,5 +317,5 @@ export function AccueilClient() {
         </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><Store size={25}/></span><span className="flex-1"><strong className="block">Pharmacies de garde à Douala</strong><span className="text-sm text-[#64776B]">Consulter la liste disponible</span></span><ChevronRight size={18}/></Link>}
       </section>
     </main>
-  </div>;
+  </div></LazyMotion>;
 }
