@@ -1345,3 +1345,16 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Branche `feat/naxa-messagerie-profil-yaounde` : fondations SQL additives 075 (préférences, fils, messages, notifications) et 076 (sur ordonnance/fabricant), composants de messagerie et pages de notifications/boîte pharmacie.
 - Tests ajoutés : `supabase/tests/075_messagerie_notifications_preferences.sql` et `supabase/tests/076_produits_ordonnance_fabricant.sql`.
 - Statut : **en cours — non validé**. Le build, ESLint, replay SQL, tests en navigateur, les droits réels des rôles pharmacie et le parcours OAuth doivent encore être exécutés/vérifiés. Aucun déploiement Production effectué.
+
+---
+
+## Audit opérationnel du parcours client — 16/10/2026
+
+**Périmètre :** routes et transitions du client, sans reconstruction des modules déjà présents.
+
+- **Retour après contrôle d’âge :** une demande directe vers une page protégée redirigeait vers l’accueil sans conserver la destination. Correction sur `main` : `src/middleware.ts` ajoute `retourAge`; `src/app/page.tsx` reprend la destination interne après déclaration adulte, y compris si la déclaration avait déjà été enregistrée.
+- **Résultats sans requête :** `/resultats` sans terme `q` ni élément `p` affichait indéfiniment « Recherche des pharmacies en cours… ». Correction sur `main` : état vide explicite et retour à la recherche.
+- **Fiche produit :** le compteur de disponibilité ne filtrait ni les stocks expirés ni les pharmacies inactives. Correction sur `main` : seules les lignes avec quantité positive, date de péremption absente ou non dépassée, et pharmacie active sont comptées.
+- **Vérification Supabase en lecture seule :** 9 lignes de stock avec quantité positive, 0 déjà expirée et 9 sans date de péremption au moment du contrôle. Aucune donnée n’a été modifiée.
+- **Reste identifié :** les RPC de recherche `search_pharmacies` et `private.search_pharmacies_panier` n’excluent pas elles-mêmes les stocks expirés. La correction complète côté résultats nécessite une migration SQL et sa validation; aucune écriture n’a été exécutée sur Supabase Production dans cet audit.
+- **État de preuve :** les changements sont intégrés à `main`; la compilation et le déploiement Production doivent être confirmés sur le dernier commit. Le parcours mobile complet avec session réelle n’est pas déclaré validé tant qu’un test de bout en bout ne l’a pas démontré.
