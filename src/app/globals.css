@@ -367,3 +367,44 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
   position: relative;
   z-index: 20;
 }
+
+
+/* Accueil client mobile NAXA */
+@keyframes naxa-pin-pulse {
+  0% { transform: scale(.65); opacity: .55; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+@keyframes naxa-shimmer {
+  0% { transform: translateX(-120%); opacity: .25; }
+  100% { transform: translateX(120%); opacity: .55; }
+}
+@keyframes naxa-scanner-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.naxa-pin-pulse {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #FFE23D;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: naxa-pin-pulse 1.8s ease-out infinite;
+}
+.naxa-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.naxa-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 55%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  transform: translateX(-120%);
+  animation: naxa-shimmer 1.35s ease-in-out infinite;
+}
+.naxa-scanner-breathe { animation: naxa-scanner-breathe 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .naxa-pin-pulse, .naxa-shimmer::after, .naxa-scanner-breathe { animation: none !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
