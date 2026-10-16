@@ -324,7 +324,20 @@ export function AccueilClient() {
           <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
           <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">Pharmacie de garde{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
           <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span><span className="flex-1"><strong className="block">Aucune pharmacie de garde proche n’est indiquée</strong><span className="text-sm text-[#64776B]">Consulter la liste complète</span></span><IconeNAXA name="chevron-right" size={18}/></Link>}
+        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span><span className="flex-1"><strong className="block">Aucune pharmacie de garde proche n’est indiquée</strong></span><IconeNAXA name="chevron-right" size={18}/></Link>}
+      </section>
+
+      <section className="naxa-enter mt-6 pb-4">
+        <Link href="/client/posologie" className="group flex min-h-[88px] items-center gap-3 rounded-[22px] border border-[#CFE2D5] bg-white p-4 shadow-[0_6px_18px_rgba(0,0,0,0.06)] transition-transform active:scale-[0.99]">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#E1F4E7] text-[#0F6B3F] transition-transform group-hover:scale-105" aria-hidden="true">
+            <IconeNAXA name="clock" size={25}/>
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong className="block text-[16px] font-extrabold leading-5 text-[#0B3D26]">Configurer une posologie</strong>
+            <span className="mt-1 block text-[13px] leading-5 text-[#53685C]">Organisez les horaires et rappels de prise prescrits</span>
+          </span>
+          <IconeNAXA name="chevron-right" size={20} className="shrink-0 text-[#0F6B3F]"/>
+        </Link>
       </section>
     </main>
   </div>;
