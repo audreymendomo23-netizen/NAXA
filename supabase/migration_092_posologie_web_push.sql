@@ -13,14 +13,7 @@ create table if not exists public.naxa_posologie_schedules (
   last_notified_key text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint naxa_posologie_heures_valides check (
-    cardinality(heures) <= 8
-    and not exists (
-      select 1
-      from unnest(heures) as h
-      where h !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
-    )
-  )
+  constraint naxa_posologie_heures_max check (cardinality(heures) <= 8)
 );
 
 create index if not exists naxa_posologie_schedules_user_idx
