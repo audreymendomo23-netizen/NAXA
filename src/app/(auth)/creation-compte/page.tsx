@@ -110,7 +110,62 @@ function Formulaire(){
     }finally{setBusy(false)}
   }
  async function resendOtp(){if(otpSeconds>0||resending)return;setResending(true);setError("");try{const res=await fetch("/api/auth/signup-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.trim().toLowerCase(),username:username.trim().toLowerCase(),first_name:prenom.trim(),last_name:nom.trim(),phone:selected[2]+digits,phone_country:selected[0],date_of_birth:dob,consent_accepted:true})});const data=await res.json();if(!res.ok){setError(data.error||"Le renvoi du code a échoué. Attendez un peu et réessayez.");return}setOtpVersion(v=>v+1);setOtpSeconds(60)}catch{setError("Impossible de renvoyer le code. Vérifiez votre connexion.")}finally{setResending(false)}}
- async function savePassword(e:React.FormEvent){e.preventDefault();if(!passwordValid)return setError(password!==confirmation?"Les deux mots de passe ne correspondent pas.":"Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");setBusy(true);setError("");const sb=supabaseBrowser();const {error}=await sb.auth.updateUser({password});if(error){setBusy(false);return setError("Impossible d’enregistrer le mot de passe.")}const {data:sessionData}=await sb.auth.getSession();const accessToken=sessionData.session?.access_token;if(!accessToken){setBusy(false);return setError("Votre inscription n’est pas terminée : aucune session valide ne permet de finaliser le compte. Recommencez la vérification.")}try{const completion=await fetch("/api/auth/complete-signup",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${accessToken}`},body:JSON.stringify({username:username.trim().toLowerCase(),first_name:prenom.trim(),last_name:nom.trim(),phone:selected[2]+digits,phone_country:selected[0],date_of_birth:dob,consent_accepted:true})});const completionResult=await completion.json();if(!completion.ok){setBusy(false);return setError(completionResult.error||"La création du compte n’est pas terminée : le profil n’a pas été finalisé. Réessayez sans quitter cette page.")}}catch{setBusy(false);return setError("La création du compte n’est pas terminée : la finalisation du profil a échoué. Réessayez.")}clearSignupDrafts();let destination=retour;if(!search.get("retour")||retour==="/"){try{const {data}=await sb.auth.getUser();if(data.user){const {data:profile}=await sb.from("profiles").select("role").eq("id",data.user.id).maybeSingle();const role=String(profile?.role||"client");const destinations:Record<string,string>={client:"/client",pharmacie:"/pharmacie",promoteur:"/pharmacie",caisse:"/pharmacie",admin:"/admin"};destination=destinations[role]||"/client"}else destination="/connexion?compteCree=1"}catch{destination="/client"}}setBusy(false);setSuccessDestination(destination)}
+ async function savePassword(e:React.FormEvent){
+  e.preventDefault();
+  if(busy)return;
+  if(!passwordValid)return setError(password!==confirmation?"Les deux mots de passe ne correspondent pas.":"Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");
+  setBusy(true);
+  setError("");
+  const sb=supabaseBrowser();
+  try{
+    const {error:passwordError}=await sb.auth.updateUser({password});
+    if(passwordError){
+      setError("Impossible d’enregistrer le mot de passe. Vérifiez votre connexion puis réessayez.");
+      return;
+    }
+    const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+    if(sessionError)throw sessionError;
+    const accessToken=sessionData.session?.access_token;
+    if(!accessToken){
+      setError("Votre inscription n’est pas terminée : aucune session valide ne permet de finaliser le compte. Recommencez la vérification.");
+      return;
+    }
+    const completion=await fetch("/api/auth/complete-signup",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":`Bearer ${accessToken}`},
+      body:JSON.stringify({username:username.trim().toLowerCase(),first_name:prenom.trim(),last_name:nom.trim(),phone:selected[2]+digits,phone_country:selected[0],date_of_birth:dob,consent_accepted:true})
+    });
+    let completionResult:{error?:string}|null=null;
+    try{completionResult=await completion.json()}catch{/* Une réponse non JSON doit rester une erreur explicite. */}
+    if(!completion.ok){
+      setError(completionResult?.error||"La création du compte n’est pas terminée : le profil n’a pas été finalisé. Réessayez sans quitter cette page.");
+      return;
+    }
+    clearSignupDrafts();
+    let destination=retour;
+    if(!search.get("retour")||retour==="/"){
+      try{
+        const {data,error:userError}=await sb.auth.getUser();
+        if(userError)throw userError;
+        if(data.user){
+          const {data:profile,error:profileError}=await sb.from("profiles").select("role").eq("id",data.user.id).maybeSingle();
+          if(profileError)throw profileError;
+          const role=String(profile?.role||"client");
+          const destinations:Record<string,string>={client:"/client",pharmacie:"/pharmacie",promoteur:"/pharmacie",caisse:"/pharmacie",admin:"/admin"};
+          destination=destinations[role]||"/client";
+        }else destination="/connexion?compteCree=1";
+      }catch{
+        // La création est terminée : une indisponibilité de lecture du rôle ne doit pas bloquer la sortie.
+        destination="/client";
+      }
+    }
+    setSuccessDestination(destination);
+  }catch{
+    setError("Connexion impossible pendant la finalisation du compte. Vérifiez votre réseau puis réessayez.");
+  }finally{
+    setBusy(false);
+  }
+ }
 
  if(successDestination)return <SuccesCreationCompte destination={successDestination}/>;
  return <form noValidate onSubmit={step==="details"?signup:step==="otp"?(e)=>e.preventDefault():savePassword} onInvalidCapture={(e)=>{e.preventDefault();const field=e.target as HTMLInputElement;setError(field.validity.typeMismatch?"Le format de l’adresse e-mail est invalide.":field.validity.valueMissing?"Ce champ est obligatoire.":"Vérifiez les informations saisies.")}} className={`w-full max-w-lg space-y-[10px] px-0 ${step==="otp"?"!pt-[54px]":"py-0"}`}>
