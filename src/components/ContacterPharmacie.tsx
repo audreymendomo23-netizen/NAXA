@@ -14,7 +14,6 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
   const [envoye, setEnvoye] = useState(false);
   const [controleAge, setControleAge] = useState(false);
   const [mineur, setMineur] = useState(false);
-  const [ageAccepte, setAgeAccepte] = useState(false);
   const cleAge = "naxa-age-declaration-v1";
   const ageValide = () => {
     try {
@@ -28,12 +27,11 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
   function ouvrirContact() {
     setEnvoye(false);
     if (ageValide()) setOuvert(true);
-    else { setControleAge(true); setMineur(false); setAgeAccepte(false); }
+    else { setControleAge(true); setMineur(false); }
   }
   function confirmerMajeur() {
     try { localStorage.setItem(cleAge, JSON.stringify({ confirmed: true, at: Date.now() })); } catch { /* contrôle valable pour l'action en cours */ }
     setControleAge(false);
-    setAgeAccepte(true);
     setOuvert(true);
   }
   async function envoyer() {
