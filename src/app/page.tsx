@@ -221,41 +221,35 @@ export default function Accueil() {
     <main className="home-ecran flex flex-col bg-[#F2FAF5]">
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
-      <section className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4" aria-label="Recherche publique">
-        <div className="overflow-hidden rounded-[1.75rem] border border-[#D6EEDF] bg-white shadow-[0_18px_50px_rgba(6,75,42,0.13)]">
-          <div className="bg-gradient-to-br from-[#FFFFFF] via-[#F5FCF7] to-[#E5F5EB] p-5 sm:p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full bg-[#DDF3E6] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#064B2A]">
-                <span className="h-2 w-2 rounded-full bg-[#0A6B3A]" aria-hidden="true" /> Recherche publique
-              </span>
-              <span className="text-xs font-semibold text-[#557364]">Yaoundé · Cameroun</span>
-            </div>
-            <h2 className="max-w-sm text-2xl font-extrabold leading-tight tracking-tight text-[#064B2A] sm:text-3xl">Trouvez votre médicament sans perdre de temps.</h2>
-            <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">Comparez les pharmacies, consultez les disponibilités publiées et repérez les pharmacies de garde autour de vous.</p>
-            <div className="mt-5 rounded-2xl border border-[#D6EEDF] bg-white p-3 shadow-sm sm:p-4">
-              <Recherche langue={langue} />
-            </div>
-            <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-[#557364]">
-              <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-              La recherche est libre. Pour contacter une pharmacie ou effectuer une réservation, connectez-vous ou créez un compte.
-            </p>
+      <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
+        <section aria-label="Recherche publique" className="rounded-3xl border border-[#DDF3E6] bg-white p-4 shadow-[0_14px_40px_rgba(6,75,42,0.09)] sm:p-5">
+          <div className="mb-3 flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#E5F5EB] text-[#064B2A]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span>
+            <div><h2 className="font-extrabold text-[#064B2A]">Que recherchez-vous ?</h2><p className="mt-0.5 text-xs leading-5 text-slate-500">Médicaments, pharmacies et pharmacies de garde.</p></div>
           </div>
-        </div>
-      </section>
+          <Recherche langue={langue} />
+        </section>
+      </div>
 
       <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col gap-3 px-4 py-3">
-        <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={localiser} disabled={position === "recherche"} className="group flex min-h-[108px] flex-col items-start justify-between rounded-2xl border border-[#D6EEDF] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#9ACDAE] hover:shadow-md disabled:opacity-70">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E5F5EB] text-[#064B2A]" aria-hidden="true">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>
-            </span>
-            <span><span className="block text-sm font-extrabold text-[#064B2A]">{t.presDeMoi}</span><span className="mt-1 block text-xs text-slate-500">Repérer les pharmacies proches</span></span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={localiser}
+            disabled={position === "recherche"}
+            className={puce}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />
+              <circle cx="12" cy="10" r="2.3" />
+            </svg>
+            {t.presDeMoi}
           </button>
-          <Link href="/gardes" className="group flex min-h-[108px] flex-col items-start justify-between rounded-2xl border border-[#D6EEDF] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#9ACDAE] hover:shadow-md">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF4B8] text-[#064B2A]" aria-hidden="true">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
-            </span>
-            <span><span className="block text-sm font-extrabold text-[#064B2A]">{t.gardes}</span><span className="mt-1 block text-xs text-slate-500">Voir les gardes publiées</span></span>
+          <Link href="/gardes" className={puce}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            {t.gardes}
           </Link>
         </div>
 
