@@ -25,6 +25,33 @@ const CLE_PREFIXE = "naxa:posologies:";
 const HEURES_DEFAUT = ["07:00", "12:00", "19:00", "22:00", "01:00", "04:00", "10:00", "16:00"];
 const UNITE_DEFAUT = "comprimé(s)";
 
+function decoderClePush(value: string) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const raw = atob(padded);
+  return Uint8Array.from(raw, character => character.charCodeAt(0));
+}
+
+async function activerPush(userId: string): Promise<boolean> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || Notification.permission !== "granted") return false;
+  const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/" });
+  const response = await fetch("/api/posologie/push-key", { cache: "no-store" });
+  if (!response.ok) throw new Error("Le service Push NAXA n’est pas encore configuré.");
+  const { publicKey } = await response.json() as { publicKey: string };
+  const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: decoderClePush(publicKey),
+  });
+  const { error } = await supabaseBrowser().from("naxa_push_subscriptions").upsert({
+    endpoint: subscription.endpoint,
+    user_id: userId,
+    subscription: subscription.toJSON(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "endpoint" });
+  if (error) throw error;
+  return true;
+}
+
 function heurePlus(heure: string, ajout: number) {
   const [h, m] = heure.split(":").map(Number);
   const total = (h * 60 + m + ajout * 60) % (24 * 60);
@@ -114,15 +141,20 @@ export default function ConfigurerPosologiePage() {
     }
     setEnregistrement(true);
     try {
-      let autorise = rappels;
+      const autorise = rappels;
+      let pushPret = false;
       if (rappels && "Notification" in window && Notification.permission === "default") {
         const result = await Notification.requestPermission();
         setPermission(result);
-        if (result !== "granted") {
-          notifierNAXA("Les notifications système ne sont pas autorisées. Les rappels dans NAXA restent disponibles tant que cette page est ouverte.");
-        }
       } else if (!("Notification" in window)) {
         setPermission("unsupported");
+      }
+      if (rappels && "Notification" in window && Notification.permission === "granted") {
+        try {
+          pushPret = await activerPush(userId);
+        } catch {
+          pushPret = false;
+        }
       }
       const item: Posologie = {
         id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()),
@@ -138,11 +170,30 @@ export default function ConfigurerPosologiePage() {
         creeLe: new Date().toISOString(),
       };
       if (!persister([item, ...posologies])) return;
+      const { error: syncError } = await supabaseBrowser().from("naxa_posologie_schedules").upsert({
+        id: item.id,
+        user_id: userId,
+        medicament: item.medicament,
+        dose: item.dose,
+        unite: item.unite,
+        heures: item.heures,
+        rappels: item.rappels,
+        timezone: "Africa/Douala",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "id" });
       setMedicament("");
       setDose("");
       setUnite(UNITE_DEFAUT);
-      setErreur("");
-      notifierNAXA("Schéma posologique enregistré sur cet appareil.");
+      if (syncError) {
+        setErreur("Schéma conservé sur cet appareil, mais le service de rappels en arrière-plan n’a pas pu le synchroniser.");
+        notifierNAXA("Schéma enregistré localement. Synchronisation des rappels Push indisponible.");
+      } else if (rappels && pushPret) {
+        setErreur("");
+        notifierNAXA("Schéma enregistré. Les rappels Push sont activés sur cet appareil.");
+      } else {
+        setErreur("");
+        notifierNAXA("Schéma enregistré. Les rappels locaux restent actifs ; vérifiez l’autorisation Push pour les notifications en arrière-plan.");
+      }
     } finally {
       setEnregistrement(false);
     }
@@ -151,6 +202,7 @@ export default function ConfigurerPosologiePage() {
   const supprimer = (id: string) => {
     if (!userId) return;
     persister(posologies.filter(item => item.id !== id));
+    void supabaseBrowser().from("naxa_posologie_schedules").delete().eq("id", id).eq("user_id", userId);
     notifierNAXA("Schéma posologique supprimé.");
   };
 
@@ -251,7 +303,7 @@ export default function ConfigurerPosologiePage() {
 
       <section className="naxa-enter rounded-[22px] border border-[#E9DDA2] bg-[#FFF9D9] p-4">
         <h2 className="text-sm font-extrabold">À propos des notifications</h2>
-        <p className="mt-1 text-xs leading-5 text-[#5C5124]">Les rappels locaux fonctionnent tant que NAXA reste ouvert dans ce navigateur. Une notification système nécessite l’autorisation du navigateur. Pour garantir des rappels lorsque l’application est complètement fermée, il reste à connecter un service Push et une planification côté serveur : cette fonction n’est pas encore active.</p>
+        <p className="mt-1 text-xs leading-5 text-[#5C5124]">Les rappels locaux fonctionnent lorsque NAXA est ouvert. Si vous autorisez les notifications, NAXA enregistre aussi un abonnement Push pour recevoir des rappels lorsque le navigateur est en arrière-plan. Le téléphone peut toutefois retarder ou bloquer les notifications selon ses réglages d’économie d’énergie.</p>
         {permission==="denied" && <p className="mt-2 text-xs font-bold text-[#7A3C16]">Les notifications sont bloquées dans les réglages du navigateur.</p>}
       </section>
 
