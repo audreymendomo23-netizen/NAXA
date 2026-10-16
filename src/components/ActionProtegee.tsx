@@ -7,13 +7,14 @@ type Props={children:ReactNode;href:string;className?:string;external?:boolean;o
 const AGE_KEY="naxa-age-declaration-v1";
 const AGE_TTL=30*24*60*60*1000;
 
-function declarationValide(){
+function declarationEtat(): "adulte" | "mineur" | "absente" {
  try {
   const value=window.localStorage.getItem(AGE_KEY);
-  if(!value)return false;
+  if(!value)return "absente";
   const parsed=JSON.parse(value) as {confirmed?:boolean;at?:number};
-  return parsed.confirmed===true&&typeof parsed.at==="number"&&Date.now()-parsed.at>=0&&Date.now()-parsed.at<AGE_TTL;
- } catch { return false; }
+  if(typeof parsed.at!=="number"||Date.now()-parsed.at<0||Date.now()-parsed.at>=AGE_TTL)return "absente";
+  return parsed.confirmed===true?"adulte":"mineur";
+ } catch { return "absente"; }
 }
 
 function memoriserDeclaration(){
@@ -45,7 +46,9 @@ export function ActionProtegee({children,href,className="",external=false,onAuto
 
  async function continuer(){
   if(busy)return;
-  if(!declarationValide()){setMessage("age");return}
+  const age=declarationEtat();
+  if(age==="mineur"){setMessage("mineur");return}
+  if(age!=="adulte"){setMessage("age");return}
   await executerAction();
  }
 
