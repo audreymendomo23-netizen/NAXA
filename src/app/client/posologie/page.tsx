@@ -91,28 +91,6 @@ export default function ConfigurerPosologiePage() {
     }
   }, [userId]);
 
-  useEffect(() => {
-    if (!userId || posologies.length === 0) return;
-    const checkRappels = () => {
-      const now = new Date();
-      const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-      const date = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
-      for (const item of posologies) {
-        if (!item.rappels || !item.heures.includes(hhmm)) continue;
-        const key = "naxa:posologie-notifie:" + userId + ":" + date + ":" + item.id + ":" + hhmm;
-        if (localStorage.getItem(key)) continue;
-        localStorage.setItem(key, "1");
-        notifierNAXA("Rappel de prise : " + item.medicament + " — " + item.dose + " " + item.unite + ".");
-        if ("Notification" in window && Notification.permission === "granted") {
-          try { new Notification("Rappel de prise — NAXA", { body: item.medicament + " : " + item.dose + " " + item.unite + ".", icon: "/icon-192.png", tag: item.id + "-" + hhmm }); } catch { /* Le rappel NAXA reste affiché dans l’application. */ }
-        }
-      }
-    };
-    checkRappels();
-    const timer = window.setInterval(checkRappels, 15000);
-    return () => window.clearInterval(timer);
-  }, [userId, posologies]);
-
   const changerPrises = (value: number) => {
     const safe = Math.min(8, Math.max(1, value));
     setPrises(safe);
@@ -130,8 +108,8 @@ export default function ConfigurerPosologiePage() {
       setErreur("Ajoutez une heure pour chaque prise.");
       return;
     }
-    if (mode === "heures-fixes" && heuresCalculees.some(h => !/^([01]\d|2[0-3]):[0-5]\d$/.test(h))) {
-      setErreur("Vérifiez les heures de chaque prise.");
+    if (mode === "heures-fixes" && (heuresCalculees.some(h => !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(h)) || new Set(heuresCalculees).size !== heuresCalculees.length)) {
+      setErreur("Vérifiez les heures : chaque prise doit avoir une heure différente.");
       return;
     }
     setEnregistrement(true);
