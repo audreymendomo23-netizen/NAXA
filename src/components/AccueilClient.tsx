@@ -146,9 +146,8 @@ export function AccueilClient() {
         if (!products.length) {
           setProduits(ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
           setError(true);
-          return;
-        }
-        const ids = products.map(p => p.id);
+        } else {
+          const ids = products.map(p => p.id);
         const today = new Date().toISOString().slice(0,10);
         const { data: stockRows, error: stockError } = await sb.from("stocks").select("produit_id,pharmacie_id,prix,quantite,date_peremption,pharmacies(id,nom,ville,quartier,lat,lng,actif,de_garde)").in("produit_id", ids).gt("quantite",0).or(`date_peremption.is.null,date_peremption.gte.${today}`);
         if (stockError) throw stockError;
@@ -175,6 +174,7 @@ export function AccueilClient() {
         }).slice(0,2);
         setProduits(sorted.length ? sorted : ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
         if (!sorted.length) setError(true);
+        }
         const { data: pharmRows } = await sb.from("pharmacies").select("id,nom,ville,quartier,adresse,lat,lng,de_garde").eq("actif",true).limit(100);
         if (active) setPharmacies((pharmRows ?? []) as Pharmacie[]);
       } catch {
