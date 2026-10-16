@@ -79,13 +79,15 @@ export default function ConfigurerPosologiePage() {
     ? Array.from({ length: prises }, (_, index) => heurePlus(heureDebut, index * intervalleHeures))
     : heures.slice(0, prises), [mode, prises, heureDebut, intervalleHeures, heures]);
 
-  const persister = useCallback((next: Posologie[]) => {
-    if (!userId) return;
+  const persister = useCallback((next: Posologie[]): boolean => {
+    if (!userId) return false;
     try {
       localStorage.setItem(CLE_PREFIXE + userId, JSON.stringify(next));
       setPosologies(next);
+      return true;
     } catch {
       setErreur("L’enregistrement local est impossible sur cet appareil. Vérifiez l’espace disponible du navigateur.");
+      return false;
     }
   }, [userId]);
 
@@ -94,7 +96,7 @@ export default function ConfigurerPosologiePage() {
     const checkRappels = () => {
       const now = new Date();
       const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-      const date = now.toISOString().slice(0, 10);
+      const date = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
       for (const item of posologies) {
         if (!item.rappels || !item.heures.includes(hhmm)) continue;
         const key = "naxa:posologie-notifie:" + userId + ":" + date + ":" + item.id + ":" + hhmm;
@@ -139,11 +141,9 @@ export default function ConfigurerPosologiePage() {
         const result = await Notification.requestPermission();
         setPermission(result);
         if (result !== "granted") {
-          autorise = false;
-          notifierNAXA("Les notifications système ne sont pas autorisées. Le schéma sera enregistré sans notification système.");
+          notifierNAXA("Les notifications système ne sont pas autorisées. Les rappels dans NAXA restent disponibles tant que cette page est ouverte.");
         }
       } else if (!("Notification" in window)) {
-        autorise = false;
         setPermission("unsupported");
       }
       const item: Posologie = {
@@ -159,7 +159,7 @@ export default function ConfigurerPosologiePage() {
         rappels: autorise,
         creeLe: new Date().toISOString(),
       };
-      persister([item, ...posologies]);
+      if (!persister([item, ...posologies])) return;
       setMedicament("");
       setDose("");
       setUnite(UNITE_DEFAUT);
