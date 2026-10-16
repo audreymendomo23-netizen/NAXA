@@ -7,13 +7,17 @@ create table if not exists public.naxa_posologie_schedules (
   medicament text not null check (char_length(trim(medicament)) between 1 and 100),
   dose text not null check (char_length(trim(dose)) between 1 and 40),
   unite text not null check (char_length(trim(unite)) between 1 and 40),
-  heures text[] not null default '{}',
+  heures text[] not null,
   rappels boolean not null default true,
   timezone text not null default 'Africa/Douala',
   last_notified_key text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint naxa_posologie_heures_max check (cardinality(heures) <= 8)
+  constraint naxa_posologie_heures_valides check (
+    cardinality(heures) between 1 and 8
+    and array_position(heures, null) is null
+    and array_to_string(heures, ',') ~ '^([01][0-9]|2[0-3]):[0-5][0-9](,([01][0-9]|2[0-3]):[0-5][0-9]){0,7}$'
+  )
 );
 
 create index if not exists naxa_posologie_schedules_user_idx
@@ -32,6 +36,9 @@ create table if not exists public.naxa_push_subscriptions (
     jsonb_typeof(subscription) = 'object'
     and subscription ? 'endpoint'
     and subscription ? 'keys'
+    and jsonb_typeof(subscription -> 'keys') = 'object'
+    and subscription -> 'keys' ? 'p256dh'
+    and subscription -> 'keys' ? 'auth'
   )
 );
 
