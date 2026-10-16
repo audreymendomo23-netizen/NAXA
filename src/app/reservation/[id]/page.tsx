@@ -146,7 +146,9 @@ export default function Reservation() {
     );
   }
 
-  const active = ["en_attente", "confirmee"].includes(r.statut);
+  const delaiDepasse = !r.expires_at || new Date(r.expires_at).getTime() <= Date.now();
+  const active = ["en_attente", "confirmee"].includes(r.statut) && !delaiDepasse;
+  const statutAffiche = delaiDepasse && ["en_attente", "confirmee"].includes(r.statut) ? "Délai de réservation dépassé" : (LIBELLE[r.statut] ?? r.statut);
   const actionBloquee = actionEnCours !== null || chargementPaiement;
 
   return (
@@ -158,7 +160,7 @@ export default function Reservation() {
       <h1 className="text-2xl font-extrabold">Réservation chez {r.pharmacies?.nom ?? "votre pharmacie"}</h1>
       {r.pharmacies?.quartier && <p className="-mt-2 text-sm text-slate-600">{r.pharmacies.quartier}</p>}
       <section className="carte space-y-2" aria-label="Détails de la réservation">
-        <p><strong>Statut :</strong> {LIBELLE[r.statut] ?? r.statut}</p>
+        <p><strong>Statut :</strong> {statutAffiche}</p>
         <p><strong>Total :</strong> {fcfa(r.total)}</p>
         {active && <p><strong>Temps restant :</strong> {reste}</p>}
         {r.paiement_ref && <p className="break-words text-sm"><strong>Référence communiquée :</strong> {r.paiement_ref}</p>}
