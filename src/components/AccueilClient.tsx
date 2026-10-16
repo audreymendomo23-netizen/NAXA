@@ -156,16 +156,15 @@ export function AccueilClient() {
           const stocks = valid.filter(s => s.produit_id === p.id).sort((a,b) => Number(a.prix)-Number(b.prix));
           const chosen = stocks[0];
           const name = p.nom || "Médicament";
-          const demoMatch = ACCUEIL_PRODUITS_DEMO.find(d => name.toLowerCase().includes(d.nom.split(" ")[0].toLowerCase()));
           return {
             id:p.id, nom:name, dosage:p.dosage||"", photo_url:p.photo_url, prix:Number(chosen?.prix ?? 0),
             quantite:Number(chosen?.quantite ?? 0), pharmacie_id:chosen?.pharmacie_id ?? null,
             pharmacie:chosen?.pharmacies?.nom ?? "Pharmacie partenaire",
             pharmacieLat:chosen?.pharmacies?.lat ?? null, pharmacieLng:chosen?.pharmacies?.lng ?? null,
             distanceKm: null,
-            laboratoire:demoMatch?.laboratoire ?? "Laboratoire",
-            conditionnement:demoMatch?.conditionnement ?? p.forme ?? "Conditionnement non précisé",
-            ordonnance:demoMatch?.ordonnance ?? false,
+            laboratoire:p.fabricant ?? "Laboratoire",
+            conditionnement:p.forme ?? "Conditionnement non précisé",
+            ordonnance:p.sur_ordonnance,
           } satisfies Produit;
         }).filter(p => p.quantite > 0).sort((a,b) => {
           const aRank = /parac[eé]tamol/i.test(a.nom) ? 0 : /coartem/i.test(a.nom) ? 1 : 2;
@@ -213,11 +212,11 @@ export function AccueilClient() {
   }, [pharmacies]);
   const pharmacyCount = pharmaciesProches.filter(p => p.distanceKm !== null && p.distanceKm <= 1.2).length;
   const addToCart = (p:Produit) => {
-    if (p.ordonnance) { window.location.href = "/scanner"; return; }
     if (p.demo || !p.pharmacie_id) {
       notifierNAXA("La disponibilité réelle de ce médicament doit être confirmée auprès d’une pharmacie partenaire.");
       return;
     }
+    if (p.ordonnance) { window.location.href = "/scanner"; return; }
     ajouter({produit_id:p.id,nom:p.nom,dosage:p.dosage},1);
     setAdded(p.id);
     window.setTimeout(() => setAdded(current => current === p.id ? null : current),1200);
