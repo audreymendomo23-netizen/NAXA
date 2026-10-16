@@ -105,7 +105,6 @@ export function AccueilClient() {
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [recherchesLocales, setRecherchesLocales] = useState<Record<string, number>>({});
   const [quartier, setQuartier] = useState("Douala");
   const [coord, setCoord] = useState<{lat:number;lng:number}|null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
@@ -119,10 +118,6 @@ export function AccueilClient() {
   useEffect(() => {
     const actualiser = () => setFavoris(lireFavoris().map(f => f.id));
     actualiser();
-    try {
-      const saved = window.localStorage.getItem("naxa-recherches-produits-v1");
-      if (saved) setRecherchesLocales(JSON.parse(saved) as Record<string, number>);
-    } catch { /* Le catalogue reste utilisable si le stockage local est indisponible. */ }
     return ecouterFavoris(actualiser);
   }, []);
 
@@ -143,7 +138,12 @@ export function AccueilClient() {
           const photo = profile?.avatar_url || meta.avatar_url || meta.picture || meta.photo_url || null;
           if (typeof photo === "string" && /^https:\/\//i.test(photo)) setAvatarUrl(photo);
         }
-        const { data: ps, error: productError } = await sb.from("produits").select("id,nom,dosage,forme,photo_url,fabricant,sur_ordonnance").order("nom").limit(30);
+        const { data: popularRows } = await sb.rpc("produits_populaires", { p_limit: 6, p_jours: 7 });
+        const popularIds = ((popularRows ?? []) as Array<{ produit_id: string }>).map((item) => item.produit_id);
+        const productQuery = sb.from("produits").select("id,nom,dosage,forme,photo_url,fabricant,sur_ordonnance");
+        const { data: ps, error: productError } = popularIds.length
+          ? await productQuery.in("id", popularIds)
+          : await productQuery.order("nom").limit(30);
         if (productError) throw productError;
         const products = (ps ?? []) as Array<{id:string;nom:string;dosage:string;forme:string;photo_url:string|null;fabricant:string|null;sur_ordonnance:boolean}>;
         if (!products.length) {
@@ -170,9 +170,12 @@ export function AccueilClient() {
             ordonnance:p.sur_ordonnance,
           } satisfies Produit;
         }).filter(p => p.quantite > 0).sort((a,b) => {
-          const aRank = /parac[eé]tamol/i.test(a.nom) ? 0 : /coartem/i.test(a.nom) ? 1 : 2;
-          const bRank = /parac[eé]tamol/i.test(b.nom) ? 0 : /coartem/i.test(b.nom) ? 1 : 2;
-          return aRank-bRank;
+          if (popularIds.length) {
+            const aRank = popularIds.indexOf(a.id);
+            const bRank = popularIds.indexOf(b.id);
+            return (aRank < 0 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank < 0 ? Number.MAX_SAFE_INTEGER : bRank);
+          }
+          return a.nom.localeCompare(b.nom, "fr");
         }).slice(0,6);
         setProduits(sorted.length ? sorted : ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
         if (!sorted.length) setError(true);
@@ -200,12 +203,6 @@ export function AccueilClient() {
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
-    const term = query.trim().toLocaleLowerCase("fr");
-    setRecherchesLocales(current => {
-      const next = { ...current, [term]: (current[term] ?? 0) + 1 };
-      try { window.localStorage.setItem("naxa-recherches-produits-v1", JSON.stringify(next)); } catch { /* Le parcours de recherche ne dépend pas du stockage local. */ }
-      return next;
-    });
     router.push("/recherche?q=" + encodeURIComponent(query.trim()));
   };
   const localiser = useCallback(() => {
@@ -284,7 +281,7 @@ export function AccueilClient() {
           <Link href="/resultats?q=paracétamol" className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#FFF3B0] px-2.5 text-xs font-extrabold text-[#0B3D26]">Voir tout <IconeNAXA name="chevron-right" size={16}/></Link>
         </div>
         {loading ? <div className="grid grid-cols-2 gap-3.5"><Squelette/><Squelette/></div> : <div className="naxa-reveal-list grid grid-cols-2 gap-3.5">
-          {[...produits].sort((a,b) => { const score = (p: Produit) => Object.entries(recherchesLocales).reduce((total,[term,count]) => total + (p.nom.toLocaleLowerCase("fr").includes(term) ? count : 0), 0); return score(b)-score(a); }).map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+          {produits.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
