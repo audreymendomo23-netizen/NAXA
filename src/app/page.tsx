@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EnTeteAccueil } from "@/components/EnTeteAccueil";
 import { IntroNaxa } from "@/components/IntroNaxa";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { Recherche } from "@/components/Recherche";
 import {
   recherchesFrequentes,
@@ -76,20 +77,53 @@ const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
-  const [introVisible, setIntroVisible] = useState(true);
+  const [introVisible, setIntroVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      const key = "naxa-intro-seen-v1";
-      if (window.sessionStorage.getItem(key) === "1") {
+    let actif = true;
+    const key = "naxa-intro-seen-v1";
+    const sb = supabaseBrowser();
+
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+      if (!actif) return;
+      if (session) {
         setIntroVisible(false);
         return;
       }
-      window.sessionStorage.setItem(key, "1");
-    } catch {
-      // Le stockage peut être indisponible : l’introduction reste accessible.
+      if (event === "SIGNED_OUT") {
+        try {
+          window.sessionStorage.removeItem(key);
+        } catch {
+          // La session reste déconnectée même si le stockage est indisponible.
+        }
+      }
+    });
+
+    void sb.auth.getSession().then(({ data: { session } }) => {
+      if (!actif) return;
+      if (session) {
+        setIntroVisible(false);
+        return;
+      }
+      try {
+        if (window.sessionStorage.getItem(key) === "1") {
+          setIntroVisible(false);
+          return;
+        }
+        window.sessionStorage.setItem(key, "1");
+      } catch {
+        // En cas de stockage indisponible, privilégier l'accès à l'accueil.
+      }
       setIntroVisible(true);
-    }
+    }).catch(() => {
+      // Ne pas bloquer l'accueil si la vérification de session échoue.
+      if (actif) setIntroVisible(false);
+    });
+
+    return () => {
+      actif = false;
+      subscription.unsubscribe();
+    };
   }, []);
   const langueInitialisee = useRef(false);
   const [position, setPosition] = useState<EtatPosition>("inconnue");
