@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { notifierNAXA } from "@/components/NotificationGlobale";
@@ -69,10 +69,28 @@ function lirePosologies(userId: string): Posologie[] {
   }
 }
 
+function dateHeureDouala(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Douala",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    heure: `${values.hour}:${values.minute}`,
+  };
+}
+
 export default function ConfigurerPosologiePage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [posologies, setPosologies] = useState<Posologie[]>([]);
+  const rappelsLocauxEnvoyes = useRef(new Set<string>());
   const [medicament, setMedicament] = useState("");
   const [dose, setDose] = useState("");
   const [unite, setUnite] = useState(UNITE_DEFAUT);
@@ -96,11 +114,87 @@ export default function ConfigurerPosologiePage() {
         return;
       }
       setUserId(user.id);
-      setPosologies(lirePosologies(user.id));
+      const locales = lirePosologies(user.id);
+      setPosologies(locales);
       setPermission(typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported");
+
+      // Récupère aussi les schémas synchronisés : un nouvel appareil retrouve ainsi
+      // les données du compte sans écraser les entrées locales non encore synchronisées.
+      const { data: distantes, error: erreurSync } = await supabaseBrowser()
+        .from("naxa_posologie_schedules")
+        .select("id,medicament,dose,unite,heures,rappels,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (!active || erreurSync || !distantes) return;
+      const depuisServeur: Posologie[] = distantes.map((item: {
+        id: string; medicament: string; dose: string; unite: string;
+        heures: string[]; rappels: boolean; created_at: string;
+      }) => {
+        const locale = locales.find(candidate => candidate.id === item.id);
+        return {
+          id: item.id,
+          medicament: item.medicament,
+          dose: item.dose,
+          unite: item.unite,
+          prises: item.heures.length,
+          mode: locale?.mode ?? "heures-fixes",
+          intervalleHeures: locale?.intervalleHeures ?? 8,
+          heureDebut: locale?.heureDebut ?? item.heures[0] ?? "07:00",
+          heures: item.heures,
+          rappels: item.rappels,
+          creeLe: locale?.creeLe ?? item.created_at,
+        };
+      });
+      const fusionnees = [
+        ...depuisServeur,
+        ...locales.filter(locale => !depuisServeur.some(distante => distante.id === locale.id)),
+      ].sort((a, b) => Date.parse(b.creeLe) - Date.parse(a.creeLe));
+      setPosologies(fusionnees);
+      try { localStorage.setItem(CLE_PREFIXE + user.id, JSON.stringify(fusionnees)); } catch {}
     })();
     return () => { active = false; };
   }, [router]);
+
+  // Rappels de secours pendant que l'écran est ouvert. Le Push serveur reste
+  // le mécanisme prévu pour les rappels lorsque l'application est en arrière-plan.
+  useEffect(() => {
+    if (!userId || posologies.length === 0) return;
+    const verifierRappels = () => {
+      const moment = dateHeureDouala(new Date());
+      for (const item of posologies) {
+        if (!item.rappels || !Array.isArray(item.heures) || !item.heures.includes(moment.heure)) continue;
+        const cle = `${moment.date}T${moment.heure}`;
+        const identifiant = `${item.id}:${cle}`;
+        if (rappelsLocauxEnvoyes.current.has(identifiant)) continue;
+        const cleStockage = `naxa:posologie-rappel:${userId}:${item.id}`;
+        try {
+          if (localStorage.getItem(cleStockage) === cle) {
+            rappelsLocauxEnvoyes.current.add(identifiant);
+            continue;
+          }
+          localStorage.setItem(cleStockage, cle);
+        } catch {}
+        rappelsLocauxEnvoyes.current.add(identifiant);
+        if ("Notification" in window && Notification.permission === "granted") {
+          try {
+            const notification = new Notification("Rappel NAXA", {
+              body: "Une prise prévue vous attend. Ouvrez NAXA pour consulter votre planning.",
+              icon: "/icon-192.png",
+              tag: `naxa-local-${item.id}-${cle}`,
+            });
+            notification.onclick = () => window.focus();
+          } catch {
+            notifierNAXA(`Rappel NAXA : une prise prévue pour ${item.medicament}.`);
+          }
+        } else {
+          notifierNAXA(`Rappel NAXA : une prise prévue pour ${item.medicament}.`);
+        }
+      }
+    };
+    verifierRappels();
+    const timer = window.setInterval(verifierRappels, 15_000);
+    return () => window.clearInterval(timer);
+  }, [userId, posologies]);
 
   const heuresCalculees = useMemo(() => mode === "intervalle"
     ? Array.from({ length: prises }, (_, index) => heurePlus(heureDebut, index * intervalleHeures))
