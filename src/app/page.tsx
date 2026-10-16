@@ -91,8 +91,14 @@ export default function Accueil() {
     } catch { return "missing"; }
   }
 
+  function enregistrerCookieAge(confirmed: boolean) {
+    // Le middleware utilise ce cookie pour bloquer aussi les accès directs aux autres pages.
+    document.cookie = `naxa-age-status=${confirmed ? "adult" : "minor"}; Max-Age=2592000; Path=/; SameSite=Lax`;
+  }
+
   function declarerAge(confirmed: boolean) {
     try { window.localStorage.setItem("naxa-age-declaration-v1", JSON.stringify({ confirmed, at: Date.now() })); } catch { /* La déclaration reste valable pour cette visite. */ }
+    enregistrerCookieAge(confirmed);
     setAgeGate(confirmed ? null : "minor");
     if (confirmed) setIntroVisible(true);
   }
@@ -121,6 +127,8 @@ export default function Accueil() {
     void sb.auth.getSession().then(({ data: { session } }) => {
       if (!actif) return;
       const age = ageStatus();
+      if (age === "adult") enregistrerCookieAge(true);
+      if (age === "minor") enregistrerCookieAge(false);
       if (age === "missing") {
         setAgeGate("required");
         setIntroVisible(false);
