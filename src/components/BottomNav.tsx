@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePanier } from "@/lib/panier";
 
@@ -18,10 +18,10 @@ function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
 }
 export function BottomNav() {
  const pathname=usePathname();
+ const searchParams=useSearchParams();
+ const achatsTab=searchParams.get("onglet")==="achats";
  const {nombre}=usePanier();
  const [rotating,setRotating]=useState(0);
- const [achatsTab,setAchatsTab]=useState(false);
- useEffect(()=>{const update=()=>setAchatsTab(new URLSearchParams(window.location.search).get("onglet")==="achats");update();window.addEventListener("popstate",update);return()=>window.removeEventListener("popstate",update)},[pathname]);
  useEffect(()=>{const id=window.setInterval(()=>setRotating(v=>(v+1)%3),3000);return()=>window.clearInterval(id)},[]);
  const visible=pathname==="/"||pathname==="/recherche"||pathname==="/scanner"||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
  if(!visible)return null;
