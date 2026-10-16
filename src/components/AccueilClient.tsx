@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Bell, ChevronRight, Lock, MapPin, Search,
-  ShoppingCart, ScanLine, Store,
+  ShoppingCart, Store,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
