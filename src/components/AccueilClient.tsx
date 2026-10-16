@@ -275,7 +275,7 @@ export function AccueilClient() {
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
-            <span className={`mt-2 inline-flex min-h-6 w-fit items-center rounded-full px-2 py-1 text-[11px] font-extrabold leading-4 ${p.ordonnance?"bg-[#0F6B3F] text-white":"bg-[#FFE23D] text-[#0B3D26]"}`}>{p.demo?"Exemple":"Sur ordonnance" === (p.ordonnance ? "Sur ordonnance" : "") ? "Sur ordonnance" : "Disponible"}</span>
+            <span className={`mt-2 inline-flex min-h-6 w-fit items-center rounded-full px-2 py-1 text-[11px] font-extrabold leading-4 ${p.ordonnance?"bg-[#0F6B3F] text-white":"bg-[#FFE23D] text-[#0B3D26]"}`}>{p.demo ? "Exemple" : p.ordonnance ? "Sur ordonnance" : "Disponible"}</span>
             <h3 className="mt-2 line-clamp-2 min-h-12 text-[16px] font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h3>
             <p className="min-h-10 text-[11px] leading-4 text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
             <p className="mt-1 text-[18px] font-extrabold leading-6 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
