@@ -108,7 +108,7 @@ export default function ConfigurerPosologiePage() {
       setErreur("Ajoutez une heure pour chaque prise.");
       return;
     }
-    if (mode === "heures-fixes" && (heuresCalculees.some(h => !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(h)) || new Set(heuresCalculees).size !== heuresCalculees.length)) {
+    if (mode === "heures-fixes" && (heuresCalculees.some(h => !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(h)) || new Set(heuresCalculees).size !== heuresCalculees.length)) {
       setErreur("Vérifiez les heures : chaque prise doit avoir une heure différente.");
       return;
     }
