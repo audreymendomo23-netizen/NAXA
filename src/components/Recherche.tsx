@@ -18,6 +18,10 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
   const router = useRouter();
   const t = textes[langue];
   const [q, setQ] = useState("");
+  useEffect(() => {
+    const initialQuery = new URLSearchParams(window.location.search).get("q");
+    if (initialQuery) setQ(initialQuery.slice(0, 100));
+  }, []);
   const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
   const [lecture, setLecture] = useState<LectureOrdonnance | null>(null);
   const [liste, setListe] = useState<string[]>([]);
