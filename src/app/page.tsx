@@ -83,7 +83,7 @@ export default function Accueil() {
 
   function ageStatus(): "adult" | "minor" | "missing" {
     try {
-      const raw = window.localStorage.getItem("naxa-age-declaration-v1");
+      const raw = window.localStorage.getItem("naxa-home-age-declaration-v1");
       if (!raw) return "missing";
       const declaration = JSON.parse(raw) as { confirmed?: boolean; at?: number };
       if (typeof declaration.at !== "number" || Date.now() - declaration.at < 0 || Date.now() - declaration.at >= 30 * 24 * 60 * 60 * 1000) return "missing";
@@ -93,11 +93,11 @@ export default function Accueil() {
 
   function enregistrerCookieAge(confirmed: boolean) {
     // Le middleware utilise ce cookie pour bloquer aussi les accès directs aux autres pages.
-    document.cookie = `naxa-age-status=${confirmed ? "adult" : "minor"}; Max-Age=2592000; Path=/; SameSite=Lax`;
+    document.cookie = `naxa-age-status-v2=${confirmed ? "adult" : "minor"}; Max-Age=2592000; Path=/; SameSite=Lax`;
   }
 
   function declarerAge(confirmed: boolean) {
-    try { window.localStorage.setItem("naxa-age-declaration-v1", JSON.stringify({ confirmed, at: Date.now() })); } catch { /* La déclaration reste valable pour cette visite. */ }
+    try { window.localStorage.setItem("naxa-home-age-declaration-v1", JSON.stringify({ confirmed, at: Date.now() })); } catch { /* La déclaration reste valable pour cette visite. */ }
     enregistrerCookieAge(confirmed);
     setAgeGate(confirmed ? null : "minor");
     if (confirmed) setIntroVisible(true);
@@ -106,6 +106,14 @@ export default function Accueil() {
   useEffect(() => {
     let actif = true;
     const key = "naxa-intro-seen-v1";
+
+    // Afficher immédiatement le contrôle d'âge, sans attendre la réponse Supabase.
+    // La déclaration d'accueil est indépendante de celles demandées pour les actions.
+    const ageInitial = ageStatus();
+    setAgeGate(ageInitial === "adult" ? null : ageInitial === "minor" ? "minor" : "required");
+    setIntroVisible(false);
+    setIntroReady(true);
+
     const sb = supabaseBrowser();
 
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
