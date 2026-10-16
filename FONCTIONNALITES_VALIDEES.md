@@ -1363,3 +1363,12 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **RPC de recherche :** migration additive `supabase/migration_091_exclude_expired_stocks_search.sql` créée sur `main` (commit `74f36fb87a0afd925bff33c979ddb8b5788eea0a`) puis appliquée à Supabase Production avec succès, version `20261016023027` / `exclude_expired_stocks_search`. Les deux RPC filtrent désormais `date_peremption IS NULL OR date_peremption >= CURRENT_DATE`; aucun stock ni aucune autre donnée n’a été modifié.
 - **Preuve SQL après migration :** `pg_get_functiondef` confirme le filtre dans les deux fonctions. Les deux RPC ont été exécutées avec des entrées vides sans erreur (0 ligne retournée chacune). Le stock de production reste à 9 lignes positives, 0 expirée et 9 sans date de péremption; l’absence de lignes déjà expirées ne permet pas de prouver par données réelles le cas d’exclusion.
 - **État de preuve restant :** la compilation et le déploiement Production du dernier commit documentaire doivent être confirmés. Le parcours mobile complet avec session réelle n’est pas déclaré validé tant qu’un test de bout en bout ne l’a pas démontré.
+
+
+## Complément — Fiabilisation de la recherche client (16/10/2026)
+
+- Fichier : `src/app/resultats/page.tsx`.
+- Défaut confirmé dans le code : lors d'une nouvelle recherche, les anciens résultats pouvaient rester visibles pendant le chargement ; une exception réseau ou de calcul pouvait aussi laisser l'écran bloqué sur « Recherche des pharmacies en cours… ».
+- Correction sur `main` : réinitialisation des résultats et de l'erreur à chaque changement de recherche, capture des exceptions, état d'erreur explicite et garde contre les réponses asynchrones obsolètes lorsque l'utilisateur change rapidement de recherche.
+- Charte conservée : en-tête vert NAXA, composants `carte` et `btn`, palette Tailwind NAXA ; le message d'erreur utilise un panneau blanc arrondi avec bordure rouge sémantique, sans nouvelle couleur de marque.
+- Niveau de preuve à la consignation : code corrigé sur `main`; validation Production dépend du déploiement Vercel correspondant. Pas de simulation navigateur mobile déclarée.
