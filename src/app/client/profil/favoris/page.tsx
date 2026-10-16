@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Heart, Search, Trash2 } from "lucide-react";
 import { ecouterFavoris, ecrireFavoris, lireFavoris, type FavoriNAXA } from "@/lib/favoris-client";
 
@@ -43,7 +43,7 @@ export default function FavorisClientPage() {
     transition: { duration: 0.24, ease: "easeOut" as const },
   };
 
-  return <main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+  return <LazyMotion features={domAnimation}><main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
     <header className="-mx-4 bg-[#0F6B3F] px-4 pb-7 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center gap-3">
         <Link href="/" aria-label="Retour à l’accueil" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10"><ArrowLeft size={21}/></Link>
@@ -56,18 +56,18 @@ export default function FavorisClientPage() {
     </header>
 
     <section className="mx-auto -mt-4 max-w-[480px]">
-      <motion.div {...entree} className="mb-4 rounded-2xl border border-[#D8E5DC] bg-white p-4 shadow-sm">
+      <m.div {...entree} className="mb-4 rounded-2xl border border-[#D8E5DC] bg-white p-4 shadow-sm">
         <p className="text-sm leading-5 text-[#53685C]">Retrouvez ici les médicaments que vous avez enregistrés depuis l’accueil. Les prix et stocks doivent toujours être confirmés auprès de la pharmacie.</p>
         <p className="mt-2 text-sm font-extrabold">{favoris.length} favori{favoris.length === 1 ? "" : "s"}</p>
-      </motion.div>
+      </m.div>
 
-      {favoris.length === 0 ? <motion.div {...entree} className="rounded-[24px] border border-dashed border-[#B9D2C2] bg-white px-6 py-10 text-center shadow-sm">
+      {favoris.length === 0 ? <m.div {...entree} className="rounded-[24px] border border-dashed border-[#B9D2C2] bg-white px-6 py-10 text-center shadow-sm">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F2EB] text-[#0F6B3F]"><Heart size={28}/></span>
         <h2 className="mt-4 text-lg font-extrabold">Votre liste est encore vide</h2>
         <p className="mx-auto mt-2 max-w-xs text-sm leading-5 text-[#64776B]">Touchez le cœur d’un médicament sur l’accueil pour le garder ici et le retrouver plus tard.</p>
         <Link href="/" className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-5 text-sm font-extrabold text-[#0B3D26] shadow-sm transition-transform active:scale-[0.98]"><Search size={17}/> Découvrir les médicaments</Link>
-      </motion.div> : <div className="grid grid-cols-2 gap-3">
-        {favoris.map((item, index) => <motion.article key={item.id} {...(reducedMotion ? {} : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.25, delay: Math.min(index * 0.05, 0.25) } })} className="relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+      </m.div> : <div className="grid grid-cols-2 gap-3">
+        {favoris.map((item, index) => <m.article key={item.id} {...(reducedMotion ? {} : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.25, delay: Math.min(index * 0.05, 0.25) } })} className="relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
           <Link href={item.demo ? "/resultats?q="+encodeURIComponent(item.nom) : "/produit/"+encodeURIComponent(item.id)} aria-label={`Consulter ${item.nom}`} className="flex min-h-24 items-center justify-center rounded-2xl">
             <VisuelProduit item={item}/>
           </Link>
@@ -83,8 +83,8 @@ export default function FavorisClientPage() {
             <Link href={item.demo ? "/resultats?q="+encodeURIComponent(item.nom) : "/produit/"+encodeURIComponent(item.id)} className="flex min-h-10 flex-1 items-center justify-center rounded-xl bg-[#FFE23D] px-2 text-xs font-extrabold">Voir le produit</Link>
             <button type="button" onClick={() => retirer(item.id)} aria-label={`Supprimer ${item.nom}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4F8F5] text-[#0F6B3F]"><Trash2 size={17}/></button>
           </div>
-        </motion.article>)}
+        </m.article>)}
       </div>}
     </section>
-  </main>;
+  </main></LazyMotion>;
 }
