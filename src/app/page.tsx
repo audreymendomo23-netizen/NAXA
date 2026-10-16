@@ -78,6 +78,7 @@ const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const [introVisible, setIntroVisible] = useState(false);
+  const [introReady, setIntroReady] = useState(false);
 
   useEffect(() => {
     let actif = true;
@@ -88,6 +89,7 @@ export default function Accueil() {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
+        setIntroReady(true);
         return;
       }
       if (event === "SIGNED_OUT") {
@@ -103,11 +105,13 @@ export default function Accueil() {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
+        setIntroReady(true);
         return;
       }
       try {
         if (window.sessionStorage.getItem(key) === "1") {
           setIntroVisible(false);
+          setIntroReady(true);
           return;
         }
         window.sessionStorage.setItem(key, "1");
@@ -115,9 +119,13 @@ export default function Accueil() {
         // En cas de stockage indisponible, privilégier l'accès à l'accueil.
       }
       setIntroVisible(true);
+      setIntroReady(true);
     }).catch(() => {
       // Ne pas bloquer l'accueil si la vérification de session échoue.
-      if (actif) setIntroVisible(false);
+      if (actif) {
+        setIntroVisible(false);
+        setIntroReady(true);
+      }
     });
 
     return () => {
@@ -275,6 +283,7 @@ export default function Accueil() {
         </div>
       </footer>
     </main>
+    {!introReady && <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 2147483646, background: "#064B2A" }} />}
     {introVisible && <IntroNaxa onFinish={() => setIntroVisible(false)} />}
     </>
   );
