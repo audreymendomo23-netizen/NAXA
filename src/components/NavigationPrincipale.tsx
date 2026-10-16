@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type IconName = "home" | "search" | "scan" | "shopping" | "user";
+type IconName = "home" | "heart" | "scan" | "shopping" | "user";
 
 function Icon({ name }: { name: IconName }) {
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true as const };
   return <svg viewBox="0 0 24 24" className="h-5 w-5" {...common}>
     {name === "home" && <><path d="m3 10 9-7 9 7" /><path d="M5.5 9v11h13V9M9 20v-6h6v6" /></>}
-    {name === "search" && <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>}
+    {name === "heart" && <path d="M20.8 8.8c0 5.1-8.8 11-8.8 11s-8.8-5.9-8.8-11A4.8 4.8 0 0 1 12 6.3a4.8 4.8 0 0 1 8.8 2.5Z" />}
     {name === "scan" && <><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" /></>}
     {name === "shopping" && <><path d="M5 8h14l1 13H4L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></>}
     {name === "user" && <><circle cx="12" cy="8" r="3.3" /><path d="M5 20c.5-3.4 2.9-5.2 7-5.2s6.5 1.8 7 5.2" /></>}
@@ -27,17 +27,17 @@ export function NavigationPrincipale() {
     window.addEventListener("popstate", actualiser);
     return () => window.removeEventListener("popstate", actualiser);
   }, [pathname]);
-  const visible = pathname === "/" || pathname === "/recherche" || pathname === "/scanner" ||
+  const visible = pathname === "/" || pathname === "/recherche" || pathname === "/scanner" || pathname === "/client/posologie" ||
     pathname === "/resultats" || pathname === "/panier" || pathname === "/gardes" ||
     pathname === "/client" || pathname.startsWith("/client/profil/") ||
     pathname.startsWith("/produit/") || pathname.startsWith("/offre/") || pathname.startsWith("/reservation/");
   if (!visible) return null;
 
   const items: { label: string; href: string; icon: IconName; active: boolean }[] = [
-    { label: "Accueil", href: "/", icon: "home", active: pathname === "/" },
-    { label: "Recherche", href: "/recherche", icon: "search", active: pathname === "/recherche" || pathname === "/resultats" || pathname === "/panier" || pathname === "/gardes" || pathname.startsWith("/produit/") || pathname.startsWith("/offre/") },
+    { label: "Accueil", href: "/", icon: "home", active: pathname === "/" || pathname === "/recherche" || pathname === "/resultats" || pathname === "/gardes" || pathname.startsWith("/produit/") || pathname.startsWith("/offre/") },
+    { label: "Favoris", href: "/client/profil/favoris", icon: "heart", active: favorisActifs },
     { label: "Scanner", href: "/scanner", icon: "scan", active: pathname === "/scanner" },
-    { label: "Achats", href: "/client?onglet=achats", icon: "shopping", active: (pathname === "/client" && ongletAchats) || favorisActifs },
+    { label: "Achats", href: "/client?onglet=achats", icon: "shopping", active: (pathname === "/client" && ongletAchats) || pathname === "/panier" },
     { label: "Profil", href: "/client", icon: "user", active: ((pathname === "/client" || pathname.startsWith("/client/profil/")) && !favorisActifs && !(pathname === "/client" && ongletAchats)) || pathname.startsWith("/reservation/") },
   ];
 
