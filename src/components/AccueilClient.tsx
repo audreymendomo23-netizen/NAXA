@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useRouter } from "next/navigation";
 
 import { IconeNAXA } from "@/components/IconeNAXA";
+import { Logo } from "@/components/Logo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import { notifierNAXA } from "@/components/NotificationGlobale";
@@ -52,12 +53,7 @@ const demoToProduit = (p: (typeof ACCUEIL_PRODUITS_DEMO)[number]): Produit => ({
 });
 
 function LogoNAXA() {
-  return <Link href="/" aria-label="Accueil NAXA" className="flex min-h-11 items-center gap-2">
-    <svg viewBox="0 0 34 38" className="h-9 w-8" aria-hidden="true">
-      <path d="M6 32V6L28 32V6" fill="none" stroke="#FFE23D" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-    <span className="text-[34px] font-extrabold leading-none tracking-tight text-white">NAXA</span>
-  </Link>;
+  return <Logo clair taille={38} />;
 }
 
 function CarteIllustrative({ quartier }: { quartier: string }) {
@@ -94,7 +90,7 @@ function Blister() {
 }
 
 function Squelette() {
-  return <div className="animate-pulse rounded-[20px] bg-white p-3 shadow-sm" aria-label="Chargement des médicaments recommandés">
+  return <div className="animate-pulse rounded-[20px] bg-white p-3 shadow-sm" aria-label="Chargement des médicaments les plus recherchés">
     <div className="naxa-shimmer h-[124px] rounded-xl bg-[#E8EFEB]"/>
     <div className="mt-3 h-5 w-24 rounded-full bg-[#E8EFEB]"/>
     <div className="mt-3 h-5 w-4/5 rounded bg-[#E8EFEB]"/>
@@ -108,7 +104,8 @@ export function AccueilClient() {
   const router = useRouter();
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
-  const [initiales, setInitiales] = useState("JD");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [recherchesLocales, setRecherchesLocales] = useState<Record<string, number>>({});
   const [quartier, setQuartier] = useState("Douala");
   const [coord, setCoord] = useState<{lat:number;lng:number}|null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
@@ -122,6 +119,10 @@ export function AccueilClient() {
   useEffect(() => {
     const actualiser = () => setFavoris(lireFavoris().map(f => f.id));
     actualiser();
+    try {
+      const saved = window.localStorage.getItem("naxa-recherches-produits-v1");
+      if (saved) setRecherchesLocales(JSON.parse(saved) as Record<string, number>);
+    } catch { /* Le catalogue reste utilisable si le stockage local est indisponible. */ }
     return ecouterFavoris(actualiser);
   }, []);
 
@@ -137,10 +138,10 @@ export function AccueilClient() {
         if (!active) return;
         if (user) {
           setUserId(user.id);
-          const { data: profile } = await sb.from("profiles").select("first_name,last_name").eq("id", user.id).maybeSingle();
+          const { data: profile } = await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
           const meta = user.user_metadata ?? {};
-          const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || meta.full_name || meta.name || user.email || "JD";
-          setInitiales(String(name).trim().split(/\s+/).slice(0,2).map((part: string) => part[0]?.toUpperCase() ?? "").join("") || "JD");
+          const photo = profile?.avatar_url || meta.avatar_url || meta.picture || meta.photo_url || null;
+          if (typeof photo === "string" && /^https:\/\//i.test(photo)) setAvatarUrl(photo);
         }
         const { data: ps, error: productError } = await sb.from("produits").select("id,nom,dosage,forme,photo_url,fabricant,sur_ordonnance").order("nom").limit(30);
         if (productError) throw productError;
@@ -172,7 +173,7 @@ export function AccueilClient() {
           const aRank = /parac[eé]tamol/i.test(a.nom) ? 0 : /coartem/i.test(a.nom) ? 1 : 2;
           const bRank = /parac[eé]tamol/i.test(b.nom) ? 0 : /coartem/i.test(b.nom) ? 1 : 2;
           return aRank-bRank;
-        }).slice(0,2);
+        }).slice(0,6);
         setProduits(sorted.length ? sorted : ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
         if (!sorted.length) setError(true);
         }
@@ -199,6 +200,12 @@ export function AccueilClient() {
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
+    const term = query.trim().toLocaleLowerCase("fr");
+    setRecherchesLocales(current => {
+      const next = { ...current, [term]: (current[term] ?? 0) + 1 };
+      try { window.localStorage.setItem("naxa-recherches-produits-v1", JSON.stringify(next)); } catch { /* Le parcours de recherche ne dépend pas du stockage local. */ }
+      return next;
+    });
     router.push("/recherche?q=" + encodeURIComponent(query.trim()));
   };
   const localiser = useCallback(() => {
@@ -234,7 +241,7 @@ export function AccueilClient() {
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div><LogoNAXA/></div>
         <div className="flex items-center gap-2">
-          <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{initiales}</Link>
+          <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{avatarUrl ? <Image src={avatarUrl} alt="Photo de profil" width={48} height={48} className="h-full w-full object-cover" unoptimized /> : <IconeNAXA name="user-round" size={23}/>}</Link>
           <Link href="/notifications" aria-label="Notifications" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white">
             <IconeNAXA name="bell" size={24}/>
           </Link>
@@ -262,6 +269,7 @@ export function AccueilClient() {
         </Link>
       </div>
 
+      <h2 className="naxa-enter mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies à Proximité</h2>
       <section className="naxa-enter mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
         <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} /></button>
         <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
@@ -272,18 +280,23 @@ export function AccueilClient() {
 
       <section className="mb-6">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Médicaments recommandés</h2>
+          <h2 className="text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
           <Link href="/resultats?q=paracétamol" className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#FFF3B0] px-2.5 text-xs font-extrabold text-[#0B3D26]">Voir tout <IconeNAXA name="chevron-right" size={16}/></Link>
         </div>
-        {loading ? <div className="grid grid-cols-2 gap-3.5"><Squelette/><Squelette/></div> : <div className="grid grid-cols-2 gap-3.5">
-          {produits.map((p,i)=><article key={p.id} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+        {loading ? <div className="grid grid-cols-2 gap-3.5"><Squelette/><Squelette/></div> : <div className="naxa-reveal-list grid grid-cols-2 gap-3.5">
+          {[...produits].sort((a,b) => { const score = (p: Produit) => Object.entries(recherchesLocales).reduce((total,[term,count]) => total + (p.nom.toLocaleLowerCase("fr").includes(term) ? count : 0), 0); return score(b)-score(a); }).map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
             <button type="button" onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white/95 text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
               <IconeNAXA name="heart" size={19} filled={favoris.includes(p.id)} />
             </button>
-            <span className={`mt-2 inline-flex min-h-6 w-fit items-center rounded-full px-2 py-1 text-[11px] font-extrabold leading-4 ${p.ordonnance?"bg-[#0F6B3F] text-white":"bg-[#FFE23D] text-[#0B3D26]"}`}>{p.demo ? "Exemple" : p.ordonnance ? "Sur ordonnance" : "Disponible"}</span>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {p.quantite > 0 && p.pharmacie_id && !p.demo && <span className="inline-flex min-h-6 items-center rounded-full bg-[#E1F4E7] px-2 py-1 text-[11px] font-extrabold leading-4 text-[#176B38]">Disponible</span>}
+              {p.ordonnance && !p.demo && <span className="inline-flex min-h-6 items-center rounded-full bg-[#0F6B3F] px-2 py-1 text-[11px] font-extrabold leading-4 text-white">Sur ordonnance</span>}
+              {p.demo && <span className="inline-flex min-h-6 items-center rounded-full bg-[#FFF3B0] px-2 py-1 text-[11px] font-extrabold leading-4 text-[#0B3D26]">Exemple</span>}
+              {!p.demo && (!p.quantite || !p.pharmacie_id) && <span className="inline-flex min-h-6 items-center rounded-full bg-[#FFF3B0] px-2 py-1 text-[11px] font-extrabold leading-4 text-[#0B3D26]">Stock à confirmer</span>}
+            </div>
             <h3 className="mt-2 line-clamp-2 min-h-12 text-[16px] font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h3>
             <p className="min-h-10 text-[11px] leading-4 text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
             <p className="mt-1 text-[18px] font-extrabold leading-6 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
