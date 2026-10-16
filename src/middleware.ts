@@ -34,6 +34,25 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/api/auth/signup-otp/");
   if (authFlow) return NextResponse.next({ request: req });
 
+  // La déclaration d’âge ne doit pas protéger uniquement l’écran d’accueil :
+  // les accès directs aux pages applicatives exigent aussi une déclaration adulte.
+  const ageExemptPath =
+    path === "/" ||
+    path === "/conditions-utilisation" ||
+    path.startsWith("/conditions-utilisation/") ||
+    path === "/politique-confidentialite" ||
+    path.startsWith("/politique-confidentialite/") ||
+    path === "/politique-securite" ||
+    path.startsWith("/politique-securite/") ||
+    path.startsWith("/api/");
+  const ageStatus = req.cookies.get("naxa-age-status")?.value;
+  if (!ageExemptPath && ageStatus !== "adult") {
+    const target = req.nextUrl.clone();
+    target.pathname = "/";
+    target.search = "";
+    return NextResponse.redirect(target);
+  }
+
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
