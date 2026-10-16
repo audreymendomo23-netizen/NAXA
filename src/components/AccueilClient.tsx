@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  Bell, CheckCircle2, ChevronRight, Lock, MapPin, Search,
+  Bell, ChevronRight, Lock, MapPin, Search,
   ShoppingCart, ScanLine, Store,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -105,7 +105,7 @@ function Squelette() {
 
 export function AccueilClient() {
   const reducedMotion = useReducedMotion();
-  const { ajouter, nombre } = usePanier();
+  const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
   const [initiales, setInitiales] = useState("JD");
   const [quartier, setQuartier] = useState("Douala");
@@ -115,7 +115,6 @@ export function AccueilClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [added, setAdded] = useState<string|null>(null);
-  const [newNotification, setNewNotification] = useState(false);
   const [userId, setUserId] = useState<string|null>(null);
 
   useEffect(() => {
@@ -130,9 +129,9 @@ export function AccueilClient() {
         if (!active) return;
         if (user) {
           setUserId(user.id);
-          const { data: profile } = await sb.from("profiles").select("first_name,last_name,full_name").eq("id", user.id).maybeSingle();
+          const { data: profile } = await sb.from("profiles").select("first_name,last_name").eq("id", user.id).maybeSingle();
           const meta = user.user_metadata ?? {};
-          const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || meta.full_name || meta.name || user.email || "JD";
+          const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || meta.full_name || meta.name || user.email || "JD";
           setInitiales(String(name).trim().split(/\s+/).slice(0,2).map((part: string) => part[0]?.toUpperCase() ?? "").join("") || "JD");
         }
         const { data: ps, error: productError } = await sb.from("produits").select("id,nom,dosage,forme,photo_url").order("nom").limit(30);
@@ -204,7 +203,7 @@ export function AccueilClient() {
       else setQuartier("Douala");
     }, () => setQuartier("Douala"), {maximumAge:300000,timeout:8000});
   }, [pharmacies]);
-  const pharmacyCount = pharmaciesProches.length;
+  const pharmacyCount = pharmaciesProches.filter(p => p.distanceKm !== null && p.distanceKm <= 1.2).length;
   const addToCart = (p:Produit) => {
     if (p.ordonnance) { window.location.href = "/scanner"; return; }
     if (p.demo || !p.pharmacie_id) {
@@ -225,7 +224,6 @@ export function AccueilClient() {
           <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{initiales}</Link>
           <Link href="/notifications" aria-label="Notifications" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white">
             <Bell size={24} strokeWidth={2} aria-hidden="true"/>
-            {newNotification && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#FFE23D]"/>}
           </Link>
         </div>
       </div>
