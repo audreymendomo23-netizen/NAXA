@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 type IconName = "home" | "search" | "scan" | "heart" | "user";
 
@@ -18,7 +18,6 @@ function Icon({ name }: { name: IconName }) {
 
 export function NavigationPrincipale() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const favorisActifs = pathname === "/client/profil/favoris";
   const visible = pathname === "/" || pathname === "/recherche" || pathname === "/scanner" ||
     pathname === "/resultats" || pathname === "/panier" || pathname === "/gardes" ||
