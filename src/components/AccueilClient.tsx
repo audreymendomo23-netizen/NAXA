@@ -309,7 +309,7 @@ export function AccueilClient() {
           <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
           <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">Pharmacie de garde{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
           <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><Store size={25}/></span><span className="flex-1"><strong className="block">Pharmacies de garde à Douala</strong><span className="text-sm text-[#64776B]">Consulter la liste disponible</span></span><IconeNAXA name="chevron-right" size={18}/></Link>}
+        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span><span className="flex-1"><strong className="block">Pharmacies de garde à Douala</strong><span className="text-sm text-[#64776B]">Consulter la liste disponible</span></span><IconeNAXA name="chevron-right" size={18}/></Link>}
       </section>
     </main>
   </div>;
