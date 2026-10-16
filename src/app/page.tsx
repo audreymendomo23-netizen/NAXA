@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EnTeteAccueil } from "@/components/EnTeteAccueil";
+import { AccueilClient } from "@/components/AccueilClient";
 import { IntroNaxa } from "@/components/IntroNaxa";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Recherche } from "@/components/Recherche";
@@ -250,7 +251,8 @@ export default function Accueil() {
 
   return (
     <>
-    <main className="home-ecran flex flex-col bg-[#F2FAF5]">
+    <AccueilClient />
+    <main aria-hidden="true" className="hidden">
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
