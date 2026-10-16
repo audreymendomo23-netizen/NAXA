@@ -76,14 +76,16 @@ const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
-  const [introVisible, setIntroVisible] = useState(false);
+  const [introVisible, setIntroVisible] = useState(true);
 
   useEffect(() => {
     try {
       const key = "naxa-intro-seen-v1";
-      if (window.sessionStorage.getItem(key) === "1") return;
+      if (window.sessionStorage.getItem(key) === "1") {
+        setIntroVisible(false);
+        return;
+      }
       window.sessionStorage.setItem(key, "1");
-      setIntroVisible(true);
     } catch {
       // Le stockage peut être indisponible : l’introduction reste accessible.
       setIntroVisible(true);
