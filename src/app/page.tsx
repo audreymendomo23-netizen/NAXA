@@ -79,6 +79,23 @@ export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const [introVisible, setIntroVisible] = useState(false);
   const [introReady, setIntroReady] = useState(false);
+  const [ageGate, setAgeGate] = useState<"required" | "minor" | null>(null);
+
+  function ageStatus(): "adult" | "minor" | "missing" {
+    try {
+      const raw = window.localStorage.getItem("naxa-age-declaration-v1");
+      if (!raw) return "missing";
+      const declaration = JSON.parse(raw) as { confirmed?: boolean; at?: number };
+      if (typeof declaration.at !== "number" || Date.now() - declaration.at < 0 || Date.now() - declaration.at >= 30 * 24 * 60 * 60 * 1000) return "missing";
+      return declaration.confirmed === true ? "adult" : "minor";
+    } catch { return "missing"; }
+  }
+
+  function declarerAge(confirmed: boolean) {
+    try { window.localStorage.setItem("naxa-age-declaration-v1", JSON.stringify({ confirmed, at: Date.now() })); } catch { /* La déclaration reste valable pour cette visite. */ }
+    setAgeGate(confirmed ? null : "minor");
+    if (confirmed) setIntroVisible(true);
+  }
 
   useEffect(() => {
     let actif = true;
@@ -103,6 +120,20 @@ export default function Accueil() {
 
     void sb.auth.getSession().then(({ data: { session } }) => {
       if (!actif) return;
+      const age = ageStatus();
+      if (age === "missing") {
+        setAgeGate("required");
+        setIntroVisible(false);
+        setIntroReady(true);
+        return;
+      }
+      if (age === "minor") {
+        setAgeGate("minor");
+        setIntroVisible(false);
+        setIntroReady(true);
+        return;
+      }
+      setAgeGate(null);
       if (session) {
         setIntroVisible(false);
         setIntroReady(true);
@@ -121,8 +152,9 @@ export default function Accueil() {
       setIntroVisible(true);
       setIntroReady(true);
     }).catch(() => {
-      // Ne pas bloquer l'accueil si la vérification de session échoue.
       if (actif) {
+        const age = ageStatus();
+        setAgeGate(age === "adult" ? null : age === "minor" ? "minor" : "required");
         setIntroVisible(false);
         setIntroReady(true);
       }
@@ -186,13 +218,17 @@ export default function Accueil() {
 
   return (
     <>
-    <main className="home-ecran flex flex-col bg-naxa-green-50">
+    <main className="home-ecran flex flex-col bg-[#F2FAF5]">
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
-        <div className="carte">
+        <section aria-label="Recherche publique" className="rounded-3xl border border-[#DDF3E6] bg-white p-4 shadow-[0_14px_40px_rgba(6,75,42,0.09)] sm:p-5">
+          <div className="mb-3 flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#E5F5EB] text-[#064B2A]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span>
+            <div><h2 className="font-extrabold text-[#064B2A]">Que recherchez-vous ?</h2><p className="mt-0.5 text-xs leading-5 text-slate-500">Médicaments, pharmacies et pharmacies de garde.</p></div>
+          </div>
           <Recherche langue={langue} />
-        </div>
+        </section>
       </div>
 
       <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col gap-3 px-4 py-3">
@@ -284,7 +320,23 @@ export default function Accueil() {
       </footer>
     </main>
     {!introReady && <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 2147483646, background: "#064B2A" }} />}
-    {introVisible && <IntroNaxa onFinish={() => setIntroVisible(false)} />}
+    {ageGate && <div className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-[#064B2A] p-4" role="dialog" aria-modal="true" aria-labelledby="naxa-age-gate-title">
+      <section className="w-full max-w-md rounded-3xl border border-white/15 bg-white p-6 shadow-2xl sm:p-8">
+        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2FAF5] text-[#064B2A]" aria-hidden="true">
+          <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Z"/><path d="m8.5 12 2.3 2.3 4.8-5"/></svg>
+        </div>
+        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0A6B3A]">NAXA · Santé & proximité</p>
+        <h2 id="naxa-age-gate-title" className="mt-2 text-2xl font-extrabold leading-tight text-[#064B2A]">{ageGate === "minor" ? "Accès non autorisé" : "Avant d’accéder à NAXA"}</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{ageGate === "minor" ? "Vous avez déclaré avoir moins de 18 ans. L’accès à NAXA est bloqué. Cette décision est mémorisée sur cet appareil pendant 30 jours." : "NAXA est destiné aux personnes âgées de 18 ans ou plus. Confirmez votre âge pour accéder à la recherche publique de médicaments et de pharmacies."}</p>
+        {ageGate === "required" && <div className="mt-6 grid gap-3">
+          <button type="button" className="btn btn-canari w-full" onClick={() => declarerAge(true)}>J’ai 18 ans ou plus</button>
+          <button type="button" className="btn btn-clair w-full" onClick={() => declarerAge(false)}>J’ai moins de 18 ans</button>
+        </div>}
+        {ageGate === "minor" && <p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">La recherche publique et les actions de la plateforme ne sont pas accessibles après cette déclaration.</p>}
+        <p className="mt-5 text-xs leading-5 text-slate-500">Cette déclaration est une indication fournie par l’utilisateur et ne constitue pas, à elle seule, une vérification d’identité ou d’âge.</p>
+      </section>
+    </div>}
+    {introVisible && !ageGate && <IntroNaxa onFinish={() => setIntroVisible(false)} />}
     </>
   );
 }
