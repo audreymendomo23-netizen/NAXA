@@ -1380,7 +1380,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Défauts confirmés dans le code : les erreurs de lecture pouvaient laisser indéfiniment un écran « Chargement… » ; le chargement du paiement et les actions de référence/annulation ne capturaient pas toutes les exceptions réseau et n’empêchaient pas systématiquement les doubles soumissions.
 - Correction sur `main` : état d’échec explicite avec bouton Réessayer, capture des erreurs de paiement et des actions, états occupés et boutons désactivés pendant les opérations, validation minimale de la référence, affichage du quartier et de la référence communiquée.
 - Charte conservée : en-tête vert NAXA, logo existant, composants `carte`, `btn-vert`, `btn-clair` et couleurs Tailwind déjà définies ; aucun changement de palette.
-- Niveau de preuve : changement commité sur `main`. Le build et l’état du déploiement correspondant doivent être confirmés par Vercel ; aucun test navigateur réel n’est revendiqué.
+- Preuve Vercel : déploiement Production `dpl_FJ4kBq5XBxh19vXhij7sEPGorucT`, état `READY`, alias `naxa-naxa3.vercel.app` et `naxa-git-main-naxa3.vercel.app` observés lors du contrôle du 16/10/2026. Aucun test navigateur réel n’est revendiqué.
 
 
 ## Complément — Limite du panier expliquée au client (16/10/2026)
@@ -1389,4 +1389,4 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Défaut confirmé : lorsque le panier contenait déjà le maximum de produits distincts, la fonction d’ajout ignorait silencieusement le nouvel article alors que l’interface pouvait annoncer « 0 dans votre panier ».
 - Correction sur `main` : vérification de la limite avant l’ajout et message explicite indiquant la limite de ${10} produits distincts et l’action nécessaire.
 - Charte conservée : boutons NAXA existants ; message d’erreur dans un panneau blanc arrondi avec bordure rouge sémantique, cohérent avec les autres erreurs.
-- Niveau de preuve : code commité ; déploiement Vercel en cours de vérification.
+- Preuve Vercel : déploiement Production du code `dpl_EyS7zrHZCGnQ2mdtvtsUurEuKq3Y` (`d6beaef7c665a1dbd7ce30ca6cd1a801ba3d07c7`) et déploiement documentaire `dpl_Ep5BbxD1PMxnQohxCg8ziudSiwGU` (`87605b9ccf8c4467e2c22c4f31af2273753bc56e`) tous deux `READY`; alias `naxa-naxa3.vercel.app` et `naxa-git-main-naxa3.vercel.app` observés. Aucun test navigateur réel n’est revendiqué.
