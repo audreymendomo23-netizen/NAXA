@@ -14,7 +14,7 @@ import {
 type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; source: string[]; availability: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 
-export function Recherche({ langue }: { langue: "fr" | "en" }) {
+export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en"; mode?: "recherche" | "scanner" }) {
   const router = useRouter();
   const t = textes[langue];
   const [q, setQ] = useState("");
@@ -22,7 +22,7 @@ export function Recherche({ langue }: { langue: "fr" | "en" }) {
   const [lecture, setLecture] = useState<LectureOrdonnance | null>(null);
   const [liste, setListe] = useState<string[]>([]);
   const [etat, setEtat] = useState<"repos" | "lecture" | "erreur">("repos");
-  const [choixScanner, setChoixScanner] = useState(false);
+  const [choixScanner, setChoixScanner] = useState(mode === "scanner");
   const champ = useRef<HTMLInputElement>(null);
   const listeRef = useRef<HTMLDivElement>(null);
   const fichier = useRef<HTMLInputElement>(null);
