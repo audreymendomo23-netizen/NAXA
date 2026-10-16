@@ -45,7 +45,7 @@ export async function middleware(req: NextRequest) {
     path === "/politique-securite" ||
     path.startsWith("/politique-securite/") ||
     path.startsWith("/api/");
-  const ageStatus = req.cookies.get("naxa-age-status")?.value;
+  const ageStatus = req.cookies.get("naxa-age-status-v2")?.value;
   if (!ageExemptPath && ageStatus !== "adult") {
     const target = req.nextUrl.clone();
     target.pathname = "/";
