@@ -1432,3 +1432,14 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - La présentation NAXA et l’action d’impression/enregistrement PDF sont conservées. Aucun accès à la base Production ni aucune modification de données n’a été effectué.
 - Commit code : `dfb040fac4c8d32eb346150ca7716354679d0f54`.
 - Niveau de preuve : modification commise sur `main`; build et déploiement Production à confirmer. Aucun test navigateur de bout en bout revendiqué.
+
+
+
+## Complément — Blocage du paiement après expiration d’une réservation (16/10/2026)
+
+- Fichiers : `src/app/api/pay/[id]/route.ts` et `src/app/reservation/[id]/page.tsx`.
+- Contradiction : l’interface et l’API autorisaient encore l’ouverture du paiement lorsque le statut était `en_attente` ou `confirmee`, sans vérifier que `expires_at` était dans le futur. Une réservation dont le délai était dépassé pouvait donc continuer à présenter une étape de paiement.
+- Correction sur `main` : contrôle serveur obligatoire de `expires_at`, réponses distinctes pour réservation introuvable/non payable/expirée, gestion des exceptions réseau ou Supabase et en-tête `Cache-Control: no-store`. L’interface masque les actions et indique que le délai est dépassé.
+- Aucun changement de base ni de statut n’est effectué par cette correction.
+- Commits : `f9ec82792eafdd4a7b4335dc92fb40100db48b8b` et `2f02d750d05433d91f153bea3328a9e46dfc9c91`.
+- Niveau de preuve : code appliqué à `main`; build et déploiement Production à confirmer. Aucun test de paiement de bout en bout n’est revendiqué.
