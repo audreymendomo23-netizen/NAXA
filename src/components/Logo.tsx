@@ -3,8 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { IntroNaxa } from "@/components/IntroNaxa";
+import { useEffect } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 function destinationInitiale(pathname: string): string {
@@ -27,7 +26,6 @@ function estPhaseAuthentification(pathname: string): boolean {
 export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: number }) {
   const pathname = usePathname();
   const [destination, setDestination] = useState(() => destinationInitiale(pathname));
-  const [introOpen, setIntroOpen] = useState(false);
 
   useEffect(() => {
     let actif = true;
@@ -69,11 +67,13 @@ export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: 
 
   return (
     <>
-    <Link href={destination} aria-label={libelle} title={libelle} className="inline-flex shrink-0" onClick={(event) => {
+    <Link href={destination} aria-label={libelle} title={libelle} className="inline-flex shrink-0" onClick={() => {
       if (destination !== "/") return;
-      event.preventDefault();
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.location.assign("/"); return; }
-      setIntroOpen(true);
+      try {
+        window.sessionStorage.setItem("naxa-intro-seen-v1", "1");
+      } catch {
+        // Le logo reste un lien normal vers l'accueil.
+      }
     }}>
       <Image
         src={clair ? "/naxa-logo.png" : "/naxa-logo-sombre.png"}
@@ -83,7 +83,6 @@ export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: 
         priority
       />
     </Link>
-    {introOpen && <IntroNaxa onFinish={() => { setIntroOpen(false); window.location.assign("/"); }} />}
     </>
   );
 }
