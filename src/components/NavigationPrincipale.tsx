@@ -43,7 +43,7 @@ export function NavigationPrincipale() {
 
   return <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-100 bg-white/95 px-1.5 pt-2 shadow-[0_-5px_20px_rgba(6,75,42,0.08)] backdrop-blur-sm" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 6px)" }}>
     <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
-      {items.map((item) => <Link key={item.label} href={item.href} onClick={() => { if (item.label === "Achats") setOngletAchats(true); else if (item.label === "Profil") setOngletAchats(false); }} aria-current={item.active ? "page" : undefined>
+      {items.map((item) => <Link key={item.label} href={item.href} onClick={() => { if (item.label === "Achats") setOngletAchats(true); else if (item.label === "Profil") setOngletAchats(false); }} aria-current={item.active ? "page" : undefined}
         className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[10px] leading-none transition-colors ${item.active ? "bg-[#FFE33D] font-extrabold text-[#064B2A]" : "font-semibold text-[#6B8275] hover:bg-emerald-50"}`}>
         <Icon name={item.icon} />
         <span>{item.label}</span>
