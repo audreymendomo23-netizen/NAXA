@@ -1381,3 +1381,12 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Correction sur `main` : état d’échec explicite avec bouton Réessayer, capture des erreurs de paiement et des actions, états occupés et boutons désactivés pendant les opérations, validation minimale de la référence, affichage du quartier et de la référence communiquée.
 - Charte conservée : en-tête vert NAXA, logo existant, composants `carte`, `btn-vert`, `btn-clair` et couleurs Tailwind déjà définies ; aucun changement de palette.
 - Niveau de preuve : changement commité sur `main`. Le build et l’état du déploiement correspondant doivent être confirmés par Vercel ; aucun test navigateur réel n’est revendiqué.
+
+
+## Complément — Limite du panier expliquée au client (16/10/2026)
+
+- Fichier : `src/components/AjouterPanier.tsx`.
+- Défaut confirmé : lorsque le panier contenait déjà le maximum de produits distincts, la fonction d’ajout ignorait silencieusement le nouvel article alors que l’interface pouvait annoncer « 0 dans votre panier ».
+- Correction sur `main` : vérification de la limite avant l’ajout et message explicite indiquant la limite de ${10} produits distincts et l’action nécessaire.
+- Charte conservée : boutons NAXA existants ; message d’erreur dans un panneau blanc arrondi avec bordure rouge sémantique, cohérent avec les autres erreurs.
+- Niveau de preuve : code commité ; déploiement Vercel en cours de vérification.
