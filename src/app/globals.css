@@ -376,3 +376,10 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-shimmer::after { content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-110%); background: linear-gradient(100deg,transparent 15%,rgba(255,255,255,.7) 50%,transparent 85%); animation: naxa-shimmer 1.5s ease-in-out infinite; }
 @keyframes naxa-shimmer { to { transform: translateX(110%); } }
 @media (prefers-reduced-motion: reduce) { .naxa-pin-pulse, .naxa-shimmer::after { animation: none !important; } }
+
+
+/* Accueil et favoris : animations CSS légères, sans bibliothèque runtime. */
+.naxa-enter { animation: naxa-enter 280ms ease-out both; }
+.naxa-pin-marker { animation: naxa-enter 300ms ease-out both; }
+@keyframes naxa-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .naxa-enter, .naxa-pin-marker, .naxa-pin-pulse, .naxa-shimmer::after, .animate-pulse { animation: none !important; transition: none !important; } }
