@@ -1443,3 +1443,13 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Aucun changement de base ni de statut n’est effectué par cette correction.
 - Commits : `f9ec82792eafdd4a7b4335dc92fb40100db48b8b` et `2f02d750d05433d91f153bea3328a9e46dfc9c91`.
 - Niveau de preuve : code appliqué à `main`; build et déploiement Production à confirmer. Aucun test de paiement de bout en bout n’est revendiqué.
+
+
+## Correction — écran vert vide et délai du middleware (16/10/2026)
+
+- Cause d’affichage confirmée dans le HTML de Production : l’accueil rendait un panneau vert fixe plein écran tant que l’état client `introReady` n’était pas activé. Si l’hydratation JavaScript était retardée ou échouait, ce panneau masquait toute la page sans message.
+- Correction sur `main` : suppression de ce panneau vide et rendu initial explicite du dialogue de déclaration d’âge; le contrôle d’âge reste actif.
+- Cause de lenteur confirmée dans `src/middleware.ts` : le middleware appelait `supabase.auth.getUser()` même pour les pages publiques et les écrans exemptés, avec un risque d’attente réseau avant de servir la page.
+- Correction sur `main` : les pages publiques, routes API et écrans d’authentification exemptés sortent maintenant du middleware avant l’appel à Supabase; les routes protégées conservent leurs contrôles d’accès.
+- Commits : `ae02246451ca566b8e7bb195143e44878fdcdf58` (écran d’accueil) et `71e2d86d4d038e79d4281e69b2391c78df6c8ed7` (middleware).
+- Niveau de preuve : cause identifiée par le HTML de Production et le code de `main); déploiement et vérification HTTP après déploiement à confirmer.
