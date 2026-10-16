@@ -109,7 +109,8 @@ function Squelette() {
 }
 
 export function AccueilClient() {
-  const reducedMotion = useReducedMotion();\n  const router = useRouter();
+  const reducedMotion = useReducedMotion();
+  const router = useRouter();
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
   const [initiales, setInitiales] = useState("JD");
