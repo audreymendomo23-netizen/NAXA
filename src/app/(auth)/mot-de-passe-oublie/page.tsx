@@ -47,16 +47,33 @@ function Formulaire(){
  const showUsernameSubmit=username.trim().length>0||busy||Boolean(error);
  const showPasswordSubmit=password.length>0||confirmation.length>0||busy||Boolean(error);
  async function envoyer(e:React.FormEvent){
-   e.preventDefault();setBusy(true);setError("");
-   const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});
-   const data=await res.json();if(!res.ok){setBusy(false);if(res.status===404)setUsernameRecognition("unrecognized");setError(data.error||"Impossible de vérifier ce compte. Réessayez.");return}setUsernameRecognition("recognized");setOtpVersion(v=>v+1);setOtpSeconds(60);window.setTimeout(()=>{setBusy(false);allerEtape("otp");notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")},450);
+   e.preventDefault();
+   if(busy)return;
+   setBusy(true);setError("");
+   try{
+     const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:username.trim().toLowerCase()})});
+     const data=await res.json();
+     if(!res.ok){if(res.status===404)setUsernameRecognition("unrecognized");setError(data.error||"Impossible de vérifier ce compte. Réessayez.");setBusy(false);return}
+     setUsernameRecognition("recognized");setOtpVersion(v=>v+1);setOtpSeconds(60);
+     window.setTimeout(()=>{setBusy(false);allerEtape("otp");notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")},450);
+   }catch{
+     setBusy(false);
+     setError("Connexion impossible pour le moment. Vérifiez votre réseau puis réessayez.");
+   }
  }
  async function renvoyer(){if(otpSeconds>0||resending)return;setResending(true);setError("");try{const res=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});const data=await res.json();if(!res.ok){setError(data.error||"Impossible de renvoyer le code.");return}setOtpVersion(v=>v+1);setOtpSeconds(60);notifierNAXA(data.message||"Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.")}catch{setError("Impossible de renvoyer le code. Vérifiez votre connexion.")}finally{setResending(false)}}
  async function verifierCode(value:string){setBusy(true);setError("");try{const res=await fetch("/api/auth/forgot-password/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,token:value})});const data=await res.json();if(!res.ok){setError(data.error||"Code incorrect ou expiré.");return false}return true}catch{setError("Vérification impossible. Vérifiez votre connexion.");return false}finally{setBusy(false)}}
  async function mettreAJour(e:React.FormEvent){
    e.preventDefault();if(!passwordValid){setError(password!==confirmation?"Les deux mots de passe ne correspondent pas.":"Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");return}
-   setBusy(true);setError("");const {error}=await supabaseBrowser().auth.updateUser({password});if(error){setBusy(false);const details=String(error.message||"").toLowerCase();setError(/same|different.*password|new password.*old password|should be different/.test(details)?"Ce mot de passe est votre mot de passe actuel.":/password.*(weak|short|characters|requirements|strength)/.test(details)?"Utilisez un mot de passe plus sécurisé : au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.":"Impossible de mettre à jour le mot de passe. Vérifiez les critères et réessayez.");return}
-   await supabaseBrowser().auth.signOut();setBusy(false);router.push(`/connexion?retour=${encodeURIComponent(retour)}&motDePasseMisAJour=1`);
+   setBusy(true);setError("");
+   try{
+     const {error}=await supabaseBrowser().auth.updateUser({password});
+     if(error){const details=String(error.message||"").toLowerCase();setError(/same|different.*password|new password.*old password|should be different/.test(details)?"Ce mot de passe est votre mot de passe actuel.":/password.*(weak|short|characters|requirements|strength)/.test(details)?"Utilisez un mot de passe plus sécurisé : au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.":"Impossible de mettre à jour le mot de passe. Vérifiez les critères et réessayez.");return}
+     await supabaseBrowser().auth.signOut();
+     router.push(`/connexion?retour=${encodeURIComponent(retour)}&motDePasseMisAJour=1`);
+   }catch{
+     setError("Connexion impossible pour le moment. Vérifiez votre réseau puis réessayez.");
+   }finally{setBusy(false)}
  }
  return <form onSubmit={step==="username"?envoyer:step==="otp"?(e)=>e.preventDefault():mettreAJour} noValidate onInvalidCapture={(e)=>{e.preventDefault();const field=e.target as HTMLInputElement;setError(field.validity.typeMismatch?"Format invalide.":field.validity.valueMissing?"Ce champ est obligatoire.":"Vérifiez les informations saisies.")}} className="mx-auto w-full max-w-sm space-y-4 bg-transparent px-0 pb-5 pt-[54px] text-center shadow-none sm:pt-[54px]">
   {step!=="otp"&&<h1 className="mb-3 text-center text-[clamp(1.5rem,8vw,2.25rem)] font-extrabold text-[#064B2A]">{step==="password"?"Modifier mot de passe":"Mot de passe oublié"}</h1>}
