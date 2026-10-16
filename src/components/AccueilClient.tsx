@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Bell, ChevronRight, Lock, MapPin, Search,
@@ -106,7 +107,7 @@ function Squelette() {
 }
 
 export function AccueilClient() {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion();\n  const router = useRouter();
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
   const [initiales, setInitiales] = useState("JD");
@@ -136,9 +137,9 @@ export function AccueilClient() {
           const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || meta.full_name || meta.name || user.email || "JD";
           setInitiales(String(name).trim().split(/\s+/).slice(0,2).map((part: string) => part[0]?.toUpperCase() ?? "").join("") || "JD");
         }
-        const { data: ps, error: productError } = await sb.from("produits").select("id,nom,dosage,forme,photo_url").order("nom").limit(30);
+        const { data: ps, error: productError } = await sb.from("produits").select("id,nom,dosage,forme,photo_url,fabricant,sur_ordonnance").order("nom").limit(30);
         if (productError) throw productError;
-        const products = (ps ?? []) as Array<{id:string;nom:string;dosage:string;forme:string;photo_url:string|null}>;
+        const products = (ps ?? []) as Array<{id:string;nom:string;dosage:string;forme:string;photo_url:string|null;fabricant:string|null;sur_ordonnance:boolean}>;
         if (!products.length) {
           setProduits(ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
           setError(true);
@@ -191,10 +192,10 @@ export function AccueilClient() {
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,3);
-  const soumettre = (event: React.FormEvent<HTMLFormElement>) => {
+  const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
-    window.location.href = "/recherche?q=" + encodeURIComponent(query.trim());
+    router.push("/recherche?q=" + encodeURIComponent(query.trim()));
   };
   const localiser = useCallback(() => {
     if (!navigator.geolocation) { setQuartier("Douala"); return; }
