@@ -50,7 +50,9 @@ const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
 const arrivee = { opacity: 1, y: 0 };
 const apparition = { hidden: { opacity: 0, y: 12 }, show: arrivee };
 const demoToProduit = (p: (typeof ACCUEIL_PRODUITS_DEMO)[number]): Produit => ({
-  ...p, photo_url: p.photoUrl, pharmacie_id: null, distanceKm: p.distanceKm, demo: true,
+  id: p.id, nom: p.nom, dosage: p.dosage, photo_url: p.photoUrl, prix: p.prix,
+  quantite: p.stock, pharmacie_id: null, pharmacie: p.pharmacie, distanceKm: null,
+  laboratoire: p.laboratoire, conditionnement: p.conditionnement, ordonnance: p.ordonnance, demo: true,
 });
 
 function LogoNAXA() {
@@ -160,7 +162,7 @@ export function AccueilClient() {
             quantite:Number(chosen?.quantite ?? 0), pharmacie_id:chosen?.pharmacie_id ?? null,
             pharmacie:chosen?.pharmacies?.nom ?? "Pharmacie partenaire",
             pharmacieLat:chosen?.pharmacies?.lat ?? null, pharmacieLng:chosen?.pharmacies?.lng ?? null,
-            distanceKm:chosen?.pharmacies?.lat != null && chosen.pharmacies.lng != null ? distance(4.05,9.70,chosen.pharmacies.lat,chosen.pharmacies.lng) : null,
+            distanceKm: null,
             laboratoire:demoMatch?.laboratoire ?? "Laboratoire",
             conditionnement:demoMatch?.conditionnement ?? p.forme ?? "Conditionnement non précisé",
             ordonnance:demoMatch?.ordonnance ?? false,
@@ -188,7 +190,7 @@ export function AccueilClient() {
 
   const pharmaciesProches = useMemo(() => pharmacies.map(p => ({
     ...p,
-    distanceKm: p.lat != null && p.lng != null ? distance(coord?.lat ?? 4.05,coord?.lng ?? 9.70,p.lat,p.lng) : null,
+    distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,3);
@@ -257,7 +259,7 @@ export function AccueilClient() {
       <motion.section {...motionProps} className="mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
         <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} reducedMotion={reducedMotion}/></button>
         <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
-          <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{pharmacies.length ? pharmacyCount : 3} pharmacies à {pharmaciesProches[0]?.distanceKm?.toFixed(1) ?? "1.2"} km</p>
+          <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à 1,2 km` : `${pharmacies.length} pharmacie${pharmacies.length === 1 ? "" : "s"} partenaire${pharmacies.length === 1 ? "" : "s"}`}</p>
           <motion.div whileTap={reducedMotion?undefined:{scale:0.96}}><Link href="/gardes" className="inline-flex min-h-11 items-center justify-center rounded-[14px] bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir tout</Link></motion.div>
         </div>
       </motion.section>
@@ -272,12 +274,12 @@ export function AccueilClient() {
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[124px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={180} height={124} className="h-[124px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
-            <span className={`mt-2 inline-flex min-h-6 w-fit items-center rounded-full px-2 py-1 text-[11px] font-extrabold leading-4 ${p.ordonnance?"bg-[#0F6B3F] text-white":"bg-[#FFE23D] text-[#0B3D26]"}`}>{p.ordonnance?"Sur ordonnance":"Disponible"}</span>
+            <span className={`mt-2 inline-flex min-h-6 w-fit items-center rounded-full px-2 py-1 text-[11px] font-extrabold leading-4 ${p.ordonnance?"bg-[#0F6B3F] text-white":"bg-[#FFE23D] text-[#0B3D26]"}`}>{p.demo?"Exemple":"Sur ordonnance" === (p.ordonnance ? "Sur ordonnance" : "") ? "Sur ordonnance" : "Disponible"}</span>
             <h3 className="mt-2 line-clamp-2 min-h-12 text-[16px] font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h3>
             <p className="min-h-10 text-[11px] leading-4 text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
             <p className="mt-1 text-[18px] font-extrabold leading-6 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
             <div className="mt-auto flex items-end justify-between gap-1 pt-3">
-              <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}, {distanceProduit(p)?.toFixed(1) ?? "—"} km</p>
+              <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.demo?"Donnée illustrative":p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}{distanceProduit(p)!=null?`, ${distanceProduit(p)!.toFixed(1)} km`:""}</p>
               <motion.button whileTap={reducedMotion?undefined:{scale:0.96}} onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
                 <ShoppingCart size={14} aria-hidden="true"/>{added===p.id?"Ajouté ✓":"Ajouter"}
               </motion.button>
@@ -294,8 +296,8 @@ export function AccueilClient() {
         </div>
         {gardes.length ? <div className="space-y-3">{gardes.map((p)=><Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
           <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><Store size={25}/></span>
-          <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">Ouvert 24/7 • {p.distanceKm?.toFixed(1) ?? "—"} km</span></span>
-          <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">À 12min</span>
+          <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">Pharmacie de garde{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
+          <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
         </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><Store size={25}/></span><span className="flex-1"><strong className="block">Pharmacies de garde à Douala</strong><span className="text-sm text-[#64776B]">Consulter la liste disponible</span></span><ChevronRight size={18}/></Link>}
       </section>
     </main>
