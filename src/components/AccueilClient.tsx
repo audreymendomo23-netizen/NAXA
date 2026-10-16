@@ -59,7 +59,7 @@ function LogoNAXA() {
   </Link>;
 }
 
-function CarteIllustrative({ quartier }: { quartier: string }) {
+function CarteIllustrative({ quartier, reducedMotion }: { quartier: string; reducedMotion: boolean | null }) {
   return <div className="relative h-full min-h-[150px] overflow-hidden bg-[#E2F2EF]" aria-label={`Carte de proximité : ${quartier}`}>
     <svg viewBox="0 0 180 160" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden="true">
       <rect width="180" height="160" fill="#DDF0ED"/>
@@ -70,7 +70,7 @@ function CarteIllustrative({ quartier }: { quartier: string }) {
       <path d="M93 -10C79 19 106 34 96 55S113 79 103 99 122 130 109 171" stroke="#D8C8A8" strokeWidth="2" fill="none"/>
       <path d="M119 10l30 25M115 52l43 18M124 94l34 22M137 135l23 10" stroke="#D9CBB2" strokeWidth="2"/>
     </svg>
-    <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 16 }} className="absolute bottom-[48px] left-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#FFE23D] text-[#0B3D26] shadow-lg">
+    <motion.span initial={reducedMotion ? false : { scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 16 }} className="absolute bottom-[48px] left-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#FFE23D] text-[#0B3D26] shadow-lg">
       <MapPin size={21} strokeWidth={2.4} aria-hidden="true"/>
       <span className="naxa-pin-pulse" />
     </motion.span>
@@ -250,9 +250,9 @@ export function AccueilClient() {
       </motion.div>
 
       <motion.section {...motionProps} className="mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
-        <CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier}/>
+        <CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} reducedMotion={reducedMotion}/>
         <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
-          <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{pharmacyCount || 3} pharmacies à {pharmaciesProches[0]?.distanceKm?.toFixed(1) ?? "1.2"} km</p>
+          <p className="w-full text-[20px] font-extrabold leading-6 text-[#0B3D26]">{pharmacies.length ? pharmacyCount : 3} pharmacies à {pharmaciesProches[0]?.distanceKm?.toFixed(1) ?? "1.2"} km</p>
           <motion.div whileTap={reducedMotion?undefined:{scale:0.96}}><Link href="/gardes" className="inline-flex min-h-11 items-center justify-center rounded-[14px] bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir tout</Link></motion.div>
         </div>
       </motion.section>
@@ -272,7 +272,7 @@ export function AccueilClient() {
             <p className="min-h-10 text-[11px] leading-4 text-[#65766C]">{p.conditionnement} • {p.laboratoire}</p>
             <p className="mt-1 text-[18px] font-extrabold leading-6 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
             <div className="mt-auto flex items-end justify-between gap-1 pt-3">
-              <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}, {p.distanceKm?.toFixed(1) ?? "—"} km</p>
+              <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}, {distanceProduit(p)?.toFixed(1) ?? "—"} km</p>
               <motion.button whileTap={reducedMotion?undefined:{scale:0.96}} onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
                 <ShoppingCart size={14} aria-hidden="true"/>{added===p.id?"Ajouté ✓":"Ajouter"}
               </motion.button>
