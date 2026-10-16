@@ -1453,3 +1453,11 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Correction sur `main` : les pages publiques, routes API et écrans d’authentification exemptés sortent maintenant du middleware avant l’appel à Supabase; les routes protégées conservent leurs contrôles d’accès.
 - Commits : `ae02246451ca566b8e7bb195143e44878fdcdf58` (écran d’accueil) et `71e2d86d4d038e79d4281e69b2391c78df6c8ed7` (middleware).
 - Niveau de preuve : cause identifiée par le HTML de Production et le code de `main); déploiement et vérification HTTP après déploiement à confirmer.
+
+
+## Correction — espace client et suivi des réservations (16/10/2026)
+
+- Cause confirmée dans le schéma Supabase Production : les tables `public.client_achats` et `public.reservation_events` n’existent pas, alors que `/client` les interrogeait obligatoirement. L’échec d’une seule de ces requêtes faisait afficher « Impossible de charger votre suivi » et empêchait le chargement du reste de l’espace.
+- Correction sur `main` : le suivi utilise maintenant les tables réelles `reservations`, `reservation_items`, `produits`, `pharmacies` et `profiles`. L’historique d’achats est dérivé uniquement des réservations au statut `payee` ou `retiree`; les dates de paiement/retrait non présentes dans le schéma ne sont pas inventées. Les erreurs de chargement sont capturées et le chargement est toujours libéré.
+- Commits : `a40a011b67be97b2dded96628944517bc5a4c487` et `6faafd5454bc83f18bd1438c523e28e52639f46d`.
+- Vérification : présence des tables et colonnes confirmée par une lecture du schéma Production; déploiement du correctif en cours au moment de cette note.
