@@ -15,17 +15,20 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
   const [controleAge, setControleAge] = useState(false);
   const [mineur, setMineur] = useState(false);
   const cleAge = "naxa-age-declaration-v1";
-  const ageValide = () => {
+  const ageEtat = (): "adulte" | "mineur" | "absent" => {
     try {
       const value = localStorage.getItem(cleAge);
-      if (!value) return false;
+      if (!value) return "absent";
       const declaration = JSON.parse(value) as { confirmed?: boolean; at?: number };
-      return declaration.confirmed === true && typeof declaration.at === "number"
-        && Date.now() - declaration.at >= 0 && Date.now() - declaration.at < 30 * 24 * 60 * 60 * 1000;
-    } catch { return false; }
+      if (typeof declaration.at !== "number" || Date.now() - declaration.at < 0 || Date.now() - declaration.at >= 30 * 24 * 60 * 60 * 1000) return "absent";
+      return declaration.confirmed === true ? "adulte" : "mineur";
+    } catch { return "absent"; }
   };
   async function ouvrirContact() {
     setEnvoye(false);
+    const age = ageEtat();
+    if (age === "mineur") { setControleAge(true); setMineur(true); return; }
+    if (age !== "adulte") { setControleAge(true); setMineur(false); return; }
     const sb = supabaseBrowser();
     const { data } = await sb.auth.getUser();
     if (!data.user) {
@@ -33,12 +36,18 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
       router.push(`/connexion?espace=client&retour=${encodeURIComponent(retour)}`);
       return;
     }
-    if (ageValide()) setOuvert(true);
-    else { setControleAge(true); setMineur(false); }
+    setOuvert(true);
   }
-  function confirmerMajeur() {
+  async function confirmerMajeur() {
     try { localStorage.setItem(cleAge, JSON.stringify({ confirmed: true, at: Date.now() })); } catch { /* contrôle valable pour l'action en cours */ }
     setControleAge(false);
+    const sb = supabaseBrowser();
+    const { data } = await sb.auth.getUser();
+    if (!data.user) {
+      const retour = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      router.push(`/connexion?espace=client&retour=${encodeURIComponent(retour)}`);
+      return;
+    }
     setOuvert(true);
   }
   async function envoyer() {
