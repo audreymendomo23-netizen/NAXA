@@ -1411,3 +1411,14 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - La validation métier, les étapes OTP, les critères du mot de passe et les composants visuels NAXA sont conservés.
 - Commit : `a0c1160c2eaebbd2c173ef0b6494bb00f7ba8b2b`.
 - Niveau de preuve : correction commise sur `main`; build et déploiement Production à vérifier dans le lot. Aucun test navigateur réel revendiqué.
+
+
+
+## Complément — Robustesse de la finalisation de l’inscription (16/10/2026)
+
+- Fichier : `src/app/(auth)/creation-compte/page.tsx`.
+- Contradiction utilisée : si la finalisation du compte était réellement robuste, une panne réseau au moment de l’enregistrement du mot de passe ou de la récupération de session ne devait ni produire une promesse rejetée non gérée, ni laisser le bouton bloqué. Le code précédent effectuait ces appels avant le bloc `try/finally` : cette condition n’était donc pas satisfaite.
+- Correction sur `main` : les opérations Supabase et réseau de la finalisation sont couvertes par une gestion d’erreur; le JSON de réponse est traité prudemment; le verrou de chargement est toujours libéré dans `finally`; les erreurs de lecture du rôle n’empêchent pas la sortie après finalisation réussie.
+- Les validations, l’étape OTP, les textes et les composants visuels existants sont conservés. Aucune écriture directe en base Production ni migration n’a été exécutée.
+- Commit code : `c6c2597fd16852b0a742d6defd222c1116cdde0d`.
+- Niveau de preuve au commit : correction statique intégrée à `main`; compilation et déploiement Production à confirmer. Aucun test navigateur de bout en bout n’est revendiqué.
