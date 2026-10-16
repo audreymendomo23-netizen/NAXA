@@ -96,9 +96,28 @@ export default function Accueil() {
     document.cookie = `naxa-age-status-v2=${confirmed ? "adult" : "minor"}; Max-Age=2592000; Path=/; SameSite=Lax`;
   }
 
+  function destinationApresAge(): string | null {
+    try {
+      const raw = new URLSearchParams(window.location.search).get("retourAge");
+      if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+      const destination = new URL(raw, window.location.origin);
+      if (destination.origin !== window.location.origin) return null;
+      return destination.pathname + destination.search + destination.hash;
+    } catch {
+      return null;
+    }
+  }
+
   function declarerAge(confirmed: boolean) {
     try { window.localStorage.setItem("naxa-home-age-declaration-v1", JSON.stringify({ confirmed, at: Date.now() })); } catch { /* La déclaration reste valable pour cette visite. */ }
     enregistrerCookieAge(confirmed);
+    if (confirmed) {
+      const destination = destinationApresAge();
+      if (destination) {
+        window.location.replace(destination);
+        return;
+      }
+    }
     setAgeGate(confirmed ? null : "minor");
     if (confirmed) setIntroVisible(true);
   }
@@ -110,6 +129,12 @@ export default function Accueil() {
     // Afficher immédiatement le contrôle d'âge, sans attendre la réponse Supabase.
     // La déclaration d'accueil est indépendante de celles demandées pour les actions.
     const ageInitial = ageStatus();
+    const destination = destinationApresAge();
+    if (ageInitial === "adult" && destination) {
+      enregistrerCookieAge(true);
+      window.location.replace(destination);
+      return () => { actif = false; };
+    }
     setAgeGate(ageInitial === "adult" ? null : ageInitial === "minor" ? "minor" : "required");
     setIntroVisible(false);
     setIntroReady(true);
