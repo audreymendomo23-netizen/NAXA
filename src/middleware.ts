@@ -50,6 +50,7 @@ export async function middleware(req: NextRequest) {
     const target = req.nextUrl.clone();
     target.pathname = "/";
     target.search = "";
+    target.searchParams.set("retourAge", path + req.nextUrl.search);
     return NextResponse.redirect(target);
   }
 
