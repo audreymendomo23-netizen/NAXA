@@ -161,11 +161,11 @@ export function AccueilClient() {
         const productQuery = sb.from("produits").select("id,nom,dosage,forme,photo_url,fabricant,sur_ordonnance");
         const { data: ps, error: productError } = popularIds.length
           ? await productQuery.in("id", popularIds)
-          : await productQuery.order("nom").limit(30);
+          : { data: [], error: null };
         if (productError) throw productError;
         const products = (ps ?? []) as Array<{id:string;nom:string;dosage:string;forme:string;photo_url:string|null;fabricant:string|null;sur_ordonnance:boolean}>;
         if (!products.length) {
-          setProduits(ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
+          setProduits([]);
           setError(true);
         } else {
           const ids = products.map(p => p.id);
@@ -195,14 +195,14 @@ export function AccueilClient() {
           }
           return a.nom.localeCompare(b.nom, "fr");
         }).slice(0,6);
-        setProduits(sorted.length ? sorted : ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
+        setProduits(sorted);
         if (!sorted.length) setError(true);
         }
         const { data: pharmRows } = await sb.from("pharmacies").select("id,nom,ville,quartier,adresse,lat,lng,de_garde").eq("actif",true).limit(100);
         if (active) setPharmacies((pharmRows ?? []) as Pharmacie[]);
       } catch {
         if (active) {
-          setProduits(ACCUEIL_PRODUITS_DEMO.map(demoToProduit));
+          setProduits([]);
           setError(true);
         }
       } finally {
@@ -342,7 +342,8 @@ export function AccueilClient() {
       </section>
 
       <section className="mb-6">
-        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : <div className="naxa-reveal-list grid grid-cols-2 gap-2.5">
+        <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
+        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="naxa-reveal-list grid grid-cols-2 gap-2.5">
           {produits.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[18px] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={160} height={88} className="h-[88px] w-full object-contain" unoptimized/> : <Blister/>}
@@ -366,8 +367,8 @@ export function AccueilClient() {
               </button>
             </div>
           </article>)}
-        </div>}
-        {error && <span className="sr-only" role="status">Données de démonstration affichées tant que le catalogue réel n'est pas disponible.</span>}
+        </div> : <p className="rounded-2xl bg-white px-4 py-5 text-sm leading-5 text-[#53685C]">Les recherches réelles des clients apparaîtront ici dès qu’elles seront disponibles.</p>}
+        {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
       </section>
 
       <section className="pb-2">
