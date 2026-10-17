@@ -37,15 +37,15 @@ async function activerPushProfil(userId: string): Promise<boolean> {
 }
 const titles: Record<string, string> = { factures: "Factures", aide: "Centre d’aide", contact: "Contacter NAXA", noter: "Noter l’application", notifications: "Notifications", confidentialite: "Confidentialité", suppression: "Supprimer le compte" };
 const statusLabels: Record<string, string> = { payee: "Payée", retiree: "Retirée", confirmee: "Confirmée", en_attente: "En attente", expiree: "Expirée", annulee: "Annulée" };
-const faqCategories = ["Tout", "Compte", "Médicaments", "Réservations", "Paiement", "Santé"];
+const faqCategories = ["Tout", "Commande", "Paiement", "Livraison", "Ordonnance", "Compte"];
 const faqs = [
   { category: "Compte", question: "Comment modifier mes informations ?", answer: "Ouvrez Profil, puis touchez votre nom ou votre photo pour modifier vos coordonnées." },
-  { category: "Médicaments", question: "Comment trouver un médicament ?", answer: "Recherchez le nom du médicament depuis l’accueil. Consultez sa fiche et vérifiez sa disponibilité auprès de la pharmacie." },
-  { category: "Réservations", question: "Comment réserver un médicament ?", answer: "Choisissez le produit et la pharmacie, puis suivez les étapes proposées. La réservation dépend de la confirmation et du stock de la pharmacie." },
+  { category: "Ordonnance", question: "Comment trouver un médicament ?", answer: "Recherchez le nom du médicament depuis l’accueil. Consultez sa fiche et vérifiez sa disponibilité auprès de la pharmacie." },
+  { category: "Commande", question: "Comment réserver un médicament ?", answer: "Choisissez le produit et la pharmacie, puis suivez les étapes proposées. La réservation dépend de la confirmation et du stock de la pharmacie." },
   { category: "Paiement", question: "Comment payer ma réservation ?", answer: "Les modalités de paiement sont confirmées par la pharmacie. NAXA ne conserve ni code secret ni solde Mobile Money." },
-  { category: "Réservations", question: "Où suivre mes commandes ?", answer: "Ouvrez Profil puis Historique, ou la rubrique Commandes dans la barre de navigation." },
-  { category: "Médicaments", question: "Les stocks et les prix sont-ils garantis ?", answer: "Les stocks et les prix peuvent changer. La pharmacie confirme la disponibilité et les conditions avant le retrait ou la vente." },
-  { category: "Santé", question: "NAXA donne-t-il des conseils de posologie ?", answer: "Non. NAXA ne remplace pas un professionnel de santé et ne fournit ni diagnostic ni conseil de dosage. Demandez conseil à un pharmacien ou à un médecin." },
+  { category: "Commande", question: "Où suivre mes commandes ?", answer: "Ouvrez Profil puis Historique, ou la rubrique Commandes dans la barre de navigation." },
+  { category: "Livraison", question: "Les stocks et les prix sont-ils garantis ?", answer: "Les stocks et les prix peuvent changer. La pharmacie confirme la disponibilité et les conditions avant le retrait ou la vente." },
+  { category: "Ordonnance", question: "NAXA donne-t-il des conseils de posologie ?", answer: "Non. NAXA ne remplace pas un professionnel de santé et ne fournit ni diagnostic ni conseil de dosage. Demandez conseil à un pharmacien ou à un médecin." },
   { category: "Compte", question: "Comment supprimer mon compte ?", answer: "Dans Profil, ouvrez Paramètres puis Supprimer le compte. La suppression exige le mot de passe du compte et une confirmation." }
 ];
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value) || 0) + " FCFA";

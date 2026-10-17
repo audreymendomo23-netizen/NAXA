@@ -64,6 +64,7 @@ export default function ProfilClientPage() {
   const [cameraBusy, setCameraBusy] = useState(false);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState("MTN MoMo");
   const [savedLanguage, setSavedLanguage] = useState<"fr" | "en">("fr");
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   const shown = profile;
   const verified = isProfileVerified(shown);
@@ -264,7 +265,7 @@ export default function ProfilClientPage() {
   const topRows = [
     { icon: "pin", title: savedLanguage === "en" ? "Default address" : "Adresse par défaut", subtitle: shown.address || (savedLanguage === "en" ? "Add an address" : "Ajouter une adresse"), href: "/client/profil/adresse" },
     { icon: "wallet", title: savedLanguage === "en" ? "Payment" : "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
-    { icon: "globe", title: savedLanguage === "en" ? "Language" : "Langue", subtitle: savedLanguage === "en" ? "English" : "Français", href: "/client/profil/langue" }
+    { icon: "globe", title: savedLanguage === "en" ? "Language" : "Langue", subtitle: savedLanguage === "en" ? "English" : "Français", href: "#language", action: "language" }
   ];
   const sections = [
     { title: savedLanguage === "en" ? "My orders" : "Mes commandes", rows: [
@@ -304,7 +305,7 @@ export default function ProfilClientPage() {
       </section>
 
       <section className="naxa-profile-menu mt-3 overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-        {topRows.map((row, index) => <Link key={row.title} href={row.href} style={{ animationDelay: `${index * 45}ms` }} className="naxa-profile-row relative flex min-h-16 items-center gap-4 px-4 py-2 transition-transform active:scale-[.99]">
+        {topRows.map((row, index) => { const rowClass = "naxa-profile-row relative flex min-h-16 w-full items-center gap-4 px-4 py-2 text-left transition-transform active:scale-[.99]"; const contents = <><Icon name={row.icon} className="shrink-0 text-[#1E7B3A]"/><span className="min-w-0 flex-1 py-1"><span className="block text-[17px] font-bold leading-5 text-[#111111]">{row.title}</span><span className="mt-0.5 block truncate text-[15px] leading-5 text-[#6B7280]">{row.subtitle}</span></span><span className="text-[25px] leading-none text-[#6B7280]" aria-hidden="true">›</span>{index < topRows.length - 1 && <span className="absolute bottom-0 right-0 h-px w-[calc(100%-56px)] bg-[#E5E7EB]"/>}</>; return "action" in row && row.action === "language" ? <button key={row.title} type="button" onClick={() => setLanguageOpen(true)} style={{ animationDelay: `${index * 45}ms` }} className={rowClass}>{contents}</button> : <Link key={row.title} href={row.href} style={{ animationDelay: `${index * 45}ms` }} className={rowClass}>{contents}</Link>; })}
           <Icon name={row.icon} className="shrink-0 text-[#1E7B3A]"/>
           <span className="min-w-0 flex-1 py-1"><span className="block text-[17px] font-bold leading-5 text-[#111111]">{row.title}</span><span className="mt-0.5 block truncate text-[15px] leading-5 text-[#6B7280]">{row.subtitle}</span></span>
           <span className="text-[25px] leading-none text-[#6B7280]" aria-hidden="true">›</span>
@@ -360,6 +361,8 @@ export default function ProfilClientPage() {
       </section>
     </div>}
 
+    {languageOpen && <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/35" onMouseDown={e => { if (e.target === e.currentTarget) setLanguageOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="language-title" className="w-full max-w-[430px] rounded-t-[24px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-5 shadow-2xl"><h2 id="language-title" className="mb-4 text-lg font-extrabold text-[#0F4D26]">{savedLanguage === "en" ? "Choose a language" : "Choisir la langue"}</h2>{([{id:"fr",label:"Français"},{id:"en",label:"English"}] as const).map(option => <button key={option.id} type="button" onClick={() => { try { window.localStorage.setItem("naxa-langue", option.id); window.dispatchEvent(new Event("naxa-language-updated")); } catch { /* La langue reste active pour cette session. */ } setSavedLanguage(option.id); setLanguageOpen(false); flash(option.id === "fr" ? "Langue définie sur Français." : "Language set to English."); }} className="flex min-h-14 w-full items-center justify-between rounded-xl px-3 text-left font-bold text-[#111111] transition-colors hover:bg-[#E9F5EC]"><span>{option.label}</span>{savedLanguage === option.id && <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1E7B3A] text-white" aria-label={option.id === "fr" ? "Langue active" : "Active language"}><Icon name="check" size={17}/></span>}</button>)}<button type="button" onClick={() => setLanguageOpen(false)} className="mt-3 min-h-11 w-full rounded-xl border border-[#E5E7EB] font-semibold text-[#6B7280]">{savedLanguage === "en" ? "Cancel" : "Annuler"}</button></section></div>}
+
     {cameraOpen && <div className="fixed inset-0 z-[110] flex flex-col bg-black p-4 text-white" role="dialog" aria-modal="true" aria-label={savedLanguage === "en" ? "Take a photo" : "Prendre une photo"}>
       <header className="flex items-center justify-between"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15" aria-label={savedLanguage === "en" ? "Close camera" : "Fermer la caméra"}>×</button><h2 className="font-bold">{savedLanguage === "en" ? "Take a photo" : "Prendre une photo"}</h2><span className="w-11"/></header>
       {cameraError && <p role="alert" className="mt-3 rounded-xl bg-white/10 p-3 text-sm">{cameraError}</p>}
@@ -383,10 +386,8 @@ export default function ProfilClientPage() {
     {logoutConfirm && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-5" onMouseDown={e => { if (e.target === e.currentTarget && !logoutBusy) setLogoutConfirm(false); }}>
       <section role="alertdialog" aria-modal="true" aria-labelledby="logout-title" aria-describedby="logout-description" className="w-full max-w-[380px] rounded-[24px] bg-white p-5 shadow-2xl">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E9F5EC] text-[#1E7B3A]"><Icon name="logout" size={26}/></div>
-        <h2 id="logout-title" className="mt-4 text-center text-xl font-extrabold text-[#0F4D26]">{savedLanguage === "en" ? "Sign out?" : "Se déconnecter ?"}</h2>
-        <p id="logout-description" className="mt-2 text-center text-sm leading-6 text-[#6B7280]">{savedLanguage === "en" ? "You will need to sign in again to access your NAXA account." : "Vous devrez vous reconnecter pour accéder à votre espace NAXA."}</p>
-        <button type="button" onClick={() => void confirmLogout()} disabled={logoutBusy} className="mt-5 min-h-12 w-full rounded-xl bg-[#B3261E] px-4 font-bold text-white disabled:opacity-60">{logoutBusy ? (savedLanguage === "en" ? "Signing out…" : "Déconnexion…") : (savedLanguage === "en" ? "Sign out" : "Se déconnecter")}</button>
-        <button type="button" onClick={() => setLogoutConfirm(false)} disabled={logoutBusy} className="mt-2 min-h-11 w-full rounded-xl border border-[#E5E7EB] px-4 font-semibold text-[#374151] disabled:opacity-60">{savedLanguage === "en" ? "Cancel" : "Annuler"}</button>
+        <h2 id="logout-title" className="mt-4 text-center text-lg font-extrabold text-[#0F4D26]">{savedLanguage === "en" ? "Would you like to sign out?" : "Voulez-vous vous déconnecter ?"}</h2>
+        <div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => void confirmLogout()} disabled={logoutBusy} className="min-h-12 rounded-xl bg-[#B3261E] px-4 font-bold text-white disabled:opacity-60">{logoutBusy ? "…" : (savedLanguage === "en" ? "Yes" : "Oui")}</button><button type="button" onClick={() => setLogoutConfirm(false)} disabled={logoutBusy} className="min-h-12 rounded-xl border border-[#D8E5DC] px-4 font-bold text-[#0F4D26] disabled:opacity-60">{savedLanguage === "en" ? "No" : "Non"}</button></div>
       </section>
     </div>}
     {toast && <div role="status" aria-live="polite" className="naxa-profile-toast fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-sm font-semibold text-white shadow-lg">{toast}</div>}
