@@ -114,10 +114,15 @@ export default function ProfilClientPage() {
     if (!user) { setSaving(false); flash("Reconnectez-vous pour modifier votre profil."); return; }
     const parts = draft.name.trim().split(/\s+/);
     const { error: profileError } = await sb.from("profiles").update({ first_name: parts[0] || "", last_name: parts.slice(1).join(" ") }).eq("id", user.id);
-    const { error: authError } = await sb.auth.updateUser({ data: { full_name: draft.name.trim(), phone: draft.phone.trim() } });
-    if (profileError || authError) { setSaving(false); flash("Enregistrement partiel impossible. Réessayez."); return; }
-    setProfile(p => ({ ...p, name: draft.name.trim() || p.name, phone: draft.phone.trim(), email: draft.email.trim() || p.email }));
-    setSaving(false); setSheet(null); flash("Informations mises à jour.");
+    const emailChanged = Boolean(draft.email.trim() && draft.email.trim() !== (user.email ?? ""));
+    const { error: authError } = await sb.auth.updateUser({
+      data: { full_name: draft.name.trim(), phone: draft.phone.trim() },
+      ...(emailChanged ? { email: draft.email.trim() } : {})
+    });
+    if (profileError || authError) { setSaving(false); flash("Enregistrement impossible. Vérifiez les informations et réessayez."); return; }
+    setProfile(p => ({ ...p, name: draft.name.trim() || p.name, phone: draft.phone.trim(), email: emailChanged ? p.email : (draft.email.trim() || p.email) }));
+    setSaving(false); setSheet(null);
+    flash(emailChanged ? "Un e-mail de confirmation a été envoyé à la nouvelle adresse." : "Informations mises à jour.");
   }
   async function openCamera() {
     setCameraError("");
@@ -213,8 +218,6 @@ export default function ProfilClientPage() {
     ]}
   ];
 
-  async function logout() { await supabaseBrowser().auth.signOut(); window.location.replace("/"); }
-
   return <main className="naxa-profile min-h-dvh bg-[#E9F5EC] px-4 pb-[calc(88px+env(safe-area-inset-bottom,0px))] text-[#111111]">
     <div className="mx-auto w-full max-w-[430px] pt-4">
       <section className="naxa-profile-card naxa-profile-enter rounded-[24px] bg-white px-5 pb-7 pt-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
@@ -249,7 +252,7 @@ export default function ProfilClientPage() {
           {section.rows.map((row, index) => {
             const rowClass = `naxa-profile-row relative flex min-h-14 w-full items-center gap-4 px-4 py-2.5 text-left transition-transform active:scale-[.99] ${"danger" in row && row.danger ? "text-[#B3261E]" : "text-[#111111]"}`;
             const inner = <><Icon name={row.icon} className={`shrink-0 ${"danger" in row && row.danger ? "text-[#B3261E]" : "text-[#1E7B3A"}`}/><span className="min-w-0 flex-1 text-[16px] font-bold">{row.title}</span>{"subtitle" in row && row.trailing && <span className="shrink-0 text-[13px] text-[#6B7280]">{row.subtitle}</span>}<span className="text-[25px] leading-none text-[#6B7280]" aria-hidden="true">›</span>{index < section.rows.length - 1 && <span className="absolute bottom-0 right-0 h-px w-[calc(100%-56px)] bg-[#E5E7EB]"/>}</>;
-            return "action" in row && row.action === "logout" ? <button key={row.title} type="button" onClick={() => void logout()} className={rowClass}>{inner}</button> : <Link key={row.title} href={row.href} style={{ animationDelay: `${(sIndex * 3 + index) * 40}ms` }} className={rowClass}>{inner}</Link>;
+            return "action" in row && row.action === "logout" ? <button key={row.title} type="button" onClick={() => flash("La confirmation de déconnexion sera ajoutée à l’étape 13.")} className={rowClass}>{inner}</button> : <Link key={row.title} href={row.href} style={{ animationDelay: `${(sIndex * 3 + index) * 40}ms` }} className={rowClass}>{inner}</Link>;
           })}
         </div>
       </section>)}
