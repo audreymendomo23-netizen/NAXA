@@ -52,7 +52,8 @@ export default function ProfilClientPage() {
   const [sheet, setSheet] = useState<"photo" | "edit" | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
-  const [cropSource, setCropSource] = useState<string | null>(null);\n  const [cropDims, setCropDims] = useState({ width: 1, height: 1 });
+  const [cropSource, setCropSource] = useState<string | null>(null);
+  const [cropDims, setCropDims] = useState({ width: 1, height: 1 });
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null);
