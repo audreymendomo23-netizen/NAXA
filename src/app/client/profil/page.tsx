@@ -257,7 +257,14 @@ export default function ProfilClientPage() {
           })}
         </div>
       </section>)}
-      <div className="flex justify-center pb-3 pt-5">\n        <label className="flex min-h-9 items-center gap-2 rounded-full border border-[#d1e5d6] bg-white/85 px-3 text-[11px] font-semibold text-[#526457]">\n          Profil de démonstration\n          <select aria-label="Choisir un profil de démonstration" value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[120px] bg-transparent text-[#0F4D26] outline-none">\n            <option value="real">Mon compte</option><option value="complete">Complet vérifié</option><option value="incomplete">Incomplet</option>\n          </select>\n        </label>\n      </div>
+      <div className="flex justify-center pb-3 pt-5">
+        <label className="flex min-h-9 items-center gap-2 rounded-full border border-[#d1e5d6] bg-white/85 px-3 text-[11px] font-semibold text-[#526457]">
+          Profil de démonstration
+          <select aria-label="Choisir un profil de démonstration" value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[120px] bg-transparent text-[#0F4D26] outline-none">
+            <option value="real">Mon compte</option><option value="complete">Complet vérifié</option><option value="incomplete">Incomplet</option>
+          </select>
+        </label>
+      </div>
     </div>
 
     <nav aria-label="Navigation principale" className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
