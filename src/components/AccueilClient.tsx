@@ -353,31 +353,6 @@ export function AccueilClient() {
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
-        <div className="overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
-          <div className="border-b border-[#E0EAE3] px-4 py-3">
-            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proche de vous</h3>
-          </div>
-          {gardes.length ? <div className="overflow-hidden">
-            <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${gardesSlide * 100}%)` }}>
-              {gardes.map((p) => <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
-                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
-                <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
-                <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-              </Link>)}
-            </div>
-            {gardes.length > 1 && <div className="flex justify-center gap-2 pb-3" aria-label="Pharmacies de garde">
-              {gardes.map((p,i) => <button key={p.id} type="button" onClick={() => setGardesSlide(i)} aria-label={`Afficher ${p.nom}`} aria-current={gardesSlide === i ? "true" : undefined} className={`h-2 rounded-full transition-all ${gardesSlide === i ? "w-6 bg-[#0F6B3F]" : "w-2 bg-[#B7C9BE]"}`} />)}
-            </div>}
-          </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
-            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
-            <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
-          </div>}
-        </div>
-        <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
-      </section>
-
-      <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
         {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="overflow-hidden">
           <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${produitsSlide * 100}%)` }}>
@@ -412,6 +387,31 @@ export function AccueilClient() {
           </div>}
         </div> : <p className="rounded-2xl bg-white px-4 py-5 text-sm leading-5 text-[#53685C]">Les recherches réelles des clients apparaîtront ici dès qu’elles seront disponibles.</p>}
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
+        <div className="overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
+          <div className="border-b border-[#E0EAE3] px-4 py-3">
+            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proche de vous</h3>
+          </div>
+          {gardes.length ? <div className="overflow-hidden">
+            <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${gardesSlide * 100}%)` }}>
+              {gardes.map((p) => <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
+                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+                <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
+                <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
+              </Link>)}
+            </div>
+            {gardes.length > 1 && <div className="flex justify-center gap-2 pb-3" aria-label="Pharmacies de garde">
+              {gardes.map((p,i) => <button key={p.id} type="button" onClick={() => setGardesSlide(i)} aria-label={`Afficher ${p.nom}`} aria-current={gardesSlide === i ? "true" : undefined} className={`h-2 rounded-full transition-all ${gardesSlide === i ? "w-6 bg-[#0F6B3F]" : "w-2 bg-[#B7C9BE]"}`} />)}
+            </div>}
+          </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
+            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+            <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
+          </div>}
+        </div>
+        <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
       </section>
 
       <section className="naxa-enter mt-6 pb-4">
