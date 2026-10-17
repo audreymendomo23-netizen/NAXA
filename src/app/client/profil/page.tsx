@@ -40,7 +40,7 @@ function Icon({ name, size = 24, className = "" }: { name: string; size?: number
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">{paths[name] ?? paths.file}</svg>;
 }
-function Verified({ small = false }: { small?: boolean }) { return <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#1D9BF0] text-white ${small ? "h-[13px] w-[13px]" : "h-5 w-5"} animate-[naxa-verified-in_240ms_ease-out]`} aria-label="Profil vérifié"><Icon name="check" size={small ? 9 : 13} /></span>; }
+function Verified({ small = false, language = "fr" }: { small?: boolean; language?: "fr" | "en" }) { return <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#1D9BF0] text-white ${small ? "h-[13px] w-[13px]" : "h-5 w-5"} animate-[naxa-verified-in_240ms_ease-out]`} aria-label={language === "en" ? "Verified profile" : "Profil vérifié"}><Icon name="check" size={small ? 9 : 13} /></span>; }
 
 export default function ProfilClientPage() {
   const router = useRouter();
@@ -178,7 +178,7 @@ export default function ProfilClientPage() {
   }
   async function openCamera() {
     setCameraError("");
-    if (!navigator.mediaDevices?.getUserMedia) { setCameraError("La caméra n’est pas disponible sur cet appareil. Vous pouvez importer une photo."); setSheet("photo"); return; }
+    if (!navigator.mediaDevices?.getUserMedia) { setCameraError(savedLanguage === "en" ? "The camera is unavailable on this device. You can import a photo instead." : "La caméra n’est pas disponible sur cet appareil. Vous pouvez importer une photo."); setSheet("photo"); return; }
     try {
       setCameraBusy(true);
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
@@ -189,7 +189,7 @@ export default function ProfilClientPage() {
       window.setTimeout(() => { if (videoRef.current) { videoRef.current.srcObject = stream; void videoRef.current.play().catch(() => {}); } }, 50);
     } catch {
       setCameraBusy(false);
-      setCameraError("Autorisation caméra refusée ou caméra indisponible. Réessayez ou importez une photo depuis la galerie.");
+      setCameraError(savedLanguage === "en" ? "Camera permission was denied or the camera is unavailable. Try again or import a photo from your gallery." : "Autorisation caméra refusée ou caméra indisponible. Réessayez ou importez une photo depuis la galerie.");
       setSheet("photo");
     }
   }
@@ -206,11 +206,11 @@ export default function ProfilClientPage() {
   }
   function capturePhoto() {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) { setCameraError("La caméra démarre encore. Réessayez dans un instant."); return; }
+    if (!video || !video.videoWidth) { setCameraError(savedLanguage === "en" ? "The camera is still starting. Try again in a moment." : "La caméra démarre encore. Réessayez dans un instant."); return; }
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) { setCameraError("Impossible de capturer l’image. Importez une photo."); return; }
+    if (!ctx) { setCameraError(savedLanguage === "en" ? "Could not capture the image. Import a photo instead." : "Impossible de capturer l’image. Importez une photo."); return; }
     ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     beginCrop(canvas.toDataURL("image/jpeg", 0.88));
   }
@@ -290,7 +290,7 @@ export default function ProfilClientPage() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label={savedLanguage === "en" ? "Edit my information" : "Modifier mes informations"} className="max-w-full truncate text-left">{shown.name}</button></h1>
-              {verified && <Verified/>}
+              {verified && <Verified language={savedLanguage}/>}
             </div>
             {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{formatPhone(shown.phone)}</span></p>}
             {shown.email.trim() && <p className="mt-1 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="mail" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.email}</span></p>}
@@ -333,7 +333,7 @@ export default function ProfilClientPage() {
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
           <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[10px] font-extrabold text-[#F4C430]">
             {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover"/> : shownInitials}
-            {verified && <span className="absolute -bottom-1 -right-1"><Verified small/></span>}
+            {verified && <span className="absolute -bottom-1 -right-1"><Verified small language={savedLanguage}/></span>}
           </span><span className="text-[10px] font-bold">{savedLanguage === "en" ? "Profile" : "Profil"}</span>
         </Link>
       </div>
@@ -358,7 +358,7 @@ export default function ProfilClientPage() {
             <label className="block text-sm font-semibold text-[#374151]">{savedLanguage === "en" ? "Email" : "E-mail"}<input autoComplete="email" type="email" value={draft.email} onChange={e => setDraft(p => ({...p,email:e.target.value}))} className="naxa-profile-input mt-1" maxLength={254}/></label>
           </div>
           <button type="button" onClick={() => void saveInfo()} disabled={saving || !draft.name.trim()} className="mt-5 min-h-12 w-full rounded-xl bg-[#1E7B3A] font-bold text-white transition-transform active:scale-[.99] disabled:opacity-50">{saving ? (savedLanguage === "en" ? "Saving…" : "Enregistrement…") : (savedLanguage === "en" ? "Save" : "Enregistrer")}</button>
-          <button type="button" onClick={() => setSheet(null)} className="mt-2 min-h-11 w-full font-semibold text-[#6B7280]">Annuler</button>
+          <button type="button" onClick={() => setSheet(null)} className="mt-2 min-h-11 w-full font-semibold text-[#6B7280]">{savedLanguage === "en" ? "Cancel" : "Annuler"}</button>
         </>}
       </section>
     </div>}
@@ -367,7 +367,7 @@ export default function ProfilClientPage() {
       <header className="flex items-center justify-between"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15" aria-label={savedLanguage === "en" ? "Close camera" : "Fermer la caméra"}>×</button><h2 className="font-bold">{savedLanguage === "en" ? "Take a photo" : "Prendre une photo"}</h2><span className="w-11"/></header>
       {cameraError && <p role="alert" className="mt-3 rounded-xl bg-white/10 p-3 text-sm">{cameraError}</p>}
       <div className="my-auto flex justify-center"><div className="relative aspect-square w-full max-w-[330px] overflow-hidden rounded-full border-4 border-white/80 bg-[#222]"><video ref={videoRef} autoPlay playsInline muted className="h-full w-full scale-x-[-1] object-cover"/></div></div>
-      <div className="flex items-center justify-center gap-8 pb-8"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="min-h-12 rounded-full px-4 font-semibold">Annuler</button><button type="button" onClick={capturePhoto} className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[5px] border-white bg-white/20" aria-label={savedLanguage === "en" ? "Capture photo" : "Déclencher la photo"}><span className="h-12 w-12 rounded-full bg-white"/></button></div>
+      <div className="flex items-center justify-center gap-8 pb-8"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="min-h-12 rounded-full px-4 font-semibold">{savedLanguage === "en" ? "Cancel" : "Annuler"}</button><button type="button" onClick={capturePhoto} className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[5px] border-white bg-white/20" aria-label={savedLanguage === "en" ? "Capture photo" : "Déclencher la photo"}><span className="h-12 w-12 rounded-full bg-white"/></button></div>
     </div>}
 
     {cropSource && <div className="fixed inset-0 z-[120] flex flex-col bg-[#0b2415] px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-[max(18px,env(safe-area-inset-top,0px))] text-white" role="dialog" aria-modal="true" aria-labelledby="crop-title">
@@ -375,15 +375,15 @@ export default function ProfilClientPage() {
       <p className="mt-3 text-center text-sm text-white/75">{savedLanguage === "en" ? "Move the photo inside the circle and adjust the zoom." : "Déplacez la photo dans le cercle et ajustez le zoom."}</p>
       <div className="my-auto flex justify-center">
         <div className="relative h-[min(72vw,240px)] w-[min(72vw,240px)] touch-none overflow-hidden rounded-full border-4 border-white" onPointerDown={dragStartAt} onPointerMove={dragMove} onPointerUp={() => setDragStart(null)} onPointerCancel={() => setDragStart(null)}>
-          <img src={cropSource} alt="Aperçu du recadrage" draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.width * zoom}px`, height: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.height * zoom}px`, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`, objectFit: "cover" }}/>
+          <img src={cropSource} alt={savedLanguage === "en" ? "Crop preview" : "Aperçu du recadrage"} draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.width * zoom}px`, height: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.height * zoom}px`, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`, objectFit: "cover" }}/>
         </div>
       </div>
-      <label className="mx-auto mb-8 flex w-full max-w-[300px] items-center gap-3 text-sm"><span>−</span><input aria-label="Zoom de la photo" type="range" min="1" max="2.5" step=".05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#F4C430]"/><span>+</span></label>
+      <label className="mx-auto mb-8 flex w-full max-w-[300px] items-center gap-3 text-sm"><span>−</span><input aria-label={savedLanguage === "en" ? "Photo zoom" : "Zoom de la photo"} type="range" min="1" max="2.5" step=".05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#F4C430]"/><span>+</span></label>
       <button type="button" onClick={() => void saveCrop()} disabled={saving} className="min-h-12 w-full rounded-xl bg-[#F4C430] font-extrabold text-[#0F4D26] disabled:opacity-60">{saving ? (savedLanguage === "en" ? "Saving…" : "Enregistrement…") : (savedLanguage === "en" ? "Use this photo" : "Utiliser cette photo")}</button>
       <button type="button" onClick={() => { setCropSource(null); setSheet("photo"); }} className="mt-2 min-h-11 font-semibold text-white/80">{savedLanguage === "en" ? "Retake / choose another" : "Reprendre / choisir une autre"}</button>
     </div>}
 
     {toast && <div role="status" aria-live="polite" className="naxa-profile-toast fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-sm font-semibold text-white shadow-lg">{toast}</div>}
-    {!loaded && <div className="sr-only" aria-live="polite">Chargement du profil…</div>}
+    {!loaded && <div className="sr-only" aria-live="polite">{savedLanguage === "en" ? "Loading profile…" : "Chargement du profil…"}</div>}
   </main>;
 }
