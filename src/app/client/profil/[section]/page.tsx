@@ -38,15 +38,16 @@ async function activerPushProfil(userId: string): Promise<boolean> {
 const titles: Record<string, string> = { factures: "Factures", aide: "Centre d’aide", contact: "Contacter NAXA", noter: "Noter l’application", notifications: "Notifications", confidentialite: "Confidentialité", suppression: "Supprimer le compte" };
 const statusLabels: Record<string, string> = { payee: "Payée", retiree: "Retirée", confirmee: "Confirmée", en_attente: "En attente", expiree: "Expirée", annulee: "Annulée" };
 const faqCategories = ["Tout", "Commande", "Paiement", "Livraison", "Ordonnance", "Compte"];
+const faqCategoriesEn: Record<string, string> = { Tout: "All", Commande: "Orders", Paiement: "Payment", Livraison: "Delivery", Ordonnance: "Prescription", Compte: "Account" };
 const faqs = [
-  { category: "Compte", question: "Comment modifier mes informations ?", answer: "Ouvrez Profil, puis touchez votre nom ou votre photo pour modifier vos coordonnées." },
-  { category: "Ordonnance", question: "Comment trouver un médicament ?", answer: "Recherchez le nom du médicament depuis l’accueil. Consultez sa fiche et vérifiez sa disponibilité auprès de la pharmacie." },
-  { category: "Commande", question: "Comment réserver un médicament ?", answer: "Choisissez le produit et la pharmacie, puis suivez les étapes proposées. La réservation dépend de la confirmation et du stock de la pharmacie." },
-  { category: "Paiement", question: "Comment payer ma réservation ?", answer: "Les modalités de paiement sont confirmées par la pharmacie. NAXA ne conserve ni code secret ni solde Mobile Money." },
-  { category: "Commande", question: "Où suivre mes commandes ?", answer: "Ouvrez Profil puis Historique, ou la rubrique Commandes dans la barre de navigation." },
-  { category: "Livraison", question: "Les stocks et les prix sont-ils garantis ?", answer: "Les stocks et les prix peuvent changer. La pharmacie confirme la disponibilité et les conditions avant le retrait ou la vente." },
-  { category: "Ordonnance", question: "NAXA donne-t-il des conseils de posologie ?", answer: "Non. NAXA ne remplace pas un professionnel de santé et ne fournit ni diagnostic ni conseil de dosage. Demandez conseil à un pharmacien ou à un médecin." },
-  { category: "Compte", question: "Comment supprimer mon compte ?", answer: "Dans Profil, ouvrez Paramètres puis Supprimer le compte. La suppression exige le mot de passe du compte et une confirmation." }
+  { category: "Compte", question: "Comment modifier mes informations ?", answer: "Ouvrez Profil, puis touchez votre nom ou votre photo pour modifier vos coordonnées.", questionEn: "How do I update my information?", answerEn: "Open Profile, then tap your name or photo to update your details." },
+  { category: "Ordonnance", question: "Comment trouver un médicament ?", answer: "Recherchez le nom du médicament depuis l’accueil. Consultez sa fiche et vérifiez sa disponibilité auprès de la pharmacie.", questionEn: "How do I find a medicine?", answerEn: "Search for the medicine from the home page. Check its details and confirm availability with the pharmacy." },
+  { category: "Commande", question: "Comment réserver un médicament ?", answer: "Choisissez le produit et la pharmacie, puis suivez les étapes proposées. La réservation dépend de la confirmation et du stock de la pharmacie.", questionEn: "How do I reserve a medicine?", answerEn: "Choose the product and pharmacy, then follow the steps shown. Reservation depends on pharmacy confirmation and stock." },
+  { category: "Paiement", question: "Comment payer ma réservation ?", answer: "Les modalités de paiement sont confirmées par la pharmacie. NAXA ne conserve ni code secret ni solde Mobile Money.", questionEn: "How do I pay for my reservation?", answerEn: "The pharmacy confirms the payment method. NAXA never stores your secret code or Mobile Money balance." },
+  { category: "Commande", question: "Où suivre mes commandes ?", answer: "Ouvrez Profil puis Historique, ou la rubrique Commandes dans la barre de navigation.", questionEn: "Where can I track my orders?", answerEn: "Open Profile and then History, or select Orders in the bottom navigation." },
+  { category: "Livraison", question: "Les stocks et les prix sont-ils garantis ?", answer: "Les stocks et les prix peuvent changer. La pharmacie confirme la disponibilité et les conditions avant le retrait ou la vente.", questionEn: "Are stock and prices guaranteed?", answerEn: "Stock and prices may change. The pharmacy confirms availability and conditions before pickup or sale." },
+  { category: "Ordonnance", question: "NAXA donne-t-il des conseils de posologie ?", answer: "Non. NAXA ne remplace pas un professionnel de santé et ne fournit ni diagnostic ni conseil de dosage. Demandez conseil à un pharmacien ou à un médecin.", questionEn: "Does NAXA provide dosage advice?", answerEn: "No. NAXA does not replace a healthcare professional and does not provide diagnoses or dosage advice. Ask a pharmacist or doctor." },
+  { category: "Compte", question: "Comment supprimer mon compte ?", answer: "Dans Profil, ouvrez Paramètres puis Supprimer le compte. La suppression exige le mot de passe du compte et une confirmation.", questionEn: "How do I delete my account?", answerEn: "In Profile, open Settings and choose Delete account. Your password and confirmation are required." }
 ];
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value) || 0) + " FCFA";
 const dateLabel = (value: string | null | undefined) => {
@@ -72,6 +73,7 @@ export default function ProfilSectionPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [faqQuery, setFaqQuery] = useState("");
   const [faqCategory, setFaqCategory] = useState("Tout");
+  const [language, setLanguage] = useState<"fr" | "en">("fr");
   const [contactMode, setContactMode] = useState<"options" | "message">("options");
   const [subject, setSubject] = useState("Demande d’aide");
   const [orderNumber, setOrderNumber] = useState("");
@@ -92,9 +94,19 @@ export default function ProfilSectionPage() {
     return [...grouped.entries()].sort((a, b) => new Date(b[1][0].achat_le ?? b[1][0].reservation_creee_le).getTime() - new Date(a[1][0].achat_le ?? a[1][0].reservation_creee_le).getTime());
   }, [reçus]);
   const selectedLines = groupedInvoices.find(([id]) => id === selectedInvoice);
-  const filteredFaqs = faqs.filter(item => (faqCategory === "Tout" || item.category === faqCategory) && (!faqQuery.trim() || (item.question + " " + item.answer + " " + item.category).toLowerCase().includes(faqQuery.trim().toLowerCase())));
+  const filteredFaqs = faqs.filter(item => (faqCategory === "Tout" || item.category === faqCategory) && (!faqQuery.trim() || (item.question + " " + item.answer + " " + item.questionEn + " " + item.answerEn + " " + item.category).toLowerCase().includes(faqQuery.trim().toLowerCase())));
 
   function flash(text: string) { setToast(text); window.setTimeout(() => setToast(""), 2800); }
+
+  useEffect(() => {
+    const readLanguage = () => {
+      try { setLanguage(window.localStorage.getItem("naxa-langue") === "en" ? "en" : "fr"); } catch { setLanguage("fr"); }
+    };
+    readLanguage();
+    window.addEventListener("naxa-language-updated", readLanguage);
+    window.addEventListener("storage", readLanguage);
+    return () => { window.removeEventListener("naxa-language-updated", readLanguage); window.removeEventListener("storage", readLanguage); };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -285,10 +297,10 @@ export default function ProfilSectionPage() {
         </section>}
 
         {section === "aide" && <section className="mt-5 space-y-4">
-          <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="text-lg font-extrabold text-[#0F4D26]">Comment pouvons-nous vous aider ?</h2><label className="mt-3 block"><span className="sr-only">Rechercher dans l’aide</span><input className="w-full rounded-xl border border-[#D8E5DC] bg-[#F8FBF8] px-4 py-3 outline-none focus:border-[#1E7B3A]" value={faqQuery} onChange={e => setFaqQuery(e.target.value)} placeholder="Rechercher une question…"/></label></div>
-          <div className="flex gap-2 overflow-x-auto pb-1">{faqCategories.map(category => <button key={category} type="button" onClick={() => setFaqCategory(category)} className={"min-h-10 shrink-0 rounded-full px-4 text-sm font-bold transition-all " + (faqCategory === category ? "bg-[#1E7B3A] text-white" : "bg-white text-[#0F4D26]")}>{category}</button>)}</div>
-          <div className="space-y-2">{filteredFaqs.length ? filteredFaqs.map((item, index) => <details key={item.question} className="naxa-faq rounded-2xl bg-white p-4 shadow-sm" style={{ animationDelay: (index * 35) + "ms" }}><summary className="cursor-pointer list-none pr-5 font-bold text-[#111111]">{item.question}<span className="float-right text-xl text-[#1E7B3A]">＋</span></summary><p className="mt-3 border-t border-[#E5E7EB] pt-3 text-sm leading-6 text-[#53685C]">{item.answer}</p></details>) : <div className="rounded-2xl bg-white p-5 text-sm text-[#6B7280]">Aucun résultat. Essayez un autre mot ou contactez NAXA.</div>}</div>
-          <Link href="/client/profil/contact" className="block rounded-2xl bg-[#064B2A] p-4 text-white shadow-sm"><span className="block text-lg font-extrabold">Besoin d’aide ?</span><span className="mt-1 block text-sm text-white/85">Contacter l’équipe NAXA</span><span className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#FFE33D] px-4 text-sm font-extrabold text-[#064B2A]">Contacter NAXA →</span></Link>
+          <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="text-lg font-extrabold text-[#0F4D26]">{language === "en" ? "How can we help you?" : "Comment pouvons-nous vous aider ?"}</h2><label className="mt-3 block"><span className="sr-only">{language === "en" ? "Search help" : "Rechercher dans l’aide"}</span><input className="w-full rounded-xl border border-[#D8E5DC] bg-[#F8FBF8] px-4 py-3 outline-none focus:border-[#1E7B3A]" value={faqQuery} onChange={e => setFaqQuery(e.target.value)} placeholder={language === "en" ? "Search questions…" : "Rechercher une question…"}/></label></div>
+          <div className="flex gap-2 overflow-x-auto pb-1">{faqCategories.map(category => <button key={category} type="button" onClick={() => setFaqCategory(category)} className={"min-h-10 shrink-0 rounded-full px-4 text-sm font-bold transition-all " + (faqCategory === category ? "bg-[#1E7B3A] text-white" : "bg-white text-[#0F4D26]")}>{language === "en" ? faqCategoriesEn[category] : category}</button>)}</div>
+          <div className="space-y-2">{filteredFaqs.length ? filteredFaqs.map((item, index) => <details key={item.question} className="naxa-faq rounded-2xl bg-white p-4 shadow-sm" style={{ animationDelay: (index * 35) + "ms" }}><summary className="cursor-pointer list-none pr-5 font-bold text-[#111111]">{language === "en" ? item.questionEn : item.question}<span className="float-right text-xl text-[#1E7B3A]">＋</span></summary><p className="mt-3 border-t border-[#E5E7EB] pt-3 text-sm leading-6 text-[#53685C]">{language === "en" ? item.answerEn : item.answer}</p></details>) : <div className="rounded-2xl bg-white p-5 text-sm text-[#6B7280]">{language === "en" ? "No results. Try another word or contact NAXA." : "Aucun résultat. Essayez un autre mot ou contactez NAXA."}</div>}</div>
+          <Link href="/client/profil/contact" className="block rounded-2xl bg-[#064B2A] p-4 text-white shadow-sm"><span className="block text-lg font-extrabold">{language === "en" ? "Need help?" : "Besoin d’aide ?"}</span><span className="mt-1 block text-sm text-white/85">{language === "en" ? "Contact the NAXA team" : "Contacter l’équipe NAXA"}</span><span className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#FFE33D] px-4 text-sm font-extrabold text-[#064B2A]">{language === "en" ? "Contact NAXA →" : "Contacter NAXA →"}</span></Link>
         </section>}
 
         {section === "contact" && <section className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
