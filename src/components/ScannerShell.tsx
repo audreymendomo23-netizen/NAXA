@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Ecran = "camera" | "crop" | "results";
 type ModeScan = "ordonnance" | "boite";
@@ -17,6 +18,17 @@ const CLE_BROUILLON = "naxa:scanner:posologie:draft";
 const CLE_POSOLOGIE = "naxa:scanner:posologie:pending";
 const TAILLE_MAX = 10 * 1024 * 1024;
 const HEURES_PAR_DEFAUT = ["07:00", "12:00", "19:00"];
+
+function normaliserNomProduit(value: string): string {
+  return value
+    .replace(/\\b\\d+(?:[.,]\\d+)?(?:\\s*\\/\\s*\\d+(?:[.,]\\d+)?)?\\s*(?:mg|mcg|µg|g|kg|ml|mL|l|iu|ui|meq|mmol)\\b/gi, " ")
+    .replace(/\\b(comprim[eé]s?|cp|g[eé]lules?|capsules?|sachets?|gouttes?|tablettes?|sirop|suspension|solution)\\b/gi, " ")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
 
 function extrairePosologie(lecture: LectureOrdonnance): BrouillonPosologie {
   const lignes = lecture.texte.split(/\r?\n/).map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
@@ -333,16 +345,36 @@ export function ScannerShell() {
   };
 
   const ouvrirPrix = (nom: string) => router.push("/resultats?q=" + encodeURIComponent(nom));
-  const voirPharmacies = () => {
-    const termes = produits.map(p => p.nom.trim()).filter(Boolean);
-    if (!termes.length) return;
+  const voirPharmacies = async () => {
+    const selection = produits.filter(p => p.nom.trim()).slice(0, 12);
+    if (!selection.length) return;
     try {
       if (configurerRappels) {
         const raw = sessionStorage.getItem(CLE_BROUILLON);
         if (raw) sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...(JSON.parse(raw) as BrouillonPosologie), rappels: true }));
       } else sessionStorage.removeItem(CLE_POSOLOGIE);
     } catch {}
-    router.push("/resultats?" + termes.map(nom => "q=" + encodeURIComponent(nom)).join("&"));
+    const rechercherParNom = () => router.push("/resultats?" + selection.map(item => "q=" + encodeURIComponent(item.nom.trim())).join("&"));
+    try {
+      const sb = supabaseBrowser();
+      const correspondances = await Promise.all(selection.map(async item => {
+        const terme = normaliserNomProduit(item.nom);
+        if (!terme) return null;
+        const exact = await sb.from("produits").select("id,nom,nom_norm").ilike("nom_norm", terme).limit(1);
+        if (!exact.error && exact.data?.[0]?.id) return exact.data[0];
+        const partiel = await sb.from("produits").select("id,nom,nom_norm").ilike("nom_norm", "%" + terme + "%").limit(2);
+        if (!partiel.error && partiel.data?.length === 1 && partiel.data[0]?.id) return partiel.data[0];
+        return null;
+      }));
+      const idsValides = correspondances.every(item => item && typeof item.id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.id));
+      if (idsValides) {
+        router.push("/resultats?" + correspondances.map((item, index) => "p=" + item!.id + ":" + selection[index].quantite).join("&"));
+        return;
+      }
+    } catch {
+      // La recherche par nom existante reste le repli si le catalogue n’est pas accessible.
+    }
+    rechercherParNom();
   };
   const verifierPosologie = () => {
     try {
