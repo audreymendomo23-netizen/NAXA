@@ -473,5 +473,8 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
     background: #fff !important;
     color: #111 !important;
   }
-  .naxa-invoice-print-target .print\\:hidden { display: none !important; }
 }
+
+.naxa-delete-error { animation: naxa-delete-shake 260ms ease-in-out; }
+@keyframes naxa-delete-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .naxa-delete-error { animation: none !important; } }
