@@ -71,7 +71,7 @@ export function EnTeteClient() {
     return actions.filter(a => cle(a.titre + " " + a.description + " " + a.mots).includes(q)).slice(0, 4);
   }, [query]);
 
-  function openAction(href: string, titre: string) {
+  function openAction(titre: string) {
     const next = [titre, ...recent.filter(x => x !== titre)].slice(0, 4);
     setRecent(next);
     try { localStorage.setItem("naxa-recherche-navigation-recente-v1", JSON.stringify(next)); } catch {}
@@ -97,14 +97,14 @@ export function EnTeteClient() {
       </div>
 
       {searchOpen && <div className="relative z-[1002] mt-3">
-        <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) { const action = suggestions[0]; openAction(action.href, action.titre); if (action.href.startsWith("mailto:")) window.location.href = action.href; else router.push(action.href); } }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
+        <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) { const action = suggestions[0]; openAction(action.titre); if (action.href.startsWith("mailto:")) window.location.href = action.href; else router.push(action.href); } }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={19} className="ml-2 shrink-0 text-[#0F6B3F]"/>
           <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans NAXA" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
           {query && <button type="button" aria-label="Effacer la recherche" onClick={() => { setQuery(""); inputRef.current?.focus(); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>}
         </form>
         <div className="mt-2 overflow-hidden rounded-2xl border border-white/15 bg-[#0B3D26] p-2 text-white shadow-xl">
           <p className="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/65">{query.trim().length >= 2 ? "Suggestions" : "Récemment utilisés"}</p>
-          {query.trim().length >= 2 ? suggestions.map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.href, a.titre)} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span><span className="block">{a.titre}</span><span className="block text-xs font-normal text-white/70">{a.description}</span></span><span aria-hidden="true">›</span></Link>) : (recent.length ? actions.filter(a => recent.includes(a.titre)).sort((a,b) => recent.indexOf(a.titre)-recent.indexOf(b.titre)) : actions.filter(a => ["Accueil","Favoris","Scanner une ordonnance","Achats et commandes"].includes(a.titre))).slice(0,4).map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.href, a.titre)} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span>{a.titre}</span><span aria-hidden="true">›</span></Link>)}
+          {query.trim().length >= 2 ? suggestions.map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.titre)} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span><span className="block">{a.titre}</span><span className="block text-xs font-normal text-white/70">{a.description}</span></span><span aria-hidden="true">›</span></Link>) : (recent.length ? actions.filter(a => recent.includes(a.titre)).sort((a,b) => recent.indexOf(a.titre)-recent.indexOf(b.titre)) : actions.filter(a => ["Accueil","Favoris","Scanner une ordonnance","Achats et commandes"].includes(a.titre))).slice(0,4).map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.href, a.titre)} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span>{a.titre}</span><span aria-hidden="true">›</span></Link>)}
           {query.trim().length >= 2 && suggestions.length === 0 && <p className="px-3 py-3 text-sm text-white/75">Aucune option trouvée. Essayez un autre terme.</p>}
         </div>
       </div>}
