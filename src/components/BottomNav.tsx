@@ -23,6 +23,10 @@ export function BottomNav() {
  const searchParams=useSearchParams();
  const achatsTab=searchParams.get("onglet")==="achats";
  const {nombre}=usePanier();
+ const [avatarUrl,setAvatarUrl]=useState<string|null>(null);
+ const [initiales,setInitiales]=useState("C");
+ const [rotating,setRotating]=useState(0);
+ const [reducedMotion,setReducedMotion]=useState(false);
  useEffect(()=>{
   let actif=true;
   const chargerProfil=async()=>{
@@ -36,19 +40,15 @@ export function BottomNav() {
    const prenom=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():typeof meta.given_name==="string"?meta.given_name.trim():"";
    const nom=typeof profile?.last_name==="string"&&profile.last_name.trim()?profile.last_name.trim():typeof meta.last_name==="string"?meta.last_name.trim():typeof meta.family_name==="string"?meta.family_name.trim():"";
    const nomComplet=[prenom,nom].filter(Boolean).join(" ").trim()||String(meta.full_name??meta.name??user.email?.split("@")[0]??"Client");
-   const lettres=nomComplet.split(/[\\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
+   const lettres=nomComplet.split(/[\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
    setInitiales(lettres||"C");
    const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;
-   setAvatarUrl(typeof photo==="string"&&/^https:\\/\\//i.test(photo)?photo:null);
+   setAvatarUrl(typeof photo==="string"&&photo.startsWith("https://")?photo:null);
   };
   void chargerProfil();
   const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange(()=>{void chargerProfil()});
   return()=>{actif=false;subscription.unsubscribe()};
  },[]);
- const [avatarUrl,setAvatarUrl]=useState<string|null>(null);
- const [initiales,setInitiales]=useState("C");
- const [rotating,setRotating]=useState(0);
- const [reducedMotion,setReducedMotion]=useState(false);
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
  useEffect(()=>{if(reducedMotion){setRotating(0);return}const id=window.setInterval(()=>setRotating(v=>(v+1)%3),3000);return()=>window.clearInterval(id)},[reducedMotion]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
