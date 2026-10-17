@@ -117,7 +117,7 @@ export default function ProfilSectionPage() {
     if (section !== "factures" || !userId) return;
     let active = true; setChargementRecus(true);
     void (async () => {
-      const { data, error } = await supabaseBrowser().from("client_achats").select("reservation_id,produit_id,medicament,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,achat_le,reservation_creee_le,pharmacie,ville,statut").order("achat_le", { ascending: false, nullsFirst: false }).limit(500);
+      const { data, error } = await supabaseBrowser().from("client_achats").select("reservation_id,produit_id,medicament,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,achat_le,reservation_creee_le,pharmacie,ville,statut").eq("client_id", userId).in("statut", ["payee", "retiree"]).order("achat_le", { ascending: false, nullsFirst: false }).limit(500);
       if (!active) return;
       if (error) setErreur("Impossible de charger les reçus. Vérifiez que l’historique des achats est disponible, puis réessayez.");
       else { const rows = (data ?? []) as LigneRecu[]; setRecus(rows);  }
