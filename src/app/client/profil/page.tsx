@@ -188,11 +188,20 @@ export default function ProfilClientPage() {
       flash("La photo n’a pas pu être enregistrée. Choisissez une image plus légère ou réessayez.");
     } finally { setSaving(false); }
   }
-  function deletePhoto() {
+  async function deletePhoto() {
     try { window.localStorage.removeItem(PHOTO_KEY); } catch {}
+    const sb = supabaseBrowser();
+    const { data: { user } } = await sb.auth.getUser();
+    let remoteFailed = false;
+    if (user) {
+      const { error: profileError } = await sb.from("profiles").update({ avatar_url: null }).eq("id", user.id);
+      const { error: metadataError } = await sb.auth.updateUser({ data: { avatar_url: null, picture: null, photo_url: null } });
+      remoteFailed = Boolean(profileError || metadataError);
+    }
     setProfile(p => ({ ...p, photo: null }));
     window.dispatchEvent(new Event(PROFILE_EVENT));
-    setSheet(null); flash("Photo supprimée.");
+    setSheet(null);
+    flash(remoteFailed ? "Photo retirée de cet appareil; la suppression distante n’a pas pu être confirmée." : "Photo supprimée.");
   }
   function dragStartAt(e: ReactPointerEvent<HTMLDivElement>) { e.currentTarget.setPointerCapture(e.pointerId); setDragStart({ x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y }); }
   function dragMove(e: ReactPointerEvent<HTMLDivElement>) { if (dragStart) setOffset({ x: Math.max(-100, Math.min(100, dragStart.ox + e.clientX - dragStart.x)), y: Math.max(-100, Math.min(100, dragStart.oy + e.clientY - dragStart.y)) }); }
