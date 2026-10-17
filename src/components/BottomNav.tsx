@@ -4,6 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePanier } from "@/lib/panier";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { isProfileVerified } from "@/lib/client-profile";
 
 type IconName = "home" | "heart" | "scan" | "shopping" | "calendar" | "clipboard" | "user";
 function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
@@ -31,7 +32,7 @@ export function BottomNav() {
  useEffect(()=>{
   let actif=true;
   const sb=supabaseBrowser();
-  type UtilisateurProfil={id:string;user_metadata?:Record<string,unknown>;email?:string|null};
+  type UtilisateurProfil={id:string;user_metadata?:Record<string,unknown>;email?:string|null;phone?:string|null};
   const chargerProfil=async(utilisateurForce?:UtilisateurProfil|null)=>{
    const utilisateur=utilisateurForce===undefined?(await sb.auth.getUser()).data.user:utilisateurForce;
    if(!actif)return;
@@ -44,12 +45,33 @@ export function BottomNav() {
    const nomComplet=[prenom,nom].filter(Boolean).join(" ").trim()||String(meta.full_name??meta.name??utilisateur.email?.split("@")[0]??"Client");
    const lettres=nomComplet.split(/[\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
    setInitiales(lettres||"C");
-   const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;
-   setAvatarUrl(typeof photo==="string"&&photo.startsWith("https://")?photo:null);
+   let photo: string | null = typeof profile?.avatar_url === "string" ? profile.avatar_url : typeof meta.avatar_url === "string" ? meta.avatar_url : typeof meta.picture === "string" ? meta.picture : typeof meta.photo_url === "string" ? meta.photo_url : null;
+   try {
+    const localPhoto=window.localStorage.getItem("naxa-client-profile-photo-v1");
+    if(localPhoto) photo=localPhoto;
+   } catch {}
+   let address=typeof prefs?.adresse_defaut==="string"?prefs.adresse_defaut:"";
+   try {
+    const savedAddresses: unknown=JSON.parse(window.localStorage.getItem("naxa-client-addresses-v1")||"[]");
+    if(Array.isArray(savedAddresses)){
+     const primary=savedAddresses.find((item)=>item&&typeof item==="object"&&"isDefault" in item&&item.isDefault===true);
+     if(primary&&typeof primary==="object"){
+      const value=primary as {street?:unknown;neighborhood?:unknown;city?:unknown};
+      address=[value.street,value.neighborhood,value.city].filter((part):part is string=>typeof part==="string"&&Boolean(part.trim())).join(", ")||address;
+     }
+    }
+   } catch {}
+   const phone=String(utilisateur.phone??meta.phone??"");
+   setAvatarUrl(typeof photo==="string"&&photo?photo:null);
+   setProfileVerified(isProfileVerified({address,phone,photo}));
   };
   void chargerProfil();
   const {data:{subscription}}=sb.auth.onAuthStateChange((_event,session)=>{void chargerProfil(session?.user??null)});
-  return()=>{actif=false;subscription.unsubscribe()};
+  const refreshProfile=()=>{void chargerProfil()};
+  const refreshStorage=(event:StorageEvent)=>{if(!event.key||event.key==="naxa-client-profile-photo-v1"||event.key==="naxa-client-addresses-v1")refreshProfile()};
+  window.addEventListener("naxa-profile-updated",refreshProfile);
+  window.addEventListener("storage",refreshStorage);
+  return()=>{actif=false;subscription.unsubscribe();window.removeEventListener("naxa-profile-updated",refreshProfile);window.removeEventListener("storage",refreshStorage)};
  },[]);
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
  useEffect(()=>{if(reducedMotion){setRotating(0);return}const id=window.setInterval(()=>setRotating(v=>(v+1)%3),3000);return()=>window.clearInterval(id)},[reducedMotion]);
