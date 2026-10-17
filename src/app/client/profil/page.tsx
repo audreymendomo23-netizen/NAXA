@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { isProfileVerified } from "@/lib/client-profile";
 
 type ProfileData = { name: string; phone: string; email: string; address: string; photo: string | null; orders: number };
 const PHOTO_KEY = "naxa-client-profile-photo-v1";
@@ -12,7 +13,6 @@ const PROFILE_EVENT = "naxa-profile-updated";
 function initials(name: string) { return name.trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(x => Array.from(x)[0]?.toLocaleUpperCase("fr-FR") ?? "").join("") || "C"; }
 function formatPhone(value: string) { const digits = value.replace(/\D/g, ""); const local = digits.startsWith("237") ? digits.slice(3) : digits; return local.length === 9 && local.startsWith("6") ? `+237 6 ${local.slice(1, 3)} ${local.slice(3, 5)} ${local.slice(5, 7)} ${local.slice(7, 9)}` : value; }
 
-function isProfileVerified(user: Pick<ProfileData, "address" | "phone" | "photo">) { return Boolean(user.address.trim() && user.phone.trim() && user.photo); }
 function Icon({ name, size = 24, className = "" }: { name: string; size?: number; className?: string }) {
   const paths: Record<string, React.ReactNode> = {
     pin: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
@@ -322,7 +322,7 @@ export default function ProfilClientPage() {
 
     <nav aria-label={savedLanguage === "en" ? "Main navigation" : "Navigation principale"} className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="grid h-16 grid-cols-4 items-center">
-        {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Favorites" : "Favoris",href:"/client/profil/favoris",icon:"heart"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
+        {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Search" : "Recherche",href:"/recherche",icon:"search"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
           <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[10px] font-extrabold text-[#F4C430]">
             {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover"/> : shownInitials}
