@@ -38,8 +38,8 @@ export function BottomNav() {
  const tab=(active:boolean,label:string,icon:IconName,href:string,extra?:React.ReactNode,animated=false)=> <Link href={href} aria-current={active?"page":undefined} className="relative flex h-[54px] min-w-0 items-center justify-center rounded-[20px] transition-transform duration-150 active:scale-[0.96]">
   {active&&<span className="absolute inset-0 rounded-[20px] bg-[#0B3D26] transition-opacity duration-200"/>}
   <span className={`relative flex min-w-0 flex-col items-center justify-center gap-1 px-1 ${active?"text-white":"text-[#667D70]"}`}>
-   <NavIcon name={icon} className={`h-5 w-5 ${active?"text-[#FFE23D]":""}`}/>
-   <span className="max-w-full truncate text-[10px] font-semibold leading-none">{label}</span>
+   <span key={animated?icon:"static-icon"} className={animated&&!reducedMotion?"animate-[naxa-nav-icon-bounce_420ms_ease-out]":""}><NavIcon name={icon} className={`h-5 w-5 ${active?"text-[#FFE23D]":""}`}/></span>
+   <span className="relative h-3.5 max-w-full overflow-hidden text-[10px] font-semibold leading-none"><span key={animated?label:"static-label"} className={`block max-w-full truncate ${animated&&!reducedMotion?"animate-[naxa-nav-label-in_260ms_ease-out]":""}`}>{label}</span></span>
   </span>
   {active&&<span className="absolute top-1 h-1 w-1 rounded-full bg-[#FFE23D]"/>}{extra}
  </Link>;
