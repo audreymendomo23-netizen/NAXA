@@ -264,13 +264,13 @@ export default function ProfilClientPage() {
     <div className="mx-auto w-full max-w-[430px] pt-4">
       <section className="naxa-profile-card naxa-profile-enter rounded-[24px] bg-white px-5 pb-7 pt-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex items-center gap-4">
-          <button type="button" onClick={() => { setSheet("photo"); setCameraError(""); }} className="relative h-[88px] w-[88px] shrink-0 rounded-full bg-[#1E7B3A] text-[#F4C430] active:scale-[.97]" aria-label="Modifier la photo de profil">
+          <button type="button" onClick={() => { setSheet("photo"); setCameraError(""); }} className="relative h-[88px] w-[88px] shrink-0 rounded-full bg-[#1E7B3A] text-[#F4C430] active:scale-[.97]" aria-label={savedLanguage === "en" ? "Edit profile photo" : "Modifier la photo de profil"}>
             {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full text-[32px] font-black">{shownInitials}</span>}
             <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#f4f4f4] bg-white text-[#1E7B3A] shadow-[0_2px_6px_rgba(0,0,0,.15)]"><Icon name="camera" size={17}/></span>
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label="Modifier mes informations" className="max-w-full truncate text-left">{shown.name}</button></h1>
+              <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label={savedLanguage === "en" ? "Edit my information" : "Modifier mes informations"} className="max-w-full truncate text-left">{shown.name}</button></h1>
               {verified && <Verified/>}
             </div>
             {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{formatPhone(shown.phone)}</span></p>}
@@ -301,14 +301,14 @@ export default function ProfilClientPage() {
       <div className="flex justify-center pb-3 pt-5">
         <label className="flex min-h-9 items-center gap-2 rounded-full border border-[#d1e5d6] bg-white/85 px-3 text-[11px] font-semibold text-[#526457]">
           {savedLanguage === "en" ? "Demo profile" : "Profil de démonstration"}
-          <select aria-label="Choisir un profil de démonstration" value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[120px] bg-transparent text-[#0F4D26] outline-none">
+          <select aria-label={savedLanguage === "en" ? "Choose a demo profile" : "Choisir un profil de démonstration"} value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[120px] bg-transparent text-[#0F4D26] outline-none">
             <option value="real">{savedLanguage === "en" ? "My account" : "Mon compte"}</option><option value="complete">{savedLanguage === "en" ? "Complete verified" : "Complet vérifié"}</option><option value="incomplete">{savedLanguage === "en" ? "Incomplete" : "Incomplet"}</option>
           </select>
         </label>
       </div>
     </div>
 
-    <nav aria-label="Navigation principale" className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
+    <nav aria-label={savedLanguage === "en" ? "Main navigation" : "Navigation principale"} className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="grid h-16 grid-cols-4 items-center">
         {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Search" : "Recherche",href:"/recherche",icon:"search"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
@@ -325,43 +325,43 @@ export default function ProfilClientPage() {
       <section role="dialog" aria-modal="true" aria-labelledby="profile-sheet-title" className="naxa-profile-sheet w-full max-w-[430px] rounded-t-[24px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl">
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[#D1D5DB]"/>
         {sheet === "photo" ? <>
-          <h2 id="profile-sheet-title" className="mb-3 text-lg font-extrabold text-[#0F4D26]">Photo de profil</h2>
+          <h2 id="profile-sheet-title" className="mb-3 text-lg font-extrabold text-[#0F4D26]">{savedLanguage === "en" ? "Profile photo" : "Photo de profil"}</h2>
           {cameraError && <div role="alert" className="mb-3 rounded-xl bg-[#FCEDEA] p-3 text-sm text-[#8F211B]">{cameraError}</div>}
-          <button type="button" onClick={() => void openCamera()} disabled={cameraBusy} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-[#111111] transition-colors hover:bg-[#E9F5EC]"><Icon name="camera" className="text-[#1E7B3A]"/>Prendre une photo{cameraBusy && <span className="ml-auto text-xs text-[#6B7280]">Ouverture…</span>}</button>
-          <button type="button" onClick={() => fileRef.current?.click()} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-[#111111] transition-colors hover:bg-[#E9F5EC]"><Icon name="file" className="text-[#1E7B3A]"/>Importer depuis la galerie</button>
-          {profile.photo && <button type="button" onClick={deletePhoto} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-[#B3261E] transition-colors hover:bg-red-50"><Icon name="trash" className="text-[#B3261E]"/>Supprimer la photo</button>}
-          <button type="button" onClick={() => setSheet(null)} className="mt-2 min-h-11 w-full rounded-xl border border-[#E5E7EB] font-semibold text-[#6B7280]">Annuler</button>
+          <button type="button" onClick={() => void openCamera()} disabled={cameraBusy} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-[#111111] transition-colors hover:bg-[#E9F5EC]"><Icon name="camera" className="text-[#1E7B3A]"/>{savedLanguage === "en" ? "Take a photo" : "Prendre une photo"}{cameraBusy && <span className="ml-auto text-xs text-[#6B7280]">{savedLanguage === "en" ? "Opening…" : "Ouverture…"}</span>}</button>
+          <button type="button" onClick={() => fileRef.current?.click()} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-[#111111] transition-colors hover:bg-[#E9F5EC]"><Icon name="file" className="text-[#1E7B3A]"/>{savedLanguage === "en" ? "Import from gallery" : "Importer depuis la galerie"}</button>
+          {profile.photo && <button type="button" onClick={deletePhoto} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-[#B3261E] transition-colors hover:bg-red-50"><Icon name="trash" className="text-[#B3261E]"/>{savedLanguage === "en" ? "Delete photo" : "Supprimer la photo"}</button>}
+          <button type="button" onClick={() => setSheet(null)} className="mt-2 min-h-11 w-full rounded-xl border border-[#E5E7EB] font-semibold text-[#6B7280]">{savedLanguage === "en" ? "Cancel" : "Annuler"}</button>
         </> : <>
-          <h2 id="profile-sheet-title" className="mb-4 text-lg font-extrabold text-[#0F4D26]">Modifier mes informations</h2>
+          <h2 id="profile-sheet-title" className="mb-4 text-lg font-extrabold text-[#0F4D26]">{savedLanguage === "en" ? "Edit my information" : "Modifier mes informations"}</h2>
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-[#374151]">Nom complet<input autoComplete="name" value={draft.name} onChange={e => setDraft(p => ({...p,name:e.target.value}))} className="naxa-profile-input mt-1" maxLength={100}/></label>
-            <label className="block text-sm font-semibold text-[#374151]">Téléphone<input autoComplete="tel" inputMode="tel" value={draft.phone} onChange={e => setDraft(p => ({...p,phone:e.target.value}))} className="naxa-profile-input mt-1" placeholder="+237 6 XX XX XX XX" maxLength={24}/></label>
-            <label className="block text-sm font-semibold text-[#374151]">E-mail<input autoComplete="email" type="email" value={draft.email} onChange={e => setDraft(p => ({...p,email:e.target.value}))} className="naxa-profile-input mt-1" maxLength={254}/></label>
+            <label className="block text-sm font-semibold text-[#374151]">{savedLanguage === "en" ? "Full name" : "Nom complet"}<input autoComplete="name" value={draft.name} onChange={e => setDraft(p => ({...p,name:e.target.value}))} className="naxa-profile-input mt-1" maxLength={100}/></label>
+            <label className="block text-sm font-semibold text-[#374151]">{savedLanguage === "en" ? "Phone" : "Téléphone"}<input autoComplete="tel" inputMode="tel" value={draft.phone} onChange={e => setDraft(p => ({...p,phone:e.target.value}))} className="naxa-profile-input mt-1" placeholder="+237 6 XX XX XX XX" maxLength={24}/></label>
+            <label className="block text-sm font-semibold text-[#374151]">{savedLanguage === "en" ? "Email" : "E-mail"}<input autoComplete="email" type="email" value={draft.email} onChange={e => setDraft(p => ({...p,email:e.target.value}))} className="naxa-profile-input mt-1" maxLength={254}/></label>
           </div>
-          <button type="button" onClick={() => void saveInfo()} disabled={saving || !draft.name.trim()} className="mt-5 min-h-12 w-full rounded-xl bg-[#1E7B3A] font-bold text-white transition-transform active:scale-[.99] disabled:opacity-50">{saving ? "Enregistrement…" : "Enregistrer"}</button>
+          <button type="button" onClick={() => void saveInfo()} disabled={saving || !draft.name.trim()} className="mt-5 min-h-12 w-full rounded-xl bg-[#1E7B3A] font-bold text-white transition-transform active:scale-[.99] disabled:opacity-50">{saving ? (savedLanguage === "en" ? "Saving…" : "Enregistrement…") : (savedLanguage === "en" ? "Save" : "Enregistrer")}</button>
           <button type="button" onClick={() => setSheet(null)} className="mt-2 min-h-11 w-full font-semibold text-[#6B7280]">Annuler</button>
         </>}
       </section>
     </div>}
 
-    {cameraOpen && <div className="fixed inset-0 z-[110] flex flex-col bg-black p-4 text-white" role="dialog" aria-modal="true" aria-label="Prendre une photo">
-      <header className="flex items-center justify-between"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15" aria-label="Fermer la caméra">×</button><h2 className="font-bold">Prendre une photo</h2><span className="w-11"/></header>
+    {cameraOpen && <div className="fixed inset-0 z-[110] flex flex-col bg-black p-4 text-white" role="dialog" aria-modal="true" aria-label={savedLanguage === "en" ? "Take a photo" : "Prendre une photo"}>
+      <header className="flex items-center justify-between"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15" aria-label={savedLanguage === "en" ? "Close camera" : "Fermer la caméra"}>×</button><h2 className="font-bold">{savedLanguage === "en" ? "Take a photo" : "Prendre une photo"}</h2><span className="w-11"/></header>
       {cameraError && <p role="alert" className="mt-3 rounded-xl bg-white/10 p-3 text-sm">{cameraError}</p>}
       <div className="my-auto flex justify-center"><div className="relative aspect-square w-full max-w-[330px] overflow-hidden rounded-full border-4 border-white/80 bg-[#222]"><video ref={videoRef} autoPlay playsInline muted className="h-full w-full scale-x-[-1] object-cover"/></div></div>
-      <div className="flex items-center justify-center gap-8 pb-8"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="min-h-12 rounded-full px-4 font-semibold">Annuler</button><button type="button" onClick={capturePhoto} className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[5px] border-white bg-white/20" aria-label="Déclencher la photo"><span className="h-12 w-12 rounded-full bg-white"/></button></div>
+      <div className="flex items-center justify-center gap-8 pb-8"><button type="button" onClick={() => { stopCamera(); setSheet("photo"); }} className="min-h-12 rounded-full px-4 font-semibold">Annuler</button><button type="button" onClick={capturePhoto} className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[5px] border-white bg-white/20" aria-label={savedLanguage === "en" ? "Capture photo" : "Déclencher la photo"}><span className="h-12 w-12 rounded-full bg-white"/></button></div>
     </div>}
 
     {cropSource && <div className="fixed inset-0 z-[120] flex flex-col bg-[#0b2415] px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-[max(18px,env(safe-area-inset-top,0px))] text-white" role="dialog" aria-modal="true" aria-labelledby="crop-title">
-      <header className="flex items-center justify-between"><button type="button" onClick={() => setCropSource(null)} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl" aria-label="Annuler le recadrage">×</button><h2 id="crop-title" className="font-bold">Recadrer la photo</h2><span className="w-11"/></header>
-      <p className="mt-3 text-center text-sm text-white/75">Déplacez la photo dans le cercle et ajustez le zoom.</p>
+      <header className="flex items-center justify-between"><button type="button" onClick={() => setCropSource(null)} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl" aria-label={savedLanguage === "en" ? "Cancel crop" : "Annuler le recadrage"}>×</button><h2 id="crop-title" className="font-bold">{savedLanguage === "en" ? "Crop photo" : "Recadrer la photo"}</h2><span className="w-11"/></header>
+      <p className="mt-3 text-center text-sm text-white/75">{savedLanguage === "en" ? "Move the photo inside the circle and adjust the zoom." : "Déplacez la photo dans le cercle et ajustez le zoom."}</p>
       <div className="my-auto flex justify-center">
         <div className="relative h-[min(72vw,240px)] w-[min(72vw,240px)] touch-none overflow-hidden rounded-full border-4 border-white" onPointerDown={dragStartAt} onPointerMove={dragMove} onPointerUp={() => setDragStart(null)} onPointerCancel={() => setDragStart(null)}>
           <img src={cropSource} alt="Aperçu du recadrage" draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.width * zoom}px`, height: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.height * zoom}px`, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`, objectFit: "cover" }}/>
         </div>
       </div>
       <label className="mx-auto mb-8 flex w-full max-w-[300px] items-center gap-3 text-sm"><span>−</span><input aria-label="Zoom de la photo" type="range" min="1" max="2.5" step=".05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#F4C430]"/><span>+</span></label>
-      <button type="button" onClick={() => void saveCrop()} disabled={saving} className="min-h-12 w-full rounded-xl bg-[#F4C430] font-extrabold text-[#0F4D26] disabled:opacity-60">{saving ? "Enregistrement…" : "Utiliser cette photo"}</button>
-      <button type="button" onClick={() => { setCropSource(null); setSheet("photo"); }} className="mt-2 min-h-11 font-semibold text-white/80">Reprendre / choisir une autre</button>
+      <button type="button" onClick={() => void saveCrop()} disabled={saving} className="min-h-12 w-full rounded-xl bg-[#F4C430] font-extrabold text-[#0F4D26] disabled:opacity-60">{saving ? (savedLanguage === "en" ? "Saving…" : "Enregistrement…") : (savedLanguage === "en" ? "Use this photo" : "Utiliser cette photo")}</button>
+      <button type="button" onClick={() => { setCropSource(null); setSheet("photo"); }} className="mt-2 min-h-11 font-semibold text-white/80">{savedLanguage === "en" ? "Retake / choose another" : "Reprendre / choisir une autre"}</button>
     </div>}
 
     {toast && <div role="status" aria-live="polite" className="naxa-profile-toast fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-sm font-semibold text-white shadow-lg">{toast}</div>}
