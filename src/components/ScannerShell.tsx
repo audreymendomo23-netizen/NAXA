@@ -170,6 +170,7 @@ export function ScannerShell() {
           sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify(draft));
           sessionStorage.removeItem(CLE_BROUILLON);
         } catch {}
+        setFichier(null);
         router.push("/client/posologie?scanner=1");
         return;
       }
@@ -181,6 +182,7 @@ export function ScannerShell() {
       }));
       setProduits(nouveaux);
       try { sessionStorage.setItem(CLE_RESULTATS, JSON.stringify(nouveaux)); } catch {}
+      setFichier(null);
       setEcran("results");
       router.replace("/scanner?view=results");
     } catch {
@@ -189,7 +191,6 @@ export function ScannerShell() {
         : "La lecture n’a pas abouti. Réessayez avec une image plus nette.");
     } finally {
       setLectureEnCours(false);
-      setFichier(null);
     }
   }, [modePosologie, router]);
 
@@ -326,7 +327,8 @@ export function ScannerShell() {
           <input type="range" min="100" max="140" step="5" value={zoomRecadrage} onChange={e => setZoomRecadrage(Number(e.target.value))} className="mt-3 w-full accent-[#FFE23D]"/>
         </label>
         {erreur && <p role="alert" className="rounded-xl bg-red-950/70 p-3 text-sm text-red-100">{erreur}</p>}
-        <button type="button" onClick={() => void recadrerEtLire()} disabled={lectureEnCours || !apercu} className="min-h-14 w-full rounded-full bg-[#FFE23D] px-5 font-extrabold text-[#0B3D26] transition-transform active:scale-[.98] disabled:opacity-60">{lectureEnCours ? "Lecture en cours…" : "Lire l’image"}</button>
+        {modePosologie && erreur && <button type="button" onClick={() => router.push("/client/posologie")} className="min-h-11 w-full rounded-full border border-white/30 px-4 text-sm font-bold text-white">Saisir manuellement</button>}
+        <button type="button" onClick={() => void recadrerEtLire()} disabled={lectureEnCours || !apercu} className="min-h-14 w-full rounded-full bg-[#FFE23D] px-5 font-extrabold text-[#0B3D26] transition-transform active:scale-[.98] disabled:opacity-60">{lectureEnCours ? "Lecture en cours…" : modePosologie && erreur ? "Réessayer" : "Lire l’image"}</button>
       </div>
       <canvas ref={canvas} className="hidden" aria-hidden="true"/>
     </main>;
