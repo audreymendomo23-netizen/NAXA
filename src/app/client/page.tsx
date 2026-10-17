@@ -25,9 +25,10 @@ function ClientPageContent(){
  const {data:{user},error:userError}=await sb.auth.getUser();
  if(userError) throw userError;
  if(!user){router.replace("/connexion?retour=/client");return}
- const [{data:p,error:profileError},{data:r,error:reservationError}]=await Promise.all([
+ const [{data:p,error:profileError},{data:r,error:reservationError},{data:historique,error:historiqueError}]=await Promise.all([
   sb.from("profiles").select("first_name,last_name,role").eq("id",user.id).single(),
-  sb.from("reservations").select("id,statut,total,expires_at,created_at,paiement_ref,pharmacie_id,pharmacies(nom,ville,quartier,adresse),reservation_items(quantite,prix_unitaire,produits(id,nom,dci,dosage,forme,photo_url))").eq("client_id",user.id).order("created_at",{ascending:false}).limit(50)
+  sb.from("reservations").select("id,statut,total,expires_at,created_at,paiement_ref,pharmacie_id,pharmacies(nom,ville,quartier,adresse),reservation_items(quantite,prix_unitaire,produits(id,nom,dci,dosage,forme,photo_url))").eq("client_id",user.id).order("created_at",{ascending:false}).limit(200),
+  sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").order("achat_le",{ascending:false,nullsFirst:false}).limit(500)
  ]);
  if(profileError) throw profileError;
  if(reservationError) throw reservationError;
@@ -36,18 +37,24 @@ function ClientPageContent(){
  if(cancelled) return;
  setName([p?.first_name,p?.last_name].filter(Boolean).join(" ")||"Client");
  setReservations(rows);
- // L'historique est construit à partir des réservations réelles. Les tables
- // client_achats et reservation_events n'existent pas dans le schéma déployé.
- const purchases:Achat[]=rows.filter(x=>x.statut==="payee"||x.statut==="retiree").flatMap(x=>x.reservation_items.map(item=>({
-  reservation_id:x.id,produit_id:item.produits?.id??"inconnu",medicament:item.produits?.nom??"Produit",
-  dci:item.produits?.dci??"",dosage:item.produits?.dosage??"",forme:item.produits?.forme??"",
-  photo_url:item.produits?.photo_url??null,quantite:item.quantite,prix_unitaire:item.prix_unitaire,
-  total_ligne:item.quantite*item.prix_unitaire,total_transaction:x.total,reference_paiement:x.paiement_ref??null,
-  reservation_creee_le:x.created_at,pharmacie_id:x.pharmacie_id,pharmacie:x.pharmacies?.nom??"Pharmacie",
-  ville:x.pharmacies?.ville??"Yaoundé",quartier:x.pharmacies?.quartier??null,adresse:x.pharmacies?.adresse??null,
-  confirmee_le:null,paiement_declare_le:null,payee_le:null,retiree_le:null,achat_le:null,
-  horodatage_achat_exact:false,statut:x.statut
- })));
+ // Priorité à la vue canonique : elle fournit les horodatages issus des
+ // événements de statut. Repli sur les réservations si la migration n'est
+ // pas encore installée dans l'environnement Supabase courant.
+ let purchases:Achat[];
+ if(!historiqueError && historique){
+  purchases=(historique as unknown as Achat[]).filter(a=>a.statut==="payee"||a.statut==="retiree");
+ }else{
+  purchases=rows.filter(x=>x.statut==="payee"||x.statut==="retiree").flatMap(x=>x.reservation_items.map(item=>({
+   reservation_id:x.id,produit_id:item.produits?.id??"inconnu",medicament:item.produits?.nom??"Produit",
+   dci:item.produits?.dci??"",dosage:item.produits?.dosage??"",forme:item.produits?.forme??"",
+   photo_url:item.produits?.photo_url??null,quantite:item.quantite,prix_unitaire:item.prix_unitaire,
+   total_ligne:item.quantite*item.prix_unitaire,total_transaction:x.total,reference_paiement:x.paiement_ref??null,
+   reservation_creee_le:x.created_at,pharmacie_id:x.pharmacie_id,pharmacie:x.pharmacies?.nom??"Pharmacie",
+   ville:x.pharmacies?.ville??"Yaoundé",quartier:x.pharmacies?.quartier??null,adresse:x.pharmacies?.adresse??null,
+   confirmee_le:null,paiement_declare_le:null,payee_le:null,retiree_le:null,achat_le:null,
+   horodatage_achat_exact:false,statut:x.statut
+  })));
+ }
  setAchats(purchases);setLoading(false);
  }catch(err){console.error("[NAXA client] chargement espace client",err);if(!cancelled){setError("Impossible de charger votre suivi pour le moment. Réessayez dans quelques instants.");setLoading(false)}}})();
  return()=>{cancelled=true};
@@ -73,14 +80,14 @@ function ClientPageContent(){
    onClick={() => setTab("achats")}
    aria-pressed={tab === "achats"}
   >
-   Mes médicaments achetés
+   Mes commandes · Historique
   </button>
  </nav>
  {loading&&<p className="carte">Chargement…</p>}{error&&<p role="alert" className="carte border border-red-200 text-red-800">{error}</p>}
  {!loading&&!error&&tab==="suivi"&&<section className="space-y-4"><div className="grid grid-cols-2 gap-3"><article className="carte"><p className="text-xs text-slate-500">Achats</p><p className="text-2xl font-black">{purchaseCount}</p></article><article className="carte"><p className="text-xs text-slate-500">Médicaments distincts</p><p className="text-2xl font-black">{medicineCount}</p></article></div>
  <section className="carte"><div className="mb-3 flex justify-between gap-2"><h2 className="text-lg font-extrabold">Mes réservations</h2><span className="text-xs text-slate-500">{reservations.length} récentes</span></div>{recent.length===0?<p className="text-sm text-slate-500">Aucune réservation pour le moment.</p>:<div className="space-y-3">{recent.map(r=><article key={r.id} className="rounded-2xl border border-slate-100 p-3"><div className="flex justify-between gap-3"><div><p className="font-bold">{r.pharmacies?.nom??"Pharmacie"}</p><p className="text-xs text-slate-500">{fmt(r.created_at)} · N° {r.id.slice(0,8).toUpperCase()}</p></div><span className="rounded-full bg-naxa-canari px-2 py-1 text-xs font-bold">{STATUS[r.statut]??r.statut}</span></div><p className="mt-2 text-sm">{r.reservation_items.map((i,n)=><span key={n}>{i.quantite} × {i.produits?.nom??"Produit"}{i.produits?.dosage?" "+i.produits.dosage:""}{n<r.reservation_items.length-1?", ":""}</span>)}</p><div className="mt-2 flex justify-between"><strong>{fcfa(r.total)}</strong><Link className="text-sm font-bold underline" href={"/reservation/"+r.id}>Voir le suivi</Link></div></article>)}</div>}</section></section>}
  {!loading&&!error&&tab==="achats"&&<section className="space-y-4"><div className="grid grid-cols-2 gap-3"><article className="carte"><p className="text-xs text-slate-500">Transactions</p><p className="text-2xl font-black">{purchaseCount}</p></article><article className="carte"><p className="text-xs text-slate-500">Médicaments distincts</p><p className="text-2xl font-black">{medicineCount}</p></article></div><Link href="/client/profil/favoris" className="carte flex items-center justify-between gap-3"><span><strong className="block">Mes favoris</strong><span className="text-sm text-slate-600">Retrouver les médicaments enregistrés</span></span><span aria-hidden="true" className="text-xl">›</span></Link><div className="carte space-y-3"><div className="flex flex-wrap gap-2">{PERIODS.map(([id,label])=><button key={id} className={"btn !min-h-[40px] !px-3 text-sm "+(period===id?"btn-vert":"btn-clair")} onClick={()=>setPeriod(id)}>{label}</button>)}</div><input className="champ" value={q} onChange={e=>setQ(e.target.value)} placeholder="Rechercher un médicament ou une pharmacie" aria-label="Rechercher dans mes achats"/></div>
- {groups.length===0?<div className="carte"><p className="font-bold">Aucun achat dans cette période.</p><Link href="/" className="btn btn-vert mt-4 w-full">Chercher un médicament</Link></div>:groups.map(([id,lines])=><details key={id} className="carte" open><summary className="cursor-pointer list-none"><div className="flex justify-between gap-3"><div><p className="font-extrabold">Achat #{id.slice(0,8).toUpperCase()}</p><p className="text-sm text-slate-600">{fmt(lines[0].achat_le??lines[0].reservation_creee_le)} · {lines[0].pharmacie}</p><p className="text-xs text-slate-500">{[lines[0].quartier,lines[0].adresse].filter(Boolean).join(" · ")}</p></div><strong>{fcfa(lines[0].total_transaction)}</strong></div></summary><div className="mt-4 space-y-3 border-t pt-3">{lines.map(l=><div key={l.produit_id} className="flex gap-3 rounded-2xl bg-slate-50 p-3"><div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white">{l.photo_url?<img src={l.photo_url} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full items-center justify-center text-[10px] text-slate-400">NAXA</div>}</div><div><p className="font-bold">{l.medicament}</p><p className="text-xs text-slate-600">{[l.dci,l.dosage,l.forme].filter(Boolean).join(" · ")}</p><p className="mt-1 text-sm">{l.quantite} × {fcfa(l.prix_unitaire)} = <strong>{fcfa(l.total_ligne)}</strong></p></div></div>)}<dl className="grid grid-cols-2 gap-2 text-sm"><div><dt className="text-xs text-slate-500">Réservation créée</dt><dd className="font-semibold">{fmt(lines[0].reservation_creee_le)}</dd></div><div><dt className="text-xs text-slate-500">Confirmée</dt><dd className="font-semibold">{fmt(lines[0].confirmee_le)}</dd></div><div><dt className="text-xs text-slate-500">Paiement déclaré</dt><dd className="font-semibold">{fmt(lines[0].paiement_declare_le)}</dd></div><div><dt className="text-xs text-slate-500">Achat</dt><dd className="font-semibold">{fmt(lines[0].achat_le)}{lines[0].horodatage_achat_exact?"":" · historique exact indisponible"}</dd></div><div><dt className="text-xs text-slate-500">Retrait</dt><dd className="font-semibold">{fmt(lines[0].retiree_le)}</dd></div><div><dt className="text-xs text-slate-500">Référence</dt><dd className="font-semibold">{lines[0].reference_paiement??"—"}</dd></div></dl><p className="text-xs text-slate-500">Statut : {STATUS[lines[0].statut]??lines[0].statut} · Données limitées à votre compte.</p></div></details>)}</section>}
+ {groups.length===0?<div className="carte"><p className="font-bold">Aucun achat dans cette période.</p><Link href="/" className="btn btn-vert mt-4 w-full">Chercher un médicament</Link></div>:groups.map(([id,lines])=><details key={id} className="carte" open><summary className="cursor-pointer list-none"><div className="flex justify-between gap-3"><div><p className="font-extrabold">Achat #{id.slice(0,8).toUpperCase()}</p><p className="text-sm text-slate-600">{fmt(lines[0].achat_le??lines[0].reservation_creee_le)} · {lines[0].pharmacie}</p><p className="text-xs text-slate-500">{[lines[0].quartier,lines[0].adresse].filter(Boolean).join(" · ")}</p></div><strong>{fcfa(lines[0].total_transaction)}</strong></div></summary><div className="mt-4 space-y-3 border-t pt-3">{lines.map(l=><div key={l.produit_id} className="flex gap-3 rounded-2xl bg-slate-50 p-3"><div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white">{l.photo_url?<img src={l.photo_url} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full items-center justify-center text-[10px] text-slate-400">NAXA</div>}</div><div><p className="font-bold">{l.medicament}</p><p className="text-xs text-slate-600">{[l.dci,l.dosage,l.forme].filter(Boolean).join(" · ")}</p><p className="mt-1 text-sm">{l.quantite} × {fcfa(l.prix_unitaire)} = <strong>{fcfa(l.total_ligne)}</strong></p></div></div>)}<dl className="grid grid-cols-2 gap-2 text-sm"><div><dt className="text-xs text-slate-500">Réservation créée</dt><dd className="font-semibold">{fmt(lines[0].reservation_creee_le)}</dd></div><div><dt className="text-xs text-slate-500">Confirmée</dt><dd className="font-semibold">{fmt(lines[0].confirmee_le)}</dd></div><div><dt className="text-xs text-slate-500">Paiement déclaré</dt><dd className="font-semibold">{fmt(lines[0].paiement_declare_le)}</dd></div><div><dt className="text-xs text-slate-500">Achat</dt><dd className="font-semibold">{fmt(lines[0].achat_le)}{lines[0].horodatage_achat_exact?"":" · historique exact indisponible"}</dd></div><div><dt className="text-xs text-slate-500">Retrait</dt><dd className="font-semibold">{fmt(lines[0].retiree_le)}</dd></div><div><dt className="text-xs text-slate-500">Référence</dt><dd className="font-semibold">{lines[0].reference_paiement??"—"}</dd></div></dl><p className="text-xs text-slate-500">Statut : {STATUS[lines[0].statut]??lines[0].statut} · Données limitées à votre compte.</p><div className="flex flex-wrap gap-3 pt-1"><Link className="text-sm font-bold text-[#1E7B3A] underline underline-offset-4" href={"/reservation/"+id}>Détails de la commande</Link>{(lines[0].statut==="payee"||lines[0].statut==="retiree")&&<Link className="text-sm font-bold text-[#1E7B3A] underline underline-offset-4" href={"/reservation/"+id+"/recu"}>Voir le reçu</Link>}</div></div></details>)}</section>}
  <p className="mt-8 text-center text-xs text-slate-500">Cet espace est un suivi commercial personnel NAXA, pas un dossier médical.</p></main>;
 }
 
