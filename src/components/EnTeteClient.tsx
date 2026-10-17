@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { IconeNAXA } from "@/components/IconeNAXA";
@@ -95,7 +96,7 @@ export function EnTeteClient() {
       </div>
 
       {searchOpen && <div className="relative z-[1002] mt-3">
-        <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) { openAction(suggestions[0].href, suggestions[0].titre); if (suggestions[0].href.startsWith("mailto:")) window.location.href = suggestions[0].href; else window.location.href = suggestions[0].href; } }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
+        <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) { const action = suggestions[0]; openAction(action.href, action.titre); if (action.href.startsWith("mailto:")) window.location.href = action.href; else router.push(action.href); } }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={19} className="ml-2 shrink-0 text-[#0F6B3F]"/>
           <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans NAXA" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
           {query && <button type="button" aria-label="Effacer la recherche" onClick={() => { setQuery(""); inputRef.current?.focus(); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>}
