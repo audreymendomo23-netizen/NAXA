@@ -192,7 +192,7 @@ export default function AdressesClientPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#E9F5EC] px-4 pb-[calc(32px+env(safe-area-inset-bottom,0px))] text-[#111111]">
+    <main className="min-h-dvh bg-[#E9F5EC] px-4 pb-[calc(96px+env(safe-area-inset-bottom,0px))] text-[#111111]">
       <div className="mx-auto w-full max-w-[430px] pt-3">
         <header className="mb-5 flex min-h-12 items-center gap-3">
           <Link href="/client/profil" aria-label={isEnglish ? "Back to profile" : "Retour au profil"} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#1E7B3A] shadow-[0_2px_8px_rgba(0,0,0,.08)] transition-transform active:scale-95">
@@ -210,7 +210,7 @@ export default function AdressesClientPage() {
             <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#E9F5EC] text-[#1E7B3A]"><PinIcon name="pin" className="h-8 w-8" /></span>
             <h2 className="text-lg font-extrabold text-[#0F4D26]">{isEnglish ? "No saved addresses" : "Aucune adresse enregistrée"}</h2>
             <p className="mt-2 max-w-[270px] text-sm leading-6 text-[#6B7280]">{isEnglish ? "Add an address to easily find your delivery location." : "Ajoutez une adresse pour retrouver facilement votre lieu de livraison."}</p>
-            <button onClick={openNew} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FFE33D] px-4 font-extrabold text-[#064B2A] transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> {isEnglish ? "Add an address" : "Ajouter une adresse"}</button>
+            <button onClick={openNew} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1E7B3A] px-4 font-extrabold text-white transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> {isEnglish ? "Add an address" : "Ajouter une adresse"}</button>
           </section>
         ) : (
           <section className="space-y-3">
@@ -236,7 +236,7 @@ export default function AdressesClientPage() {
                 </div>}
               </article>
             ))}
-            <button onClick={openNew} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FFE33D] px-4 font-extrabold text-[#064B2A] shadow-sm transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
+            <button onClick={openNew} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1E7B3A] px-4 font-extrabold text-white shadow-sm transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
           </section>
         )}
 
@@ -281,8 +281,8 @@ export default function AdressesClientPage() {
           <h2 id="delete-address-title" className="text-lg font-extrabold text-[#0F4D26]">{isEnglish ? "Delete this address?" : "Supprimer cette adresse ?"}</h2>
           <p className="mt-2 text-sm leading-6 text-[#6B7280]">{isEnglish ? "This address will be removed from the list saved on this device." : "Cette adresse sera retirée de votre liste enregistrée sur cet appareil."}</p>
           <div className="mt-5 grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setDeleteId(null)} className="min-h-11 rounded-xl border border-[#E5E7EB] font-bold text-[#374151]">Annuler</button>
-            <button type="button" onClick={removeAddress} className="min-h-11 rounded-xl bg-[#B3261E] font-bold text-white">Supprimer</button>
+            <button type="button" onClick={() => setDeleteId(null)} className="min-h-11 rounded-xl border border-[#E5E7EB] font-bold text-[#374151]">{isEnglish ? "Cancel" : "Annuler"}</button>
+            <button type="button" onClick={removeAddress} className="min-h-11 rounded-xl bg-[#B3261E] font-bold text-white">{isEnglish ? "Delete" : "Supprimer"}</button>
           </div>
         </section>
       </div>}
