@@ -85,6 +85,12 @@ export const recherchesFrequentes = [
   { fr: "Ibuprofène", en: "Ibuprofen" },
   { fr: "Artéméther/Luméfantrine", en: "Artemether/Lumefantrine" },
   { fr: "Sels de réhydratation", en: "Oral rehydration salts" },
+  { fr: "Coartem", en: "Coartem" },
+  { fr: "Metformine", en: "Metformin" },
+  { fr: "Cétirizine", en: "Cetirizine" },
+  { fr: "Oméprazole", en: "Omeprazole" },
+  { fr: "Azithromycine", en: "Azithromycin" },
+  { fr: "Métronidazole", en: "Metronidazole" },
 ];
 
 export const suggestionsMedicaments = [
