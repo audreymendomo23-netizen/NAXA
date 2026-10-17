@@ -70,8 +70,9 @@ export function BottomNav() {
   const refreshProfile=()=>{void chargerProfil()};
   const refreshStorage=(event:StorageEvent)=>{if(!event.key||event.key==="naxa-client-profile-photo-v1"||event.key==="naxa-client-addresses-v1")refreshProfile()};
   window.addEventListener("naxa-profile-updated",refreshProfile);
+  window.addEventListener("naxa-addresses-updated",refreshProfile);
   window.addEventListener("storage",refreshStorage);
-  return()=>{actif=false;subscription.unsubscribe();window.removeEventListener("naxa-profile-updated",refreshProfile);window.removeEventListener("storage",refreshStorage)};
+  return()=>{actif=false;subscription.unsubscribe();window.removeEventListener("naxa-profile-updated",refreshProfile);window.removeEventListener("naxa-addresses-updated",refreshProfile);window.removeEventListener("storage",refreshStorage)};
  },[]);
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
  useEffect(()=>{if(reducedMotion){setRotating(0);return}const id=window.setInterval(()=>setRotating(v=>(v+1)%3),3000);return()=>window.clearInterval(id)},[reducedMotion]);
