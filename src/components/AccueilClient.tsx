@@ -252,7 +252,7 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh bg-[#F4F8F5] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative z-10 min-h-[118px] bg-[#0F6B3F] px-4 pb-3 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
+    <header className="relative z-[100] min-h-[118px] bg-[#0F6B3F] px-4 pb-3 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-1 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
@@ -274,7 +274,7 @@ export function AccueilClient() {
               </svg>
             </button>
             {menuServicesOuvert && (
-              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#D8E5DC] bg-white p-2 text-[#0B3D26] shadow-xl">
+              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-0 top-full z-[110] mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/20 bg-[#0F6B3F] p-2 text-white shadow-2xl">
                 {[
                   "Parapharmacie",
                   "Bébé & maman",
@@ -286,7 +286,7 @@ export function AccueilClient() {
                     key={categorie}
                     href={"/resultats?q=" + encodeURIComponent(categorie)}
                     onClick={() => setMenuServicesOuvert(false)}
-                    className="flex min-h-12 items-center rounded-xl px-3 py-2.5 text-sm font-bold transition hover:bg-[#E8F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F6B3F]"
+                    className="flex min-h-12 items-center rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                   >
                     {categorie}
                   </Link>
@@ -294,7 +294,7 @@ export function AccueilClient() {
                 <a
                   href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
                   onClick={() => setMenuServicesOuvert(false)}
-                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-[#D8E5DC] px-3 py-3 text-sm font-extrabold text-[#0F6B3F] hover:bg-[#E8F3EC]"
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                 >
                   <IconeNAXA name="bell" size={18}/>
                   Besoin d'aide ?
