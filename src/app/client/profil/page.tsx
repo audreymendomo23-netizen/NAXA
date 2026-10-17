@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { IconeNAXA } from "@/components/IconeNAXA";
 
 type ProfileData = { name: string; phone: string; email: string; address: string; photo: string | null; orders: number };
 type DemoMode = "real" | "complete" | "incomplete";
@@ -271,7 +270,7 @@ export default function ProfilClientPage() {
       <div className="grid h-16 grid-cols-4 items-center">
         {[{label:"Accueil",href:"/",icon:"home"},{label:"Recherche",href:"/recherche",icon:"search"},{label:"Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
-          <span className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[11px] font-extrabold text-[#F4C430]">
+          <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[10px] font-extrabold text-[#F4C430]">
             {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover"/> : shownInitials}
             {verified && <span className="absolute -bottom-1 -right-1"><Verified small/></span>}
           </span><span className="text-[10px] font-bold">Profil</span>
