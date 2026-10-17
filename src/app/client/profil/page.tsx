@@ -162,7 +162,7 @@ export default function ProfilClientPage() {
     setLogoutBusy(false);
     if (error) { flash("Impossible de vous déconnecter. Réessayez."); return; }
     setLogoutConfirm(false);
-    window.location.replace("/connexion");
+    window.location.replace("/");
   }
   async function saveInfo() {
     setSaving(true);
