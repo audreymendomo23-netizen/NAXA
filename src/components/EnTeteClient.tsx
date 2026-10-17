@@ -50,7 +50,7 @@ export function EnTeteClient() {
   useEffect(() => {
     if (!searchOpen && !menuOpen) return;
     const outside = (event: PointerEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) {
+      if (event.target instanceof Element && !event.target.closest("[data-naxa-client-search]") && !event.target.closest("[data-naxa-client-menu]")) {
         setSearchOpen(false);
         setMenuOpen(false);
       }
@@ -89,14 +89,14 @@ export function EnTeteClient() {
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <BoutonNotifications/>
-          <button type="button" aria-label={searchOpen ? "Fermer la recherche générale" : "Rechercher dans NAXA"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(v => !v); setMenuOpen(false); }} className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><IconeNAXA name="search" size={22}/></button>
-          <button type="button" aria-label={menuOpen ? "Fermer le menu" : "Autres services"} aria-expanded={menuOpen} onClick={() => { setMenuOpen(v => !v); setSearchOpen(false); }} className="flex h-10 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
+          <button type="button" aria-label={searchOpen ? "Fermer la recherche générale" : "Rechercher dans NAXA"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(v => !v); setMenuOpen(false); }} data-naxa-client-search className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><IconeNAXA name="search" size={22}/></button>
+          <button type="button" aria-label={menuOpen ? "Fermer le menu" : "Autres services"} aria-expanded={menuOpen} onClick={() => { setMenuOpen(v => !v); setSearchOpen(false); }} data-naxa-client-menu className="flex h-10 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
           </button>
         </div>
       </div>
 
-      {searchOpen && <div className="relative z-[1002] mt-3">
+      {searchOpen && <div data-naxa-client-search className="relative z-[1002] mt-3">
         <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) { const action = suggestions[0]; openAction(action.titre); if (action.href.startsWith("mailto:")) window.location.href = action.href; else router.push(action.href); } }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={19} className="ml-2 shrink-0 text-[#0F6B3F]"/>
           <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans NAXA" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
@@ -109,8 +109,8 @@ export function EnTeteClient() {
         </div>
       </div>}
 
-      {menuOpen && <nav aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0B3D26] p-2 text-white shadow-2xl">
-        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.href,a.titre)} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-[#B3123F] hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
+      {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0B3D26] p-2 text-white shadow-2xl">
+        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.titre)} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-[#B3123F] hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
       </nav>}
     </div>
   </header>;
