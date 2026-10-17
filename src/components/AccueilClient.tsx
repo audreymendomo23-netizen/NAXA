@@ -436,7 +436,7 @@ export function AccueilClient() {
         <form onSubmit={event => {
           event.preventDefault();
           if (rechercheAppTerme.trim().length < 2) return;
-          if (suggestionsRechercheApp[0]) ouvrirOptionRecherche(suggestionsRechercheApp[0].href, suggestionsRechercheApp[0].titre);
+          if (suggestionsRechercheApp[0]) ouvrirOptionRecherche(suggestionsRechercheApp[0].href);
           else setRechercheAppVide(true);
         }} className="flex items-center gap-1.5 rounded-2xl border border-white/30 bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={20} className="ml-2 shrink-0 text-[#0F6B3F]"/>
