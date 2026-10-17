@@ -41,7 +41,7 @@ export default function FavorisClientPage() {
   return <main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
     <EnTeteClient/>
 
-    <section className="mx-auto -mt-4 max-w-[480px]">
+    <section className="relative z-10 mx-auto -mt-4 max-w-[480px]">
       <div className="naxa-enter mb-4 rounded-2xl border border-[#D8E5DC] bg-white p-4 shadow-sm">
         <p className="text-sm leading-5 text-[#53685C]">Retrouvez ici les médicaments que vous avez enregistrés depuis l’accueil. Les prix et stocks doivent toujours être confirmés auprès de la pharmacie.</p>
         <p className="mt-2 text-sm font-extrabold">{favoris.length} favori{favoris.length === 1 ? "" : "s"}</p>
