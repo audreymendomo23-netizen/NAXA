@@ -10,22 +10,10 @@ function CheckIcon({ size = 18 }: { size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>;
 }
 function MtnMomoLogo() {
-  return <svg viewBox="0 0 100 100" role="img" aria-label="MTN MoMo" className="h-12 w-12">
-    <rect width="100" height="100" rx="12" fill="#0B4F6C"/>
-    <path d="M18 68C35 52 42 31 47 12c19 5 32 21 34 42-10-7-18-7-27-1-11 7-20 13-36 15Z" fill="#FFCB05"/>
-    <path d="M59 21c14 7 22 21 22 35 0 9-4 16-10 22 4-18-1-37-12-57Z" fill="#FFCB05"/>
-    <circle cx="48" cy="31" r="8" fill="#0B4F6C"/>
-    <path d="M0 84h100v4a12 12 0 0 1-12 12H12A12 12 0 0 1 0 88Z" fill="#FFCB05"/>
-  </svg>;
+  return <img src="https://momodeveloper.mtn.com/content/momo_mtnb.png" alt="MTN MoMo" className="h-10 w-full object-contain" />;
 }
 function OrangeMoneyLogo() {
-  return <svg viewBox="0 0 100 100" role="img" aria-label="Orange Money" className="h-12 w-12">
-    <rect width="100" height="100" rx="12" fill="#000"/>
-    <path d="m18 43 25-25a5 5 0 0 1 7 0l12 12-8 8-7-7-21 21Z" fill="#fff"/>
-    <path d="m82 57-25 25a5 5 0 0 1-7 0L38 70l8-8 7 7 21-21Z" fill="#FF7900"/>
-    <path d="m31 52 22-22 8 8-22 22Z" fill="#fff"/>
-    <path d="m69 48-22 22-8-8 22-22Z" fill="#FF7900"/>
-  </svg>;
+  return <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/Logo_Orange_Money.svg" alt="Orange Money" className="h-8 w-full object-contain" />;
 }
 function CashIllustration() {
   return <svg viewBox="0 0 200 200" role="img" aria-label="Illustration du paiement en espèces" className="h-40 w-40 animate-[naxa-profile-enter_300ms_ease-out]">
@@ -83,17 +71,17 @@ export default function PaiementClientPage() {
   }
 
   return <main className="min-h-dvh bg-black/35 px-0 text-[#111111]">
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col justify-end">
-      <section role="dialog" aria-modal="true" aria-labelledby="payment-title" className="naxa-profile-sheet w-full rounded-t-[24px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl">
-        <Link href="/client/profil" aria-label="Retour au profil" className="mb-2 flex h-8 w-full items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link>
-        <h1 id="payment-title" className="mb-4 text-xl font-extrabold text-[#0F4D26]">Moyen de paiement</h1>
+    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col justify-end pb-[calc(72px+env(safe-area-inset-bottom,0px))]">
+      <section role="dialog" aria-modal="true" aria-labelledby="payment-title" className="naxa-profile-sheet relative z-[70] w-full rounded-t-[24px] bg-white px-5 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-2 shadow-2xl">
+        <Link href="/client/profil" aria-label="Retour au profil" className="mb-1 flex h-7 w-full items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link>
+        <h1 id="payment-title" className="mb-3 text-xl font-extrabold text-[#0F4D26]">Moyen de paiement</h1>
         <div className="space-y-2">
           {([
             { value: "MTN MoMo" as const, label: "MTN MoMo" },
             { value: "Orange Money" as const, label: "Orange Money" },
             { value: "Cash" as const, label: "Cash", subtitle: "Payer à la livraison" },
           ]).map(option => <button key={option.value} type="button" onClick={() => setMethod(option.value)} aria-pressed={method === option.value} className={`flex min-h-[72px] w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[.99] ${method === option.value ? "border-[#1E7B3A] bg-[#E9F5EC]/60" : "border-[#E5E7EB] bg-white"}`}>
-            <span className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl ${option.value === "Orange Money" ? "bg-black" : "bg-white"}`}>{option.value === "MTN MoMo" ? <MtnMomoLogo/> : option.value === "Orange Money" ? <OrangeMoneyLogo/> : <span className="flex h-12 w-12 items-center justify-center"><CashIllustration/></span>}</span>
+            <span className={`flex ${option.value === "Cash" ? "h-12 w-12" : "h-12 w-[84px]"} shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1`}>{option.value === "MTN MoMo" ? <MtnMomoLogo/> : option.value === "Orange Money" ? <OrangeMoneyLogo/> : <span className="flex h-12 w-12 items-center justify-center"><CashIllustration/></span>}</span>
             <span className="min-w-0 flex-1"><span className="block font-bold text-[#111111]">{option.label}</span>{"subtitle" in option && <span className="mt-0.5 block text-sm text-[#6B7280]">{option.subtitle}</span>}</span>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${method === option.value ? "scale-100 border-[#1E7B3A] bg-[#1E7B3A] text-white" : "scale-90 border-[#D1D5DB] text-transparent"}`}><CheckIcon/></span>
           </button>)}
@@ -102,7 +90,7 @@ export default function PaiementClientPage() {
           <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#111111]">Numéro enregistré</p><p className="mt-1 text-sm text-[#6B7280]">{maskPhone(activePhone)}</p></div><button type="button" onClick={startEdit} className="min-h-10 rounded-lg px-3 text-sm font-bold text-[#1E7B3A]">Modifier</button></div>
           {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">Numéro camerounais</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder="6XX XX XX XX" className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">Format : 6XX XX XX XX</p></div>}
         </div>}
-        <button type="button" onClick={confirm} className="mt-5 min-h-12 w-full rounded-xl bg-[#1E7B3A] font-extrabold text-white transition-transform active:scale-[.99]">Confirmer</button>
+        <button type="button" onClick={confirm} className="mt-3 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] transition-transform active:scale-[.99]">Confirmer</button>
         <Link href="/client/profil" className="mt-1 flex min-h-11 items-center justify-center font-semibold text-[#6B7280]">Annuler</Link>
       </section>
     </div>
