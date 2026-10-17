@@ -431,14 +431,13 @@ export function AccueilClient() {
 
       <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
-        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="overflow-hidden">
-          <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${produitsSlide * 100}%)` }}>
-            {Array.from({ length: nombreSlidesProduits }, (_, slide) => produits.slice(slide * 2, slide * 2 + 2)).map((groupe, slide) => <div key={slide} className="naxa-reveal-list grid min-w-full grid-cols-2 gap-2.5">
+        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="naxa-carousel-viewport overflow-hidden">
+          <div className="naxa-carousel-loop flex w-max">{[false,true].map(copy => <div key={copy?"medicaments-copie":"medicaments-originaux"} aria-hidden={copy||undefined} className="flex w-max shrink-0">{Array.from({ length: nombreSlidesProduits }, (_, slide) => produits.slice(slide * 2, slide * 2 + 2)).map((groupe, slide) => <div key={(copy?"copie-":"page-")+slide} className="naxa-reveal-list grid w-[calc(min(100vw,480px)-2rem)] shrink-0 grid-cols-2 gap-2.5">
               {groupe.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[18px] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
-            <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
+            <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} tabIndex={copy?-1:undefined} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={160} height={88} className="h-[88px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
-            <button type="button" onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white/95 text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
+            <button type="button" tabIndex={copy?-1:undefined} onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white/95 text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
               <IconeNAXA name="heart" size={19} filled={favoris.includes(p.id)} />
             </button>
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -452,16 +451,12 @@ export function AccueilClient() {
             <p className="mt-1 text-[15px] font-extrabold leading-5 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
             <div className="mt-auto flex items-end justify-between gap-1 pt-3">
               <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.demo?"Donnée illustrative":p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}{distanceProduit(p)!=null?`, ${distanceProduit(p)!.toFixed(1)} km`:""}</p>
-              <button onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
+              <button tabIndex={copy?-1:undefined} onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
                 <IconeNAXA name="shopping-cart" size={14}/>{added===p.id?"Ajouté ✓":"Ajouter"}
               </button>
             </div>
               </article>)}
-            </div>)}
-          </div>
-          {nombreSlidesProduits > 1 && <div className="mt-3 flex justify-center gap-2" aria-label="Pages des médicaments les plus recherchés">
-            {Array.from({ length: nombreSlidesProduits }, (_, i) => <button key={i} type="button" onClick={() => setProduitsSlide(i)} aria-label={`Afficher les médicaments, page ${i + 1}`} aria-current={produitsSlide === i ? "true" : undefined} className={`h-2 rounded-full transition-all ${produitsSlide === i ? "w-6 bg-[#0F6B3F]" : "w-2 bg-[#B7C9BE]"}`} />)}
-          </div>}
+            </div>)}</div>)}
         </div> : <p className="rounded-2xl bg-white px-4 py-5 text-sm leading-5 text-[#53685C]">Les recherches réelles des clients apparaîtront ici dès qu’elles seront disponibles.</p>}
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
       </section>
@@ -472,17 +467,18 @@ export function AccueilClient() {
           <div className="border-b border-[#E0EAE3] px-4 py-3">
             <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proche de vous</h3>
           </div>
-          {gardes.length ? <div className="overflow-hidden">
-            <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${gardesSlide * 100}%)` }}>
-              {gardes.map((p) => <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
+          {gardes.length ? <div className="naxa-carousel-viewport overflow-hidden">
+            <div className="naxa-carousel-loop naxa-gardes-loop flex w-max">{[false,true].map(copy => <div key={copy?"gardes-copie":"gardes-originales"} aria-hidden={copy||undefined} className="flex w-[calc(min(100vw,480px)-2rem)] shrink-0 flex-col">
+              {gardes.map((p) => copy ? <div key={p.id} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3 pointer-events-none">
+                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+                <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
+                <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
+              </Link> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
               </Link>)}
-            </div>
-            {gardes.length > 1 && <div className="flex justify-center gap-2 pb-3" aria-label="Pharmacies de garde">
-              {gardes.map((p,i) => <button key={p.id} type="button" onClick={() => setGardesSlide(i)} aria-label={`Afficher ${p.nom}`} aria-current={gardesSlide === i ? "true" : undefined} className={`h-2 rounded-full transition-all ${gardesSlide === i ? "w-6 bg-[#0F6B3F]" : "w-2 bg-[#B7C9BE]"}`} />)}
-            </div>}
+            </div>)}
           </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
             <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
             <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
