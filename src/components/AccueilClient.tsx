@@ -139,7 +139,8 @@ export function AccueilClient() {
 
   useEffect(() => {
     const terme = query.trim();
-    if (terme.length < 2) { setSuggestionsCatalogue([]); return; }
+    setSuggestionsCatalogue([]);
+    if (terme.length < 2) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
