@@ -347,7 +347,7 @@ export function AccueilClient() {
         <div className="flex items-center gap-1">
           <BoutonNotifications />
           <button type="button" aria-label={rechercheAppOuverte ? "Fermer la recherche générale" : "Rechercher dans NAXA"} title="Rechercher dans NAXA" aria-expanded={rechercheAppOuverte} aria-controls="recherche-generale-naxa" onClick={() => { setRechercheAppOuverte(v => !v); setRechercheAppVide(false); }} className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
-            <IconeNAXA name={rechercheAppOuverte ? "x" : "search"} size={23}/>
+            <IconeNAXA name="search" size={23}/>
           </button>
           <div ref={menuServicesRef} className="relative">
             <button
