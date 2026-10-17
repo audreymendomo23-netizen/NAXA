@@ -43,15 +43,27 @@ type StockRow = {
 const fcfa = (n: number) => new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g, "\u00a0") + " FCFA";
 
 const rechercheNavigation = [
-  { titre: "Accueil", description: "Revenir à la page d’accueil", href: "/", mots: "accueil maison home" },
-  { titre: "Favoris", description: "Retrouver les éléments enregistrés", href: "/client/profil/favoris", mots: "favori favoris enregistrés" },
-  { titre: "Scanner une ordonnance", description: "Ouvrir le scanner", href: "/scanner", mots: "scanner ordonnance scan document" },
-  { titre: "Achats et commandes", description: "Consulter les achats et l’historique", href: "/client?onglet=achats", mots: "achat achats commandes historique panier" },
-  { titre: "Profil client", description: "Accéder à votre espace personnel", href: "/client/profil", mots: "profil compte espace personnel paramètres" },
-  { titre: "Pharmacies de garde", description: "Consulter les pharmacies de garde", href: "/gardes", mots: "garde gardes nuit pharmacie pharmacies" },
-  { titre: "Réservations et suivi", description: "Retrouver une réservation", href: "/client", mots: "réservation réservations suivi statut" },
-  { titre: "Aide et contact", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d’aide%20sur%20NAXA", mots: "aide assistance contact support" },
+  { titre: "Accueil", description: "Page d’accueil", href: "/", mots: "accueil maison" },
+  { titre: "Favoris", description: "Médicaments enregistrés", href: "/client/profil/favoris", mots: "favoris enregistrés coeur" },
+  { titre: "Scanner une ordonnance", description: "Scanner un document", href: "/scanner", mots: "scanner ordonnance scan" },
+  { titre: "Achats et commandes", description: "Historique et commandes", href: "/client?onglet=achats", mots: "achats commandes historique" },
+  { titre: "Réservations et suivi", description: "État des réservations", href: "/client", mots: "réservations suivi statut" },
+  { titre: "Profil client", description: "Coordonnées et paramètres", href: "/client/profil", mots: "profil compte coordonnées paramètres" },
+  { titre: "Adresse", description: "Adresse de livraison", href: "/client/profil/adresse", mots: "adresse livraison localisation" },
+  { titre: "Paiement", description: "Moyens de paiement", href: "/client/profil/paiement", mots: "paiement portefeuille momo" },
+  { titre: "Langue", description: "Préférences linguistiques", href: "/client/profil/langue", mots: "langue français anglais" },
+  { titre: "Factures", description: "Documents d’achat", href: "/client/profil/factures", mots: "facture reçu documents" },
+  { titre: "Notifications", description: "Alertes et messages", href: "/notifications", mots: "notifications alertes cloche" },
+  { titre: "Posologie et rappels", description: "Gérer les rappels prescrits", href: "/client/posologie", mots: "posologie rappels horaires prise" },
+  { titre: "Pharmacies de garde", description: "Pharmacies de garde proches", href: "/gardes", mots: "garde gardes pharmacies nuit" },
+  { titre: "Parapharmacie", description: "Trouver la parapharmacie", href: "/resultats?q=Parapharmacie", mots: "parapharmacie soins" },
+  { titre: "Bébé & maman", description: "Produits bébé et maternité", href: "/resultats?q=Bébé%20et%20maman", mots: "bébé maman maternité" },
+  { titre: "Dispositifs médicaux", description: "Matériel et dispositifs", href: "/resultats?q=Dispositifs%20médicaux", mots: "dispositifs médicaux matériel" },
+  { titre: "Examens médicaux", description: "Trouver un examen", href: "/resultats?q=Examens%20médicaux", mots: "examens analyses laboratoire" },
+  { titre: "Soins à domicile", description: "Prestations et soins", href: "/resultats?q=Prestations%20et%20soins%20à%20domicile", mots: "soins domicile prestations" },
+  { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA", mots: "aide contact assistance support" },
 ];
+const RECHERCHE_RECENTE_KEY = "naxa-recherche-navigation-recente-v1";
 const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   const rad = (v: number) => v * Math.PI / 180;
   const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
@@ -130,6 +142,7 @@ export function AccueilClient() {
   const [rechercheAppOuverte, setRechercheAppOuverte] = useState(false);
   const [rechercheAppTerme, setRechercheAppTerme] = useState("");
   const [rechercheAppVide, setRechercheAppVide] = useState(false);
+  const [rechercheRecente, setRechercheRecente] = useState<string[]>([]);
   const rechercheAppRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
@@ -180,12 +193,44 @@ export function AccueilClient() {
   }, [suggestionsOuvertes]);
 
   useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(RECHERCHE_RECENTE_KEY) || "[]");
+      if (Array.isArray(saved)) setRechercheRecente(saved.filter((value): value is string => typeof value === "string").slice(0, 4));
+    } catch { /* La recherche reste utilisable sans stockage local. */ }
+  }, []);
+
+  useEffect(() => {
     if (!rechercheAppOuverte) return;
     const id = window.requestAnimationFrame(() => rechercheAppRef.current?.focus());
     const fermerAvecEchap = (event: KeyboardEvent) => { if (event.key === "Escape") setRechercheAppOuverte(false); };
+    const fermerAuClicExterieur = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && !target.closest("[data-naxa-general-search]")) setRechercheAppOuverte(false);
+    };
     document.addEventListener("keydown", fermerAvecEchap);
-    return () => { window.cancelAnimationFrame(id); document.removeEventListener("keydown", fermerAvecEchap); };
+    document.addEventListener("pointerdown", fermerAuClicExterieur);
+    return () => {
+      window.cancelAnimationFrame(id);
+      document.removeEventListener("keydown", fermerAvecEchap);
+      document.removeEventListener("pointerdown", fermerAuClicExterieur);
+    };
   }, [rechercheAppOuverte]);
+
+  const suggestionsRechercheApp = useMemo(() => {
+    const terme = normaliserRecherche(rechercheAppTerme);
+    if (terme.length < 2) return [];
+    return rechercheNavigation.filter(item => normaliserRecherche(item.titre + " " + item.description + " " + item.mots).includes(terme)).slice(0, 4);
+  }, [rechercheAppTerme]);
+
+  const ouvrirOptionRecherche = (href: string, titre: string) => {
+    const suivantes = [titre, ...rechercheRecente.filter(value => value !== titre)].slice(0, 4);
+    setRechercheRecente(suivantes);
+    try { window.localStorage.setItem(RECHERCHE_RECENTE_KEY, JSON.stringify(suivantes)); } catch { /* Option facultative. */ }
+    setRechercheAppOuverte(false);
+    setRechercheAppTerme("");
+    if (href.startsWith("mailto:")) window.location.href = href;
+    else router.push(href);
+  };
 
   useEffect(() => {
     if (!menuServicesOuvert) return;
@@ -340,13 +385,13 @@ export function AccueilClient() {
     window.setTimeout(() => setAdded(current => current === p.id ? null : current),1200);
   };
 
-  return <div className="naxa-home-shell min-h-dvh bg-[#F4F8F5] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+  return <div className="naxa-home-shell min-h-dvh bg-[linear-gradient(to_bottom,#0F6B3F_0,#0F6B3F_220px,#F4F8F5_220px)] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
     <header className="relative z-[1000] min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
           <BoutonNotifications />
-          <button type="button" aria-label={rechercheAppOuverte ? "Fermer la recherche générale" : "Rechercher dans NAXA"} title="Rechercher dans NAXA" aria-expanded={rechercheAppOuverte} aria-controls="recherche-generale-naxa" onClick={() => { setRechercheAppOuverte(v => !v); setRechercheAppVide(false); }} className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
+          <button type="button" aria-label={rechercheAppOuverte ? "Fermer la recherche générale" : "Rechercher dans NAXA"} title="Rechercher dans NAXA" aria-expanded={rechercheAppOuverte} aria-controls="recherche-generale-naxa" onClick={() => { setRechercheAppOuverte(v => !v); setRechercheAppVide(false); }} data-naxa-general-search className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
             <IconeNAXA name="search" size={23}/>
           </button>
           <div ref={menuServicesRef} className="relative">
@@ -383,7 +428,7 @@ export function AccueilClient() {
                 <a
                   href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
                   onClick={() => setMenuServicesOuvert(false)}
-                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-[#B3123F] transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                 >
                   <IconeNAXA name="bell" size={18}/>
                   Besoin d'aide ?
@@ -393,37 +438,27 @@ export function AccueilClient() {
           </div>
         </div>
       </div>
-      {rechercheAppOuverte && <div id="recherche-generale-naxa" className="relative z-[1002] mx-auto mt-3 max-w-[480px] pb-2">
+      {rechercheAppOuverte && <div data-naxa-general-search id="recherche-generale-naxa" className="relative z-[1002] mx-auto mt-3 max-w-[480px] pb-2">
         <form onSubmit={event => {
           event.preventDefault();
-          const terme = rechercheAppTerme.trim().toLocaleLowerCase("fr");
-          const correspondances = rechercheNavigation.filter(item => (item.titre + " " + item.mots).toLocaleLowerCase("fr").includes(terme));
-          if (correspondances.length) {
-            const cible = correspondances[0].href;
-            setRechercheAppOuverte(false);
-            if (cible.startsWith("mailto:")) window.location.href = cible;
-            else router.push(cible);
-          } else {
-            setRechercheAppVide(true);
-          }
-        }} className="flex items-center gap-2 rounded-2xl border border-white/30 bg-white p-2 shadow-lg">
+          if (rechercheAppTerme.trim().length < 2) return;
+          if (suggestionsRechercheApp[0]) ouvrirOptionRecherche(suggestionsRechercheApp[0].href, suggestionsRechercheApp[0].titre);
+          else setRechercheAppVide(true);
+        }} className="flex items-center gap-1.5 rounded-2xl border border-white/30 bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={20} className="ml-2 shrink-0 text-[#0F6B3F]"/>
-          <input ref={rechercheAppRef} value={rechercheAppTerme} onChange={event => { setRechercheAppTerme(event.target.value); setRechercheAppVide(false); }} placeholder="Rechercher un onglet ou un service…" aria-label="Recherche générale dans l’application" className="min-h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
-          <button type="submit" className="min-h-10 rounded-xl bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26]">Ouvrir</button>
+          <input ref={rechercheAppRef} value={rechercheAppTerme} onChange={event => { setRechercheAppTerme(event.target.value); setRechercheAppVide(false); }} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans l’application" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
+          {rechercheAppTerme && <button type="button" aria-label="Effacer la recherche" onClick={() => { setRechercheAppTerme(""); setRechercheAppVide(false); rechercheAppRef.current?.focus(); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>}
         </form>
         <div className="mt-2 overflow-hidden rounded-2xl border border-white/20 bg-[#0B3D26] p-2 text-white shadow-xl">
-          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">{rechercheAppTerme.trim() ? "Onglets et services" : "Accès rapides"}</p>
-          {rechercheNavigation.filter(item => {
-            const terme = rechercheAppTerme.trim().toLocaleLowerCase("fr");
-            return !terme || (item.titre + " " + item.mots + " " + item.description).toLocaleLowerCase("fr").includes(terme);
-          }).slice(0, 5).map(item => <Link key={item.titre} href={item.href} onClick={() => setRechercheAppOuverte(false)} className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
+          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">{rechercheAppTerme.trim().length >= 2 ? "Suggestions" : "Récemment utilisés"}</p>
+          {rechercheAppTerme.trim().length >= 2 ? suggestionsRechercheApp.map(item => <Link key={item.titre} href={item.href} onClick={() => ouvrirOptionRecherche(item.href, item.titre)} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
             <span className="min-w-0"><span className="block">{item.titre}</span><span className="block text-xs font-normal text-white/70">{item.description}</span></span><span aria-hidden="true" className="text-lg">›</span>
-          </Link>)}
-          {rechercheAppVide && <p role="status" className="px-3 py-3 text-sm text-white/80">Aucun onglet ou service ne correspond. Cette recherche ne porte pas sur les médicaments.</p>}
+          </Link>) : (rechercheRecente.length ? rechercheNavigation.filter(item => rechercheRecente.includes(item.titre)).sort((a,b) => rechercheRecente.indexOf(a.titre)-rechercheRecente.indexOf(b.titre)) : rechercheNavigation.filter(item => ["Accueil","Favoris","Scanner une ordonnance","Achats et commandes"].includes(item.titre))).slice(0,4).map(item => <Link key={item.titre} href={item.href} onClick={() => ouvrirOptionRecherche(item.href, item.titre)} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><span>{item.titre}</span><span aria-hidden="true" className="text-lg">›</span></Link>)}
+          {rechercheAppVide && <p role="status" className="px-3 py-3 text-sm text-white/80">Aucune option trouvée. Essayez un autre terme.</p>}
         </div>
       </div>}
     </header>
-    <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] px-4 pt-6">
+    <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
       <div className="naxa-enter mb-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF3B0] text-[#0F6B3F]" aria-hidden="true">
@@ -448,10 +483,10 @@ export function AccueilClient() {
         </ul>}
       </div>
       <div className="naxa-enter mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
-        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#0F6B3F] text-white":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
-        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold ${homeFilters.distance?"bg-[#0F6B3F] text-white":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.distance?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
         <button type="button" onClick={()=>setHomeFilters(v=>v.sort==="prix"?({...v,ascending:!v.ascending}):({...v,sort:"prix",ascending:true}))} aria-pressed={homeFilters.sort==="prix"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold ${homeFilters.sort==="prix"?"bg-[#FFE23D] text-[#0B3D26]":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}>Prix {homeFilters.sort==="prix"?(homeFilters.ascending?"↑":"↓"):""}</button>
-        <button type="button" onClick={()=>setHomeFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#BFD4C6] bg-white px-3 text-xs font-extrabold text-[#0F6B3F]"><IconeNAXA name="search" size={14}/>Filtres +</button>
+        <button type="button" onClick={()=>setHomeFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="search" size={14}/>Filtres +</button>
       </div>
 
       <div className="naxa-enter mb-4">
@@ -464,7 +499,7 @@ export function AccueilClient() {
       <h2 className="naxa-enter mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies à Proximité</h2>
       <section className="naxa-enter mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
         <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} /></button>
-        <div className="flex min-w-0 flex-col items-end justify-center gap-3 p-3">
+        <div className="flex min-w-0 flex-col items-start justify-center gap-3 bg-gradient-to-br from-white to-[#F0F8F2] p-3">
           <p className="w-full text-[16px] font-extrabold leading-5 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à proximité` : "Activez la localisation pour voir les pharmacies proches"}</p>
           <div><button type="button" onClick={() => { if (!coord) { localiser(); return; } notifierNAXA("La liste complète des pharmacies à proximité sera bientôt disponible."); }} className="inline-flex min-h-10 items-center justify-center rounded-[14px] bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir plus</button></div>
         </div>
