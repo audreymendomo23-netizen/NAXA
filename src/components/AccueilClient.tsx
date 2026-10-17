@@ -41,6 +41,17 @@ type StockRow = {
   pharmacies: { id: string; nom: string; ville: string | null; quartier: string | null; lat: number | null; lng: number | null; actif: boolean; de_garde: boolean } | null;
 };
 const fcfa = (n: number) => new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g, "\u00a0") + " FCFA";
+
+const rechercheNavigation = [
+  { titre: "Accueil", description: "Revenir à la page d’accueil", href: "/", mots: "accueil maison home" },
+  { titre: "Favoris", description: "Retrouver les éléments enregistrés", href: "/client/profil/favoris", mots: "favori favoris enregistrés" },
+  { titre: "Scanner une ordonnance", description: "Ouvrir le scanner", href: "/scanner", mots: "scanner ordonnance scan document" },
+  { titre: "Achats et commandes", description: "Consulter les achats et l’historique", href: "/client?onglet=achats", mots: "achat achats commandes historique panier" },
+  { titre: "Profil client", description: "Accéder à votre espace personnel", href: "/client/profil", mots: "profil compte espace personnel paramètres" },
+  { titre: "Pharmacies de garde", description: "Consulter les pharmacies de garde", href: "/gardes", mots: "garde gardes nuit pharmacie pharmacies" },
+  { titre: "Réservations et suivi", description: "Retrouver une réservation", href: "/client", mots: "réservation réservations suivi statut" },
+  { titre: "Aide et contact", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d’aide%20sur%20NAXA", mots: "aide assistance contact support" },
+];
 const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   const rad = (v: number) => v * Math.PI / 180;
   const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
@@ -116,6 +127,10 @@ export function AccueilClient() {
   const [favoris, setFavoris] = useState<string[]>([]);
   const [menuServicesOuvert, setMenuServicesOuvert] = useState(false);
   const menuServicesRef = useRef<HTMLDivElement>(null);
+  const [rechercheAppOuverte, setRechercheAppOuverte] = useState(false);
+  const [rechercheAppTerme, setRechercheAppTerme] = useState("");
+  const [rechercheAppVide, setRechercheAppVide] = useState(false);
+  const rechercheAppRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
 
@@ -163,6 +178,14 @@ export function AccueilClient() {
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [suggestionsOuvertes]);
+
+  useEffect(() => {
+    if (!rechercheAppOuverte) return;
+    const id = window.requestAnimationFrame(() => rechercheAppRef.current?.focus());
+    const fermerAvecEchap = (event: KeyboardEvent) => { if (event.key === "Escape") setRechercheAppOuverte(false); };
+    document.addEventListener("keydown", fermerAvecEchap);
+    return () => { window.cancelAnimationFrame(id); document.removeEventListener("keydown", fermerAvecEchap); };
+  }, [rechercheAppOuverte]);
 
   useEffect(() => {
     if (!menuServicesOuvert) return;
@@ -323,9 +346,9 @@ export function AccueilClient() {
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
           <BoutonNotifications />
-          <Link href="/recherche" aria-label="Rechercher un médicament" title="Rechercher un médicament" className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
-            <IconeNAXA name="search" size={23}/>
-          </Link>
+          <button type="button" aria-label={rechercheAppOuverte ? "Fermer la recherche générale" : "Rechercher dans NAXA"} title="Rechercher dans NAXA" aria-expanded={rechercheAppOuverte} aria-controls="recherche-generale-naxa" onClick={() => { setRechercheAppOuverte(v => !v); setRechercheAppVide(false); }} className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
+            <IconeNAXA name={rechercheAppOuverte ? "x" : "search"} size={23}/>
+          </button>
           <div ref={menuServicesRef} className="relative">
             <button
               type="button"
@@ -370,6 +393,35 @@ export function AccueilClient() {
           </div>
         </div>
       </div>
+      {rechercheAppOuverte && <div id="recherche-generale-naxa" className="relative z-[1002] mx-auto mt-3 max-w-[480px] pb-2">
+        <form onSubmit={event => {
+          event.preventDefault();
+          const terme = rechercheAppTerme.trim().toLocaleLowerCase("fr");
+          const correspondances = rechercheNavigation.filter(item => (item.titre + " " + item.mots).toLocaleLowerCase("fr").includes(terme));
+          if (correspondances.length) {
+            const cible = correspondances[0].href;
+            setRechercheAppOuverte(false);
+            if (cible.startsWith("mailto:")) window.location.href = cible;
+            else router.push(cible);
+          } else {
+            setRechercheAppVide(true);
+          }
+        }} className="flex items-center gap-2 rounded-2xl border border-white/30 bg-white p-2 shadow-lg">
+          <IconeNAXA name="search" size={20} className="ml-2 shrink-0 text-[#0F6B3F]"/>
+          <input ref={rechercheAppRef} value={rechercheAppTerme} onChange={event => { setRechercheAppTerme(event.target.value); setRechercheAppVide(false); }} placeholder="Rechercher un onglet ou un service…" aria-label="Recherche générale dans l’application" className="min-h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
+          <button type="submit" className="min-h-10 rounded-xl bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26]">Ouvrir</button>
+        </form>
+        <div className="mt-2 overflow-hidden rounded-2xl border border-white/20 bg-[#0B3D26] p-2 text-white shadow-xl">
+          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">{rechercheAppTerme.trim() ? "Onglets et services" : "Accès rapides"}</p>
+          {rechercheNavigation.filter(item => {
+            const terme = rechercheAppTerme.trim().toLocaleLowerCase("fr");
+            return !terme || (item.titre + " " + item.mots + " " + item.description).toLocaleLowerCase("fr").includes(terme);
+          }).slice(0, 5).map(item => <Link key={item.titre} href={item.href} onClick={() => setRechercheAppOuverte(false)} className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
+            <span className="min-w-0"><span className="block">{item.titre}</span><span className="block text-xs font-normal text-white/70">{item.description}</span></span><span aria-hidden="true" className="text-lg">›</span>
+          </Link>)}
+          {rechercheAppVide && <p role="status" className="px-3 py-3 text-sm text-white/80">Aucun onglet ou service ne correspond. Cette recherche ne porte pas sur les médicaments.</p>}
+        </div>
+      </div>}
     </header>
     <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] px-4 pt-6">
       <div className="naxa-enter mb-5">
