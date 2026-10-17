@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { IconeNAXA } from "@/components/IconeNAXA";
+import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { Logo } from "@/components/Logo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
@@ -116,8 +117,26 @@ export function AccueilClient() {
   const [added, setAdded] = useState<string|null>(null);
   const [userId, setUserId] = useState<string|null>(null);
   const [favoris, setFavoris] = useState<string[]>([]);
+  const [menuServicesOuvert, setMenuServicesOuvert] = useState(false);
+  const menuServicesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
+
+  useEffect(() => {
+    if (!menuServicesOuvert) return;
+    const fermerSiExterieur = (event: PointerEvent) => {
+      if (!menuServicesRef.current?.contains(event.target as Node)) setMenuServicesOuvert(false);
+    };
+    const fermerAvecEchap = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuServicesOuvert(false);
+    };
+    document.addEventListener("pointerdown", fermerSiExterieur);
+    document.addEventListener("keydown", fermerAvecEchap);
+    return () => {
+      document.removeEventListener("pointerdown", fermerSiExterieur);
+      document.removeEventListener("keydown", fermerAvecEchap);
+    };
+  }, [menuServicesOuvert]);
 
   useEffect(() => {
     const actualiser = () => setFavoris(lireFavoris().map(f => f.id));
@@ -242,11 +261,53 @@ export function AccueilClient() {
     <header className="relative z-10 min-h-[118px] bg-[#0F6B3F] px-4 pb-3 pt-[max(18px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-1 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
-        <div className="flex items-center gap-2">
-          <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{avatarUrl ? <Image src={avatarUrl} alt="Photo de profil" width={48} height={48} className="h-full w-full object-cover" unoptimized /> : <IconeNAXA name="user-round" size={23}/>}</Link>
-          <Link href="/recherche" aria-label="Rechercher un médicament" title="Rechercher un médicament" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+        <div className="flex items-center gap-1">
+          <BoutonNotifications />
+          <Link href="/recherche" aria-label="Rechercher un médicament" title="Rechercher un médicament" className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
+            <IconeNAXA name="search" size={23}/>
           </Link>
+          <div ref={menuServicesRef} className="relative">
+            <button
+              type="button"
+              aria-label={menuServicesOuvert ? "Fermer les autres services" : "Autres services"}
+              aria-expanded={menuServicesOuvert}
+              aria-controls="menu-autres-services"
+              onClick={() => setMenuServicesOuvert(value => !value)}
+              className="flex h-11 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+            >
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
+              </svg>
+            </button>
+            {menuServicesOuvert && (
+              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#D8E5DC] bg-white p-2 text-[#0B3D26] shadow-xl">
+                {[
+                  "Parapharmacie",
+                  "Bébé & maman",
+                  "Dispositifs médicaux",
+                  "Examens médicaux",
+                  "Prestations et soins médicaux",
+                ].map((categorie) => (
+                  <Link
+                    key={categorie}
+                    href={"/resultats?q=" + encodeURIComponent(categorie)}
+                    onClick={() => setMenuServicesOuvert(false)}
+                    className="flex min-h-12 items-center rounded-xl px-3 py-2.5 text-sm font-bold transition hover:bg-[#E8F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F6B3F]"
+                  >
+                    {categorie}
+                  </Link>
+                ))}
+                <a
+                  href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
+                  onClick={() => setMenuServicesOuvert(false)}
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-[#D8E5DC] px-3 py-3 text-sm font-extrabold text-[#0F6B3F] hover:bg-[#E8F3EC]"
+                >
+                  <IconeNAXA name="bell" size={18}/>
+                  Besoin d'aide ?
+                </a>
+              </nav>
+            )}
+          </div>
         </div>
       </div>
     </header>
