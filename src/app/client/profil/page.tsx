@@ -88,7 +88,8 @@ export default function ProfilClientPage() {
       "Photo de profil mise à jour.": "Profile photo updated.",
       "La photo n’a pas pu être enregistrée. Choisissez une image plus légère ou réessayez.": "The photo could not be saved. Choose a smaller image or try again.",
       "Photo retirée de cet appareil; la suppression distante n’a pas pu être confirmée.": "Photo removed from this device; remote deletion could not be confirmed.",
-      "Photo supprimée.": "Photo deleted."
+      "Photo supprimée.": "Photo deleted.",
+      "La confirmation de déconnexion sera ajoutée à l’étape 13.": "Logout confirmation will be added in step 13."
     };
     setToast(savedLanguage === "en" ? (translations[message] ?? message) : message);
     window.setTimeout(() => setToast(""), 2600);
