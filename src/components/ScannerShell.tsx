@@ -56,6 +56,9 @@ export function ScannerShell() {
   const [erreur, setErreur] = useState("");
   const [lectureEnCours, setLectureEnCours] = useState(false);
   const [fichier, setFichier] = useState<File | null>(null);
+  const [fichiersEnAttente, setFichiersEnAttente] = useState<File[]>([]);
+  const [indexFichier, setIndexFichier] = useState(0);
+  const [lecturesCumulees, setLecturesCumulees] = useState<LectureOrdonnance[]>([]);
   const [apercu, setApercu] = useState("");
   const [zoomRecadrage, setZoomRecadrage] = useState(100);
   const [produits, setProduits] = useState<ProduitDetecte[]>([]);
@@ -133,40 +136,52 @@ export function ScannerShell() {
     else router.push("/");
   }, [modePosologie, router]);
 
-  const ouvrirRecadrage = useCallback(async (f: File) => {
+  const ouvrirRecadrage = useCallback(async (selection: File[]) => {
     setErreur("");
-    if (f.size > TAILLE_MAX) {
-      setErreur("Le fichier dépasse 10 Mo. Choisissez une image plus légère.");
+    if (!selection.length) return;
+    if (selection.length > 5) {
+      setErreur("Sélectionnez au maximum 5 pages ou images.");
       return;
     }
-    if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
-      setErreur("La lecture locale des PDF multipages nécessite un moteur de conversion PDF absent du projet. Importez une image de l’ordonnance.");
+    if (selection.reduce((total, item) => total + item.size, 0) > TAILLE_MAX) {
+      setErreur("La sélection dépasse 10 Mo. Choisissez des images plus légères.");
       return;
     }
-    if (!/^image\\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
-      setErreur("Format non pris en charge. Choisissez JPEG, PNG, WebP ou HEIC.");
-      return;
-    }
-    let fichierImage = f;
-    if (f.type === "image/heic" || f.type === "image/heif" || /\\.(heic|heif)$/i.test(f.name)) {
-      try {
-        const bitmap = await createImageBitmap(f);
-        const conversion = document.createElement("canvas");
-        conversion.width = bitmap.width;
-        conversion.height = bitmap.height;
-        const context = conversion.getContext("2d");
-        if (!context) throw new Error("canvas indisponible");
-        context.drawImage(bitmap, 0, 0);
-        bitmap.close();
-        const blob = await new Promise<Blob | null>(resolve => conversion.toBlob(resolve, "image/jpeg", 0.92));
-        if (!blob || blob.size > TAILLE_MAX) throw new Error("conversion indisponible ou trop volumineuse");
-        fichierImage = new File([blob], f.name.replace(/\\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-      } catch {
-        setErreur("Ce navigateur ne peut pas convertir cette image HEIC localement. Exportez-la en JPEG puis réessayez.");
+    const normalises: File[] = [];
+    for (const f of selection) {
+      if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
+        setErreur("La lecture locale des PDF multipages nécessite un moteur de conversion PDF absent du projet. Importez jusqu’à 5 images de l’ordonnance.");
         return;
       }
+      if (!/^image\\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
+        setErreur("Format non pris en charge. Choisissez JPEG, PNG, WebP ou HEIC.");
+        return;
+      }
+      let fichierImage = f;
+      if (f.type === "image/heic" || f.type === "image/heif" || /\\.(heic|heif)$/i.test(f.name)) {
+        try {
+          const bitmap = await createImageBitmap(f);
+          const conversion = document.createElement("canvas");
+          conversion.width = bitmap.width;
+          conversion.height = bitmap.height;
+          const context = conversion.getContext("2d");
+          if (!context) { bitmap.close(); throw new Error("canvas indisponible"); }
+          context.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          const blob = await new Promise<Blob | null>(resolve => conversion.toBlob(resolve, "image/jpeg", 0.92));
+          if (!blob || blob.size > TAILLE_MAX) throw new Error("conversion indisponible ou trop volumineuse");
+          fichierImage = new File([blob], f.name.replace(/\\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+        } catch {
+          setErreur("Ce navigateur ne peut pas convertir cette image HEIC localement. Exportez-la en JPEG puis réessayez.");
+          return;
+        }
+      }
+      normalises.push(fichierImage);
     }
-    setFichier(fichierImage);
+    setFichiersEnAttente(normalises);
+    setIndexFichier(0);
+    setLecturesCumulees([]);
+    setFichier(normalises[0]);
     setZoomRecadrage(100);
     setEcran("crop");
   }, []);
@@ -179,10 +194,25 @@ export function ScannerShell() {
       if (!resultat.texte.trim() || resultat.candidats.length === 0) {
         setErreur(modePosologie
           ? "Posologie illisible. Réessayez ou saisissez-la manuellement."
-          : "Aucun médicament reconnu. Réessayez avec une image plus nette.");
+          : "Aucun médicament reconnu sur cette page. Réessayez avec une image plus nette.");
         return;
       }
-      const draft = extrairePosologie(resultat);
+      const lectures = [...lecturesCumulees, resultat];
+      const prochainePage = indexFichier + 1;
+      if (prochainePage < fichiersEnAttente.length) {
+        setLecturesCumulees(lectures);
+        setIndexFichier(prochainePage);
+        setFichier(fichiersEnAttente[prochainePage]);
+        setZoomRecadrage(100);
+        setErreur("");
+        return;
+      }
+      const lectureFusionnee: LectureOrdonnance = {
+        texte: lectures.map((item, index) => "Page " + (index + 1) + "\\n" + item.texte).join("\\n\\n"),
+        confiance: Math.round(lectures.reduce((sum, item) => sum + item.confiance, 0) / lectures.length),
+        candidats: Array.from(new Set(lectures.flatMap(item => item.candidats))).slice(0, 12)
+      };
+      const draft = extrairePosologie(lectureFusionnee);
       try { sessionStorage.setItem(CLE_BROUILLON, JSON.stringify(draft)); } catch {}
       if (modePosologie) {
         try {
@@ -190,10 +220,12 @@ export function ScannerShell() {
           sessionStorage.removeItem(CLE_BROUILLON);
         } catch {}
         setFichier(null);
+        setFichiersEnAttente([]);
+        setLecturesCumulees([]);
         router.push("/client/posologie?scanner=1");
         return;
       }
-      const nouveaux = resultat.candidats.slice(0, 12).map((nom, index) => ({
+      const nouveaux = lectureFusionnee.candidats.map((nom, index) => ({
         id: String(index) + "-" + nom.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         nom,
         quantite: 1,
@@ -202,6 +234,9 @@ export function ScannerShell() {
       setProduits(nouveaux);
       try { sessionStorage.setItem(CLE_RESULTATS, JSON.stringify(nouveaux)); } catch {}
       setFichier(null);
+      setFichiersEnAttente([]);
+      setIndexFichier(0);
+      setLecturesCumulees([]);
       setEcran("results");
       router.replace("/scanner?view=results");
     } catch {
@@ -211,7 +246,7 @@ export function ScannerShell() {
     } finally {
       setLectureEnCours(false);
     }
-  }, [modePosologie, router]);
+  }, [modePosologie, router, lecturesCumulees, indexFichier, fichiersEnAttente]);
 
   const recadrerEtLire = useCallback(async () => {
     if (!fichier || !apercu) return;
@@ -279,7 +314,11 @@ export function ScannerShell() {
     context.drawImage(videoElement, 0, 0, source.width, source.height);
     source.toBlob(blob => {
       if (!blob) { setErreur("La capture a échoué. Réessayez."); return; }
-      setFichier(new File([blob], "ordonnance.jpg", { type: "image/jpeg" }));
+      const capture = new File([blob], "ordonnance.jpg", { type: "image/jpeg" });
+      setFichiersEnAttente([capture]);
+      setIndexFichier(0);
+      setLecturesCumulees([]);
+      setFichier(capture);
       setZoomRecadrage(100);
       setEcran("crop");
     }, "image/jpeg", 0.94);
@@ -333,8 +372,8 @@ export function ScannerShell() {
   if (ecran === "crop") {
     return <main className={fond} style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       <header className="mx-auto flex w-full max-w-[480px] items-center justify-between px-4 py-3">
-        <button type="button" onClick={() => { setFichier(null); setEcran("camera"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl" aria-label="Retour">‹</button>
-        <h1 className="text-base font-extrabold">Recadrer l’image</h1>
+        <button type="button" onClick={() => { setFichier(null); setFichiersEnAttente([]); setIndexFichier(0); setLecturesCumulees([]); setEcran("camera"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl" aria-label="Retour">‹</button>
+        <h1 className="text-base font-extrabold">Recadrer l’image{fichiersEnAttente.length > 1 ? " · " + (indexFichier + 1) + "/" + fichiersEnAttente.length : ""}</h1>
         <span className="w-11"/>
       </header>
       <div className="relative mx-auto flex min-h-0 w-[calc(100%-2rem)] max-w-[448px] flex-1 items-center justify-center overflow-hidden rounded-[28px] bg-black">
@@ -419,7 +458,7 @@ export function ScannerShell() {
         <button type="button" onClick={() => void capturer()} disabled={lectureEnCours} aria-label={modeScan === "boite" ? "Lire le code-barres" : "Prendre une photo"} className="flex h-[76px] w-[76px] items-center justify-center rounded-full border-[5px] border-white/90 shadow-[0_0_0_6px_rgba(255,226,61,.22)] transition-transform active:scale-95 motion-reduce:transition-none disabled:opacity-50"><span className="h-[58px] w-[58px] rounded-full bg-[#FFE23D]"/></button>
         <button type="button" onClick={quitter} className="flex min-h-12 min-w-[112px] flex-col items-center justify-center rounded-2xl bg-white/10 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-[.97]"><span className="text-lg">×</span>Fermer</button>
       </div>
-      <input ref={inputFichier} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.pdf,.heic,.heif" className="hidden" onChange={e => { const f=e.target.files?.[0]; e.target.value=""; if(f) ouvrirRecadrage(f); }}/>
+      <input ref={inputFichier} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.pdf,.heic,.heif" multiple className="hidden" onChange={e => { const files=Array.from(e.target.files ?? []); e.target.value=""; if(files.length) void ouvrirRecadrage(files); }}/>
       <canvas ref={canvas} className="hidden" aria-hidden="true"/>
     </div>
   </main>;
