@@ -12,6 +12,8 @@ const PROFILE_EVENT = "naxa-profile-updated";
 const DEMO_PORTRAIT = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d8eee0"/><stop offset="1" stop-color="#9bc6a9"/></linearGradient></defs><rect width="200" height="200" fill="url(#b)"/><path d="M35 200c4-43 30-67 65-67s61 24 65 67" fill="#1e7b3a"/><ellipse cx="100" cy="83" rx="42" ry="48" fill="#9b6348"/><path d="M57 77c-5-39 17-57 44-57 35 0 50 23 42 58l-8-22c-20 3-42-4-55-15-4 15-12 27-23 36" fill="#202b25"/><circle cx="84" cy="85" r="3" fill="#211d1b"/><circle cx="116" cy="85" r="3" fill="#211d1b"/><path d="M88 106q12 9 24 0" stroke="#653a2b" stroke-width="3" fill="none" stroke-linecap="round"/></svg>');
 
 function initials(name: string) { return name.trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(x => Array.from(x)[0]?.toLocaleUpperCase("fr-FR") ?? "").join("") || "C"; }
+function formatPhone(value: string) { const digits = value.replace(/\D/g, ""); const local = digits.startsWith("237") ? digits.slice(3) : digits; return local.length === 9 && local.startsWith("6") ? `+237 6 ${local.slice(1, 3)} ${local.slice(3, 5)} ${local.slice(5, 7)} ${local.slice(7, 9)}` : value; }
+
 function isProfileVerified(user: Pick<ProfileData, "address" | "phone" | "photo">) { return Boolean(user.address.trim() && user.phone.trim() && user.photo); }
 function Icon({ name, size = 24, className = "" }: { name: string; size?: number; className?: string }) {
   const paths: Record<string, React.ReactNode> = {
