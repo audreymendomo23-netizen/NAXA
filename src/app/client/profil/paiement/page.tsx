@@ -15,6 +15,9 @@ function MtnMomoLogo() {
 function OrangeMoneyLogo() {
   return <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/Logo_Orange_Money.svg" alt="Orange Money" className="h-8 w-full object-contain" />;
 }
+function CashIcon() {
+  return <svg viewBox="0 0 48 48" role="img" aria-label="Paiement en espèces" className="h-10 w-10" fill="none"><rect x="5" y="11" width="38" height="26" rx="5" fill="#E9F5EC" stroke="#1E7B3A" strokeWidth="2"/><circle cx="24" cy="24" r="7" fill="#1E7B3A"/><path d="M9 17h4M35 31h4" stroke="#1E7B3A" strokeWidth="2.5" strokeLinecap="round"/><path d="M22 21h4M22 24h4M22 27h4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>;
+}
 function CashIllustration() {
   return <svg viewBox="0 0 200 200" role="img" aria-label="Illustration du paiement en espèces" className="h-40 w-40 animate-[naxa-profile-enter_300ms_ease-out]">
     <circle cx="100" cy="100" r="96" fill="#FDE9E2"/>
@@ -86,7 +89,7 @@ export default function PaiementClientPage() {
         }
         flash(editing
           ? `${isEnglish ? "Invalid number." : "Numéro invalide."} ${phonePrefixHint(method, isEnglish)}`
-          : `${isEnglish ? "Set up your number first." : "Configurez d’abord votre numéro."} ${phonePrefixHint(method)}`);
+          : `${isEnglish ? "Set up your number first." : "Configurez d’abord votre numéro."} ${phonePrefixHint(method, isEnglish)}`);
         return;
       }
     }
@@ -117,7 +120,7 @@ export default function PaiementClientPage() {
             { value: "Orange Money" as const, label: "Orange Money" },
             { value: "Cash" as const, label: isEnglish ? "Cash" : "Cash", subtitle: isEnglish ? "Pay on delivery" : "Payer à la livraison" },
           ]).map(option => <button key={option.value} type="button" onClick={() => { setMethod(option.value); setEditing(null); setPhoneDraft(""); }} aria-pressed={method === option.value} className={`flex min-h-[72px] w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[.99] ${method === option.value ? "border-[#1E7B3A] bg-[#E9F5EC]/60" : "border-[#E5E7EB] bg-white"}`}>
-            <span className={`flex ${option.value === "Cash" ? "h-12 w-12" : "h-12 w-[84px]"} shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1`}>{option.value === "MTN MoMo" ? <MtnMomoLogo/> : option.value === "Orange Money" ? <OrangeMoneyLogo/> : <span className="flex h-12 w-12 items-center justify-center"><CashIllustration/></span>}</span>
+            <span className={`flex ${option.value === "Cash" ? "h-12 w-12" : "h-12 w-[84px]"} shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1`}>{option.value === "MTN MoMo" ? <MtnMomoLogo/> : option.value === "Orange Money" ? <OrangeMoneyLogo/> : <CashIcon/>}</span>
             <span className="min-w-0 flex-1"><span className="block font-bold text-[#111111]">{option.label}</span>{"subtitle" in option && <span className="mt-0.5 block text-sm text-[#6B7280]">{option.subtitle}</span>}</span>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${method === option.value ? "scale-100 border-[#1E7B3A] bg-[#1E7B3A] text-white" : "scale-90 border-[#D1D5DB] text-transparent"}`}><CheckIcon/></span>
           </button>)}
