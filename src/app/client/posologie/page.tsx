@@ -103,6 +103,38 @@ export default function ConfigurerPosologiePage() {
   const [permission, setPermission] = useState("unsupported");
   const [erreur, setErreur] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
+  const [scannerPrefill, setScannerPrefill] = useState(false);
+  const [scannerNotice, setScannerNotice] = useState("");
+
+  useEffect(() => {
+    let timer: number | undefined;
+    try {
+      const raw = sessionStorage.getItem("naxa:scanner:posologie:pending");
+      if (!raw) return;
+      sessionStorage.removeItem("naxa:scanner:posologie:pending");
+      const draft = JSON.parse(raw) as {
+        medicament?: string; dose?: string; unite?: string; prises?: number;
+        heures?: string[]; heureDebut?: string; rappels?: boolean;
+      };
+      if (draft.medicament) setMedicament(draft.medicament.slice(0, 100));
+      if (draft.dose) setDose(draft.dose.slice(0, 40));
+      if (draft.unite) setUnite(draft.unite);
+      if (Number.isInteger(draft.prises) && draft.prises! >= 1 && draft.prises! <= 8) {
+        setPrises(draft.prises!);
+        setHeures(Array.isArray(draft.heures) && draft.heures.length
+          ? draft.heures.slice(0, draft.prises!)
+          : Array.from({ length: draft.prises! }, (_, index) => HEURES_DEFAUT[index]));
+      }
+      if (draft.heureDebut) setHeureDebut(draft.heureDebut);
+      if (typeof draft.rappels === "boolean") setRappels(draft.rappels);
+      setScannerPrefill(true);
+      setScannerNotice("Vérifiez chaque champ reconnu sur l’ordonnance avant d’enregistrer.");
+      timer = window.setTimeout(() => setScannerPrefill(false), 1200);
+    } catch {
+      sessionStorage.removeItem("naxa:scanner:posologie:pending");
+    }
+    return () => { if (timer !== undefined) window.clearTimeout(timer); };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -324,15 +356,21 @@ export default function ConfigurerPosologiePage() {
         </div>
       </section>
 
+
+      <button type="button" onClick={() => router.push("/scanner?mode=posologie")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#0F6B3F] bg-white px-4 py-3 text-sm font-extrabold text-[#0F6B3F] shadow-sm transition-transform active:scale-[0.99]">
+        <IconeNAXA name="search" size={19}/>Scanner une posologie écrite
+      </button>
+      {scannerNotice && <p role="status" className="rounded-xl border border-[#E6C700] bg-[#FFF9D9] p-3 text-sm font-semibold text-[#5C5124]">{scannerNotice}</p>}
+
       <form onSubmit={enregistrer} className="naxa-enter space-y-4 rounded-[24px] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.07)]">
         <div>
           <label htmlFor="medicament" className="mb-1.5 block text-sm font-extrabold">Médicament</label>
-          <input id="medicament" value={medicament} onChange={e => setMedicament(e.target.value)} required maxLength={100} placeholder="Nom du médicament" className="min-h-12 w-full rounded-2xl border border-[#D8E5DC] bg-[#FBFDFC] px-4 text-sm outline-none transition focus:border-[#0F6B3F] focus:ring-4 focus:ring-[#0F6B3F]/10"/>
+          <input id="medicament" value={medicament} onChange={e => setMedicament(e.target.value)} required maxLength={100} placeholder="Nom du médicament" className={"min-h-12 w-full rounded-2xl border bg-[#FBFDFC] px-4 text-sm outline-none transition-colors duration-[1200ms] focus:border-[#0F6B3F] focus:ring-4 focus:ring-[#0F6B3F]/10 "+(scannerPrefill?"border-[#E6C700] bg-[#FFF9D9]":"border-[#D8E5DC]")}/>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="dose" className="mb-1.5 block text-sm font-extrabold">Dose prescrite</label>
-            <input id="dose" value={dose} onChange={e => setDose(e.target.value)} required maxLength={40} placeholder="Ex. 1" className="min-h-12 w-full rounded-2xl border border-[#D8E5DC] bg-[#FBFDFC] px-3 text-sm outline-none focus:border-[#0F6B3F] focus:ring-4 focus:ring-[#0F6B3F]/10"/>
+            <input id="dose" value={dose} onChange={e => setDose(e.target.value)} required maxLength={40} placeholder="Ex. 1" className={"min-h-12 w-full rounded-2xl border bg-[#FBFDFC] px-3 text-sm outline-none focus:border-[#0F6B3F] focus:ring-4 focus:ring-[#0F6B3F]/10 "+(scannerPrefill?"border-[#E6C700] bg-[#FFF9D9]":"border-[#D8E5DC]")}/>
           </div>
           <div>
             <label htmlFor="unite" className="mb-1.5 block text-sm font-extrabold">Unité</label>
