@@ -59,6 +59,7 @@ export default function ProfilSectionPage() {
   const [review, setReview] = useState("");
   const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications);
   const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+  const [notificationsDirty, setNotificationsDirty] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showExportConfirm, setShowExportConfirm] = useState(false);
@@ -98,7 +99,7 @@ export default function ProfilSectionPage() {
       const { data, error } = await supabaseBrowser().from("client_achats").select("reservation_id,produit_id,medicament,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,achat_le,reservation_creee_le,pharmacie,ville,statut").order("achat_le", { ascending: false, nullsFirst: false }).limit(500);
       if (!active) return;
       if (error) setErreur("Impossible de charger les reçus. Vérifiez que l’historique des achats est disponible, puis réessayez.");
-      else { const rows = (data ?? []) as LigneRecu[]; setRecus(rows); if (rows.length) setSelectedInvoice(rows[0].reservation_id); }
+      else { const rows = (data ?? []) as LigneRecu[]; setRecus(rows);  }
       setChargementRecus(false);
     })();
     return () => { active = false; };
@@ -122,24 +123,24 @@ export default function ProfilSectionPage() {
   }, [section, userId, prefs.notif_messages, prefs.notif_reservations]);
 
   useEffect(() => {
-    if (section !== "notifications" || !userId || !notificationsLoaded) return;
+    if (section !== "notifications" || !userId || !notificationsLoaded || !notificationsDirty) return;
     const timer = window.setTimeout(() => {
       void (async () => {
         try { window.localStorage.setItem(NOTIF_KEY, JSON.stringify(notifications)); } catch { /* Les réglages restent actifs pendant cette visite. */ }
         const { error } = await supabaseBrowser().from("client_preferences").upsert({ user_id: userId, notif_messages: notifications.pharmacyReplies, notif_reservations: notifications.orderStatus, updated_at: new Date().toISOString() });
         if (error) flash("Réglages appliqués sur cet appareil, mais la synchronisation du compte a échoué.");
-        else flash("Préférences de notification enregistrées.");
+        else { flash("Préférences de notification enregistrées."); setNotificationsDirty(false); }
       })();
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [section, userId, notificationsLoaded, notifications]);
+  }, [section, userId, notificationsLoaded, notificationsDirty, notifications]);
 
   async function saveReview() {
     if (!userId || rating < 1 || busy) return;
     setBusy(true); setErreur("");
     const { error } = await supabaseBrowser().from("client_preferences").upsert({ user_id: userId, note_app: rating, avis_app: review.trim(), updated_at: new Date().toISOString() });
     setBusy(false);
-    if (error) setErreur("Votre avis n’a pas pu être enregistré. Réessayez."); else flash("Merci pour votre avis !");
+    if (error) setErreur("Votre avis n’a pas pu être enregistré. Réessayez."); else flash("✓ Merci pour votre avis !");
   }
 
   async function savePrivacy() {
@@ -171,7 +172,7 @@ export default function ProfilSectionPage() {
       sb.from("reservations").select("id,statut,total,created_at,expires_at,paiement_ref,pharmacie_id,reservation_items(quantite,prix_unitaire,produits(nom,dci,dosage,forme))").eq("client_id", userId).order("created_at", { ascending: false }).limit(1000),
       sb.from("client_achats").select("*").limit(1000)
     ]);
-    if (profile.error || preferences.error || reservations.error) { setExportBusy(false); setErreur("L’export n’a pas pu être préparé. Réessayez plus tard."); return; }
+    if (profile.error || preferences.error || reservations.error || purchases.error) { setExportBusy(false); setErreur("L’export n’a pas pu être préparé. Réessayez plus tard."); return; }
     const payload = { exporte_le: new Date().toISOString(), compte: { nom, email }, profil: profile.data, preferences: preferences.data, reservations: reservations.data ?? [], historique_achats: purchases.error ? [] : (purchases.data ?? []) };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
@@ -201,6 +202,7 @@ export default function ProfilSectionPage() {
     if (typeof Notification === "undefined") { flash("Les notifications push ne sont pas prises en charge par ce navigateur."); return; }
     const next = await Notification.requestPermission(); setPermission(next);
     setNotifications(value => ({ ...value, channels: { ...value.channels, push: next === "granted" } }));
+    setNotificationsDirty(true);
     flash(next === "granted" ? "Autorisation push accordée sur cet appareil." : "Autorisation push non accordée.");
   }
 
@@ -272,12 +274,12 @@ export default function ProfilSectionPage() {
             ["orderStatus", "Statut des commandes", "Confirmations et changements de réservation"],
             ["promotions", "Offres et nouveautés", "Informations commerciales NAXA"],
             ["treatmentReminders", "Rappels de posologie", "Rappels que vous avez configurés"]
-          ] as const).map(([key, label, description]) => <label key={key} className="flex min-h-[76px] items-center gap-3 border-b border-[#E5E7EB] px-4 py-3 last:border-b-0"><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><small className="mt-1 block leading-4 text-[#6B7280]">{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={e => setNotifications(value => ({ ...value, [key]: e.target.checked }))} className="h-5 w-5 accent-[#1E7B3A]" aria-label={label}/></label>)}</div>
+          ] as const).map(([key, label, description]) => <label key={key} className="flex min-h-[76px] items-center gap-3 border-b border-[#E5E7EB] px-4 py-3 last:border-b-0"><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><small className="mt-1 block leading-4 text-[#6B7280]">{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={e => { setNotifications(value => ({ ...value, [key]: e.target.checked })); setNotificationsDirty(true); }} className="h-5 w-5 accent-[#1E7B3A]" aria-label={label}/></label>)}</div>
           <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Canaux préférés</h2><div className="mt-2 divide-y divide-[#E5E7EB]">{([
             ["push", "Notifications push", "Autorisation : " + (permission === "unsupported" ? "non prise en charge" : permission)],
             ["sms", "SMS", "Selon les services activés pour votre compte"],
             ["email", "E-mail", "Messages liés au compte"]
-          ] as const).map(([key, label, description]) => <label key={key} className="flex min-h-14 items-center gap-3 py-3"><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><small className="text-xs text-[#6B7280]">{description}</small></span><input type="checkbox" checked={notifications.channels[key]} onChange={e => setNotifications(value => ({ ...value, channels: { ...value.channels, [key]: e.target.checked } }))} className="h-5 w-5 accent-[#1E7B3A]" aria-label={label} disabled={key === "push" && permission !== "granted"}/></label>)}</div><button type="button" onClick={() => void requestPush()} className="mt-3 min-h-11 w-full rounded-xl border border-[#1E7B3A] font-bold text-[#1E7B3A]">{permission === "granted" ? "Autorisation push accordée" : "Activer les notifications push"}</button></div>
+          ] as const).map(([key, label, description]) => <label key={key} className="flex min-h-14 items-center gap-3 py-3"><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><small className="text-xs text-[#6B7280]">{description}</small></span><input type="checkbox" checked={notifications.channels[key]} onChange={e => { setNotifications(value => ({ ...value, channels: { ...value.channels, [key]: e.target.checked } })); setNotificationsDirty(true); }} className="h-5 w-5 accent-[#1E7B3A]" aria-label={label} disabled={key === "push" && permission !== "granted"}/></label>)}</div><button type="button" onClick={() => void requestPush()} className="mt-3 min-h-11 w-full rounded-xl border border-[#1E7B3A] font-bold text-[#1E7B3A]">{permission === "granted" ? "Autorisation push accordée" : "Activer les notifications push"}</button></div>
           <p className="text-xs leading-5 text-[#6B7280]">Les préférences SMS et e-mail indiquent vos canaux souhaités ; l’envoi effectif dépend des services activés pour votre compte.</p>
         </section>}
 
@@ -291,7 +293,6 @@ export default function ProfilSectionPage() {
           <label className="flex min-h-16 items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="min-w-0 flex-1"><strong className="block">Rester anonyme par défaut</strong><small className="text-[#6B7280]">Lorsque cette option est proposée dans un parcours NAXA.</small></span><input type="checkbox" checked={prefs.anonyme_defaut} onChange={e => setPrefs(value => ({ ...value, anonyme_defaut: e.target.checked }))} className="h-5 w-5 accent-[#1E7B3A]"/></label>
           <button type="button" disabled={busy} onClick={() => void savePrivacy()} className="min-h-11 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] disabled:opacity-50">Enregistrer la confidentialité</button>
           <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Documents légaux</h2><div className="mt-3 divide-y divide-[#E5E7EB]"><Link className="flex min-h-12 items-center justify-between font-semibold" href="/conditions-utilisation">Conditions générales d’utilisation <span>›</span></Link><Link className="flex min-h-12 items-center justify-between font-semibold" href="/politique-confidentialite">Politique de confidentialité <span>›</span></Link><Link className="flex min-h-12 items-center justify-between font-semibold" href="/politique-securite">Politique de sécurité <span>›</span></Link></div></div>
-          <Link href="/client/profil/suppression" className="block rounded-2xl border border-[#E7B4AF] bg-white p-4 font-bold text-[#B3261E]">Supprimer mon compte <span className="float-right">›</span></Link>
         </section>}
 
         {section === "suppression" && <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm"><SuppressionCompteClient/></section>}
@@ -303,6 +304,6 @@ export default function ProfilSectionPage() {
 
     {showExportConfirm && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-5" onMouseDown={e => { if (e.target === e.currentTarget && !exportBusy) setShowExportConfirm(false); }}><section role="alertdialog" aria-modal="true" aria-labelledby="export-title" className="w-full max-w-[380px] rounded-[24px] bg-white p-5 shadow-2xl"><h2 id="export-title" className="text-lg font-extrabold text-[#0F4D26]">Télécharger une copie de vos données ?</h2><p className="mt-2 text-sm leading-6 text-[#6B7280]">Le fichier JSON contiendra les données de compte, les préférences et les réservations/achats accessibles. Conservez-le dans un endroit sûr.</p><button type="button" disabled={exportBusy} onClick={() => void exportData()} className="mt-4 min-h-12 w-full rounded-xl bg-[#1E7B3A] font-bold text-white disabled:opacity-50">{exportBusy ? "Préparation…" : "Confirmer le téléchargement"}</button><button type="button" disabled={exportBusy} onClick={() => setShowExportConfirm(false)} className="mt-2 min-h-11 w-full rounded-xl border border-[#E5E7EB] font-semibold">Annuler</button></section></div>}
 
-    {toast && <div role="status" aria-live="polite" className="fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">{toast}</div>}
+    {toast && <div role="status" aria-live="polite" className="naxa-profile-toast fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">{toast}</div>}
   </main>;
 }
