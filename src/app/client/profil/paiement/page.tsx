@@ -53,14 +53,20 @@ export default function PaiementClientPage() {
   const [editing, setEditing] = useState<"momo" | "orange" | null>(null);
   const [phoneDraft, setPhoneDraft] = useState("");
   const [toast, setToast] = useState("");
+  const [isEnglish, setIsEnglish] = useState(false);
 
   useEffect(() => {
+    const syncLanguage = () => setIsEnglish(window.localStorage.getItem("naxa-langue") === "en");
+    syncLanguage();
+    window.addEventListener("naxa-language-updated", syncLanguage);
+    window.addEventListener("storage", syncLanguage);
     try {
       const savedMethod = window.localStorage.getItem("naxa-client-payment-method-v1");
       if (savedMethod === "MTN MoMo" || savedMethod === "Orange Money" || savedMethod === "Cash") setMethod(savedMethod);
       const savedPhones = JSON.parse(window.localStorage.getItem("naxa-client-payment-phones-v1") || "{}");
       if (savedPhones && typeof savedPhones === "object") setPhones({ momo: typeof savedPhones.momo === "string" ? savedPhones.momo : "", orange: typeof savedPhones.orange === "string" ? savedPhones.orange : "" });
     } catch { /* Le choix reste disponible même sans stockage local. */ }
+    return () => { window.removeEventListener("naxa-language-updated", syncLanguage); window.removeEventListener("storage", syncLanguage); };
   }, []);
 
   const phoneKey = method === "Orange Money" ? "orange" : "momo";
@@ -76,8 +82,8 @@ export default function PaiementClientPage() {
           setPhoneDraft(activePhone);
         }
         flash(editing
-          ? `Numéro invalide. ${phonePrefixHint(method)}`
-          : `Configurez d’abord votre numéro. ${phonePrefixHint(method)}`);
+          ? `${isEnglish ? "Invalid number." : "Numéro invalide."} ${phonePrefixHint(method)}`
+          : `${isEnglish ? "Set up your number first." : "Configurez d’abord votre numéro."} ${phonePrefixHint(method)}`);
         return;
       }
     }
@@ -86,10 +92,10 @@ export default function PaiementClientPage() {
       window.localStorage.setItem("naxa-client-payment-method-v1", method);
       window.localStorage.setItem("naxa-client-payment-phones-v1", JSON.stringify(nextPhones));
       window.dispatchEvent(new CustomEvent("naxa-payment-updated", { detail: { method } }));
-    } catch { flash("Impossible d’enregistrer ce choix sur cet appareil."); return; }
+    } catch { flash(isEnglish ? "Unable to save this choice on this device." : "Impossible d’enregistrer ce choix sur cet appareil."); return; }
     setPhones(nextPhones);
     setEditing(null);
-    flash("Moyen de paiement enregistré.");
+    flash(isEnglish ? "Payment method saved." : "Moyen de paiement enregistré.");
     window.setTimeout(() => { window.location.href = "/client/profil"; }, 450);
   }
   function startEdit() {
@@ -100,25 +106,25 @@ export default function PaiementClientPage() {
   return <main className="min-h-dvh bg-black/35 px-0 text-[#111111]">
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] items-center justify-center px-0 pb-[calc(72px+env(safe-area-inset-bottom,0px))] pt-3">
       <section role="dialog" aria-modal="true" aria-labelledby="payment-title" className="naxa-profile-sheet relative z-[70] w-full rounded-[24px] bg-white px-5 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-2 shadow-2xl">
-        <Link href="/client/profil" aria-label="Retour au profil" className="mb-1 flex h-7 w-full items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link>
-        <h1 id="payment-title" className="mb-3 text-xl font-extrabold text-[#0F4D26]">Moyen de paiement</h1>
+        <Link href="/client/profil" aria-label={isEnglish ? "Back to profile" : "Retour au profil"} className="mb-1 flex h-7 w-full items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link>
+        <h1 id="payment-title" className="mb-3 text-xl font-extrabold text-[#0F4D26]">{isEnglish ? "Payment method" : "Moyen de paiement"}</h1>
         <div className="space-y-2">
           {([
             { value: "MTN MoMo" as const, label: "MTN MoMo" },
             { value: "Orange Money" as const, label: "Orange Money" },
-            { value: "Cash" as const, label: "Cash", subtitle: "Payer à la livraison" },
+            { value: "Cash" as const, label: isEnglish ? "Cash" : "Cash", subtitle: isEnglish ? "Pay on delivery" : "Payer à la livraison" },
           ]).map(option => <button key={option.value} type="button" onClick={() => { setMethod(option.value); setEditing(null); setPhoneDraft(""); }} aria-pressed={method === option.value} className={`flex min-h-[72px] w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[.99] ${method === option.value ? "border-[#1E7B3A] bg-[#E9F5EC]/60" : "border-[#E5E7EB] bg-white"}`}>
             <span className={`flex ${option.value === "Cash" ? "h-12 w-12" : "h-12 w-[84px]"} shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1`}>{option.value === "MTN MoMo" ? <MtnMomoLogo/> : option.value === "Orange Money" ? <OrangeMoneyLogo/> : <span className="flex h-12 w-12 items-center justify-center"><CashIllustration/></span>}</span>
             <span className="min-w-0 flex-1"><span className="block font-bold text-[#111111]">{option.label}</span>{"subtitle" in option && <span className="mt-0.5 block text-sm text-[#6B7280]">{option.subtitle}</span>}</span>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${method === option.value ? "scale-100 border-[#1E7B3A] bg-[#1E7B3A] text-white" : "scale-90 border-[#D1D5DB] text-transparent"}`}><CheckIcon/></span>
           </button>)}
         </div>
-        {method === "Cash" ? <div className="flex flex-col items-center pt-3 text-center"><CashIllustration/><p className="mt-1 text-sm font-semibold text-[#374151]">Vous payez en espèces à la livraison</p></div> : <div className="mt-4 rounded-2xl bg-[#F8FAF8] p-4">
-          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#111111]">Numéro enregistré</p><p className="mt-1 text-sm text-[#6B7280]">{maskPhone(activePhone)}</p></div><button type="button" onClick={startEdit} className="min-h-10 rounded-lg px-3 text-sm font-bold text-[#1E7B3A]">Modifier</button></div>
-          {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">Numéro camerounais</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder={method === "Orange Money" ? "69X XX XX XX / 655 XX XX XX" : "67X XX XX XX / 651 XX XX XX"} className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">{phonePrefixHint(method)}</p></div>}
+        {method === "Cash" ? <div className="flex flex-col items-center pt-3 text-center"><CashIllustration/><p className="mt-1 text-sm font-semibold text-[#374151]">{isEnglish ? "You pay cash on delivery" : "Vous payez en espèces à la livraison"}</p></div> : <div className="mt-4 rounded-2xl bg-[#F8FAF8] p-4">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#111111]">{isEnglish ? "Saved number" : "Numéro enregistré"}</p><p className="mt-1 text-sm text-[#6B7280]">{maskPhone(activePhone)}</p></div><button type="button" onClick={startEdit} className="min-h-10 rounded-lg px-3 text-sm font-bold text-[#1E7B3A]">{isEnglish ? "Edit" : "Modifier"}</button></div>
+          {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">{isEnglish ? "Cameroonian phone number" : "Numéro camerounais"}</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder={method === "Orange Money" ? "69X XX XX XX / 655 XX XX XX" : "67X XX XX XX / 651 XX XX XX"} className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">{phonePrefixHint(method)}</p></div>}
         </div>}
-        <button type="button" onClick={confirm} className="mt-3 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] transition-transform active:scale-[.99]">Confirmer</button>
-        <Link href="/client/profil" className="mt-1 flex min-h-11 items-center justify-center font-semibold text-[#6B7280]">Annuler</Link>
+        <button type="button" onClick={confirm} className="mt-3 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] transition-transform active:scale-[.99]">{isEnglish ? "Confirm" : "Confirmer"}</button>
+        <Link href="/client/profil" className="mt-1 flex min-h-11 items-center justify-center font-semibold text-[#6B7280]">{isEnglish ? "Cancel" : "Annuler"}</Link>
       </section>
     </div>
     {toast && <div role="status" aria-live="polite" className="naxa-profile-toast fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-sm font-semibold text-white shadow-lg">{toast}</div>}
