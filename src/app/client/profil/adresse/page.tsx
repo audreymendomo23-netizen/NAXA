@@ -78,16 +78,16 @@ export default function AdressesClientPage() {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const saved = readSavedAddresses();
-      if (saved.length) {
-        if (active) { setAddresses(saved); setLoaded(true); }
-        return;
-      }
       const supabase = supabaseBrowser();
       const { data: { user } } = await supabase.auth.getUser();
       if (!active) return;
       if (!user) {
         window.location.assign("/connexion?retour=" + encodeURIComponent("/client/profil/adresse"));
+        return;
+      }
+      const saved = readSavedAddresses();
+      if (saved.length) {
+        if (active) { setAddresses(saved); setLoaded(true); }
         return;
       }
       const { data: prefs } = await supabase.from("client_preferences").select("adresse_defaut,quartier").eq("user_id", user.id).maybeSingle();
