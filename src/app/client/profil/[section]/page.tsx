@@ -203,7 +203,7 @@ export default function ProfilSectionPage() {
       sb.from("profiles").select("*").eq("id", userId).maybeSingle(),
       sb.from("client_preferences").select("*").eq("user_id", userId).maybeSingle(),
       sb.from("reservations").select("id,statut,total,created_at,expires_at,paiement_ref,pharmacie_id,reservation_items(quantite,prix_unitaire,produits(nom,dci,dosage,forme))").eq("client_id", userId).order("created_at", { ascending: false }).limit(1000),
-      sb.from("client_achats").select("*").limit(1000)
+      sb.from("client_achats").select("*").eq("client_id", userId).limit(1000)
     ]);
     if (profile.error || preferences.error || reservations.error || purchases.error) { setExportBusy(false); setErreur("L’export n’a pas pu être préparé. Réessayez plus tard."); return; }
     const payload = { exporte_le: new Date().toISOString(), compte: { nom, email }, profil: profile.data, preferences: preferences.data, reservations: reservations.data ?? [], historique_achats: purchases.error ? [] : (purchases.data ?? []) };
@@ -312,7 +312,7 @@ export default function ProfilSectionPage() {
               <a href={"tel:+" + NAXA_WHATSAPP} className="mb-2 flex min-h-14 items-center gap-3 rounded-2xl border border-[#D8E5DC] p-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E9F5EC] text-xl text-[#1E7B3A]">☎</span><span className="min-w-0 flex-1"><strong className="block">Appeler</strong><small className="text-[#6B7280]">+{NAXA_WHATSAPP}</small></span><span>›</span></a>
               <a href={lienGmail(nom)} className="mb-2 flex min-h-14 items-center gap-3 rounded-2xl border border-[#D8E5DC] p-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FCEDEA] text-xl text-[#B3261E]">✉</span><span className="min-w-0 flex-1"><strong className="block">E-mail</strong><small className="text-[#6B7280]">{NAXA_EMAIL}</small></span><span>›</span></a>
               <button type="button" onClick={() => setContactMode("message")} className="mt-2 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A]">Écrire un message</button>
-              <p className="mt-3 text-center text-xs leading-5 text-[#6B7280]">Vous pouvez nous écrire à tout moment. Les réponses sont apportées dès que l’équipe est disponible.</p>
+              <p className="mt-3 text-center text-xs leading-5 text-[#6B7280]">Vous pouvez nous écrire à tout moment. Les réponses sont apportées dès que l’équipe est disponible.</p><p className="mt-1 text-center text-xs text-[#6B7280]">Horaires fixes d’assistance : non communiqués pour le moment.</p>
             </> : <form onSubmit={submitContact} className="space-y-3">
               <label className="block text-sm font-semibold">Sujet<input className="mt-1 w-full rounded-xl border border-[#D8E5DC] px-3 py-3" value={subject} onChange={e => setSubject(e.target.value)} maxLength={120} required/></label>
               <label className="block text-sm font-semibold">Numéro de commande (facultatif)<input className="mt-1 w-full rounded-xl border border-[#D8E5DC] px-3 py-3" value={orderNumber} onChange={e => setOrderNumber(e.target.value)} maxLength={80} placeholder="Référence de réservation"/></label>
@@ -322,13 +322,13 @@ export default function ProfilSectionPage() {
           </div>
         </section>}
 
-        {section === "noter" && <section className="mt-5 rounded-2xl bg-white p-5 text-center shadow-sm">
+        {section === "noter" && <section className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onMouseDown={e => { if (e.target === e.currentTarget) router.push("/client/profil"); }}><div className="max-h-[88dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[28px] bg-[#F8FBF8] px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"><Link href="/client/profil" className="mx-auto mb-4 flex h-5 w-full justify-center" aria-label="Fermer"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link><div className="rounded-2xl bg-white p-5 text-center shadow-sm">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E9F5EC] text-2xl">★</span><h2 className="mt-3 text-xl font-extrabold text-[#0F4D26]">Votre avis compte</h2><p className="mt-1 text-sm text-[#6B7280]">Aidez-nous à améliorer votre expérience NAXA.</p>
           <div className="mt-5 flex justify-center gap-2" role="radiogroup" aria-label="Note de l’application">{[1,2,3,4,5].map(n => <button key={n} type="button" onClick={() => setRating(n)} aria-label={n + " étoile(s)"} aria-pressed={rating === n} className={"rounded-full p-1 text-4xl transition-transform duration-200 active:scale-90 " + (rating >= n ? "animate-[naxa-verified-in_240ms_ease-out] text-[#F4C430]" : "text-[#D1D5DB]")}>★</button>)}</div>
           {rating > 0 && rating <= 3 && <label className="mt-5 block text-left text-sm font-semibold">Que pouvons-nous améliorer ?<textarea className="mt-1 min-h-28 w-full rounded-xl border border-[#D8E5DC] px-3 py-3" maxLength={500} value={review} onChange={e => setReview(e.target.value)} required placeholder="Dites-nous ce qui pourrait être mieux…"/></label>}
           {rating > 3 && <label className="mt-5 block text-left text-sm font-semibold">Un commentaire ? (facultatif)<textarea className="mt-1 min-h-24 w-full rounded-xl border border-[#D8E5DC] px-3 py-3" maxLength={500} value={review} onChange={e => setReview(e.target.value)} placeholder="Un mot pour l’équipe NAXA…"/></label>}
           <button type="button" disabled={busy || rating < 1 || (rating <= 3 && !review.trim())} onClick={() => void saveReview()} className="mt-5 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] disabled:opacity-50">{busy ? "Envoi…" : "Envoyer mon avis"}</button>
-        </section>}
+        </div></div></section>}
 
         {section === "notifications" && <section className="mt-5 space-y-4">
           <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Ce que vous souhaitez recevoir</h2><p className="mt-1 text-sm leading-5 text-[#6B7280]">Les préférences sont enregistrées automatiquement. Les canaux dépendent des autorisations et coordonnées disponibles.</p></div>
@@ -358,7 +358,7 @@ export default function ProfilSectionPage() {
           <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Documents légaux</h2><div className="mt-3 divide-y divide-[#E5E7EB]"><Link className="flex min-h-12 items-center justify-between font-semibold" href="/conditions-utilisation">Conditions générales d’utilisation <span>›</span></Link><Link className="flex min-h-12 items-center justify-between font-semibold" href="/politique-confidentialite">Politique de confidentialité <span>›</span></Link><Link className="flex min-h-12 items-center justify-between font-semibold" href="/politique-securite">Politique de sécurité <span>›</span></Link></div></div>
         </section>}
 
-        {section === "suppression" && <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm"><SuppressionCompteClient/></section>}
+        {section === "suppression" && <section className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onMouseDown={e => { if (e.target === e.currentTarget) router.push("/client/profil"); }}><div className="max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[28px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"><Link href="/client/profil" className="mx-auto mb-4 flex h-5 w-full justify-center" aria-label="Fermer"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link><h2 className="mb-4 text-xl font-extrabold text-[#0F4D26]">Supprimer le compte</h2><SuppressionCompteClient/></div></section>}
         {erreur && <p role="alert" className="mt-4 rounded-xl border border-[#E7B4AF] bg-white p-3 text-sm text-[#B3261E]">{erreur}</p>}
       </>}
     </div>
