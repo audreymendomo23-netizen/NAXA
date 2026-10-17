@@ -21,10 +21,10 @@ const HEURES_PAR_DEFAUT = ["07:00", "12:00", "19:00"];
 
 function normaliserNomProduit(value: string): string {
   return value
-    .replace(/\\b\\d+(?:[.,]\\d+)?(?:\\s*\\/\\s*\\d+(?:[.,]\\d+)?)?\\s*(?:mg|mcg|µg|g|kg|ml|mL|l|iu|ui|meq|mmol)\\b/gi, " ")
-    .replace(/\\b(comprim[eé]s?|cp|g[eé]lules?|capsules?|sachets?|gouttes?|tablettes?|sirop|suspension|solution)\\b/gi, " ")
+    .replace(/\b\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?\s*(?:mg|mcg|µg|g|kg|ml|mL|l|iu|ui|meq|mmol)\b/gi, " ")
+    .replace(/\b(comprim[eé]s?|cp|g[eé]lules?|capsules?|sachets?|gouttes?|tablettes?|sirop|suspension|solution)\b/gi, " ")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
