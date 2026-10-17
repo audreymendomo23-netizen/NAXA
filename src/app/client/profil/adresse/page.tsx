@@ -205,7 +205,7 @@ export default function AdressesClientPage() {
             <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#E9F5EC] text-[#1E7B3A]"><PinIcon name="pin" className="h-8 w-8" /></span>
             <h2 className="text-lg font-extrabold text-[#0F4D26]">Aucune adresse enregistrée</h2>
             <p className="mt-2 max-w-[270px] text-sm leading-6 text-[#6B7280]">Ajoutez une adresse pour retrouver facilement votre lieu de livraison.</p>
-            <button onClick={openNew} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1E7B3A] px-4 font-bold text-white transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
+            <button onClick={openNew} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FFE33D] px-4 font-extrabold text-[#064B2A] transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
           </section>
         ) : (
           <section className="space-y-3">
@@ -231,7 +231,7 @@ export default function AdressesClientPage() {
                 </div>}
               </article>
             ))}
-            <button onClick={openNew} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1E7B3A] px-4 font-bold text-white shadow-sm transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
+            <button onClick={openNew} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FFE33D] px-4 font-extrabold text-[#064B2A] shadow-sm transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
           </section>
         )}
 
