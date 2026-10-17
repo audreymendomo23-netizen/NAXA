@@ -147,7 +147,7 @@ export function AccueilClient() {
         const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(terme), {signal:controller.signal});
         if (!response.ok) return;
         const data = await response.json() as {results?: Array<{name?:string}>};
-        if (!controller.signal.aborted) setSuggestionsCatalogue((data.results ?? []).map(item => item.name).filter((name):name is string => Boolean(name) && normaliserRecherche(name).startsWith(normaliserRecherche(terme))).slice(0,4));
+        if (!controller.signal.aborted) setSuggestionsCatalogue((data.results ?? []).map(item => item.name).filter((name):name is string => typeof name === "string" && name.length > 0 && normaliserRecherche(name).startsWith(normaliserRecherche(terme))).slice(0,4));
       } catch { /* Les suggestions locales restent disponibles sans réseau. */ }
     }, 220);
     return () => { window.clearTimeout(timer); controller.abort(); };
