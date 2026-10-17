@@ -153,12 +153,12 @@ export function ScannerShell() {
         setErreur("La lecture locale des PDF multipages nécessite un moteur de conversion PDF absent du projet. Importez jusqu’à 5 images de l’ordonnance.");
         return;
       }
-      if (!/^image\\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
+      if (!/^image\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
         setErreur("Format non pris en charge. Choisissez JPEG, PNG, WebP ou HEIC.");
         return;
       }
       let fichierImage = f;
-      if (f.type === "image/heic" || f.type === "image/heif" || /\\.(heic|heif)$/i.test(f.name)) {
+      if (f.type === "image/heic" || f.type === "image/heif" || /\.(heic|heif)$/i.test(f.name)) {
         try {
           const bitmap = await createImageBitmap(f);
           const conversion = document.createElement("canvas");
@@ -170,7 +170,7 @@ export function ScannerShell() {
           bitmap.close();
           const blob = await new Promise<Blob | null>(resolve => conversion.toBlob(resolve, "image/jpeg", 0.92));
           if (!blob || blob.size > TAILLE_MAX) throw new Error("conversion indisponible ou trop volumineuse");
-          fichierImage = new File([blob], f.name.replace(/\\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+          fichierImage = new File([blob], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
         } catch {
           setErreur("Ce navigateur ne peut pas convertir cette image HEIC localement. Exportez-la en JPEG puis réessayez.");
           return;
@@ -208,7 +208,7 @@ export function ScannerShell() {
         return;
       }
       const lectureFusionnee: LectureOrdonnance = {
-        texte: lectures.map((item, index) => "Page " + (index + 1) + "\\n" + item.texte).join("\\n\\n"),
+        texte: lectures.map((item, index) => "Page " + (index + 1) + "\n" + item.texte).join("\n\n"),
         confiance: Math.round(lectures.reduce((sum, item) => sum + item.confiance, 0) / lectures.length),
         candidats: Array.from(new Set(lectures.flatMap(item => item.candidats))).slice(0, 12)
       };
@@ -363,6 +363,9 @@ export function ScannerShell() {
     setProduits([]);
     setErreur("");
     setFichier(null);
+    setFichiersEnAttente([]);
+    setIndexFichier(0);
+    setLecturesCumulees([]);
     setModeScan("ordonnance");
     setEcran("camera");
     router.replace("/scanner" + (modePosologie ? "?mode=posologie" : ""));
