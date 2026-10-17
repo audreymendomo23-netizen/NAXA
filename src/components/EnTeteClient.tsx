@@ -101,6 +101,7 @@ export function EnTeteClient() {
           {suggestions.map(a => <Link key={a.titre} href={a.href} onClick={event => { event.preventDefault(); closeSearchAndMenu(); if (a.href.startsWith("mailto:")) window.location.href = a.href; else router.push(a.href); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span><span className="block">{a.titre}</span><span className="block text-xs font-normal text-white/70">{a.description}</span></span><span aria-hidden="true">›</span></Link>)}
           {suggestions.length === 0 && <p className="px-3 py-3 text-sm text-white/75">Aucune option trouvée. Essayez un autre terme.</p>}
         </div>}
+      </div>}
 
       {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0B3D26] p-2 text-white shadow-2xl">
         {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => openAction(a.titre)} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-[#B3123F] hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
