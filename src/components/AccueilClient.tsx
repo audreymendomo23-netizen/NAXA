@@ -444,7 +444,7 @@ export function AccueilClient() {
               </button>
             </div>
               </article>)}
-            </div>)}</div>)}
+            </div>)}</div>)}</div>
         </div> : <p className="rounded-2xl bg-white px-4 py-5 text-sm leading-5 text-[#53685C]">Les recherches réelles des clients apparaîtront ici dès qu’elles seront disponibles.</p>}
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
       </section>
@@ -466,7 +466,7 @@ export function AccueilClient() {
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
               </Link>)}
-            </div>)}
+            </div>)}</div>
           </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
             <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
             <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
