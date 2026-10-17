@@ -29,24 +29,25 @@ export function BottomNav() {
  const [reducedMotion,setReducedMotion]=useState(false);
  useEffect(()=>{
   let actif=true;
-  const chargerProfil=async()=>{
-   const sb=supabaseBrowser();
-   const {data:{user}}=await sb.auth.getUser();
+  const sb=supabaseBrowser();
+  type UtilisateurProfil={id:string;user_metadata?:Record<string,unknown>;email?:string|null};
+  const chargerProfil=async(utilisateurForce?:UtilisateurProfil|null)=>{
+   const utilisateur=utilisateurForce===undefined?(await sb.auth.getUser()).data.user:utilisateurForce;
    if(!actif)return;
-   if(!user){setAvatarUrl(null);setInitiales("C");return;}
-   const {data:profile}=await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",user.id).maybeSingle();
+   if(!utilisateur){setAvatarUrl(null);setInitiales("C");return;}
+   const {data:profile}=await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",utilisateur.id).maybeSingle();
    if(!actif)return;
-   const meta=user.user_metadata??{};
+   const meta=utilisateur.user_metadata??{};
    const prenom=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():typeof meta.given_name==="string"?meta.given_name.trim():"";
    const nom=typeof profile?.last_name==="string"&&profile.last_name.trim()?profile.last_name.trim():typeof meta.last_name==="string"?meta.last_name.trim():typeof meta.family_name==="string"?meta.family_name.trim():"";
-   const nomComplet=[prenom,nom].filter(Boolean).join(" ").trim()||String(meta.full_name??meta.name??user.email?.split("@")[0]??"Client");
+   const nomComplet=[prenom,nom].filter(Boolean).join(" ").trim()||String(meta.full_name??meta.name??utilisateur.email?.split("@")[0]??"Client");
    const lettres=nomComplet.split(/[\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
    setInitiales(lettres||"C");
    const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;
    setAvatarUrl(typeof photo==="string"&&photo.startsWith("https://")?photo:null);
   };
   void chargerProfil();
-  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange(()=>{void chargerProfil()});
+  const {data:{subscription}}=sb.auth.onAuthStateChange((_event,session)=>{void chargerProfil(session?.user??null)});
   return()=>{actif=false;subscription.unsubscribe()};
  },[]);
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
