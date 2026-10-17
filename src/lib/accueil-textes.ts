@@ -85,12 +85,6 @@ export const recherchesFrequentes = [
   { fr: "Ibuprofène", en: "Ibuprofen" },
   { fr: "Artéméther/Luméfantrine", en: "Artemether/Lumefantrine" },
   { fr: "Sels de réhydratation", en: "Oral rehydration salts" },
-  { fr: "Coartem", en: "Coartem" },
-  { fr: "Metformine", en: "Metformin" },
-  { fr: "Cétirizine", en: "Cetirizine" },
-  { fr: "Oméprazole", en: "Omeprazole" },
-  { fr: "Azithromycine", en: "Azithromycin" },
-  { fr: "Métronidazole", en: "Metronidazole" },
 ];
 
 export const suggestionsMedicaments = [
@@ -102,6 +96,12 @@ export const suggestionsMedicaments = [
   { fr: "Ibuprofène 400 mg", en: "Ibuprofen 400 mg" },
   { fr: "Artéméther/Luméfantrine", en: "Artemether/Lumefantrine" },
   { fr: "Sels de réhydratation", en: "Oral rehydration salts" },
+  { fr: "Coartem", en: "Coartem" },
+  { fr: "Metformine", en: "Metformin" },
+  { fr: "Cétirizine", en: "Cetirizine" },
+  { fr: "Oméprazole", en: "Omeprazole" },
+  { fr: "Azithromycine", en: "Azithromycin" },
+  { fr: "Métronidazole", en: "Metronidazole" },
 ];
 
 export function normaliserRecherche(valeur: string): string {
