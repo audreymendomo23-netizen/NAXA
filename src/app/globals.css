@@ -478,3 +478,38 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-delete-error { animation: naxa-delete-shake 260ms ease-in-out; }
 @keyframes naxa-delete-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @media (prefers-reduced-motion: reduce) { .naxa-delete-error { animation: none !important; } }
+
+/* Commutateurs accessibles pour les préférences du profil. */
+.naxa-profile-toggle {
+  appearance: none;
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 25px;
+  flex: 0 0 44px;
+  border: 1px solid #B8C6BC;
+  border-radius: 9999px;
+  background: #D1D5DB;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+.naxa-profile-toggle::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  transition: transform 180ms ease;
+}
+.naxa-profile-toggle:checked { background: #1E7B3A; border-color: #1E7B3A; }
+.naxa-profile-toggle:checked::before { transform: translateX(19px); }
+.naxa-profile-toggle:focus-visible { outline: 3px solid rgba(30,123,58,.28); outline-offset: 2px; }
+.naxa-profile-toggle:disabled { cursor: not-allowed; opacity: .5; }
+.naxa-faq { animation: naxa-profile-enter 280ms cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .naxa-profile-toggle, .naxa-profile-toggle::before, .naxa-faq { transition: none !important; animation: none !important; }
+}
