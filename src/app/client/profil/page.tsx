@@ -306,11 +306,6 @@ export default function ProfilClientPage() {
 
       <section className="naxa-profile-menu mt-3 overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         {topRows.map((row, index) => { const rowClass = "naxa-profile-row relative flex min-h-16 w-full items-center gap-4 px-4 py-2 text-left transition-transform active:scale-[.99]"; const contents = <><Icon name={row.icon} className="shrink-0 text-[#1E7B3A]"/><span className="min-w-0 flex-1 py-1"><span className="block text-[17px] font-bold leading-5 text-[#111111]">{row.title}</span><span className="mt-0.5 block truncate text-[15px] leading-5 text-[#6B7280]">{row.subtitle}</span></span><span className="text-[25px] leading-none text-[#6B7280]" aria-hidden="true">›</span>{index < topRows.length - 1 && <span className="absolute bottom-0 right-0 h-px w-[calc(100%-56px)] bg-[#E5E7EB]"/>}</>; return "action" in row && row.action === "language" ? <button key={row.title} type="button" onClick={() => setLanguageOpen(true)} style={{ animationDelay: `${index * 45}ms` }} className={rowClass}>{contents}</button> : <Link key={row.title} href={row.href} style={{ animationDelay: `${index * 45}ms` }} className={rowClass}>{contents}</Link>; })}
-          <Icon name={row.icon} className="shrink-0 text-[#1E7B3A]"/>
-          <span className="min-w-0 flex-1 py-1"><span className="block text-[17px] font-bold leading-5 text-[#111111]">{row.title}</span><span className="mt-0.5 block truncate text-[15px] leading-5 text-[#6B7280]">{row.subtitle}</span></span>
-          <span className="text-[25px] leading-none text-[#6B7280]" aria-hidden="true">›</span>
-          {index < topRows.length - 1 && <span className="absolute bottom-0 right-0 h-px w-[calc(100%-56px)] bg-[#E5E7EB]"/>}
-        </Link>)}
       </section>
 
       {sections.map((section, sIndex) => <section key={section.title} className="mt-6">
