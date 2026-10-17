@@ -9,6 +9,11 @@ import { isProfileVerified } from "@/lib/client-profile";
 type ProfileData = { name: string; phone: string; email: string; address: string; photo: string | null; orders: number };
 const PHOTO_KEY = "naxa-client-profile-photo-v1";
 const PROFILE_EVENT = "naxa-profile-updated";
+const DEMO_PHOTO = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#cde8d3"/><stop offset="1" stop-color="#5d9b70"/></linearGradient></defs><rect width="160" height="160" fill="url(#bg)"/><circle cx="80" cy="60" r="31" fill="#f0c6a5"/><path d="M49 60c-3-26 14-42 33-42 22 0 34 17 29 43l-8-22c-15 4-29 4-43 0Z" fill="#3c2c25"/><path d="M26 160c4-39 24-57 54-57s50 18 54 57" fill="#1e7b3a"/><path d="M62 91c7 8 29 8 36 0l8 14-26 18-26-18Z" fill="#eab99b"/></svg>');
+const DEMO_PROFILES: Record<"complete" | "incomplete", ProfileData> = {
+  complete: { name: "Jean Dupont", phone: "+237 6 12 34 56 78", email: "j.dupont@email.com", address: "123 Rue Paix Bonanjo Douala", photo: DEMO_PHOTO, orders: 12 },
+  incomplete: { name: "Amina Etoa", phone: "", email: "amina.etoa@email.com", address: "", photo: null, orders: 0 }
+};
 
 function initials(name: string) { return name.trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(x => Array.from(x)[0]?.toLocaleUpperCase("fr-FR") ?? "").join("") || "C"; }
 function formatPhone(value: string) { const digits = value.replace(/\D/g, ""); const local = digits.startsWith("237") ? digits.slice(3) : digits; return local.length === 9 && local.startsWith("6") ? `+237 6 ${local.slice(1, 3)} ${local.slice(3, 5)} ${local.slice(5, 7)} ${local.slice(7, 9)}` : value; }
@@ -48,6 +53,7 @@ export default function ProfilClientPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [profile, setProfile] = useState<ProfileData>({ name: "Client NAXA", phone: "", email: "", address: "", photo: null, orders: 0 });
   const [loaded, setLoaded] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
   const [sheet, setSheet] = useState<"photo" | "edit" | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -101,6 +107,14 @@ export default function ProfilClientPage() {
   useEffect(() => {
     let active = true;
     void (async () => {
+      const demoModeRequested = new URLSearchParams(window.location.search).get("demo") === "1";
+      if (demoModeRequested) {
+        setDemoMode(true);
+        setProfile(DEMO_PROFILES.complete);
+        setDraft({ name: DEMO_PROFILES.complete.name, phone: DEMO_PROFILES.complete.phone, email: DEMO_PROFILES.complete.email });
+        setLoaded(true);
+        return;
+      }
       const sb = supabaseBrowser();
       const { data: { user } } = await sb.auth.getUser();
       if (!active) return;
@@ -156,6 +170,12 @@ export default function ProfilClientPage() {
   }, []);
   useEffect(() => { if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current; }, [cameraOpen]);
 
+  function selectDemoProfile(which: "complete" | "incomplete") {
+    const next = DEMO_PROFILES[which];
+    setProfile(next);
+    setDraft({ name: next.name, phone: next.phone, email: next.email });
+    setSheet(null);
+  }
   function openEdit() { setDraft({ name: profile.name, phone: profile.phone, email: profile.email }); setSheet("edit"); }
   async function confirmLogout() {
     setLogoutBusy(true);
@@ -318,9 +338,16 @@ export default function ProfilClientPage() {
           })}
         </div>
       </section>)}
+      {demoMode && <div className="mt-5 rounded-2xl border border-dashed border-[#1E7B3A]/40 bg-white/80 p-3" aria-label="Sélecteur de profils de démonstration">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Profils de test</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => selectDemoProfile("complete")} aria-pressed={isProfileVerified(profile)} className={`min-h-10 rounded-xl px-3 text-sm font-bold transition-colors ${isProfileVerified(profile) ? "bg-[#1E7B3A] text-white" : "bg-[#E9F5EC] text-[#0F4D26]"}`}>Complet · vérifié</button>
+          <button type="button" onClick={() => selectDemoProfile("incomplete")} aria-pressed={!isProfileVerified(profile)} className={`min-h-10 rounded-xl px-3 text-sm font-bold transition-colors ${!isProfileVerified(profile) ? "bg-[#1E7B3A] text-white" : "bg-[#E9F5EC] text-[#0F4D26]"}`}>Incomplet</button>
+        </div>
+      </div>}
       </div>
 
-    <nav aria-label={savedLanguage === "en" ? "Main navigation" : "Navigation principale"} className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
+    <nav aria-label={savedLanguage === "en" ? "Main navigation" : "Navigation principale"}  className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="grid h-16 grid-cols-4 items-center">
         {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Search" : "Recherche",href:"/recherche",icon:"search"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
