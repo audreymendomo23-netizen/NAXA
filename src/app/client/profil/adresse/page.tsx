@@ -69,6 +69,7 @@ export default function AdressesClientPage() {
   const [toast, setToast] = useState("");
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [isEnglish, setIsEnglish] = useState(false);
 
   const flash = useCallback((message: string) => {
     setToast(message);
@@ -76,6 +77,10 @@ export default function AdressesClientPage() {
   }, []);
 
   useEffect(() => {
+    const syncLanguage = () => setIsEnglish(window.localStorage.getItem("naxa-langue") === "en");
+    syncLanguage();
+    window.addEventListener("naxa-language-updated", syncLanguage);
+    window.addEventListener("storage", syncLanguage);
     let active = true;
     void (async () => {
       const supabase = supabaseBrowser();
@@ -101,7 +106,7 @@ export default function AdressesClientPage() {
       }
       setLoaded(true);
     })();
-    return () => { active = false; };
+    return () => { active = false; window.removeEventListener("naxa-language-updated", syncLanguage); window.removeEventListener("storage", syncLanguage); };
   }, []);
 
   const defaultAddress = useMemo(() => addresses.find((address) => address.isDefault) ?? null, [addresses]);
@@ -190,22 +195,22 @@ export default function AdressesClientPage() {
     <main className="min-h-dvh bg-[#E9F5EC] px-4 pb-[calc(32px+env(safe-area-inset-bottom,0px))] text-[#111111]">
       <div className="mx-auto w-full max-w-[430px] pt-3">
         <header className="mb-5 flex min-h-12 items-center gap-3">
-          <Link href="/client/profil" aria-label="Retour au profil" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#1E7B3A] shadow-[0_2px_8px_rgba(0,0,0,.08)] transition-transform active:scale-95">
+          <Link href="/client/profil" aria-label={isEnglish ? "Back to profile" : "Retour au profil"} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#1E7B3A] shadow-[0_2px_8px_rgba(0,0,0,.08)] transition-transform active:scale-95">
             <PinIcon name="back" />
           </Link>
-          <h1 className="text-[24px] font-extrabold tracking-tight text-[#0F4D26]">Mes adresses</h1>
+          <h1 className="text-[24px] font-extrabold tracking-tight text-[#0F4D26]">{isEnglish ? "My addresses" : "Mes adresses"}</h1>
         </header>
 
         {!loaded ? (
-          <div className="space-y-3" aria-label="Chargement des adresses">
+          <div className="space-y-3" aria-label={isEnglish ? "Loading addresses" : "Chargement des adresses"}>
             {[1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-white/80" />)}
           </div>
         ) : addresses.length === 0 ? (
           <section className="flex min-h-[46vh] flex-col items-center justify-center rounded-3xl bg-white px-7 py-10 text-center shadow-[0_2px_8px_rgba(0,0,0,.08)]">
             <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#E9F5EC] text-[#1E7B3A]"><PinIcon name="pin" className="h-8 w-8" /></span>
-            <h2 className="text-lg font-extrabold text-[#0F4D26]">Aucune adresse enregistrée</h2>
-            <p className="mt-2 max-w-[270px] text-sm leading-6 text-[#6B7280]">Ajoutez une adresse pour retrouver facilement votre lieu de livraison.</p>
-            <button onClick={openNew} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FFE33D] px-4 font-extrabold text-[#064B2A] transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> Ajouter une adresse</button>
+            <h2 className="text-lg font-extrabold text-[#0F4D26]">{isEnglish ? "No saved addresses" : "Aucune adresse enregistrée"}</h2>
+            <p className="mt-2 max-w-[270px] text-sm leading-6 text-[#6B7280]">{isEnglish ? "Add an address to easily find your delivery location." : "Ajoutez une adresse pour retrouver facilement votre lieu de livraison."}</p>
+            <button onClick={openNew} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FFE33D] px-4 font-extrabold text-[#064B2A] transition-transform active:scale-[.99]"><PinIcon name="plus" className="h-5 w-5" /> {isEnglish ? "Add an address" : "Ajouter une adresse"}</button>
           </section>
         ) : (
           <section className="space-y-3">
@@ -215,19 +220,19 @@ export default function AdressesClientPage() {
                   <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E9F5EC] text-[#1E7B3A]"><PinIcon name={address.label === "Maison" ? "home" : address.label === "Travail" ? "work" : "pin"} /></span>
                   <div className="min-w-0 flex-1 pr-8">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-extrabold text-[#111111]">{address.label}</h2>
-                      {address.isDefault && <span className="rounded-full bg-[#E2F4E7] px-2.5 py-1 text-[11px] font-bold text-[#1E7B3A]">Par défaut</span>}
+                      <h2 className="font-extrabold text-[#111111]">{isEnglish ? (address.label === "Maison" ? "Home" : address.label === "Travail" ? "Work" : "Other") : address.label}</h2>
+                      {address.isDefault && <span className="rounded-full bg-[#E2F4E7] px-2.5 py-1 text-[11px] font-bold text-[#1E7B3A]">{isEnglish ? "Default" : "Par défaut"}</span>}
                     </div>
-                    <p className="mt-1 text-sm leading-5 text-[#6B7280]">{addressText(address) || "Adresse à compléter"}</p>
-                    {address.landmark && <p className="mt-1 text-xs leading-5 text-[#6B7280]">Repère : {address.landmark}</p>}
-                    {address.latitude != null && address.longitude != null && <p className="mt-1 text-xs text-[#6B7280]">Position GPS enregistrée</p>}
+                    <p className="mt-1 text-sm leading-5 text-[#6B7280]">{addressText(address) || (isEnglish ? "Address incomplete" : "Adresse à compléter")}</p>
+                    {address.landmark && <p className="mt-1 text-xs leading-5 text-[#6B7280]">{isEnglish ? "Landmark" : "Repère"}: {address.landmark}</p>}
+                    {address.latitude != null && address.longitude != null && <p className="mt-1 text-xs text-[#6B7280]">{isEnglish ? "GPS location saved" : "Position GPS enregistrée"}</p>}
                   </div>
                   <button type="button" aria-label={`Options pour l’adresse ${address.label}`} aria-expanded={menuId === address.id} onClick={() => setMenuId(menuId === address.id ? null : address.id)} className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-[#6B7280] transition-colors hover:bg-[#E9F5EC]"><PinIcon name="more" /></button>
                 </div>
                 {menuId === address.id && <div className="absolute right-3 top-14 z-20 w-52 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white py-1 shadow-xl" role="menu">
-                  <button role="menuitem" onClick={() => openEdit(address)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium hover:bg-[#E9F5EC]"><PinIcon name="edit" className="h-4 w-4" /> Modifier</button>
-                  {!address.isDefault && <button role="menuitem" onClick={() => setDefault(address.id)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium hover:bg-[#E9F5EC]"><PinIcon name="check" className="h-4 w-4" /> Définir par défaut</button>}
-                  <button role="menuitem" onClick={() => { setDeleteId(address.id); setMenuId(null); }} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium text-[#B3261E] hover:bg-red-50"><PinIcon name="trash" className="h-4 w-4" /> Supprimer</button>
+                  <button role="menuitem" onClick={() => openEdit(address)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium hover:bg-[#E9F5EC]"><PinIcon name="edit" className="h-4 w-4" /> {isEnglish ? "Edit" : "Modifier"}</button>
+                  {!address.isDefault && <button role="menuitem" onClick={() => setDefault(address.id)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium hover:bg-[#E9F5EC]"><PinIcon name="check" className="h-4 w-4" /> {isEnglish ? "Set as default" : "Définir par défaut"}</button>}
+                  <button role="menuitem" onClick={() => { setDeleteId(address.id); setMenuId(null); }} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium text-[#B3261E] hover:bg-red-50"><PinIcon name="trash" className="h-4 w-4" /> {isEnglish ? "Delete" : "Supprimer"}</button>
                 </div>}
               </article>
             ))}
@@ -235,46 +240,46 @@ export default function AdressesClientPage() {
           </section>
         )}
 
-        <p className="mt-5 text-center text-xs leading-5 text-[#6B7280]">Vos adresses sont enregistrées sur cet appareil pour le moment.</p>
+        <p className="mt-5 text-center text-xs leading-5 text-[#6B7280]">{isEnglish ? "Your addresses are currently saved on this device." : "Vos adresses sont enregistrées sur cet appareil pour le moment."}</p>
       </div>
 
       {sheet && <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40" onMouseDown={(event) => { if (event.target === event.currentTarget) setSheet(false); }}>
         <section role="dialog" aria-modal="true" aria-labelledby="address-sheet-title" className="naxa-address-sheet w-full max-w-[430px] rounded-t-[24px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl">
           <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[#D1D5DB]" />
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 id="address-sheet-title" className="text-xl font-extrabold text-[#0F4D26]">{editingId ? "Modifier une adresse" : "Ajouter une adresse"}</h2>
-            <button type="button" onClick={() => setSheet(false)} aria-label="Fermer" className="flex h-10 w-10 items-center justify-center rounded-full text-[#6B7280] hover:bg-[#F3F4F6]"><PinIcon name="close" /></button>
+            <h2 id="address-sheet-title" className="text-xl font-extrabold text-[#0F4D26]">{editingId ? (isEnglish ? "Edit address" : "Modifier une adresse") : (isEnglish ? "Add address" : "Ajouter une adresse")}</h2>
+            <button type="button" onClick={() => setSheet(false)} aria-label={isEnglish ? "Close" : "Fermer"} className="flex h-10 w-10 items-center justify-center rounded-full text-[#6B7280] hover:bg-[#F3F4F6]"><PinIcon name="close" /></button>
           </div>
           <div className="max-h-[70dvh] space-y-3 overflow-y-auto pb-1">
             <div>
-              <p className="mb-2 text-sm font-semibold text-[#374151]">Libellé</p>
+              <p className="mb-2 text-sm font-semibold text-[#374151]">{isEnglish ? "Label" : "Libellé"}</p>
               <div className="grid grid-cols-3 gap-2">
                 {(["Maison", "Travail", "Autre"] as const).map((label) => <button key={label} type="button" onClick={() => setDraft((current) => ({ ...current, label }))} className={`min-h-11 rounded-xl border px-2 text-sm font-bold transition-colors ${draft.label === label ? "border-[#1E7B3A] bg-[#E9F5EC] text-[#1E7B3A]" : "border-[#E5E7EB] bg-white text-[#6B7280]"}`}>{label}</button>)}
               </div>
             </div>
             {([
-              ["city", "Ville", "Ex. Douala"],
-              ["neighborhood", "Quartier", "Ex. Bonanjo"],
-              ["street", "Rue et numéro", "Ex. Rue Paix, immeuble 12"],
-              ["landmark", "Point de repère (facultatif)", "Ex. en face de la pharmacie"],
+              ["city", isEnglish ? "City" : "Ville", isEnglish ? "E.g. Douala" : "Ex. Douala"],
+              ["neighborhood", isEnglish ? "Neighborhood" : "Quartier", isEnglish ? "E.g. Bonanjo" : "Ex. Bonanjo"],
+              ["street", isEnglish ? "Street and number" : "Rue et numéro", isEnglish ? "E.g. Rue Paix, building 12" : "Ex. Rue Paix, immeuble 12"],
+              ["landmark", isEnglish ? "Landmark (optional)" : "Point de repère (facultatif)", isEnglish ? "E.g. opposite the pharmacy" : "Ex. en face de la pharmacie"],
             ] as const).map(([key, label, placeholder]) => <label key={key} className="block text-sm font-semibold text-[#374151]">{label}<input value={draft[key]} onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value }))} placeholder={placeholder} maxLength={key === "landmark" ? 180 : 120} className="mt-1.5 min-h-12 w-full rounded-xl border border-[#D1D5DB] bg-white px-3 text-[16px] font-normal text-[#111111] outline-none transition focus:border-[#1E7B3A] focus:ring-2 focus:ring-[#1E7B3A]/15" /></label>)}
-            <button type="button" onClick={useMyLocation} disabled={locating} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#1E7B3A] px-3 text-sm font-bold text-[#1E7B3A] disabled:opacity-60"><PinIcon name="location" className="h-5 w-5" />{locating ? "Localisation…" : "Utiliser ma position"}</button>
+            <button type="button" onClick={useMyLocation} disabled={locating} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#1E7B3A] px-3 text-sm font-bold text-[#1E7B3A] disabled:opacity-60"><PinIcon name="location" className="h-5 w-5" />{locating ? (isEnglish ? "Locating…" : "Localisation…") : (isEnglish ? "Use my location" : "Utiliser ma position")}</button>
             {locationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-[#B3261E]">{locationError}</p>}
-            {draft.latitude != null && draft.longitude != null && <p className="text-xs text-[#6B7280]">Coordonnées GPS ajoutées à cette adresse.</p>}
+            {draft.latitude != null && draft.longitude != null && <p className="text-xs text-[#6B7280]">{isEnglish ? "GPS coordinates added to this address." : "Coordonnées GPS ajoutées à cette adresse."}</p>}
             <button type="button" role="switch" aria-checked={draft.isDefault} onClick={() => setDraft((current) => ({ ...current, isDefault: !current.isDefault }))} className="flex min-h-12 w-full items-center justify-between gap-3 py-1 text-left">
-              <span className="text-sm font-semibold text-[#111111]">Définir par défaut</span>
+              <span className="text-sm font-semibold text-[#111111]">{isEnglish ? "Set as default" : "Définir par défaut"}</span>
               <span className={`relative h-6 w-11 rounded-full transition-colors ${draft.isDefault ? "bg-[#1E7B3A]" : "bg-[#D1D5DB]"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${draft.isDefault ? "translate-x-[22px]" : "translate-x-0.5"}`} /></span>
             </button>
           </div>
-          <button type="button" onClick={saveAddress} className="mt-4 min-h-12 w-full rounded-xl bg-[#1E7B3A] px-4 font-extrabold text-white transition-transform active:scale-[.99]">Enregistrer</button>
-          <button type="button" onClick={() => setSheet(false)} className="mt-1 min-h-11 w-full font-semibold text-[#6B7280]">Annuler</button>
+          <button type="button" onClick={saveAddress} className="mt-4 min-h-12 w-full rounded-xl bg-[#1E7B3A] px-4 font-extrabold text-white transition-transform active:scale-[.99]">{isEnglish ? "Save" : "Enregistrer"}</button>
+          <button type="button" onClick={() => setSheet(false)} className="mt-1 min-h-11 w-full font-semibold text-[#6B7280]">{isEnglish ? "Cancel" : "Annuler"}</button>
         </section>
       </div>}
 
       {deleteId && <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-5" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteId(null); }}>
         <section role="alertdialog" aria-modal="true" aria-labelledby="delete-address-title" className="w-full max-w-[360px] rounded-2xl bg-white p-5 shadow-2xl">
-          <h2 id="delete-address-title" className="text-lg font-extrabold text-[#0F4D26]">Supprimer cette adresse ?</h2>
-          <p className="mt-2 text-sm leading-6 text-[#6B7280]">Cette adresse sera retirée de votre liste enregistrée sur cet appareil.</p>
+          <h2 id="delete-address-title" className="text-lg font-extrabold text-[#0F4D26]">{isEnglish ? "Delete this address?" : "Supprimer cette adresse ?"}</h2>
+          <p className="mt-2 text-sm leading-6 text-[#6B7280]">{isEnglish ? "This address will be removed from the list saved on this device." : "Cette adresse sera retirée de votre liste enregistrée sur cet appareil."}</p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button type="button" onClick={() => setDeleteId(null)} className="min-h-11 rounded-xl border border-[#E5E7EB] font-bold text-[#374151]">Annuler</button>
             <button type="button" onClick={removeAddress} className="min-h-11 rounded-xl bg-[#B3261E] font-bold text-white">Supprimer</button>
