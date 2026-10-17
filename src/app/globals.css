@@ -72,6 +72,28 @@ body {
   overflow: hidden;
 }
 
+/* Carrousels de l’accueil : deux pistes identiques pour une boucle sans saut. */
+.naxa-carousel-viewport {
+  width: 100%;
+  overflow: hidden;
+}
+.naxa-carousel-loop {
+  width: max-content;
+  animation: naxa-carousel-loop 38s linear infinite;
+  will-change: transform;
+}
+.naxa-carousel-viewport:hover .naxa-carousel-loop,
+.naxa-carousel-viewport:focus-within .naxa-carousel-loop {
+  animation-play-state: paused;
+}
+.naxa-gardes-loop {
+  animation-duration: 24s;
+}
+@keyframes naxa-carousel-loop {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 .defile {
   animation: defile 45s linear infinite;
 }
