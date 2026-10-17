@@ -115,6 +115,8 @@ export function AccueilClient() {
   const [error, setError] = useState(false);
   const [added, setAdded] = useState<string|null>(null);
   const [favoris, setFavoris] = useState<string[]>([]);
+  const [produitsSlide, setProduitsSlide] = useState(0);
+  const [gardesSlide, setGardesSlide] = useState(0);
   const [menuServicesOuvert, setMenuServicesOuvert] = useState(false);
   const menuServicesRef = useRef<HTMLDivElement>(null);
 
@@ -217,7 +219,18 @@ export function AccueilClient() {
     distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
-  const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,3);
+  const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,6);
+  const nombreSlidesProduits = Math.ceil(produits.length / 2);
+  useEffect(() => {
+    if (nombreSlidesProduits < 2) { setProduitsSlide(0); return; }
+    const interval = window.setInterval(() => setProduitsSlide(current => (current + 1) % nombreSlidesProduits), 4000);
+    return () => window.clearInterval(interval);
+  }, [nombreSlidesProduits]);
+  useEffect(() => {
+    if (gardes.length < 2) { setGardesSlide(0); return; }
+    const interval = window.setInterval(() => setGardesSlide(current => (current + 1) % gardes.length), 4000);
+    return () => window.clearInterval(interval);
+  }, [gardes.length]);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
@@ -342,9 +355,36 @@ export function AccueilClient() {
       </section>
 
       <section className="mb-6">
+        <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
+        <div className="overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
+          <div className="border-b border-[#E0EAE3] px-4 py-3">
+            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proche de vous</h3>
+          </div>
+          {gardes.length ? <div className="overflow-hidden">
+            <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${gardesSlide * 100}%)` }}>
+              {gardes.map((p) => <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
+                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+                <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
+                <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
+              </Link>)}
+            </div>
+            {gardes.length > 1 && <div className="flex justify-center gap-2 pb-3" aria-label="Pharmacies de garde">
+              {gardes.map((p,i) => <button key={p.id} type="button" onClick={() => setGardesSlide(i)} aria-label={`Afficher ${p.nom}`} aria-current={gardesSlide === i ? "true" : undefined} className={`h-2 rounded-full transition-all ${gardesSlide === i ? "w-6 bg-[#0F6B3F]" : "w-2 bg-[#B7C9BE]"}`} />)}
+            </div>}
+          </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
+            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+            <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
+          </div>}
+        </div>
+        <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
+      </section>
+
+      <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
-        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="naxa-reveal-list grid grid-cols-2 gap-2.5">
-          {produits.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[18px] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+        {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="overflow-hidden">
+          <div className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${produitsSlide * 100}%)` }}>
+            {Array.from({ length: nombreSlidesProduits }, (_, slide) => produits.slice(slide * 2, slide * 2 + 2)).map((groupe, slide) => <div key={slide} className="naxa-reveal-list grid min-w-full grid-cols-2 gap-2.5">
+              {groupe.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[18px] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={160} height={88} className="h-[88px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
@@ -366,21 +406,14 @@ export function AccueilClient() {
                 <IconeNAXA name="shopping-cart" size={14}/>{added===p.id?"Ajouté ✓":"Ajouter"}
               </button>
             </div>
-          </article>)}
+              </article>)}
+            </div>)}
+          </div>
+          {nombreSlidesProduits > 1 && <div className="mt-3 flex justify-center gap-2" aria-label="Pages des médicaments les plus recherchés">
+            {Array.from({ length: nombreSlidesProduits }, (_, i) => <button key={i} type="button" onClick={() => setProduitsSlide(i)} aria-label={`Afficher les médicaments, page ${i + 1}`} aria-current={produitsSlide === i ? "true" : undefined} className={`h-2 rounded-full transition-all ${produitsSlide === i ? "w-6 bg-[#0F6B3F]" : "w-2 bg-[#B7C9BE]"}`} />)}
+          </div>}
         </div> : <p className="rounded-2xl bg-white px-4 py-5 text-sm leading-5 text-[#53685C]">Les recherches réelles des clients apparaîtront ici dès qu’elles seront disponibles.</p>}
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
-      </section>
-
-      <section className="pb-2">
-        <div className="mb-3 flex flex-col items-start gap-1">
-          <h2 className="text-[20px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacie de garde proche de vous</h2>
-          <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="inline-flex min-h-8 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
-        </div>
-        {gardes.length ? <div className="space-y-3">{gardes.map((p)=><Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-          <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
-          <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">Pharmacie de garde{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
-          <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-        </Link>)}</div> : <Link href="/gardes" className="flex min-h-[76px] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"><span className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span><span className="flex-1"><strong className="block">Aucune pharmacie de garde proche n’est indiquée</strong></span><IconeNAXA name="chevron-right" size={18}/></Link>}
       </section>
 
       <section className="naxa-enter mt-6 pb-4">
