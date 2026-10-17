@@ -238,25 +238,25 @@ export default function ProfilClientPage() {
   function dragMove(e: ReactPointerEvent<HTMLDivElement>) { if (dragStart) setOffset({ x: Math.max(-100, Math.min(100, dragStart.ox + e.clientX - dragStart.x)), y: Math.max(-100, Math.min(100, dragStart.oy + e.clientY - dragStart.y)) }); }
 
   const topRows = [
-    { icon: "pin", title: "Adresse par défaut", subtitle: shown.address || "Ajouter une adresse", href: "/client/profil/adresse" },
-    { icon: "wallet", title: "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
+    { icon: "pin", title: savedLanguage === "en" ? "Default address" : "Adresse par défaut", subtitle: shown.address || (savedLanguage === "en" ? "Add an address" : "Ajouter une adresse"), href: "/client/profil/adresse" },
+    { icon: "wallet", title: savedLanguage === "en" ? "Payment" : "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
     { icon: "globe", title: savedLanguage === "en" ? "Language" : "Langue", subtitle: savedLanguage === "en" ? "English" : "Français", href: "/client/profil/langue" }
   ];
   const sections = [
-    { title: "Mes commandes", rows: [
-      { icon: "clock", title: "Historique", subtitle: shown.orders ? `${shown.orders} commande${shown.orders === 1 ? "" : "s"}` : "Aucune commande", href: "/client?onglet=achats", trailing: true },
-      { icon: "file", title: "Factures", href: "/client/profil/factures" }
+    { title: savedLanguage === "en" ? "My orders" : "Mes commandes", rows: [
+      { icon: "clock", title: savedLanguage === "en" ? "History" : "Historique", subtitle: shown.orders ? (savedLanguage === "en" ? `${shown.orders} order${shown.orders === 1 ? "" : "s"}` : `${shown.orders} commande${shown.orders === 1 ? "" : "s"}`) : (savedLanguage === "en" ? "No orders" : "Aucune commande"), href: "/client?onglet=achats", trailing: true },
+      { icon: "file", title: savedLanguage === "en" ? "Invoices" : "Factures", href: "/client/profil/factures" }
     ]},
-    { title: "Support", rows: [
-      { icon: "help", title: "Centre d'aide", href: "/client/profil/aide" },
-      { icon: "headset", title: "Contacter NAXA", href: "/client/profil/contact" },
-      { icon: "star", title: "Noter l'app", href: "/client/profil/noter" }
+    { title: savedLanguage === "en" ? "Support" : "Support", rows: [
+      { icon: "help", title: savedLanguage === "en" ? "Help center" : "Centre d'aide", href: "/client/profil/aide" },
+      { icon: "headset", title: savedLanguage === "en" ? "Contact NAXA" : "Contacter NAXA", href: "/client/profil/contact" },
+      { icon: "star", title: savedLanguage === "en" ? "Rate the app" : "Noter l'app", href: "/client/profil/noter" }
     ]},
-    { title: "Paramètres", rows: [
-      { icon: "bell", title: "Notifications", href: "/client/profil/notifications" },
-      { icon: "shield", title: "Confidentialité", href: "/client/profil/confidentialite" },
-      { icon: "trash", title: "Supprimer le compte", href: "/client/profil/suppression", danger: true },
-      { icon: "logout", title: "Déconnexion", href: "/connexion", danger: true, action: "logout" }
+    { title: savedLanguage === "en" ? "Settings" : "Paramètres", rows: [
+      { icon: "bell", title: savedLanguage === "en" ? "Notifications" : "Notifications", href: "/client/profil/notifications" },
+      { icon: "shield", title: savedLanguage === "en" ? "Privacy" : "Confidentialité", href: "/client/profil/confidentialite" },
+      { icon: "trash", title: savedLanguage === "en" ? "Delete account" : "Supprimer le compte", href: "/client/profil/suppression", danger: true },
+      { icon: "logout", title: savedLanguage === "en" ? "Log out" : "Déconnexion", href: "/connexion", danger: true, action: "logout" }
     ]}
   ];
 
@@ -300,9 +300,9 @@ export default function ProfilClientPage() {
       </section>)}
       <div className="flex justify-center pb-3 pt-5">
         <label className="flex min-h-9 items-center gap-2 rounded-full border border-[#d1e5d6] bg-white/85 px-3 text-[11px] font-semibold text-[#526457]">
-          Profil de démonstration
+          {savedLanguage === "en" ? "Demo profile" : "Profil de démonstration"}
           <select aria-label="Choisir un profil de démonstration" value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[120px] bg-transparent text-[#0F4D26] outline-none">
-            <option value="real">Mon compte</option><option value="complete">Complet vérifié</option><option value="incomplete">Incomplet</option>
+            <option value="real">{savedLanguage === "en" ? "My account" : "Mon compte"}</option><option value="complete">{savedLanguage === "en" ? "Complete verified" : "Complet vérifié"}</option><option value="incomplete">{savedLanguage === "en" ? "Incomplete" : "Incomplet"}</option>
           </select>
         </label>
       </div>
@@ -310,12 +310,12 @@ export default function ProfilClientPage() {
 
     <nav aria-label="Navigation principale" className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="grid h-16 grid-cols-4 items-center">
-        {[{label:"Accueil",href:"/",icon:"home"},{label:"Recherche",href:"/recherche",icon:"search"},{label:"Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
+        {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Search" : "Recherche",href:"/recherche",icon:"search"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
           <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[10px] font-extrabold text-[#F4C430]">
             {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover"/> : shownInitials}
             {verified && <span className="absolute -bottom-1 -right-1"><Verified small/></span>}
-          </span><span className="text-[10px] font-bold">Profil</span>
+          </span><span className="text-[10px] font-bold">{savedLanguage === "en" ? "Profile" : "Profil"}</span>
         </Link>
       </div>
     </nav>
