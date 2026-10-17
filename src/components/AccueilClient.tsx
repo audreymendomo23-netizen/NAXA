@@ -12,6 +12,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
+import { normaliserRecherche, suggestionsMedicaments } from "@/lib/accueil-textes";
 
 type Produit = {
   id: string;
@@ -98,6 +99,11 @@ export function AccueilClient() {
   const router = useRouter();
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
+  const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
+  const [suggestionsCatalogue, setSuggestionsCatalogue] = useState<string[]>([]);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+  const [homeFilters, setHomeFilters] = useState({stock:true,distance:"",sort:"prix" as "prix"|"distance",ascending:true,open:false,prescription:false,price:""});
+  const [homeFilterOpen, setHomeFilterOpen] = useState(false);
   const [firstName, setFirstName] = useState("Client");
   const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [quartier, setQuartier] = useState("Douala");
@@ -108,12 +114,54 @@ export function AccueilClient() {
   const [error, setError] = useState(false);
   const [added, setAdded] = useState<string|null>(null);
   const [favoris, setFavoris] = useState<string[]>([]);
-  const [produitsSlide, setProduitsSlide] = useState(0);
-  const [gardesSlide, setGardesSlide] = useState(0);
   const [menuServicesOuvert, setMenuServicesOuvert] = useState(false);
   const menuServicesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
+
+  const suggestionsLocales = useMemo(() => {
+    const terme = normaliserRecherche(query);
+    if (terme.length < 2) return [];
+    return suggestionsMedicaments.map(item => item.fr)
+      .filter((nom, index, tous) => normaliserRecherche(nom).includes(terme) && tous.findIndex(x => normaliserRecherche(x) === normaliserRecherche(nom)) === index)
+      .slice(0, 4);
+  }, [query]);
+
+  const suggestions = useMemo(() => {
+    const vues = new Set<string>();
+    return [...suggestionsLocales, ...suggestionsCatalogue].filter(nom => {
+      const cle = normaliserRecherche(nom);
+      if (!cle || vues.has(cle)) return false;
+      vues.add(cle);
+      return true;
+    }).slice(0, 4);
+  }, [suggestionsLocales, suggestionsCatalogue]);
+
+  useEffect(() => {
+    const terme = query.trim();
+    if (terme.length < 2) { setSuggestionsCatalogue([]); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(terme), {signal:controller.signal});
+        if (!response.ok) return;
+        const data = await response.json() as {results?: Array<{name?:string}>};
+        if (!controller.signal.aborted) setSuggestionsCatalogue((data.results ?? []).map(item => item.name).filter((name):name is string => Boolean(name)).slice(0,4));
+      } catch { /* Les suggestions locales restent disponibles sans réseau. */ }
+    }, 220);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [query]);
+
+  useEffect(() => {
+    if (!suggestionsOuvertes) return;
+    const outside = (event: PointerEvent) => {
+      if (!searchWrapRef.current?.contains(event.target as Node)) setSuggestionsOuvertes(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setSuggestionsOuvertes(false); };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [suggestionsOuvertes]);
 
   useEffect(() => {
     if (!menuServicesOuvert) return;
@@ -151,7 +199,7 @@ export function AccueilClient() {
           const { data: profile } = await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
           setFirstName(typeof profile?.first_name === "string" && profile.first_name.trim() ? profile.first_name.trim().split(/\s+/)[0] : typeof user.user_metadata?.first_name === "string" && user.user_metadata.first_name.trim() ? user.user_metadata.first_name.trim().split(/\s+/)[0] : "Client");
         }
-        const { data: popularRows, error: popularError } = await sb.rpc("produits_populaires", { p_limit: 6, p_jours: 7 });
+        const { data: popularRows, error: popularError } = await sb.rpc("produits_populaires", { p_limit: 10, p_jours: 7 });
         if (popularError) throw popularError;
         // La RPC renvoie actuellement `id` (et non `produit_id`) pour chaque produit.
         // Accepter les deux noms évite que la liste soit vide quand le schéma de retour varie.
@@ -194,7 +242,7 @@ export function AccueilClient() {
             return (aRank < 0 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank < 0 ? Number.MAX_SAFE_INTEGER : bRank);
           }
           return a.nom.localeCompare(b.nom, "fr");
-        }).slice(0,6);
+        }).slice(0,10);
         setProduits(sorted);
         if (!sorted.length) setError(true);
         }
@@ -217,22 +265,28 @@ export function AccueilClient() {
     distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
-  const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,6);
+  const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,4);
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
-  useEffect(() => {
-    if (nombreSlidesProduits < 2) { setProduitsSlide(0); return; }
-    const interval = window.setInterval(() => setProduitsSlide(current => (current + 1) % nombreSlidesProduits), 4000);
-    return () => window.clearInterval(interval);
-  }, [nombreSlidesProduits]);
-  useEffect(() => {
-    if (gardes.length < 2) { setGardesSlide(0); return; }
-    const interval = window.setInterval(() => setGardesSlide(current => (current + 1) % gardes.length), 4000);
-    return () => window.clearInterval(interval);
-  }, [gardes.length]);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
-    router.push("/resultats?q=" + encodeURIComponent(query.trim()));
+    const params = new URLSearchParams({q:query.trim(),stock:homeFilters.stock?"1":"0",sort:homeFilters.sort,asc:homeFilters.ascending?"1":"0"});
+    if (homeFilters.distance) params.set("distance",homeFilters.distance);
+    if (homeFilters.open) params.set("open","1");
+    if (homeFilters.prescription) params.set("prescription","1");
+    if (homeFilters.price) params.set("price",homeFilters.price);
+    setSuggestionsOuvertes(false);
+    router.push("/resultats?" + params.toString());
+  };
+  const choisirSuggestion = (nom:string) => {
+    setQuery(nom);
+    setSuggestionsOuvertes(false);
+    const params = new URLSearchParams({q:nom,stock:homeFilters.stock?"1":"0",sort:homeFilters.sort,asc:homeFilters.ascending?"1":"0"});
+    if (homeFilters.distance) params.set("distance",homeFilters.distance);
+    if (homeFilters.open) params.set("open","1");
+    if (homeFilters.prescription) params.set("prescription","1");
+    if (homeFilters.price) params.set("price",homeFilters.price);
+    router.push("/resultats?" + params.toString());
   };
   const localiser = useCallback(() => {
     if (!navigator.geolocation) { setQuartier("Douala"); return; }
@@ -328,13 +382,24 @@ export function AccueilClient() {
         <p className="mt-1 text-[13px] leading-5 text-[#53685C]">Livraison rapide par les pharmacies vérifiées</p>
       </div>
 
-      <form onSubmit={soumettre} className="naxa-enter mb-4 flex gap-2">
-        <label className="group flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D8E5DC] bg-[#FBFDFC] px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10">
-          <IconeNAXA name="search" size={21} className="shrink-0 text-[#0B3D26] transition-transform group-focus-within:scale-110"/>
-          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ex. Paracétamol, Coartem..." aria-label="Rechercher un médicament" className="min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-[#7D8E84]"/>
-        </label>
-        <button type="submit" className="h-14 min-w-[92px] rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-[0_6px_18px_rgba(255,226,61,0.25)]">Chercher</button>
-      </form>
+      <div ref={searchWrapRef} className="naxa-enter relative z-30 mb-3">
+        <form onSubmit={soumettre} className="flex gap-2">
+          <label className="group flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D8E5DC] bg-[#FBFDFC] px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10">
+            <IconeNAXA name="search" size={21} className="shrink-0 text-[#0B3D26] transition-transform group-focus-within:scale-110"/>
+            <input value={query} onFocus={()=>setSuggestionsOuvertes(true)} onChange={e=>{setQuery(e.target.value);setSuggestionsOuvertes(true)}} placeholder="Ex. Paracétamol, Coartem..." aria-label="Rechercher un médicament" aria-autocomplete="list" aria-expanded={suggestionsOuvertes&&query.trim().length>=2&&suggestions.length>0} className="min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-[#7D8E84]"/>
+          </label>
+          <button type="submit" className="h-14 min-w-[92px] rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-[0_6px_18px_rgba(255,226,61,0.25)]">Chercher</button>
+        </form>
+        {suggestionsOuvertes && query.trim().length>=2 && suggestions.length>0 && <ul role="listbox" aria-label="Suggestions de médicaments" className="absolute inset-x-0 top-[calc(100%+6px)] z-[120] overflow-hidden rounded-2xl border border-[#D8E5DC] bg-white py-1 shadow-2xl">
+          {suggestions.map((nom,index)=><li key={normaliserRecherche(nom)}><button type="button" role="option" aria-selected="false" onClick={()=>choisirSuggestion(nom)} className="flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-semibold text-[#0B3D26] transition hover:bg-[#EAF5ED] focus:bg-[#EAF5ED]"><IconeNAXA name="search" size={17} className="shrink-0 text-[#0F6B3F]"/><span className="min-w-0 flex-1">{nom}</span><span className="text-[10px] font-bold text-[#7D8E84]">{index+1}/4</span></button></li>)}
+        </ul>}
+      </div>
+      <div className="naxa-enter mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#0F6B3F] text-white":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}><IconeNAXA name="check" size={14}/>Disponibilité</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold ${homeFilters.distance?"bg-[#0F6B3F] text-white":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>v.sort==="prix"?({...v,ascending:!v.ascending}):({...v,sort:"prix",ascending:true}))} aria-pressed={homeFilters.sort==="prix"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold ${homeFilters.sort==="prix"?"bg-[#FFE23D] text-[#0B3D26]":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}>Prix {homeFilters.sort==="prix"?(homeFilters.ascending?"↑":"↓"):""}</button>
+        <button type="button" onClick={()=>setHomeFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#BFD4C6] bg-white px-3 text-xs font-extrabold text-[#0F6B3F]"><IconeNAXA name="filter" size={14}/>Filtres +</button>
+      </div>
 
       <div className="naxa-enter mb-4">
         <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#0F6B3F] px-4 py-3 transition active:scale-[0.99]">
