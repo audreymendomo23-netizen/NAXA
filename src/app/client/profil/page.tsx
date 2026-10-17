@@ -62,6 +62,7 @@ export default function ProfilClientPage() {
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({ name: "", phone: "", email: "" });
   const [cameraBusy, setCameraBusy] = useState(false);
+  const [savedPaymentMethod, setSavedPaymentMethod] = useState("MTN MoMo");
 
   const shown = useMemo<ProfileData>(() => demo === "complete"
     ? { name: "Jean Dupont", phone: "+237 6 12 34 56 78", email: "j.dupont@email.com", address: "123 Rue Paix Bonanjo Douala", photo: DEMO_PORTRAIT, orders: 12 }
@@ -116,6 +117,13 @@ export default function ProfilClientPage() {
     return () => { active = false; window.removeEventListener(PROFILE_EVENT, onPhotoUpdate); streamRef.current?.getTracks().forEach(track => track.stop()); };
   }, [router]);
 
+  useEffect(() => {
+    const readMethod = () => { try { const method = window.localStorage.getItem("naxa-client-payment-method-v1"); if (method === "MTN MoMo" || method === "Orange Money" || method === "Cash") setSavedPaymentMethod(method); } catch {} };
+    readMethod();
+    window.addEventListener("naxa-payment-updated", readMethod);
+    window.addEventListener("storage", readMethod);
+    return () => { window.removeEventListener("naxa-payment-updated", readMethod); window.removeEventListener("storage", readMethod); };
+  }, []);
   useEffect(() => { if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current; }, [cameraOpen]);
 
   function openEdit() { setDraft({ name: profile.name, phone: profile.phone, email: profile.email }); setSheet("edit"); }
@@ -218,7 +226,7 @@ export default function ProfilClientPage() {
 
   const topRows = [
     { icon: "pin", title: "Adresse par défaut", subtitle: shown.address || "Ajouter une adresse", href: "/client/profil/adresse" },
-    { icon: "wallet", title: "Paiement", subtitle: "MTN MoMo", href: "/client/profil/paiement" },
+    { icon: "wallet", title: "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
     { icon: "globe", title: "Langue", subtitle: "Français", href: "/client/profil/langue" }
   ];
   const sections = [
