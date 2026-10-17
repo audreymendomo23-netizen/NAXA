@@ -39,7 +39,23 @@ function ResultsContent(){
  const {ajouter,nombre}=usePanier();
  const [avatarUrl,setAvatarUrl]=useState<string|null>(null),[initiales,setInitiales]=useState("C");
  useEffect(()=>{let active=true;const sb=supabaseBrowser();void(async()=>{try{const {data:{user}}=await sb.auth.getUser();if(!active||!user)return;const meta=user.user_metadata??{};const {data:profile}=await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",user.id).maybeSingle();if(!active)return;const first=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():"";const last=typeof profile?.last_name==="string"&&profile.last_name.trim()?profile.last_name.trim():typeof meta.last_name==="string"?meta.last_name.trim():"";const emailName=typeof user.email==="string"?user.email.split("@")[0].replace(/[._-]+/g," ").trim():"";const name=[first,last].filter(Boolean).join(" ")||emailName;const letters=name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toLocaleUpperCase("fr")).join("");setInitiales(letters||"C");const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;if(typeof photo==="string"&&photo.startsWith("https://"))setAvatarUrl(photo)}catch{/* Le résultat reste utilisable même si le profil est indisponible. */}})();return()=>{active=false}},[]);
- useEffect(()=>{const q=params.getAll("q").join(" ").trim();setQuery(q);setDebounced(q)},[params]);
+ useEffect(()=>{
+   const q=params.getAll("q").join(" ").trim();
+   setQuery(q);setDebounced(q);
+   const fromUrl:Filters={
+    stock:params.get("stock")==null?true:params.get("stock")!=="0",
+    open:params.get("open")==="1",
+    delivery:false,
+    prescription:params.get("prescription")==="1",
+    price:params.get("price")??"",
+    distance:params.get("distance")??"",
+    rating:""
+   };
+   setFilters(fromUrl);setActiveFilters(fromUrl);
+   const urlSort=params.get("sort");
+   setSort(urlSort==="distance"?"distance":"prix");
+   setAscending(params.get("asc")!=="0");
+  },[params]);
  useEffect(()=>{const timer=window.setTimeout(()=>{const q=query.trim();setDebounced(q);const url=new URL(window.location.href);url.searchParams.delete("q");if(q)url.searchParams.set("q",q);window.history.replaceState(window.history.state,"",url)},300);return()=>window.clearTimeout(timer)},[query]);
  useEffect(()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>{setCoords({lat:pos.coords.latitude,lng:pos.coords.longitude});setCity(pos.coords.latitude>3.7&&pos.coords.latitude<4.3&&pos.coords.longitude>9.4&&pos.coords.longitude<10.2?"Douala":pos.coords.latitude>3.6&&pos.coords.latitude<4.2&&pos.coords.longitude>11.2&&pos.coords.longitude<11.8?"Yaoundé":"À proximité")},()=>{setCoords(DOUALA);setCity("Douala")},{timeout:6000,maximumAge:300000})},[]);
  useEffect(()=>{let active=true;if(!debounced&&!basketMode){setRows([]);setLoading(false);setError("");return()=>{active=false}}setLoading(true);setError("");
