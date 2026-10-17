@@ -233,9 +233,9 @@ export default function ProfilClientPage() {
     <div className="mx-auto w-full max-w-[430px] pt-4">
       <section className="naxa-profile-card naxa-profile-enter rounded-[24px] bg-white px-5 pb-7 pt-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex items-center gap-4">
-          <button type="button" onClick={() => { setSheet("photo"); setCameraError(""); }} className="relative h-[72px] w-[72px] shrink-0 rounded-full bg-[#1E7B3A] text-[#F4C430] active:scale-[.97]" aria-label="Modifier la photo de profil">
-            {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full text-[27px] font-black">{shownInitials}</span>}
-            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#f4f4f4] bg-white text-[#1E7B3A] shadow-[0_2px_6px_rgba(0,0,0,.15)]"><Icon name="camera" size={15}/></span>
+          <button type="button" onClick={() => { setSheet("photo"); setCameraError(""); }} className="relative h-[88px] w-[88px] shrink-0 rounded-full bg-[#1E7B3A] text-[#F4C430] active:scale-[.97]" aria-label="Modifier la photo de profil">
+            {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full text-[32px] font-black">{shownInitials}</span>}
+            <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#f4f4f4] bg-white text-[#1E7B3A] shadow-[0_2px_6px_rgba(0,0,0,.15)]"><Icon name="camera" size={17}/></span>
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">

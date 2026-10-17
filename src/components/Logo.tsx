@@ -63,12 +63,13 @@ export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: 
     };
   }, [pathname]);
 
-  const libelle = destination === "/" ? "Accueil NAXA" : "Tableau de bord NAXA";
+  const destinationFinale = pathname.startsWith("/client") ? "/" : destination;
+  const libelle = destinationFinale === "/" ? "Accueil NAXA" : "Tableau de bord NAXA";
 
   return (
     <>
-    <Link href={destination} aria-label={libelle} title={libelle} className="inline-flex shrink-0" onClick={() => {
-      if (destination !== "/") return;
+    <Link href={destinationFinale} aria-label={libelle} title={libelle} className="inline-flex shrink-0" onClick={() => {
+      if (destinationFinale !== "/") return;
       try {
         window.sessionStorage.setItem("naxa-intro-seen-v1", "1");
       } catch {

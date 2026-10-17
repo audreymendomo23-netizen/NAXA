@@ -172,10 +172,10 @@ export function AccueilClient() {
     const fermerAvecEchap = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMenuServicesOuvert(false);
     };
-    document.addEventListener("pointerdown", fermerSiExterieur);
+    document.addEventListener("pointerdown", fermerSiExterieur, true);
     document.addEventListener("keydown", fermerAvecEchap);
     return () => {
-      document.removeEventListener("pointerdown", fermerSiExterieur);
+      document.removeEventListener("pointerdown", fermerSiExterieur, true);
       document.removeEventListener("keydown", fermerAvecEchap);
     };
   }, [menuServicesOuvert]);
@@ -318,7 +318,7 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh bg-[#F4F8F5] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+    <header className="relative z-[1000] min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
@@ -340,7 +340,7 @@ export function AccueilClient() {
               </svg>
             </button>
             {menuServicesOuvert && (
-              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-[-1rem] top-full z-[110] mt-2 w-64 max-w-[100vw] rounded-2xl border border-white/20 bg-[#0F6B3F] p-2 text-white shadow-2xl">
+              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-[-1rem] top-full z-[1001] mt-2 w-64 max-w-[100vw] rounded-2xl border border-white/20 bg-[#0F6B3F] p-2 text-white shadow-2xl">
                 {[
                   "Parapharmacie",
                   "Bébé & maman",
