@@ -105,7 +105,6 @@ export function AccueilClient() {
   const router = useRouter();
   const { ajouter } = usePanier();
   const [query, setQuery] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("Client");
   const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [quartier, setQuartier] = useState("Douala");
@@ -115,7 +114,6 @@ export function AccueilClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [added, setAdded] = useState<string|null>(null);
-  const [userId, setUserId] = useState<string|null>(null);
   const [favoris, setFavoris] = useState<string[]>([]);
   const [menuServicesOuvert, setMenuServicesOuvert] = useState(false);
   const menuServicesRef = useRef<HTMLDivElement>(null);
@@ -155,12 +153,8 @@ export function AccueilClient() {
         const { data: { user } } = await sb.auth.getUser();
         if (!active) return;
         if (user) {
-          setUserId(user.id);
           const { data: profile } = await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
           setFirstName(typeof profile?.first_name === "string" && profile.first_name.trim() ? profile.first_name.trim().split(/\s+/)[0] : typeof user.user_metadata?.first_name === "string" && user.user_metadata.first_name.trim() ? user.user_metadata.first_name.trim().split(/\s+/)[0] : "Client");
-          const meta = user.user_metadata ?? {};
-          const photo = profile?.avatar_url || meta.avatar_url || meta.picture || meta.photo_url || null;
-          if (typeof photo === "string" && /^https:\/\//i.test(photo)) setAvatarUrl(photo);
         }
         const { data: popularRows } = await sb.rpc("produits_populaires", { p_limit: 6, p_jours: 7 });
         const popularIds = ((popularRows ?? []) as Array<{ produit_id: string }>).map((item) => item.produit_id);
