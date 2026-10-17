@@ -68,7 +68,6 @@ const rechercheNavigation = [
   { titre: "Soins à domicile", description: "Prestations et soins", href: "/resultats?q=Prestations%20et%20soins%20à%20domicile", mots: "soins domicile prestations" },
   { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA", mots: "aide contact assistance support" },
 ];
-const RECHERCHE_RECENTE_KEY = "naxa-recherche-navigation-recente-v1";
 const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   const rad = (v: number) => v * Math.PI / 180;
   const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
@@ -147,7 +146,6 @@ export function AccueilClient() {
   const [rechercheAppOuverte, setRechercheAppOuverte] = useState(false);
   const [rechercheAppTerme, setRechercheAppTerme] = useState("");
   const [rechercheAppVide, setRechercheAppVide] = useState(false);
-  const [rechercheRecente, setRechercheRecente] = useState<string[]>([]);
   const rechercheAppRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
@@ -198,13 +196,6 @@ export function AccueilClient() {
   }, [suggestionsOuvertes]);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(RECHERCHE_RECENTE_KEY) || "[]");
-      if (Array.isArray(saved)) setRechercheRecente(saved.filter((value): value is string => typeof value === "string").slice(0, 4));
-    } catch { /* La recherche reste utilisable sans stockage local. */ }
-  }, []);
-
-  useEffect(() => {
     if (!rechercheAppOuverte) return;
     const id = window.requestAnimationFrame(() => rechercheAppRef.current?.focus());
     const fermerAvecEchap = (event: KeyboardEvent) => { if (event.key === "Escape") setRechercheAppOuverte(false); };
@@ -227,12 +218,10 @@ export function AccueilClient() {
     return rechercheNavigation.filter(item => normaliserRecherche(item.titre + " " + item.description + " " + item.mots).includes(terme)).slice(0, 4);
   }, [rechercheAppTerme]);
 
-  const ouvrirOptionRecherche = (href: string, titre: string) => {
-    const suivantes = [titre, ...rechercheRecente.filter(value => value !== titre)].slice(0, 4);
-    setRechercheRecente(suivantes);
-    try { window.localStorage.setItem(RECHERCHE_RECENTE_KEY, JSON.stringify(suivantes)); } catch { /* Option facultative. */ }
+  const ouvrirOptionRecherche = (href: string) => {
     setRechercheAppOuverte(false);
     setRechercheAppTerme("");
+    setRechercheAppVide(false);
     if (href.startsWith("mailto:")) window.location.href = href;
     else router.push(href);
   };
@@ -391,7 +380,7 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh bg-[linear-gradient(to_bottom,#0F6B3F_0,#0F6B3F_220px,#F4F8F5_220px)] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative z-[1000] min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+    <header className="relative z-0 min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
@@ -452,15 +441,15 @@ export function AccueilClient() {
         }} className="flex items-center gap-1.5 rounded-2xl border border-white/30 bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={20} className="ml-2 shrink-0 text-[#0F6B3F]"/>
           <input ref={rechercheAppRef} value={rechercheAppTerme} onChange={event => { setRechercheAppTerme(event.target.value); setRechercheAppVide(false); }} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans l’application" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
-          {rechercheAppTerme && <button type="button" aria-label="Effacer la recherche" onClick={() => { setRechercheAppTerme(""); setRechercheAppVide(false); rechercheAppRef.current?.focus(); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>}
+          <button type="button" aria-label="Fermer la zone de recherche" title="Fermer la recherche" onClick={() => { setRechercheAppOuverte(false); setRechercheAppTerme(""); setRechercheAppVide(false); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>
         </form>
-        <div className="mt-2 overflow-hidden rounded-2xl border border-white/20 bg-[#0B3D26] p-2 text-white shadow-xl">
-          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">{rechercheAppTerme.trim().length >= 2 ? "Suggestions" : "Récemment utilisés"}</p>
-          {rechercheAppTerme.trim().length >= 2 ? suggestionsRechercheApp.map(item => <Link key={item.titre} href={item.href} onClick={event => { event.preventDefault(); ouvrirOptionRecherche(item.href, item.titre); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
+        {rechercheAppTerme.trim().length >= 2 && <div className="mt-2 overflow-hidden rounded-2xl border border-white/20 bg-[#0B3D26] p-2 text-white shadow-xl">
+          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">Suggestions</p>
+          {suggestionsRechercheApp.map(item => <Link key={item.titre} href={item.href} onClick={event => { event.preventDefault(); ouvrirOptionRecherche(item.href); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
             <span className="min-w-0"><span className="block">{item.titre}</span><span className="block text-xs font-normal text-white/70">{item.description}</span></span><span aria-hidden="true" className="text-lg">›</span>
-          </Link>) : (rechercheRecente.length ? rechercheNavigation.filter(item => rechercheRecente.includes(item.titre)).sort((a,b) => rechercheRecente.indexOf(a.titre)-rechercheRecente.indexOf(b.titre)) : rechercheNavigation.filter(item => ["Accueil","Favoris","Scanner une ordonnance","Achats et commandes"].includes(item.titre))).slice(0,4).map(item => <Link key={item.titre} href={item.href} onClick={event => { event.preventDefault(); ouvrirOptionRecherche(item.href, item.titre); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><span>{item.titre}</span><span aria-hidden="true" className="text-lg">›</span></Link>)}
+          </Link>)}
           {rechercheAppVide && <p role="status" className="px-3 py-3 text-sm text-white/80">Aucune option trouvée. Essayez un autre terme.</p>}
-        </div>
+        </div>}
       </div>}
     </header>
     <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
