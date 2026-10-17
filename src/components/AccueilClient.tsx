@@ -104,8 +104,6 @@ export function AccueilClient() {
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const [homeFilters, setHomeFilters] = useState({stock:true,distance:"",sort:"prix" as "prix"|"distance",ascending:true,open:false,prescription:false,price:""});
   const [homeFilterOpen, setHomeFilterOpen] = useState(false);
-  const [produitsSlide, setProduitsSlide] = useState(0);
-  const [gardesSlide, setGardesSlide] = useState(0);
   const [firstName, setFirstName] = useState("Client");
   const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [quartier, setQuartier] = useState("Douala");
@@ -269,16 +267,6 @@ export function AccueilClient() {
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,4);
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
-  useEffect(() => {
-    if (nombreSlidesProduits < 2) { setProduitsSlide(0); return; }
-    const interval = window.setInterval(() => setProduitsSlide(current => (current + 1) % nombreSlidesProduits), 4000);
-    return () => window.clearInterval(interval);
-  }, [nombreSlidesProduits]);
-  useEffect(() => {
-    if (gardes.length < 2) { setGardesSlide(0); return; }
-    const interval = window.setInterval(() => setGardesSlide(current => (current + 1) % gardes.length), 4000);
-    return () => window.clearInterval(interval);
-  }, [gardes.length]);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
@@ -473,7 +461,7 @@ export function AccueilClient() {
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-              </Link> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
+              </div> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
