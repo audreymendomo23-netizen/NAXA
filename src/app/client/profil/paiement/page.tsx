@@ -37,9 +37,12 @@ function isValidPhone(method: Method, value: string) {
   if (method === "MTN MoMo") return /^(?:67\d{7}|68\d{7}|65[1-4]\d{6})$/.test(digits);
   return true;
 }
-function phonePrefixHint(method: Method) {
-  return method === "Orange Money"
-    ? "Orange Money : 9 chiffres, préfixes 69, 655–659 ou 64."
+function phonePrefixHint(method: Method, isEnglish = false) {
+  if (method === "Orange Money") return isEnglish
+    ? "Orange Money: 9 digits, prefixes 69, 655–659 or 64."
+    : "Orange Money : 9 chiffres, préfixes 69, 655–659 ou 64.";
+  return isEnglish
+    ? "MTN MoMo: 9 digits, prefixes 67, 651–654 or 68."
     : "MTN MoMo : 9 chiffres, préfixes 67, 651–654 ou 68.";
 }
 function maskPhone(value: string) {
@@ -82,7 +85,7 @@ export default function PaiementClientPage() {
           setPhoneDraft(activePhone);
         }
         flash(editing
-          ? `${isEnglish ? "Invalid number." : "Numéro invalide."} ${phonePrefixHint(method)}`
+          ? `${isEnglish ? "Invalid number." : "Numéro invalide."} ${phonePrefixHint(method, isEnglish)}`
           : `${isEnglish ? "Set up your number first." : "Configurez d’abord votre numéro."} ${phonePrefixHint(method)}`);
         return;
       }
@@ -121,7 +124,7 @@ export default function PaiementClientPage() {
         </div>
         {method === "Cash" ? <div className="flex flex-col items-center pt-3 text-center"><CashIllustration/><p className="mt-1 text-sm font-semibold text-[#374151]">{isEnglish ? "You pay cash on delivery" : "Vous payez en espèces à la livraison"}</p></div> : <div className="mt-4 rounded-2xl bg-[#F8FAF8] p-4">
           <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#111111]">{isEnglish ? "Saved number" : "Numéro enregistré"}</p><p className="mt-1 text-sm text-[#6B7280]">{maskPhone(activePhone)}</p></div><button type="button" onClick={startEdit} className="min-h-10 rounded-lg px-3 text-sm font-bold text-[#1E7B3A]">{isEnglish ? "Edit" : "Modifier"}</button></div>
-          {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">{isEnglish ? "Cameroonian phone number" : "Numéro camerounais"}</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder={method === "Orange Money" ? "69X XX XX XX / 655 XX XX XX" : "67X XX XX XX / 651 XX XX XX"} className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">{phonePrefixHint(method)}</p></div>}
+          {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">{isEnglish ? "Cameroonian phone number" : "Numéro camerounais"}</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder={method === "Orange Money" ? "69X XX XX XX / 655 XX XX XX" : "67X XX XX XX / 651 XX XX XX"} className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">{phonePrefixHint(method, isEnglish)}</p></div>}
         </div>}
         <button type="button" onClick={confirm} className="mt-3 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] transition-transform active:scale-[.99]">{isEnglish ? "Confirm" : "Confirmer"}</button>
         <Link href="/client/profil" className="mt-1 flex min-h-11 items-center justify-center font-semibold text-[#6B7280]">{isEnglish ? "Cancel" : "Annuler"}</Link>
