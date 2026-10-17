@@ -380,7 +380,7 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh bg-[linear-gradient(to_bottom,#0F6B3F_0,#0F6B3F_220px,#F4F8F5_220px)] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative z-0 min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+    <header className="relative min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
@@ -422,7 +422,7 @@ export function AccueilClient() {
                 <a
                   href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
                   onClick={() => setMenuServicesOuvert(false)}
-                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-[#B3123F] transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                 >
                   <IconeNAXA name="bell" size={18}/>
                   Besoin d'aide ?
