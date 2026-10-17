@@ -77,7 +77,7 @@ export function BottomNav() {
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
  useEffect(()=>{if(reducedMotion){setRotating(0);return}const id=window.setInterval(()=>setRotating(v=>(v+1)%3),3000);return()=>window.clearInterval(id)},[reducedMotion]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
- const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
+ const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
  if(!visible||(pathname==="/scanner"&&!scannerResults))return null;
  const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  const scan=pathname==="/scanner";
