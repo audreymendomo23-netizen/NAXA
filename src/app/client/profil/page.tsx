@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type ProfileData = { name: string; phone: string; email: string; address: string; photo: string | null; orders: number };
-type DemoMode = "real" | "complete" | "incomplete";
 const PHOTO_KEY = "naxa-client-profile-photo-v1";
 const PROFILE_EVENT = "naxa-profile-updated";
-const DEMO_PORTRAIT = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d8eee0"/><stop offset="1" stop-color="#9bc6a9"/></linearGradient></defs><rect width="200" height="200" fill="url(#b)"/><path d="M35 200c4-43 30-67 65-67s61 24 65 67" fill="#1e7b3a"/><ellipse cx="100" cy="83" rx="42" ry="48" fill="#9b6348"/><path d="M57 77c-5-39 17-57 44-57 35 0 50 23 42 58l-8-22c-20 3-42-4-55-15-4 15-12 27-23 36" fill="#202b25"/><circle cx="84" cy="85" r="3" fill="#211d1b"/><circle cx="116" cy="85" r="3" fill="#211d1b"/><path d="M88 106q12 9 24 0" stroke="#653a2b" stroke-width="3" fill="none" stroke-linecap="round"/></svg>');
 
 function initials(name: string) { return name.trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(x => Array.from(x)[0]?.toLocaleUpperCase("fr-FR") ?? "").join("") || "C"; }
 function formatPhone(value: string) { const digits = value.replace(/\D/g, ""); const local = digits.startsWith("237") ? digits.slice(3) : digits; return local.length === 9 && local.startsWith("6") ? `+237 6 ${local.slice(1, 3)} ${local.slice(3, 5)} ${local.slice(5, 7)} ${local.slice(7, 9)}` : value; }
@@ -35,6 +33,7 @@ function Icon({ name, size = 24, className = "" }: { name: string; size?: number
     check: <path d="m5 12 4 4L19 6"/>,
     home: <><path d="m3 10 9-7 9 7"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/></>,
     search: <><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></>,
+    heart: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>,
     bag: <><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></>,
     edit: <><path d="m4 16-.8 4.8L8 20l11-11-4-4Z"/><path d="m13.5 6.5 4 4"/></>
   };
@@ -49,7 +48,6 @@ export default function ProfilClientPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [profile, setProfile] = useState<ProfileData>({ name: "Client NAXA", phone: "", email: "", address: "", photo: null, orders: 0 });
   const [loaded, setLoaded] = useState(false);
-  const [demo, setDemo] = useState<DemoMode>("real");
   const [sheet, setSheet] = useState<"photo" | "edit" | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -60,16 +58,14 @@ export default function ProfilClientPage() {
   const [dragStart, setDragStart] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
   const [draft, setDraft] = useState({ name: "", phone: "", email: "" });
   const [cameraBusy, setCameraBusy] = useState(false);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState("MTN MoMo");
   const [savedLanguage, setSavedLanguage] = useState<"fr" | "en">("fr");
 
-  const shown = useMemo<ProfileData>(() => demo === "complete"
-    ? { name: "Jean Dupont", phone: "+237 6 12 34 56 78", email: "j.dupont@email.com", address: "123 Rue Paix Bonanjo Douala", photo: DEMO_PORTRAIT, orders: 12 }
-    : demo === "incomplete"
-      ? { name: "Marie Nguema", phone: "", email: "marie@email.com", address: "", photo: null, orders: 0 }
-      : profile, [demo, profile]);
+  const shown = profile;
   const verified = isProfileVerified(shown);
   const shownInitials = initials(shown.name);
 
@@ -89,7 +85,7 @@ export default function ProfilClientPage() {
       "La photo n’a pas pu être enregistrée. Choisissez une image plus légère ou réessayez.": "The photo could not be saved. Choose a smaller image or try again.",
       "Photo retirée de cet appareil; la suppression distante n’a pas pu être confirmée.": "Photo removed from this device; remote deletion could not be confirmed.",
       "Photo supprimée.": "Photo deleted.",
-      "La confirmation de déconnexion sera ajoutée à l’étape 13.": "Logout confirmation will be added in step 13."
+      "Impossible de vous déconnecter. Réessayez.": "Could not sign out. Please try again."
     };
     setToast(savedLanguage === "en" ? (translations[message] ?? message) : message);
     window.setTimeout(() => setToast(""), 2600);
@@ -160,6 +156,14 @@ export default function ProfilClientPage() {
   useEffect(() => { if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current; }, [cameraOpen]);
 
   function openEdit() { setDraft({ name: profile.name, phone: profile.phone, email: profile.email }); setSheet("edit"); }
+  async function confirmLogout() {
+    setLogoutBusy(true);
+    const { error } = await supabaseBrowser().auth.signOut();
+    setLogoutBusy(false);
+    if (error) { flash("Impossible de vous déconnecter. Réessayez."); return; }
+    setLogoutConfirm(false);
+    window.location.replace("/connexion");
+  }
   async function saveInfo() {
     setSaving(true);
     const sb = supabaseBrowser();
@@ -290,7 +294,7 @@ export default function ProfilClientPage() {
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label={savedLanguage === "en" ? "Edit my information" : "Modifier mes informations"} className="max-w-full truncate text-left">{shown.name}</button></h1>
+              <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={openEdit} aria-label={savedLanguage === "en" ? "Edit my information" : "Modifier mes informations"} className="max-w-full truncate text-left">{shown.name}</button></h1>
               {verified && <Verified language={savedLanguage}/>}
             </div>
             {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[16px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{formatPhone(shown.phone)}</span></p>}
@@ -314,23 +318,15 @@ export default function ProfilClientPage() {
           {section.rows.map((row, index) => {
             const rowClass = `naxa-profile-row relative flex min-h-14 w-full items-center gap-4 px-4 py-2.5 text-left transition-transform active:scale-[.99] ${"danger" in row && row.danger ? "text-[#B3261E]" : "text-[#111111]"}`;
             const inner = <><Icon name={row.icon} className={`shrink-0 ${"danger" in row && row.danger ? "text-[#B3261E]" : "text-[#1E7B3A"}`}/><span className="min-w-0 flex-1 text-[16px] font-bold">{row.title}</span>{"subtitle" in row && row.trailing && <span className="shrink-0 text-[13px] text-[#6B7280]">{row.subtitle}</span>}<span className="text-[25px] leading-none text-[#6B7280]" aria-hidden="true">›</span>{index < section.rows.length - 1 && <span className="absolute bottom-0 right-0 h-px w-[calc(100%-56px)] bg-[#E5E7EB]"/>}</>;
-            return "action" in row && row.action === "logout" ? <button key={row.title} type="button" onClick={() => flash("La confirmation de déconnexion sera ajoutée à l’étape 13.")} className={rowClass}>{inner}</button> : <Link key={row.title} href={row.href} style={{ animationDelay: `${(sIndex * 3 + index) * 40}ms` }} className={rowClass}>{inner}</Link>;
+            return "action" in row && row.action === "logout" ? <button key={row.title} type="button" onClick={() => setLogoutConfirm(true)} className={rowClass}>{inner}</button> : <Link key={row.title} href={row.href} style={{ animationDelay: `${(sIndex * 3 + index) * 40}ms` }} className={rowClass}>{inner}</Link>;
           })}
         </div>
       </section>)}
-      <div className="flex justify-center pb-3 pt-5">
-        <label className="flex min-h-9 items-center gap-2 rounded-full border border-[#d1e5d6] bg-white/85 px-3 text-[11px] font-semibold text-[#526457]">
-          {savedLanguage === "en" ? "Demo profile" : "Profil de démonstration"}
-          <select aria-label={savedLanguage === "en" ? "Choose a demo profile" : "Choisir un profil de démonstration"} value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[120px] bg-transparent text-[#0F4D26] outline-none">
-            <option value="real">{savedLanguage === "en" ? "My account" : "Mon compte"}</option><option value="complete">{savedLanguage === "en" ? "Complete verified" : "Complet vérifié"}</option><option value="incomplete">{savedLanguage === "en" ? "Incomplete" : "Incomplet"}</option>
-          </select>
-        </label>
       </div>
-    </div>
 
     <nav aria-label={savedLanguage === "en" ? "Main navigation" : "Navigation principale"} className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="grid h-16 grid-cols-4 items-center">
-        {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Search" : "Recherche",href:"/recherche",icon:"search"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
+        {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Favorites" : "Favoris",href:"/client/profil/favoris",icon:"heart"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
         <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
           <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[10px] font-extrabold text-[#F4C430]">
             {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover"/> : shownInitials}
@@ -384,6 +380,15 @@ export default function ProfilClientPage() {
       <button type="button" onClick={() => { setCropSource(null); setSheet("photo"); }} className="mt-2 min-h-11 font-semibold text-white/80">{savedLanguage === "en" ? "Retake / choose another" : "Reprendre / choisir une autre"}</button>
     </div>}
 
+    {logoutConfirm && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-5" onMouseDown={e => { if (e.target === e.currentTarget && !logoutBusy) setLogoutConfirm(false); }}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="logout-title" aria-describedby="logout-description" className="w-full max-w-[380px] rounded-[24px] bg-white p-5 shadow-2xl">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E9F5EC] text-[#1E7B3A]"><Icon name="logout" size={26}/></div>
+        <h2 id="logout-title" className="mt-4 text-center text-xl font-extrabold text-[#0F4D26]">{savedLanguage === "en" ? "Sign out?" : "Se déconnecter ?"}</h2>
+        <p id="logout-description" className="mt-2 text-center text-sm leading-6 text-[#6B7280]">{savedLanguage === "en" ? "You will need to sign in again to access your NAXA account." : "Vous devrez vous reconnecter pour accéder à votre espace NAXA."}</p>
+        <button type="button" onClick={() => void confirmLogout()} disabled={logoutBusy} className="mt-5 min-h-12 w-full rounded-xl bg-[#B3261E] px-4 font-bold text-white disabled:opacity-60">{logoutBusy ? (savedLanguage === "en" ? "Signing out…" : "Déconnexion…") : (savedLanguage === "en" ? "Sign out" : "Se déconnecter")}</button>
+        <button type="button" onClick={() => setLogoutConfirm(false)} disabled={logoutBusy} className="mt-2 min-h-11 w-full rounded-xl border border-[#E5E7EB] px-4 font-semibold text-[#374151] disabled:opacity-60">{savedLanguage === "en" ? "Cancel" : "Annuler"}</button>
+      </section>
+    </div>}
     {toast && <div role="status" aria-live="polite" className="naxa-profile-toast fixed left-1/2 top-4 z-[150] -translate-x-1/2 rounded-full bg-[#0F4D26] px-4 py-3 text-sm font-semibold text-white shadow-lg">{toast}</div>}
     {!loaded && <div className="sr-only" aria-live="polite">{savedLanguage === "en" ? "Loading profile…" : "Chargement du profil…"}</div>}
   </main>;
