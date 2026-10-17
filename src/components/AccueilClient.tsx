@@ -208,7 +208,7 @@ export function AccueilClient() {
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
-    router.push("/recherche?q=" + encodeURIComponent(query.trim()));
+    router.push("/resultats?q=" + encodeURIComponent(query.trim()));
   };
   const localiser = useCallback(() => {
     if (!navigator.geolocation) { setQuartier("Douala"); return; }

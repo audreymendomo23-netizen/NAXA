@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes naxa-nav-label-in {
+  from { opacity: 0; transform: translateY(65%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes naxa-nav-icon-bounce {
+  0% { transform: translateY(3px) scale(0.92); }
+  65% { transform: translateY(-2px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+
 :root {
   color-scheme: light;
 }
