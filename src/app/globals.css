@@ -457,3 +457,21 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
   .naxa-profile-enter, .naxa-profile-row, .naxa-profile-sheet, .naxa-profile-toast { animation: none !important; }
   .naxa-profile-input { transition: none !important; }
 }
+
+/* Impression d’un seul reçu sélectionné depuis Profil > Factures. */
+@media print {
+  body * { visibility: hidden !important; }
+  .naxa-invoice-print-target, .naxa-invoice-print-target * { visibility: visible !important; }
+  .naxa-invoice-print-target {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .naxa-invoice-print-target .print\\:hidden { display: none !important; }
+}
