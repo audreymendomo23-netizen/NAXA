@@ -73,7 +73,26 @@ export default function ProfilClientPage() {
   const verified = isProfileVerified(shown);
   const shownInitials = initials(shown.name);
 
-  const flash = useCallback((message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2600); }, []);
+  const flash = useCallback((message: string) => {
+    const translations: Record<string, string> = {
+      "Reconnectez-vous pour modifier votre profil.": "Sign in again to edit your profile.",
+      "Enregistrement impossible. Vérifiez les informations et réessayez.": "Could not save. Check the information and try again.",
+      "Un e-mail de confirmation a été envoyé à la nouvelle adresse.": "A confirmation email has been sent to the new address.",
+      "Informations mises à jour.": "Information updated.",
+      "La caméra n’est pas disponible sur cet appareil. Vous pouvez importer une photo.": "The camera is unavailable on this device. You can import a photo instead.",
+      "Autorisation caméra refusée ou caméra indisponible. Réessayez ou importez une photo depuis la galerie.": "Camera permission was denied or the camera is unavailable. Try again or import a photo from your gallery.",
+      "Choisissez un fichier image.": "Choose an image file.",
+      "Impossible de lire cette image. Réessayez.": "Could not read this image. Please try again.",
+      "La caméra démarre encore. Réessayez dans un instant.": "The camera is still starting. Try again in a moment.",
+      "Impossible de capturer l’image. Importez une photo.": "Could not capture the image. Import a photo instead.",
+      "Photo de profil mise à jour.": "Profile photo updated.",
+      "La photo n’a pas pu être enregistrée. Choisissez une image plus légère ou réessayez.": "The photo could not be saved. Choose a smaller image or try again.",
+      "Photo retirée de cet appareil; la suppression distante n’a pas pu être confirmée.": "Photo removed from this device; remote deletion could not be confirmed.",
+      "Photo supprimée.": "Photo deleted."
+    };
+    setToast(savedLanguage === "en" ? (translations[message] ?? message) : message);
+    window.setTimeout(() => setToast(""), 2600);
+  }, [savedLanguage]);
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(track => track.stop());
     streamRef.current = null;
