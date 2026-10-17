@@ -227,7 +227,6 @@ export default function ProfilClientPage() {
             <div className="flex items-center gap-1.5">
               <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label="Modifier mes informations" className="max-w-full truncate text-left">{shown.name}</button></h1>
               {verified && <Verified/>}
- aria-label="Modifier mes informations" className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#1E7B3A] hover:bg-[#E9F5EC]"><Icon name="edit" size={18}/></button>}
             </div>
             {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.phone}</span></p>}
             {shown.email.trim() && <p className="mt-1 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="mail" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.email}</span></p>}
