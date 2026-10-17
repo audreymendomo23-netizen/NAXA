@@ -83,10 +83,16 @@ export function BottomNav() {
   const onStart=(event:TouchEvent)=>{
    if(event.touches.length!==1){eligible=false;return;}
    const target=event.target;
-   if(!(target instanceof Element)||target.closest('nav[aria-label="Navigation principale"],input,textarea,select,button,a,[role="button"],[contenteditable="true"],video,canvas,.naxa-carousel-viewport,[data-no-tab-swipe]')){eligible=false;return;}
+   if(!(target instanceof Element)||target.closest('nav[aria-label="Navigation principale"],input,textarea,select,[contenteditable="true"],video,canvas,.naxa-carousel-viewport,[data-no-tab-swipe]')){eligible=false;return;}
    startX=event.touches[0].clientX;
    startY=event.touches[0].clientY;
    eligible=true;
+  };
+  const onMove=(event:TouchEvent)=>{
+   if(!eligible||event.touches.length!==1)return;
+   const dx=event.touches[0].clientX-startX;
+   const dy=event.touches[0].clientY-startY;
+   if(Math.abs(dx)>14&&Math.abs(dx)>Math.abs(dy)*1.25)event.preventDefault();
   };
   const onEnd=(event:TouchEvent)=>{
    if(!eligible||event.changedTouches.length!==1){eligible=false;return;}
@@ -102,8 +108,9 @@ export function BottomNav() {
    if(next>=0&&next<tabs.length)router.push(tabs[next].href);
   };
   document.addEventListener("touchstart",onStart,{passive:true});
+  document.addEventListener("touchmove",onMove,{passive:false});
   document.addEventListener("touchend",onEnd,{passive:true});
-  return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchend",onEnd)};
+  return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchmove",onMove);document.removeEventListener("touchend",onEnd)};
  },[pathname,searchParams,router]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
  const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
