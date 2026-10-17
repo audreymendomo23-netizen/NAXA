@@ -274,7 +274,7 @@ export function AccueilClient() {
               </svg>
             </button>
             {menuServicesOuvert && (
-              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-[-1rem] top-full z-[110] mt-2 w-64 max-w-[100vw] rounded-2xl border border-white/20 bg-[#0F6B3F] p-2 text-white shadow-2xl">
+              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-[-1rem] top-full z-[110] mt-2 w-64 max-w-[100vw] rounded-2xl border border-[#D8E5DC] bg-white p-2 text-[#0F6B3F] shadow-2xl">
                 {[
                   "Parapharmacie",
                   "Bébé & maman",
@@ -286,7 +286,7 @@ export function AccueilClient() {
                     key={categorie}
                     href={"/resultats?q=" + encodeURIComponent(categorie)}
                     onClick={() => setMenuServicesOuvert(false)}
-                    className="flex min-h-12 items-center rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                    className="flex min-h-12 items-center rounded-xl px-3 py-2.5 text-sm font-bold text-[#0F6B3F] transition hover:bg-[#EAF5EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                   >
                     {categorie}
                   </Link>
@@ -294,7 +294,7 @@ export function AccueilClient() {
                 <a
                   href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
                   onClick={() => setMenuServicesOuvert(false)}
-                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-[#D8E5DC] px-3 py-3 text-sm font-extrabold text-[#0F6B3F] transition hover:bg-[#EAF5EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                 >
                   <IconeNAXA name="bell" size={18}/>
                   Besoin d'aide ?
