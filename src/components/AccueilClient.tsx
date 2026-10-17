@@ -11,7 +11,6 @@ import { Logo } from "@/components/Logo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import { notifierNAXA } from "@/components/NotificationGlobale";
-import { ACCUEIL_PRODUITS_DEMO } from "@/lib/accueil-client-mock";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 
 type Produit = {
@@ -47,12 +46,6 @@ const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 };
-const demoToProduit = (p: (typeof ACCUEIL_PRODUITS_DEMO)[number]): Produit => ({
-  id: p.id, nom: p.nom, dosage: p.dosage, photo_url: p.photoUrl, prix: p.prix,
-  quantite: p.stock, pharmacie_id: null, pharmacie: p.pharmacie, distanceKm: null,
-  laboratoire: p.laboratoire, conditionnement: p.conditionnement, ordonnance: p.ordonnance, demo: true,
-});
-
 function LogoNAXA() {
   return <Logo clair taille={38} />;
 }
