@@ -14,6 +14,27 @@ type LigneRecu = { reservation_id: string; produit_id: string; medicament: strin
 type NotificationSettings = { pharmacyReplies: boolean; orderStatus: boolean; promotions: boolean; treatmentReminders: boolean; channels: { push: boolean; sms: boolean; email: boolean } };
 const NOTIF_KEY = "naxa-client-notifications-v1";
 const defaultNotifications: NotificationSettings = { pharmacyReplies: true, orderStatus: true, promotions: false, treatmentReminders: true, channels: { push: false, sms: false, email: true } };
+function decoderClePush(value: string) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const raw = atob(padded);
+  return Uint8Array.from(raw, character => character.charCodeAt(0));
+}
+async function activerPushProfil(userId: string): Promise<boolean> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || Notification.permission !== "granted") return false;
+  const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/" });
+  const response = await fetch("/api/posologie/push-key", { cache: "no-store" });
+  if (!response.ok) throw new Error("Le service Push NAXA n’est pas configuré.");
+  const { publicKey } = await response.json() as { publicKey: string };
+  const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({
+    userVisibleOnly: true, applicationServerKey: decoderClePush(publicKey)
+  });
+  const { error } = await supabaseBrowser().from("naxa_push_subscriptions").upsert({
+    endpoint: subscription.endpoint, user_id: userId, subscription: subscription.toJSON(), updated_at: new Date().toISOString()
+  }, { onConflict: "endpoint" });
+  if (error) throw error;
+  return true;
+}
 const titles: Record<string, string> = { factures: "Factures", aide: "Centre d’aide", contact: "Contacter NAXA", noter: "Noter l’application", notifications: "Notifications", confidentialite: "Confidentialité", suppression: "Supprimer le compte" };
 const statusLabels: Record<string, string> = { payee: "Payée", retiree: "Retirée", confirmee: "Confirmée", en_attente: "En attente", expiree: "Expirée", annulee: "Annulée" };
 const faqCategories = ["Tout", "Compte", "Médicaments", "Réservations", "Paiement", "Santé"];
@@ -199,11 +220,41 @@ export default function ProfilSectionPage() {
   }
 
   async function requestPush() {
+    if (!userId) return;
     if (typeof Notification === "undefined") { flash("Les notifications push ne sont pas prises en charge par ce navigateur."); return; }
-    const next = await Notification.requestPermission(); setPermission(next);
-    setNotifications(value => ({ ...value, channels: { ...value.channels, push: next === "granted" } }));
-    setNotificationsDirty(true);
-    flash(next === "granted" ? "Autorisation push accordée sur cet appareil." : "Autorisation push non accordée.");
+    const next = await Notification.requestPermission();
+    setPermission(next);
+    if (next !== "granted") {
+      setNotifications(value => ({ ...value, channels: { ...value.channels, push: false } }));
+      setNotificationsDirty(true);
+      flash("Autorisation push non accordée.");
+      return;
+    }
+    try {
+      const ready = await activerPushProfil(userId);
+      if (!ready) throw new Error("Push indisponible");
+      setNotifications(value => ({ ...value, channels: { ...value.channels, push: true } }));
+      setNotificationsDirty(true);
+      flash("Abonnement Push activé sur cet appareil.");
+    } catch {
+      setNotifications(value => ({ ...value, channels: { ...value.channels, push: false } }));
+      setNotificationsDirty(true);
+      flash("Autorisation accordée, mais l’abonnement Push n’a pas pu être configuré.");
+    }
+  }
+
+  async function updateTreatmentSchedules(enabled: boolean) {
+    if (!userId) return;
+    try {
+      const key = "naxa:posologies:" + userId;
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const saved: unknown = JSON.parse(raw);
+        if (Array.isArray(saved)) window.localStorage.setItem(key, JSON.stringify(saved.map(item => item && typeof item === "object" ? { ...item, rappels: enabled } : item)));
+      }
+    } catch { /* Le réglage du profil reste enregistré même si le stockage local est indisponible. */ }
+    const { error } = await supabaseBrowser().from("naxa_posologie_schedules").update({ rappels: enabled, updated_at: new Date().toISOString() }).eq("user_id", userId);
+    if (error) flash("Préférence modifiée sur cet appareil ; synchronisation des rappels serveur indisponible.");
   }
 
   const title = titles[section] ?? "Profil";
@@ -274,7 +325,7 @@ export default function ProfilSectionPage() {
             ["orderStatus", "Statut des commandes", "Confirmations et changements de réservation"],
             ["promotions", "Offres et nouveautés", "Informations commerciales NAXA"],
             ["treatmentReminders", "Rappels de posologie", "Rappels que vous avez configurés"]
-          ] as const).map(([key, label, description]) => <label key={key} className="flex min-h-[76px] items-center gap-3 border-b border-[#E5E7EB] px-4 py-3 last:border-b-0"><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><small className="mt-1 block leading-4 text-[#6B7280]">{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={e => { setNotifications(value => ({ ...value, [key]: e.target.checked })); setNotificationsDirty(true); }} className="naxa-profile-toggle shrink-0" aria-label={label}/></label>)}</div>
+          ] as const).map(([key, label, description]) => <label key={key} className="flex min-h-[76px] items-center gap-3 border-b border-[#E5E7EB] px-4 py-3 last:border-b-0"><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><small className="mt-1 block leading-4 text-[#6B7280]">{description}</small></span><input type="checkbox" checked={notifications[key]} onChange={e => { const checked = e.target.checked; setNotifications(value => ({ ...value, [key]: checked })); setNotificationsDirty(true); if (key === "treatmentReminders") void updateTreatmentSchedules(checked); }} className="naxa-profile-toggle shrink-0" aria-label={label}/></label>)}</div>
           <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Canaux préférés</h2><div className="mt-2 divide-y divide-[#E5E7EB]">{([
             ["push", "Notifications push", "Autorisation : " + (permission === "unsupported" ? "non prise en charge" : permission)],
             ["sms", "SMS", "Selon les services activés pour votre compte"],
