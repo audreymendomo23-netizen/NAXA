@@ -438,3 +438,22 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 @media (prefers-reduced-motion: reduce) {
   .motion-reduce\\:animate-none { animation: none !important; }
 }
+
+
+/* Profil client — animations sobres, sans mouvement si l’utilisateur le demande. */
+.naxa-profile { color: #111111; }
+.naxa-profile-enter { animation: naxa-profile-enter 300ms cubic-bezier(.22,1,.36,1) both; }
+.naxa-profile-row { animation: naxa-profile-enter 280ms cubic-bezier(.22,1,.36,1) both; }
+.naxa-profile-row:focus-visible { outline: 2px solid #1E7B3A; outline-offset: -3px; }
+.naxa-profile-sheet { animation: naxa-profile-sheet-in 280ms cubic-bezier(.22,1,.36,1) both; }
+.naxa-profile-input { box-sizing: border-box; width: 100%; min-height: 48px; border: 1px solid #D1D5DB; border-radius: 12px; background: #fff; padding: 10px 13px; color: #111; font: inherit; outline: none; transition: border-color 180ms ease, box-shadow 180ms ease; }
+.naxa-profile-input:focus { border-color: #1E7B3A; box-shadow: 0 0 0 3px rgba(30,123,58,.12); }
+.naxa-profile-toast { animation: naxa-profile-toast-in 220ms ease-out both; max-width: calc(100vw - 32px); }
+@keyframes naxa-profile-enter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes naxa-profile-sheet-in { from { opacity: .6; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes naxa-profile-toast-in { from { opacity: 0; transform: translate(-50%,-8px); } to { opacity: 1; transform: translate(-50%,0); } }
+@keyframes naxa-verified-in { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .naxa-profile-enter, .naxa-profile-row, .naxa-profile-sheet, .naxa-profile-toast { animation: none !important; }
+  .naxa-profile-input { transition: none !important; }
+}
