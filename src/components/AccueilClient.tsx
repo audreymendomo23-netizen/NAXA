@@ -244,8 +244,8 @@ export function AccueilClient() {
         <div className="min-w-0"><LogoNAXA/><p className="mt-1 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-2">
           <Link href={userId ? "/client" : "/connexion?espace=client"} aria-label="Profil" className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-[#0B542F] text-sm font-extrabold text-[#FFE23D]">{avatarUrl ? <Image src={avatarUrl} alt="Photo de profil" width={48} height={48} className="h-full w-full object-cover" unoptimized /> : <IconeNAXA name="user-round" size={23}/>}</Link>
-          <Link href="/notifications" aria-label="Notifications" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white">
-            <IconeNAXA name="bell" size={24}/>
+          <Link href="/recherche" aria-label="Rechercher un médicament" title="Rechercher un médicament" className="relative flex h-12 w-12 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
           </Link>
         </div>
       </div>
