@@ -293,8 +293,8 @@ export default function ProfilClientPage() {
               <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label={savedLanguage === "en" ? "Edit my information" : "Modifier mes informations"} className="max-w-full truncate text-left">{shown.name}</button></h1>
               {verified && <Verified language={savedLanguage}/>}
             </div>
-            {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{formatPhone(shown.phone)}</span></p>}
-            {shown.email.trim() && <p className="mt-1 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="mail" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.email}</span></p>}
+            {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[16px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{formatPhone(shown.phone)}</span></p>}
+            {shown.email.trim() && <p className="mt-1 flex items-center gap-2 text-[16px] leading-5 text-[#111111]"><Icon name="mail" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.email}</span></p>}
           </div>
         </div>
       </section>
