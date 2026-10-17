@@ -95,7 +95,17 @@ export default function ProfilClientPage() {
       const name = [row?.first_name, row?.last_name].filter((v): v is string => typeof v === "string" && Boolean(v.trim())).join(" ") || String(meta.full_name ?? meta.name ?? "Client NAXA");
       const phone = user.phone || String(meta.phone ?? "");
       const email = user.email ?? "";
-      const address = [prefs?.adresse_defaut, prefs?.quartier].filter((v): v is string => typeof v === "string" && Boolean(v.trim())).join(", ");
+      let address = [prefs?.adresse_defaut, prefs?.quartier].filter((v): v is string => typeof v === "string" && Boolean(v.trim())).join(", ");
+      try {
+        const savedAddresses: unknown = JSON.parse(window.localStorage.getItem("naxa-client-addresses-v1") || "[]");
+        if (Array.isArray(savedAddresses)) {
+          const defaultAddress = savedAddresses.find((item) => item && typeof item === "object" && "isDefault" in item && item.isDefault === true);
+          if (defaultAddress && typeof defaultAddress === "object") {
+            const value = defaultAddress as { street?: unknown; neighborhood?: unknown; city?: unknown };
+            address = [value.street, value.neighborhood, value.city].filter((part): part is string => typeof part === "string" && Boolean(part.trim())).join(", ");
+          }
+        }
+      } catch { /* Les préférences Supabase restent le repli si le stockage local est indisponible. */ }
       const photo = savedPhoto || (typeof row?.avatar_url === "string" ? row.avatar_url : null) || (typeof meta.avatar_url === "string" ? meta.avatar_url : null);
       setProfile({ name, phone, email, address, photo, orders: count ?? 0 });
       setDraft({ name, phone, email });
