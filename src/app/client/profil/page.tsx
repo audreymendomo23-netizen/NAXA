@@ -105,7 +105,6 @@ export default function ProfilClientPage() {
   }, [router]);
 
   useEffect(() => { if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current; }, [cameraOpen]);
-  useEffect(() => () => { if (toast) window.clearTimeout(0); }, [toast]);
 
   function openEdit() { setDraft({ name: profile.name, phone: profile.phone, email: profile.email }); setSheet("edit"); }
   async function saveInfo() {
@@ -218,15 +217,6 @@ export default function ProfilClientPage() {
 
   return <main className="naxa-profile min-h-dvh bg-[#E9F5EC] px-4 pb-[calc(88px+env(safe-area-inset-bottom,0px))] text-[#111111]">
     <div className="mx-auto w-full max-w-[430px] pt-4">
-      <div className="mb-3 flex items-center justify-between px-1">
-        <span className="text-xs font-semibold uppercase tracking-[.12em] text-[#1E7B3A]">Espace client</span>
-        <label className="flex min-h-8 items-center gap-1.5 rounded-full border border-[#d1e5d6] bg-white/80 px-2 text-[11px] font-semibold text-[#526457]">
-          Profil test
-          <select aria-label="Choisir un profil de démonstration" value={demo} onChange={e => setDemo(e.target.value as DemoMode)} className="max-w-[112px] bg-transparent text-[#0F4D26] outline-none">
-            <option value="real">Mon compte</option><option value="complete">Complet</option><option value="incomplete">Incomplet</option>
-          </select>
-        </label>
-      </div>
       <section className="naxa-profile-card naxa-profile-enter rounded-[24px] bg-white px-5 pb-7 pt-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex items-center gap-4">
           <button type="button" onClick={() => { setSheet("photo"); setCameraError(""); }} className="relative h-[72px] w-[72px] shrink-0 rounded-full bg-[#1E7B3A] text-[#F4C430] active:scale-[.97]" aria-label="Modifier la photo de profil">
@@ -235,9 +225,9 @@ export default function ProfilClientPage() {
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]">{shown.name}</h1>
+              <h1 className="min-w-0 truncate text-[22px] font-extrabold leading-tight text-[#0F4D26]"><button type="button" onClick={() => { if (demo === "real") openEdit(); }} aria-label="Modifier mes informations" className="max-w-full truncate text-left">{shown.name}</button></h1>
               {verified && <Verified/>}
-              {demo === "real" && <button type="button" onClick={openEdit} aria-label="Modifier mes informations" className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#1E7B3A] hover:bg-[#E9F5EC]"><Icon name="edit" size={18}/></button>}
+ aria-label="Modifier mes informations" className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#1E7B3A] hover:bg-[#E9F5EC]"><Icon name="edit" size={18}/></button>}
             </div>
             {shown.phone.trim() && <p className="mt-2 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="phone" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.phone}</span></p>}
             {shown.email.trim() && <p className="mt-1 flex items-center gap-2 text-[15px] leading-5 text-[#111111]"><Icon name="mail" size={17} className="shrink-0 text-[#6B7280]"/><span className="truncate">{shown.email}</span></p>}
@@ -314,8 +304,8 @@ export default function ProfilClientPage() {
       <header className="flex items-center justify-between"><button type="button" onClick={() => setCropSource(null)} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl" aria-label="Annuler le recadrage">×</button><h2 id="crop-title" className="font-bold">Recadrer la photo</h2><span className="w-11"/></header>
       <p className="mt-3 text-center text-sm text-white/75">Déplacez la photo dans le cercle et ajustez le zoom.</p>
       <div className="my-auto flex justify-center">
-        <div className="relative h-[min(72vw,300px)] w-[min(72vw,300px)] touch-none overflow-hidden rounded-full border-4 border-white" onPointerDown={dragStartAt} onPointerMove={dragMove} onPointerUp={() => setDragStart(null)} onPointerCancel={() => setDragStart(null)}>
-          <img src={cropSource} alt="Aperçu du recadrage" draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: "auto", height: "auto", minWidth: "100%", minHeight: "100%", maxHeight: "none", maxWidth: "none", transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${zoom})`, objectFit: "cover" }}/>
+        <div className="relative h-[min(72vw,240px)] w-[min(72vw,240px)] touch-none overflow-hidden rounded-full border-4 border-white" onPointerDown={dragStartAt} onPointerMove={dragMove} onPointerUp={() => setDragStart(null)} onPointerCancel={() => setDragStart(null)}>
+          <img src={cropSource} alt="Aperçu du recadrage" draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.width * zoom}px`, height: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.height * zoom}px`, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`, objectFit: "cover" }}/>
         </div>
       </div>
       <label className="mx-auto mb-8 flex w-full max-w-[300px] items-center gap-3 text-sm"><span>−</span><input aria-label="Zoom de la photo" type="range" min="1" max="2.5" step=".05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#F4C430]"/><span>+</span></label>
