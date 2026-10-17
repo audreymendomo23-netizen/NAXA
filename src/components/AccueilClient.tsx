@@ -479,7 +479,7 @@ export function AccueilClient() {
           <button type="submit" className="h-14 min-w-[92px] rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-[0_6px_18px_rgba(255,226,61,0.25)]">Chercher</button>
         </form>
         {suggestionsOuvertes && query.trim().length>=2 && suggestions.length>0 && <ul role="listbox" aria-label="Suggestions de médicaments" className="absolute inset-x-0 top-[calc(100%+6px)] z-[120] overflow-hidden rounded-2xl border border-[#D8E5DC] bg-white py-1 shadow-2xl">
-          {suggestions.map((nom,index)=><li key={normaliserRecherche(nom)}><button type="button" role="option" aria-selected="false" onClick={()=>choisirSuggestion(nom)} className="flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-semibold text-[#0B3D26] transition hover:bg-[#EAF5ED] focus:bg-[#EAF5ED]"><IconeNAXA name="search" size={17} className="shrink-0 text-[#0F6B3F]"/><span className="min-w-0 flex-1">{nom}</span><span className="text-[10px] font-bold text-[#7D8E84]">{index+1}/4</span></button></li>)}
+          {suggestions.map((nom,index)=><li key={normaliserRecherche(nom)}><button type="button" role="option" aria-selected="false" onClick={()=>choisirSuggestion(nom)} className="flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-semibold text-[#0B3D26] transition hover:bg-[#FFF5A8] focus:bg-[#FFF5A8]"><IconeNAXA name="search" size={17} className="shrink-0 text-[#0F6B3F]"/><span className="min-w-0 flex-1">{nom}</span><span className="text-[10px] font-bold text-[#7D8E84]">{index+1}/4</span></button></li>)}
         </ul>}
       </div>
       <div className="naxa-enter mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
@@ -497,7 +497,7 @@ export function AccueilClient() {
       </div>
 
       <h2 className="naxa-enter mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies à Proximité</h2>
-      <section className="naxa-enter mb-6 grid min-h-[150px] grid-cols-[44%_56%] overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
+      <section className="naxa-enter mb-6 grid min-h-[168px] grid-cols-[44%_56%] overflow-hidden rounded-[24px] border border-[#D7E7DC] bg-white shadow-[0_12px_28px_rgba(5,74,41,0.12)] ring-1 ring-white">
         <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} /></button>
         <div className="flex min-w-0 flex-col items-start justify-center gap-3 bg-gradient-to-br from-white to-[#F0F8F2] p-3">
           <p className="w-full text-[16px] font-extrabold leading-5 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à proximité` : "Activez la localisation pour voir les pharmacies proches"}</p>
@@ -513,7 +513,7 @@ export function AccueilClient() {
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} tabIndex={copy?-1:undefined} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={160} height={88} className="h-[88px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>
-            <button type="button" tabIndex={copy?-1:undefined} onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white/95 text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
+            <button type="button" tabIndex={copy?-1:undefined} onClick={() => toggleFavori(p)} aria-label={favoris.includes(p.id) ? `Retirer ${p.nom} des favoris` : `Ajouter ${p.nom} aux favoris`} aria-pressed={favoris.includes(p.id)} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#E6C900] bg-[#FFE23D] text-[#0B3D26] shadow-sm transition-transform active:scale-95">
               <IconeNAXA name="heart" size={19} filled={favoris.includes(p.id)} />
             </button>
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -567,9 +567,9 @@ export function AccueilClient() {
         <section role="dialog" aria-modal="true" aria-labelledby="home-filter-title" onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] p-5 shadow-2xl sm:rounded-[28px]">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#C7D7CC]"/>
           <div className="flex items-center justify-between gap-3"><h2 id="home-filter-title" className="text-xl font-extrabold text-[#0B3D26]">Filtres de recherche</h2><button type="button" onClick={()=>setHomeFilterOpen(false)} aria-label="Fermer les filtres" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#0B3D26]">×</button></div>
-          <label className="mt-4 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>En stock uniquement</span><input type="checkbox" checked={homeFilters.stock} onChange={e=>setHomeFilters(v=>({...v,stock:e.target.checked}))}/></label>
-          <label className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Pharmacies ouvertes / de garde</span><input type="checkbox" checked={homeFilters.open} onChange={e=>setHomeFilters(v=>({...v,open:e.target.checked}))}/></label>
-          <label className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Médicament sur ordonnance</span><input type="checkbox" checked={homeFilters.prescription} onChange={e=>setHomeFilters(v=>({...v,prescription:e.target.checked}))}/></label>
+          <label className="mt-4 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>En stock uniquement</span><input type="checkbox" checked={homeFilters.stock} onChange={e=>setHomeFilters(v=>({...v,stock:e.target.checked}))} className="h-5 w-5 accent-[#FFE23D]"/></label>
+          <label className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Pharmacies ouvertes / de garde</span><input type="checkbox" checked={homeFilters.open} onChange={e=>setHomeFilters(v=>({...v,open:e.target.checked}))} className="h-5 w-5 accent-[#FFE23D]"/></label>
+          <label className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Médicament sur ordonnance</span><input type="checkbox" checked={homeFilters.prescription} onChange={e=>setHomeFilters(v=>({...v,prescription:e.target.checked}))} className="h-5 w-5 accent-[#FFE23D]"/></label>
           <label className="mt-3 block text-sm font-semibold">Prix maximum (FCFA)<input inputMode="numeric" type="number" min="0" value={homeFilters.price} onChange={e=>setHomeFilters(v=>({...v,price:e.target.value}))} className="mt-1 h-12 w-full rounded-xl border border-[#D7E5DC] bg-white px-3 accent-[#FFE23D]"/></label>
           <button type="button" onClick={()=>setHomeFilterOpen(false)} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26]">Appliquer les filtres</button>
           <p className="mt-2 text-xs leading-5 text-[#64776B]">Les filtres seront appliqués aux pharmacies après avoir lancé la recherche d'un médicament.</p>
