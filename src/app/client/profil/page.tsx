@@ -347,17 +347,7 @@ export default function ProfilClientPage() {
       </div>}
       </div>
 
-    <nav aria-label={savedLanguage === "en" ? "Main navigation" : "Navigation principale"}  className="naxa-profile-bottom fixed inset-x-0 z-[60] mx-auto h-16 max-w-[430px] border-t border-[#E5E7EB] bg-white px-2 shadow-[0_-2px_8px_rgba(0,0,0,.04)]" style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom, 0px)", height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}>
-      <div className="grid h-16 grid-cols-4 items-center">
-        {[{label:savedLanguage === "en" ? "Home" : "Accueil",href:"/",icon:"home"},{label:savedLanguage === "en" ? "Search" : "Recherche",href:"/recherche",icon:"search"},{label:savedLanguage === "en" ? "Orders" : "Commandes",href:"/client?onglet=achats",icon:"bag"}].map(tab => <Link key={tab.label} href={tab.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#6B7280] transition-transform active:scale-95"><Icon name={tab.icon} size={22}/><span className="text-[10px] font-medium">{tab.label}</span></Link>)}
-        <Link href="/client/profil" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-1 text-[#1E7B3A]">
-          <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#1E7B3A] bg-[#1E7B3A] text-[10px] font-extrabold text-[#F4C430]">
-            {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover"/> : shownInitials}
-            {verified && <span className="absolute -bottom-1 -right-1"><Verified small language={savedLanguage}/></span>}
-          </span><span className="text-[10px] font-bold">{savedLanguage === "en" ? "Profile" : "Profil"}</span>
-        </Link>
-      </div>
-    </nav>
+
 
     <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={importPhoto}/>
     {sheet && <div className="naxa-profile-overlay fixed inset-0 z-[100] flex items-end justify-center bg-black/35" onMouseDown={e => { if (e.target === e.currentTarget) setSheet(null); }}>
