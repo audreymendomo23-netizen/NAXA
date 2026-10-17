@@ -21,10 +21,20 @@ export default function LangueClientPage() {
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(LANGUAGE_KEY);
-      if (saved === "fr" || saved === "en") setLanguage(saved);
-    } catch { /* Le choix courant reste utilisable sans stockage local. */ }
+    const syncLanguage = () => {
+      let saved: string | null = null;
+      try { saved = window.localStorage.getItem(LANGUAGE_KEY); } catch { /* La langue par défaut reste disponible. */ }
+      const next: Language = saved === "en" ? "en" : "fr";
+      setLanguage(next);
+      document.documentElement.lang = next;
+    };
+    syncLanguage();
+    window.addEventListener("naxa-language-updated", syncLanguage);
+    window.addEventListener("storage", syncLanguage);
+    return () => {
+      window.removeEventListener("naxa-language-updated", syncLanguage);
+      window.removeEventListener("storage", syncLanguage);
+    };
   }, []);
 
   const chooseLanguage = useCallback((next: Language) => {
