@@ -63,6 +63,7 @@ export default function ProfilClientPage() {
   const [draft, setDraft] = useState({ name: "", phone: "", email: "" });
   const [cameraBusy, setCameraBusy] = useState(false);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState("MTN MoMo");
+  const [savedLanguage, setSavedLanguage] = useState<"fr" | "en">("fr");
 
   const shown = useMemo<ProfileData>(() => demo === "complete"
     ? { name: "Jean Dupont", phone: "+237 6 12 34 56 78", email: "j.dupont@email.com", address: "123 Rue Paix Bonanjo Douala", photo: DEMO_PORTRAIT, orders: 12 }
@@ -123,6 +124,18 @@ export default function ProfilClientPage() {
     window.addEventListener("naxa-payment-updated", readMethod);
     window.addEventListener("storage", readMethod);
     return () => { window.removeEventListener("naxa-payment-updated", readMethod); window.removeEventListener("storage", readMethod); };
+  }, []);
+  useEffect(() => {
+    const readLanguage = () => {
+      try {
+        const language = window.localStorage.getItem("naxa-langue");
+        if (language === "fr" || language === "en") setSavedLanguage(language);
+      } catch { /* Le profil reste disponible sans stockage local. */ }
+    };
+    readLanguage();
+    window.addEventListener("naxa-language-updated", readLanguage);
+    window.addEventListener("storage", readLanguage);
+    return () => { window.removeEventListener("naxa-language-updated", readLanguage); window.removeEventListener("storage", readLanguage); };
   }, []);
   useEffect(() => { if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current; }, [cameraOpen]);
 
@@ -227,7 +240,7 @@ export default function ProfilClientPage() {
   const topRows = [
     { icon: "pin", title: "Adresse par défaut", subtitle: shown.address || "Ajouter une adresse", href: "/client/profil/adresse" },
     { icon: "wallet", title: "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
-    { icon: "globe", title: "Langue", subtitle: "Français", href: "/client/profil/langue" }
+    { icon: "globe", title: savedLanguage === "en" ? "Language" : "Langue", subtitle: savedLanguage === "en" ? "English" : "Français", href: "/client/profil/langue" }
   ];
   const sections = [
     { title: "Mes commandes", rows: [
