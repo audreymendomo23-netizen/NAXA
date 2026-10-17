@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePanier } from "@/lib/panier";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -21,6 +21,7 @@ function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
 }
 export function BottomNav() {
  const pathname=usePathname();
+ const router=useRouter();
  const searchParams=useSearchParams();
  const achatsTab=searchParams.get("onglet")==="achats";
  const {nombre}=usePanier();
@@ -76,6 +77,34 @@ export function BottomNav() {
  },[]);
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
  useEffect(()=>{if(reducedMotion){setRotating(0);return}const id=window.setInterval(()=>setRotating(v=>(v+1)%3),3000);return()=>window.clearInterval(id)},[reducedMotion]);
+ useEffect(()=>{
+  let startX=0,startY=0;
+  let eligible=false;
+  const onStart=(event:TouchEvent)=>{
+   if(event.touches.length!==1){eligible=false;return;}
+   const target=event.target;
+   if(!(target instanceof Element)||target.closest('nav[aria-label="Navigation principale"],input,textarea,select,button,a,[role="button"],[contenteditable="true"],video,canvas,.naxa-carousel-viewport,[data-no-tab-swipe]')){eligible=false;return;}
+   startX=event.touches[0].clientX;
+   startY=event.touches[0].clientY;
+   eligible=true;
+  };
+  const onEnd=(event:TouchEvent)=>{
+   if(!eligible||event.changedTouches.length!==1){eligible=false;return;}
+   eligible=false;
+   const dx=event.changedTouches[0].clientX-startX;
+   const dy=event.changedTouches[0].clientY-startY;
+   if(Math.abs(dx)<80||Math.abs(dx)<Math.abs(dy)*1.3)return;
+   const tabs=[{id:"home",href:"/"},{id:"favorites",href:"/client/profil/favoris"},{id:"scanner",href:"/scanner"},{id:"shopping",href:"/client?onglet=achats"},{id:"profile",href:"/client/profil"}];
+   const active=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"&&searchParams.get("onglet")==="achats"||pathname==="/panier"?"shopping":pathname==="/client"||pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
+   if(!active)return;
+   const index=tabs.findIndex(tab=>tab.id===active);
+   const next=index+(dx<0?1:-1);
+   if(next>=0&&next<tabs.length)router.push(tabs[next].href);
+  };
+  document.addEventListener("touchstart",onStart,{passive:true});
+  document.addEventListener("touchend",onEnd,{passive:true});
+  return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchend",onEnd)};
+ },[pathname,searchParams,router]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
  const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
  if(!visible||(pathname==="/scanner"&&!scannerResults))return null;
