@@ -104,6 +104,8 @@ export function AccueilClient() {
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const [homeFilters, setHomeFilters] = useState({stock:true,distance:"",sort:"prix" as "prix"|"distance",ascending:true,open:false,prescription:false,price:""});
   const [homeFilterOpen, setHomeFilterOpen] = useState(false);
+  const [produitsSlide, setProduitsSlide] = useState(0);
+  const [gardesSlide, setGardesSlide] = useState(0);
   const [firstName, setFirstName] = useState("Client");
   const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [quartier, setQuartier] = useState("Douala");
@@ -267,6 +269,16 @@ export function AccueilClient() {
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes = pharmaciesProches.filter(p => p.de_garde).slice(0,4);
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
+  useEffect(() => {
+    if (nombreSlidesProduits < 2) { setProduitsSlide(0); return; }
+    const interval = window.setInterval(() => setProduitsSlide(current => (current + 1) % nombreSlidesProduits), 4000);
+    return () => window.clearInterval(interval);
+  }, [nombreSlidesProduits]);
+  useEffect(() => {
+    if (gardes.length < 2) { setGardesSlide(0); return; }
+    const interval = window.setInterval(() => setGardesSlide(current => (current + 1) % gardes.length), 4000);
+    return () => window.clearInterval(interval);
+  }, [gardes.length]);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!query.trim()) return;
@@ -378,7 +390,7 @@ export function AccueilClient() {
           </span>
           <h1 className="min-w-0 text-[clamp(20px,5.7vw,26px)] font-extrabold leading-tight tracking-[-0.035em] text-[#0B3D26]">{hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? "Bonsoir" : "Bonjour"}, <span className="text-[#B18A00]">{firstName}</span> !</h1>
         </div>
-        <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Recherchez-vous un médicament aujourd’hui ?</p>
+        <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Quel médicament recherchez-vous aujourd'hui ?</p>
         <p className="mt-1 text-[13px] leading-5 text-[#53685C]">Livraison rapide par les pharmacies vérifiées</p>
       </div>
 
@@ -479,6 +491,18 @@ export function AccueilClient() {
         <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
       </section>
 
+      {homeFilterOpen && <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" role="presentation" onClick={()=>setHomeFilterOpen(false)}>
+        <section role="dialog" aria-modal="true" aria-labelledby="home-filter-title" onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] p-5 shadow-2xl sm:rounded-[28px]">
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#C7D7CC]"/>
+          <div className="flex items-center justify-between gap-3"><h2 id="home-filter-title" className="text-xl font-extrabold text-[#0B3D26]">Filtres de recherche</h2><button type="button" onClick={()=>setHomeFilterOpen(false)} aria-label="Fermer les filtres" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#0B3D26]">×</button></div>
+          <label className="mt-4 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>En stock uniquement</span><input type="checkbox" checked={homeFilters.stock} onChange={e=>setHomeFilters(v=>({...v,stock:e.target.checked}))}/></label>
+          <label className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Pharmacies ouvertes / de garde</span><input type="checkbox" checked={homeFilters.open} onChange={e=>setHomeFilters(v=>({...v,open:e.target.checked}))}/></label>
+          <label className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Médicament sur ordonnance</span><input type="checkbox" checked={homeFilters.prescription} onChange={e=>setHomeFilters(v=>({...v,prescription:e.target.checked}))}/></label>
+          <label className="mt-3 block text-sm font-semibold">Prix maximum (FCFA)<input inputMode="numeric" type="number" min="0" value={homeFilters.price} onChange={e=>setHomeFilters(v=>({...v,price:e.target.value}))} className="mt-1 h-12 w-full rounded-xl border border-[#D7E5DC] bg-white px-3"/></label>
+          <button type="button" onClick={()=>setHomeFilterOpen(false)} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26]">Appliquer les filtres</button>
+          <p className="mt-2 text-xs leading-5 text-[#64776B]">Les filtres seront appliqués aux pharmacies après avoir lancé la recherche d'un médicament.</p>
+        </section>
+      </div>}
       <section className="naxa-enter mt-6 pb-4">
         <Link href="/client/posologie" className="group flex min-h-[88px] items-center gap-3 rounded-[22px] border border-[#CFE2D5] bg-white p-4 shadow-[0_6px_18px_rgba(0,0,0,0.06)] transition-transform active:scale-[0.99]">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#E1F4E7] text-[#0F6B3F] transition-transform group-hover:scale-105" aria-hidden="true">
