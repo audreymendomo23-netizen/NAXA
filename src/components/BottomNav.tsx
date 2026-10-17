@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePanier } from "@/lib/panier";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 type IconName = "home" | "heart" | "scan" | "shopping" | "calendar" | "clipboard" | "user";
 function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
@@ -22,6 +23,30 @@ export function BottomNav() {
  const searchParams=useSearchParams();
  const achatsTab=searchParams.get("onglet")==="achats";
  const {nombre}=usePanier();
+ useEffect(()=>{
+  let actif=true;
+  const chargerProfil=async()=>{
+   const sb=supabaseBrowser();
+   const {data:{user}}=await sb.auth.getUser();
+   if(!actif)return;
+   if(!user){setAvatarUrl(null);setInitiales("C");return;}
+   const {data:profile}=await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",user.id).maybeSingle();
+   if(!actif)return;
+   const meta=user.user_metadata??{};
+   const prenom=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():typeof meta.given_name==="string"?meta.given_name.trim():"";
+   const nom=typeof profile?.last_name==="string"&&profile.last_name.trim()?profile.last_name.trim():typeof meta.last_name==="string"?meta.last_name.trim():typeof meta.family_name==="string"?meta.family_name.trim():"";
+   const nomComplet=[prenom,nom].filter(Boolean).join(" ").trim()||String(meta.full_name??meta.name??user.email?.split("@")[0]??"Client");
+   const lettres=nomComplet.split(/[\\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
+   setInitiales(lettres||"C");
+   const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;
+   setAvatarUrl(typeof photo==="string"&&/^https:\\/\\//i.test(photo)?photo:null);
+  };
+  void chargerProfil();
+  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange(()=>{void chargerProfil()});
+  return()=>{actif=false;subscription.unsubscribe()};
+ },[]);
+ const [avatarUrl,setAvatarUrl]=useState<string|null>(null);
+ const [initiales,setInitiales]=useState("C");
  const [rotating,setRotating]=useState(0);
  const [reducedMotion,setReducedMotion]=useState(false);
  useEffect(()=>{const media=window.matchMedia("(prefers-reduced-motion: reduce)");const sync=()=>setReducedMotion(media.matches);sync();media.addEventListener("change",sync);return()=>media.removeEventListener("change",sync)},[]);
@@ -39,7 +64,7 @@ export function BottomNav() {
  const tab=(active:boolean,label:string,icon:IconName,href:string,extra?:React.ReactNode,animated=false)=> <Link href={href} aria-current={active?"page":undefined} className="relative flex h-[54px] min-w-0 items-center justify-center rounded-[20px] transition-transform duration-150 active:scale-[0.96]">
   {active&&<span className="absolute inset-0 rounded-[20px] bg-[#0B3D26] transition-opacity duration-200"/>}
   <span className={`relative flex min-w-0 flex-col items-center justify-center gap-1 px-1 ${active?"text-white":"text-[#667D70]"}`}>
-   <span key={animated?icon:"static-icon"} className={animated&&!reducedMotion?"animate-[naxa-nav-icon-bounce_420ms_ease-out]":""}><NavIcon name={icon} className={`h-5 w-5 ${active?"text-[#FFE23D]":""}`}/></span>
+   {label==="Profil" ? <span className={`relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border text-[9px] font-extrabold ${active?"border-[#FFE23D] bg-[#FFE23D] text-[#0B3D26]":"border-[#B8CDBF] bg-[#E7F1EA] text-[#0B3D26]"}`} aria-label="Photo de profil">{avatarUrl ? <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover"/> : initiales}</span> : <span key={animated?icon:"static-icon"} className={animated&&!reducedMotion?"animate-[naxa-nav-icon-bounce_420ms_ease-out]":""}><NavIcon name={icon} className={`h-5 w-5 ${active?"text-[#FFE23D]":""}`}/></span>}
    <span className="relative h-3.5 max-w-full overflow-hidden text-[10px] font-semibold leading-none"><span key={animated?label:"static-label"} className={`block max-w-full truncate ${animated&&!reducedMotion?"animate-[naxa-nav-label-in_260ms_ease-out]":""}`}>{label}</span></span>
   </span>
   {active&&<span className="absolute top-1 h-1 w-1 rounded-full bg-[#FFE23D]"/>}{extra}
@@ -53,7 +78,7 @@ export function BottomNav() {
     <span className={`text-[11px] font-bold leading-none ${scan?"text-[#0F6B3F]":"text-[#667D70]"}`}>Scanner</span>
    </Link>
    {tab(shopping,purchase.label,purchase.icon,"/client?onglet=achats",nombre>0&&<span className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#FFE23D] px-1 text-[10px] font-extrabold text-[#0B3D26]">{nombre>99?"99+":nombre}</span>,true)}
-   {tab(profile,"Profil","user","/client")}
+   {tab(profile,"Profil","user","/client",undefined,false)}
   </div>
  </nav>;
 }
