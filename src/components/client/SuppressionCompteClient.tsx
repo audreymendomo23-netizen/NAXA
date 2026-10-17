@@ -32,6 +32,6 @@ export default function SuppressionCompteClient() {
       <input className="champ mt-1" autoComplete="off" value={confirmation} onChange={e => setConfirmation(e.target.value)} required />
     </label>
     <button type="button" disabled={busy || confirmation !== "SUPPRIMER" || !password} onClick={() => void supprimer()} className="w-full rounded-xl bg-red-700 px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Vérification et suppression…" : "Vérifier le mot de passe et supprimer mon compte"}</button>
-    {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+    {error && <p role="alert" className="naxa-delete-error text-sm text-red-700">{error}</p>}
   </div>;
 }
