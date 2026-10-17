@@ -151,8 +151,13 @@ export function AccueilClient() {
           const { data: profile } = await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
           setFirstName(typeof profile?.first_name === "string" && profile.first_name.trim() ? profile.first_name.trim().split(/\s+/)[0] : typeof user.user_metadata?.first_name === "string" && user.user_metadata.first_name.trim() ? user.user_metadata.first_name.trim().split(/\s+/)[0] : "Client");
         }
-        const { data: popularRows } = await sb.rpc("produits_populaires", { p_limit: 6, p_jours: 7 });
-        const popularIds = ((popularRows ?? []) as Array<{ produit_id: string }>).map((item) => item.produit_id);
+        const { data: popularRows, error: popularError } = await sb.rpc("produits_populaires", { p_limit: 6, p_jours: 7 });
+        if (popularError) throw popularError;
+        // La RPC renvoie actuellement `id` (et non `produit_id`) pour chaque produit.
+        // Accepter les deux noms évite que la liste soit vide quand le schéma de retour varie.
+        const popularIds = ((popularRows ?? []) as Array<{ id?: string; produit_id?: string }>)
+          .map((item) => item.produit_id ?? item.id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0);
         const productQuery = sb.from("produits").select("id,nom,dosage,forme,photo_url,fabricant,sur_ordonnance");
         const { data: ps, error: productError } = popularIds.length
           ? await productQuery.in("id", popularIds)
@@ -319,7 +324,7 @@ export function AccueilClient() {
           </span>
           <h1 className="min-w-0 text-[clamp(20px,5.7vw,26px)] font-extrabold leading-tight tracking-[-0.035em] text-[#0B3D26]">{hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? "Bonsoir" : "Bonjour"}, <span className="text-[#B18A00]">{firstName}</span> !</h1>
         </div>
-        <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Quel médicament recherches-tu aujourd’hui ?</p>
+        <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Recherchez-vous un médicament aujourd’hui ?</p>
         <p className="mt-1 text-[13px] leading-5 text-[#53685C]">Livraison rapide par les pharmacies vérifiées</p>
       </div>
 
