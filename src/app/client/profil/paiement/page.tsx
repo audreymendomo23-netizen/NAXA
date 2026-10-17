@@ -27,8 +27,23 @@ function CashIllustration() {
     <circle cx="163" cy="154" r="17" fill="#4CAF50"/><path d="m155 154 5 5 10-11" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>;
 }
+function phoneDigits(value: string) {
+  return value.replace(/\D/g, "").replace(/^237/, "");
+}
+function isValidPhone(method: Method, value: string) {
+  const digits = phoneDigits(value);
+  if (!/^\d{9}$/.test(digits)) return false;
+  if (method === "Orange Money") return /^(?:69\d{7}|64\d{7}|65[5-9]\d{6})$/.test(digits);
+  if (method === "MTN MoMo") return /^(?:67\d{7}|68\d{7}|65[1-4]\d{6})$/.test(digits);
+  return true;
+}
+function phonePrefixHint(method: Method) {
+  return method === "Orange Money"
+    ? "Orange Money : 9 chiffres, préfixes 69, 655–659 ou 64."
+    : "MTN MoMo : 9 chiffres, préfixes 67, 651–654 ou 68.";
+}
 function maskPhone(value: string) {
-  const digits = value.replace(/\D/g, "").replace(/^237/, "");
+  const digits = phoneDigits(value);
   return digits.length === 9 ? `${digits[0]}•• ••• •${digits.slice(-2)}` : "Numéro non renseigné";
 }
 
@@ -52,8 +67,20 @@ export default function PaiementClientPage() {
   const activePhone = phones[phoneKey];
   function flash(message: string) { setToast(message); window.setTimeout(() => setToast(""), 2500); }
   function confirm() {
-    const digits = phoneDraft.replace(/\D/g, "").replace(/^237/, "");
-    if (editing && digits && !/^6\d{8}$/.test(digits)) { flash("Saisissez un numéro camerounais valide : 6XX XX XX XX."); return; }
+    const digits = phoneDigits(phoneDraft);
+    if (method !== "Cash") {
+      const currentDigits = editing ? digits : phoneDigits(activePhone);
+      if (!isValidPhone(method, currentDigits)) {
+        if (!editing) {
+          setEditing(phoneKey);
+          setPhoneDraft(activePhone);
+        }
+        flash(editing
+          ? `Numéro invalide. ${phonePrefixHint(method)}`
+          : `Configurez d’abord votre numéro. ${phonePrefixHint(method)}`);
+        return;
+      }
+    }
     const nextPhones = editing && digits ? { ...phones, [editing]: digits } : phones;
     try {
       window.localStorage.setItem("naxa-client-payment-method-v1", method);
@@ -71,8 +98,8 @@ export default function PaiementClientPage() {
   }
 
   return <main className="min-h-dvh bg-black/35 px-0 text-[#111111]">
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col justify-end pb-[calc(72px+env(safe-area-inset-bottom,0px))]">
-      <section role="dialog" aria-modal="true" aria-labelledby="payment-title" className="naxa-profile-sheet relative z-[70] w-full rounded-t-[24px] bg-white px-5 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-2 shadow-2xl">
+    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] items-center justify-center px-0 pb-[calc(72px+env(safe-area-inset-bottom,0px))] pt-3">
+      <section role="dialog" aria-modal="true" aria-labelledby="payment-title" className="naxa-profile-sheet relative z-[70] w-full rounded-[24px] bg-white px-5 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-2 shadow-2xl">
         <Link href="/client/profil" aria-label="Retour au profil" className="mb-1 flex h-7 w-full items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link>
         <h1 id="payment-title" className="mb-3 text-xl font-extrabold text-[#0F4D26]">Moyen de paiement</h1>
         <div className="space-y-2">
@@ -80,7 +107,7 @@ export default function PaiementClientPage() {
             { value: "MTN MoMo" as const, label: "MTN MoMo" },
             { value: "Orange Money" as const, label: "Orange Money" },
             { value: "Cash" as const, label: "Cash", subtitle: "Payer à la livraison" },
-          ]).map(option => <button key={option.value} type="button" onClick={() => setMethod(option.value)} aria-pressed={method === option.value} className={`flex min-h-[72px] w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[.99] ${method === option.value ? "border-[#1E7B3A] bg-[#E9F5EC]/60" : "border-[#E5E7EB] bg-white"}`}>
+          ]).map(option => <button key={option.value} type="button" onClick={() => { setMethod(option.value); setEditing(null); setPhoneDraft(""); }} aria-pressed={method === option.value} className={`flex min-h-[72px] w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[.99] ${method === option.value ? "border-[#1E7B3A] bg-[#E9F5EC]/60" : "border-[#E5E7EB] bg-white"}`}>
             <span className={`flex ${option.value === "Cash" ? "h-12 w-12" : "h-12 w-[84px]"} shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1`}>{option.value === "MTN MoMo" ? <MtnMomoLogo/> : option.value === "Orange Money" ? <OrangeMoneyLogo/> : <span className="flex h-12 w-12 items-center justify-center"><CashIllustration/></span>}</span>
             <span className="min-w-0 flex-1"><span className="block font-bold text-[#111111]">{option.label}</span>{"subtitle" in option && <span className="mt-0.5 block text-sm text-[#6B7280]">{option.subtitle}</span>}</span>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${method === option.value ? "scale-100 border-[#1E7B3A] bg-[#1E7B3A] text-white" : "scale-90 border-[#D1D5DB] text-transparent"}`}><CheckIcon/></span>
@@ -88,7 +115,7 @@ export default function PaiementClientPage() {
         </div>
         {method === "Cash" ? <div className="flex flex-col items-center pt-3 text-center"><CashIllustration/><p className="mt-1 text-sm font-semibold text-[#374151]">Vous payez en espèces à la livraison</p></div> : <div className="mt-4 rounded-2xl bg-[#F8FAF8] p-4">
           <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#111111]">Numéro enregistré</p><p className="mt-1 text-sm text-[#6B7280]">{maskPhone(activePhone)}</p></div><button type="button" onClick={startEdit} className="min-h-10 rounded-lg px-3 text-sm font-bold text-[#1E7B3A]">Modifier</button></div>
-          {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">Numéro camerounais</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder="6XX XX XX XX" className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">Format : 6XX XX XX XX</p></div>}
+          {editing && <div className="mt-3"><label htmlFor="payment-phone" className="text-sm font-semibold text-[#374151]">Numéro camerounais</label><input id="payment-phone" autoComplete="tel-national" inputMode="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value.replace(/[^0-9 +]/g, "").slice(0, 16))} placeholder={method === "Orange Money" ? "69X XX XX XX / 655 XX XX XX" : "67X XX XX XX / 651 XX XX XX"} className="naxa-profile-input mt-1"/><p className="mt-1 text-xs text-[#6B7280]">{phonePrefixHint(method)}</p></div>}
         </div>}
         <button type="button" onClick={confirm} className="mt-3 min-h-12 w-full rounded-xl bg-[#FFE33D] font-extrabold text-[#064B2A] transition-transform active:scale-[.99]">Confirmer</button>
         <Link href="/client/profil" className="mt-1 flex min-h-11 items-center justify-center font-semibold text-[#6B7280]">Annuler</Link>
