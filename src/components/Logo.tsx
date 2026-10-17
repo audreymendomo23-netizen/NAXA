@@ -9,7 +9,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 function destinationInitiale(pathname: string): string {
   if (pathname.startsWith("/admin")) return "/admin";
   if (pathname.startsWith("/pharmacie") || pathname.startsWith("/pharmacien")) return "/pharmacie";
-  if (pathname.startsWith("/client")) return "/client";
+  if (pathname.startsWith("/client")) return "/";
   return "/";
 }
 
@@ -53,7 +53,7 @@ export function Logo({ clair = true, taille = 40 }: { clair?: boolean; taille?: 
 
       if (!actif) return;
       if (profil?.role === "admin") setDestination("/admin");
-      else if (profil?.role === "client") setDestination("/client");
+      else if (profil?.role === "client") setDestination("/");
       else setDestination("/pharmacie");
     }
 
