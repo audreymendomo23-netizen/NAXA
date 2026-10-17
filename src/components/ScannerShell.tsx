@@ -133,21 +133,40 @@ export function ScannerShell() {
     else router.push("/");
   }, [modePosologie, router]);
 
-  const ouvrirRecadrage = useCallback((f: File) => {
+  const ouvrirRecadrage = useCallback(async (f: File) => {
     setErreur("");
     if (f.size > TAILLE_MAX) {
       setErreur("Le fichier dépasse 10 Mo. Choisissez une image plus légère.");
       return;
     }
     if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
-      setErreur("Le PDF est sélectionnable, mais sa conversion locale en pages image n’est pas disponible avec les bibliothèques actuelles. Importez une image de l’ordonnance.");
+      setErreur("La lecture locale des PDF multipages nécessite un moteur de conversion PDF absent du projet. Importez une image de l’ordonnance.");
       return;
     }
-    if (!/^image\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
+    if (!/^image\\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
       setErreur("Format non pris en charge. Choisissez JPEG, PNG, WebP ou HEIC.");
       return;
     }
-    setFichier(f);
+    let fichierImage = f;
+    if (f.type === "image/heic" || f.type === "image/heif" || /\\.(heic|heif)$/i.test(f.name)) {
+      try {
+        const bitmap = await createImageBitmap(f);
+        const conversion = document.createElement("canvas");
+        conversion.width = bitmap.width;
+        conversion.height = bitmap.height;
+        const context = conversion.getContext("2d");
+        if (!context) throw new Error("canvas indisponible");
+        context.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const blob = await new Promise<Blob | null>(resolve => conversion.toBlob(resolve, "image/jpeg", 0.92));
+        if (!blob || blob.size > TAILLE_MAX) throw new Error("conversion indisponible ou trop volumineuse");
+        fichierImage = new File([blob], f.name.replace(/\\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+      } catch {
+        setErreur("Ce navigateur ne peut pas convertir cette image HEIC localement. Exportez-la en JPEG puis réessayez.");
+        return;
+      }
+    }
+    setFichier(fichierImage);
     setZoomRecadrage(100);
     setEcran("crop");
   }, []);
