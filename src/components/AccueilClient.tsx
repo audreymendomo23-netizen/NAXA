@@ -380,7 +380,7 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh bg-[linear-gradient(to_bottom,#0F6B3F_0,#0F6B3F_220px,#F4F8F5_220px)] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+    <header className="relative z-20 min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
@@ -422,7 +422,7 @@ export function AccueilClient() {
                 <a
                   href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
                   onClick={() => setMenuServicesOuvert(false)}
-                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-[#7A1F32] transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                 >
                   <IconeNAXA name="bell" size={18}/>
                   Besoin d'aide ?
@@ -477,14 +477,14 @@ export function AccueilClient() {
         </ul>}
       </div>
       <div className="naxa-enter mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
-        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
-        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.distance?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
-        <button type="button" onClick={()=>setHomeFilters(v=>v.sort==="prix"?({...v,ascending:!v.ascending}):({...v,sort:"prix",ascending:true}))} aria-pressed={homeFilters.sort==="prix"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.sort==="prix"?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}>Prix {homeFilters.sort==="prix"?(homeFilters.ascending?"↑":"↓"):""}</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>v.sort==="prix"?({...v,ascending:!v.ascending}):({...v,sort:"prix",ascending:true}))} aria-pressed={homeFilters.sort==="prix"} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]">Prix {homeFilters.sort==="prix"?(homeFilters.ascending?"↑":"↓"):""}</button>
         <button type="button" onClick={()=>setHomeFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="search" size={14}/>Filtres +</button>
       </div>
 
       <div className="naxa-enter mb-4">
-        <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#0F6B3F] px-4 py-3 transition active:scale-[0.99]">
+        <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#E6C900] bg-[#FFE23D] px-4 py-3 text-[#0B3D26] shadow-[0_8px_20px_rgba(5,74,41,0.10)] transition active:scale-[0.99]">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/60"><IconeNAXA name="lock" size={24}/></span>
           <span className="min-w-0"><strong className="block text-[18px] font-extrabold leading-6">Scanner mon ordonnance</strong><span className="mt-1 block text-[13px] leading-5 text-[#466455]">Votre ordonnance reste privée et traitée en local.</span></span>
         </Link>
@@ -533,17 +533,17 @@ export function AccueilClient() {
 
       <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
-        <div className="overflow-hidden rounded-[20px] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)]">
+        <div className="overflow-hidden rounded-[22px] border border-[#D7E7DC] bg-gradient-to-br from-white to-[#EDF7F0] shadow-[0_12px_28px_rgba(5,74,41,0.12)]">
           <div className="border-b border-[#E0EAE3] px-4 py-3">
             <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proche de vous</h3>
           </div>
           {gardes.length ? <div className="naxa-carousel-viewport overflow-hidden">
             <div className="naxa-carousel-loop naxa-gardes-loop flex w-max">{[false,true].map(copy => <div key={copy?"gardes-copie":"gardes-originales"} aria-hidden={copy||undefined} className="flex w-[calc(min(100vw,480px)-2rem)] shrink-0 flex-col">
-              {gardes.map((p) => copy ? <div key={p.id} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3 pointer-events-none">
+              {gardes.map((p) => copy ? <div key={p.id} className="pointer-events-none mx-3 my-2 flex min-h-[104px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-[#D7E7DC] bg-gradient-to-br from-white to-[#F0F8F2] px-3 py-3 shadow-[0_5px_16px_rgba(5,74,41,0.09)]">
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-              </div> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="flex min-h-[104px] min-w-full items-center gap-3 px-4 py-3">
+              </div> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="mx-3 my-2 flex min-h-[104px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-[#D7E7DC] bg-gradient-to-br from-white to-[#F0F8F2] px-3 py-3 shadow-[0_5px_16px_rgba(5,74,41,0.09)]">
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>

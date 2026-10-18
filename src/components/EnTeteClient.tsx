@@ -74,7 +74,7 @@ export function EnTeteClient() {
     setQuery("");
   }
 
-  return <header className="relative -mx-4 bg-[#0F6B3F] px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  return <header className="relative z-20 -mx-4 bg-[#0F6B3F] px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -103,8 +103,8 @@ export function EnTeteClient() {
         </div>}
       </div>}
 
-      {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0B3D26] p-2 text-white shadow-2xl">
-        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => closeSearchAndMenu()} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-white hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
+      {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0F6B3F] p-2 text-white shadow-2xl">
+        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => closeSearchAndMenu()} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-[#7A1F32] hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
       </nav>}
     </div>
   </header>;

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
-import { Logo } from "@/components/Logo";
+import { EnTeteClient } from "@/components/EnTeteClient";
 
 type Ligne = { quantite: number; prix_unitaire: number; produits: { nom: string; dosage: string } | null };
 type RecuData = {
@@ -55,14 +55,14 @@ export default function Recu() {
   useEffect(() => { void charger(); }, [charger]);
 
   return (
-    <main className="mx-auto max-w-md space-y-4 p-6">
-      <Logo clair={false} />
+    <main className="mx-auto max-w-md space-y-4 px-4 pb-16">
+      <EnTeteClient />
       <h1 className="text-xl font-extrabold">Reçu de réservation</h1>
       {chargement && <p role="status" className="text-sm text-slate-600">Chargement du reçu…</p>}
       {!chargement && erreur && (
         <section className="carte space-y-3" role="alert">
           <p className="text-sm">{erreur}</p>
-          <button type="button" className="btn btn-vert w-full" onClick={() => void charger()}>Réessayer</button>
+          <button type="button" className="btn btn-canari w-full" onClick={() => void charger()}>Réessayer</button>
         </section>
       )}
       {d && !chargement && (

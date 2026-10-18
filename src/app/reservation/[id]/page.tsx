@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
-import { Logo } from "@/components/Logo";
+import { EnTeteClient } from "@/components/EnTeteClient";
 
 type Resa = {
   id: string;
@@ -128,10 +128,7 @@ export default function Reservation() {
   if (!r) {
     return (
       <main className="mx-auto max-w-lg px-4 pb-16">
-        <header className="-mx-4 mb-6 flex items-center justify-between bg-naxa-green-900 px-4 py-3">
-          <Link href="/"><Logo taille={32} /></Link>
-          <Link href="/" className="text-sm font-semibold text-white underline underline-offset-4">Accueil</Link>
-        </header>
+        <EnTeteClient />
         <div className="carte space-y-3" role={erreurChargement ? "alert" : "status"}>
           <h1 className="text-xl font-extrabold">{erreurChargement ? "Réservation indisponible" : "Chargement de votre réservation…"}</h1>
           <p className="text-sm leading-relaxed text-slate-600">
@@ -139,7 +136,7 @@ export default function Reservation() {
               ? "Nous n’avons pas pu récupérer cette réservation. Elle peut être inaccessible ou la connexion peut être interrompue."
               : "Nous récupérons les informations de votre réservation."}
           </p>
-          {erreurChargement && <button type="button" className="btn btn-vert w-full" onClick={() => void charger()}>Réessayer</button>}
+          {erreurChargement && <button type="button" className="btn btn-canari w-full" onClick={() => void charger()}>Réessayer</button>}
           <Link href="/" className="btn btn-clair w-full">Retour à l’accueil</Link>
         </div>
       </main>
@@ -153,10 +150,7 @@ export default function Reservation() {
 
   return (
     <main className="mx-auto max-w-lg space-y-4 px-4 pb-16">
-      <header className="-mx-4 mb-2 flex items-center justify-between bg-naxa-green-900 px-4 py-3">
-        <Link href="/"><Logo taille={32} /></Link>
-        <Link href="/" className="text-sm font-semibold text-white underline underline-offset-4">Accueil</Link>
-      </header>
+      <EnTeteClient />
       <h1 className="text-2xl font-extrabold">Réservation chez {r.pharmacies?.nom ?? "votre pharmacie"}</h1>
       {r.pharmacies?.quartier && <p className="-mt-2 text-sm text-slate-600">{r.pharmacies.quartier}</p>}
       <section className="carte space-y-2" aria-label="Détails de la réservation">
@@ -167,7 +161,7 @@ export default function Reservation() {
       </section>
       {active && (
         <>
-          <a className="btn btn-vert w-full" href={`/go/${id}`} target="_blank" rel="noreferrer">Envoyer sur WhatsApp</a>
+          <a className="btn btn-canari w-full" href={`/go/${id}`} target="_blank" rel="noreferrer">Envoyer sur WhatsApp</a>
           {!paiement ? (
             <button type="button" className="btn btn-clair w-full" onClick={() => void afficherPaiement()} disabled={actionBloquee}>
               {chargementPaiement ? "Chargement du paiement…" : "Payer en ligne"}
@@ -178,7 +172,7 @@ export default function Reservation() {
               <p className="text-sm leading-relaxed">Payez {fcfa(paiement.total)} avec le code marchand <strong>{paiement.code_marchand}</strong>, puis indiquez la référence de transaction.</p>
               <label className="block text-sm font-semibold" htmlFor="reference-paiement">Référence de transaction</label>
               <input id="reference-paiement" className="champ" required maxLength={120} value={ref} onChange={e => setRef(e.target.value)} placeholder="Référence de transaction" disabled={actionBloquee} />
-              <button type="submit" className="btn btn-vert w-full" disabled={actionBloquee || !ref.trim()}>
+              <button type="submit" className="btn btn-canari w-full" disabled={actionBloquee || !ref.trim()}>
                 {actionEnCours === "reference" ? "Envoi en cours…" : "J’ai payé"}
               </button>
             </form>
