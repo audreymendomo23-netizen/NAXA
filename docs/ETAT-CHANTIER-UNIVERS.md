@@ -276,3 +276,5 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 
 - Migration 127 : politiques de lecture des partages par le professionnel destinataire vérifié et gestion du registre professionnel réservée à l’administration.
 - Migration 128 : retrait du consentement à une famille révoque les partages actifs associés à cette famille; le propriétaire conserve la possibilité de révoquer après désactivation du professionnel. Test Production : `naxa_128_consent_revocation_shares_pass = true`.
+
+- Migration 129 : alertes privées uniquement à partir des plages numériques configurées par l’utilisateur (aucune plage clinique préremplie), avec RLS et marquage des alertes comme lues. Tests 129 réussis sur Production et environnement isolé.
