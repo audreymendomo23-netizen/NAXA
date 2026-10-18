@@ -40,9 +40,16 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
     (!searchParams.statut_demande || r.status === searchParams.statut_demande) &&
     (!query || [r.offer_name, r.category, r.service_area_label, r.client_note ?? "", active.find((m: any) => m.partner_id === r.partner_id)?.partners?.name ?? ""].join(" ").toLocaleLowerCase("fr").includes(query))
   );
-  const requestIds = requests.map((r: any) => r.id);
-  const addressResult = requestIds.length
-    ? await sb.from("home_service_request_addresses").select("request_id,exact_address,contact_phone").in("request_id", requestIds)
+  // Minimiser les coordonnées chargées : ne demander les données privées
+  // que pour les demandes déjà confirmées ou terminées. La RLS reste la
+  // frontière de sécurité ; ce filtre évite aussi les lectures inutiles.
+  const addressEligibleIds = requests
+    .filter((r: any) => r.status === "confirmed" || r.status === "completed")
+    .map((r: any) => r.id);
+  const addressResult = addressEligibleIds.length
+    ? await sb.from("home_service_request_addresses")
+        .select("request_id,exact_address,contact_phone")
+        .in("request_id", addressEligibleIds)
     : { data: [], error: null };
   const addresses = addressResult.data ?? [];
   const broken = !!(offersResult.error || requestsResult.error || addressResult.error);
