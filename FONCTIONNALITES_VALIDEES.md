@@ -1516,3 +1516,5 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Le bouton partagé affiche maintenant trois points verticaux (et non un hamburger), conformément au menu trois-points demandé : commit `303c2cee5405a9928cdfc8db252a94ec02c07242`.
 - L’univers `/suivi` est explicitement présenté comme « Dispositifs médicaux » désactivé en phase 1. Le contenu ne promet plus la collecte de mesures, la synchronisation ou le transmission de données : commit `419279c691d1525171fe3c7ce8aee3866e26cb95`.
 - **Statut :** correctifs appliqués à `main`; compilation et parcours navigateur toujours non vérifiés. Ne pas marquer la fonctionnalité comme validée avant obtention de preuves.
+
+- Dernier ajustement de présentation : l’icône conserve ses trois points verticaux à l’ouverture comme à la fermeture, sans animation qui les déforme. Commit : `5a6c5e892c082c8f8d2c2c12ce8a4fcccb42ab87`.
