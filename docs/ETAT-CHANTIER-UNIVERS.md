@@ -122,3 +122,11 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Icône du menu partagé ajustée en trois points verticaux, conforme au menu demandé. Commit : `303c2cee5405a9928cdfc8db252a94ec02c07242`.
 - Route `/suivi` clarifiée : univers « Dispositifs médicaux » désactivé en phase 1, sans promesse de collecte ou de synchronisation de mesures de santé. Commit : `419279c691d1525171fe3c7ce8aee3866e26cb95`.
 - État : modifications présentes sur `main`; compilation et tests navigateur restent à exécuter. Aucun déploiement Production ni écriture Supabase Production.
+
+
+## État après les derniers correctifs (18/10/2026)
+
+- Commit source du menu stable : `5a6c5e892c082c8f8d2c2c12ce8a4fcccb42ab87`.
+- Documentation des correctifs : `c120e77707190acb9deed80b4405e2b5e85d2238`.
+- Le statut GitHub « Vercel: success » associé au commit documentaire ne prouve pas un déploiement actif : le déploiement Vercel correspondant `dpl_BxTg8pbT83H438989MukcCXFquif`, ciblant Production, est observé à l’état `CANCELED`. Il n’est donc pas présenté comme publié.
+- Le build complet et les tests de parcours ne sont toujours pas prouvés. Le contrôle Vercel précédent avait renvoyé une limite de création de build. Aucun déploiement Production réussi n’est revendiqué.
