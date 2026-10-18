@@ -46,7 +46,9 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
       <label className="text-sm font-semibold">Marque<input className={field} name="brand" maxLength={120}/></label>
       <label className="text-sm font-semibold">Catégorie<input className={field} name="category" maxLength={100} defaultValue="Autres"/></label>
       <label className="text-sm font-semibold">Prix (FCFA)<input className={field} name="price_fcfa" type="number" min="0" step="1" required/></label>
-      <label className="text-sm font-semibold">Stock initial<input className={field} name="stock_quantity" type="number" min="0" max="1000000" step="0.001" required/></label>\n      <label className="text-sm font-semibold">Seuil d’alerte stock<input className={field} name="low_stock_threshold" type="number" min="0" max="1000000" step="0.001" defaultValue="3" required/></label>\n      <label className="text-sm font-semibold">Date d’expiration (facultative)<input className={field} name="expires_at" type="date"/></label>
+      <label className="text-sm font-semibold">Stock initial<input className={field} name="stock_quantity" type="number" min="0" max="1000000" step="0.001" required/></label>
+      <label className="text-sm font-semibold">Seuil d’alerte stock<input className={field} name="low_stock_threshold" type="number" min="0" max="1000000" step="0.001" defaultValue="3" required/></label>
+      <label className="text-sm font-semibold">Date d’expiration (facultative)<input className={field} name="expires_at" type="date"/></label>
       <label className="text-sm font-semibold">Unité<input className={field} name="unit_label" maxLength={30} defaultValue="unité"/></label>
       <label className="text-sm font-semibold sm:col-span-2">Photo (URL HTTPS)<input className={field} name="photo_url" type="url" placeholder="https://…"/></label>
       <label className="text-sm font-semibold sm:col-span-2">Description<textarea className={field} name="description" maxLength={600} rows={3}/></label>
