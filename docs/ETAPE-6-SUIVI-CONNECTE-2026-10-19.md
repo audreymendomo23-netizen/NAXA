@@ -40,3 +40,5 @@ Migration additive 126 :
 - Migration 127 : le destinataire professionnel vérifié peut lire ses partages actifs; l’administration peut ajouter/révoquer les professionnels via `/admin/univers`.
 - Migration 128 : retirer le consentement d’une famille révoque automatiquement tous les partages actifs des types appartenant à cette famille. Le propriétaire peut aussi révoquer un partage même si le professionnel a depuis été désactivé.
 - Test 127 réussi sur Production : `naxa_127_suivi_sharing_policies_pass = true`. Test 128 réussi sur Production : `naxa_128_consent_revocation_shares_pass = true`.
+
+- Migration 129 `supabase/migration_129_suivi_user_alert_rules.sql` : alertes personnelles fondées uniquement sur les limites choisies par l’utilisateur, sans seuil médical prérempli; alertes et règles protégées par RLS. Test 129 réussi sur Production et projet isolé : `naxa_129_user_defined_alerts_pass = true`.
