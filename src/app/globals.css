@@ -672,3 +672,28 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole .luciole-wing-vein,.naxa-luciole .luciole-abdomen,
   .naxa-luciole .luciole-glow-core { animation:none!important; }
 }
+
+/* Ajouts guidés de la luciole : calques non interactifs, sans effet sur le jour. */
+.naxa-luciole-guidance-pulse,
+.naxa-luciole-typing-glow,
+.naxa-luciole-click-spark { pointer-events:none!important; }
+.naxa-luciole-guidance-pulse:before { animation:naxa-luciole-guide-pulse 1.45s ease-in-out infinite; }
+.naxa-luciole-typing-glow:before { animation:naxa-luciole-type-glow 480ms ease-out both; }
+.naxa-luciole-click-spark:before { animation:naxa-luciole-click-flash 360ms ease-out both; }
+@keyframes naxa-luciole-guide-pulse {
+  0%,100% { opacity:.72; transform:scale(.88); }
+  50% { opacity:1; transform:scale(1.22); }
+}
+@keyframes naxa-luciole-type-glow {
+  0% { opacity:1; filter:brightness(1.6); transform:scale(1.12); }
+  100% { opacity:.75; filter:brightness(1); transform:scale(.9); }
+}
+@keyframes naxa-luciole-click-flash {
+  0% { opacity:1; filter:brightness(2); transform:scale(1.55); }
+  100% { opacity:.2; filter:brightness(1); transform:scale(.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .naxa-luciole-guidance-pulse:before,
+  .naxa-luciole-typing-glow:before,
+  .naxa-luciole-click-spark:before { animation:none!important; }
+}
