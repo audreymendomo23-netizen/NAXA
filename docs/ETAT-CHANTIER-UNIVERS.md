@@ -58,7 +58,7 @@
 ## Vérifications et déploiement
 
 - Tests ciblés du parseur CSV exécutés sur des exemples avec séparateur cité, guillemets échappés, retour à la ligne cité et guillemet non fermé : réussis.
-- Compilation complète, lint et suite SQL : **à exécuter à la fin du codage**, conformément au canevas.
+- Test structurel ajouté : `supabase/tests/113_117_home_services_security_notifications.sql` (RLS, droits d’écriture, publication, fonctions sensibles et notifications). **Pas encore exécuté** ; compilation complète, lint et suite SQL à lancer à la fin du codage, conformément au canevas.
 - Aucun déploiement manuel n'a été lancé pour ce chantier. Un push antérieur sur `main` a déclenché un déploiement Vercel automatique au commit `b27b18b23787582943916673df01cbd0497bf541`. Le projet Vercel a ensuite reçu un réglage d'étape ignorée pour empêcher les nouvelles publications automatiques pendant le codage ; vérifier/restaurer ce réglage avant le prochain déploiement autorisé.
 - Ne pas annoncer le chantier comme validé en Production tant que les migrations n'ont pas été vérifiées sur un environnement de test, que la compilation/suite de tests n'a pas été exécutée et que le déploiement final n'a pas été explicitement autorisé.
 
