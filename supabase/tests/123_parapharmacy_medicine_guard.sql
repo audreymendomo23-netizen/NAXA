@@ -21,6 +21,10 @@ declare
   forbidden_names text[] := array[
     'Médicament',
     'Paracétamol 500 mg',
+    'Doliprane bébé',
+    'Coartem',
+    'Aspirin',
+    'Ibuprofène',
     'Amoxicilline',
     'Ibuprofen syrup',
     'Antibiotique',
