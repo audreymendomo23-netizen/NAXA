@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { setHomeServiceOfferStatus } from "./actions";
+import { BoutonNotifications } from "@/components/BoutonNotifications";
 
 const statusLabel: Record<string, string> = { draft: "Brouillon", active: "Publié", archived: "Archivé" };
 
@@ -18,7 +19,7 @@ export default async function AdminHomeServices({ searchParams }: { searchParams
   const broken = !!error;
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900">
     <div className="mx-auto max-w-5xl space-y-5 pt-4">
-      <header className="flex items-center justify-between gap-3 rounded-2xl bg-[#064B2A] px-4 py-3 text-white"><strong>NAXA · Administration</strong><Link href="/admin/univers" className="font-bold underline">Univers et partenaires</Link></header>
+      <header className="flex items-center justify-between gap-3 rounded-2xl bg-[#064B2A] px-4 py-3 text-white"><strong>NAXA · Administration</strong><nav className="flex items-center gap-3"><BoutonNotifications/><Link href="/admin/univers" className="font-bold underline">Univers et partenaires</Link></nav></header>
       <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Validation des offres</p><h1 className="mt-1 text-3xl font-black">Prestations et soins à domicile</h1><p className="mt-2 text-sm leading-6 text-slate-600">Une offre ne peut être publiée que si le professionnel, son association à l’univers Prestations et les drapeaux de l’univers sont actifs. La validation ne remplace pas la vérification réelle des justificatifs du professionnel.</p></div>
       {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "active" ? "Prestation publiée." : searchParams.ok === "archived" ? "Prestation archivée." : "Prestation remise en brouillon."}</p>}
       {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Action refusée. Vérifie le statut du partenaire, l’association à l’univers et les activations.</p>}
