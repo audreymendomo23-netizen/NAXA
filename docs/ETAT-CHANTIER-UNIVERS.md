@@ -24,6 +24,8 @@
 - `a9061861c8a5ba7fda1e374c0532f14eaad31e90` — le panneau partenaire traite une réservation arrivée à expiration comme expirée et vérifie l'état réellement écrit après une transition pour ne pas afficher un faux succès.
 - `c112b41a298c23e66bfda9ee05ec55d9996862d2` et `a7c70029c3dd41766d5808512c6146bfef74ca3a` — socle SQL des prestations à domicile : offres, demandes, coordonnées séparées et adresse exacte masquée jusqu’à confirmation ; accès direct aux écritures de demandes bloqué.
 - `19c1b593fb9f28cc6db32b5615336e276804fdd7` — actions serveur pour envoyer une demande et l’annuler.
+- `fce1aa9094c93896e055f38e18fb1011effccb40` — intégration des demandes à domicile dans l’espace client unique « Achats / Réservations / Commandes », sans bloquer le suivi Pharmacie si les tables de prestations ne sont pas encore installées.
+- `8963e5e77636a91808632b80f85573e284104106` — migration 113 : le partenaire ne peut plus publier directement une offre en contournant la validation administrative.
 - `cf231cc6ab8140fc12dba0738901e769833d3d84` et `9e3645a0503d36906b3cd443e254e238380748a1` — catalogue public, formulaire de demande et reçu privé client.
 - `6d3c94700fdeb29b1cf75667262428e0479928f6`, `18dcc1652223f33df35603f7b7bd19a1671ff78d`, `f8d83c18ad8833e8b14726af57cfa181c8954570`, `09950f9fcdd1c145441448a6e983dfcfe21703e6`, `8f28004138a2c3ceee137125d98994b120b919fe` — espace partenaire, validation administrative, navigation conditionnelle et verrouillage du type de partenaire.
 
@@ -33,9 +35,11 @@
 - Migration 110 : `supabase/migration_110_universe_reservation_expiry_cron.sql`.
 - Migration 111 : `supabase/migration_111_partner_catalogue_alerts.sql`.
 - Migration 112 : `supabase/migration_112_home_services_requests.sql`.
+- Migration 113 : `supabase/migration_113_home_service_offer_publish_guard.sql`.
 - La migration 110 exige l'extension `pg_cron` et programme le job `naxa-expire-universe-reservations`.
 - La migration 111 dépend de la colonne `low_stock_threshold` ajoutée en migration 105.
 - La migration 112 ajoute le socle des prestations à domicile ; elle dépend du socle partenaires/universes, notamment de la fonction `universe_partner_is_public` (migration 100).
+- La migration 113 remplace la politique trop large d’écriture partenaire sur les offres : création en brouillon uniquement, modification/archivage possible, publication réservée à la fonction administrative.
 - Ces fichiers sont du code source uniquement : aucune de ces migrations n'a été appliquée à Production dans ce chantier.
 
 ## Vérifications et déploiement
@@ -47,4 +51,4 @@
 
 ## Prochaine étape
 
-Terminer le codage du périmètre actuel (prestations à domicile : parcours partenaire/client et publication), puis lancer en fin de chantier les vérifications de compilation, les tests SQL ciblés sur un environnement isolé et les contrôles des parcours. Aucun test ou migration ne doit écrire dans Supabase Production.
+Terminer le codage du périmètre actuel (prestations à domicile : parcours partenaire/client, notifications de demande et publication), puis lancer en fin de chantier les vérifications de compilation, les tests SQL ciblés sur un environnement isolé et les contrôles des parcours. Aucun test ou migration ne doit écrire dans Supabase Production.
