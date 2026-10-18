@@ -2,15 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { reserverGroupeProduits } from "@/app/univers-actions";
+import { excludedFromBabyUniverse, isMedicationProduct } from "@/lib/universe-product-rules";
 
 const CART_KEY = "naxa-universe-cart-v1";
 type Product = { product_id: string; partner_id: string; partner_name: string; universe_slug: string; name: string; brand: string | null; category: string; description: string | null; photo_url: string | null; price_fcfa: number; available_quantity: number; unit_label: string };
 type Line = { productId: string; partnerId: string; partnerName: string; universe: string; name: string; price: number; quantity: number; maxQuantity: number };
-
-function excludedFromBabyUniverse(product: Product) {
-  const text = [product.name, product.category, product.description ?? "", product.brand ?? ""].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return /\b(?:laits?\s+(?:infantiles?|de croissance|pour nourrissons?|maternel|(?:1er|premier|2e|deuxieme|second)\s+age)|preparations?\s+infantiles?|substituts?\s+(?:du\s+)?lait\s+maternel|cereales?\s+infantiles?|farines?\s+infantiles?|biberons?|tetines?|sucettes?|infant\s+formula|baby\s+formula|baby\s+milks?|follow[- ]on\s+(?:milk|formulas?)|growing[- ]up\s+milks?|baby\s+bottles?|feeding\s+bottles?|bottles?|teats?|pacifiers?|dummies?|baby\s+cereals?|infant\s+(?:cereals?|flours?))\b/.test(text);
-}
 
 export function UniverseProductGrid({ products, universe }: { products: Product[]; universe: "parapharmacie" | "bebe-maman" }) {
   const [cart, setCart] = useState<Line[]>([]);
