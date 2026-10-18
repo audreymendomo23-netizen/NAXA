@@ -20,13 +20,24 @@ type HomeServiceOffer = {
 const field = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
 
-export default async function PrestationsPage({ searchParams }: { searchParams: { erreur?: string } }) {
+export default async function PrestationsPage({ searchParams }: { searchParams: { erreur?: string; q?: string; categorie?: string; tri?: string } }) {
   const { data, error } = await supabasePublic(30).rpc("get_home_service_catalog", {});
   if (error) {
     return <><UniverseLanding universe="prestations"/><p role="status" className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue des prestations est temporairement indisponible. Réessayez dans quelques instants.</p></>;
   }
   const offers = (data ?? []) as HomeServiceOffer[];
   if (!offers.length) return <UniverseLanding universe="prestations"/>;
+  const query = (searchParams.q ?? "").trim().toLocaleLowerCase("fr");
+  const categories = [...new Set(offers.map((offer) => offer.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+  const filteredOffers = offers.filter((offer) => {
+    const haystack = [offer.name, offer.category, offer.description ?? "", offer.partner_name, offer.city ?? "", offer.neighborhood ?? "", offer.service_area_label].join(" ").toLocaleLowerCase("fr");
+    return (!query || haystack.includes(query)) && (!searchParams.categorie || offer.category === searchParams.categorie);
+  }).sort((a, b) => {
+    if (searchParams.tri === "prix-croissant") return (a.price_fcfa ?? Number.MAX_SAFE_INTEGER) - (b.price_fcfa ?? Number.MAX_SAFE_INTEGER);
+    if (searchParams.tri === "prix-decroissant") return (b.price_fcfa ?? -1) - (a.price_fcfa ?? -1);
+    if (searchParams.tri === "nom") return a.name.localeCompare(b.name, "fr");
+    return 0;
+  });
 
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
     <div className="mx-auto max-w-6xl pt-4">
@@ -39,11 +50,17 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
         <p className="text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
         <h1 className="mt-2 text-3xl font-black sm:text-4xl">Prestations et soins à domicile</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">Découvrez les services publiés par les professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
-        <p className="mt-3 text-sm font-bold">{offers.length} prestation(s) disponible(s)</p>
+        <p className="mt-3 text-sm font-bold">{filteredOffers.length} prestation(s) affichée(s) sur {offers.length}</p>
       </section>
       {searchParams.erreur && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "validation" ? "Vérifiez les informations, l’adresse, le téléphone et la date souhaitée." : searchParams.erreur === "annulation" ? "L’annulation n’a pas abouti. Vérifiez le statut de la demande." : "La demande n’a pas pu être envoyée. Le service peut être indisponible."}</p>}
+      <form method="get" className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filtrer les prestations">
+        <label className="text-sm font-semibold lg:col-span-2">Rechercher<input className={field} name="q" defaultValue={searchParams.q ?? ""} placeholder="Service, professionnel, quartier…"/></label>
+        <label className="text-sm font-semibold">Catégorie<select className={field} name="categorie" defaultValue={searchParams.categorie ?? ""}><option value="">Toutes les catégories</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+        <label className="text-sm font-semibold">Trier par<select className={field} name="tri" defaultValue={searchParams.tri ?? "pertinence"}><option value="pertinence">Pertinence</option><option value="nom">Nom</option><option value="prix-croissant">Prix croissant</option><option value="prix-decroissant">Prix décroissant</option></select></label>
+        <div className="flex gap-2 sm:col-span-2 lg:col-span-4"><button className="min-h-11 rounded-xl bg-[#D4402B] px-4 font-bold text-white">Appliquer</button><Link href="/prestations" className="inline-flex min-h-11 items-center rounded-xl border px-4 font-bold">Réinitialiser</Link></div>
+      </form>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        {offers.map((offer) => <article key={offer.offer_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {filteredOffers.map((offer) => <article key={offer.offer_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="bg-[#FFF8F5] p-5">
             <p className="text-xs font-extrabold uppercase tracking-wide text-[#D4402B]">{offer.category}</p>
             <h2 className="mt-1 text-xl font-black">{offer.name}</h2>
@@ -65,6 +82,7 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
             <button className="min-h-11 w-full rounded-xl bg-[#D4402B] px-4 py-3 font-bold text-white">Envoyer la demande</button>
           </form>
         </article>)}
+        {filteredOffers.length === 0 && <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 lg:col-span-2">Aucune prestation ne correspond à ces filtres. Modifiez la recherche ou réinitialisez les filtres.</p>}
       </div>
       <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600">NAXA transmet une demande de réservation et ne fournit aucun diagnostic médical. La prestation est soumise à la confirmation du professionnel partenaire.</p>
     </div>
