@@ -1461,3 +1461,22 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Correction sur `main` : le suivi utilise maintenant les tables réelles `reservations`, `reservation_items`, `produits`, `pharmacies` et `profiles`. L’historique d’achats est dérivé uniquement des réservations au statut `payee` ou `retiree`; les dates de paiement/retrait non présentes dans le schéma ne sont pas inventées. Les erreurs de chargement sont capturées et le chargement est toujours libéré.
 - Commits : `a40a011b67be97b2dded96628944517bc5a4c487` et `6faafd5454bc83f18bd1438c523e28e52639f46d`.
 - Vérification : présence des tables et colonnes confirmée par une lecture du schéma Production; déploiement du correctif en cours au moment de cette note.
+
+
+---
+
+# 10. CHANTIER — CAHIER DES 6 UNIVERS (18/10/2026)
+
+## NAXA-U-BM-001 — Exclusions de catalogue Bébé & Maman
+
+- **Périmètre :** empêcher côté base l’enregistrement des termes de produits interdits dans l’univers `bebe-maman`, en français et en anglais.
+- **Migration additive :** `supabase/migration_119_baby_mama_forbidden_terms_hardening.sql`.
+- **Test ajouté :** `supabase/tests/119_baby_mama_forbidden_terms.sql`.
+- **Commits sur `main` :**
+  - migration : `5708f5ba2b22525bca77b4820d54d7699ee1d036` ;
+  - test : `8099df7479bc9edd21a6d4bb5424cb3db56da766` ;
+  - consignation chantier : `c09adf3ab37b6387c74e3690f20661d59073c893`.
+- **Règles couvertes :** lait(s) infantile(s), lait(s) de croissance, préparations infantiles, substituts du lait maternel, céréales/farines infantiles, biberons, tétines, sucettes et variantes anglaises. Le garde-fou ne s’applique pas aux autres univers.
+- **Protection Pharmacie :** aucun objet ou parcours Pharmacie n’est modifié ; seule la fonction du catalogue Bébé & Maman et son déclencheur sont renforcés.
+- **Validation :** 🟡 **CONSTRUIT — PREUVE D’EXÉCUTION MANQUANTE**. Les fichiers sont sur `main`, mais le test SQL n’a pas été exécuté dans cette session et la migration n’a pas été appliquée à Supabase Production.
+- **Suite concrète :** exécuter le test sur une base de test isolée, puis poursuivre l’audit ciblé des parcours des univers déjà présents avant toute affirmation de validation fonctionnelle.
