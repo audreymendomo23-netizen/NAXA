@@ -8,7 +8,7 @@ const spaces = [
   ["parapharmacie", "Parapharmacie", "universe.parapharmacie"],
   ["bebe-maman", "Bébé & Maman", "universe.bebe-maman"],
   ["examens", "Examens médicaux", "universe.examens"],
-  ["suivi", "Suivi santé", "universe.suivi"],
+  ["suivi", "Dispositifs médicaux", "universe.suivi"],
   ["prestations", "Prestations à domicile", "universe.prestations"],
   ["aide", "Aide NAXA", ""],
 ] as const;
