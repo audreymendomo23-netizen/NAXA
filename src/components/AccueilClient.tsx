@@ -663,65 +663,65 @@ export function AccueilClient() {
       </div>}
 
 
-      {dictionnaireOuvert && <div className="fixed inset-0 z-[220] flex items-center justify-center overflow-y-auto bg-[#03170F]/85 p-3 backdrop-blur-md animate-in fade-in duration-300 sm:p-5" onClick={() => setDictionnaireOuvert(false)} role="presentation">
-        <div className="relative my-auto w-full max-w-[490px] animate-in zoom-in-95 slide-in-from-bottom-3 duration-300" onClick={event => event.stopPropagation()} data-naxa-dictionnaire-dialog>
-          <div className="pointer-events-none absolute -inset-3 rounded-[34px] bg-[radial-gradient(ellipse_at_top,rgba(255,226,61,0.16),transparent_58%)]"/>
-          <section role="dialog" aria-modal="true" aria-labelledby="naxa-dictionnaire-title" className="relative max-h-[92dvh] overflow-y-auto rounded-[28px] border border-[#D7C17B] bg-[#F8F5E9] shadow-[0_28px_100px_rgba(0,0,0,0.55)]">
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#062A19] via-[#0B5733] to-[#07331F] px-5 pb-6 pt-5 text-white">
-              <div className="pointer-events-none absolute -right-8 -top-12 h-40 w-40 rounded-full border border-[#FFE58A]/20"/>
-              <div className="pointer-events-none absolute -right-2 -top-6 h-28 w-28 rounded-full border border-[#FFE58A]/15"/>
-              <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#FFE23D] to-transparent"/>
+      {dictionnaireOuvert && <div className="fixed inset-0 z-[220] flex items-center justify-center overflow-y-auto bg-[#0B3D26]/45 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:p-5" onClick={() => setDictionnaireOuvert(false)} role="presentation">
+        <div className="relative my-auto w-full max-w-[490px] animate-in zoom-in-95 slide-in-from-bottom-2 duration-300" onClick={event => event.stopPropagation()} data-naxa-dictionnaire-dialog>
+          <div className="pointer-events-none absolute -inset-3 rounded-[34px] bg-[radial-gradient(ellipse_at_top,rgba(22,113,67,0.12),transparent_58%)]"/>
+          <section role="dialog" aria-modal="true" aria-labelledby="naxa-dictionnaire-title" className="relative max-h-[92dvh] overflow-y-auto rounded-[28px] border border-[#D7E7D9] bg-white shadow-[0_24px_70px_rgba(11,61,38,0.22)]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-white via-[#F4FAF5] to-[#E8F5EA] px-5 pb-6 pt-5 text-[#123D28]">
+              <div className="pointer-events-none absolute -right-8 -top-12 h-40 w-40 rounded-full border border-[#167143]/15"/>
+              <div className="pointer-events-none absolute -right-2 -top-6 h-28 w-28 rounded-full border border-[#167143]/12"/>
+              <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#167143] to-transparent"/>
               <div className="relative flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-[62px] w-[70px] shrink-0 items-center justify-center rounded-2xl border border-[#EAD69A]/50 bg-white/5 shadow-inner">
+                  <div className="flex h-[62px] w-[70px] shrink-0 items-center justify-center rounded-2xl border border-[#D6E7D8] bg-white shadow-sm">
                     <svg viewBox="0 0 100 76" className="h-[54px] w-[64px]" aria-hidden="true">
-                      <path d="M5 15Q24 8 47 19V66Q25 55 5 63Z" fill="#F8F0D8" stroke="#D9C17B" strokeWidth="2"/>
-                      <path d="M95 15Q76 8 53 19V66Q75 55 95 63Z" fill="#FFF9E9" stroke="#D9C17B" strokeWidth="2"/>
-                      <path d="M50 19V68" stroke="#FFE23D" strokeWidth="2.5"/>
-                      <path d="M14 25Q27 22 40 28M14 34Q27 31 40 37M14 43Q27 40 40 46M60 28Q73 22 86 25M60 37Q73 31 86 34M60 46Q73 40 86 43" stroke="#92A58F" strokeWidth="2" strokeLinecap="round" fill="none"/>
-                      <path d="M50 4l2.5 6.5L59 13l-6.5 2.5L50 22l-2.5-6.5L41 13l6.5-2.5Z" fill="#FFE23D"/>
+                      <path d="M5 15Q24 8 47 19V66Q25 55 5 63Z" fill="#FFFFFF" stroke="#A8CDB0" strokeWidth="2"/>
+                      <path d="M95 15Q76 8 53 19V66Q75 55 95 63Z" fill="#F3FAF4" stroke="#A8CDB0" strokeWidth="2"/>
+                      <path d="M50 19V68" stroke="#167143" strokeWidth="2.5"/>
+                      <path d="M14 25Q27 22 40 28M14 34Q27 31 40 37M14 43Q27 40 40 46M60 28Q73 22 86 25M60 37Q73 31 86 34M60 46Q73 40 86 43" stroke="#6D9B7B" strokeWidth="2" strokeLinecap="round" fill="none"/>
+                      <path d="M50 4l2.5 6.5L59 13l-6.5 2.5L50 22l-2.5-6.5L41 13l6.5-2.5Z" fill="#167143"/>
                     </svg>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#FFE58A]">{anglais ? "NAXA HEALTH LIBRARY" : "BIBLIOTHÈQUE SANTÉ NAXA"}</p>
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#167143]">{anglais ? "NAXA HEALTH LIBRARY" : "BIBLIOTHÈQUE SANTÉ NAXA"}</p>
                     <h2 id="naxa-dictionnaire-title" className="mt-1 text-[22px] font-black leading-6 tracking-[-0.03em]">{anglais ? "Explore the medical world" : "Explorez le monde médical"}</h2>
-                    <p className="mt-1 text-xs leading-5 text-white/75">{anglais ? "Understand a term, one page at a time." : "Comprendre un terme, page après page."}</p>
+                    <p className="mt-1 text-xs leading-5 text-[#53685C]">{anglais ? "Understand a term, one page at a time." : "Comprendre un terme, page après page."}</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setDictionnaireOuvert(false)} aria-label={anglais ? "Close medical dictionary" : "Fermer le dictionnaire médical"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-2xl text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">×</button>
+                <button type="button" onClick={() => setDictionnaireOuvert(false)} aria-label={anglais ? "Close medical dictionary" : "Fermer le dictionnaire médical"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E7D9] bg-white text-2xl text-[#24583B] transition hover:bg-[#EDF6EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#167143]">×</button>
               </div>
-              <div className="relative mt-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#FFE58A]">
-                <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#D7C17B]/60"/>
+              <div className="relative mt-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#167143]">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#B8D7BE]/80"/>
                 <span>{anglais ? "Your illustrated encyclopedia" : "Votre encyclopédie illustrée"}</span>
-                <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#D7C17B]/60"/>
+                <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#B8D7BE]/80"/>
               </div>
             </div>
             <div className="p-4 sm:p-5">
               <form onSubmit={rechercherTermeMedical}>
                 <label htmlFor="naxa-dictionnaire-search" className="mb-2 block text-sm font-extrabold text-[#173F2A]">{anglais ? "What would you like to understand?" : "Que souhaitez-vous comprendre ?"}</label>
-                <div className="flex items-center gap-2 rounded-2xl border border-[#C9D8C9] bg-white px-3 shadow-[0_4px_18px_rgba(13,69,39,0.06)] transition focus-within:border-[#167143] focus-within:ring-4 focus-within:ring-[#167143]/10">
+                <div className="flex items-center gap-2 rounded-2xl border border-[#D2E5D5] bg-white px-3 shadow-[0_4px_18px_rgba(13,69,39,0.06)] transition focus-within:border-[#167143] focus-within:ring-4 focus-within:ring-[#167143]/10">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EAF4E9] text-[#0F6B3F]" aria-hidden="true"><IconeNAXA name="search" size={19}/></span>
                   <input id="naxa-dictionnaire-search" value={termeMedical} onChange={event => { setTermeMedical(event.target.value); setResultatMedical(null); setErreurMedicale(""); }} aria-controls="naxa-dictionnaire-suggestions" aria-autocomplete="list" placeholder={anglais ? "E.g. malaria, paracetamol…" : "Ex. paludisme, paracétamol…"} maxLength={100} autoComplete="off" className="h-[54px] min-w-0 flex-1 bg-transparent text-[15px] text-[#183B28] outline-none placeholder:text-[#879287]"/>
                   {termeMedical && <button type="button" aria-label={anglais ? "Clear search" : "Effacer la recherche"} onClick={() => { setTermeMedical(""); setResultatMedical(null); setErreurMedicale(""); document.getElementById("naxa-dictionnaire-search")?.focus(); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F0F4ED] text-lg text-[#42634E]">×</button>}
                 </div>
-                {termeMedical.trim().length >= 2 && !resultatMedical && (suggestionsMedicales.length > 0 || chargementSuggestionsMedicales) && <div id="naxa-dictionnaire-suggestions" role="listbox" aria-label={anglais ? "Medical suggestions" : "Suggestions médicales"} className="mt-2 overflow-hidden rounded-2xl border border-[#D9E3D6] bg-white p-1.5 shadow-[0_8px_24px_rgba(10,57,31,0.08)]">
-                  <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#8A7135]">{anglais ? "Suggested entries" : "Suggestions du dictionnaire"}</p>
+                {termeMedical.trim().length >= 2 && !resultatMedical && (suggestionsMedicales.length > 0 || chargementSuggestionsMedicales) && <div id="naxa-dictionnaire-suggestions" role="listbox" aria-label={anglais ? "Medical suggestions" : "Suggestions médicales"} className="mt-2 overflow-hidden rounded-2xl border border-[#D9E8DC] bg-white p-1.5 shadow-[0_8px_24px_rgba(10,57,31,0.08)]">
+                  <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#167143]">{anglais ? "Suggested entries" : "Suggestions du dictionnaire"}</p>
                   {chargementSuggestionsMedicales && suggestionsMedicales.length === 0 && <p className="px-3 py-3 text-xs text-[#647366]">{anglais ? "Looking for suggestions…" : "Recherche de suggestions…"}</p>}
                   {suggestionsMedicales.map((suggestion, index) => <button key={suggestion} type="button" role="option" aria-selected="false" onClick={() => { void chargerTermeMedical(suggestion); }} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-[#183B28] transition hover:bg-[#EDF6ED] focus-visible:bg-[#EDF6ED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#167143]">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#D5E6D6] bg-[#F1F7ED] text-xs font-black text-[#0F6B3F]">{String(index + 1).padStart(2, "0")}</span>
                     <span className="min-w-0 flex-1">{suggestion}</span>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#8A7135] shadow-sm"><IconeNAXA name="arrow-left" size={15}/></span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#167143] shadow-sm"><IconeNAXA name="arrow-left" size={15}/></span>
                   </button>)}
                 </div>}
-                <button type="submit" disabled={rechercheMedicale || termeMedical.trim().length < 2} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl border border-[#D8B92D] bg-gradient-to-r from-[#FFE95A] via-[#FFE23D] to-[#F8D92D] px-4 font-black text-[#0B3D26] shadow-[0_5px_0_#D4B72C] transition hover:brightness-[1.02] active:translate-y-[2px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none">
-                  {rechercheMedicale ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B3D26]/30 border-t-[#0B3D26]"/> {anglais ? "Searching…" : "Recherche en cours…"} </> : <><IconeNAXA name="search" size={18}/> {anglais ? "Find in the dictionary" : "Rechercher dans le dictionnaire"}</>}
+                <button type="submit" disabled={rechercheMedicale || termeMedical.trim().length < 2} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl border border-[#D8B92D] bg-gradient-to-r from-[#FFE95A] via-[#167143] to-[#F8D92D] px-4 font-black text-[#0B3D26] shadow-[0_5px_0_#D4B72C] transition hover:brightness-[1.02] active:translate-y-[2px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none">
+                  {rechercheMedicale ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"/> {anglais ? "Searching…" : "Recherche en cours…"} </> : <><IconeNAXA name="search" size={18}/> {anglais ? "Find in the dictionary" : "Rechercher dans le dictionnaire"}</>}
                 </button>
               </form>
               {erreurMedicale && <p role="alert" className="mt-4 rounded-2xl border border-[#E9C6BD] bg-[#FFF1ED] px-3 py-3 text-sm leading-5 text-[#8D3022]">{erreurMedicale}</p>}
-              {resultatMedical && <article aria-live="polite" className="mt-5 overflow-hidden rounded-[22px] border border-[#D7C17B] bg-white shadow-[0_8px_24px_rgba(10,57,31,0.07)]">
-                <div className="flex items-center justify-between gap-2 border-b border-[#E9E2CE] bg-[#F5F0DF] px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#806629]">{resultatMedical.type || (anglais ? "Medical definition" : "Définition médicale")}</p>
-                  <span className="rounded-full border border-[#D8C58A] bg-white/80 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-[#6F633D]">{anglais ? "Reference" : "Référence"}</span>
+              {resultatMedical && <article aria-live="polite" className="mt-5 overflow-hidden rounded-[22px] border border-[#D8E8DA] bg-white shadow-[0_8px_24px_rgba(10,57,31,0.07)]">
+                <div className="flex items-center justify-between gap-2 border-b border-[#DCEBDE] bg-[#F0F8F1] px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#167143]">{resultatMedical.type || (anglais ? "Medical definition" : "Définition médicale")}</p>
+                  <span className="rounded-full border border-[#D6E7D8] bg-white px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-[#376349]">{anglais ? "Reference" : "Référence"}</span>
                 </div>
                 <div className="p-4">
                   <h3 className="text-[21px] font-black leading-7 tracking-[-0.02em] text-[#0B3D26]">{resultatMedical.terme}</h3>
@@ -735,14 +735,14 @@ export function AccueilClient() {
                 </div>
               </article>}
               {!resultatMedical && !erreurMedicale && <div className="mt-4 flex items-start gap-2 rounded-xl bg-[#EDF3E8] px-3 py-3 text-xs leading-5 text-[#53685C]"><IconeNAXA name="search" size={17} className="mt-0.5 shrink-0 text-[#0F6B3F]"/><p>{anglais ? "Every entry includes its source. This dictionary does not provide dosage advice." : "Chaque fiche indique sa source. Ce dictionnaire ne fournit aucun conseil de dosage."}</p></div>}
-              <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#E1D8BB] pt-3">
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#DCEBDE] pt-3">
                 <span className="text-[10px] leading-4 text-[#788174]">{anglais ? "A reference book to use thoughtfully." : "Un livre de référence à consulter avec discernement."}</span>
-                <button type="button" onClick={() => { setTermeMedical(""); setResultatMedical(null); setErreurMedicale(""); document.getElementById("naxa-dictionnaire-search")?.focus(); }} className="shrink-0 rounded-full border border-[#D4DFCf] bg-white px-3 py-2 text-xs font-extrabold text-[#0F6B3F] transition hover:bg-[#EDF6ED]">{anglais ? "New search" : "Nouvelle recherche"}</button>
+                <button type="button" onClick={() => { setTermeMedical(""); setResultatMedical(null); setErreurMedicale(""); document.getElementById("naxa-dictionnaire-search")?.focus(); }} className="shrink-0 rounded-full border border-[#D4E4D6] bg-white px-3 py-2 text-xs font-extrabold text-[#0F6B3F] transition hover:bg-[#EDF6ED]">{anglais ? "New search" : "Nouvelle recherche"}</button>
               </div>
             </div>
-            <div className="h-1.5 bg-gradient-to-r from-[#0B3D26] via-[#FFE23D] to-[#0B3D26]"/>
+            <div className="h-1.5 bg-gradient-to-r from-[#0B3D26] via-[#167143] to-[#0B3D26]"/>
           </section>
-          <div className="mx-auto h-2 w-[92%] rounded-b-xl border-x border-b border-[#B99C56] bg-[#D8C58A] shadow-md"/>
+          <div className="mx-auto h-2 w-[92%] rounded-b-xl border-x border-b border-[#C8DDCC] bg-[#E0EEE2] shadow-md"/>
         </div>
       </div>}
       <section className="naxa-enter mt-6 pb-4">
@@ -758,24 +758,24 @@ export function AccueilClient() {
         </Link>
       </section>
       <section className="naxa-enter mt-3 pb-6">
-        <button type="button" onClick={() => { setDictionnaireOuvert(true); setErreurMedicale(""); }} aria-haspopup="dialog" className="group relative flex min-h-[104px] w-full items-center gap-4 overflow-hidden rounded-[22px] border border-[#D8C58A] bg-gradient-to-r from-[#0B3D26] via-[#12613A] to-[#0B3D26] p-4 text-left shadow-[0_8px_22px_rgba(5,74,41,0.18)] transition duration-300 hover:-translate-y-0.5 active:scale-[0.99]">
+        <button type="button" onClick={() => { setDictionnaireOuvert(true); setErreurMedicale(""); }} aria-haspopup="dialog" className="group relative flex min-h-[104px] w-full items-center gap-4 overflow-hidden rounded-[22px] border border-[#D5E7D8] bg-gradient-to-r from-white via-[#F4FAF5] to-[#E8F5EA] p-4 text-left shadow-[0_8px_22px_rgba(5,74,41,0.09)] transition duration-300 hover:-translate-y-0.5 active:scale-[0.99]">
           <span className="relative flex h-[66px] w-[58px] shrink-0 items-center justify-center [perspective:400px]" aria-hidden="true">
             <svg viewBox="0 0 64 76" className="h-full w-full drop-shadow-lg">
-              <path d="M7 8Q7 5 11 5H54Q58 5 58 10V67Q58 71 54 71H11Q7 71 7 67Z" fill="#B89442"/>
-              <path d="M10 8H31V68H10Q8 68 8 65V12Q8 8 10 8Z" fill="#174B31" stroke="#E8D49A" strokeWidth="1.5"/>
-              <path d="M32 8H54Q57 8 57 12V65Q57 68 54 68H32Z" fill="#F8F0D8" stroke="#E8D49A" strokeWidth="1.5"/>
-              <path d="M32 9V68" stroke="#D6C28A" strokeWidth="2"/>
-              <path d="M17 25H25M17 30H25M17 35H25" stroke="#E8D49A" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M7 8Q7 5 11 5H54Q58 5 58 10V67Q58 71 54 71H11Q7 71 7 67Z" fill="#A9CDB0"/>
+              <path d="M10 8H31V68H10Q8 68 8 65V12Q8 8 10 8Z" fill="#167143" stroke="#B8D8BE" strokeWidth="1.5"/>
+              <path d="M32 8H54Q57 8 57 12V65Q57 68 54 68H32Z" fill="#FFFFFF" stroke="#B8D8BE" strokeWidth="1.5"/>
+              <path d="M32 9V68" stroke="#B8D8BE" strokeWidth="2"/>
+              <path d="M17 25H25M17 30H25M17 35H25" stroke="#D8E8DA" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M39 25H49M39 30H49M39 35H49M39 40H47" stroke="#8D9D8C" strokeWidth="1.5" strokeLinecap="round"/>
-              <path d="M19 48H25M22 45V51" stroke="#FFE23D" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M19 48H25M22 45V51" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round"/>
               <path d="M39 51H49" stroke="#8D9D8C" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M11 5V71" stroke="#FFE23D" strokeWidth="2"/>
             </svg>
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[16px] font-extrabold leading-5 text-white">{anglais ? "Medical dictionary" : "Dictionnaire médical"}</span>
-            <span className="mt-1 block text-[13px] leading-5 text-white/80">{anglais ? "Medicines, diseases, molecules and health terms" : "Médicaments, maladies, molécules et termes de santé"}</span>
-            <span className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#FFE23D]">{anglais ? "Open the book" : "Ouvrir le livre"} <IconeNAXA name="chevron-right" size={15}/></span>
+            <span className="block text-[16px] font-extrabold leading-5 text-[#123D28]">{anglais ? "Medical dictionary" : "Dictionnaire médical"}</span>
+            <span className="mt-1 block text-[13px] leading-5 text-[#53685C]">{anglais ? "Medicines, diseases, molecules and health terms" : "Médicaments, maladies, molécules et termes de santé"}</span>
+            <span className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#167143]">{anglais ? "Open" : "Ouvrir"} <IconeNAXA name="chevron-right" size={15}/></span>
           </span>
         </button>
       </section>
