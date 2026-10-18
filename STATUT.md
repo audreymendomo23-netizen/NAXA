@@ -405,3 +405,6 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration 108 ajoute une RPC de génération strictement limitée au centre du partenaire appelant ; elle ne donne pas aux partenaires accès à la génération globale. Elle n'a pas été appliquée en base.
 
 - Migration 109 renforce la réservation : la RPC vérifie l’activation du centre, du partenaire, de l’univers et du feature flag même si elle s’exécute en `SECURITY DEFINER`. Cela empêche la réservation directe d’un centre masqué ou suspendu. Migration non appliquée ; tests et compilation reportés à la validation finale.
+
+- Migration 110 et interface `/admin/examens` ajoutées : l’administrateur peut valider/suspendre un centre, publier/dépublier un examen ou un pack. Les RPC vérifient le rôle admin et les prérequis commerciaux, et écrivent une trace d’audit dans la même transaction.
+- Ces migrations restent dans GitHub uniquement. Les opérations n’ont pas été testées en base ni déployées ; compilation globale réservée à la phase finale.
