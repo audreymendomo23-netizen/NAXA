@@ -68,5 +68,7 @@ export async function cancelHomeServiceRequest(form: FormData) {
   const { data: request } = await sb.from("home_service_requests").select("status").eq("id", requestId).maybeSingle();
   if (request?.status !== "cancelled") redirect("/prestations/demande/" + requestId + "?erreur=annulation");
   revalidatePath("/prestations");
+  revalidatePath("/client");
+  revalidatePath("/partenaire/prestations");
   redirect("/prestations/demande/" + requestId + "?ok=annulation");
 }
