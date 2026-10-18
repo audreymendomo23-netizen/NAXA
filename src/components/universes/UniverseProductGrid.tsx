@@ -36,7 +36,16 @@ export function UniverseProductGrid({ products, universe }: { products: Product[
     }
   }, [cart, ready]);
 
-  const eligibleProducts = useMemo(() => products.filter(p => universe !== "bebe-maman" || !excludedFromBabyUniverse(p)), [products, universe]);
+  function isMedicationProduct(product: Product) {
+  const text = [product.name, product.category, product.description ?? "", product.brand ?? ""]
+    .join(" ").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+  return /\\b(?:medicaments?|medicinal products?|pharmaceuticals?|drugs?|antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|anti[- ]inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|paracetamol|acetaminophen|ibuprofen|aspirine|amoxicilline|artemether|lumefantrine|quinine|metronidazole|diclofenac|omeprazole|cetirizine|loratadine|prednisolone|dexamethasone|tramadol|suppositoires?|sirop medicamenteux|medicinal syrup)\\b/.test(text);
+}
+
+const eligibleProducts = useMemo(() => products.filter(p => {
+    if (universe === "bebe-maman") return !excludedFromBabyUniverse(p);
+    return !isMedicationProduct(p);
+  }), [products, universe]);
   const categories = useMemo(() => ["Toutes les catégories", ...Array.from(new Set(eligibleProducts.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "fr"))], [eligibleProducts]);
   const visibleProducts = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("fr");
@@ -92,7 +101,7 @@ export function UniverseProductGrid({ products, universe }: { products: Product[
         const selected = cart.find(x => x.productId === p.product_id);
         return <article key={p.product_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex h-44 items-center justify-center bg-slate-50">{p.photo_url ? <img src={p.photo_url} alt={p.name} loading="lazy" className="h-full w-full object-contain" /> : <span className="text-5xl" aria-hidden="true">{universe === "bebe-maman" ? "♡" : "✳"}</span>}</div>
-          <div className="space-y-2 p-4"><p className="text-xs font-bold uppercase tracking-wide" style={{ color: theme }}>{p.category}</p><h2 className="text-lg font-extrabold">{p.name}</h2>{p.brand && <p className="text-sm text-slate-600">{p.brand}</p>}{p.description && <p className="text-sm leading-5 text-slate-600">{p.description}</p>}<p className="text-xs text-slate-500">Partenaire : {p.partner_name}</p><div className="flex items-baseline justify-between gap-2"><strong className="text-lg">{money(Number(p.price_fcfa))}</strong><span className={stock > 0 ? "text-xs font-semibold text-emerald-800" : "text-xs font-semibold text-red-700"}>{stock} disponible(s)</span></div><button type="button" onClick={() => add(p)} disabled={stock < 1} className="mt-2 min-h-11 w-full rounded-xl px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: theme }}>{stock < 1 ? "Indisponible" : selected ? "Ajouter un autre" : "Ajouter au panier"}</button></div>
+          <div className="space-y-2 p-4"><p className="text-xs font-bold uppercase tracking-wide" style={{ color: theme }}>{p.category}</p><h2 className="text-lg font-extrabold">{p.name}</h2>{p.brand && <p className="text-sm text-slate-600">{p.brand}</p>}{p.description && !(universe === "bebe-maman" && isMedicationProduct(p)) && <p className="text-sm leading-5 text-slate-600">{p.description}</p>}{universe === "bebe-maman" && isMedicationProduct(p) && <p className="rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">Demandez conseil à votre pharmacien. NAXA ne fournit aucune posologie pour ce produit.</p>}<p className="text-xs text-slate-500">Partenaire : {p.partner_name}</p><div className="flex items-baseline justify-between gap-2"><strong className="text-lg">{money(Number(p.price_fcfa))}</strong><span className={stock > 0 ? "text-xs font-semibold text-emerald-800" : "text-xs font-semibold text-red-700"}>{stock} disponible(s)</span></div><button type="button" onClick={() => add(p)} disabled={stock < 1} className="mt-2 min-h-11 w-full rounded-xl px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: theme }}>{stock < 1 ? "Indisponible" : selected ? "Ajouter un autre" : "Ajouter au panier"}</button></div>
         </article>;
       })}</div>
     }
