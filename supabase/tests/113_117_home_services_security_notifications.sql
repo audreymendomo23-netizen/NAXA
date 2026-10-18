@@ -1,4 +1,4 @@
--- Test structurel NAXA 113–117 ; lecture seule, rollback systématique.
+-- Test structurel NAXA 113–118 ; lecture seule, rollback systématique.
 begin;
 do $test$
 declare
@@ -76,6 +76,16 @@ begin
     or has_table_privilege('authenticated','public.home_service_request_addresses','DELETE') then
     raise exception 'Écriture directe sur home_service_request_addresses autorisée';
   end if;
+  if not exists(select 1 from pg_indexes where schemaname='public' and indexname='home_service_offers_created_by_idx') then
+    raise exception 'Index absent home_service_offers_created_by_idx';
+  end if;
+  if not exists(select 1 from pg_indexes where schemaname='public' and indexname='home_service_requests_offer_idx') then
+    raise exception 'Index absent home_service_requests_offer_idx';
+  end if;
+  if not exists(select 1 from pg_indexes where schemaname='public' and indexname='home_service_request_addresses_client_idx') then
+    raise exception 'Index absent home_service_request_addresses_client_idx';
+  end if;
+
   if has_function_privilege('anon','public.mark_user_notification_read(uuid)','EXECUTE') then
     raise exception 'Le rôle anon peut marquer une notification comme lue';
   end if;
@@ -93,5 +103,5 @@ begin
   if trigger_count <> 4 then raise exception 'Déclencheurs de notification manquants : %/4',trigger_count; end if;
 end;
 $test$;
-select true as naxa_113_117_home_services_security_pass;
+select true as naxa_113_118_home_services_security_pass;
 rollback;
