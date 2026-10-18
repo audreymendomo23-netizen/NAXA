@@ -260,3 +260,15 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Administration : le libellé « Suivi santé » a été remplacé par « Dispositifs médicaux ». La route `/suivi` reste une page informative « Bientôt disponible » et ne collecte ni ne synchronise de mesures de santé.
 - Test `supabase/tests/125_medical_devices_phase1_lock.sql` exécuté sur Supabase Production et sur `naxa-ci-replay-2` : `naxa_125_medical_devices_phase1_lock_pass = true` sur les deux bases. Le test tente aussi les quatre voies d’activation/publication et vérifie qu’elles sont refusées.
 - Aucun déploiement Vercel n’a été lancé. Build Next.js et tests navigateur restent non exécutés dans ce chantier.
+
+
+## Étape 6 — Suivi connecté en cohorte de test (19 octobre 2026)
+
+- Migration additive 126 `supabase/migration_126_suivi_connecte_test_allowlist.sql` : six tables dédiées (profil, consentements, mesures, rappels, registre professionnel, partages), vingt types de mesure, six familles de consentement, RLS sur toutes les tables et contrôle `is_suivi_test_account`.
+- Le flag distinct `suivi_connecte` contrôle l’expérimentation; l’univers commercial `suivi` reste désactivé et les quatre déclencheurs de la migration 125 restent en place. Aucun compte n’est autorisé automatiquement.
+- Migration 127 `supabase/migration_127_suivi_professional_sharing_policies.sql` : lecture des partages limitée au destinataire professionnel vérifié et gestion du registre réservée à l’administration.
+- Interface `/suivi` : comptes hors liste voient uniquement « Bientôt disponible »; comptes autorisés disposent du profil privé, consentements par famille, 20 types de suivi, saisie manuelle, historique, rappels, partage par type, impression/PDF, lecture Bluetooth de capteur cardiaque compatible et tentative OCR locale.
+- Tableau `/suivi/professionnel` : médecin/pharmacien vérifié en cohorte de test; les mesures visibles sont filtrées par les partages actifs et la RLS. Administration : registre de professionnels vérifiés/révocables dans `/admin/univers`.
+- Test 126 exécuté sur le projet isolé et Production : `naxa_126_suivi_connected_security_pass = true`. Test 127 exécuté sur Production : `naxa_127_suivi_sharing_policies_pass = true`. Vérifications : six tables présentes, RLS activée, flag expérimental actif, univers commercial toujours désactivé, quatre verrous 125 conservés et UUID absent non autorisé.
+- Au moment de la vérification, la liste `feature_flag_test_accounts` en Production contenait zéro compte : aucun utilisateur n’a donc accès au suivi connecté tant qu’un administrateur n’a pas autorisé explicitement les UUID de test.
+- Limites : OCR via `TextDetector` n’est pas disponible sur tous les navigateurs; Bluetooth implémenté uniquement pour le service Heart Rate compatible; rappels persistés mais pas de garantie de notification push; aucun diagnostic/seuil clinique/posologie calculé. Build Next.js et tests navigateur non exécutés. Aucun déploiement Vercel lancé.
