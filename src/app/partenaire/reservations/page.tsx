@@ -5,7 +5,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { transitionReservationPartenaire } from "./actions";
 const labels:Record<string,string>={requested:"Demandée",confirmed:"Confirmée",ready:"Prête au retrait",picked_up:"Retirée",cancelled:"Annulée",expired:"Expirée"};
 const buttons:Record<string,string>={confirmed:"Confirmer",ready:"Marquer prête au retrait",picked_up:"Confirmer le retrait"};
-const next:Record<string,string[]>={requested:["confirmed","ready"],confirmed:["ready"],ready:["picked_up"]};
+const next:Record<string,string[]>={requested:["confirmed"],confirmed:["ready"],ready:["picked_up"]};
 const effectiveStatus=(r:any)=>["requested","confirmed","ready"].includes(r.status)&&new Date(r.expires_at).getTime()<=Date.now()?"expired":r.status;
 export default async function ReservationsPartenaire({searchParams}:{searchParams:{ok?:string;erreur?:string;q?:string;statut?:string;univers?:string}}){
  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();if(!auth.user)redirect("/connexion?retour=/partenaire/reservations");
