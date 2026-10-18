@@ -42,3 +42,6 @@ Migration additive 126 :
 - Test 127 réussi sur Production : `naxa_127_suivi_sharing_policies_pass = true`. Test 128 réussi sur Production : `naxa_128_consent_revocation_shares_pass = true`.
 
 - Migration 129 `supabase/migration_129_suivi_user_alert_rules.sql` : alertes personnelles fondées uniquement sur les limites choisies par l’utilisateur, sans seuil médical prérempli; alertes et règles protégées par RLS. Test 129 réussi sur Production et projet isolé : `naxa_129_user_defined_alerts_pass = true`.
+
+- Migration 130 durcit le contrôle d’autorisation pour empêcher l’énumération des UUID autorisés; la fonction ne confirme l’accès que pour le compte courant ou l’administration. Test Production : `naxa_130_allowlist_oracle_hardened_pass = true`.
+- Migration 131 exige un consentement actif pour créer ou réactiver un partage, et interdit aux clients de fabriquer/supprimer arbitrairement des alertes. Test 131 réussi sur Production et projet isolé : `naxa_131_consent_share_integrity_pass = true`.
