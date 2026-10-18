@@ -1489,3 +1489,12 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Correction :** couleurs principales alignées sur le cahier du 18/10. Bébé & Maman utilise `#C93774` plutôt que `#D63F7A` car la première atteint 4,90:1 avec le blanc, contre 4,33:1 pour la seconde.
 - **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Les valeurs de contraste ont été calculées, mais aucune compilation ni vérification visuelle n’a été exécutée dans cette session.
 - **Périmètre Pharmacie :** non touché.
+
+
+## NAXA-U-NAV-001 — Entrées de menu vers les six univers
+
+- **Fichiers :** `src/lib/accueil-textes.ts`, `src/components/EnTeteAccueil.tsx`, `src/components/EnTeteClient.tsx`.
+- **Commits :** `c103c1f95781e598f172f36163c08213a95f8300`, `0149fb91063e08c01ed191fe5a10e7deb9c530ba`, `4b0356debf6911e4bdb663a7e98fdb053c370df8`.
+- **Fait :** le menu de l’accueil donne accès aux six univers et à `/aide), avec libellés FR/EN ; le menu client dirige les entrées des univers vers les vraies routes plutôt que vers une recherche générique.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Le menu partagé présent sur toutes les pages des univers reste à construire. Les liens n’ont pas encore été parcourus dans un navigateur.
+- **Périmètre Pharmacie :** seules les entrées du menu ont été ajoutées ; le parcours Pharmacie et sa charte ne sont pas modifiés.
