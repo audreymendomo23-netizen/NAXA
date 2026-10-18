@@ -65,3 +65,13 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - Test structurel 122 ajouté pour vérifier la politique RLS de lecture admin des tickets.
 - 10 assertions statiques après modification : toutes réussies. Cela ne remplace ni l’exécution du SQL sur base de test, ni le build Next.js, ni un parcours navigateur.
 - La migration 122 n’est pas appliquée à Supabase Production ; aucun déploiement n’a été fait dans cette étape.
+
+## Étape 4 — Prestations à domicile : résultats complémentaires (18 octobre 2026)
+
+- Le catalogue client affiche un message explicite quand aucune offre n’est publiée ; il ne se replie plus silencieusement sur la seule landing.
+- Les pages partenaire et client distinguent mieux une lecture en erreur d’une liste réellement vide ; l’espace partenaire ne montre pas de faux état « aucune demande » en cas d’erreur Supabase. Les messages de panne évitent les détails de migration.
+- Migration additive 124 restreint les lectures partenaire des demandes et adresses privées aux membres de partenaires actifs de type `professionnel_domicile`, et renforce la même vérification dans la RPC de transition. Le `search_path` de la fonction reste explicitement durci avec `pg_temp` en dernier.
+- Test structurel 124 ajouté puis exécuté sur `naxa-ci-replay-2` après application de la migration sur ce projet isolé ; aucune écriture dans Supabase Production.
+- Test existant 113–118 exécuté sur le projet isolé : `naxa_113_118_home_services_security_pass = true`.
+- La migration 124 n’a pas été appliquée en Production. Build Next.js, E2E navigateur et déploiement restent non vérifiés/non exécutés.
+
