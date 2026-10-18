@@ -34,7 +34,7 @@ export async function creerProduitCatalogue(form: FormData) {
   const membership = memberships.find((m: any) => m.partner_id === partnerId);
   if (!membership || !uuid(partnerId) || !universes.includes(universe) || name.length < 2 ||
       !Number.isSafeInteger(price) || price < 0 || !Number.isFinite(stock) ||
-      stock < 0 || stock > 1000000 || !Number.isFinite(threshold) || threshold < 0 || threshold > 1000000 || (expiresAt && !/^\\d{4}-\\d{2}-\\d{2}$/.test(expiresAt)) || (photo && !/^https:\/\//i.test(photo))) {
+      stock < 0 || stock > 1000000 || !Number.isFinite(threshold) || threshold < 0 || threshold > 1000000 || (expiresAt && !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(expiresAt)) || (photo && !/^https:\/\//i.test(photo))) {
     redirect("/partenaire/catalogue?erreur=produit");
   }
   const { data: association } = await sb.from("partner_universes").select("enabled")
