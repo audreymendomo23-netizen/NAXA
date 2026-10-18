@@ -1568,7 +1568,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 
 - `/admin/univers` : recherche/filtre des partenaires par nom, type, ville, quartier et statut ; recherche/filtre des produits partenaires par nom/catégorie, univers et statut. Les formulaires sont indépendants et n’effectuent aucune écriture métier.
 - Les commandes de publication, suspension, association et archivage restent celles existantes ; le filtrage ne modifie pas les droits ni les contrôles serveur.
-- Commit : à renseigner après application ; build et tests non exécutés dans ce lot.
+- Commit : `dae47ebdb46798739e348b983d7ea7ed8c4b1196` ; build et tests non exécutés dans ce lot.
 
 
-- Ajustement du verrouillage phase 1 : l’administration peut désactiver `suivi` ou fermer une association existante, mais ne peut pas l’activer ni ouvrir une nouvelle association. Code : `src/app/admin/univers/actions.ts`, `src/app/admin/univers/page.tsx`; commit à renseigner après application.
+- Ajustement du verrouillage phase 1 : l’administration peut désactiver `suivi` ou fermer une association existante, mais ne peut pas l’activer ni ouvrir une nouvelle association. Code : `src/app/admin/univers/actions.ts`, `src/app/admin/univers/page.tsx`; commits `2a6409ef45b0ef1244a8e222357e6d94cfd0804b` et `dde8aac4a7bf5dce52c825014415e63702573350`.
