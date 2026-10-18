@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UniverseLanding } from "@/components/universes/UniverseLanding";
+import { MenuUnivers } from "@/components/universes/MenuUnivers";
 import { supabaseServer } from "@/lib/supabase/server";
 import { reserverExamen } from "./actions";
 
@@ -15,7 +16,7 @@ export default async function ExamensPage({searchParams}:{searchParams:{ok?:stri
  const centerIds=new Set(centers.map((c:any)=>c.id));
  const usableSlots=(slots??[]).filter((s:any)=>centerIds.has(s.center_id)&&s.reserved_count<s.capacity);
  return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]"><div className="mx-auto max-w-5xl pt-4">
- <Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link>
+ <div className="flex items-center justify-between gap-3"><Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link><MenuUnivers /></div>
  <header className="mt-3 rounded-3xl border border-[#D9CCF7] bg-[#F1EBFD] p-6 sm:p-8"><p className="text-xs font-extrabold uppercase tracking-widest text-[#6D3FD0]">NAXA · Réservation sans paiement en ligne</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Examens médicaux</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700">Compare les examens et packs proposés par les centres partenaires, puis choisis un créneau disponible. Le règlement se fait directement auprès du centre.</p></header>
  {searchParams.ok&&<p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-900">Réservation enregistrée. Ton ticket est disponible dans « Achats / réservations ».</p>}
  {searchParams.erreur&&<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-900">Réservation impossible : le créneau peut avoir été pris entre-temps. Choisis-en un autre.</p>}
