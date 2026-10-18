@@ -13,7 +13,7 @@ export async function transitionReservationPartenaire(form: FormData) {
  const ids=(members as any[]).filter(m=>m.partners?.status==="active").map(m=>m.partner_id);
  const {data:r}=await sb.from("universe_reservations").select("id,partner_id,status").eq("id",id).maybeSingle();
  if(!r||!ids.includes(r.partner_id)) redirect("/partenaire/reservations?erreur=acces");
- const allowed:Record<string,string[]>={requested:["confirmed","ready"],confirmed:["ready"],ready:["picked_up"]};
+ const allowed:Record<string,string[]>={requested:["confirmed"],confirmed:["ready"],ready:["picked_up"]};
  if(!(allowed[r.status]??[]).includes(status)) redirect("/partenaire/reservations?erreur=transition");
  const {error}=await sb.rpc("transition_universe_reservation",{p_reservation_id:id,p_status:status});
  if(error) redirect("/partenaire/reservations?erreur=transition");
