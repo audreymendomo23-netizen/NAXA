@@ -27,6 +27,9 @@ export async function setHomeServiceOfferStatus(form: FormData) {
     p_status: status,
   });
   if (error) redirect("/admin/prestations?erreur=publication");
+  const { data: updated } = await sb.from("home_service_offers")
+    .select("status").eq("id", offerId).maybeSingle();
+  if (updated?.status !== status) redirect("/admin/prestations?erreur=publication");
   revalidatePath("/admin/prestations");
   revalidatePath("/partenaire/prestations");
   revalidatePath("/prestations");
