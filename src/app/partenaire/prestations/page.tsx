@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { archiveHomeServiceOffer, createHomeServiceOffer, transitionHomeServiceRequest } from "./actions";
+import { BoutonNotifications } from "@/components/BoutonNotifications";
 
 const field = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const offerStatus: Record<string, string> = { draft: "Brouillon — en attente de validation", active: "Publié", archived: "Archivé" };
@@ -41,7 +42,7 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
     <div className="mx-auto max-w-5xl space-y-5 pt-4">
       <header className="flex items-center justify-between gap-3 rounded-2xl bg-[#064B2A] px-4 py-3 text-white">
         <strong>NAXA · Espace partenaire</strong>
-        <nav className="flex flex-wrap gap-3 text-sm font-bold"><Link href="/partenaire/catalogue" className="underline">Catalogue</Link><Link href="/partenaire/reservations" className="underline">Réservations</Link><Link href="/" className="underline">Accueil</Link></nav>
+        <nav className="flex flex-wrap items-center gap-3 text-sm font-bold"><BoutonNotifications/><Link href="/partenaire/catalogue" className="underline">Catalogue</Link><Link href="/partenaire/reservations" className="underline">Réservations</Link><Link href="/" className="underline">Accueil</Link></nav>
       </header>
       <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Prestations à domicile</p><h1 className="mt-1 text-3xl font-black">Mes prestations et demandes</h1><p className="mt-2 text-sm leading-6 text-slate-600">Les nouvelles prestations restent en brouillon jusqu’à validation administrative. L’adresse exacte du client reste masquée tant que la demande n’est pas confirmée.</p></div>
       {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "creation" ? "Prestation enregistrée en brouillon." : searchParams.ok === "archive" ? "Prestation archivée." : searchParams.ok === "confirmed" ? "Demande confirmée ; l’adresse et le téléphone sont maintenant accessibles." : "Demande marquée comme terminée."}</p>}
