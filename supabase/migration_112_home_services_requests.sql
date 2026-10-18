@@ -73,11 +73,13 @@ create policy home_service_offers_partner_manage on public.home_service_offers
 for all to authenticated using (
   exists(select 1 from public.partner_members pm join public.partners pa on pa.id=pm.partner_id
     where pm.partner_id=home_service_offers.partner_id and pm.user_id=auth.uid()
-      and pm.member_role in ('owner','manager','operator') and pa.status='active')
+      and pm.member_role in ('owner','manager','operator') and pa.status='active'
+      and pa.partner_type='professionnel_domicile')
 ) with check (
   exists(select 1 from public.partner_members pm join public.partners pa on pa.id=pm.partner_id
     where pm.partner_id=home_service_offers.partner_id and pm.user_id=auth.uid()
-      and pm.member_role in ('owner','manager','operator') and pa.status='active')
+      and pm.member_role in ('owner','manager','operator') and pa.status='active'
+      and pa.partner_type='professionnel_domicile')
 );
 drop policy if exists home_service_offers_admin_manage on public.home_service_offers;
 create policy home_service_offers_admin_manage on public.home_service_offers
