@@ -57,7 +57,8 @@ async function searchDrugImage(term: string, matchedNames: string[]): Promise<{i
   const setId = typeof candidate?.setid === "string" ? candidate.setid : null;
   if (!setId) return null;
   const media = await fetchJson("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls/" + encodeURIComponent(setId) + "/media.json");
-  const mediaItems = Array.isArray(media?.data) ? media.data as RecordObject[] : [];
+  const mediaData = media?.data as RecordObject | undefined;
+  const mediaItems = Array.isArray(mediaData?.media) ? mediaData.media as RecordObject[] : [];
   const imageItem = mediaItems.find((item) => typeof item.url === "string" && /^https:\/\/dailymed\.nlm\.nih\.gov\//i.test(item.url) && typeof item.mime_type === "string" && item.mime_type.startsWith("image/"));
   if (typeof imageItem?.url !== "string") return null;
   const title = typeof candidate?.title === "string" ? candidate.title : term;
