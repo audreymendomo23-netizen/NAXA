@@ -512,3 +512,42 @@ html[data-theme="nuit"] :is([role="dialog"],[data-state="open"],.naxa-profile-sh
 @keyframes luciole-pulse{0%,100%{opacity:.78;transform:scale(.85)}50%{opacity:1;transform:scale(1.08)}}
 @keyframes luciole-spark{0%{opacity:1;transform:translate3d(0,0,0) scale(1)}100%{opacity:0;transform:translate3d(var(--sx),var(--sy),0) scale(.2)}}
 @media(prefers-reduced-motion:reduce){.luciole-core{animation:none!important}.naxa-luciole{transition:none!important}}
+
+
+/* Luciole : halo plus ample, périphérie assombrie et transitions jour/nuit fondues. */
+.naxa-luciole-light{
+  --luciole-x:50vw;--luciole-y:40vh;
+  position:fixed;inset:0;z-index:60;pointer-events:none;
+  opacity:0;visibility:hidden;
+  background:radial-gradient(circle at var(--luciole-x) var(--luciole-y),
+    rgba(255,224,125,.10) 0,
+    rgba(255,224,125,.055) 42px,
+    rgba(0,0,0,0) 100px,
+    rgba(0,0,0,.10) 165px,
+    rgba(0,0,0,.24) 280px,
+    rgba(0,0,0,.38) 440px,
+    rgba(0,0,0,.46) 620px);
+  transition:opacity 720ms cubic-bezier(.22,1,.36,1),visibility 0s linear 720ms;
+}
+.naxa-luciole{
+  opacity:0;visibility:hidden;
+  transition:opacity 650ms cubic-bezier(.22,1,.36,1),visibility 0s linear 650ms;
+  z-index:61;
+}
+.naxa-night-scene,.naxa-night-firefly,.naxa-night-wave{
+  opacity:0;visibility:hidden;
+  transition:opacity 700ms cubic-bezier(.22,1,.36,1),visibility 0s linear 700ms;
+}
+html[data-theme="nuit"] .naxa-luciole-light,
+html[data-theme="nuit"] .naxa-luciole,
+html[data-theme="nuit"] .naxa-night-scene,
+html[data-theme="nuit"] .naxa-night-firefly,
+html[data-theme="nuit"] .naxa-night-wave{
+  opacity:1;visibility:visible;
+  transition:opacity 700ms cubic-bezier(.22,1,.36,1),visibility 0s;
+}
+@media(prefers-reduced-motion:reduce){
+  .naxa-luciole-light,.naxa-luciole,.naxa-night-scene,.naxa-night-firefly,.naxa-night-wave{
+    transition:none!important;
+  }
+}
