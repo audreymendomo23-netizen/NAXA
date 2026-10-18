@@ -64,9 +64,9 @@ async function searchDrugImage(term: string, matchedNames: string[]): Promise<{i
   const title = typeof candidate?.title === "string" ? candidate.title : term;
   return {
     imageUrl: imageItem.url,
-    imageAlt: "Illustration du conditionnement indiqué sur une notice DailyMed : " + title,
+    imageAlt: "Illustrative packaging from a DailyMed label: " + title,
     imageSourceUrl: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + encodeURIComponent(setId),
-    imageSource: "DailyMed — notice américaine",
+    imageSource: "DailyMed — U.S. drug label",
   };
 }
 
@@ -79,7 +79,7 @@ async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
   const record = records.find((item) => {
     const openfda = item.openfda as RecordObject | undefined;
     return [...strings(openfda?.generic_name), ...strings(openfda?.brand_name)].some((name) =>
-      name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(normalized)
+      name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === normalized
     );
   }) ?? records[0];
   if (!record) return null;
@@ -94,10 +94,10 @@ async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
   return {
     terme: name,
     definition,
-    source: "OpenFDA — notice officielle américaine",
+    source: "OpenFDA — official U.S. drug label",
     sourceUrl: "https://open.fda.gov/apis/drug/label/",
-    type: "Médicament",
-    notice: "L’étiquetage provient des États-Unis et peut différer de la notice autorisée au Cameroun. Vérifiez toujours la notice du produit exact auprès d’un pharmacien. Cette fiche ne donne aucun conseil de dosage.",
+    type: "Medicine",
+    notice: "This label is from the United States and may differ from the leaflet authorized in Cameroon. Always verify the exact product leaflet with a pharmacist. This entry does not provide dosage advice.",
     imageUrl: image?.imageUrl ?? null,
     imageAlt: image?.imageAlt ?? null,
     imageSourceUrl: image?.imageSourceUrl ?? null,
