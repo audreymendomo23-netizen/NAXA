@@ -29,7 +29,9 @@ export async function creerProduitCatalogue(form: FormData) {
   const universe = field(form, "universe_slug", 40) as Universe;
   const name = field(form, "name", 180);
   const price = Number(field(form, "price_fcfa", 12));
-  const stock = Number(field(form, "stock_quantity", 20));\n  const threshold = Number(field(form, "low_stock_threshold", 20));\n  const expiresAt = field(form, "expires_at", 10);
+  const stock = Number(field(form, "stock_quantity", 20));
+  const threshold = Number(field(form, "low_stock_threshold", 20));
+  const expiresAt = field(form, "expires_at", 10);
   const photo = field(form, "photo_url", 1000);
   const membership = memberships.find((m: any) => m.partner_id === partnerId);
   if (!membership || !uuid(partnerId) || !universes.includes(universe) || name.length < 2 ||
@@ -45,7 +47,8 @@ export async function creerProduitCatalogue(form: FormData) {
     brand: field(form, "brand", 120) || null,
     category: field(form, "category", 100) || "Autres",
     description: field(form, "description", 600) || null,
-    photo_url: photo || null, price_fcfa: price, stock_quantity: 0,\n    low_stock_threshold: threshold, expires_at: expiresAt || null,
+    photo_url: photo || null, price_fcfa: price, stock_quantity: 0,
+    low_stock_threshold: threshold, expires_at: expiresAt || null,
     unit_label: field(form, "unit_label", 30) || "unité",
     status: "draft", created_by: userId,
   }).select("id").single();
