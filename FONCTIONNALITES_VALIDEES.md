@@ -1529,3 +1529,4 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - La route `/suivi` passe explicitement `comingSoon` : Dispositifs médicaux reste désactivé en phase 1 et son état est toujours affiché.
 - Commits : `ebeb1b9a47f67623d91f642d952d5bae55451e35`, `11f274acfe2b7180598cadf4b0437839e9e43100`.
 - Niveau de preuve : statique uniquement ; build, E2E et Production non vérifiés.
+- `3ea901a4aa3a3482f091082ec2e728739d2554e6` — parcours Examens médicaux : désactivation des boutons de réservation d’examen et de pack lorsqu’aucun créneau disponible n’est proposé. Contrôle statique uniquement, build et test navigateur non exécutés.
