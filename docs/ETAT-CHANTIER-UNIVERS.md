@@ -115,3 +115,10 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - La vérification de statut GitHub sur le commit documentaire `4f549b2cff6f82ca2521670e30de5e16562ea56d` rapporte le contrôle Vercel en échec avec l’URL `upgradeToPro=build-rate-limit` : il s’agit de la limite de création de builds, pas d’un résultat d’erreur TypeScript exploitable.
 - Le statut CircleCI est également signalé en échec mais n’est pas utilisé, conformément à `AGENTS.md` et au workflow courant.
 - Aucun build local n’a pu être lancé depuis le connecteur GitHub dans cette étape ; le build reste donc non vérifié. Aucun déploiement Production n’a été déclenché.
+
+
+## Correctifs de cohérence — navigation et dispositifs (18/10/2026)
+
+- Icône du menu partagé ajustée en trois points verticaux, conforme au menu demandé. Commit : `303c2cee5405a9928cdfc8db252a94ec02c07242`.
+- Route `/suivi` clarifiée : univers « Dispositifs médicaux » désactivé en phase 1, sans promesse de collecte ou de synchronisation de mesures de santé. Commit : `419279c691d1525171fe3c7ce8aee3866e26cb95`.
+- État : modifications présentes sur `main`; compilation et tests navigateur restent à exécuter. Aucun déploiement Production ni écriture Supabase Production.
