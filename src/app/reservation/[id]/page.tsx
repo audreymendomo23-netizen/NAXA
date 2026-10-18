@@ -1,190 +1,27 @@
 "use client";
-
-import { useCallback, useEffect, useState } from "react";
+import { useCallback,useEffect,useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { EnTeteClient } from "@/components/EnTeteClient";
-
-type Resa = {
-  id: string;
-  statut: string;
-  total: number;
-  expires_at: string;
-  paiement_ref: string | null;
-  pharmacies: { nom: string; quartier: string | null } | null;
-};
-
-const LIBELLE: Record<string, string> = {
-  en_attente: "En attente de la pharmacie",
-  confirmee: "Confirmée par la pharmacie",
-  payee: "Payée",
-  retiree: "Retirée",
-  expiree: "Expirée",
-  annulee: "Annulée",
-};
-
-export default function Reservation() {
-  const { id } = useParams<{ id: string }>();
-  const [r, setR] = useState<Resa | null>(null);
-  const [reste, setReste] = useState("");
-  const [paiement, setPaiement] = useState<{ code_marchand: string; total: number } | null>(null);
-  const [ref, setRef] = useState("");
-  const [msg, setMsg] = useState("");
-  const [erreurChargement, setErreurChargement] = useState(false);
-  const [chargementPaiement, setChargementPaiement] = useState(false);
-  const [actionEnCours, setActionEnCours] = useState<"paiement" | "annulation" | "reference" | null>(null);
-
-  const charger = useCallback(async () => {
-    try {
-      const { data, error } = await supabaseBrowser()
-        .from("reservations")
-        .select("id,statut,total,expires_at,paiement_ref,pharmacies(nom,quartier)")
-        .eq("id", id)
-        .single();
-      if (error || !data) {
-        setErreurChargement(true);
-        return;
-      }
-      setR(data as unknown as Resa);
-      setErreurChargement(false);
-    } catch {
-      setErreurChargement(true);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    void charger();
-    const t = setInterval(() => void charger(), 15000);
-    return () => clearInterval(t);
-  }, [charger]);
-
-  useEffect(() => {
-    if (!r) return;
-    const actualiser = () => {
-      const ms = new Date(r.expires_at).getTime() - Date.now();
-      setReste(ms <= 0 ? "délai écoulé" : `${Math.floor(ms / 3600000)} h ${Math.floor((ms % 3600000) / 60000)} min`);
-    };
-    actualiser();
-    const t = setInterval(actualiser, 30000);
-    return () => clearInterval(t);
-  }, [r]);
-
-  async function afficherPaiement() {
-    if (chargementPaiement || actionEnCours) return;
-    setChargementPaiement(true);
-    setMsg("");
-    try {
-      const res = await fetch(`/api/pay/${id}`);
-      if (!res.ok) {
-        setMsg("Le paiement est momentanément indisponible. Réessayez dans un instant.");
-        return;
-      }
-      const data = await res.json();
-      if (!data?.code_marchand || typeof data.total !== "number") {
-        setMsg("Les informations de paiement sont incomplètes. Contactez la pharmacie.");
-        return;
-      }
-      setPaiement(data);
-    } catch {
-      setMsg("Connexion impossible pour le moment. Vérifiez votre réseau puis réessayez.");
-    } finally {
-      setChargementPaiement(false);
-    }
-  }
-
-  async function declarer(e: React.FormEvent) {
-    e.preventDefault();
-    if (actionEnCours || !ref.trim()) return;
-    setActionEnCours("reference");
-    setMsg("");
-    try {
-      const { error } = await supabaseBrowser().rpc("declare_payment", { p_id: id, p_ref: ref.trim() });
-      setMsg(error ? "Référence non enregistrée. Vérifiez la référence et réessayez." : "Référence envoyée à la pharmacie.");
-      if (!error) await charger();
-    } catch {
-      setMsg("Envoi impossible pour le moment. Réessayez lorsque la connexion sera rétablie.");
-    } finally {
-      setActionEnCours(null);
-    }
-  }
-
-  async function annuler() {
-    if (actionEnCours) return;
-    setActionEnCours("annulation");
-    setMsg("");
-    try {
-      const { error } = await supabaseBrowser().rpc("set_reservation_status", { p_id: id, p_statut: "annulee" });
-      setMsg(error ? "Annulation impossible. Actualisez la réservation puis réessayez." : "Réservation annulée.");
-      if (!error) await charger();
-    } catch {
-      setMsg("Annulation impossible pour le moment. Vérifiez votre connexion puis réessayez.");
-    } finally {
-      setActionEnCours(null);
-    }
-  }
-
-  if (!r) {
-    return (
-      <main className="mx-auto max-w-lg px-4 pb-16">
-        <EnTeteClient />
-        <div className="carte space-y-3" role={erreurChargement ? "alert" : "status"}>
-          <h1 className="text-xl font-extrabold">{erreurChargement ? "Réservation indisponible" : "Chargement de votre réservation…"}</h1>
-          <p className="text-sm leading-relaxed text-slate-600">
-            {erreurChargement
-              ? "Nous n’avons pas pu récupérer cette réservation. Elle peut être inaccessible ou la connexion peut être interrompue."
-              : "Nous récupérons les informations de votre réservation."}
-          </p>
-          {erreurChargement && <button type="button" className="btn btn-vert w-full" onClick={() => void charger()}>Réessayer</button>}
-          <Link href="/" className="btn btn-clair w-full">Retour à l’accueil</Link>
-        </div>
-      </main>
-    );
-  }
-
-  const delaiDepasse = !r.expires_at || new Date(r.expires_at).getTime() <= Date.now();
-  const active = ["en_attente", "confirmee"].includes(r.statut) && !delaiDepasse;
-  const statutAffiche = delaiDepasse && ["en_attente", "confirmee"].includes(r.statut) ? "Délai de réservation dépassé" : (LIBELLE[r.statut] ?? r.statut);
-  const actionBloquee = actionEnCours !== null || chargementPaiement;
-
-  return (
-    <main className="mx-auto max-w-lg space-y-4 px-4 pb-16">
-      <EnTeteClient />
-      <h1 className="text-2xl font-extrabold">Réservation chez {r.pharmacies?.nom ?? "votre pharmacie"}</h1>
-      {r.pharmacies?.quartier && <p className="-mt-2 text-sm text-slate-600">{r.pharmacies.quartier}</p>}
-      <section className="carte space-y-2" aria-label="Détails de la réservation">
-        <p><strong>Statut :</strong> {statutAffiche}</p>
-        <p><strong>Total :</strong> {fcfa(r.total)}</p>
-        {active && <p><strong>Temps restant :</strong> {reste}</p>}
-        {r.paiement_ref && <p className="break-words text-sm"><strong>Référence communiquée :</strong> {r.paiement_ref}</p>}
-      </section>
-      {active && (
-        <>
-          <a className="btn btn-vert w-full" href={`/go/${id}`} target="_blank" rel="noreferrer">Envoyer sur WhatsApp</a>
-          {!paiement ? (
-            <button type="button" className="btn btn-clair w-full" onClick={() => void afficherPaiement()} disabled={actionBloquee}>
-              {chargementPaiement ? "Chargement du paiement…" : "Payer en ligne"}
-            </button>
-          ) : (
-            <form onSubmit={declarer} className="carte space-y-3">
-              <h2 className="font-extrabold">Paiement</h2>
-              <p className="text-sm leading-relaxed">Payez {fcfa(paiement.total)} avec le code marchand <strong>{paiement.code_marchand}</strong>, puis indiquez la référence de transaction.</p>
-              <label className="block text-sm font-semibold" htmlFor="reference-paiement">Référence de transaction</label>
-              <input id="reference-paiement" className="champ" required maxLength={120} value={ref} onChange={e => setRef(e.target.value)} placeholder="Référence de transaction" disabled={actionBloquee} />
-              <button type="submit" className="btn btn-vert w-full" disabled={actionBloquee || !ref.trim()}>
-                {actionEnCours === "reference" ? "Envoi en cours…" : "J’ai payé"}
-              </button>
-            </form>
-          )}
-          <button type="button" className="btn btn-clair w-full" onClick={() => void annuler()} disabled={actionBloquee}>
-            {actionEnCours === "annulation" ? "Annulation en cours…" : "Annuler la réservation"}
-          </button>
-        </>
-      )}
-      {["payee", "retiree"].includes(r.statut) && <Link className="btn btn-vert w-full" href={`/reservation/${id}/recu`}>Voir mon reçu</Link>}
-      {msg && <p role="status" className="rounded-xl2 border border-naxa-green-100 bg-white px-4 py-3 text-sm font-semibold text-naxa-green-900 shadow-sm">{msg}</p>}
-      {erreurChargement && <p role="status" className="text-sm text-slate-600">La mise à jour automatique a échoué. Les informations affichées peuvent ne pas être à jour.</p>}
-    </main>
-  );
-}
+import { ContacterPharmacie } from "@/components/ContacterPharmacie";
+import { AppelerPharmacie } from "@/components/AppelerPharmacie";
+type Item={quantite:number;prix_unitaire:number;produits:{nom:string;dosage:string|null}|null};
+type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;created_at:string;mode:string;paiement_statut:string;paiement_mode:string|null;commande_statut:string|null;adresse_livraison:string|null;quartier_livraison:string|null;ville_livraison:string|null;repere_livraison:string|null;telephone_livraison:string|null;pharmacie_id:string;pharmacies:{nom:string;quartier:string|null}|null;reservation_items:Item[]};
+const STATUS:Record<string,string>={en_attente:"En attente de la pharmacie",confirmee:"Confirmée par la pharmacie",payee:"Paiement effectué",retiree:"Terminée",expiree:"Expirée",annulee:"Annulée"};
+const DELIVERY:Record<string,string>={en_attente_pharmacie:"En attente de la pharmacie",acceptee:"Commande acceptée",preparation:"En préparation",livreur_assigne:"Livreur assigné",en_livraison:"En livraison",livree:"Livrée",annulee:"Annulée"};
+const PAYMENT:Record<string,string>={mtn_marchand:"MTN Mobile Money — code marchand pharmacie",orange_money:"Orange Money",especes_retrait:"Espèces au retrait",especes_livraison:"Espèces à la livraison",a_convenir:"À convenir avec la pharmacie"};
+export default function TransactionDetail(){const {id}=useParams<{id:string}>();const [r,setR]=useState<Resa|null>(null),[reste,setReste]=useState(""),[error,setError]=useState(""),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
+const load=useCallback(async()=>{const {data,error:e}=await supabaseBrowser().from("reservations").select("id,statut,total,expires_at,paiement_ref,created_at,mode,paiement_statut,paiement_mode,commande_statut,adresse_livraison,quartier_livraison,ville_livraison,repere_livraison,telephone_livraison,pharmacie_id,pharmacies(nom,quartier),reservation_items(quantite,prix_unitaire,produits(nom,dosage))").eq("id",id).maybeSingle();if(e||!data)setError("Transaction indisponible. Actualisez la page ou réessayez.");else setR(data as unknown as Resa);setLoading(false)},[id]);
+useEffect(()=>{void load();const t=setInterval(()=>void load(),15000);return()=>clearInterval(t)},[load]);
+useEffect(()=>{if(!r)return;const tick=()=>{const ms=new Date(r.expires_at).getTime()-Date.now();setReste(ms<=0?"délai écoulé":Math.floor(ms/3600000)+" h "+Math.floor(ms%3600000/60000)+" min")};tick();const t=setInterval(tick,30000);return()=>clearInterval(t)},[r]);
+async function cancel(){if(busy||!r)return;setBusy(true);setError("");const {error:e}=await supabaseBrowser().rpc("set_reservation_status",{p_id:r.id,p_statut:"annulee"});if(e)setError("Annulation impossible à ce stade. Contactez la pharmacie.");else await load();setBusy(false)}
+if(loading)return <main className="mx-auto max-w-lg px-4 pb-24"><EnTeteClient/><p className="carte mt-4">Chargement…</p></main>;
+if(!r)return <main className="mx-auto max-w-lg px-4 pb-24"><EnTeteClient/><section className="carte mt-4"><h1 className="font-extrabold">Transaction indisponible</h1><p className="mt-2 text-sm">{error}</p><button onClick={()=>void load()} className="btn btn-vert mt-3 w-full">Réessayer</button></section></main>;
+const isOrder=r.mode==="commande";const terminal=["expiree","annulee","retiree"].includes(r.statut);const expired=new Date(r.expires_at).getTime()<=Date.now()&&["en_attente","confirmee"].includes(r.statut);const orderOpen=isOrder&&!["livree","annulee"].includes(r.commande_statut||"")&&!["expiree","annulee"].includes(r.statut);const active=orderOpen||(!isOrder&&!terminal&&!expired&&["en_attente","confirmee"].includes(r.statut));const canCancel=active&&(!isOrder||["en_attente_pharmacie","acceptee"].includes(r.commande_statut||""));
+return <main className="mx-auto max-w-lg space-y-4 px-4 pb-24"><EnTeteClient/><h1 className="text-2xl font-extrabold">{isOrder?"Commande":"Réservation"} chez {r.pharmacies?.nom||"votre pharmacie"}</h1>{r.pharmacies?.quartier&&<p className="-mt-2 text-sm text-slate-600">{r.pharmacies.quartier}</p>}
+<section className="carte space-y-2"><p><strong>Référence :</strong> {r.id.slice(0,8).toUpperCase()}</p><p><strong>Statut :</strong> {isOrder?(DELIVERY[r.commande_statut||""]||STATUS[r.statut]||r.statut):(expired?"Délai de réservation dépassé":STATUS[r.statut]||r.statut)}</p><p><strong>Paiement :</strong> <span className="font-bold">{r.paiement_statut==="effectue"?"Effectué":"À vérifier"}</span></p><p><strong>Modalité :</strong> {PAYMENT[r.paiement_mode||"a_convenir"]}</p><p><strong>Total :</strong> {fcfa(r.total)}{isOrder?" · frais de livraison à convenir directement avec la pharmacie":""}</p>{active&&(!isOrder||r.commande_statut==="en_attente_pharmacie")&&<p><strong>Temps restant :</strong> {reste}</p>}{r.reservation_items?.length>0&&<div className="border-t pt-2"><p className="font-bold">Articles</p>{r.reservation_items.map((item,index)=><p key={index} className="text-sm">{item.quantite} × {item.produits?.nom||"Produit"}{item.produits?.dosage?" · "+item.produits.dosage:""} — {fcfa(item.prix_unitaire*item.quantite)}</p>)}</div>}{isOrder&&<div className="border-t pt-2"><p className="font-bold">Adresse de livraison</p><p className="text-sm">{[r.adresse_livraison,r.quartier_livraison,r.ville_livraison,r.repere_livraison].filter(Boolean).join(", ")||"Non renseignée"}</p>{r.telephone_livraison&&<a href={"tel:"+r.telephone_livraison} className="text-sm font-bold underline">Appeler le numéro de livraison</a>}</div>}{r.paiement_ref&&<p className="break-words text-sm"><strong>Référence communiquée :</strong> {r.paiement_ref}</p>}</section>
+{active&&<><a className="btn btn-vert w-full" href={"/go/"+r.id} target="_blank" rel="noreferrer">Contacter sur WhatsApp</a><AppelerPharmacie pharmacieId={r.pharmacie_id}/><ContacterPharmacie pharmacieId={r.pharmacie_id}/><Link href="/client/messages" className="btn btn-clair w-full">Ouvrir mes conversations</Link>{canCancel&&<button type="button" onClick={()=>void cancel()} disabled={busy} className="btn btn-clair w-full">{busy?"Annulation…":isOrder?"Annuler la commande":"Annuler la réservation"}</button>}</>}
+{r.statut==="expiree"&&<p className="carte text-sm">Le délai est terminé. La réservation est expirée et le stock est libéré.</p>}{r.statut==="annulee"&&<p className="carte text-sm">Cette transaction est annulée.</p>}{["payee","retiree"].includes(r.statut)&&<Link className="btn btn-vert w-full" href={"/reservation/"+id+"/recu"}>Voir mon reçu</Link>}
+<p className="text-xs text-slate-500">NAXA facilite la mise en relation. Le paiement et sa validation sont convenus directement entre le client, la pharmacie et, le cas échéant, le livreur.</p>{error&&<p role="alert" className="text-sm text-red-700">{error}</p>}</main>}

@@ -1,7 +1,5 @@
-import Link from "next/link";
-
 export default function Securite(){
-  return <main className="min-h-screen bg-naxa-green-50 px-5 py-8">
+  return <main className="min-h-screen bg-naxa-green-50 px-5 py-8 pb-[calc(8rem+env(safe-area-inset-bottom,0px))]">
     <article className="mx-auto max-w-2xl rounded-xl2 bg-white p-6 shadow-sm">
       <h1 className="text-2xl font-extrabold">Politique de sécurité et de protection des données</h1>
       <p className="mt-4 text-sm leading-7"><strong className="naxa-text">NAXA</strong> applique des contrôles d'accès destinés à protéger les comptes, les données et les opérations sensibles. Les secrets serveur, notamment la clé service, ne sont jamais destinés au navigateur.</p>
@@ -19,7 +17,6 @@ export default function Securite(){
       <p className="mt-2 text-sm leading-7">L'utilisateur doit conserver son mot de passe et ses moyens d'accès confidentiels, éviter de les partager et signaler rapidement toute activité inhabituelle. NAXA ne demandera jamais la clé service ou un secret technique à un utilisateur.</p>
       <h2 className="mt-6 text-lg font-bold">Évolution des contrôles</h2>
       <p className="mt-2 text-sm leading-7">Les contrôles de sécurité peuvent être renforcés au fil de l'évolution du service. Toute évolution doit respecter le prompt maître, le cahier des charges et les principes de moindre privilège, sans exposer de secret serveur au client.</p>
-      <Link href="/creation-compte" className="mt-8 inline-flex font-bold underline">Retour à l'inscription</Link>
     </article>
   </main>
 }

@@ -297,8 +297,8 @@ export function AccueilClient() {
           const { data: profile } = await sb.from("profiles").select("username,first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
           const isGoogle = user.app_metadata?.provider === "google" || Boolean(user.identities?.some(identity => identity.provider === "google"));
           const googleName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : typeof user.user_metadata?.name === "string" ? user.user_metadata.name : "";
-          const displayName = isGoogle && googleName.trim() ? googleName.trim() : typeof profile?.username === "string" && profile.username.trim() ? profile.username.trim() : typeof profile?.first_name === "string" && profile.first_name.trim() ? profile.first_name.trim() : "Client";
-          setFirstName(displayName.split(/\s+/)[0]);
+          const displayName = isGoogle && googleName.trim() ? googleName.trim() : typeof profile?.username === "string" && profile.username.trim() ? profile.username.trim() : [profile?.first_name,profile?.last_name].filter((value): value is string => typeof value === "string" && Boolean(value.trim())).join(" ") || "Client";
+          setFirstName(displayName);
         }
         const { data: popularRows, error: popularError } = await sb.rpc("produits_populaires", { p_limit: 10, p_jours: 7 });
         if (popularError) throw popularError;

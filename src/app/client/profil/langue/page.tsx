@@ -53,7 +53,7 @@ export default function LangueClientPage() {
         <Link href="/client/profil" aria-label={isEnglish ? "Back to profile" : "Retour au profil"} className="mb-2 flex h-8 w-full items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link>
         <h1 id="language-title" className="mb-4 text-xl font-extrabold text-[#0F4D26]">{isEnglish ? "Language" : "Langue"}</h1>
         <div className="space-y-2">
-          <button type="button" onClick={() => chooseLanguage("fr")} aria-pressed={language === "fr"} className={`flex min-h-[68px] w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all active:scale-[.99] ${language === "fr" ? "border-[#1E7B3A] bg-[#E9F5EC]/70" : "border-[#E5E7EB] bg-white"}`}>
+          <button type="button" onClick={() => chooseLanguage("fr")} aria-pressed={language === "fr"} className={`flex min-h-[52px] w-full items-center gap-3 rounded-full border px-4 py-3 text-left transition-all active:scale-[.99] ${language === "fr" ? "border-[#1E7B3A] bg-[#E9F5EC]/70" : "border-[#E5E7EB] bg-white"}`}>
             <FranceFlag/><span className="flex-1 font-bold text-[#111111]">Français</span>
             <span className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all ${language === "fr" ? "animate-[naxa-verified-in_240ms_ease-out] border-[#1E7B3A] bg-[#1E7B3A] text-white" : "border-[#D1D5DB] text-transparent"}`}><Check/></span>
           </button>

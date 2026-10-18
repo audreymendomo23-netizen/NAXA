@@ -294,10 +294,11 @@ export default function ProfilClientPage() {
   ];
   const sections = [
     { title: savedLanguage === "en" ? "My orders" : "Mes commandes", rows: [
-      { icon: "clock", title: savedLanguage === "en" ? "History" : "Historique", subtitle: shown.orders ? (savedLanguage === "en" ? `${shown.orders} order${shown.orders === 1 ? "" : "s"}` : `${shown.orders} commande${shown.orders === 1 ? "" : "s"}`) : (savedLanguage === "en" ? "No orders" : "Aucune commande"), href: "/client?onglet=achats", trailing: true },
+      { icon: "clock", title: savedLanguage === "en" ? "History" : "Historique", subtitle: shown.orders ? (savedLanguage === "en" ? `${shown.orders} order${shown.orders === 1 ? "" : "s"}` : `${shown.orders} commande${shown.orders === 1 ? "" : "s"}`) : (savedLanguage === "en" ? "No orders" : "Aucune commande"), href: "/client/historique", trailing: true },
       { icon: "file", title: savedLanguage === "en" ? "Invoices" : "Factures", href: "/client/profil/factures" }
     ]},
     { title: savedLanguage === "en" ? "Support" : "Support", rows: [
+      { icon: "bell", title: savedLanguage === "en" ? "Messages with pharmacies" : "Messages avec les pharmacies", href: "/client/messages" },
       { icon: "help", title: savedLanguage === "en" ? "Help center" : "Centre d'aide", href: "/client/profil/aide" },
       { icon: "headset", title: savedLanguage === "en" ? "Contact NAXA" : "Contacter NAXA", href: "/client/profil/contact" },
       { icon: "star", title: savedLanguage === "en" ? "Rate the app" : "Noter l'app", href: "/client/profil/noter" }

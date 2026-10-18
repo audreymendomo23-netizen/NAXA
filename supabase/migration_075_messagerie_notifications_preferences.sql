@@ -60,19 +60,22 @@ create policy client_preferences_self on public.client_preferences
 drop policy if exists fils_messages_client_read on public.fils_messages;
 create policy fils_messages_client_read on public.fils_messages
   for select to authenticated using (client_id = (select auth.uid()));
+drop policy if exists fils_messages_pharmacy_read on public.fils_messages;
+create policy fils_messages_pharmacy_read on public.fils_messages
+  for select to authenticated using (public.is_admin() or public.naxa_scope_allows((select auth.uid()), pharmacie_id, 'PHARMACIE'));
 
 drop policy if exists messages_pharmacie_read_participant on public.messages_pharmacie;
 create policy messages_pharmacie_read_participant on public.messages_pharmacie
   for select to authenticated using (
     exists (select 1 from public.fils_messages f where f.id = fil_id and f.client_id = (select auth.uid()))
-    or exists (select 1 from public.fils_messages f where f.id = fil_id and public.can_access_pharmacy(f.pharmacie_id))
+    or exists (select 1 from public.fils_messages f where f.id = fil_id and (public.is_admin() or public.naxa_scope_allows((select auth.uid()), f.pharmacie_id, 'PHARMACIE')))
   );
 
 drop policy if exists notifications_read_recipient on public.notifications;
 create policy notifications_read_recipient on public.notifications
   for select to authenticated using (
     user_id = (select auth.uid())
-    or (pharmacie_id is not null and public.can_access_pharmacy(pharmacie_id))
+    or (pharmacie_id is not null and (public.is_admin() or public.naxa_scope_allows((select auth.uid()), pharmacie_id, 'PHARMACIE')))
   );
 
 revoke all on public.client_preferences, public.fils_messages, public.messages_pharmacie, public.notifications from anon, public;
@@ -111,7 +114,7 @@ begin
   select pharmacie_id,client_id into v_pharmacie,v_client from public.fils_messages where id=p_fil;
   if v_client is null then raise exception 'Conversation introuvable'; end if;
   if v_user=v_client then v_expediteur:='client';
-  elsif public.can_access_pharmacy(v_pharmacie) then v_expediteur:='pharmacie';
+  elsif (public.is_admin() or public.naxa_scope_allows(v_user, v_pharmacie, 'PHARMACIE')) then v_expediteur:='pharmacie';
   else raise exception 'Accès refusé'; end if;
   insert into public.messages_pharmacie(fil_id,expediteur,corps) values(p_fil,v_expediteur,trim(p_corps)) returning id into v_id;
   if v_expediteur='client' then
@@ -129,9 +132,9 @@ as $function$
 declare v_user uuid := auth.uid(); v_pharmacie uuid; v_client uuid;
 begin
   select pharmacie_id,client_id into v_pharmacie,v_client from public.fils_messages where id=p_fil;
-  if v_user is null or (v_user<>v_client and not public.can_access_pharmacy(v_pharmacie)) then raise exception 'Accès refusé'; end if;
+  if v_user is null or (v_user<>v_client and not (public.is_admin() or public.naxa_scope_allows(v_user, v_pharmacie, 'PHARMACIE'))) then raise exception 'Accès refusé'; end if;
   update public.messages_pharmacie set lu_le=now() where fil_id=p_fil and lu_le is null and expediteur <> case when v_user=v_client then 'client' else 'pharmacie' end;
-  update public.notifications set lu_le=now() where fil_id=p_fil and lu_le is null and (user_id=v_user or (pharmacie_id=v_pharmacie and public.can_access_pharmacy(v_pharmacie)));
+  update public.notifications set lu_le=now() where fil_id=p_fil and lu_le is null and (user_id=v_user or (pharmacie_id=v_pharmacie and (public.is_admin() or public.naxa_scope_allows(v_user, v_pharmacie, 'PHARMACIE'))));
   return true;
 end;
 $function$;
@@ -144,7 +147,7 @@ as $function$
     (select m.corps from public.messages_pharmacie m where m.fil_id=f.id order by m.created_at desc limit 1),
     (select m.created_at from public.messages_pharmacie m where m.fil_id=f.id order by m.created_at desc limit 1),
     (select count(*) from public.messages_pharmacie m where m.fil_id=f.id and m.expediteur='client' and m.lu_le is null)
-  from public.fils_messages f where f.pharmacie_id=p_pharmacie and public.can_access_pharmacy(p_pharmacie)
+  from public.fils_messages f where f.pharmacie_id=p_pharmacie and (public.is_admin() or public.naxa_scope_allows((select auth.uid()), p_pharmacie, 'PHARMACIE'))
   order by f.created_at desc;
 $function$;
 

@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     let sent = 0;
     await Promise.all((subscriptions ?? []).map(async (item: { endpoint: string; subscription: webpush.PushSubscription }) => {
       try {
-        await webpush.sendNotification(item.subscription, JSON.stringify({ title, body: String(message.corps).slice(0, 180), url, tag: "naxa-message-" + body.messageId }));
+        await webpush.sendNotification(item.subscription, JSON.stringify({ title, body: "Nouveau message reçu. Ouvrez NAXA pour le consulter.", url, tag: "naxa-message-" + body.messageId }));
         sent++;
       } catch (error) {
         const status = (error as { statusCode?: number }).statusCode;

@@ -29,5 +29,4 @@ revoke all on function public.definir_anonymat_fil(uuid,boolean) from public, an
 revoke all on function public.archiver_conversation_client(uuid,boolean) from public, anon;
 grant execute on function public.definir_anonymat_fil(uuid,boolean) to authenticated;
 grant execute on function public.archiver_conversation_client(uuid,boolean) to authenticated;
-grant execute on function public.naxa_scope_allows(uuid,uuid,text) to service_role;
 commit;

@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin,supabaseServer } from "@/lib/supabase/server";
+export const dynamic="force-dynamic";
+export async function GET(request:Request){const sb=supabaseServer();const {data:auth,error}=await sb.auth.getUser();if(error||!auth.user)return NextResponse.json({error:"Connexion requise"},{status:401});const id=new URL(request.url).searchParams.get("pharmacie");if(!id||!/^[0-9a-f-]{36}$/i.test(id))return NextResponse.json({error:"Pharmacie invalide"},{status:400});const {data:ph}=await supabaseAdmin().from("pharmacie_privee").select("whatsapp").eq("pharmacie_id",id).maybeSingle();const phone=String(ph?.whatsapp||"").replace(/\D/g,"");if(!phone)return NextResponse.json({error:"La pharmacie n’a pas de numéro d’appel renseigné."},{status:404});return NextResponse.json({phone},{headers:{"Cache-Control":"no-store"}});}

@@ -93,15 +93,28 @@ export default function AdressesClientPage() {
       const saved = readSavedAddresses();
       if (saved.length) {
         if (active) { setAddresses(saved); setLoaded(true); }
+        const defaultSaved = saved.find((address) => address.isDefault) ?? saved[0];
+        void supabase.from("client_preferences").upsert({
+          user_id: user.id,
+          adresse_defaut: defaultSaved ? [defaultSaved.street, defaultSaved.city].filter(Boolean).join(", ").slice(0, 200) : null,
+          quartier: defaultSaved?.neighborhood || null,
+          ville_defaut: defaultSaved?.city || null,
+          repere_defaut: defaultSaved?.landmark || null,
+          latitude_defaut: defaultSaved?.latitude ?? null,
+          longitude_defaut: defaultSaved?.longitude ?? null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
         return;
       }
-      const { data: prefs } = await supabase.from("client_preferences").select("adresse_defaut,quartier").eq("user_id", user.id).maybeSingle();
+      const { data: prefs } = await supabase.from("client_preferences").select("adresse_defaut,quartier,ville_defaut,repere_defaut,latitude_defaut,longitude_defaut").eq("user_id", user.id).maybeSingle();
       if (!active) return;
       const legacyAddress = [prefs?.adresse_defaut, prefs?.quartier].filter((part): part is string => typeof part === "string" && Boolean(part.trim()));
       if (legacyAddress.length) {
         setAddresses([{
-          id: "default-imported", label: "Maison", city: "", neighborhood: String(prefs?.quartier ?? ""),
-          street: String(prefs?.adresse_defaut ?? ""), landmark: "", isDefault: true,
+          id: "default-imported", label: "Maison", city: String(prefs?.ville_defaut ?? ""), neighborhood: String(prefs?.quartier ?? ""),
+          street: String(prefs?.adresse_defaut ?? ""), landmark: String(prefs?.repere_defaut ?? ""), isDefault: true,
+          latitude: typeof prefs?.latitude_defaut === "number" ? prefs.latitude_defaut : undefined,
+          longitude: typeof prefs?.longitude_defaut === "number" ? prefs.longitude_defaut : undefined,
         }]);
       }
       setLoaded(true);
@@ -118,7 +131,24 @@ export default function AdressesClientPage() {
       return;
     }
     setAddresses(normalized);
-    window.dispatchEvent(new CustomEvent(ADDRESS_EVENT, { detail: { defaultAddress: normalized.find((address) => address.isDefault) ?? null } }));
+    const savedDefault = normalized.find((address) => address.isDefault) ?? null;
+    window.dispatchEvent(new CustomEvent(ADDRESS_EVENT, { detail: { defaultAddress: savedDefault } }));
+    void (async () => {
+      const sb = supabaseBrowser();
+      const { data: auth } = await sb.auth.getUser();
+      if (!auth.user) return;
+      const { error } = await sb.from("client_preferences").upsert({
+        user_id: auth.user.id,
+        adresse_defaut: savedDefault ? [savedDefault.street, savedDefault.city].filter(Boolean).join(", ").slice(0, 200) : null,
+        quartier: savedDefault?.neighborhood || null,
+        ville_defaut: savedDefault?.city || null,
+        repere_defaut: savedDefault?.landmark || null,
+        latitude_defaut: savedDefault?.latitude ?? null,
+        longitude_defaut: savedDefault?.longitude ?? null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+      if (error) flash("Adresse conservée sur cet appareil, mais la synchronisation du compte a échoué.");
+    })();
   }
 
   function openNew() {
@@ -173,15 +203,13 @@ export default function AdressesClientPage() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setDraft((current) => ({
-          ...current,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          landmark: current.landmark.trim() || "Position GPS enregistrée",
-        }));
+      async (position) => {
+        const latitude = position.coords.latitude, longitude = position.coords.longitude;
+        let city = "", neighborhood = "", street = "", landmark = "";
+        try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${latitude}&lon=${longitude}`, { headers: { "Accept-Language": "fr" }, cache: "no-store" }); if (response.ok) { const data = await response.json() as { display_name?: string; address?: Record<string,string> }; const address = data.address ?? {}; city = address.city || address.town || address.municipality || address.village || address.county || ""; neighborhood = address.suburb || address.neighbourhood || address.quarter || address.city_district || ""; street = [address.road,address.house_number].filter(Boolean).join(" "); landmark = data.display_name || ""; } } catch { /* Les coordonnées GPS restent utilisables. */ }
+        setDraft((current) => ({ ...current, latitude, longitude, city: city || current.city, neighborhood: neighborhood || current.neighborhood, street: street || current.street, landmark: current.landmark.trim() || landmark || "Position GPS enregistrée" }));
         setLocating(false);
-        flash("Position GPS ajoutée à l’adresse.");
+        flash(neighborhood || city ? "Coordonnées GPS et quartier détectés. Vérifiez l’adresse avant d’enregistrer." : "Position GPS enregistrée. Complétez le quartier et la rue si nécessaire.");
       },
       () => {
         setLocating(false);

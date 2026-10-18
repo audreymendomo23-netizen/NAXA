@@ -1,7 +1,5 @@
-import Link from "next/link";
-
 export default function Confidentialite(){
-  return <main className="min-h-screen bg-naxa-green-50 px-5 py-8">
+  return <main className="min-h-screen bg-naxa-green-50 px-5 py-8 pb-[calc(8rem+env(safe-area-inset-bottom,0px))]">
     <article className="mx-auto max-w-2xl rounded-xl2 bg-white p-6 shadow-sm">
       <h1 className="text-2xl font-extrabold">Politique de confidentialité</h1>
       <p className="mt-4 text-sm leading-7"><strong className="naxa-text">NAXA</strong> traite les informations nécessaires aux comptes, à la recherche de pharmacies, aux demandes et réservations, à la sécurité et aux fonctionnalités effectivement utilisées.</p>
@@ -15,7 +13,6 @@ export default function Confidentialite(){
       <h2 className="mt-6 text-lg font-bold">Sécurité</h2><p className="mt-2 text-sm leading-7">NAXA applique des contrôles d’accès selon les rôles et des mesures de protection de l’authentification et des données. Aucun système ne peut garantir une sécurité absolue ; les accès doivent rester limités aux personnes et services qui en ont besoin.</p>
       <h2 className="mt-6 text-lg font-bold">Vos droits et réclamations</h2><p className="mt-2 text-sm leading-7">Sous réserve du droit applicable, vous pouvez demander l’accès, la rectification ou la suppression de vos données, vous opposer à certains traitements, demander une limitation et retirer un consentement lorsque cela s’applique. Écrivez à <a className="font-semibold underline" href="mailto:naxa.home@gmail.com">naxa.home@gmail.com</a>. Une vérification raisonnable de votre identité peut être demandée. Une première réponse est visée sous 15 jours ; ce délai n’empêche pas les délais légaux applicables.</p>
       <h2 className="mt-6 text-lg font-bold">Évolution de la politique</h2><p className="mt-2 text-sm leading-7">La politique peut évoluer avec les fonctionnalités et les règles applicables. Les changements importants sont signalés et une nouvelle acceptation est demandée lorsqu’elle est requise.</p>
-      <Link href="/creation-compte" className="mt-8 inline-flex font-bold underline">Retour à l’inscription</Link>
     </article>
   </main>
 }

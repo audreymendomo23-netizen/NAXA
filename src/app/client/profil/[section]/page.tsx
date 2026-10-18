@@ -22,7 +22,7 @@ function decoderClePush(value: string) {
 }
 async function activerPushProfil(userId: string): Promise<boolean> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || Notification.permission !== "granted") return false;
-  const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/" });
+  const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/naxa-push/" });
   const response = await fetch("/api/posologie/push-key", { cache: "no-store" });
   if (!response.ok) throw new Error("Le service Push NAXA n’est pas configuré.");
   const { publicKey } = await response.json() as { publicKey: string };
@@ -269,12 +269,14 @@ export default function ProfilSectionPage() {
     if (error) flash("Préférence modifiée sur cet appareil ; synchronisation des rappels serveur indisponible.");
   }
 
+  useEffect(() => { if (section !== "notifications") return; setToast("Les préférences sont enregistrées automatiquement. Les canaux dépendent des autorisations et coordonnées disponibles."); const timer = window.setTimeout(() => setToast(""), 2800); return () => window.clearTimeout(timer); }, [section]);
+
   const title = titles[section] ?? "Profil";
   const validSection = Object.prototype.hasOwnProperty.call(titles, section);
   return <main className="min-h-dvh bg-[#E9F5EC] px-4 pb-10 text-[#111111]">
     <div className="mx-auto w-full max-w-[430px]">
       <header className="-mx-4 flex items-center gap-3 bg-[#064B2A] px-4 py-3 text-white">
-        <Link href="/client/profil" aria-label="Retour au profil" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl">←</Link>
+        {!["confidentialite","suppression"].includes(section) && <Link href="/client/profil" aria-label="Retour au profil" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl">←</Link>}
         <Link href="/" aria-label="Accueil NAXA"><Logo taille={30}/></Link>
         <h1 className="min-w-0 flex-1 text-lg font-extrabold">{title}</h1>
       </header>
@@ -331,7 +333,7 @@ export default function ProfilSectionPage() {
         </div></div></section>}
 
         {section === "notifications" && <section className="mt-5 space-y-4">
-          <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Ce que vous souhaitez recevoir</h2><p className="mt-1 text-sm leading-5 text-[#6B7280]">Les préférences sont enregistrées automatiquement. Les canaux dépendent des autorisations et coordonnées disponibles.</p></div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Ce que vous souhaitez recevoir</h2></div>
           <div className="overflow-hidden rounded-2xl bg-white shadow-sm">{([
             ["pharmacyReplies", "Réponses des pharmacies", "Messages et réponses liés à vos demandes"],
             ["orderStatus", "Statut des commandes", "Confirmations et changements de réservation"],
@@ -358,7 +360,7 @@ export default function ProfilSectionPage() {
           <div className="rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-extrabold text-[#0F4D26]">Documents légaux</h2><div className="mt-3 divide-y divide-[#E5E7EB]"><Link className="flex min-h-12 items-center justify-between font-semibold" href="/conditions-utilisation">Conditions générales d’utilisation <span>›</span></Link><Link className="flex min-h-12 items-center justify-between font-semibold" href="/politique-confidentialite">Politique de confidentialité <span>›</span></Link><Link className="flex min-h-12 items-center justify-between font-semibold" href="/politique-securite">Politique de sécurité <span>›</span></Link></div></div>
         </section>}
 
-        {section === "suppression" && <section className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onMouseDown={e => { if (e.target === e.currentTarget) router.push("/client/profil"); }}><div className="max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[28px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"><Link href="/client/profil" className="mx-auto mb-4 flex h-5 w-full justify-center" aria-label="Fermer"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link><h2 className="mb-4 text-xl font-extrabold text-[#0F4D26]">Supprimer le compte</h2><SuppressionCompteClient/></div></section>}
+        {section === "suppression" && <section className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4" onMouseDown={e => { if (e.target === e.currentTarget) router.push("/client/profil"); }}><div className="max-h-[88dvh] w-full max-w-[400px] overflow-y-auto rounded-[26px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"><Link href="/client/profil" className="mx-auto mb-4 flex h-5 w-full justify-center" aria-label="Fermer"><span className="h-1.5 w-10 rounded-full bg-[#D1D5DB]"/></Link><h2 className="mb-4 text-xl font-extrabold text-[#0F4D26]">Supprimer le compte</h2><SuppressionCompteClient/></div></section>}
         {erreur && <p role="alert" className="mt-4 rounded-xl border border-[#E7B4AF] bg-white p-3 text-sm text-[#B3261E]">{erreur}</p>}
       </>}
     </div>

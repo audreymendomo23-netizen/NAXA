@@ -56,9 +56,10 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
     const sb = supabaseBrowser();
     const { data } = await sb.auth.getUser();
     if (!data.user) { router.push(`/connexion?retour=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`); return; }
-    const { error } = await sb.rpc("envoyer_message_client", { p_pharmacie: pharmacieId, p_produit: produitId, p_corps: corps.trim(), p_anonyme: anonyme });
+    const { data: filId, error } = await sb.rpc("envoyer_message_client", { p_pharmacie: pharmacieId, p_produit: produitId, p_corps: corps.trim(), p_anonyme: anonyme });
     setEnvoi(false);
     if (error) { setErreur("Envoi impossible. Vérifiez votre connexion et réessayez."); return; }
+    if (typeof filId === "string") { const { data: lastMessage } = await sb.from("messages_pharmacie").select("id").eq("fil_id", filId).eq("expediteur", "client").order("created_at", { ascending: false }).limit(1).maybeSingle(); if (lastMessage?.id) void fetch("/api/messages/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filId, messageId: lastMessage.id }) }).catch(() => undefined); }
     setEnvoye(true); setCorps("");
   }
   return <>
@@ -69,7 +70,7 @@ export function ContacterPharmacie({ pharmacieId, produitId = null, variante = "
     {ouvert && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center" role="presentation" onClick={e => { if (e.target === e.currentTarget) setOuvert(false); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="contact-pharmacie-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
         <div className="flex items-center justify-between"><h2 id="contact-pharmacie-title" className="text-lg font-extrabold">Contacter la pharmacie</h2><button onClick={() => setOuvert(false)} aria-label="Fermer">✕</button></div>
-        {envoye ? <div className="py-6"><p className="font-bold text-naxa-green-800">Message envoyé</p><a className="mt-3 inline-block underline" href="/notifications">Voir mes notifications</a></div> : <>
+        {envoye ? <div className="py-6"><p className="font-bold text-naxa-green-800">Message envoyé</p><a className="mt-3 inline-block underline" href="/client/messages">Retrouver cette conversation</a><a className="mt-3 ml-4 inline-block underline" href="/notifications">Voir mes notifications</a></div> : <>
           <label className="mt-4 block text-sm font-semibold" htmlFor="message-pharmacie">Votre message…</label><textarea id="message-pharmacie" maxLength={1000} rows={4} value={corps} onChange={e => setCorps(e.target.value)} className="champ mt-2 !h-auto rounded-xl py-3" placeholder="Votre message…"/>
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={anonyme} onChange={e => setAnonyme(e.target.checked)}/> Rester anonyme</label>
           <p className="mt-2 text-xs text-slate-600">Ne partagez pas d'informations médicales sensibles.</p>
