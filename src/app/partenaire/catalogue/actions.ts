@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
+import { isMedicationProduct } from "@/lib/universe-product-rules";
 
 const universes = ["parapharmacie", "bebe-maman"] as const;
 type Universe = typeof universes[number];
@@ -28,6 +29,9 @@ export async function creerProduitCatalogue(form: FormData) {
   const partnerId = field(form, "partner_id", 36);
   const universe = field(form, "universe_slug", 40) as Universe;
   const name = field(form, "name", 180);
+  const brand = field(form, "brand", 120) || null;
+  const category = field(form, "category", 100) || "Autres";
+  const description = field(form, "description", 600) || null;
   const price = Number(field(form, "price_fcfa", 12));
   const stock = Number(field(form, "stock_quantity", 20));
   const threshold = Number(field(form, "low_stock_threshold", 20));
@@ -35,6 +39,7 @@ export async function creerProduitCatalogue(form: FormData) {
   const photo = field(form, "photo_url", 1000);
   const membership = memberships.find((m: any) => m.partner_id === partnerId);
   if (!membership || !uuid(partnerId) || !universes.includes(universe) || name.length < 2 ||
+      (universe === "parapharmacie" && isMedicationProduct({ name, brand, category, description })) ||
       !Number.isSafeInteger(price) || price < 0 || !Number.isFinite(stock) ||
       stock < 0 || stock > 1000000 || !Number.isFinite(threshold) || threshold < 0 || threshold > 1000000 || (expiresAt && !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(expiresAt)) || (photo && !/^https:\/\//i.test(photo))) {
     redirect("/partenaire/catalogue?erreur=produit");
@@ -44,9 +49,7 @@ export async function creerProduitCatalogue(form: FormData) {
   if (!association?.enabled) redirect("/partenaire/catalogue?erreur=univers");
   const { data: created, error } = await sb.from("partner_products").insert({
     partner_id: partnerId, universe_slug: universe, name,
-    brand: field(form, "brand", 120) || null,
-    category: field(form, "category", 100) || "Autres",
-    description: field(form, "description", 600) || null,
+    brand, category, description,
     photo_url: photo || null, price_fcfa: price, stock_quantity: 0,
     low_stock_threshold: threshold, expires_at: expiresAt || null,
     unit_label: field(form, "unit_label", 30) || "unité",
@@ -96,9 +99,10 @@ export async function changerEtatProduitCatalogue(form: FormData) {
   const status = field(form, "status", 20);
   if (!memberships.some((m: any) => m.partner_id === partnerId) || !uuid(partnerId) || !uuid(productId) ||
       !["draft", "archived", "active"].includes(status)) redirect("/partenaire/catalogue?erreur=produit");
-  const { data: product } = await sb.from("partner_products").select("id,partner_id,universe_slug")
+  const { data: product } = await sb.from("partner_products").select("id,partner_id,universe_slug,name,brand,category,description")
     .eq("id", productId).eq("partner_id", partnerId).maybeSingle();
   if (!product) redirect("/partenaire/catalogue?erreur=produit");
+  if (status === "active" && product.universe_slug === "parapharmacie" && isMedicationProduct(product)) redirect("/partenaire/catalogue?erreur=produit");
   if (status === "active") {
     const [association, universe, flag] = await Promise.all([
       sb.from("partner_universes").select("enabled").eq("partner_id", partnerId).eq("universe_slug", product.universe_slug).maybeSingle(),
@@ -178,10 +182,14 @@ export async function importerCsvCatalogue(form: FormData) {
         !stockRaw || !Number.isFinite(stock) || stock < 0 || stock > 1000000 ||
         !Number.isFinite(threshold) || threshold < 0 || threshold > 1000000 ||
         (expiresAt !== "" && !validDate(expiresAt)) || (photo && !/^https:\/\//i.test(photo))) redirect("/partenaire/catalogue?erreur=csv");
+    const brand = val(row, "brand").slice(0,120) || null;
+    const category = val(row, "category").slice(0,100) || "Autres";
+    const description = val(row, "description").slice(0,600) || null;
+    if (universe === "parapharmacie" && isMedicationProduct({ name, brand, category, description })) {
+      redirect("/partenaire/catalogue?erreur=produit");
+    }
     payload.push({
-      name, brand: val(row, "brand").slice(0,120) || null,
-      category: val(row, "category").slice(0,100) || "Autres",
-      description: val(row, "description").slice(0,600) || null,
+      name, brand, category, description,
       photo_url: photo || null, price_fcfa: price, stock_quantity: stock,
       unit_label: val(row, "unit_label").slice(0,30) || "unité",
       expires_at: expiresAt || null,
