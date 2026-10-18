@@ -274,4 +274,10 @@ $function$;
 revoke all on function public.admin_set_home_service_offer_status(uuid,text) from public,anon;
 grant execute on function public.admin_set_home_service_offer_status(uuid,text) to authenticated;
 
+-- Explicit table grants: no direct client writes to requests or private addresses.
+revoke all on public.home_service_offers, public.home_service_requests, public.home_service_request_addresses from public, anon;
+revoke all on public.home_service_offers, public.home_service_requests, public.home_service_request_addresses from authenticated;
+grant select,insert,update on public.home_service_offers to authenticated;
+grant select on public.home_service_requests, public.home_service_request_addresses to authenticated;
+
 commit;
