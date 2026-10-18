@@ -22,4 +22,10 @@ La demande mentionne 12 secondes dans le résumé des déplacements et 20 second
 - `src/app/globals.css`
 
 ### Preuves
-Le SHA de commit et l’état du déploiement Vercel seront ajoutés après confirmation du commit et du déploiement par les outils. Aucun résultat de test ou de production n’est affirmé sans preuve.
+### État de livraison vérifié
+- Commit d’implémentation sur `main` : `6be8b99415271b9aa80fd4cfbd54b9fa1c00698d`.
+- Fichiers relus sur `main` après écriture : `src/components/Luciole.tsx` et `src/app/globals.css`.
+- Déploiement : **bloqué**. Vercel a refusé la création du déploiement avec HTTP 402 `api-deployments-free-per-day` : plus de 100 déploiements API sur la période, réessai indiqué dans 24 heures. Les déploiements récents consultés sont `CANCELED`; aucun déploiement de ce commit n’est confirmé.
+- Build/TypeScript : non exécutés dans cette session, donc aucune réussite de compilation n’est revendiquée.
+
+Le code est enregistré sur `main`, mais la publication en Production reste à reprendre lorsque la limite de déploiement Vercel sera levée.
