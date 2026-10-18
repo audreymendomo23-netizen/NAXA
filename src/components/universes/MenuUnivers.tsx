@@ -71,9 +71,9 @@ export function MenuUnivers() {
         className="flex h-11 w-11 items-center justify-center rounded-full border border-[#064B2A]/20 bg-white text-[#064B2A] shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]"
       >
         <span className="flex flex-col items-center gap-1" aria-hidden="true">
-          <span className={`h-1 w-1 rounded-full bg-current transition-transform ${open ? "translate-y-2 scale-125" : ""}`} />
-          <span className={`h-1 w-1 rounded-full bg-current transition-opacity ${open ? "opacity-0" : ""}`} />
-          <span className={`h-1 w-1 rounded-full bg-current transition-transform ${open ? "-translate-y-2 scale-125" : ""}`} />
+          <span className="h-1 w-1 rounded-full bg-current" />
+          <span className="h-1 w-1 rounded-full bg-current" />
+          <span className="h-1 w-1 rounded-full bg-current" />
         </span>
       </button>
       {open && (
