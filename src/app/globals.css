@@ -748,7 +748,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-spark:nth-of-type(6) { left:31px;top:42px; }
 .naxa-luciole .luciole-spark:nth-of-type(7) { left:4px;top:25px; }
 .naxa-luciole .luciole-spark:nth-of-type(8) { left:43px;top:22px; }
-.naxa-luciole.gesture-salute .luciole-arm-front { animation:luciole-fairy-salute 1.2s ease-in-out 2; }
+.naxa-luciole.gesture-salute .luciole-arm-front { animation:luciole-fairy-salute 560ms ease-in-out 2; }
 .naxa-luciole.gesture-dance .luciole-arm-front { animation:luciole-fairy-dance-front 1.25s ease-in-out infinite; }
 .naxa-luciole.gesture-dance .luciole-arm-back { animation:luciole-fairy-dance-back 1.25s ease-in-out infinite; }
 .naxa-luciole.gesture-typing .luciole-arm-front { animation:luciole-fairy-type 420ms ease-in-out forwards; }

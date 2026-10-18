@@ -45,6 +45,8 @@ export function Luciole() {
     let invalidFocusTimer: number | undefined;
     let lastValidationForm: HTMLFormElement | null = null;
     let saluteTimer: number | undefined;
+    let saluteUntil = 0;
+    let activeGesture: string | null = null;
     const guideCanvas = document.createElement("canvas");
     const guideContext = guideCanvas.getContext("2d");
     const motionAllowed = !reducedMotion.matches;
@@ -246,11 +248,12 @@ export function Luciole() {
       lastFrame = now;
       const idleFor = now - lastInput;
 
-      firefly.classList.remove("gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
-      if (guidedTarget?.kind === "caret") firefly.classList.add("gesture-typing");
-      else if (guidedTarget?.kind === "button") firefly.classList.add("gesture-pointing");
-      else if (idleFor >= 20_000) firefly.classList.add("gesture-resting");
-      else firefly.classList.add("gesture-dance");
+      const nextGesture = now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : idleFor >= 20_000 ? "resting" : "dance";
+      if (nextGesture !== activeGesture) {
+        firefly.classList.remove("gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
+        firefly.classList.add("gesture-" + nextGesture);
+        activeGesture = nextGesture;
+      }
 
       if (idleFor >= 20_000) {
         resting = true;
@@ -319,8 +322,10 @@ export function Luciole() {
     placeTree();
     paint();
     if (motionAllowed) {
+      saluteUntil = performance.now() + 1150;
       firefly.classList.add("gesture-salute");
-      saluteTimer = window.setTimeout(() => { firefly.classList.remove("gesture-salute"); saluteTimer = undefined; }, 1250);
+      activeGesture = "salute";
+      saluteTimer = window.setTimeout(() => { firefly.classList.remove("gesture-salute"); saluteTimer = undefined; }, 1200);
     }
     if (!reducedMotion.matches) start();
     else {
