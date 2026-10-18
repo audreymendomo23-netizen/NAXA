@@ -68,6 +68,7 @@ begin
       and pm.member_role in ('owner','manager','operator') and pa.status='active'
   ) into can_manage;
 
+  if not (is_admin or can_manage or r.client_id=uid) then raise exception 'Action non autorisée'; end if;
   if r.expires_at<=now() and r.status in ('requested','confirmed','ready') then
     update public.universe_reservations set status='expired',updated_at=now() where id=r.id;
     return;

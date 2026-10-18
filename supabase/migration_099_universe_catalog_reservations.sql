@@ -223,6 +223,5 @@ revoke all on public.partner_products,public.universe_reservations,public.univer
 grant select on public.partner_products to anon,authenticated;
 grant select,insert,update on public.partner_products to authenticated;
 grant select on public.universe_reservations,public.universe_reservation_items to authenticated;
-grant usage,select on all sequences in schema public to authenticated;
 
 commit;
