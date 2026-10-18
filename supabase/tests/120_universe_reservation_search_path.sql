@@ -17,15 +17,11 @@ begin
     from pg_catalog.pg_proc p
     join pg_catalog.pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname = function_name
       and p.prosecdef = true
-      and (
-        (function_name = 'reserve_universe_products'
-          and pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_partner_id uuid, p_universe_slug text, p_items jsonb, p_note text')
-        or
-        (function_name = 'transition_universe_reservation'
-          and pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_reservation_id uuid, p_status text')
-      );
+      and p.oid = case function_name
+        when 'reserve_universe_products' then 'public.reserve_universe_products(uuid,text,jsonb,text)'::regprocedure
+        when 'transition_universe_reservation' then 'public.transition_universe_reservation(uuid,text)'::regprocedure
+      end;
 
     if configured_path is null then
       raise exception 'Fonction SECURITY DEFINER absente ou signature inattendue : %', function_name;
