@@ -1553,3 +1553,10 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - `685743cda8185214a81b11a5e56f15ecbe015ff0` — `/client` : recherche et filtre par statut des transactions Pharmacie/commandes, en complément du suivi déjà existant.
 - Ces ajouts de présentation ne changent pas les règles de réservation, la séparation des univers, les statuts autorisés, les règles de retrait, les droits, ni l’accès aux coordonnées privées. La Pharmacie conserve ses routes et règles métier.
 - Niveau de preuve : commits appliqués à `main`. Aucun build, test navigateur ou déploiement Production n’est revendiqué pour ce lot.
+
+
+## Correctifs de règles métier — exclusions Bébé & Maman et verrouillage phase 1 (18/10/2026)
+
+- Le filtre de catalogue Bébé & Maman n’exclut plus le mot « lait » isolément : il cible les laits infantiles/de croissance, préparations et substituts infantiles, céréales/farines infantiles, biberons, tétines, sucettes et équivalents anglais. Cela évite notamment d’écarter à tort un produit cosmétique comme le lait de toilette.
+- L’activation de l’univers `suivi` est verrouillée dans l’interface d’administration et dans l’action serveur pendant la phase 1. Le parcours Dispositifs médicaux reste désactivé conformément au périmètre validé.
+- Commits de code : à confirmer après application ; aucune migration Supabase Production, compilation ou validation navigateur n’est revendiquée.
