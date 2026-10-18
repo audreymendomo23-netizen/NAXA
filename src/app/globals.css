@@ -551,3 +551,60 @@ html[data-theme="nuit"] .naxa-night-wave{
     transition:none!important;
   }
 }
+
+
+/* Luciole nocturne — halo lisible, arbre lumineux près du logo et fondu jour/nuit. */
+.naxa-luciole-light {
+  position: fixed; inset: 0; z-index: 80; pointer-events: none;
+  opacity: 0; visibility: hidden;
+  background: radial-gradient(circle at var(--luciole-x, 50vw) var(--luciole-y, 40vh),
+    rgba(255, 224, 125, .20) 0,
+    rgba(255, 224, 125, .10) 52px,
+    rgba(0, 0, 0, 0) 116px,
+    rgba(0, 0, 0, .12) 190px,
+    rgba(0, 0, 0, .28) 340px,
+    rgba(0, 0, 0, .42) 520px,
+    rgba(0, 0, 0, .48) 720px);
+  transition: opacity 900ms cubic-bezier(.22,1,.36,1), visibility 0s linear 900ms;
+}
+.naxa-luciole-tree {
+  position: fixed; left: 0; top: 0; width: 24px; height: 34px;
+  z-index: 97; pointer-events: none; opacity: 0; visibility: hidden;
+  filter: drop-shadow(0 0 7px rgba(102, 255, 164, .55));
+  transition: opacity 850ms cubic-bezier(.22,1,.36,1), visibility 0s linear 850ms, filter 500ms ease;
+}
+.naxa-luciole-tree svg { display:block; width:100%; height:100%; overflow:visible; }
+.naxa-tree-trunk { fill:none; stroke:#9CFFB8; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+.naxa-tree-leaf { fill:#45F58C; stroke:#C0FFD2; stroke-width:.65; }
+.naxa-tree-star { fill:#FFF2A6; filter:drop-shadow(0 0 4px #FFF2A6); }
+.naxa-luciole-tree-awake { filter:drop-shadow(0 0 11px rgba(102,255,164,.95)); }
+.naxa-luciole-tree-glow { filter:drop-shadow(0 0 14px rgba(102,255,164,1)); }
+.naxa-luciole {
+  z-index: 96 !important;
+  opacity: 0; visibility: hidden;
+  transition: opacity 850ms cubic-bezier(.22,1,.36,1), visibility 0s linear 850ms;
+}
+html[data-theme="nuit"] .naxa-luciole-light,
+html[data-theme="nuit"] .naxa-luciole,
+html[data-theme="nuit"] .naxa-luciole-tree,
+html[data-theme="nuit"] .naxa-night-scene,
+html[data-theme="nuit"] .naxa-night-firefly,
+html[data-theme="nuit"] .naxa-night-wave {
+  opacity: 1; visibility: visible;
+  transition: opacity 850ms cubic-bezier(.22,1,.36,1), visibility 0s;
+}
+html[data-theme="jour"] .naxa-luciole-light,
+html[data-theme="jour"] .naxa-luciole,
+html[data-theme="jour"] .naxa-luciole-tree,
+html[data-theme="jour"] .naxa-night-scene,
+html[data-theme="jour"] .naxa-night-firefly,
+html[data-theme="jour"] .naxa-night-wave {
+  opacity: 0; visibility: hidden;
+  transition: opacity 850ms cubic-bezier(.22,1,.36,1), visibility 0s linear 850ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .naxa-luciole-light, .naxa-luciole, .naxa-luciole-tree,
+  .naxa-night-scene, .naxa-night-firefly, .naxa-night-wave {
+    transition: none !important;
+  }
+}
