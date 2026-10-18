@@ -81,7 +81,7 @@ async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
     return [...strings(openfda?.generic_name), ...strings(openfda?.brand_name)].some((name) =>
       name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === normalized
     );
-  }) ?? records[0];
+  });
   if (!record) return null;
   const openfda = record.openfda as RecordObject | undefined;
   const name = strings(openfda?.brand_name)[0] ?? strings(openfda?.generic_name)[0] ?? term;
