@@ -152,7 +152,7 @@ export function AccueilClient() {
   const [dictionnaireOuvert, setDictionnaireOuvert] = useState(false);
   const [termeMedical, setTermeMedical] = useState("");
   const [rechercheMedicale, setRechercheMedicale] = useState(false);
-  const [resultatMedical, setResultatMedical] = useState<{terme:string;definition:string;source:string;sourceUrl:string;type:string|null;notice:string}|null>(null);
+  const [resultatMedical, setResultatMedical] = useState<{terme:string;definition:string;source:string;sourceUrl:string;type:string|null;notice:string;imageUrl:string|null;imageAlt:string|null;imageSourceUrl:string|null;imageSource:string|null}|null>(null);
   const [erreurMedicale, setErreurMedicale] = useState("");
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
@@ -648,6 +648,10 @@ export function AccueilClient() {
               {resultatMedical && <article aria-live="polite" className="mt-5 max-h-[38vh] overflow-y-auto rounded-2xl border border-[#DCE4D8] bg-white p-4">
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#8A7135]">{resultatMedical.type || "Définition médicale"}</p>
                 <h3 className="mt-1 text-[19px] font-black leading-6 text-[#0B3D26]">{resultatMedical.terme}</h3>
+                {resultatMedical.imageUrl && <figure className="mt-3 overflow-hidden rounded-xl border border-[#E5E9E0] bg-[#F7F8F4]">
+                  <img src={resultatMedical.imageUrl} alt={resultatMedical.imageAlt || ("Illustration : " + resultatMedical.terme)} loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = "none"; }} className="mx-auto max-h-52 w-full object-contain p-2"/>
+                  {resultatMedical.imageSource && resultatMedical.imageSourceUrl && <figcaption className="border-t border-[#E5E9E0] px-3 py-2 text-[10px] leading-4 text-[#647366]">Illustration : <a href={resultatMedical.imageSourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#0F6B3F] underline underline-offset-2">{resultatMedical.imageSource}</a></figcaption>}
+                </figure>}
                 <p className="mt-3 whitespace-pre-line text-sm leading-6 text-[#35483B]">{resultatMedical.definition}</p>
                 <p className="mt-4 border-t border-[#E8EDE6] pt-3 text-xs font-bold text-[#53685C]">Source : <a href={resultatMedical.sourceUrl} target="_blank" rel="noreferrer" className="text-[#0F6B3F] underline underline-offset-2">{resultatMedical.source}</a></p>
                 <p className="mt-3 rounded-xl bg-[#F5F4EC] px-3 py-2.5 text-xs leading-5 text-[#596456]">{resultatMedical.notice}</p>
