@@ -41,12 +41,14 @@
 - Migration 113 : `supabase/migration_113_home_service_offer_publish_guard.sql`.
 - Migration 114 : `supabase/migration_114_home_service_notifications.sql`.
 - Migration 115 : `supabase/migration_115_mark_user_notification_read.sql`.
+- Migration 116 : `supabase/migration_116_harden_universe_function_search_paths.sql`.
 - La migration 110 exige l'extension `pg_cron` et programme le job `naxa-expire-universe-reservations`.
 - La migration 111 dépend de la colonne `low_stock_threshold` ajoutée en migration 105.
 - La migration 112 ajoute le socle des prestations à domicile ; elle dépend du socle partenaires/universes, notamment de la fonction `universe_partner_is_public` (migration 100).
 - La migration 113 remplace la politique trop large d’écriture partenaire sur les offres : création en brouillon uniquement, modification/archivage possible, publication réservée à la fonction administrative.
 - La migration 114 réutilise les notifications de la migration 075 ; les notifications ne contiennent jamais l’adresse exacte ni le téléphone du client.
 - La migration 115 n’autorise le marquage que pour une notification dont l’utilisateur est le destinataire ; l’interface limite cette action aux notifications `home_service_request`.
+- La migration 116 place explicitement `pg_temp` en dernier dans le `search_path` des fonctions `SECURITY DEFINER` du chantier pour éviter l’ombrage des objets `public`.
 - Ces fichiers sont du code source uniquement : aucune de ces migrations n'a été appliquée à Production dans ce chantier.
 
 ## Vérifications et déploiement
@@ -58,4 +60,4 @@
 
 ## Prochaine étape
 
-Terminer le codage du périmètre actuel (prestations à domicile : parcours partenaire/client, notifications de demande et publication), puis lancer en fin de chantier les vérifications de compilation, les tests SQL ciblés sur un environnement isolé et les contrôles des parcours. Aucun test ou migration ne doit écrire dans Supabase Production.
+Terminer les derniers ajustements du périmètre actuel (prestations à domicile : parcours partenaire/client, notifications de demande et publication), puis lancer en fin de chantier les vérifications de compilation, les tests SQL ciblés sur un environnement isolé et les contrôles des parcours. Aucun test ou migration ne doit écrire dans Supabase Production.
