@@ -1530,3 +1530,15 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Commits : `ebeb1b9a47f67623d91f642d952d5bae55451e35`, `11f274acfe2b7180598cadf4b0437839e9e43100`.
 - Niveau de preuve : statique uniquement ; build, E2E et Production non vérifiés.
 - `3ea901a4aa3a3482f091082ec2e728739d2554e6` — parcours Examens médicaux : désactivation des boutons de réservation d’examen et de pack lorsqu’aucun créneau disponible n’est proposé. Contrôle statique uniquement, build et test navigateur non exécutés.
+
+
+## Audit groupé — six univers et réservations (18/10/2026)
+
+- **Périmètre audité en parallèle :** catalogue/réservation Parapharmacie et Bébé & Maman, garde-fou d'exclusions, demandes et coordonnées Prestations à domicile, publication administrative, notifications, créneaux Examens, navigation partagée et messages d'erreur.
+- **Résultat statique :** les contrôles de rôle, d'état de partenaire/univers, de stock/réservation, de confidentialité des coordonnées et de transitions de demandes sont présents dans les fonctions examinées. Les boutons Examens ne restent pas actifs quand aucun créneau libre n'est proposé.
+- **Cause racine trouvée :** les RPC `reserve_universe_products` et `transition_universe_reservation`, déclarées `SECURITY DEFINER` dans la migration 099, avaient été omises du durcissement `search_path` de la migration 116.
+- **Correction additive :** migration 120 `supabase/migration_120_harden_universe_reservation_search_paths.sql` fixe le `search_path` des deux RPC à `public, extensions, pg_temp`. Test structurel associé : `supabase/tests/120_universe_reservation_search_path.sql`.
+- **Commits :** migration 120 `a2dde11c34e45862f633a2ef181c1c1a4cbff321` ; test initial `11fecb81da9408df86cd4341177fc09fa2741107`, puis corrections de robustesse `2c4ecbff9bce755aaa686d4f7e8aed681097cd55` et `8d484d5901ed2e8a5f90d50e93c6a5f6410ab5d1` ; rapport d'audit `b9be13295017ab7f64b76dccabcea776795765c0`.
+- **Statut honnête :** audit statique effectué ; correction et test sont présents sur `main`, mais le test 120 n'a pas été exécuté faute de connexion Supabase éligible. Le build Next.js et les parcours navigateur restent non vérifiés ; Vercel bloque actuellement la création de build par `build-rate-limit`. Aucun changement Supabase Production ni déploiement Production n'a été effectué.
+- **Pharmacie :** aucune table, route ni logique existante de la Pharmacie n'a été modifiée par la migration 120 ; celle-ci ne fait que régler le `search_path` de deux RPC des réservations multi-univers.
+- **Suite concrète :** exécuter le test 120 et le replay SQL sur un projet Supabase de test accessible, puis le build et les tests de navigation quand la limite Vercel sera levée. Ne pas déclarer le périmètre vert en technique, fonctionnel ou Production avant ces preuves.
