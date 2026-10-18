@@ -685,7 +685,7 @@ export function AccueilClient() {
                     <span className="min-w-0 flex-1">{suggestion}</span>
                     <IconeNAXA name="arrow-up-left" size={16}/>
                   </button>)}
-                </div>
+                </div>}
                 <button type="submit" disabled={rechercheMedicale || termeMedical.trim().length < 2} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-sm transition hover:brightness-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
                   {rechercheMedicale ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B3D26]/30 border-t-[#0B3D26]"/> {anglais ? "Searching…" : "Recherche en cours…"} </> : <><IconeNAXA name="search" size={18}/> {anglais ? "Search" : "Rechercher"}</>}
                 </button>
