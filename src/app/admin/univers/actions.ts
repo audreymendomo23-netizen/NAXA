@@ -82,3 +82,27 @@ export async function changerActivationUnivers(form: FormData) {
   revalidatePath("/" + slug);
   redirect("/admin/univers?ok=activation");
 }
+
+
+export async function changerAssociationPartenaire(form: FormData) {
+  const { sb, actor } = await admin();
+  const partnerId = field(form, "partner_id", 40);
+  const universe = field(form, "universe_slug", 40);
+  const enabled = field(form, "enabled", 5) === "true";
+  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !slugs.includes(universe)) redirect("/admin/univers?erreur=parametres");
+  const { data: partner, error: partnerError } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
+  if (partnerError || !partner) redirect("/admin/univers?erreur=schema");
+  if (enabled && partner.status !== "active") redirect("/admin/univers?erreur=partenaire_inactif");
+  const { error } = await sb.from("partner_universes").upsert({
+    partner_id: partnerId, universe_slug: universe, enabled,
+  }, { onConflict: "partner_id,universe_slug" });
+  if (error) redirect("/admin/univers?erreur=association");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: enabled ? "partner.universe_enabled" : "partner.universe_disabled",
+    entity_type: "partner_universe", entity_id: partnerId + ":" + universe,
+    metadata: { partner_id: partnerId, universe_slug: universe, enabled },
+  });
+  revalidatePath("/admin/univers");
+  revalidatePath("/" + universe);
+  redirect("/admin/univers?ok=association");
+}
