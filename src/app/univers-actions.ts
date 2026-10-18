@@ -9,7 +9,7 @@ type ReservationItem = { product_id: string; quantity: number };
 async function catalogItemsAllowed(sb: any, universe: string, partnerId: string, items: ReservationItem[]) {
   const { data, error } = await sb.rpc("get_universe_catalog", { p_universe_slug: universe });
   if (error || !Array.isArray(data)) return false;
-  const products = new Map<string, any>(data.map((product: any) => [String(product.product_id), product]));
+  const products = new Map<string, any>(data.map((product: any) => [String(product.product_id), product] as [string, any]));
   return items.every((item) => {
     const product = products.get(item.product_id);
     if (!product || product.partner_id !== partnerId || product.universe_slug !== universe) return false;
