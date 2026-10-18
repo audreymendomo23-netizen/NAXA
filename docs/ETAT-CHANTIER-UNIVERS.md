@@ -34,6 +34,9 @@
 - `cf231cc6ab8140fc12dba0738901e769833d3d84` et `9e3645a0503d36906b3cd443e254e238380748a1` — catalogue public, formulaire de demande et reçu privé client.
 - `6d3c94700fdeb29b1cf75667262428e0479928f6`, `18dcc1652223f33df35603f7b7bd19a1671ff78d`, `f8d83c18ad8833e8b14726af57cfa181c8954570`, `09950f9fcdd1c145441448a6e983dfcfe21703e6`, `8f28004138a2c3ceee137125d98994b120b919fe` — espace partenaire, validation administrative, navigation conditionnelle et verrouillage du type de partenaire.
 
+
+- `5e17714961c63a5a6013390ede9c5bfb4844ea12` — réduction des lectures de coordonnées privées côté partenaire : l’interface ne demande les adresses exactes et téléphones que pour les demandes déjà `confirmed` ou `completed`. La RLS Supabase demeure la frontière de sécurité ; ce filtre UI/lecture applique en plus le principe de minimisation.
+
 ## Migrations SQL à valider
 
 - Les migrations 098 à 109 constituent les dépendances des univers, catalogues, réservations et créneaux d'examens.
