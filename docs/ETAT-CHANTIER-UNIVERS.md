@@ -69,3 +69,13 @@
 ## Prochaine étape
 
 Terminer les derniers ajustements du périmètre actuel (prestations à domicile : parcours partenaire/client, notifications de demande et publication), puis lancer en fin de chantier les vérifications de compilation, les tests SQL ciblés sur un environnement isolé et les contrôles des parcours. Aucun test ou migration ne doit écrire dans Supabase Production.
+
+
+## Mise à jour — cahier des 6 univers du 18 octobre 2026
+
+- **Commit de construction :** `5708f5ba2b22525bca77b4820d54d7699ee1d036` — migration additive 119 `supabase/migration_119_baby_mama_forbidden_terms_hardening.sql`.
+- **Commit de test :** `8099df7479bc9edd21a6d4bb5424cb3db56da766` — test `supabase/tests/119_baby_mama_forbidden_terms.sql`.
+- **But :** fermer des variantes FR/EN qui pouvaient contourner l’exclusion Bébé & Maman (laits infantiles et de croissance, préparations/substituts, céréales/farines infantiles, biberons, tétines, sucettes et variantes anglaises).
+- **Protection :** le déclencheur reste limité à `bebe-maman`; le test comprend aussi un contrôle anti-faux-positif pour « lait de toilette bébé » et un contrôle de portée sur `parapharmacie`.
+- **État honnête :** les deux fichiers sont présents sur `main`. Le test SQL n’a pas encore été exécuté dans cette session ; la migration n’a pas été appliquée à Supabase Production. Statut : **🟡 construit — preuve d’exécution manquante**.
+- **Pharmacie :** aucune table, route ou composant existant de la Pharmacie n’a été modifié par ces commits.
