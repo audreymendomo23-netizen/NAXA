@@ -10,8 +10,8 @@ type CatalogProduct = {
   photo_url: string | null; price_fcfa: number; available_quantity: number; unit_label: string;
 };
 const config = {
-  parapharmacie: { title: "Parapharmacie", color: "#096A6F", soft: "#E6F7F6" },
-  "bebe-maman": { title: "Bébé & Maman", color: "#AD2D63", soft: "#FDEEF4" },
+  parapharmacie: { title: "Parapharmacie", color: "#0B7F85", soft: "#E6F7F6" },
+  "bebe-maman": { title: "Bébé & Maman", color: "#C93774", soft: "#FDEEF4" },
 };
 
 export async function UniverseCatalog({ universe }: { universe: UniverseKey }) {
