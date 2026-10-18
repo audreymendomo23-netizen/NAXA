@@ -14,9 +14,11 @@ declare
     'medicaments?|medicinal[[:space:]]+products?|pharmaceuticals?|drugs?|' ||
     'antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|' ||
     'anti[[:space:]-]+inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|' ||
-    'paracetamol|acetaminophen|ibuprofen|aspirine|amoxicilline|artemether|lumefantrine|' ||
-    'quinine|metronidazole|diclofenac|omeprazole|cetirizine|loratadine|prednisolone|' ||
-    'dexamethasone|tramadol|suppositoires?|sirop[[:space:]-]+medicamenteux|' ||
+    'paracetamol|acetaminophen|doliprane|efferalgan|dafalgan|panadol|calpol|ibuprofen|ibuprofene|aspirin|aspirine|' ||
+    'amoxicillin|amoxicilline|amoxil|augmentin|coartem|nivaquine|artemether|lumefantrine|quinine|chloroquine|hydroxychloroquine|' ||
+    'metronidazole|flagyl|ciprofloxacin|ciprofloxacine|azithromycin|azithromycine|ceftriaxone|doxycycline|metformin|metformine|' ||
+    'diclofenac|voltaren|brufen|nurofen|omeprazole|maalox|gaviscon|smecta|cetirizine|zyrtec|loratadine|aerius|ventoline|' ||
+    'prednisolone|prednisone|dexamethasone|tramadol|suppositoires?|sirop[[:space:]-]+medicamenteux|' ||
     'medicinal[[:space:]-]+syrup' ||
     ')([^a-z]|$)';
 begin
