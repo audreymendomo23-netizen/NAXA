@@ -155,6 +155,8 @@ export function AccueilClient() {
   const [rechercheMedicale, setRechercheMedicale] = useState(false);
   const [resultatMedical, setResultatMedical] = useState<{terme:string;definition:string;source:string;sourceUrl:string;type:string|null;notice:string;imageUrl:string|null;imageAlt:string|null;imageSourceUrl:string|null;imageSource:string|null}|null>(null);
   const [erreurMedicale, setErreurMedicale] = useState("");
+  const [suggestionsMedicales, setSuggestionsMedicales] = useState<string[]>([]);
+  const [chargementSuggestionsMedicales, setChargementSuggestionsMedicales] = useState(false);
   const [langueDictionnaire, setLangueDictionnaire] = useState<"fr" | "en">("fr");
   const anglais = langueDictionnaire === "en";
 
@@ -183,10 +185,11 @@ export function AccueilClient() {
     return () => { window.cancelAnimationFrame(focus); document.removeEventListener("keydown", escape); };
   }, [dictionnaireOuvert]);
 
-  const rechercherTermeMedical = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const terme = termeMedical.trim();
+  const chargerTermeMedical = async (termeSaisi: string) => {
+    const terme = termeSaisi.trim();
     if (terme.length < 2) { setErreurMedicale(anglais ? "Enter at least two characters." : "Saisissez au moins deux caractères."); return; }
+    setTermeMedical(terme);
+    setSuggestionsMedicales([]);
     setRechercheMedicale(true);
     setErreurMedicale("");
     setResultatMedical(null);
@@ -201,6 +204,41 @@ export function AccueilClient() {
       setRechercheMedicale(false);
     }
   };
+
+  const rechercherTermeMedical = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void chargerTermeMedical(termeMedical);
+  };
+
+  useEffect(() => {
+    const terme = termeMedical.trim();
+    setSuggestionsMedicales([]);
+    if (!dictionnaireOuvert || terme.length < 2 || resultatMedical) {
+      setChargementSuggestionsMedicales(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setChargementSuggestionsMedicales(true);
+      try {
+        const response = await fetch(
+          "/api/dictionnaire-medical?q=" + encodeURIComponent(terme) + "&lang=" + langueDictionnaire + "&suggest=1",
+          { headers: { Accept: "application/json" }, signal: controller.signal }
+        );
+        if (!response.ok) return;
+        const data = await response.json() as { suggestions?: string[] };
+        if (!controller.signal.aborted) setSuggestionsMedicales((data.suggestions ?? []).slice(0, 3));
+      } catch {
+        // L’utilisateur peut toujours lancer une recherche complète.
+      } finally {
+        if (!controller.signal.aborted) setChargementSuggestionsMedicales(false);
+      }
+    }, 220);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [termeMedical, langueDictionnaire, dictionnaireOuvert, resultatMedical]);
 
   const suggestionsLocales = useMemo(() => {
     const terme = normaliserRecherche(query);
@@ -639,7 +677,15 @@ export function AccueilClient() {
               </div>
               <form onSubmit={rechercherTermeMedical}>
                 <label htmlFor="naxa-dictionnaire-search" className="mb-2 block text-sm font-bold text-[#254D36]">{anglais ? "Medicine, disease, molecule…" : "Médicament, maladie, molécule…"}</label>
-                <input id="naxa-dictionnaire-search" value={termeMedical} onChange={event => setTermeMedical(event.target.value)} placeholder={anglais ? "E.g. malaria, paracetamol…" : "Ex. paludisme, paracétamol…"} maxLength={100} autoComplete="off" className="h-13 min-h-[52px] w-full rounded-2xl border border-[#D7DCCF] bg-white px-4 text-[15px] text-[#183B28] outline-none transition placeholder:text-[#879287] focus:border-[#167143] focus:ring-4 focus:ring-[#167143]/10"/>
+                <input id="naxa-dictionnaire-search" value={termeMedical} onChange={event => { setTermeMedical(event.target.value); setResultatMedical(null); setErreurMedicale(""); }} aria-controls="naxa-dictionnaire-suggestions" aria-autocomplete="list" placeholder={anglais ? "E.g. malaria, paracetamol…" : "Ex. paludisme, paracétamol…"} maxLength={100} autoComplete="off" className="h-13 min-h-[52px] w-full rounded-2xl border border-[#D7DCCF] bg-white px-4 text-[15px] text-[#183B28] outline-none transition placeholder:text-[#879287] focus:border-[#167143] focus:ring-4 focus:ring-[#167143]/10"/>
+                {termeMedical.trim().length >= 2 && !resultatMedical && (suggestionsMedicales.length > 0 || chargementSuggestionsMedicales) && <div id="naxa-dictionnaire-suggestions" role="listbox" aria-label={anglais ? "Suggestions" : "Suggestions"} className="mt-2 overflow-hidden rounded-2xl border border-[#D7DCCF] bg-white shadow-sm">
+                  {chargementSuggestionsMedicales && suggestionsMedicales.length === 0 && <p className="px-4 py-3 text-xs text-[#647366]">{anglais ? "Looking for suggestions…" : "Recherche de suggestions…"}</p>}
+                  {suggestionsMedicales.map((suggestion, index) => <button key={suggestion} type="button" role="option" aria-selected="false" onClick={() => { void chargerTermeMedical(suggestion); }} className="flex min-h-12 w-full items-center gap-3 border-b border-[#E8EDE6] px-4 py-3 text-left text-sm font-semibold text-[#183B28] transition last:border-b-0 hover:bg-[#F0F7F1] focus-visible:bg-[#F0F7F1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#167143]">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EAF4EC] text-xs font-black text-[#0F6B3F]">{index + 1}</span>
+                    <span className="min-w-0 flex-1">{suggestion}</span>
+                    <IconeNAXA name="arrow-up-left" size={16}/>
+                  </button>)}
+                </div>
                 <button type="submit" disabled={rechercheMedicale || termeMedical.trim().length < 2} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-sm transition hover:brightness-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
                   {rechercheMedicale ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B3D26]/30 border-t-[#0B3D26]"/> {anglais ? "Searching…" : "Recherche en cours…"} </> : <><IconeNAXA name="search" size={18}/> {anglais ? "Search" : "Rechercher"}</>}
                 </button>
