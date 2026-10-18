@@ -76,7 +76,7 @@ export function EnTeteClient() {
     setQuery("");
   }
 
-  return <header className="naxa-green-header relative z-20 -mx-4 px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  return <header className="naxa-green-header relative z-20 -mx-4 px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white after:absolute after:inset-x-0 after:-bottom-6 after:z-[-1] after:h-6 after:bg-naxa-green-900 after:content-[''] after:pointer-events-none">
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">

@@ -455,7 +455,7 @@ export function AccueilClient() {
         </div>}
       </div>}
     </header>
-    <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
+    <main className="relative z-10 mx-auto w-full max-w-[480px] rounded-t-[24px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
       <div className="naxa-enter mb-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <BoutonTheme className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF3B0] text-[#0F6B3F] shadow-sm" />
