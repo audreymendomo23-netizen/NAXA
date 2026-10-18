@@ -139,3 +139,16 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `11f274acfe2b7180598cadf4b0437839e9e43100` — maintien explicite de l’état « à venir » pour l’univers Dispositifs médicaux, désactivé en phase 1.
 - Contrôle réalisé : lecture statique des appels `UniverseLanding` et des routes concernées. Build Next.js et test navigateur non exécutés ; ne pas classer ce correctif comme validé techniquement ou en Production.
 - `3ea901a4aa3a3482f091082ec2e728739d2554e6` — les boutons de réservation d’examens et de packs sont désactivés quand aucun créneau ouvert et disponible n’existe pour le centre ; évite une action apparemment valide qui échouerait forcément côté serveur.
+
+
+## Audit groupé de sécurité et de parcours — 18 octobre 2026
+
+- Rapport complet : `docs/AUDIT-BULK-UNIVERS-2026-10-18.md`.
+- Audit statique effectué sur les six univers, les RPC de réservation multi-univers, les exclusions Bébé & Maman, les demandes à domicile, les notifications, les réservations d'examens et la navigation partagée.
+- **Cause racine corrigée dans le code :** les RPC `reserve_universe_products` et `transition_universe_reservation` n'étaient pas incluses dans le durcissement de `search_path` de la migration 116.
+- **Migration additive 120 :** `supabase/migration_120_harden_universe_reservation_search_paths.sql` place explicitement `pg_temp` en dernier pour les deux fonctions `SECURITY DEFINER`. Test structurel associé : `supabase/tests/120_universe_reservation_search_path.sql`.
+- Commits : migration `a2dde11c34e45862f633a2ef181c1c1a4cbff321`, test final `8d484d5901ed2e8a5f90d50e93c6a5f6410ab5d1`, rapport `b9be13295017ab7f64b76dccabcea776795765c0`, registre `f631416ab7fb203f14948880789dbaad6d3aa2e0`.
+- **Validation :** la correction et le test sont dans `main`, mais le test 120 n'a pas été exécuté, car l'accès au connecteur Supabase échoue avec `link_id must identify an eligible linked account`. Aucun projet n'a été modifié et aucune migration n'a été appliquée à Production.
+- **Build et déploiement :** Vercel renvoie `upgradeToPro=build-rate-limit`. Le build Next.js, les parcours navigateur et un nouveau déploiement Production ne sont pas confirmés. CircleCI n'est pas utilisé comme gate.
+- **Protection Pharmacie :** aucune table, route ni logique métier historique de la Pharmacie n'a été modifiée par la migration 120.
+- **Statut :** audit statique terminé ; validation technique/fonctionnelle/Production encore bloquée par les preuves manquantes ci-dessus.
