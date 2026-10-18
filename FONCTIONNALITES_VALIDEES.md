@@ -1478,7 +1478,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
   - consignation chantier : `c09adf3ab37b6387c74e3690f20661d59073c893`.
 - **Règles couvertes :** lait(s) infantile(s), lait(s) de croissance, préparations infantiles, substituts du lait maternel, céréales/farines infantiles, biberons, tétines, sucettes et variantes anglaises. Le garde-fou ne s’applique pas aux autres univers.
 - **Protection Pharmacie :** aucun objet ou parcours Pharmacie n’est modifié ; seule la fonction du catalogue Bébé & Maman et son déclencheur sont renforcés.
-- **Validation :** 🟡 **CONSTRUIT — PREUVE D’EXÉCUTION MANQUANTE**. Les fichiers sont sur `main`, mais le test SQL n’a pas été exécuté dans cette session et la migration n’a pas été appliquée à Supabase Production.
+- **Validation :** 🟢 **VALIDÉ TECHNIQUEMENT — TEST ISOLÉ**. Migration appliquée à `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) et test exécuté avec résultat `naxa_119_baby_mama_forbidden_terms_pass = true`. La migration n’a pas été appliquée à Supabase Production.
 - **Suite concrète :** exécuter le test sur une base de test isolée, puis poursuivre l’audit ciblé des parcours des univers déjà présents avant toute affirmation de validation fonctionnelle.
 
 
