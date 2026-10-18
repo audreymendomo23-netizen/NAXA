@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { EnTeteClient } from "@/components/EnTeteClient";
+import { notifierNAXA } from "@/components/NotificationGlobale";
 import { ecouterFavoris, ecrireFavoris, lireFavoris, type FavoriNAXA } from "@/lib/favoris-client";
 
 function VisuelProduit({ item }: { item: FavoriNAXA }) {
@@ -25,9 +26,15 @@ function VisuelProduit({ item }: { item: FavoriNAXA }) {
 
 export default function FavorisClientPage() {
   const [favoris, setFavoris] = useState<FavoriNAXA[]>([]);
+  const notificationInitiale = useRef(false);
+
   useEffect(() => {
     const actualiser = () => setFavoris(lireFavoris());
     actualiser();
+    if (!notificationInitiale.current) {
+      notificationInitiale.current = true;
+      notifierNAXA("Vos favoris réunissent les médicaments que vous avez enregistrés depuis l’accueil. Les prix et les stocks restent à confirmer auprès de la pharmacie.");
+    }
     return ecouterFavoris(actualiser);
   }, []);
 
@@ -35,16 +42,15 @@ export default function FavorisClientPage() {
     const suivants = favoris.filter(item => item.id !== id);
     ecrireFavoris(suivants);
     setFavoris(suivants);
+    notifierNAXA("Médicament retiré de vos favoris.");
   };
-
 
   return <main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
     <EnTeteClient/>
-
     <section className="relative z-10 mx-auto -mt-4 max-w-[480px]">
-      <div className="naxa-enter mb-4 rounded-2xl border border-[#D8E5DC] bg-white p-4 shadow-sm">
-        <p className="text-sm leading-5 text-[#53685C]">Retrouvez ici les médicaments que vous avez enregistrés depuis l’accueil. Les prix et stocks doivent toujours être confirmés auprès de la pharmacie.</p>
-        <p className="mt-2 text-sm font-extrabold">{favoris.length} favori{favoris.length === 1 ? "" : "s"}</p>
+      <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#D8E5DC] bg-white px-4 py-3 shadow-sm">
+        <h1 className="text-lg font-extrabold">Mes favoris</h1>
+        <span className="rounded-full bg-[#FFE23D] px-3 py-1 text-sm font-extrabold">{favoris.length}</span>
       </div>
 
       {favoris.length === 0 ? <div className="naxa-enter rounded-[24px] border border-dashed border-[#B9D2C2] bg-white px-6 py-10 text-center shadow-sm">
