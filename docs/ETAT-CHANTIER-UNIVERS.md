@@ -161,3 +161,14 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `/admin/prestations` : recherche des offres soumises, filtre de statut et compteur des résultats.
 - `/client` : recherche et filtre par statut des demandes à domicile dans l’espace « Achats / Réservations / Commandes » ; le reste du suivi (Pharmacie, panier, achats) conserve son fonctionnement.
 - Ces filtres sont de présentation uniquement et ne changent ni les droits d’accès, ni les transitions de statut, ni l’accès aux coordonnées privées. Statut : code modifié ; aucun build/test navigateur n’est revendiqué.
+
+
+## Complément — Filtres transversaux des six univers et du suivi (18/10/2026)
+
+- `7fddde52f3bc6c0eb84f51b89f662ba3da665727` — `/prestations` : recherche par nom, catégorie, description, partenaire et zone ; filtre de catégorie ; tri par nom/prix ; compteur et état vide.
+- `56200a3ed7e082b33337e0e30512c426b84251df` — `/partenaire/prestations` : recherche combinée des offres et demandes, filtres indépendants de statut, compteurs et états vides.
+- `a8a487dce99c6d5499bacc62817196aa80cdc2fb` — `/admin/prestations` : recherche des offres à valider et filtre de statut avec compteur.
+- `29928d90cee6958830f6177a40c000a40d32b827` — `/client` : recherche et filtre par statut des demandes à domicile.
+- `685743cda8185214a81b11a5e56f15ecbe015ff0` — `/client` : recherche et filtre par statut des transactions Pharmacie/commandes, en complément du suivi déjà existant.
+- Ces ajouts de présentation ne changent pas les règles de réservation, la séparation des univers, les statuts autorisés, les règles de retrait, les droits, ni l’accès aux coordonnées privées. La Pharmacie conserve ses routes et règles métier.
+- Niveau de preuve : commits appliqués à `main`. Aucun build, test navigateur ou déploiement Production n’est revendiqué pour ce lot.
