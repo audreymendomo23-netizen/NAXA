@@ -75,3 +75,12 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - Test existant 113–118 exécuté sur le projet isolé : `naxa_113_118_home_services_security_pass = true`.
 - La migration 124 n’a pas été appliquée en Production. Build Next.js, E2E navigateur et déploiement restent non vérifiés/non exécutés.
 
+
+
+## Étape 5 — Dispositifs médicaux : garde-fou phase 1 (19 octobre 2026)
+
+- Le libellé administratif de l’univers `suivi` est désormais « Dispositifs médicaux ».
+- Migration additive 125 appliquée à Supabase Production et au projet isolé `naxa-ci-replay-2` : univers désactivé, feature flag désactivé, associations partenaires `suivi` désactivées.
+- Les quatre déclencheurs SQL bloquent les activations directes et la publication de produits de cet univers, y compris en contournant l’interface.
+- Test SQL 125 exécuté sur les deux bases avec résultat `naxa_125_medical_devices_phase1_lock_pass = true`, y compris tentatives interdites d’activation et de publication.
+- L’espace reste « à venir » en phase 1 ; aucune collecte ou synchronisation de mesures de santé n’est introduite. Aucun déploiement Vercel, build Next.js ou test navigateur n’est revendiqué.
