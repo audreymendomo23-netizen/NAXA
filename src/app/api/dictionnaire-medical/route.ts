@@ -11,6 +11,10 @@ type DictionaryResult = {
   sourceUrl: string;
   type: string | null;
   notice: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  imageSourceUrl: string | null;
+  imageSource: string | null;
 };
 
 async function fetchJson(url: string): Promise<RecordObject | null> {
@@ -39,6 +43,32 @@ function cleanText(value: unknown, max = 1800): string {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+async function searchDrugImage(term: string, matchedNames: string[]): Promise<{imageUrl:string; imageAlt:string; imageSourceUrl:string; imageSource:string} | null> {
+  // DailyMed label media can provide a genuine product/packaging image. Only use
+  // it when the label name matches the searched term to avoid misleading photos.
+  const search = await fetchJson("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls.json?pagesize=8&page=1&drug_name=" + encodeURIComponent(term));
+  const data = Array.isArray(search?.data) ? search.data as RecordObject[] : [];
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const wanted = normalize(term);
+  const candidate = data.find((item) => {
+    const title = typeof item.title === "string" ? normalize(item.title) : "";
+    return title.includes(wanted) || matchedNames.some((name) => title.includes(normalize(name)));
+  });
+  const setId = typeof candidate?.setid === "string" ? candidate.setid : null;
+  if (!setId) return null;
+  const media = await fetchJson("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls/" + encodeURIComponent(setId) + "/media.json");
+  const mediaItems = Array.isArray(media?.data) ? media.data as RecordObject[] : [];
+  const imageItem = mediaItems.find((item) => typeof item.url === "string" && /^https:\/\/dailymed\.nlm\.nih\.gov\//i.test(item.url) && typeof item.mime_type === "string" && item.mime_type.startsWith("image/"));
+  if (typeof imageItem?.url !== "string") return null;
+  const title = typeof candidate?.title === "string" ? candidate.title : term;
+  return {
+    imageUrl: imageItem.url,
+    imageAlt: "Illustration du conditionnement indiqué sur une notice DailyMed : " + title,
+    imageSourceUrl: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + encodeURIComponent(setId),
+    imageSource: "DailyMed — notice américaine",
+  };
+}
+
 async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
   const safe = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const query = '(openfda.generic_name:"' + safe + '" OR openfda.brand_name:"' + safe + '")';
@@ -58,6 +88,8 @@ async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
   const indications = cleanText(strings(record.indications_and_usage)[0]);
   const definition = description || indications;
   if (!definition) return null;
+  const matchedNames = [...strings(openfda?.generic_name), ...strings(openfda?.brand_name)];
+  const image = await searchDrugImage(term, matchedNames);
   return {
     terme: name,
     definition,
@@ -65,6 +97,10 @@ async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
     sourceUrl: "https://open.fda.gov/apis/drug/label/",
     type: "Médicament",
     notice: "L’étiquetage provient des États-Unis et peut différer de la notice autorisée au Cameroun. Vérifiez toujours la notice du produit exact auprès d’un pharmacien. Cette fiche ne donne aucun conseil de dosage.",
+    imageUrl: image?.imageUrl ?? null,
+    imageAlt: image?.imageAlt ?? null,
+    imageSourceUrl: image?.imageSourceUrl ?? null,
+    imageSource: image?.imageSource ?? null,
   };
 }
 
@@ -80,13 +116,21 @@ async function searchEncyclopedia(term: string): Promise<DictionaryResult | null
   const definition = cleanText(page?.extract);
   if (!definition) return null;
   const title = typeof page?.title === "string" ? page.title : entry.title;
+  const thumbnail = page?.thumbnail as RecordObject | undefined;
+  const thumbnailSource = typeof thumbnail?.source === "string" ? thumbnail.source : null;
+  const safeImageUrl = thumbnailSource && /^https:\/\/upload\.wikimedia\.org\//i.test(thumbnailSource) ? thumbnailSource : null;
+  const articleUrl = "https://fr.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
   return {
     terme: title,
     definition,
     source: "Wikipédia en français — article encyclopédique",
-    sourceUrl: "https://fr.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_")),
+    sourceUrl: articleUrl,
     type: "Définition encyclopédique",
     notice: "Information générale à visée documentaire, pas un diagnostic ni une recommandation de traitement. Pour une décision médicale, consultez un professionnel de santé. Pour les médicaments, référez-vous à la notice exacte délivrée au Cameroun.",
+    imageUrl: safeImageUrl,
+    imageAlt: safeImageUrl ? "Illustration issue de l’article encyclopédique : " + title : null,
+    imageSourceUrl: safeImageUrl ? articleUrl : null,
+    imageSource: safeImageUrl ? "Wikipédia en français" : null,
   };
 }
 
