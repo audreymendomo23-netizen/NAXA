@@ -377,3 +377,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 
 
 - Parcours client enrichi : panier multi-univers conservé localement, groupes séparés par partenaire et univers, quantités limitées au stock affiché, réservation de plusieurs produits d’un même partenaire en une opération. Après création, le groupe réservé est retiré du panier local depuis le reçu. Les autres groupes restent disponibles.
+
+## Espace partenaire — alertes et réservations
+- Ajout de /partenaire/reservations : réservations des établissements liés et transitions via la RPC sécurisée existante.
+- Ajout d’alertes visuelles de stock faible et d’expiration à 30 jours dans le catalogue partenaire.
+- Migration 105 ajoute un seuil d’alerte stock et une RPC de traitement par lots des réservations expirées, destinée à un ordonnanceur serveur.
+- Les réservations expirées cessent de bloquer la disponibilité ; le stock physique n’est pas décrémenté avant le retrait confirmé.
+- Migration 105 non appliquée à Supabase. Ordonnanceur non configuré. Aucun build, test ni déploiement exécuté.
