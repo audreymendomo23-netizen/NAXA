@@ -9,7 +9,7 @@ type Line = { productId: string; partnerId: string; partnerName: string; univers
 
 function excludedFromBabyUniverse(product: Product) {
   const text = [product.name, product.category, product.description ?? "", product.brand ?? ""].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return /\b(?:laits?\s+(?:infantile|de croissance|pour nourrissons?|maternel)|preparations?\s+infantiles?|substituts?\s+(?:du\s+)?lait\s+maternel|cereales?\s+infantiles?|farines?\s+infantiles?|biberons?|tetines?|sucettes?|infant\s+formula|baby\s+formula|follow[- ]on\s+milk|growing[- ]up\s+milk|baby\s+bottles?|pacifiers?|baby\s+cereals?|infant\s+flour)\b/.test(text);
+  return /\b(?:laits?\s+(?:infantiles?|de croissance|pour nourrissons?|maternel|(?:1er|premier|2e|deuxieme|second)\s+age)|preparations?\s+infantiles?|substituts?\s+(?:du\s+)?lait\s+maternel|cereales?\s+infantiles?|farines?\s+infantiles?|biberons?|tetines?|sucettes?|infant\s+formula|baby\s+formula|baby\s+milks?|follow[- ]on\s+(?:milk|formulas?)|growing[- ]up\s+milks?|baby\s+bottles?|feeding\s+bottles?|bottles?|teats?|pacifiers?|dummies?|baby\s+cereals?|infant\s+(?:cereals?|flours?))\b/.test(text);
 }
 
 export function UniverseProductGrid({ products, universe }: { products: Product[]; universe: "parapharmacie" | "bebe-maman" }) {
