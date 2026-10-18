@@ -170,6 +170,14 @@ export function Luciole() {
     const onGuidanceSelection = () => {
       if (isTextField(document.activeElement)) guideToCaret(document.activeElement);
     };
+    const onGuidancePointerDown = (event: PointerEvent) => {
+      const element = event.target;
+      const button = element instanceof HTMLElement ? element.closest<HTMLElement>("button, input[type=submit], input[type=button], [role=button]") : null;
+      if (button && button.getAttribute("aria-disabled") !== "true" && !(button instanceof HTMLButtonElement && button.disabled)) guideToButton(button);
+    };
+    const onGuidanceSelectionChange = () => {
+      if (isTextField(document.activeElement)) guideToCaret(document.activeElement);
+    };
     const onGuidancePointerMove = (event: PointerEvent) => {
       if (isTextField(document.activeElement)) return;
       const element = document.elementFromPoint(event.clientX, event.clientY);
@@ -318,6 +326,8 @@ export function Luciole() {
       document.addEventListener("focusout", onGuidanceFocusOut, true);
       document.addEventListener("input", onGuidanceInput, true);
       document.addEventListener("keyup", onGuidanceSelection, true);
+      document.addEventListener("selectionchange", onGuidanceSelectionChange);
+      document.addEventListener("pointerdown", onGuidancePointerDown, { passive: true, capture: true });
       document.addEventListener("click", onGuidanceClick, true);
       document.addEventListener("invalid", onGuidanceInvalid, true);
       document.addEventListener("pointermove", onGuidancePointerMove, { passive: true, capture: true });
@@ -336,6 +346,8 @@ export function Luciole() {
       document.removeEventListener("focusout", onGuidanceFocusOut, true);
       document.removeEventListener("input", onGuidanceInput, true);
       document.removeEventListener("keyup", onGuidanceSelection, true);
+      document.removeEventListener("selectionchange", onGuidanceSelectionChange);
+      document.removeEventListener("pointerdown", onGuidancePointerDown, true);
       document.removeEventListener("click", onGuidanceClick, true);
       document.removeEventListener("invalid", onGuidanceInvalid, true);
       document.removeEventListener("pointermove", onGuidancePointerMove, true);
