@@ -84,3 +84,12 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - Les quatre déclencheurs SQL bloquent les activations directes et la publication de produits de cet univers, y compris en contournant l’interface.
 - Test SQL 125 exécuté sur les deux bases avec résultat `naxa_125_medical_devices_phase1_lock_pass = true`, y compris tentatives interdites d’activation et de publication.
 - L’espace reste « à venir » en phase 1 ; aucune collecte ou synchronisation de mesures de santé n’est introduite. Aucun déploiement Vercel, build Next.js ou test navigateur n’est revendiqué.
+
+
+## Étape 6 — Suivi connecté, sécurité et limites
+
+- Migration 126 ajoutée et appliquée sur le projet isolé et Production. Les données de suivi ont six tables dédiées, RLS activée, autorisation via `suivi_connecte` + `feature_flag_test_accounts`, et consentement obligatoire par famille pour créer/mettre à jour une mesure.
+- Migration 127 appliquée sur les deux bases pour que le destinataire professionnel vérifié puisse lire uniquement les types explicitement partagés, et pour réserver le registre des professionnels à l’administration.
+- Tests ciblés : `naxa_126_suivi_connected_security_pass = true` sur test et Production; `naxa_127_suivi_sharing_policies_pass = true` sur Production. Les verrous de l’univers commercial de la migration 125 restent actifs.
+- Le nombre de comptes de test autorisés observé en Production était zéro; le suivi reste donc fermé à tous les comptes ordinaires. L’activation globale du drapeau expérimental ne suffit pas à ouvrir l’accès.
+- L’interface et les limites de fonctionnement sont décrites dans `docs/ETAPE-6-SUIVI-CONNECTE-2026-10-19.md`. OCR et Bluetooth ont des limites de compatibilité; les rappels ne sont pas une promesse de notification push. Build Next.js et navigateur non vérifiés, aucun déploiement Vercel.
