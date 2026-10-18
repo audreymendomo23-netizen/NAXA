@@ -1509,3 +1509,10 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Le code a été intégré à `main`, mais la compilation et les clics de navigation n'ont pas encore été exécutés. Le menu partagé suit la préférence `naxa-langue` et propose les libellés français/anglais. Cette adaptation de langue n’a pas encore été vérifiée en navigateur.
 - **Périmètre Pharmacie :** le composant est intégré aux écrans des univers uniquement ; aucun composant existant du parcours Pharmacie n'a été modifié dans cette étape.
 - **Suite :** compiler le projet et exécuter des contrôles automatisés accessibles ; corriger les erreurs avant de considérer le menu validé.
+
+
+## Correctifs de cohérence — navigation et univers dispositifs (18/10/2026)
+
+- Le bouton partagé affiche maintenant trois points verticaux (et non un hamburger), conformément au menu trois-points demandé : commit `303c2cee5405a9928cdfc8db252a94ec02c07242`.
+- L’univers `/suivi` est explicitement présenté comme « Dispositifs médicaux » désactivé en phase 1. Le contenu ne promet plus la collecte de mesures, la synchronisation ou le transmission de données : commit `419279c691d1525171fe3c7ce8aee3866e26cb95`.
+- **Statut :** correctifs appliqués à `main`; compilation et parcours navigateur toujours non vérifiés. Ne pas marquer la fonctionnalité comme validée avant obtention de preuves.
