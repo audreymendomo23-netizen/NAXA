@@ -32,6 +32,7 @@ function Icon({ name, size = 24, className = "" }: { name: string; size?: number
     shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></>,
     trash: <><path d="M4 7h16M10 11v6M14 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></>,
+    moon: <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/>,
     phone: <><path d="M7 3H4a1 1 0 0 0-1 1c0 9 7 16 16 16a1 1 0 0 0 1-1v-3l-5-2-2 2a13 13 0 0 1-6-6l2-2Z"/></>,
     mail: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></>,
     camera: <><path d="M4 8h3l2-3h6l2 3h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></>,
@@ -298,6 +299,7 @@ export default function ProfilClientPage() {
       { icon: "star", title: savedLanguage === "en" ? "Rate the app" : "Noter l'app", href: "/client/profil/noter" }
     ]},
     { title: savedLanguage === "en" ? "Settings" : "Paramètres", rows: [
+      { icon: "moon", title: savedLanguage === "en" ? "Appearance" : "Apparence", href: "/client/profil/apparence" },
       { icon: "bell", title: savedLanguage === "en" ? "Notifications" : "Notifications", href: "/client/profil/notifications" },
       { icon: "shield", title: savedLanguage === "en" ? "Privacy" : "Confidentialité", href: "/client/profil/confidentialite" },
       { icon: "trash", title: savedLanguage === "en" ? "Delete account" : "Supprimer le compte", href: "/client/profil/suppression", danger: true },

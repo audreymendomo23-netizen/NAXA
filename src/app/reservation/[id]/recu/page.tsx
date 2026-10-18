@@ -62,7 +62,7 @@ export default function Recu() {
       {!chargement && erreur && (
         <section className="carte space-y-3" role="alert">
           <p className="text-sm">{erreur}</p>
-          <button type="button" className="btn btn-canari w-full" onClick={() => void charger()}>Réessayer</button>
+          <button type="button" className="btn btn-vert w-full" onClick={() => void charger()}>Réessayer</button>
         </section>
       )}
       {d && !chargement && (

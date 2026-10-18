@@ -136,7 +136,7 @@ export default function Reservation() {
               ? "Nous n’avons pas pu récupérer cette réservation. Elle peut être inaccessible ou la connexion peut être interrompue."
               : "Nous récupérons les informations de votre réservation."}
           </p>
-          {erreurChargement && <button type="button" className="btn btn-canari w-full" onClick={() => void charger()}>Réessayer</button>}
+          {erreurChargement && <button type="button" className="btn btn-vert w-full" onClick={() => void charger()}>Réessayer</button>}
           <Link href="/" className="btn btn-clair w-full">Retour à l’accueil</Link>
         </div>
       </main>
@@ -161,7 +161,7 @@ export default function Reservation() {
       </section>
       {active && (
         <>
-          <a className="btn btn-canari w-full" href={`/go/${id}`} target="_blank" rel="noreferrer">Envoyer sur WhatsApp</a>
+          <a className="btn btn-vert w-full" href={`/go/${id}`} target="_blank" rel="noreferrer">Envoyer sur WhatsApp</a>
           {!paiement ? (
             <button type="button" className="btn btn-clair w-full" onClick={() => void afficherPaiement()} disabled={actionBloquee}>
               {chargementPaiement ? "Chargement du paiement…" : "Payer en ligne"}
@@ -172,7 +172,7 @@ export default function Reservation() {
               <p className="text-sm leading-relaxed">Payez {fcfa(paiement.total)} avec le code marchand <strong>{paiement.code_marchand}</strong>, puis indiquez la référence de transaction.</p>
               <label className="block text-sm font-semibold" htmlFor="reference-paiement">Référence de transaction</label>
               <input id="reference-paiement" className="champ" required maxLength={120} value={ref} onChange={e => setRef(e.target.value)} placeholder="Référence de transaction" disabled={actionBloquee} />
-              <button type="submit" className="btn btn-canari w-full" disabled={actionBloquee || !ref.trim()}>
+              <button type="submit" className="btn btn-vert w-full" disabled={actionBloquee || !ref.trim()}>
                 {actionEnCours === "reference" ? "Envoi en cours…" : "J’ai payé"}
               </button>
             </form>
@@ -182,7 +182,7 @@ export default function Reservation() {
           </button>
         </>
       )}
-      {["payee", "retiree"].includes(r.statut) && <Link className="btn btn-canari w-full" href={`/reservation/${id}/recu`}>Voir mon reçu</Link>}
+      {["payee", "retiree"].includes(r.statut) && <Link className="btn btn-vert w-full" href={`/reservation/${id}/recu`}>Voir mon reçu</Link>}
       {msg && <p role="status" className="rounded-xl2 border border-naxa-green-100 bg-white px-4 py-3 text-sm font-semibold text-naxa-green-900 shadow-sm">{msg}</p>}
       {erreurChargement && <p role="status" className="text-sm text-slate-600">La mise à jour automatique a échoué. Les informations affichées peuvent ne pas être à jour.</p>}
     </main>

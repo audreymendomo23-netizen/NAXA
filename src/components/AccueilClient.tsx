@@ -10,6 +10,8 @@ import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { Logo } from "@/components/Logo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
+import { BoutonPanierEntete } from "@/components/BoutonPanierEntete";
+import { BoutonTheme } from "@/components/BoutonTheme";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 import { normaliserRecherche, suggestionsMedicaments } from "@/lib/accueil-textes";
@@ -368,22 +370,23 @@ export function AccueilClient() {
     setFavoris(suivants.map(f => f.id));
     notifierNAXA(suivants.some(f => f.id === p.id) ? `${p.nom} ajouté aux favoris.` : `${p.nom} retiré des favoris.`);
   };
-  const addToCart = (p:Produit) => {
+  const addToCart = (p:Produit, source?: HTMLElement) => {
     if (p.demo || !p.pharmacie_id) {
       notifierNAXA("La disponibilité réelle de ce médicament doit être confirmée auprès d’une pharmacie partenaire.");
       return;
     }
     if (p.ordonnance) { window.location.href = "/scanner"; return; }
-    ajouter({produit_id:p.id,nom:p.nom,dosage:p.dosage},1);
+    ajouter({produit_id:p.id,nom:p.nom,dosage:p.dosage},1,source?.getBoundingClientRect());
     setAdded(p.id);
     window.setTimeout(() => setAdded(current => current === p.id ? null : current),1200);
   };
 
-  return <div className="naxa-home-shell min-h-dvh bg-[linear-gradient(to_bottom,#0F6B3F_0,#0F6B3F_220px,#F4F8F5_220px)] pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="relative z-20 min-h-[104px] bg-[#0F6B3F] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  return <div className="naxa-home-shell min-h-dvh pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+    <header className="naxa-green-header relative z-20 min-h-[104px] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
         <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
         <div className="flex items-center gap-1">
+          <BoutonPanierEntete />
           <BoutonNotifications />
           <button type="button" aria-label={rechercheAppOuverte ? "Fermer la recherche générale" : "Rechercher dans NAXA"} title="Rechercher dans NAXA" aria-expanded={rechercheAppOuverte} aria-controls="recherche-generale-naxa" onClick={() => { setRechercheAppOuverte(v => !v); setRechercheAppVide(false); }} data-naxa-general-search className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
             <IconeNAXA name="search" size={23}/>
@@ -422,7 +425,7 @@ export function AccueilClient() {
                 <a
                   href="mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA"
                   onClick={() => setMenuServicesOuvert(false)}
-                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-[#7A1F32] transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                  className="mt-1 flex min-h-12 items-center gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                 >
                   <IconeNAXA name="bell" size={18}/>
                   Besoin d'aide ?
@@ -455,9 +458,7 @@ export function AccueilClient() {
     <main className="relative z-10 mx-auto -mt-7 w-full max-w-[480px] rounded-t-[28px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
       <div className="naxa-enter mb-5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF3B0] text-[#0F6B3F]" aria-hidden="true">
-            {hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg> : <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>}
-          </span>
+          <BoutonTheme className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF3B0] text-[#0F6B3F] shadow-sm" />
           <h1 className="min-w-0 text-[clamp(20px,5.7vw,26px)] font-extrabold leading-tight tracking-[-0.035em] text-[#0B3D26]">{hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? "Bonsoir" : "Bonjour"}, <span className="text-[#B18A00]">{firstName}</span> !</h1>
         </div>
         <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Quel médicament recherchez-vous aujourd'hui ?</p>
@@ -477,14 +478,14 @@ export function AccueilClient() {
         </ul>}
       </div>
       <div className="naxa-enter mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
-        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
-        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
-        <button type="button" onClick={()=>setHomeFilters(v=>v.sort==="prix"?({...v,ascending:!v.ascending}):({...v,sort:"prix",ascending:true}))} aria-pressed={homeFilters.sort==="prix"} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]">Prix {homeFilters.sort==="prix"?(homeFilters.ascending?"↑":"↓"):""}</button>
-        <button type="button" onClick={()=>setHomeFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] bg-[#FFE23D] px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="search" size={14}/>Filtres +</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>({...v,distance:v.distance===""?"5":v.distance==="5"?"10":""}))} aria-pressed={Boolean(homeFilters.distance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.distance?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="map-pin" size={14}/>{homeFilters.distance?`Distance · ${homeFilters.distance} km`:"Distance"}</button>
+        <button type="button" onClick={()=>setHomeFilters(v=>v.sort==="prix"?({...v,ascending:!v.ascending}):({...v,sort:"prix",ascending:true}))} aria-pressed={homeFilters.sort==="prix"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.sort==="prix"?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}>Prix {homeFilters.sort==="prix"?(homeFilters.ascending?"↑":"↓"):""}</button>
+        <button type="button" onClick={()=>setHomeFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#0F6B3F] bg-white px-3 text-xs font-extrabold text-[#0B3D26]"><IconeNAXA name="search" size={14}/>Filtres +</button>
       </div>
 
       <div className="naxa-enter mb-4">
-        <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#E6C900] bg-[#FFE23D] px-4 py-3 text-[#0B3D26] shadow-[0_8px_20px_rgba(5,74,41,0.10)] transition active:scale-[0.99]">
+        <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#0F6B3F] px-4 py-3 transition active:scale-[0.99]">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/60"><IconeNAXA name="lock" size={24}/></span>
           <span className="min-w-0"><strong className="block text-[18px] font-extrabold leading-6">Scanner mon ordonnance</strong><span className="mt-1 block text-[13px] leading-5 text-[#466455]">Votre ordonnance reste privée et traitée en local.</span></span>
         </Link>
@@ -521,7 +522,7 @@ export function AccueilClient() {
             <p className="mt-1 text-[15px] font-extrabold leading-5 text-[#0B3D26]">{p.prix?fcfa(p.prix):"Prix non disponible"}</p>
             <div className="mt-auto flex items-end justify-between gap-1 pt-3">
               <p className="min-w-0 text-[10px] leading-[14px] text-[#53685C]"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#218A4E]"/>{p.demo?"Donnée illustrative":p.quantite>0?"En stock":"Stock à confirmer"} • {p.pharmacie}{distanceProduit(p)!=null?`, ${distanceProduit(p)!.toFixed(1)} km`:""}</p>
-              <button tabIndex={copy?-1:undefined} onClick={()=>addToCart(p)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
+              <button tabIndex={copy?-1:undefined} onClick={event=>addToCart(p,event.currentTarget)} disabled={p.quantite<=0} className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[#FFE23D] px-2 text-[11px] font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Ajouter ${p.nom} au panier`}>
                 <IconeNAXA name="shopping-cart" size={14}/>{added===p.id?"Ajouté ✓":"Ajouter"}
               </button>
             </div>
@@ -539,18 +540,18 @@ export function AccueilClient() {
           </div>
           {gardes.length ? <div className="naxa-carousel-viewport overflow-hidden">
             <div className="naxa-carousel-loop naxa-gardes-loop flex w-max">{[false,true].map(copy => <div key={copy?"gardes-copie":"gardes-originales"} aria-hidden={copy||undefined} className="flex w-[calc(min(100vw,480px)-2rem)] shrink-0 flex-col">
-              {gardes.map((p) => copy ? <div key={p.id} className="pointer-events-none mx-3 my-2 flex min-h-[104px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-[#D7E7DC] bg-gradient-to-br from-white to-[#F0F8F2] px-3 py-3 shadow-[0_5px_16px_rgba(5,74,41,0.09)]">
-                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+              {gardes.map((p) => copy ? <div key={p.id} className="pointer-events-none mx-3 my-2 flex min-h-[112px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-[18px] border border-[#DDE3DE] bg-white px-3 py-3 shadow-[0_3px_12px_rgba(60,64,67,0.16)]">
+                <span className="naxa-map-tile flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5] text-[#D93025]" aria-hidden="true"><svg viewBox="0 0 76 64" className="h-full w-full"><rect width="76" height="64" fill="#E9F0E4"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#fff" strokeWidth="8"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#D4DED4" strokeWidth="1.2"/><path d="M0 31H76M37 0V64" stroke="#D5E7F8" strokeWidth="4"/><path d="M38 18c-6 0-10 4-10 10 0 7 10 18 10 18s10-11 10-18c0-6-4-10-10-10Z" fill="#D93025" stroke="#fff" strokeWidth="2"/><circle cx="38" cy="28" r="3" fill="#fff"/></svg></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-              </div> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="mx-3 my-2 flex min-h-[104px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-[#D7E7DC] bg-gradient-to-br from-white to-[#F0F8F2] px-3 py-3 shadow-[0_5px_16px_rgba(5,74,41,0.09)]">
-                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+              </div> : <Link key={p.id} href={`/gardes?pharmacie=${p.id}`} className="mx-3 my-2 flex min-h-[112px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-[18px] border border-[#DDE3DE] bg-white px-3 py-3 shadow-[0_3px_12px_rgba(60,64,67,0.16)]">
+                <span className="naxa-map-tile flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5] text-[#D93025]" aria-hidden="true"><svg viewBox="0 0 76 64" className="h-full w-full"><rect width="76" height="64" fill="#E9F0E4"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#fff" strokeWidth="8"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#D4DED4" strokeWidth="1.2"/><path d="M0 31H76M37 0V64" stroke="#D5E7F8" strokeWidth="4"/><path d="M38 18c-6 0-10 4-10 10 0 7 10 18 10 18s10-11 10-18c0-6-4-10-10-10Z" fill="#D93025" stroke="#fff" strokeWidth="2"/><circle cx="38" cy="28" r="3" fill="#fff"/></svg></span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{[p.quartier,p.ville].filter(Boolean).join(" · ") || "Pharmacie partenaire"}{p.distanceKm != null ? ` • ${p.distanceKm.toFixed(1)} km` : ""}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
               </Link>)}
             </div>)}</div>
           </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
-            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#18824B] text-white"><IconeNAXA name="store" size={25}/></span>
+            <span className="naxa-map-tile flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5] text-[#D93025]" aria-hidden="true"><svg viewBox="0 0 76 64" className="h-full w-full"><rect width="76" height="64" fill="#E9F0E4"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#fff" strokeWidth="8"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#D4DED4" strokeWidth="1.2"/><path d="M0 31H76M37 0V64" stroke="#D5E7F8" strokeWidth="4"/><path d="M38 18c-6 0-10 4-10 10 0 7 10 18 10 18s10-11 10-18c0-6-4-10-10-10Z" fill="#D93025" stroke="#fff" strokeWidth="2"/><circle cx="38" cy="28" r="3" fill="#fff"/></svg></span>
             <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
           </div>}
         </div>

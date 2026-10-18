@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { IconeNAXA } from "@/components/IconeNAXA";
+import { BoutonPanierEntete } from "@/components/BoutonPanierEntete";
 
 const actions = [
   { titre: "Accueil", description: "Page d’accueil", href: "/", mots: "accueil maison" },
   { titre: "Favoris", description: "Éléments enregistrés", href: "/client/profil/favoris", mots: "favoris favoris enregistrés cœur" },
+  { titre: "Apparence", description: "Préférences d’affichage", href: "/client/profil/apparence", mots: "apparence mode sombre clair écran" },
   { titre: "Scanner une ordonnance", description: "Scanner un document", href: "/scanner", mots: "scanner ordonnance scan" },
   { titre: "Achats et commandes", description: "Historique et commandes", href: "/client?onglet=achats", mots: "achats commandes historique" },
   { titre: "Réservations et suivi", description: "État des réservations", href: "/client", mots: "réservations suivi statut" },
@@ -74,7 +76,7 @@ export function EnTeteClient() {
     setQuery("");
   }
 
-  return <header className="relative z-20 -mx-4 bg-[#0F6B3F] px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  return <header className="naxa-green-header relative z-20 -mx-4 px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -82,6 +84,7 @@ export function EnTeteClient() {
           <p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          <BoutonPanierEntete/>
           <BoutonNotifications/>
           <button type="button" aria-label={searchOpen ? "Fermer la recherche générale" : "Rechercher dans NAXA"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(v => !v); setMenuOpen(false); }} data-naxa-client-search className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><IconeNAXA name="search" size={22}/></button>
           <button type="button" aria-label={menuOpen ? "Fermer le menu" : "Autres services"} aria-expanded={menuOpen} onClick={() => { setMenuOpen(v => !v); setSearchOpen(false); }} data-naxa-client-menu className="flex h-10 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
@@ -104,7 +107,7 @@ export function EnTeteClient() {
       </div>}
 
       {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0F6B3F] p-2 text-white shadow-2xl">
-        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => closeSearchAndMenu()} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-[#7A1F32] hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
+        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => closeSearchAndMenu()} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-white hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
       </nav>}
     </div>
   </header>;
