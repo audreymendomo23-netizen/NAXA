@@ -93,3 +93,35 @@ export async function changerAssociationPartenaire(form: FormData) {
   revalidatePath("/" + universe);
   redirect("/admin/univers?ok=association");
 }
+
+
+export async function ajouterCompteTestSuivi(form: FormData) {
+  const { sb, actor } = await admin();
+  const userId = field(form, "user_id", 40);
+  const reason = field(form, "reason", 240) || "Compte de test autorisé";
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=compte_test");
+  const { error } = await sb.from("feature_flag_test_accounts").upsert({
+    user_id: userId, reason, added_by: actor,
+  }, { onConflict: "user_id" });
+  if (error) redirect("/admin/univers?erreur=compte_test");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: "tracking.test_account_added", entity_type: "test_account",
+    entity_id: userId, metadata: { reason },
+  });
+  revalidatePath("/admin/univers");
+  redirect("/admin/univers?ok=compte_test");
+}
+
+export async function retirerCompteTestSuivi(form: FormData) {
+  const { sb, actor } = await admin();
+  const userId = field(form, "user_id", 40);
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=compte_test");
+  const { error } = await sb.from("feature_flag_test_accounts").delete().eq("user_id", userId);
+  if (error) redirect("/admin/univers?erreur=compte_test");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: "tracking.test_account_removed", entity_type: "test_account",
+    entity_id: userId, metadata: {},
+  });
+  revalidatePath("/admin/univers");
+  redirect("/admin/univers?ok=compte_test");
+}

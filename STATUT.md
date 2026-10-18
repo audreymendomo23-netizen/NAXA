@@ -367,3 +367,6 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration 102 renforce la politique RLS pour empêcher un membre partenaire de gérer un catalogue d’un univers auquel son partenaire n’est pas associé.
 - Migration 103 ajoute des fonctions SQL atomiques pour les changements d’activation et d’association, avec vérification du rôle administrateur et écriture du journal d’audit dans la même transaction. Elle durcit également les transitions de réservation : une réservation échue ne peut plus être retirée et un partenaire suspendu ne peut plus traiter ses réservations.
 - Ordre de préparation désormais requis : `098 → 099 → 100 → 101 → 102 → 103`. Ces migrations sont uniquement dans GitHub et n’ont pas été exécutées sur une base.
+
+
+- Complément console admin : affichage des feature flags transversaux (lecture seule), gestion de la liste d’autorisation des comptes de test du suivi santé et consultation des 20 dernières entrées du journal d’audit. Cette liste n’active pas à elle seule les parcours de suivi et ne rend aucune donnée médicale publique.
