@@ -70,10 +70,10 @@ export function MenuUnivers() {
         onClick={() => setOpen((value) => !value)}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-[#064B2A]/20 bg-white text-[#064B2A] shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]"
       >
-        <span className="flex w-5 flex-col gap-1" aria-hidden="true">
-          <span className={`h-0.5 w-5 rounded bg-current transition-transform ${open ? "translate-y-1.5 rotate-45" : ""}`} />
-          <span className={`h-0.5 w-5 rounded bg-current transition-opacity ${open ? "opacity-0" : ""}`} />
-          <span className={`h-0.5 w-5 rounded bg-current transition-transform ${open ? "-translate-y-1.5 -rotate-45" : ""}`} />
+        <span className="flex flex-col items-center gap-1" aria-hidden="true">
+          <span className={`h-1 w-1 rounded-full bg-current transition-transform ${open ? "translate-y-2 scale-125" : ""}`} />
+          <span className={`h-1 w-1 rounded-full bg-current transition-opacity ${open ? "opacity-0" : ""}`} />
+          <span className={`h-1 w-1 rounded-full bg-current transition-transform ${open ? "-translate-y-2 scale-125" : ""}`} />
         </span>
       </button>
       {open && (
