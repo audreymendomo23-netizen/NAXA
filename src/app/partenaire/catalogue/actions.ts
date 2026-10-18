@@ -105,3 +105,79 @@ export async function changerEtatProduitCatalogue(form: FormData) {
   revalidatePath("/" + product.universe_slug);
   redirect("/partenaire/catalogue?ok=etat");
 }
+
+
+function parseSemicolonCsv(source: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], cell = "", quoted = false;
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (quoted && ch === '"' && source[i + 1] === '"') { cell += '"'; i++; }
+    else if (ch === '"') quoted = !quoted;
+    else if (ch === ";" && !quoted) { row.push(cell.trim()); cell = ""; }
+    else if ((ch === "\n" || ch === "\r") && !quoted) {
+      if (ch === "\r" && source[i + 1] === "\n") i++;
+      row.push(cell.trim()); cell = "";
+      if (row.some((v) => v !== "")) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  if (quoted) throw new Error("CSV: guillemet non fermé");
+  row.push(cell.trim());
+  if (row.some((v) => v !== "")) rows.push(row);
+  return rows;
+}
+
+export async function importerCsvCatalogue(form: FormData) {
+  const { sb, userId, memberships } = await partnerContext();
+  const partnerId = field(form, "partner_id", 36);
+  const universe = field(form, "universe_slug", 40) as Universe;
+  const file = form.get("csv_file");
+  if (!uuid(partnerId) || !memberships.some((m: any) => m.partner_id === partnerId) ||
+      !universes.includes(universe) || !(file instanceof File) || file.size < 1 || file.size > 2_000_000) {
+    redirect("/partenaire/catalogue?erreur=csv");
+  }
+  const { data: association } = await sb.from("partner_universes").select("enabled")
+    .eq("partner_id", partnerId).eq("universe_slug", universe).maybeSingle();
+  if (!association?.enabled) redirect("/partenaire/catalogue?erreur=univers");
+  let rows: string[][];
+  try {
+    const source = (await file.text()).replace(/^\uFEFF/, "");
+    rows = parseSemicolonCsv(source);
+  } catch {
+    redirect("/partenaire/catalogue?erreur=csv");
+  }
+  if (rows.length < 2 || rows.length > 501) redirect("/partenaire/catalogue?erreur=csv");
+  const headers = rows[0].map((h) => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_"));
+  const required = ["name", "price_fcfa", "stock_quantity"];
+  if (required.some((h) => !headers.includes(h))) redirect("/partenaire/catalogue?erreur=csv");
+  const index = (name: string) => headers.indexOf(name);
+  const value = (row: string[], name: string) => index(name) < 0 ? "" : String(row[index(name)] ?? "").trim();
+  const payload: Record<string, unknown>[] = [];
+  for (const row of rows.slice(1)) {
+    if (row.length !== headers.length) redirect("/partenaire/catalogue?erreur=csv");
+    const name = value(row, "name");
+    const price = Number(value(row, "price_fcfa"));
+    const stock = Number(value(row, "stock_quantity").replace(",", "."));
+    const photo = value(row, "photo_url");
+    if (name.length < 2 || name.length > 180 || !Number.isSafeInteger(price) || price < 0 ||
+        !Number.isFinite(stock) || stock < 0 || stock > 1000000 ||
+        (photo && !/^https:\/\//i.test(photo))) redirect("/partenaire/catalogue?erreur=csv");
+    payload.push({
+      partner_id: partnerId, universe_slug: universe, name,
+      brand: value(row, "brand").slice(0, 120) || null,
+      category: value(row, "category").slice(0, 100) || "Autres",
+      description: value(row, "description").slice(0, 600) || null,
+      photo_url: photo || null, price_fcfa: price, stock_quantity: stock,
+      unit_label: value(row, "unit_label").slice(0, 30) || "unité",
+      status: "draft", created_by: userId,
+    });
+  }
+  if (!payload.length) redirect("/partenaire/catalogue?erreur=csv");
+  // Insert en lots atomiques par lot PostgREST; les lignes existantes ne sont jamais supprimées.
+  const { error } = await sb.from("partner_products").insert(payload);
+  if (error) redirect("/partenaire/catalogue?erreur=csv");
+  revalidatePath("/partenaire/catalogue");
+  revalidatePath("/" + universe);
+  redirect("/partenaire/catalogue?ok=csv");
+}
