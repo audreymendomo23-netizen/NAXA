@@ -187,6 +187,7 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 
 - `f43760eb54c235025880c6bcbc0ca380f7009dcf` — l’interface partenaire ne propose plus « Prête au retrait » directement depuis une réservation demandée : le partenaire doit d’abord confirmer.
 - `f9f094564ae77c266ca512b0966b2ea67c1bdd00` — même séquence imposée dans l’action serveur, afin qu’un appel direct au formulaire ne contourne pas l’étape de confirmation.
-- `16d323382a95e9bba5789f10e0c27b36c685a86d` — migration additive 121 : la RPC `transition_universe_reservation` refuse aussi le passage direct `requested → ready`; la confirmation doit précéder la préparation au retrait. Les règles de retrait, de contrôle du stock et d’expiration sont conservées.
+- `16d323382a95e9bba5789f10e0c27b36c685a86d` — création de la migration additive 121 : la RPC `transition_universe_reservation` refuse aussi le passage direct `requested → ready`; la confirmation doit précéder la préparation au retrait. Les règles de retrait, de contrôle du stock et d’expiration sont conservées.
+- `aaaa2873a7dbf4252c0cb0c6ce38e2c7cde40f84` — durcissement du `search_path` de la RPC en gardant `pg_temp` en dernière position, conformément au durcissement SQL déjà adopté.
 - Portée limitée aux réservations des univers multi-univers ; aucune table ni route historique de la Pharmacie n’est modifiée.
 - État : changements enregistrés sur `main`. Aucun test, audit, build, application de migration Supabase ou déploiement n’a été lancé dans cette continuation.
