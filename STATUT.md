@@ -408,3 +408,5 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 
 - Migration 110 et interface `/admin/examens` ajoutées : l’administrateur peut valider/suspendre un centre, publier/dépublier un examen ou un pack. Les RPC vérifient le rôle admin et les prérequis commerciaux, et écrivent une trace d’audit dans la même transaction.
 - Ces migrations restent dans GitHub uniquement. Les opérations n’ont pas été testées en base ni déployées ; compilation globale réservée à la phase finale.
+
+- Le portail partenaire examens permet désormais de créer des packs tarifaires en brouillon. La composition des packs (liaison aux examens individuels) reste à implémenter avant leur publication commerciale.
