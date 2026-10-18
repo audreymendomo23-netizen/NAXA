@@ -608,3 +608,67 @@ html[data-theme="jour"] .naxa-night-wave {
     transition: none !important;
   }
 }
+
+
+/* Luciole anatomique : ailes translucides à battement rapide, corps orienté vers le mouvement. */
+.naxa-luciole .luciole-anatomy {
+  position:absolute; inset:0; width:48px; height:48px; overflow:visible;
+  filter:drop-shadow(0 0 5px rgba(255,231,137,.48));
+  transform-origin:24px 24px;
+}
+.naxa-luciole .luciole-wing {
+  fill:url(#luciole-wing); stroke:rgba(210,255,237,.94); stroke-width:.7;
+  transform-box:fill-box; backface-visibility:visible;
+  filter:drop-shadow(0 0 2px rgba(172,255,224,.8));
+}
+.naxa-luciole .luciole-wing-left {
+  transform-origin:100% 85%;
+  animation:luciole-wing-flap-left 105ms ease-in-out infinite alternate;
+}
+.naxa-luciole .luciole-wing-right {
+  transform-origin:0% 85%;
+  animation:luciole-wing-flap-right 105ms ease-in-out infinite alternate;
+}
+.naxa-luciole .luciole-wing-vein {
+  fill:none; stroke:rgba(230,255,245,.75); stroke-width:.45;
+  animation:luciole-wing-vein 105ms ease-in-out infinite alternate;
+}
+.naxa-luciole .luciole-thorax { fill:#5A3A19; stroke:#F8D989; stroke-width:.75; }
+.naxa-luciole .luciole-head { fill:#34251B; stroke:#FFE9A0; stroke-width:.65; }
+.naxa-luciole .luciole-antenna { fill:none; stroke:#FFE9A0; stroke-width:.8; stroke-linecap:round; }
+.naxa-luciole .luciole-abdomen {
+  fill:#8A4C16; stroke:#FFD978; stroke-width:.75;
+  transform-box:fill-box; transform-origin:center 20%;
+  animation:luciole-abdomen-glow 1.35s ease-in-out infinite;
+}
+.naxa-luciole .luciole-glow-core {
+  fill:#FFF7C2; filter:drop-shadow(0 0 3px #FFE36A);
+  animation:luciole-glow-beat 1.35s ease-in-out infinite;
+}
+.naxa-luciole .luciole-core {
+  left:20px; top:28px; width:8px; height:8px;
+  background:rgba(255,231,117,.38);
+  box-shadow:0 0 10px 5px rgba(255,221,96,.44),0 0 24px 10px rgba(255,194,55,.2);
+}
+@keyframes luciole-wing-flap-left {
+  from { transform:rotateX(4deg) rotateZ(-17deg) scaleY(.92); opacity:.78; }
+  to { transform:rotateX(68deg) rotateZ(8deg) scaleY(.48); opacity:1; }
+}
+@keyframes luciole-wing-flap-right {
+  from { transform:rotateX(4deg) rotateZ(17deg) scaleY(.92); opacity:.78; }
+  to { transform:rotateX(68deg) rotateZ(-8deg) scaleY(.48); opacity:1; }
+}
+@keyframes luciole-wing-vein { from { opacity:.85; } to { opacity:.35; } }
+@keyframes luciole-abdomen-glow {
+  0%,100% { transform:scale(.92); filter:brightness(.9); }
+  50% { transform:scale(1.08); filter:brightness(1.35) drop-shadow(0 0 5px #FFD85A); }
+}
+@keyframes luciole-glow-beat {
+  0%,100% { opacity:.7; }
+  50% { opacity:1; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .naxa-luciole .luciole-wing-left,.naxa-luciole .luciole-wing-right,
+  .naxa-luciole .luciole-wing-vein,.naxa-luciole .luciole-abdomen,
+  .naxa-luciole .luciole-glow-core { animation:none!important; }
+}

@@ -192,6 +192,28 @@ export function Luciole() {
         </svg>
       </div>
       <div ref={fireflyRef} className="naxa-luciole" aria-hidden="true">
+        <svg className="luciole-anatomy" viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="luciole-wing" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#F4FFF9" stopOpacity=".92" />
+              <stop offset=".55" stopColor="#A9FFD7" stopOpacity=".48" />
+              <stop offset="1" stopColor="#8AF5C2" stopOpacity=".08" />
+            </linearGradient>
+            <radialGradient id="luciole-abdomen">
+              <stop offset="0" stopColor="#FFFBE0" />
+              <stop offset=".42" stopColor="#FFE36A" />
+              <stop offset="1" stopColor="#F5A623" stopOpacity=".2" />
+            </radialGradient>
+          </defs>
+          <ellipse className="luciole-wing luciole-wing-left" cx="18" cy="17" rx="10" ry="4.4" transform="rotate(-38 18 17)" />
+          <ellipse className="luciole-wing luciole-wing-right" cx="28" cy="17" rx="10" ry="4.4" transform="rotate(38 28 17)" />
+          <path className="luciole-wing-vein" d="M11 21 20 14M37 21 28 14" />
+          <ellipse className="luciole-thorax" cx="24" cy="23" rx="4.1" ry="5.2" />
+          <circle className="luciole-head" cx="24" cy="17.8" r="3.1" />
+          <path className="luciole-antenna" d="M22 15.5 19.4 12M26 15.5 28.6 12" />
+          <ellipse className="luciole-abdomen" cx="24" cy="30" rx="4.4" ry="7" />
+          <ellipse className="luciole-glow-core" cx="24" cy="32" rx="2.8" ry="4.2" />
+        </svg>
         <span className="luciole-core" />
         {Array.from({ length: SPARKS }, (_, i) => <i key={i} className="luciole-spark" />)}
       </div>
