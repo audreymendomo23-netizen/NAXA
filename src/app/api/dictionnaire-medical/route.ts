@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     const search = await fetchJson("https://" + wiki + "/w/api.php?action=query&list=search&srsearch=" + encodeURIComponent(term) + "&srlimit=8&format=json&origin=*");
     const query = search?.query as RecordObject | undefined;
     const entries = Array.isArray(query?.search) ? query.search as RecordObject[] : [];
-    const normalize = (value: string) => value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+    const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const prefix = normalize(term);
     const titles = entries
       .map((item) => typeof item.title === "string" ? item.title : "")
