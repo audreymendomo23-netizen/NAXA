@@ -93,3 +93,6 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - Tests ciblés : `naxa_126_suivi_connected_security_pass = true` sur test et Production; `naxa_127_suivi_sharing_policies_pass = true` sur Production. Les verrous de l’univers commercial de la migration 125 restent actifs.
 - Le nombre de comptes de test autorisés observé en Production était zéro; le suivi reste donc fermé à tous les comptes ordinaires. L’activation globale du drapeau expérimental ne suffit pas à ouvrir l’accès.
 - L’interface et les limites de fonctionnement sont décrites dans `docs/ETAPE-6-SUIVI-CONNECTE-2026-10-19.md`. OCR et Bluetooth ont des limites de compatibilité; les rappels ne sont pas une promesse de notification push. Build Next.js et navigateur non vérifiés, aucun déploiement Vercel.
+
+
+- **Étape 6 — correctif de révocation** : migration 128 appliquée sur le projet isolé et Production. Le retrait d’un consentement révoque les partages actifs de la famille; test SQL Production `naxa_128_consent_revocation_shares_pass = true`.
