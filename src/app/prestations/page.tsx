@@ -23,7 +23,7 @@ const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractio
 export default async function PrestationsPage({ searchParams }: { searchParams: { erreur?: string } }) {
   const { data, error } = await supabasePublic(30).rpc("get_home_service_catalog", {});
   if (error) {
-    return <><UniverseLanding universe="prestations"/><p role="status" className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue est en préparation. La migration 112 doit être validée dans l’environnement de test avant l’ouverture de cet espace.</p></>;
+    return <><UniverseLanding universe="prestations"/><p role="status" className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue des prestations est temporairement indisponible. Réessayez dans quelques instants.</p></>;
   }
   const offers = (data ?? []) as HomeServiceOffer[];
   if (!offers.length) return <UniverseLanding universe="prestations"/>;
