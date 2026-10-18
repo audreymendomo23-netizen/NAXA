@@ -1,5 +1,6 @@
--- Test structurel NAXA 125 : verrouillage DB de l’univers Dispositifs médicaux.
--- Lecture seule ; ne modifie aucune donnée métier.
+-- Test NAXA 125 : verrouillage DB de l’univers Dispositifs médicaux en phase 1.
+-- Vérifie les structures et les refus effectifs. Les tentatives interdites sont annulées
+-- par les blocs d’exception PostgreSQL et ne laissent aucune donnée de test.
 do $test$
 declare
   trigger_count integer;
@@ -22,11 +23,11 @@ begin
       'guard_medical_devices_product_phase1'
     );
   if trigger_count <> 4 then
-    raise exception 'NAXA 125 : quatre déclencheurs de verrouillage attendus, trouvés %', trigger_count;
+    raise exception 'NAXA 125 : quatre déclencheurs attendus, trouvés %', trigger_count;
   end if;
 
   select pg_get_functiondef('public.guard_medical_devices_phase1()'::regprocedure)
-  into guard_def;
+    into guard_def;
   if guard_def not like '%Dispositifs médicaux reste désactivé en phase 1%'
      or guard_def not like '%Association partenaire Dispositifs médicaux interdite en phase 1%'
      or guard_def not like '%Publication de dispositifs médicaux interdite en phase 1%' then
@@ -35,7 +36,8 @@ begin
 
   select enabled, name into universe_enabled, universe_name
   from public.universes where slug = 'suivi';
-  if not found or universe_enabled is distinct from false or universe_name <> 'Dispositifs médicaux' then
+  if not found or universe_enabled is distinct from false
+     or universe_name <> 'Dispositifs médicaux' then
     raise exception 'NAXA 125 : univers absent, mal nommé ou activé';
   end if;
 
@@ -50,6 +52,32 @@ begin
   if enabled_associations <> 0 then
     raise exception 'NAXA 125 : % associations partenaires encore activées', enabled_associations;
   end if;
+
+  begin
+    update public.universes set enabled = true where slug = 'suivi';
+    raise exception 'NAXA 125 : activation directe de l’univers non bloquée';
+  exception when sqlstate '42501' then null;
+  end;
+
+  begin
+    update public.feature_flags set enabled = true where flag_key = 'universe.suivi';
+    raise exception 'NAXA 125 : activation directe du feature flag non bloquée';
+  exception when sqlstate '42501' then null;
+  end;
+
+  begin
+    insert into public.partner_universes(partner_id, universe_slug, enabled)
+    values (gen_random_uuid(), 'suivi', true);
+    raise exception 'NAXA 125 : association partenaire active non bloquée';
+  exception when sqlstate '42501' then null;
+  end;
+
+  begin
+    insert into public.partner_products(partner_id, universe_slug, name, price_fcfa, status)
+    values (gen_random_uuid(), 'suivi', 'TEST PHASE1 — NE PAS PUBLIER', 1, 'active');
+    raise exception 'NAXA 125 : publication produit non bloquée';
+  exception when sqlstate '42501' then null;
+  end;
 end;
 $test$;
 
