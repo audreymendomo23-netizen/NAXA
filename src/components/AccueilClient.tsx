@@ -175,7 +175,7 @@ export function AccueilClient() {
     setResultatMedical(null);
     try {
       const response = await fetch("/api/dictionnaire-medical?q=" + encodeURIComponent(terme), { headers: { Accept: "application/json" } });
-      const data = await response.json() as { result?: { terme:string; definition:string; source:string; sourceUrl:string; type:string|null; notice:string }; error?:string };
+      const data = await response.json() as { result?: { terme:string; definition:string; source:string; sourceUrl:string; type:string|null; notice:string; imageUrl:string|null; imageAlt:string|null; imageSourceUrl:string|null; imageSource:string|null }; error?:string };
       if (!response.ok || !data.result) throw new Error(data.error || "Aucune définition fiable n’a été trouvée pour ce terme.");
       setResultatMedical(data.result);
     } catch (error) {
