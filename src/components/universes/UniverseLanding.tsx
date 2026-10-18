@@ -18,37 +18,37 @@ const universes: Record<UniverseKey, Universe> = {
   parapharmacie: {
     title: "Parapharmacie", slogan: "Votre allié santé",
     description: "Hygiène, soin et bien-être auprès des partenaires NAXA.",
-    route: "/parapharmacie", color: "#096A6F", soft: "#E6F7F6", border: "#BFE6E4", icon: "✳",
+    route: "/parapharmacie", color: "#0B7F85", soft: "#E6F7F6", border: "#BFE6E4", icon: "✳",
     bullets: ["Produits d’hygiène et de soin", "Disponibilités confirmées par les partenaires", "Réservation et retrait auprès du partenaire"],
   },
   "bebe-maman": {
     title: "Bébé & Maman", slogan: "Votre allié santé",
     description: "Un espace dédié aux besoins de la maman et de l’enfant.",
-    route: "/bebe-maman", color: "#AD2D63", soft: "#FDEEF4", border: "#F7CADC", icon: "♡",
+    route: "/bebe-maman", color: "#C93774", soft: "#FDEEF4", border: "#F7CADC", icon: "♡",
     bullets: ["Sélection dédiée à la maternité et à la petite enfance", "Informations produits claires", "Réservation et retrait auprès du partenaire"],
   },
   examens: {
     title: "Examens médicaux", slogan: "Votre allié santé",
     description: "Découvrez les examens proposés par les centres partenaires.",
-    route: "/examens", color: "#5A32B0", soft: "#F1EBFD", border: "#D9CCF7", icon: "＋",
+    route: "/examens", color: "#6D3FD0", soft: "#F1EBFD", border: "#D9CCF7", icon: "＋",
     bullets: ["Catalogue des examens et des packs", "Tarifs communiqués par les centres", "Rendez-vous selon les disponibilités du centre"],
   },
   prestations: {
     title: "Prestations à domicile", slogan: "Votre allié santé",
     description: "Découvrez les services proposés par des professionnels vérifiés.",
-    route: "/prestations", color: "#B73623", soft: "#FFEFEA", border: "#FAD0C6", icon: "⌂",
+    route: "/prestations", color: "#D4402B", soft: "#FFEFEA", border: "#FAD0C6", icon: "⌂",
     bullets: ["Services et zones d’intervention", "Demandes de réservation", "Adresse protégée jusqu’à confirmation"],
   },
   suivi: {
     title: "Suivi santé", slogan: "Votre allié santé",
     description: "Un espace de suivi personnel, sans diagnostic ni interprétation médicale par NAXA.",
-    route: "/suivi", color: "#1E40AF", soft: "#EAF2FE", border: "#C7DAFB", icon: "♡",
+    route: "/suivi", color: "#1D4ED8", soft: "#EAF2FE", border: "#C7DAFB", icon: "♡",
     bullets: ["Mesures personnelles et historique", "Partage contrôlé avec un professionnel invité", "Rappels informatifs selon les fonctionnalités activées"],
   },
   aide: {
     title: "Aide NAXA", slogan: "Nous sommes là pour vous guider",
     description: "Repères pour utiliser NAXA et accéder aux ressources utiles.",
-    route: "/aide", color: "#096A6F", soft: "#E6F7F6", border: "#BFE6E4", icon: "?",
+    route: "/aide", color: "#0B7F85", soft: "#E6F7F6", border: "#BFE6E4", icon: "?",
     bullets: ["Comprendre les espaces NAXA", "Trouver les informations disponibles", "Accéder aux ressources d’urgence"],
   },
 };
