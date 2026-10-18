@@ -37,6 +37,8 @@
 
 - `5e17714961c63a5a6013390ede9c5bfb4844ea12` — réduction des lectures de coordonnées privées côté partenaire : l’interface ne demande les adresses exactes et téléphones que pour les demandes déjà `confirmed` ou `completed`. La RLS Supabase demeure la frontière de sécurité ; ce filtre UI/lecture applique en plus le principe de minimisation.
 
+- `59216cbe6d387dc5f2dd7cc4c052a0ba72fd994c` — l’espace client unique permet désormais d’annuler directement une demande de prestation encore « En attente du professionnel » ; l’action serveur existante appelle la RPC contrôlée, confirme le statut réellement enregistré et redirige vers le reçu privé de la demande.
+
 ## Migrations SQL à valider
 
 - Les migrations 098 à 109 constituent les dépendances des univers, catalogues, réservations et créneaux d'examens.
