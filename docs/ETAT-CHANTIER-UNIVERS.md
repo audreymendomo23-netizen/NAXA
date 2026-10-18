@@ -152,3 +152,12 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - **Build et déploiement :** Vercel renvoie `upgradeToPro=build-rate-limit`. Le build Next.js, les parcours navigateur et un nouveau déploiement Production ne sont pas confirmés. CircleCI n'est pas utilisé comme gate.
 - **Protection Pharmacie :** aucune table, route ni logique métier historique de la Pharmacie n'a été modifiée par la migration 120.
 - **Statut :** audit statique terminé ; validation technique/fonctionnelle/Production encore bloquée par les preuves manquantes ci-dessus.
+
+
+## Complément — Filtres client, partenaire et administration (18/10/2026)
+
+- `/prestations` : recherche par prestation/professionnel/zone, filtre catégorie, tri par nom ou prix.
+- `/partenaire/prestations` : recherche sur les offres et demandes, filtres de statut indépendants.
+- `/admin/prestations` : recherche des offres soumises, filtre de statut et compteur des résultats.
+- `/client` : recherche et filtre par statut des demandes à domicile dans l’espace « Achats / Réservations / Commandes » ; le reste du suivi (Pharmacie, panier, achats) conserve son fonctionnement.
+- Ces filtres sont de présentation uniquement et ne changent ni les droits d’accès, ni les transitions de statut, ni l’accès aux coordonnées privées. Statut : code modifié ; aucun build/test navigateur n’est revendiqué.
