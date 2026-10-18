@@ -25,8 +25,9 @@ $function$;
 create or replace function public.admin_set_partner_universe(p_partner_id uuid,p_universe_slug text,p_enabled boolean)
 returns void language plpgsql security definer set search_path=public
 as $function$
-declare uid uuid := auth.uid();
-declare partner_status text;
+declare
+  uid uuid := auth.uid();
+  partner_status text;
 begin
   if uid is null or not exists(select 1 from public.profiles p where p.id=uid and p.role='admin') then
     raise exception 'Action réservée à l’administration';
