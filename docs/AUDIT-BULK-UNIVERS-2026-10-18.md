@@ -53,3 +53,5 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - État honnête : code et migration écrits sur `main`; 18 cas regex côté outil réussis ; test SQL 123 non exécuté dans cette session, migration non appliquée à Production, build/parcours navigateur/déploiement non confirmés. Le filtre lexical n’identifie pas de manière exhaustive tous les noms commerciaux inconnus.
 
 - Contrôle serveur avant réservation : `reserverProduit` et `reserverGroupeProduits` appellent maintenant le catalogue public et vérifient que chaque article appartient encore au partenaire et à l’univers demandés, et respecte les exclusions lexicales. Les règles sont partagées entre interface et actions serveur via `src/lib/universe-product-rules.ts`. Commit : `f5d9e300e1f05ff858523443dfc87cdb8442934d`.
+
+- **Garde-fou création/publication/import :** le contrôle lexical des médicaments est également exécuté par les actions serveur de création, import CSV et publication des catalogues partenaire et administration. La règle SQL reste nécessaire pour les appels directs à la base et les anciennes lignes ; elle n’a pas été appliquée à Production dans cette session.
