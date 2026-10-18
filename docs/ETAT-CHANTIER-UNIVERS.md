@@ -213,3 +213,14 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 
 - `fc0b5412f9b431b2dc5051993457b0680455347d` — après une réservation client d'examen, les pages partenaire et administration sont également invalidées afin de refléter immédiatement le nouveau ticket.
 - `f695962a885f3db372727c3fe0f5a81a1857bc61` — texte de confirmation harmonisé avec la destination réelle : le ticket se trouve dans l'espace client, dans « Mes examens et tickets ».
+
+
+
+## Complément — Étapes 1 et 2 du cahier du 18 octobre (correction Parapharmacie)
+
+- **Étape 1 — socle/administration :** le menu partagé, les rôles, l’administration des univers/partenaires, les associations partenaire-univers, les états d’activation et le verrouillage serveur de « Dispositifs médicaux » en phase 1 sont déjà présents sur `main`. Aucune modification des parcours historiques de la Pharmacie n’est nécessaire pour cette correction.
+- **Étape 2 — Parapharmacie et Bébé & Maman :** `src/components/universes/UniverseProductGrid.tsx` masque côté client les produits reconnus comme médicaments en Parapharmacie ; pour un médicament détecté dans Bébé & Maman, la description potentiellement posologique est masquée et l’avertissement « Demandez conseil à votre pharmacien. NAXA ne fournit aucune posologie pour ce produit. » est affiché. Le filtre Bébé & Maman a également été aligné sur les variantes de termes déjà bloquées par la règle SQL 119.
+- **Sécurité base de données :** migration additive 123 `supabase/migration_123_parapharmacy_medicine_guard.sql` ajoute un déclencheur limité à `parapharmacie`; le test associé est `supabase/tests/123_parapharmacy_medicine_guard.sql`. Les médicaments restent hors de Parapharmacie, tandis que cette nouvelle règle ne bloque pas les références de médicaments dans Bébé & Maman.
+- **Preuve disponible :** 18 cas de regex exécutés dans l’outil pendant la modification, 18 réussis. Le test SQL 123 est écrit mais non exécuté sur une base de test dans cette session ; la migration n’a pas été appliquée à Supabase Production. Build, test navigateur et déploiement Production non effectués.
+- **Commits :** correctif du filtre bébé `19b1308b0189b847a83bddf44ee3f91d02459b14`; filtre médicaments/avertissement posologie `a362ff16f3c649158e3160f53e4a1be6022ffba2`; migration 123 `c29a927adc54dd7ee7d29eba48cec6570dfe8dc6`; test SQL 123 `8e5604102e2dffca7d498fdbe37b3d614d83a193`.
+- **Important :** le filtre lexical protège les termes connus, mais ne peut pas reconnaître chaque médicament à partir d’un nom commercial inconnu. La validation de catégorie/catalogue reste nécessaire ; la Pharmacie historique n’est pas modifiée.
