@@ -60,7 +60,9 @@
 ## Vérifications et déploiement
 
 - Tests ciblés du parseur CSV exécutés sur des exemples avec séparateur cité, guillemets échappés, retour à la ligne cité et guillemet non fermé : réussis.
-- Test structurel ajouté : `supabase/tests/113_117_home_services_security_notifications.sql (couvre désormais les migrations 113 à 118)` (RLS, droits d’écriture, publication, fonctions sensibles et notifications). **Pas encore exécuté** ; compilation complète, lint et suite SQL à lancer à la fin du codage, conformément au canevas.
+- Test structurel `supabase/tests/113_117_home_services_security_notifications.sql` exécuté sur le projet isolé `naxa-ci-replay-2` après application des migrations du périmètre : résultat `naxa_113_118_home_services_security_pass = true`.
+- La migration 090 n’a pas pu être appliquée à cet environnement de test car il lui manque `private.produits_populaires(integer, integer)` ; ce blocage préexistant est hors du périmètre des prestations. Les migrations 091–118 ont été appliquées au projet de test, sans écriture dans Supabase Production.
+- Compilation Next.js complète non vérifiée : Vercel a refusé la création d’un déploiement de prévisualisation avec `402 api-deployments-free-per-day` (quota quotidien atteint, réessai annoncé dans 24 h). Aucun déploiement Production n’a été lancé pour ce chantier.
 - Aucun déploiement manuel n'a été lancé pour ce chantier. Un push antérieur sur `main` a déclenché un déploiement Vercel automatique au commit `b27b18b23787582943916673df01cbd0497bf541`. Le projet Vercel a ensuite reçu un réglage d'étape ignorée pour empêcher les nouvelles publications automatiques pendant le codage ; vérifier/restaurer ce réglage avant le prochain déploiement autorisé.
 - Ne pas annoncer le chantier comme validé en Production tant que les migrations n'ont pas été vérifiées sur un environnement de test, que la compilation/suite de tests n'a pas été exécutée et que le déploiement final n'a pas été explicitement autorisé.
 
