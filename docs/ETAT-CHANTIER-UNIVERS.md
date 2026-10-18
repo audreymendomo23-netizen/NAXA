@@ -28,6 +28,7 @@
 - `d2baaa27e694abe4f5b003078bc6d386fc78a8ff` — cloche de notifications visible dans l’espace partenaire Prestations.
 - `e2fc6bf4ca98dd7fe09b9b70ec07de361d834d0a` — migration 114 : notification in-app aux responsables du partenaire à la création d’une demande, et au client/partenaire lors des changements de statut, sans inclure l’adresse exacte dans le message.
 - `c54c2f34621364bfbcf3932b97448b5fc893f307` et `39155462805398339504a477be706e8e78973f95` — migration 115 et interface de notifications : le destinataire peut marquer les notifications de prestations comme lues, et le badge est mis à jour sans toucher aux notifications historiques de la Pharmacie.
+- `b92f876e11f28415e6abd5db7317c146e9d6e1b5` — l’interface permet également de marquer comme lues les notifications de validation d’offres.
 - `8963e5e77636a91808632b80f85573e284104106` — migration 113 : le partenaire ne peut plus publier directement une offre en contournant la validation administrative.
 - `cf231cc6ab8140fc12dba0738901e769833d3d84` et `9e3645a0503d36906b3cd443e254e238380748a1` — catalogue public, formulaire de demande et reçu privé client.
 - `6d3c94700fdeb29b1cf75667262428e0479928f6`, `18dcc1652223f33df35603f7b7bd19a1671ff78d`, `f8d83c18ad8833e8b14726af57cfa181c8954570`, `09950f9fcdd1c145441448a6e983dfcfe21703e6`, `8f28004138a2c3ceee137125d98994b120b919fe` — espace partenaire, validation administrative, navigation conditionnelle et verrouillage du type de partenaire.
@@ -42,6 +43,7 @@
 - Migration 114 : `supabase/migration_114_home_service_notifications.sql`.
 - Migration 115 : `supabase/migration_115_mark_user_notification_read.sql`.
 - Migration 116 : `supabase/migration_116_harden_universe_function_search_paths.sql`.
+- Migration 117 : `supabase/migration_117_home_service_offer_notifications.sql`.
 - La migration 110 exige l'extension `pg_cron` et programme le job `naxa-expire-universe-reservations`.
 - La migration 111 dépend de la colonne `low_stock_threshold` ajoutée en migration 105.
 - La migration 112 ajoute le socle des prestations à domicile ; elle dépend du socle partenaires/universes, notamment de la fonction `universe_partner_is_public` (migration 100).
@@ -49,6 +51,7 @@
 - La migration 114 réutilise les notifications de la migration 075 ; les notifications ne contiennent jamais l’adresse exacte ni le téléphone du client.
 - La migration 115 n’autorise le marquage que pour une notification dont l’utilisateur est le destinataire ; l’interface limite cette action aux notifications `home_service_request`.
 - La migration 116 place explicitement `pg_temp` en dernier dans le `search_path` des fonctions `SECURITY DEFINER` du chantier pour éviter l’ombrage des objets `public`.
+- La migration 117 avertit les administrateurs d’une nouvelle offre à valider et informe les responsables du partenaire lors d’une décision de publication, remise en brouillon ou archivage.
 - Ces fichiers sont du code source uniquement : aucune de ces migrations n'a été appliquée à Production dans ce chantier.
 
 ## Vérifications et déploiement
