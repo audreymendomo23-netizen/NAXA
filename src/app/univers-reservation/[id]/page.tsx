@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { Logo } from "@/components/Logo";
 import { annulerReservationUnivers } from "@/app/univers-actions";
+import { ClearReservedGroup } from "@/components/universes/ClearReservedGroup";
 
 type Item = { product_name: string; unit_price_fcfa: number; quantity: number; line_total_fcfa: number };
 type Receipt = {
@@ -26,7 +27,7 @@ const statusText: Record<string, string> = {
   expired: "Expirée",
 };
 
-export default async function ReservationUniversPage({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; erreur?: string } }) {
+export default async function ReservationUniversPage({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; erreur?: string; viderPanier?: string; univers?: string } }) {
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) redirect("/");
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
@@ -36,7 +37,7 @@ export default async function ReservationUniversPage({ params, searchParams }: {
   if (error || !receipt) return <main className="mx-auto max-w-xl px-4 py-8"><Link href="/" className="font-bold underline">← Accueil NAXA</Link><section className="carte mt-5"><h1 className="text-xl font-extrabold">Réservation indisponible</h1><p className="mt-2 text-sm text-slate-600">Le reçu ne peut pas être chargé. Vérifiez que la migration 101 est appliquée et que vous êtes connecté au compte ayant effectué la réservation.</p></section></main>;
   const canCancel = ["requested", "confirmed"].includes(receipt.status) && new Date(receipt.expires_at).getTime() > Date.now();
   const universe = receipt.universe_slug === "bebe-maman" ? "Bébé & Maman" : "Parapharmacie";
-  return <main className="mx-auto max-w-xl px-4 pb-12">
+  return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={searchParams.viderPanier} universeSlug={searchParams.univers}/>
     <header className="-mx-4 mb-5 flex items-center justify-between bg-naxa-green-900 px-4 py-3"><Link href="/"><Logo taille={32}/></Link><Link href={"/" + receipt.universe_slug} className="text-sm font-bold text-white underline">Retour au catalogue</Link></header>
     {searchParams.ok && <p role="status" className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation annulée.</p>}
     {searchParams.erreur && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">L’annulation n’a pas abouti. Actualisez le statut avant de réessayer.</p>}

@@ -42,3 +42,35 @@ export async function annulerReservationUnivers(form: FormData) {
   if (error) redirect("/univers-reservation/" + id + "?erreur=annulation");
   redirect("/univers-reservation/" + id + "?ok=annulation");
 }
+
+
+export async function reserverGroupeProduits(form: FormData) {
+  const universe = String(form.get("universe_slug") ?? "");
+  const partnerId = String(form.get("partner_id") ?? "");
+  let items: { product_id: string; quantity: number }[] = [];
+  try {
+    const parsed = JSON.parse(String(form.get("items") ?? "[]"));
+    if (Array.isArray(parsed)) items = parsed.map((item) => ({
+      product_id: String(item.product_id ?? ""),
+      quantity: Number(item.quantity),
+    }));
+  } catch {
+    redirect("/" + (universe === "bebe-maman" ? "bebe-maman" : "parapharmacie") + "?erreur=panier");
+  }
+  if (!["parapharmacie", "bebe-maman"].includes(universe) ||
+      !/^[0-9a-f-]{36}$/i.test(partnerId) || items.length < 1 || items.length > 20 ||
+      items.some((item) => !/^[0-9a-f-]{36}$/i.test(item.product_id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) ||
+      new Set(items.map((item) => item.product_id)).size !== items.length) {
+    redirect("/" + (universe === "bebe-maman" ? "bebe-maman" : "parapharmacie") + "?erreur=panier");
+  }
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/" + universe);
+  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
+  if (profile?.role !== "client") redirect("/" + universe + "?erreur=compte");
+  const { data, error } = await sb.rpc("reserve_universe_products", {
+    p_partner_id: partnerId, p_universe_slug: universe, p_items: items, p_note: null,
+  });
+  if (error || !data) redirect("/" + universe + "?erreur=stock");
+  redirect("/univers-reservation/" + String(data) + "?viderPanier=" + partnerId + "&univers=" + universe);
+}
