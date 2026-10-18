@@ -132,6 +132,8 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Le build complet et les tests de parcours ne sont toujours pas prouvés. Le contrôle Vercel précédent avait renvoyé une limite de création de build. Aucun déploiement Production réussi n’est revendiqué.
 
 ## Correction de cohérence UI — 18 octobre 2026
+- `d36d908ad8e73f0bfcad7fc79f065daeb631813b`, `bc4d4bbe04427660b7df14d5e46ef8f826d6db55`, `a229d581b2f504aab0fc9163256059a60b435cee` — remplacement des messages d’erreur affichés aux clients : les détails internes sur les numéros de migrations ne sont plus exposés ; les messages indiquent une indisponibilité temporaire et une action compréhensible.
+
 
 - `ebeb1b9a47f67623d91f642d952d5bae55451e35` — le badge « Bientôt disponible » n’est plus affiché par défaut sur les écrans de repli des univers actifs (Parapharmacie, Bébé & Maman, Examens médicaux, Prestations et Aide). Le badge reste explicite pour Dispositifs médicaux via `src/app/suivi/page.tsx` (`comingSoon`).
 - `11f274acfe2b7180598cadf4b0437839e9e43100` — maintien explicite de l’état « à venir » pour l’univers Dispositifs médicaux, désactivé en phase 1.
