@@ -33,19 +33,26 @@ export function Luciole() {
     let resting = false;
     let treeX = window.innerWidth - 46;
     let treeY = 30;
-    let wanderX = x;
-    let wanderY = y;
-    let seed = 0;
+    let nextWanderAt = 0;
+    let nextWanderX = x;
+    let nextWanderY = y;
+
+    const randomViewportPoint = () => ({
+      x: 30 + Math.random() * Math.max(1, window.innerWidth - 60),
+      y: 34 + Math.random() * Math.max(1, window.innerHeight - 68),
+    });
 
     const logo = () => document.querySelector<HTMLElement>('img[alt="NAXA"]');
     const placeTree = () => {
       const image = logo();
       if (image) {
         const r = image.getBoundingClientRect();
-        treeX = Math.min(window.innerWidth - 18, r.left + r.width * 0.88);
-        treeY = Math.max(8, r.top - 3);
+        // Le bord droit du logo correspond au côté extérieur du dernier « A ».
+        // Le tronc de l’arbre se termine sur la même ligne de base que le logo.
+        treeX = Math.min(window.innerWidth - 14, r.right + 14);
+        treeY = r.bottom - 24;
       } else {
-        treeX = Math.min(window.innerWidth - 18, 150);
+        treeX = Math.min(window.innerWidth - 14, 164);
         treeY = 22;
       }
       tree.style.transform = `translate3d(${treeX - 12}px, ${treeY - 8}px, 0)`;
@@ -80,8 +87,7 @@ export function Luciole() {
       resting = false;
       targetX = event.clientX;
       targetY = event.clientY;
-      wanderX = targetX;
-      wanderY = targetY;
+      nextWanderAt = 0;
       tree.classList.add("naxa-luciole-tree-awake");
       start();
     };
@@ -107,7 +113,7 @@ export function Luciole() {
       lastFrame = now;
       const idleFor = now - lastInput;
 
-      if (idleFor >= 60_000) {
+      if (idleFor >= 20_000) {
         resting = true;
         targetX = treeX;
         targetY = treeY - 12;
@@ -115,10 +121,16 @@ export function Luciole() {
       } else {
         resting = false;
         if (idleFor >= 1600) {
-          // Flânerie lente et organique pendant l'inactivité, jusqu'au retour à l'arbre.
-          seed += dt * 0.00055;
-          targetX = Math.max(28, Math.min(window.innerWidth - 28, wanderX + Math.sin(seed * 1.1) * 86));
-          targetY = Math.max(40, Math.min(window.innerHeight - 40, wanderY + Math.cos(seed * 0.83) * 62));
+          // Chaque destination est tirée indépendamment dans toute la zone visible :
+          // aucune sinusoïde, boucle ni trajectoire répétitive.
+          if (now >= nextWanderAt) {
+            const point = randomViewportPoint();
+            nextWanderX = point.x;
+            nextWanderY = point.y;
+            nextWanderAt = now + 1400 + Math.random() * 3000;
+          }
+          targetX = nextWanderX;
+          targetY = nextWanderY;
         }
       }
 
@@ -130,7 +142,7 @@ export function Luciole() {
       paint();
 
       const settled = Math.abs(targetX - x) < 0.8 && Math.abs(targetY - y) < 0.8 && Math.abs(vx) + Math.abs(vy) < 0.35;
-      if (!settled || !resting || idleFor < 60_000) frameId = requestAnimationFrame(tick);
+      if (!settled || !resting || idleFor < 20_000) frameId = requestAnimationFrame(tick);
       else {
         firefly.classList.add("naxa-luciole-resting");
         tree.classList.add("naxa-luciole-tree-glow");
