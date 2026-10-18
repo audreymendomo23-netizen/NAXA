@@ -361,3 +361,9 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - La liste de produits est alimentée par `get_universe_catalog`; les pages retombent sur l’écran « Bientôt disponible » si le catalogue n’est pas activé ou si les migrations ne sont pas accessibles. Aucun paiement en ligne ni livraison n’est ajouté.
 - **À vérifier avant activation réelle :** appliquer les migrations 098 → 099 → 100 → 101 dans cet ordre sur un environnement de test, contrôler les politiques RLS et fonctions SQL, puis tester concurrence/annulation/retrait et les restrictions de Bébé & Maman. La migration 101 fournit la lecture sécurisée du reçu.
 - **État actuel :** code poussé sur `main`; aucune migration exécutée sur Supabase, aucun déploiement Vercel, aucune compilation/test CI exécutés conformément à la consigne de réserver la vérification à la fin du chantier. Les parcours de réservation ne sont donc pas encore déclarés validés.
+
+
+- Commit de poursuite `b20e713b9b8d080586bf83c1024fa37adcb2af8b` : l’administration peut ouvrir/fermer l’association d’un partenaire à chacun des univers. Les changements sont audités, et un partenaire doit être actif avant l’ouverture d’un univers.
+- Migration 102 renforce la politique RLS pour empêcher un membre partenaire de gérer un catalogue d’un univers auquel son partenaire n’est pas associé.
+- Migration 103 ajoute des fonctions SQL atomiques pour les changements d’activation et d’association, avec vérification du rôle administrateur et écriture du journal d’audit dans la même transaction. Elle durcit également les transitions de réservation : une réservation échue ne peut plus être retirée et un partenaire suspendu ne peut plus traiter ses réservations.
+- Ordre de préparation désormais requis : `098 → 099 → 100 → 101 → 102 → 103`. Ces migrations sont uniquement dans GitHub et n’ont pas été exécutées sur une base.

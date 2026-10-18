@@ -68,16 +68,8 @@ export async function changerActivationUnivers(form: FormData) {
   const flag = field(form, "flag_key", 100);
   const enabled = field(form, "enabled", 5) === "true";
   if (!slugs.includes(slug) || flag !== "universe." + slug || slug === "aide") redirect("/admin/univers?erreur=parametres");
-  const { error: flagError } = await sb.from("feature_flags").update({
-    enabled, updated_by: actor, updated_at: new Date().toISOString(),
-  }).eq("flag_key", flag);
-  if (flagError) redirect("/admin/univers?erreur=schema");
-  const { error } = await sb.from("universes").update({ enabled, updated_at: new Date().toISOString() }).eq("slug", slug);
+  const { error } = await sb.rpc("admin_set_universe_enabled", { p_slug: slug, p_enabled: enabled });
   if (error) redirect("/admin/univers?erreur=schema");
-  await sb.from("audit_log").insert({
-    actor_id: actor, action: enabled ? "universe.enabled" : "universe.disabled",
-    entity_type: "universe", entity_id: slug, metadata: { enabled },
-  });
   revalidatePath("/admin/univers");
   revalidatePath("/" + slug);
   redirect("/admin/univers?ok=activation");
@@ -93,15 +85,10 @@ export async function changerAssociationPartenaire(form: FormData) {
   const { data: partner, error: partnerError } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
   if (partnerError || !partner) redirect("/admin/univers?erreur=schema");
   if (enabled && partner.status !== "active") redirect("/admin/univers?erreur=partenaire_inactif");
-  const { error } = await sb.from("partner_universes").upsert({
-    partner_id: partnerId, universe_slug: universe, enabled,
-  }, { onConflict: "partner_id,universe_slug" });
-  if (error) redirect("/admin/univers?erreur=association");
-  await sb.from("audit_log").insert({
-    actor_id: actor, action: enabled ? "partner.universe_enabled" : "partner.universe_disabled",
-    entity_type: "partner_universe", entity_id: partnerId + ":" + universe,
-    metadata: { partner_id: partnerId, universe_slug: universe, enabled },
+  const { error } = await sb.rpc("admin_set_partner_universe", {
+    p_partner_id: partnerId, p_universe_slug: universe, p_enabled: enabled,
   });
+  if (error) redirect("/admin/univers?erreur=association");
   revalidatePath("/admin/univers");
   revalidatePath("/" + universe);
   redirect("/admin/univers?ok=association");
