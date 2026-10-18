@@ -105,50 +105,62 @@ async function searchDrugLabel(term: string): Promise<DictionaryResult | null> {
   };
 }
 
-async function searchEncyclopedia(term: string): Promise<DictionaryResult | null> {
-  const search = await fetchJson("https://fr.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + encodeURIComponent(term) + "&srlimit=5&format=json&origin=*");
+async function searchEncyclopedia(term: string, lang: "fr" | "en"): Promise<DictionaryResult | null> {
+  const wiki = lang === "en" ? "en.wikipedia.org" : "fr.wikipedia.org";
+  const search = await fetchJson("https://" + wiki + "/w/api.php?action=query&list=search&srsearch=" + encodeURIComponent(term) + "&srlimit=5&format=json&origin=*");
   const query = search?.query as RecordObject | undefined;
   const entries = Array.isArray(query?.search) ? query.search as RecordObject[] : [];
   const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const wanted = normalize(term);
   const entry = entries.find((item) => typeof item.title === "string" && normalize(item.title) === wanted) ?? entries[0];
   if (typeof entry?.title !== "string") return null;
-  const page = await fetchJson("https://fr.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(entry.title.replace(/ /g, "_")));
+  const page = await fetchJson("https://" + wiki + "/api/rest_v1/page/summary/" + encodeURIComponent(entry.title.replace(/ /g, "_")));
   const definition = cleanText(page?.extract);
   if (!definition) return null;
   const title = typeof page?.title === "string" ? page.title : entry.title;
   const thumbnail = page?.thumbnail as RecordObject | undefined;
   const thumbnailSource = typeof thumbnail?.source === "string" ? thumbnail.source : null;
   const safeImageUrl = thumbnailSource && /^https:\/\/upload\.wikimedia\.org\//i.test(thumbnailSource) ? thumbnailSource : null;
-  const articleUrl = "https://fr.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
+  const articleUrl = "https://" + wiki + "/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
   return {
     terme: title,
     definition,
-    source: "Wikipédia en français — article encyclopédique",
+    source: lang === "en" ? "English Wikipedia — encyclopedia article" : "Wikipédia en français — article encyclopédique",
     sourceUrl: articleUrl,
-    type: "Définition encyclopédique",
-    notice: "Information générale à visée documentaire, pas un diagnostic ni une recommandation de traitement. Pour une décision médicale, consultez un professionnel de santé. Pour les médicaments, référez-vous à la notice exacte délivrée au Cameroun.",
+    type: lang === "en" ? "Encyclopedia definition" : "Définition encyclopédique",
+    notice: lang === "en"
+      ? "General reference information, not a diagnosis or treatment recommendation. Consult a healthcare professional for medical decisions. For medicines, refer to the exact leaflet supplied in Cameroon."
+      : "Information générale à visée documentaire, pas un diagnostic ni une recommandation de traitement. Pour une décision médicale, consultez un professionnel de santé. Pour les médicaments, référez-vous à la notice exacte délivrée au Cameroun.",
     imageUrl: safeImageUrl,
-    imageAlt: safeImageUrl ? "Illustration issue de l’article encyclopédique : " + title : null,
+    imageAlt: safeImageUrl ? (lang === "en" ? "Illustration from encyclopedia article: " : "Illustration issue de l’article encyclopédique : ") + title : null,
     imageSourceUrl: safeImageUrl ? articleUrl : null,
-    imageSource: safeImageUrl ? "Wikipédia en français" : null,
+    imageSource: safeImageUrl ? (lang === "en" ? "English Wikipedia" : "Wikipédia en français") : null,
   };
 }
 
 export async function GET(request: NextRequest) {
-  const term = (request.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 100);
+  const params = request.nextUrl.searchParams;
+  const term = (params.get("q") ?? "").trim().slice(0, 100);
+  const lang = params.get("lang") === "en" ? "en" : "fr";
+  const messages = lang === "en"
+    ? {
+        short: "Enter at least two characters.",
+        missing: "No sufficiently reliable definition was found in English. Try another term or check the spelling.",
+      }
+    : {
+        short: "Saisissez au moins deux caractères.",
+        missing: "Aucune définition suffisamment fiable n’a été trouvée en français. Essayez un autre terme ou vérifiez l’orthographe.",
+      };
   if (term.length < 2) {
-    return NextResponse.json({ error: "Saisissez au moins deux caractères." }, { status: 400 });
+    return NextResponse.json({ error: messages.short }, { status: 400 });
   }
 
-  // Prefer a medicine label when a matching label exists, then use an encyclopedia
-  // entry for illnesses, molecules and other general medical terms.
-  const drug = await searchDrugLabel(term);
-  const result = drug ?? await searchEncyclopedia(term);
+  // Search in the user's selected language. The FDA label feed is English-only,
+  // so it is used only when the interface is set to English.
+  const drug = lang === "en" ? await searchDrugLabel(term) : null;
+  const result = drug ?? await searchEncyclopedia(term, lang);
   if (!result) {
-    return NextResponse.json({
-      error: "Aucune définition suffisamment fiable n’a été trouvée. Essayez un autre nom ou vérifiez l’orthographe.",
-    }, { status: 404 });
+    return NextResponse.json({ error: messages.missing }, { status: 404 });
   }
   return NextResponse.json({ result }, {
     headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
