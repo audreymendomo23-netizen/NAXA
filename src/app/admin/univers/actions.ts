@@ -125,3 +125,67 @@ export async function retirerCompteTestSuivi(form: FormData) {
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=compte_test");
 }
+
+
+export async function creerProduitPartenaire(form: FormData) {
+  const { sb, actor } = await admin();
+  const partnerId = field(form, "partner_id", 40);
+  const universe = field(form, "universe_slug", 40);
+  const name = field(form, "name", 180);
+  const category = field(form, "category", 100) || "Autres";
+  const price = Number(field(form, "price_fcfa", 12));
+  const stock = Number(field(form, "stock_quantity", 20));
+  const photo = field(form, "photo_url", 1000);
+  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !["parapharmacie", "bebe-maman"].includes(universe) ||
+      name.length < 2 || !Number.isInteger(price) || price < 0 || !Number.isFinite(stock) || stock < 0 ||
+      (photo && (!/^https:\/\//i.test(photo) || photo.length > 1000))) {
+    redirect("/admin/univers?erreur=produit");
+  }
+  const { data: partner } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
+  const { data: association } = await sb.from("partner_universes").select("enabled").eq("partner_id", partnerId).eq("universe_slug", universe).maybeSingle();
+  if (partner?.status !== "active" || !association?.enabled) redirect("/admin/univers?erreur=association");
+  const { error } = await sb.from("partner_products").insert({
+    partner_id: partnerId, universe_slug: universe, name, category,
+    brand: field(form, "brand", 120) || null,
+    description: field(form, "description", 600) || null,
+    photo_url: photo || null, price_fcfa: price, stock_quantity: stock,
+    unit_label: field(form, "unit_label", 30) || "unité", status: "draft", created_by: actor,
+  });
+  if (error) redirect("/admin/univers?erreur=produit");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: "partner_product.created", entity_type: "partner_product",
+    entity_id: name, metadata: { partner_id: partnerId, universe_slug: universe, status: "draft" },
+  });
+  revalidatePath("/admin/univers");
+  redirect("/admin/univers?ok=produit");
+}
+
+export async function changerStatutProduitPartenaire(form: FormData) {
+  const { sb, actor } = await admin();
+  const id = field(form, "product_id", 40);
+  const status = field(form, "status", 20);
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !["draft", "active", "archived"].includes(status)) redirect("/admin/univers?erreur=produit");
+  const { data: product } = await sb.from("partner_products").select("partner_id,universe_slug").eq("id", id).maybeSingle();
+  if (!product) redirect("/admin/univers?erreur=schema");
+  if (status === "active") {
+    const [partner, association, universe, flag] = await Promise.all([
+      sb.from("partners").select("status").eq("id", product.partner_id).maybeSingle(),
+      sb.from("partner_universes").select("enabled").eq("partner_id", product.partner_id).eq("universe_slug", product.universe_slug).maybeSingle(),
+      sb.from("universes").select("enabled").eq("slug", product.universe_slug).maybeSingle(),
+      sb.from("feature_flags").select("enabled").eq("flag_key", "universe." + product.universe_slug).maybeSingle(),
+    ]);
+    if (partner.data?.status !== "active" || !association.data?.enabled || !universe.data?.enabled || !flag.data?.enabled) {
+      redirect("/admin/univers?erreur=association");
+    }
+  }
+  const { error } = await sb.from("partner_products").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) redirect("/admin/univers?erreur=produit");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: "partner_product.status_changed", entity_type: "partner_product",
+    entity_id: id, metadata: { status },
+  });
+  revalidatePath("/admin/univers");
+  revalidatePath("/parapharmacie");
+  revalidatePath("/bebe-maman");
+  redirect("/admin/univers?ok=produit");
+}

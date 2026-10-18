@@ -370,3 +370,7 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 
 
 - Complément console admin : affichage des feature flags transversaux (lecture seule), gestion de la liste d’autorisation des comptes de test du suivi santé et consultation des 20 dernières entrées du journal d’audit. Cette liste n’active pas à elle seule les parcours de suivi et ne rend aucune donnée médicale publique.
+
+
+- Suite du stage 2 : la console admin permet désormais de créer un produit partenaire en brouillon, puis de le publier, de le remettre en brouillon ou de l’archiver. La publication est bloquée si le partenaire, l’association, l’univers ou son feature flag n’est pas actif. Les termes interdits de Bébé & Maman sont filtrés aussi par le déclencheur SQL, pas seulement par l’interface.
+- La console admin affiche également les flags transversaux en lecture seule, permet d’ajouter/retirer des UUID à la liste de test du suivi et montre les 20 derniers événements d’audit. Ces écrans ne constituent pas encore une activation du suivi santé ni un tableau de bord médical.
