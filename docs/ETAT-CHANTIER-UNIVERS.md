@@ -97,7 +97,7 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `c103c1f95781e598f172f36163c08213a95f8300` — ajout des libellés de navigation des univers en français et en anglais dans `src/lib/accueil-textes.ts`.
 - `0149fb91063e08c01ed191fe5a10e7deb9c530ba` — ajout dans le menu trois-points de l’accueil Pharmacie de liens directs vers Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs médicaux, Examens, Prestations à domicile et « Besoin d’aide ? ». Les liens sont ajoutés sans retirer les entrées existantes Client/Pharmacie.
 - `4b0356debf6911e4bdb663a7e98fdb053c370df8` — correction des destinations du menu de `EnTeteClient` : les univers pointent maintenant vers leurs routes réelles, et « Besoin d’aide ? » vers `/aide` au lieu d’une recherche textuelle.
-- **État honnête :** les destinations et libellés sont présents sur `main`, mais le build et les parcours navigateur ne sont pas encore exécutés. Le menu trois-points partagé sur tous les écrans des univers reste à terminer. Aucun déploiement n’a été lancé.
+- **État honnête :** les destinations et libellés sont présents sur `main`, mais le build et les parcours navigateur ne sont pas encore exécutés. Le menu partagé a été construit et intégré depuis cette note ; voir la mise à jour ci-dessous. Le build et les parcours navigateur restent à prouver. Aucun déploiement Production n’a été lancé.
 
 
 ## Mise à jour — menu partagé des univers (18/10/2026)
@@ -108,3 +108,10 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Commits : `1b335954d243357160e605a97ecd0d07cd8aa6c6`, `3d594bc84391588fd07e2c7fa1bb19801388c8e7`, `c144c88ac54c44f3cc243126aa6194ec345a7dd5`, `97ea27b1947b7bc626c5180059219d652d88b422`, `d582740dfe44e11fad6be3d298a04e92bda52817`, `b7a3de6495fe523571cd46c376a2696d2e1b4597`.
 - Statut : construit sur `main`, mais build complet et vérification navigateur non exécutés. Aucun déploiement Production ni écriture Supabase Production.
 - Pharmacie : le nouveau composant est limité aux pages des univers ; le parcours Pharmacie existant n’a pas été modifié dans cette étape.
+
+
+## Preuve de compilation — état observé après intégration du menu (18/10/2026)
+
+- La vérification de statut GitHub sur le commit documentaire `4f549b2cff6f82ca2521670e30de5e16562ea56d` rapporte le contrôle Vercel en échec avec l’URL `upgradeToPro=build-rate-limit` : il s’agit de la limite de création de builds, pas d’un résultat d’erreur TypeScript exploitable.
+- Le statut CircleCI est également signalé en échec mais n’est pas utilisé, conformément à `AGENTS.md` et au workflow courant.
+- Aucun build local n’a pu être lancé depuis le connecteur GitHub dans cette étape ; le build reste donc non vérifié. Aucun déploiement Production n’a été déclenché.
