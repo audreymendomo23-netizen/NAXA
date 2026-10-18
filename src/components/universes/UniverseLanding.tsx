@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MenuUnivers } from "@/components/universes/MenuUnivers";
 
 type UniverseKey = "parapharmacie" | "bebe-maman" | "examens" | "prestations" | "suivi" | "aide";
 
@@ -60,9 +61,12 @@ export function UniverseLanding({ universe, comingSoon = true }: { universe: Uni
   return (
     <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
       <div className="mx-auto max-w-5xl pt-4 sm:pt-6">
-        <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-bold text-[#064B2A] transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]" aria-label="Retour à l’accueil Pharmacie">
-          <span aria-hidden="true">←</span> NAXA · Accueil
-        </Link>
+<div className="flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-bold text-[#064B2A] transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]" aria-label="Retour à l’accueil Pharmacie">
+            <span aria-hidden="true">←</span> NAXA · Accueil
+          </Link>
+          <MenuUnivers />
+        </div>
 
         <section className="mt-4 overflow-hidden rounded-3xl border bg-white shadow-sm" style={{ borderColor: item.border }}>
           <div className="p-6 sm:p-9" style={{ backgroundColor: item.soft }}>
