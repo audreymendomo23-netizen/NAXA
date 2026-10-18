@@ -2,38 +2,124 @@ import Link from "next/link";
 
 type UniverseKey = "parapharmacie" | "bebe-maman" | "examens" | "prestations" | "suivi" | "aide";
 
-const universes: Record<UniverseKey, { title: string; slogan: string; description: string; theme: string; accent: string; icon: string; bullets: string[] }> = {
-  parapharmacie: { title: "Parapharmacie", slogan: "Votre allié santé", description: "Hygiène, soin et bien-être auprès des partenaires NAXA.", theme: "bg-teal-50", accent: "text-teal-800", icon: "✳", bullets: ["Produits d’hygiène et de soin", "Disponibilités communiquées par les partenaires", "Retrait auprès du partenaire — pas de livraison"] },
-  "bebe-maman": { title: "Bébé & Maman", slogan: "Votre allié santé", description: "Un espace dédié aux besoins de la maman et de l’enfant.", theme: "bg-pink-50", accent: "text-pink-800", icon: "♡", bullets: ["Sélection adaptée à l’univers bébé et maternité", "Informations produits claires", "Retrait auprès du partenaire — pas de livraison"] },
-  examens: { title: "Examens médicaux", slogan: "Votre allié santé", description: "Retrouvez les examens proposés par les centres partenaires.", theme: "bg-violet-50", accent: "text-violet-800", icon: "＋", bullets: ["Catalogue des examens", "Tarifs communiqués par les centres", "Prise de rendez-vous bientôt disponible"] },
-  prestations: { title: "Prestations à domicile", slogan: "Votre allié santé", description: "Découvrez les services proposés par des professionnels vérifiés.", theme: "bg-orange-50", accent: "text-orange-800", icon: "⌂", bullets: ["Services et zones d’intervention", "Demande de réservation", "Coordonnées privées jusqu’à confirmation"] },
-  suivi: { title: "Suivi santé", slogan: "Votre allié santé", description: "Un espace de suivi personnel, sans diagnostic ni interprétation médicale par NAXA.", theme: "bg-blue-50", accent: "text-blue-800", icon: "♡", bullets: ["Mesures personnelles", "Partage contrôlé avec un professionnel invité", "Alertes informatives — ne remplace pas les urgences"] },
-  aide: { title: "Aide NAXA", slogan: "Votre allié santé", description: "Trouvez de l’aide pour utiliser NAXA et accéder aux ressources urgentes.", theme: "bg-emerald-50", accent: "text-emerald-800", icon: "?", bullets: ["Aide à l’utilisation de NAXA", "Échange avec un pharmacien selon disponibilité", "En cas d’urgence au Cameroun, appelez le 119"] },
+type Universe = {
+  title: string;
+  slogan: string;
+  description: string;
+  route: string;
+  color: string;
+  soft: string;
+  border: string;
+  icon: string;
+  bullets: string[];
 };
+
+const universes: Record<UniverseKey, Universe> = {
+  parapharmacie: {
+    title: "Parapharmacie", slogan: "Votre allié santé",
+    description: "Hygiène, soin et bien-être auprès des partenaires NAXA.",
+    route: "/parapharmacie", color: "#096A6F", soft: "#E6F7F6", border: "#BFE6E4", icon: "✳",
+    bullets: ["Produits d’hygiène et de soin", "Disponibilités confirmées par les partenaires", "Réservation et retrait auprès du partenaire"],
+  },
+  "bebe-maman": {
+    title: "Bébé & Maman", slogan: "Votre allié santé",
+    description: "Un espace dédié aux besoins de la maman et de l’enfant.",
+    route: "/bebe-maman", color: "#AD2D63", soft: "#FDEEF4", border: "#F7CADC", icon: "♡",
+    bullets: ["Sélection dédiée à la maternité et à la petite enfance", "Informations produits claires", "Réservation et retrait auprès du partenaire"],
+  },
+  examens: {
+    title: "Examens médicaux", slogan: "Votre allié santé",
+    description: "Découvrez les examens proposés par les centres partenaires.",
+    route: "/examens", color: "#5A32B0", soft: "#F1EBFD", border: "#D9CCF7", icon: "＋",
+    bullets: ["Catalogue des examens et des packs", "Tarifs communiqués par les centres", "Rendez-vous selon les disponibilités du centre"],
+  },
+  prestations: {
+    title: "Prestations à domicile", slogan: "Votre allié santé",
+    description: "Découvrez les services proposés par des professionnels vérifiés.",
+    route: "/prestations", color: "#B73623", soft: "#FFEFEA", border: "#FAD0C6", icon: "⌂",
+    bullets: ["Services et zones d’intervention", "Demandes de réservation", "Adresse protégée jusqu’à confirmation"],
+  },
+  suivi: {
+    title: "Suivi santé", slogan: "Votre allié santé",
+    description: "Un espace de suivi personnel, sans diagnostic ni interprétation médicale par NAXA.",
+    route: "/suivi", color: "#1E40AF", soft: "#EAF2FE", border: "#C7DAFB", icon: "♡",
+    bullets: ["Mesures personnelles et historique", "Partage contrôlé avec un professionnel invité", "Rappels informatifs selon les fonctionnalités activées"],
+  },
+  aide: {
+    title: "Aide NAXA", slogan: "Nous sommes là pour vous guider",
+    description: "Repères pour utiliser NAXA et accéder aux ressources utiles.",
+    route: "/aide", color: "#096A6F", soft: "#E6F7F6", border: "#BFE6E4", icon: "?",
+    bullets: ["Comprendre les espaces NAXA", "Trouver les informations disponibles", "Accéder aux ressources d’urgence"],
+  },
+};
+
+const universeOrder: UniverseKey[] = ["parapharmacie", "bebe-maman", "examens", "suivi", "prestations", "aide"];
 
 export function UniverseLanding({ universe, comingSoon = true }: { universe: UniverseKey; comingSoon?: boolean }) {
   const item = universes[universe];
   return (
-    <main className="min-h-screen bg-white px-4 pb-24 text-slate-900">
-      <div className="mx-auto max-w-3xl pt-5">
-        <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-bold text-[#064B2A] hover:bg-emerald-50" aria-label="Retour à l’accueil Pharmacie">
+    <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
+      <div className="mx-auto max-w-5xl pt-4 sm:pt-6">
+        <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-bold text-[#064B2A] transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]" aria-label="Retour à l’accueil Pharmacie">
           <span aria-hidden="true">←</span> NAXA · Accueil
         </Link>
-        <section className={`mt-5 rounded-3xl p-6 sm:p-9 ${item.theme}`}>
-          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm ${item.accent}`} aria-hidden="true">{item.icon}</div>
-          <p className={`mt-5 text-sm font-bold uppercase tracking-wide ${item.accent}`}>{item.slogan}</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">{item.title}</h1>
-          <p className="mt-3 max-w-xl text-base leading-7 text-slate-700">{item.description}</p>
-          {comingSoon && <p className="mt-5 inline-flex min-h-10 items-center rounded-full bg-white px-4 text-sm font-bold text-slate-700 shadow-sm">Bientôt disponible</p>}
+
+        <section className="mt-4 overflow-hidden rounded-3xl border bg-white shadow-sm" style={{ borderColor: item.border }}>
+          <div className="p-6 sm:p-9" style={{ backgroundColor: item.soft }}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm" style={{ color: item.color }} aria-hidden="true">{item.icon}</div>
+              {comingSoon && <span className="inline-flex min-h-9 items-center rounded-full border border-white/80 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm">Bientôt disponible</span>}
+            </div>
+            <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.12em]" style={{ color: item.color }}>{item.slogan}</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">{item.title}</h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">{item.description}</p>
+          </div>
+
+          <div className="grid gap-6 p-5 sm:grid-cols-[1.1fr_0.9fr] sm:p-7">
+            <section aria-labelledby="universe-features">
+              <h2 id="universe-features" className="text-lg font-extrabold">Dans cet espace</h2>
+              <ul className="mt-4 space-y-3">
+                {item.bullets.map((bullet) => (
+                  <li key={bullet} className="flex gap-3 text-sm leading-6 text-slate-700">
+                    <span className="mt-0.5 font-black" style={{ color: item.color }} aria-hidden="true">✓</span>
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+              {universe === "suivi" && (
+                <p className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
+                  Le suivi NAXA ne remplace ni une consultation ni un service d’urgence. En cas de symptôme inquiétant, contactez un professionnel de santé.
+                </p>
+              )}
+              {universe === "aide" && (
+                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <p className="font-extrabold text-red-900">Urgence médicale ?</p>
+                  <p className="mt-1 text-sm leading-6 text-red-900">N’utilisez pas la messagerie NAXA pour une urgence. Contactez directement les services d’urgence locaux.</p>
+                  <a href="tel:119" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-red-700 px-4 font-bold text-white transition hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">Appeler le 119</a>
+                  <p className="mt-2 text-xs leading-5 text-red-800">La disponibilité et la couverture de ce numéro peuvent varier selon la zone.</p>
+                </div>
+              )}
+            </section>
+
+            <aside className="rounded-2xl border border-slate-200 bg-[#F8FAF9] p-4 sm:p-5" aria-labelledby="other-universes">
+              <h2 id="other-universes" className="text-base font-extrabold">Explorer les espaces NAXA</h2>
+              <p className="mt-1 text-sm leading-5 text-slate-600">Passez d’un univers à l’autre sans perdre votre chemin.</p>
+              <nav className="mt-3 space-y-2" aria-label="Autres espaces NAXA">
+                {universeOrder.filter((key) => key !== universe).map((key) => {
+                  const other = universes[key];
+                  return (
+                    <Link key={key} href={other.route} className="flex min-h-11 items-center gap-3 rounded-xl border border-transparent bg-white px-3 py-2 text-sm font-bold transition hover:border-slate-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg" style={{ backgroundColor: other.soft, color: other.color }} aria-hidden="true">{other.icon}</span>
+                      <span>{other.title}</span>
+                      <span className="ml-auto text-slate-400" aria-hidden="true">›</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </aside>
+          </div>
         </section>
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-          <h2 className="text-lg font-extrabold">Dans cet espace</h2>
-          <ul className="mt-4 space-y-3">
-            {item.bullets.map((bullet) => <li key={bullet} className="flex gap-3 text-sm leading-6 text-slate-700"><span className={`mt-0.5 font-black ${item.accent}`} aria-hidden="true">✓</span><span>{bullet}</span></li>)}
-          </ul>
-          {universe === "suivi" && <p className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-950">Ce service ne constitue pas un dispositif d’urgence. En cas de symptôme inquiétant, contactez un professionnel de santé ou les services d’urgence.</p>}
-          {universe === "aide" && <a href="https://wa.me/" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-[#064B2A] px-4 font-bold text-white">Options de contact</a>}
-        </section>
+        <p className="mx-auto mt-5 max-w-3xl px-2 text-center text-xs leading-5 text-slate-500">Les services affichés dépendent de leur activation et de la disponibilité des partenaires. NAXA ne confirme pas une réservation tant qu’une confirmation explicite n’a pas été fournie.</p>
       </div>
     </main>
   );
