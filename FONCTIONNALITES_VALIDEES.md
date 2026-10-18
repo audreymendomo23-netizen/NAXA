@@ -1559,4 +1559,6 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 
 - Le filtre de catalogue Bébé & Maman n’exclut plus le mot « lait » isolément : il cible les laits infantiles/de croissance, préparations et substituts infantiles, céréales/farines infantiles, biberons, tétines, sucettes et équivalents anglais. Cela évite notamment d’écarter à tort un produit cosmétique comme le lait de toilette.
 - L’activation de l’univers `suivi` est verrouillée dans l’interface d’administration et dans l’action serveur pendant la phase 1. Le parcours Dispositifs médicaux reste désactivé conformément au périmètre validé.
-- Commits de code : à confirmer après application ; aucune migration Supabase Production, compilation ou validation navigateur n’est revendiquée.
+- Commits : `07e428df8430c7739c8e2f247aff75c0ba55bdd5` (filtre produit), `e318b0827e6ce193ceee9aedebb719ef25b882dd` (garde-fou serveur), `f7848e650104e58adc72778c811745dad6f325e7` (interface admin). Les contrôles de création et d’association d’un partenaire sont également verrouillés pour `suivi` dans les actions serveur ; aucune migration Supabase Production, compilation ou validation navigateur n’est revendiquée.
+
+- Complément de garde-fou : la création d’un partenaire et l’association d’un partenaire à l’univers `suivi` sont aussi refusées côté action serveur, pas seulement masquées dans l’interface. Commit : à consigner après application.
