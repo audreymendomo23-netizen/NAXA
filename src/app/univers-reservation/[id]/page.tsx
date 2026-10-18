@@ -34,7 +34,7 @@ export default async function ReservationUniversPage({ params, searchParams }: {
   if (!auth.user) redirect("/connexion?retour=/univers-reservation/" + params.id);
   const { data, error } = await sb.rpc("get_universe_reservation_receipt", { p_reservation_id: params.id });
   const receipt = ((data ?? []) as unknown as Receipt[])[0];
-  if (error || !receipt) return <main className="mx-auto max-w-xl px-4 py-8"><Link href="/" className="font-bold underline">← Accueil NAXA</Link><section className="carte mt-5"><h1 className="text-xl font-extrabold">Réservation indisponible</h1><p className="mt-2 text-sm text-slate-600">Le reçu ne peut pas être chargé. Vérifiez que la migration 101 est appliquée et que vous êtes connecté au compte ayant effectué la réservation.</p></section></main>;
+  if (error || !receipt) return <main className="mx-auto max-w-xl px-4 py-8"><Link href="/" className="font-bold underline">← Accueil NAXA</Link><section className="carte mt-5"><h1 className="text-xl font-extrabold">Réservation indisponible</h1><p className="mt-2 text-sm text-slate-600">Le reçu ne peut pas être chargé. Vérifiez que vous êtes connecté au compte ayant effectué la réservation, puis réessayez.</p></section></main>;
   const canCancel = ["requested", "confirmed"].includes(receipt.status) && new Date(receipt.expires_at).getTime() > Date.now();
   const universe = receipt.universe_slug === "bebe-maman" ? "Bébé & Maman" : "Parapharmacie";
   return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={searchParams.viderPanier} universeSlug={searchParams.univers}/>
