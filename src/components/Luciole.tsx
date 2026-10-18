@@ -138,6 +138,7 @@ export function Luciole() {
     };
 
     function start() {
+      if (!firefly || !tree) return;
       firefly.classList.remove("naxa-luciole-resting");
       tree.classList.remove("naxa-luciole-tree-glow");
       if (!frameId && !document.hidden) {
