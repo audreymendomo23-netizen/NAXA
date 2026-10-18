@@ -22,11 +22,16 @@ export default async function AdminUnivers({ searchParams }: { searchParams: { o
   const [u, f, p, a, t, logs, productsResult] = await Promise.all([
     sb.from("universes").select("slug,name,enabled,display_order").order("display_order"),
     sb.from("feature_flags").select("flag_key,enabled,description").order("flag_key"),
-    sb.from("partners").select("id,name,partner_type,city,neighborhood,status,created_at").order("created_at", { ascending: false }).limit(100),\n    sb.from("partner_universes").select("partner_id,universe_slug,enabled"),\n    sb.from("feature_flag_test_accounts").select("user_id,reason,created_at").order("created_at", { ascending: false }),\n    sb.from("audit_log").select("id,action,entity_type,entity_id,metadata,created_at").order("created_at", { ascending: false }).limit(20),\n    sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,status,created_at").order("created_at", { ascending: false }).limit(100),
+    sb.from("partners").select("id,name,partner_type,city,neighborhood,status,created_at").order("created_at", { ascending: false }).limit(100),
+    sb.from("partner_universes").select("partner_id,universe_slug,enabled"),
+    sb.from("feature_flag_test_accounts").select("user_id,reason,created_at").order("created_at", { ascending: false }),
+    sb.from("audit_log").select("id,action,entity_type,entity_id,metadata,created_at").order("created_at", { ascending: false }).limit(20),
+    sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,status,created_at").order("created_at", { ascending: false }).limit(100),
   ]);
   const missing = !!(u.error || f.error || p.error || a.error || t.error || logs.error || productsResult.error);
   const flags = new Map((f.data ?? []).map((x) => [x.flag_key, x]));
-  const statusLabel: Record<string, string> = { pending: "À vérifier", active: "Actif", suspended: "Suspendu" };\n  const associations = a.data ?? [];
+  const statusLabel: Record<string, string> = { pending: "À vérifier", active: "Actif", suspended: "Suspendu" };
+  const associations = a.data ?? [];
   const field = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-5xl space-y-5 pt-4">
     <header className="-mx-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white sm:mx-0 sm:rounded-2xl"><Logo taille={32}/><Link href="/admin" className="font-bold underline">← Administration</Link></header>
