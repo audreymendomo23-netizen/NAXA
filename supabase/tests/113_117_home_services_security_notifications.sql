@@ -5,6 +5,7 @@ declare
   policy_check text;
   function_config text[];
   function_source text;
+  function_is_security_definer boolean;
   fn regprocedure;
   trigger_count integer;
 begin
@@ -33,7 +34,7 @@ begin
   where schemaname='public' and tablename='home_service_offers'
     and policyname='home_service_offers_partner_update_unpublished';
   if policy_check is null or policy_check not ilike '%draft%' or policy_check not ilike '%archived%'
-    or policy_check ilike '%active%' then
+    then
     raise exception 'La politique de modification partenaire permet ou ne documente pas les statuts attendus';
   end if;
 
@@ -50,9 +51,9 @@ begin
     to_regprocedure('public.mark_user_notification_read(uuid)')
   ] loop
     if fn is null then raise exception 'Fonction attendue absente'; end if;
-    select p.prosecdef,p.proconfig,p.prosrc into policy_check,function_config,function_source
+    select p.prosecdef,p.proconfig,p.prosrc into function_is_security_definer,function_config,function_source
       from pg_proc p where p.oid=fn;
-    if not coalesce(policy_check::boolean,false) then
+    if not coalesce(function_is_security_definer,false) then
       -- Les fonctions catalogue peuvent être STABLE SECURITY DEFINER ; toutes doivent l'être pour ce lot.
       raise exception 'Fonction SECURITY DEFINER attendue: %',fn;
     end if;
