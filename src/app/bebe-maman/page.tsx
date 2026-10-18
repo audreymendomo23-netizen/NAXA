@@ -1,5 +1,5 @@
-import { UniverseLanding } from "@/components/universes/UniverseLanding";
+import { UniverseCatalog } from "@/components/universes/UniverseCatalog";
 
 export default function BebeMamanPage() {
-  return <UniverseLanding universe="bebe-maman" />;
+  return <UniverseCatalog universe="bebe-maman" />;
 }

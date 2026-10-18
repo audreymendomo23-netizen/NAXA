@@ -1,5 +1,5 @@
-import { UniverseLanding } from "@/components/universes/UniverseLanding";
+import { UniverseCatalog } from "@/components/universes/UniverseCatalog";
 
 export default function ParapharmaciePage() {
-  return <UniverseLanding universe="parapharmacie" />;
+  return <UniverseCatalog universe="parapharmacie" />;
 }
