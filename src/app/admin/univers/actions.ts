@@ -192,3 +192,39 @@ export async function changerStatutProduitPartenaire(form: FormData) {
   revalidatePath("/bebe-maman");
   redirect("/admin/univers?ok=produit");
 }
+
+
+export async function ajouterProfessionnelSuivi(form: FormData) {
+  const { sb, actor } = await admin();
+  const userId = field(form, "user_id", 40);
+  const role = field(form, "professional_role", 20);
+  const displayName = field(form, "display_name", 160);
+  if (!/^[0-9a-f-]{36}$/i.test(userId) || !["pharmacien", "medecin"].includes(role) || displayName.length < 2) {
+    redirect("/admin/univers?erreur=professionnel_suivi");
+  }
+  const { error } = await sb.from("suivi_professionals").upsert({
+    user_id: userId, professional_role: role, display_name: displayName,
+    verified: true, verified_by: actor,
+  }, { onConflict: "user_id" });
+  if (error) redirect("/admin/univers?erreur=professionnel_suivi");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: "tracking.professional_verified", entity_type: "tracking_professional",
+    entity_id: userId, metadata: { professional_role: role },
+  });
+  revalidatePath("/admin/univers");
+  redirect("/admin/univers?ok=professionnel_suivi");
+}
+
+export async function retirerProfessionnelSuivi(form: FormData) {
+  const { sb, actor } = await admin();
+  const userId = field(form, "user_id", 40);
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=professionnel_suivi");
+  const { error } = await sb.from("suivi_professionals").update({ verified: false }).eq("user_id", userId);
+  if (error) redirect("/admin/univers?erreur=professionnel_suivi");
+  await sb.from("audit_log").insert({
+    actor_id: actor, action: "tracking.professional_unverified", entity_type: "tracking_professional",
+    entity_id: userId, metadata: {},
+  });
+  revalidatePath("/admin/univers");
+  redirect("/admin/univers?ok=professionnel_suivi");
+}
