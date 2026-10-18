@@ -55,3 +55,13 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - Contrôle serveur avant réservation : `reserverProduit` et `reserverGroupeProduits` appellent maintenant le catalogue public et vérifient que chaque article appartient encore au partenaire et à l’univers demandés, et respecte les exclusions lexicales. Les règles sont partagées entre interface et actions serveur via `src/lib/universe-product-rules.ts`. Commit : `f5d9e300e1f05ff858523443dfc87cdb8442934d`.
 
 - **Garde-fou création/publication/import :** le contrôle lexical des médicaments est également exécuté par les actions serveur de création, import CSV et publication des catalogues partenaire et administration. La règle SQL reste nécessaire pour les appels directs à la base et les anciennes lignes ; elle n’a pas été appliquée à Production dans cette session.
+
+
+## Étape 3 — Examens médicaux : correctifs complémentaires
+
+- Le catalogue public ne confond plus une erreur de lecture Supabase avec un catalogue vide ; les absences de centres et de créneaux ont des états explicites.
+- La réservation exige désormais le rôle client côté serveur et continue de déléguer la réservation atomique à `book_exam_appointment`.
+- L’espace partenaire autorise plusieurs centres par partenaire et affiche les packs déjà créés.
+- Test structurel 122 ajouté pour vérifier la politique RLS de lecture admin des tickets.
+- 10 assertions statiques après modification : toutes réussies. Cela ne remplace ni l’exécution du SQL sur base de test, ni le build Next.js, ni un parcours navigateur.
+- La migration 122 n’est pas appliquée à Supabase Production ; aucun déploiement n’a été fait dans cette étape.
