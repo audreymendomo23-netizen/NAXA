@@ -19,6 +19,6 @@ export async function transitionReservationPartenaire(form: FormData) {
  if(error) redirect("/partenaire/reservations?erreur=transition");
  const {data:updated}=await sb.from("universe_reservations").select("status").eq("id",id).maybeSingle();
  if(updated?.status!==status) redirect("/partenaire/reservations?erreur=transition");
- revalidatePath("/partenaire/reservations"); revalidatePath("/partenaire/catalogue");
+ revalidatePath("/partenaire/reservations"); revalidatePath("/partenaire/catalogue"); revalidatePath("/client"); revalidatePath("/univers-reservation/" + id);
  redirect("/partenaire/reservations?ok="+status);
 }
