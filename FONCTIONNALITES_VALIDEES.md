@@ -1522,6 +1522,8 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Vérification du déploiement :** le déploiement Vercel lié au commit documentaire `c120e77707190acb9deed80b4405e2b5e85d2238` est `CANCELED` (cible Production) ; le statut Vercel sur le commit de suivi le plus récent échoue avec `upgradeToPro=build-rate-limit`. Aucun déploiement actif ni build complet n’est confirmé. Détail documenté dans `docs/ETAT-CHANTIER-UNIVERS.md` (commit `873c86d2b2d30e8b3c5f049d04307aa13440fbab`).
 
 ## Correctif de cohérence UI — 18 octobre 2026
+- `d36d908ad8e73f0bfcad7fc79f065daeb631813b`, `bc4d4bbe04427660b7df14d5e46ef8f826d6db55`, `a229d581b2f504aab0fc9163256059a60b435cee` : messages d’erreur du catalogue et du reçu rendus compréhensibles côté client, sans divulgation des détails de migrations SQL. Preuve statique uniquement.
+
 
 - `UniverseLanding` ne présente plus « Bientôt disponible » par défaut sur les écrans de repli des univers actifs. Cela évite de contredire les catalogues et formulaires qui sont déjà construits.
 - La route `/suivi` passe explicitement `comingSoon` : Dispositifs médicaux reste désactivé en phase 1 et son état est toujours affiché.
