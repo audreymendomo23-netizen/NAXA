@@ -121,13 +121,16 @@ export default function ProfilClientPage() {
       const { data: { user } } = await sb.auth.getUser();
       if (!active) return;
       if (!user) { router.replace("/connexion?retour=" + encodeURIComponent("/client/profil")); return; }
-      const { data: row } = await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
+      const { data: row } = await sb.from("profiles").select("username,first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
       const { data: prefs } = await sb.from("client_preferences").select("adresse_defaut,quartier").eq("user_id", user.id).maybeSingle();
       const { count } = await sb.from("reservations").select("id", { count: "exact", head: true }).eq("client_id", user.id);
       let savedPhoto: string | null = null;
       try { savedPhoto = window.localStorage.getItem(PHOTO_KEY); } catch { /* Le profil reste utilisable sans stockage local. */ }
       const meta = user.user_metadata ?? {};
-      const name = [row?.first_name, row?.last_name].filter((v): v is string => typeof v === "string" && Boolean(v.trim())).join(" ") || String(meta.full_name ?? meta.name ?? "Client NAXA");
+      const isGoogle = user.app_metadata?.provider === "google" || Boolean(user.identities?.some(identity => identity.provider === "google"));
+      const googleName = String(meta.full_name ?? meta.name ?? "").trim();
+      const fullProfileName = [row?.first_name, row?.last_name].filter((v): v is string => typeof v === "string" && Boolean(v.trim())).join(" ");
+      const name = isGoogle && googleName ? googleName : (typeof row?.username === "string" && row.username.trim() ? row.username.trim() : fullProfileName || "Client NAXA");
       const phone = user.phone || String(meta.phone ?? "");
       const email = user.email ?? "";
       let address = [prefs?.adresse_defaut, prefs?.quartier].filter((v): v is string => typeof v === "string" && Boolean(v.trim())).join(", ");
