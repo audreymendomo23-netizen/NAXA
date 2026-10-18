@@ -149,8 +149,40 @@ export function AccueilClient() {
   const [rechercheAppTerme, setRechercheAppTerme] = useState("");
   const [rechercheAppVide, setRechercheAppVide] = useState(false);
   const rechercheAppRef = useRef<HTMLInputElement>(null);
+  const [dictionnaireOuvert, setDictionnaireOuvert] = useState(false);
+  const [termeMedical, setTermeMedical] = useState("");
+  const [rechercheMedicale, setRechercheMedicale] = useState(false);
+  const [resultatMedical, setResultatMedical] = useState<{terme:string;definition:string;source:string;sourceUrl:string;type:string|null;notice:string}|null>(null);
+  const [erreurMedicale, setErreurMedicale] = useState("");
 
   useEffect(() => { setHourLocale(new Date().getHours()); }, []);
+
+  useEffect(() => {
+    if (!dictionnaireOuvert) return;
+    const focus = window.requestAnimationFrame(() => document.getElementById("naxa-dictionnaire-search")?.focus());
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setDictionnaireOuvert(false); };
+    document.addEventListener("keydown", escape);
+    return () => { window.cancelAnimationFrame(focus); document.removeEventListener("keydown", escape); };
+  }, [dictionnaireOuvert]);
+
+  const rechercherTermeMedical = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const terme = termeMedical.trim();
+    if (terme.length < 2) { setErreurMedicale("Saisissez au moins deux caractères."); return; }
+    setRechercheMedicale(true);
+    setErreurMedicale("");
+    setResultatMedical(null);
+    try {
+      const response = await fetch("/api/dictionnaire-medical?q=" + encodeURIComponent(terme), { headers: { Accept: "application/json" } });
+      const data = await response.json() as { result?: { terme:string; definition:string; source:string; sourceUrl:string; type:string|null; notice:string }; error?:string };
+      if (!response.ok || !data.result) throw new Error(data.error || "Aucune définition fiable n’a été trouvée pour ce terme.");
+      setResultatMedical(data.result);
+    } catch (error) {
+      setErreurMedicale(error instanceof Error ? error.message : "Recherche impossible pour le moment. Réessayez.");
+    } finally {
+      setRechercheMedicale(false);
+    }
+  };
 
   const suggestionsLocales = useMemo(() => {
     const terme = normaliserRecherche(query);
@@ -569,6 +601,66 @@ export function AccueilClient() {
           <button type="button" onClick={()=>setHomeFilterOpen(false)} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26]">Appliquer les filtres</button>
           <p className="mt-2 text-xs leading-5 text-[#64776B]">Les filtres seront appliqués aux pharmacies après avoir lancé la recherche d'un médicament.</p>
         </section>
+      </div>}
+      <section className="naxa-enter mt-3 pb-6">
+        <button type="button" onClick={() => { setDictionnaireOuvert(true); setErreurMedicale(""); }} aria-haspopup="dialog" className="group relative flex min-h-[104px] w-full items-center gap-4 overflow-hidden rounded-[22px] border border-[#D8C58A] bg-gradient-to-r from-[#0B3D26] via-[#12613A] to-[#0B3D26] p-4 text-left shadow-[0_8px_22px_rgba(5,74,41,0.18)] transition duration-300 hover:-translate-y-0.5 active:scale-[0.99]">
+          <span className="relative flex h-[66px] w-[58px] shrink-0 items-center justify-center [perspective:400px]" aria-hidden="true">
+            <svg viewBox="0 0 64 76" className="h-full w-full drop-shadow-lg">
+              <path d="M7 8Q7 5 11 5H54Q58 5 58 10V67Q58 71 54 71H11Q7 71 7 67Z" fill="#B89442"/>
+              <path d="M10 8H31V68H10Q8 68 8 65V12Q8 8 10 8Z" fill="#174B31" stroke="#E8D49A" strokeWidth="1.5"/>
+              <path d="M32 8H54Q57 8 57 12V65Q57 68 54 68H32Z" fill="#F8F0D8" stroke="#E8D49A" strokeWidth="1.5"/>
+              <path d="M32 9V68" stroke="#D6C28A" strokeWidth="2"/>
+              <path d="M17 25H25M17 30H25M17 35H25" stroke="#E8D49A" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M39 25H49M39 30H49M39 35H49M39 40H47" stroke="#8D9D8C" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M19 48H25M22 45V51" stroke="#FFE23D" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M39 51H49" stroke="#8D9D8C" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M11 5V71" stroke="#FFE23D" strokeWidth="2"/>
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-extrabold leading-5 text-white">Dictionnaire médical</span>
+            <span className="mt-1 block text-[13px] leading-5 text-white/80">Médicaments, maladies, molécules et termes de santé</span>
+            <span className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#FFE23D]">Ouvrir le livre <IconeNAXA name="arrow-right" size={15}/></span>
+          </span>
+        </button>
+      </section>
+
+      {dictionnaireOuvert && <div className="fixed inset-0 z-[220] flex items-center justify-center overflow-y-auto bg-[#041D12]/65 p-4 backdrop-blur-[3px] animate-in fade-in duration-300" onClick={() => setDictionnaireOuvert(false)} role="presentation">
+        <div className="relative my-auto w-full max-w-[460px] animate-in zoom-in-95 slide-in-from-bottom-3 duration-300" onClick={event => event.stopPropagation()} data-naxa-dictionnaire-dialog>
+          <div className="relative mx-auto mb-[-13px] flex h-[58px] w-[170px] items-center justify-center rounded-t-[16px] border-x border-t border-[#D9C48A] bg-gradient-to-r from-[#0B3D26] via-[#1A7043] to-[#0B3D26] shadow-lg">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#FFE8A0]">NAXA · Référence</span>
+          </div>
+          <section role="dialog" aria-modal="true" aria-labelledby="naxa-dictionnaire-title" className="relative overflow-hidden rounded-[24px] border border-[#D8C58A] bg-[#FBF9F1] shadow-[0_24px_90px_rgba(0,0,0,0.38)]">
+            <div className="h-1.5 bg-gradient-to-r from-[#0B3D26] via-[#FFE23D] to-[#0B3D26]"/>
+            <div className="p-5 sm:p-6">
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div><p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#8A7135]">Votre bibliothèque santé</p><h2 id="naxa-dictionnaire-title" className="mt-1 text-[24px] font-black leading-7 tracking-[-0.03em] text-[#0B3D26]">Que cherchez-vous ?</h2></div>
+                <button type="button" onClick={() => setDictionnaireOuvert(false)} aria-label="Fermer le dictionnaire médical" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E0D8C2] bg-white text-xl text-[#0B3D26] transition hover:bg-[#F0E8D2]">×</button>
+              </div>
+              <form onSubmit={rechercherTermeMedical}>
+                <label htmlFor="naxa-dictionnaire-search" className="mb-2 block text-sm font-bold text-[#254D36]">Médicament, maladie, molécule…</label>
+                <input id="naxa-dictionnaire-search" value={termeMedical} onChange={event => setTermeMedical(event.target.value)} placeholder="Ex. paludisme, paracétamol…" maxLength={100} autoComplete="off" className="h-13 min-h-[52px] w-full rounded-2xl border border-[#D7DCCF] bg-white px-4 text-[15px] text-[#183B28] outline-none transition placeholder:text-[#879287] focus:border-[#167143] focus:ring-4 focus:ring-[#167143]/10"/>
+                <button type="submit" disabled={rechercheMedicale || termeMedical.trim().length < 2} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-sm transition hover:brightness-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+                  {rechercheMedicale ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B3D26]/30 border-t-[#0B3D26]"/> Recherche en cours…</> : <><IconeNAXA name="search" size={18}/> Rechercher</>}
+                </button>
+              </form>
+              {erreurMedicale && <p role="alert" className="mt-4 rounded-xl border border-[#E9C6BD] bg-[#FFF1ED] px-3 py-3 text-sm leading-5 text-[#8D3022]">{erreurMedicale}</p>}
+              {resultatMedical && <article aria-live="polite" className="mt-5 max-h-[38vh] overflow-y-auto rounded-2xl border border-[#DCE4D8] bg-white p-4">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#8A7135]">{resultatMedical.type || "Définition médicale"}</p>
+                <h3 className="mt-1 text-[19px] font-black leading-6 text-[#0B3D26]">{resultatMedical.terme}</h3>
+                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-[#35483B]">{resultatMedical.definition}</p>
+                <p className="mt-4 border-t border-[#E8EDE6] pt-3 text-xs font-bold text-[#53685C]">Source : <a href={resultatMedical.sourceUrl} target="_blank" rel="noreferrer" className="text-[#0F6B3F] underline underline-offset-2">{resultatMedical.source}</a></p>
+                <p className="mt-3 rounded-xl bg-[#F5F4EC] px-3 py-2.5 text-xs leading-5 text-[#596456]">{resultatMedical.notice}</p>
+              </article>}
+              {!resultatMedical && !erreurMedicale && <p className="mt-4 text-center text-xs leading-5 text-[#6B776A]">Les définitions sont accompagnées de leur source. Aucun conseil de dosage n’est fourni.</p>}
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#E8E1D1] pt-3">
+                <span className="text-[11px] leading-4 text-[#788174]">Un livre de référence à consulter avec discernement.</span>
+                <button type="button" onClick={() => { setTermeMedical(""); setResultatMedical(null); setErreurMedicale(""); document.getElementById("naxa-dictionnaire-search")?.focus(); }} className="shrink-0 text-xs font-extrabold text-[#0F6B3F] underline underline-offset-2">Nouvelle recherche</button>
+              </div>
+            </div>
+          </section>
+          <div className="mx-auto mt-[-1px] h-3 w-[94%] rounded-b-[12px] border-x border-b border-[#B99C56] bg-[#E7D6A4] shadow-md"/>
+        </div>
       </div>}
       <section className="naxa-enter mt-6 pb-4">
         <Link href="/client/posologie" className="group flex min-h-[88px] items-center gap-3 rounded-[22px] border border-[#CFE2D5] bg-white p-4 shadow-[0_6px_18px_rgba(0,0,0,0.06)] transition-transform active:scale-[0.99]">
