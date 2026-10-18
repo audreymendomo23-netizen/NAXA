@@ -181,3 +181,12 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `685743cda8185214a81b11a5e56f15ecbe015ff0` — `/client` : recherche et filtre par statut des transactions Pharmacie/commandes, en complément du suivi déjà existant.
 - Ces ajouts de présentation ne changent pas les règles de réservation, la séparation des univers, les statuts autorisés, les règles de retrait, les droits, ni l’accès aux coordonnées privées. La Pharmacie conserve ses routes et règles métier.
 - Niveau de preuve : commits appliqués à `main`. Aucun build, test navigateur ou déploiement Production n’est revendiqué pour ce lot.
+
+
+## Mise à jour — séquence de retrait des réservations (18 octobre 2026)
+
+- `f43760eb54c235025880c6bcbc0ca380f7009dcf` — l’interface partenaire ne propose plus « Prête au retrait » directement depuis une réservation demandée : le partenaire doit d’abord confirmer.
+- `f9f094564ae77c266ca512b0966b2ea67c1bdd00` — même séquence imposée dans l’action serveur, afin qu’un appel direct au formulaire ne contourne pas l’étape de confirmation.
+- `16d323382a95e9bba5789f10e0c27b36c685a86d` — migration additive 121 : la RPC `transition_universe_reservation` refuse aussi le passage direct `requested → ready`; la confirmation doit précéder la préparation au retrait. Les règles de retrait, de contrôle du stock et d’expiration sont conservées.
+- Portée limitée aux réservations des univers multi-univers ; aucune table ni route historique de la Pharmacie n’est modifiée.
+- État : changements enregistrés sur `main`. Aucun test, audit, build, application de migration Supabase ou déploiement n’a été lancé dans cette continuation.
