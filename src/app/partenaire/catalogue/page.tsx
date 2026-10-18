@@ -15,7 +15,7 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/partenaire/catalogue");
   const { data: memberships, error: membershipError } = await sb.from("partner_members")
-    .select("partner_id,member_role,partners!inner(id,name,status)")
+    .select("partner_id,member_role,partners!inner(id,name,status,partner_type)")
     .eq("user_id", auth.user.id).in("member_role", ["owner", "manager", "operator"]);
   if (membershipError || !memberships?.length) redirect("/");
   const active = (memberships as any[]).filter((m) => m.partners?.status === "active");
@@ -36,7 +36,7 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
   const alertsBroken = !!alertsResult.error;
   const broken = !!(productsResult.error || movementsResult.error || associationsResult.error);
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-6xl space-y-5 pt-4">
-    <header className="-mx-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white sm:mx-0 sm:rounded-2xl"><Logo taille={32}/><nav className="flex gap-4"><Link href="/partenaire/reservations" className="font-bold underline">Réservations</Link><Link href="/" className="font-bold underline">← Accueil</Link></nav></header>
+    <header className="-mx-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white sm:mx-0 sm:rounded-2xl"><Logo taille={32}/><nav className="flex flex-wrap gap-3"><Link href="/partenaire/reservations" className="font-bold underline">Réservations</Link>{active.some((m: any) => m.partners?.partner_type === "professionnel_domicile") && <Link href="/partenaire/prestations" className="font-bold underline">Prestations à domicile</Link>}<Link href="/" className="font-bold underline">← Accueil</Link></nav></header>
     <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-800">NAXA · Espace partenaire</p><h1 className="mt-1 text-3xl font-black">Catalogue et stocks</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Les nouveaux produits sont enregistrés en brouillon. Les mouvements de stock sont conservés dans un journal, et le stock ne peut pas devenir négatif.</p></div>
     {searchParams.ok && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "creation" ? "Produit enregistré en brouillon." : searchParams.ok === "stock" ? "Stock et journal mis à jour." : searchParams.ok === "csv" ? "Import terminé : les produits ont été créés en brouillon, sans remplacer les produits existants." : "Statut du produit mis à jour."}</p>}
     {searchParams.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "univers" ? "Cet univers n’est pas activé pour ce partenaire." : searchParams.erreur === "stock" ? "Mouvement refusé : vérifiez le produit, la quantité et le stock disponible." : searchParams.erreur === "csv" ? "CSV invalide : utilisez un fichier UTF-8 avec séparateur point-virgule, les colonnes name, price_fcfa et stock_quantity, au plus 500 lignes et 2 Mo, et des dates/prix/quantités valides." : "Action impossible : vérifiez les champs et les droits du compte."}</p>}

@@ -9,13 +9,13 @@ const next:Record<string,string[]>={requested:["confirmed","ready"],confirmed:["
 const effectiveStatus=(r:any)=>["requested","confirmed","ready"].includes(r.status)&&new Date(r.expires_at).getTime()<=Date.now()?"expired":r.status;
 export default async function ReservationsPartenaire({searchParams}:{searchParams:{ok?:string;erreur?:string}}){
  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();if(!auth.user)redirect("/connexion?retour=/partenaire/reservations");
- const {data:members,error:me}=await sb.from("partner_members").select("partner_id,member_role,partners!inner(id,name,status)").eq("user_id",auth.user.id).in("member_role",["owner","manager","operator"]);
+ const {data:members,error:me}=await sb.from("partner_members").select("partner_id,member_role,partners!inner(id,name,status,partner_type)").eq("user_id",auth.user.id).in("member_role",["owner","manager","operator"]);
  if(me||!members?.length)redirect("/");
  const active=(members as any[]).filter(m=>m.partners?.status==="active");const ids=active.map(m=>m.partner_id);if(!ids.length)redirect("/");
  const {data,error}=await sb.from("universe_reservations").select("id,partner_id,universe_slug,status,total_fcfa,pickup_code,expires_at,created_at,client_note,universe_reservation_items(id,product_name,quantity,line_total_fcfa)").in("partner_id",ids).order("created_at",{ascending:false}).limit(100);
  const reservations=data??[];
  return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-5xl space-y-5 pt-4">
- <header className="flex items-center justify-between rounded-2xl bg-[#064B2A] px-4 py-3 text-white"><Logo taille={32}/><Link href="/partenaire/catalogue" className="font-bold underline">Catalogue et stocks</Link></header>
+ <header className="flex items-center justify-between gap-3 rounded-2xl bg-[#064B2A] px-4 py-3 text-white"><Logo taille={32}/><nav className="flex flex-wrap gap-3 text-sm font-bold"><Link href="/partenaire/catalogue" className="underline">Catalogue et stocks</Link>{active.some((m:any)=>m.partners?.partner_type==="professionnel_domicile")&&<Link href="/partenaire/prestations" className="underline">Prestations</Link>}</nav></header>
  <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-800">NAXA · Espace partenaire</p><h1 className="mt-1 text-3xl font-black">Réservations à traiter</h1><p className="mt-2 text-sm text-slate-600">Le stock physique est décrémenté uniquement au retrait confirmé. Vérifie le code en présence du client.</p></div>
  {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Mise à jour effectuée : {labels[searchParams.ok]??searchParams.ok}.</p>}
  {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Action refusée. Vérifie les droits et l’état actuel de la réservation.</p>}
