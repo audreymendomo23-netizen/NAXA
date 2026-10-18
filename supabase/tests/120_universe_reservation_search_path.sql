@@ -2,15 +2,16 @@
 -- Lecture seule : aucune donnée métier modifiée.
 do $test$
 declare
-  fn record;
-  configured_path text;
+  configured_path text[];
+  function_name text;
   expected_functions text[] := array[
     'reserve_universe_products',
     'transition_universe_reservation'
   ];
-  function_name text;
 begin
   foreach function_name in array expected_functions loop
+    configured_path := null;
+
     select p.proconfig
       into configured_path
     from pg_catalog.pg_proc p
