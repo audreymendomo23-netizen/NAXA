@@ -1496,7 +1496,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Fichiers :** `src/lib/accueil-textes.ts`, `src/components/EnTeteAccueil.tsx`, `src/components/EnTeteClient.tsx`.
 - **Commits :** `c103c1f95781e598f172f36163c08213a95f8300`, `0149fb91063e08c01ed191fe5a10e7deb9c530ba`, `4b0356debf6911e4bdb663a7e98fdb053c370df8`.
 - **Fait :** le menu de l’accueil donne accès aux six univers et à `/aide), avec libellés FR/EN ; le menu client dirige les entrées des univers vers les vraies routes plutôt que vers une recherche générique.
-- **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Le menu partagé présent sur toutes les pages des univers reste à construire. Les liens n’ont pas encore été parcourus dans un navigateur.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Le menu partagé a depuis été construit et intégré aux écrans des univers (voir la mise à jour ci-dessous). Les liens n’ont pas encore été parcourus dans un navigateur.
 - **Périmètre Pharmacie :** seules les entrées du menu ont été ajoutées ; le parcours Pharmacie et sa charte ne sont pas modifiés.
 
 
@@ -1506,6 +1506,6 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Intégration :** `UniverseLanding` (y compris les écrans de repli), `UniverseCatalog`, page active des examens et page active des prestations.
 - **Comportements implémentés :** ouverture/fermeture, fermeture au clic extérieur, fermeture par Échap avec retour du focus au bouton, attributs ARIA et zones tactiles de 44 px minimum.
 - **Commits :** `1b335954d243357160e605a97ecd0d07cd8aa6c6` (composant), `3d594bc84391588fd07e2c7fa1bb19801388c8e7` (écrans d’accueil univers), `c144c88ac54c44f3cc243126aa6194ec345a7dd5` (catalogues), `97ea27b1947b7bc626c5180059219d652d88b422` (examens), `d582740dfe44e11fad6be3d298a04e92bda52817` (prestations).
-- **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Le code a été intégré à `main`, mais la compilation et les clics de navigation n'ont pas encore été exécutés. Le menu commun utilise actuellement des libellés français ; l'internationalisation de ce composant reste à aligner avec la langue active.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Le code a été intégré à `main`, mais la compilation et les clics de navigation n'ont pas encore été exécutés. Le menu partagé suit la préférence `naxa-langue` et propose les libellés français/anglais. Cette adaptation de langue n’a pas encore été vérifiée en navigateur.
 - **Périmètre Pharmacie :** le composant est intégré aux écrans des univers uniquement ; aucun composant existant du parcours Pharmacie n'a été modifié dans cette étape.
 - **Suite :** compiler le projet et exécuter des contrôles automatisés accessibles ; corriger les erreurs avant de considérer le menu validé.
