@@ -45,6 +45,7 @@
 - Migration 115 : `supabase/migration_115_mark_user_notification_read.sql`.
 - Migration 116 : `supabase/migration_116_harden_universe_function_search_paths.sql`.
 - Migration 117 : `supabase/migration_117_home_service_offer_notifications.sql`.
+- Migration 118 : `supabase/migration_118_home_service_rls_indexes.sql`.
 - La migration 110 exige l'extension `pg_cron` et programme le job `naxa-expire-universe-reservations`.
 - La migration 111 dépend de la colonne `low_stock_threshold` ajoutée en migration 105.
 - La migration 112 ajoute le socle des prestations à domicile ; elle dépend du socle partenaires/universes, notamment de la fonction `universe_partner_is_public` (migration 100).
@@ -53,12 +54,13 @@
 - La migration 115 n’autorise le marquage que pour une notification dont l’utilisateur est le destinataire ; l’interface limite cette action aux notifications `home_service_request`.
 - La migration 116 place explicitement `pg_temp` en dernier dans le `search_path` des fonctions `SECURITY DEFINER` du chantier pour éviter l’ombrage des objets `public`.
 - La migration 117 avertit les administrateurs d’une nouvelle offre à valider et informe les responsables du partenaire lors d’une décision de publication, remise en brouillon ou archivage.
+- La migration 118 optimise les prédicats RLS avec `(select auth.uid())` et ajoute les index de clés étrangères signalés par l’audit de performance.
 - Ces fichiers sont du code source uniquement : aucune de ces migrations n'a été appliquée à Production dans ce chantier.
 
 ## Vérifications et déploiement
 
 - Tests ciblés du parseur CSV exécutés sur des exemples avec séparateur cité, guillemets échappés, retour à la ligne cité et guillemet non fermé : réussis.
-- Test structurel ajouté : `supabase/tests/113_117_home_services_security_notifications.sql` (RLS, droits d’écriture, publication, fonctions sensibles et notifications). **Pas encore exécuté** ; compilation complète, lint et suite SQL à lancer à la fin du codage, conformément au canevas.
+- Test structurel ajouté : `supabase/tests/113_117_home_services_security_notifications.sql (couvre désormais les migrations 113 à 118)` (RLS, droits d’écriture, publication, fonctions sensibles et notifications). **Pas encore exécuté** ; compilation complète, lint et suite SQL à lancer à la fin du codage, conformément au canevas.
 - Aucun déploiement manuel n'a été lancé pour ce chantier. Un push antérieur sur `main` a déclenché un déploiement Vercel automatique au commit `b27b18b23787582943916673df01cbd0497bf541`. Le projet Vercel a ensuite reçu un réglage d'étape ignorée pour empêcher les nouvelles publications automatiques pendant le codage ; vérifier/restaurer ce réglage avant le prochain déploiement autorisé.
 - Ne pas annoncer le chantier comme validé en Production tant que les migrations n'ont pas été vérifiées sur un environnement de test, que la compilation/suite de tests n'a pas été exécutée et que le déploiement final n'a pas été explicitement autorisé.
 
