@@ -56,7 +56,7 @@ const universes: Record<UniverseKey, Universe> = {
 
 const universeOrder: UniverseKey[] = ["parapharmacie", "bebe-maman", "examens", "suivi", "prestations", "aide"];
 
-export function UniverseLanding({ universe, comingSoon = true }: { universe: UniverseKey; comingSoon?: boolean }) {
+export function UniverseLanding({ universe, comingSoon = false }: { universe: UniverseKey; comingSoon?: boolean }) {
   const item = universes[universe];
   return (
     <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
