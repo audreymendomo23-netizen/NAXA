@@ -67,7 +67,7 @@ export async function changerActivationUnivers(form: FormData) {
   const slug = field(form, "slug", 40);
   const flag = field(form, "flag_key", 100);
   const enabled = field(form, "enabled", 5) === "true";
-  if (!slugs.includes(slug) || flag !== "universe." + slug || slug === "aide" || slug === "suivi") redirect("/admin/univers?erreur=parametres");
+  if (!slugs.includes(slug) || flag !== "universe." + slug || slug === "aide" || (slug === "suivi" && enabled)) redirect("/admin/univers?erreur=parametres");
   const { error } = await sb.rpc("admin_set_universe_enabled", { p_slug: slug, p_enabled: enabled });
   if (error) redirect("/admin/univers?erreur=schema");
   revalidatePath("/admin/univers");
@@ -81,7 +81,7 @@ export async function changerAssociationPartenaire(form: FormData) {
   const partnerId = field(form, "partner_id", 40);
   const universe = field(form, "universe_slug", 40);
   const enabled = field(form, "enabled", 5) === "true";
-  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !slugs.includes(universe) || universe === "suivi") redirect("/admin/univers?erreur=parametres");
+  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !slugs.includes(universe) || (universe === "suivi" && enabled)) redirect("/admin/univers?erreur=parametres");
   const { data: partner, error: partnerError } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
   if (partnerError || !partner) redirect("/admin/univers?erreur=schema");
   if (enabled && partner.status !== "active") redirect("/admin/univers?erreur=partenaire_inactif");
