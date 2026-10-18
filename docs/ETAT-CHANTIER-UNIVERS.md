@@ -191,3 +191,13 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `aaaa2873a7dbf4252c0cb0c6ce38e2c7cde40f84` — durcissement du `search_path` de la RPC en gardant `pg_temp` en dernière position, conformément au durcissement SQL déjà adopté.
 - Portée limitée aux réservations des univers multi-univers ; aucune table ni route historique de la Pharmacie n’est modifiée.
 - État : changements enregistrés sur `main`. Aucun test, audit, build, application de migration Supabase ou déploiement n’a été lancé dans cette continuation.
+
+
+## Raccordements transversaux supplémentaires — 18 octobre 2026
+
+- `6464a2211983b2b826438fe984c0571616872ad7` — après une réservation d’examen, l’espace client est aussi invalidé afin que les données et tickets fraîchement créés soient rechargés.
+- `d594c37ce90a33f6b574122b06c894cc0d8571d8` — après chaque transition d’une réservation multi-univers par le partenaire, actualisation du suivi client et de la page du reçu concerné.
+- `7746ac1ac8bd3bae335891e323c457d296c9f815` — après confirmation ou clôture d’une prestation à domicile, actualisation de l’espace client en plus du panneau partenaire et de la page de demande.
+- `4d6c328cf765b6741e269cb7d6583e055d43ab2c` — ajout de « Mes examens et tickets » à l’espace client : réservations, centre, adresse publique, horaire, statut, code ticket et prix sont chargés depuis `exam_appointments` avec le périmètre RLS du client.
+- `dfc4f4e355119a3c4eae943d6d565da5217cbf3b` — la création de centres, examens et packs par le partenaire invalide également les pages d’administration et le catalogue public concerné.
+- État : modifications enregistrées sur `main`. Aucun test, build, audit, déploiement ni changement de données Supabase Production effectué dans cette continuation.
