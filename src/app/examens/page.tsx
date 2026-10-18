@@ -1,5 +1,28 @@
+import Link from "next/link";
 import { UniverseLanding } from "@/components/universes/UniverseLanding";
+import { supabaseServer } from "@/lib/supabase/server";
+import { reserverExamen } from "./actions";
 
-export default function ExamensPage() {
-  return <UniverseLanding universe="examens" />;
+export default async function ExamensPage({searchParams}:{searchParams:{ok?:string;erreur?:string}}) {
+ const sb=supabaseServer();
+ const [{data:centers},{data:services},{data:packs},{data:slots}]=await Promise.all([
+  sb.from("exam_centers").select("id,display_name,address_label,phone_public").eq("status","active").order("display_name"),
+  sb.from("exam_services").select("id,center_id,name,description,category,price_fcfa,duration_minutes").eq("status","active").order("name"),
+  sb.from("exam_packs").select("id,center_id,name,description,price_fcfa").eq("status","active").order("name"),
+  sb.from("exam_slots").select("id,center_id,starts_at,ends_at,reserved_count,capacity").eq("status","open").gt("starts_at",new Date().toISOString()).order("starts_at").limit(200)
+ ]);
+ if(!centers?.length) return <UniverseLanding universe="examens" />;
+ const centerIds=new Set(centers.map((c:any)=>c.id));
+ const usableSlots=(slots??[]).filter((s:any)=>centerIds.has(s.center_id)&&s.reserved_count<s.capacity);
+ return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]"><div className="mx-auto max-w-5xl pt-4">
+ <Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link>
+ <header className="mt-3 rounded-3xl border border-[#D9CCF7] bg-[#F1EBFD] p-6 sm:p-8"><p className="text-xs font-extrabold uppercase tracking-widest text-[#5A32B0]">NAXA · Réservation sans paiement en ligne</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Examens médicaux</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700">Compare les examens et packs proposés par les centres partenaires, puis choisis un créneau disponible. Le règlement se fait directement auprès du centre.</p></header>
+ {searchParams.ok&&<p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-900">Réservation enregistrée. Ton ticket est disponible dans « Achats / réservations ».</p>}
+ {searchParams.erreur&&<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-900">Réservation impossible : le créneau peut avoir été pris entre-temps. Choisis-en un autre.</p>}
+ {!services?.length&&!packs?.length&&<p className="mt-5 rounded-2xl border bg-white p-5 text-slate-600">Aucun examen n’est publié pour le moment.</p>}
+ <div className="mt-6 space-y-5">{centers.map((c:any)=><section key={c.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-black">{c.display_name}</h2><p className="mt-1 text-sm text-slate-600">{c.address_label||"Adresse communiquée par le centre"}</p>{c.phone_public&&<a className="text-sm font-semibold text-[#5A32B0] underline" href={`tel:${c.phone_public}`}>{c.phone_public}</a>}</div><span className="rounded-full bg-[#F1EBFD] px-3 py-1 text-xs font-bold text-[#5A32B0]">Centre partenaire</span></div>
+ <div className="mt-4 grid gap-3 md:grid-cols-2">{(services??[]).filter((s:any)=>s.center_id===c.id).map((s:any)=><article key={s.id} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-bold uppercase tracking-wide text-[#5A32B0]">{s.category} · {s.duration_minutes} min</p><h3 className="mt-1 font-extrabold">{s.name}</h3>{s.description&&<p className="mt-1 text-sm leading-5 text-slate-600">{s.description}</p>}<p className="mt-3 text-lg font-black">{Number(s.price_fcfa).toLocaleString("fr-FR")} FCFA</p><form action={reserverExamen} className="mt-3 space-y-2"><input type="hidden" name="service_id" value={s.id}/><label className="block text-sm font-bold">Créneau<select name="slot_id" required className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{usableSlots.filter((t:any)=>t.center_id===c.id).map((t:any)=><option key={t.id} value={t.id}>{new Date(t.starts_at).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"})} · {t.capacity-t.reserved_count} place(s)</option>)}</select></label><button className="min-h-11 w-full rounded-xl bg-[#5A32B0] px-4 font-bold text-white">Réserver cet examen</button></form></article>)}
+ {(packs??[]).filter((p:any)=>p.center_id===c.id).map((p:any)=><article key={p.id} className="rounded-xl border border-[#D9CCF7] bg-[#FCFAFF] p-4"><p className="text-xs font-bold uppercase tracking-wide text-[#5A32B0]">Pack</p><h3 className="mt-1 font-extrabold">{p.name}</h3>{p.description&&<p className="mt-1 text-sm text-slate-600">{p.description}</p>}<p className="mt-3 text-lg font-black">{Number(p.price_fcfa).toLocaleString("fr-FR")} FCFA</p><form action={reserverExamen} className="mt-3 space-y-2"><input type="hidden" name="pack_id" value={p.id}/><label className="block text-sm font-bold">Créneau<select name="slot_id" required className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{usableSlots.filter((t:any)=>t.center_id===c.id).map((t:any)=><option key={t.id} value={t.id}>{new Date(t.starts_at).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"})} · {t.capacity-t.reserved_count} place(s)</option>)}</select></label><button className="min-h-11 w-full rounded-xl bg-[#5A32B0] px-4 font-bold text-white">Réserver ce pack</button></form></article>)}
+ </div>{!usableSlots.some((t:any)=>t.center_id===c.id)&&<p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Aucun créneau ouvert n’est actuellement disponible. Reviens plus tard.</p>}</section>)}</div>
+ <p className="mt-6 text-center text-xs leading-5 text-slate-500">NAXA transmet une demande de réservation et ne fournit aucun diagnostic médical. La réservation est soumise à la disponibilité réelle du centre.</p></div></main>;
 }

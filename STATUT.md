@@ -391,3 +391,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration 106 non appliquée à Supabase ; tests/compilation non exécutés.
 
 - Le formulaire de création expose désormais le seuil d'alerte et la date d'expiration ; l'import CSV accepte également ces deux colonnes.
+
+
+## Univers Examens — étape de construction
+- Migration additive 107 : centres partenaires, examens, packs, horaires, créneaux et réservations avec ticket.
+- Réservation protégée par RPC transactionnelle qui verrouille le créneau et incrémente sa capacité sans dépasser le maximum ; aucun paiement en ligne.
+- Génération SQL de créneaux sur une fenêtre maximale de 14 jours, selon les horaires déclarés par les centres. Fonction réservée à service_role ; aucune planification automatique n'est configurée.
+- Catalogue client raccordé à /examens, avec tarifs, choix de créneau et action de réservation nécessitant une connexion.
+- La migration 107 est dans main mais n'a pas été appliquée à Supabase. Aucun test, build ou déploiement effectué à ce stade.
+- À compléter : espace partenaire pour gérer horaires/catalogue, raccordement effectif des tickets à /achats et orchestration des rappels à J-1. Validation finale de la chaîne SQL et du build à la fin du projet.
