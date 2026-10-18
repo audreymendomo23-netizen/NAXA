@@ -683,7 +683,7 @@ export function AccueilClient() {
                   {suggestionsMedicales.map((suggestion, index) => <button key={suggestion} type="button" role="option" aria-selected="false" onClick={() => { void chargerTermeMedical(suggestion); }} className="flex min-h-12 w-full items-center gap-3 border-b border-[#E8EDE6] px-4 py-3 text-left text-sm font-semibold text-[#183B28] transition last:border-b-0 hover:bg-[#F0F7F1] focus-visible:bg-[#F0F7F1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#167143]">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EAF4EC] text-xs font-black text-[#0F6B3F]">{index + 1}</span>
                     <span className="min-w-0 flex-1">{suggestion}</span>
-                    <IconeNAXA name="arrow-up-left" size={16}/>
+                    <IconeNAXA name="arrow-left" size={16}/>
                   </button>)}
                 </div>}
                 <button type="submit" disabled={rechercheMedicale || termeMedical.trim().length < 2} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] shadow-sm transition hover:brightness-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
