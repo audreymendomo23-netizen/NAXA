@@ -210,3 +210,6 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `0ca3d40eac8840eaf693f4c51f885f6dc206613f` — la page d'administration affiche le registre opérationnel des tickets et créneaux, sans données personnelles du client ni encaissement NAXA.
 - La migration 122 est écrite dans le dépôt mais n'a pas été appliquée à Supabase. Tant qu'elle n'est pas appliquée, l'interface d'administration affiche un état d'indisponibilité explicite au lieu de prétendre que la liste est vide.
 - Aucun test, build, audit, déploiement ni écriture dans Supabase Production n'a été effectué.
+
+- `fc0b5412f9b431b2dc5051993457b0680455347d` — après une réservation client d'examen, les pages partenaire et administration sont également invalidées afin de refléter immédiatement le nouveau ticket.
+- `f695962a885f3db372727c3fe0f5a81a1857bc61` — texte de confirmation harmonisé avec la destination réelle : le ticket se trouve dans l'espace client, dans « Mes examens et tickets ».
