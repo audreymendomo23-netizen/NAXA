@@ -41,10 +41,10 @@ const universes: Record<UniverseKey, Universe> = {
     bullets: ["Services et zones d’intervention", "Demandes de réservation", "Adresse protégée jusqu’à confirmation"],
   },
   suivi: {
-    title: "Suivi santé", slogan: "Votre allié santé",
-    description: "Un espace de suivi personnel, sans diagnostic ni interprétation médicale par NAXA.",
-    route: "/suivi", color: "#1D4ED8", soft: "#EAF2FE", border: "#C7DAFB", icon: "♡",
-    bullets: ["Mesures personnelles et historique", "Partage contrôlé avec un professionnel invité", "Rappels informatifs selon les fonctionnalités activées"],
+    title: "Dispositifs médicaux", slogan: "Espace en préparation",
+    description: "Cet univers reste désactivé en phase 1, dans l’attente de la validation du cadre légal et opérationnel.",
+    route: "/suivi", color: "#1D4ED8", soft: "#EAF2FE", border: "#C7DAFB", icon: "＋",
+    bullets: ["Aucun dispositif ni service de suivi connecté n’est activé", "Aucune mesure de santé n’est collectée dans cet espace", "L’ouverture interviendra après validation dédiée"],
   },
   aide: {
     title: "Aide NAXA", slogan: "Nous sommes là pour vous guider",
@@ -91,8 +91,8 @@ export function UniverseLanding({ universe, comingSoon = true }: { universe: Uni
                 ))}
               </ul>
               {universe === "suivi" && (
-                <p className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
-                  Le suivi NAXA ne remplace ni une consultation ni un service d’urgence. En cas de symptôme inquiétant, contactez un professionnel de santé.
+                <p role="status" className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
+                  Cet espace est informatif uniquement et ne permet pas encore d’ajouter, de synchroniser ou de partager des données de santé.
                 </p>
               )}
               {universe === "aide" && (
