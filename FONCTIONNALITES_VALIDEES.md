@@ -1480,3 +1480,12 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Protection Pharmacie :** aucun objet ou parcours Pharmacie n’est modifié ; seule la fonction du catalogue Bébé & Maman et son déclencheur sont renforcés.
 - **Validation :** 🟡 **CONSTRUIT — PREUVE D’EXÉCUTION MANQUANTE**. Les fichiers sont sur `main`, mais le test SQL n’a pas été exécuté dans cette session et la migration n’a pas été appliquée à Supabase Production.
 - **Suite concrète :** exécuter le test sur une base de test isolée, puis poursuivre l’audit ciblé des parcours des univers déjà présents avant toute affirmation de validation fonctionnelle.
+
+
+## NAXA-U-THEME-001 — Harmonisation des chartes des univers
+
+- **Fichiers :** `src/components/universes/UniverseLanding.tsx`, `src/components/universes/UniverseCatalog.tsx`, `src/app/examens/page.tsx`, `src/app/prestations/page.tsx`.
+- **Commits :** `9726f47c68bc1b8825f7245df5ac65d1d3d65914`, `0c4f467bf2470524047663240a9df4de24600b9f`, `0f8d315474375ad1991d4ba6026a4014defc35dd`, `0d2ed4995dda14e415016060d59974f13f1b8575`.
+- **Correction :** couleurs principales alignées sur le cahier du 18/10. Bébé & Maman utilise `#C93774) plutôt que `#D63F7A` car la première atteint 4,90:1 avec le blanc, contre 4,33:1 pour la seconde.
+- **Statut :** 🟡 **CONSTRUIT — PREUVE DE BUILD/UI MANQUANTE**. Les valeurs de contraste ont été calculées, mais aucune compilation ni vérification visuelle n’a été exécutée dans cette session.
+- **Périmètre Pharmacie :** non touché.
