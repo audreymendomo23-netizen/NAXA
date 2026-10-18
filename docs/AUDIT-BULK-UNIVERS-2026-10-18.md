@@ -42,3 +42,12 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 **Audit statique groupé : effectué.**  
 **Correction SQL : écrite sur `main`, test préparé.**  
 **Validation technique complète : en attente** de l'exécution du test 120 et du replay SQL sur un projet de test accessible, du build Next.js et des parcours navigateur. Ne pas marquer les univers comme validés en Production avant ces preuves.
+
+
+
+## Complément — étape 2 : exclusion des médicaments de Parapharmacie
+
+- Correctif client dans `src/components/universes/UniverseProductGrid.tsx` : les produits reconnus comme médicaments ne sont plus affichés dans le catalogue Parapharmacie ; les descriptions de produits médicamenteux de Bébé & Maman sont masquées et remplacées par un avertissement demandant conseil au pharmacien, sans posologie fournie par NAXA.
+- Migration additive 123 `supabase/migration_123_parapharmacy_medicine_guard.sql` ajoute un contrôle de base de données sur les champs nom, marque, catégorie et description, limité à l’univers `parapharmacie`. Test ciblé : `supabase/tests/123_parapharmacy_medicine_guard.sql`.
+- La règle ne modifie pas les données ni le parcours historique Pharmacie et ne bloque pas les produits médicamenteux Bébé & Maman par ce contrôle Parapharmacie.
+- État honnête : code et migration écrits sur `main`; 18 cas regex côté outil réussis ; test SQL 123 non exécuté dans cette session, migration non appliquée à Production, build/parcours navigateur/déploiement non confirmés. Le filtre lexical n’identifie pas de manière exhaustive tous les noms commerciaux inconnus.
