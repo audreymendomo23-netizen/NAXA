@@ -403,3 +403,5 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 
 - Étape suivante : portail partenaire initial `/partenaire/examens` pour créer une fiche centre en brouillon, déclarer des examens et des horaires/capacités, puis générer les créneaux des 14 jours suivants.
 - Migration 108 ajoute une RPC de génération strictement limitée au centre du partenaire appelant ; elle ne donne pas aux partenaires accès à la génération globale. Elle n'a pas été appliquée en base.
+
+- Migration 109 renforce la réservation : la RPC vérifie l’activation du centre, du partenaire, de l’univers et du feature flag même si elle s’exécute en `SECURITY DEFINER`. Cela empêche la réservation directe d’un centre masqué ou suspendu. Migration non appliquée ; tests et compilation reportés à la validation finale.
