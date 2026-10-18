@@ -201,3 +201,12 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `4d6c328cf765b6741e269cb7d6583e055d43ab2c` — ajout de « Mes examens et tickets » à l’espace client : réservations, centre, adresse publique, horaire, statut, code ticket et prix sont chargés depuis `exam_appointments` avec le périmètre RLS du client.
 - `dfc4f4e355119a3c4eae943d6d565da5217cbf3b` — la création de centres, examens et packs par le partenaire invalide également les pages d’administration et le catalogue public concerné.
 - État : modifications enregistrées sur `main`. Aucun test, build, audit, déploiement ni changement de données Supabase Production effectué dans cette continuation.
+
+
+## Raccordement des examens — espace partenaire et administration (18 octobre 2026)
+
+- `b460d4f552983d7cd7d374001e8c32f1637b1a9e` — le tableau partenaire affiche désormais les réservations de ses centres : nom de l'examen/pack, ticket, créneau, statut et prix. La lecture reste limitée aux centres associés au partenaire et à la RLS existante.
+- `7c7160d917434ce29de106cb21b45876b357769b` — migration additive 122, politique de lecture des réservations d'examens réservée aux profils administrateurs authentifiés.
+- `0ca3d40eac8840eaf693f4c51f885f6dc206613f` — la page d'administration affiche le registre opérationnel des tickets et créneaux, sans données personnelles du client ni encaissement NAXA.
+- La migration 122 est écrite dans le dépôt mais n'a pas été appliquée à Supabase. Tant qu'elle n'est pas appliquée, l'interface d'administration affiche un état d'indisponibilité explicite au lieu de prétendre que la liste est vide.
+- Aucun test, build, audit, déploiement ni écriture dans Supabase Production n'a été effectué.
