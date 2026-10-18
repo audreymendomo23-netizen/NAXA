@@ -92,6 +92,7 @@ export async function transitionHomeServiceRequest(form: FormData) {
   if (updated?.status !== status) fail();
 
   revalidatePath("/partenaire/prestations");
+  revalidatePath("/client");
   revalidatePath("/prestations/demande/" + requestId);
   redirect("/partenaire/prestations?ok=" + status);
 }
