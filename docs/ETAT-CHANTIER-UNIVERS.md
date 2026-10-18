@@ -130,3 +130,9 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Documentation des correctifs : `c120e77707190acb9deed80b4405e2b5e85d2238`.
 - Le statut GitHub « Vercel: success » associé au commit documentaire ne prouve pas un déploiement actif : le déploiement Vercel correspondant `dpl_BxTg8pbT83H438989MukcCXFquif`, ciblant Production, est observé à l’état `CANCELED`. Il n’est donc pas présenté comme publié.
 - Le build complet et les tests de parcours ne sont toujours pas prouvés. Le contrôle Vercel précédent avait renvoyé une limite de création de build. Aucun déploiement Production réussi n’est revendiqué.
+
+## Correction de cohérence UI — 18 octobre 2026
+
+- `ebeb1b9a47f67623d91f642d952d5bae55451e35` — le badge « Bientôt disponible » n’est plus affiché par défaut sur les écrans de repli des univers actifs (Parapharmacie, Bébé & Maman, Examens médicaux, Prestations et Aide). Le badge reste explicite pour Dispositifs médicaux via `src/app/suivi/page.tsx` (`comingSoon`).
+- `11f274acfe2b7180598cadf4b0437839e9e43100` — maintien explicite de l’état « à venir » pour l’univers Dispositifs médicaux, désactivé en phase 1.
+- Contrôle réalisé : lecture statique des appels `UniverseLanding` et des routes concernées. Build Next.js et test navigateur non exécutés ; ne pas classer ce correctif comme validé techniquement ou en Production.
