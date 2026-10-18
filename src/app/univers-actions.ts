@@ -2,6 +2,23 @@
 
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { excludedFromBabyUniverse, isMedicationProduct } from "@/lib/universe-product-rules";
+
+type ReservationItem = { product_id: string; quantity: number };
+
+async function catalogItemsAllowed(sb: any, universe: string, partnerId: string, items: ReservationItem[]) {
+  const { data, error } = await sb.rpc("get_universe_catalog", { p_universe_slug: universe });
+  if (error || !Array.isArray(data)) return false;
+  const products = new Map<string, any>(data.map((product: any) => [String(product.product_id), product]));
+  return items.every((item) => {
+    const product = products.get(item.product_id);
+    if (!product || product.partner_id !== partnerId || product.universe_slug !== universe) return false;
+    if (universe === "parapharmacie" && isMedicationProduct(product)) return false;
+    if (universe === "bebe-maman" && excludedFromBabyUniverse(product)) return false;
+    return true;
+  });
+}
+
 
 export async function reserverProduit(form: FormData) {
   const universe = String(form.get("universe_slug") ?? "");
@@ -19,6 +36,7 @@ export async function reserverProduit(form: FormData) {
   if (!auth.user) redirect("/connexion?retour=/" + universe);
   const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
   if (profile?.role !== "client") redirect("/" + universe + "?erreur=compte");
+  if (!(await catalogItemsAllowed(sb, universe, partnerId, [{ product_id: productId, quantity }]))) redirect("/" + universe + "?erreur=stock");
   const { data, error } = await sb.rpc("reserve_universe_products", {
     p_partner_id: partnerId,
     p_universe_slug: universe,
@@ -68,6 +86,7 @@ export async function reserverGroupeProduits(form: FormData) {
   if (!auth.user) redirect("/connexion?retour=/" + universe);
   const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
   if (profile?.role !== "client") redirect("/" + universe + "?erreur=compte");
+  if (!(await catalogItemsAllowed(sb, universe, partnerId, items))) redirect("/" + universe + "?erreur=stock");
   const { data, error } = await sb.rpc("reserve_universe_products", {
     p_partner_id: partnerId, p_universe_slug: universe, p_items: items, p_note: null,
   });
