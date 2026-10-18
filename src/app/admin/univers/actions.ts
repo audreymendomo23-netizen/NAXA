@@ -22,7 +22,7 @@ export async function creerPartenaire(form: FormData) {
   const name = field(form, "name");
   const type = field(form, "partner_type", 40);
   const universe = field(form, "universe_slug", 40);
-  if (name.length < 2 || !types.includes(type) || !slugs.includes(universe)) redirect("/admin/univers?erreur=parametres");
+  if (name.length < 2 || !types.includes(type) || !slugs.includes(universe) || universe === "suivi") redirect("/admin/univers?erreur=parametres");
   const { data: partner, error } = await sb.from("partners").insert({
     name, partner_type: type, city: field(form, "city", 100) || "Yaoundé",
     neighborhood: field(form, "neighborhood", 120) || null,
@@ -81,7 +81,7 @@ export async function changerAssociationPartenaire(form: FormData) {
   const partnerId = field(form, "partner_id", 40);
   const universe = field(form, "universe_slug", 40);
   const enabled = field(form, "enabled", 5) === "true";
-  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !slugs.includes(universe)) redirect("/admin/univers?erreur=parametres");
+  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !slugs.includes(universe) || universe === "suivi") redirect("/admin/univers?erreur=parametres");
   const { data: partner, error: partnerError } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
   if (partnerError || !partner) redirect("/admin/univers?erreur=schema");
   if (enabled && partner.status !== "active") redirect("/admin/univers?erreur=partenaire_inactif");
