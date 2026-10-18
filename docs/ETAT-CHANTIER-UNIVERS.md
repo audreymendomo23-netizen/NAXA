@@ -39,6 +39,10 @@
 
 - `59216cbe6d387dc5f2dd7cc4c052a0ba72fd994c` — l’espace client unique permet désormais d’annuler directement une demande de prestation encore « En attente du professionnel » ; l’action serveur existante appelle la RPC contrôlée, confirme le statut réellement enregistré et redirige vers le reçu privé de la demande.
 
+- `641ee9464e5e7e5358d6f9bb3e3205725193acb3` — le bouton d’annulation client est affiché pour les demandes `requested` et `confirmed`, conformément aux transitions autorisées par la RPC `transition_home_service_request`.
+- `e55e75992b36cc39c7ef1c7b7acd0fb1d35365a8` — après annulation, les chemins des espaces client, partenaire et catalogue sont revalidés pour éviter des vues périmées.
+- `1658f147b69d6d578c314e655a8313f04a033129` — la confirmation de réservation d’un examen propose un lien direct vers l’espace client unique pour retrouver son ticket.
+
 ## Migrations SQL à valider
 
 - Les migrations 098 à 109 constituent les dépendances des univers, catalogues, réservations et créneaux d'examens.
