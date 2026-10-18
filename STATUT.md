@@ -400,3 +400,6 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Catalogue client raccordé à /examens, avec tarifs, choix de créneau et action de réservation nécessitant une connexion.
 - La migration 107 est dans main mais n'a pas été appliquée à Supabase. Aucun test, build ou déploiement effectué à ce stade.
 - À compléter : espace partenaire pour gérer horaires/catalogue, raccordement effectif des tickets à /achats et orchestration des rappels à J-1. Validation finale de la chaîne SQL et du build à la fin du projet.
+
+- Étape suivante : portail partenaire initial `/partenaire/examens` pour créer une fiche centre en brouillon, déclarer des examens et des horaires/capacités, puis générer les créneaux des 14 jours suivants.
+- Migration 108 ajoute une RPC de génération strictement limitée au centre du partenaire appelant ; elle ne donne pas aux partenaires accès à la génération globale. Elle n'a pas été appliquée en base.
