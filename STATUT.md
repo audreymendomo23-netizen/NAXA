@@ -384,3 +384,8 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration 105 ajoute un seuil d’alerte stock et une RPC de traitement par lots des réservations expirées, destinée à un ordonnanceur serveur.
 - Les réservations expirées cessent de bloquer la disponibilité ; le stock physique n’est pas décrémenté avant le retrait confirmé.
 - Migration 105 non appliquée à Supabase. Ordonnanceur non configuré. Aucun build, test ni déploiement exécuté.
+
+## Import catalogue — cohérence stock
+- Migration 106 ajoute une RPC d'import atomique qui crée les produits en brouillon, écrit les stocks initiaux dans le journal append-only et annule toute la transaction si une ligne échoue.
+- L'import reste additif : aucun produit existant n'est supprimé ni remplacé. Import limité à 500 lignes côté serveur.
+- Migration 106 non appliquée à Supabase ; tests/compilation non exécutés.
