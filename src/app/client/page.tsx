@@ -65,14 +65,15 @@ function ClientPageContent(){
  const filtered=useMemo(()=>{const days=period==="all"?Infinity:Number(period)*86400000;const query=q.trim().toLowerCase();return achats.filter(a=>(Date.now()-new Date(a.achat_le??a.reservation_creee_le).getTime())<=days&&(!query||[a.medicament,a.dci,a.pharmacie,a.ville,a.quartier??""].join(" ").toLowerCase().includes(query)))},[achats,period,q]);
  const groups=useMemo(()=>{const m=new Map<string,Achat[]>();for(const a of filtered)m.set(a.reservation_id,[...(m.get(a.reservation_id)??[]),a]);return [...m.entries()].sort((x,y)=>new Date(y[1][0].achat_le??y[1][0].reservation_creee_le).getTime()-new Date(x[1][0].achat_le??x[1][0].reservation_creee_le).getTime())},[filtered]);
  const recent=reservations.slice(0,8);const purchaseCount=new Set(achats.map(a=>a.reservation_id)).size,medicineCount=new Set(achats.map(a=>a.produit_id)).size;
- return <main className="min-h-screen bg-slate-50 px-4 pb-28"><EnTeteClient/><div className="relative z-10 mx-auto max-w-2xl pt-4" onTouchStart={event=>{swipeStartRef.current={x:event.touches[0]?.clientX??0,y:event.touches[0]?.clientY??0}}} onTouchEnd={event=>{const dx=(event.changedTouches[0]?.clientX??swipeStartRef.current.x)-swipeStartRef.current.x;const dy=(event.changedTouches[0]?.clientY??swipeStartRef.current.y)-swipeStartRef.current.y;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.25){const tabs=["reservations","achats","panier"] as const;const index=tabs.indexOf(tab);setTab(tabs[Math.max(0,Math.min(tabs.length-1,index+(dx<0?1:-1)))]);}}}>
+ const selectTab=(nextTab:"reservations"|"achats"|"panier")=>{setTab(nextTab);const url=new URL(window.location.href);if(nextTab==="reservations")url.searchParams.delete("onglet");else url.searchParams.set("onglet",nextTab);router.replace(url.pathname+url.search+url.hash,{scroll:false});};
+ return <main className="min-h-screen bg-slate-50 px-4 pb-28"><EnTeteClient/><div className="relative z-10 mx-auto max-w-2xl pt-4" onTouchStart={event=>{swipeStartRef.current={x:event.touches[0]?.clientX??0,y:event.touches[0]?.clientY??0}}} onTouchEnd={event=>{const dx=(event.changedTouches[0]?.clientX??swipeStartRef.current.x)-swipeStartRef.current.x;const dy=(event.changedTouches[0]?.clientY??swipeStartRef.current.y)-swipeStartRef.current.y;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.25){const tabs=["reservations","achats","panier"] as const;const index=tabs.indexOf(tab);selectTab(tabs[Math.max(0,Math.min(tabs.length-1,index+(dx<0?1:-1)))]);}}}>
  <p className="text-sm text-slate-500">Mon espace NAXA</p><h1 className="text-2xl font-black">{tab === "achats" ? "Achats et commandes" : tab === "panier" ? "Mon panier" : "Bonjour " + name + " 👋"}</h1><p className="mt-1 text-sm text-slate-600">{tab === "achats" ? "Retrouvez vos achats confirmés, reçus et références de paiement." : tab === "panier" ? "Préparez votre sélection avant de chercher une pharmacie partenaire." : "Suivez vos réservations et les réponses des pharmacies."}</p>
  {tab === "reservations" && <section className="carte mt-4"><h2 className="font-bold">Mon profil</h2><div className="mt-2 divide-y divide-slate-100">{[["adresse","Adresse par défaut"],["paiement","Paiement"],["langue","Langue"],["favoris","Mes favoris"],["achats","Mes commandes · Historique"],["factures","Factures"],["aide","Centre d’aide"],["contact","Contacter NAXA"],["noter","Noter l’application"],["notifications","Notifications"],["confidentialite","Confidentialité"],["suppression","Supprimer mon compte"]].map(([slug,label])=><Link key={slug} href={slug==="achats"?"/client?onglet=achats":slug==="favoris"?"/client/profil/favoris":"/client/profil/"+slug} className="flex min-h-11 items-center justify-between py-2 text-sm font-medium"><span>{label}</span><span aria-hidden="true">›</span></Link>)}<button className="flex min-h-11 w-full items-center justify-between py-2 text-sm font-semibold text-red-700" onClick={async()=>{await supabaseBrowser().auth.signOut();window.location.replace("/connexion");}}>Déconnexion <span aria-hidden="true">›</span></button></div></section>}
  <nav aria-label="Mes espaces" className="naxa-client-tabs my-5 flex snap-x gap-2 overflow-x-auto pb-2" style={{WebkitOverflowScrolling:"touch",scrollbarWidth:"thin"}}>
   <button
    type="button"
    className={`btn shrink-0 snap-start ${tab === "reservations" ? "btn-vert" : "btn-clair"}`}
-   onClick={() => setTab("reservations")}
+   onClick={() => selectTab("reservations")}
    aria-pressed={tab === "reservations"}
   >
    Réservations
@@ -80,12 +81,12 @@ function ClientPageContent(){
   <button
    type="button"
    className={`btn shrink-0 snap-start ${tab === "achats" ? "btn-vert" : "btn-clair"}`}
-   onClick={() => setTab("achats")}
+   onClick={() => selectTab("achats")}
    aria-pressed={tab === "achats"}
   >
    Achats / commandes
   </button>
-  <button type="button" className={`btn shrink-0 snap-start ${tab === "panier" ? "btn-vert" : "btn-clair"}`} onClick={() => setTab("panier")} aria-pressed={tab === "panier"}>Panier {nombrePanier > 0 && <span className="rounded-full bg-white/20 px-2 text-xs">{nombrePanier}</span>}</button>
+  <button type="button" className={`btn shrink-0 snap-start ${tab === "panier" ? "btn-vert" : "btn-clair"}`} onClick={() => selectTab("panier")} aria-pressed={tab === "panier"}>Panier {nombrePanier > 0 && <span className="rounded-full bg-white/20 px-2 text-xs">{nombrePanier}</span>}</button>
  </nav>
  {loading&&<p className="carte">Chargement…</p>}{error&&<p role="alert" className="carte border border-red-200 text-red-800">{error}</p>}
  {!loading&&!error&&tab==="reservations"&&<section className="space-y-4"><div className="grid grid-cols-2 gap-3"><article className="carte"><p className="text-xs text-slate-500">Achats</p><p className="text-2xl font-black">{purchaseCount}</p></article><article className="carte"><p className="text-xs text-slate-500">Médicaments distincts</p><p className="text-2xl font-black">{medicineCount}</p></article></div>
