@@ -34,7 +34,7 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
         <span className="rounded-full bg-[#FFEFEA] px-3 py-2 text-xs font-bold text-[#9B3527]">Demande sans paiement en ligne</span>
       </header>
       <section className="mt-4 rounded-3xl border border-[#FAD0C6] bg-[#FFEFEA] p-6 sm:p-8">
-        <p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Services de proximité</p>
+        <p className="text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
         <h1 className="mt-2 text-3xl font-black sm:text-4xl">Prestations et soins à domicile</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">Découvrez les services publiés par les professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
         <p className="mt-3 text-sm font-bold">{offers.length} prestation(s) disponible(s)</p>
@@ -43,7 +43,7 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         {offers.map((offer) => <article key={offer.offer_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="bg-[#FFF8F5] p-5">
-            <p className="text-xs font-extrabold uppercase tracking-wide text-[#B73623]">{offer.category}</p>
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[#D4402B]">{offer.category}</p>
             <h2 className="mt-1 text-xl font-black">{offer.name}</h2>
             {offer.description && <p className="mt-2 text-sm leading-6 text-slate-600">{offer.description}</p>}
             <p className="mt-3 text-sm font-semibold">{offer.partner_name}</p>
@@ -60,7 +60,7 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
             <label className="block text-sm font-semibold">Date et heure souhaitées (facultatif)<input className={field} name="preferred_at" type="datetime-local"/></label>
             <label className="block text-sm font-semibold">Précisions utiles (facultatif)<textarea className={field} name="client_note" maxLength={500} rows={3} placeholder="Informations pratiques nécessaires à la demande"/></label>
             <p className="rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">Confidentialité : l’adresse exacte et le téléphone ne sont accessibles au professionnel qu’après confirmation de la demande. NAXA ne collecte aucun paiement pour cette demande.</p>
-            <button className="min-h-11 w-full rounded-xl bg-[#B73623] px-4 py-3 font-bold text-white">Envoyer la demande</button>
+            <button className="min-h-11 w-full rounded-xl bg-[#D4402B] px-4 py-3 font-bold text-white">Envoyer la demande</button>
           </form>
         </article>)}
       </div>
