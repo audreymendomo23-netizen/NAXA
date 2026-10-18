@@ -4,6 +4,24 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RecordObject = Record<string, unknown>;
+const suggestionsMedicalesParLangue: Record<"fr" | "en", string[]> = {
+  fr: [
+    "paracétamol", "paludisme", "paludisme grave", "palpitations", "pansement", "pancréatite", "pancréas",
+    "papillomavirus", "parkinson", "parasite", "parasitoses", "parodontite", "paralysie", "pâleur",
+    "panique", "palu", "malaria", "maladie", "mal de tête", "mal de gorge", "maux de ventre", "maux de tête",
+    "méningite", "migraine", "molécule", "médicament", "médecine", "mycose", "amoxicilline", "anémie",
+    "asthme", "allergie", "antibiotique", "arthrite", "arthrose", "bronchite", "diabète", "diarrhée",
+    "fièvre", "grippe", "hypertension", "infection", "insomnie", "tension artérielle", "toux", "ulcère", "varicelle"
+  ],
+  en: [
+    "paracetamol", "pain", "painkiller", "pancreas", "pancreatitis", "panic attack", "paralysis", "parasite",
+    "parkinson's disease", "palpitations", "papillomavirus", "malaria", "malaria parasite", "malaria symptoms",
+    "malaria prevention", "malaria treatment", "malnutrition", "measles", "meningitis", "migraine", "molecule",
+    "medicine", "medication", "mycosis", "amoxicillin", "anemia", "asthma", "allergy", "antibiotic", "arthritis",
+    "bronchitis", "diabetes", "diarrhea", "fever", "flu", "hypertension", "infection", "insomnia", "sore throat",
+    "stomach ache", "cough", "ulcer", "chickenpox"
+  ],
+};
 type DictionaryResult = {
   terme: string;
   definition: string;
@@ -148,12 +166,13 @@ export async function GET(request: NextRequest) {
     const search = await fetchJson("https://" + wiki + "/w/api.php?action=query&list=search&srsearch=" + encodeURIComponent(term) + "&srlimit=8&format=json&origin=*");
     const query = search?.query as RecordObject | undefined;
     const entries = Array.isArray(query?.search) ? query.search as RecordObject[] : [];
-    const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalize = (value: string) => value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     const prefix = normalize(term);
-    const titles = entries
+    const catalogue = suggestionsMedicalesParLangue[lang].filter((title) => normalize(title).startsWith(prefix));
+    const encyclopediaTitles = entries
       .map((item) => typeof item.title === "string" ? item.title : "")
       .filter((title) => title && normalize(title).startsWith(prefix));
-    const unique = [...new Set(titles)].slice(0, 3);
+    const unique = [...new Set([...catalogue, ...encyclopediaTitles])].slice(0, 3);
     return NextResponse.json({ suggestions: unique }, {
       headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=1800" },
     });
