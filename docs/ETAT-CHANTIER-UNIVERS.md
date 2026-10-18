@@ -77,7 +77,8 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - **Commit de test :** `8099df7479bc9edd21a6d4bb5424cb3db56da766` — test `supabase/tests/119_baby_mama_forbidden_terms.sql`.
 - **But :** fermer des variantes FR/EN qui pouvaient contourner l’exclusion Bébé & Maman (laits infantiles et de croissance, préparations/substituts, céréales/farines infantiles, biberons, tétines, sucettes et variantes anglaises).
 - **Protection :** le déclencheur reste limité à `bebe-maman`; le test comprend aussi un contrôle anti-faux-positif pour « lait de toilette bébé » et un contrôle de portée sur `parapharmacie`.
-- **État honnête :** les deux fichiers sont présents sur `main`. Le test SQL n’a pas encore été exécuté dans cette session ; la migration n’a pas été appliquée à Supabase Production. Statut : **🟡 construit — preuve d’exécution manquante**.
+- **Preuve :** migration 119 appliquée au projet de test isolé `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) ; test SQL exécuté avec résultat `naxa_119_baby_mama_forbidden_terms_pass = true`. Les contrôles incluent les variantes FR/EN, le faux positif « lait de toilette bébé » et la portée limitée à Bébé & Maman.
+- **État honnête :** validation technique ciblée réussie en test ; migration non appliquée à Supabase Production. Statut : **🟢 VALIDÉ TECHNIQUEMENT — TEST ISOLÉ**, pas encore validé en production ni sur l’ensemble du parcours UI.
 - **Pharmacie :** aucune table, route ou composant existant de la Pharmacie n’a été modifié par ces commits.
 
 
