@@ -98,3 +98,13 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `0149fb91063e08c01ed191fe5a10e7deb9c530ba` — ajout dans le menu trois-points de l’accueil Pharmacie de liens directs vers Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs médicaux, Examens, Prestations à domicile et « Besoin d’aide ? ». Les liens sont ajoutés sans retirer les entrées existantes Client/Pharmacie.
 - `4b0356debf6911e4bdb663a7e98fdb053c370df8` — correction des destinations du menu de `EnTeteClient` : les univers pointent maintenant vers leurs routes réelles, et « Besoin d’aide ? » vers `/aide` au lieu d’une recherche textuelle.
 - **État honnête :** les destinations et libellés sont présents sur `main`, mais le build et les parcours navigateur ne sont pas encore exécutés. Le menu trois-points partagé sur tous les écrans des univers reste à terminer. Aucun déploiement n’a été lancé.
+
+
+## Mise à jour — menu partagé des univers (18/10/2026)
+
+- Création de `src/components/universes/MenuUnivers.tsx` : navigation trois-points vers les six univers et l’aide, avec libellés FR/EN selon `naxa-langue`.
+- Intégration dans les pages partagées `UniverseLanding` et `UniverseCatalog`, ainsi que dans les pages actives Examens et Prestations.
+- Gestion clavier et accessibilité : Échap ferme le menu et rend le focus au bouton ; clic extérieur ferme le menu ; cible tactile 44 px.
+- Commits : `1b335954d243357160e605a97ecd0d07cd8aa6c6`, `3d594bc84391588fd07e2c7fa1bb19801388c8e7`, `c144c88ac54c44f3cc243126aa6194ec345a7dd5`, `97ea27b1947b7bc626c5180059219d652d88b422`, `d582740dfe44e11fad6be3d298a04e92bda52817`, `b7a3de6495fe523571cd46c376a2696d2e1b4597`.
+- Statut : construit sur `main`, mais build complet et vérification navigateur non exécutés. Aucun déploiement Production ni écriture Supabase Production.
+- Pharmacie : le nouveau composant est limité aux pages des univers ; le parcours Pharmacie existant n’a pas été modifié dans cette étape.
