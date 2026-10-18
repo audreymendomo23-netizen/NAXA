@@ -3,7 +3,7 @@
 begin;
 
 create or replace function public.transition_universe_reservation(p_reservation_id uuid,p_status text)
-returns void language plpgsql security definer set search_path=public,extensions
+returns void language plpgsql security definer set search_path=public,extensions,pg_temp
 as $function$
 declare
   uid uuid := auth.uid();
