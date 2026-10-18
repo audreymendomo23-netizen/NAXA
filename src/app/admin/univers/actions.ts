@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
+import { isMedicationProduct } from "@/lib/universe-product-rules";
 
 async function admin() {
   const sb = supabaseServer();
@@ -133,11 +134,14 @@ export async function creerProduitPartenaire(form: FormData) {
   const universe = field(form, "universe_slug", 40);
   const name = field(form, "name", 180);
   const category = field(form, "category", 100) || "Autres";
+  const brand = field(form, "brand", 120) || null;
+  const description = field(form, "description", 600) || null;
   const price = Number(field(form, "price_fcfa", 12));
   const stock = Number(field(form, "stock_quantity", 20));
   const photo = field(form, "photo_url", 1000);
   if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !["parapharmacie", "bebe-maman"].includes(universe) ||
-      name.length < 2 || !Number.isInteger(price) || price < 0 || !Number.isFinite(stock) || stock < 0 ||
+      name.length < 2 || (universe === "parapharmacie" && isMedicationProduct({ name, brand, category, description })) ||
+      !Number.isInteger(price) || price < 0 || !Number.isFinite(stock) || stock < 0 ||
       (photo && (!/^https:\/\//i.test(photo) || photo.length > 1000))) {
     redirect("/admin/univers?erreur=produit");
   }
@@ -145,9 +149,7 @@ export async function creerProduitPartenaire(form: FormData) {
   const { data: association } = await sb.from("partner_universes").select("enabled").eq("partner_id", partnerId).eq("universe_slug", universe).maybeSingle();
   if (partner?.status !== "active" || !association?.enabled) redirect("/admin/univers?erreur=association");
   const { error } = await sb.from("partner_products").insert({
-    partner_id: partnerId, universe_slug: universe, name, category,
-    brand: field(form, "brand", 120) || null,
-    description: field(form, "description", 600) || null,
+    partner_id: partnerId, universe_slug: universe, name, category, brand, description,
     photo_url: photo || null, price_fcfa: price, stock_quantity: stock,
     unit_label: field(form, "unit_label", 30) || "unité", status: "draft", created_by: actor,
   });
@@ -165,8 +167,9 @@ export async function changerStatutProduitPartenaire(form: FormData) {
   const id = field(form, "product_id", 40);
   const status = field(form, "status", 20);
   if (!/^[0-9a-f-]{36}$/i.test(id) || !["draft", "active", "archived"].includes(status)) redirect("/admin/univers?erreur=produit");
-  const { data: product } = await sb.from("partner_products").select("partner_id,universe_slug").eq("id", id).maybeSingle();
+  const { data: product } = await sb.from("partner_products").select("partner_id,universe_slug,name,brand,category,description").eq("id", id).maybeSingle();
   if (!product) redirect("/admin/univers?erreur=schema");
+  if (status === "active" && product.universe_slug === "parapharmacie" && isMedicationProduct(product)) redirect("/admin/univers?erreur=produit");
   if (status === "active") {
     const [partner, association, universe, flag] = await Promise.all([
       sb.from("partners").select("status").eq("id", product.partner_id).maybeSingle(),
