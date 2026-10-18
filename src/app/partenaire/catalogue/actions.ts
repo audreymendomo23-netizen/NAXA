@@ -160,18 +160,32 @@ export async function importerCsvCatalogue(form: FormData) {
   const payload: Record<string, unknown>[] = [];
   for (const row of rows.slice(1)) {
     if (row.length !== headers.length) redirect("/partenaire/catalogue?erreur=csv");
-    const name = val(row, "name"), price = Number(val(row, "price_fcfa")), stock = Number(val(row, "stock_quantity").replace(",", "."));
+    const name = val(row, "name");
+    const priceRaw = val(row, "price_fcfa");
+    const stockRaw = val(row, "stock_quantity");
+    const price = Number(priceRaw);
+    const stock = Number(stockRaw.replace(",", "."));
+    const thresholdRaw = val(row, "low_stock_threshold");
+    const threshold = thresholdRaw === "" ? 3 : Number(thresholdRaw.replace(",", "."));
+    const expiresAt = val(row, "expires_at");
     const photo = val(row, "photo_url");
-    if (name.length < 2 || name.length > 180 || !Number.isSafeInteger(price) || price < 0 ||
-        !Number.isFinite(stock) || stock < 0 || stock > 1000000 || (photo && !/^https:\/\//i.test(photo))) redirect("/partenaire/catalogue?erreur=csv");
+    const validDate = (value: string) => {
+      if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)) return false;
+      const parsed = new Date(value + "T00:00:00.000Z");
+      return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+    };
+    if (name.length < 2 || name.length > 180 || !priceRaw || !Number.isSafeInteger(price) || price < 0 ||
+        !stockRaw || !Number.isFinite(stock) || stock < 0 || stock > 1000000 ||
+        !Number.isFinite(threshold) || threshold < 0 || threshold > 1000000 ||
+        (expiresAt !== "" && !validDate(expiresAt)) || (photo && !/^https:\/\//i.test(photo))) redirect("/partenaire/catalogue?erreur=csv");
     payload.push({
       name, brand: val(row, "brand").slice(0,120) || null,
       category: val(row, "category").slice(0,100) || "Autres",
       description: val(row, "description").slice(0,600) || null,
       photo_url: photo || null, price_fcfa: price, stock_quantity: stock,
       unit_label: val(row, "unit_label").slice(0,30) || "unité",
-      expires_at: val(row, "expires_at") || null,
-      low_stock_threshold: val(row, "low_stock_threshold") === "" ? 3 : Number(val(row, "low_stock_threshold")),
+      expires_at: expiresAt || null,
+      low_stock_threshold: threshold,
     });
   }
   if (!payload.length) redirect("/partenaire/catalogue?erreur=csv");
