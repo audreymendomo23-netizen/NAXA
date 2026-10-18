@@ -43,7 +43,7 @@ on public.messages_support
 for select
 to authenticated
 using (
-  (select private.is_admin())
+  (select public.is_admin())
   or (
     interne = false
     and exists (
@@ -52,7 +52,7 @@ using (
       where t.id = messages_support.ticket_id
         and (
           t.auteur_profile_id = (select auth.uid())
-          or t.pharmacie_id = (select private.my_pharmacie())
+          or t.pharmacie_id = (select public.my_pharmacie())
         )
     )
   )
@@ -79,7 +79,7 @@ with check (
       and (
         (t.auteur_profile_id = (select auth.uid()) and me.role = 'client'::public.role_type)
         or
-        (t.pharmacie_id = (select private.my_pharmacie())
+        (t.pharmacie_id = (select public.my_pharmacie())
           and me.role = 'pharmacie'::public.role_type)
       )
   )
