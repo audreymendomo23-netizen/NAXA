@@ -90,3 +90,11 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - `0d2ed4995dda14e415016060d59974f13f1b8575` — accents principaux de la page Prestations alignés.
 - **Contraste calculé pour le texte blanc sur couleur forte :** Parapharmacie 4,79:1 ; Bébé & Maman 4,90:1 (teinte ajustée dans la même famille pour respecter 4,5:1) ; Examens 6,42:1 ; Prestations 4,60:1 ; Dispositifs 6,70:1.
 - **État honnête :** corrections appliquées à `main`, mais compilation et parcours visuels non exécutés dans cette session. La Pharmacie et son thème n’ont pas été modifiés. Aucun déploiement lancé.
+
+
+## Mise à jour — navigation vers les univers depuis les menus existants
+
+- `c103c1f95781e598f172f36163c08213a95f8300` — ajout des libellés de navigation des univers en français et en anglais dans `src/lib/accueil-textes.ts`.
+- `0149fb91063e08c01ed191fe5a10e7deb9c530ba` — ajout dans le menu trois-points de l’accueil Pharmacie de liens directs vers Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs médicaux, Examens, Prestations à domicile et « Besoin d’aide ? ». Les liens sont ajoutés sans retirer les entrées existantes Client/Pharmacie.
+- `4b0356debf6911e4bdb663a7e98fdb053c370df8` — correction des destinations du menu de `EnTeteClient` : les univers pointent maintenant vers leurs routes réelles, et « Besoin d’aide ? » vers `/aide` au lieu d’une recherche textuelle.
+- **État honnête :** les destinations et libellés sont présents sur `main`, mais le build et les parcours navigateur ne sont pas encore exécutés. Le menu trois-points partagé sur tous les écrans des univers reste à terminer. Aucun déploiement n’a été lancé.
