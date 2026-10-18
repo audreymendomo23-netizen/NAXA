@@ -38,6 +38,14 @@ export function EnTeteAccueil({
   const conteneur = useRef<HTMLDivElement>(null);
   const bouton = useRef<HTMLButtonElement>(null);
   const t = textes[langue];
+  const universes = [
+    { label: t.universPharmacie, href: "/" },
+    { label: t.universParapharmacie, href: "/parapharmacie" },
+    { label: t.universBebeMaman, href: "/bebe-maman" },
+    { label: t.universDispositifs, href: "/suivi" },
+    { label: t.universExamens, href: "/examens" },
+    { label: t.universPrestations, href: "/prestations" },
+  ];
 
   useEffect(() => {
     if (!ouvert) return;
@@ -124,6 +132,33 @@ export function EnTeteAccueil({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="border-t border-naxa-green-100 pt-2">
+                <p className="px-2 pb-1 pt-2 text-xs font-extrabold uppercase tracking-wide text-naxa-green-700">
+                  {t.universSection}
+                </p>
+                <nav aria-label={t.universSection} className="space-y-1">
+                  {universes.map((universe) => (
+                    <Link
+                      key={universe.href}
+                      href={universe.href}
+                      onClick={fermer}
+                      className="flex min-h-11 items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold hover:bg-naxa-green-100"
+                    >
+                      <span>{universe.label}</span>
+                      <span aria-hidden="true">›</span>
+                    </Link>
+                  ))}
+                  <Link
+                    href="/aide"
+                    onClick={fermer}
+                    className="flex min-h-11 items-center justify-between rounded-lg bg-red-50 px-2 py-2 text-sm font-extrabold text-red-800 hover:bg-red-100"
+                  >
+                    <span>{t.besoinAide}</span>
+                    <span aria-hidden="true">›</span>
+                  </Link>
+                </nav>
               </div>
 
               <div className="border-t border-naxa-green-100 pt-2">
