@@ -79,3 +79,13 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - **Protection :** le déclencheur reste limité à `bebe-maman`; le test comprend aussi un contrôle anti-faux-positif pour « lait de toilette bébé » et un contrôle de portée sur `parapharmacie`.
 - **État honnête :** les deux fichiers sont présents sur `main`. Le test SQL n’a pas encore été exécuté dans cette session ; la migration n’a pas été appliquée à Supabase Production. Statut : **🟡 construit — preuve d’exécution manquante**.
 - **Pharmacie :** aucune table, route ou composant existant de la Pharmacie n’a été modifié par ces commits.
+
+
+## Mise à jour — harmonisation des chartes du cahier du 18 octobre
+
+- `9726f47c68bc1b8825f7245df5ac65d1d3d65914` — thèmes des pages d’accueil des univers alignés sur la palette approuvée : Parapharmacie `#0B7F85`, Bébé & Maman `#C93774`, Examens `#6D3FD0`, Prestations `#D4402B`, Dispositifs médicaux `#1D4ED8`.
+- `0c4f467bf2470524047663240a9df4de24600b9f` — couleurs de la grille Parapharmacie et Bébé & Maman alignées.
+- `0f8d315474375ad1991d4ba6026a4014defc35dd` — accents principaux de la page Examens alignés.
+- `0d2ed4995dda14e415016060d59974f13f1b8575` — accents principaux de la page Prestations alignés.
+- **Contraste calculé pour le texte blanc sur couleur forte :** Parapharmacie 4,79:1 ; Bébé & Maman 4,90:1 (teinte ajustée dans la même famille pour respecter 4,5:1) ; Examens 6,42:1 ; Prestations 4,60:1 ; Dispositifs 6,70:1.
+- **État honnête :** corrections appliquées à `main`, mais compilation et parcours visuels non exécutés dans cette session. La Pharmacie et son thème n’ont pas été modifiés. Aucun déploiement lancé.
