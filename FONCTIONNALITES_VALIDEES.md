@@ -1520,3 +1520,10 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Dernier ajustement de présentation : l’icône conserve ses trois points verticaux à l’ouverture comme à la fermeture, sans animation qui les déforme. Commit : `5a6c5e892c082c8f8d2c2c12ce8a4fcccb42ab87`.
 
 - **Vérification du déploiement :** le déploiement Vercel lié au commit documentaire `c120e77707190acb9deed80b4405e2b5e85d2238` est `CANCELED` (cible Production) ; le statut Vercel sur le commit de suivi le plus récent échoue avec `upgradeToPro=build-rate-limit`. Aucun déploiement actif ni build complet n’est confirmé. Détail documenté dans `docs/ETAT-CHANTIER-UNIVERS.md` (commit `873c86d2b2d30e8b3c5f049d04307aa13440fbab`).
+
+## Correctif de cohérence UI — 18 octobre 2026
+
+- `UniverseLanding` ne présente plus « Bientôt disponible » par défaut sur les écrans de repli des univers actifs. Cela évite de contredire les catalogues et formulaires qui sont déjà construits.
+- La route `/suivi` passe explicitement `comingSoon` : Dispositifs médicaux reste désactivé en phase 1 et son état est toujours affiché.
+- Commits : `ebeb1b9a47f67623d91f642d952d5bae55451e35`, `11f274acfe2b7180598cadf4b0437839e9e43100`.
+- Niveau de preuve : statique uniquement ; build, E2E et Production non vérifiés.
