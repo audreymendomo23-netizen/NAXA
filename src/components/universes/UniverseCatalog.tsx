@@ -18,7 +18,7 @@ const config = {
 export async function UniverseCatalog({ universe }: { universe: UniverseKey }) {
   const { data, error } = await supabasePublic(30).rpc("get_universe_catalog", { p_universe_slug: universe });
   if (error) {
-    return <><UniverseLanding universe={universe}/><p className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue est en préparation. Les migrations 099 et 100 doivent être appliquées dans l’ordre avant d’afficher les produits.</p></>;
+    return <><UniverseLanding universe={universe}/><p className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue est temporairement indisponible. Réessayez dans quelques instants.</p></>;
   }
   const products = (data ?? []) as CatalogProduct[];
   if (!products.length) return <UniverseLanding universe={universe}/>;
