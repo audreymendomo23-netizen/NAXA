@@ -183,5 +183,6 @@ grant select on public.partners,public.partner_universes,public.partner_members,
 grant insert on public.audit_log,public.stock_movements to authenticated;
 revoke update,delete on public.audit_log,public.stock_movements from anon,authenticated;
 revoke all on public.universes,public.partners,public.partner_universes,public.partner_members,public.feature_flags,public.feature_flag_test_accounts,public.audit_log,public.stock_movements from anon;
+grant select on public.universes to anon;
 
 commit;

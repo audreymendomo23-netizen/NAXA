@@ -341,3 +341,11 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Ambulance :** le composant global exige explicitement `data-naxa-ambulance="true"`; les boutons autorisés identifiés dans le code sont Connexion et Chercher. L'animation reste désactivée par défaut pour les autres boutons.
 - **Limites hors code :** l'accès disponible ne permet pas de lire/modifier la configuration Auth Supabase (URL allowlist, modèle d'e-mail, longueur/durée OTP) ni la liste des URI Google Cloud. Ces paramètres ne sont donc pas déclarés vérifiés. Aucun changement direct à la base Supabase Production.
 - **Validation :** la compilation et les parcours e-mail/Google doivent être confirmés sur le déploiement issu du commit ci-dessous ; les journaux seuls ne prouvent pas un nouveau test de bout en bout.
+
+
+## Univers multi-services — socle additif préparé (18 octobre 2026)
+- Commit `f052e46642ff64612dd32bd072b69567efbd2168` : ajout de `supabase/migration_098_universes_partners_flags_audit_stock_movements.sql` sur `main`.
+- Le schéma ajoute les six univers, partenaires, association partenaires/univers, membres, feature flags, liste de comptes de test autorisés, journal d’audit et journal append-only des mouvements de stock. Les nouvelles tables ont RLS et des politiques séparant administration et membres partenaires.
+- Les univers commerciaux, le suivi santé, les experts et le paiement client restent désactivés par défaut; le suivi est explicitement limité aux comptes autorisés par feature flag (le contrôle effectif des lectures de données devra être ajouté avant d'activer le parcours).
+- Le journal de mouvements ne modifie pas encore les stocks existants : aucun impact sur la pharmacie historique. Les parcours admin et partenaires, les fonctions transactionnelles de stock et les tests SQL restent à implémenter.
+- **Non appliqué à Supabase Production**, non compilé et non testé; aucun déploiement Vercel effectué. Le commit sur `main` est du code source uniquement.
