@@ -71,7 +71,7 @@ export function Luciole() {
     const guideToCaret = (field: HTMLInputElement | HTMLTextAreaElement, glow = false) => {
       guidedTarget = caretTarget(field);
       guidePulseUntil = performance.now() + 650;
-      if (glow) guideGlowUntil = performance.now() + 480;
+      if (glow) { guideGlowUntil = performance.now() + 480; firefly.classList.add("naxa-luciole-typing-glow"); }
       lastInput = performance.now();
       resting = false;
       tree.classList.add("naxa-luciole-tree-awake");
