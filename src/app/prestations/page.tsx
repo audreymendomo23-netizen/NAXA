@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { UniverseLanding } from "@/components/universes/UniverseLanding";
+import { MenuUnivers } from "@/components/universes/MenuUnivers";
 import { requestHomeService } from "./actions";
 
 type HomeServiceOffer = {
@@ -32,6 +33,7 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
       <header className="flex items-center justify-between gap-3">
         <Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link>
         <span className="rounded-full bg-[#FFEFEA] px-3 py-2 text-xs font-bold text-[#9B3527]">Demande sans paiement en ligne</span>
+        <MenuUnivers />
       </header>
       <section className="mt-4 rounded-3xl border border-[#FAD0C6] bg-[#FFEFEA] p-6 sm:p-8">
         <p className="text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
