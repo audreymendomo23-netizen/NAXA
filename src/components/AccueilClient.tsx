@@ -620,7 +620,7 @@ export function AccueilClient() {
           <span className="min-w-0 flex-1">
             <span className="block text-[16px] font-extrabold leading-5 text-white">Dictionnaire médical</span>
             <span className="mt-1 block text-[13px] leading-5 text-white/80">Médicaments, maladies, molécules et termes de santé</span>
-            <span className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#FFE23D]">Ouvrir le livre <IconeNAXA name="arrow-right" size={15}/></span>
+            <span className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#FFE23D]">Ouvrir le livre <IconeNAXA name="chevron-right" size={15}/></span>
           </span>
         </button>
       </section>
