@@ -1,4 +1,6 @@
-# Étape 6 — Suivi connecté en cohorte de test (19 octobre 2026)
+# Suivi connecté — étape canonique 3, dossier technique du 19 octobre 2026
+
+> **Correction de numérotation :** ce dossier a d’abord été nommé « étape 6 » pendant l’exécution, mais le cahier des charges canonique place le suivi connecté à l’étape 3. Le numéro 6 est réservé à l’intégration Bluetooth et à ses essais sur appareil compatible. Le contenu technique ci-dessous reste l’historique de l’implémentation déjà réalisée sur `main`.
 
 ## Décisions de sécurité
 - L’univers commercial `suivi` demeure désactivé et ses quatre déclencheurs de phase 1 restent en place.
