@@ -5,7 +5,7 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   cacheOnFrontEndNav: true,
-  cacheId: "naxa-design-20261014",
+  cacheId: "naxa-production-refresh-20261018",
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,
@@ -20,7 +20,7 @@ const withPWA = withPWAInit({
           request.mode === "navigate" && url.pathname === "/connexion",
         handler: "NetworkFirst",
         options: {
-          cacheName: "naxa-pharmacy-login-v3",
+          cacheName: "naxa-pharmacy-login-v4",
           networkTimeoutSeconds: 5,
           expiration: {
             maxEntries: 5,
@@ -36,7 +36,7 @@ const withPWA = withPWAInit({
           url.pathname !== "/connexion",
         handler: "NetworkFirst",
         options: {
-          cacheName: "naxa-navigation-v3",
+          cacheName: "naxa-navigation-v4",
           networkTimeoutSeconds: 8,
           expiration: {
             maxEntries: 30,
