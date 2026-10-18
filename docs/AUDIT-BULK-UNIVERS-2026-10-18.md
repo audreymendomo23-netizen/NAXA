@@ -98,3 +98,5 @@ La migration additive 120 fixe leur `search_path` à `public, extensions, pg_tem
 - **Étape 6 — correctif de révocation** : migration 128 appliquée sur le projet isolé et Production. Le retrait d’un consentement révoque les partages actifs de la famille; test SQL Production `naxa_128_consent_revocation_shares_pass = true`.
 
 - Migration 129 ajoutée/appliquée sur le projet isolé et Production : règles d’alertes personnelles et journal des alertes, RLS sur les deux tables, déclencheur après insertion de mesure. Test ciblé `naxa_129_user_defined_alerts_pass = true` sur les deux bases. Aucun seuil médical n’est prérempli.
+
+- Migrations 130–131 ajoutées/appliquées sur le projet isolé et Production : la fonction d’autorisation ne sert plus d’oracle d’UUID; le consentement actif est obligatoire à la création/réactivation des partages; privilèges d’écriture arbitraire sur les alertes retirés. Tests ciblés 130 et 131 réussis (131 sur les deux bases).
