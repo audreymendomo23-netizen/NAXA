@@ -35,6 +35,29 @@ with check (
   )
 );
 
+-- Le participant ne voit jamais les notes internes du support ; seuls les admins
+-- conservent l'accès aux notes internes.
+drop policy if exists messages_support_acces on public.messages_support;
+create policy messages_support_acces
+on public.messages_support
+for select
+to authenticated
+using (
+  (select private.is_admin())
+  or (
+    interne = false
+    and exists (
+      select 1
+      from public.tickets_support t
+      where t.id = messages_support.ticket_id
+        and (
+          t.auteur_profile_id = (select auth.uid())
+          or t.pharmacie_id = (select private.my_pharmacie())
+        )
+    )
+  )
+);
+
 -- Un message public ne peut être envoyé que par le client du ticket ou
 -- par un compte pharmacie rattaché à la pharmacie choisie. Les notes internes
 -- ne sont jamais accessibles par cette politique.
@@ -61,6 +84,37 @@ with check (
       )
   )
 );
+
+-- Création atomique du ticket et de son premier message.
+create or replace function public.open_pharmacist_chat(p_pharmacy_id uuid, p_message text)
+returns uuid
+language plpgsql
+set search_path = public, pg_temp
+as $function$
+declare
+  v_ticket_id uuid;
+  v_message text := btrim(coalesce(p_message, ''));
+begin
+  if auth.uid() is null then
+    raise exception 'Connexion requise' using errcode = '42501';
+  end if;
+  if length(v_message) < 1 or length(v_message) > 2000 then
+    raise exception 'Le message doit contenir entre 1 et 2000 caractères' using errcode = '22023';
+  end if;
+
+  insert into public.tickets_support (auteur_profile_id, pharmacie_id, sujet, type, statut)
+  values (auth.uid(), p_pharmacy_id, 'Conseil pharmacien', 'conseil_pharmacien', 'ouvert')
+  returning id into v_ticket_id;
+
+  insert into public.messages_support (ticket_id, auteur_profile_id, contenu, interne)
+  values (v_ticket_id, auth.uid(), v_message, false);
+
+  return v_ticket_id;
+end;
+$function$;
+
+revoke all on function public.open_pharmacist_chat(uuid, text) from public, anon;
+grant execute on function public.open_pharmacist_chat(uuid, text) to authenticated;
 
 create or replace function public.support_chat_mark_first_response()
 returns trigger
