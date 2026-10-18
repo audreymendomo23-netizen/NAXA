@@ -6,10 +6,10 @@ function cell(value: unknown) {
   if (/^[=+@\-]/.test(text)) text = "'" + text;
   return '"' + text.replace(/"/g, '""') + '"';
 }
-export async function GET() {
+export async function GET(request: Request) {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return NextResponse.redirect(new URL("/connexion?retour=/partenaire/catalogue/export", process.env.NEXT_PUBLIC_SITE_URL ?? "https://naxa.app"));
+  if (!auth.user) return NextResponse.redirect(new URL("/connexion?retour=/partenaire/catalogue/export", request.url));
   const { data: memberships, error: memberError } = await sb.from("partner_members")
     .select("partner_id,member_role,partners!inner(status)").eq("user_id", auth.user.id)
     .in("member_role", ["owner", "manager", "operator"]);

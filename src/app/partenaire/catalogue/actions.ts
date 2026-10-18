@@ -40,16 +40,22 @@ export async function creerProduitCatalogue(form: FormData) {
   const { data: association } = await sb.from("partner_universes").select("enabled")
     .eq("partner_id", partnerId).eq("universe_slug", universe).maybeSingle();
   if (!association?.enabled) redirect("/partenaire/catalogue?erreur=univers");
-  const { error } = await sb.from("partner_products").insert({
+  const { data: created, error } = await sb.from("partner_products").insert({
     partner_id: partnerId, universe_slug: universe, name,
     brand: field(form, "brand", 120) || null,
     category: field(form, "category", 100) || "Autres",
     description: field(form, "description", 600) || null,
-    photo_url: photo || null, price_fcfa: price, stock_quantity: stock,
+    photo_url: photo || null, price_fcfa: price, stock_quantity: 0,
     unit_label: field(form, "unit_label", 30) || "unité",
     status: "draft", created_by: userId,
-  });
-  if (error) redirect("/partenaire/catalogue?erreur=produit");
+  }).select("id").single();
+  if (error || !created) redirect("/partenaire/catalogue?erreur=produit");
+  if (stock > 0) {
+    const { error: stockError } = await sb.rpc("partner_adjust_universe_stock", {
+      p_product_id: created.id, p_quantity_delta: stock, p_movement_type: "opening", p_reason: "Stock initial à la création du produit",
+    });
+    if (stockError) redirect("/partenaire/catalogue?erreur=stock");
+  }
   revalidatePath("/partenaire/catalogue");
   revalidatePath("/" + universe);
   redirect("/partenaire/catalogue?ok=creation");

@@ -15,7 +15,6 @@ export function CsvCatalogueTools({ partnerOptions }: { partnerOptions: { id: st
   const [partnerId, setPartnerId] = useState(partnerOptions[0]?.id ?? "");
   const [universe, setUniverse] = useState(partnerOptions[0]?.universes[0] ?? "parapharmacie");
   const allowed = partnerOptions.find((p) => p.id === partnerId)?.universes ?? [];
-  const headers = ["name", "price_fcfa", "stock_quantity", "category", "brand", "description", "unit_label", "photo_url"];
   const sample = "name;price_fcfa;stock_quantity;category;brand;description;unit_label;photo_url\nCrème hydratante;3500;12;Soins;NAXA;Hydratation;unité;https://exemple.cm/image.jpg";
   const previewRows = useMemo(() => preview, [preview]);
   return <section className="rounded-2xl border bg-white p-5 shadow-sm">
