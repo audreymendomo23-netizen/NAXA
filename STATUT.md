@@ -389,3 +389,5 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration 106 ajoute une RPC d'import atomique qui crée les produits en brouillon, écrit les stocks initiaux dans le journal append-only et annule toute la transaction si une ligne échoue.
 - L'import reste additif : aucun produit existant n'est supprimé ni remplacé. Import limité à 500 lignes côté serveur.
 - Migration 106 non appliquée à Supabase ; tests/compilation non exécutés.
+
+- Le formulaire de création expose désormais le seuil d'alerte et la date d'expiration ; l'import CSV accepte également ces deux colonnes.

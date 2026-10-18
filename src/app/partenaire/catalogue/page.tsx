@@ -22,7 +22,7 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
   if (!active.length) redirect("/");
   const ids = active.map((m) => m.partner_id);
   const [productsResult, movementsResult, associationsResult] = await Promise.all([
-    sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,status,updated_at,expires_at")
+    sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,low_stock_threshold,status,updated_at,expires_at")
       .in("partner_id", ids).order("updated_at", { ascending: false }).limit(200),
     sb.from("stock_movements").select("id,partner_id,product_id,quantity_delta,movement_type,reason,created_at")
       .in("partner_id", ids).order("created_at", { ascending: false }).limit(80),
@@ -46,7 +46,7 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
       <label className="text-sm font-semibold">Marque<input className={field} name="brand" maxLength={120}/></label>
       <label className="text-sm font-semibold">Catégorie<input className={field} name="category" maxLength={100} defaultValue="Autres"/></label>
       <label className="text-sm font-semibold">Prix (FCFA)<input className={field} name="price_fcfa" type="number" min="0" step="1" required/></label>
-      <label className="text-sm font-semibold">Stock initial<input className={field} name="stock_quantity" type="number" min="0" max="1000000" step="0.001" required/></label>
+      <label className="text-sm font-semibold">Stock initial<input className={field} name="stock_quantity" type="number" min="0" max="1000000" step="0.001" required/></label>\n      <label className="text-sm font-semibold">Seuil d’alerte stock<input className={field} name="low_stock_threshold" type="number" min="0" max="1000000" step="0.001" defaultValue="3" required/></label>\n      <label className="text-sm font-semibold">Date d’expiration (facultative)<input className={field} name="expires_at" type="date"/></label>
       <label className="text-sm font-semibold">Unité<input className={field} name="unit_label" maxLength={30} defaultValue="unité"/></label>
       <label className="text-sm font-semibold sm:col-span-2">Photo (URL HTTPS)<input className={field} name="photo_url" type="url" placeholder="https://…"/></label>
       <label className="text-sm font-semibold sm:col-span-2">Description<textarea className={field} name="description" maxLength={600} rows={3}/></label>
