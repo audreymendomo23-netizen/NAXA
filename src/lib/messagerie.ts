@@ -28,5 +28,16 @@ export function useNotifications() {
     }).subscribe();
     return () => { void sb.removeChannel(channel); };
   }, [charger]);
-  return { items, nonLus: items.filter(n => !n.lu_le).length, loading, erreur, actualiser: charger };
+  const marquerLue = useCallback(async (id: string) => {
+    const sb = supabaseBrowser();
+    const { data, error } = await sb.rpc("mark_user_notification_read", { p_notification_id: id });
+    if (error || data !== true) {
+      setErreur("Impossible de marquer cette notification comme lue pour le moment.");
+      return false;
+    }
+    setItems(old => old.map(item => item.id === id ? { ...item, lu_le: item.lu_le ?? new Date().toISOString() } : item));
+    return true;
+  }, []);
+
+  return { items, nonLus: items.filter(n => !n.lu_le).length, loading, erreur, actualiser: charger, marquerLue };
 }
