@@ -34,3 +34,9 @@ Migration additive 126 :
 - Les rappels sont enregistrés en base; la livraison de notifications système/push n’est pas implémentée ici.
 - Aucun diagnostic, seuil clinique ou recommandation de posologie n’est calculé.
 - Compilation Next.js et test navigateur ne sont pas réputés exécutés tant qu’un runner accessible ne les a pas réellement lancés.
+
+
+## Correctifs de contradiction ajoutés
+- Migration 127 : le destinataire professionnel vérifié peut lire ses partages actifs; l’administration peut ajouter/révoquer les professionnels via `/admin/univers`.
+- Migration 128 : retirer le consentement d’une famille révoque automatiquement tous les partages actifs des types appartenant à cette famille. Le propriétaire peut aussi révoquer un partage même si le professionnel a depuis été désactivé.
+- Test 127 réussi sur Production : `naxa_127_suivi_sharing_policies_pass = true`. Test 128 réussi sur Production : `naxa_128_consent_revocation_shares_pass = true`.
