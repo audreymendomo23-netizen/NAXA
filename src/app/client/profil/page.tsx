@@ -22,6 +22,7 @@ function Icon({ name, size = 24, className = "" }: { name: string; size?: number
   const paths: Record<string, React.ReactNode> = {
     pin: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
     wallet: <><rect x="3" y="5" width="18" height="15" rx="2.5"/><path d="M3 9h18M16 14h2"/></>,
+    banknote: <><rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 8h.01M18 16h.01"/></>,
     globe: <><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></>,
     clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></>,
     file: <><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></>,
@@ -285,7 +286,7 @@ export default function ProfilClientPage() {
 
   const topRows = [
     { icon: "pin", title: savedLanguage === "en" ? "Default address" : "Adresse par défaut", subtitle: shown.address || (savedLanguage === "en" ? "Add an address" : "Ajouter une adresse"), href: "/client/profil/adresse" },
-    { icon: "wallet", title: savedLanguage === "en" ? "Payment" : "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
+    { icon: "banknote", title: savedLanguage === "en" ? "Payment" : "Paiement", subtitle: savedPaymentMethod, href: "/client/profil/paiement" },
     { icon: "globe", title: savedLanguage === "en" ? "Language" : "Langue", subtitle: savedLanguage === "en" ? "English" : "Français", href: "#language", action: "language" }
   ];
   const sections = [
