@@ -22,6 +22,7 @@ export default async function AdminHomeServices({ searchParams }: { searchParams
     (!searchParams.statut || offer.status === searchParams.statut) &&
     (!query || [offer.name, offer.category, offer.description ?? "", offer.service_area_label, offer.partners?.name ?? "", offer.partners?.city ?? "", offer.partners?.neighborhood ?? ""].join(" ").toLocaleLowerCase("fr").includes(query))
   );
+  const colonnes = [{ key: "draft", label: "À examiner", items: filteredOffers.filter((offer: any) => offer.status === "draft") }, { key: "active", label: "Publiées", items: filteredOffers.filter((offer: any) => offer.status === "active") }, { key: "archived", label: "Archivées", items: filteredOffers.filter((offer: any) => offer.status === "archived") }];
   const broken = !!error;
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900">
     <div className="mx-auto max-w-5xl space-y-5 pt-4">
@@ -38,11 +39,11 @@ export default async function AdminHomeServices({ searchParams }: { searchParams
       </form>}
       {!broken && allOffers.length > 0 && <p className="text-sm font-semibold text-slate-600">{filteredOffers.length} offre(s) affichée(s) sur {allOffers.length}</p>}
       {!broken && filteredOffers.length === 0 && allOffers.length > 0 && <p className="rounded-2xl border bg-white p-5 text-sm text-slate-600">Aucune offre ne correspond aux filtres.</p>}
-      <div className="space-y-4">{filteredOffers.map((offer: any) => <article key={offer.id} className="rounded-2xl border bg-white p-5 shadow-sm">
+      <div className="admin-kanban admin-kanban-services" aria-label="Prestations par statut">{colonnes.map(colonne=><section key={colonne.key} className="admin-kanban-column"><header className="admin-kanban-column-header"><div><h2>{colonne.label}</h2><p>État de publication</p></div><span>{colonne.items.length}</span></header><div className="admin-kanban-cards">{colonne.items.map((offer: any) => <article key={offer.id} className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-wide text-[#B73623]">{statusLabel[offer.status] ?? offer.status}</p><h2 className="mt-1 text-xl font-black">{offer.name}</h2><p className="mt-1 text-sm text-slate-600">{offer.category} · {offer.service_area_label}</p><p className="mt-1 text-sm font-semibold">{offer.price_fcfa == null ? "Tarif à confirmer" : Number(offer.price_fcfa).toLocaleString("fr-FR") + " FCFA"}</p><p className="mt-2 text-sm">Professionnel : <strong>{offer.partners?.name}</strong> · {[offer.partners?.neighborhood, offer.partners?.city].filter(Boolean).join(" · ")}</p><p className="mt-1 text-xs text-slate-500">Statut partenaire : {offer.partners?.status} · Type : {offer.partners?.partner_type}</p>{offer.description && <p className="mt-3 text-sm leading-5 text-slate-600">{offer.description}</p>}</div>
           <div className="flex flex-wrap gap-2">{offer.status !== "active" && <form action={setHomeServiceOfferStatus}><input type="hidden" name="offer_id" value={offer.id}/><input type="hidden" name="status" value="active"/><button disabled={broken} className="min-h-10 rounded-lg bg-emerald-700 px-3 text-sm font-bold text-white disabled:opacity-40">Valider et publier</button></form>}{offer.status !== "draft" && <form action={setHomeServiceOfferStatus}><input type="hidden" name="offer_id" value={offer.id}/><input type="hidden" name="status" value="draft"/><button disabled={broken} className="min-h-10 rounded-lg border px-3 text-sm font-bold disabled:opacity-40">Brouillon</button></form>}{offer.status !== "archived" && <form action={setHomeServiceOfferStatus}><input type="hidden" name="offer_id" value={offer.id}/><input type="hidden" name="status" value="archived"/><button disabled={broken} className="min-h-10 rounded-lg border border-red-300 px-3 text-sm font-bold text-red-800 disabled:opacity-40">Archiver</button></form>}</div>
         </div>
-      </article>)}</div>
+      </article>)}</div></section>)}</div>
     </div>
   </main>;
 }

@@ -9,6 +9,9 @@ export default async function ValiditePage(){
  if(p?.role!=="admin")return null;
  const{data,error}=await sb.rpc("validites_promoteurs_admin");
  const rows=(data||[]) as any[];
+ const enRetard=rows.filter(r=>r.statut==="impaye"||r.jours_restants<0).length;
+ const echeancesConfigurees=rows.filter(r=>!!r.echeance).length;
+ const conventionsValides=rows.length-enRetard;
  return <main className="min-h-screen bg-[#ACDC76] p-3 sm:p-6"><div className="mx-auto max-w-7xl space-y-4">
   <header className="rounded-3xl bg-black p-5 text-white">
    <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage réseau</p>
@@ -16,7 +19,7 @@ export default async function ValiditePage(){
    <p className="mt-2 text-sm text-white/80">Une convention, un tarif et un abonnement par Promoteur · rappel automatique à J-5 · blocage de toutes les pharmacies à échéance · réactivation administrative après règlement.</p>
   </header>
   {error&&<div className="rounded-3xl bg-white p-4 text-red-700">{error.message}</div>}
-  <div className="grid gap-4">{rows.map(r=>{
+  <div className="admin-team-layout"><div className="admin-team-main"><div className="grid gap-4">{rows.map(r=>{
    const overdue=r.statut==="impaye"||r.jours_restants<0;
    return <article key={r.promoteur_id} className="rounded-3xl bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -35,6 +38,6 @@ export default async function ValiditePage(){
       <button className="min-h-11 rounded-full bg-[#0147BB] px-5 font-bold text-white">Règlement reçu · Réactiver</button>
     </form>}
    </article>
-  })}</div>
+  })}</div></div><aside className="admin-team-aside" aria-label="Synthèse des conventions"><section className="admin-team-summary"><p>Promoteurs suivis</p><strong>{rows.length}</strong><small>Selon les données retournées par le service administratif</small></section><section className="admin-team-summary is-attention"><p>À régulariser</p><strong>{enRetard}</strong><small>Échéance dépassée ou statut impayé</small></section><section className="admin-team-summary"><p>Échéances configurées</p><strong>{echeancesConfigurees}</strong><small>Sur {rows.length} promoteur(s)</small></section><section className="admin-team-summary"><p>Conventions non signalées en retard</p><strong>{conventionsValides}</strong><small>Ne remplace pas la vérification du règlement</small></section></aside></div>
  </div></main>;
 }
