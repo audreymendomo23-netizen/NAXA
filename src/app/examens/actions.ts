@@ -8,6 +8,8 @@ export async function reserverExamen(form:FormData){
  const sb=supabaseServer();
  const {data:auth}=await sb.auth.getUser();
  if(!auth.user) redirect("/connexion?retour=/examens");
+ const {data:profile,error:profileError}=await sb.from("profiles").select("role").eq("id",auth.user.id).maybeSingle();
+ if(profileError || profile?.role!=="client") redirect("/connexion?retour=/examens&erreur=compte");
  const slotId=String(form.get("slot_id")??"");
  const serviceId=String(form.get("service_id")??"");
  const packId=String(form.get("pack_id")??"");
