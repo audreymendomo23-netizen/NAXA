@@ -349,3 +349,15 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Les univers commerciaux, le suivi santé, les experts et le paiement client restent désactivés par défaut; le suivi est explicitement limité aux comptes autorisés par feature flag (le contrôle effectif des lectures de données devra être ajouté avant d'activer le parcours).
 - Le journal de mouvements ne modifie pas encore les stocks existants : aucun impact sur la pharmacie historique. Les parcours admin et partenaires, les fonctions transactionnelles de stock et les tests SQL restent à implémenter.
 - **Non appliqué à Supabase Production**, non compilé et non testé; aucun déploiement Vercel effectué. Le commit sur `main` est du code source uniquement.
+
+
+## Univers multi-services — administration, catalogue et réservation (18 octobre 2026, poursuite)
+
+- Commit `a4f5a81c1c0004e12f0df8b98e0fa249a2217b08` : actions serveur de création de partenaire en statut `pending`, activation/suspension/réactivation, activation d’univers et journalisation des actions. Chaque action revérifie le rôle administrateur et valide les champs côté serveur.
+- Commit `28a0fa12eedb1729bac614207093d5634b39b725` puis `2c2dd9960c7fdd3681cf0e037fa0174bbd2dddfe` : console `/admin/univers`, en lecture seule à ce stade.
+- Commit `bf0c0509b428f10b5ac57f059a541bc50c4ac02e` : migration 099 — tables de catalogue partenaire, réservations avec retrait, lignes d’articles, règles de stock réservé et transitions atomiques. Le retrait confirmé diminue le stock physique et écrit un mouvement append-only; annulation/libération ne touche pas le stock physique.
+- Commit `503cc3a6316c0bca93bdf72742dd8490d848342e` : migration 100 — fonction de lecture publique à projection minimale et correction de la politique RLS du catalogue sans exposer les coordonnées privées des partenaires.
+- Commit `e5b778456b0ce33e6e60b0b810ab22f334cad122` : premières pages catalogue Parapharmacie et Bébé & Maman, action de réservation individuelle et reçu avec code de retrait, total indicatif, statut et annulation client.
+- La liste de produits est alimentée par `get_universe_catalog`; les pages retombent sur l’écran « Bientôt disponible » si le catalogue n’est pas activé ou si les migrations ne sont pas accessibles. Aucun paiement en ligne ni livraison n’est ajouté.
+- **À vérifier avant activation réelle :** appliquer les migrations 098 → 099 → 100 → 101 dans cet ordre sur un environnement de test, contrôler les politiques RLS et fonctions SQL, puis tester concurrence/annulation/retrait et les restrictions de Bébé & Maman. La migration 101 fournit la lecture sécurisée du reçu.
+- **État actuel :** code poussé sur `main`; aucune migration exécutée sur Supabase, aucun déploiement Vercel, aucune compilation/test CI exécutés conformément à la consigne de réserver la vérification à la fin du chantier. Les parcours de réservation ne sont donc pas encore déclarés validés.
