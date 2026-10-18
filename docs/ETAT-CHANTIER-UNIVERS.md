@@ -272,3 +272,7 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Test 126 exécuté sur le projet isolé et Production : `naxa_126_suivi_connected_security_pass = true`. Test 127 exécuté sur Production : `naxa_127_suivi_sharing_policies_pass = true`. Vérifications : six tables présentes, RLS activée, flag expérimental actif, univers commercial toujours désactivé, quatre verrous 125 conservés et UUID absent non autorisé.
 - Au moment de la vérification, la liste `feature_flag_test_accounts` en Production contenait zéro compte : aucun utilisateur n’a donc accès au suivi connecté tant qu’un administrateur n’a pas autorisé explicitement les UUID de test.
 - Limites : OCR via `TextDetector` n’est pas disponible sur tous les navigateurs; Bluetooth implémenté uniquement pour le service Heart Rate compatible; rappels persistés mais pas de garantie de notification push; aucun diagnostic/seuil clinique/posologie calculé. Build Next.js et tests navigateur non exécutés. Aucun déploiement Vercel lancé.
+
+
+- Migration 127 : politiques de lecture des partages par le professionnel destinataire vérifié et gestion du registre professionnel réservée à l’administration.
+- Migration 128 : retrait du consentement à une famille révoque les partages actifs associés à cette famille; le propriétaire conserve la possibilité de révoquer après désactivation du professionnel. Test Production : `naxa_128_consent_revocation_shares_pass = true`.
