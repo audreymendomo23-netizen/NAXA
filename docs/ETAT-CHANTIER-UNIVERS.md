@@ -251,3 +251,12 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - **Preuves sur environnement isolé `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) :** migration 124 appliquée avec succès ; test structurel 124 exécuté sans exception ; test existant `113_117_home_services_security_notifications.sql` exécuté et résultat `naxa_113_118_home_services_security_pass = true`.
 - **Limites honnêtes :** migration 124 non appliquée à Supabase Production ; aucune donnée Production modifiée ; compilation Next.js et parcours navigateur non exécutés ; aucun déploiement Vercel lancé. Le test 124 est structurel et ne remplace pas un scénario de bout en bout avec comptes client/partenaire/admin.
 
+
+
+## Étape 5 — Dispositifs médicaux verrouillés en phase 1 (19 octobre 2026)
+
+- Migration additive 125 : `supabase/migration_125_medical_devices_phase1_lock.sql`. Elle fixe le nom public de l’univers à « Dispositifs médicaux », force l’univers et son indicateur `universe.suivi` à désactivé, puis désactive toute association partenaire active de cet univers.
+- Quatre déclencheurs de base empêchent toute activation directe de l’univers, du feature flag, d’une association partenaire ou la publication d’un produit dans cet univers. La règle ne dépend donc pas seulement des contrôles UI/actions serveur.
+- Administration : le libellé « Suivi santé » a été remplacé par « Dispositifs médicaux ». La route `/suivi` reste une page informative « Bientôt disponible » et ne collecte ni ne synchronise de mesures de santé.
+- Test `supabase/tests/125_medical_devices_phase1_lock.sql` exécuté sur Supabase Production et sur `naxa-ci-replay-2` : `naxa_125_medical_devices_phase1_lock_pass = true` sur les deux bases. Le test tente aussi les quatre voies d’activation/publication et vérifie qu’elles sont refusées.
+- Aucun déploiement Vercel n’a été lancé. Build Next.js et tests navigateur restent non exécutés dans ce chantier.
