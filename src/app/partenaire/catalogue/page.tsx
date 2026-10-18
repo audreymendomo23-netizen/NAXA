@@ -21,16 +21,19 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
   const active = (memberships as any[]).filter((m) => m.partners?.status === "active");
   if (!active.length) redirect("/");
   const ids = active.map((m) => m.partner_id);
-  const [productsResult, movementsResult, associationsResult] = await Promise.all([
+  const [productsResult, movementsResult, associationsResult, alertsResult] = await Promise.all([
     sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,low_stock_threshold,status,updated_at,expires_at")
       .in("partner_id", ids).order("updated_at", { ascending: false }).limit(200),
     sb.from("stock_movements").select("id,partner_id,product_id,quantity_delta,movement_type,reason,created_at")
       .in("partner_id", ids).order("created_at", { ascending: false }).limit(80),
     sb.from("partner_universes").select("partner_id,universe_slug,enabled").in("partner_id", ids),
+    sb.rpc("get_partner_catalogue_alerts"),
   ]);
   const products = productsResult.data ?? [];
   const movements = movementsResult.data ?? [];
   const associations = associationsResult.data ?? [];
+  const alerts = alertsResult.data ?? [];
+  const alertsBroken = !!alertsResult.error;
   const broken = !!(productsResult.error || movementsResult.error || associationsResult.error);
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-6xl space-y-5 pt-4">
     <header className="-mx-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white sm:mx-0 sm:rounded-2xl"><Logo taille={32}/><nav className="flex gap-4"><Link href="/partenaire/reservations" className="font-bold underline">Réservations</Link><Link href="/" className="font-bold underline">← Accueil</Link></nav></header>
@@ -38,7 +41,14 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
     {searchParams.ok && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "creation" ? "Produit enregistré en brouillon." : searchParams.ok === "stock" ? "Stock et journal mis à jour." : searchParams.ok === "csv" ? "Import terminé : les produits ont été créés en brouillon, sans remplacer les produits existants." : "Statut du produit mis à jour."}</p>}
     {searchParams.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "univers" ? "Cet univers n’est pas activé pour ce partenaire." : searchParams.erreur === "stock" ? "Mouvement refusé : vérifiez le produit, la quantité et le stock disponible." : searchParams.erreur === "csv" ? "CSV invalide : utilisez un fichier UTF-8 avec séparateur point-virgule, les colonnes name, price_fcfa et stock_quantity, au plus 500 lignes et 2 Mo, et des dates/prix/quantités valides." : "Action impossible : vérifiez les champs et les droits du compte."}</p>}
     {broken && <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Les tables de catalogue ou le journal ne sont pas disponibles. La migration 104 doit être appliquée après les migrations 098 à 103. Aucun changement n’est effectué par cet affichage.</div>}
-    <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="text-xl font-extrabold">Alertes stock et expiration</h2><p className="mt-1 text-sm text-slate-600">Seuil d’alerte provisoire : 3 unités. Les produits expirés sont masqués du catalogue public par la règle SQL existante.</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{products.filter((p:any)=>p.status!=="archived"&&Number(p.stock_quantity)<=Number(p.low_stock_threshold??3)).map((p:any)=><div key={"low-"+p.id} className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-xs font-bold uppercase text-amber-900">Stock faible</p><p className="font-bold">{p.name}</p><p className="text-sm">{p.stock_quantity} restant(s) · seuil {p.low_stock_threshold??3}</p></div>)}{products.filter((p:any)=>p.status!=="archived"&&p.expires_at&&new Date(p.expires_at+"T23:59:59")<=new Date(Date.now()+30*86400000)).map((p:any)=><div key={"exp-"+p.id} className="rounded-xl border border-red-200 bg-red-50 p-3"><p className="text-xs font-bold uppercase text-red-900">{new Date(p.expires_at+"T23:59:59")<new Date()?"Produit expiré":"Expiration dans 30 jours"}</p><p className="font-bold">{p.name}</p><p className="text-sm">Date : {p.expires_at}</p></div>)}{!products.some((p:any)=>p.status!=="archived"&&(Number(p.stock_quantity)<=Number(p.low_stock_threshold??3)||(p.expires_at&&new Date(p.expires_at+"T23:59:59")<=new Date(Date.now()+30*86400000))) )&&<p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucune alerte pour les produits chargés.</p>}</div></section>
+    <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="text-xl font-extrabold">Alertes stock et expiration</h2><p className="mt-1 text-sm text-slate-600">Les alertes sont calculées sur tous les produits non archivés de tes établissements, indépendamment de la liste récente des 200 produits.</p>
+      {alertsBroken && <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">Le service d’alertes n’est pas disponible. Vérifie la migration 111 dans l’environnement concerné ; aucun stock n’a été modifié.</p>}
+      {!alertsBroken && <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {alerts.filter((p:any)=>p.low_stock).map((p:any)=><div key={"low-"+p.product_id} className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-xs font-bold uppercase text-amber-900">Stock faible</p><p className="font-bold">{p.name}</p><p className="text-sm">{p.stock_quantity} restant(s) · seuil {p.low_stock_threshold}</p></div>)}
+        {alerts.filter((p:any)=>p.expires_at).map((p:any)=><div key={"exp-"+p.product_id} className={"rounded-xl border p-3 "+(p.is_expired?"border-red-200 bg-red-50":"border-amber-200 bg-amber-50")}><p className={"text-xs font-bold uppercase "+(p.is_expired?"text-red-900":"text-amber-900")}>{p.is_expired?"Produit expiré":p.days_until_expiry===0?"Expire aujourd’hui":"Expiration dans "+p.days_until_expiry+" jour(s)"}</p><p className="font-bold">{p.name}</p><p className="text-sm">Date : {p.expires_at}</p></div>)}
+        {!alerts.length && <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucune alerte pour les produits suivis.</p>}
+      </div>}
+    </section>
     <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="text-xl font-extrabold">Ajouter un produit</h2><form action={creerProduitCatalogue} className="mt-4 grid gap-3 sm:grid-cols-2">
       <label className="text-sm font-semibold">Partenaire<select className={field} name="partner_id" required>{active.map((m: any) => <option key={m.partner_id} value={m.partner_id}>{m.partners.name}</option>)}</select></label>
       <label className="text-sm font-semibold">Univers<select className={field} name="universe_slug" required><option value="parapharmacie">Parapharmacie</option><option value="bebe-maman">Bébé & Maman</option></select></label>
