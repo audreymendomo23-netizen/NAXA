@@ -28,12 +28,12 @@ const actions = [
   { titre: "Noter l’application", description: "Envoyer votre avis sur NAXA", href: "mailto:naxa.home@gmail.com?subject=Avis%20sur%20NAXA", mots: "noter application avis évaluation" },
   { titre: "Posologie et rappels", description: "Gérer les rappels prescrits", href: "/client/posologie", mots: "posologie rappels horaires prise traitement" },
   { titre: "Pharmacies de garde", description: "Pharmacies de garde proches", href: "/gardes", mots: "garde gardes pharmacies nuit" },
-  { titre: "Parapharmacie", description: "Parapharmacie", href: "/resultats?q=Parapharmacie", mots: "parapharmacie soins" },
-  { titre: "Bébé & maman", description: "Produits bébé et maternité", href: "/resultats?q=Bébé%20et%20maman", mots: "bébé maman maternité" },
-  { titre: "Dispositifs médicaux", description: "Matériel et dispositifs", href: "/resultats?q=Dispositifs%20médicaux", mots: "dispositifs médicaux matériel" },
-  { titre: "Examens médicaux", description: "Trouver un examen", href: "/resultats?q=Examens%20médicaux", mots: "examens analyses laboratoire" },
-  { titre: "Soins à domicile", description: "Prestations et soins", href: "/resultats?q=Prestations%20et%20soins%20à%20domicile", mots: "soins domicile prestations" },
-  { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA", mots: "aide contact assistance support" },
+  { titre: "Parapharmacie", description: "Parapharmacie", href: "/parapharmacie", mots: "parapharmacie soins" },
+  { titre: "Bébé & maman", description: "Produits bébé et maternité", href: "/bebe-maman", mots: "bébé maman maternité" },
+  { titre: "Dispositifs médicaux", description: "Matériel et dispositifs", href: "/suivi", mots: "dispositifs médicaux matériel" },
+  { titre: "Examens médicaux", description: "Trouver un examen", href: "/examens", mots: "examens analyses laboratoire" },
+  { titre: "Soins à domicile", description: "Prestations et soins", href: "/prestations", mots: "soins domicile prestations" },
+  { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "/aide", mots: "aide contact assistance support" },
 ];
 
 const cle = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").trim();
