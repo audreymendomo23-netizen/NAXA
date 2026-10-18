@@ -278,3 +278,5 @@ Terminer les derniers ajustements du périmètre actuel (prestations à domicile
 - Migration 128 : retrait du consentement à une famille révoque les partages actifs associés à cette famille; le propriétaire conserve la possibilité de révoquer après désactivation du professionnel. Test Production : `naxa_128_consent_revocation_shares_pass = true`.
 
 - Migration 129 : alertes privées uniquement à partir des plages numériques configurées par l’utilisateur (aucune plage clinique préremplie), avec RLS et marquage des alertes comme lues. Tests 129 réussis sur Production et environnement isolé.
+
+- Migrations 130–131 : vérification de cohorte durcie contre l’énumération d’UUID; le partage exige un consentement actif aussi lors d’une réactivation; les alertes ne peuvent pas être fabriquées/supprimées directement par le client. Tests 130 et 131 réussis.
