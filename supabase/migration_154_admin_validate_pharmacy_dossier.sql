@@ -1,5 +1,6 @@
 -- NAXA 154 — validation atomique des dossiers Promoteur/pharmacie.
 -- La validation documentaire reste une attestation d'un administrateur; aucun fichier n'est stocké ici.
+begin;
 create or replace function public.admin_valider_dossier_pharmacie(
   p_pharmacie uuid,
   p_autorisations_verifiees boolean
@@ -138,3 +139,5 @@ $function$;
 
 revoke all on function public.admin_valider_dossier_pharmacie(uuid, boolean) from public, anon;
 grant execute on function public.admin_valider_dossier_pharmacie(uuid, boolean) to authenticated;
+
+commit;
