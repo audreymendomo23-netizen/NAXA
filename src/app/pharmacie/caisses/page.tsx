@@ -15,7 +15,8 @@ export default async function CaissesPage({ searchParams }: Props) {
     .select("id,role,actif")
     .eq("id", auth.user.id)
     .single();
-  if (profile?.role !== "promoteur" || profile.actif !== true) redirect("/pharmacie");
+  if (profile?.role !== "promoteur") redirect("/pharmacie");
+  if (profile.actif !== true) redirect("/pharmacie/promoteur");
 
   const [{ data: links, error: linksError }, { data: caisses, error: caissesError }] = await Promise.all([
     sb.from("promoteur_pharmacies")
