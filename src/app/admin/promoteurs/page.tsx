@@ -6,6 +6,7 @@ type SearchParams = { ok?: string; erreur?: string };
 
 const erreurs: Record<string, string> = {
   verification: "Cochez la confirmation après vérification effective des autorisations.",
+  "validation-impossible": "La validation a échoué et la transaction a été annulée. Vérifiez les prérequis du dossier et réessayez.",
   pharmacie: "Pharmacie introuvable ou impossible à lire.",
   rattachement: "Le rattachement Promoteur–pharmacie est absent ou ambigu.",
   promoteur: "Le compte Promoteur ou son architecture est invalide.",
