@@ -31,6 +31,7 @@ export async function validerDossierPharmacie(formData: FormData) {
     if (message.includes("pharmacie introuvable")) redirect("/admin/promoteurs?erreur=pharmacie");
     if (message.includes("rattachement")) redirect("/admin/promoteurs?erreur=rattachement");
     if (message.includes("promoteur")) redirect("/admin/promoteurs?erreur=promoteur");
+    if (message.includes("dossier administratif")) redirect("/admin/promoteurs?erreur=dossier-incomplet");
     if (message.includes("convention") || message.includes("abonnement") || message.includes("architecture")) {
       redirect("/admin/promoteurs?erreur=contrat");
     }
