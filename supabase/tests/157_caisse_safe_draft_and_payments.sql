@@ -10,6 +10,8 @@ declare
   v_atomic_security boolean;
   v_actor_guard text;
   v_sale_guard text;
+  v_line_guard text;
+  v_payment_guard text;
   v_session_guard text;
   v_session_trigger text;
   v_vente_trigger text;
@@ -97,6 +99,22 @@ begin
     into v_sale_guard
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='naxa_guard_pos_vente_write' and p.pronargs=0;
+
+  select pg_get_functiondef(p.oid) into v_line_guard
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='naxa_guard_pos_line_write' and p.pronargs=0;
+  select pg_get_functiondef(p.oid) into v_payment_guard
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='naxa_guard_pos_payment_write' and p.pronargs=0;
+
+  if v_line_guard is null or v_payment_guard is null
+     or position('cs.statut' in lower(v_line_guard))=0
+     or position('cs.ouvert_par' in lower(v_line_guard))=0
+     or position('cs.statut' in lower(v_payment_guard))=0
+     or position('cs.ouvert_par' in lower(v_payment_guard))=0 then
+    raise exception 'Lignes et paiements doivent être liés à une session ouverte détenue par le caissier';
+  end if;
+
   if v_sale_guard is null
      or position('for update' in lower(v_sale_guard))=0
      or position('created_by' in lower(v_sale_guard))=0
