@@ -26,7 +26,8 @@ export default async function AdminUnivers({ searchParams }: { searchParams: { o
     sb.from("partner_universes").select("partner_id,universe_slug,enabled"),
     sb.from("feature_flag_test_accounts").select("user_id,reason,created_at").order("created_at", { ascending: false }),
     sb.from("audit_log").select("id,action,entity_type,entity_id,metadata,created_at").order("created_at", { ascending: false }).limit(20),
-    sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,status,created_at").order("created_at", { ascending: false }).limit(100),\n    sb.from("suivi_professionals").select("user_id,professional_role,display_name,verified,created_at").order("created_at", { ascending: false }),
+    sb.from("partner_products").select("id,partner_id,universe_slug,name,category,price_fcfa,stock_quantity,status,created_at").order("created_at", { ascending: false }).limit(100),
+    sb.from("suivi_professionals").select("user_id,professional_role,display_name,verified,created_at").order("created_at", { ascending: false }),
   ]);
   const missing = !!(u.error || f.error || p.error || a.error || t.error || logs.error || productsResult.error || suiviPros.error);
   const universActifs = (u.data ?? []).filter((x) => x.enabled).length;
