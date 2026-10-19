@@ -36,6 +36,7 @@ const types: TrackType[] = [
   {key:"medicament_pris",label:"Prise déclarée",unit:"",family:"traitements",numeric:false},
   {key:"symptome_note",label:"Note personnelle",unit:"",family:"bien_etre",numeric:false},
 ];
+type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"; active:boolean };
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
 type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
@@ -49,6 +50,7 @@ export function SuiviConnecte() {
   const [preferredName, setPreferredName] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [history, setHistory] = useState<Measurement[]>([]);
+  const [devices, setDevices] = useState<UserDevice[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [alerts, setAlerts] = useState<TrackingAlert[]>([]);
@@ -71,18 +73,17 @@ export function SuiviConnecte() {
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
     if (!userData.user) { setAllowed(false); return; }
-    const { data: allow } = await sb.rpc("is_suivi_test_account", { p_user_id: userData.user.id });
-    if (allow !== true) { setAllowed(false); return; }
     setAllowed(true);
-    const [p, c, m, r, ar, al] = await Promise.all([
+    const [p, c, m, r, ar, al, d] = await Promise.all([
       sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
       sb.from("suivi_consents").select("family_key,granted").eq("user_id",userData.user.id),
       sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(100),
       sb.from("suivi_reminders").select("id,measurement_type,title,due_at,repeat_rule,enabled").eq("user_id",userData.user.id).order("due_at",{ascending:true}).limit(100),
       sb.from("suivi_alert_rules").select("id,measurement_type,min_value,max_value,enabled").eq("user_id",userData.user.id),
       sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
+      sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active").eq("user_id",userData.user.id).order("created_at",{ascending:true}),
     ]);
-    if (p.error || c.error || m.error || r.error || ar.error || al.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
+    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
     setPreferredName(p.data?.preferred_name ?? "");
     setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");
     setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
@@ -90,6 +91,7 @@ export function SuiviConnecte() {
     setReminders((r.data??[]) as Reminder[]);
     setAlertRules((ar.data??[]) as AlertRule[]);
     setAlerts((al.data??[]) as TrackingAlert[]);
+    setDevices((d.data??[]) as UserDevice[]);
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
@@ -104,6 +106,37 @@ export function SuiviConnecte() {
   const typeInfo = types.find(t=>t.key===selectedType)!;
   const selectedConsent = !!consents[typeInfo.family];
   const grantedFamilies = families.filter(f=>consents[f.key]).length;
+
+  const deviceCatalog = [
+    { key:"tensiometre", name:"Tensiomètre", mode:"manual" as const, family:"constantes" as Family, description:"Saisissez la tension mesurée sur votre appareil." },
+    { key:"thermometre", name:"Thermomètre", mode:"manual" as const, family:"constantes" as Family, description:"Ajoutez une température relevée." },
+    { key:"oxymetre", name:"Oxymètre de pouls", mode:"manual" as const, family:"constantes" as Family, description:"Saisissez la saturation affichée." },
+    { key:"glucometre", name:"Glucomètre", mode:"manual" as const, family:"metabolisme" as Family, description:"Saisissez le résultat avec l’unité indiquée par l’appareil." },
+    { key:"balance", name:"Balance connectée ou classique", mode:"manual" as const, family:"metabolisme" as Family, description:"Ajoutez votre poids; la connexion automatique n’est pas prise en charge ici." },
+    { key:"capteur_cardiaque_bluetooth", name:"Capteur cardiaque Bluetooth", mode:"bluetooth" as const, family:"constantes" as Family, description:"Lecture directe compatible Bluetooth GATT, service fréquence cardiaque standard, via Chrome Android/HTTPS." },
+    { key:"podometre", name:"Podomètre / bracelet d’activité", mode:"manual" as const, family:"activite" as Family, description:"Déclarez les pas ou minutes d’activité; synchronisation automatique non disponible." },
+  ];
+
+  async function toggleDevice(device: typeof deviceCatalog[number]) {
+    const existing = devices.find(d => d.device_key === device.key);
+    if (!existing && !consents[device.family]) {
+      setNotice(`Acceptez d’abord le consentement « ${families.find(f=>f.key===device.family)?.label} » pour activer ce dispositif.`);
+      return;
+    }
+    setBusy(true); setNotice("");
+    const { data:userData } = await sb.auth.getUser();
+    if (!userData.user) { setNotice("Session expirée. Reconnectez-vous."); setBusy(false); return; }
+    const { error } = existing
+      ? await sb.from("suivi_user_devices").update({active:!existing.active, updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",userData.user.id)
+      : await sb.from("suivi_user_devices").insert({user_id:userData.user.id,device_key:device.key,device_name:device.name,connection_mode:device.mode,active:true});
+    if (error) setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
+    else {
+      const { data } = await sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active").eq("user_id",userData.user.id).order("created_at",{ascending:true});
+      setDevices((data??[]) as UserDevice[]);
+      setNotice(existing ? (existing.active ? "Dispositif désactivé." : "Dispositif réactivé.") : "Dispositif activé dans votre espace privé.");
+    }
+    setBusy(false);
+  }
 
   async function saveProfile() {
     setBusy(true); setNotice("");
@@ -288,12 +321,13 @@ export function SuiviConnecte() {
   return <main className="min-h-screen bg-[#F8FAFC] px-4 pb-12 text-slate-900 print:bg-white">
     <div className="mx-auto max-w-5xl pt-5">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#1D4ED8] p-5 text-white print:bg-white print:text-black">
-        <div><p className="text-xs font-extrabold uppercase tracking-widest">NAXA · Cohorte de test privée</p><h1 className="mt-1 text-3xl font-black">Mon suivi connecté</h1><p className="mt-2 text-sm">Données privées · consentements par famille · partage par type</p></div>
+        <div><p className="text-xs font-extrabold uppercase tracking-widest">NAXA · Suivi gratuit</p><h1 className="mt-1 text-3xl font-black">Mon suivi connecté</h1><p className="mt-2 text-sm">Gratuit · données privées · activation au choix</p></div>
         <div className="flex flex-wrap gap-2 print:hidden"><Link href="/" className="inline-flex min-h-11 items-center rounded-xl border border-white/50 px-4 font-bold">Accueil</Link><Link href="/suivi/professionnel" className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 font-bold text-[#1D4ED8]">Espace professionnel</Link><button onClick={exportPdf} className="min-h-11 rounded-xl border border-white/50 px-4 font-bold">Exporter / PDF</button></div>
       </header>
       <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>Ce n’est pas un service d’urgence.</strong> En cas d’urgence médicale, appelez le 119 selon la disponibilité locale ou rendez-vous dans un établissement de santé. NAXA ne pose pas de diagnostic et ne recommande aucune posologie.</div>
       {!online && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Hors connexion : les nouvelles données ne peuvent pas être synchronisées. Les entrées non enregistrées ne sont pas conservées automatiquement.</p>}
       {notice && <p role="status" className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">{notice}</p>}
+      <section className="mt-5 rounded-2xl border border-emerald-200 bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Catalogue des dispositifs</h2><p className="mt-1 text-sm text-slate-600">Espace gratuit. Activez uniquement les appareils que vous utilisez. La plupart sont enregistrés en mode manuel; la connexion directe est disponible uniquement pour les capteurs cardiaques Bluetooth compatibles.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">Sans abonnement</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{deviceCatalog.map(device=>{const saved=devices.find(d=>d.device_key===device.key);return <article key={device.key} className="flex flex-col rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold">{device.name}</h3><span className={saved?.active?"rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800":"rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600"}>{saved?.active?"Activé":"Inactif"}</span></div><p className="mt-2 flex-1 text-sm leading-5 text-slate-600">{device.description}</p><p className="mt-2 text-xs font-semibold text-slate-500">{device.mode==="bluetooth"?"Connexion Bluetooth":"Saisie manuelle"}</p><button disabled={busy} onClick={()=>void toggleDevice(device)} className={saved?.active?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700 disabled:opacity-40":"mt-3 min-h-11 rounded-lg bg-[#0A6B3A] px-3 text-sm font-bold text-white disabled:opacity-40"}>{saved?.active?"Désactiver":"Activer ce dispositif"}</button>{device.mode==="bluetooth"&&saved?.active&&<button disabled={busy||!consents[device.family]} onClick={()=>void connectHeartRate()} className="mt-2 min-h-11 rounded-lg border border-emerald-200 px-3 text-sm font-bold text-emerald-800 disabled:opacity-40">Connecter le capteur</button>}</article>})}</div><p className="mt-3 text-xs leading-5 text-slate-500">La synchronisation automatique d’autres marques ou types de capteurs n’est pas annoncée comme disponible. Toute mesure reçue par Bluetooth doit être vérifiée puis confirmée avant l’enregistrement.</p></section>
       <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Profil de suivi</h2><p className="mt-1 text-sm text-slate-600">Informations facultatives pour personnaliser votre carnet. Elles ne sont pas visibles par un professionnel sans partage explicite d’une mesure.</p><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Nom d’affichage<input value={preferredName} onChange={e=>setPreferredName(e.target.value)} maxLength={100} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label><label className="text-sm font-semibold">Année de naissance (facultative)<input type="number" min="1900" max={new Date().getFullYear()} value={birthYear} onChange={e=>setBirthYear(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label></div><button disabled={busy} onClick={()=>void saveProfile()} className="mt-3 min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">Enregistrer le profil</button></section>
       <section className="mt-5 rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Consentements</h2><p className="mt-1 text-sm text-slate-600">Choisissez séparément les familles que vous souhaitez utiliser. Sans consentement actif, aucune nouvelle saisie n’est autorisée.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-[#1D4ED8]">{grantedFamilies}/6 autorisées</span></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{families.map(f=><article key={f.key} className="rounded-xl border p-4"><h3 className="font-bold">{f.label}</h3><p className="mt-1 text-sm leading-5 text-slate-600">{f.description}</p><button disabled={busy} onClick={()=>void toggleConsent(f.key,!consents[f.key])} className={consents[f.key]?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700":"mt-3 min-h-11 rounded-lg bg-[#1D4ED8] px-3 text-sm font-bold text-white"}>{consents[f.key]?"Retirer le consentement":"J’accepte cette famille"}</button></article>)}</div>
