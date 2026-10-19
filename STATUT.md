@@ -439,3 +439,17 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Le statut GitHub consulté pour cette tête remonte encore un échec CircleCI et un échec Vercel lié à la limite de builds du plan. CircleCI n'est pas considéré comme preuve de validation du chantier, conformément à la consigne actuelle.
 - Aucune compilation TypeScript, aucun lint, aucun E2E et aucune exécution des tests SQL 155/156 n'ont été confirmés dans cette session. Les migrations 155 et 156 ne sont pas appliquées à Supabase Production.
 - Aucun déploiement Vercel n'a été lancé. Le volet est avancé côté code sur `main`, mais il ne peut pas être déclaré « tout vert » avant l'exécution effective des validations et l'application contrôlée des migrations dans un environnement de test.
+
+## Parcours Caisse — session, vente, encaissement et tickets (19 octobre 2026)
+
+- La page /pharmacie/caisse est maintenant réservée à un compte Caisse actif rattaché à une pharmacie active et publiée. Elle n'ouvre plus automatiquement une session ni un brouillon au chargement.
+- L'ouverture de session demande le fond initial ; la page permet de reprendre le panier brouillon du compte, rechercher/scanner les produits, abandonner explicitement un panier et afficher les 20 dernières ventes payées créées par le compte.
+- Migration additive 157 : la RPC vente_brouillon_abandonner verrouille le brouillon, vérifie le créateur et le périmètre, restitue les quantités au stock agrégé et aux lots d'origine, puis marque la vente annulée dans la même transaction.
+- L'encaissement espèces du parcours utilise vente_encaisser_finaliser : insertion du paiement et passage à payée sont atomiques. Le ticket est lu via vente_ticket, présenté pour impression et réimprimable depuis l'historique.
+- Orange Money, MTN MoMo et l'ancien mode mobile_money sont bloqués côté base dans les deux RPC d'encaissement tant que la confirmation marchande officielle n'est pas intégrée. Une référence saisie manuellement ne peut pas valoir confirmation.
+- La clôture de session demande le comptage réel et affiche le rapprochement théorique/compté/écart.
+- Test structurel ajouté : supabase/tests/157_caisse_safe_draft_and_payments.sql. Guide mis à jour : docs/GUIDE_CAISSE.md.
+
+### Preuve et limites
+- Les modifications sont commises sur main, mais migration 157 et test 157 restent non exécutés. Aucun build TypeScript, lint ou E2E n'a pu être lancé depuis les outils disponibles dans cette session.
+- Aucun changement de schéma ni de données n'a été appliqué à Supabase Production. Aucun déploiement Vercel n'a été lancé ; l'interdiction de déployer est respectée.
