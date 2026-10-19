@@ -23,4 +23,4 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 - Les lots et dates de péremption restent gérés par le moteur de stock ; la Caisse ne contourne pas les contrôles de disponibilité.
 
 ## État de validation
-La page, la migration additive 157 et le test structurel 157 sont enregistrés sur main. La migration 157 n'est pas appliquée à Supabase Production ; compilation, tests SQL et parcours E2E de cette révision restent à exécuter dans un environnement de test. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
+La page, la migration additive 157 et le test structurel 157 sont enregistrés sur main. La migration 157 et le test structurel ont été exécutés sur le projet Supabase de test « naxa-ci-replay-2 » ; la migration n'est pas appliquée à Supabase Production. Le projet de test ne contient pas les migrations 133–156, donc cette validation SQL reste partielle. Build TypeScript, lint et E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
