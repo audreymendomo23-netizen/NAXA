@@ -66,18 +66,23 @@ export default async function EspacePromoteur() {
     (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
   );
   const expiryDate = abonnement?.echeance ?? convention?.date_expiration ?? null;
+  // Avant la première validation, la date technique créée avec le dossier n'est pas
+  // le début de l'essai : l'échéance ne peut donc pas suspendre un dossier encore en attente.
+  const awaitingFirstActivation = profile.actif !== true && activeLinkIds.size === 0 &&
+    !(pharmacies ?? []).some((ph) => ph.actif && ph.visible_recherche);
   const isCommerciallyBlocked = Boolean(
     abonnement?.bloque_le ||
     (abonnement?.statut && !["actif", "active"].includes(abonnement.statut.toLowerCase())) ||
     (convention?.statut && !["actif", "active"].includes(convention.statut.toLowerCase())) ||
-    (abonnement?.echeance && abonnement.echeance < today) ||
-    (convention?.date_expiration && convention.date_expiration < today)
+    (!awaitingFirstActivation && abonnement?.echeance && abonnement.echeance < today) ||
+    (!awaitingFirstActivation && convention?.date_expiration && convention.date_expiration < today)
   );
   const contractIncomplete = Boolean(
     !convention ||
     !abonnement ||
     abonnement.convention_id !== convention.id ||
     abonnement.montant_mensuel !== convention.montant_mensuel ||
+    abonnement.echeance !== convention.date_expiration ||
     convention.architecture_code !== profile.architecture_code
   );
   const hasNoOperationalNetwork = !hasOperationalNetwork;
