@@ -384,6 +384,12 @@ begin
          where cs.id=new.caisse_session_id
            and cs.statut='ouverte'
            and exists(select 1 from public.caisses c where c.id=cs.caisse_id and c.pharmacie_id=new.pharmacie_id and c.actif=true)
+       )
+       or exists (
+         select 1 from public.ventes v
+         where v.caisse_session_id=new.caisse_session_id
+           and v.created_by=auth.uid()
+           and v.statut='brouillon'
        ) then
       raise exception 'Création de vente réservée à une session ouverte du compte Caisse actif';
     end if;
