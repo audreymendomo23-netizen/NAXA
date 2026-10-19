@@ -252,6 +252,15 @@ export function SuiviConnecte() {
 
   async function connectHeartRate() {
     setNotice("");
+    const bluetoothDevice = devices.find(device => device.device_key === "capteur_cardiaque_bluetooth");
+    if (!consents.constantes) {
+      setNotice("Acceptez d’abord le consentement « Constantes » pour connecter un capteur.");
+      return;
+    }
+    if (!bluetoothDevice?.active) {
+      setNotice("Activez d’abord le dispositif « Capteur cardiaque Bluetooth » dans le catalogue.");
+      return;
+    }
     try {
       if (!window.isSecureContext) {
         setNotice("Le Bluetooth nécessite une connexion sécurisée HTTPS. Vous pouvez saisir la mesure manuellement.");
@@ -333,7 +342,7 @@ export function SuiviConnecte() {
   function exportPdf() { window.print(); }
 
   if (allowed === null) return <main className="min-h-screen bg-white p-6 text-[#1D4ED8]" aria-live="polite"><p className="animate-pulse font-bold">Chargement sécurisé du suivi…</p></main>;
-  if (!allowed) return <main className="min-h-screen bg-[#F8FAFC] p-6 text-slate-900"><div className="mx-auto max-w-xl rounded-3xl border border-blue-200 bg-white p-8 text-center shadow-sm"><p className="text-sm font-extrabold uppercase tracking-widest text-[#1D4ED8]">NAXA · Dispositifs médicaux</p><h1 className="mt-3 text-3xl font-black">Bientôt disponible</h1><p className="mt-3 leading-7 text-slate-600">Cet espace est en phase d’expérimentation. Il n’est pas activé pour ce compte.</p><Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-[#1D4ED8] px-5 font-bold text-white">Retour à l’accueil</Link></div></main>;
+  if (!allowed) return <main className="min-h-screen bg-[#F8FAFC] p-6 text-slate-900"><div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-white p-8 text-center shadow-sm"><p className="text-sm font-extrabold uppercase tracking-widest text-[#0A6B3A]">NAXA · Dispositifs médicaux</p><h1 className="mt-3 text-3xl font-black">Connexion requise</h1><p className="mt-3 leading-7 text-slate-600">Connectez-vous pour accéder à votre suivi privé. Vos données restent protégées par votre compte.</p><Link href="/connexion?next=%2Fsuivi" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-[#0A6B3A] px-5 font-bold text-white">Se connecter</Link></div></main>;
 
   return <main className="min-h-screen bg-[#F8FAFC] px-4 pb-12 text-slate-900 print:bg-white">
     <div className="mx-auto max-w-5xl pt-5">
