@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 
@@ -285,7 +286,7 @@ export default function CaissePage() {
     setMsg(produit.nom + " ajouté au panier.");
   }
 
-  async function scanner(event: React.KeyboardEvent<HTMLInputElement>) {
+  async function scanner(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     event.preventDefault();
     const code = scan.trim();
