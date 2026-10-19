@@ -13,6 +13,7 @@ const erreurs: Record<string, string> = {
   abonnement: "L’abonnement n’a pas pu être activé.",
   architecture: "L’architecture de la pharmacie n’a pas pu être activée.",
   activation: "La pharmacie n’a pas pu être activée. Le système a tenté de remettre les accès en attente.",
+  "deja-active": "Ce dossier est déjà actif. Aucune réactivation ni remise à zéro de l’essai n’a été effectuée.",
 };
 
 export default async function DossiersPromoteurs({ searchParams }: { searchParams: SearchParams }) {
