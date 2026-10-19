@@ -35,6 +35,16 @@ const types: TrackType[] = [
   {key:"cycle_jour",label:"Jour du cycle (facultatif)",unit:"jour",family:"bien_etre",numeric:true},
   {key:"medicament_pris",label:"Prise déclarée",unit:"",family:"traitements",numeric:false},
   {key:"symptome_note",label:"Note personnelle",unit:"",family:"bien_etre",numeric:false},
+  {key:"debit_expiratoire",label:"Débit expiratoire de pointe",unit:"L/min",family:"constantes",numeric:true},
+  {key:"ecg_note",label:"Compte rendu ECG",unit:"Résumé du relevé (sans diagnostic)",family:"constantes",numeric:false},
+  {key:"masse_grasse",label:"Masse grasse",unit:"%",family:"metabolisme",numeric:true},
+  {key:"masse_musculaire",label:"Masse musculaire",unit:"kg",family:"metabolisme",numeric:true},
+  {key:"masse_osseuse",label:"Masse osseuse",unit:"kg",family:"metabolisme",numeric:true},
+  {key:"cetonemie",label:"Cétonémie",unit:"mmol/L",family:"metabolisme",numeric:true},
+  {key:"acide_urique",label:"Acide urique",unit:"mg/dL",family:"metabolisme",numeric:true},
+  {key:"cholesterol_hdl",label:"Cholestérol HDL",unit:"unité du résultat",family:"metabolisme",numeric:true},
+  {key:"cholesterol_ldl",label:"Cholestérol LDL",unit:"unité du résultat",family:"metabolisme",numeric:true},
+  {key:"capacite_vitale",label:"Capacité vitale",unit:"L",family:"constantes",numeric:true},
 ];
 type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"|"scan"|"hybrid"; active:boolean };
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
@@ -571,7 +581,7 @@ export function SuiviConnecte() {
       <section className="mt-5 rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Consentements</h2><p className="mt-1 text-sm text-slate-600">Choisissez séparément les familles que vous souhaitez utiliser. Sans consentement actif, aucune nouvelle saisie n’est autorisée.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-[#1D4ED8]">{grantedFamilies}/6 autorisées</span></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{families.map(f=><article key={f.key} className="rounded-xl border p-4"><h3 className="font-bold">{f.label}</h3><p className="mt-1 text-sm leading-5 text-slate-600">{f.description}</p><button disabled={busy} onClick={()=>void toggleConsent(f.key,!consents[f.key])} className={consents[f.key]?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700":"mt-3 min-h-11 rounded-lg bg-[#1D4ED8] px-3 text-sm font-bold text-white"}>{consents[f.key]?"Retirer le consentement":"J’accepte cette famille"}</button></article>)}</div>
       </section>
-      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">20 types de mesure + rappels</h2><p className="mt-1 text-sm text-slate-600">Sélectionnez une carte pour la saisie. Les valeurs ne sont pas interprétées comme un diagnostic.</p>
+      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">30 types de mesure + rappels</h2><p className="mt-1 text-sm text-slate-600">Sélectionnez une carte pour la saisie. Les valeurs ne sont pas interprétées comme un diagnostic.</p>
         <div className="mt-4 space-y-5">{families.map(f=><div key={f.key}><h3 className="mb-2 font-extrabold text-[#1D4ED8]">{f.label}</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{types.filter(t=>t.family===f.key).map(t=><button key={t.key} aria-pressed={selectedType===t.key} onClick={()=>setSelectedType(t.key)} className={selectedType===t.key?"min-h-20 rounded-xl border-2 border-[#1D4ED8] bg-blue-50 p-3 text-left":"min-h-20 rounded-xl border p-3 text-left hover:border-blue-300"}><span className="block text-sm font-bold">{t.label}</span><span className="mt-1 block text-xs text-slate-500">{t.unit||"Note"}</span></button>)}</div></div>)}</div>
       </section>
       <section className="mt-5 grid gap-5 lg:grid-cols-2">
