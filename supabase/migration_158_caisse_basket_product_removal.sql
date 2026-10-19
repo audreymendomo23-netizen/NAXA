@@ -105,8 +105,7 @@ begin
 
   select coalesce(sum(quantite),0)::integer into v_retirer
   from public.vente_lignes
-  where vente_id=p_vente and produit_id=p_produit
-  for update;
+  where vente_id=p_vente and produit_id=p_produit;
   if v_retirer<=0 then raise exception 'Produit absent du panier'; end if;
 
   for v_ligne in
