@@ -73,6 +73,7 @@ export default async function EspacePromoteur() {
     { title: "Caisses actives", value: String(caissesActives), note: caissesBloquees + " bloquée(s)" },
     { title: "Chiffre d’affaires · 30 jours", value: fcfa(stats?.ca ?? 0), note: "Ventes selon la vue canonique disponible" },
     { title: "Ruptures de stock", value: String(stats?.stock?.ruptures ?? 0), note: "Sur le périmètre autorisé" },
+    { title: "Alertes", value: String(stats?.alertes ?? 0), note: "Alertes remontées par le pilotage" },
   ];
 
   return (
@@ -94,7 +95,7 @@ export default async function EspacePromoteur() {
 
         {alert && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Certaines données ne sont pas disponibles. Les indicateurs indisponibles sont affichés sans inventer de valeurs.</p>}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {kpis.map((k) => <article key={k.title} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-600">{k.title}</p>
             <p className="mt-2 text-2xl font-extrabold tabular-nums">{k.value}</p>
