@@ -184,4 +184,106 @@ $paiement$;
 revoke all on function public.vente_ajouter_paiement(uuid,public.mode_paiement_caisse,integer,text) from public,anon,authenticated;
 grant execute on function public.vente_ajouter_paiement(uuid,public.mode_paiement_caisse,integer,text) to authenticated;
 
+
+-- Encaissement espèces atomique : paiement et passage de la vente à payée
+-- sont validés dans la même transaction pour éviter un paiement orphelin.
+create or replace function public.vente_encaisser_finaliser(
+  p_vente uuid,
+  p_montant_percu integer
+)
+returns table(paiement_id uuid,montant_a_payer integer,monnaie_rendue integer)
+language plpgsql
+security definer
+set search_path=''
+as $encaisse_final$
+declare
+  v_vente public.ventes%rowtype;
+  v_session public.caisses_sessions%rowtype;
+  v_id uuid;
+  v_change integer;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  if p_montant_percu is null or p_montant_percu<=0 then
+    raise exception 'Montant espèces invalide';
+  end if;
+
+  select * into v_vente
+  from public.ventes
+  where id=p_vente
+  for update;
+  if not found or v_vente.statut<>'brouillon' then
+    raise exception 'Vente introuvable ou déjà finalisée';
+  end if;
+
+  if not (public.is_admin() or public.can_operate_pharmacy(v_vente.pharmacie_id)) then
+    raise exception 'Vente hors périmètre';
+  end if;
+
+  if not exists (
+    select 1 from public.pharmacies ph
+    where ph.id=v_vente.pharmacie_id
+      and ph.actif=true
+      and ph.visible_recherche=true
+  ) then
+    raise exception 'La pharmacie est inactive ou non publiée';
+  end if;
+
+  select cs.* into v_session
+  from public.caisses_sessions cs
+  join public.caisses c on c.id=cs.caisse_id
+  where cs.id=v_vente.caisse_session_id
+    and cs.statut='ouverte'
+    and c.actif=true
+    and c.pharmacie_id=v_vente.pharmacie_id
+  for update of cs;
+  if not found then
+    raise exception 'Session de caisse fermée ou inactive';
+  end if;
+
+  if not public.is_admin() and not exists (
+    select 1 from public.profiles p
+    where p.id=auth.uid()
+      and p.actif=true
+      and p.pharmacie_id=v_vente.pharmacie_id
+      and (p.role::text='caisse' or p.fonction_interne='caisse')
+  ) then
+    raise exception 'Encaissement réservé à un compte Caisse actif de cette pharmacie';
+  end if;
+
+  if not exists(select 1 from public.vente_lignes where vente_id=p_vente) then
+    raise exception 'Vente vide';
+  end if;
+  if exists(select 1 from public.vente_paiements where vente_id=p_vente) then
+    raise exception 'Un paiement est déjà enregistré pour cette vente ; aucun second encaissement ne sera ajouté';
+  end if;
+  if p_montant_percu<v_vente.total_net then
+    raise exception 'Montant espèces insuffisant';
+  end if;
+
+  v_change:=greatest(p_montant_percu-v_vente.total_net,0);
+  insert into public.vente_paiements(
+    vente_id,mode,montant,created_by,montant_percu,monnaie_rendue
+  )
+  values(
+    p_vente,'especes',v_vente.total_net,auth.uid(),p_montant_percu,v_change
+  )
+  returning id into v_id;
+
+  update public.ventes
+  set statut='payee',
+      mode_paiement='especes',
+      paiement_ref=null,
+      paid_at=now()
+  where id=p_vente and statut='brouillon';
+  if not found then
+    raise exception 'La vente a changé de statut pendant l’encaissement';
+  end if;
+
+  return query select v_id,v_vente.total_net,v_change;
+end;
+$encaisse_final$;
+
+revoke all on function public.vente_encaisser_finaliser(uuid,integer) from public,anon,authenticated;
+grant execute on function public.vente_encaisser_finaliser(uuid,integer) to authenticated;
+
 commit;
