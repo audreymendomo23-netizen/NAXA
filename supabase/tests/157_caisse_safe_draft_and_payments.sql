@@ -140,6 +140,17 @@ begin
      or has_function_privilege('anon','public.vente_brouillon_abandonner(uuid)','EXECUTE') then
     raise exception 'Droits EXECUTE de la RPC d’abandon incorrects';
   end if;
+
+  if has_table_privilege('authenticated','public.caisses_sessions','INSERT')
+     or has_table_privilege('authenticated','public.caisses_sessions','UPDATE')
+     or has_table_privilege('authenticated','public.ventes','INSERT')
+     or has_table_privilege('authenticated','public.ventes','UPDATE')
+     or has_table_privilege('authenticated','public.vente_lignes','INSERT')
+     or has_table_privilege('authenticated','public.vente_lignes','UPDATE')
+     or has_table_privilege('authenticated','public.vente_paiements','INSERT')
+     or has_table_privilege('authenticated','public.vente_paiements','UPDATE') then
+    raise exception 'Les tables POS autorisent encore des mutations directes par le navigateur';
+  end if;
 end
 $test$;
 
