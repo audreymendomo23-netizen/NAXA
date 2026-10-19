@@ -36,7 +36,21 @@ export async function GET() {
     if (linksError) {
       return NextResponse.json({ error: "Périmètre Promoteur indisponible." }, { status: 500 });
     }
-    pharmacyIds = [...new Set((links ?? []).map((link) => link.pharmacie_id).filter(Boolean))];
+    const linkedIds = [...new Set((links ?? []).map((link) => link.pharmacie_id).filter(Boolean))];
+    if (!linkedIds.length) return NextResponse.json({ rapports: [] });
+
+    // Le rapport Promoteur ne doit couvrir que le réseau effectivement
+    // opérationnel : lien actif + pharmacie active et publiée.
+    const { data: pharmacies, error: pharmaciesError } = await sb
+      .from("pharmacies")
+      .select("id")
+      .in("id", linkedIds)
+      .eq("actif", true)
+      .eq("visible_recherche", true);
+    if (pharmaciesError) {
+      return NextResponse.json({ error: "Périmètre des rapports indisponible." }, { status: 500 });
+    }
+    pharmacyIds = [...new Set((pharmacies ?? []).map((pharmacy) => pharmacy.id).filter(Boolean))];
     if (!pharmacyIds.length) return NextResponse.json({ rapports: [] });
   } else if (profile.role !== "admin") {
     if (!profile.pharmacie_id) return NextResponse.json({ rapports: [] });
