@@ -85,7 +85,10 @@ export function ScannerShell() {
       : ecran === "camera" && !!flux ? "active"
       : ecran === "results" ? (erreur ? "failure" : produits.length ? "success" : "empty")
       : erreur ? "failure" : "idle";
-    window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "scan", state } }));
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "scan", state } }));
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [ecran, modeScan, flux, lectureEnCours, produits.length, erreur]);
 
   useEffect(() => {

@@ -34,9 +34,14 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
 
   // Signal visuel en lecture seule : ne transmet ni terme saisi ni résultat au composant de la fée.
   useEffect(() => {
-    if (typeof window === "undefined" || q.trim().length < 2) return;
-    const state = rechercheCatalogue === "chargement" ? "loading" : rechercheCatalogue === "erreur" ? "failure" : nombreResultats ? "results" : "empty";
-    window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "search", state } }));
+    const state = q.trim().length < 2 ? "idle"
+      : rechercheCatalogue === "chargement" ? "loading"
+      : rechercheCatalogue === "erreur" ? "failure"
+      : nombreResultats ? "results" : "empty";
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "search", state } }));
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [q, rechercheCatalogue, nombreResultats]);
 
   useEffect(() => {
