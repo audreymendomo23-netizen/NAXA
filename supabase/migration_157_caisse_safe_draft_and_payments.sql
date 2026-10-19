@@ -286,4 +286,193 @@ $encaisse_final$;
 revoke all on function public.vente_encaisser_finaliser(uuid,integer) from public,anon,authenticated;
 grant execute on function public.vente_encaisser_finaliser(uuid,integer) to authenticated;
 
+
+-- Les RPC historiques s'appuient sur can_operate_pharmacy, qui est un contrôle
+-- de périmètre et non un rôle de caisse. Ces gardes empêchent une autre équipe
+-- de créer des ventes, d'ajouter des lignes ou d'enregistrer des paiements dans
+-- le poste Caisse, y compris via un appel direct aux anciennes RPC.
+create or replace function public.naxa_caisse_actor_for_pharmacy(p_pharmacie uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $actor$
+  select exists (
+    select 1
+    from public.pharmacies ph
+    where ph.id=p_pharmacie
+      and ph.actif=true
+      and ph.visible_recherche=true
+  )
+  and (
+    public.is_admin()
+    or (
+      exists (
+        select 1
+        from public.profiles p
+        where p.id=(select auth.uid())
+          and p.actif=true
+          and p.pharmacie_id=p_pharmacie
+          and (p.role::text='caisse' or p.fonction_interne='caisse')
+      )
+      and public.can_operate_pharmacy(p_pharmacie)
+    )
+  );
+$actor$;
+
+revoke all on function public.naxa_caisse_actor_for_pharmacy(uuid) from public,anon,authenticated;
+
+create or replace function public.naxa_guard_caisse_session_write()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $guard$
+declare
+  v_pharmacie uuid;
+begin
+  if auth.uid() is null or public.is_admin() then
+    return new;
+  end if;
+
+  select c.pharmacie_id into v_pharmacie
+  from public.caisses c
+  where c.id=new.caisse_id and c.actif=true;
+  if not public.naxa_caisse_actor_for_pharmacy(v_pharmacie) then
+    raise exception 'Session réservée à une Caisse active de cette pharmacie';
+  end if;
+
+  if tg_op='UPDATE' then
+    if new.caisse_id is distinct from old.caisse_id
+       or new.ouvert_par is distinct from old.ouvert_par
+       or new.fond_initial is distinct from old.fond_initial
+       or new.ouvert_at is distinct from old.ouvert_at then
+      raise exception 'Les paramètres d’ouverture de session sont immuables';
+    end if;
+    if old.statut='ouverte' and new.statut='cloturee'
+       and old.ouvert_par is distinct from auth.uid() then
+      raise exception 'Seul l’ouvreur de la session peut la clôturer';
+    end if;
+  end if;
+  return new;
+end;
+$guard$;
+
+revoke all on function public.naxa_guard_caisse_session_write() from public,anon,authenticated;
+drop trigger if exists trg_naxa_guard_caisse_session_write on public.caisses_sessions;
+create trigger trg_naxa_guard_caisse_session_write
+before insert or update on public.caisses_sessions
+for each row execute function public.naxa_guard_caisse_session_write();
+
+create or replace function public.naxa_guard_pos_vente_write()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $guard$
+begin
+  if auth.uid() is null or public.is_admin() then
+    return new;
+  end if;
+
+  if tg_op='INSERT' then
+    if new.created_by is distinct from auth.uid()
+       or not public.naxa_caisse_actor_for_pharmacy(new.pharmacie_id)
+       or not exists (
+         select 1 from public.caisses_sessions cs
+         where cs.id=new.caisse_session_id
+           and cs.statut='ouverte'
+           and exists(select 1 from public.caisses c where c.id=cs.caisse_id and c.pharmacie_id=new.pharmacie_id and c.actif=true)
+       ) then
+      raise exception 'Création de vente réservée à une session ouverte du compte Caisse actif';
+    end if;
+  elsif new.statut='payee' and old.statut is distinct from 'payee' then
+    if new.created_by is distinct from auth.uid()
+       or not public.naxa_caisse_actor_for_pharmacy(new.pharmacie_id)
+       or not exists (
+         select 1 from public.caisses_sessions cs
+         where cs.id=new.caisse_session_id and cs.statut='ouverte'
+       ) then
+      raise exception 'Finalisation réservée au créateur Caisse dans une session ouverte';
+    end if;
+  end if;
+  return new;
+end;
+$guard$;
+
+revoke all on function public.naxa_guard_pos_vente_write() from public,anon,authenticated;
+drop trigger if exists trg_naxa_guard_pos_vente_insert on public.ventes;
+create trigger trg_naxa_guard_pos_vente_insert
+before insert on public.ventes
+for each row execute function public.naxa_guard_pos_vente_write();
+drop trigger if exists trg_naxa_guard_pos_vente_finalize on public.ventes;
+create trigger trg_naxa_guard_pos_vente_finalize
+before update of statut on public.ventes
+for each row execute function public.naxa_guard_pos_vente_write();
+
+create or replace function public.naxa_guard_pos_line_write()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $guard$
+declare
+  v_vente public.ventes%rowtype;
+begin
+  if auth.uid() is null or public.is_admin() then
+    if tg_op='DELETE' then return old; else return new; end if;
+  end if;
+  if tg_op<>'INSERT' then
+    raise exception 'Les lignes POS ne peuvent pas être modifiées directement';
+  end if;
+
+  select * into v_vente from public.ventes where id=new.vente_id;
+  if not found or v_vente.statut<>'brouillon'
+     or v_vente.created_by is distinct from auth.uid()
+     or not public.naxa_caisse_actor_for_pharmacy(v_vente.pharmacie_id) then
+    raise exception 'Ajout de ligne réservé au créateur d’une vente Caisse brouillon';
+  end if;
+  return new;
+end;
+$guard$;
+
+revoke all on function public.naxa_guard_pos_line_write() from public,anon,authenticated;
+drop trigger if exists trg_naxa_guard_pos_line_write on public.vente_lignes;
+create trigger trg_naxa_guard_pos_line_write
+before insert or update or delete on public.vente_lignes
+for each row execute function public.naxa_guard_pos_line_write();
+
+create or replace function public.naxa_guard_pos_payment_write()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $guard$
+declare
+  v_vente public.ventes%rowtype;
+begin
+  if auth.uid() is null or public.is_admin() then
+    if tg_op='DELETE' then return old; else return new; end if;
+  end if;
+  if tg_op<>'INSERT' then
+    raise exception 'Les paiements POS ne peuvent pas être modifiés directement';
+  end if;
+
+  select * into v_vente from public.ventes where id=new.vente_id;
+  if not found or v_vente.statut<>'brouillon'
+     or v_vente.created_by is distinct from auth.uid()
+     or not public.naxa_caisse_actor_for_pharmacy(v_vente.pharmacie_id) then
+    raise exception 'Paiement réservé au créateur d’une vente Caisse brouillon';
+  end if;
+  return new;
+end;
+$guard$;
+
+revoke all on function public.naxa_guard_pos_payment_write() from public,anon,authenticated;
+drop trigger if exists trg_naxa_guard_pos_payment_write on public.vente_paiements;
+create trigger trg_naxa_guard_pos_payment_write
+before insert or update or delete on public.vente_paiements
+for each row execute function public.naxa_guard_pos_payment_write();
+
 commit;
