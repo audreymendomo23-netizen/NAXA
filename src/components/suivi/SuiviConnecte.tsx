@@ -117,23 +117,19 @@ export function SuiviConnecte() {
           if (sessionStorage.getItem(key)) continue;
           sessionStorage.setItem(key, "shown");
         } catch { /* Le rappel reste affiché dans l’application si le stockage de session est indisponible. */ }
-        if ("Notification" in window && Notification.permission === "granted") {
-          try { new Notification("NAXA · " + reminder.title, { body: "C’est l’heure de votre rappel personnel de suivi.", tag: key }); } catch { setNotice("Un rappel est arrivé à échéance. Ouvrez votre espace NAXA pour le consulter."); }
-        } else {
-          setNotice("Rappel arrivé à échéance : " + reminder.title + ". Autorisez les notifications du navigateur pour recevoir les rappels lorsque cet espace est ouvert.");
+        let pushSubscribed = false;
+        if ("serviceWorker" in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.getRegistration("/");
+            pushSubscribed = !!(await registration?.pushManager.getSubscription());
+          } catch { /* Le push en arrière-plan sera géré par le service planifié si disponible. */ }
         }
-        if (reminder.repeat_rule === "none") {
-          const { error } = await sb.from("suivi_reminders").update({ enabled:false, updated_at:new Date().toISOString() }).eq("id",reminder.id);
-          if (!error) changed = true;
-        } else {
-          const step = reminder.repeat_rule === "weekly" ? 7*86400000 : 86400000;
-          let next = due;
-          while (next <= now) next += step;
-          const { error } = await sb.from("suivi_reminders").update({ due_at:new Date(next).toISOString(), updated_at:new Date().toISOString() }).eq("id",reminder.id);
-          if (!error) changed = true;
+        if (!pushSubscribed && "Notification" in window && Notification.permission === "granted") {
+          try { new Notification("NAXA · Rappel personnel", { body: "Un rappel de suivi est arrivé à échéance. Ouvrez NAXA pour le consulter.", tag: key }); } catch { setNotice("Un rappel est arrivé à échéance : " + reminder.title); }
+        } else if (!pushSubscribed) {
+          setNotice("Rappel arrivé à échéance : " + reminder.title + ". Activez les notifications pour recevoir des alertes lorsque cet espace est ouvert.");
         }
       }
-      if (changed) await load();
     };
     void deliverDueReminders();
     const timer = window.setInterval(() => void deliverDueReminders(), 30000);
@@ -141,14 +137,40 @@ export function SuiviConnecte() {
   }, [reminders, load, sb]);
 
   async function enableReminderNotifications() {
-    if (!("Notification" in window)) {
-      setNotice("Ce navigateur ne prend pas en charge les notifications. Les rappels restent visibles dans l’espace NAXA.");
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setNotice("Les notifications Push ne sont pas prises en charge par ce navigateur. Les rappels restent enregistrés dans NAXA.");
       return;
     }
-    const permission = await Notification.requestPermission();
-    setNotice(permission === "granted"
-      ? "Notifications autorisées sur ce navigateur. Les rappels seront délivrés lorsque NAXA est ouvert; la livraison en arrière-plan dépend d’une intégration push compatible."
-      : "Autorisation refusée. Les rappels restent enregistrés et visibles dans votre espace NAXA.");
+    try {
+      const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (permission !== "granted") {
+        setNotice("Autorisation refusée. Les rappels restent enregistrés dans votre espace NAXA.");
+        return;
+      }
+      const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/" });
+      const keyResponse = await fetch("/api/posologie/push-key", { cache: "no-store" });
+      if (!keyResponse.ok) throw new Error("Push public key unavailable");
+      const { publicKey } = await keyResponse.json() as { publicKey: string };
+      const base64 = publicKey.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+      const applicationServerKey = Uint8Array.from(atob(padded), character => character.charCodeAt(0));
+      const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+      const { data: authData } = await sb.auth.getUser();
+      if (!authData.user) throw new Error("Session expired");
+      const { error } = await sb.from("naxa_push_subscriptions").upsert({
+        endpoint: subscription.endpoint,
+        user_id: authData.user.id,
+        subscription: subscription.toJSON(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "endpoint" });
+      if (error) throw error;
+      setNotice("Notifications Push activées. Les rappels dus peuvent désormais être envoyés en arrière-plan par le service planifié NAXA.");
+    } catch {
+      setNotice("Activation Push impossible pour le moment. Vérifiez l’autorisation du navigateur et réessayez; vos rappels restent enregistrés.");
+    }
   }
 
   const typeInfo = types.find(t=>t.key===selectedType)!;
