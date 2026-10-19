@@ -43,13 +43,14 @@ begin
   on conflict (pharmacie_id) do update
     set echeance=excluded.echeance,statut='actif',montant_mensuel=excluded.montant_mensuel;
 
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
+  values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5),(v_b,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
+  on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true;
+
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
 
-  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
-  values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5),(v_b,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
-  on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true;
 
   perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
