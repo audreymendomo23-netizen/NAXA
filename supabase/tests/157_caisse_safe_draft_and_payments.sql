@@ -15,7 +15,7 @@ begin
   join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public'
     and p.proname='vente_brouillon_abandonner'
-    and pg_get_function_identity_arguments(p.oid)='p_vente uuid';
+    and p.pronargs=1;
 
   if v_abandon is null then raise exception 'RPC vente_brouillon_abandonner absente'; end if;
   if not v_abandon_security then raise exception 'Abandon de panier doit être SECURITY DEFINER'; end if;
@@ -34,7 +34,7 @@ begin
   join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public'
     and p.proname='vente_encaisser'
-    and pg_get_function_identity_arguments(p.oid)='p_vente uuid, p_mode public.mode_paiement_caisse, p_montant_percu integer, p_reference text';
+    and p.pronargs=4;
 
   if v_encaisser is null or not v_encaisser_security then
     raise exception 'RPC vente_encaisser absente ou non SECURITY DEFINER';
@@ -52,7 +52,7 @@ begin
   join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public'
     and p.proname='vente_ajouter_paiement'
-    and pg_get_function_identity_arguments(p.oid)='p_vente uuid, p_mode public.mode_paiement_caisse, p_montant integer, p_reference text';
+    and p.pronargs=4;
 
   if v_fractionne is null
      or position('aucune confirmation opérateur' in lower(v_fractionne))=0 then
