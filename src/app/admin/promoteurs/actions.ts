@@ -43,8 +43,8 @@ export async function validerDossierPharmacie(formData: FormData) {
   }
 
   const [{ data: convention, error: conventionError }, { data: subscription, error: subscriptionError }, { data: architecture, error: architectureError }] = await Promise.all([
-    db.from("conventions_promoteurs").select("id,architecture_code").eq("promoteur_id", promoter.id).maybeSingle(),
-    db.from("abonnements_promoteurs").select("id,convention_id").eq("promoteur_id", promoter.id).maybeSingle(),
+    db.from("conventions_promoteurs").select("id,architecture_code,statut,date_expiration").eq("promoteur_id", promoter.id).maybeSingle(),
+    db.from("abonnements_promoteurs").select("id,convention_id,statut,debut,echeance").eq("promoteur_id", promoter.id).maybeSingle(),
     db.from("naxa_architectures").select("code,max_responsables,max_caisses").eq("code", promoter.architecture_code).eq("active", true).maybeSingle(),
   ]);
   if (conventionError || subscriptionError || architectureError || !convention || !subscription || !architecture ||
@@ -52,11 +52,22 @@ export async function validerDossierPharmacie(formData: FormData) {
     redirect("/admin/promoteurs?erreur=contrat");
   }
 
+  if (pharmacy.actif && pharmacy.visible_recherche && link.actif && promoter.actif) redirect("/admin/promoteurs?erreur=deja-active");
+
   const today = new Date();
   const start = today.toISOString().slice(0, 10);
   const expiry = new Date(today);
   expiry.setUTCDate(expiry.getUTCDate() + 14);
   const end = expiry.toISOString().slice(0, 10);
+
+  const rollbackToPending = async () => {
+    await db.from("pharmacies").update({ actif: false, visible_recherche: false }).eq("id", pharmacyId);
+    await db.from("promoteur_pharmacies").update({ actif: false }).eq("promoteur_id", promoter.id).eq("pharmacie_id", pharmacyId);
+    await db.from("profiles").update({ actif: false }).eq("id", promoter.id);
+    await db.from("pharmacie_architectures").update({ active: false }).eq("pharmacie_id", pharmacyId);
+    await db.from("conventions_promoteurs").update({ statut: convention.statut, date_expiration: convention.date_expiration }).eq("id", convention.id);
+    await db.from("abonnements_promoteurs").update({ statut: subscription.statut, debut: subscription.debut, echeance: subscription.echeance }).eq("id", subscription.id);
+  };
 
   // Le dernier changement rend la pharmacie visible : les prérequis sont vérifiés avant.
   const { error: contractUpdateError } = await db.from("conventions_promoteurs")
@@ -67,7 +78,7 @@ export async function validerDossierPharmacie(formData: FormData) {
   const { error: subscriptionUpdateError } = await db.from("abonnements_promoteurs")
     .update({ statut: "actif", debut: start, echeance: end })
     .eq("id", subscription.id);
-  if (subscriptionUpdateError) redirect("/admin/promoteurs?erreur=abonnement");
+  if (subscriptionUpdateError) { await rollbackToPending(); redirect("/admin/promoteurs?erreur=abonnement"); }
 
   const { error: architectureUpdateError } = await db.from("pharmacie_architectures").upsert({
     pharmacie_id: pharmacyId,
@@ -77,31 +88,24 @@ export async function validerDossierPharmacie(formData: FormData) {
     max_responsables: architecture.max_responsables ?? 0,
     max_caisses: architecture.max_caisses,
   }, { onConflict: "pharmacie_id" });
-  if (architectureUpdateError) redirect("/admin/promoteurs?erreur=architecture");
+  if (architectureUpdateError) { await rollbackToPending(); redirect("/admin/promoteurs?erreur=architecture"); }
 
   const { error: promoterUpdateError } = await db.from("profiles")
     .update({ actif: true, pharmacie_id: pharmacyId, architecture_code: architecture.code })
     .eq("id", promoter.id)
     .eq("role", "promoteur");
-  if (promoterUpdateError) redirect("/admin/promoteurs?erreur=promoteur");
+  if (promoterUpdateError) { await rollbackToPending(); redirect("/admin/promoteurs?erreur=promoteur"); }
 
   const { error: linkUpdateError } = await db.from("promoteur_pharmacies")
     .update({ actif: true })
     .eq("promoteur_id", promoter.id)
     .eq("pharmacie_id", pharmacyId);
-  if (linkUpdateError) {
-    await db.from("profiles").update({ actif: false }).eq("id", promoter.id);
-    redirect("/admin/promoteurs?erreur=rattachement");
-  }
+  if (linkUpdateError) { await rollbackToPending(); redirect("/admin/promoteurs?erreur=rattachement"); }
 
   const { error: pharmacyUpdateError } = await db.from("pharmacies")
     .update({ actif: true, visible_recherche: true })
     .eq("id", pharmacyId);
-  if (pharmacyUpdateError) {
-    await db.from("promoteur_pharmacies").update({ actif: false }).eq("promoteur_id", promoter.id).eq("pharmacie_id", pharmacyId);
-    await db.from("profiles").update({ actif: false }).eq("id", promoter.id);
-    redirect("/admin/promoteurs?erreur=activation");
-  }
+  if (pharmacyUpdateError) { await rollbackToPending(); redirect("/admin/promoteurs?erreur=activation"); }
 
   redirect("/admin/promoteurs?ok=validation");
 }
