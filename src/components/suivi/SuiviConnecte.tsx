@@ -79,6 +79,7 @@ export function SuiviConnecte() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [ocrText, setOcrText] = useState("");
+  const [scanKind, setScanKind] = useState<"barcode"|"ocr"|null>(null);
 
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
@@ -523,9 +524,19 @@ export function SuiviConnecte() {
     }
   }
 
+  function applyScannedValue() {
+    if (scanKind !== "ocr" || !typeInfo.numeric) { setNotice("Pour éviter une erreur, choisissez manuellement la valeur à utiliser dans ce scan."); return; }
+    const candidates = ocrText.match(/-?\\d+(?:[.,]\\d+)?/g) ?? [];
+    if (candidates.length !== 1) { setNotice("Le scan contient plusieurs nombres. Choisissez la bonne valeur manuellement pour éviter d’enregistrer une date ou une autre mesure."); return; }
+    setValue(candidates[0].replace(",", "."));
+    setPendingMeasurementSource("photo_ocr_local");
+    setNotice("Valeur préremplie depuis le scan. Vérifiez-la et confirmez explicitement l’enregistrement.");
+  }
+
   async function readImageLocally(file?: File) {
     if (!file) return;
     setOcrText("");
+    setScanKind(null);
     setBusy(true);
     setNotice("Analyse locale de l’image en cours… l’image ne sera pas envoyée à NAXA.");
     try {
@@ -551,6 +562,7 @@ export function SuiviConnecte() {
         const text = result.data.text.trim();
         if (!text) throw new Error("No text detected");
         setOcrText(text);
+        setScanKind("ocr");
         setNotice("Scan OCR effectué localement. Vérifiez chaque valeur et son unité avant l’enregistrement.");
       } finally {
         await worker.terminate();
@@ -592,7 +604,7 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Note facultative<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={1000} rows={2} className="mt-1 w-full rounded-xl border p-3"/></label>
           <button disabled={busy||!selectedConsent} onClick={()=>void saveMeasurement()} className="mt-4 min-h-11 w-full rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">{pendingMeasurementSource === "bluetooth" ? "Confirmer et enregistrer la mesure Bluetooth" : "Enregistrer dans mon espace privé"}</button>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 print:hidden"><button disabled={busy} onClick={()=>void connectHeartRate()} className="min-h-11 rounded-xl border border-blue-200 px-3 text-sm font-bold">Synchroniser un capteur cardiaque Bluetooth</button><label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-blue-200 px-3 text-center text-sm font-bold">Scanner photo, QR ou code-barres<input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>void readImageLocally(e.target.files?.[0])}/></label></div>
-          {ocrText && <div className="mt-3 rounded-xl border bg-slate-50 p-3"><p className="text-sm font-bold">Texte OCR local à vérifier</p><pre className="mt-2 whitespace-pre-wrap text-sm">{ocrText}</pre><p className="mt-2 text-xs text-slate-600">Copiez manuellement la valeur utile dans le champ ci-dessus; aucune lecture n’est enregistrée automatiquement.</p></div>}
+          {ocrText && <div className="mt-3 rounded-xl border bg-slate-50 p-3"><p className="text-sm font-bold">{scanKind==="barcode"?"Code détecté localement":"Texte OCR local à vérifier"}</p><pre className="mt-2 whitespace-pre-wrap text-sm">{ocrText}</pre><p className="mt-2 text-xs text-slate-600">Aucune donnée n’est enregistrée sans confirmation explicite.</p>{scanKind==="ocr"&&typeInfo.numeric&&<button type="button" onClick={applyScannedValue} className="mt-3 min-h-10 rounded-lg border border-emerald-200 px-3 text-sm font-bold text-emerald-800">Préremplir si une seule valeur est détectée</button>}</div>}
         </div>
         <div className="rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Rappels personnels</h2><p className="mt-1 text-sm text-slate-600">Les rappels enregistrés ne garantissent pas une notification push sur tous les appareils.</p>
           <label className="mt-3 block text-sm font-semibold">Titre<input value={reminderTitle} onChange={e=>setReminderTitle(e.target.value)} maxLength={160} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder={"Ex. Relever ma mesure"}/></label>
