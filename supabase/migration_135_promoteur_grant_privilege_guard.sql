@@ -109,4 +109,3 @@ begin
 end
 $function$;
 
-revoke all on function private.naxa_grant_privilege(uuid,text,uuid,text) from public,anon,authenticated;
