@@ -56,6 +56,7 @@ export function SuiviConnecte() {
   const [maxThreshold, setMaxThreshold] = useState("");
   const [selectedType, setSelectedType] = useState("tension_systolique");
   const [value, setValue] = useState("");
+  const [pendingMeasurementSource, setPendingMeasurementSource] = useState<"bluetooth" | null>(null);
   const [note, setNote] = useState("");
   const [measuredAt, setMeasuredAt] = useState(new Date().toISOString().slice(0,16));
   const [reminderTitle, setReminderTitle] = useState("");
@@ -128,7 +129,7 @@ export function SuiviConnecte() {
     setBusy(false);
   }
 
-  async function saveMeasurement(source: "manual"|"bluetooth"|"photo_ocr_local" = "manual", overrideValue?: string) {
+  async function saveMeasurement(source: "manual"|"bluetooth"|"photo_ocr_local" = pendingMeasurementSource ?? "manual", overrideValue?: string) {
     if (!selectedConsent) { setNotice("Acceptez d’abord le consentement de cette famille."); return; }
     const current = overrideValue ?? value;
     if (!current.trim()) { setNotice("Saisissez une valeur ou une note."); return; }
@@ -144,7 +145,7 @@ export function SuiviConnecte() {
       source, note:note.trim()||null
     });
     if (error) setNotice("Enregistrement refusé. Vérifiez le consentement et les champs.");
-    else { setValue(""); setNote(""); setNotice("Entrée enregistrée dans votre espace privé."); await load(); }
+    else { setValue(""); setNote(""); setPendingMeasurementSource(null); setNotice("Entrée enregistrée dans votre espace privé."); await load(); }
     setBusy(false);
   }
 
@@ -200,19 +201,68 @@ export function SuiviConnecte() {
   }
 
   async function connectHeartRate() {
+    setNotice("");
     try {
+      if (!window.isSecureContext) {
+        setNotice("Le Bluetooth nécessite une connexion sécurisée HTTPS. Vous pouvez saisir la mesure manuellement.");
+        return;
+      }
       const bluetooth = (navigator as any).bluetooth;
-      if (!bluetooth?.requestDevice) { setNotice("Bluetooth médical non pris en charge par ce navigateur. Saisissez la mesure manuellement."); return; }
-      const device = await bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});
-      const server = await device.gatt?.connect();
-      const service = await server?.getPrimaryService("heart_rate");
-      const characteristic = await service?.getCharacteristic("heart_rate_measurement");
-      const reading = await characteristic?.readValue();
-      if (!reading) { setNotice("Aucune mesure reçue. Vous pouvez saisir la valeur manuellement."); return; }
+      if (!bluetooth?.requestDevice) {
+        setNotice("Bluetooth non pris en charge ici. Utilisez Chrome sur Android avec un capteur compatible, ou saisissez la mesure manuellement.");
+        return;
+      }
+      const device = await bluetooth.requestDevice({ filters: [{ services: ["heart_rate"] }] });
+      if (!device?.gatt) {
+        setNotice("Cet appareil ne propose pas de connexion Bluetooth GATT compatible. Aucune donnée n’a été enregistrée.");
+        return;
+      }
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService("heart_rate");
+      const characteristic = await service.getCharacteristic("heart_rate_measurement");
+      if (typeof characteristic.startNotifications !== "function" || typeof characteristic.addEventListener !== "function") {
+        device.gatt.disconnect();
+        setNotice("Ce capteur ne permet pas la lecture Bluetooth attendue. Aucune donnée n’a été enregistrée.");
+        return;
+      }
+      const reading = await new Promise<DataView>((resolve, reject) => {
+        let timeout: ReturnType<typeof setTimeout>;
+        const cleanup = () => {
+          clearTimeout(timeout);
+          characteristic.removeEventListener("characteristicvaluechanged", onValue);
+        };
+        const onValue = (event: Event) => {
+          const data = (event.target as any).value as DataView | undefined;
+          if (!data || data.byteLength < 2) return;
+          cleanup();
+          resolve(data);
+        };
+        characteristic.addEventListener("characteristicvaluechanged", onValue);
+        timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error("Bluetooth reading timeout"));
+        }, 12000);
+        characteristic.startNotifications().catch((error: unknown) => {
+          cleanup();
+          reject(error);
+        });
+      });
       const flags = reading.getUint8(0);
-      const bpm = flags & 1 ? reading.getUint16(1,true) : reading.getUint8(1);
-      setSelectedType("frequence_cardiaque"); setValue(String(bpm)); setNotice("Lecture Bluetooth reçue; vérifiez la valeur avant de l’enregistrer.");
-    } catch { setNotice("Connexion Bluetooth annulée ou indisponible. Aucune donnée n’a été enregistrée."); }
+      const bpm = flags & 1 ? reading.getUint16(1, true) : reading.getUint8(1);
+      if (!Number.isFinite(bpm) || bpm <= 0) {
+        device.gatt.disconnect();
+        setNotice("La valeur reçue est invalide. Aucune donnée n’a été enregistrée.");
+        return;
+      }
+      setSelectedType("frequence_cardiaque");
+      setValue(String(bpm));
+      setPendingMeasurementSource("bluetooth");
+      setMeasuredAt(new Date().toISOString().slice(0, 16));
+      setNotice("Mesure Bluetooth reçue. Vérifiez la valeur ci-dessous, puis confirmez une seule fois avec « Confirmer et enregistrer la mesure Bluetooth ». Rien n’a encore été enregistré.");
+      device.gatt.disconnect();
+    } catch {
+      setNotice("Connexion Bluetooth annulée, refusée ou indisponible. Aucune donnée n’a été enregistrée; vous pouvez saisir la mesure manuellement.");
+    }
   }
 
   async function readImageLocally(file?: File) {
@@ -257,8 +307,8 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Valeur{typeInfo.numeric?"":" / note"}<input value={value} onChange={e=>setValue(e.target.value)} type={typeInfo.numeric?"number":"text"} step="any" maxLength={2000} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder={typeInfo.unit||"Votre note"}/></label>
           <label className="mt-3 block text-sm font-semibold">Date et heure<input type="datetime-local" value={measuredAt} onChange={e=>setMeasuredAt(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
           <label className="mt-3 block text-sm font-semibold">Note facultative<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={1000} rows={2} className="mt-1 w-full rounded-xl border p-3"/></label>
-          <button disabled={busy||!selectedConsent} onClick={()=>void saveMeasurement()} className="mt-4 min-h-11 w-full rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">Enregistrer dans mon espace privé</button>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 print:hidden"><button onClick={()=>void connectHeartRate()} className="min-h-11 rounded-xl border border-blue-200 px-3 text-sm font-bold">Lire un capteur cardiaque Bluetooth</button><label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-blue-200 px-3 text-center text-sm font-bold">Lire une photo localement<input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>void readImageLocally(e.target.files?.[0])}/></label></div>
+          <button disabled={busy||!selectedConsent} onClick={()=>void saveMeasurement()} className="mt-4 min-h-11 w-full rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">{pendingMeasurementSource === "bluetooth" ? "Confirmer et enregistrer la mesure Bluetooth" : "Enregistrer dans mon espace privé"}</button>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 print:hidden"><button disabled={busy} onClick={()=>void connectHeartRate()} className="min-h-11 rounded-xl border border-blue-200 px-3 text-sm font-bold">Synchroniser un capteur cardiaque Bluetooth</button><label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-blue-200 px-3 text-center text-sm font-bold">Lire une photo localement<input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>void readImageLocally(e.target.files?.[0])}/></label></div>
           {ocrText && <div className="mt-3 rounded-xl border bg-slate-50 p-3"><p className="text-sm font-bold">Texte OCR local à vérifier</p><pre className="mt-2 whitespace-pre-wrap text-sm">{ocrText}</pre><p className="mt-2 text-xs text-slate-600">Copiez manuellement la valeur utile dans le champ ci-dessus; aucune lecture n’est enregistrée automatiquement.</p></div>}
         </div>
         <div className="rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Rappels personnels</h2><p className="mt-1 text-sm text-slate-600">Les rappels enregistrés ne garantissent pas une notification push sur tous les appareils.</p>
