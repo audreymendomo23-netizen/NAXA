@@ -1606,3 +1606,12 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Déploiement :** non lancé.
 
 **Statut du chantier Promoteur : 🟡 CONSTRUIT — PREUVE MANQUANTE.** Ne pas déclarer 100 % tant que le build, le rejeu transactionnel sur une base de diagnostic propre et les parcours fonctionnels Promoteur/Caisse ne sont pas prouvés. Les fonctionnalités hors du périmètre effectivement vérifié restent à auditer/corriger avant la clôture globale du profil N1.
+
+
+### Complément de preuve — dernier état technique
+
+- Le correctif d'inférence TypeScript des deux tables de correspondance a été intégré dans `src/app/pharmacie/caisses/page.tsx` au commit `0fc50e77eff481cc6ea2698abd0894d8acac3ca0`.
+- Contrôle du HEAD `0fc50e77eff481cc6ea2698abd0894d8acac3ca0` : le fournisseur de statut signale `Vercel: failure` avec le motif `build-rate-limit` et un contexte CircleCI en échec. Ce résultat ne constitue pas un build réussi. Conformément au protocole actuel, CircleCI n'est pas utilisé comme voie de validation.
+- La tentative de lecture du pipeline GitLab a été refusée par les permissions du connecteur ; aucun pipeline n'a été déclenché.
+- Aucune compilation locale n'a pu être exécutée via les outils disponibles dans cette session. Les migrations et le test SQL restent non exécutés.
+
