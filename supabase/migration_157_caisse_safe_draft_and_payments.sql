@@ -233,6 +233,7 @@ begin
   join public.caisses c on c.id=cs.caisse_id
   where cs.id=v_vente.caisse_session_id
     and cs.statut='ouverte'
+    and (public.is_admin() or cs.ouvert_par=auth.uid())
     and c.actif=true
     and c.pharmacie_id=v_vente.pharmacie_id
   for update of cs;
@@ -389,6 +390,7 @@ begin
          select 1 from public.caisses_sessions cs
          where cs.id=new.caisse_session_id
            and cs.statut='ouverte'
+           and cs.ouvert_par=auth.uid()
            and exists(select 1 from public.caisses c where c.id=cs.caisse_id and c.pharmacie_id=new.pharmacie_id and c.actif=true)
        )
        or exists (
@@ -404,7 +406,7 @@ begin
        or not public.naxa_caisse_actor_for_pharmacy(new.pharmacie_id)
        or not exists (
          select 1 from public.caisses_sessions cs
-         where cs.id=new.caisse_session_id and cs.statut='ouverte'
+         where cs.id=new.caisse_session_id and cs.statut='ouverte' and cs.ouvert_par=auth.uid()
        ) then
       raise exception 'Finalisation réservée au créateur Caisse dans une session ouverte';
     end if;
