@@ -38,3 +38,11 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les animations de sommeil et de chatouilles respectent `prefers-reduced-motion`.
 - Les comportements métier du point 11 ne sont pas raccordés : aucun contrat d'événement métier explicite n'a été identifié dans le composant de la luciole. Ils ne sont pas simulés et aucune donnée métier n'est créée. Les comportements aléatoires d'assise/téléportation/bâillement ne sont pas encore implémentés dans ce changement.
 - Aucune compilation ni suite de tests n'a été lancée, conformément à la consigne. Aucun déploiement n'a été déclenché.
+
+
+## Complément — facéties et signaux NAXA (19 octobre 2026)
+- Le retour au petit arbre et le début du sommeil sont réglés à 20 secondes d'inactivité, conformément à la consigne de référence.
+- Pendant la flânerie nocturne, la fée choisit aléatoirement de s'asseoir, de bâiller ou de se téléporter vers un point aléatoire de la zone visible. Les durées et intervalles restent centralisés dans `luciole-constants.ts`.
+- Les interactions sur les commandes et liens reconnaissent les libellés/attributs correspondant aux rappels de posologie, recherche, scan/ordonnance, panier, commande/réservation et paiement, et déclenchent un geste lumineux bref. Les composants peuvent également émettre `new CustomEvent("naxa:fairy", { detail: { type: "reminder" } })` (types admis : `reminder`, `search`, `scan`, `cart`, `order`, `reservation`, `payment`). Ce signal ne modifie aucune donnée métier et ne remplace pas le traitement de l'action d'origine.
+- Nettoyage des temporisateurs à la désinstallation du composant et prise en compte de `prefers-reduced-motion`.
+- La validation automatisée sera lancée via GitLab Beta après synchronisation de la version à tester.
