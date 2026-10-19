@@ -493,7 +493,7 @@ export function SuiviConnecte() {
       const { data: authData } = await sb.auth.getUser();
       if (!authData.user) throw new Error("Session expired");
       const { error: metadataError } = await sb.from("suivi_user_devices").update({
-        device_brand: String(connected.name ?? "Appareil Bluetooth").slice(0,120),
+        device_model: String(connected.name ?? "Appareil Bluetooth").slice(0,120),
         protocol: serviceIds.join(",").slice(0,80) || "BLE-GATT",
         last_sync_at: new Date().toISOString(),
         last_error: null,
