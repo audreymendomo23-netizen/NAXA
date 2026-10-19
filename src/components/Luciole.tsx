@@ -51,6 +51,9 @@ export function Luciole() {
     let activeGesture: string | null = null;
     let sleeping = false;
     let sleepPending = false;
+    let sleepJourneyStart = 0;
+    let sleepJourneyFromX = x;
+    let sleepJourneyFromY = y;
     let lastTapAt = 0;
     let tickleCooldownUntil = 0;
     let tickleTimer: number | undefined;
@@ -524,14 +527,25 @@ export function Luciole() {
           else firefly.classList.add("naxa-luciole-guidance-pulse");
         }
       }
-      const ease = sleepPending || idleFor >= LUCIOLE_TIMING.inactivity ? 0.12 : resting ? 0.055 : 0.085;
-      vx = (vx + (targetX - x) * ease) * 0.78;
-      vy = (vy + (targetY - y) * ease) * 0.78;
-      x += vx;
-      y += vy;
+      if (sleepPending) {
+        const progress = Math.min(1, Math.max(0, (now - sleepJourneyStart) / LUCIOLE_TIMING.returnToTree));
+        const eased = progress * progress * (3 - 2 * progress);
+        x = sleepJourneyFromX + (targetX - sleepJourneyFromX) * eased;
+        y = sleepJourneyFromY + (targetY - sleepJourneyFromY) * eased;
+        vx = 0; vy = 0;
+      } else {
+        const ease = idleFor >= LUCIOLE_TIMING.inactivity ? 0.12 : resting ? 0.055 : 0.085;
+        vx = (vx + (targetX - x) * ease) * 0.78;
+        vy = (vy + (targetY - y) * ease) * 0.78;
+        x += vx;
+        y += vy;
+      }
       paint();
       if (idleFor >= LUCIOLE_TIMING.inactivity && !durableStateActive && !sleeping && !sleepPending && !guidedTarget) {
         sleepPending = true;
+        sleepJourneyStart = now;
+        sleepJourneyFromX = x; sleepJourneyFromY = y;
+        vx = 0; vy = 0;
         firefly.classList.add("luciole-sleep-arriving");
         targetX = treeX; targetY = treeY - 12;
       }
