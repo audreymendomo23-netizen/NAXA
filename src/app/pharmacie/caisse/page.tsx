@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
@@ -65,6 +65,7 @@ export default function CaissePage() {
   const [percu, setPercu] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const scanBusyRef = useRef(false);
   const [ticket, setTicket] = useState<TicketLigne[] | null>(null);
   const [paiementTicket, setPaiementTicket] = useState<PaiementTicket | null>(null);
   const [historique, setHistorique] = useState<VenteHistorique[]>([]);
@@ -392,17 +393,25 @@ export default function CaissePage() {
   async function scanner(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     event.preventDefault();
+    if (scanBusyRef.current || busy) return;
     const code = scan.trim();
     if (!code) return;
     if (!vente) return setMsg("Créez une vente avant de scanner un produit.");
-    const { data, error } = await sb.rpc("caisse_rechercher_produit", {
-      p_pharmacie: pid, p_code_barre: code, p_recherche: null,
-    });
-    if (error || !data?.length) {
-      setMsg("Code-barres introuvable dans cette pharmacie ou produit indisponible.");
-      return;
+    scanBusyRef.current = true;
+    try {
+      const { data, error } = await sb.rpc("caisse_rechercher_produit", {
+        p_pharmacie: pid, p_code_barre: code, p_recherche: null,
+      });
+      if (error || !data?.length) {
+        setMsg("Code-barres introuvable dans cette pharmacie ou produit indisponible.");
+        return;
+      }
+      await ajouter(data[0] as Produit);
+    } catch {
+      setMsg("La lecture du code-barres a échoué. Vous pouvez réessayer.");
+    } finally {
+      scanBusyRef.current = false;
     }
-    await ajouter(data[0] as Produit);
   }
 
   async function abandonnerVente() {
