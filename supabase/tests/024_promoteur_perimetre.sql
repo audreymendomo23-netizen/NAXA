@@ -94,6 +94,10 @@ begin
   exception when others then v_rejected:=true;
   end;
   if not v_rejected then raise exception 'A2 doit refuser Responsable'; end if;
+  -- Une convention Promoteur couvre tout son réseau : rétablir l’architecture
+  -- canonique de B après le scénario négatif, avant de tester l’accréditation A3.
+  update public.pharmacie_architectures set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5 where pharmacie_id=v_b;
+  update public.profiles set architecture_code='PARENTS_AINES_CADETS' where id=v_responsable;
 
   update public.pharmacie_architectures set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5 where pharmacie_id=v_a;
   update public.profiles set pharmacie_id=v_a,architecture_code='PARENTS_AINES_CADETS' where id=v_responsable;
