@@ -839,3 +839,24 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole[class*="luciole-event-"] .luciole-glow-core,
   .naxa-luciole[class*="luciole-event-"] .luciole-arm-front { animation:none!important; transition:none!important; }
 }
+
+
+/* Fée luciole — robe de tulle superposée et liseré doré, silhouette conservée à 48 × 48. */
+.naxa-luciole .luciole-dress { fill:url(#luciole-dress); stroke:#F9F4E7; stroke-width:.34; stroke-linejoin:round; }
+.naxa-luciole .luciole-dress-tulle {
+  fill:#DDF2FF; fill-opacity:.48; stroke:#F8FCFF; stroke-width:.28;
+  stroke-linejoin:round;
+}
+.naxa-luciole .luciole-dress-tulle-back { fill:#D4EFFF; fill-opacity:.34; }
+.naxa-luciole .luciole-dress-tulle-front { fill:#F8FCFF; fill-opacity:.40; }
+.naxa-luciole .luciole-dress-fold {
+  fill:none; stroke:#FFFFFF; stroke-width:.32; stroke-linecap:round; opacity:.94;
+}
+.naxa-luciole .luciole-dress-gold-hem {
+  fill:none; stroke:#E9BD59; stroke-width:.78; stroke-linecap:round;
+  filter:none; opacity:.98;
+}
+.naxa-luciole .luciole-dress-gold-glint {
+  fill:none; stroke:#FFF0B5; stroke-width:.42; stroke-linecap:round; opacity:.9;
+}
+.naxa-luciole .luciole-bun { fill:#7D5738; stroke:#F3D7A0; stroke-width:.42; }
