@@ -246,8 +246,14 @@ export default function CaissePage() {
     setVente(null);
     setLignes([]);
     setDraftCheckErreur(false);
-    await chargerSession(id, uid);
-    setBusy(false);
+    try {
+      await chargerSession(id, uid);
+    } catch {
+      setSessionCheckErreur(true);
+      setMsg("La vérification du poste a échoué. Rechargez la page avant toute opération.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function chargerHistorique() {
@@ -314,15 +320,21 @@ export default function CaissePage() {
     if (!session || !uid || busy || draftCheckErreur) return;
     if (vente) return setMsg("Un panier est déjà ouvert. Finalisez-le ou abandonnez-le avant d’en créer un autre.");
     setBusy(true);
-    const { data, error } = await sb.rpc("vente_creer", { p_session: session.id });
-    setBusy(false);
-    if (error || !data) return setMsg(error?.message ?? "Impossible de créer la vente.");
-    setVente(data as string);
-    setDraftCheckErreur(false);
-    setLignes([]);
-    setTicket(null);
-    setPaiementTicket(null);
-    setMsg("Nouvelle vente créée.");
+    try {
+      const { data, error } = await sb.rpc("vente_creer", { p_session: session.id });
+      if (error || !data) return setMsg(error?.message ?? "Impossible de créer la vente.");
+      setVente(data as string);
+      setDraftCheckErreur(false);
+      setLignes([]);
+      setTicket(null);
+      setPaiementTicket(null);
+      setMsg("Nouvelle vente créée.");
+    } catch {
+      setMsg("Création de vente impossible. Vérifiez la session avant de réessayer.");
+      await chargerSession(session.caisse_id, uid);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function lookup(code?: string) {
