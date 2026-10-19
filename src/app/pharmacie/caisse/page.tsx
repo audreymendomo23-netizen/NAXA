@@ -207,11 +207,14 @@ export default function CaissePage() {
 
   async function changerCaisse(id: string) {
     if (!uid || !id || busy) return;
+    setBusy(true);
     setCaisseId(id);
     setMsg("");
+    setSession(null);
     setVente(null);
     setLignes([]);
     await chargerSession(id, uid);
+    setBusy(false);
   }
 
   async function chargerHistorique() {
