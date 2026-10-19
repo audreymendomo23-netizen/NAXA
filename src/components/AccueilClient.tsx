@@ -498,19 +498,19 @@ export function AccueilClient() {
             {menuServicesOuvert && (
               <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-[-1rem] top-full z-[1001] mt-2 w-64 max-w-[100vw] rounded-2xl border border-white/20 bg-[#0F6B3F] p-2 text-white shadow-2xl">
                 {[
-                  "Parapharmacie",
-                  "Bébé & maman",
-                  "Dispositifs médicaux",
-                  "Examens médicaux",
-                  "Prestations et soins à domicile",
+                  { label:"Parapharmacie", href:"/resultats?q=Parapharmacie", commercial:true },
+                  { label:"Bébé & maman", href:"/resultats?q=B%C3%A9b%C3%A9%20%26%20maman", commercial:true },
+                  { label:"Dispositifs médicaux", href:"/suivi", commercial:false },
+                  { label:"Examens médicaux", href:"/resultats?q=Examens%20m%C3%A9dicaux", commercial:true },
+                  { label:"Prestations et soins à domicile", href:"/resultats?q=Prestations%20et%20soins%20%C3%A0%20domicile", commercial:true },
                 ].map((categorie) => (
                   <Link
-                    key={categorie}
-                    href={"/resultats?q=" + encodeURIComponent(categorie)}
+                    key={categorie.label}
+                    href={categorie.href}
                     onClick={() => setMenuServicesOuvert(false)}
-                    className="flex min-h-12 items-center rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
+                    className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
                   >
-                    {categorie}
+                    <span>{categorie.label}</span>{categorie.commercial && <span aria-label="Espace commercial" title="Espace commercial" className="text-base" >🔑</span>}
                   </Link>
                 ))}
                 <a
