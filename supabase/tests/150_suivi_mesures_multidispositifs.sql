@@ -5,6 +5,7 @@ declare
   reminder_ok boolean;
   alert_ok boolean;
   families_ok boolean;
+  all_families_ok boolean;
 begin
   select count(*)=10 from unnest(array['debit_expiratoire','ecg_note','masse_grasse','masse_musculaire','masse_osseuse','cetonemie','acide_urique','cholesterol_hdl','cholesterol_ldl','capacite_vitale']) k
   into measurement_ok;
@@ -19,6 +20,16 @@ begin
   if not exists (select 1 from pg_constraint where conrelid='public.suivi_alert_rules'::regclass and conname='suivi_alert_rules_measurement_type_check' and pg_get_constraintdef(oid) like '%masse_grasse%') then
     raise exception 'Alert rule constraint not expanded';
   end if;
+
+  select bool_and(public.suivi_measurement_family(k) is not null)
+    from unnest(array[
+      'tension_systolique','tension_diastolique','frequence_cardiaque','temperature','saturation_oxygene',
+      'glycemie','poids','taille','imc','frequence_respiratoire','cholesterol_total','sommeil_heures',
+      'pas_jour','activite_minutes','hydratation_ml','douleur_score','humeur_score','cycle_jour',
+      'medicament_pris','symptome_note','debit_expiratoire','ecg_note','masse_grasse','masse_musculaire',
+      'masse_osseuse','cetonemie','acide_urique','cholesterol_hdl','cholesterol_ldl','capacite_vitale'
+    ]) k into all_families_ok;
+  if not all_families_ok then raise exception 'At least one of the 30 measurement types has no consent family'; end if;
 
   select public.suivi_measurement_family('debit_expiratoire')='constantes'
     and public.suivi_measurement_family('masse_grasse')='metabolisme'
