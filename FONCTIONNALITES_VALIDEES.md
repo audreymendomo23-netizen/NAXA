@@ -1572,3 +1572,37 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 
 
 - Ajustement du verrouillage phase 1 : l’administration peut désactiver `suivi` ou fermer une association existante, mais ne peut pas l’activer ni ouvrir une nouvelle association. Code : `src/app/admin/univers/actions.ts`, `src/app/admin/univers/page.tsx`; commits `2a6409ef45b0ef1244a8e222357e6d94cfd0804b` et `dde8aac4a7bf5dce52c825014415e63702573350`.
+
+
+## Chantier Promoteur — consolidation du parcours N1 (19/10/2026)
+
+### Modifications intégrées dans `main`
+
+- `src/app/pharmacie/promoteur/page.tsx` : nouveau tableau de bord N1, liste du réseau issu de `promoteur_pharmacies`, indicateurs via `stats_pilotage_scope`, comptes Caisse et lecture seule de la convention/abonnement propres au Promoteur authentifié.
+- `src/app/pharmacie/page.tsx` : un Promoteur est orienté vers son tableau de bord réseau par défaut ; l’accès opérationnel à sa pharmacie principale reste explicite via `?vue=operation`.
+- `src/app/pharmacie/caisses/page.tsx` : gestion des Caisses sur l’ensemble des pharmacies attribuées, avec affichage de la pharmacie et des quotas disponibles lorsque l’architecture est lisible.
+- `src/app/pharmacie/actions.ts` : création suivie de `naxa_provision_caisse`, blocage/réactivation suivis de `naxa_set_caisse_status`; suppression du contournement par mise à jour directe en service-role pour ces transitions. En cas d’échec du provisionnement, le compte provisoire est supprimé.
+- `src/app/admin/page.tsx` et `src/app/admin/actions.ts` : l’onboarding d’une pharmacie recueille désormais le tarif convenu et l’architecture, crée la convention et l’abonnement Promoteur, assigne l’architecture de pharmacie et établit le lien réseau. Le mot de passe provisoire n’est plus visible à l’écran.
+- `supabase/migration_133_promoteur_validite_canonique.sql` : corrige la contradiction entre l’arrêt des abonnements par pharmacie et l’ancienne vérification qui les exigeait malgré l’abonnement canonique du Promoteur. La façade de validité n’autorise que l’auto-consultation ou l’administration.
+- `supabase/tests/133_promoteur_validite_canonique.sql` : scénario transactionnel couvrant abonnement canonique valide sans abonnement legacy par pharmacie, impayé et pharmacie inactive.
+
+### Commits de code
+
+- `6239f020dc8955383e8f21a77b0a3783db2183f2` — actions Promoteur sécurisées.
+- `32c7baf36487a0767ca4f790c175dd285f4223c8` — gestion d’équipe multi-pharmacie.
+- `2e5ef19f87e8d172e6dd761c68f463c99d3daed0` — tableau de bord Promoteur.
+- `780fa8cfd9091d530d43e3c8884555f72e75c071` et `2f4df0ceed0656d37c2149a2457a95f3cef2ef31` — navigation et accès au tableau de bord.
+- `5826306115b8a76bf2f5ace7632c4392415151e3` et `4007e02de440bc8786e61683f717614870ffa889` — onboarding contractuel et compensation d’échec.
+- `b93ace035d46fc2a2a2207ffda73469693f0bd92` — formulaire d’onboarding.
+- `4841b619d8d117091e7c06f711382e53fd914df2` — validité canonique Promoteur.
+- `16b1ec2fc4ba83ee5389dd633baf8a8c699ee1f2` — test de régression SQL.
+
+### Niveau de preuve
+
+- **Code intégré dans main :** confirmé par relecture des fichiers après commit.
+- **Build TypeScript/Next.js :** non exécuté dans cet environnement.
+- **Test SQL 133 :** ajouté mais non exécuté ; aucun résultat PASS n’est revendiqué.
+- **Migrations Supabase :** ajoutées au dépôt uniquement ; aucune migration appliquée à Production.
+- **Déploiement :** non lancé.
+
+**Statut du chantier Promoteur : 🟡 CONSTRUIT — PREUVE MANQUANTE.** Ne pas déclarer 100 % tant que le build, le rejeu transactionnel sur une base de diagnostic propre et les parcours fonctionnels Promoteur/Caisse ne sont pas prouvés. Les fonctionnalités hors du périmètre effectivement vérifié restent à auditer/corriger avant la clôture globale du profil N1.
