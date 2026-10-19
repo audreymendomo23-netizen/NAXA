@@ -10,6 +10,7 @@ const erreurs: Record<string, string> = {
   pharmacie: "Pharmacie introuvable ou impossible à lire.",
   rattachement: "Le rattachement Promoteur–pharmacie est absent ou ambigu.",
   promoteur: "Le compte Promoteur ou son architecture est invalide.",
+  "dossier-incomplet": "Le dossier administratif est incomplet : vérifiez le rattachement et les coordonnées privées de la pharmacie.",
   contrat: "Convention, abonnement et architecture ne sont pas cohérents.",
   abonnement: "L’abonnement n’a pas pu être activé.",
   architecture: "L’architecture de la pharmacie n’a pas pu être activée.",
