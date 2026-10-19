@@ -422,7 +422,7 @@ export function SuiviConnecte() {
     if (!window.isSecureContext) { setNotice("Le Bluetooth exige HTTPS. Vous pouvez utiliser la saisie ou le scan local."); return; }
     const bluetooth = (navigator as any).bluetooth;
     if (!bluetooth?.requestDevice) {
-      setNotice("Ce navigateur ne fournit pas Web Bluetooth. Utilisez la saisie manuelle ou le scan local, ou une application compagnon du fabricant si elle propose un export.");
+      setNotice("Ce navigateur ne fournit pas Web Bluetooth. Utilisez la saisie manuelle ou le scan local, ou un export de l’application du fabricant.");
       return;
     }
     setBusy(true);
@@ -435,34 +435,75 @@ export function SuiviConnecte() {
       });
       if (!connected?.gatt) throw new Error("GATT unavailable");
       const server = await connected.gatt.connect();
-      const found: string[] = [];
+      const profileByDevice: Record<string, { service: string; characteristic: string; type: string; unit: string; parse: (data: DataView) => number }> = {
+        tensiometre: {
+          service:"blood_pressure", characteristic:"blood_pressure_measurement", type:"tension_systolique", unit:"mmHg",
+          parse:(data)=>{ if(data.byteLength<5) throw new Error("BP payload too short"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<=0)throw new Error("Invalid BP"); return value; }
+        },
+        thermometre: {
+          service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
+          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
+        },
+        thermometre_infrarouge: {
+          service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
+          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value) || value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
+        },
+        oxymetre: {
+          service:"pulse_oximeter", characteristic:"plx_spot_check_measurement", type:"saturation_oxygene", unit:"%",
+          parse:(data)=>{ if(data.byteLength<3)throw new Error("SpO2 payload too short"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<50||value>100)throw new Error("Invalid SpO2"); return value; }
+        },
+        balance: {
+          service:"weight_scale", characteristic:"weight_measurement", type:"poids", unit:"kg",
+          parse:(data)=>{ if(data.byteLength<3)throw new Error("Weight payload too short"); const flags=data.getUint8(0); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; let value=mantissa*Math.pow(10,exponent); if(flags&1)value*=0.45359237; if(!Number.isFinite(value)||value<=0||value>500)throw new Error("Invalid weight"); return value; }
+        },
+        glucometre: {
+          service:"glucose", characteristic:"glucose_measurement", type:"glycemie", unit:"unité Bluetooth standard",
+          parse:(data)=>{ if(data.byteLength<12)throw new Error("Glucose payload too short"); const offset=10; const raw=data.getUint16(offset,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<=0)throw new Error("Invalid glucose"); return value; }
+        }
+      };
+      const profile = profileByDevice[deviceKey];
+      let serviceIds: string[] = [];
       for (const serviceId of ["heart_rate","blood_pressure","health_thermometer","pulse_oximeter","glucose","weight_scale","body_composition"]) {
-        try {
-          await server.getPrimaryService(serviceId);
-          found.push(serviceId);
-        } catch { /* Ce service standard n’est pas exposé par cet appareil. */ }
+        try { await server.getPrimaryService(serviceId); serviceIds.push(serviceId); } catch { /* Service standard absent. */ }
       }
-      if (!found.length) {
-        connected.gatt.disconnect();
-        setNotice("Appareil détecté, mais aucun profil médical standard pris en charge n’a été exposé. Le scan local ou la saisie restent disponibles; aucune mesure n’a été inventée.");
-        setBusy(false);
-        return;
-      }
+      const matchedService = profile && serviceIds.includes(profile.service) ? profile.service : null;
       const { data: authData } = await sb.auth.getUser();
       if (!authData.user) throw new Error("Session expired");
-      const { error } = await sb.from("suivi_user_devices").update({
+      const { error: metadataError } = await sb.from("suivi_user_devices").update({
         device_brand: String(connected.name ?? "Appareil Bluetooth").slice(0,120),
-        protocol: found.join(",").slice(0,80),
+        protocol: serviceIds.join(",").slice(0,80) || "BLE-GATT",
         last_sync_at: new Date().toISOString(),
         last_error: null,
         updated_at: new Date().toISOString()
       }).eq("user_id",authData.user.id).eq("device_key",deviceKey);
-      if (error) throw error;
-      setNotice("Appareil détecté et profil Bluetooth identifié : " + found.join(", ") + ". L’import des mesures exige un décodeur validé pour ce profil; aucune valeur brute n’a été enregistrée comme mesure.");
+      if (metadataError) throw metadataError;
+
+      if (profile && matchedService) {
+        const service = await server.getPrimaryService(profile.service);
+        const characteristic = await service.getCharacteristic(profile.characteristic);
+        const reading: DataView = typeof characteristic.readValue === "function"
+          ? await characteristic.readValue()
+          : await new Promise<DataView>((resolve,reject)=>{
+              const timeout=window.setTimeout(()=>reject(new Error("Bluetooth reading timeout")),12000);
+              const onValue=(event:Event)=>{ const data=(event.target as any).value as DataView|undefined; if(!data)return; window.clearTimeout(timeout); characteristic.removeEventListener("characteristicvaluechanged",onValue); resolve(data); };
+              characteristic.addEventListener("characteristicvaluechanged",onValue);
+              characteristic.startNotifications().catch((error:unknown)=>{window.clearTimeout(timeout);characteristic.removeEventListener("characteristicvaluechanged",onValue);reject(error);});
+            });
+        const parsed = profile.parse(reading);
+        setSelectedType(profile.type);
+        setValue(String(Number(parsed.toFixed(3))));
+        setPendingMeasurementSource("bluetooth");
+        setMeasuredAt(new Date().toISOString().slice(0,16));
+        setNotice("Mesure Bluetooth décodée ("+profile.type+", "+profile.unit+"). Vérifiez la valeur puis confirmez son enregistrement. Le décodage est disponible uniquement pour ce profil standard.");
+      } else {
+        setNotice(serviceIds.length
+          ? "Appareil détecté ("+String(connected.name ?? "Bluetooth")+") avec profils : "+serviceIds.join(", ")+". Aucun décodeur vérifié n’est associé à ce couple appareil/type; aucune mesure brute n’a été enregistrée."
+          : "Appareil détecté, mais aucun profil médical GATT standard reconnu. Utilisez le scan local ou la saisie manuelle.");
+      }
       await load();
       connected.gatt.disconnect();
     } catch {
-      setNotice("Connexion annulée ou impossible. Aucun relevé n’a été enregistré; réessayez ou utilisez le scan/saisie.");
+      setNotice("Connexion annulée, refusée ou lecture incompatible. Aucune mesure n’a été enregistrée; réessayez ou utilisez le scan/saisie.");
       try { connected?.gatt?.disconnect(); } catch { /* ignore disconnect cleanup */ }
     } finally {
       setBusy(false);
