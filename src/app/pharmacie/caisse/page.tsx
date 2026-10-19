@@ -61,7 +61,9 @@ export default function CaissePage() {
   const [percu, setPercu] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ticket, setTicket] = useState<TicketLigne[] | null>(null);\n  const [historique, setHistorique] = useState<VenteHistorique[]>([]);\n  const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
+  const [ticket, setTicket] = useState<TicketLigne[] | null>(null);
+  const [historique, setHistorique] = useState<VenteHistorique[]>([]);
+  const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
 
   const chargerVenteBrouillon = useCallback(async (sessionId: string, userId: string) => {
     const { data: draft, error } = await sb.from("ventes")
