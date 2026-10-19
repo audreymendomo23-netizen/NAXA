@@ -35,7 +35,7 @@ export async function validerDossierPharmacie(formData: FormData) {
 
   const { data: promoter, error: promoterError } = await db
     .from("profiles")
-    .select("id,role,architecture_code")
+    .select("id,role,architecture_code,actif")
     .eq("id", link.promoteur_id)
     .maybeSingle();
   if (promoterError || promoter?.role !== "promoteur" || !promoter.architecture_code) {
