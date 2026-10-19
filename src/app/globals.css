@@ -824,7 +824,11 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-event-cart .luciole-arm-front,
 .naxa-luciole.luciole-event-order .luciole-arm-front,
 .naxa-luciole.luciole-event-reservation .luciole-arm-front,
-.naxa-luciole.luciole-event-payment .luciole-arm-front { animation:luciole-event-wave 420ms ease-in-out 2; }
+.naxa-luciole.luciole-event-payment .luciole-arm-front,
+.naxa-luciole.luciole-event-favorite .luciole-arm-front,
+.naxa-luciole.luciole-event-language .luciole-arm-front,
+.naxa-luciole.luciole-event-offline .luciole-arm-front,
+.naxa-luciole.luciole-event-online .luciole-arm-front { animation:luciole-event-wave 420ms ease-in-out 2; }
 @keyframes luciole-yawn-mouth { 0%,100%{transform:scale(.5)} 35%,65%{transform:scale(2.8)} }
 @keyframes luciole-yawn-stretch { 0%,100%{transform:rotate(0)} 45%,65%{transform:rotate(-58deg)} }
 @keyframes luciole-event-glow { 0%,100%{opacity:.7;transform:scale(.94)} 50%{opacity:1;transform:scale(1.3)} }
