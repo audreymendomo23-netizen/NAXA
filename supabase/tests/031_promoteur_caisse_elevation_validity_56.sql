@@ -21,13 +21,13 @@ begin
   set local session_replication_role='origin';
 
   insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'P4C A',3.8667,11.5167,true);
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true);
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values(p,30000,current_date+30,'active','PARENTS_AINES_CADETS') returning id into conv;
   insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
   values(p,conv,30000,current_date,current_date+30,'actif');
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(a,'PARENTS_AINES_CADETS',p,true,5,5);
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true);
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='PARENTS_AINES_CADETS' where id in(c,r);
   insert into p4c_ids values(p,a,c,r,conv);
 end $$;
