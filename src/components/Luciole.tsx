@@ -448,7 +448,7 @@ export function Luciole() {
       if (durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && !pointerActive && !guidedTarget && !sleeping && !sleepPending) {
         const className = "luciole-state-" + activeNaxaState!.type;
         if (activeStateClass !== className) { clearActiveStateClass(); activeStateClass = className; firefly.classList.add(className); }
-        const anchorX = activeNaxaState!.type === "scan" ? window.innerWidth - 32 : window.innerWidth - 32;
+        const anchorX = window.innerWidth - 32;
         const anchorY = activeNaxaState!.type === "scan" ? 84 : Math.max(84, window.innerHeight * 0.28);
         targetX = anchorX; targetY = anchorY;
       } else clearActiveStateClass();
@@ -624,6 +624,7 @@ export function Luciole() {
       document.addEventListener("pointermove", onGuidancePointerMove, { passive: true, capture: true });
     }
     document.addEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
+    window.addEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
     window.addEventListener("naxa:panier-ajoute", onCartAdded);
     window.addEventListener("naxa:favoris-change", onFavoritesChanged);
     window.addEventListener("naxa-language-updated", onLanguageChanged);
@@ -665,6 +666,7 @@ export function Luciole() {
       tree.classList.remove("naxa-luciole-tree-awake", "naxa-luciole-tree-glow");
       firefly.classList.remove("naxa-luciole-guidance-pulse", "naxa-luciole-typing-glow", "naxa-luciole-click-spark");
       document.removeEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
+      window.removeEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
       window.removeEventListener("naxa:panier-ajoute", onCartAdded);
       window.removeEventListener("naxa:favoris-change", onFavoritesChanged);
       window.removeEventListener("naxa-language-updated", onLanguageChanged);
