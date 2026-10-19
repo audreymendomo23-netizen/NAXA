@@ -1,6 +1,6 @@
 /** Durées et intervalles réglables de la fée luciole (millisecondes). */
 export const LUCIOLE_TIMING = {
-  inactivity: 20_000,
+  inactivity: 30_000,
   specialCalm: 2_000,
   returnToTree: 1_500,
   sleepBreath: 4_000,
@@ -19,4 +19,15 @@ export const LUCIOLE_TIMING = {
   specialIntervalMin: 8_000,
   specialIntervalMax: 12_000,
   specialMaxFinish: 2_000,
+  guidePulse: 650,
+  typingGlow: 480,
+  teleportRelocation: 300,
+  clickSpark: 360,
+  validationDelay: 450,
+  randomWanderStart: 1_600,
+  wanderLegMin: 1_400,
+  wanderLegRange: 3_000,
+  saluteDuration: 1_150,
+  saluteCleanup: 1_200,
+  sparkDuration: 850,
 } as const;

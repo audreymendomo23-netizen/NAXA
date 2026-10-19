@@ -38,3 +38,14 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les animations de sommeil et de chatouilles respectent `prefers-reduced-motion`.
 - Les facéties aléatoires d'assise, de téléportation et de bâillement sont implémentées pendant la flânerie. Les interactions de recherche, scan/ordonnance, panier, commande/réservation, paiement et rappel de posologie peuvent déclencher un geste lumineux par libellé/attribut ou par l'événement personnalisé `naxa:fairy`. Ces réactions sont purement visuelles et ne modifient aucune donnée métier.
 - Validation GitLab Beta réussie sur le code de la fée (commit de test `94deba815f25683e8afe45e1b39d155a8d6f1f2a`, pipeline [#73](https://gitlab.com/audreymendomo23-netizen/NAXA/-/pipelines/2961186191)) : `npx tsc --noEmit`, `npm run lint`, `npm run build` et `full_migration_replay` sont passés. Le lint/build ont émis des avertissements non bloquants sur des fichiers existants hors de ce chantier. Le pipeline ne contient pas de suite de tests unitaires (rapport de tests vide). Aucun déploiement n'a été déclenché.
+
+
+## Mise à jour — audit et durées (19 octobre 2026)
+
+- Le code conserve le déplacement aléatoire, le suivi passif du pointeur, le guidage du curseur de saisie, le guidage vers les boutons, l'arbre lumineux, le sommeil, le réveil et les chatouilles.
+- Le retour à l'arbre passe de 20 à 30 secondes via `src/components/luciole-constants.ts`.
+- Les durées de guidage, de scintillement, de validation, de déplacement aléatoire et de salut auparavant codées en dur dans `Luciole.tsx` sont centralisées dans le même fichier de constantes.
+- Événements confirmés pendant l'audit : `naxa:panier-ajoute`, `naxa:favoris-change` et `naxa-language-updated`. La recherche et le scan ont des états locaux dans leurs composants, sans canal commun actuel vers la fée.
+- Le canal générique `naxa:fairy` est écouté par la fée, mais aucun producteur n'a été trouvé dans les composants inspectés. Aucun état métier absent n'est simulé.
+- Les réactions spécialisées exigeant un état non exposé (confirmation de paiement, statut réel de livraison, traitement terminé, stock bas, avis envoyé et première ouverture par appareil) ne sont pas déclarées implémentées dans cette étape ; elles nécessitent un raccordement à leur source réelle. La fée ne crée aucune donnée métier ni notification.
+- Tests de compilation et tests automatisés : non exécutés dans cette opération GitHub distante ; aucun succès de test n'est revendiqué.

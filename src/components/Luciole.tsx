@@ -92,8 +92,8 @@ export function Luciole() {
     const guideToCaret = (field: HTMLInputElement | HTMLTextAreaElement, glow = false) => {
       wake();
       guidedTarget = caretTarget(field);
-      guidePulseUntil = performance.now() + 650;
-      if (glow) { guideGlowUntil = performance.now() + 480; firefly.classList.add("naxa-luciole-typing-glow"); }
+      guidePulseUntil = performance.now() + LUCIOLE_TIMING.guidePulse;
+      if (glow) { guideGlowUntil = performance.now() + LUCIOLE_TIMING.typingGlow; firefly.classList.add("naxa-luciole-typing-glow"); }
       lastInput = performance.now();
       resting = false;
       tree.classList.add("naxa-luciole-tree-awake");
@@ -196,7 +196,7 @@ export function Luciole() {
           x = point.x; y = point.y; targetX = point.x; targetY = point.y; vx = 0; vy = 0;
           paint();
           teleportTimer = undefined;
-        }, Math.min(300, LUCIOLE_TIMING.teleportFade / 2));
+        }, Math.min(LUCIOLE_TIMING.teleportRelocation, LUCIOLE_TIMING.teleportFade / 2));
         specialTimer = window.setTimeout(() => {
           firefly.classList.remove(className);
           specialTimer = undefined;
@@ -220,7 +220,7 @@ export function Luciole() {
         spark.style.animation = "none";
         spark.style.opacity = "1";
         void spark.offsetWidth;
-        spark.style.animation = "luciole-spark 850ms ease-out forwards";
+        spark.style.animation = `luciole-spark ${LUCIOLE_TIMING.sparkDuration}ms ease-out forwards`;
       });
     };
 
@@ -315,7 +315,7 @@ export function Luciole() {
       burst();
       firefly.classList.add("naxa-luciole-click-spark");
       if (clickSparkTimer) window.clearTimeout(clickSparkTimer);
-      clickSparkTimer = window.setTimeout(() => { firefly.classList.remove("naxa-luciole-click-spark"); clickSparkTimer = undefined; }, reducedMotion.matches ? 0 : 360);
+      clickSparkTimer = window.setTimeout(() => { firefly.classList.remove("naxa-luciole-click-spark"); clickSparkTimer = undefined; }, reducedMotion.matches ? 0 : LUCIOLE_TIMING.clickSpark);
       reactToClickedControl(button);
       const form = button.closest("form");
       if (form) {
@@ -334,7 +334,7 @@ export function Luciole() {
           } else guidedTarget = null;
           if (!guidedTarget) firefly.classList.remove("naxa-luciole-guidance-pulse", "naxa-luciole-typing-glow");
           lastValidationForm = null;
-        }, 450);
+        }, LUCIOLE_TIMING.validationDelay);
       } else {
         guidedTarget = null;
         firefly.classList.remove("naxa-luciole-guidance-pulse");
@@ -380,14 +380,14 @@ export function Luciole() {
         tree.classList.remove("naxa-luciole-tree-awake");
       } else {
         resting = false;
-        if (idleFor >= 1600) {
+        if (idleFor >= LUCIOLE_TIMING.randomWanderStart) {
           // Chaque destination est tirée indépendamment dans toute la zone visible :
           // aucune sinusoïde, boucle ni trajectoire répétitive.
           if (now >= nextWanderAt) {
             const point = randomViewportPoint();
             nextWanderX = point.x;
             nextWanderY = point.y;
-            nextWanderAt = now + 1400 + Math.random() * 3000;
+            nextWanderAt = now + LUCIOLE_TIMING.wanderLegMin + Math.random() * LUCIOLE_TIMING.wanderLegRange;
           }
           targetX = nextWanderX;
           targetY = nextWanderY;
@@ -456,10 +456,10 @@ export function Luciole() {
     placeTree();
     paint();
     if (motionAllowed) {
-      saluteUntil = performance.now() + 1150;
+      saluteUntil = performance.now() + LUCIOLE_TIMING.saluteDuration;
       firefly.classList.add("gesture-salute");
       activeGesture = "salute";
-      saluteTimer = window.setTimeout(() => { firefly.classList.remove("gesture-salute"); saluteTimer = undefined; }, 1200);
+      saluteTimer = window.setTimeout(() => { firefly.classList.remove("gesture-salute"); saluteTimer = undefined; }, LUCIOLE_TIMING.saluteCleanup);
     }
     if (!reducedMotion.matches) start();
     else {
