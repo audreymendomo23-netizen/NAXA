@@ -310,7 +310,7 @@ export function Luciole() {
     };
     const onGuidanceClick = (event: MouseEvent) => {
       const element = event.target;
-      const button = element instanceof HTMLElement ? element.closest<HTMLElement>("button, input[type=submit], input[type=button], [role=button]") : null;
+      const button = element instanceof HTMLElement ? element.closest<HTMLElement>("a[href], button, input[type=submit], input[type=button], [role=button]") : null;
       if (!button) return;
       burst();
       firefly.classList.add("naxa-luciole-click-spark");
