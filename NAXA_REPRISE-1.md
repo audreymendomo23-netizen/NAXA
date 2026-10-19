@@ -71,3 +71,11 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les gestes métier ne sont plus déduits des mots présents sur un bouton : ils ne sont déclenchés que par les événements d’état existants ou par un attribut explicite `data-naxa-fairy`. Un clic n’est jamais pris à tort pour une commande validée ou un paiement réussi.
 
 - La durée de pirouette lors du changement de langue est également centralisée dans `LUCIOLE_TIMING`.
+
+
+## Vérifications techniques de la branche — 19 octobre 2026
+
+- **Syntaxe TSX/TypeScript (esbuild 0.24.2)** : réussi pour `Luciole.tsx`, `luciole-constants.ts`, `Recherche.tsx`, `ScannerShell.tsx` et `RappelsPosologieGlobaux.tsx`.
+- **Analyse syntaxique CSS (PostCSS CLI 11.0.0)** : réussie pour `src/app/globals.css`.
+- **Type-check complet, lint et build Next.js** : non exécutés. Le sandbox de vérification disponible contient un extrait incomplet du dépôt, pas l’application entière. La branche de travail n’existe pas dans le miroir GitLab et l’API de lecture des pipelines a répondu HTTP 403 ; aucune réussite de pipeline n’est revendiquée.
+- **Déploiement** : non effectué. La branche et la PR restent ouvertes ; aucun merge vers `main`.
