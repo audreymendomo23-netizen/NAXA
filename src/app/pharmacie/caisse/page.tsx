@@ -415,6 +415,32 @@ export default function CaissePage() {
     }
   }
 
+  async function retirerProduit(line: Ligne) {
+    if (!vente || !session || !uid || busy) return;
+    if (!window.confirm("Retirer les " + line.q + " unité(s) de « " + line.nom + " » du panier et restituer le stock ?")) return;
+    const venteId = vente;
+    setBusy(true);
+    try {
+      const { data, error } = await sb.rpc("vente_produit_retirer", {
+        p_vente: venteId,
+        p_produit: line.produit_id,
+      });
+      if (error) throw error;
+      const verified = await chargerVenteBrouillon(session.id, uid);
+      if (!verified) {
+        setMsg("Le retrait a été demandé, mais le panier doit être revérifié avant toute autre opération.");
+        return;
+      }
+      setPercu("");
+      setMsg(Number(data) + " unité(s) retirée(s) du panier ; le stock et les lots d’origine ont été restitués.");
+    } catch (error) {
+      await chargerVenteBrouillon(session.id, uid);
+      setMsg(error instanceof Error ? error.message : "Retrait non confirmé. Le panier a été relu depuis la base.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function abandonnerVente() {
     if (!vente || busy) return;
     if (!window.confirm("Abandonner ce panier ? Les quantités réservées seront restituées au stock.")) return;
@@ -557,7 +583,7 @@ export default function CaissePage() {
                     <div className="mt-3 flex gap-2"><input className="champ min-w-0 flex-1" placeholder="Nom, référence ou code-barres" value={recherche} onChange={(e) => setRecherche(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void lookup()} /><button className="btn btn-clair" onClick={() => void lookup()} disabled={busy}>Rechercher</button></div>
                     {onglet === "recherche" && <div className="mt-3"><textarea className="champ min-h-24 w-full" placeholder="Jusqu’à 100 codes-barres, séparés par espaces, virgules ou retours à la ligne" value={bulk} onChange={(e) => setBulk(e.target.value)} /><button className="btn btn-clair mt-2" onClick={() => void lookupBulk()} disabled={busy}>Rechercher les codes</button></div>}
                     {resultats.length > 0 && <div className="mt-3 rounded-xl border">{resultats.map((p) => onglet === "caisse" ? <button key={p.produit_id} className="block w-full border-b p-3 text-left last:border-b-0 hover:bg-gray-50" onClick={() => void ajouter(p)} disabled={!vente || busy}><b>{p.nom}</b> {p.dosage && <span>{p.dosage}</span>} · {fcfa(p.prix)} · Stock disponible {p.quantite} · {p.emplacement || "Emplacement non renseigné"}</button> : <div key={p.produit_id} className="border-b p-3 last:border-b-0"><b>{p.nom}</b> {p.dosage && <span>{p.dosage}</span>} · <strong>{fcfa(p.prix)}</strong> · Stock {p.quantite}</div>)}</div>}
-                    <div className="mt-5 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Produit</th><th className="p-2 text-center">Qté</th><th className="p-2 text-right">Prix moyen</th><th className="p-2 text-right">Total</th></tr></thead><tbody>{lignes.map((line) => <tr key={line.produit_id} className="border-t"><td className="p-2">{line.nom}{line.dosage ? " · " + line.dosage : ""}</td><td className="p-2 text-center">{line.q}</td><td className="p-2 text-right">{fcfa(line.prix)}</td><td className="p-2 text-right">{fcfa(line.total)}</td></tr>)}</tbody><tfoot><tr className="border-t-2 font-extrabold"><td className="p-2" colSpan={3}>Total à payer</td><td className="p-2 text-right">{fcfa(total)}</td></tr></tfoot></table></div>
+                    <div className="mt-5 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Produit</th><th className="p-2 text-center">Qté</th><th className="p-2 text-right">Prix moyen</th><th className="p-2 text-right">Total</th><th className="p-2 text-center">Action</th></tr></thead><tbody>{lignes.map((line) => <tr key={line.produit_id} className="border-t"><td className="p-2">{line.nom}{line.dosage ? " · " + line.dosage : ""}</td><td className="p-2 text-center">{line.q}</td><td className="p-2 text-right">{fcfa(line.prix)}</td><td className="p-2 text-right">{fcfa(line.total)}</td><td className="p-2 text-center"><button className="btn btn-clair" disabled={busy || !vente} onClick={() => void retirerProduit(line)}>Retirer</button></td></tr>)}</tbody><tfoot><tr className="border-t-2 font-extrabold"><td className="p-2" colSpan={4}>Total à payer</td><td className="p-2 text-right">{fcfa(total)}</td></tr></tfoot></table></div>
                     {vente && <button className="btn btn-clair mt-4" disabled={busy} onClick={() => void abandonnerVente()}>Abandonner le panier et restituer le stock</button>}
                   </section>
                   <aside className="carte space-y-3">
