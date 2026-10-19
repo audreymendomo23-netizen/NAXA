@@ -65,7 +65,6 @@ export default async function EspacePromoteur() {
   const hasOperationalNetwork = (pharmacies ?? []).some(
     (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
   );
-  const commercialStatus = (abonnement?.statut ?? convention?.statut ?? null)?.toLowerCase() ?? null;
   const expiryDate = abonnement?.echeance ?? convention?.date_expiration ?? null;
   const isCommerciallyBlocked = Boolean(
     abonnement?.bloque_le ||
