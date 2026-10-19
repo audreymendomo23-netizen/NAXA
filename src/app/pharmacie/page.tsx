@@ -33,6 +33,7 @@ export default function PanneauPharmacie(){
   if(!u.user){window.location.replace("/connexion?espace=pharmacie");return}
   const {data:p}=await sb.from("profiles").select("pharmacie_id,role,actif").eq("id",u.user.id).single();
   if(!p?.pharmacie_id||p.actif===false||!["pharmacie","promoteur","caisse"].includes(p.role)){setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");return}
+  if(p.role==="promoteur"&&new URLSearchParams(window.location.search).get("vue")!=="operation"){window.location.replace("/pharmacie/promoteur");return}
   setRole(p.role);setPid(p.pharmacie_id);await charger(p.pharmacie_id);
 })()},[charger,sb]);
 
