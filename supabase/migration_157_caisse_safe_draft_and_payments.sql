@@ -477,8 +477,14 @@ begin
   select * into v_vente from public.ventes where id=new.vente_id;
   if not found or v_vente.statut<>'brouillon'
      or v_vente.created_by is distinct from auth.uid()
-     or not public.naxa_caisse_actor_for_pharmacy(v_vente.pharmacie_id) then
-    raise exception 'Ajout de ligne réservé au créateur d’une vente Caisse brouillon';
+     or not public.naxa_caisse_actor_for_pharmacy(v_vente.pharmacie_id)
+     or not exists (
+       select 1 from public.caisses_sessions cs
+       where cs.id=v_vente.caisse_session_id
+         and cs.statut='ouverte'
+         and cs.ouvert_par=auth.uid()
+     ) then
+    raise exception 'Ajout de ligne réservé au créateur Caisse dans une session ouverte qui lui appartient';
   end if;
   return new;
 end;
@@ -509,8 +515,14 @@ begin
   select * into v_vente from public.ventes where id=new.vente_id;
   if not found or v_vente.statut<>'brouillon'
      or v_vente.created_by is distinct from auth.uid()
-     or not public.naxa_caisse_actor_for_pharmacy(v_vente.pharmacie_id) then
-    raise exception 'Paiement réservé au créateur d’une vente Caisse brouillon';
+     or not public.naxa_caisse_actor_for_pharmacy(v_vente.pharmacie_id)
+     or not exists (
+       select 1 from public.caisses_sessions cs
+       where cs.id=v_vente.caisse_session_id
+         and cs.statut='ouverte'
+         and cs.ouvert_par=auth.uid()
+     ) then
+    raise exception 'Paiement réservé au créateur Caisse dans une session ouverte qui lui appartient';
   end if;
   return new;
 end;
