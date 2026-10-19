@@ -19,7 +19,6 @@ do $$ declare p uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_
  insert into v8_ids values(p,a,b,c);
 end $$;
 grant select on v8_ids to authenticated;
-set local role authenticated;
 select set_config('request.jwt.claim.sub',(select promoteur::text from v8_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v8_ids),'role','authenticated')::text,true);
 -- 8.1 uniquement A+B, jamais C/non attribué.
