@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 const value = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function verifierCible(formData: FormData, privilege: string, action: "ASSIGN_PRIVILEGE" | "REVOKE_PRIVILEGE") {
+async function verifierCible(formData: FormData, action: "ASSIGN_PRIVILEGE" | "REVOKE_PRIVILEGE") {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses/privileges");
@@ -42,7 +42,7 @@ async function verifierCible(formData: FormData, privilege: string, action: "ASS
 }
 
 export async function attribuerPrivilegeCaisse(formData: FormData) {
-  const { sb, caisseId, pharmacieId, privilegeCode } = await verifierCible(formData, "ASSIGN_PRIVILEGE", "ASSIGN_PRIVILEGE");
+  const { sb, caisseId, pharmacieId, privilegeCode } = await verifierCible(formData, "ASSIGN_PRIVILEGE");
   const { error } = await sb.rpc("naxa_grant_privilege", {
     p_target: caisseId,
     p_privilege: privilegeCode,
@@ -53,7 +53,7 @@ export async function attribuerPrivilegeCaisse(formData: FormData) {
 }
 
 export async function retirerPrivilegeCaisse(formData: FormData) {
-  const { sb, caisseId, pharmacieId, privilegeCode } = await verifierCible(formData, "REVOKE_PRIVILEGE", "REVOKE_PRIVILEGE");
+  const { sb, caisseId, pharmacieId, privilegeCode } = await verifierCible(formData, "REVOKE_PRIVILEGE");
   const { error } = await sb.rpc("naxa_revoke_privilege", {
     p_target: caisseId,
     p_privilege: privilegeCode,
