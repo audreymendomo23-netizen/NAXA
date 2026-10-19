@@ -136,7 +136,7 @@ export default function CaissePage() {
     if (error) {
       setSessionCheckErreur(true);
       setMsg("Impossible de vérifier la session de caisse. L’ouverture et les opérations restent bloquées jusqu’à une nouvelle vérification.");
-      return;
+      return false;
     }
     setSessionCheckErreur(false);
     if (!data) {
@@ -144,7 +144,7 @@ export default function CaissePage() {
       setSessionBloquee(false);
       setVente(null);
       setLignes([]);
-      return;
+      return false;
     }
     if (data.ouvert_par !== userId) {
       setSession(null);
@@ -152,11 +152,12 @@ export default function CaissePage() {
       setVente(null);
       setLignes([]);
       setMsg("Une session est déjà ouverte par un autre compte Caisse. Demandez à son titulaire ou à l’administration de la clôturer avant d’utiliser ce poste.");
-      return;
+      return false;
     }
     setSessionBloquee(false);
     setSession(data as Session);
     await chargerVenteBrouillon(data.id, userId);
+    return true;
   }, [chargerVenteBrouillon, sb]);
 
   useEffect(() => {
@@ -270,9 +271,12 @@ export default function CaissePage() {
     try {
       const { data, error } = await sb.rpc("caisse_ouvrir", { p_caisse: caisseId, p_fond_initial: amount });
       if (error) throw error;
-      await chargerSession(caisseId, uid);
-      setMsg("Session ouverte. Le fond initial est enregistré ; créez une vente lorsque vous êtes prêt.");
-      if (!data) setMsg("La session a été ouverte, mais son identifiant n’a pas été renvoyé. Rechargez la page avant toute opération.");
+      const verified = await chargerSession(caisseId, uid);
+      if (!verified || !data) {
+        setMsg("La demande d’ouverture a été envoyée, mais la session n’a pas pu être vérifiée. Rechargez la page avant toute opération.");
+        return;
+      }
+      setMsg("Session ouverte et vérifiée. Le fond initial est enregistré ; créez une vente lorsque vous êtes prêt.");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Ouverture de session impossible. Une session peut déjà être ouverte.");
       await chargerSession(caisseId, uid);
