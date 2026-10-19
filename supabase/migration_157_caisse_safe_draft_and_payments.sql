@@ -12,6 +12,7 @@ declare
   v_vente public.ventes%rowtype;
   v_ligne record;
   v_session_statut public.caisse_cloture_statut;
+  v_session_owner uuid;
   v_profile public.profiles%rowtype;
 begin
   if auth.uid() is null then
@@ -36,12 +37,15 @@ begin
     raise exception 'Vente hors périmètre';
   end if;
 
-  select cs.statut into v_session_statut
+  select cs.statut, cs.ouvert_par into v_session_statut, v_session_owner
   from public.caisses_sessions cs
   where cs.id=v_vente.caisse_session_id
   for update;
   if v_session_statut is distinct from 'ouverte' then
     raise exception 'La session de caisse n’est pas ouverte';
+  end if;
+  if not public.is_admin() and v_session_owner is distinct from auth.uid() then
+    raise exception 'Seul le titulaire de la session peut abandonner ce panier';
   end if;
 
   if not public.is_admin() then
