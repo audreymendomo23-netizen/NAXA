@@ -69,3 +69,5 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les signaux de recherche et de scan sont publiés après l’installation des écouteurs via une frame d’animation, et la recherche émet explicitement un état de fin lorsqu’on efface le terme. Cela évite qu’un état visuel de recherche reste actif après effacement.
 
 - Les gestes métier ne sont plus déduits des mots présents sur un bouton : ils ne sont déclenchés que par les événements d’état existants ou par un attribut explicite `data-naxa-fairy`. Un clic n’est jamais pris à tort pour une commande validée ou un paiement réussi.
+
+- La durée de pirouette lors du changement de langue est également centralisée dans `LUCIOLE_TIMING`.

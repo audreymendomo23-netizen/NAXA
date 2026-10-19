@@ -57,4 +57,5 @@ export const LUCIOLE_TIMING = {
   sitFeet: 700,
   sitFeetDelay: 350,
   tickleReducedFade: 150,
+  languagePirouette: 900,
 } as const;

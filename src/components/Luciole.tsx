@@ -565,6 +565,7 @@ export function Luciole() {
     firefly.style.setProperty("--luciole-z-delay-three", LUCIOLE_TIMING.sleepZDelayThree + "ms");
     firefly.style.setProperty("--luciole-guide-glow-duration", LUCIOLE_TIMING.guideGlow + "ms");
     firefly.style.setProperty("--luciole-click-flash-duration", LUCIOLE_TIMING.clickFlash + "ms");
+    firefly.style.setProperty("--luciole-language-duration", LUCIOLE_TIMING.languagePirouette + "ms");
     firefly.style.setProperty("--luciole-core-pulse-duration", LUCIOLE_TIMING.corePulse + "ms");
     firefly.style.setProperty("--luciole-legacy-wing-flap-duration", LUCIOLE_TIMING.legacyWingFlap + "ms");
     firefly.style.setProperty("--luciole-abdomen-glow-duration", LUCIOLE_TIMING.abdomenGlow + "ms");
