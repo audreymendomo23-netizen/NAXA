@@ -459,16 +459,22 @@ export default function CaissePage() {
     if (!Number.isSafeInteger(amount) || amount < 0) return setMsg("Saisissez le montant espèces réellement compté, en FCFA.");
     if (!window.confirm("Clôturer définitivement cette session et enregistrer l’écart de caisse ?")) return;
     setBusy(true);
-    const { data, error } = await sb.rpc("caisse_cloturer", { p_session: session.id, p_total_compte: amount });
-    setBusy(false);
-    if (error) return setMsg(error.message);
-    const result = Array.isArray(data) ? data[0] : data;
-    if (!result) return setMsg("La clôture a été envoyée, mais le résultat de rapprochement n’a pas été renvoyé.");
-    setCloture(result);
-    setSession(null);
-    setTotalCompte("");
-    setFondInitial("");
-    setMsg("Session clôturée. Le rapprochement de caisse est disponible ci-dessous.");
+    try {
+      const { data, error } = await sb.rpc("caisse_cloturer", { p_session: session.id, p_total_compte: amount });
+      if (error) return setMsg(error.message);
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result) return setMsg("La clôture a été envoyée, mais le résultat de rapprochement n’a pas été renvoyé.");
+      setCloture(result);
+      setSession(null);
+      setTotalCompte("");
+      setFondInitial("");
+      setMsg("Session clôturée. Le rapprochement de caisse est disponible ci-dessous.");
+    } catch {
+      setMsg("La clôture n’a pas pu être confirmée. Rechargez le poste et vérifiez le statut de la session avant de réessayer.");
+      if (uid) await chargerSession(session.caisse_id, uid);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
