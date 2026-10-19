@@ -33,18 +33,23 @@ export default function PanneauPharmacie(){
   if(!u.user){window.location.replace("/connexion?espace=pharmacie");return}
   const {data:p}=await sb.from("profiles").select("pharmacie_id,role,actif").eq("id",u.user.id).single();
   if(p?.role==="promoteur"&&(p.actif!==true||new URLSearchParams(window.location.search).get("vue")!=="operation")){window.location.replace("/pharmacie/promoteur");return}
-  if(!p?.pharmacie_id||p.actif===false||!["pharmacie","promoteur","caisse"].includes(p.role)){setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");return}
+  if(!p||p.actif!==true||!["pharmacie","promoteur","caisse"].includes(p.role)||(p.role!=="promoteur"&&!p.pharmacie_id)){setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");return}
   let targetPharmacyId=p.pharmacie_id;
   if(p.role==="promoteur"){
     const requestedPharmacyId=new URLSearchParams(window.location.search).get("pharmacie");
     if(requestedPharmacyId){
-      const {data:link,error:linkError}=await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",u.user.id).eq("pharmacie_id",requestedPharmacyId).eq("actif",true).maybeSingle();
-      if(linkError||!link){setMsg("Cette pharmacie ne fait pas partie de votre réseau actif.");return}
-      const {data:target,error:targetError}=await sb.from("pharmacies").select("id,actif,visible_recherche").eq("id",requestedPharmacyId).maybeSingle();
-      if(targetError||!target?.actif||!target.visible_recherche){setMsg("Cette pharmacie n’est pas active et publiée. L’espace opérationnel reste fermé.");return}
       targetPharmacyId=requestedPharmacyId;
+    }else if(!targetPharmacyId){
+      const {data:firstLink,error:firstLinkError}=await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",u.user.id).eq("actif",true).order("created_at",{ascending:true}).limit(1).maybeSingle();
+      if(firstLinkError||!firstLink){setMsg("Aucune pharmacie active n’est rattachée à votre réseau.");return}
+      targetPharmacyId=firstLink.pharmacie_id;
     }
+    const {data:link,error:linkError}=await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",u.user.id).eq("pharmacie_id",targetPharmacyId).eq("actif",true).maybeSingle();
+    if(linkError||!link){setMsg("Cette pharmacie ne fait pas partie de votre réseau actif.");return}
+    const {data:target,error:targetError}=await sb.from("pharmacies").select("id,actif,visible_recherche").eq("id",targetPharmacyId).maybeSingle();
+    if(targetError||!target?.actif||!target.visible_recherche){setMsg("Cette pharmacie n’est pas active et publiée. L’espace opérationnel reste fermé.");return}
   }
+  if(!targetPharmacyId){setMsg("Aucune pharmacie n’est liée à ce compte.");return}
   setRole(p.role);setPid(targetPharmacyId);await charger(targetPharmacyId);
 })()},[charger,sb]);
 
