@@ -1,35 +1,37 @@
 -- NAXA 154 — parcours transactionnel de réactivation Promoteur par un admin.
 begin;
+set local session_replication_role='replica';
+insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+values
+ ('f1540000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-154-promoteur@example.test','x',now(),'{}','{}',now(),now()),
+ ('f1540000-0000-4000-8000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-154-admin@example.test','x',now(),'{}','{}',now(),now());
+insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
+values
+ ('f1540000-0000-4000-8000-000000000001','promoteur','naxa154p','Test','Promoteur','237690000154','CM','1990-01-01',true,now(),true,'promoteur',1,1,'PARENTS_AINES_CADETS'),
+ ('f1540000-0000-4000-8000-000000000002','admin','naxa154a','Test','Admin','237690000155','CM','1980-01-01',true,now(),true,'admin',0,0,null);
+set local session_replication_role='origin';
+
 do $test$
 declare
-  p uuid:=gen_random_uuid();
-  admin_id uuid:=gen_random_uuid();
-  ph uuid:=gen_random_uuid();
+  p uuid:='f1540000-0000-4000-8000-000000000001';
+  admin_id uuid:='f1540000-0000-4000-8000-000000000002';
+  ph uuid:='f1540000-0000-4000-8000-000000000003';
   conv uuid;
   fin date;
   v_fin date;
 begin
-  perform set_config('session_replication_role','replica',true);
-  insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
-  values
-   (p,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-154-promoteur@example.test','x',now(),'{}','{}',now(),now()),
-   (admin_id,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-154-admin@example.test','x',now(),'{}','{}',now(),now());
-  insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif,fonction_interne,niveau_interne,niveau_hierarchique,architecture_code)
-  values
-   (p,'promoteur','naxa154p','Test','Promoteur','237690000154','CM','1990-01-01',true,now(),true,'promoteur',1,1,'PARENTS_AINES_CADETS'),
-   (admin_id,'admin','naxa154a','Test','Admin','237690000155','CM','1980-01-01',true,now(),true,'admin',0,0,null);
-  perform set_config('session_replication_role','origin',true);
-
-  insert into public.pharmacies(id,nom,lat,lng,actif) values(ph,'NAXA 154 test',3.86,11.51,false);
+  insert into public.pharmacies(id,nom,lat,lng,actif) values(ph,'NAXA 154 test',3.86,11.51,true);
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
-  values(p,25000,current_date-1,'expiree','PARENTS_AINES_CADETS')
+  values(p,25000,current_date+30,'active','PARENTS_AINES_CADETS')
   returning id into conv;
   insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
-  values(p,conv,25000,current_date-30,current_date-1,'impaye');
+  values(p,conv,25000,current_date-1,current_date+30,'actif');
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(ph,'PARENTS_AINES_CADETS',admin_id,true,5,5);
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,ph,true);
 
+  update public.conventions_promoteurs set statut='expiree',date_expiration=current_date-1 where id=conv;
+  update public.abonnements_promoteurs set statut='impaye',echeance=current_date-1 where promoteur_id=p;
   update public.profiles set actif=false where id=p;
   update public.pharmacies set actif=false where id=ph;
 
