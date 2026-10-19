@@ -68,7 +68,7 @@ export function SuiviConnecte() {
   const [maxThreshold, setMaxThreshold] = useState("");
   const [selectedType, setSelectedType] = useState("tension_systolique");
   const [value, setValue] = useState("");
-  const [pendingMeasurementSource, setPendingMeasurementSource] = useState<"bluetooth" | null>(null);
+  const [pendingMeasurementSource, setPendingMeasurementSource] = useState<"bluetooth" | "photo_ocr_local" | null>(null);
   const [note, setNote] = useState("");
   const [measuredAt, setMeasuredAt] = useState(new Date().toISOString().slice(0,16));
   const [reminderTitle, setReminderTitle] = useState("");
