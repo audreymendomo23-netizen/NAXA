@@ -48,7 +48,7 @@ export async function creerPharmacie(formData: FormData) {
 
   const userId = created.user.id;
   const { data: pharmacy, error: pharmacyError } = await db.from("pharmacies").insert({
-    nom: f("nom"), ville: f("ville") || "Yaoundé",
+    nom: f("nom"), ville: f("ville") || "Yaoundé", actif: false, visible_recherche: false, de_garde: false,
     quartier: f("quartier") || null, adresse: f("adresse") || null,
     lat: Number(f("lat")), lng: Number(f("lng")),
   }).select("id").single();
