@@ -370,21 +370,23 @@ export default function CaissePage() {
 
   async function ajouter(produit: Produit) {
     if (!vente || busy) return setMsg("Ouvrez une session puis créez une vente avant d’ajouter un produit.");
+    const venteId = vente;
     setBusy(true);
-    const { error } = await sb.rpc("vente_ajouter_produit", {
-      p_vente: vente, p_produit: produit.produit_id, p_quantite: 1,
-    });
-    if (error) {
+    try {
+      const { error } = await sb.rpc("vente_ajouter_produit", {
+        p_vente: venteId, p_produit: produit.produit_id, p_quantite: 1,
+      });
+      if (session && uid) await chargerVenteBrouillon(session.id, uid);
+      if (error) return setMsg(error.message);
+      setResultats([]);
+      setScan("");
+      setMsg(produit.nom + " ajouté au panier.");
+    } catch {
+      if (session && uid) await chargerVenteBrouillon(session.id, uid);
+      setMsg("Ajout non confirmé. Le panier a été relu depuis la base pour éviter un doublon.");
+    } finally {
       setBusy(false);
-      return setMsg(error.message);
     }
-    // Le prix et les quantités affichés sont relus depuis la base : ne jamais
-    // supposer que le prix retourné par la recherche est encore celui facturé.
-    if (session && uid) await chargerVenteBrouillon(session.id, uid);
-    setBusy(false);
-    setResultats([]);
-    setScan("");
-    setMsg(produit.nom + " ajouté au panier.");
   }
 
   async function scanner(event: KeyboardEvent<HTMLInputElement>) {
@@ -406,15 +408,25 @@ export default function CaissePage() {
   async function abandonnerVente() {
     if (!vente || busy) return;
     if (!window.confirm("Abandonner ce panier ? Les quantités réservées seront restituées au stock.")) return;
+    const venteId = vente;
     setBusy(true);
-    const { error } = await sb.rpc("vente_brouillon_abandonner", { p_vente: vente });
-    setBusy(false);
-    if (error) return setMsg(error.message);
-    setVente(null);
-    setDraftCheckErreur(false);
-    setLignes([]);
-    setPercu("");
-    setMsg("Panier abandonné ; le stock a été restitué.");
+    try {
+      const { error } = await sb.rpc("vente_brouillon_abandonner", { p_vente: venteId });
+      if (error) {
+        if (session && uid) await chargerSession(session.id, uid);
+        return setMsg(error.message);
+      }
+      setVente(null);
+      setDraftCheckErreur(false);
+      setLignes([]);
+      setPercu("");
+      setMsg("Panier abandonné ; le stock a été restitué.");
+    } catch {
+      if (session && uid) await chargerSession(session.id, uid);
+      setMsg("Abandon non confirmé. Le panier et le stock ont été revérifiés depuis la base.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function payer() {
@@ -445,7 +457,9 @@ export default function CaissePage() {
       setTicket((receipt ?? []) as TicketLigne[]);
       setMsg("Vente encaissée en espèces. Vérifiez le ticket avant impression. Monnaie à rendre : " + fcfa(payment?.[0]?.monnaie_rendue ?? 0) + ".");
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : "Encaissement impossible. Vérifiez le statut de la vente avant de réessayer.");
+      const reason = error instanceof Error ? error.message : "Résultat de paiement inconnu.";
+      if (session && uid) await chargerSession(session.id, uid);
+      setMsg("Encaissement non confirmé : " + reason + " Le panier a été relu depuis la base ; consultez l’historique avant toute nouvelle tentative.");
     } finally {
       setBusy(false);
     }
