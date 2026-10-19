@@ -33,11 +33,11 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 
 ## Compléments — sommeil et chatouilles
 - Les nouvelles durées et intervalles sont centralisés dans `src/components/luciole-constants.ts`.
-- Le seuil de retour à l'arbre passe à 30 secondes. À l'arrivée, la fée prend une pose de sommeil avec bras repliés, halo atténué et trois « z » dessinés en SVG.
+- Le seuil de retour à l'arbre et de début du sommeil est fixé à 20 secondes d'inactivité. À l'arrivée, la fée prend une pose de sommeil avec bras repliés, halo atténué et trois « z » dessinés en SVG.
 - Un double toucher dans la zone de la fée en moins de 400 ms déclenche une courte animation de chatouilles uniquement si la cible n'est pas un élément interactif. Les événements d'origine ne sont ni annulés ni stoppés.
 - Les animations de sommeil et de chatouilles respectent `prefers-reduced-motion`.
-- Les comportements métier du point 11 ne sont pas raccordés : aucun contrat d'événement métier explicite n'a été identifié dans le composant de la luciole. Ils ne sont pas simulés et aucune donnée métier n'est créée. Les comportements aléatoires d'assise/téléportation/bâillement ne sont pas encore implémentés dans ce changement.
-- Aucune compilation ni suite de tests n'a été lancée, conformément à la consigne. Aucun déploiement n'a été déclenché.
+- Les facéties aléatoires d'assise, de téléportation et de bâillement sont implémentées pendant la flânerie. Les interactions de recherche, scan/ordonnance, panier, commande/réservation, paiement et rappel de posologie peuvent déclencher un geste lumineux par libellé/attribut ou par l'événement personnalisé `naxa:fairy`. Ces réactions sont purement visuelles et ne modifient aucune donnée métier.
+- Les tests de compilation, lint et rejeu des migrations sont lancés via GitLab Beta; leur résultat est rapporté séparément. Aucun déploiement n'a été déclenché.
 
 
 ## Complément — facéties et signaux NAXA (19 octobre 2026)
