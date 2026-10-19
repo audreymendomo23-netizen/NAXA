@@ -152,6 +152,10 @@ export function Luciole() {
         activeNaxaState = { ...activeNaxaState, since: now };
       }
     };
+    const clearActiveStateClass = () => {
+      if (activeStateClass) firefly.classList.remove(activeStateClass);
+      activeStateClass = null;
+    };
     const clearBusinessGesture = () => {
       pendingBusinessGesture = null;
       clearActiveStateClass();
@@ -161,10 +165,6 @@ export function Luciole() {
       businessGesture = null;
     };
     const STATEFUL = new Set(["reminder", "search", "scan", "payment", "order", "offline"]);
-    const clearActiveStateClass = () => {
-      if (activeStateClass) firefly.classList.remove(activeStateClass);
-      activeStateClass = null;
-    };
     const reactToBusinessEvent = (type: string, state = "event") => {
       if (!FAIRY_EVENTS.has(type)) return;
       const now = performance.now();
@@ -623,6 +623,7 @@ export function Luciole() {
       if (tickleTimer) window.clearTimeout(tickleTimer);
       clearRandomSpecial();
       if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
+      if (saluteTimer) window.clearTimeout(saluteTimer);
       clearActiveStateClass();
       activeNaxaState = null;
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
