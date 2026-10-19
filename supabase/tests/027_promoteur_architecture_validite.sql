@@ -99,6 +99,8 @@ begin
     end if;
   end;
 
+  -- La convention et la pharmacie changent ensemble pour conserver le modèle 1 Promoteur = 1 architecture.
+  update public.conventions_promoteurs set architecture_code='PARENTS_ENFANTS' where promoteur_id=v_promoteur;
   update public.pharmacie_architectures
   set architecture_code='PARENTS_ENFANTS',max_responsables=0,max_caisses=5
   where pharmacie_id=v_a;
@@ -106,6 +108,7 @@ begin
     raise exception 'A2 expose CREATE_RESPONSABLE';
   end if;
 
+  update public.conventions_promoteurs set architecture_code='PARENTS_AINES_CADETS' where promoteur_id=v_promoteur;
   update public.pharmacie_architectures
   set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5
   where pharmacie_id=v_a;
