@@ -31,6 +31,13 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
   const [rechercheCatalogue, setRechercheCatalogue] = useState<"repos" | "chargement" | "erreur">("repos");
   const [rechercheActive, setRechercheActive] = useState(false);
 
+  // Signal visuel en lecture seule : ne transmet ni terme saisi ni résultat au composant de la fée.
+  useEffect(() => {
+    if (typeof window === "undefined" || q.trim().length < 2) return;
+    const state = rechercheCatalogue === "chargement" ? "loading" : rechercheCatalogue === "erreur" ? "failure" : medicaments.length ? "results" : "empty";
+    window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "search", state } }));
+  }, [q, rechercheCatalogue, medicaments.length]);
+
   useEffect(() => {
     const terme = q.trim();
     if (terme.length < 2) {

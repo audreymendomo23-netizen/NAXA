@@ -49,3 +49,15 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Le canal générique `naxa:fairy` est écouté par la fée, mais aucun producteur n'a été trouvé dans les composants inspectés. Aucun état métier absent n'est simulé.
 - Les réactions spécialisées exigeant un état non exposé (confirmation de paiement, statut réel de livraison, traitement terminé, stock bas, avis envoyé et première ouverture par appareil) ne sont pas déclarées implémentées dans cette étape ; elles nécessitent un raccordement à leur source réelle. La fée ne crée aucune donnée métier ni notification.
 - Tests de compilation et tests automatisés : non exécutés dans cette opération GitHub distante ; aucun succès de test n'est revendiqué.
+
+
+## Compléments de mise en œuvre — 19 octobre 2026
+
+- Les événements de recherche émettent désormais un signal visuel de chargement, de résultats, d'absence de résultats ou d'erreur, sans transmettre le terme recherché.
+- Le scanner émet un signal de caméra/lecture, de résultat ou d'erreur sans transmettre l'ordonnance ni le code-barres. La fée peut maintenant apparaître sur la route `/scanner`, uniquement en mode nuit, et son conteneur conserve `pointer-events: none`.
+- Un rappel déclenche un signal visuel sans envoyer le médicament, la dose ou les autres données du rappel à la fée.
+- Les états durables raccordés (rappel, recherche en chargement, scan actif, paiement/commande lorsqu'ils seront émis, hors connexion) suspendent le sommeil au plus deux minutes. Pendant le suivi du pointeur ou du curseur, l'accompagnement est masqué et reprend seulement après le calme.
+- Les facéties aléatoires ciblent désormais un bouton réellement visible et activé lorsqu'une assise est choisie ; si aucun bouton approprié n'existe, la fée choisit un autre comportement. Le bâillement n'est possible qu'à partir de 23 h, heure locale.
+- Les accessoires SVG restent simplifiés à l'échelle actuelle. Aucun événement n'intercepte les clics et aucun contenu sensible n'est affiché.
+- Les réactions liées aux statuts de livraison, de fin de traitement, de paiement confirmé, de stock bas, d'avis envoyé et de première ouverture par appareil restent non raccordées tant que le projet ne fournit pas un état source observable et stable.
+- Les vérifications automatisées doivent être lancées avant de considérer le travail terminé.

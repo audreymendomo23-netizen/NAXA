@@ -843,3 +843,51 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole[class*="luciole-event-"] .luciole-glow-core,
   .naxa-luciole[class*="luciole-event-"] .luciole-arm-front { animation:none!important; transition:none!important; }
 }
+
+
+/* Compléments fée : accessoires discrets, états observés et interactions non bloquantes. */
+.naxa-luciole { pointer-events:none!important; }
+.naxa-luciole .luciole-anatomy,
+.naxa-luciole .luciole-wing,
+.naxa-luciole .luciole-wings,
+.naxa-luciole .luciole-glow-core { filter:none!important; }
+.naxa-luciole .luciole-props { fill:#FFE6A0; stroke:#FFF4CF; stroke-width:.65; stroke-linecap:round; stroke-linejoin:round; opacity:0; }
+.naxa-luciole .luciole-prop { display:none; }
+.naxa-luciole[class*="luciole-state-"] .luciole-props { opacity:.95; }
+.naxa-luciole.luciole-state-reminder .luciole-prop-capsule,
+.naxa-luciole.luciole-state-search .luciole-prop-search,
+.naxa-luciole.luciole-state-scan .luciole-prop-scan,
+.naxa-luciole.luciole-state-payment .luciole-prop-payment,
+.naxa-luciole.luciole-state-order .luciole-prop-parcel,
+.naxa-luciole.luciole-state-favorite .luciole-prop-favorite,
+.naxa-luciole.luciole-state-language .luciole-prop-language,
+.naxa-luciole.luciole-state-offline .luciole-prop-offline,
+.naxa-luciole.luciole-state-online .luciole-prop-online,
+.naxa-luciole.luciole-event-reminder .luciole-prop-capsule,
+.naxa-luciole.luciole-event-search .luciole-prop-search,
+.naxa-luciole.luciole-event-scan .luciole-prop-scan,
+.naxa-luciole.luciole-event-payment .luciole-prop-payment,
+.naxa-luciole.luciole-event-order .luciole-prop-parcel,
+.naxa-luciole.luciole-event-favorite .luciole-prop-favorite,
+.naxa-luciole.luciole-event-language .luciole-prop-language,
+.naxa-luciole.luciole-event-offline .luciole-prop-offline,
+.naxa-luciole.luciole-event-online .luciole-prop-online { display:block; }
+.naxa-luciole.luciole-state-scan { z-index:96!important; }
+.naxa-luciole.luciole-sitting { pointer-events:none!important; }
+.naxa-luciole.luciole-sitting .luciole-wings { animation-play-state:paused; }
+.naxa-luciole.luciole-sitting .luciole-spark { animation:none!important; }
+.naxa-luciole.luciole-state-reminder .luciole-arm-front,
+.naxa-luciole.luciole-state-search .luciole-arm-front,
+.naxa-luciole.luciole-state-scan .luciole-arm-front,
+.naxa-luciole.luciole-state-payment .luciole-arm-front,
+.naxa-luciole.luciole-state-order .luciole-arm-front,
+.naxa-luciole.luciole-state-offline .luciole-arm-front { animation:luciole-event-wave 1.2s ease-in-out infinite; }
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole .luciole-props { transition:opacity 120ms linear; }
+  .naxa-luciole.luciole-state-reminder .luciole-arm-front,
+  .naxa-luciole.luciole-state-search .luciole-arm-front,
+  .naxa-luciole.luciole-state-scan .luciole-arm-front,
+  .naxa-luciole.luciole-state-payment .luciole-arm-front,
+  .naxa-luciole.luciole-state-order .luciole-arm-front,
+  .naxa-luciole.luciole-state-offline .luciole-arm-front { animation:none!important; }
+}

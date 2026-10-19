@@ -30,4 +30,8 @@ export const LUCIOLE_TIMING = {
   saluteDuration: 1_150,
   saluteCleanup: 1_200,
   sparkDuration: 850,
+  stateMaxPause: 120_000,
+  stateCornerSettle: 1_000,
+  lateNightStartHour: 23,
+  stateEventGesture: 2_000,
 } as const;

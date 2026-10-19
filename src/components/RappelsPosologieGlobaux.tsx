@@ -55,6 +55,8 @@ export function RappelsPosologieGlobaux() {
           localStorage.setItem(key, "1");
           const message = "Rappel de prise : " + item.medicament + " — " + item.dose + " " + item.unite + ".";
           notifierNAXA(message);
+          // La fée ne reçoit qu’un signal de présence, jamais le texte ou les données du rappel.
+          window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "reminder", state: "active" } }));
           if ("Notification" in window && Notification.permission === "granted") {
             try {
               new Notification("Rappel de prise — NAXA", {

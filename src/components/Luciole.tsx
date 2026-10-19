@@ -15,7 +15,7 @@ export function Luciole() {
   const treeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!night || path === "/scanner") return;
+    if (!night) return;
     const firefly = fireflyRef.current;
     const halo = haloRef.current;
     const tree = treeRef.current;
@@ -59,6 +59,9 @@ export function Luciole() {
     let nextSpecialAt = performance.now() + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
     let businessGesture: string | null = null;
     let pendingBusinessGesture: string | null = null;
+    let activeNaxaState: { type: string; state: string; since: number } | null = null;
+    let activeStateClass: string | null = null;
+    let randomSitTarget: HTMLElement | null = null;
     const guideCanvas = document.createElement("canvas");
     const guideContext = guideCanvas.getContext("2d");
     const motionAllowed = !reducedMotion.matches;
@@ -151,24 +154,48 @@ export function Luciole() {
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
       businessGesture = null;
     };
-    const reactToBusinessEvent = (type: string) => {
+    const STATEFUL = new Set(["reminder", "search", "scan", "payment", "order", "offline"]);
+    const clearActiveStateClass = () => {
+      if (activeStateClass) firefly.classList.remove(activeStateClass);
+      activeStateClass = null;
+    };
+    const reactToBusinessEvent = (type: string, state = "event") => {
       if (!FAIRY_EVENTS.has(type)) return;
-      // Les événements métier attendent le calme : le suivi du doigt et de la saisie garde la priorité.
-      pendingBusinessGesture = type;
+      const now = performance.now();
+      const normalizedState = state.toLowerCase();
+      const isDurable = STATEFUL.has(type) && ["active", "loading", "pending", "preparing", "delivery", "offline"].includes(normalizedState);
+      if (isDurable) {
+        if (!activeNaxaState || activeNaxaState.type !== type || activeNaxaState.state !== normalizedState) {
+          activeNaxaState = { type, state: normalizedState, since: now };
+        }
+        pendingBusinessGesture = null;
+      } else {
+        if (activeNaxaState?.type === type) activeNaxaState = null;
+        pendingBusinessGesture = type;
+      }
       wake();
-      lastInput = performance.now();
-      nextSpecialAt = lastInput + LUCIOLE_TIMING.specialIntervalMin + Math.random() * (LUCIOLE_TIMING.specialIntervalMax - LUCIOLE_TIMING.specialIntervalMin);
+      lastInput = now;
+      nextSpecialAt = now + LUCIOLE_TIMING.specialIntervalMin + Math.random() * (LUCIOLE_TIMING.specialIntervalMax - LUCIOLE_TIMING.specialIntervalMin);
       start();
     };
-    const onCartAdded = () => reactToBusinessEvent("cart");
-    const onFavoritesChanged = () => reactToBusinessEvent("favorite");
-    const onLanguageChanged = () => reactToBusinessEvent("language");
-    const onOffline = () => reactToBusinessEvent("offline");
-    const onOnline = () => reactToBusinessEvent("online");
+    const onCartAdded = () => reactToBusinessEvent("cart", "event");
+    const onFavoritesChanged = () => reactToBusinessEvent("favorite", "event");
+    const onLanguageChanged = () => reactToBusinessEvent("language", "event");
+    const onOffline = () => reactToBusinessEvent("offline", "offline");
+    const onOnline = () => {
+      activeNaxaState = null;
+      clearActiveStateClass();
+      reactToBusinessEvent("online", "event");
+    };
     const onNaxaFairyEvent = (event: Event) => {
-      const detail = (event as CustomEvent<string | { type?: string }>).detail;
+      const detail = (event as CustomEvent<string | { type?: string; state?: string }>).detail;
       const type = typeof detail === "string" ? detail : detail?.type;
-      if (type) reactToBusinessEvent(type);
+      const state = typeof detail === "string" ? "event" : detail?.state ?? "event";
+      if (!type) return;
+      if (["idle", "results", "success", "failure", "empty", "complete", "closed"].includes(state.toLowerCase())) {
+        if (activeNaxaState?.type === type) activeNaxaState = null;
+      }
+      reactToBusinessEvent(type, state);
     };
     const reactToClickedControl = (button: HTMLElement) => {
       const signal = [
@@ -191,33 +218,47 @@ export function Luciole() {
       if (teleportTimer) window.clearTimeout(teleportTimer);
       specialTimer = undefined; teleportTimer = undefined;
       firefly.classList.remove("luciole-sitting", "luciole-yawning", "luciole-teleporting");
+      randomSitTarget = null;
     };
     const triggerRandomSpecial = (now: number) => {
-      const choices = ["sit", "yawn", "teleport"] as const;
-      const choice = choices[Math.floor(Math.random() * choices.length)];
+      const hour = new Date().getHours();
+      const choices: Array<"sit" | "yawn" | "teleport"> = ["sit", "teleport"];
+      if (hour >= LUCIOLE_TIMING.lateNightStartHour && Math.random() < 0.28) choices.push("yawn");
+      let choice = choices[Math.floor(Math.random() * choices.length)];
+      const visibleButtons = Array.from(document.querySelectorAll<HTMLElement>('button:not(:disabled):not([aria-disabled="true"]),a[href],[role="button"]:not([aria-disabled="true"])'))
+        .filter((button) => {
+          const r = button.getBoundingClientRect();
+          const style = window.getComputedStyle(button);
+          return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight &&
+            r.right > 0 && r.left < window.innerWidth && style.visibility !== "hidden" && style.display !== "none";
+        });
+      if (choice === "sit" && visibleButtons.length === 0) choice = "teleport";
       const className = choice === "sit" ? "luciole-sitting" : choice === "yawn" ? "luciole-yawning" : "luciole-teleporting";
       clearRandomSpecial();
       firefly.classList.add(className);
-      if (choice === "teleport") {
+      if (choice === "sit") {
+        randomSitTarget = visibleButtons[Math.floor(Math.random() * visibleButtons.length)];
+        const r = randomSitTarget.getBoundingClientRect();
+        targetX = Math.max(24, Math.min(window.innerWidth - 24, r.left + r.width / 2));
+        targetY = Math.max(26, Math.min(window.innerHeight - 24, r.top - 17));
+      } else if (choice === "teleport") {
+        burst();
         teleportTimer = window.setTimeout(() => {
           const point = randomViewportPoint();
           x = point.x; y = point.y; targetX = point.x; targetY = point.y; vx = 0; vy = 0;
           paint();
+          burst();
           teleportTimer = undefined;
         }, Math.min(LUCIOLE_TIMING.teleportRelocation, LUCIOLE_TIMING.teleportFade / 2));
-        specialTimer = window.setTimeout(() => {
-          firefly.classList.remove(className);
-          specialTimer = undefined;
-        }, LUCIOLE_TIMING.teleportFade);
-      } else {
-        const duration = choice === "sit"
-          ? LUCIOLE_TIMING.sitMin + Math.random() * (LUCIOLE_TIMING.sitMax - LUCIOLE_TIMING.sitMin)
-          : LUCIOLE_TIMING.yawn;
-        specialTimer = window.setTimeout(() => {
-          firefly.classList.remove(className);
-          specialTimer = undefined;
-        }, duration);
       }
+      const duration = choice === "sit"
+        ? LUCIOLE_TIMING.sitMin + Math.random() * (LUCIOLE_TIMING.sitMax - LUCIOLE_TIMING.sitMin)
+        : choice === "yawn" ? LUCIOLE_TIMING.yawn : LUCIOLE_TIMING.teleportFade;
+      specialTimer = window.setTimeout(() => {
+        firefly.classList.remove(className);
+        randomSitTarget = null;
+        specialTimer = undefined;
+      }, duration);
       nextSpecialAt = now + LUCIOLE_TIMING.specialIntervalMin + Math.random() * (LUCIOLE_TIMING.specialIntervalMax - LUCIOLE_TIMING.specialIntervalMin);
     };
     const burst = () => {
@@ -375,6 +416,18 @@ export function Luciole() {
       const dt = lastFrame ? Math.min(40, now - lastFrame) : 16;
       lastFrame = now;
       const idleFor = now - lastInput;
+      if (activeNaxaState && now - activeNaxaState.since >= LUCIOLE_TIMING.stateMaxPause) {
+        activeNaxaState = null;
+        clearActiveStateClass();
+      }
+      const durableStateActive = !!activeNaxaState && now - activeNaxaState.since < LUCIOLE_TIMING.stateMaxPause;
+      if (durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && !guidedTarget && !sleeping && !sleepPending) {
+        const className = "luciole-state-" + activeNaxaState!.type;
+        if (activeStateClass !== className) { clearActiveStateClass(); activeStateClass = className; firefly.classList.add(className); }
+        const anchorX = activeNaxaState!.type === "scan" ? window.innerWidth - 32 : window.innerWidth - 32;
+        const anchorY = activeNaxaState!.type === "scan" ? 84 : Math.max(84, window.innerHeight * 0.28);
+        targetX = anchorX; targetY = anchorY;
+      } else clearActiveStateClass();
       if (pendingBusinessGesture && idleFor >= LUCIOLE_TIMING.specialCalm && guidedTarget?.kind !== "caret" && !sleeping && !sleepPending) {
         const type = pendingBusinessGesture;
         pendingBusinessGesture = null;
@@ -388,7 +441,7 @@ export function Luciole() {
           businessGestureTimer = undefined;
         }, LUCIOLE_TIMING.specialMaxFinish);
       }
-      if (!sleeping && !sleepPending && !guidedTarget && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
+      if (!sleeping && !sleepPending && !guidedTarget && !durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
       const nextGesture = sleeping || sleepPending ? "resting" : businessGesture ? "dance" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
       if (nextGesture !== activeGesture) {
         firefly.classList.remove("gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
@@ -396,14 +449,14 @@ export function Luciole() {
         activeGesture = nextGesture;
       }
 
-      if (idleFor >= LUCIOLE_TIMING.inactivity) {
+      if (idleFor >= LUCIOLE_TIMING.inactivity && !durableStateActive) {
         resting = true;
         targetX = treeX;
         targetY = treeY - 12;
         tree.classList.remove("naxa-luciole-tree-awake");
       } else {
         resting = false;
-        if (idleFor >= LUCIOLE_TIMING.randomWanderStart) {
+        if (!durableStateActive && idleFor >= LUCIOLE_TIMING.randomWanderStart) {
           // Chaque destination est tirée indépendamment dans toute la zone visible :
           // aucune sinusoïde, boucle ni trajectoire répétitive.
           if (now >= nextWanderAt) {
@@ -441,7 +494,7 @@ export function Luciole() {
       x += vx;
       y += vy;
       paint();
-      if (idleFor >= LUCIOLE_TIMING.inactivity && !sleeping && !sleepPending && !guidedTarget) {
+      if (idleFor >= LUCIOLE_TIMING.inactivity && !durableStateActive && !sleeping && !sleepPending && !guidedTarget) {
         sleepPending = true;
         firefly.classList.add("luciole-sleep-arriving");
         targetX = treeX; targetY = treeY - 12;
@@ -455,7 +508,7 @@ export function Luciole() {
       }
 
       const settled = Math.abs(targetX - x) < 0.8 && Math.abs(targetY - y) < 0.8 && Math.abs(vx) + Math.abs(vy) < 0.35;
-      if (!settled || !resting || idleFor < LUCIOLE_TIMING.inactivity || !sleeping) frameId = requestAnimationFrame(tick);
+      if (!settled || !resting || idleFor < LUCIOLE_TIMING.inactivity || !sleeping || durableStateActive) frameId = requestAnimationFrame(tick);
       else {
         firefly.classList.add("naxa-luciole-resting");
         tree.classList.add("naxa-luciole-tree-glow");
@@ -537,6 +590,8 @@ export function Luciole() {
       if (tickleTimer) window.clearTimeout(tickleTimer);
       clearRandomSpecial();
       if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
+      clearActiveStateClass();
+      activeNaxaState = null;
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
       firefly.classList.remove("naxa-luciole-guidance-pulse", "naxa-luciole-typing-glow", "naxa-luciole-click-spark");
       document.removeEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
@@ -554,8 +609,6 @@ export function Luciole() {
       });
     };
   }, [night, path]);
-
-  if (path === "/scanner") return null;
 
   return (
     <>
@@ -629,6 +682,18 @@ export function Luciole() {
             <path className="luciole-sleep-z-one" d="M28 10h3l-3 3h3" />
             <path className="luciole-sleep-z-two" d="M32 6h3l-3 3h3" />
             <path className="luciole-sleep-z-three" d="M36 2h3l-3 3h3" />
+          </g>
+          <g className="luciole-props" aria-hidden="true">
+            <g className="luciole-prop luciole-prop-capsule"><rect x="34" y="19" width="10" height="4.5" rx="2.2"/><path d="M39 19v4.5"/></g>
+            <g className="luciole-prop luciole-prop-search"><circle cx="39" cy="18" r="4.1"/><path d="M42 21l3 3"/></g>
+            <g className="luciole-prop luciole-prop-parcel"><path d="M34 20l5-3 6 3v7l-6 3-5-3z"/><path d="M34 20l5 3 6-3M39 23v7M37 18l6 4"/></g>
+            <g className="luciole-prop luciole-prop-payment"><circle cx="39" cy="23" r="5"/><path d="M37 21h4M37 23h4M37 25h4"/></g>
+            <g className="luciole-prop luciole-prop-favorite"><path d="M39 29s-7-4-6-8c.7-3 4-3 6-.5 2-2.5 5.3-2.5 6 .5 1 4-6 8-6 8z"/></g>
+            <g className="luciole-prop luciole-prop-scan"><path d="M35 18h8v10h-8zM37 20v6M39 20v6M41 20v6"/></g>
+            <g className="luciole-prop luciole-prop-offline"><path d="M39 16l-4 7h4l-2 7 6-9h-4l2-5z"/></g>
+            <g className="luciole-prop luciole-prop-language"><path d="M34 20h10M39 17v3M36 20c1 4 4 6 7 7M43 20c-1 4-4 6-7 7"/></g>
+            <g className="luciole-prop luciole-prop-online"><path d="M34 24q5-6 10 0M36 26q3-3 6 0M39 29h.1"/></g>
+            <g className="luciole-prop luciole-prop-reminder"><rect x="34" y="18" width="10" height="5" rx="2.5"/><path d="M39 18v5"/></g>
           </g>
           <ellipse className="luciole-glow-core" cx="24" cy="36" rx="3.1" ry="5.2" />
         </svg>
