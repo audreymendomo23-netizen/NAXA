@@ -501,7 +501,7 @@ export default function CaissePage() {
                 <section className="carte mt-4 space-y-3">
                   <h2 className="text-lg font-extrabold">Clôture de session</h2>
                   <p className="text-sm text-slate-600">Comptez les espèces réellement présentes dans le tiroir, fond initial compris. Une vente brouillon doit être finalisée ou abandonnée avant la clôture.</p>
-                  <div className="flex flex-col gap-2 sm:flex-row"><label className="flex-1 text-sm font-semibold">Total espèces compté (FCFA)<input className="champ mt-1 w-full" type="number" min="0" step="1" inputMode="numeric" value={totalCompte} onChange={(e) => setTotalCompte(e.target.value)} disabled={!!vente || busy} /></label><button className="btn btn-clair self-end" onClick={() => void cloturerSession()} disabled={!!vente || busy}>Clôturer et rapprocher</button></div>
+                  <div className="flex flex-col gap-2 sm:flex-row"><label className="flex-1 text-sm font-semibold">Total espèces compté (FCFA)<input className="champ mt-1 w-full" type="number" min="0" step="1" inputMode="numeric" value={totalCompte} onChange={(e) => setTotalCompte(e.target.value)} disabled={!!vente || busy} /></label><button className="btn btn-clair self-end" onClick={() => void cloturerSession()} disabled={!!vente || busy || draftCheckErreur}>Clôturer et rapprocher</button></div>
                 </section>
               </>
             )}
