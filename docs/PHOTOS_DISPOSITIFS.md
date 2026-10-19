@@ -5,26 +5,26 @@
 | # | Appareil | Fichier attendu | État |
 |---:|---|---|---|
 | 1 | Tensiomètre de bras avec brassard et écran neutre | `tensiometre.webp` | OK — fond blanc |
-| 2 | Thermomètre médical numérique | `thermometre.webp` | repli |
-| 3 | Oxymètre de doigt à écran neutre | `oxymetre.webp` | repli |
-| 4 | Glucomètre avec bandelette séparée | `glucometre.webp` | repli |
-| 5 | Pèse-personne classique en verre | `balance.webp` | repli |
-| 6 | Ceinture ou bracelet cardiofréquencemètre | `capteur-cardiaque.webp` | repli |
-| 7 | Podomètre compact à clip | `podometre.webp` | repli |
-| 8 | Électrocardiographe portable | `ecg.webp` | repli |
-| 9 | Spiromètre portable avec embout | `spirometre.webp` | repli |
-| 10 | Débitmètre de pointe tubulaire | `debitmetre-pointe.webp` | repli |
-| 11 | Balance impédancemètre en verre | `balance-impedancemetre.webp` | repli |
-| 12 | Lecteur de cholestérol avec bandelette | `lecteur-cholesterol.webp` | repli |
-| 13 | Lecteur de cétones avec bandelette | `lecteur-cetones.webp` | repli |
-| 14 | Lecteur d’acide urique avec bandelette | `lecteur-acide-urique.webp` | repli |
-| 15 | Montre connectée à écran neutre | `montre-connectee.webp` | repli |
-| 16 | Bracelet d’activité générique | `bracelet-activite.webp` | repli |
-| 17 | Capteur compact de suivi du sommeil | `suivi-sommeil.webp` | repli |
-| 18 | Thermomètre infrarouge frontal | `thermometre-infrarouge.webp` | repli |
-| 19 | Capteur respiratoire portable | `capteur-respiratoire.webp` | repli |
-| 20 | Pilulier hebdomadaire connecté | `pilulier-connecte.webp` | repli |
-| 21 | Bouteille connectée avec bouchon capteur | `bouteille-connectee.webp` | repli |
+| 2 | Thermomètre médical numérique | `thermometre.webp` | OK — fond blanc |
+| 3 | Oxymètre de doigt à écran neutre | `oxymetre.webp` | OK — fond blanc |
+| 4 | Glucomètre avec bandelette séparée | `glucometre.webp` | OK — fond blanc |
+| 5 | Pèse-personne classique en verre | `balance.webp` | OK — fond blanc |
+| 6 | Ceinture ou bracelet cardiofréquencemètre | `capteur-cardiaque.webp` | OK — fond blanc |
+| 7 | Podomètre compact à clip | `podometre.webp` | OK — fond blanc |
+| 8 | Électrocardiographe portable | `ecg.webp` | OK — fond blanc |
+| 9 | Spiromètre portable avec embout | `spirometre.webp` | OK — fond blanc |
+| 10 | Débitmètre de pointe tubulaire | `debitmetre-pointe.webp` | OK — fond blanc |
+| 11 | Balance impédancemètre en verre | `balance-impedancemetre.webp` | OK — fond blanc |
+| 12 | Lecteur de cholestérol avec bandelette | `lecteur-cholesterol.webp` | OK — fond blanc |
+| 13 | Lecteur de cétones avec bandelette | `lecteur-cetones.webp` | OK — fond blanc |
+| 14 | Lecteur d’acide urique avec bandelette | `lecteur-acide-urique.webp` | OK — fond blanc |
+| 15 | Montre connectée à écran neutre | `montre-connectee.webp` | OK — fond blanc |
+| 16 | Bracelet d’activité générique | `bracelet-activite.webp` | OK — fond blanc |
+| 17 | Capteur compact de suivi du sommeil | `suivi-sommeil.webp` | OK — fond blanc |
+| 18 | Thermomètre infrarouge frontal | `thermometre-infrarouge.webp` | OK — fond blanc |
+| 19 | Capteur respiratoire portable | `capteur-respiratoire.webp` | OK — fond blanc |
+| 20 | Pilulier hebdomadaire connecté | `pilulier-connecte.webp` | OK — fond blanc |
+| 21 | Bouteille connectée avec bouchon capteur | `bouteille-connectee.webp` | OK — fond blanc |
 
 ## Prompt prêt à coller
 
