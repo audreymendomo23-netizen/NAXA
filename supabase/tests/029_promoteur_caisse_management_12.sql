@@ -41,7 +41,6 @@ begin
   set local session_replication_role='origin';
 
   insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'P4 A',3.8667,11.5167,true),(b,'P4 B',3.8700,11.5200,true);
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true);
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values(p,30000,current_date+30,'active','ORPHELIN')
   returning id into conv;
@@ -49,6 +48,7 @@ begin
   values(p,conv,30000,current_date,current_date+30,'actif');
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(a,'ORPHELIN',p,true,0,1),(b,'ORPHELIN',p,true,0,1);
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true);
 
   update public.profiles set pharmacie_id=a,parent_profile_id=p,architecture_code='ORPHELIN' where id=c1;
   -- c2 reste un profil Caisse non provisionné : pharmacie/parent/architecture sont assignés par naxa_provision_caisse().
