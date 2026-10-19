@@ -797,7 +797,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-sleeping .luciole-sleep-z-two { animation-delay:800ms!important; }
 .naxa-luciole.luciole-sleeping .luciole-sleep-z-three { animation-delay:1600ms!important; }
 .naxa-luciole.luciole-sleeping .luciole-glow-core { opacity:.36; }
-.naxa-luciole.luciole-tickling { animation:luciole-tickle var(--luciole-tickle-duration,1800ms) ease-in-out both; }
+.naxa-luciole.luciole-tickling .luciole-anatomy { animation:luciole-tickle var(--luciole-tickle-duration,1800ms) ease-in-out both; }
 .naxa-luciole.luciole-tickling .luciole-arm-front { transform:rotate(20deg); }
 .naxa-luciole.luciole-tickling .luciole-arm-back { transform:rotate(-20deg); }
 .naxa-luciole.luciole-tickling .luciole-wings { animation-duration:140ms; }
@@ -805,5 +805,5 @@ html[data-theme="jour"] .naxa-night-wave {
 @keyframes luciole-tickle { 0%,100%{transform:translate3d(0,0,0)} 15%{transform:translate3d(-2px,0,0)} 30%{transform:translate3d(2px,0,0)} 45%{transform:translate3d(-2px,1px,0)} 60%{transform:translate3d(2px,-1px,0)} 75%{transform:translate3d(-1px,0,0)} }
 @media(prefers-reduced-motion:reduce) {
  .naxa-luciole.luciole-sleeping .luciole-sleep-z path { animation:none!important; opacity:.65; transform:none; }
- .naxa-luciole.luciole-tickling { animation:none!important; transition:opacity 150ms linear; }
+ .naxa-luciole.luciole-tickling .luciole-anatomy { animation:none!important; transition:opacity 150ms linear; }
 }

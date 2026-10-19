@@ -52,6 +52,7 @@ export function Luciole() {
     let sleepPending = false;
     let lastTapAt = 0;
     let tickleCooldownUntil = 0;
+    let tickleTimer: number | undefined;
     const guideCanvas = document.createElement("canvas");
     const guideContext = guideCanvas.getContext("2d");
     const motionAllowed = !reducedMotion.matches;
@@ -170,7 +171,11 @@ export function Luciole() {
           firefly.classList.add("luciole-tickling");
           firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
           tickleCooldownUntil = now + LUCIOLE_TIMING.tickle + LUCIOLE_TIMING.tickleCooldown;
-          window.setTimeout(() => firefly.classList.remove("luciole-tickling"), LUCIOLE_TIMING.tickle);
+          if (tickleTimer) window.clearTimeout(tickleTimer);
+          tickleTimer = window.setTimeout(() => {
+            firefly.classList.remove("luciole-tickling");
+            tickleTimer = undefined;
+          }, LUCIOLE_TIMING.tickle);
           burst();
         }
         lastTapAt = inside && !target ? now : 0;
@@ -417,6 +422,7 @@ export function Luciole() {
       if (validationTimer) window.clearTimeout(validationTimer);
       if (clickSparkTimer) window.clearTimeout(clickSparkTimer);
       if (invalidFocusTimer) window.clearTimeout(invalidFocusTimer);
+      if (tickleTimer) window.clearTimeout(tickleTimer);
       firefly.classList.remove("naxa-luciole-guidance-pulse", "naxa-luciole-typing-glow", "naxa-luciole-click-spark");
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
