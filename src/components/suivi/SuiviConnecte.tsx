@@ -37,14 +37,23 @@ const types: TrackType[] = [
   {key:"symptome_note",label:"Note personnelle",unit:"",family:"bien_etre",numeric:false},
 ];
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
-type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };\ntype AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };\ntype TrackingAlert = { id:string; measurement_type:string; observed_value:number; alert_kind:string; created_at:string; read_at:string|null };
+type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
+type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
+type TrackingAlert = { id:string; measurement_type:string; observed_value:number; alert_kind:string; created_at:string; read_at:string|null };
 
 export function SuiviConnecte() {
   const sb = useMemo(() => supabaseBrowser(), []);
-  const [allowed, setAllowed] = useState<boolean | null>(null);\n  const [online, setOnline] = useState(true);
-  const [consents, setConsents] = useState<Record<string, boolean>>({});\n  const [preferredName, setPreferredName] = useState("");\n  const [birthYear, setBirthYear] = useState("");
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [online, setOnline] = useState(true);
+  const [consents, setConsents] = useState<Record<string, boolean>>({});
+  const [preferredName, setPreferredName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [history, setHistory] = useState<Measurement[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);\n  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);\n  const [alerts, setAlerts] = useState<TrackingAlert[]>([]);\n  const [minThreshold, setMinThreshold] = useState("");\n  const [maxThreshold, setMaxThreshold] = useState("");
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
+  const [alerts, setAlerts] = useState<TrackingAlert[]>([]);
+  const [minThreshold, setMinThreshold] = useState("");
+  const [maxThreshold, setMaxThreshold] = useState("");
   const [selectedType, setSelectedType] = useState("tension_systolique");
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
@@ -64,24 +73,48 @@ export function SuiviConnecte() {
     const { data: allow } = await sb.rpc("is_suivi_test_account", { p_user_id: userData.user.id });
     if (allow !== true) { setAllowed(false); return; }
     setAllowed(true);
-    const [p, c, m, r, ar, al] = await Promise.all([\n      sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
+    const [p, c, m, r, ar, al] = await Promise.all([
+      sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
       sb.from("suivi_consents").select("family_key,granted").eq("user_id",userData.user.id),
       sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(100),
-      sb.from("suivi_reminders").select("id,measurement_type,title,due_at,repeat_rule,enabled").eq("user_id",userData.user.id).order("due_at",{ascending:true}).limit(100),\n      sb.from("suivi_alert_rules").select("id,measurement_type,min_value,max_value,enabled").eq("user_id",userData.user.id),\n      sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
+      sb.from("suivi_reminders").select("id,measurement_type,title,due_at,repeat_rule,enabled").eq("user_id",userData.user.id).order("due_at",{ascending:true}).limit(100),
+      sb.from("suivi_alert_rules").select("id,measurement_type,min_value,max_value,enabled").eq("user_id",userData.user.id),
+      sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
     ]);
     if (p.error || c.error || m.error || r.error || ar.error || al.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
-    setPreferredName(p.data?.preferred_name ?? "");\n    setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");\n    setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
+    setPreferredName(p.data?.preferred_name ?? "");
+    setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");
+    setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
     setHistory((m.data??[]) as Measurement[]);
-    setReminders((r.data??[]) as Reminder[]);\n    setAlertRules((ar.data??[]) as AlertRule[]);\n    setAlerts((al.data??[]) as TrackingAlert[]);
+    setReminders((r.data??[]) as Reminder[]);
+    setAlertRules((ar.data??[]) as AlertRule[]);
+    setAlerts((al.data??[]) as TrackingAlert[]);
   }, [sb]);
 
-  useEffect(() => { void load(); }, [load]);\n  useEffect(() => {\n    const update = () => setOnline(navigator.onLine);\n    update();\n    window.addEventListener("online", update);\n    window.addEventListener("offline", update);\n    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };\n  }, []);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
 
   const typeInfo = types.find(t=>t.key===selectedType)!;
   const selectedConsent = !!consents[typeInfo.family];
   const grantedFamilies = families.filter(f=>consents[f.key]).length;
 
-  async function saveProfile() {\n    setBusy(true); setNotice("");\n    const { data:userData } = await sb.auth.getUser();\n    if (!userData.user) { setNotice("Session expirée."); setBusy(false); return; }\n    const parsedYear = birthYear.trim() ? Number(birthYear) : null;\n    if (parsedYear !== null && (!Number.isInteger(parsedYear) || parsedYear < 1900 || parsedYear > new Date().getFullYear())) { setNotice("Année de naissance invalide."); setBusy(false); return; }\n    const { error } = await sb.from("suivi_profiles").upsert({ user_id:userData.user.id, preferred_name:preferredName.trim() || null, birth_year:parsedYear, updated_at:new Date().toISOString() }, { onConflict:"user_id" });\n    setNotice(error ? "Profil non enregistré." : "Profil de suivi enregistré."); setBusy(false);\n  }\n\n  async function toggleConsent(family: Family, grant: boolean) {
+  async function saveProfile() {
+    setBusy(true); setNotice("");
+    const { data:userData } = await sb.auth.getUser();
+    if (!userData.user) { setNotice("Session expirée."); setBusy(false); return; }
+    const parsedYear = birthYear.trim() ? Number(birthYear) : null;
+    if (parsedYear !== null && (!Number.isInteger(parsedYear) || parsedYear < 1900 || parsedYear > new Date().getFullYear())) { setNotice("Année de naissance invalide."); setBusy(false); return; }
+    const { error } = await sb.from("suivi_profiles").upsert({ user_id:userData.user.id, preferred_name:preferredName.trim() || null, birth_year:parsedYear, updated_at:new Date().toISOString() }, { onConflict:"user_id" });
+    setNotice(error ? "Profil non enregistré." : "Profil de suivi enregistré."); setBusy(false);
+  }
+
+  async function toggleConsent(family: Family, grant: boolean) {
     setBusy(true); setNotice("");
     const { data:userData } = await sb.auth.getUser();
     if (!userData.user) { setNotice("Connectez-vous pour continuer."); setBusy(false); return; }
@@ -115,7 +148,28 @@ export function SuiviConnecte() {
     setBusy(false);
   }
 
-  async function saveAlertRule() {\n    if (!typeInfo.numeric) { setNotice("Les plages personnalisées concernent uniquement les types numériques."); return; }\n    if (!selectedConsent) { setNotice("Acceptez d’abord le consentement de cette famille."); return; }\n    const min = minThreshold.trim() ? Number(minThreshold) : null;\n    const max = maxThreshold.trim() ? Number(maxThreshold) : null;\n    if (min === null && max === null) { setNotice("Saisissez au moins une limite personnelle."); return; }\n    if ((min !== null && !Number.isFinite(min)) || (max !== null && !Number.isFinite(max)) || (min !== null && max !== null && min > max)) { setNotice("Plage invalide : la limite minimale doit être inférieure ou égale à la maximale."); return; }\n    setBusy(true);\n    const {data:userData}=await sb.auth.getUser();\n    if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}\n    const {error}=await sb.from("suivi_alert_rules").upsert({user_id:userData.user.id,measurement_type:selectedType,min_value:min,max_value:max,enabled:true,updated_at:new Date().toISOString()},{onConflict:"user_id,measurement_type"});\n    if(error)setNotice("Plage personnelle non enregistrée. Vérifiez le consentement.");\n    else {setMinThreshold("");setMaxThreshold("");setNotice("Alerte personnelle configurée. Il ne s’agit pas d’un seuil médical recommandé.");await load();}\n    setBusy(false);\n  }\n\n  async function markAlertRead(id:string) {\n    const {error}=await sb.from("suivi_alerts").update({read_at:new Date().toISOString()}).eq("id",id);\n    if(error)setNotice("Impossible de marquer cette alerte comme lue."); else await load();\n  }\n\n  async function saveReminder() {
+  async function saveAlertRule() {
+    if (!typeInfo.numeric) { setNotice("Les plages personnalisées concernent uniquement les types numériques."); return; }
+    if (!selectedConsent) { setNotice("Acceptez d’abord le consentement de cette famille."); return; }
+    const min = minThreshold.trim() ? Number(minThreshold) : null;
+    const max = maxThreshold.trim() ? Number(maxThreshold) : null;
+    if (min === null && max === null) { setNotice("Saisissez au moins une limite personnelle."); return; }
+    if ((min !== null && !Number.isFinite(min)) || (max !== null && !Number.isFinite(max)) || (min !== null && max !== null && min > max)) { setNotice("Plage invalide : la limite minimale doit être inférieure ou égale à la maximale."); return; }
+    setBusy(true);
+    const {data:userData}=await sb.auth.getUser();
+    if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
+    const {error}=await sb.from("suivi_alert_rules").upsert({user_id:userData.user.id,measurement_type:selectedType,min_value:min,max_value:max,enabled:true,updated_at:new Date().toISOString()},{onConflict:"user_id,measurement_type"});
+    if(error)setNotice("Plage personnelle non enregistrée. Vérifiez le consentement.");
+    else {setMinThreshold("");setMaxThreshold("");setNotice("Alerte personnelle configurée. Il ne s’agit pas d’un seuil médical recommandé.");await load();}
+    setBusy(false);
+  }
+
+  async function markAlertRead(id:string) {
+    const {error}=await sb.from("suivi_alerts").update({read_at:new Date().toISOString()}).eq("id",id);
+    if(error)setNotice("Impossible de marquer cette alerte comme lue."); else await load();
+  }
+
+  async function saveReminder() {
     if (!selectedConsent) { setNotice("Acceptez d’abord le consentement de cette famille."); return; }
     if (reminderTitle.trim().length<2) { setNotice("Donnez un titre au rappel."); return; }
     setBusy(true);
@@ -188,8 +242,10 @@ export function SuiviConnecte() {
         <div className="flex flex-wrap gap-2 print:hidden"><Link href="/" className="inline-flex min-h-11 items-center rounded-xl border border-white/50 px-4 font-bold">Accueil</Link><Link href="/suivi/professionnel" className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 font-bold text-[#1D4ED8]">Espace professionnel</Link><button onClick={exportPdf} className="min-h-11 rounded-xl border border-white/50 px-4 font-bold">Exporter / PDF</button></div>
       </header>
       <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>Ce n’est pas un service d’urgence.</strong> En cas d’urgence médicale, appelez le 119 selon la disponibilité locale ou rendez-vous dans un établissement de santé. NAXA ne pose pas de diagnostic et ne recommande aucune posologie.</div>
-      {!online && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Hors connexion : les nouvelles données ne peuvent pas être synchronisées. Les entrées non enregistrées ne sont pas conservées automatiquement.</p>}\n      {notice && <p role="status" className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">{notice}</p>}
-      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Profil de suivi</h2><p className="mt-1 text-sm text-slate-600">Informations facultatives pour personnaliser votre carnet. Elles ne sont pas visibles par un professionnel sans partage explicite d’une mesure.</p><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Nom d’affichage<input value={preferredName} onChange={e=>setPreferredName(e.target.value)} maxLength={100} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label><label className="text-sm font-semibold">Année de naissance (facultative)<input type="number" min="1900" max={new Date().getFullYear()} value={birthYear} onChange={e=>setBirthYear(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label></div><button disabled={busy} onClick={()=>void saveProfile()} className="mt-3 min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">Enregistrer le profil</button></section>\n      <section className="mt-5 rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Consentements</h2><p className="mt-1 text-sm text-slate-600">Choisissez séparément les familles que vous souhaitez utiliser. Sans consentement actif, aucune nouvelle saisie n’est autorisée.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-[#1D4ED8]">{grantedFamilies}/6 autorisées</span></div>
+      {!online && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Hors connexion : les nouvelles données ne peuvent pas être synchronisées. Les entrées non enregistrées ne sont pas conservées automatiquement.</p>}
+      {notice && <p role="status" className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">{notice}</p>}
+      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Profil de suivi</h2><p className="mt-1 text-sm text-slate-600">Informations facultatives pour personnaliser votre carnet. Elles ne sont pas visibles par un professionnel sans partage explicite d’une mesure.</p><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Nom d’affichage<input value={preferredName} onChange={e=>setPreferredName(e.target.value)} maxLength={100} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label><label className="text-sm font-semibold">Année de naissance (facultative)<input type="number" min="1900" max={new Date().getFullYear()} value={birthYear} onChange={e=>setBirthYear(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label></div><button disabled={busy} onClick={()=>void saveProfile()} className="mt-3 min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">Enregistrer le profil</button></section>
+      <section className="mt-5 rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Consentements</h2><p className="mt-1 text-sm text-slate-600">Choisissez séparément les familles que vous souhaitez utiliser. Sans consentement actif, aucune nouvelle saisie n’est autorisée.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-[#1D4ED8]">{grantedFamilies}/6 autorisées</span></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{families.map(f=><article key={f.key} className="rounded-xl border p-4"><h3 className="font-bold">{f.label}</h3><p className="mt-1 text-sm leading-5 text-slate-600">{f.description}</p><button disabled={busy} onClick={()=>void toggleConsent(f.key,!consents[f.key])} className={consents[f.key]?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700":"mt-3 min-h-11 rounded-lg bg-[#1D4ED8] px-3 text-sm font-bold text-white"}>{consents[f.key]?"Retirer le consentement":"J’accepte cette famille"}</button></article>)}</div>
       </section>
       <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">20 types de suivi + rappels</h2><p className="mt-1 text-sm text-slate-600">Sélectionnez une carte pour la saisie. Les valeurs ne sont pas interprétées comme un diagnostic.</p>
@@ -218,7 +274,8 @@ export function SuiviConnecte() {
         <label className="mt-3 block text-sm font-semibold">UUID du professionnel vérifié<input value={professionalId} onChange={e=>setProfessionalId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3 font-mono" placeholder="UUID Supabase"/></label>
         <div className="mt-3 flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void shareSelectedType()} className="min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white">Autoriser ce type</button><button disabled={busy} onClick={()=>void revokeShare()} className="min-h-11 rounded-xl border border-red-200 px-4 font-bold text-red-700">Révoquer ce type</button></div>
       </section>
-      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Alertes personnelles</h2><p className="mt-1 text-sm leading-6 text-slate-600">Définissez vos propres plages de rappel. NAXA ne fournit aucun seuil clinique recommandé; demandez conseil à un professionnel de santé pour interpréter les résultats.</p><p className="mt-3 text-sm font-semibold">Type sélectionné : {typeInfo.label}</p>{!typeInfo.numeric?<p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Ce type de note ne prend pas en charge les plages numériques.</p>:<div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Limite minimale personnelle<input type="number" step="any" value={minThreshold} onChange={e=>setMinThreshold(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder="Facultatif"/></label><label className="text-sm font-semibold">Limite maximale personnelle<input type="number" step="any" value={maxThreshold} onChange={e=>setMaxThreshold(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder="Facultatif"/></label><button disabled={busy||!selectedConsent} onClick={()=>void saveAlertRule()} className="min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40 sm:col-span-2">Enregistrer les limites personnelles</button></div>}<h3 className="mt-5 font-extrabold">Mes plages configurées</h3>{!alertRules.length?<p className="mt-2 text-sm text-slate-500">Aucune alerte personnalisée configurée.</p>:<ul className="mt-2 space-y-2">{alertRules.map(r=><li key={r.id} className="rounded-xl border p-3 text-sm"><strong>{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type}</strong><p className="mt-1 text-slate-600">Minimum : {r.min_value??"—"} · Maximum : {r.max_value??"—"}</p></li>)}</ul>}<h3 className="mt-5 font-extrabold">Alertes déclenchées</h3>{!alerts.length?<p className="mt-2 text-sm text-slate-500">Aucune alerte déclenchée.</p>:<ul className="mt-2 space-y-2">{alerts.map(a=><li key={a.id} className={a.read_at?"rounded-xl border p-3 text-sm":"rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm"}><div className="flex flex-wrap items-center justify-between gap-2"><strong>{types.find(t=>t.key===a.measurement_type)?.label??a.measurement_type}</strong><time className="text-xs">{new Date(a.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-1">Valeur {a.observed_value} {a.alert_kind==="below_user_range"?"inférieure à votre limite minimale":"supérieure à votre limite maximale"}.</p>{!a.read_at&&<button onClick={()=>void markAlertRead(a.id)} className="mt-2 min-h-10 rounded-lg border px-3 font-bold">Marquer comme lue</button>}</li>)}</ul>}<p className="mt-3 text-xs leading-5 text-slate-500">Ces alertes signalent uniquement un écart par rapport à vos paramètres. Elles ne constituent pas un avis médical et ne remplacent pas une urgence médicale.</p></section>\n      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Historique privé</h2>{history.length===0?<p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Aucune mesure enregistrée. Si une erreur de lecture est apparue plus haut, réessayez avant de conclure que l’historique est vide.</p>:<ul className="mt-3 space-y-2">{history.map(m=><li key={m.id} className="rounded-xl border p-3"><div className="flex flex-wrap justify-between gap-2"><p className="font-bold">{types.find(t=>t.key===m.measurement_type)?.label??m.measurement_type}</p><time className="text-xs text-slate-500">{new Date(m.measured_at).toLocaleString("fr-FR")}</time></div><p className="mt-1 text-sm">{m.value_numeric??m.value_text} {m.unit??""}</p>{m.note&&<p className="mt-1 text-sm text-slate-600">{m.note}</p>}<p className="mt-1 text-xs text-slate-500">Source : {m.source==="bluetooth"?"Bluetooth":m.source==="photo_ocr_local"?"OCR local":"saisie manuelle"}</p></li>)}</ul>}</section>
+      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Alertes personnelles</h2><p className="mt-1 text-sm leading-6 text-slate-600">Définissez vos propres plages de rappel. NAXA ne fournit aucun seuil clinique recommandé; demandez conseil à un professionnel de santé pour interpréter les résultats.</p><p className="mt-3 text-sm font-semibold">Type sélectionné : {typeInfo.label}</p>{!typeInfo.numeric?<p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Ce type de note ne prend pas en charge les plages numériques.</p>:<div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Limite minimale personnelle<input type="number" step="any" value={minThreshold} onChange={e=>setMinThreshold(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder="Facultatif"/></label><label className="text-sm font-semibold">Limite maximale personnelle<input type="number" step="any" value={maxThreshold} onChange={e=>setMaxThreshold(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder="Facultatif"/></label><button disabled={busy||!selectedConsent} onClick={()=>void saveAlertRule()} className="min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40 sm:col-span-2">Enregistrer les limites personnelles</button></div>}<h3 className="mt-5 font-extrabold">Mes plages configurées</h3>{!alertRules.length?<p className="mt-2 text-sm text-slate-500">Aucune alerte personnalisée configurée.</p>:<ul className="mt-2 space-y-2">{alertRules.map(r=><li key={r.id} className="rounded-xl border p-3 text-sm"><strong>{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type}</strong><p className="mt-1 text-slate-600">Minimum : {r.min_value??"—"} · Maximum : {r.max_value??"—"}</p></li>)}</ul>}<h3 className="mt-5 font-extrabold">Alertes déclenchées</h3>{!alerts.length?<p className="mt-2 text-sm text-slate-500">Aucune alerte déclenchée.</p>:<ul className="mt-2 space-y-2">{alerts.map(a=><li key={a.id} className={a.read_at?"rounded-xl border p-3 text-sm":"rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm"}><div className="flex flex-wrap items-center justify-between gap-2"><strong>{types.find(t=>t.key===a.measurement_type)?.label??a.measurement_type}</strong><time className="text-xs">{new Date(a.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-1">Valeur {a.observed_value} {a.alert_kind==="below_user_range"?"inférieure à votre limite minimale":"supérieure à votre limite maximale"}.</p>{!a.read_at&&<button onClick={()=>void markAlertRead(a.id)} className="mt-2 min-h-10 rounded-lg border px-3 font-bold">Marquer comme lue</button>}</li>)}</ul>}<p className="mt-3 text-xs leading-5 text-slate-500">Ces alertes signalent uniquement un écart par rapport à vos paramètres. Elles ne constituent pas un avis médical et ne remplacent pas une urgence médicale.</p></section>
+      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Historique privé</h2>{history.length===0?<p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Aucune mesure enregistrée. Si une erreur de lecture est apparue plus haut, réessayez avant de conclure que l’historique est vide.</p>:<ul className="mt-3 space-y-2">{history.map(m=><li key={m.id} className="rounded-xl border p-3"><div className="flex flex-wrap justify-between gap-2"><p className="font-bold">{types.find(t=>t.key===m.measurement_type)?.label??m.measurement_type}</p><time className="text-xs text-slate-500">{new Date(m.measured_at).toLocaleString("fr-FR")}</time></div><p className="mt-1 text-sm">{m.value_numeric??m.value_text} {m.unit??""}</p>{m.note&&<p className="mt-1 text-sm text-slate-600">{m.note}</p>}<p className="mt-1 text-xs text-slate-500">Source : {m.source==="bluetooth"?"Bluetooth":m.source==="photo_ocr_local"?"OCR local":"saisie manuelle"}</p></li>)}</ul>}</section>
       <p className="mt-5 text-center text-xs leading-5 text-slate-500">NAXA est un carnet de suivi expérimental, pas un dispositif de diagnostic. Vérifiez toute donnée avant de la partager avec un professionnel.</p>
     </div>
   </main>;
