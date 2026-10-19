@@ -521,4 +521,13 @@ create trigger trg_naxa_guard_pos_payment_write
 before insert or update or delete on public.vente_paiements
 for each row execute function public.naxa_guard_pos_payment_write();
 
+
+-- Le navigateur ne doit jamais écrire directement les tables comptables :
+-- les mutations passent par les RPC contrôlées et les déclencheurs ci-dessus.
+-- Les droits SELECT existants restent inchangés pour l'écran et l'historique.
+revoke insert, update, delete on public.caisses_sessions from public,anon,authenticated;
+revoke insert, update, delete on public.ventes from public,anon,authenticated;
+revoke insert, update, delete on public.vente_lignes from public,anon,authenticated;
+revoke insert, update, delete on public.vente_paiements from public,anon,authenticated;
+
 commit;
