@@ -51,7 +51,10 @@ export default async function EspacePromoteur() {
   // Les tables contractuelles sont administrées par NAXA. La clé service-role
   // est utilisée uniquement après authentification et avec un filtre strict sur
   // l'identifiant du Promoteur courant.
-  const [{ data: convention }, { data: abonnement }] = await Promise.all([
+  const [
+    { data: convention, error: conventionError },
+    { data: abonnement, error: abonnementError },
+  ] = await Promise.all([
     adminDb.from("conventions_promoteurs")
       .select("id,architecture_code,montant_mensuel,date_paiement,date_expiration,statut")
       .eq("promoteur_id", auth.user.id).maybeSingle(),
@@ -77,7 +80,8 @@ export default async function EspacePromoteur() {
     (!awaitingFirstActivation && abonnement?.echeance && abonnement.echeance < today) ||
     (!awaitingFirstActivation && convention?.date_expiration && convention.date_expiration < today)
   );
-  const contractIncomplete = Boolean(
+  const contractDataUnavailable = Boolean(conventionError || abonnementError);
+  const contractIncomplete = !contractDataUnavailable && Boolean(
     !convention ||
     !abonnement ||
     abonnement.convention_id !== convention.id ||
@@ -86,20 +90,21 @@ export default async function EspacePromoteur() {
     convention.architecture_code !== profile.architecture_code
   );
   const hasNoOperationalNetwork = !hasOperationalNetwork;
-  const shouldShowAccessStatus = isCommerciallyBlocked || contractIncomplete || profile.actif !== true || hasNoOperationalNetwork;
-  const hasLoadError = linksError || caissesError || pharmaciesError;
+  const shouldShowAccessStatus = isCommerciallyBlocked || contractDataUnavailable || contractIncomplete || profile.actif !== true || hasNoOperationalNetwork;
+  const hasLoadError = linksError || caissesError || pharmaciesError || contractDataUnavailable;
 
   if (shouldShowAccessStatus) {
     const accessBlocked = isCommerciallyBlocked;
     const contractNeedsReview = !accessBlocked && contractIncomplete;
+    const statusUnavailable = contractDataUnavailable || hasLoadError;
     const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     return (
       <main className="min-h-dvh bg-[#F2FAF5] px-4 py-8 text-naxa-green-900">
         <div className="mx-auto max-w-3xl space-y-5">
           <header className="rounded-3xl bg-naxa-green-900 p-6 text-white sm:p-8">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">NAXA · Espace Promoteur</p>
-            <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{accessBlocked ? "Accès commercial suspendu" : contractNeedsReview ? "Dossier à finaliser" : `Bienvenue, ${displayName}`}</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{accessBlocked ? "Le contrat ou la validité commerciale ne permet pas actuellement d’utiliser les outils du réseau." : contractNeedsReview ? "La convention et l’abonnement doivent être cohérents avant l’ouverture des outils de gestion." : "Votre espace est préparé. NAXA termine les contrôles nécessaires avant l’ouverture des outils de gestion."}</p>
+            <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{accessBlocked ? "Accès commercial suspendu" : statusUnavailable ? "Statut momentanément indisponible" : contractNeedsReview ? "Dossier à finaliser" : `Bienvenue, ${displayName}`}</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{accessBlocked ? "Le contrat ou la validité commerciale ne permet pas actuellement d’utiliser les outils du réseau." : statusUnavailable ? "NAXA n’a pas pu confirmer le statut contractuel ou le périmètre du réseau. Les outils restent fermés par précaution ; réessayez plus tard." : contractNeedsReview ? "La convention et l’abonnement doivent être cohérents avant l’ouverture des outils de gestion." : "Votre espace est préparé. NAXA termine les contrôles nécessaires avant l’ouverture des outils de gestion."}</p>
           </header>
 
           {hasLoadError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Le statut détaillé ne peut pas être chargé pour le moment. Aucun accès n’a été activé par cette page.</p>}
@@ -108,9 +113,9 @@ export default async function EspacePromoteur() {
             <div className="flex items-start gap-3">
               <span className={accessBlocked ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-xl" : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-xl"} aria-hidden="true">{accessBlocked ? "!" : "◷"}</span>
               <div>
-                <p className={accessBlocked ? "text-xs font-bold uppercase tracking-[.14em] text-red-800" : "text-xs font-bold uppercase tracking-[.14em] text-amber-800"}>{accessBlocked ? "Abonnement / validité" : contractNeedsReview ? "Configuration contractuelle" : "Dossier en cours"}</p>
-                <h2 className="mt-1 text-xl font-extrabold">{accessBlocked ? "Accès suspendu — régularisation requise" : contractNeedsReview ? "Convention et abonnement à vérifier" : "Activation en attente de validation"}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{accessBlocked ? "Les fonctions réseau restent fermées tant que la validité commerciale n’est pas rétablie par le processus NAXA. Cette page ne réactive aucun compte et n’effectue aucun paiement." : contractNeedsReview ? "Le compte ne peut pas utiliser les fonctions réseau tant que NAXA n’a pas confirmé l’unicité de la convention, le rattachement de l’abonnement et l’égalité du tarif." : "Le compte Promoteur ne peut pas encore administrer de pharmacie, créer des Caisses ou consulter les indicateurs du réseau. Ces fonctions s’ouvriront après la validation par NAXA."}</p>
+                <p className={accessBlocked ? "text-xs font-bold uppercase tracking-[.14em] text-red-800" : "text-xs font-bold uppercase tracking-[.14em] text-amber-800"}>{accessBlocked ? "Abonnement / validité" : statusUnavailable ? "Vérification impossible" : contractNeedsReview ? "Configuration contractuelle" : "Dossier en cours"}</p>
+                <h2 className="mt-1 text-xl font-extrabold">{accessBlocked ? "Accès suspendu — régularisation requise" : statusUnavailable ? "Statut non confirmé" : contractNeedsReview ? "Convention et abonnement à vérifier" : "Activation en attente de validation"}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{accessBlocked ? "Les fonctions réseau restent fermées tant que la validité commerciale n’est pas rétablie par le processus NAXA. Cette page ne réactive aucun compte et n’effectue aucun paiement." : statusUnavailable ? "La vérification du dossier n’a pas abouti. Aucun accès n’est accordé sur la base de données incomplètes." : contractNeedsReview ? "Le compte ne peut pas utiliser les fonctions réseau tant que NAXA n’a pas confirmé l’unicité de la convention, le rattachement de l’abonnement et l’égalité du tarif." : "Le compte Promoteur ne peut pas encore administrer de pharmacie, créer des Caisses ou consulter les indicateurs du réseau. Ces fonctions s’ouvriront après la validation par NAXA."}</p>
                 {accessBlocked && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">Échéance enregistrée : {date(expiryDate)}. Contactez NAXA pour vérifier le règlement et la réactivation.</p>}
               </div>
             </div>
@@ -123,6 +128,11 @@ export default async function EspacePromoteur() {
                   <li>Faites confirmer le règlement par le canal autorisé.</li>
                   <li>NAXA vérifie la convention et rétablit les accès selon la procédure en vigueur.</li>
                 </ol>
+              </div>
+            ) : statusUnavailable ? (
+              <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                <p className="font-bold">Accès fermé par précaution</p>
+                <p className="mt-2">Les données nécessaires à la validation ne sont pas disponibles. Le tableau de bord et les actions d’administration restent inaccessibles jusqu’à une vérification réussie.</p>
               </div>
             ) : contractNeedsReview ? (
               <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
