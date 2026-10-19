@@ -304,6 +304,7 @@ export default function CaissePage() {
     setBusy(false);
     if (error || !data) return setMsg(error?.message ?? "Impossible de créer la vente.");
     setVente(data as string);
+    setDraftCheckErreur(false);
     setLignes([]);
     setTicket(null);
     setMsg("Nouvelle vente créée.");
@@ -375,6 +376,7 @@ export default function CaissePage() {
     setBusy(false);
     if (error) return setMsg(error.message);
     setVente(null);
+    setDraftCheckErreur(false);
     setLignes([]);
     setPercu("");
     setMsg("Panier abandonné ; le stock a été restitué.");
@@ -395,6 +397,7 @@ export default function CaissePage() {
       // L'encaissement et le passage à payée sont atomiques côté base.
       // Libérer le panier local même si la lecture du ticket échoue ensuite.
       setVente(null);
+      setDraftCheckErreur(false);
       setLignes([]);
       setPercu("");
       setResultats([]);
