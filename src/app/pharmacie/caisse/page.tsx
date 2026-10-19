@@ -49,6 +49,7 @@ export default function CaissePage() {
   const [caisseId, setCaisseId] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [sessionBloquee, setSessionBloquee] = useState(false);
+  const [sessionCheckErreur, setSessionCheckErreur] = useState(false);
   const [fondInitial, setFondInitial] = useState("0");
   const [totalCompte, setTotalCompte] = useState("");
   const [cloture, setCloture] = useState<{ total_theorique: number; total_compte: number; ecart: number } | null>(null);
@@ -124,6 +125,7 @@ export default function CaissePage() {
   const chargerSession = useCallback(async (id: string, userId: string) => {
     setSession(null);
     setSessionBloquee(false);
+    setSessionCheckErreur(false);
     setCloture(null);
     setTicket(null);
     const { data, error } = await sb.from("caisses_sessions")
@@ -132,9 +134,11 @@ export default function CaissePage() {
       .eq("statut", "ouverte")
       .maybeSingle();
     if (error) {
-      setMsg("Impossible de vérifier la session de caisse.");
+      setSessionCheckErreur(true);
+      setMsg("Impossible de vérifier la session de caisse. L’ouverture et les opérations restent bloquées jusqu’à une nouvelle vérification.");
       return;
     }
+    setSessionCheckErreur(false);
     if (!data) {
       setSession(null);
       setSessionBloquee(false);
@@ -258,7 +262,7 @@ export default function CaissePage() {
   }
 
   async function ouvrirSession() {
-    if (!caisseId || !uid) return;
+    if (!caisseId || !uid || sessionCheckErreur || sessionBloquee) return;
     if (fondInitial.trim() === "") return setMsg("Saisissez le fond initial, même s’il est égal à zéro.");
     const amount = Number(fondInitial);
     if (!Number.isSafeInteger(amount) || amount < 0) return setMsg("Le fond initial doit être un montant entier positif ou nul.");
@@ -319,15 +323,14 @@ export default function CaissePage() {
     const { error } = await sb.rpc("vente_ajouter_produit", {
       p_vente: vente, p_produit: produit.produit_id, p_quantite: 1,
     });
+    if (error) {
+      setBusy(false);
+      return setMsg(error.message);
+    }
+    // Le prix et les quantités affichés sont relus depuis la base : ne jamais
+    // supposer que le prix retourné par la recherche est encore celui facturé.
+    if (session && uid) await chargerVenteBrouillon(session.id, uid);
     setBusy(false);
-    if (error) return setMsg(error.message);
-    setLignes((current) => {
-      const old = current.find((line) => line.produit_id === produit.produit_id);
-      if (old) return current.map((line) => line.produit_id === produit.produit_id
-        ? { ...line, q: line.q + 1, total: line.total + produit.prix, prix: Math.round((line.total + produit.prix) / (line.q + 1)) }
-        : line);
-      return [...current, { ...produit, q: 1, total: produit.prix }];
-    });
     setResultats([]);
     setScan("");
     setMsg(produit.nom + " ajouté au panier.");
@@ -435,6 +438,8 @@ export default function CaissePage() {
                   <span>Fond initial : {fcfa(session.fond_initial)}</span>
                   <span>Ouverte le {new Date(session.ouvert_at).toLocaleString("fr-FR")}</span>
                 </div>
+              ) : sessionCheckErreur ? (
+                <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">Vérification de session impossible. Rechargez la page avant d’ouvrir ou d’utiliser ce poste.</p>
               ) : sessionBloquee ? (
                 <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Une autre session est ouverte sur ce poste. La Caisse ne peut pas démarrer une session concurrente.</p>
               ) : (
