@@ -157,8 +157,25 @@ export function SuiviConnecte() {
       consent_version:"1.0", granted_at:grant?new Date().toISOString():null,
       revoked_at:grant?null:new Date().toISOString(), updated_at:new Date().toISOString()
     }, { onConflict:"user_id,family_key" });
-    if (error) setNotice("Le consentement n’a pas été enregistré. Réessayez.");
-    else { setConsents(p=>({...p,[family]:grant})); if(!grant) setNotice("Consentement retiré. Les nouvelles saisies de cette famille sont bloquées."); }
+    if (error) {
+      setNotice("Le consentement n’a pas été enregistré. Réessayez.");
+      setBusy(false);
+      return;
+    }
+
+    setConsents(p=>({...p,[family]:grant}));
+    if (!grant) {
+      const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
+      const { error: deviceError } = await sb
+        .from("suivi_user_devices")
+        .update({ active:false, updated_at:new Date().toISOString() })
+        .eq("user_id", userData.user.id)
+        .in("device_key", keys);
+      await load();
+      setNotice(deviceError
+        ? "Consentement retiré et nouvelles saisies bloquées. Certains dispositifs n’ont pas pu être désactivés; réessayez de les désactiver depuis le catalogue."
+        : "Consentement retiré. Les dispositifs de cette famille sont désactivés et les nouvelles saisies sont bloquées.");
+    }
     setBusy(false);
   }
 
