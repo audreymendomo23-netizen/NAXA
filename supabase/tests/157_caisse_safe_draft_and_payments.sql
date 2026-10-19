@@ -9,6 +9,7 @@ declare
   v_atomic text;
   v_atomic_security boolean;
   v_actor_guard text;
+  v_session_guard text;
   v_session_trigger text;
   v_vente_trigger text;
   v_line_trigger text;
@@ -89,6 +90,18 @@ begin
     into v_actor_guard
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='naxa_caisse_actor_for_pharmacy' and p.pronargs=1;
+
+  select pg_get_functiondef(p.oid)
+    into v_session_guard
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='naxa_guard_caisse_session_write' and p.pronargs=0;
+  if v_session_guard is null
+     or position('total_theorique' in v_session_guard)=0
+     or position('total_compte' in v_session_guard)=0
+     or position('public.vente_paiements' in v_session_guard)=0 then
+    raise exception 'La clôture ne recalcule pas le rapprochement espèces côté base';
+  end if;
+
 
   if v_actor_guard is null
      or position('pharmacie_id' in v_actor_guard)=0
