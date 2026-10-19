@@ -438,11 +438,11 @@ export function SuiviConnecte() {
       const profileByDevice: Record<string, { service: string; characteristic: string; type: string; unit: string; parse: (data: DataView) => number }> = {
         tensiometre: {
           service:"blood_pressure", characteristic:"blood_pressure_measurement", type:"tension_systolique", unit:"mmHg",
-          parse:(data)=>{ if(data.byteLength<5) throw new Error("BP payload too short"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<=0)throw new Error("Invalid BP"); return value; }
+          parse:(data)=>{ if(data.byteLength<5) throw new Error("BP payload too short"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; let value=mantissa*Math.pow(10,exponent); if(data.getUint8(0)&1)value*=7.50062; if(!Number.isFinite(value)||value<=0)throw new Error("Invalid BP"); return value; }
         },
         thermometre: {
           service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
-          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
+          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; let value=mantissa*Math.pow(10,exponent); if(data.getUint8(0)&1)value=(value-32)*5/9; if(!Number.isFinite(value)||value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
         },
         thermometre_infrarouge: {
           service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
@@ -481,14 +481,17 @@ export function SuiviConnecte() {
       if (profile && matchedService) {
         const service = await server.getPrimaryService(profile.service);
         const characteristic = await service.getCharacteristic(profile.characteristic);
-        const reading: DataView = typeof characteristic.readValue === "function"
-          ? await characteristic.readValue()
-          : await new Promise<DataView>((resolve,reject)=>{
-              const timeout=window.setTimeout(()=>reject(new Error("Bluetooth reading timeout")),12000);
-              const onValue=(event:Event)=>{ const data=(event.target as any).value as DataView|undefined; if(!data)return; window.clearTimeout(timeout); characteristic.removeEventListener("characteristicvaluechanged",onValue); resolve(data); };
-              characteristic.addEventListener("characteristicvaluechanged",onValue);
-              characteristic.startNotifications().catch((error:unknown)=>{window.clearTimeout(timeout);characteristic.removeEventListener("characteristicvaluechanged",onValue);reject(error);});
-            });
+        let reading: DataView;
+        try {
+          reading = await characteristic.readValue();
+        } catch {
+          reading = await new Promise<DataView>((resolve,reject)=>{
+            const timeout=window.setTimeout(()=>reject(new Error("Bluetooth reading timeout")),12000);
+            const onValue=(event:Event)=>{ const data=(event.target as any).value as DataView|undefined; if(!data)return; window.clearTimeout(timeout); characteristic.removeEventListener("characteristicvaluechanged",onValue); resolve(data); };
+            characteristic.addEventListener("characteristicvaluechanged",onValue);
+            characteristic.startNotifications().catch((error:unknown)=>{window.clearTimeout(timeout);characteristic.removeEventListener("characteristicvaluechanged",onValue);reject(error);});
+          });
+        }
         const parsed = profile.parse(reading);
         setSelectedType(profile.type);
         setValue(String(Number(parsed.toFixed(3))));
