@@ -1,10 +1,10 @@
 # Photos des 21 dispositifs — catalogue « Mon suivi connecté »
 
-**État : repli illustratif.** Cette intervention ne dispose pas d’un chemin de bout en bout permettant de générer, détourer, compresser et téléverser 21 fichiers WebP binaires dans Supabase Storage. L’interface utilise donc des symboles illustratifs de remplacement, pas des photographies réelles.
+**État : 21 visuels générés et intégrés.** Les 21 fichiers sont stockés dans le bucket public Supabase Storage `dispositifs`, au format WebP carré 400 × 400 px, chacun inférieur à 30 Ko. Le fond blanc est conservé conformément au repli prévu, le détourage transparent n’ayant pas été disponible lors de cette exécution. Les visuels sont génériques et illustratifs; ils ne garantissent aucune compatibilité Bluetooth.
 
 | # | Appareil | Fichier attendu | État |
 |---:|---|---|---|
-| 1 | Tensiomètre de bras avec brassard et écran neutre | `tensiometre.webp` | repli |
+| 1 | Tensiomètre de bras avec brassard et écran neutre | `tensiometre.webp` | OK — fond blanc |
 | 2 | Thermomètre médical numérique | `thermometre.webp` | repli |
 | 3 | Oxymètre de doigt à écran neutre | `oxymetre.webp` | repli |
 | 4 | Glucomètre avec bandelette séparée | `glucometre.webp` | repli |
@@ -35,9 +35,9 @@ Remplacer `[APPAREIL PRÉCIS]` par chaque description de la table ci-dessus.
 ## Pipeline avant publication
 
 1. Vérifier la forme réelle, le cadrage, la cohérence de lumière et l’absence de logos/texte parasite.
-2. Détourer en WebP transparent sans halo blanc; conserver le fond blanc si le détourage abîme les bords.
-3. Exporter en 400 × 400 px et moins de 30 Ko.
-4. Téléverser les fichiers dans le bucket public Supabase Storage `dispositifs`.
-5. Relier chaque fichier à sa clé de catalogue existante sans changer le schéma métier.
-6. Dans l’interface, utiliser Next Image, `loading="lazy"`, dimensions réservées, `object-fit: contain`, environ 8 % de marge, flou léger puis fondu.
+2. Le détourage transparent n’était pas disponible; le fond blanc est conservé sans altérer les contours.
+3. Exporter en 400 × 400 px et moins de 30 Ko — effectué pour les 21 fichiers.
+4. Téléverser les fichiers dans le bucket public Supabase Storage `dispositifs` — effectué.
+5. Relier chaque fichier à sa clé de catalogue existante sans changer le schéma métier — effectué dans `SuiviConnecte.tsx`.
+6. Dans l’interface, utiliser Next Image, `loading="lazy"`, dimensions réservées, `object-fit: contain` et environ 8 % de marge.
 7. Afficher la mention **« visuel illustratif »**. Ne pas laisser entendre que les images représentent une marque ou garantissent la compatibilité Bluetooth.
