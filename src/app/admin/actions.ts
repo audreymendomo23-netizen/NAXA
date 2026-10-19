@@ -78,7 +78,7 @@ export async function creerPharmacie(formData: FormData) {
     role: "promoteur", fonction_interne: "promoteur",
     niveau_interne: 1, niveau_hierarchique: 1,
     pharmacie_id: pharmacyId, architecture_code: architecture,
-    actif: true, parent_profile_id: null,
+    actif: false, parent_profile_id: null,
   }).eq("id", userId);
 
   if (privateError || profileError) {
@@ -123,7 +123,7 @@ export async function creerPharmacie(formData: FormData) {
 
   const { error: pharmacyArchitectureError } = await db.from("pharmacie_architectures").upsert({
     pharmacie_id: pharmacyId, architecture_code: architecture,
-    assigned_by: adminId, active: true,
+    assigned_by: adminId, active: false,
     max_responsables: arch.max_responsables ?? 0,
     max_caisses: arch.max_caisses,
   }, { onConflict: "pharmacie_id" });
@@ -134,7 +134,7 @@ export async function creerPharmacie(formData: FormData) {
   }
 
   const { error: linkError } = await db.from("promoteur_pharmacies").insert({
-    promoteur_id: userId, pharmacie_id: pharmacyId, actif: true,
+    promoteur_id: userId, pharmacie_id: pharmacyId, actif: false,
   });
 
   if (linkError) {
