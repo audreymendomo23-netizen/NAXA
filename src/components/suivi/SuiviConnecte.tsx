@@ -446,7 +446,7 @@ export function SuiviConnecte() {
         },
         thermometre_infrarouge: {
           service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
-          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value) || value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
+          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; let value=mantissa*Math.pow(10,exponent); if(data.getUint8(0)&1)value=(value-32)*5/9; if(!Number.isFinite(value) || value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
         },
         oxymetre: {
           service:"pulse_oximeter", characteristic:"plx_spot_check_measurement", type:"saturation_oxygene", unit:"%",
