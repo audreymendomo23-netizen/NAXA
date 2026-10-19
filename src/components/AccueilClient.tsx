@@ -66,7 +66,7 @@ const rechercheNavigation = [
   { titre: "Pharmacies de garde", description: "Pharmacies de garde proches", href: "/gardes", mots: "garde gardes pharmacies nuit" },
   { titre: "Parapharmacie", description: "Trouver la parapharmacie", href: "/resultats?q=Parapharmacie", mots: "parapharmacie soins" },
   { titre: "Bébé & maman", description: "Produits bébé et maternité", href: "/resultats?q=Bébé%20et%20maman", mots: "bébé maman maternité" },
-  { titre: "Dispositifs médicaux", description: "Matériel et dispositifs", href: "/resultats?q=Dispositifs%20médicaux", mots: "dispositifs médicaux matériel" },
+  { titre: "Dispositifs médicaux", description: "Suivi personnel gratuit et dispositifs", href: "/suivi", mots: "dispositifs médicaux matériel suivi connecté capteur" },
   { titre: "Examens médicaux", description: "Trouver un examen", href: "/resultats?q=Examens%20médicaux", mots: "examens analyses laboratoire" },
   { titre: "Soins à domicile", description: "Prestations et soins", href: "/resultats?q=Prestations%20et%20soins%20à%20domicile", mots: "soins domicile prestations" },
   { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA", mots: "aide contact assistance support" },
