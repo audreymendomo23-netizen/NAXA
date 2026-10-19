@@ -9,9 +9,10 @@
 1. Cliquez sur **Nouvelle vente**.
 2. Scannez les codes-barres ou recherchez le produit par nom/référence. La base contrôle le stock disponible et débite le stock au moment de l'ajout au panier. Après chaque ajout, les quantités et les prix affichés sont relus depuis la base, pas estimés côté navigateur.
 3. Un panier brouillon est repris après rechargement. N'ouvrez pas un deuxième panier pour contourner un panier existant.
-4. Pour abandonner un panier, utilisez **Abandonner le panier et restituer le stock**. La RPC verrouille la vente, restitue le stock agrégé et les lots d'origine puis marque le brouillon annulé dans la même transaction.
-5. Encaissez en espèces : saisissez le montant reçu, vérifiez la monnaie à rendre et validez. Le paiement et le passage de la vente à « payée » sont atomiques en base. Les anciennes RPC de paiement espèces partiel/non finalisé sont bloquées pour éviter un paiement orphelin.
-6. Si une requête échoue ou que la connexion coupe, attendez la relecture du panier depuis la base et vérifiez l'historique avant de retenter l'encaissement.
+4. Si un produit a été ajouté par erreur, utilisez **Retirer** sur sa ligne : la base restitue les quantités au stock agrégé et aux lots d'origine, puis recalcule le total dans la même transaction.
+5. Pour abandonner un panier, utilisez **Abandonner le panier et restituer le stock**. La RPC verrouille la vente, restitue le stock agrégé et les lots d'origine puis marque le brouillon annulé dans la même transaction.
+6. Encaissez en espèces : saisissez le montant reçu, vérifiez la monnaie à rendre et validez. Le paiement et le passage de la vente à « payée » sont atomiques en base. Les anciennes RPC de paiement espèces partiel/non finalisé sont bloquées pour éviter un paiement orphelin.
+7. Si une requête échoue ou que la connexion coupe, attendez la relecture du panier depuis la base et vérifiez l'historique avant de retenter l'encaissement.
 
 ## Paiements électroniques
 Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être déclarés payés sur la seule base d'une référence saisie. Ces modes sont bloqués côté base tant qu'une intégration marchande officielle ne permet pas de confirmer la transaction. Aucun paiement électronique n'est simulé.
@@ -24,4 +25,4 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 - Les lots et dates de péremption restent gérés par le moteur de stock ; la Caisse ne contourne pas les contrôles de disponibilité.
 
 ## État de validation
-La page, la migration additive 157 et le test structurel 157 sont enregistrés sur main. La révision 5 de la migration 157 et le test structurel ont été exécutés sur le projet Supabase de test « naxa-ci-replay-2 » ; la migration n'est pas appliquée à Supabase Production. Les tests POS 044, 054, 055, 056, 057, 058, 059 et 060 ont aussi été exécutés sans erreur. Le projet de test ne contient pas les migrations 133–156, donc cette validation SQL reste partielle. Build TypeScript, lint et E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
+La page, les migrations additives 157–158 et les tests structurels correspondants sont enregistrés sur main. Les révisions de test des migrations 157 et 158 et les tests structurels correspondants ont été exécutés sur le projet Supabase de test « naxa-ci-replay-2 » ; la migration n'est pas appliquée à Supabase Production. Les tests POS 044, 054, 055, 056, 057, 058, 059 et 060 ont aussi été exécutés sans erreur. Le projet de test ne contient pas les migrations 133–156, donc cette validation SQL reste partielle. Build TypeScript, lint et E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
