@@ -115,16 +115,23 @@ begin
   set actif = true, pharmacie_id = p_pharmacie, architecture_code = v_arch.code
   where id = v_promoteur.id and role::text = 'promoteur';
 
+  -- Le validateur commercial exige une pharmacie active. La visibilité publique reste coupée
+  -- jusqu'à la fin de la transaction; aucun état intermédiaire n'est publié.
+  update public.pharmacies
+  set actif = true, visible_recherche = false
+  where id = p_pharmacie;
+
   update public.promoteur_pharmacies
   set actif = true
   where promoteur_id = v_promoteur.id and pharmacie_id = p_pharmacie;
 
-  -- Provisionnement des privilèges dans la même transaction : toute erreur annule la validation.
+  -- Le trigger du rattachement et cet appel provisionnent les privilèges dans la même transaction.
+  -- Toute erreur annule toutes les écritures précédentes.
   perform public.naxa_provision_promoteur_pharmacie(v_promoteur.id, p_pharmacie);
 
-  -- Dernières écritures : la pharmacie ne devient publiquement visible qu'après les contrôles.
+  -- Dernière écriture : la pharmacie ne devient publiquement visible qu'après les contrôles.
   update public.pharmacies
-  set actif = true, visible_recherche = true
+  set visible_recherche = true
   where id = p_pharmacie;
 end
 $function$;
