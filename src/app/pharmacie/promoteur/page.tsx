@@ -69,8 +69,10 @@ export default async function EspacePromoteur() {
   const expiryDate = abonnement?.echeance ?? convention?.date_expiration ?? null;
   const isCommerciallyBlocked = Boolean(
     abonnement?.bloque_le ||
-    (commercialStatus && !["actif", "active"].includes(commercialStatus)) ||
-    (expiryDate && expiryDate < today)
+    (abonnement?.statut && !["actif", "active"].includes(abonnement.statut.toLowerCase())) ||
+    (convention?.statut && !["actif", "active"].includes(convention.statut.toLowerCase())) ||
+    (abonnement?.echeance && abonnement.echeance < today) ||
+    (convention?.date_expiration && convention.date_expiration < today)
   );
   const contractIncomplete = Boolean(
     !convention ||
