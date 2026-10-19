@@ -34,7 +34,18 @@ export default function PanneauPharmacie(){
   const {data:p}=await sb.from("profiles").select("pharmacie_id,role,actif").eq("id",u.user.id).single();
   if(p?.role==="promoteur"&&(p.actif!==true||new URLSearchParams(window.location.search).get("vue")!=="operation")){window.location.replace("/pharmacie/promoteur");return}
   if(!p?.pharmacie_id||p.actif===false||!["pharmacie","promoteur","caisse"].includes(p.role)){setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");return}
-  setRole(p.role);setPid(p.pharmacie_id);await charger(p.pharmacie_id);
+  let targetPharmacyId=p.pharmacie_id;
+  if(p.role==="promoteur"){
+    const requestedPharmacyId=new URLSearchParams(window.location.search).get("pharmacie");
+    if(requestedPharmacyId){
+      const {data:link,error:linkError}=await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",u.user.id).eq("pharmacie_id",requestedPharmacyId).eq("actif",true).maybeSingle();
+      if(linkError||!link){setMsg("Cette pharmacie ne fait pas partie de votre réseau actif.");return}
+      const {data:target,error:targetError}=await sb.from("pharmacies").select("id,actif,visible_recherche").eq("id",requestedPharmacyId).maybeSingle();
+      if(targetError||!target?.actif||!target.visible_recherche){setMsg("Cette pharmacie n’est pas active et publiée. L’espace opérationnel reste fermé.");return}
+      targetPharmacyId=requestedPharmacyId;
+    }
+  }
+  setRole(p.role);setPid(targetPharmacyId);await charger(targetPharmacyId);
 })()},[charger,sb]);
 
  async function statut(id:string,s:string){const {error}=await sb.rpc("set_reservation_status",{p_id:id,p_statut:s});setMsg(error?"Action impossible.":"Réservation mise à jour.");if(pid&&!error)charger(pid)}
@@ -49,7 +60,7 @@ export default function PanneauPharmacie(){
   setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:q}:v));
   setMsg("Stock mis à jour.");await charger(pid)
  }
- async function changerGarde(v:boolean){if(!navigator.onLine)return setMsg("Le statut de garde nécessite une connexion.");const {error}=await sb.rpc("set_garde",{p_garde:v});if(error)return setMsg("Impossible de modifier le statut de garde.");setGarde(v);setMsg(v?"Pharmacie déclarée de garde.":"Pharmacie retirée de la garde.")}
+ async function changerGarde(v:boolean){if(!navigator.onLine)return setMsg("Le statut de garde nécessite une connexion.");const result=role==="promoteur"&&pid?await sb.rpc("set_garde_for_pharmacy",{p_pharmacie:pid,p_garde:v}):await sb.rpc("set_garde",{p_garde:v});if(result.error)return setMsg("Impossible de modifier le statut de garde. Vérifiez le périmètre, les privilèges et la validité du réseau.");setGarde(v);setMsg(v?"Pharmacie déclarée de garde.":"Pharmacie retirée de la garde.")}
 
  const vus=stock.filter(l=>(l.produits?.nom??"").toLowerCase().includes(filtre.toLowerCase()));
  return <main className="mx-auto min-h-dvh max-w-4xl px-4 pb-16">
