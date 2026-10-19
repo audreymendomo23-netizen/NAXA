@@ -107,7 +107,6 @@ export function SuiviConnecte() {
     if (!reminders.some(reminder => reminder.enabled)) return;
     const deliverDueReminders = async () => {
       const now = Date.now();
-      let changed = false;
       for (const reminder of reminders) {
         if (!reminder.enabled) continue;
         const due = new Date(reminder.due_at).getTime();
