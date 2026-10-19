@@ -1613,9 +1613,11 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 ### Complément de preuve — dernier état technique
 
 - Le correctif d'inférence TypeScript des deux tables de correspondance a été intégré dans `src/app/pharmacie/caisses/page.tsx` au commit `0fc50e77eff481cc6ea2698abd0894d8acac3ca0`.
-- Correctif API rapports multi-pharmacies : commit `60cc3a32829c252c58551eccdc4d68a8cbe847ae`
-- KPI Alertes du tableau de bord : commit `6d91f100d5f53ddcf18add2301c997cc992c17ac`.; le scope Promoteur est désormais calculé depuis les liens réseau actifs et la validité commerciale. Le correctif est intégré mais non encore compilé/testé en exécution.
+- Correctif API rapports multi-pharmacies : commit `60cc3a32829c252c58551eccdc4d68a8cbe847ae`. L’API vérifie la validité Promoteur et limite les résultats aux pharmacies actives liées au compte.
+- KPI Alertes du tableau de bord : commit `6d91f100d5f53ddcf18add2301c997cc992c17ac`. Le tableau affiche désormais le compteur renvoyé par le pilotage.
+- Les deux changements sont intégrés à `main`, mais restent non compilés et non testés en exécution.
 - Contrôle du HEAD `0fc50e77eff481cc6ea2698abd0894d8acac3ca0` : le fournisseur de statut signale `Vercel: failure` avec le motif `build-rate-limit` et un contexte CircleCI en échec. Ce résultat ne constitue pas un build réussi. Conformément au protocole actuel, CircleCI n'est pas utilisé comme voie de validation.
 - La tentative de lecture du pipeline GitLab a été refusée par les permissions du connecteur ; aucun pipeline n'a été déclenché.
+- Le push sur `main` a déclenché automatiquement deux déploiements Vercel ciblant Production (`dpl_93k4BKD6CBYQ5L1YyQNbLudX6MVa` et `dpl_GHwEvcWnyTzoANKjrd6zJD1dDhPR`). Les deux ont été annulés avant publication (`readyState: CANCELED`) afin de respecter l’absence d’autorisation explicite de déploiement.
 - Aucune compilation locale n'a pu être exécutée via les outils disponibles dans cette session. Les migrations et le test SQL restent non exécutés.
 
