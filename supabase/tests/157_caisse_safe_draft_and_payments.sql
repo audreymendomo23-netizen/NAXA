@@ -174,7 +174,11 @@ begin
      or has_table_privilege('authenticated','public.vente_lignes','INSERT')
      or has_table_privilege('authenticated','public.vente_lignes','UPDATE')
      or has_table_privilege('authenticated','public.vente_paiements','INSERT')
-     or has_table_privilege('authenticated','public.vente_paiements','UPDATE') then
+     or has_table_privilege('authenticated','public.vente_paiements','UPDATE')
+     or has_table_privilege('authenticated','public.caisses_sessions','DELETE')
+     or has_table_privilege('authenticated','public.ventes','DELETE')
+     or has_table_privilege('authenticated','public.vente_lignes','DELETE')
+     or has_table_privilege('authenticated','public.vente_paiements','DELETE') then
     raise exception 'Les tables POS autorisent encore des mutations directes par le navigateur';
   end if;
 end
