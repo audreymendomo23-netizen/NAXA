@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Family = "constantes" | "metabolisme" | "activite" | "sommeil" | "bien_etre" | "traitements";
@@ -228,27 +229,27 @@ export function SuiviConnecte() {
     "Ambre": { accent: "#9B6500", soft: "#FFF3D5", contrast: "#FFFFFF" },
   };
   const deviceCatalog = [
-    { key:"tensiometre", name:"Tensiomètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie manuelle, scan de l’écran ou du relevé, et détection Bluetooth si le modèle expose un profil standard." },
-    { key:"thermometre", name:"Thermomètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie, scan et connexion Bluetooth selon le profil GATT du modèle." },
-    { key:"oxymetre", name:"Oxymètre de pouls", mode:"hybrid" as const, family:"constantes" as Family, description:"SpO₂ et pouls par saisie ou scan; lecture Bluetooth selon les caractéristiques disponibles." },
-    { key:"glucometre", name:"Glucomètre", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat et unité, par saisie ou scan; connexion selon fabricant et protocole." },
-    { key:"balance", name:"Balance connectée ou classique", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Poids par saisie, scan de l’affichage ou liaison Bluetooth compatible." },
-    { key:"capteur_cardiaque_bluetooth", name:"Capteur cardiaque / cardiofréquencemètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Profil Bluetooth GATT standard fréquence cardiaque, plus saisie et scan." },
-    { key:"podometre", name:"Podomètre", mode:"hybrid" as const, family:"activite" as Family, description:"Pas par saisie, scan ou protocole Bluetooth pris en charge." },
-    { key:"ecg", name:"Électrocardiographe (ECG)", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie de la synthèse ou scan du compte rendu; Bluetooth selon modèle et format exporté." },
-    { key:"spirometre", name:"Spiromètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Valeurs respiratoires par saisie ou scan; liaison selon fabricant." },
-    { key:"peak_flow", name:"Débitmètre de pointe", mode:"hybrid" as const, family:"constantes" as Family, description:"Débit expiratoire par saisie, scan ou liaison compatible." },
-    { key:"balance_impedance", name:"Balance impédancemètre", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Poids et composition corporelle par saisie/scan; Bluetooth selon protocole." },
-    { key:"cholesterolometre", name:"Lecteur de cholestérol", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
-    { key:"cetonemetre", name:"Lecteur de cétones", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
-    { key:"uricometre", name:"Lecteur d’acide urique", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
-    { key:"montre_connectee", name:"Montre connectée", mode:"hybrid" as const, family:"activite" as Family, description:"Activité et constantes par saisie/scan; synchronisation Bluetooth ou API selon le fabricant." },
-    { key:"bracelet_activite", name:"Bracelet d’activité", mode:"hybrid" as const, family:"activite" as Family, description:"Pas, activité et sommeil par saisie/scan; liaison selon le modèle." },
-    { key:"tracker_sommeil", name:"Suivi du sommeil", mode:"hybrid" as const, family:"sommeil" as Family, description:"Durée et données exportées par saisie, scan ou intégration disponible." },
-    { key:"thermometre_infrarouge", name:"Thermomètre infrarouge", mode:"hybrid" as const, family:"constantes" as Family, description:"Lecture sans contact par saisie, scan ou liaison standard." },
-    { key:"capteur_respiration", name:"Capteur respiratoire", mode:"hybrid" as const, family:"constantes" as Family, description:"Données respiratoires par saisie, scan ou protocole compatible." },
-    { key:"pilulier_connecte", name:"Pilulier connecté", mode:"hybrid" as const, family:"traitements" as Family, description:"Suivi déclaratif des prises, scan de l’étiquette et connexion selon fabricant; NAXA ne prescrit aucune dose." },
-    { key:"bouteille_hydratation", name:"Bouteille connectée / hydratation", mode:"hybrid" as const, family:"activite" as Family, description:"Volume par saisie, scan ou liaison selon le modèle." },
+    { key:"tensiometre", name:"Tensiomètre", image:"tensiometre.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie manuelle, scan de l’écran ou du relevé, et détection Bluetooth si le modèle expose un profil standard." },
+    { key:"thermometre", name:"Thermomètre", image:"thermometre.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie, scan et connexion Bluetooth selon le profil GATT du modèle." },
+    { key:"oxymetre", name:"Oxymètre de pouls", image:"oxymetre.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"SpO₂ et pouls par saisie ou scan; lecture Bluetooth selon les caractéristiques disponibles." },
+    { key:"glucometre", name:"Glucomètre", image:"glucometre.webp", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat et unité, par saisie ou scan; connexion selon fabricant et protocole." },
+    { key:"balance", name:"Balance connectée ou classique", image:"balance.webp", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Poids par saisie, scan de l’affichage ou liaison Bluetooth compatible." },
+    { key:"capteur_cardiaque_bluetooth", name:"Capteur cardiaque / cardiofréquencemètre", image:"capteur-cardiaque.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Profil Bluetooth GATT standard fréquence cardiaque, plus saisie et scan." },
+    { key:"podometre", name:"Podomètre", image:"podometre.webp", mode:"hybrid" as const, family:"activite" as Family, description:"Pas par saisie, scan ou protocole Bluetooth pris en charge." },
+    { key:"ecg", name:"Électrocardiographe (ECG)", image:"ecg.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie de la synthèse ou scan du compte rendu; Bluetooth selon modèle et format exporté." },
+    { key:"spirometre", name:"Spiromètre", image:"spirometre.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Valeurs respiratoires par saisie ou scan; liaison selon fabricant." },
+    { key:"peak_flow", name:"Débitmètre de pointe", image:"debitmetre-pointe.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Débit expiratoire par saisie, scan ou liaison compatible." },
+    { key:"balance_impedance", name:"Balance impédancemètre", image:"balance-impedancemetre.webp", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Poids et composition corporelle par saisie/scan; Bluetooth selon protocole." },
+    { key:"cholesterolometre", name:"Lecteur de cholestérol", image:"lecteur-cholesterol.webp", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
+    { key:"cetonemetre", name:"Lecteur de cétones", image:"lecteur-cetones.webp", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
+    { key:"uricometre", name:"Lecteur d’acide urique", image:"lecteur-acide-urique.webp", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
+    { key:"montre_connectee", name:"Montre connectée", image:"montre-connectee.webp", mode:"hybrid" as const, family:"activite" as Family, description:"Activité et constantes par saisie/scan; synchronisation Bluetooth ou API selon le fabricant." },
+    { key:"bracelet_activite", name:"Bracelet d’activité", image:"bracelet-activite.webp", mode:"hybrid" as const, family:"activite" as Family, description:"Pas, activité et sommeil par saisie/scan; liaison selon le modèle." },
+    { key:"tracker_sommeil", name:"Suivi du sommeil", image:"suivi-sommeil.webp", mode:"hybrid" as const, family:"sommeil" as Family, description:"Durée et données exportées par saisie, scan ou intégration disponible." },
+    { key:"thermometre_infrarouge", name:"Thermomètre infrarouge", image:"thermometre-infrarouge.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Lecture sans contact par saisie, scan ou liaison standard." },
+    { key:"capteur_respiration", name:"Capteur respiratoire", image:"capteur-respiratoire.webp", mode:"hybrid" as const, family:"constantes" as Family, description:"Données respiratoires par saisie, scan ou protocole compatible." },
+    { key:"pilulier_connecte", name:"Pilulier connecté", image:"pilulier-connecte.webp", mode:"hybrid" as const, family:"traitements" as Family, description:"Suivi déclaratif des prises, scan de l’étiquette et connexion selon fabricant; NAXA ne prescrit aucune dose." },
+    { key:"bouteille_hydratation", name:"Bouteille connectée / hydratation", image:"bouteille-connectee.webp", mode:"hybrid" as const, family:"activite" as Family, description:"Volume par saisie, scan ou liaison selon le modèle." },
   ];
 
   const selectedDevice = deviceCatalog.find(device => device.key === selectedDeviceKey) ?? null;
@@ -658,9 +659,8 @@ export function SuiviConnecte() {
           <div className="grid grid-rows-3 grid-flow-col auto-cols-[76px] gap-3 overflow-x-auto pb-3 snap-x snap-proximity" aria-label="Catalogue défilant des dispositifs">
             {deviceCatalog.filter(device=>deviceFilter==="Tous"||(deviceFilter==="Constantes"&&["tensiometre","thermometre","oxymetre","capteur_cardiaque_bluetooth","ecg","spirometre","peak_flow","thermometre_infrarouge","capteur_respiration"].includes(device.key))||(deviceFilter==="Métabolisme"&&["glucometre","balance","balance_impedance","cholesterolometre","cetonemetre","uricometre"].includes(device.key))||(deviceFilter==="Activité & hydratation"&&["podometre","montre_connectee","bracelet_activite","bouteille_hydratation"].includes(device.key))||(deviceFilter==="Sommeil"&&device.key==="tracker_sommeil")||(deviceFilter==="Traitements"&&device.key==="pilulier_connecte")).map(device=>{
               const saved=devices.find(d=>d.device_key===device.key);
-              const symbol=device.key==="montre_connectee"?"⌚":device.key==="bracelet_activite"?"◉":device.key==="bouteille_hydratation"?"▥":device.key==="tensiometre"?"◉":device.key==="thermometre"||device.key==="thermometre_infrarouge"?"🌡":device.key==="oxymetre"?"▣":device.key==="glucometre"?"▤":device.key==="balance"||device.key==="balance_impedance"?"▱":device.key==="pilulier_connecte"?"▦":"⌁";
               return <button key={device.key} type="button" onClick={()=>setSelectedDeviceKey(device.key)} aria-label={"Détails : "+device.name} className={"relative flex aspect-square w-[76px] snap-start flex-col items-center justify-center gap-1 rounded-[22px] border-2 bg-[#EFEDEA] p-1.5 text-center transition active:scale-[.96] "+(saved?.active?"border-[#0A6B3A]":"border-transparent")}>
-                <span aria-hidden="true" className="text-[25px] leading-none">{symbol}</span><span className="line-clamp-2 text-[11px] font-bold leading-3 text-slate-800">{device.name}</span>{saved?.active&&<span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-[#0A6B3A] text-[10px] font-black text-white">✓</span>}
+                <Image src={sb.storage.from("dispositifs").getPublicUrl(device.image).data.publicUrl} alt="" width={400} height={400} unoptimized sizes="76px" className="h-9 w-9 object-contain" /><span className="line-clamp-2 text-[11px] font-bold leading-3 text-slate-800">{device.name}</span>{saved?.active&&<span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-[#0A6B3A] text-[10px] font-black text-white">✓</span>}
               </button>;
             })}
           </div>
@@ -672,7 +672,7 @@ export function SuiviConnecte() {
         <section role="dialog" aria-modal="true" aria-labelledby="device-sheet-title" className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px]" onClick={event=>event.stopPropagation()}>
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden"/>
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-[#0A6B3A]">NAXA · visuel illustratif</p><h2 id="device-sheet-title" className="mt-1 text-xl font-extrabold">{selectedDevice.name}</h2></div><button type="button" onClick={()=>setSelectedDeviceKey(null)} aria-label="Fermer les détails" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border text-xl">×</button></div>
-          <div className="mt-4 grid h-44 place-items-center rounded-[24px] bg-[#EFEDEA] text-6xl" aria-hidden="true">{selectedDevice.key==="montre_connectee"?"⌚":selectedDevice.key==="bracelet_activite"?"◉":selectedDevice.key==="bouteille_hydratation"?"▥":selectedDevice.key==="tensiometre"?"◉":selectedDevice.key==="thermometre"||selectedDevice.key==="thermometre_infrarouge"?"🌡":"⌁"}</div>
+          <div className="mt-4 grid h-44 place-items-center rounded-[24px] bg-[#EFEDEA]"><Image src={sb.storage.from("dispositifs").getPublicUrl(selectedDevice.image).data.publicUrl} alt={selectedDevice.name} width={400} height={400} unoptimized sizes="(max-width: 640px) 100vw, 400px" className="h-full w-full object-contain p-3" /></div>
           <p className="mt-4 text-sm leading-6 text-slate-600">{selectedDevice.description}</p>
           <p className="mt-3 text-sm font-semibold">Saisie manuelle · Bluetooth · Scan</p>
           <p className="mt-2 text-sm"><span className={"inline-flex rounded-full px-3 py-1 font-bold "+(selectedSavedDevice?.active?"bg-[#E5F4E9] text-[#064B2A]":"bg-slate-100 text-slate-600")}>{selectedSavedDevice?.active?"Actif":"Inactif"}</span></p>
