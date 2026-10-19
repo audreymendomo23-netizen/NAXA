@@ -38,8 +38,8 @@ export default async function CaissesPage({ searchParams }: Props) {
       ? sb.from("pharmacie_architectures").select("pharmacie_id,architecture_code,max_caisses").in("pharmacie_id", pharmacyIds).eq("active", true)
       : Promise.resolve({ data: [] as { pharmacie_id: string; architecture_code: string; max_caisses: number | null }[] }),
   ]);
-  const pharmacyById = new Map((pharmacies ?? []).map((p) => [p.id, p]));
-  const archById = new Map((architectureRows ?? []).map((a) => [a.pharmacie_id, a]));
+  const pharmacyById = new Map((pharmacies ?? []).map((p) => [p.id, p] as const));
+  const archById = new Map((architectureRows ?? []).map((a) => [a.pharmacie_id, a] as const));
   const countActive = (id: string) => (caisses ?? []).filter((c) => c.pharmacie_id === id && c.actif).length;
   const champ = "champ mt-1";
 
