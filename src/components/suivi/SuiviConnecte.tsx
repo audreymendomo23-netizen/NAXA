@@ -95,7 +95,6 @@ export function SuiviConnecte() {
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderAt, setReminderAt] = useState(new Date(Date.now()+86400000).toISOString().slice(0,16));
   const [repeatRule, setRepeatRule] = useState("none");
-  const [shareType, setShareType] = useState("tension_systolique");
   const [professionalId, setProfessionalId] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -375,7 +374,7 @@ export function SuiviConnecte() {
     setBusy(true);
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
-    const {error}=await sb.from("suivi_shares").upsert({owner_user_id:userData.user.id,recipient_user_id:professionalId.trim(),measurement_type:shareType,active:true,revoked_at:null},{onConflict:"owner_user_id,recipient_user_id,measurement_type"});
+    const {error}=await sb.from("suivi_shares").upsert({owner_user_id:userData.user.id,recipient_user_id:professionalId.trim(),measurement_type:selectedType,active:true,revoked_at:null},{onConflict:"owner_user_id,recipient_user_id,measurement_type"});
     if(error)setNotice("Partage refusé : le destinataire doit être un professionnel explicitement vérifié. Aucune donnée n’a été partagée.");
     else setNotice("Autorisation de partage enregistrée pour ce type uniquement.");
     setBusy(false);
@@ -384,7 +383,7 @@ export function SuiviConnecte() {
   async function revokeShare() {
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user || !professionalId.trim()) return;
-    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:new Date().toISOString()}).eq("owner_user_id",userData.user.id).eq("recipient_user_id",professionalId.trim()).eq("measurement_type",shareType);
+    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:new Date().toISOString()}).eq("owner_user_id",userData.user.id).eq("recipient_user_id",professionalId.trim()).eq("measurement_type",selectedType);
     setNotice(error?"Impossible de révoquer ce partage.":"Partage révoqué.");
   }
 
@@ -660,7 +659,7 @@ export function SuiviConnecte() {
             {deviceCatalog.filter(device=>deviceFilter==="Tous"||(deviceFilter==="Constantes"&&["tensiometre","thermometre","oxymetre","capteur_cardiaque_bluetooth","ecg","spirometre","peak_flow","thermometre_infrarouge","capteur_respiration"].includes(device.key))||(deviceFilter==="Métabolisme"&&["glucometre","balance","balance_impedance","cholesterolometre","cetonemetre","uricometre"].includes(device.key))||(deviceFilter==="Activité & hydratation"&&["podometre","montre_connectee","bracelet_activite","bouteille_hydratation"].includes(device.key))||(deviceFilter==="Sommeil"&&device.key==="tracker_sommeil")||(deviceFilter==="Traitements"&&device.key==="pilulier_connecte")).map(device=>{
               const saved=devices.find(d=>d.device_key===device.key);
               return <button key={device.key} type="button" onClick={()=>setSelectedDeviceKey(device.key)} aria-label={"Détails : "+device.name} className={"relative flex aspect-square w-[76px] snap-start flex-col items-center justify-center gap-1 rounded-[22px] border-2 bg-[#EFEDEA] p-1.5 text-center transition active:scale-[.96] "+(saved?.active?"border-[#0A6B3A]":"border-transparent")}>
-                <Image src={sb.storage.from("dispositifs").getPublicUrl(device.image).data.publicUrl} alt="" width={400} height={400} unoptimized sizes="76px" className="h-9 w-9 object-contain" /><span className="line-clamp-2 text-[11px] font-bold leading-3 text-slate-800">{device.name}</span>{saved?.active&&<span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-[#0A6B3A] text-[10px] font-black text-white">✓</span>}
+                <Image src={sb.storage.from("dispositifs").getPublicUrl(device.image).data.publicUrl} alt="" width={400} height={400} unoptimized loading="lazy" sizes="76px" className="h-9 w-9 object-contain transition-opacity duration-300" /><span className="line-clamp-2 text-[11px] font-bold leading-3 text-slate-800">{device.name}</span>{saved?.active&&<span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-[#0A6B3A] text-[10px] font-black text-white">✓</span>}
               </button>;
             })}
           </div>
@@ -672,7 +671,7 @@ export function SuiviConnecte() {
         <section role="dialog" aria-modal="true" aria-labelledby="device-sheet-title" className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px]" onClick={event=>event.stopPropagation()}>
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden"/>
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-[#0A6B3A]">NAXA · visuel illustratif</p><h2 id="device-sheet-title" className="mt-1 text-xl font-extrabold">{selectedDevice.name}</h2></div><button type="button" onClick={()=>setSelectedDeviceKey(null)} aria-label="Fermer les détails" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border text-xl">×</button></div>
-          <div className="mt-4 grid h-44 place-items-center rounded-[24px] bg-[#EFEDEA]"><Image src={sb.storage.from("dispositifs").getPublicUrl(selectedDevice.image).data.publicUrl} alt={selectedDevice.name} width={400} height={400} unoptimized sizes="(max-width: 640px) 100vw, 400px" className="h-full w-full object-contain p-3" /></div>
+          <div className="mt-4 grid h-44 place-items-center rounded-[24px] bg-[#EFEDEA]"><Image src={sb.storage.from("dispositifs").getPublicUrl(selectedDevice.image).data.publicUrl} alt={selectedDevice.name} width={400} height={400} unoptimized loading="lazy" sizes="(max-width: 640px) 100vw, 400px" className="h-full w-full object-contain p-3 transition-opacity duration-300" /></div>
           <p className="mt-4 text-sm leading-6 text-slate-600">{selectedDevice.description}</p>
           <p className="mt-3 text-sm font-semibold">Saisie manuelle · Bluetooth · Scan</p>
           <p className="mt-2 text-sm"><span className={"inline-flex rounded-full px-3 py-1 font-bold "+(selectedSavedDevice?.active?"bg-[#E5F4E9] text-[#064B2A]":"bg-slate-100 text-slate-600")}>{selectedSavedDevice?.active?"Actif":"Inactif"}</span></p>
@@ -708,7 +707,7 @@ export function SuiviConnecte() {
         </div>
       </section>
       <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white/90 p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button><h2 className="text-xl font-extrabold">Partage par type</h2><p className="mt-1 text-sm text-slate-600">Chaque autorisation est limitée à un type. Le destinataire doit être un professionnel explicitement vérifié par NAXA. Vous pouvez retirer le partage.</p>
-        <label className="mt-3 block text-sm font-semibold">Type à partager<select value={shareType} onChange={e=>setShareType(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">{types.map(t=><option key={t.key} value={t.key}>{t.label}</option>)}</select></label>
+        <label className="mt-3 block text-sm font-semibold">Type à partager<select value={selectedType} onChange={e=>setSelectedType(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">{types.map(t=><option key={t.key} value={t.key}>{t.label}</option>)}</select></label>
         <label className="mt-3 block text-sm font-semibold">UUID du professionnel vérifié<input value={professionalId} onChange={e=>setProfessionalId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3 font-mono" placeholder="UUID Supabase"/></label>
         <div className="mt-3 flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void shareSelectedType()} className="min-h-11 rounded-xl bg-[#0A6B3A] px-4 font-bold text-white">Autoriser ce type</button><button disabled={busy} onClick={()=>void revokeShare()} className="min-h-11 rounded-xl border border-red-200 px-4 font-bold text-red-700">Révoquer ce type</button></div>
       </section>
