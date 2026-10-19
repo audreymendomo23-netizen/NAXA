@@ -467,3 +467,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Aucune migration n'a été appliquée au projet Supabase Production `eouwtuusnsuxaejsxknf`. Vérification Vercel en lecture seule : les alias de production restent sur `dpl_8cbANMZpjLQWKLdFyoa3223w4GdP`, commit `adaf28b932e6d09be01bbf62656f8024485cfc10`; aucun déploiement n'a été lancé.
 
 - Dernier correctif de sécurité : l'abandon d'un brouillon vérifie désormais aussi que le compte connecté est l'ouvreur de la session, sauf administrateur NAXA. La révision 3 de la migration 157 a été rejouée sur `naxa-ci-replay-2`, puis le test structurel 157 a été réexécuté avec succès (aucune exception SQL). Production reste inchangée.
+
+## Parcours Caisse — consolidation de la révision (20 octobre 2026)
+
+- Le fond initial est désormais vide par défaut et doit être saisi explicitement à chaque ouverture de session ; zéro reste autorisé s'il est réellement compté.
+- Les opérations d'ajout, abandon, encaissement, changement de poste, historique, réimpression et clôture gèrent les erreurs réseau en relisant l'état du panier ou de la session avant d'inviter à réessayer. Le lecteur de code-barres bloque les entrées concurrentes afin de réduire les ajouts en double.
+- Les tickets imprimés et réimprimés affichent aussi le mode de paiement et, pour les paiements espèces disposant des données, le montant reçu et la monnaie rendue.
+- Les RPC historiques d'encaissement ne peuvent plus enregistrer un paiement espèces partiel ou non finalisé ; le chemin espèces doit passer par `vente_encaisser_finaliser`, qui écrit le paiement et finalise la vente dans la même transaction. Les modes électroniques restent bloqués sans confirmation opérateur officielle.
+- Révision 5 de la migration 157 exécutée sur le projet de test Supabase `naxa-ci-replay-2` (ref `pwfftcsjyeibxxqhwysw`), jamais sur Production. Le test structurel 157 et les tests POS 044, 054, 055, 056, 057, 058, 059 et 060 ont été exécutés sans erreur SQL ; 044 a explicitement renvoyé `044_pos_caisse PASS`.
+- Limite : le projet de test reste en retard sur les migrations 133–156 de main. Ces résultats confirment les fonctions et déclencheurs sur le schéma de test disponible, pas une validation complète de la pile actuelle. Aucun build TypeScript, lint ou E2E n'a été confirmé. Aucun déploiement n'a été lancé et Production reste inchangée.
