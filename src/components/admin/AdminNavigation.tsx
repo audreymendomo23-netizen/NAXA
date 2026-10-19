@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const sections = [
   { href: "/admin", label: "Vue générale", note: "Accueil" },
+  { href: "/admin/promoteurs", label: "Dossiers Promoteurs", note: "Validation pharmacies" },
   { href: "/admin/pilotage", label: "Pilotage réseau", note: "Indicateurs" },
   { href: "/admin/pilotage/validite", label: "Validité", note: "Conventions" },
   { href: "/admin/pilotage/rapports", label: "Rapports", note: "Exports" },
