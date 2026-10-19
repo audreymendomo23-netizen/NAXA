@@ -18,19 +18,30 @@ export default async function CaissesPage({ searchParams }: Props) {
   if (profile?.role !== "promoteur") redirect("/pharmacie");
   if (profile.actif !== true) redirect("/pharmacie/promoteur");
 
-  const [{ data: links, error: linksError }, { data: caisses, error: caissesError }] = await Promise.all([
-    sb.from("promoteur_pharmacies")
-      .select("pharmacie_id")
-      .eq("promoteur_id", auth.user.id)
-      .eq("actif", true),
-    sb.from("profiles")
-      .select("id,username,first_name,last_name,actif,pharmacie_id,created_at")
-      .eq("parent_profile_id", auth.user.id)
-      .eq("role", "caisse")
-      .order("created_at", { ascending: true }),
-  ]);
+  const { data: links, error: linksError } = await sb.from("promoteur_pharmacies")
+    .select("pharmacie_id")
+    .eq("promoteur_id", auth.user.id)
+    .eq("actif", true);
 
-  const pharmacyIds = [...new Set((links ?? []).map((x) => x.pharmacie_id))];
+  if (linksError || !links?.length) redirect("/pharmacie/promoteur");
+  // Le contrôle commercial et le privilège de création sont évalués côté serveur
+  // sur chaque pharmacie active avant d'exposer les comptes Caisse.
+  const permissions = await Promise.all(links.map((link) => sb.rpc("naxa_can", {
+    p_privilege: "CREATE_CAISSE",
+    p_pharmacie: link.pharmacie_id,
+    p_target: null,
+  })));
+  if (!permissions.some((permission) => !permission.error && permission.data === true)) {
+    redirect("/pharmacie/promoteur");
+  }
+
+  const { data: caisses, error: caissesError } = await sb.from("profiles")
+    .select("id,username,first_name,last_name,actif,pharmacie_id,created_at")
+    .eq("parent_profile_id", auth.user.id)
+    .eq("role", "caisse")
+    .order("created_at", { ascending: true });
+
+  const pharmacyIds = [...new Set(links.map((x) => x.pharmacie_id))];
   const [{ data: pharmacies }, { data: architectureRows }] = await Promise.all([
     pharmacyIds.length
       ? sb.from("pharmacies").select("id,nom,ville,quartier").in("id", pharmacyIds)
