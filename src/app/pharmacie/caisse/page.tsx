@@ -17,6 +17,7 @@ type Produit = {
 type Ligne = Produit & { q: number; total: number };
 type Caisse = { id: string; nom: string };
 type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string };
+type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
 type TicketLigne = {
   vente_id: string;
   numero_vente: string;
@@ -60,7 +61,7 @@ export default function CaissePage() {
   const [percu, setPercu] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ticket, setTicket] = useState<TicketLigne[] | null>(null);
+  const [ticket, setTicket] = useState<TicketLigne[] | null>(null);\n  const [historique, setHistorique] = useState<VenteHistorique[]>([]);\n  const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
 
   const chargerVenteBrouillon = useCallback(async (sessionId: string, userId: string) => {
     const { data: draft, error } = await sb.from("ventes")
@@ -209,6 +210,32 @@ export default function CaissePage() {
     setVente(null);
     setLignes([]);
     await chargerSession(id, uid);
+  }
+
+  async function chargerHistorique() {
+    if (!pid || !uid) return;
+    setBusy(true);
+    const { data, error } = await sb.from("ventes")
+      .select("id,numero_vente,total_net,statut,mode_paiement,created_at,paid_at")
+      .eq("pharmacie_id", pid)
+      .eq("created_by", uid)
+      .eq("statut", "payee")
+      .order("paid_at", { ascending: false })
+      .limit(20);
+    setBusy(false);
+    if (error) return setMsg("L’historique des ventes n’est pas disponible.");
+    setHistorique((data ?? []) as VenteHistorique[]);
+    setHistoriqueOuvert(true);
+    setMsg((data?.length ?? 0) + " vente(s) récente(s) chargée(s).");
+  }
+
+  async function reimprimerTicket(venteId: string) {
+    setBusy(true);
+    const { data, error } = await sb.rpc("vente_ticket", { p_vente: venteId });
+    setBusy(false);
+    if (error || !data?.length) return setMsg("Ticket indisponible ou vente hors périmètre.");
+    setTicket((data ?? []) as TicketLigne[]);
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
 
   async function ouvrirSession() {
@@ -390,6 +417,13 @@ export default function CaissePage() {
                   <button className="btn btn-vert" disabled={busy || !caisseId} onClick={() => void ouvrirSession()}>{busy ? "Ouverture…" : "Ouvrir la session"}</button>
                 </div>
               )}
+            </section>
+            <section className="carte mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="font-extrabold">Historique des ventes</h2><p className="text-sm text-slate-600">Consultez ou réimprimez vos 20 dernières ventes payées.</p></div>
+                <button className="btn btn-clair" disabled={busy} onClick={() => historiqueOuvert ? setHistoriqueOuvert(false) : void chargerHistorique()}>{historiqueOuvert ? "Masquer l’historique" : "Afficher l’historique"}</button>
+              </div>
+              {historiqueOuvert && <div className="mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ticket</th><th className="p-2 text-left">Date</th><th className="p-2 text-right">Total</th><th className="p-2">Action</th></tr></thead><tbody>{historique.map((sale) => <tr key={sale.id} className="border-t"><td className="p-2">{sale.numero_vente}</td><td className="p-2">{new Date(sale.paid_at ?? sale.created_at).toLocaleString("fr-FR")}</td><td className="p-2 text-right">{fcfa(sale.total_net)}</td><td className="p-2 text-center"><button className="btn btn-clair" disabled={busy} onClick={() => void reimprimerTicket(sale.id)}>Réimprimer</button></td></tr>)}</tbody></table>{historique.length === 0 && <p className="p-3 text-sm text-slate-600">Aucune vente payée récente.</p>}</div>}
             </section>
             {session && (
               <>
