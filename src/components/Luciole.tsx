@@ -205,7 +205,15 @@ export function Luciole() {
       const terminal = ["idle", "results", "success", "failure", "empty", "complete", "closed"].includes(state.toLowerCase());
       if (["idle", "closed"].includes(state.toLowerCase())) {
         if (activeNaxaState?.type === type) activeNaxaState = null;
-        clearActiveStateClass();
+        if (pendingBusinessGesture === type) pendingBusinessGesture = null;
+        if (businessGesture === type) {
+          if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
+          businessGestureTimer = undefined;
+          businessGesture = null;
+          firefly.classList.remove("luciole-event-" + type);
+          firefly.classList.remove("luciole-event-state-empty", "luciole-event-state-success", "luciole-event-state-failure");
+        }
+        if (activeStateClass === "luciole-state-" + type) clearActiveStateClass();
         return;
       }
       if (terminal && activeNaxaState?.type === type) activeNaxaState = null;
