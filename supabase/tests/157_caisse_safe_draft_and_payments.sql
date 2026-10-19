@@ -36,7 +36,8 @@ begin
      or position('created_by' in v_abandon)=0
      or position('stocks_lots' in v_abandon)=0
      or position('public.stocks' in v_abandon)=0
-     or position('public.can_operate_pharmacy' in v_abandon)=0 then
+     or position('public.can_operate_pharmacy' in v_abandon)=0
+     or position('v_session_owner' in lower(v_abandon))=0 then
     raise exception 'La garde ou la restitution atomique du stock du panier est incomplète';
   end if;
 
