@@ -59,6 +59,11 @@ begin
     raise exception 'Le blocage des paiements électroniques non vérifiés manque';
   end if;
 
+  if position('p_mode=''especes''' in lower(v_encaisser))=0
+     or position('vente_encaisser_finaliser' in lower(v_encaisser))=0 then
+    raise exception 'La voie historique d’espèces peut contourner la finalisation atomique';
+  end if;
+
   select pg_get_functiondef(p.oid)
     into v_fractionne
   from pg_proc p
@@ -70,6 +75,11 @@ begin
   if v_fractionne is null
      or position('aucune confirmation opérateur' in lower(v_fractionne))=0 then
     raise exception 'La voie de paiement fractionné historique contourne le blocage';
+  end if;
+
+  if position('p_mode=''especes''' in lower(v_fractionne))=0
+     or position('vente_encaisser_finaliser' in lower(v_fractionne))=0 then
+    raise exception 'Le paiement espèces fractionné historique contourne la voie atomique';
   end if;
 
   select pg_get_functiondef(p.oid), p.prosecdef
@@ -197,7 +207,15 @@ begin
      or has_table_privilege('authenticated','public.caisses_sessions','DELETE')
      or has_table_privilege('authenticated','public.ventes','DELETE')
      or has_table_privilege('authenticated','public.vente_lignes','DELETE')
-     or has_table_privilege('authenticated','public.vente_paiements','DELETE') then
+     or has_table_privilege('authenticated','public.vente_paiements','DELETE')
+     or has_table_privilege('anon','public.caisses_sessions','INSERT')
+     or has_table_privilege('anon','public.caisses_sessions','UPDATE')
+     or has_table_privilege('anon','public.ventes','INSERT')
+     or has_table_privilege('anon','public.ventes','UPDATE')
+     or has_table_privilege('anon','public.vente_lignes','INSERT')
+     or has_table_privilege('anon','public.vente_lignes','UPDATE')
+     or has_table_privilege('anon','public.vente_paiements','INSERT')
+     or has_table_privilege('anon','public.vente_paiements','UPDATE') then
     raise exception 'Les tables POS autorisent encore des mutations directes par le navigateur';
   end if;
 end
