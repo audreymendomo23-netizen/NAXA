@@ -49,7 +49,7 @@ begin
     from public.profiles
     where id=auth.uid() and actif=true;
     if not found or v_profile.pharmacie_id is distinct from v_vente.pharmacie_id
-       or (v_profile.role::text <> 'caisse' and coalesce(v_profile.fonction_interne,'') <> 'caisse') then
+       or (coalesce(v_profile.role::text,'') <> 'caisse' and coalesce(v_profile.fonction_interne,'') <> 'caisse') then
       raise exception 'Abandon réservé à un compte Caisse actif de cette pharmacie';
     end if;
   end if;
