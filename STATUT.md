@@ -453,3 +453,6 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 ### Preuve et limites
 - Les modifications sont commises sur main, mais migration 157 et test 157 restent non exécutés. Aucun build TypeScript, lint ou E2E n'a pu être lancé depuis les outils disponibles dans cette session.
 - Aucun changement de schéma ni de données n'a été appliqué à Supabase Production. Aucun déploiement Vercel n'a été lancé ; l'interdiction de déployer est respectée.
+
+- Garde de concurrence et d'appartenance : une session est attachée à son compte ouvreur ; la création de vente verrouille la session avant de vérifier qu'un autre brouillon n'existe pas ; les ajouts de lignes, paiements et finalisations sont protégés par des déclencheurs qui revérifient l'acteur Caisse, le propriétaire de la vente, le périmètre et l'état de la session. La clôture recalcule côté base le total théorique à partir du fond initial et des paiements espèces enregistrés.
+- La réimpression est bornée aux ventes payées créées par le compte connecté. Si la lecture du ticket échoue après encaissement, le panier local est libéré et la vente reste accessible via l'historique, sans inviter à réencaisser.
