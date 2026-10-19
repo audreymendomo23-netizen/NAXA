@@ -58,6 +58,7 @@ export function Luciole() {
     let businessGestureTimer: number | undefined;
     let nextSpecialAt = performance.now() + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
     let businessGesture: string | null = null;
+    let pendingBusinessGesture: string | null = null;
     const guideCanvas = document.createElement("canvas");
     const guideContext = guideCanvas.getContext("2d");
     const motionAllowed = !reducedMotion.matches;
@@ -90,6 +91,7 @@ export function Luciole() {
       lastInput = performance.now(); resting = false; start();
     };
     const guideToCaret = (field: HTMLInputElement | HTMLTextAreaElement, glow = false) => {
+      clearBusinessGesture();
       wake();
       guidedTarget = caretTarget(field);
       guidePulseUntil = performance.now() + LUCIOLE_TIMING.guidePulse;
@@ -100,6 +102,7 @@ export function Luciole() {
       start();
     };
     const guideToButton = (button: HTMLElement) => {
+      clearBusinessGesture();
       wake();
       const r = button.getBoundingClientRect();
       guidedTarget = { x: Math.max(20, Math.min(window.innerWidth - 20, r.left + r.width * 0.72)), y: Math.max(20, r.top - 9), kind: "button", form: button.closest("form") ?? undefined };
@@ -140,23 +143,28 @@ export function Luciole() {
     };
 
     const sparks = Array.from(firefly.querySelectorAll<HTMLElement>(".luciole-spark"));
-    const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "reservation", "payment"]);
+    const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "reservation", "payment", "favorite", "language", "offline", "online"]);
+    const clearBusinessGesture = () => {
+      pendingBusinessGesture = null;
+      if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
+      businessGestureTimer = undefined;
+      firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
+      businessGesture = null;
+    };
     const reactToBusinessEvent = (type: string) => {
       if (!FAIRY_EVENTS.has(type)) return;
-      firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
-      businessGesture = type;
-      firefly.classList.add("luciole-event-" + type);
-      if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
-      businessGestureTimer = window.setTimeout(() => {
-        firefly.classList.remove("luciole-event-" + type);
-        businessGesture = null;
-        businessGestureTimer = undefined;
-      }, LUCIOLE_TIMING.specialMaxFinish);
+      // Les événements métier attendent le calme : le suivi du doigt et de la saisie garde la priorité.
+      pendingBusinessGesture = type;
       wake();
       lastInput = performance.now();
       nextSpecialAt = lastInput + LUCIOLE_TIMING.specialIntervalMin + Math.random() * (LUCIOLE_TIMING.specialIntervalMax - LUCIOLE_TIMING.specialIntervalMin);
       start();
     };
+    const onCartAdded = () => reactToBusinessEvent("cart");
+    const onFavoritesChanged = () => reactToBusinessEvent("favorite");
+    const onLanguageChanged = () => reactToBusinessEvent("language");
+    const onOffline = () => reactToBusinessEvent("offline");
+    const onOnline = () => reactToBusinessEvent("online");
     const onNaxaFairyEvent = (event: Event) => {
       const detail = (event as CustomEvent<string | { type?: string }>).detail;
       const type = typeof detail === "string" ? detail : detail?.type;
@@ -225,6 +233,7 @@ export function Luciole() {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      clearBusinessGesture();
       wake();
       clearRandomSpecial();
       if (event.pointerType === "mouse" && event.buttons === 0) {
@@ -240,6 +249,7 @@ export function Luciole() {
       start();
     };
     const onInteraction = (event: Event) => {
+      clearBusinessGesture();
       const now = performance.now();
       clearRandomSpecial();
       nextSpecialAt = now + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
@@ -365,7 +375,20 @@ export function Luciole() {
       const dt = lastFrame ? Math.min(40, now - lastFrame) : 16;
       lastFrame = now;
       const idleFor = now - lastInput;
-      if (!sleeping && !sleepPending && !guidedTarget && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture) triggerRandomSpecial(now);
+      if (pendingBusinessGesture && idleFor >= LUCIOLE_TIMING.specialCalm && guidedTarget?.kind !== "caret" && !sleeping && !sleepPending) {
+        const type = pendingBusinessGesture;
+        pendingBusinessGesture = null;
+        firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
+        businessGesture = type;
+        firefly.classList.add("luciole-event-" + type);
+        if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
+        businessGestureTimer = window.setTimeout(() => {
+          firefly.classList.remove("luciole-event-" + type);
+          businessGesture = null;
+          businessGestureTimer = undefined;
+        }, LUCIOLE_TIMING.specialMaxFinish);
+      }
+      if (!sleeping && !sleepPending && !guidedTarget && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
       const nextGesture = sleeping || sleepPending ? "resting" : businessGesture ? "dance" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
       if (nextGesture !== activeGesture) {
         firefly.classList.remove("gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
@@ -484,6 +507,11 @@ export function Luciole() {
       document.addEventListener("pointermove", onGuidancePointerMove, { passive: true, capture: true });
     }
     document.addEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
+    window.addEventListener("naxa:panier-ajoute", onCartAdded);
+    window.addEventListener("naxa:favoris-change", onFavoritesChanged);
+    window.addEventListener("naxa-language-updated", onLanguageChanged);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("scroll", onResize, { passive: true, capture: true });
@@ -512,6 +540,11 @@ export function Luciole() {
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
       firefly.classList.remove("naxa-luciole-guidance-pulse", "naxa-luciole-typing-glow", "naxa-luciole-click-spark");
       document.removeEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
+      window.removeEventListener("naxa:panier-ajoute", onCartAdded);
+      window.removeEventListener("naxa:favoris-change", onFavoritesChanged);
+      window.removeEventListener("naxa-language-updated", onLanguageChanged);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onResize, true);
