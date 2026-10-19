@@ -63,3 +63,5 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les vérifications automatisées doivent être lancées avant de considérer le travail terminé.
 
 - L’anatomie SVG comprend maintenant des jambes/pieds articulés et des expressions simples (yeux ouverts/fermés, sourire). Le protocole visuel accepte également les types `pharmacy`, `stock`, `baby`, `review`, `treatment`, `delivery`, `welcome`, `login` et `logout` via `naxa:fairy`, mais ces types ne sont déclenchés que si une source réelle les émet.
+
+- Les durées restantes de scintillement, d’ailes legacy, de bâillement, de jambes assises et de fondu réduit sont également exposées dans `LUCIOLE_TIMING`; les animations de chatouilles réduisent le battement d’ailes et le scintillement sous `prefers-reduced-motion`.

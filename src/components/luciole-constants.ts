@@ -51,4 +51,10 @@ export const LUCIOLE_TIMING = {
   sleepZDelayThree: 1_600,
   guideGlow: 480,
   clickFlash: 360,
+  corePulse: 2_400,
+  legacyWingFlap: 105,
+  abdomenGlow: 1_350,
+  sitFeet: 700,
+  sitFeetDelay: 350,
+  tickleReducedFade: 150,
 } as const;
