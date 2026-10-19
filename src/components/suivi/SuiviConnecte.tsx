@@ -526,7 +526,7 @@ export function SuiviConnecte() {
 
   function applyScannedValue() {
     if (scanKind !== "ocr" || !typeInfo.numeric) { setNotice("Pour éviter une erreur, choisissez manuellement la valeur à utiliser dans ce scan."); return; }
-    const candidates = ocrText.match(/-?\\d+(?:[.,]\\d+)?/g) ?? [];
+    const candidates = ocrText.match(/-?\d+(?:[.,]\d+)?/g) ?? [];
     if (candidates.length !== 1) { setNotice("Le scan contient plusieurs nombres. Choisissez la bonne valeur manuellement pour éviter d’enregistrer une date ou une autre mesure."); return; }
     setValue(candidates[0].replace(",", "."));
     setPendingMeasurementSource("photo_ocr_local");
