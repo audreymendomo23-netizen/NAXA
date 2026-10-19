@@ -27,7 +27,14 @@ begin
   if has_function_privilege('anon', v_signature, 'EXECUTE') then
     raise exception '134.6 : anon ne doit pas pouvoir appeler la façade';
   end if;
-  if has_function_privilege('public', v_signature, 'EXECUTE') then
+  if exists (
+    select 1
+    from pg_proc p
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    where p.oid = v_signature
+      and a.grantee = 0
+      and a.privilege_type = 'EXECUTE'
+  ) then
     raise exception '134.7 : PUBLIC ne doit pas pouvoir appeler la façade';
   end if;
 end
