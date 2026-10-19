@@ -25,7 +25,8 @@ begin
 end $$;
 
 grant select on v39_ids to authenticated;
-set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
@@ -42,7 +43,8 @@ end $$;
 reset role;
 update public.conventions_promoteurs set statut='expiree',date_expiration=current_date-1 where promoteur_id=(select promoteur from v39_ids);
 update public.abonnements_promoteurs set statut='impaye',echeance=current_date-1 where promoteur_id=(select promoteur from v39_ids);
-set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
@@ -69,7 +71,8 @@ end $$;
 reset role;
 update public.conventions_promoteurs set statut='active',date_expiration=current_date+30 where promoteur_id=(select promoteur from v39_ids);
 update public.abonnements_promoteurs set statut='actif',echeance=current_date+30 where promoteur_id=(select promoteur from v39_ids);
-set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
@@ -80,7 +83,8 @@ end $v39check$;
 
 reset role;
 update public.abonnements set statut='impaye',echeance=current_date-1 where pharmacie_id=(select b from v39_ids);
-set local role authenticated;
+select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
+select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',(select promoteur::text from v39_ids),true);
 select set_config('request.jwt.claims',json_build_object('sub',(select promoteur::text from v39_ids),'role','authenticated')::text,true);
 
