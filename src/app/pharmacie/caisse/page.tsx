@@ -403,7 +403,7 @@ export default function CaissePage() {
         </header>
         {loading && <section className="carte" role="status">Vérification de l’accès et de la session de caisse…</section>}
         {!loading && msg && !ready && <section className="carte" role="alert">{msg}<p className="mt-3"><a className="btn btn-clair" href="/connexion?retour=/pharmacie/caisse">Se reconnecter</a></p></section>}
-        {ready && (
+        {ready && !loading && (
           <>
             <section className="carte mb-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
