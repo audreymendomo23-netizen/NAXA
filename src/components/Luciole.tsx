@@ -445,7 +445,7 @@ export function Luciole() {
       const idleFor = now - lastInput;
       if (activeNaxaState && now - activeNaxaState.since >= LUCIOLE_TIMING.stateMaxPause) clearActiveStateClass();
       const durableStateActive = !!activeNaxaState && now - activeNaxaState.since < LUCIOLE_TIMING.stateMaxPause;
-      if (durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && !guidedTarget && !sleeping && !sleepPending) {
+      if (durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && !pointerActive && !guidedTarget && !sleeping && !sleepPending) {
         const className = "luciole-state-" + activeNaxaState!.type;
         if (activeStateClass !== className) { clearActiveStateClass(); activeStateClass = className; firefly.classList.add(className); }
         const anchorX = activeNaxaState!.type === "scan" ? window.innerWidth - 32 : window.innerWidth - 32;
@@ -484,7 +484,7 @@ export function Luciole() {
         tree.classList.remove("naxa-luciole-tree-awake");
       } else {
         resting = false;
-        if (!durableStateActive && idleFor >= LUCIOLE_TIMING.randomWanderStart) {
+        if (!pointerActive && !durableStateActive && idleFor >= LUCIOLE_TIMING.randomWanderStart) {
           // Chaque destination est tirée indépendamment dans toute la zone visible :
           // aucune sinusoïde, boucle ni trajectoire répétitive.
           if (now >= nextWanderAt) {
