@@ -10,7 +10,8 @@
 2. Scannez les codes-barres ou recherchez le produit par nom/référence. La base contrôle le stock disponible et débite le stock au moment de l'ajout au panier. Après chaque ajout, les quantités et les prix affichés sont relus depuis la base, pas estimés côté navigateur.
 3. Un panier brouillon est repris après rechargement. N'ouvrez pas un deuxième panier pour contourner un panier existant.
 4. Pour abandonner un panier, utilisez **Abandonner le panier et restituer le stock**. La RPC verrouille la vente, restitue le stock agrégé et les lots d'origine puis marque le brouillon annulé dans la même transaction.
-5. Encaissez en espèces : saisissez le montant reçu, vérifiez la monnaie à rendre et validez. Le paiement et le passage de la vente à « payée » sont atomiques en base.
+5. Encaissez en espèces : saisissez le montant reçu, vérifiez la monnaie à rendre et validez. Le paiement et le passage de la vente à « payée » sont atomiques en base. Les anciennes RPC de paiement espèces partiel/non finalisé sont bloquées pour éviter un paiement orphelin.
+6. Si une requête échoue ou que la connexion coupe, attendez la relecture du panier depuis la base et vérifiez l'historique avant de retenter l'encaissement.
 
 ## Paiements électroniques
 Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être déclarés payés sur la seule base d'une référence saisie. Ces modes sont bloqués côté base tant qu'une intégration marchande officielle ne permet pas de confirmer la transaction. Aucun paiement électronique n'est simulé.
