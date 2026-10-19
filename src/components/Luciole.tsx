@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
+import { LUCIOLE_TIMING } from "@/components/luciole-constants";
 
 const SPARKS = 8;
 
@@ -47,6 +48,10 @@ export function Luciole() {
     let saluteTimer: number | undefined;
     let saluteUntil = 0;
     let activeGesture: string | null = null;
+    let sleeping = false;
+    let sleepPending = false;
+    let lastTapAt = 0;
+    let tickleCooldownUntil = 0;
     const guideCanvas = document.createElement("canvas");
     const guideContext = guideCanvas.getContext("2d");
     const motionAllowed = !reducedMotion.matches;
@@ -71,7 +76,15 @@ export function Luciole() {
         : rect.top + (rect.height - lineHeight) / 2 + lineHeight * 0.15;
       return { x: Math.max(14, Math.min(window.innerWidth - 14, innerX)), y: Math.max(16, innerY - 13), kind: "caret" as const, field, form: field.form ?? undefined };
     };
+    const wake = () => {
+      if (!sleeping && !sleepPending) return;
+      sleeping = false; sleepPending = false;
+      firefly.classList.remove("luciole-sleeping", "luciole-sleep-arriving");
+      tree.classList.add("naxa-luciole-tree-awake");
+      lastInput = performance.now(); resting = false; start();
+    };
     const guideToCaret = (field: HTMLInputElement | HTMLTextAreaElement, glow = false) => {
+      wake();
       guidedTarget = caretTarget(field);
       guidePulseUntil = performance.now() + 650;
       if (glow) { guideGlowUntil = performance.now() + 480; firefly.classList.add("naxa-luciole-typing-glow"); }
@@ -81,6 +94,7 @@ export function Luciole() {
       start();
     };
     const guideToButton = (button: HTMLElement) => {
+      wake();
       const r = button.getBoundingClientRect();
       guidedTarget = { x: Math.max(20, Math.min(window.innerWidth - 20, r.left + r.width * 0.72)), y: Math.max(20, r.top - 9), kind: "button", form: button.closest("form") ?? undefined };
       guidePulseUntil = Number.POSITIVE_INFINITY;
@@ -133,6 +147,7 @@ export function Luciole() {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      wake();
       if (event.pointerType === "mouse" && event.buttons === 0) {
         // La luciole suit aussi le curseur sur ordinateur, sans capter les interactions.
       }
@@ -145,7 +160,23 @@ export function Luciole() {
       start();
     };
     const onInteraction = (event: Event) => {
-      lastInput = performance.now();
+      const now = performance.now();
+      const pointer = event as PointerEvent;
+      if (event.type === "pointerdown") {
+        const inside = Math.hypot(pointer.clientX - x, pointer.clientY - y) <= 24;
+        const target = event.target instanceof Element ? event.target.closest("button,a,input,textarea,select,[role=button],label,[contenteditable=true]") : null;
+        if (inside && !target && now - lastTapAt <= LUCIOLE_TIMING.doubleTap && now >= tickleCooldownUntil) {
+          firefly.classList.remove("luciole-sleeping");
+          firefly.classList.add("luciole-tickling");
+          firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
+          tickleCooldownUntil = now + LUCIOLE_TIMING.tickle + LUCIOLE_TIMING.tickleCooldown;
+          window.setTimeout(() => firefly.classList.remove("luciole-tickling"), LUCIOLE_TIMING.tickle);
+          burst();
+        }
+        lastTapAt = inside && !target ? now : 0;
+      }
+      wake();
+      lastInput = now;
       resting = false;
       tree.classList.add("naxa-luciole-tree-awake");
       if (event.type === "pointerdown") burst();
@@ -247,15 +278,14 @@ export function Luciole() {
       const dt = lastFrame ? Math.min(40, now - lastFrame) : 16;
       lastFrame = now;
       const idleFor = now - lastInput;
-
-      const nextGesture = now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : idleFor >= 20_000 ? "resting" : "dance";
+      const nextGesture = sleeping || sleepPending ? "resting" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
       if (nextGesture !== activeGesture) {
         firefly.classList.remove("gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
         firefly.classList.add("gesture-" + nextGesture);
         activeGesture = nextGesture;
       }
 
-      if (idleFor >= 20_000) {
+      if (idleFor >= LUCIOLE_TIMING.inactivity) {
         resting = true;
         targetX = treeX;
         targetY = treeY - 12;
@@ -294,15 +324,27 @@ export function Luciole() {
           else firefly.classList.add("naxa-luciole-guidance-pulse");
         }
       }
-      const ease = resting ? 0.055 : 0.085;
+      const ease = sleepPending || idleFor >= LUCIOLE_TIMING.inactivity ? 0.12 : resting ? 0.055 : 0.085;
       vx = (vx + (targetX - x) * ease) * 0.78;
       vy = (vy + (targetY - y) * ease) * 0.78;
       x += vx;
       y += vy;
       paint();
+      if (idleFor >= LUCIOLE_TIMING.inactivity && !sleeping && !sleepPending && !guidedTarget) {
+        sleepPending = true;
+        firefly.classList.add("luciole-sleep-arriving");
+        targetX = treeX; targetY = treeY - 12;
+      }
+      if (sleepPending && Math.hypot(targetX - x, targetY - y) < 1.5 && Math.abs(vx) + Math.abs(vy) < 0.6) {
+        sleepPending = false; sleeping = true;
+        firefly.classList.remove("luciole-sleep-arriving");
+        firefly.classList.add("luciole-sleeping");
+        tree.classList.remove("naxa-luciole-tree-awake");
+        tree.classList.add("naxa-luciole-tree-glow");
+      }
 
       const settled = Math.abs(targetX - x) < 0.8 && Math.abs(targetY - y) < 0.8 && Math.abs(vx) + Math.abs(vy) < 0.35;
-      if (!settled || !resting || idleFor < 20_000) frameId = requestAnimationFrame(tick);
+      if (!settled || !resting || idleFor < LUCIOLE_TIMING.inactivity || !sleeping) frameId = requestAnimationFrame(tick);
       else {
         firefly.classList.add("naxa-luciole-resting");
         tree.classList.add("naxa-luciole-tree-glow");
@@ -319,6 +361,10 @@ export function Luciole() {
       }
     }
 
+    firefly.style.setProperty("--luciole-wing-duration", LUCIOLE_TIMING.wingBeat + "ms");
+    firefly.style.setProperty("--luciole-sleep-breath-duration", LUCIOLE_TIMING.sleepBreath + "ms");
+    firefly.style.setProperty("--luciole-z-cycle-duration", LUCIOLE_TIMING.sleepZCycle + "ms");
+    firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
     placeTree();
     paint();
     if (motionAllowed) {
@@ -451,6 +497,11 @@ export function Luciole() {
           <g className="luciole-arm luciole-arm-front">
             <path className="luciole-arm-line" d="M26 23 Q29 22 30 19 L33 17" />
             <path className="luciole-hand" d="M32.5 17.3 Q33.5 15.4 35 16.1 Q35.7 17.6 33.4 18.4Z" />
+          </g>
+          <g className="luciole-sleep-z" aria-hidden="true">
+            <path className="luciole-sleep-z-one" d="M28 10h3l-3 3h3" />
+            <path className="luciole-sleep-z-two" d="M32 6h3l-3 3h3" />
+            <path className="luciole-sleep-z-three" d="M36 2h3l-3 3h3" />
           </g>
           <ellipse className="luciole-glow-core" cx="24" cy="36" rx="3.1" ry="5.2" />
         </svg>
