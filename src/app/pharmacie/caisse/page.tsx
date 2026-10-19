@@ -71,7 +71,7 @@ export default function CaissePage() {
   const [historique, setHistorique] = useState<VenteHistorique[]>([]);
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
 
-  const chargerVenteBrouillon = useCallback(async (sessionId: string, userId: string) => {
+  const chargerVenteBrouillon = useCallback(async (sessionId: string, userId: string): Promise<boolean> => {
     const { data: draft, error } = await sb.from("ventes")
       .select("id")
       .eq("caisse_session_id", sessionId)
@@ -84,13 +84,13 @@ export default function CaissePage() {
       setDraftCheckErreur(true);
       setLignes([]);
       setMsg("Impossible de vérifier le panier existant. Nouvelle vente et clôture bloquées pour éviter un doublon ; rechargez la page.");
-      return;
+      return false;
     }
     if (!draft) {
       setDraftCheckErreur(false);
       setVente(null);
       setLignes([]);
-      return;
+      return true;
     }
     const { data: rows, error: linesError } = await sb.from("vente_lignes")
       .select("produit_id,quantite,prix_unitaire,total_ligne,produits(nom,dosage,code_barre)")
@@ -100,7 +100,7 @@ export default function CaissePage() {
       setVente(draft.id);
       setLignes([]);
       setMsg("Le panier existe mais ses lignes n’ont pas pu être chargées. Nouvelle vente et clôture bloquées ; rechargez la page. Vous pouvez abandonner le panier pour restituer le stock.");
-      return;
+      return false;
     }
     setDraftCheckErreur(false);
     const groups = new Map<string, Ligne>();
@@ -131,6 +131,7 @@ export default function CaissePage() {
     setVente(draft.id);
     setLignes([...groups.values()]);
     setMsg("Panier en cours repris. Le stock avait déjà été réservé par la base de données.");
+    return true;
   }, [sb]);
 
   const chargerSession = useCallback(async (id: string, userId: string) => {
@@ -170,8 +171,8 @@ export default function CaissePage() {
     }
     setSessionBloquee(false);
     setSession(data as Session);
-    await chargerVenteBrouillon(data.id, userId);
-    return true;
+    const draftVerified = await chargerVenteBrouillon(data.id, userId);
+    return draftVerified;
   }, [chargerVenteBrouillon, sb]);
 
   useEffect(() => {
@@ -313,7 +314,7 @@ export default function CaissePage() {
       if (error) throw error;
       const verified = await chargerSession(caisseId, uid);
       if (!verified || !data) {
-        setMsg("La demande d’ouverture a été envoyée, mais la session n’a pas pu être vérifiée. Rechargez la page avant toute opération.");
+        setMsg("La session ou le panier n’a pas pu être vérifié après l’ouverture. Rechargez la page avant toute opération.");
         return;
       }
       setMsg("Session ouverte et vérifiée. Le fond initial est enregistré ; créez une vente lorsque vous êtes prêt.");
