@@ -321,25 +321,7 @@ export function Luciole() {
           firefly.classList.remove("luciole-sleeping");
           firefly.classList.add("luciole-tickling");
           firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
-    firefly.style.setProperty("--luciole-visibility-duration", LUCIOLE_TIMING.visibilityFade + "ms");
-    firefly.style.setProperty("--luciole-fairy-light-duration", LUCIOLE_TIMING.fairyLightPulse + "ms");
-    firefly.style.setProperty("--luciole-wing-side-duration", LUCIOLE_TIMING.wingSideBeat + "ms");
-    firefly.style.setProperty("--luciole-tickle-wing-beat", LUCIOLE_TIMING.tickleWingBeat + "ms");
-    firefly.style.setProperty("--luciole-z-delay-two", LUCIOLE_TIMING.sleepZDelayTwo + "ms");
-    firefly.style.setProperty("--luciole-z-delay-three", LUCIOLE_TIMING.sleepZDelayThree + "ms");
-    firefly.style.setProperty("--luciole-guide-glow-duration", LUCIOLE_TIMING.guideGlow + "ms");
-    firefly.style.setProperty("--luciole-click-flash-duration", LUCIOLE_TIMING.clickFlash + "ms");
-    firefly.style.setProperty("--luciole-salute-wave-duration", LUCIOLE_TIMING.saluteWave + "ms");
-    firefly.style.setProperty("--luciole-dance-duration", LUCIOLE_TIMING.danceGesture + "ms");
-    firefly.style.setProperty("--luciole-type-duration", LUCIOLE_TIMING.typingGesture + "ms");
-    firefly.style.setProperty("--luciole-point-duration", LUCIOLE_TIMING.pointingGesture + "ms");
-    firefly.style.setProperty("--luciole-rest-duration", LUCIOLE_TIMING.restGesture + "ms");
-    firefly.style.setProperty("--luciole-state-wave-duration", LUCIOLE_TIMING.stateWave + "ms");
-    firefly.style.setProperty("--luciole-state-glow-duration", LUCIOLE_TIMING.stateGlow + "ms");
-    firefly.style.setProperty("--luciole-guide-pulse-cycle", LUCIOLE_TIMING.guidePulseCycle + "ms");
-    firefly.style.setProperty("--luciole-reduced-fade", LUCIOLE_TIMING.reducedFade + "ms");
-    firefly.style.setProperty("--luciole-yawn-duration", LUCIOLE_TIMING.yawn + "ms");
-    firefly.style.setProperty("--luciole-teleport-duration", LUCIOLE_TIMING.teleportFade + "ms");
+
           tickleCooldownUntil = now + LUCIOLE_TIMING.tickle + LUCIOLE_TIMING.tickleCooldown;
           if (tickleTimer) window.clearTimeout(tickleTimer);
           tickleTimer = window.setTimeout(() => {
@@ -575,6 +557,25 @@ export function Luciole() {
     firefly.style.setProperty("--luciole-sleep-breath-duration", LUCIOLE_TIMING.sleepBreath + "ms");
     firefly.style.setProperty("--luciole-z-cycle-duration", LUCIOLE_TIMING.sleepZCycle + "ms");
     firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
+    firefly.style.setProperty("--luciole-visibility-duration", LUCIOLE_TIMING.visibilityFade + "ms");
+    firefly.style.setProperty("--luciole-fairy-light-duration", LUCIOLE_TIMING.fairyLightPulse + "ms");
+    firefly.style.setProperty("--luciole-wing-side-duration", LUCIOLE_TIMING.wingSideBeat + "ms");
+    firefly.style.setProperty("--luciole-tickle-wing-beat", LUCIOLE_TIMING.tickleWingBeat + "ms");
+    firefly.style.setProperty("--luciole-z-delay-two", LUCIOLE_TIMING.sleepZDelayTwo + "ms");
+    firefly.style.setProperty("--luciole-z-delay-three", LUCIOLE_TIMING.sleepZDelayThree + "ms");
+    firefly.style.setProperty("--luciole-guide-glow-duration", LUCIOLE_TIMING.guideGlow + "ms");
+    firefly.style.setProperty("--luciole-click-flash-duration", LUCIOLE_TIMING.clickFlash + "ms");
+    firefly.style.setProperty("--luciole-salute-wave-duration", LUCIOLE_TIMING.saluteWave + "ms");
+    firefly.style.setProperty("--luciole-dance-duration", LUCIOLE_TIMING.danceGesture + "ms");
+    firefly.style.setProperty("--luciole-type-duration", LUCIOLE_TIMING.typingGesture + "ms");
+    firefly.style.setProperty("--luciole-point-duration", LUCIOLE_TIMING.pointingGesture + "ms");
+    firefly.style.setProperty("--luciole-rest-duration", LUCIOLE_TIMING.restGesture + "ms");
+    firefly.style.setProperty("--luciole-state-wave-duration", LUCIOLE_TIMING.stateWave + "ms");
+    firefly.style.setProperty("--luciole-state-glow-duration", LUCIOLE_TIMING.stateGlow + "ms");
+    firefly.style.setProperty("--luciole-guide-pulse-cycle", LUCIOLE_TIMING.guidePulseCycle + "ms");
+    firefly.style.setProperty("--luciole-reduced-fade", LUCIOLE_TIMING.reducedFade + "ms");
+    firefly.style.setProperty("--luciole-yawn-duration", LUCIOLE_TIMING.yawn + "ms");
+    firefly.style.setProperty("--luciole-teleport-duration", LUCIOLE_TIMING.teleportFade + "ms");
     placeTree();
     paint();
     if (motionAllowed) {
