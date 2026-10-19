@@ -86,18 +86,14 @@ begin
   if not public.naxa_scope_allows(v_promoteur,v_b,'PHARMACIE') then raise exception 'Réactivation du lien doit restaurer le scope'; end if;
 
   -- Le Promoteur doit pouvoir créer son Responsable en A3, mais pas en A1/A2.
-  update public.pharmacie_architectures set architecture_code='PARENTS_ENFANTS',max_responsables=0,max_caisses=5 where pharmacie_id=v_b;
-  update public.profiles set pharmacie_id=v_b,architecture_code='PARENTS_ENFANTS' where id=v_responsable;
-  v_rejected:=false;
-  begin
-    perform public.accrediter_profile(v_responsable,v_b,2::smallint,v_promoteur);
-  exception when others then v_rejected:=true;
-  end;
-  if not v_rejected then raise exception 'A2 doit refuser Responsable'; end if;
-  -- Une convention Promoteur couvre tout son réseau : rétablir l’architecture
-  -- canonique de B après le scénario négatif, avant de tester l’accréditation A3.
-  update public.pharmacie_architectures set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5 where pharmacie_id=v_b;
-  update public.profiles set architecture_code='PARENTS_AINES_CADETS' where id=v_responsable;
+  -- L’architecture est portée par la convention unique du Promoteur : ne pas
+  -- muter une seule pharmacie du réseau pour simuler un contrat différent.
+  if exists(
+    select 1 from public.naxa_architecture_privileges
+    where architecture_code='PARENTS_ENFANTS'
+      and role_key='promoteur'
+      and privilege_code='CREATE_RESPONSABLE'
+  ) then raise exception 'A2 expose CREATE_RESPONSABLE'; end if;
 
   update public.pharmacie_architectures set architecture_code='PARENTS_AINES_CADETS',max_responsables=5,max_caisses=5 where pharmacie_id=v_a;
   update public.profiles set pharmacie_id=v_a,architecture_code='PARENTS_AINES_CADETS' where id=v_responsable;
