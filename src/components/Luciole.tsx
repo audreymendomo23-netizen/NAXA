@@ -569,6 +569,18 @@ export function Luciole() {
       if (!firefly || !tree) return;
       firefly.classList.remove("naxa-luciole-resting");
       tree.classList.remove("naxa-luciole-tree-glow");
+      // En mode mouvement réduit, les interactions restent disponibles mais
+      // aucun déplacement animé ni boucle requestAnimationFrame n'est lancé.
+      if (reducedMotion.matches) {
+        if (frameId) cancelAnimationFrame(frameId);
+        frameId = 0;
+        x = targetX;
+        y = targetY;
+        vx = 0;
+        vy = 0;
+        paint();
+        return;
+      }
       if (!frameId && !document.hidden) {
         lastFrame = 0;
         frameId = requestAnimationFrame(tick);
