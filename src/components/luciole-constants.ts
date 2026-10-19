@@ -1,0 +1,22 @@
+/** Durées et intervalles réglables de la fée luciole (millisecondes). */
+export const LUCIOLE_TIMING = {
+  inactivity: 30_000,
+  specialCalm: 2_000,
+  returnToTree: 1_500,
+  sleepBreath: 4_000,
+  sleepZCycle: 2_500,
+  wingBeat: 1_800,
+  gesture: 420,
+  tickle: 1_800,
+  tickleCooldown: 3_000,
+  doubleTap: 400,
+  sitMin: 4_000,
+  sitMax: 8_000,
+  teleportFade: 600,
+  yawn: 2_000,
+  specialFirstMin: 6_000,
+  specialFirstMax: 12_000,
+  specialIntervalMin: 8_000,
+  specialIntervalMax: 12_000,
+  specialMaxFinish: 2_000,
+} as const;

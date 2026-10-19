@@ -780,3 +780,30 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole.gesture-typing .luciole-arm-front { transform:rotate(-54deg); }
   .naxa-luciole.gesture-pointing .luciole-arm-front { transform:rotate(-42deg); }
 }
+
+
+/* Fée luciole : sommeil et chatouilles. Durées centralisées dans luciole-constants.ts. */
+.naxa-luciole .luciole-wings { animation-duration:var(--luciole-wing-duration,1800ms); }
+.naxa-luciole.luciole-sleep-arriving .luciole-wings,
+.naxa-luciole.luciole-sleeping .luciole-wings { animation-duration:var(--luciole-sleep-breath-duration,4000ms); animation-play-state:paused; }
+.naxa-luciole.luciole-sleep-arriving .luciole-fairy-body,
+.naxa-luciole.luciole-sleeping .luciole-fairy-body { transform-origin:24px 26px; transform:translateY(2px) rotate(8deg); }
+.naxa-luciole.luciole-sleeping .luciole-arm-front { transform:rotate(24deg); }
+.naxa-luciole.luciole-sleeping .luciole-arm-back { transform:rotate(-20deg); }
+.naxa-luciole.luciole-sleeping .luciole-face-detail { opacity:0; }
+.naxa-luciole .luciole-sleep-z { display:none; fill:none; stroke:#FFF0B6; stroke-width:.7; stroke-linecap:round; stroke-linejoin:round; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z { display:block; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z path { animation:luciole-z-drift var(--luciole-z-cycle-duration,2500ms) ease-in-out infinite; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z-two { animation-delay:800ms!important; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z-three { animation-delay:1600ms!important; }
+.naxa-luciole.luciole-sleeping .luciole-glow-core { opacity:.36; }
+.naxa-luciole.luciole-tickling { animation:luciole-tickle var(--luciole-tickle-duration,1800ms) ease-in-out both; }
+.naxa-luciole.luciole-tickling .luciole-arm-front { transform:rotate(20deg); }
+.naxa-luciole.luciole-tickling .luciole-arm-back { transform:rotate(-20deg); }
+.naxa-luciole.luciole-tickling .luciole-wings { animation-duration:140ms; }
+@keyframes luciole-z-drift { 0%{opacity:0;transform:translate(0,3px)} 25%{opacity:.8} 100%{opacity:0;transform:translate(3px,-7px)} }
+@keyframes luciole-tickle { 0%,100%{transform:translate3d(0,0,0)} 15%{transform:translate3d(-2px,0,0)} 30%{transform:translate3d(2px,0,0)} 45%{transform:translate3d(-2px,1px,0)} 60%{transform:translate3d(2px,-1px,0)} 75%{transform:translate3d(-1px,0,0)} }
+@media(prefers-reduced-motion:reduce) {
+ .naxa-luciole.luciole-sleeping .luciole-sleep-z path { animation:none!important; opacity:.65; transform:none; }
+ .naxa-luciole.luciole-tickling { animation:none!important; transition:opacity 150ms linear; }
+}
