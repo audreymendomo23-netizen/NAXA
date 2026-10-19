@@ -38,6 +38,6 @@ assert.match(migration, /'manual','bluetooth','scan','hybrid'/, "migration doit 
 assert.match(sqlTest, /naxa_148_device_interoperability_pass/, "test SQL de migration manquant");
 assert.match(measurementMigration, /capacite_vitale/, "types de mesure étendus manquants");
 assert.match(measurementTest, /naxa_150_extended_measurement_types_pass/, "test SQL des mesures étendues manquant");
-assert.match(cron, /"cholesterol_ldl","capacite_vitale"/, "le moteur de rappels doit mapper les nouvelles familles");
+assert.ok(cron.includes('"cholesterol_ldl"].includes(type)') && cron.includes('"ecg_note","capacite_vitale"].includes(type)'), "le moteur de rappels doit mapper les nouvelles familles");
 
 console.log("PASS — 21 dispositifs, saisie/scan/Bluetooth, Push et rappels planifiés");
