@@ -149,6 +149,7 @@ export function Luciole() {
     const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "reservation", "payment", "favorite", "language", "offline", "online"]);
     const clearBusinessGesture = () => {
       pendingBusinessGesture = null;
+      clearActiveStateClass();
       if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
       businessGestureTimer = undefined;
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
@@ -192,9 +193,13 @@ export function Luciole() {
       const type = typeof detail === "string" ? detail : detail?.type;
       const state = typeof detail === "string" ? "event" : detail?.state ?? "event";
       if (!type) return;
-      if (["idle", "results", "success", "failure", "empty", "complete", "closed"].includes(state.toLowerCase())) {
+      const terminal = ["idle", "results", "success", "failure", "empty", "complete", "closed"].includes(state.toLowerCase());
+      if (["idle", "closed"].includes(state.toLowerCase())) {
         if (activeNaxaState?.type === type) activeNaxaState = null;
+        clearActiveStateClass();
+        return;
       }
+      if (terminal && activeNaxaState?.type === type) activeNaxaState = null;
       reactToBusinessEvent(type, state);
     };
     const reactToClickedControl = (button: HTMLElement) => {
@@ -296,12 +301,27 @@ export function Luciole() {
       nextSpecialAt = now + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
       const pointer = event as PointerEvent;
       if (event.type === "pointerdown") {
+        if (Number.isFinite(pointer.clientX) && Number.isFinite(pointer.clientY)) {
+          targetX = pointer.clientX; targetY = pointer.clientY; nextWanderAt = 0;
+        }
         const inside = Math.hypot(pointer.clientX - x, pointer.clientY - y) <= 24;
         const target = event.target instanceof Element ? event.target.closest("button,a,input,textarea,select,[role=button],label,[contenteditable=true]") : null;
         if (inside && !target && now - lastTapAt <= LUCIOLE_TIMING.doubleTap && now >= tickleCooldownUntil) {
           firefly.classList.remove("luciole-sleeping");
           firefly.classList.add("luciole-tickling");
           firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
+    firefly.style.setProperty("--luciole-visibility-duration", LUCIOLE_TIMING.visibilityFade + "ms");
+    firefly.style.setProperty("--luciole-salute-wave-duration", LUCIOLE_TIMING.saluteWave + "ms");
+    firefly.style.setProperty("--luciole-dance-duration", LUCIOLE_TIMING.danceGesture + "ms");
+    firefly.style.setProperty("--luciole-type-duration", LUCIOLE_TIMING.typingGesture + "ms");
+    firefly.style.setProperty("--luciole-point-duration", LUCIOLE_TIMING.pointingGesture + "ms");
+    firefly.style.setProperty("--luciole-rest-duration", LUCIOLE_TIMING.restGesture + "ms");
+    firefly.style.setProperty("--luciole-state-wave-duration", LUCIOLE_TIMING.stateWave + "ms");
+    firefly.style.setProperty("--luciole-state-glow-duration", LUCIOLE_TIMING.stateGlow + "ms");
+    firefly.style.setProperty("--luciole-guide-pulse-cycle", LUCIOLE_TIMING.guidePulseCycle + "ms");
+    firefly.style.setProperty("--luciole-reduced-fade", LUCIOLE_TIMING.reducedFade + "ms");
+    firefly.style.setProperty("--luciole-yawn-duration", LUCIOLE_TIMING.yawn + "ms");
+    firefly.style.setProperty("--luciole-teleport-duration", LUCIOLE_TIMING.teleportFade + "ms");
           tickleCooldownUntil = now + LUCIOLE_TIMING.tickle + LUCIOLE_TIMING.tickleCooldown;
           if (tickleTimer) window.clearTimeout(tickleTimer);
           tickleTimer = window.setTimeout(() => {
@@ -470,6 +490,15 @@ export function Luciole() {
         }
       }
 
+      if (randomSitTarget && firefly.classList.contains("luciole-sitting") && idleFor < LUCIOLE_TIMING.inactivity) {
+        const r = randomSitTarget.getBoundingClientRect();
+        if (!randomSitTarget.isConnected || randomSitTarget.getAttribute("aria-disabled") === "true" || (randomSitTarget instanceof HTMLButtonElement && randomSitTarget.disabled) || r.width === 0 || r.height === 0) {
+          clearRandomSpecial();
+        } else {
+          targetX = Math.max(24, Math.min(window.innerWidth - 24, r.left + r.width / 2));
+          targetY = Math.max(26, Math.min(window.innerHeight - 24, r.top - 17));
+        }
+      }
       if (guidedTarget) {
         if (guidedTarget.kind === "caret" && guidedTarget.field) {
           if (document.activeElement === guidedTarget.field) {
