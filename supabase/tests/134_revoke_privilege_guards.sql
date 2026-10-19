@@ -12,6 +12,7 @@ begin
   end if;
   if position('n.delegable = true' in v_definition) = 0
      or position('n.governance = false' in v_definition) = 0
+     or position('n.governance_only is not true' in v_definition) = 0
      or position('n.active = true' in v_definition) = 0 then
     raise exception '134.2 : la révocation par un non-admin doit être limitée aux privilèges actifs, délégables et non-gouvernance';
   end if;
