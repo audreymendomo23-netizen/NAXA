@@ -61,3 +61,5 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les accessoires SVG restent simplifiés à l'échelle actuelle. Aucun événement n'intercepte les clics et aucun contenu sensible n'est affiché.
 - Les réactions liées aux statuts de livraison, de fin de traitement, de paiement confirmé, de stock bas, d'avis envoyé et de première ouverture par appareil restent non raccordées tant que le projet ne fournit pas un état source observable et stable.
 - Les vérifications automatisées doivent être lancées avant de considérer le travail terminé.
+
+- L’anatomie SVG comprend maintenant des jambes/pieds articulés et des expressions simples (yeux ouverts/fermés, sourire). Le protocole visuel accepte également les types `pharmacy`, `stock`, `baby`, `review`, `treatment`, `delivery`, `welcome`, `login` et `logout` via `naxa:fairy`, mais ces types ne sont déclenchés que si une source réelle les émet.

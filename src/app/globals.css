@@ -895,3 +895,37 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-event-state-empty .luciole-prop-question { display:block; }
 .naxa-luciole.luciole-event-state-failure .luciole-fairy-body { transform-origin:24px 24px; transform:rotate(-7deg); }
 .naxa-luciole.luciole-event-state-success .luciole-glow-core { opacity:1; }
+
+
+/* Anatomie articulée et accessoires événementiels sans impact sur les zones tactiles. */
+.naxa-luciole .luciole-leg { fill:none; stroke:#F5D7C1; stroke-width:.85; stroke-linecap:round; stroke-linejoin:round; transform-box:view-box; transform-origin:24px 35px; }
+.naxa-luciole .luciole-foot { fill:#FFE5CD; stroke:#FFF1D9; stroke-width:.3; }
+.naxa-luciole .luciole-eyes-open { fill:none; stroke:#6A493D; stroke-width:.75; stroke-linecap:round; }
+.naxa-luciole .luciole-eyes-closed,.naxa-luciole .luciole-mouth-smile { display:none; fill:none; stroke:#A86E62; stroke-width:.55; stroke-linecap:round; }
+.naxa-luciole .luciole-props { stroke-width:.65; }
+.naxa-luciole .luciole-prop-cross,.naxa-luciole .luciole-prop-stock,.naxa-luciole .luciole-prop-baby,.naxa-luciole .luciole-prop-star { display:none; }
+.naxa-luciole.luciole-tickling .luciole-eyes-open,
+.naxa-luciole.luciole-sleeping .luciole-eyes-open { display:none; }
+.naxa-luciole.luciole-tickling .luciole-eyes-closed,
+.naxa-luciole.luciole-sleeping .luciole-eyes-closed { display:block; }
+.naxa-luciole.luciole-tickling .luciole-mouth-smile { display:block; }
+.naxa-luciole.luciole-tickling .luciole-leg { animation:luciole-tickle-legs var(--luciole-tickle-duration,1800ms) ease-in-out both; }
+.naxa-luciole.luciole-sitting .luciole-leg-left { animation:luciole-sit-feet 700ms ease-in-out infinite; }
+.naxa-luciole.luciole-sitting .luciole-leg-right { animation:luciole-sit-feet 700ms ease-in-out infinite reverse; animation-delay:350ms; }
+.naxa-luciole.luciole-sleeping .luciole-leg { transform:rotate(10deg); }
+.naxa-luciole.luciole-state-pharmacy .luciole-prop-cross,
+.naxa-luciole.luciole-event-pharmacy .luciole-prop-cross { display:block; }
+.naxa-luciole.luciole-state-stock .luciole-prop-stock,
+.naxa-luciole.luciole-event-stock .luciole-prop-stock { display:block; }
+.naxa-luciole.luciole-state-baby .luciole-prop-baby,
+.naxa-luciole.luciole-event-baby .luciole-prop-baby { display:block; }
+.naxa-luciole.luciole-event-review .luciole-prop-star,
+.naxa-luciole.luciole-event-treatment .luciole-prop-star { display:block; }
+.naxa-luciole.luciole-event-delivery .luciole-prop-parcel { display:block; }
+@keyframes luciole-tickle-legs { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-18deg)} 75%{transform:rotate(18deg)} }
+@keyframes luciole-sit-feet { 0%,100%{transform:rotate(-7deg)} 50%{transform:rotate(16deg)} }
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole.luciole-tickling .luciole-leg,
+  .naxa-luciole.luciole-sitting .luciole-leg-left,
+  .naxa-luciole.luciole-sitting .luciole-leg-right { animation:none!important; }
+}

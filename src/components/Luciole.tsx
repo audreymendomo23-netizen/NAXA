@@ -147,7 +147,7 @@ export function Luciole() {
     };
 
     const sparks = Array.from(firefly.querySelectorAll<HTMLElement>(".luciole-spark"));
-    const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "reservation", "payment", "favorite", "language", "offline", "online"]);
+    const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "delivery", "reservation", "payment", "favorite", "language", "offline", "online", "pharmacy", "stock", "baby", "review", "treatment", "welcome", "login", "logout"]);
     const resumeDurableState = (now: number) => {
       if (activeNaxaState && now - activeNaxaState.since >= LUCIOLE_TIMING.stateMaxPause) {
         activeNaxaState = { ...activeNaxaState, since: now };
@@ -166,7 +166,7 @@ export function Luciole() {
       firefly.classList.remove("luciole-event-state-empty", "luciole-event-state-success", "luciole-event-state-failure");
       businessGesture = null;
     };
-    const STATEFUL = new Set(["reminder", "search", "scan", "payment", "order", "offline"]);
+    const STATEFUL = new Set(["reminder", "search", "scan", "payment", "order", "delivery", "offline", "pharmacy", "stock", "baby"]);
     const reactToBusinessEvent = (type: string, state = "event") => {
       if (!FAIRY_EVENTS.has(type)) return;
       const now = performance.now();
@@ -712,8 +712,14 @@ export function Luciole() {
           <g className="luciole-fairy-body">
             <path className="luciole-dress" d="M22 22 Q24 20 26 22 L27 28 Q30 32 33 39 Q28 42 24 39 Q20 43 15 39 Q19 32 21 28Z" />
             <path className="luciole-dress-fold" d="M23 25 Q22 31 18 38 M25 25 Q27 32 29 39 M24 28 L24 39" />
+          <g className="luciole-leg luciole-leg-left"><path d="M21 35 Q20 38 19 41"/><path className="luciole-foot" d="M19 40.5q-2 0-2 1.5h4q0-1.5-2-1.5z"/></g>
+          <g className="luciole-leg luciole-leg-right"><path d="M27 35 Q28 38 30 41"/><path className="luciole-foot" d="M30 40.5q-2 0-2 1.5h4q0-1.5-2-1.5z"/></g>
+
             <path className="luciole-neck" d="M23 21 L23 23 M25 21 L25 23" />
             <path className="luciole-face" d="M21 15 Q21 11 24 11 Q28 12 27 17 Q26 21 23 21 Q20 19 21 15Z" />
+            <path className="luciole-eyes-open" d="M22.2 16.1h.1 M25.1 16.1h.1" />
+            <path className="luciole-eyes-closed" d="M21.6 16.1q.7.8 1.4 0 M24.5 16.1q.7.8 1.4 0" />
+            <path className="luciole-mouth-smile" d="M22.8 18.3q1.1 1.1 2.3 0" />
             <path className="luciole-hair" d="M20.5 16 Q19 10 23 9 Q28 8 28 14 L26.5 16 Q26 12 23 12 Q22 15 20.5 16Z" />
             <circle className="luciole-bun" cx="27.5" cy="9.5" r="2.1" />
             <path className="luciole-hair-stray" d="M21 12 Q18 11 19 8 M27 13 Q30 12 29.5 10" />
@@ -743,6 +749,11 @@ export function Luciole() {
             <g className="luciole-prop luciole-prop-language"><path d="M34 20h10M39 17v3M36 20c1 4 4 6 7 7M43 20c-1 4-4 6-7 7"/></g>
             <g className="luciole-prop luciole-prop-online"><path d="M34 24q5-6 10 0M36 26q3-3 6 0M39 29h.1"/></g>
             <g className="luciole-prop luciole-prop-question"><path d="M36 19q0-4 3-4t3 3q0 2-3 3v2M39 26h.1"/></g>
+            <g className="luciole-prop luciole-prop-cross"><path d="M37 16h4v4h4v4h-4v4h-4v-4h-4v-4h4z"/></g>
+            <g className="luciole-prop luciole-prop-stock"><path d="M37 16h4v3l3 3v7h-10v-7l3-3z"/><path d="M35 24h8"/></g>
+            <g className="luciole-prop luciole-prop-baby"><circle cx="39" cy="18" r="3.3"/><circle cx="35.5" cy="16" r="1.2"/><circle cx="42.5" cy="16" r="1.2"/><path d="M35 22q4-3 8 0l2 6h-12zM37.5 18h.1M40.5 18h.1"/></g>
+            <g className="luciole-prop luciole-prop-star"><path d="M39 15l1.7 5 5.1.1-4.1 3.1 1.5 5-4.2-2.9-4.2 2.9 1.5-5-4.1-3.1 5.1-.1z"/></g>
+
             <g className="luciole-prop luciole-prop-reminder"><rect x="34" y="18" width="10" height="5" rx="2.5"/><path d="M39 18v5"/></g>
           </g>
           <ellipse className="luciole-glow-core" cx="24" cy="36" rx="3.1" ry="5.2" />
