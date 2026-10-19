@@ -575,13 +575,17 @@ export function Luciole() {
           </g>
           <ellipse className="luciole-fairy-aura" cx="24" cy="31" rx="12" ry="15" />
           <g className="luciole-fairy-body">
-            <path className="luciole-dress" d="M22 22 Q24 20 26 22 L27 28 Q30 32 33 39 Q28 42 24 39 Q20 43 15 39 Q19 32 21 28Z" />
-            <path className="luciole-dress-fold" d="M23 25 Q22 31 18 38 M25 25 Q27 32 29 39 M24 28 L24 39" />
+            <path className="luciole-dress" d="M22 22 Q24 20 26 22 L27 28 Q30 31 34 39 Q29 42 24 39 Q19 43 14 39 Q18 31 21 28Z" />
+            <path className="luciole-dress-tulle luciole-dress-tulle-back" d="M21.5 27 Q18 31 13.5 39 Q18.5 42 23.5 40 L24 29Z" />
+            <path className="luciole-dress-tulle luciole-dress-tulle-front" d="M26.5 27 Q30 31 34.5 39 Q29 42 24.5 40 L24 29Z" />
+            <path className="luciole-dress-fold" d="M23 25 Q21 31 17 38 M25 25 Q28 32 31 38 M24 28 L24 38" />
+            <path className="luciole-dress-gold-hem" d="M14.5 39 Q19 42 24 39.5 Q29 42 33.5 39" />
+            <path className="luciole-dress-gold-glint" d="M17 40.2 Q20 41.2 22 40.4 M26 40.4 Q29 41.2 31 40.2" />
             <path className="luciole-neck" d="M23 21 L23 23 M25 21 L25 23" />
             <path className="luciole-face" d="M21 15 Q21 11 24 11 Q28 12 27 17 Q26 21 23 21 Q20 19 21 15Z" />
-            <path className="luciole-hair" d="M20.5 16 Q19 10 23 9 Q28 8 28 14 L26.5 16 Q26 12 23 12 Q22 15 20.5 16Z" />
-            <circle className="luciole-bun" cx="27.5" cy="9.5" r="2.1" />
-            <path className="luciole-hair-stray" d="M21 12 Q18 11 19 8 M27 13 Q30 12 29.5 10" />
+            <path className="luciole-hair" d="M20.5 16 Q18.8 11 22.2 9 Q26 7.5 28 11.5 Q29 14 26.5 16 L26 13.5 Q24 10.5 22.2 12.2 Q22 14.5 20.5 16Z" />
+            <circle className="luciole-bun" cx="27.6" cy="9.3" r="2.5" />
+            <path className="luciole-hair-stray" d="M21 12 Q18 11 19 8 M27 13 Q30 12 29.5 10 M26.2 8.2 Q27.8 6.6 29 8.1" />
             <path className="luciole-face-detail" d="M25.4 16.5 Q26 16.8 25.5 17.1" />
           </g>
           <g className="luciole-arm luciole-arm-back">
