@@ -51,6 +51,9 @@ begin
   values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5),(v_b,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,active=true;
 
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
+
   if not public.naxa_scope_allows(v_promoteur,v_a,'PHARMACIE') then raise exception 'scope pharmacie A refusé'; end if;
   if not public.naxa_scope_allows(v_promoteur,v_b,'PHARMACIE') then raise exception 'scope pharmacie B refusé'; end if;
   if public.naxa_scope_allows(v_promoteur,v_c,'PHARMACIE') then raise exception 'scope hors réseau accordé'; end if;
