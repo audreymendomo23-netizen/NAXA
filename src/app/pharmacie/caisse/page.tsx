@@ -122,6 +122,8 @@ export default function CaissePage() {
   }, [sb]);
 
   const chargerSession = useCallback(async (id: string, userId: string) => {
+    setSession(null);
+    setSessionBloquee(false);
     setCloture(null);
     setTicket(null);
     const { data, error } = await sb.from("caisses_sessions")
@@ -222,6 +224,7 @@ export default function CaissePage() {
     setCaisseId(id);
     setMsg("");
     setSession(null);
+    setSessionBloquee(false);
     setVente(null);
     setLignes([]);
     await chargerSession(id, uid);
