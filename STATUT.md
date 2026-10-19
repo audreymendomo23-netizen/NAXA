@@ -451,7 +451,7 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Test structurel ajouté : supabase/tests/157_caisse_safe_draft_and_payments.sql. Guide mis à jour : docs/GUIDE_CAISSE.md.
 
 ### Preuve et limites
-- Les modifications sont commises sur main, mais migration 157 et test 157 restent non exécutés. Aucun build TypeScript, lint ou E2E n'a pu être lancé depuis les outils disponibles dans cette session.
+- La migration 157 a été appliquée uniquement au projet de test Supabase actif « naxa-ci-replay-2 » (migration enregistrée 20261019214254), jamais à Production. Le test structurel 157 et le test POS historique 044 ont été exécutés sans erreur ; les requêtes de contrôle 059/060 ont également été exécutées, mais le connecteur n'en a exposé que le dernier résultat. Ce projet de test ne contient que les migrations jusqu'à 132 : la validation SQL est donc utile mais partielle par rapport au schéma actuel. Aucun build TypeScript, lint ou E2E n'a pu être lancé depuis les outils disponibles dans cette session.
 - Aucun changement de schéma ni de données n'a été appliqué à Supabase Production. Aucun déploiement Vercel n'a été lancé ; l'interdiction de déployer est respectée.
 
 - Garde de concurrence et d'appartenance : une session est attachée à son compte ouvreur ; la création de vente verrouille la session avant de vérifier qu'un autre brouillon n'existe pas ; les ajouts de lignes, paiements et finalisations sont protégés par des déclencheurs qui revérifient l'acteur Caisse, le propriétaire de la vente, le périmètre et l'état de la session. La clôture recalcule côté base le total théorique à partir du fond initial et des paiements espèces enregistrés.
