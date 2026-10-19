@@ -29,7 +29,7 @@
 ## Vérifications techniques réalisées
 
 - 21 fichiers présents dans le bucket public `dispositifs`; les 21 noms correspondent exactement aux références d’image du catalogue.
-- Les 21 URL publiques répondent en HTTP 200.
+- Les 21 URL publiques ont répondu en HTTP 200 lors du contrôle final.
 - Les 21 fichiers sont en WebP, en 400 × 400 px; tailles observées : 912 à 2 934 octets, donc toutes inférieures à 30 Ko.
 - Le bucket est public en lecture, limité à `image/webp` et 30 000 octets. La politique temporaire d’envoi anonyme a été supprimée après le téléversement.
 - Le fond blanc est conservé conformément au repli prévu; les images restent des visuels illustratifs, sans garantie de compatibilité d’un appareil.
