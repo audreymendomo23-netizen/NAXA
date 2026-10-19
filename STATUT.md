@@ -410,3 +410,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ces migrations restent dans GitHub uniquement. Les opérations n’ont pas été testées en base ni déployées ; compilation globale réservée à la phase finale.
 
 - Le portail partenaire examens permet désormais de créer des packs tarifaires en brouillon. La composition des packs (liaison aux examens individuels) reste à implémenter avant leur publication commerciale.
+
+## Parcours Promoteur — entrée, attente et accès réseau (19 octobre 2026)
+
+- `/pharmacie/promoteur` accepte maintenant un compte Promoteur authentifié même si `profiles.actif=false`, afin de présenter son état au lieu de le renvoyer silencieusement à l’accueil.
+- L’écran d’attente explique les contrôles NAXA, montre les pharmacies rattachées quand elles existent, et précise que l’essai de 14 jours commence à la validation administrative.
+- Le parcours distingue l’attente initiale de la suspension commerciale. Une échéance préremplie avant la première validation ne bloque pas à elle seule le dossier en attente ; une suspension, un statut commercial inactif ou une échéance dépassée après activation ferme l’accès.
+- L’espace opérationnel et la gestion des Caisses renvoient les Promoteurs inactifs vers cet écran de statut. Les données réseau visibles dans le tableau actif sont limitées aux rattachements actifs et pharmacies actives/visibles ; les Caisses comptabilisées sont bornées à ce périmètre.
+- Le tableau ne s’ouvre que si la convention et l’abonnement sont présents et cohérents (même convention, même tarif, même échéance et architecture du compte correspondante). Aucune réactivation ni modification commerciale n’est possible depuis cet écran.
+- Fichiers modifiés : `src/app/pharmacie/promoteur/page.tsx`, `src/app/pharmacie/page.tsx`, `src/app/pharmacie/caisses/page.tsx`, `src/app/pharmacie/actions.ts`.
+- État : construit dans `main`, preuve statique relue ; build TypeScript/E2E non confirmé. Aucun changement Supabase Production ni déploiement autorisé/effectué.
