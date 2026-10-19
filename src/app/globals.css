@@ -911,7 +911,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-tickling .luciole-mouth-smile { display:block; }
 .naxa-luciole.luciole-tickling .luciole-leg { animation:luciole-tickle-legs var(--luciole-tickle-duration,1800ms) ease-in-out both; }
 .naxa-luciole.luciole-sitting .luciole-leg-left { animation:luciole-sit-feet var(--luciole-sit-feet-duration,700ms) ease-in-out infinite; }
-.naxa-luciole.luciole-sitting .luciole-leg-right { animation:luciole-sit-feet 700ms ease-in-out infinite reverse; animation-delay:var(--luciole-sit-feet-delay,350ms); }
+.naxa-luciole.luciole-sitting .luciole-leg-right { animation:luciole-sit-feet var(--luciole-sit-feet-duration,700ms) ease-in-out infinite reverse; animation-delay:var(--luciole-sit-feet-delay,350ms); }
 .naxa-luciole.luciole-sleeping .luciole-leg { transform:rotate(10deg); }
 .naxa-luciole.luciole-state-pharmacy .luciole-prop-cross,
 .naxa-luciole.luciole-event-pharmacy .luciole-prop-cross { display:block; }
