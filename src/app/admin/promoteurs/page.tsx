@@ -70,6 +70,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
     const commercialReady = Boolean(
       convention && subscription &&
       convention.statut === "active" &&
+      convention.date_expiration >= new Date().toISOString().slice(0, 10) &&
       convention.architecture_code === promoter?.architecture_code &&
       subscription.statut === "actif" &&
       subscription.convention_id === convention.id &&
