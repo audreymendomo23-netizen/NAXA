@@ -12,7 +12,7 @@
 
 ## Réconciliation Production
 
-Les migrations additives 134–152 restaurent le schéma contrat/architecture manquant, les RPC d'accréditation et de gestion Caisse, les gardes de validité commerciale, la cohérence convention/abonnement, la séparation entre validité interne et façade publique, les politiques RLS de lecture commerciale propre et les façades invoker.
+Les migrations additives 134–153 restaurent le schéma contrat/architecture manquant, les RPC d'accréditation et de gestion Caisse, les gardes de validité commerciale, la cohérence convention/abonnement, la séparation entre validité interne et façade publique, les politiques RLS de lecture commerciale propre et les façades invoker.
 
 Les migrations historiques 019/020 ne doivent pas être rejouées en bloc sur Production : le catalogue réel comporte des différences de colonnes et certaines définitions RPC de ces fichiers sont anciennes. La migration 137 est donc une réconciliation ciblée qui évite d'écraser les fonctions de sécurité installées.
 
@@ -23,7 +23,9 @@ Exécutés sur le projet Supabase NAXA Production :
 - Parcours métier : tests 024, 026, 027, 029, 030, 031, 032 et 039 — PASS transactionnel.
 - Pilotage hors périmètre : test 033 — PASS observé après adaptation du test pour utiliser les claims JWT ; un nouvel appel a ensuite été bloqué par les contrôles de sécurité de l'outil, sans erreur SQL retournée.
 - Gardes de révocation/attribution : tests 134, 135, 140, 146, 147 et 149 — PASS.
-- Schéma, quotas, cohérence et ACL : tests 137, 139, 141, 142, 143, 144, 145, 148, 150, 151 et 152 — PASS.
+- Façades invoker et helpers hiérarchiques : tests 151, 152 — PASS ; RPC admin-only : test 153 — PASS.
+- Schéma, quotas, cohérence et ACL : tests 137, 139, 141, 142, 143, 144, 145, 148 et 150 — PASS.
+- Le test transactionnel 154 de réactivation administrative a été ajouté, mais son exécution via l'outil SQL a été bloquée par les contrôles de sécurité ; il n'est donc pas compté comme PASS.
 
 Les tests comportementaux créent des fixtures transactionnelles et se terminent par `ROLLBACK`. Le contrôle SQL Production a confirmé qu'aucun compte ou abonnement de test n'a persisté.
 
