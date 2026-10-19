@@ -16,11 +16,11 @@
 Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être déclarés payés sur la seule base d'une référence saisie. Ces modes sont bloqués côté base tant qu'une intégration marchande officielle ne permet pas de confirmer la transaction. Aucun paiement électronique n'est simulé.
 
 ## Tickets, historique et clôture
-- Le ticket est construit à partir de la RPC vente_ticket, affiche le numéro de vente, les lignes, les montants et le total, puis peut être imprimé.
+- Le ticket est construit à partir de la RPC vente_ticket, affiche le numéro de vente, les lignes, les montants, le mode de paiement, le montant reçu et la monnaie rendue lorsque ces données sont disponibles, puis peut être imprimé.
 - L'historique affiche les 20 dernières ventes payées créées par le compte connecté ; chaque ticket peut être réimprimé.
 - Avant la clôture, finalisez ou abandonnez tout panier brouillon.
 - Comptez les espèces présentes dans le tiroir, fond initial compris, puis utilisez **Clôturer et rapprocher**. Le résultat indique le total théorique, le total compté et l'écart.
 - Les lots et dates de péremption restent gérés par le moteur de stock ; la Caisse ne contourne pas les contrôles de disponibilité.
 
 ## État de validation
-La page, la migration additive 157 et le test structurel 157 sont enregistrés sur main. La migration 157 et le test structurel ont été exécutés sur le projet Supabase de test « naxa-ci-replay-2 » ; la migration n'est pas appliquée à Supabase Production. Le projet de test ne contient pas les migrations 133–156, donc cette validation SQL reste partielle. Build TypeScript, lint et E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
+La page, la migration additive 157 et le test structurel 157 sont enregistrés sur main. La révision 5 de la migration 157 et le test structurel ont été exécutés sur le projet Supabase de test « naxa-ci-replay-2 » ; la migration n'est pas appliquée à Supabase Production. Les tests POS 044, 054, 055, 056, 057, 058, 059 et 060 ont aussi été exécutés sans erreur. Le projet de test ne contient pas les migrations 133–156, donc cette validation SQL reste partielle. Build TypeScript, lint et E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
