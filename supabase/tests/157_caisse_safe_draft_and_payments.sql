@@ -12,6 +12,7 @@ declare
   v_session_guard text;
   v_session_trigger text;
   v_vente_trigger text;
+  v_vente_insert_trigger text;
   v_line_trigger text;
   v_payment_trigger text;
   v_abandon_security boolean;
@@ -120,6 +121,11 @@ begin
   join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='public' and c.relname='ventes'
     and t.tgname='trg_naxa_guard_pos_vente_finalize' and not t.tgisinternal;
+  select pg_get_triggerdef(t.oid) into v_vente_insert_trigger
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='ventes'
+    and t.tgname='trg_naxa_guard_pos_vente_insert' and not t.tgisinternal;
   select pg_get_triggerdef(t.oid) into v_line_trigger
   from pg_trigger t join pg_class c on c.oid=t.tgrelid
   join pg_namespace n on n.oid=c.relnamespace
@@ -131,7 +137,7 @@ begin
   where n.nspname='public' and c.relname='vente_paiements'
     and t.tgname='trg_naxa_guard_pos_payment_write' and not t.tgisinternal;
 
-  if v_session_trigger is null or v_vente_trigger is null
+  if v_session_trigger is null or v_vente_trigger is null or v_vente_insert_trigger is null
      or v_line_trigger is null or v_payment_trigger is null then
     raise exception 'Un des déclencheurs de protection du POS est absent';
   end if;
