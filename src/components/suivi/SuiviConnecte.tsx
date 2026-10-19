@@ -36,7 +36,7 @@ const types: TrackType[] = [
   {key:"medicament_pris",label:"Prise déclarée",unit:"",family:"traitements",numeric:false},
   {key:"symptome_note",label:"Note personnelle",unit:"",family:"bien_etre",numeric:false},
 ];
-type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"; active:boolean };
+type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"|"scan"|"hybrid"; active:boolean };
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
 type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
@@ -108,13 +108,27 @@ export function SuiviConnecte() {
   const grantedFamilies = families.filter(f=>consents[f.key]).length;
 
   const deviceCatalog = [
-    { key:"tensiometre", name:"Tensiomètre", mode:"manual" as const, family:"constantes" as Family, description:"Saisissez la tension mesurée sur votre appareil." },
-    { key:"thermometre", name:"Thermomètre", mode:"manual" as const, family:"constantes" as Family, description:"Ajoutez une température relevée." },
-    { key:"oxymetre", name:"Oxymètre de pouls", mode:"manual" as const, family:"constantes" as Family, description:"Saisissez la saturation affichée." },
-    { key:"glucometre", name:"Glucomètre", mode:"manual" as const, family:"metabolisme" as Family, description:"Saisissez le résultat avec l’unité indiquée par l’appareil." },
-    { key:"balance", name:"Balance connectée ou classique", mode:"manual" as const, family:"metabolisme" as Family, description:"Ajoutez votre poids; la connexion automatique n’est pas prise en charge ici." },
-    { key:"capteur_cardiaque_bluetooth", name:"Capteur cardiaque Bluetooth", mode:"bluetooth" as const, family:"constantes" as Family, description:"Lecture directe compatible Bluetooth GATT, service fréquence cardiaque standard, via Chrome Android/HTTPS." },
-    { key:"podometre", name:"Podomètre / bracelet d’activité", mode:"manual" as const, family:"activite" as Family, description:"Déclarez les pas ou minutes d’activité; synchronisation automatique non disponible." },
+    { key:"tensiometre", name:"Tensiomètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie manuelle, scan de l’écran ou du relevé, et détection Bluetooth si le modèle expose un profil standard." },
+    { key:"thermometre", name:"Thermomètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie, scan et connexion Bluetooth selon le profil GATT du modèle." },
+    { key:"oxymetre", name:"Oxymètre de pouls", mode:"hybrid" as const, family:"constantes" as Family, description:"SpO₂ et pouls par saisie ou scan; lecture Bluetooth selon les caractéristiques disponibles." },
+    { key:"glucometre", name:"Glucomètre", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat et unité, par saisie ou scan; connexion selon fabricant et protocole." },
+    { key:"balance", name:"Balance connectée ou classique", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Poids par saisie, scan de l’affichage ou liaison Bluetooth compatible." },
+    { key:"capteur_cardiaque_bluetooth", name:"Capteur cardiaque / cardiofréquencemètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Profil Bluetooth GATT standard fréquence cardiaque, plus saisie et scan." },
+    { key:"podometre", name:"Podomètre", mode:"hybrid" as const, family:"activite" as Family, description:"Pas par saisie, scan ou protocole Bluetooth pris en charge." },
+    { key:"ecg", name:"Électrocardiographe (ECG)", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie de la synthèse ou scan du compte rendu; Bluetooth selon modèle et format exporté." },
+    { key:"spirometre", name:"Spiromètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Valeurs respiratoires par saisie ou scan; liaison selon fabricant." },
+    { key:"peak_flow", name:"Débitmètre de pointe", mode:"hybrid" as const, family:"constantes" as Family, description:"Débit expiratoire par saisie, scan ou liaison compatible." },
+    { key:"balance_impedance", name:"Balance impédancemètre", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Poids et composition corporelle par saisie/scan; Bluetooth selon protocole." },
+    { key:"cholesterolometre", name:"Lecteur de cholestérol", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
+    { key:"cetonemetre", name:"Lecteur de cétones", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
+    { key:"uricometre", name:"Lecteur d’acide urique", mode:"hybrid" as const, family:"metabolisme" as Family, description:"Résultat avec unité par saisie, scan ou connexion compatible." },
+    { key:"montre_connectee", name:"Montre connectée", mode:"hybrid" as const, family:"activite" as Family, description:"Activité et constantes par saisie/scan; synchronisation Bluetooth ou API selon le fabricant." },
+    { key:"bracelet_activite", name:"Bracelet d’activité", mode:"hybrid" as const, family:"activite" as Family, description:"Pas, activité et sommeil par saisie/scan; liaison selon le modèle." },
+    { key:"tracker_sommeil", name:"Suivi du sommeil", mode:"hybrid" as const, family:"sommeil" as Family, description:"Durée et données exportées par saisie, scan ou intégration disponible." },
+    { key:"thermometre_infrarouge", name:"Thermomètre infrarouge", mode:"hybrid" as const, family:"constantes" as Family, description:"Lecture sans contact par saisie, scan ou liaison standard." },
+    { key:"capteur_respiration", name:"Capteur respiratoire", mode:"hybrid" as const, family:"constantes" as Family, description:"Données respiratoires par saisie, scan ou protocole compatible." },
+    { key:"pilulier_connecte", name:"Pilulier connecté", mode:"hybrid" as const, family:"traitements" as Family, description:"Suivi déclaratif des prises, scan de l’étiquette et connexion selon fabricant; NAXA ne prescrit aucune dose." },
+    { key:"bouteille_hydratation", name:"Bouteille connectée / hydratation", mode:"hybrid" as const, family:"activite" as Family, description:"Volume par saisie, scan ou liaison selon le modèle." },
   ];
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
@@ -128,7 +142,7 @@ export function SuiviConnecte() {
     if (!userData.user) { setNotice("Session expirée. Reconnectez-vous."); setBusy(false); return; }
     const { error } = existing
       ? await sb.from("suivi_user_devices").update({active:!existing.active, updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",userData.user.id)
-      : await sb.from("suivi_user_devices").insert({user_id:userData.user.id,device_key:device.key,device_name:device.name,connection_mode:device.mode,active:true});
+      : await sb.from("suivi_user_devices").insert({user_id:userData.user.id,device_key:device.key,device_name:device.name,connection_mode:device.mode,capabilities:["manual","bluetooth","scan"],active:true});
     if (error) setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
     else {
       const { data } = await sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active").eq("user_id",userData.user.id).order("created_at",{ascending:true});
@@ -325,18 +339,42 @@ export function SuiviConnecte() {
   }
 
   async function readImageLocally(file?: File) {
-    if(!file) return;
+    if (!file) return;
     setOcrText("");
-    const Detector = (window as any).TextDetector;
-    if(!Detector) { setNotice("La reconnaissance de texte locale n’est pas prise en charge par ce navigateur. L’image reste sur cet appareil; saisissez la valeur manuellement."); return; }
+    setBusy(true);
+    setNotice("Analyse locale de l’image en cours… l’image ne sera pas envoyée à NAXA.");
     try {
       const bitmap = await createImageBitmap(file);
-      const detector = new Detector();
-      const results = await detector.detect(bitmap);
-      const text = results.map((x:any)=>x.rawValue).join("\n");
-      setOcrText(text);
-      setNotice("Texte lu localement. Vérifiez chaque valeur; rien ne sera enregistré automatiquement.");
-    } catch { setNotice("Lecture OCR impossible sur cet appareil. L’image n’a pas été envoyée; saisissez la valeur manuellement."); }
+      const Barcode = (window as any).BarcodeDetector;
+      if (Barcode) {
+        try {
+          const detector = new Barcode({ formats: ["qr_code","code_128","code_39","ean_13","ean_8","upc_a","upc_e","data_matrix"] });
+          const codes = await detector.detect(bitmap);
+          const decoded = codes.map((item:any)=>String(item.rawValue ?? "")).filter(Boolean);
+          if (decoded.length) {
+            setOcrText(decoded.join("\n"));
+            setNotice("Code détecté localement. Vérifiez le contenu avant de l’utiliser; aucune donnée n’est enregistrée automatiquement.");
+            setBusy(false);
+            return;
+          }
+        } catch { /* Le navigateur peut ne pas prendre en charge tous les formats. Repli OCR ci-dessous. */ }
+      }
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker("fra+eng");
+      try {
+        const result = await worker.recognize(file);
+        const text = result.data.text.trim();
+        if (!text) throw new Error("No text detected");
+        setOcrText(text);
+        setNotice("Scan OCR effectué localement. Vérifiez chaque valeur et son unité avant l’enregistrement.");
+      } finally {
+        await worker.terminate();
+      }
+    } catch {
+      setNotice("Le scan n’a pas pu lire cette image. Elle n’a pas été envoyée; vous pouvez réessayer ou saisir les valeurs manuellement.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function exportPdf() { window.print(); }
@@ -353,12 +391,12 @@ export function SuiviConnecte() {
       <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>Ce n’est pas un service d’urgence.</strong> En cas d’urgence médicale, appelez le 119 selon la disponibilité locale ou rendez-vous dans un établissement de santé. NAXA ne pose pas de diagnostic et ne recommande aucune posologie.</div>
       {!online && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Hors connexion : les nouvelles données ne peuvent pas être synchronisées. Les entrées non enregistrées ne sont pas conservées automatiquement.</p>}
       {notice && <p role="status" className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">{notice}</p>}
-      <section className="mt-5 rounded-2xl border border-emerald-200 bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Catalogue des dispositifs</h2><p className="mt-1 text-sm text-slate-600">Espace gratuit. Activez uniquement les appareils que vous utilisez. La plupart sont enregistrés en mode manuel; la connexion directe est disponible uniquement pour les capteurs cardiaques Bluetooth compatibles.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">Sans abonnement</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{deviceCatalog.map(device=>{const saved=devices.find(d=>d.device_key===device.key);return <article key={device.key} className="flex flex-col rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold">{device.name}</h3><span className={saved?.active?"rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800":"rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600"}>{saved?.active?"Activé":"Inactif"}</span></div><p className="mt-2 flex-1 text-sm leading-5 text-slate-600">{device.description}</p><p className="mt-2 text-xs font-semibold text-slate-500">{device.mode==="bluetooth"?"Connexion Bluetooth":"Saisie manuelle"}</p><button disabled={busy} onClick={()=>void toggleDevice(device)} className={saved?.active?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700 disabled:opacity-40":"mt-3 min-h-11 rounded-lg bg-[#0A6B3A] px-3 text-sm font-bold text-white disabled:opacity-40"}>{saved?.active?"Désactiver":"Activer ce dispositif"}</button>{device.mode==="bluetooth"&&saved?.active&&<button disabled={busy||!consents[device.family]} onClick={()=>void connectHeartRate()} className="mt-2 min-h-11 rounded-lg border border-emerald-200 px-3 text-sm font-bold text-emerald-800 disabled:opacity-40">Connecter le capteur</button>}</article>})}</div><p className="mt-3 text-xs leading-5 text-slate-500">La synchronisation automatique d’autres marques ou types de capteurs n’est pas annoncée comme disponible. Toute mesure reçue par Bluetooth doit être vérifiée puis confirmée avant l’enregistrement.</p></section>
+      <section className="mt-5 rounded-2xl border border-emerald-200 bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Catalogue des 21 dispositifs</h2><p className="mt-1 text-sm text-slate-600">Espace gratuit : chaque catégorie peut être suivie par saisie manuelle, scan local ou connexion lorsque le modèle expose un protocole compatible. NAXA vérifie le protocole au moment de la connexion; les capacités propriétaires restent dépendantes du fabricant.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">Sans abonnement</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{deviceCatalog.map(device=>{const saved=devices.find(d=>d.device_key===device.key);return <article key={device.key} className="flex flex-col rounded-xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold">{device.name}</h3><span className={saved?.active?"rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800":"rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600"}>{saved?.active?"Activé":"Inactif"}</span></div><p className="mt-2 flex-1 text-sm leading-5 text-slate-600">{device.description}</p><p className="mt-2 text-xs font-semibold text-slate-500">Saisie manuelle · Bluetooth · Scan</p><button disabled={busy} onClick={()=>void toggleDevice(device)} className={saved?.active?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700 disabled:opacity-40":"mt-3 min-h-11 rounded-lg bg-[#0A6B3A] px-3 text-sm font-bold text-white disabled:opacity-40"}>{saved?.active?"Désactiver":"Activer ce dispositif"}</button>{device.key==="capteur_cardiaque_bluetooth"&&saved?.active&&<button disabled={busy||!consents[device.family]} onClick={()=>void connectHeartRate()} className="mt-2 min-h-11 rounded-lg border border-emerald-200 px-3 text-sm font-bold text-emerald-800 disabled:opacity-40">Connecter le capteur cardiaque</button>}</article>})}</div><p className="mt-3 text-xs leading-5 text-slate-500">La compatibilité Bluetooth dépend du profil standard ou de l’API effectivement exposée par le modèle. Le scan (code-barres/QR/OCR) est exécuté localement. Toute valeur reconnue ou reçue doit être vérifiée puis confirmée avant l’enregistrement.</p></section>
       <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Profil de suivi</h2><p className="mt-1 text-sm text-slate-600">Informations facultatives pour personnaliser votre carnet. Elles ne sont pas visibles par un professionnel sans partage explicite d’une mesure.</p><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Nom d’affichage<input value={preferredName} onChange={e=>setPreferredName(e.target.value)} maxLength={100} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label><label className="text-sm font-semibold">Année de naissance (facultative)<input type="number" min="1900" max={new Date().getFullYear()} value={birthYear} onChange={e=>setBirthYear(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label></div><button disabled={busy} onClick={()=>void saveProfile()} className="mt-3 min-h-11 rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">Enregistrer le profil</button></section>
       <section className="mt-5 rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold">Consentements</h2><p className="mt-1 text-sm text-slate-600">Choisissez séparément les familles que vous souhaitez utiliser. Sans consentement actif, aucune nouvelle saisie n’est autorisée.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-[#1D4ED8]">{grantedFamilies}/6 autorisées</span></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{families.map(f=><article key={f.key} className="rounded-xl border p-4"><h3 className="font-bold">{f.label}</h3><p className="mt-1 text-sm leading-5 text-slate-600">{f.description}</p><button disabled={busy} onClick={()=>void toggleConsent(f.key,!consents[f.key])} className={consents[f.key]?"mt-3 min-h-11 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700":"mt-3 min-h-11 rounded-lg bg-[#1D4ED8] px-3 text-sm font-bold text-white"}>{consents[f.key]?"Retirer le consentement":"J’accepte cette famille"}</button></article>)}</div>
       </section>
-      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">20 types de suivi + rappels</h2><p className="mt-1 text-sm text-slate-600">Sélectionnez une carte pour la saisie. Les valeurs ne sont pas interprétées comme un diagnostic.</p>
+      <section className="mt-5 rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">20 types de mesure + rappels</h2><p className="mt-1 text-sm text-slate-600">Sélectionnez une carte pour la saisie. Les valeurs ne sont pas interprétées comme un diagnostic.</p>
         <div className="mt-4 space-y-5">{families.map(f=><div key={f.key}><h3 className="mb-2 font-extrabold text-[#1D4ED8]">{f.label}</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{types.filter(t=>t.family===f.key).map(t=><button key={t.key} aria-pressed={selectedType===t.key} onClick={()=>setSelectedType(t.key)} className={selectedType===t.key?"min-h-20 rounded-xl border-2 border-[#1D4ED8] bg-blue-50 p-3 text-left":"min-h-20 rounded-xl border p-3 text-left hover:border-blue-300"}><span className="block text-sm font-bold">{t.label}</span><span className="mt-1 block text-xs text-slate-500">{t.unit||"Note"}</span></button>)}</div></div>)}</div>
       </section>
       <section className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -368,7 +406,7 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Date et heure<input type="datetime-local" value={measuredAt} onChange={e=>setMeasuredAt(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
           <label className="mt-3 block text-sm font-semibold">Note facultative<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={1000} rows={2} className="mt-1 w-full rounded-xl border p-3"/></label>
           <button disabled={busy||!selectedConsent} onClick={()=>void saveMeasurement()} className="mt-4 min-h-11 w-full rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">{pendingMeasurementSource === "bluetooth" ? "Confirmer et enregistrer la mesure Bluetooth" : "Enregistrer dans mon espace privé"}</button>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 print:hidden"><button disabled={busy} onClick={()=>void connectHeartRate()} className="min-h-11 rounded-xl border border-blue-200 px-3 text-sm font-bold">Synchroniser un capteur cardiaque Bluetooth</button><label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-blue-200 px-3 text-center text-sm font-bold">Lire une photo localement<input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>void readImageLocally(e.target.files?.[0])}/></label></div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 print:hidden"><button disabled={busy} onClick={()=>void connectHeartRate()} className="min-h-11 rounded-xl border border-blue-200 px-3 text-sm font-bold">Synchroniser un capteur cardiaque Bluetooth</button><label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-blue-200 px-3 text-center text-sm font-bold">Scanner photo, QR ou code-barres<input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>void readImageLocally(e.target.files?.[0])}/></label></div>
           {ocrText && <div className="mt-3 rounded-xl border bg-slate-50 p-3"><p className="text-sm font-bold">Texte OCR local à vérifier</p><pre className="mt-2 whitespace-pre-wrap text-sm">{ocrText}</pre><p className="mt-2 text-xs text-slate-600">Copiez manuellement la valeur utile dans le champ ci-dessus; aucune lecture n’est enregistrée automatiquement.</p></div>}
         </div>
         <div className="rounded-2xl border bg-white p-5"><h2 className="text-xl font-extrabold">Rappels personnels</h2><p className="mt-1 text-sm text-slate-600">Les rappels enregistrés ne garantissent pas une notification push sur tous les appareils.</p>
