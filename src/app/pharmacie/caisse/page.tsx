@@ -51,7 +51,7 @@ export default function CaissePage() {
   const [sessionBloquee, setSessionBloquee] = useState(false);
   const [sessionCheckErreur, setSessionCheckErreur] = useState(false);
   const [draftCheckErreur, setDraftCheckErreur] = useState(false);
-  const [fondInitial, setFondInitial] = useState("0");
+  const [fondInitial, setFondInitial] = useState("");
   const [totalCompte, setTotalCompte] = useState("");
   const [cloture, setCloture] = useState<{ total_theorique: number; total_compte: number; ecart: number } | null>(null);
   const [vente, setVente] = useState<string | null>(null);
@@ -431,6 +431,7 @@ export default function CaissePage() {
     setCloture(result);
     setSession(null);
     setTotalCompte("");
+    setFondInitial("");
     setMsg("Session clôturée. Le rapprochement de caisse est disponible ci-dessous.");
   }
 
