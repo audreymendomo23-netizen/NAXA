@@ -12,7 +12,8 @@ async function exigerPromoteur() {
     .select("id,role,actif")
     .eq("id", u.user.id)
     .single();
-  if (p?.role !== "promoteur" || p.actif !== true) redirect("/");
+  if (p?.role !== "promoteur") redirect("/");
+  if (p.actif !== true) redirect("/pharmacie/promoteur");
   return { userId: u.user.id, sb };
 }
 
