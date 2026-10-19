@@ -24,7 +24,8 @@ begin
   if position('public.is_admin()' in v_definition) = 0
      or position('p_autorisations_verifiees' in v_definition) = 0
      or position('public.naxa_provision_promoteur_pharmacie' in v_definition) = 0
-     or position('visible_recherche = true' in v_definition) = 0 then
+     or position('visible_recherche = true' in v_definition) = 0
+     or position('public.naxa_provision_promoteur_pharmacie' in v_definition) > position('visible_recherche = true' in v_definition) then
     raise exception 'La RPC ne couvre pas tous les contrôles requis';
   end if;
 
