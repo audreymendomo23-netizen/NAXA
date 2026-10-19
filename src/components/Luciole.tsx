@@ -275,7 +275,7 @@ export function Luciole() {
       }, duration);
       nextSpecialAt = now + LUCIOLE_TIMING.specialIntervalMin + Math.random() * (LUCIOLE_TIMING.specialIntervalMax - LUCIOLE_TIMING.specialIntervalMin);
     };
-    const burst = () => {
+    function burst() {
       sparks.forEach((spark, i) => {
         const angle = (Math.PI * 2 * i) / sparks.length;
         spark.style.setProperty("--sx", `${Math.cos(angle) * (28 + (i % 3) * 13)}px`);
@@ -285,7 +285,7 @@ export function Luciole() {
         void spark.offsetWidth;
         spark.style.animation = `luciole-spark ${LUCIOLE_TIMING.sparkDuration}ms ease-out forwards`;
       });
-    };
+    }
 
     const onPointerMove = (event: PointerEvent) => {
       clearBusinessGesture();
@@ -642,6 +642,9 @@ export function Luciole() {
       clearActiveStateClass();
       activeNaxaState = null;
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
+      firefly.classList.remove("luciole-event-state-empty", "luciole-event-state-success", "luciole-event-state-failure");
+      firefly.classList.remove("luciole-tickling", "luciole-sleeping", "luciole-sleep-arriving", "naxa-luciole-resting", "gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
+      tree.classList.remove("naxa-luciole-tree-awake", "naxa-luciole-tree-glow");
       firefly.classList.remove("naxa-luciole-guidance-pulse", "naxa-luciole-typing-glow", "naxa-luciole-click-spark");
       document.removeEventListener("naxa:fairy", onNaxaFairyEvent as EventListener);
       window.removeEventListener("naxa:panier-ajoute", onCartAdded);
