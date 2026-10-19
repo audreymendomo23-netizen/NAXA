@@ -2,7 +2,7 @@
 do $test$
 declare d text:=lower(pg_get_functiondef('public.naxa_provision_promoteur_pharmacie(uuid,uuid)'::regprocedure));
 begin
- if position('public.naxa_promoteur_valide(p_promoteur)' in d)=0 then
+ if position('private.naxa_promoteur_valide(p_promoteur)' in d)=0 then
    raise exception '146.1 : provisionnement sans contrôle de validité';
  end if;
  if position('promoteur commercialement invalide' in d)=0 then
