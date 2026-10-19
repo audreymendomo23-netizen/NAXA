@@ -30,7 +30,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
   ]);
 
   const loadError = pharmaciesError || linksError || promotersError;
-  const promoterById = new Map((promoters ?? []).map((p) => [p.id, p]));
+  const promoterById = new Map((promoters ?? []).map((p) => [p.id, p] as const));
   const linksByPharmacy = new Map<string, NonNullable<typeof links>>();
   for (const link of links ?? []) {
     const group = linksByPharmacy.get(link.pharmacie_id) ?? [];
