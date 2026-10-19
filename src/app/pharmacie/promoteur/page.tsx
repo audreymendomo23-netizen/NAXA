@@ -64,50 +64,68 @@ export default async function EspacePromoteur() {
   const linkActive = (links ?? []).some((link) => link.actif);
   const visiblePharmacy = (pharmacies ?? []).some((ph) => ph.actif && ph.visible_recherche);
   const commercialStatus = (abonnement?.statut ?? convention?.statut ?? null)?.toLowerCase() ?? null;
+  const expiryDate = abonnement?.echeance ?? convention?.date_expiration ?? null;
   const isCommerciallyBlocked = Boolean(
     abonnement?.bloque_le ||
-    (commercialStatus && !["actif", "active"].includes(commercialStatus))
+    (commercialStatus && !["actif", "active"].includes(commercialStatus)) ||
+    (expiryDate && expiryDate < today)
   );
   const isPendingActivation = profile.actif !== true && !isCommerciallyBlocked;
+  const hasNoOperationalNetwork = !linkActive && !visiblePharmacy;
+  const shouldShowAccessStatus = isCommerciallyBlocked || isPendingActivation || hasNoOperationalNetwork;
   const hasLoadError = linksError || caissesError || pharmaciesError;
 
-  if (isPendingActivation || (!linkActive && !visiblePharmacy)) {
+  if (shouldShowAccessStatus) {
+    const accessBlocked = isCommerciallyBlocked;
+    const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     return (
       <main className="min-h-dvh bg-[#F2FAF5] px-4 py-8 text-naxa-green-900">
         <div className="mx-auto max-w-3xl space-y-5">
           <header className="rounded-3xl bg-naxa-green-900 p-6 text-white sm:p-8">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">NAXA · Espace Promoteur</p>
-            <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">Bienvenue, {displayName}</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">Votre espace est préparé. NAXA termine les contrôles nécessaires avant l’ouverture des outils de gestion.</p>
+            <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{accessBlocked ? "Accès commercial suspendu" : `Bienvenue, ${displayName}`}</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{accessBlocked ? "Le contrat ou la validité commerciale ne permet pas actuellement d’utiliser les outils du réseau." : "Votre espace est préparé. NAXA termine les contrôles nécessaires avant l’ouverture des outils de gestion."}</p>
           </header>
 
           {hasLoadError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Le statut détaillé ne peut pas être chargé pour le moment. Aucun accès n’a été activé par cette page.</p>}
 
           <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-xl" aria-hidden="true">◷</span>
+              <span className={accessBlocked ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-xl" : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-xl"} aria-hidden="true">{accessBlocked ? "!" : "◷"}</span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[.14em] text-amber-800">Dossier en cours</p>
-                <h2 className="mt-1 text-xl font-extrabold">Activation en attente de validation</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Le compte Promoteur ne peut pas encore administrer de pharmacie, créer des Caisses ou consulter les indicateurs du réseau. Ces fonctions s’ouvriront après la validation par NAXA.</p>
+                <p className={accessBlocked ? "text-xs font-bold uppercase tracking-[.14em] text-red-800" : "text-xs font-bold uppercase tracking-[.14em] text-amber-800"}>{accessBlocked ? "Abonnement / validité" : "Dossier en cours"}</p>
+                <h2 className="mt-1 text-xl font-extrabold">{accessBlocked ? "Accès suspendu — régularisation requise" : "Activation en attente de validation"}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{accessBlocked ? "Les fonctions réseau restent fermées tant que la validité commerciale n’est pas rétablie par le processus NAXA. Cette page ne réactive aucun compte et n’effectue aucun paiement." : "Le compte Promoteur ne peut pas encore administrer de pharmacie, créer des Caisses ou consulter les indicateurs du réseau. Ces fonctions s’ouvriront après la validation par NAXA."}</p>
+                {accessBlocked && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">Échéance enregistrée : {date(expiryDate)}. Contactez NAXA pour vérifier le règlement et la réactivation.</p>}
               </div>
             </div>
 
-            <ol className="mt-6 space-y-4">
-              <li className="flex gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-extrabold text-emerald-900">1</span>
-                <div><p className="font-bold">Compte Promoteur créé</p><p className="text-sm text-slate-600">Votre accès est reconnu par NAXA.</p></div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-extrabold text-amber-900">2</span>
-                <div><p className="font-bold">Contrôle administratif</p><p className="text-sm text-slate-600">NAXA vérifie les autorisations, le rattachement de la pharmacie, la convention, l’abonnement et l’architecture attribuée.</p></div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 text-sm font-extrabold text-slate-500">3</span>
-                <div><p className="font-bold">Ouverture de l’espace</p><p className="text-sm text-slate-600">Le réseau, la gestion de l’équipe et le Pilotage 360° seront accessibles après activation.</p></div>
-              </li>
-            </ol>
+            {accessBlocked ? (
+              <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm leading-6 text-red-950">
+                <p className="font-bold">Étapes de régularisation</p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>Contactez l’équipe NAXA pour confirmer le montant et la période dus.</li>
+                  <li>Faites confirmer le règlement par le canal autorisé.</li>
+                  <li>NAXA vérifie la convention et rétablit les accès selon la procédure en vigueur.</li>
+                </ol>
+              </div>
+            ) : (
+              <ol className="mt-6 space-y-4">
+                <li className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-extrabold text-emerald-900">1</span>
+                  <div><p className="font-bold">Compte Promoteur créé</p><p className="text-sm text-slate-600">Votre accès est reconnu par NAXA.</p></div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-extrabold text-amber-900">2</span>
+                  <div><p className="font-bold">Contrôle administratif</p><p className="text-sm text-slate-600">NAXA vérifie les autorisations, le rattachement de la pharmacie, la convention, l’abonnement et l’architecture attribuée.</p></div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 text-sm font-extrabold text-slate-500">3</span>
+                  <div><p className="font-bold">Ouverture de l’espace</p><p className="text-sm text-slate-600">Le réseau, la gestion de l’équipe et le Pilotage 360° seront accessibles après activation.</p></div>
+                </li>
+              </ol>
+            )}
           </section>
 
           <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
@@ -122,7 +140,7 @@ export default async function EspacePromoteur() {
                 ))}
               </ul>
             ) : <p className="mt-2 text-sm text-slate-600">Le rattachement de la pharmacie n’est pas encore visible. L’équipe NAXA doit finaliser le dossier.</p>}
-            <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-950">La période d’essai de 14 jours commence lors de la validation du dossier, et non à cette étape d’attente.</p>
+            {!accessBlocked && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-950">La période d’essai de 14 jours commence lors de la validation du dossier, et non à cette étape d’attente.</p>}
           </section>
 
           <footer className="flex flex-wrap gap-3">
