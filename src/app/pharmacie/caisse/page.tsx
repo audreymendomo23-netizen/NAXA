@@ -16,7 +16,7 @@ type Produit = {
 };
 type Ligne = Produit & { q: number; total: number };
 type Caisse = { id: string; nom: string };
-type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string };
+type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string; ouvert_par: string };
 type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
 type TicketLigne = {
   vente_id: string;
@@ -48,6 +48,7 @@ export default function CaissePage() {
   const [caisses, setCaisses] = useState<Caisse[]>([]);
   const [caisseId, setCaisseId] = useState("");
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionBloquee, setSessionBloquee] = useState(false);
   const [fondInitial, setFondInitial] = useState("0");
   const [totalCompte, setTotalCompte] = useState("");
   const [cloture, setCloture] = useState<{ total_theorique: number; total_compte: number; ecart: number } | null>(null);
@@ -124,7 +125,7 @@ export default function CaissePage() {
     setCloture(null);
     setTicket(null);
     const { data, error } = await sb.from("caisses_sessions")
-      .select("id,caisse_id,fond_initial,ouvert_at")
+      .select("id,caisse_id,fond_initial,ouvert_at,ouvert_par")
       .eq("caisse_id", id)
       .eq("statut", "ouverte")
       .maybeSingle();
@@ -134,10 +135,20 @@ export default function CaissePage() {
     }
     if (!data) {
       setSession(null);
+      setSessionBloquee(false);
       setVente(null);
       setLignes([]);
       return;
     }
+    if (data.ouvert_par !== userId) {
+      setSession(null);
+      setSessionBloquee(true);
+      setVente(null);
+      setLignes([]);
+      setMsg("Une session est déjà ouverte par un autre compte Caisse. Demandez à son titulaire ou à l’administration de la clôturer avant d’utiliser ce poste.");
+      return;
+    }
+    setSessionBloquee(false);
     setSession(data as Session);
     await chargerVenteBrouillon(data.id, userId);
   }, [chargerVenteBrouillon, sb]);
@@ -419,6 +430,8 @@ export default function CaissePage() {
                   <span>Fond initial : {fcfa(session.fond_initial)}</span>
                   <span>Ouverte le {new Date(session.ouvert_at).toLocaleString("fr-FR")}</span>
                 </div>
+              ) : sessionBloquee ? (
+                <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Une autre session est ouverte sur ce poste. La Caisse ne peut pas démarrer une session concurrente.</p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                   <label className="text-sm font-semibold">Fond de caisse initial (FCFA)<input className="champ mt-1 w-full" type="number" min="0" step="1" inputMode="numeric" value={fondInitial} onChange={(e) => setFondInitial(e.target.value)} /></label>
