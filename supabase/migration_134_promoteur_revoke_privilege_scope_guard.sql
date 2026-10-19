@@ -48,6 +48,7 @@ begin
         and n.active = true
         and n.delegable = true
         and n.governance = false
+        and n.governance_only is not true
     ) then
       raise exception 'Privilège non délégable ou de gouvernance';
     end if;
