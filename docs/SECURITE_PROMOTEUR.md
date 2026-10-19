@@ -34,3 +34,11 @@ Les tests comportementaux créent des fixtures transactionnelles et se terminent
 - Production contient actuellement **0 Promoteur**, **0 convention Promoteur** et **0 abonnement Promoteur**. Les scénarios ont donc été validés par fixtures transactionnelles ; aucun parcours réel avec un compte Promoteur existant n'était disponible.
 - La compilation/déploiement Vercel de la tête actuelle de `main` est bloquée par l'API Vercel : HTTP 402 `api-deployments-free-per-day`, limite quotidienne dépassée (réessayer après 24 h ou résoudre la limite du plan). Aucun déploiement de la tête actuelle n'est confirmé.
 - L'advisor Supabase signale encore des avertissements génériques sur des RPC `SECURITY DEFINER` d'autres domaines et la protection contre les mots de passe compromis désactivée. Ces éléments n'ont pas été modifiés sans une surface de configuration/validation adaptée.
+
+## Contrôles d'accès équipe / réseau — 19 octobre 2026
+
+- La page de gestion des Caisses filtre les comptes enfants aux pharmacies liées activement, actives et publiées ; les quotas affichés et les actions sont bornés à ce même ensemble.
+- La route des rapports applique également le filtre de pharmacie active/publiée après la vérification de validité Promoteur et des liens réseau actifs.
+- La page **Droits d'accès** ne propose que des privilèges actifs, délégables, non-gouvernance, compatibles avec le niveau 3 et déclarés pour le rôle Caisse dans l'architecture de la pharmacie. Les Server Actions vérifient à nouveau l'acteur, la cible directe, le lien actif et l'état publié de la pharmacie ; les RPC de délégation et de révocation restent l'autorité finale.
+- La migration additive 156 ajoute une garde avant insertion/mise à jour sur profiles : l'activation d'une Caisse par un Promoteur exige un Promoteur actif et commercialement valide, une cible enfant directe et une pharmacie active/publiée liée au réseau. Les désactivations restent possibles. Le test structurel correspondant est supabase/tests/156_promoteur_caisse_activation_guard.sql.
+- Les migrations 155 et 156 et leurs tests sont dans GitHub uniquement. Ils n'ont pas été exécutés sur Supabase Production. La compilation, le lint et les parcours E2E de cette révision restent non confirmés ; ne pas qualifier ce volet de validé en production avant les preuves correspondantes.
