@@ -937,3 +937,9 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole.luciole-tickling .luciole-wings,
   .naxa-luciole.luciole-teleporting .luciole-spark { animation:none!important; }
 }
+
+.naxa-luciole.luciole-event-language .luciole-fairy-body { transform-origin:24px 24px; animation:luciole-language-pirouette var(--luciole-language-duration,900ms) ease-in-out 1; }
+@keyframes luciole-language-pirouette { 0%,100%{transform:rotate(0)} 45%,70%{transform:rotate(180deg)} }
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole.luciole-event-language .luciole-fairy-body { animation:none!important; }
+}

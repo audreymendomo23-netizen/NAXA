@@ -67,3 +67,5 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les durées restantes de scintillement, d’ailes legacy, de bâillement, de jambes assises et de fondu réduit sont également exposées dans `LUCIOLE_TIMING`; les animations de chatouilles réduisent le battement d’ailes et le scintillement sous `prefers-reduced-motion`.
 
 - Les signaux de recherche et de scan sont publiés après l’installation des écouteurs via une frame d’animation, et la recherche émet explicitement un état de fin lorsqu’on efface le terme. Cela évite qu’un état visuel de recherche reste actif après effacement.
+
+- Les gestes métier ne sont plus déduits des mots présents sur un bouton : ils ne sont déclenchés que par les événements d’état existants ou par un attribut explicite `data-naxa-fairy`. Un clic n’est jamais pris à tort pour une commande validée ou un paiement réussi.

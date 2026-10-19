@@ -212,20 +212,11 @@ export function Luciole() {
       reactToBusinessEvent(type, state);
     };
     const reactToClickedControl = (button: HTMLElement) => {
-      const signal = [
-        button.getAttribute("data-naxa-fairy") ?? "",
-        button.getAttribute("aria-label") ?? "",
-        button.getAttribute("href") ?? "",
-        button.textContent ?? "",
-      ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const type =
-        /scanner|scan|ordonnance/.test(signal) ? "scan" :
-        /paiement|payer|checkout|payment/.test(signal) ? "payment" :
-        /panier/.test(signal) ? "cart" :
-        /commande|achat|reservation/.test(signal) ? "order" :
-        /rappel|posologie|traitement/.test(signal) ? "reminder" :
-        /recherche|chercher|search|medicament/.test(signal) ? "search" : null;
-      if (type) reactToBusinessEvent(type);
+      // Aucun libellé de bouton n'est interprété comme un succès métier.
+      // Un écran peut demander un geste explicite via un attribut dédié et un état réel.
+      const type = button.getAttribute("data-naxa-fairy");
+      const state = button.getAttribute("data-naxa-fairy-state") ?? "event";
+      if (type) reactToBusinessEvent(type, state);
     };
     const clearRandomSpecial = () => {
       if (specialTimer) window.clearTimeout(specialTimer);
@@ -768,7 +759,7 @@ export function Luciole() {
             <g className="luciole-prop luciole-prop-payment"><circle cx="39" cy="23" r="5"/><path d="M37 21h4M37 23h4M37 25h4"/></g>
             <g className="luciole-prop luciole-prop-favorite"><path d="M39 29s-7-4-6-8c.7-3 4-3 6-.5 2-2.5 5.3-2.5 6 .5 1 4-6 8-6 8z"/></g>
             <g className="luciole-prop luciole-prop-scan"><path d="M35 18h8v10h-8zM37 20v6M39 20v6M41 20v6"/></g>
-            <g className="luciole-prop luciole-prop-offline"><path d="M39 16l-4 7h4l-2 7 6-9h-4l2-5z"/></g>
+            <g className="luciole-prop luciole-prop-offline"><path d="M37 17v-2q2-2 4 0v2M35 18h8l-1 10h-6zM39 20v5M37 28l-1 2h6l-1-2"/></g>
             <g className="luciole-prop luciole-prop-language"><path d="M34 20h10M39 17v3M36 20c1 4 4 6 7 7M43 20c-1 4-4 6-7 7"/></g>
             <g className="luciole-prop luciole-prop-online"><path d="M34 24q5-6 10 0M36 26q3-3 6 0M39 29h.1"/></g>
             <g className="luciole-prop luciole-prop-question"><path d="M36 19q0-4 3-4t3 3q0 2-3 3v2M39 26h.1"/></g>
