@@ -24,11 +24,23 @@ export default async function CaissesPage({ searchParams }: Props) {
     .eq("actif", true);
 
   if (linksError || !links?.length) redirect("/pharmacie/promoteur");
-  // Le contrôle commercial et le privilège de création sont évalués côté serveur
-  // sur chaque pharmacie active avant d'exposer les comptes Caisse.
-  const permissions = await Promise.all(links.map((link) => sb.rpc("naxa_can", {
+
+  // Un lien actif ne suffit pas : une pharmacie suspendue ou masquée ne doit
+  // ni exposer ses Caisses ni permettre d'en créer/réactiver.
+  const linkedIds = [...new Set(links.map((link) => link.pharmacie_id))];
+  const { data: linkedPharmacies, error: pharmaciesError } = await sb.from("pharmacies")
+    .select("id,nom,ville,quartier,actif,visible_recherche")
+    .in("id", linkedIds);
+  if (pharmaciesError) redirect("/pharmacie/promoteur");
+  const pharmacies = (linkedPharmacies ?? []).filter((pharmacy) => pharmacy.actif === true && pharmacy.visible_recherche === true);
+  const pharmacyIds = pharmacies.map((pharmacy) => pharmacy.id);
+  if (!pharmacyIds.length) redirect("/pharmacie/promoteur");
+
+  // Le moteur commercial et les privilèges doivent autoriser au moins une
+  // pharmacie du périmètre réellement opérationnel.
+  const permissions = await Promise.all(pharmacyIds.map((pharmacieId) => sb.rpc("naxa_can", {
     p_privilege: "MANAGE_CAISSES",
-    p_pharmacie: link.pharmacie_id,
+    p_pharmacie: pharmacieId,
     p_target: null,
   })));
   if (!permissions.some((permission) => !permission.error && permission.data === true)) {
@@ -39,17 +51,13 @@ export default async function CaissesPage({ searchParams }: Props) {
     .select("id,username,first_name,last_name,actif,pharmacie_id,created_at")
     .eq("parent_profile_id", auth.user.id)
     .eq("role", "caisse")
+    .in("pharmacie_id", pharmacyIds)
     .order("created_at", { ascending: true });
 
-  const pharmacyIds = [...new Set(links.map((x) => x.pharmacie_id))];
-  const [{ data: pharmacies }, { data: architectureRows }] = await Promise.all([
-    pharmacyIds.length
-      ? sb.from("pharmacies").select("id,nom,ville,quartier").in("id", pharmacyIds)
-      : Promise.resolve({ data: [] as { id: string; nom: string; ville: string | null; quartier: string | null }[] }),
-    pharmacyIds.length
-      ? sb.from("pharmacie_architectures").select("pharmacie_id,architecture_code,max_caisses").in("pharmacie_id", pharmacyIds).eq("active", true)
-      : Promise.resolve({ data: [] as { pharmacie_id: string; architecture_code: string; max_caisses: number | null }[] }),
-  ]);
+  const { data: architectureRows } = await sb.from("pharmacie_architectures")
+    .select("pharmacie_id,architecture_code,max_caisses")
+    .in("pharmacie_id", pharmacyIds)
+    .eq("active", true);
   const pharmacyById = new Map((pharmacies ?? []).map((p) => [p.id, p] as const));
   const archById = new Map((architectureRows ?? []).map((a) => [a.pharmacie_id, a] as const));
   const countActive = (id: string) => (caisses ?? []).filter((c) => c.pharmacie_id === id && c.actif).length;
