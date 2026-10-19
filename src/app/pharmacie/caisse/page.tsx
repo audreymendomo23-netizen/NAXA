@@ -18,6 +18,7 @@ type Ligne = Produit & { q: number; total: number };
 type Caisse = { id: string; nom: string };
 type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string; ouvert_par: string };
 type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
+type PaiementTicket = { montant_percu: number | null; monnaie_rendue: number | null; montant: number; mode: string };
 type TicketLigne = {
   vente_id: string;
   numero_vente: string;
@@ -65,6 +66,7 @@ export default function CaissePage() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [ticket, setTicket] = useState<TicketLigne[] | null>(null);
+  const [paiementTicket, setPaiementTicket] = useState<PaiementTicket | null>(null);
   const [historique, setHistorique] = useState<VenteHistorique[]>([]);
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
 
@@ -136,6 +138,7 @@ export default function CaissePage() {
     setSessionCheckErreur(false);
     setCloture(null);
     setTicket(null);
+    setPaiementTicket(null);
     const { data, error } = await sb.from("caisses_sessions")
       .select("id,caisse_id,fond_initial,ouvert_at,ouvert_par")
       .eq("caisse_id", id)
@@ -267,9 +270,20 @@ export default function CaissePage() {
   async function reimprimerTicket(venteId: string) {
     setBusy(true);
     const { data, error } = await sb.rpc("vente_ticket", { p_vente: venteId });
-    setBusy(false);
-    if (error || !data?.length) return setMsg("Ticket indisponible ou vente hors périmètre.");
+    if (error || !data?.length) {
+      setBusy(false);
+      return setMsg("Ticket indisponible ou vente hors périmètre.");
+    }
+    const { data: payments } = await sb.from("vente_paiements")
+      .select("mode,montant,montant_percu,monnaie_rendue")
+      .eq("vente_id", venteId)
+      .order("created_at", { ascending: true });
+    const cash = (payments ?? []).filter((row) => row.mode === "especes");
+    const tendered = cash.reduce((sum, row) => sum + (Number(row.montant_percu) || Number(row.montant) || 0), 0);
+    const change = cash.reduce((sum, row) => sum + (Number(row.monnaie_rendue) || 0), 0);
+    setPaiementTicket(cash.length ? { mode: "especes", montant: cash.reduce((sum, row) => sum + Number(row.montant || 0), 0), montant_percu: tendered, monnaie_rendue: change } : null);
     setTicket((data ?? []) as TicketLigne[]);
+    setBusy(false);
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
 
@@ -307,6 +321,7 @@ export default function CaissePage() {
     setDraftCheckErreur(false);
     setLignes([]);
     setTicket(null);
+    setPaiementTicket(null);
     setMsg("Nouvelle vente créée.");
   }
 
@@ -406,6 +421,7 @@ export default function CaissePage() {
         setMsg("Vente encaissée. Le ticket n’a pas pu être chargé ; retrouvez-la dans l’historique pour le réimprimer.");
         return;
       }
+      setPaiementTicket({ mode: "especes", montant: Number(payment?.[0]?.montant_a_payer ?? total), montant_percu: montant, monnaie_rendue: Number(payment?.[0]?.monnaie_rendue ?? 0) });
       setTicket((receipt ?? []) as TicketLigne[]);
       setMsg("Vente encaissée en espèces. Vérifiez le ticket avant impression. Monnaie à rendre : " + fcfa(payment?.[0]?.monnaie_rendue ?? 0) + ".");
     } catch (error) {
@@ -526,8 +542,8 @@ export default function CaissePage() {
           <div className="flex justify-between text-sm"><span>Sous-total</span><span>{fcfa(ticket[0].total_brut)}</span></div>
           {ticket[0].remise > 0 && <div className="flex justify-between text-sm"><span>Remise</span><span>-{fcfa(ticket[0].remise)}</span></div>}
           <div className="mt-2 flex justify-between text-lg font-extrabold"><span>Total payé</span><span>{fcfa(ticket[0].total_net)}</span></div>
-          <p className="mt-3 text-center text-xs">Paiement en espèces · Merci de votre confiance.</p>
-          <div className="mt-4 flex justify-center gap-2 print:hidden"><button className="btn btn-vert" onClick={() => window.print()}>Imprimer le ticket</button><button className="btn btn-clair" onClick={() => setTicket(null)}>Fermer</button></div>
+          <div className="mt-3 space-y-1 text-sm"><div className="flex justify-between"><span>Mode de paiement</span><span>{paiementTicket?.mode === "especes" ? "Espèces" : ticket[0].mode_paiement ?? "—"}</span></div>{paiementTicket?.montant_percu != null && <div className="flex justify-between"><span>Montant reçu</span><span>{fcfa(paiementTicket.montant_percu)}</span></div>}{paiementTicket?.monnaie_rendue != null && <div className="flex justify-between font-bold"><span>Monnaie rendue</span><span>{fcfa(paiementTicket.monnaie_rendue)}</span></div>}</div><p className="mt-3 text-center text-xs">Merci de votre confiance.</p>
+          <div className="mt-4 flex justify-center gap-2 print:hidden"><button className="btn btn-vert" onClick={() => window.print()}>Imprimer le ticket</button><button className="btn btn-clair" onClick={() => { setTicket(null); setPaiementTicket(null); }}>Fermer</button></div>
         </section>
       )}
       <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-print, .ticket-print * { visibility: visible !important; } }`}</style>
