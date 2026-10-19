@@ -85,7 +85,7 @@ export default async function EspacePromoteur() {
             <p className="mt-1 text-sm text-white/80">Bonjour {displayName}. Pilotez le réseau qui vous est attribué.</p>
           </div>
           <nav className="flex flex-wrap gap-2">
-            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie">Pharmacie par défaut</Link>
+            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Pharmacie par défaut</Link>
             <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/pharmacie/caisses">Gérer l’équipe</Link>
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/pilotage">Pilotage 360°</Link>
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/pilotage/rapports">Rapports</Link>
