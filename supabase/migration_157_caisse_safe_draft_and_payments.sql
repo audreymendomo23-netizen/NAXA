@@ -126,6 +126,9 @@ begin
   if p_mode in ('orange_money','mtn_momo','mobile_money') then
     raise exception 'Paiement électronique indisponible : aucune confirmation opérateur officielle n’est intégrée';
   end if;
+  if p_mode='especes' then
+    raise exception 'Pour les espèces, utilisez vente_encaisser_finaliser afin d’enregistrer le paiement et de finaliser la vente atomiquement';
+  end if;
 
   select * into v from public.ventes where id=p_vente for update;
   if not found or v.statut<>'brouillon' then raise exception 'Vente invalide ou déjà finalisée'; end if;
@@ -171,6 +174,9 @@ begin
   if p_montant is null or p_montant<=0 then raise exception 'Montant de paiement invalide'; end if;
   if p_mode in ('orange_money','mtn_momo','mobile_money') then
     raise exception 'Paiement électronique indisponible : aucune confirmation opérateur officielle n’est intégrée';
+  end if;
+  if p_mode='especes' then
+    raise exception 'Le paiement espèces ne peut pas être fractionné ; utilisez vente_encaisser_finaliser';
   end if;
 
   select * into v_vente from public.ventes where id=p_vente for update;
