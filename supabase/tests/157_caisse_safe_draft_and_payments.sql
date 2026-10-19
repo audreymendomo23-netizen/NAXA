@@ -5,7 +5,7 @@ do $test$
 declare
   v_abandon text;
   v_encaisser text;
-  v_fractionne text;
+  v_fractionne text;\n  v_atomic text;\n  v_atomic_security boolean;
   v_abandon_security boolean;
   v_encaisser_security boolean;
 begin
@@ -57,6 +57,25 @@ begin
   if v_fractionne is null
      or position('aucune confirmation opérateur' in lower(v_fractionne))=0 then
     raise exception 'La voie de paiement fractionné historique contourne le blocage';
+  end if;
+
+  select pg_get_functiondef(p.oid), p.prosecdef
+    into v_atomic, v_atomic_security
+  from pg_proc p
+  join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public'
+    and p.proname='vente_encaisser_finaliser'
+    and p.pronargs=2;
+
+  if v_atomic is null or not v_atomic_security then
+    raise exception 'RPC atomique d’encaissement absente ou non SECURITY DEFINER';
+  end if;
+  if position('statut' in lower(v_atomic))=0
+     or position('public.vente_paiements' in v_atomic)=0
+     or position('paid_at' in v_atomic)=0
+     or position('auth.uid()' in v_atomic)=0
+     or position('public.can_operate_pharmacy' in v_atomic)=0 then
+    raise exception 'Contrôles d’identité, de périmètre ou finalisation atomique incomplets';
   end if;
 
   if not has_function_privilege('authenticated','public.vente_brouillon_abandonner(uuid)','EXECUTE')
