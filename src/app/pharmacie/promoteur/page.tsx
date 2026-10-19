@@ -246,7 +246,7 @@ export default async function EspacePromoteur() {
                       <span className="rounded-full bg-slate-100 px-3 py-1">{ph.de_garde ? "De garde" : "Hors garde"}</span>
                       <span className="rounded-full bg-slate-100 px-3 py-1">Stock actualisé : {date(ph.stock_updated_at)}</span>
                     </div>
-                    {ph.id === profile.pharmacie_id && <Link className="mt-3 inline-flex min-h-11 items-center rounded-full bg-naxa-green-900 px-4 py-2 text-sm font-bold text-white" href="/pharmacie">Ouvrir l’espace opérationnel</Link>}
+                    <Link className="mt-3 inline-flex min-h-11 items-center rounded-full bg-naxa-green-900 px-4 py-2 text-sm font-bold text-white" href={`/pharmacie?vue=operation&pharmacie=${encodeURIComponent(ph.id)}`}>Ouvrir cette pharmacie</Link>
                   </article>;
                 })}
               </div>
