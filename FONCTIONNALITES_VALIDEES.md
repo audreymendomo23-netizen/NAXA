@@ -1581,6 +1581,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - `src/app/pharmacie/promoteur/page.tsx` : nouveau tableau de bord N1, liste du réseau issu de `promoteur_pharmacies`, indicateurs via `stats_pilotage_scope`, comptes Caisse et lecture seule de la convention/abonnement propres au Promoteur authentifié.
 - `src/app/pharmacie/page.tsx` : un Promoteur est orienté vers son tableau de bord réseau par défaut ; l’accès opérationnel à sa pharmacie principale reste explicite via `?vue=operation`.
 - `src/app/pharmacie/caisses/page.tsx` : gestion des Caisses sur l’ensemble des pharmacies attribuées, avec affichage de la pharmacie et des quotas disponibles lorsque l’architecture est lisible.
+- `src/app/pharmacie/promoteur/page.tsx` : ajout d’un KPI Alertes alimenté par `stats_pilotage_scope`, sans inventer de valeur lorsque la statistique manque.
 - `src/app/api/rapports/route.ts` : correction du périmètre des rapports Promoteur ; l'API valide le compte via `naxa_promoteur_valide` et filtre les rapports sur les pharmacies réellement liées par `promoteur_pharmacies`, au lieu de se limiter à `profiles.pharmacie_id` (qui ne représente pas nécessairement tout le réseau).
 - `src/app/pharmacie/actions.ts` : création suivie de `naxa_provision_caisse`, blocage/réactivation suivis de `naxa_set_caisse_status`; suppression du contournement par mise à jour directe en service-role pour ces transitions. En cas d’échec du provisionnement, le compte provisoire est supprimé.
 - `src/app/admin/page.tsx` et `src/app/admin/actions.ts` : l’onboarding d’une pharmacie recueille désormais le tarif convenu et l’architecture, crée la convention et l’abonnement Promoteur, assigne l’architecture de pharmacie et établit le lien réseau. Le mot de passe provisoire n’est plus visible à l’écran.
@@ -1612,7 +1613,8 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 ### Complément de preuve — dernier état technique
 
 - Le correctif d'inférence TypeScript des deux tables de correspondance a été intégré dans `src/app/pharmacie/caisses/page.tsx` au commit `0fc50e77eff481cc6ea2698abd0894d8acac3ca0`.
-- Correctif API rapports multi-pharmacies : commit `60cc3a32829c252c58551eccdc4d68a8cbe847ae`; le scope Promoteur est désormais calculé depuis les liens réseau actifs et la validité commerciale. Le correctif est intégré mais non encore compilé/testé en exécution.
+- Correctif API rapports multi-pharmacies : commit `60cc3a32829c252c58551eccdc4d68a8cbe847ae`
+- KPI Alertes du tableau de bord : commit `6d91f100d5f53ddcf18add2301c997cc992c17ac`.; le scope Promoteur est désormais calculé depuis les liens réseau actifs et la validité commerciale. Le correctif est intégré mais non encore compilé/testé en exécution.
 - Contrôle du HEAD `0fc50e77eff481cc6ea2698abd0894d8acac3ca0` : le fournisseur de statut signale `Vercel: failure` avec le motif `build-rate-limit` et un contexte CircleCI en échec. Ce résultat ne constitue pas un build réussi. Conformément au protocole actuel, CircleCI n'est pas utilisé comme voie de validation.
 - La tentative de lecture du pipeline GitLab a été refusée par les permissions du connecteur ; aucun pipeline n'a été déclenché.
 - Aucune compilation locale n'a pu être exécutée via les outils disponibles dans cette session. Les migrations et le test SQL restent non exécutés.
