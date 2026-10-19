@@ -119,7 +119,7 @@ export function SuiviConnecte() {
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
     const existing = devices.find(d => d.device_key === device.key);
-    if (!existing && !consents[device.family]) {
+    if ((!existing || !existing.active) && !consents[device.family]) {
       setNotice(`Acceptez d’abord le consentement « ${families.find(f=>f.key===device.family)?.label} » pour activer ce dispositif.`);
       return;
     }
