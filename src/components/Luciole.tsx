@@ -456,9 +456,10 @@ export function Luciole() {
         if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
         businessGestureTimer = window.setTimeout(() => {
           firefly.classList.remove("luciole-event-" + type);
+          firefly.classList.remove("luciole-event-state-empty", "luciole-event-state-success", "luciole-event-state-failure");
           businessGesture = null;
           businessGestureTimer = undefined;
-        }, LUCIOLE_TIMING.specialMaxFinish);
+        }, LUCIOLE_TIMING.stateEventGesture);
       }
       if (!sleeping && !sleepPending && !guidedTarget && !durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
       const nextGesture = sleeping || sleepPending ? "resting" : businessGesture ? "dance" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : durableStateActive ? "dance" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
