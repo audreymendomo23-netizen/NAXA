@@ -103,6 +103,54 @@ export function SuiviConnecte() {
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
 
+  useEffect(() => {
+    if (!reminders.some(reminder => reminder.enabled)) return;
+    const deliverDueReminders = async () => {
+      const now = Date.now();
+      let changed = false;
+      for (const reminder of reminders) {
+        if (!reminder.enabled) continue;
+        const due = new Date(reminder.due_at).getTime();
+        if (!Number.isFinite(due) || due > now) continue;
+        const key = "naxa-suvi-reminder:" + reminder.id + ":" + reminder.due_at;
+        try {
+          if (sessionStorage.getItem(key)) continue;
+          sessionStorage.setItem(key, "shown");
+        } catch { /* Le rappel reste affiché dans l’application si le stockage de session est indisponible. */ }
+        if ("Notification" in window && Notification.permission === "granted") {
+          try { new Notification("NAXA · " + reminder.title, { body: "C’est l’heure de votre rappel personnel de suivi.", tag: key }); } catch { setNotice("Un rappel est arrivé à échéance. Ouvrez votre espace NAXA pour le consulter."); }
+        } else {
+          setNotice("Rappel arrivé à échéance : " + reminder.title + ". Autorisez les notifications du navigateur pour recevoir les rappels lorsque cet espace est ouvert.");
+        }
+        if (reminder.repeat_rule === "none") {
+          const { error } = await sb.from("suivi_reminders").update({ enabled:false, updated_at:new Date().toISOString() }).eq("id",reminder.id);
+          if (!error) changed = true;
+        } else {
+          const step = reminder.repeat_rule === "weekly" ? 7*86400000 : 86400000;
+          let next = due;
+          while (next <= now) next += step;
+          const { error } = await sb.from("suivi_reminders").update({ due_at:new Date(next).toISOString(), updated_at:new Date().toISOString() }).eq("id",reminder.id);
+          if (!error) changed = true;
+        }
+      }
+      if (changed) await load();
+    };
+    void deliverDueReminders();
+    const timer = window.setInterval(() => void deliverDueReminders(), 30000);
+    return () => window.clearInterval(timer);
+  }, [reminders, load, sb]);
+
+  async function enableReminderNotifications() {
+    if (!("Notification" in window)) {
+      setNotice("Ce navigateur ne prend pas en charge les notifications. Les rappels restent visibles dans l’espace NAXA.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotice(permission === "granted"
+      ? "Notifications autorisées sur ce navigateur. Les rappels seront délivrés lorsque NAXA est ouvert; la livraison en arrière-plan dépend d’une intégration push compatible."
+      : "Autorisation refusée. Les rappels restent enregistrés et visibles dans votre espace NAXA.");
+  }
+
   const typeInfo = types.find(t=>t.key===selectedType)!;
   const selectedConsent = !!consents[typeInfo.family];
   const grantedFamilies = families.filter(f=>consents[f.key]).length;
@@ -476,6 +524,7 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Échéance<input type="datetime-local" value={reminderAt} onChange={e=>setReminderAt(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
           <label className="mt-3 block text-sm font-semibold">Répétition<select value={repeatRule} onChange={e=>setRepeatRule(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="none">Une fois</option><option value="daily">Chaque jour</option><option value="weekly">Chaque semaine</option></select></label>
           <button disabled={busy||!selectedConsent} onClick={()=>void saveReminder()} className="mt-3 min-h-11 w-full rounded-xl bg-[#1D4ED8] px-4 font-bold text-white disabled:opacity-40">Enregistrer le rappel</button>
+          <button type="button" onClick={()=>void enableReminderNotifications()} className="mt-2 min-h-11 w-full rounded-xl border border-blue-200 px-4 font-bold text-[#1D4ED8]">Activer les notifications de rappel</button>
           <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="rounded-xl border p-3"><p className="font-bold">{r.title}</p><p className="mt-1 text-xs text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"}</p></li>)}</ul>
         </div>
       </section>
