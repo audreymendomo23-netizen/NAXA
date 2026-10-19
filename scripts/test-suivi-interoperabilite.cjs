@@ -5,10 +5,14 @@ const component = fs.readFileSync("src/components/suivi/SuiviConnecte.tsx", "utf
 const cron = fs.readFileSync("src/app/api/cron/posologie/route.ts", "utf8");
 const migration = fs.readFileSync("supabase/migration_148_suivi_21_dispositifs_interoperabilite.sql", "utf8");
 const sqlTest = fs.readFileSync("supabase/tests/148_suivi_21_dispositifs_interoperabilite.sql", "utf8");
+const measurementMigration = fs.readFileSync("supabase/migration_150_suivi_mesures_multidispositifs.sql", "utf8");
+const measurementTest = fs.readFileSync("supabase/tests/150_suivi_mesures_multidispositifs.sql", "utf8");
 
 const catalogKeys = [...component.matchAll(/\{ key:"([^"]+)", name:/g)].map(match => match[1]);
 assert.equal(catalogKeys.length, 21, "le catalogue UI doit présenter exactement 21 dispositifs");
 assert.equal(new Set(catalogKeys).size, 21, "les clés du catalogue doivent être uniques");
+const measurementKeys = [...component.matchAll(/\\{key:"([^"]+)",label:/g)].map(match => match[1]);
+assert.equal(measurementKeys.length, 30, "30 types de mesure doivent être disponibles pour les appareils");
 for (const key of [
   "tensiometre","thermometre","oxymetre","glucometre","balance",
   "capteur_cardiaque_bluetooth","podometre","ecg","spirometre","peak_flow",
@@ -29,5 +33,8 @@ assert.match(cron, /\.eq\("due_at", originalDue\)[\s\S]*?\.maybeSingle\(\)/, "le
 assert.match(migration, /'bouteille_hydratation'/, "migration doit couvrir le dernier dispositif");
 assert.match(migration, /'manual','bluetooth','scan','hybrid'/, "migration doit autoriser les modes polyvalents");
 assert.match(sqlTest, /naxa_148_device_interoperability_pass/, "test SQL de migration manquant");
+assert.match(measurementMigration, /\\x27capacite_vitale\\x27/, "types de mesure étendus manquants");
+assert.match(measurementTest, /naxa_150_extended_measurement_types_pass/, "test SQL des mesures étendues manquant");
+assert.match(cron, /"cholesterol_ldl","capacite_vitale"/, "le moteur de rappels doit mapper les nouvelles familles");
 
 console.log("PASS — 21 dispositifs, saisie/scan/Bluetooth, Push et rappels planifiés");
