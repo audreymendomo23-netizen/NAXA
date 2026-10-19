@@ -5,7 +5,9 @@ do $test$
 declare
   v_abandon text;
   v_encaisser text;
-  v_fractionne text;\n  v_atomic text;\n  v_atomic_security boolean;
+  v_fractionne text;
+  v_atomic text;
+  v_atomic_security boolean;
   v_abandon_security boolean;
   v_encaisser_security boolean;
 begin
