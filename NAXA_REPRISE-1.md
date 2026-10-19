@@ -38,3 +38,46 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - Les animations de sommeil et de chatouilles respectent `prefers-reduced-motion`.
 - Les facéties aléatoires d'assise, de téléportation et de bâillement sont implémentées pendant la flânerie. Les interactions de recherche, scan/ordonnance, panier, commande/réservation, paiement et rappel de posologie peuvent déclencher un geste lumineux par libellé/attribut ou par l'événement personnalisé `naxa:fairy`. Ces réactions sont purement visuelles et ne modifient aucune donnée métier.
 - Validation GitLab Beta réussie sur le code de la fée (commit de test `94deba815f25683e8afe45e1b39d155a8d6f1f2a`, pipeline [#73](https://gitlab.com/audreymendomo23-netizen/NAXA/-/pipelines/2961186191)) : `npx tsc --noEmit`, `npm run lint`, `npm run build` et `full_migration_replay` sont passés. Le lint/build ont émis des avertissements non bloquants sur des fichiers existants hors de ce chantier. Le pipeline ne contient pas de suite de tests unitaires (rapport de tests vide). Aucun déploiement n'a été déclenché.
+
+
+## Mise à jour — audit et durées (19 octobre 2026)
+
+- Le code conserve le déplacement aléatoire, le suivi passif du pointeur, le guidage du curseur de saisie, le guidage vers les boutons, l'arbre lumineux, le sommeil, le réveil et les chatouilles.
+- Le retour à l'arbre passe de 20 à 30 secondes via `src/components/luciole-constants.ts`.
+- Les durées de guidage, de scintillement, de validation, de déplacement aléatoire et de salut auparavant codées en dur dans `Luciole.tsx` sont centralisées dans le même fichier de constantes.
+- Événements confirmés pendant l'audit : `naxa:panier-ajoute`, `naxa:favoris-change` et `naxa-language-updated`. La recherche et le scan ont des états locaux dans leurs composants, sans canal commun actuel vers la fée.
+- Le canal générique `naxa:fairy` est écouté par la fée, mais aucun producteur n'a été trouvé dans les composants inspectés. Aucun état métier absent n'est simulé.
+- Les réactions spécialisées exigeant un état non exposé (confirmation de paiement, statut réel de livraison, traitement terminé, stock bas, avis envoyé et première ouverture par appareil) ne sont pas déclarées implémentées dans cette étape ; elles nécessitent un raccordement à leur source réelle. La fée ne crée aucune donnée métier ni notification.
+- Tests de compilation et tests automatisés : non exécutés dans cette opération GitHub distante ; aucun succès de test n'est revendiqué.
+
+
+## Compléments de mise en œuvre — 19 octobre 2026
+
+- Les événements de recherche émettent désormais un signal visuel de chargement, de résultats, d'absence de résultats ou d'erreur, sans transmettre le terme recherché.
+- Le scanner émet un signal de caméra/lecture, de résultat ou d'erreur sans transmettre l'ordonnance ni le code-barres. La fée peut maintenant apparaître sur la route `/scanner`, uniquement en mode nuit, et son conteneur conserve `pointer-events: none`.
+- Un rappel déclenche un signal visuel sans envoyer le médicament, la dose ou les autres données du rappel à la fée.
+- Les états durables raccordés (rappel, recherche en chargement, scan actif, paiement/commande lorsqu'ils seront émis, hors connexion) suspendent le sommeil au plus deux minutes. Pendant le suivi du pointeur ou du curseur, l'accompagnement est masqué et reprend seulement après le calme.
+- Les facéties aléatoires ciblent désormais un bouton réellement visible et activé lorsqu'une assise est choisie ; si aucun bouton approprié n'existe, la fée choisit un autre comportement. Le bâillement n'est possible qu'à partir de 23 h, heure locale.
+- Les accessoires SVG restent simplifiés à l'échelle actuelle. Aucun événement n'intercepte les clics et aucun contenu sensible n'est affiché.
+- Les réactions liées aux statuts de livraison, de fin de traitement, de paiement confirmé, de stock bas, d'avis envoyé et de première ouverture par appareil restent non raccordées tant que le projet ne fournit pas un état source observable et stable.
+- Les vérifications automatisées doivent être lancées avant de considérer le travail terminé.
+
+- L’anatomie SVG comprend maintenant des jambes/pieds articulés et des expressions simples (yeux ouverts/fermés, sourire). Le protocole visuel accepte également les types `pharmacy`, `stock`, `baby`, `review`, `treatment`, `delivery`, `welcome`, `login` et `logout` via `naxa:fairy`, mais ces types ne sont déclenchés que si une source réelle les émet.
+
+- Les durées restantes de scintillement, d’ailes legacy, de bâillement, de jambes assises et de fondu réduit sont également exposées dans `LUCIOLE_TIMING`; les animations de chatouilles réduisent le battement d’ailes et le scintillement sous `prefers-reduced-motion`.
+
+- Les signaux de recherche et de scan sont publiés après l’installation des écouteurs via une frame d’animation, et la recherche émet explicitement un état de fin lorsqu’on efface le terme. Cela évite qu’un état visuel de recherche reste actif après effacement.
+
+- Les gestes métier ne sont plus déduits des mots présents sur un bouton : ils ne sont déclenchés que par les événements d’état existants ou par un attribut explicite `data-naxa-fairy`. Un clic n’est jamais pris à tort pour une commande validée ou un paiement réussi.
+
+- La durée de pirouette lors du changement de langue est également centralisée dans `LUCIOLE_TIMING`.
+
+
+## Vérifications techniques de la branche — 19 octobre 2026
+
+- **Syntaxe TSX/TypeScript (esbuild 0.24.2)** : réussi pour `Luciole.tsx`, `luciole-constants.ts`, `Recherche.tsx`, `ScannerShell.tsx` et `RappelsPosologieGlobaux.tsx`.
+- **Analyse syntaxique CSS (PostCSS CLI 11.0.0)** : réussie pour `src/app/globals.css`.
+- **Type-check complet, lint et build Next.js** : non exécutés. Le sandbox de vérification disponible contient un extrait incomplet du dépôt, pas l’application entière. La branche de travail n’existe pas dans le miroir GitLab et l’API de lecture des pipelines a répondu HTTP 403 ; aucune réussite de pipeline n’est revendiquée.
+- **Déploiement** : non effectué. La branche et la PR restent ouvertes ; aucun merge vers `main`.
+
+- **Correction complémentaire** : lorsque `prefers-reduced-motion: reduce` est actif, `start()` annule toute boucle `requestAnimationFrame` et place la fée sans déplacement animé. Les interactions restent disponibles sans relancer la boucle de mouvement.

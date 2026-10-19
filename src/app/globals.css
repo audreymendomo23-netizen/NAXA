@@ -506,7 +506,7 @@ html[data-theme="nuit"] :is([role="dialog"],[data-state="open"],.naxa-profile-sh
 @media(prefers-reduced-motion:no-preference){html[data-theme="nuit"] body,html[data-theme="nuit"] main,html[data-theme="nuit"] section,html[data-theme="nuit"] article,html[data-theme="nuit"] input,html[data-theme="nuit"] button{transition:background-color 300ms,color 300ms,border-color 300ms}}
 @media(prefers-reduced-motion:reduce){html[data-theme="nuit"] body,html[data-theme="nuit"] main,html[data-theme="nuit"] section,html[data-theme="nuit"] article,html[data-theme="nuit"] input,html[data-theme="nuit"] button{transition:none!important}}
 .naxa-luciole{position:fixed;left:0;top:0;width:48px;height:48px;pointer-events:none;z-index:1;will-change:transform;contain:layout style}
-.luciole-core{position:absolute;left:19px;top:19px;width:10px;height:10px;border-radius:50%;background:#FFE9A0;animation:luciole-pulse 2.4s ease-in-out infinite}
+.luciole-core{position:absolute;left:19px;top:19px;width:10px;height:10px;border-radius:50%;background:#FFE9A0;animation:luciole-pulse var(--luciole-core-pulse-duration,2400ms) ease-in-out infinite}
 .naxa-luciole:before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#FFC83C8C 0%,#FFC83C00 70%)}
 .luciole-spark{position:absolute;left:22px;top:22px;width:4px;height:4px;border-radius:50%;background:#FFE9A0;opacity:0}
 @keyframes luciole-pulse{0%,100%{opacity:.78;transform:scale(.85)}50%{opacity:1;transform:scale(1.08)}}
@@ -582,7 +582,7 @@ html[data-theme="nuit"] .naxa-night-wave{
 .naxa-luciole {
   z-index: 96 !important;
   opacity: 0; visibility: hidden;
-  transition: opacity 850ms cubic-bezier(.22,1,.36,1), visibility 0s linear 850ms;
+  transition: opacity var(--luciole-visibility-duration,850ms) cubic-bezier(.22,1,.36,1), visibility 0s linear var(--luciole-visibility-duration,850ms);
 }
 html[data-theme="nuit"] .naxa-luciole-light,
 html[data-theme="nuit"] .naxa-luciole,
@@ -591,7 +591,7 @@ html[data-theme="nuit"] .naxa-night-scene,
 html[data-theme="nuit"] .naxa-night-firefly,
 html[data-theme="nuit"] .naxa-night-wave {
   opacity: 1; visibility: visible;
-  transition: opacity 850ms cubic-bezier(.22,1,.36,1), visibility 0s;
+  transition: opacity var(--luciole-visibility-duration,850ms) cubic-bezier(.22,1,.36,1), visibility 0s;
 }
 html[data-theme="jour"] .naxa-luciole-light,
 html[data-theme="jour"] .naxa-luciole,
@@ -623,15 +623,15 @@ html[data-theme="jour"] .naxa-night-wave {
 }
 .naxa-luciole .luciole-wing-left {
   transform-origin:100% 85%;
-  animation:luciole-wing-flap-left 105ms ease-in-out infinite alternate;
+  animation:luciole-wing-flap-left var(--luciole-legacy-wing-flap-duration,105ms) ease-in-out infinite alternate;
 }
 .naxa-luciole .luciole-wing-right {
   transform-origin:0% 85%;
-  animation:luciole-wing-flap-right 105ms ease-in-out infinite alternate;
+  animation:luciole-wing-flap-right var(--luciole-legacy-wing-flap-duration,105ms) ease-in-out infinite alternate;
 }
 .naxa-luciole .luciole-wing-vein {
   fill:none; stroke:rgba(230,255,245,.75); stroke-width:.45;
-  animation:luciole-wing-vein 105ms ease-in-out infinite alternate;
+  animation:luciole-wing-vein var(--luciole-legacy-wing-flap-duration,105ms) ease-in-out infinite alternate;
 }
 .naxa-luciole .luciole-thorax { fill:#5A3A19; stroke:#F8D989; stroke-width:.75; }
 .naxa-luciole .luciole-head { fill:#34251B; stroke:#FFE9A0; stroke-width:.65; }
@@ -639,11 +639,11 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-abdomen {
   fill:#8A4C16; stroke:#FFD978; stroke-width:.75;
   transform-box:fill-box; transform-origin:center 20%;
-  animation:luciole-abdomen-glow 1.35s ease-in-out infinite;
+  animation:luciole-abdomen-glow var(--luciole-abdomen-glow-duration,1350ms) ease-in-out infinite;
 }
 .naxa-luciole .luciole-glow-core {
   fill:#FFF7C2; filter:drop-shadow(0 0 3px #FFE36A);
-  animation:luciole-glow-beat 1.35s ease-in-out infinite;
+  animation:luciole-glow-beat var(--luciole-abdomen-glow-duration,1350ms) ease-in-out infinite;
 }
 .naxa-luciole .luciole-core {
   left:20px; top:28px; width:8px; height:8px;
@@ -677,9 +677,9 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole-guidance-pulse,
 .naxa-luciole-typing-glow,
 .naxa-luciole-click-spark { pointer-events:none!important; }
-.naxa-luciole-guidance-pulse:before { animation:naxa-luciole-guide-pulse 1.45s ease-in-out infinite; }
-.naxa-luciole-typing-glow:before { animation:naxa-luciole-type-glow 480ms ease-out both; }
-.naxa-luciole-click-spark:before { animation:naxa-luciole-click-flash 360ms ease-out both; }
+.naxa-luciole-guidance-pulse:before { animation:naxa-luciole-guide-pulse var(--luciole-guide-pulse-cycle,1450ms) ease-in-out infinite; }
+.naxa-luciole-typing-glow:before { animation:naxa-luciole-type-glow var(--luciole-guide-glow-duration,480ms) ease-out both; }
+.naxa-luciole-click-spark:before { animation:naxa-luciole-click-flash var(--luciole-click-flash-duration,360ms) ease-out both; }
 @keyframes naxa-luciole-guide-pulse {
   0%,100% { opacity:.72; transform:scale(.88); }
   50% { opacity:1; transform:scale(1.22); }
@@ -704,13 +704,13 @@ html[data-theme="jour"] .naxa-night-wave {
   position:absolute;inset:0;width:48px;height:48px;overflow:visible;
   transform-origin:24px 25px;
 }
-.naxa-luciole .luciole-wings { transform-origin:24px 22px; animation:luciole-fairy-wingbeat 1.8s ease-in-out infinite; }
+.naxa-luciole .luciole-wings { transform-origin:24px 22px; animation:luciole-fairy-wingbeat var(--luciole-wing-duration,1800ms) ease-in-out infinite; }
 .naxa-luciole .luciole-wing {
   fill:url(#luciole-wing);stroke:url(#luciole-wing-edge);stroke-width:.42;
   stroke-linejoin:round;opacity:.46;transform-box:fill-box;
 }
-.naxa-luciole .luciole-wing-upper-left { transform-origin:21px 22px; animation:luciole-fairy-wing-left 1.8s ease-in-out infinite; }
-.naxa-luciole .luciole-wing-upper-right { transform-origin:27px 22px; animation:luciole-fairy-wing-right 1.8s ease-in-out infinite; }
+.naxa-luciole .luciole-wing-upper-left { transform-origin:21px 22px; animation:luciole-fairy-wing-left var(--luciole-wing-side-duration,1800ms) ease-in-out infinite; }
+.naxa-luciole .luciole-wing-upper-right { transform-origin:27px 22px; animation:luciole-fairy-wing-right var(--luciole-wing-side-duration,1800ms) ease-in-out infinite; }
 .naxa-luciole .luciole-wing-lace {
   fill:none;stroke:#FFF8E7;stroke-width:.27;stroke-linecap:round;opacity:.88;
 }
@@ -730,7 +730,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-hand { fill:#FFE5CD;stroke:#FFF1D9;stroke-width:.35;stroke-linejoin:round; }
 .naxa-luciole .luciole-glow-core {
   fill:#FFE8A1;opacity:.82;transform-box:fill-box;transform-origin:center;
-  animation:luciole-fairy-light 1.9s ease-in-out infinite;
+  animation:luciole-fairy-light var(--luciole-fairy-light-duration,1900ms) ease-in-out infinite;
 }
 .naxa-luciole .luciole-core {
   left:20px;top:31px;width:8px;height:8px;
@@ -748,16 +748,16 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-spark:nth-of-type(6) { left:31px;top:42px; }
 .naxa-luciole .luciole-spark:nth-of-type(7) { left:4px;top:25px; }
 .naxa-luciole .luciole-spark:nth-of-type(8) { left:43px;top:22px; }
-.naxa-luciole.gesture-salute .luciole-arm-front { animation:luciole-fairy-salute 560ms ease-in-out 2; }
-.naxa-luciole.gesture-dance .luciole-arm-front { animation:luciole-fairy-dance-front 1.25s ease-in-out infinite; }
-.naxa-luciole.gesture-dance .luciole-arm-back { animation:luciole-fairy-dance-back 1.25s ease-in-out infinite; }
-.naxa-luciole.gesture-typing .luciole-arm-front { animation:luciole-fairy-type 420ms ease-in-out forwards; }
+.naxa-luciole.gesture-salute .luciole-arm-front { animation:luciole-fairy-salute var(--luciole-salute-wave-duration,560ms) ease-in-out 2; }
+.naxa-luciole.gesture-dance .luciole-arm-front { animation:luciole-fairy-dance-front var(--luciole-dance-duration,1250ms) ease-in-out infinite; }
+.naxa-luciole.gesture-dance .luciole-arm-back { animation:luciole-fairy-dance-back var(--luciole-dance-duration,1250ms) ease-in-out infinite; }
+.naxa-luciole.gesture-typing .luciole-arm-front { animation:luciole-fairy-type var(--luciole-type-duration,420ms) ease-in-out forwards; }
 .naxa-luciole.gesture-typing .luciole-arm-back { transform:rotate(12deg); }
-.naxa-luciole.gesture-pointing .luciole-arm-front { animation:luciole-fairy-point 380ms ease-in-out forwards; }
+.naxa-luciole.gesture-pointing .luciole-arm-front { animation:luciole-fairy-point var(--luciole-point-duration,380ms) ease-in-out forwards; }
 .naxa-luciole.gesture-pointing .luciole-arm-back { transform:rotate(-8deg); }
-.naxa-luciole.gesture-resting .luciole-arm-front { animation:luciole-fairy-rest-front 2.4s ease-in-out infinite; }
-.naxa-luciole.gesture-resting .luciole-arm-back { animation:luciole-fairy-rest-back 2.4s ease-in-out infinite; }
-.naxa-luciole.gesture-resting .luciole-dress { animation:luciole-fairy-dress 2.4s ease-in-out infinite; }
+.naxa-luciole.gesture-resting .luciole-arm-front { animation:luciole-fairy-rest-front var(--luciole-rest-duration,2400ms) ease-in-out infinite; }
+.naxa-luciole.gesture-resting .luciole-arm-back { animation:luciole-fairy-rest-back var(--luciole-rest-duration,2400ms) ease-in-out infinite; }
+.naxa-luciole.gesture-resting .luciole-dress { animation:luciole-fairy-dress var(--luciole-rest-duration,2400ms) ease-in-out infinite; }
 @keyframes luciole-fairy-wingbeat { 0%,100%{transform:rotate(-1deg) scale(1)} 50%{transform:rotate(1deg) scale(.97,1.02)} }
 @keyframes luciole-fairy-wing-left { 0%,100%{transform:rotate(-1deg);opacity:.48} 50%{transform:rotate(2deg);opacity:.62} }
 @keyframes luciole-fairy-wing-right { 0%,100%{transform:rotate(1deg);opacity:.48} 50%{transform:rotate(-2deg);opacity:.62} }
@@ -794,18 +794,18 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-sleep-z { display:none; fill:none; stroke:#FFF0B6; stroke-width:.7; stroke-linecap:round; stroke-linejoin:round; }
 .naxa-luciole.luciole-sleeping .luciole-sleep-z { display:block; }
 .naxa-luciole.luciole-sleeping .luciole-sleep-z path { animation:luciole-z-drift var(--luciole-z-cycle-duration,2500ms) ease-in-out infinite; }
-.naxa-luciole.luciole-sleeping .luciole-sleep-z-two { animation-delay:800ms!important; }
-.naxa-luciole.luciole-sleeping .luciole-sleep-z-three { animation-delay:1600ms!important; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z-two { animation-delay:var(--luciole-z-delay-two,800ms)!important; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z-three { animation-delay:var(--luciole-z-delay-three,1600ms)!important; }
 .naxa-luciole.luciole-sleeping .luciole-glow-core { opacity:.36; }
 .naxa-luciole.luciole-tickling .luciole-anatomy { animation:luciole-tickle var(--luciole-tickle-duration,1800ms) ease-in-out both; }
 .naxa-luciole.luciole-tickling .luciole-arm-front { transform:rotate(20deg); }
 .naxa-luciole.luciole-tickling .luciole-arm-back { transform:rotate(-20deg); }
-.naxa-luciole.luciole-tickling .luciole-wings { animation-duration:140ms; }
+.naxa-luciole.luciole-tickling .luciole-wings { animation-duration:var(--luciole-tickle-wing-beat,140ms); }
 @keyframes luciole-z-drift { 0%{opacity:0;transform:translate(0,3px)} 25%{opacity:.8} 100%{opacity:0;transform:translate(3px,-7px)} }
 @keyframes luciole-tickle { 0%,100%{transform:translate3d(0,0,0)} 15%{transform:translate3d(-2px,0,0)} 30%{transform:translate3d(2px,0,0)} 45%{transform:translate3d(-2px,1px,0)} 60%{transform:translate3d(2px,-1px,0)} 75%{transform:translate3d(-1px,0,0)} }
 @media(prefers-reduced-motion:reduce) {
  .naxa-luciole.luciole-sleeping .luciole-sleep-z path { animation:none!important; opacity:.65; transform:none; }
- .naxa-luciole.luciole-tickling .luciole-anatomy { animation:none!important; transition:opacity 150ms linear; }
+ .naxa-luciole.luciole-tickling .luciole-anatomy { animation:none!important; transition:opacity var(--luciole-tickle-reduced-fade,150ms) linear; }
 }
 
 
@@ -817,14 +817,18 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-yawning .luciole-arm-front { animation:luciole-yawn-stretch var(--luciole-yawn-duration,2000ms) ease-in-out both; }
 .naxa-luciole.luciole-teleporting { transition:opacity calc(var(--luciole-teleport-duration,600ms) / 2) ease-in-out; opacity:0; }
 .naxa-luciole.luciole-teleporting .luciole-anatomy { filter:drop-shadow(0 0 5px rgba(255,231,164,.8)); }
-.naxa-luciole[class*="luciole-event-"] .luciole-glow-core { animation:luciole-event-glow 600ms ease-in-out 3; }
+.naxa-luciole[class*="luciole-event-"] .luciole-glow-core { animation:luciole-event-glow var(--luciole-state-glow-duration,600ms) ease-in-out 3; }
 .naxa-luciole.luciole-event-reminder .luciole-arm-front,
 .naxa-luciole.luciole-event-search .luciole-arm-front,
 .naxa-luciole.luciole-event-scan .luciole-arm-front,
 .naxa-luciole.luciole-event-cart .luciole-arm-front,
 .naxa-luciole.luciole-event-order .luciole-arm-front,
 .naxa-luciole.luciole-event-reservation .luciole-arm-front,
-.naxa-luciole.luciole-event-payment .luciole-arm-front { animation:luciole-event-wave 420ms ease-in-out 2; }
+.naxa-luciole.luciole-event-payment .luciole-arm-front,
+.naxa-luciole.luciole-event-favorite .luciole-arm-front,
+.naxa-luciole.luciole-event-language .luciole-arm-front,
+.naxa-luciole.luciole-event-offline .luciole-arm-front,
+.naxa-luciole.luciole-event-online .luciole-arm-front { animation:luciole-event-wave var(--luciole-state-wave-duration,1200ms) ease-in-out 2; }
 @keyframes luciole-yawn-mouth { 0%,100%{transform:scale(.5)} 35%,65%{transform:scale(2.8)} }
 @keyframes luciole-yawn-stretch { 0%,100%{transform:rotate(0)} 45%,65%{transform:rotate(-58deg)} }
 @keyframes luciole-event-glow { 0%,100%{opacity:.7;transform:scale(.94)} 50%{opacity:1;transform:scale(1.3)} }
@@ -838,4 +842,104 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole.luciole-teleporting,
   .naxa-luciole[class*="luciole-event-"] .luciole-glow-core,
   .naxa-luciole[class*="luciole-event-"] .luciole-arm-front { animation:none!important; transition:none!important; }
+}
+
+
+/* Compléments fée : accessoires discrets, états observés et interactions non bloquantes. */
+.naxa-luciole { pointer-events:none!important; }
+.naxa-luciole .luciole-anatomy,
+.naxa-luciole .luciole-wing,
+.naxa-luciole .luciole-wings,
+.naxa-luciole .luciole-glow-core { filter:none!important; }
+.naxa-luciole .luciole-props { fill:#FFE6A0; stroke:#FFF4CF; stroke-width:.65; stroke-linecap:round; stroke-linejoin:round; opacity:0; }
+.naxa-luciole .luciole-prop { display:none; }
+.naxa-luciole[class*="luciole-state-"] .luciole-props { opacity:.95; }
+.naxa-luciole.luciole-state-reminder .luciole-prop-capsule,
+.naxa-luciole.luciole-state-search .luciole-prop-search,
+.naxa-luciole.luciole-state-scan .luciole-prop-scan,
+.naxa-luciole.luciole-state-payment .luciole-prop-payment,
+.naxa-luciole.luciole-state-order .luciole-prop-parcel,
+.naxa-luciole.luciole-state-delivery .luciole-prop-parcel,
+.naxa-luciole.luciole-event-cart .luciole-prop-parcel,
+.naxa-luciole.luciole-event-reservation .luciole-prop-parcel,
+.naxa-luciole.luciole-state-favorite .luciole-prop-favorite,
+.naxa-luciole.luciole-state-language .luciole-prop-language,
+.naxa-luciole.luciole-state-offline .luciole-prop-offline,
+.naxa-luciole.luciole-state-online .luciole-prop-online,
+.naxa-luciole.luciole-event-reminder .luciole-prop-capsule,
+.naxa-luciole.luciole-event-search .luciole-prop-search,
+.naxa-luciole.luciole-event-scan .luciole-prop-scan,
+.naxa-luciole.luciole-event-payment .luciole-prop-payment,
+.naxa-luciole.luciole-event-order .luciole-prop-parcel,
+.naxa-luciole.luciole-event-favorite .luciole-prop-favorite,
+.naxa-luciole.luciole-event-language .luciole-prop-language,
+.naxa-luciole.luciole-event-offline .luciole-prop-offline,
+.naxa-luciole.luciole-event-online .luciole-prop-online { display:block; }
+.naxa-luciole.luciole-state-scan { z-index:96!important; }
+.naxa-luciole.luciole-sitting { pointer-events:none!important; }
+.naxa-luciole.luciole-sitting .luciole-wings { animation-play-state:paused; }
+.naxa-luciole.luciole-sitting .luciole-spark { animation:none!important; }
+.naxa-luciole.luciole-state-reminder .luciole-arm-front,
+.naxa-luciole.luciole-state-search .luciole-arm-front,
+.naxa-luciole.luciole-state-scan .luciole-arm-front,
+.naxa-luciole.luciole-state-payment .luciole-arm-front,
+.naxa-luciole.luciole-state-order .luciole-arm-front,
+.naxa-luciole.luciole-state-offline .luciole-arm-front { animation:luciole-event-wave var(--luciole-state-wave-duration,1200ms) ease-in-out infinite; }
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole .luciole-props { transition:opacity var(--luciole-reduced-fade,150ms) linear; }
+  .naxa-luciole.luciole-state-reminder .luciole-arm-front,
+  .naxa-luciole.luciole-state-search .luciole-arm-front,
+  .naxa-luciole.luciole-state-scan .luciole-arm-front,
+  .naxa-luciole.luciole-state-payment .luciole-arm-front,
+  .naxa-luciole.luciole-state-order .luciole-arm-front,
+  .naxa-luciole.luciole-state-offline .luciole-arm-front { animation:none!important; }
+}
+
+.naxa-luciole.luciole-event-state-empty .luciole-prop-question { display:block; }
+.naxa-luciole.luciole-event-state-failure .luciole-fairy-body { transform-origin:24px 24px; transform:rotate(-7deg); }
+.naxa-luciole.luciole-event-state-success .luciole-glow-core { opacity:1; }
+
+
+/* Anatomie articulée et accessoires événementiels sans impact sur les zones tactiles. */
+.naxa-luciole .luciole-leg { fill:none; stroke:#F5D7C1; stroke-width:.85; stroke-linecap:round; stroke-linejoin:round; transform-box:view-box; transform-origin:24px 35px; }
+.naxa-luciole .luciole-foot { fill:#FFE5CD; stroke:#FFF1D9; stroke-width:.3; }
+.naxa-luciole .luciole-eyes-open { fill:none; stroke:#6A493D; stroke-width:.75; stroke-linecap:round; }
+.naxa-luciole .luciole-eyes-closed,.naxa-luciole .luciole-mouth-smile { display:none; fill:none; stroke:#A86E62; stroke-width:.55; stroke-linecap:round; }
+.naxa-luciole .luciole-props { stroke-width:.65; }
+.naxa-luciole .luciole-prop-cross,.naxa-luciole .luciole-prop-stock,.naxa-luciole .luciole-prop-baby,.naxa-luciole .luciole-prop-star { display:none; }
+.naxa-luciole.luciole-tickling .luciole-eyes-open,
+.naxa-luciole.luciole-sleeping .luciole-eyes-open { display:none; }
+.naxa-luciole.luciole-tickling .luciole-eyes-closed,
+.naxa-luciole.luciole-sleeping .luciole-eyes-closed { display:block; }
+.naxa-luciole.luciole-tickling .luciole-mouth-smile { display:block; }
+.naxa-luciole.luciole-tickling .luciole-leg { animation:luciole-tickle-legs var(--luciole-tickle-duration,1800ms) ease-in-out both; }
+.naxa-luciole.luciole-sitting .luciole-leg-left { animation:luciole-sit-feet var(--luciole-sit-feet-duration,700ms) ease-in-out infinite; }
+.naxa-luciole.luciole-sitting .luciole-leg-right { animation:luciole-sit-feet var(--luciole-sit-feet-duration,700ms) ease-in-out infinite reverse; animation-delay:var(--luciole-sit-feet-delay,350ms); }
+.naxa-luciole.luciole-sleeping .luciole-leg { transform:rotate(10deg); }
+.naxa-luciole.luciole-state-pharmacy .luciole-prop-cross,
+.naxa-luciole.luciole-event-pharmacy .luciole-prop-cross { display:block; }
+.naxa-luciole.luciole-state-stock .luciole-prop-stock,
+.naxa-luciole.luciole-event-stock .luciole-prop-stock { display:block; }
+.naxa-luciole.luciole-state-baby .luciole-prop-baby,
+.naxa-luciole.luciole-event-baby .luciole-prop-baby { display:block; }
+.naxa-luciole.luciole-event-review .luciole-prop-star,
+.naxa-luciole.luciole-event-treatment .luciole-prop-star { display:block; }
+.naxa-luciole.luciole-event-delivery .luciole-prop-parcel { display:block; }
+@keyframes luciole-tickle-legs { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-18deg)} 75%{transform:rotate(18deg)} }
+@keyframes luciole-sit-feet { 0%,100%{transform:rotate(-7deg)} 50%{transform:rotate(16deg)} }
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole.luciole-tickling .luciole-leg,
+  .naxa-luciole.luciole-sitting .luciole-leg-left,
+  .naxa-luciole.luciole-sitting .luciole-leg-right { animation:none!important; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole.luciole-tickling .luciole-wings,
+  .naxa-luciole.luciole-teleporting .luciole-spark { animation:none!important; }
+}
+
+.naxa-luciole.luciole-event-language .luciole-fairy-body { transform-origin:24px 24px; animation:luciole-language-pirouette var(--luciole-language-duration,900ms) ease-in-out 1; }
+@keyframes luciole-language-pirouette { 0%,100%{transform:rotate(0)} 45%,70%{transform:rotate(180deg)} }
+@media(prefers-reduced-motion:reduce) {
+  .naxa-luciole.luciole-event-language .luciole-fairy-body { animation:none!important; }
 }

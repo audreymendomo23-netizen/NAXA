@@ -30,6 +30,19 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
   const [medicaments, setMedicaments] = useState<MedicamentRecherche[]>([]);
   const [rechercheCatalogue, setRechercheCatalogue] = useState<"repos" | "chargement" | "erreur">("repos");
   const [rechercheActive, setRechercheActive] = useState(false);
+  const nombreResultats = medicaments.length;
+
+  // Signal visuel en lecture seule : ne transmet ni terme saisi ni résultat au composant de la fée.
+  useEffect(() => {
+    const state = q.trim().length < 2 ? "idle"
+      : rechercheCatalogue === "chargement" ? "loading"
+      : rechercheCatalogue === "erreur" ? "failure"
+      : nombreResultats ? "results" : "empty";
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "search", state } }));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [q, rechercheCatalogue, nombreResultats]);
 
   useEffect(() => {
     const terme = q.trim();
