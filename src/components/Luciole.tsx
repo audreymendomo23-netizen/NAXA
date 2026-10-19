@@ -147,6 +147,11 @@ export function Luciole() {
 
     const sparks = Array.from(firefly.querySelectorAll<HTMLElement>(".luciole-spark"));
     const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "reservation", "payment", "favorite", "language", "offline", "online"]);
+    const resumeDurableState = (now: number) => {
+      if (activeNaxaState && now - activeNaxaState.since >= LUCIOLE_TIMING.stateMaxPause) {
+        activeNaxaState = { ...activeNaxaState, since: now };
+      }
+    };
     const clearBusinessGesture = () => {
       pendingBusinessGesture = null;
       clearActiveStateClass();
@@ -281,6 +286,7 @@ export function Luciole() {
     const onPointerMove = (event: PointerEvent) => {
       clearBusinessGesture();
       wake();
+      resumeDurableState(performance.now());
       clearRandomSpecial();
       if (event.pointerType === "mouse" && event.buttons === 0) {
         // La luciole suit aussi le curseur sur ordinateur, sans capter les interactions.
@@ -297,6 +303,7 @@ export function Luciole() {
     const onInteraction = (event: Event) => {
       clearBusinessGesture();
       const now = performance.now();
+      resumeDurableState(now);
       clearRandomSpecial();
       nextSpecialAt = now + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
       const pointer = event as PointerEvent;
@@ -436,10 +443,7 @@ export function Luciole() {
       const dt = lastFrame ? Math.min(40, now - lastFrame) : 16;
       lastFrame = now;
       const idleFor = now - lastInput;
-      if (activeNaxaState && now - activeNaxaState.since >= LUCIOLE_TIMING.stateMaxPause) {
-        activeNaxaState = null;
-        clearActiveStateClass();
-      }
+      if (activeNaxaState && now - activeNaxaState.since >= LUCIOLE_TIMING.stateMaxPause) clearActiveStateClass();
       const durableStateActive = !!activeNaxaState && now - activeNaxaState.since < LUCIOLE_TIMING.stateMaxPause;
       if (durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && !guidedTarget && !sleeping && !sleepPending) {
         const className = "luciole-state-" + activeNaxaState!.type;
@@ -462,7 +466,7 @@ export function Luciole() {
         }, LUCIOLE_TIMING.specialMaxFinish);
       }
       if (!sleeping && !sleepPending && !guidedTarget && !durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
-      const nextGesture = sleeping || sleepPending ? "resting" : businessGesture ? "dance" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
+      const nextGesture = sleeping || sleepPending ? "resting" : businessGesture ? "dance" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : durableStateActive ? "dance" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
       if (nextGesture !== activeGesture) {
         firefly.classList.remove("gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
         firefly.classList.add("gesture-" + nextGesture);
