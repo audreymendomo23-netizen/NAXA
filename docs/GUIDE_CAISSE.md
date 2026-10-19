@@ -3,7 +3,7 @@
 ## Accès et ouverture
 1. Connectez-vous avec un compte Caisse actif, rattaché à une pharmacie active et publiée.
 2. Sélectionnez le poste de caisse si plusieurs sont configurés.
-3. Si aucune session n'est ouverte, saisissez le fond initial réel en FCFA puis ouvrez explicitement la session. La page ne crée plus de session ni de vente automatiquement au chargement.
+3. Si aucune session n'est ouverte, saisissez explicitement le fond initial réel en FCFA puis ouvrez la session. La page ne crée plus de session ni de vente automatiquement au chargement. Une session ouverte appartient au compte qui l'a ouverte ; un autre compte ne peut pas la reprendre ni la clôturer.
 
 ## Vente
 1. Cliquez sur **Nouvelle vente**.
