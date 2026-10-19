@@ -78,6 +78,7 @@ export default async function CaissesPage({ searchParams }: Props) {
       <header className="-mx-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white">
         <Link href="/pharmacie/promoteur" className="font-bold underline">← Espace Promoteur</Link>
         <span className="font-semibold">Gestion de l'équipe</span>
+        <Link href="/pharmacie/caisses/privileges" className="rounded-full border border-white px-3 py-2 text-sm font-semibold">Droits d'accès</Link>
       </header>
 
       <section className="carte">
