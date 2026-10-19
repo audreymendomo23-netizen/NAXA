@@ -17,7 +17,8 @@ declare
   v_role text;
 begin
   if v_uid is null then raise exception 'Authentification requise'; end if;
-  if p_target is null or p_privilege is null
+  if p_target is null or p_privilege is null or btrim(p_privilege) = ''
+     or p_scope is null
      or p_scope not in ('RESEAU','PHARMACIE','POSTE_CAISSE') then
     raise exception 'Paramètres de révocation invalides';
   end if;
@@ -36,6 +37,19 @@ begin
 
     if not public.naxa_has_privilege('REVOKE_PRIVILEGE',p_pharmacie,'PHARMACIE') then
       raise exception 'Privilège de révocation absent';
+    end if;
+
+    -- Un Promoteur ne peut retirer que des droits ordinaires explicitement
+    -- délégables ; les privilèges de gouvernance restent réservés à l'admin.
+    if not exists (
+      select 1
+      from public.naxa_privileges n
+      where n.code = p_privilege
+        and n.active = true
+        and n.delegable = true
+        and n.governance = false
+    ) then
+      raise exception 'Privilège non délégable ou de gouvernance';
     end if;
 
     if p_scope='RESEAU' then
