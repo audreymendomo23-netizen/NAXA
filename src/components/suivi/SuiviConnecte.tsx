@@ -470,6 +470,18 @@ export function SuiviConnecte() {
         glucometre: {
           service:"glucose", characteristic:"glucose_measurement", type:"glycemie", unit:"unité Bluetooth standard",
           parse:(data)=>{ if(data.byteLength<12)throw new Error("Glucose payload too short"); const offset=10; const raw=data.getUint16(offset,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<=0)throw new Error("Invalid glucose"); return value; }
+        },
+        balance_impedance: {
+          service:"body_composition", characteristic:"body_composition_measurement", type:"masse_grasse", unit:"%",
+          parse:(data)=>{ if(data.byteLength<3 || !(data.getUint8(0)&1))throw new Error("Body fat value unavailable"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<0||value>100)throw new Error("Invalid body fat percentage"); return value; }
+        },
+        montre_connectee: {
+          service:"heart_rate", characteristic:"heart_rate_measurement", type:"frequence_cardiaque", unit:"bpm",
+          parse:(data)=>{ if(data.byteLength<2)throw new Error("Heart rate payload too short"); const flags=data.getUint8(0); const value=flags&1?data.getUint16(1,true):data.getUint8(1); if(!Number.isFinite(value)||value<=0||value>300)throw new Error("Invalid heart rate"); return value; }
+        },
+        bracelet_activite: {
+          service:"heart_rate", characteristic:"heart_rate_measurement", type:"frequence_cardiaque", unit:"bpm",
+          parse:(data)=>{ if(data.byteLength<2)throw new Error("Heart rate payload too short"); const flags=data.getUint8(0); const value=flags&1?data.getUint16(1,true):data.getUint8(1); if(!Number.isFinite(value)||value<=0||value>300)throw new Error("Invalid heart rate"); return value; }
         }
       };
       const profile = profileByDevice[deviceKey];
