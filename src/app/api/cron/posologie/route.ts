@@ -160,8 +160,8 @@ export async function GET(request: Request) {
     enabled: boolean;
   };
   const familyForMeasurement = (type: string): string | null => {
-    if (["tension_systolique","tension_diastolique","frequence_cardiaque","temperature","saturation_oxygene","frequence_respiratoire"].includes(type)) return "constantes";
-    if (["glycemie","poids","taille","imc","cholesterol_total"].includes(type)) return "metabolisme";
+    if (["tension_systolique","tension_diastolique","frequence_cardiaque","temperature","saturation_oxygene","frequence_respiratoire","debit_expiratoire","ecg_note","capacite_vitale"].includes(type)) return "constantes";
+    if (["glycemie","poids","taille","imc","cholesterol_total","masse_grasse","masse_musculaire","masse_osseuse","cetonemie","acide_urique","cholesterol_hdl","cholesterol_ldl"].includes(type)) return "metabolisme";
     if (["pas_jour","activite_minutes","hydratation_ml"].includes(type)) return "activite";
     if (type === "sommeil_heures") return "sommeil";
     if (["douleur_score","humeur_score","cycle_jour","symptome_note"].includes(type)) return "bien_etre";
