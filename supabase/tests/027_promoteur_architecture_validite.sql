@@ -61,6 +61,8 @@ begin
   from public.conventions_promoteurs where promoteur_id=v_promoteur
   on conflict(promoteur_id) do update set convention_id=excluded.convention_id,montant_mensuel=30000,debut=current_date,echeance=current_date+30,statut='actif';
 
+  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoteur::text,'role','authenticated')::text,true);
   if not public.naxa_promoteur_valide(v_promoteur) then raise exception 'validité active refusée'; end if;
   perform public.naxa_provision_promoteur_pharmacie(v_promoteur,v_a);
 
