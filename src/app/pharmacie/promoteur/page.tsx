@@ -24,12 +24,13 @@ export default async function EspacePromoteur() {
     .select("id,role,actif,first_name,last_name,pharmacie_id")
     .eq("id", auth.user.id).single();
   if (profile?.role !== "promoteur") redirect("/");
+  const adminDb = supabaseAdmin();
 
   const [
     { data: links, error: linksError },
     { data: caisses, error: caissesError },
   ] = await Promise.all([
-    sb.from("promoteur_pharmacies")
+    adminDb.from("promoteur_pharmacies")
       .select("pharmacie_id,actif,created_at")
       .eq("promoteur_id", auth.user.id),
     sb.from("profiles")
@@ -40,7 +41,7 @@ export default async function EspacePromoteur() {
 
   const ids = [...new Set((links ?? []).map((x) => x.pharmacie_id))];
   const { data: pharmacies, error: pharmaciesError } = ids.length
-    ? await sb.from("pharmacies").select("id,nom,ville,quartier,actif,visible_recherche,de_garde,stock_updated_at").in("id", ids).order("nom")
+    ? await adminDb.from("pharmacies").select("id,nom,ville,quartier,actif,visible_recherche,de_garde,stock_updated_at").in("id", ids).order("nom")
     : { data: [] as { id: string; nom: string; ville: string | null; quartier: string | null; actif: boolean; visible_recherche: boolean; de_garde: boolean; stock_updated_at: string | null }[], error: null };
 
   const { data: statsData, error: statsError } = profile.actif === true
@@ -50,7 +51,6 @@ export default async function EspacePromoteur() {
   // Les tables contractuelles sont administrées par NAXA. La clé service-role
   // est utilisée uniquement après authentification et avec un filtre strict sur
   // l'identifiant du Promoteur courant.
-  const adminDb = supabaseAdmin();
   const [{ data: convention }, { data: abonnement }] = await Promise.all([
     adminDb.from("conventions_promoteurs")
       .select("montant_mensuel,date_paiement,date_expiration,statut")
@@ -61,8 +61,10 @@ export default async function EspacePromoteur() {
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const linkActive = (links ?? []).some((link) => link.actif);
-  const visiblePharmacy = (pharmacies ?? []).some((ph) => ph.actif && ph.visible_recherche);
+  const activeLinkIds = new Set((links ?? []).filter((link) => link.actif).map((link) => link.pharmacie_id));
+  const hasOperationalNetwork = (pharmacies ?? []).some(
+    (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
+  );
   const commercialStatus = (abonnement?.statut ?? convention?.statut ?? null)?.toLowerCase() ?? null;
   const expiryDate = abonnement?.echeance ?? convention?.date_expiration ?? null;
   const isCommerciallyBlocked = Boolean(
@@ -71,7 +73,7 @@ export default async function EspacePromoteur() {
     (expiryDate && expiryDate < today)
   );
   const isPendingActivation = profile.actif !== true && !isCommerciallyBlocked;
-  const hasNoOperationalNetwork = !linkActive && !visiblePharmacy;
+  const hasNoOperationalNetwork = !hasOperationalNetwork;
   const shouldShowAccessStatus = isCommerciallyBlocked || isPendingActivation || hasNoOperationalNetwork;
   const hasLoadError = linksError || caissesError || pharmaciesError;
 
@@ -135,7 +137,7 @@ export default async function EspacePromoteur() {
                 {(pharmacies ?? []).map((ph) => (
                   <li key={ph.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 p-4">
                     <div><p className="font-bold">{ph.nom}</p><p className="text-sm text-slate-600">{[ph.quartier, ph.ville].filter(Boolean).join(" · ") || "Localisation non renseignée"}</p></div>
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{ph.actif && ph.visible_recherche && linkActive ? "Accès en cours de synchronisation" : "En attente"}</span>
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche ? "Actif" : "En attente"}</span>
                   </li>
                 ))}
               </ul>
@@ -152,6 +154,9 @@ export default async function EspacePromoteur() {
     );
   }
 
+  const activePharmacies = (pharmacies ?? []).filter(
+    (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
+  );
   const stats = (statsData ?? null) as Stats | null;
   const caissesActives = (caisses ?? []).filter((x) => x.actif).length;
   const caissesBloquees = (caisses ?? []).filter((x) => !x.actif).length;
@@ -162,7 +167,7 @@ export default async function EspacePromoteur() {
   const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
 
   const kpis = [
-    { title: "Pharmacies dans le réseau", value: String(pharmacies?.length ?? 0), note: "Liens actifs attribués par NAXA" },
+    { title: "Pharmacies opérationnelles", value: String(activePharmacies.length), note: "Rattachement, activation et visibilité confirmés" },
     { title: "Caisses actives", value: String(caissesActives), note: caissesBloquees + " bloquée(s)" },
     { title: "Chiffre d’affaires · 30 jours", value: fcfa(stats?.ca ?? 0), note: "Ventes selon la vue canonique disponible" },
     { title: "Ruptures de stock", value: String(stats?.stock?.ruptures ?? 0), note: "Sur le périmètre autorisé" },
@@ -200,11 +205,11 @@ export default async function EspacePromoteur() {
           <article className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="text-lg font-extrabold">Mon réseau</h2><p className="text-sm text-slate-600">Les pharmacies sont attribuées par NAXA. Chaque pharmacie garde son propre stock et sa propre identité.</p></div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold">{pharmacies?.length ?? 0} active(s)</span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold">{activePharmacies.length} active(s)</span>
             </div>
-            {!pharmacies?.length ? <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Aucune pharmacie active n’est rattachée à votre compte. NAXA doit créer le lien de réseau avant que vous puissiez administrer une pharmacie.</div> : (
+            {!activePharmacies.length ? <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Aucune pharmacie opérationnelle n’est disponible sur votre périmètre. NAXA doit finaliser le rattachement et l’activation avant toute administration.</div> : (
               <div className="mt-4 space-y-3">
-                {pharmacies.map((ph) => {
+                {activePharmacies.map((ph) => {
                   const caisseCount = (caisses ?? []).filter((c) => c.pharmacie_id === ph.id).length;
                   const activeCount = (caisses ?? []).filter((c) => c.pharmacie_id === ph.id && c.actif).length;
                   return <article key={ph.id} className="rounded-xl border p-4">
