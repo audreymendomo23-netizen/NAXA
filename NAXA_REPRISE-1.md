@@ -79,3 +79,5 @@ Le code est enregistré sur `main`, mais la publication en Production reste à r
 - **Analyse syntaxique CSS (PostCSS CLI 11.0.0)** : réussie pour `src/app/globals.css`.
 - **Type-check complet, lint et build Next.js** : non exécutés. Le sandbox de vérification disponible contient un extrait incomplet du dépôt, pas l’application entière. La branche de travail n’existe pas dans le miroir GitLab et l’API de lecture des pipelines a répondu HTTP 403 ; aucune réussite de pipeline n’est revendiquée.
 - **Déploiement** : non effectué. La branche et la PR restent ouvertes ; aucun merge vers `main`.
+
+- **Correction complémentaire** : lorsque `prefers-reduced-motion: reduce` est actif, `start()` annule toute boucle `requestAnimationFrame` et place la fée sans déplacement animé. Les interactions restent disponibles sans relancer la boucle de mouvement.
