@@ -257,40 +257,48 @@ export default function CaissePage() {
   }
 
   async function chargerHistorique() {
-    if (!pid || !uid) return;
+    if (!pid || !uid || busy) return;
     setBusy(true);
-    const { data, error } = await sb.from("ventes")
-      .select("id,numero_vente,total_net,statut,mode_paiement,created_at,paid_at")
-      .eq("pharmacie_id", pid)
-      .eq("created_by", uid)
-      .eq("statut", "payee")
-      .order("paid_at", { ascending: false })
-      .limit(20);
-    setBusy(false);
-    if (error) return setMsg("L’historique des ventes n’est pas disponible.");
-    setHistorique((data ?? []) as VenteHistorique[]);
-    setHistoriqueOuvert(true);
-    setMsg((data?.length ?? 0) + " vente(s) récente(s) chargée(s).");
+    try {
+      const { data, error } = await sb.from("ventes")
+        .select("id,numero_vente,total_net,statut,mode_paiement,created_at,paid_at")
+        .eq("pharmacie_id", pid)
+        .eq("created_by", uid)
+        .eq("statut", "payee")
+        .order("paid_at", { ascending: false })
+        .limit(20);
+      if (error) return setMsg("L’historique des ventes n’est pas disponible.");
+      setHistorique((data ?? []) as VenteHistorique[]);
+      setHistoriqueOuvert(true);
+      setMsg((data?.length ?? 0) + " vente(s) récente(s) chargée(s).");
+    } catch {
+      setMsg("L’historique des ventes n’est pas disponible pour le moment.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function reimprimerTicket(venteId: string) {
+    if (busy) return;
     setBusy(true);
-    const { data, error } = await sb.rpc("vente_ticket", { p_vente: venteId });
-    if (error || !data?.length) {
+    try {
+      const { data, error } = await sb.rpc("vente_ticket", { p_vente: venteId });
+      if (error || !data?.length) return setMsg("Ticket indisponible ou vente hors périmètre.");
+      const { data: payments } = await sb.from("vente_paiements")
+        .select("mode,montant,montant_percu,monnaie_rendue")
+        .eq("vente_id", venteId)
+        .order("created_at", { ascending: true });
+      const cash = (payments ?? []).filter((row) => row.mode === "especes");
+      const tendered = cash.reduce((sum, row) => sum + (Number(row.montant_percu) || Number(row.montant) || 0), 0);
+      const change = cash.reduce((sum, row) => sum + (Number(row.monnaie_rendue) || 0), 0);
+      setPaiementTicket(cash.length ? { mode: "especes", montant: cash.reduce((sum, row) => sum + Number(row.montant || 0), 0), montant_percu: tendered, monnaie_rendue: change } : null);
+      setTicket((data ?? []) as TicketLigne[]);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    } catch {
+      setMsg("La réimpression du ticket a échoué. Réessayez depuis l’historique.");
+    } finally {
       setBusy(false);
-      return setMsg("Ticket indisponible ou vente hors périmètre.");
     }
-    const { data: payments } = await sb.from("vente_paiements")
-      .select("mode,montant,montant_percu,monnaie_rendue")
-      .eq("vente_id", venteId)
-      .order("created_at", { ascending: true });
-    const cash = (payments ?? []).filter((row) => row.mode === "especes");
-    const tendered = cash.reduce((sum, row) => sum + (Number(row.montant_percu) || Number(row.montant) || 0), 0);
-    const change = cash.reduce((sum, row) => sum + (Number(row.monnaie_rendue) || 0), 0);
-    setPaiementTicket(cash.length ? { mode: "especes", montant: cash.reduce((sum, row) => sum + Number(row.montant || 0), 0), montant_percu: tendered, monnaie_rendue: change } : null);
-    setTicket((data ?? []) as TicketLigne[]);
-    setBusy(false);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
 
   async function ouvrirSession() {
