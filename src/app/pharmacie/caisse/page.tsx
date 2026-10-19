@@ -352,20 +352,23 @@ export default function CaissePage() {
     if (busy) return;
     setBusy(true);
     try {
-      const { data: payment, error: paymentError } = await sb.rpc("vente_encaisser", {
-        p_vente: vente, p_mode: "especes", p_montant_percu: montant, p_reference: null,
+      const { data: payment, error: paymentError } = await sb.rpc("vente_encaisser_finaliser", {
+        p_vente: vente, p_montant_percu: montant,
       });
       if (paymentError) throw paymentError;
-      const { error: finalizeError } = await sb.rpc("vente_finaliser", { p_vente: vente });
-      if (finalizeError) throw finalizeError;
-      const { data: receipt, error: receiptError } = await sb.rpc("vente_ticket", { p_vente: vente });
-      if (receiptError) throw receiptError;
-      setTicket((receipt ?? []) as TicketLigne[]);
-      setMsg("Vente encaissée en espèces. Vérifiez le ticket avant impression. Monnaie à rendre : " + fcfa(payment?.[0]?.monnaie_rendue ?? 0) + ".");
+      // L'encaissement et le passage à payée sont atomiques côté base.
+      // Libérer le panier local même si la lecture du ticket échoue ensuite.
       setVente(null);
       setLignes([]);
       setPercu("");
       setResultats([]);
+      const { data: receipt, error: receiptError } = await sb.rpc("vente_ticket", { p_vente: vente });
+      if (receiptError || !receipt?.length) {
+        setMsg("Vente encaissée. Le ticket n’a pas pu être chargé ; retrouvez-la dans l’historique pour le réimprimer.");
+        return;
+      }
+      setTicket((receipt ?? []) as TicketLigne[]);
+      setMsg("Vente encaissée en espèces. Vérifiez le ticket avant impression. Monnaie à rendre : " + fcfa(payment?.[0]?.monnaie_rendue ?? 0) + ".");
     } catch (error) {
       setMsg(error instanceof Error ? error.message : "Encaissement impossible. Vérifiez le statut de la vente avant de réessayer.");
     } finally {
