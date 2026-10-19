@@ -27,7 +27,7 @@ export default async function CaissesPage({ searchParams }: Props) {
   // Le contrôle commercial et le privilège de création sont évalués côté serveur
   // sur chaque pharmacie active avant d'exposer les comptes Caisse.
   const permissions = await Promise.all(links.map((link) => sb.rpc("naxa_can", {
-    p_privilege: "CREATE_CAISSE",
+    p_privilege: "MANAGE_CAISSES",
     p_pharmacie: link.pharmacie_id,
     p_target: null,
   })));
