@@ -27,9 +27,11 @@ begin
      or position('where id=uid and actif=true' in v_definition)=0 then
     raise exception '135.4 : l’acteur doit être actif, le Promoteur valide et l’autorisation hiérarchique contrôlée';
   end if;
-  if has_function_privilege('anon',v_signature,'EXECUTE')
-     or has_function_privilege('authenticated',v_signature,'EXECUTE') then
-    raise exception '135.5 : la fonction privée ne doit pas être directement exécutable par les rôles API';
+  if not has_function_privilege('authenticated','public.naxa_grant_privilege(uuid,text,uuid,text)','EXECUTE') then
+    raise exception '135.5 : la façade protégée doit rester exécutable par authenticated';
+  end if;
+  if has_function_privilege('anon','public.naxa_grant_privilege(uuid,text,uuid,text)','EXECUTE') then
+    raise exception '135.6 : anon ne doit pas pouvoir attribuer des privilèges';
   end if;
 end
 $test$;
