@@ -63,8 +63,9 @@ export async function archiveHomeServiceOffer(form: FormData) {
   if (!uuid(offerId)) fail();
   const { data: offer } = await sb.from("home_service_offers").select("id,partner_id")
     .eq("id", offerId).maybeSingle();
-  if (!offer || !memberships.some((m: any) => m.partner_id === offer.partner_id)) fail();
+  if (!offer) redirect("/partenaire/prestations?erreur=action");
   const offerPartnerId = offer.partner_id;
+  if (!memberships.some((m: any) => m.partner_id === offerPartnerId)) fail();
   const { error } = await sb.from("home_service_offers")
     .update({ status: "archived", updated_at: new Date().toISOString() })
     .eq("id", offerId).eq("partner_id", offerPartnerId);
