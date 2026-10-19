@@ -21,7 +21,7 @@ export default async function EspacePromoteur() {
   if (!auth.user) redirect("/connexion?retour=/pharmacie/promoteur");
 
   const { data: profile } = await sb.from("profiles")
-    .select("id,role,actif,first_name,last_name,pharmacie_id")
+    .select("id,role,actif,first_name,last_name,pharmacie_id,architecture_code")
     .eq("id", auth.user.id).single();
   if (profile?.role !== "promoteur") redirect("/");
   const adminDb = supabaseAdmin();
@@ -53,10 +53,10 @@ export default async function EspacePromoteur() {
   // l'identifiant du Promoteur courant.
   const [{ data: convention }, { data: abonnement }] = await Promise.all([
     adminDb.from("conventions_promoteurs")
-      .select("montant_mensuel,date_paiement,date_expiration,statut")
+      .select("id,architecture_code,montant_mensuel,date_paiement,date_expiration,statut")
       .eq("promoteur_id", auth.user.id).maybeSingle(),
     adminDb.from("abonnements_promoteurs")
-      .select("montant_mensuel,debut,echeance,statut,bloque_le,reactive_le,rappel_5j_envoye_at")
+      .select("id,convention_id,montant_mensuel,debut,echeance,statut,bloque_le,reactive_le,rappel_5j_envoye_at")
       .eq("promoteur_id", auth.user.id).maybeSingle(),
   ]);
 
@@ -72,20 +72,28 @@ export default async function EspacePromoteur() {
     (commercialStatus && !["actif", "active"].includes(commercialStatus)) ||
     (expiryDate && expiryDate < today)
   );
+  const contractIncomplete = Boolean(
+    !convention ||
+    !abonnement ||
+    abonnement.convention_id !== convention.id ||
+    abonnement.montant_mensuel !== convention.montant_mensuel ||
+    convention.architecture_code !== profile.architecture_code
+  );
   const hasNoOperationalNetwork = !hasOperationalNetwork;
-  const shouldShowAccessStatus = isCommerciallyBlocked || isPendingActivation || hasNoOperationalNetwork;
+  const shouldShowAccessStatus = isCommerciallyBlocked || contractIncomplete || profile.actif !== true || hasNoOperationalNetwork;
   const hasLoadError = linksError || caissesError || pharmaciesError;
 
   if (shouldShowAccessStatus) {
     const accessBlocked = isCommerciallyBlocked;
+    const contractNeedsReview = !accessBlocked && contractIncomplete;
     const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     return (
       <main className="min-h-dvh bg-[#F2FAF5] px-4 py-8 text-naxa-green-900">
         <div className="mx-auto max-w-3xl space-y-5">
           <header className="rounded-3xl bg-naxa-green-900 p-6 text-white sm:p-8">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">NAXA · Espace Promoteur</p>
-            <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{accessBlocked ? "Accès commercial suspendu" : `Bienvenue, ${displayName}`}</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{accessBlocked ? "Le contrat ou la validité commerciale ne permet pas actuellement d’utiliser les outils du réseau." : "Votre espace est préparé. NAXA termine les contrôles nécessaires avant l’ouverture des outils de gestion."}</p>
+            <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{accessBlocked ? "Accès commercial suspendu" : contractNeedsReview ? "Dossier à finaliser" : `Bienvenue, ${displayName}`}</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{accessBlocked ? "Le contrat ou la validité commerciale ne permet pas actuellement d’utiliser les outils du réseau." : contractNeedsReview ? "La convention et l’abonnement doivent être cohérents avant l’ouverture des outils de gestion." : "Votre espace est préparé. NAXA termine les contrôles nécessaires avant l’ouverture des outils de gestion."}</p>
           </header>
 
           {hasLoadError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Le statut détaillé ne peut pas être chargé pour le moment. Aucun accès n’a été activé par cette page.</p>}
@@ -94,9 +102,9 @@ export default async function EspacePromoteur() {
             <div className="flex items-start gap-3">
               <span className={accessBlocked ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-xl" : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-xl"} aria-hidden="true">{accessBlocked ? "!" : "◷"}</span>
               <div>
-                <p className={accessBlocked ? "text-xs font-bold uppercase tracking-[.14em] text-red-800" : "text-xs font-bold uppercase tracking-[.14em] text-amber-800"}>{accessBlocked ? "Abonnement / validité" : "Dossier en cours"}</p>
-                <h2 className="mt-1 text-xl font-extrabold">{accessBlocked ? "Accès suspendu — régularisation requise" : "Activation en attente de validation"}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{accessBlocked ? "Les fonctions réseau restent fermées tant que la validité commerciale n’est pas rétablie par le processus NAXA. Cette page ne réactive aucun compte et n’effectue aucun paiement." : "Le compte Promoteur ne peut pas encore administrer de pharmacie, créer des Caisses ou consulter les indicateurs du réseau. Ces fonctions s’ouvriront après la validation par NAXA."}</p>
+                <p className={accessBlocked ? "text-xs font-bold uppercase tracking-[.14em] text-red-800" : "text-xs font-bold uppercase tracking-[.14em] text-amber-800"}>{accessBlocked ? "Abonnement / validité" : contractNeedsReview ? "Configuration contractuelle" : "Dossier en cours"}</p>
+                <h2 className="mt-1 text-xl font-extrabold">{accessBlocked ? "Accès suspendu — régularisation requise" : contractNeedsReview ? "Convention et abonnement à vérifier" : "Activation en attente de validation"}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{accessBlocked ? "Les fonctions réseau restent fermées tant que la validité commerciale n’est pas rétablie par le processus NAXA. Cette page ne réactive aucun compte et n’effectue aucun paiement." : contractNeedsReview ? "Le compte ne peut pas utiliser les fonctions réseau tant que NAXA n’a pas confirmé l’unicité de la convention, le rattachement de l’abonnement et l’égalité du tarif." : "Le compte Promoteur ne peut pas encore administrer de pharmacie, créer des Caisses ou consulter les indicateurs du réseau. Ces fonctions s’ouvriront après la validation par NAXA."}</p>
                 {accessBlocked && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">Échéance enregistrée : {date(expiryDate)}. Contactez NAXA pour vérifier le règlement et la réactivation.</p>}
               </div>
             </div>
@@ -109,6 +117,16 @@ export default async function EspacePromoteur() {
                   <li>Faites confirmer le règlement par le canal autorisé.</li>
                   <li>NAXA vérifie la convention et rétablit les accès selon la procédure en vigueur.</li>
                 </ol>
+              </div>
+            ) : contractNeedsReview ? (
+              <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                <p className="font-bold">Contrôles contractuels requis</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>Une seule convention doit être rattachée au Promoteur.</li>
+                  <li>L’abonnement doit référencer cette convention et reprendre le même tarif.</li>
+                  <li>L’architecture contractuelle doit correspondre à celle du compte Promoteur.</li>
+                </ul>
+                <p className="mt-3">Contactez NAXA pour finaliser la configuration. Aucun montant ni statut n’est modifié depuis cet écran.</p>
               </div>
             ) : (
               <ol className="mt-6 space-y-4">
@@ -155,9 +173,11 @@ export default async function EspacePromoteur() {
   const activePharmacies = (pharmacies ?? []).filter(
     (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
   );
+  const activePharmacyIds = new Set(activePharmacies.map((ph) => ph.id));
+  const operationalCaisses = (caisses ?? []).filter((c) => c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id));
   const stats = (statsData ?? null) as Stats | null;
-  const caissesActives = (caisses ?? []).filter((x) => x.actif).length;
-  const caissesBloquees = (caisses ?? []).filter((x) => !x.actif).length;
+  const caissesActives = operationalCaisses.filter((x) => x.actif).length;
+  const caissesBloquees = operationalCaisses.filter((x) => !x.actif).length;
   const alert = linksError || caissesError || pharmaciesError || statsError;
   const contractAmount = abonnement?.montant_mensuel ?? convention?.montant_mensuel ?? null;
   const contractStatus = abonnement?.statut ?? convention?.statut ?? null;
