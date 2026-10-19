@@ -61,10 +61,6 @@ export async function creerPharmacie(formData: FormData) {
   const pharmacyId = pharmacy.id;
   const cleanup = async () => {
     await db.from("promoteur_pharmacies").delete().eq("promoteur_id", userId);
-    await db.from("abonnement_promoteur_paiements").delete().in(
-      "abonnement_id",
-      (await db.from("abonnements_promoteurs").select("id").eq("promoteur_id", userId)).data?.map((x) => x.id) ?? [],
-    );
     await db.from("abonnements_promoteurs").delete().eq("promoteur_id", userId);
     await db.from("conventions_promoteurs").delete().eq("promoteur_id", userId);
     await db.from("pharmacie_architectures").delete().eq("pharmacie_id", pharmacyId);
