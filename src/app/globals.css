@@ -678,8 +678,8 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole-typing-glow,
 .naxa-luciole-click-spark { pointer-events:none!important; }
 .naxa-luciole-guidance-pulse:before { animation:naxa-luciole-guide-pulse var(--luciole-guide-pulse-cycle,1450ms) ease-in-out infinite; }
-.naxa-luciole-typing-glow:before { animation:naxa-luciole-type-glow 480ms ease-out both; }
-.naxa-luciole-click-spark:before { animation:naxa-luciole-click-flash 360ms ease-out both; }
+.naxa-luciole-typing-glow:before { animation:naxa-luciole-type-glow var(--luciole-guide-glow-duration,480ms) ease-out both; }
+.naxa-luciole-click-spark:before { animation:naxa-luciole-click-flash var(--luciole-click-flash-duration,360ms) ease-out both; }
 @keyframes naxa-luciole-guide-pulse {
   0%,100% { opacity:.72; transform:scale(.88); }
   50% { opacity:1; transform:scale(1.22); }
@@ -704,13 +704,13 @@ html[data-theme="jour"] .naxa-night-wave {
   position:absolute;inset:0;width:48px;height:48px;overflow:visible;
   transform-origin:24px 25px;
 }
-.naxa-luciole .luciole-wings { transform-origin:24px 22px; animation:luciole-fairy-wingbeat 1.8s ease-in-out infinite; }
+.naxa-luciole .luciole-wings { transform-origin:24px 22px; animation:luciole-fairy-wingbeat var(--luciole-wing-duration,1800ms) ease-in-out infinite; }
 .naxa-luciole .luciole-wing {
   fill:url(#luciole-wing);stroke:url(#luciole-wing-edge);stroke-width:.42;
   stroke-linejoin:round;opacity:.46;transform-box:fill-box;
 }
-.naxa-luciole .luciole-wing-upper-left { transform-origin:21px 22px; animation:luciole-fairy-wing-left 1.8s ease-in-out infinite; }
-.naxa-luciole .luciole-wing-upper-right { transform-origin:27px 22px; animation:luciole-fairy-wing-right 1.8s ease-in-out infinite; }
+.naxa-luciole .luciole-wing-upper-left { transform-origin:21px 22px; animation:luciole-fairy-wing-left var(--luciole-wing-side-duration,1800ms) ease-in-out infinite; }
+.naxa-luciole .luciole-wing-upper-right { transform-origin:27px 22px; animation:luciole-fairy-wing-right var(--luciole-wing-side-duration,1800ms) ease-in-out infinite; }
 .naxa-luciole .luciole-wing-lace {
   fill:none;stroke:#FFF8E7;stroke-width:.27;stroke-linecap:round;opacity:.88;
 }
@@ -730,7 +730,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-hand { fill:#FFE5CD;stroke:#FFF1D9;stroke-width:.35;stroke-linejoin:round; }
 .naxa-luciole .luciole-glow-core {
   fill:#FFE8A1;opacity:.82;transform-box:fill-box;transform-origin:center;
-  animation:luciole-fairy-light 1.9s ease-in-out infinite;
+  animation:luciole-fairy-light var(--luciole-fairy-light-duration,1900ms) ease-in-out infinite;
 }
 .naxa-luciole .luciole-core {
   left:20px;top:31px;width:8px;height:8px;
@@ -794,13 +794,13 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole .luciole-sleep-z { display:none; fill:none; stroke:#FFF0B6; stroke-width:.7; stroke-linecap:round; stroke-linejoin:round; }
 .naxa-luciole.luciole-sleeping .luciole-sleep-z { display:block; }
 .naxa-luciole.luciole-sleeping .luciole-sleep-z path { animation:luciole-z-drift var(--luciole-z-cycle-duration,2500ms) ease-in-out infinite; }
-.naxa-luciole.luciole-sleeping .luciole-sleep-z-two { animation-delay:800ms!important; }
-.naxa-luciole.luciole-sleeping .luciole-sleep-z-three { animation-delay:1600ms!important; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z-two { animation-delay:var(--luciole-z-delay-two,800ms)!important; }
+.naxa-luciole.luciole-sleeping .luciole-sleep-z-three { animation-delay:var(--luciole-z-delay-three,1600ms)!important; }
 .naxa-luciole.luciole-sleeping .luciole-glow-core { opacity:.36; }
 .naxa-luciole.luciole-tickling .luciole-anatomy { animation:luciole-tickle var(--luciole-tickle-duration,1800ms) ease-in-out both; }
 .naxa-luciole.luciole-tickling .luciole-arm-front { transform:rotate(20deg); }
 .naxa-luciole.luciole-tickling .luciole-arm-back { transform:rotate(-20deg); }
-.naxa-luciole.luciole-tickling .luciole-wings { animation-duration:140ms; }
+.naxa-luciole.luciole-tickling .luciole-wings { animation-duration:var(--luciole-tickle-wing-beat,140ms); }
 @keyframes luciole-z-drift { 0%{opacity:0;transform:translate(0,3px)} 25%{opacity:.8} 100%{opacity:0;transform:translate(3px,-7px)} }
 @keyframes luciole-tickle { 0%,100%{transform:translate3d(0,0,0)} 15%{transform:translate3d(-2px,0,0)} 30%{transform:translate3d(2px,0,0)} 45%{transform:translate3d(-2px,1px,0)} 60%{transform:translate3d(2px,-1px,0)} 75%{transform:translate3d(-1px,0,0)} }
 @media(prefers-reduced-motion:reduce) {
@@ -891,3 +891,7 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole.luciole-state-order .luciole-arm-front,
   .naxa-luciole.luciole-state-offline .luciole-arm-front { animation:none!important; }
 }
+
+.naxa-luciole.luciole-event-state-empty .luciole-prop-question { display:block; }
+.naxa-luciole.luciole-event-state-failure .luciole-fairy-body { transform-origin:24px 24px; transform:rotate(-7deg); }
+.naxa-luciole.luciole-event-state-success .luciole-glow-core { opacity:1; }

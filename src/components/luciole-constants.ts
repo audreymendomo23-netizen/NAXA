@@ -44,4 +44,11 @@ export const LUCIOLE_TIMING = {
   stateGlow: 600,
   guidePulseCycle: 1_450,
   reducedFade: 150,
+  fairyLightPulse: 1_900,
+  wingSideBeat: 1_800,
+  tickleWingBeat: 140,
+  sleepZDelayTwo: 800,
+  sleepZDelayThree: 1_600,
+  guideGlow: 480,
+  clickFlash: 360,
 } as const;

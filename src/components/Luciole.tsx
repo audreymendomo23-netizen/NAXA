@@ -58,6 +58,7 @@ export function Luciole() {
     let businessGestureTimer: number | undefined;
     let nextSpecialAt = performance.now() + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
     let businessGesture: string | null = null;
+    let businessGestureState = "event";
     let pendingBusinessGesture: string | null = null;
     let activeNaxaState: { type: string; state: string; since: number } | null = null;
     let activeStateClass: string | null = null;
@@ -162,6 +163,7 @@ export function Luciole() {
       if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
       businessGestureTimer = undefined;
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
+      firefly.classList.remove("luciole-event-state-empty", "luciole-event-state-success", "luciole-event-state-failure");
       businessGesture = null;
     };
     const STATEFUL = new Set(["reminder", "search", "scan", "payment", "order", "offline"]);
@@ -169,6 +171,8 @@ export function Luciole() {
       if (!FAIRY_EVENTS.has(type)) return;
       const now = performance.now();
       const normalizedState = state.toLowerCase();
+      businessGestureState = normalizedState;
+      if (normalizedState === "success") burst();
       const isDurable = STATEFUL.has(type) && ["active", "loading", "pending", "preparing", "delivery", "offline"].includes(normalizedState);
       if (isDurable) {
         if (!activeNaxaState || activeNaxaState.type !== type || activeNaxaState.state !== normalizedState) {
@@ -318,6 +322,13 @@ export function Luciole() {
           firefly.classList.add("luciole-tickling");
           firefly.style.setProperty("--luciole-tickle-duration", LUCIOLE_TIMING.tickle + "ms");
     firefly.style.setProperty("--luciole-visibility-duration", LUCIOLE_TIMING.visibilityFade + "ms");
+    firefly.style.setProperty("--luciole-fairy-light-duration", LUCIOLE_TIMING.fairyLightPulse + "ms");
+    firefly.style.setProperty("--luciole-wing-side-duration", LUCIOLE_TIMING.wingSideBeat + "ms");
+    firefly.style.setProperty("--luciole-tickle-wing-beat", LUCIOLE_TIMING.tickleWingBeat + "ms");
+    firefly.style.setProperty("--luciole-z-delay-two", LUCIOLE_TIMING.sleepZDelayTwo + "ms");
+    firefly.style.setProperty("--luciole-z-delay-three", LUCIOLE_TIMING.sleepZDelayThree + "ms");
+    firefly.style.setProperty("--luciole-guide-glow-duration", LUCIOLE_TIMING.guideGlow + "ms");
+    firefly.style.setProperty("--luciole-click-flash-duration", LUCIOLE_TIMING.clickFlash + "ms");
     firefly.style.setProperty("--luciole-salute-wave-duration", LUCIOLE_TIMING.saluteWave + "ms");
     firefly.style.setProperty("--luciole-dance-duration", LUCIOLE_TIMING.danceGesture + "ms");
     firefly.style.setProperty("--luciole-type-duration", LUCIOLE_TIMING.typingGesture + "ms");
@@ -456,8 +467,10 @@ export function Luciole() {
         const type = pendingBusinessGesture;
         pendingBusinessGesture = null;
         firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
+        firefly.classList.remove("luciole-event-state-empty", "luciole-event-state-success", "luciole-event-state-failure");
         businessGesture = type;
         firefly.classList.add("luciole-event-" + type);
+        if (["empty", "success", "failure"].includes(businessGestureState)) firefly.classList.add("luciole-event-state-" + businessGestureState);
         if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
         businessGestureTimer = window.setTimeout(() => {
           firefly.classList.remove("luciole-event-" + type);
@@ -727,6 +740,7 @@ export function Luciole() {
             <g className="luciole-prop luciole-prop-offline"><path d="M39 16l-4 7h4l-2 7 6-9h-4l2-5z"/></g>
             <g className="luciole-prop luciole-prop-language"><path d="M34 20h10M39 17v3M36 20c1 4 4 6 7 7M43 20c-1 4-4 6-7 7"/></g>
             <g className="luciole-prop luciole-prop-online"><path d="M34 24q5-6 10 0M36 26q3-3 6 0M39 29h.1"/></g>
+            <g className="luciole-prop luciole-prop-question"><path d="M36 19q0-4 3-4t3 3q0 2-3 3v2M39 26h.1"/></g>
             <g className="luciole-prop luciole-prop-reminder"><rect x="34" y="18" width="10" height="5" rx="2.5"/><path d="M39 18v5"/></g>
           </g>
           <ellipse className="luciole-glow-core" cx="24" cy="36" rx="3.1" ry="5.2" />
