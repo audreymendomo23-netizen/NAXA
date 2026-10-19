@@ -26,6 +26,14 @@
 | 20 | Pilulier hebdomadaire connecté | `pilulier-connecte.webp` | OK — fond blanc |
 | 21 | Bouteille connectée avec bouchon capteur | `bouteille-connectee.webp` | OK — fond blanc |
 
+## Vérifications techniques réalisées
+
+- 21 fichiers présents dans le bucket public `dispositifs`; les 21 noms correspondent exactement aux références d’image du catalogue.
+- Les 21 URL publiques répondent en HTTP 200.
+- Les 21 fichiers sont en WebP, en 400 × 400 px; tailles observées : 912 à 2 934 octets, donc toutes inférieures à 30 Ko.
+- Le bucket est public en lecture, limité à `image/webp` et 30 000 octets. La politique temporaire d’envoi anonyme a été supprimée après le téléversement.
+- Le fond blanc est conservé conformément au repli prévu; les images restent des visuels illustratifs, sans garantie de compatibilité d’un appareil.
+
 ## Prompt prêt à coller
 
 Photo de produit réaliste type packshot d’un **[APPAREIL PRÉCIS]**, générique sans marque ni logo, trois quarts de face et légèrement du dessus, appareil entier et centré occupant environ 80 % du cadre, fond blanc pur uni, éclairage doux de studio identique à toute la série, ombre de contact très légère, haute netteté, carré 1:1, aucun texte ni chiffre lisible, aucune main, aucune personne, aucun symbole médical ni croix de pharmacie, couleurs sobres blanc/gris clair/noir mat avec éventuellement un petit détail vert. Forme réelle fidèle, pas de perspective déformée, aucun accessoire non mentionné.
