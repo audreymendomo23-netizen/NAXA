@@ -16,10 +16,10 @@ begin
      or position('btrim(p_privilege)' in v_definition)=0 then
     raise exception '135.2 : les paramètres obligatoires doivent être validés';
   end if;
-  if position('n.governance = false' in v_definition)=0
+  if position('n.governance=false' in v_definition)=0
      or position('n.governance_only is not true' in v_definition)=0
-     or position('n.delegable = true' in v_definition)=0
-     or position('n.active = true' in v_definition)=0 then
+     or position('n.delegable=true' in v_definition)=0
+     or position('n.active=true' in v_definition)=0 then
     raise exception '135.3 : seuls les privilèges actifs, délégables et non-gouvernance sont attribuables';
   end if;
   if position('public.naxa_can(' in v_definition)=0
