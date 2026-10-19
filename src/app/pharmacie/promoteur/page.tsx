@@ -72,14 +72,12 @@ export default async function EspacePromoteur() {
     (commercialStatus && !["actif", "active"].includes(commercialStatus)) ||
     (expiryDate && expiryDate < today)
   );
-  const isPendingActivation = profile.actif !== true && !isCommerciallyBlocked;
   const hasNoOperationalNetwork = !hasOperationalNetwork;
   const shouldShowAccessStatus = isCommerciallyBlocked || isPendingActivation || hasNoOperationalNetwork;
   const hasLoadError = linksError || caissesError || pharmaciesError;
 
   if (shouldShowAccessStatus) {
     const accessBlocked = isCommerciallyBlocked;
-    const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     return (
       <main className="min-h-dvh bg-[#F2FAF5] px-4 py-8 text-naxa-green-900">
