@@ -148,12 +148,137 @@ export async function GET(request: Request) {
     }
   }
 
+  // Rappels personnels de suivi : même moteur planifié que les rappels déjà déployés.
+  // Les notifications ne contiennent aucune mesure ni information médicale sur l’écran verrouillé.
+  type SuiviReminder = {
+    id: string;
+    user_id: string;
+    measurement_type: string;
+    title: string;
+    due_at: string;
+    repeat_rule: "none" | "daily" | "weekly";
+    enabled: boolean;
+  };
+  const familyForMeasurement = (type: string): string | null => {
+    if (["tension_systolique","tension_diastolique","frequence_cardiaque","temperature","saturation_oxygene","frequence_respiratoire"].includes(type)) return "constantes";
+    if (["glycemie","poids","taille","imc","cholesterol_total"].includes(type)) return "metabolisme";
+    if (["pas_jour","activite_minutes","hydratation_ml"].includes(type)) return "activite";
+    if (type === "sommeil_heures") return "sommeil";
+    if (["douleur_score","humeur_score","cycle_jour","symptome_note"].includes(type)) return "bien_etre";
+    if (type === "medicament_pris") return "traitements";
+    return null;
+  };
+
+  const { data: suiviReminders, error: suiviReadError } = await db
+    .from("suivi_reminders")
+    .select("id,user_id,measurement_type,title,due_at,repeat_rule,enabled")
+    .eq("enabled", true)
+    .lte("due_at", now.toISOString())
+    .limit(5000);
+  let suiviDue = 0;
+  let suiviSent = 0;
+  let suiviFailed = 0;
+
+  if (suiviReadError) {
+    failed++;
+  } else {
+    for (const reminder of (suiviReminders ?? []) as SuiviReminder[]) {
+      const family = familyForMeasurement(reminder.measurement_type);
+      if (!family) {
+        await db.from("suivi_reminders")
+          .update({ enabled: false, updated_at: now.toISOString() })
+          .eq("id", reminder.id).eq("enabled", true);
+        continue;
+      }
+      const { data: consent } = await db.from("suivi_consents")
+        .select("granted")
+        .eq("user_id", reminder.user_id)
+        .eq("family_key", family)
+        .maybeSingle();
+      if (!consent?.granted) {
+        // Une révocation de consentement rend le rappel inactif, même si l’interface n’est pas ouverte.
+        await db.from("suivi_reminders")
+          .update({ enabled: false, updated_at: now.toISOString() })
+          .eq("id", reminder.id).eq("enabled", true);
+        continue;
+      }
+
+      const originalDue = reminder.due_at;
+      const dueTimestamp = new Date(originalDue).getTime();
+      if (!Number.isFinite(dueTimestamp)) continue;
+      const nextValues: { enabled: boolean; due_at?: string; updated_at: string } = {
+        enabled: reminder.repeat_rule !== "none",
+        updated_at: now.toISOString(),
+      };
+      if (reminder.repeat_rule !== "none") {
+        const interval = reminder.repeat_rule === "weekly" ? 7 * 86400000 : 86400000;
+        let nextDue = dueTimestamp;
+        while (nextDue <= now.getTime()) nextDue += interval;
+        nextValues.due_at = new Date(nextDue).toISOString();
+      }
+
+      // Mise à jour conditionnelle : une seule exécution cron peut revendiquer cette échéance.
+      const { data: claimed, error: claimError } = await db.from("suivi_reminders")
+        .update(nextValues)
+        .eq("id", reminder.id)
+        .eq("enabled", true)
+        .eq("due_at", originalDue)
+        .select("id")
+        .maybeSingle();
+      if (claimError || !claimed) continue;
+      suiviDue++;
+
+      const { error: notificationError } = await db.from("notifications").insert({
+        user_id: reminder.user_id,
+        type: "suivi_rappel",
+        titre: "Rappel personnel NAXA",
+        corps: "Un rappel personnel de suivi est arrivé à échéance. Ouvrez NAXA pour le consulter.",
+      });
+      if (notificationError) suiviFailed++;
+
+      const { data: subscriptions, error: subscriptionsError } = await db
+        .from("naxa_push_subscriptions")
+        .select("endpoint,subscription")
+        .eq("user_id", reminder.user_id);
+      if (subscriptionsError) {
+        suiviFailed++;
+        continue;
+      }
+      const payload = JSON.stringify({
+        title: "Rappel personnel NAXA",
+        body: "Un rappel de suivi est arrivé à échéance. Ouvrez NAXA pour le consulter.",
+        url: "/suivi",
+        tag: `naxa-suivi-${reminder.id}-${originalDue}`,
+      });
+      for (const subscription of subscriptions ?? []) {
+        try {
+          await webpush.sendNotification(subscription.subscription, payload, { TTL: 300, urgency: "normal" });
+          sent++;
+          suiviSent++;
+        } catch (error) {
+          const status = (error as { statusCode?: number }).statusCode;
+          if (status === 404 || status === 410) {
+            await db.from("naxa_push_subscriptions")
+              .delete().eq("endpoint", subscription.endpoint).eq("user_id", reminder.user_id);
+          } else {
+            failed++;
+            suiviFailed++;
+          }
+        }
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     checked: data?.length ?? 0,
     due,
     sent,
     failed,
+    suiviChecked: suiviReminders?.length ?? 0,
+    suiviDue,
+    suiviSent,
+    suiviFailed,
     at: now.toISOString(),
   });
 }
