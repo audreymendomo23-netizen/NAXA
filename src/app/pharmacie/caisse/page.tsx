@@ -259,6 +259,7 @@ export default function CaissePage() {
 
   async function ouvrirSession() {
     if (!caisseId || !uid) return;
+    if (fondInitial.trim() === "") return setMsg("Saisissez le fond initial, même s’il est égal à zéro.");
     const amount = Number(fondInitial);
     if (!Number.isSafeInteger(amount) || amount < 0) return setMsg("Le fond initial doit être un montant entier positif ou nul.");
     setBusy(true);
@@ -396,6 +397,7 @@ export default function CaissePage() {
   async function cloturerSession() {
     if (!session || busy) return;
     if (vente) return setMsg("Finalisez ou abandonnez le panier avant la clôture de caisse.");
+    if (totalCompte.trim() === "") return setMsg("Saisissez le montant réellement compté, même s’il est égal à zéro.");
     const amount = Number(totalCompte);
     if (!Number.isSafeInteger(amount) || amount < 0) return setMsg("Saisissez le montant espèces réellement compté, en FCFA.");
     if (!window.confirm("Clôturer définitivement cette session et enregistrer l’écart de caisse ?")) return;
