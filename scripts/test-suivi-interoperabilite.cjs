@@ -24,6 +24,9 @@ for (const key of [
 assert.match(component, /createWorker\("fra\+eng"\)/, "OCR local français/anglais requis");
 assert.match(component, /BarcodeDetector/, "détection de codes-barres/QR requise");
 assert.match(component, /acceptAllDevices: true/, "détection Bluetooth multi-appareils requise");
+assert.match(component, /service:"body_composition"/, "profil Bluetooth de balance impédancemètre manquant");
+assert.match(component, /montre_connectee:/, "adaptateur de montre connectée manquant");
+assert.match(component, /applyScannedValue/, "préremplissage contrôlé du scan manquant");
 assert.match(component, /from\("naxa_push_subscriptions"\)\.upsert/, "inscription Push requise");
 assert.match(component, /from\("suivi_reminders"\)/, "rappels persistants requis");
 assert.match(cron, /\.from\("suivi_reminders"\)[\s\S]*?\.lte\("due_at", now\.toISOString\(\)\)/, "le cron doit détecter les rappels échus");
