@@ -416,7 +416,8 @@ begin
     where cs.id=new.caisse_session_id
     for update;
 
-    if new.created_by is distinct from auth.uid()
+    if new.statut<>'brouillon'
+       or new.created_by is distinct from auth.uid()
        or not public.naxa_caisse_actor_for_pharmacy(new.pharmacie_id)
        or not exists (
          select 1 from public.caisses_sessions cs
