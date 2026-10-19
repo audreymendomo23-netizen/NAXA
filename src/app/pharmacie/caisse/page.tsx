@@ -50,6 +50,7 @@ export default function CaissePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionBloquee, setSessionBloquee] = useState(false);
   const [sessionCheckErreur, setSessionCheckErreur] = useState(false);
+  const [draftCheckErreur, setDraftCheckErreur] = useState(false);
   const [fondInitial, setFondInitial] = useState("0");
   const [totalCompte, setTotalCompte] = useState("");
   const [cloture, setCloture] = useState<{ total_theorique: number; total_compte: number; ecart: number } | null>(null);
@@ -77,10 +78,13 @@ export default function CaissePage() {
       .limit(1)
       .maybeSingle();
     if (error) {
-      setMsg("Impossible de reprendre le panier en cours. Aucune nouvelle vente n’a été créée.");
+      setDraftCheckErreur(true);
+      setLignes([]);
+      setMsg("Impossible de vérifier le panier existant. Nouvelle vente et clôture bloquées pour éviter un doublon ; rechargez la page.");
       return;
     }
     if (!draft) {
+      setDraftCheckErreur(false);
       setVente(null);
       setLignes([]);
       return;
@@ -89,9 +93,13 @@ export default function CaissePage() {
       .select("produit_id,quantite,prix_unitaire,total_ligne,produits(nom,dosage,code_barre)")
       .eq("vente_id", draft.id);
     if (linesError) {
-      setMsg("Le panier existe mais ses lignes n’ont pas pu être chargées. Ne créez pas un second panier.");
+      setDraftCheckErreur(true);
+      setVente(draft.id);
+      setLignes([]);
+      setMsg("Le panier existe mais ses lignes n’ont pas pu être chargées. Nouvelle vente et clôture bloquées ; rechargez la page. Vous pouvez abandonner le panier pour restituer le stock.");
       return;
     }
+    setDraftCheckErreur(false);
     const groups = new Map<string, Ligne>();
     for (const raw of rows ?? []) {
       const row = raw as unknown as {
@@ -144,6 +152,7 @@ export default function CaissePage() {
       setSessionBloquee(false);
       setVente(null);
       setLignes([]);
+      setDraftCheckErreur(false);
       return false;
     }
     if (data.ouvert_par !== userId) {
@@ -151,6 +160,7 @@ export default function CaissePage() {
       setSessionBloquee(true);
       setVente(null);
       setLignes([]);
+      setDraftCheckErreur(false);
       setMsg("Une session est déjà ouverte par un autre compte Caisse. Demandez à son titulaire ou à l’administration de la clôturer avant d’utiliser ce poste.");
       return false;
     }
@@ -232,6 +242,7 @@ export default function CaissePage() {
     setSessionBloquee(false);
     setVente(null);
     setLignes([]);
+    setDraftCheckErreur(false);
     await chargerSession(id, uid);
     setBusy(false);
   }
@@ -286,7 +297,7 @@ export default function CaissePage() {
   }
 
   async function nouvelleVente() {
-    if (!session || !uid || busy) return;
+    if (!session || !uid || busy || draftCheckErreur) return;
     if (vente) return setMsg("Un panier est déjà ouvert. Finalisez-le ou abandonnez-le avant d’en créer un autre.");
     setBusy(true);
     const { data, error } = await sb.rpc("vente_creer", { p_session: session.id });
@@ -402,7 +413,7 @@ export default function CaissePage() {
   }
 
   async function cloturerSession() {
-    if (!session || busy) return;
+    if (!session || busy || draftCheckErreur) return;
     if (vente) return setMsg("Finalisez ou abandonnez le panier avant la clôture de caisse.");
     if (totalCompte.trim() === "") return setMsg("Saisissez le montant réellement compté, même s’il est égal à zéro.");
     const amount = Number(totalCompte);
@@ -460,12 +471,13 @@ export default function CaissePage() {
               </div>
               {historiqueOuvert && <div className="mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ticket</th><th className="p-2 text-left">Date</th><th className="p-2 text-right">Total</th><th className="p-2">Action</th></tr></thead><tbody>{historique.map((sale) => <tr key={sale.id} className="border-t"><td className="p-2">{sale.numero_vente}</td><td className="p-2">{new Date(sale.paid_at ?? sale.created_at).toLocaleString("fr-FR")}</td><td className="p-2 text-right">{fcfa(sale.total_net)}</td><td className="p-2 text-center"><button className="btn btn-clair" disabled={busy} onClick={() => void reimprimerTicket(sale.id)}>Réimprimer</button></td></tr>)}</tbody></table>{historique.length === 0 && <p className="p-3 text-sm text-slate-600">Aucune vente payée récente.</p>}</div>}
             </section>
+            {session && draftCheckErreur && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">Vérification du panier incomplète : aucune nouvelle vente ne peut être créée et la session ne peut pas être clôturée tant que le contrôle n’a pas réussi.</p>}
             {session && (
               <>
                 <div className="mb-4 flex flex-wrap gap-2">
                   <button className={onglet === "caisse" ? "btn btn-vert" : "btn btn-clair"} onClick={() => setOnglet("caisse")}>Encaissement</button>
                   <button className={onglet === "recherche" ? "btn btn-vert" : "btn btn-clair"} onClick={() => setOnglet("recherche")}>Recherche prix</button>
-                  {!vente && <button className="btn btn-canari" disabled={busy} onClick={() => void nouvelleVente()}>Nouvelle vente</button>}
+                  {!vente && <button className="btn btn-canari" disabled={busy || draftCheckErreur} onClick={() => void nouvelleVente()}>Nouvelle vente</button>}
                 </div>
                 <div className="grid gap-4 lg:grid-cols-3">
                   <section className="carte lg:col-span-2">
