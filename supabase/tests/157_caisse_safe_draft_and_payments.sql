@@ -9,6 +9,7 @@ declare
   v_atomic text;
   v_atomic_security boolean;
   v_actor_guard text;
+  v_sale_guard text;
   v_session_guard text;
   v_session_trigger text;
   v_vente_trigger text;
@@ -93,6 +94,19 @@ begin
   where n.nspname='public' and p.proname='naxa_caisse_actor_for_pharmacy' and p.pronargs=1;
 
   select pg_get_functiondef(p.oid)
+    into v_sale_guard
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='naxa_guard_pos_vente_write' and p.pronargs=0;
+  if v_sale_guard is null
+     or position('for update' in lower(v_sale_guard))=0
+     or position('created_by' in lower(v_sale_guard))=0
+     or position('naxa_caisse_actor_for_pharmacy' in lower(v_sale_guard))=0
+     or position('cs.ouvert_par' in lower(v_sale_guard))=0 then
+    raise exception 'Garde de création/finalisation POS ou verrouillage de session incomplet';
+  end if;
+
+
+  select pg_get_functiondef(p.oid)
     into v_session_guard
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='naxa_guard_caisse_session_write' and p.pronargs=0;
@@ -146,6 +160,12 @@ begin
      or has_function_privilege('anon','public.vente_brouillon_abandonner(uuid)','EXECUTE') then
     raise exception 'Droits EXECUTE de la RPC d’abandon incorrects';
   end if;
+
+  if not has_function_privilege('authenticated','public.vente_encaisser_finaliser(uuid,integer)','EXECUTE')
+     or has_function_privilege('anon','public.vente_encaisser_finaliser(uuid,integer)','EXECUTE') then
+    raise exception 'Droits EXECUTE de la RPC atomique d’encaissement incorrects';
+  end if;
+
 
   if has_table_privilege('authenticated','public.caisses_sessions','INSERT')
      or has_table_privilege('authenticated','public.caisses_sessions','UPDATE')
