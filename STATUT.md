@@ -424,3 +424,18 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration/test SQL ajoutés : `supabase/migration_155_promoteur_pharmacy_context.sql`, `supabase/tests/155_promoteur_pharmacy_context.sql`.
 - Fichiers modifiés : `src/app/pharmacie/promoteur/page.tsx`, `src/app/pharmacie/page.tsx`, `src/app/pharmacie/caisses/page.tsx`, `src/app/pharmacie/actions.ts`, ainsi que la migration et le test 155.
 - État : construit dans `main`, contrôle statique partiel ; build TypeScript/E2E non confirmé. La migration 155 n’est pas appliquée à Supabase Production. Aucun déploiement autorisé/effectué.
+
+## Parcours Promoteur — équipe, délégation et rapports (19 octobre 2026, suite)
+
+- La page Gestion de l'équipe borne désormais les comptes Caisse et les quotas affichés aux pharmacies liées activement, actives et publiées. Les pharmacies suspendues ou masquées ne sont plus sélectionnables pour ce parcours.
+- Nouvelle page `/pharmacie/caisses/privileges` : gestion des privilèges de poste Caisse, filtrage sur les privilèges actifs/délégables/non-gouvernance, niveau hiérarchique 3 et matrice de privilèges de l'architecture. Les Server Actions revérifient le Promoteur actif, le lien réseau, l'état de la pharmacie et la Caisse enfant directe ; les RPC de base restent l'autorité.
+- La route `/api/rapports` limite les rapports Promoteur aux pharmacies avec lien actif, statut actif et publication visible, après vérification de la validité commerciale.
+- Migration additive 156 : garde avant insertion/mise à jour d'un profil Caisse actif. Une activation initiée par un Promoteur exige la validité commerciale, une Caisse enfant directe et une pharmacie active/publiée liée au réseau. Le test structurel 156 est ajouté.
+- Documentation mise à jour dans `docs/GUIDE_PROMOTEUR.md` et `docs/SECURITE_PROMOTEUR.md`.
+
+### État de preuve — ne pas confondre code commis et validation
+
+- Tête `main` au dernier contrôle : `908dd2a29d9e2b0c78616f082141122a92e1931f`.
+- Le statut GitHub consulté pour cette tête remonte encore un échec CircleCI et un échec Vercel lié à la limite de builds du plan. CircleCI n'est pas considéré comme preuve de validation du chantier, conformément à la consigne actuelle.
+- Aucune compilation TypeScript, aucun lint, aucun E2E et aucune exécution des tests SQL 155/156 n'ont été confirmés dans cette session. Les migrations 155 et 156 ne sont pas appliquées à Supabase Production.
+- Aucun déploiement Vercel n'a été lancé. Le volet est avancé côté code sur `main`, mais il ne peut pas être déclaré « tout vert » avant l'exécution effective des validations et l'application contrôlée des migrations dans un environnement de test.
