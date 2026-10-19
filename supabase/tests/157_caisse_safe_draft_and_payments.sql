@@ -8,6 +8,11 @@ declare
   v_fractionne text;
   v_atomic text;
   v_atomic_security boolean;
+  v_actor_guard text;
+  v_session_trigger text;
+  v_vente_trigger text;
+  v_line_trigger text;
+  v_payment_trigger text;
   v_abandon_security boolean;
   v_encaisser_security boolean;
 begin
@@ -78,6 +83,44 @@ begin
      or position('auth.uid()' in v_atomic)=0
      or position('public.can_operate_pharmacy' in v_atomic)=0 then
     raise exception 'Contrôles d’identité, de périmètre ou finalisation atomique incomplets';
+  end if;
+
+  select pg_get_functiondef(p.oid)
+    into v_actor_guard
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='naxa_caisse_actor_for_pharmacy' and p.pronargs=1;
+
+  if v_actor_guard is null
+     or position('pharmacie_id' in v_actor_guard)=0
+     or position('fonction_interne' in v_actor_guard)=0
+     or position('actif' in lower(v_actor_guard))=0 then
+    raise exception 'Garde de rôle Caisse actif absente ou incomplète';
+  end if;
+
+  select pg_get_triggerdef(t.oid) into v_session_trigger
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='caisses_sessions'
+    and t.tgname='trg_naxa_guard_caisse_session_write' and not t.tgisinternal;
+  select pg_get_triggerdef(t.oid) into v_vente_trigger
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='ventes'
+    and t.tgname='trg_naxa_guard_pos_vente_finalize' and not t.tgisinternal;
+  select pg_get_triggerdef(t.oid) into v_line_trigger
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='vente_lignes'
+    and t.tgname='trg_naxa_guard_pos_line_write' and not t.tgisinternal;
+  select pg_get_triggerdef(t.oid) into v_payment_trigger
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='vente_paiements'
+    and t.tgname='trg_naxa_guard_pos_payment_write' and not t.tgisinternal;
+
+  if v_session_trigger is null or v_vente_trigger is null
+     or v_line_trigger is null or v_payment_trigger is null then
+    raise exception 'Un des déclencheurs de protection du POS est absent';
   end if;
 
   if not has_function_privilege('authenticated','public.vente_brouillon_abandonner(uuid)','EXECUTE')
