@@ -207,9 +207,6 @@ export function SuiviConnecte() {
     "Prune": { accent: "#704080", soft: "#F2EAF5", contrast: "#FFFFFF" },
     "Ambre": { accent: "#9B6500", soft: "#FFF3D5", contrast: "#FFFFFF" },
   };
-  const selectedDevice = deviceCatalog.find(device => device.key === selectedDeviceKey) ?? null;
-  const selectedSavedDevice = selectedDevice ? devices.find(device => device.device_key === selectedDevice.key) : undefined;
-
   const deviceCatalog = [
     { key:"tensiometre", name:"Tensiomètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie manuelle, scan de l’écran ou du relevé, et détection Bluetooth si le modèle expose un profil standard." },
     { key:"thermometre", name:"Thermomètre", mode:"hybrid" as const, family:"constantes" as Family, description:"Saisie, scan et connexion Bluetooth selon le profil GATT du modèle." },
@@ -233,6 +230,9 @@ export function SuiviConnecte() {
     { key:"pilulier_connecte", name:"Pilulier connecté", mode:"hybrid" as const, family:"traitements" as Family, description:"Suivi déclaratif des prises, scan de l’étiquette et connexion selon fabricant; NAXA ne prescrit aucune dose." },
     { key:"bouteille_hydratation", name:"Bouteille connectée / hydratation", mode:"hybrid" as const, family:"activite" as Family, description:"Volume par saisie, scan ou liaison selon le modèle." },
   ];
+
+  const selectedDevice = deviceCatalog.find(device => device.key === selectedDeviceKey) ?? null;
+  const selectedSavedDevice = selectedDevice ? devices.find(device => device.device_key === selectedDevice.key) : undefined;
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
     const existing = devices.find(d => d.device_key === device.key);
