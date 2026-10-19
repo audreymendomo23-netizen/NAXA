@@ -335,7 +335,6 @@ export default function CaissePage() {
       setVente(null);
       setLignes([]);
       setPercu("");
-      setReference("");
       setResultats([]);
     } catch (error) {
       setMsg(error instanceof Error ? error.message : "Encaissement impossible. Vérifiez le statut de la vente avant de réessayer.");
@@ -430,7 +429,7 @@ export default function CaissePage() {
         )}
       </div>
       {ticket && ticket.length > 0 && (
-        <section className="mx-auto mt-6 w-full max-w-md rounded-xl border bg-white p-5 text-slate-950">
+        <section className="ticket-print mx-auto mt-6 w-full max-w-md rounded-xl border bg-white p-5 text-slate-950">
           <h2 className="text-center text-xl font-extrabold">NAXA · Ticket de caisse</h2>
           <p className="mt-1 text-center text-sm">{pharmacie}</p>
           <p className="mt-3 text-xs">N° {ticket[0].numero_vente}</p>
