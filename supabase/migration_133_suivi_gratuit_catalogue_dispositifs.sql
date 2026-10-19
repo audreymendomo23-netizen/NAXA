@@ -3,6 +3,15 @@
 -- les dispositifs ci-dessous sont un carnet de suivi personnel, pas un catalogue vendeur.
 begin;
 
+insert into public.feature_flags(flag_key, enabled, description, updated_at)
+values ('suivi_connecte', true,
+        'Suivi personnel gratuit ouvert aux comptes connectés; consentement explicite et RLS conservés.',
+        now())
+on conflict (flag_key) do update
+set enabled = true,
+    description = excluded.description,
+    updated_at = now();
+
 create or replace function public.is_suivi_test_account(p_user_id uuid default auth.uid())
 returns boolean
 language sql
