@@ -29,6 +29,7 @@ export function Luciole() {
     let vx = 0;
     let vy = 0;
     let lastInput = performance.now();
+    let pointerActive = false;
     let frameId = 0;
     let lastFrame = 0;
     let resting = false;
@@ -172,7 +173,6 @@ export function Luciole() {
       const now = performance.now();
       const normalizedState = state.toLowerCase();
       businessGestureState = normalizedState;
-      if (normalizedState === "success") burst();
       const isDurable = STATEFUL.has(type) && ["active", "loading", "pending", "preparing", "delivery", "offline"].includes(normalizedState);
       if (isDurable) {
         if (!activeNaxaState || activeNaxaState.type !== type || activeNaxaState.state !== normalizedState) {
@@ -305,6 +305,7 @@ export function Luciole() {
       start();
     };
     const onInteraction = (event: Event) => {
+      if (event.type === "pointerdown") pointerActive = true;
       clearBusinessGesture();
       const now = performance.now();
       resumeDurableState(now);
@@ -337,6 +338,12 @@ export function Luciole() {
       resting = false;
       tree.classList.add("naxa-luciole-tree-awake");
       if (event.type === "pointerdown") burst();
+      start();
+    };
+    const onPointerRelease = () => {
+      pointerActive = false;
+      lastInput = performance.now();
+      nextSpecialAt = lastInput + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
       start();
     };
     const onGuidanceFocusIn = (event: FocusEvent) => {
@@ -445,7 +452,7 @@ export function Luciole() {
         const anchorY = activeNaxaState!.type === "scan" ? 84 : Math.max(84, window.innerHeight * 0.28);
         targetX = anchorX; targetY = anchorY;
       } else clearActiveStateClass();
-      if (pendingBusinessGesture && idleFor >= LUCIOLE_TIMING.specialCalm && guidedTarget?.kind !== "caret" && !sleeping && !sleepPending) {
+      if (pendingBusinessGesture && idleFor >= LUCIOLE_TIMING.specialCalm && !pointerActive && guidedTarget?.kind !== "caret" && !sleeping && !sleepPending) {
         const type = pendingBusinessGesture;
         pendingBusinessGesture = null;
         firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
@@ -453,6 +460,7 @@ export function Luciole() {
         businessGesture = type;
         firefly.classList.add("luciole-event-" + type);
         if (["empty", "success", "failure"].includes(businessGestureState)) firefly.classList.add("luciole-event-state-" + businessGestureState);
+        if (businessGestureState === "success") burst();
         if (businessGestureTimer) window.clearTimeout(businessGestureTimer);
         businessGestureTimer = window.setTimeout(() => {
           firefly.classList.remove("luciole-event-" + type);
@@ -461,7 +469,7 @@ export function Luciole() {
           businessGestureTimer = undefined;
         }, LUCIOLE_TIMING.stateEventGesture);
       }
-      if (!sleeping && !sleepPending && !guidedTarget && !durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
+      if (!sleeping && !sleepPending && !pointerActive && !guidedTarget && !durableStateActive && idleFor >= LUCIOLE_TIMING.specialCalm && idleFor < LUCIOLE_TIMING.inactivity && now >= nextSpecialAt && !businessGesture && !pendingBusinessGesture) triggerRandomSpecial(now);
       const nextGesture = sleeping || sleepPending ? "resting" : businessGesture ? "dance" : now < saluteUntil ? "salute" : guidedTarget?.kind === "caret" ? "typing" : guidedTarget?.kind === "button" ? "pointing" : durableStateActive ? "dance" : idleFor >= LUCIOLE_TIMING.inactivity ? "resting" : "dance";
       if (nextGesture !== activeGesture) {
         firefly.classList.remove("gesture-salute", "gesture-dance", "gesture-typing", "gesture-pointing", "gesture-resting");
@@ -469,7 +477,7 @@ export function Luciole() {
         activeGesture = nextGesture;
       }
 
-      if (idleFor >= LUCIOLE_TIMING.inactivity && !durableStateActive) {
+      if (idleFor >= LUCIOLE_TIMING.inactivity && !durableStateActive && !pointerActive && guidedTarget?.kind !== "caret") {
         resting = true;
         targetX = treeX;
         targetY = treeY - 12;
@@ -600,6 +608,8 @@ export function Luciole() {
 
     document.addEventListener("pointermove", onPointerMove, { passive: true });
     document.addEventListener("pointerdown", onInteraction, { passive: true });
+    document.addEventListener("pointerup", onPointerRelease, { passive: true });
+    document.addEventListener("pointercancel", onPointerRelease, { passive: true });
     document.addEventListener("keydown", onInteraction);
     document.addEventListener("focusin", onInteraction);
     if (motionAllowed) {
@@ -627,6 +637,8 @@ export function Luciole() {
       if (frameId) cancelAnimationFrame(frameId);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerdown", onInteraction);
+      document.removeEventListener("pointerup", onPointerRelease);
+      document.removeEventListener("pointercancel", onPointerRelease);
       document.removeEventListener("keydown", onInteraction);
       document.removeEventListener("focusin", onInteraction);
       document.removeEventListener("focusin", onGuidanceFocusIn, true);
