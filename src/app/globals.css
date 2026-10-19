@@ -756,3 +756,42 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole[class*="luciole-event-"] .luciole-glow-core,
   .naxa-luciole[class*="luciole-event-"] .luciole-arm-front { animation:none!important; transition:none!important; }
 }
+
+
+/* NAXA — Bento Dashboard des dispositifs médicaux */
+@keyframes naxa-bento-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -7px, 0); }
+}
+@keyframes naxa-bento-glow {
+  0%, 100% { opacity: .38; transform: scale(1); }
+  50% { opacity: .7; transform: scale(1.08); }
+}
+@keyframes naxa-bento-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.naxa-bento-page { isolation: isolate; }
+.naxa-bento-hero { position: relative; isolation: isolate; overflow: hidden; animation: naxa-bento-enter .55s ease-out both; }
+.naxa-bento-hero::before, .naxa-bento-hero::after { content: ""; position: absolute; z-index: -1; border-radius: 999px; pointer-events: none; }
+.naxa-bento-hero::before { width: 18rem; height: 18rem; right: -5rem; top: -9rem; background: radial-gradient(circle, rgba(255,255,255,.32), rgba(255,255,255,0)); animation: naxa-bento-glow 5s ease-in-out infinite; }
+.naxa-bento-hero::after { width: 11rem; height: 11rem; right: 23%; bottom: -8rem; border: 1px solid rgba(255,255,255,.28); box-shadow: 0 0 0 18px rgba(255,255,255,.05), 0 0 0 38px rgba(255,255,255,.035); animation: naxa-bento-float 7s ease-in-out infinite; }
+.naxa-bento-card, .naxa-bento-stats > article { animation: naxa-bento-enter .5s ease-out both; }
+.naxa-bento-card:nth-of-type(2) { animation-delay: 45ms; }
+.naxa-bento-card:nth-of-type(3) { animation-delay: 90ms; }
+.naxa-device-tile { position: relative; overflow: hidden; background: linear-gradient(145deg, #fff 0%, #f2fbf4 100%); }
+.naxa-device-tile::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #0a6b3a, #35c98a, #ffe33d); }
+.naxa-device-tile:nth-child(4n + 2) { background: linear-gradient(145deg, #fff 0%, #edf5ff 100%); }
+.naxa-device-tile:nth-child(4n + 2)::before { background: linear-gradient(90deg, #2563eb, #60a5fa, #c4b5fd); }
+.naxa-device-tile:nth-child(4n + 3) { background: linear-gradient(145deg, #fff 0%, #fff0f6 100%); }
+.naxa-device-tile:nth-child(4n + 3)::before { background: linear-gradient(90deg, #be185d, #f472b6, #fb7185); }
+.naxa-device-tile:nth-child(4n + 4) { background: linear-gradient(145deg, #fff 0%, #fff8e5 100%); }
+.naxa-device-tile:nth-child(4n + 4)::before { background: linear-gradient(90deg, #b77900, #facc15, #fb923c); }
+.naxa-family-tile { background: linear-gradient(145deg, #fff, #f3f8ff); }
+.naxa-family-tile:nth-child(3n + 2) { background: linear-gradient(145deg, #fff, #fff0f6); }
+.naxa-family-tile:nth-child(3n) { background: linear-gradient(145deg, #fff, #fff8e5); }
+.naxa-measure-tile { animation: naxa-bento-enter .35s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .naxa-bento-hero, .naxa-bento-card, .naxa-bento-stats > article, .naxa-measure-tile { animation: none !important; }
+  .naxa-bento-card, .naxa-device-tile, .naxa-family-tile, .naxa-measure-tile { transition: none !important; }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { textes, type Langue } from "@/lib/accueil-textes";
+import { notifierNAXA } from "@/components/NotificationGlobale";
 
 function DrapeauFR() {
   return (
@@ -39,12 +40,12 @@ export function EnTeteAccueil({
   const bouton = useRef<HTMLButtonElement>(null);
   const t = textes[langue];
   const universes = [
-    { label: t.universPharmacie, href: "/" },
-    { label: t.universParapharmacie, href: "/parapharmacie" },
-    { label: t.universBebeMaman, href: "/bebe-maman" },
-    { label: t.universDispositifs, href: "/suivi" },
-    { label: t.universExamens, href: "/examens" },
-    { label: t.universPrestations, href: "/prestations" },
+    { label: t.universPharmacie, href: "/", available: false },
+    { label: t.universParapharmacie, href: "/parapharmacie", available: false },
+    { label: t.universBebeMaman, href: "/bebe-maman", available: false },
+    { label: t.universDispositifs, href: "/suivi", available: true },
+    { label: t.universExamens, href: "/examens", available: false },
+    { label: t.universPrestations, href: "/prestations", available: false },
   ];
 
   useEffect(() => {
@@ -140,24 +141,36 @@ export function EnTeteAccueil({
                 </p>
                 <nav aria-label={t.universSection} className="space-y-1">
                   {universes.map((universe) => (
-                    <Link
-                      key={universe.href}
-                      href={universe.href}
-                      onClick={fermer}
-                      className="flex min-h-11 items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold hover:bg-naxa-green-100"
-                    >
-                      <span>{universe.label}</span>
-                      <span aria-hidden="true">›</span>
-                    </Link>
+                    universe.available ? (
+                      <Link
+                        key={universe.href}
+                        href={universe.href}
+                        onClick={fermer}
+                        className="flex min-h-11 items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold hover:bg-naxa-green-100"
+                      >
+                        <span>{universe.label}</span>
+                        <span aria-hidden="true">›</span>
+                      </Link>
+                    ) : (
+                      <button
+                        key={universe.href}
+                        type="button"
+                        onClick={() => { fermer(); notifierNAXA("Cet espace n'est pas disponible actuellement"); }}
+                        className="flex min-h-11 w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm font-semibold text-naxa-green-700 transition hover:bg-naxa-green-100"
+                      >
+                        <span>{universe.label}</span>
+                        <span className="inline-flex items-center gap-2" aria-label="Espace indisponible"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span aria-hidden="true">›</span></span>
+                      </button>
+                    )
                   ))}
-                  <Link
-                    href="/aide"
-                    onClick={fermer}
-                    className="flex min-h-11 items-center justify-between rounded-lg bg-red-50 px-2 py-2 text-sm font-extrabold text-red-800 hover:bg-red-100"
+                  <button
+                    type="button"
+                    onClick={() => { fermer(); notifierNAXA("Cet espace n'est pas disponible actuellement"); }}
+                    className="flex min-h-11 w-full items-center justify-between rounded-lg bg-red-50 px-2 py-2 text-left text-sm font-extrabold text-red-800 hover:bg-red-100"
                   >
                     <span>{t.besoinAide}</span>
-                    <span aria-hidden="true">›</span>
-                  </Link>
+                    <span className="inline-flex items-center gap-2" aria-label="Espace indisponible"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span aria-hidden="true">›</span></span>
+                  </button>
                 </nav>
               </div>
 
