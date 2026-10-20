@@ -7,20 +7,20 @@
 - L'ancienne URL `/pharmacie/assistant` redirige vers l'espace Pharmacien pour conserver les anciens liens.
 - Les comptes qui portaient `fonction_interne='pharmacien_assistant'` sont convertis vers `pharmacien` par la migration 127.
 
-## Les 10 entrées du panneau latéral
-1. Tableau de bord
-2. Consultations
-3. Prescriptions
-4. Ordonnances
-5. Préparations
-6. Suivi des dispositifs Patient — route dédiée `/pharmacie/pharmacien/suivi-patients`, interface de statut non connectée aux données patients
-7. Historique — aperçu des dossiers récents disponibles ; journal d’audit exhaustif à construire
-8. Rapports et Performances — indicateurs de situation sur les données chargées ; rapports consolidés à construire
-9. Profil
-10. Déconnexion
+## Navigation Pharmacien — regroupement des entrées
 
-Les entrées du workspace Pharmacien sont maintenant navigables par URL. L'entrée 6 ne renvoie plus au suivi personnel `/suivi` ; sa page explique explicitement que le partage de données patient n'est pas encore raccordé. La déconnexion reste une action du panneau latéral.
+Le panneau latéral expose sept entrées de premier niveau et conserve toutes les vues métier sous des groupes repliables :
 
+1. **Tableau de bord**
+2. **Activité pharmaceutique** : Consultations, Préparations
+3. **Prescriptions et ordonnances** : Prescriptions, Ordonnances
+4. **Suivi des patients** : mesures partagées et consenties
+5. **Historique et rapports** : Historique, Rapports et performances
+6. **Prise / fin de service** : pointage Pharmacien, distinct des sessions de caisse
+7. **Profil**
+8. **Déconnexion** : action de session séparée en bas du panneau
+
+Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste responsive. Le libellé **Prise / fin de service** est identique à celui du compte Caisse, mais la logique métier et les tables restent distinctes.
 
 ## Parcours cible — Historique
 1. Ouvrir l’historique et choisir une période, un type d’événement et un statut.
@@ -75,3 +75,22 @@ Les entrées du workspace Pharmacien sont maintenant navigables par URL. L'entr�
 - Build, lint, typecheck, tests E2E et tests SQL non exécutés dans cette passe.
 - La nouvelle architecture de navigation est en place dans le code source, mais son exécution n'est pas déclarée validée tant que ces contrôles ne sont pas lancés.
 - Le suivi partagé des patients, les consentements professionnels, les alertes temps réel et l'intégration des prescriptions restent à implémenter et vérifier côté serveur/RLS avant usage réel.
+
+## Avancement additionnel — navigation, suivi partagé et service
+
+- `src/components/pharmacie/PharmacienWorkspaceSidebar.tsx` : regroupement repliable des entrées, sous-routes dédiées, menu mobile, déconnexion Supabase.
+- `src/components/pharmacie/PharmacienWorkspace.tsx` : validation côté interface des champs essentiels, motif obligatoire au rejet, filtres combinables de l’historique (recherche/type/période) et filtres de période pour les compteurs de rapport.
+- `src/app/pharmacie/pharmacien/service/page.tsx` : prise et fin de service, note de transmission, historique et durée calculée à partir des horodatages serveur.
+- `supabase/migration_188_pharmacien_service_sessions.sql` : stockage isolé des pointages Pharmacien, contrainte empêchant plusieurs services ouverts par compte, RPC sécurisées et RLS.
+- `supabase/tests/188_pharmacien_service_sessions.sql` : assertions de structure/RLS/index/RPC à exécuter dans la suite SQL.
+- `src/app/pharmacie/pharmacien/suivi-patients/page.tsx` : lecture des partages actifs, onglets Patients partagés / Mesures / Partages et accès, filtres et affichage anonymisé par défaut.
+- `supabase/migration_189_pharmacien_read_consented_measurements.sql` : politique de lecture des mesures limitée au destinataire professionnel vérifié, au partage actif du type exact et au consentement encore valide.
+- `supabase/tests/189_pharmacien_read_consented_measurements.sql` : assertions sur les politiques de partage et les fonctions de consentement.
+
+### Limites restant à prouver ou compléter
+
+- Les migrations 188 et 189 sont dans le dépôt, mais n’ont pas été exécutées sur Supabase ; tant qu’elles ne sont pas appliquées, le pointage et la lecture professionnelle des mesures partagées peuvent signaler un schéma ou une politique manquante.
+- Le suivi connecté reste limité par l’allowlist expérimentale et la vérification professionnelle existantes. Ce changement ne désactive pas ces garde-fous.
+- Les rapports utilisent encore un échantillon de dossiers chargés (jusqu’à 30 pour certaines listes), et non une agrégation historique serveur. Le journal d’audit append-only exhaustif, les délais fiables, les comparaisons de période complètes, les exports audités, les alertes partagées et le suivi de prescriptions patients ne sont pas encore terminés.
+- Aucun build, lint, typecheck ou test SQL n’a été exécuté dans cette passe. Les assertions SQL ajoutées ne valent pas preuve d’exécution.
+- Aucun déploiement n’a été lancé.
