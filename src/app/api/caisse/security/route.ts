@@ -34,7 +34,7 @@ export async function POST(request:NextRequest){
   const {data:c}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash,pin_failed_attempts,pin_locked_until").eq("user_id",user.id).maybeSingle();
   if(!c?.pin_salt||!c.pin_hash)return err("PIN non configuré par le Promoteur.",403);
   if(c.pin_locked_until && new Date(c.pin_locked_until).getTime()>Date.now())return err("PIN temporairement bloqué après plusieurs échecs. Réessayez plus tard.",429);
-  const got=scryptSync(pin,c.pin_salt,64),expected=Buffer.from(c.pin_hash,"hex");
+  const got=Uint8Array.from(Array.from(scryptSync(pin,c.pin_salt,64))),expected=Uint8Array.from(Array.from(Buffer.from(c.pin_hash,"hex")));
   if(got.length!==expected.length||!timingSafeEqual(got,expected)){
    const {data:failure,error:failureError}=await db.rpc("caisse_pin_register_failure",{p_user_id:user.id});
    if(failureError)throw failureError;
@@ -52,7 +52,7 @@ export async function POST(request:NextRequest){
   const {data:credential}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash,pin_locked_until").eq("user_id",user.id).maybeSingle();
   if(!credential?.pin_salt||!credential.pin_hash)return err("PIN non configuré par le Promoteur.",403);
   if(credential.pin_locked_until&&new Date(credential.pin_locked_until).getTime()>Date.now())return err("PIN temporairement bloqué après plusieurs échecs.",429);
-  const got=scryptSync(pin,credential.pin_salt,64),expected=Buffer.from(credential.pin_hash,"hex");
+  const got=Uint8Array.from(Array.from(scryptSync(pin,credential.pin_salt,64))),expected=Uint8Array.from(Array.from(Buffer.from(credential.pin_hash,"hex")));
   if(got.length!==expected.length||!timingSafeEqual(got,expected)){
    const {data:failure,error:failureError}=await db.rpc("caisse_pin_register_failure",{p_user_id:user.id});
    if(failureError)throw failureError;
