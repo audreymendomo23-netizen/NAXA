@@ -91,8 +91,9 @@ revoke all on function private.actualiser_notification_reservation_gestion_stock
 -- La notification est donc créée/actualisée depuis les lignes elles-mêmes, une par dossier.
 drop trigger if exists trg_notifier_reservation_gestion_stock on public.reservations;
 drop trigger if exists trg_actualiser_notification_reservation_gestion_stock on public.reservation_items;
-create trigger trg_actualiser_notification_reservation_gestion_stock
+create constraint trigger trg_actualiser_notification_reservation_gestion_stock
 after insert or update or delete on public.reservation_items
+deferrable initially deferred
 for each row execute function private.actualiser_notification_reservation_gestion_stock();
 
 comment on column public.stocks.emplacement is
