@@ -6,7 +6,7 @@ create or replace function public.fournisseur_reception_enregistrer(
 as $function$
 declare
  v_user uuid:=auth.uid(); v_order public.commandes_fournisseurs%rowtype; v_profile public.profiles%rowtype;
- v_reception uuid; v_line record; v_order_line public.commandes_fournisseurs_lignes%rowtype;
+ v_reception uuid; v_lot_id uuid; v_line record; v_order_line public.commandes_fournisseurs_lignes%rowtype;
  v_stock public.stocks%rowtype; v_lot_total integer; v_qty integer; v_numero text; v_exp date; v_emplacement text;
  v_total integer:=0; v_remaining integer; v_all_received boolean;
 begin
@@ -57,7 +57,11 @@ begin
   on conflict (pharmacie_id,produit_id,numero_lot) where numero_lot is not null do update
     set quantite=public.stocks_lots.quantite+excluded.quantite,
         emplacement=coalesce(excluded.emplacement,public.stocks_lots.emplacement),
-        updated_at=now();
+        updated_at=now()
+    where public.stocks_lots.date_peremption=excluded.date_peremption
+      and not public.stocks_lots.bloque
+  returning id into v_lot_id;
+  if not found then raise exception 'Lot existant bloqué ou avec une péremption différente : réception refusée'; end if;
   update public.stocks set quantite=quantite+v_qty where pharmacie_id=v_order.pharmacie_id and produit_id=v_order_line.produit_id;
   update public.commandes_fournisseurs_lignes set quantite_recue=quantite_recue+v_qty where id=v_order_line.id;
   insert into public.receptions_fournisseurs_lignes(reception_id,commande_ligne_id,quantite_recue)
