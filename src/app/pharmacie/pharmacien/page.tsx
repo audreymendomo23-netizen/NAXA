@@ -11,7 +11,7 @@ export default function PharmacienPage(){
   const sb=supabaseBrowser();
   const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"dashboard"|"consultation"|"prescription"|"ordonnances"|"preparations"|"profil">("dashboard");
   const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]),[preparations,setPreparations]=useState<Record<string,Preparation>>({});
-  const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({});
+  const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({}),[notesPreparation,setNotesPreparation]=useState<Record<string,string>>({});
   const [consult,setConsult]=useState({patient:"",clientId:"",motif:"",observations:"",conclusion:"",recommandations:""});
   const [presc,setPresc]=useState({patient:"",clientId:"",consultationId:"",designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""});
 
@@ -58,7 +58,7 @@ export default function PharmacienPage(){
   }
 
   async function soumettrePreparation(id:string){
-    const {error}=await sb.rpc("pharmacien_soumettre_preparation",{p_prescription:id,p_notes:motif[id]??preparations[id]?.notes_preparation??""});
+    const {error}=await sb.rpc("pharmacien_soumettre_preparation",{p_prescription:id,p_notes:notesPreparation[id]??preparations[id]?.notes_preparation??""});
     setMsg(error?error.message:"Préparation enregistrée dans le dossier. La décision reste traçable.");if(!error&&pid)charger(pid);
   }
 
@@ -108,7 +108,7 @@ export default function PharmacienPage(){
       <section className="carte"><h2 className="text-lg font-bold">Prescriptions émises par la pharmacie</h2>{internal.length===0&&<p className="my-3 text-sm">Aucune prescription interne récente.</p>}{internal.map(r=><article key={r.id} className="carte my-3"><b>Prescription {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm">{new Date(r.created_at).toLocaleString("fr-FR")} · {r.statut}</p>{r.consultation_id&&<p className="text-sm">Consultation liée : {r.consultation_id.slice(0,8).toUpperCase()}</p>}</article>)}</section>
     </div>}
 
-    {tab==="preparations"&&<section className="carte space-y-4"><h2 className="text-lg font-bold">Préparation des ordonnances</h2><p className="text-sm text-slate-600">Le même poste Pharmacien peut noter les éléments préparatoires puis prendre la décision dans l’onglet Ordonnances. La note ne change pas le statut pharmaceutique.</p>{incoming.length===0&&<p className="text-sm">Aucune ordonnance en attente de préparation.</p>}{incoming.map(r=><article key={r.id} className="rounded-xl border border-slate-200 p-3 space-y-3"><div><b>Ordonnance {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm text-slate-600">{new Date(r.created_at).toLocaleString("fr-FR")}</p></div><textarea className="champ min-h-24 w-full" placeholder="Notes de préparation, pièces manquantes ou vérifications à tracer" value={motif[r.id]??preparations[r.id]?.notes_preparation??""} onChange={e=>setMotif(x=>({...x,[r.id]:e.target.value}))}/><button className="btn btn-vert" onClick={()=>soumettrePreparation(r.id)}>Enregistrer la préparation</button></article>)}</section>}
+    {tab==="preparations"&&<section className="carte space-y-4"><h2 className="text-lg font-bold">Préparation des ordonnances</h2><p className="text-sm text-slate-600">Le même poste Pharmacien peut noter les éléments préparatoires puis prendre la décision dans l’onglet Ordonnances. La note ne change pas le statut pharmaceutique.</p>{incoming.length===0&&<p className="text-sm">Aucune ordonnance en attente de préparation.</p>}{incoming.map(r=><article key={r.id} className="rounded-xl border border-slate-200 p-3 space-y-3"><div><b>Ordonnance {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm text-slate-600">{new Date(r.created_at).toLocaleString("fr-FR")}</p></div><textarea className="champ min-h-24 w-full" placeholder="Notes de préparation, pièces manquantes ou vérifications à tracer" value={notesPreparation[r.id]??preparations[r.id]?.notes_preparation??""} onChange={e=>setNotesPreparation(x=>({...x,[r.id]:e.target.value}))}/><button className="btn btn-vert" onClick={()=>soumettrePreparation(r.id)}>Enregistrer la préparation</button></article>)}</section>}
 
     {tab==="profil"&&<section className="carte"><h2 className="text-lg font-bold">Profil professionnel</h2><dl className="mt-3 space-y-2 text-sm"><div><dt className="text-slate-500">Poste</dt><dd className="font-semibold">Pharmacien</dd></div><div><dt className="text-slate-500">Périmètre</dt><dd className="font-semibold">Pharmacie rattachée au compte actif</dd></div><div><dt className="text-slate-500">Droits</dt><dd>Consultation, prescription, préparation, validation/rejet et demande de complément selon le contrôle serveur.</dd></div></dl></section>}
   </div></div></main>;
