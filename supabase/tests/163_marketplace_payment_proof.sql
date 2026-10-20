@@ -47,5 +47,68 @@ begin
 end
 $structure$;
 
+do $behavior$
+declare
+  v_admin uuid := gen_random_uuid();
+  v_pharmacy uuid := gen_random_uuid();
+  v_reservation uuid := gen_random_uuid();
+  v_order uuid := gen_random_uuid();
+  v_rejected boolean;
+  v_status public.resa_statut;
+  v_payment_status text;
+begin
+  set local session_replication_role = replica;
+  insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
+  values(v_admin,'authenticated','authenticated','naxa163_'||substr(replace(v_admin::text,'-',''),1,12)||'@invalid.local','',now(),now());
+  set local session_replication_role = origin;
+
+  insert into public.profiles(id,role,username,actif)
+  values(v_admin,'admin','naxa163_'||substr(replace(v_admin::text,'-',''),1,12),true);
+
+  insert into public.pharmacies(id,nom,lat,lng,actif,visible_recherche)
+  values(v_pharmacy,'NAXA TEST 163',3.8667,11.5167,true,true);
+
+  insert into public.reservations(
+    id,client_id,pharmacie_id,statut,total,expires_at,created_at,mode,
+    paiement_statut,paiement_mode,frais_livraison,commande_statut
+  ) values
+    (v_reservation,v_admin,v_pharmacy,'confirmee',100,now()+interval '1 hour',now(),
+     'reservation','a_verifier','especes_retrait',0,'en_attente_pharmacie'),
+    (v_order,v_admin,v_pharmacy,'confirmee',100,now()+interval '1 hour',now(),
+     'commande','a_verifier','a_convenir',0,'en_attente_pharmacie');
+
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+
+  v_rejected := false;
+  begin
+    perform public.set_reservation_status(v_reservation,'payee'::public.resa_statut);
+  exception when others then
+    v_rejected := true;
+  end;
+  if not v_rejected then raise exception 'Une réservation sans ticket POS a été marquée payée'; end if;
+
+  select statut,paiement_statut into v_status,v_payment_status
+  from public.reservations where id=v_reservation;
+  if v_status <> 'confirmee' or v_payment_status <> 'a_verifier' then
+    raise exception 'La tentative refusée a modifié la réservation';
+  end if;
+
+  v_rejected := false;
+  begin
+    perform public.mettre_a_jour_commande_client(v_order,'en_attente_pharmacie',true);
+  exception when others then
+    v_rejected := true;
+  end;
+  if not v_rejected then raise exception 'Une commande sans ticket POS a été marquée payée'; end if;
+
+  select statut,paiement_statut into v_status,v_payment_status
+  from public.reservations where id=v_order;
+  if v_status <> 'confirmee' or v_payment_status <> 'a_verifier' then
+    raise exception 'La tentative de paiement de commande refusée a modifié la réservation';
+  end if;
+end
+$behavior$;
+
 select '163_marketplace_payment_proof PASS' as resultat;
 rollback;
