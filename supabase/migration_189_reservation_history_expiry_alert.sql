@@ -40,14 +40,15 @@ begin
     insert into public.reservation_statut_historique(reservation_id, ancien_statut, nouveau_statut, acteur_id)
     values(new.id, old.statut::text, new.statut::text, auth.uid());
 
-    insert into public.notifications(user_id, type, titre, corps)
+    insert into public.notifications(user_id, type, titre, corps, reservation_id)
     values (
       new.client_id,
       'reservation_status',
       'Mise à jour de votre réservation',
       left('Réservation #' || upper(left(replace(new.id::text, '-', ''), 8))
         || ' : ' || coalesce(new.statut::text, 'statut mis à jour')
-        || '. Consultez le détail pour suivre votre dossier.', 1000)
+        || '. Consultez le détail pour suivre votre dossier.', 1000),
+      new.id
     );
   end if;
   return new;
@@ -86,11 +87,12 @@ begin
           and n.corps like '%' || upper(left(replace(r.id::text, '-', ''), 8)) || '%'
       )
   ), inserted as (
-    insert into public.notifications(user_id, type, titre, corps)
+    insert into public.notifications(user_id, type, titre, corps, reservation_id)
     select d.client_id, 'reservation_expiry_30m', 'Votre réservation expire dans 30 minutes',
       left('Réservation #' || upper(left(replace(d.id::text, '-', ''), 8))
         || ' : échéance prévue à ' || to_char(d.expires_at, 'DD/MM/YYYY HH24:MI TZH:TZM')
-        || '. Contactez la pharmacie ou retirez vos articles avant cette heure.', 1000)
+        || '. Contactez la pharmacie ou retirez vos articles avant cette heure.', 1000),
+      d.id
     from due d
     returning id
   )
