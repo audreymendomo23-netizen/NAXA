@@ -118,3 +118,11 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 
 - **Accès opérationnel indépendant de la publication Marketplace** : l'espace Pharmacien, le suivi patient et le pointage exigent désormais une pharmacie active, mais pas sa visibilité publique dans la recherche. La migration additive 193 met la même règle à jour dans les RPC de prise de service et de journalisation d'export. Cela évite de bloquer le travail interne d'une pharmacie active simplement parce que sa fiche Marketplace n'est pas publiée.
 - Test structurel ajouté : `supabase/tests/193_pharmacien_operational_access_independent_marketplace.sql`. Il n'a pas été exécuté dans cette passe.
+
+## Correctif d'accès production au suivi connecté — migration 194
+
+- Ajout de `supabase/migration_194_suivi_production_access_without_test_allowlist.sql` : les règles de production n'utilisent plus l'allowlist de test pour autoriser un utilisateur à gérer son propre suivi ou pour permettre à un professionnel vérifié de lire les types de mesures explicitement partagés.
+- Le drapeau global `suivi_connecte` reste le coupe-circuit. La lecture professionnelle exige toujours le compte professionnel vérifié, un partage actif pour le type de mesure et le consentement courant correspondant. Les alertes doivent en outre référencer une mesure correspondante.
+- Les partages ne peuvent être créés que par le propriétaire connecté, avec consentement valide, professionnel vérifié et mesure existante. Le retrait du consentement continue de révoquer les partages via le déclencheur existant.
+- Test structurel ajouté : `supabase/tests/194_suivi_production_access_without_test_allowlist.sql`.
+- Limite : le test 194 vérifie les définitions SQL et la présence des gardes, pas encore une matrice RLS d'intégration avec deux identités/pharmacies réelles. Migration non appliquée à Supabase et aucun test SQL/build/lint/typecheck exécuté dans cette intervention. Aucun déploiement lancé.
