@@ -30,7 +30,9 @@ export async function GestionnaireStockEspace({ section }: { section: Section })
  const pharmacyRows=(Array.isArray(pharmacies)?pharmacies:[]) as {pharmacie_id?:string;id?:string;nom?:string}[];
  const ids=[...new Set(pharmacyRows.map(p=>p.pharmacie_id??p.id).filter((id):id is string=>Boolean(id)))];
  if(pharmacyError||!ids.length) return <main className="mx-auto max-w-6xl p-4"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Le périmètre pharmacie n’a pas pu être déterminé. Aucune donnée n’est affichée.</p></main>;
- const today=new Date().toISOString().slice(0,10);\n const cutoff=new Date(Date.now()+30*86400000).toISOString().slice(0,10);\n const [stockResult,lotsResult,reservationsResult,adjustmentsResult]=await Promise.all([
+ const today=new Date().toISOString().slice(0,10);
+ const cutoff=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+ const [stockResult,lotsResult,reservationsResult,adjustmentsResult]=await Promise.all([
   sb.from("stocks").select("pharmacie_id,produit_id,quantite,date_peremption,emplacement,produits(nom,dosage,forme)").in("pharmacie_id",ids).order("quantite",{ascending:true}).limit(200),
   sb.from("stocks_lots").select("id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,emplacement,produits(nom,dosage,forme)").in("pharmacie_id",ids).order("date_peremption",{ascending:true}).limit(200),
   sb.from("reservations").select("id,statut,created_at,expires_at,total,client_id").in("pharmacie_id",ids).eq("mode","reservation").order("created_at",{ascending:false}).limit(100),
@@ -39,9 +41,13 @@ export async function GestionnaireStockEspace({ section }: { section: Section })
  const stocks=(stockResult.data??[]) as unknown as {pharmacie_id:string;produit_id:string;quantite:number;date_peremption:string|null;emplacement:string|null;produits:{nom:string;dosage:string|null;forme:string|null}|null}[];
  const lots=(lotsResult.data??[]) as unknown as {id:string;pharmacie_id:string;produit_id:string;numero_lot:string;date_peremption:string;quantite:number;bloque:boolean;motif_blocage:string|null;emplacement:string|null;produits:{nom:string;dosage:string|null;forme:string|null}|null}[];
  const reservations=reservationsResult.data??[];
- const today=new Date().toISOString().slice(0,10);
+ const dashboardCounts=section==="dashboard"?await Promise.all([
+  sb.from("stocks").select("produit_id",{count:"exact",head:true}).in("pharmacie_id",ids),
+  sb.from("stocks").select("produit_id",{count:"exact",head:true}).in("pharmacie_id",ids).lte("quantite",5),
+  sb.from("stocks_lots").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).or("date_peremption.lte."+cutoff+",bloque.eq.true)
+ ]):null;
  const low=stocks.filter(s=>Number(s.quantite)<=5);
- const expiring=lots.filter(l=>l.date_peremption<today||l.date_peremption<=new Date(Date.now()+30*86400000).toISOString().slice(0,10)||l.bloque);
+ const expiring=lots.filter(l=>l.date_peremption<=cutoff||l.bloque);
  const err=section==="stock-logistique"?stockResult.error:section==="lots-peremptions"?lotsResult.error:section==="historique-rapports"?(reservationsResult.error||adjustmentsResult.error):null;
  return <main className="min-h-screen bg-[#F4F8F5] px-4 pb-10 text-slate-900"><div className="mx-auto max-w-7xl space-y-4 pt-4">
  <header className="rounded-2xl bg-[#0B3D26] p-5 text-white"><p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Poste de travail</p><h1 className="mt-1 text-2xl font-black">{titles[section]}</h1><p className="mt-1 text-sm text-emerald-50">Données rattachées aux pharmacies autorisées pour ce compte.</p></header>
