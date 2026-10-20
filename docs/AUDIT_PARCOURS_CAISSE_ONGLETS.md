@@ -272,3 +272,31 @@ Les familles d'actions explicitement simulées par `demoAction(...)` demeurent n
 - 76 appels effectifs à `demoAction(...)` sont conservés (77 occurrences textuelles en comptant la déclaration de la fonction) ; elles n'effectuent toujours pas d'opération métier. La fenêtre affiche maintenant un lien vers le parcours réel quand l'écran courant est raccordé, ou un avertissement explicite sinon.
 - Les 9 destinations utilisées par le pont ont été retrouvées dans la navigation ou les routes de la caisse. Ce contrôle est statique : il ne prouve pas le succès d'une action en navigateur ni les permissions RLS.
 
+
+
+## Correctif contradictoire — ponts de navigation et écritures métier (20/10/2026)
+
+Dernière révision du prototype : `3be04d290c80e16ca29b94868d083c7ba5ac0a91`.
+
+Le contrôle a corrigé deux faux positifs : la réservation ne doit pas être déclarée raccordée à la vente comptoir, et les actions d'ouverture/clôture doivent pointer vers le poste caisse réel, tandis que l'écran Service reste une consultation des sessions. Les demandes d'annulation ouvrent l'historique réel où l'action de demande est exposée.
+
+- 45 écrans déclarés.
+- 19 écrans disposent d'un lien vers une interface caisse existante qui expose un parcours métier correspondant.
+- 26 écrans hors du périmètre opérationnel caisse disposent maintenant d'un **lien de référence** vers le parcours principal le plus proche, avec une limitation explicitement affichée. Ce lien ne signifie pas que l'opération spécialisée existe ni qu'elle est exécutée.
+- Les 76 appels effectifs à `demoAction(...)` ne doivent pas produire des écritures génériques. Leurs libellés ne portent pas les paramètres métier indispensables (vente, produits, quantités, moyen de paiement, référence, motif, session, rôle). Écrire depuis ces libellés seuls créerait des mutations non fiables. Ils ouvrent désormais une boîte qui fournit le parcours opérationnel ou de référence correspondant ; l'écriture doit être initiée et validée dans le flux métier réel.
+
+### Écritures réellement disponibles identifiées dans le code caisse
+
+- Vente comptoir : RPC `vente_creer`, `vente_ajouter_produit`, `vente_produit_retirer`, `vente_encaisser_finaliser` et `vente_ticket` dans `src/app/pharmacie/caisse/page.tsx`.
+- Ouverture/clôture : RPC `caisse_ouvrir` et `caisse_cloturer` dans la même page.
+- Demande d'annulation : RPC `vente_annulation_demander` depuis l'historique réel ; l'écriture est une demande et ne modifie pas directement la vente.
+- Recouvrement de crédit : RPC `client_credit_rembourser` dans le parcours Clients & crédits.
+- Marquage lu d'une notification personnelle : RPC `mark_user_notification_read`.
+- Changement de mot de passe : `supabase.auth.updateUser` dans le profil réel.
+- Déconnexion : `supabase.auth.signOut` via le menu caisse réel.
+
+### Contradiction restante / interdiction de fausse complétude
+
+Les fonctions spécialisées de la maquette (scanner caméra, favoris, paniers en attente, écriture d'ordonnance, workflow de réservation, lots/stock, import, sortie exceptionnelle, registre, file hors ligne, remise et approbation, réception, fournisseur, inventaire, statut de garde, export PDF/Excel/WhatsApp de ticket de démonstration, OTP local et décisions de validation) ne sont pas rendues opérationnelles par un simple lien. Le code inspecté ne fournit pas, dans le parcours caisse réel, de contrat métier correspondant à chacune de ces actions. Elles doivent rester explicitement signalées comme indisponibles jusqu'à la mise en place et aux tests de leurs véritables opérations autorisées. Aucun insert/update fictif n'a été ajouté pour faire artificiellement passer le compteur de clics à 173 actions connectées.
+
+Validation effectuée : inspection statique des fichiers et des RPC existants. Build, lint, TypeScript, navigateur, tests transactionnels et vérification RLS non exécutés. Aucun déploiement.
