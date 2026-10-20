@@ -33,7 +33,7 @@ begin
 
   select pg_get_functiondef(p.oid) into v_fn
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='private' and p.proname='notifier_reservation_gestion_stock'
+  where n.nspname='private' and p.proname='actualiser_notification_reservation_gestion_stock'
     and p.pronargs=0;
 
   if v_fn is null
@@ -48,13 +48,13 @@ begin
 
   select pg_get_triggerdef(t.oid) into v_trigger
   from pg_trigger t
-  where t.tgrelid='public.reservations'::regclass
-    and t.tgname='trg_notifier_reservation_gestion_stock'
+  where t.tgrelid='public.reservation_items'::regclass
+    and t.tgname='trg_actualiser_notification_reservation_gestion_stock'
     and not t.tgisinternal;
 
   if v_trigger is null
-     or position('DEFERRABLE INITIALLY DEFERRED' in upper(v_trigger))=0 then
-    raise exception 'Le déclencheur doit être différé pour lire les lignes ajoutées dans la même transaction';
+     or position('AFTER INSERT OR DELETE OR UPDATE' in upper(v_trigger))=0 then
+    raise exception 'Le déclencheur doit actualiser le dossier lors des mutations de ses lignes produits';
   end if;
 
   if has_function_privilege('authenticated','private.notifier_reservation_gestion_stock()','EXECUTE')
