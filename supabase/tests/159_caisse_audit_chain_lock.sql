@@ -13,6 +13,8 @@ declare
   v_session_a uuid := gen_random_uuid();
   v_session_b uuid := gen_random_uuid();
   v_vente_a uuid := gen_random_uuid();
+  v_vente_b uuid := gen_random_uuid();
+  v_produit uuid;
   v_count_a integer;
   v_count_b integer;
   v_rejected boolean := false;
@@ -79,6 +81,28 @@ begin
     (v_session_a,v_caisse_a,v_user_a,0,'ouverte'),
     (v_session_b,v_caisse_b,v_user_b,0,'ouverte');
 
+  -- Créer des données POS dans les deux pharmacies pour éprouver toutes les politiques RLS.
+  select id into v_produit from public.produits order by id limit 1;
+  if v_produit is null then
+    raise exception 'Aucun produit de fixture disponible pour le test RLS';
+  end if;
+
+  insert into public.ventes(
+    id,pharmacie_id,caisse_session_id,statut,total_brut,total_net,created_by
+  ) values
+    (v_vente_a,v_pharmacie_a,v_session_a,'brouillon',1,1,v_user_a),
+    (v_vente_b,v_pharmacie_b,v_session_b,'brouillon',1,1,v_user_b);
+
+  insert into public.vente_lignes(vente_id,produit_id,quantite,prix_unitaire)
+  values (v_vente_a,v_produit,1,1),(v_vente_b,v_produit,1,1);
+
+  insert into public.vente_paiements(vente_id,mode,montant,created_by)
+  values
+    (v_vente_a,'especes',1,v_user_a),
+    (v_vente_b,'especes',1,v_user_b);
+
+  update public.ventes set statut='payee',paid_at=now() where id=v_vente_a;
+
   -- Fermer la session A, puis vérifier que toute modification ultérieure est refusée.
   update public.caisses_sessions
   set statut='cloturee',cloture_at=now(),cloture_par=v_user_a,
@@ -93,17 +117,9 @@ begin
   end;
   if not v_rejected then raise exception 'Session clôturée modifiable : verrou absent'; end if;
 
-  insert into public.ventes(
-    id,pharmacie_id,caisse_session_id,statut,total_brut,total_net,
-    created_by,created_at,paid_at
-  ) values (
-    v_vente_a,v_pharmacie_a,v_session_a,'payee',0,0,
-    v_user_a,now(),now()
-  );
-
   v_rejected := false;
   begin
-    update public.ventes set total_net=1 where id=v_vente_a;
+    update public.ventes set total_net=2 where id=v_vente_a;
   exception when others then
     v_rejected := true;
   end;
@@ -148,6 +164,41 @@ declare
   v_count_a integer;
   v_count_b integer;
 begin
+  -- Caisse : l'utilisateur A ne voit que les caisses de sa pharmacie.
+  select count(*) into v_count_a from public.caisses where pharmacie_id=v_pharmacie_a;
+  select count(*) into v_count_b from public.caisses where pharmacie_id=v_pharmacie_b;
+  if v_count_a <> 1 or v_count_b <> 0 then
+    raise exception 'RLS caisses : isolation inter-pharmacies invalide (propre %, autre %)',v_count_a,v_count_b;
+  end if;
+
+  -- Sessions : le périmètre est dérivé de la caisse liée.
+  select count(*) into v_count_a from public.caisses_sessions s join public.caisses c on c.id=s.caisse_id where c.pharmacie_id=v_pharmacie_a;
+  select count(*) into v_count_b from public.caisses_sessions s join public.caisses c on c.id=s.caisse_id where c.pharmacie_id=v_pharmacie_b;
+  if v_count_a <> 1 or v_count_b <> 0 then
+    raise exception 'RLS sessions : isolation inter-pharmacies invalide (propre %, autre %)',v_count_a,v_count_b;
+  end if;
+
+  -- Ventes.
+  select count(*) into v_count_a from public.ventes where pharmacie_id=v_pharmacie_a;
+  select count(*) into v_count_b from public.ventes where pharmacie_id=v_pharmacie_b;
+  if v_count_a <> 1 or v_count_b <> 0 then
+    raise exception 'RLS ventes : isolation inter-pharmacies invalide (propre %, autre %)',v_count_a,v_count_b;
+  end if;
+
+  -- Lignes et paiements héritent du périmètre de la vente.
+  select count(*) into v_count_a from public.vente_lignes l join public.ventes v on v.id=l.vente_id where v.pharmacie_id=v_pharmacie_a;
+  select count(*) into v_count_b from public.vente_lignes l join public.ventes v on v.id=l.vente_id where v.pharmacie_id=v_pharmacie_b;
+  if v_count_a <> 1 or v_count_b <> 0 then
+    raise exception 'RLS lignes : isolation inter-pharmacies invalide (propre %, autre %)',v_count_a,v_count_b;
+  end if;
+
+  select count(*) into v_count_a from public.vente_paiements p join public.ventes v on v.id=p.vente_id where v.pharmacie_id=v_pharmacie_a;
+  select count(*) into v_count_b from public.vente_paiements p join public.ventes v on v.id=p.vente_id where v.pharmacie_id=v_pharmacie_b;
+  if v_count_a <> 1 or v_count_b <> 0 then
+    raise exception 'RLS paiements : isolation inter-pharmacies invalide (propre %, autre %)',v_count_a,v_count_b;
+  end if;
+
+  -- Journal d'audit.
   select count(*) into v_count_a from public.caisse_audit_events where pharmacie_id=v_pharmacie_a;
   select count(*) into v_count_b from public.caisse_audit_events where pharmacie_id=v_pharmacie_b;
   if v_count_a < 1 then raise exception 'RLS : l’utilisateur ne voit pas les traces de sa pharmacie'; end if;
