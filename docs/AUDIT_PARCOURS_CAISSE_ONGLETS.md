@@ -157,3 +157,33 @@ Contrôle statique de la version relue :
 Ce contrôle confirme la cohérence de l’inventaire des écrans, pas la compilation. L’installation/build n’a pas pu être exécutée dans l’environnement de travail utilisé pour cette intervention (accès réseau au dépôt indisponible). Le statut TypeScript/build reste donc non vérifié.
 
 Dernier commit du prototype : `97a946e964e4568627e52ff89853128e35a30157` — écrans de connexion et récupération de mot de passe.
+
+
+---
+
+## Rectificatif — contrôle statique de l’architecture sur main (20/10/2026)
+
+Ce contrôle remplace les anciens décomptes statiques ci-dessus lorsqu’ils divergent du fichier source actuel. La référence fonctionnelle reste exclusivement `docs/CAHIER_DES_CHARGES_CAISSE_CAISSIERE.md`.
+
+Fichier contrôlé : `src/app/pharmacie/caisse/parcours-ui/page.tsx`.
+
+| Vérification | Résultat observé sur la version contrôlée |
+|---|---:|
+| Identifiants de l’union TypeScript `Screen` | 45 |
+| Titres définis | 45 |
+| Identifiants avec condition de rendu détectée | 45/45 |
+| Identifiants sans titre | 0 |
+| Identifiants sans rendu détecté | 0 |
+| Cibles `go("…")` inconnues | 0 |
+| Gestionnaires `onClick` | 173 |
+| Appels Supabase/Auth/RPC/`fetch`/stockage local dans le prototype | 0 détecté |
+
+Les écrans `assurances` et `assurance-vente` sont couverts par une même condition de rendu à deux branches. L’écran `cloture` possède un rendu dédié. Ils ne sont donc pas des écrans sans rendu dans la version contrôlée.
+
+Ces chiffres constituent un contrôle statique du code récupéré, pas un résultat de compilation, de test navigateur ou de recette fonctionnelle. La route prototype reste non connectée ; elle ne doit pas être utilisée comme preuve d’une opération métier.
+
+La navigation latérale correspond à sept entrées du cahier § 5.2 : six liens principaux et un bouton Déconnexion distinct. Le parcours opérationnel séparé se trouve sous `/pharmacie/caisse` et `/pharmacie/caisse/[section]`. La présence de requêtes/RPC dans ces fichiers ne prouve pas, à elle seule, la sécurité ou la validation des traitements en base.
+
+Rapport de preuve détaillé et matrice des éléments restant à tester : [`docs/PREUVE_ARCHITECTURE_COMPTE_CAISSE.md`](PREUVE_ARCHITECTURE_COMPTE_CAISSE.md).
+
+Aucun test de build/lint/SQL/navigateur n’est déclaré réussi par ce rectificatif. Aucun déploiement n’a été demandé ni lancé dans le cadre de cette mise à jour documentaire.
