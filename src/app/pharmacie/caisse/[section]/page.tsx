@@ -255,7 +255,7 @@ export default function CaisseParcoursPage() {
   }
 
   const title = menu.find((item) => item.id === section)?.label ?? "Parcours caisse";
-  return <CaisseWorkspaceShell sessionOpen={sessions.some((item) => !item.cloture_at)} creditsDue={credits.filter((item) => item.actif && item.solde > 0).length} pharmacyName={pharmacyName}>
+  return <><CaisseWorkspaceShell sessionOpen={sessions.some((item) => !item.cloture_at)} creditsDue={credits.filter((item) => item.actif && item.solde > 0).length} pharmacyName={pharmacyName}>
     <header className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-naxa-green-900 px-4 py-4 text-white shadow-sm">
       <div><a href="/pharmacie/caisse" className="text-sm underline underline-offset-4">← Retour à l’encaissement</a><h1 className="mt-1 text-xl font-extrabold">Caisse · {title}</h1><p className="text-sm text-white/80">{pharmacyName}</p></div>
       <span className="rounded-full bg-white/15 px-3 py-2 text-sm">{displayName(account)}</span>
@@ -307,5 +307,5 @@ export default function CaisseParcoursPage() {
     </>}
     </CaisseWorkspaceShell>
     <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-detail-print, .ticket-detail-print * { visibility: visible !important; } .ticket-detail-print { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
-  </main>;
+  </>;
 }
