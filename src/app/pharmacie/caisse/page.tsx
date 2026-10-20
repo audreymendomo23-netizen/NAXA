@@ -561,7 +561,7 @@ export default function CaissePage() {
                 </div>
               )}
             </section>
-            <CaisseRetraitsMarketplace pharmacieId={pid} />
+            <CaisseRetraitsMarketplace pharmacieId={pid} sessionId={session?.id ?? null} />
             <section className="carte mb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="font-extrabold">Historique des ventes</h2><p className="text-sm text-slate-600">Consultez ou réimprimez vos 20 dernières ventes payées.</p></div>
