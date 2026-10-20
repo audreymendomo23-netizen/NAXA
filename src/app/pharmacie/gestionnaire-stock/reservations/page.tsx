@@ -174,7 +174,7 @@ export default async function GestionnaireStockReservationsPage({
                     </li>;
                   })}
                 </ul>
-                <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t pt-3"><p className="font-black">{fcfa(reservation.total)}</p>
+                <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t pt-3"><div><p className="font-black">{fcfa(reservation.total)}</p><Link href={"/pharmacie/messages?reservation="+reservation.id} className="mt-2 inline-block text-sm font-bold text-emerald-900 underline">Ouvrir les messages liés à ce dossier</Link></div>
                   {reservation.statut === "en_attente" && <form action={confirmerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><button type="submit" className="min-h-10 rounded-xl bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white">Confirmer disponibilité et préparer</button></form>}{["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
                 </div>
               </article>
