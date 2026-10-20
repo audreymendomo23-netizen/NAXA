@@ -29,6 +29,19 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 - La clôture calcule désormais le solde théorique comme : fond initial + encaissements espèces − décaissements. Un solde théorique négatif bloque la clôture.
 - Le PIN et la biométrie ne sont pas implémentés ici : ils sont réservés au chantier Promoteur, comme convenu. Pour le moment, le décaissement est réservé à un compte Caisse actif titulaire de la session (ou à l’administration selon les gardes serveur).
 
+## Décaissements, PIN et biométrie
+- Le Promoteur actif configure un PIN de 6 à 8 chiffres pour chaque compte Caisse de son équipe depuis son tableau de bord. Le PIN est dérivé avec scrypt et n’est jamais stocké en clair. Après cinq échecs, le PIN est bloqué pendant 15 minutes.
+- La caissière peut aussi enregistrer une authentification biométrique WebAuthn depuis sa propre session et son propre appareil. Le système ne reçoit ni ne stocke l’image de l’empreinte : le capteur local valide l’utilisateur et le serveur vérifie cryptographiquement l’assertion. Un Promoteur ne peut pas enrôler à distance l’empreinte d’une autre personne.
+- Chaque décaissement exige un PIN vérifié ou une assertion biométrique fraîche. L’API émet une autorisation temporaire de 90 secondes, liée à l’utilisateur et à la session, consommée une seule fois par la transaction SQL. L’ancienne RPC sans autorisation est neutralisée.
+- L’enregistrement reste lié au titulaire de la session ouverte, au montant, au motif, à la catégorie et au justificatif facultatif. Les migrations 167 et 170 ajoutent les secrets protégés, les défis WebAuthn, les autorisations à usage unique et le verrouillage du PIN.
+- Les bibliothèques WebAuthn doivent être installées par le gestionnaire de paquets (@simplewebauthn/server et @simplewebauthn/browser). L’enrôlement réel dépend d’un navigateur/appareil compatible et d’une origine HTTPS correctement configurée.
+
+## Écart de caisse
+- À la clôture, NAXA calcule le théorique : fond initial + encaissements espèces confirmés − décaissements enregistrés. Les paiements électroniques non confirmés ne sont pas assimilés à des espèces.
+- La caissière saisit le comptage réel. L’écart est compté moins théorique : négatif = manquant, positif = excédent, zéro = caisse équilibrée.
+- Si l’écart n’est pas nul, une justification de 5 à 500 caractères est obligatoire avant la clôture. Sans justification, la session reste ouverte. La valeur, le motif et le statut a_verifier sont conservés dans la session auditée ; aucun écart initial n’est effacé.
+- La garde SQL de clôture vérifie également le calcul en intégrant les décaissements. Un ajustement comptable ultérieur devra être une opération séparée, autorisée et auditée ; il ne faut pas convertir automatiquement un écart en décaissement.
+- PIN, biométrie et écarts sont ajoutés au projet de test uniquement ; Supabase Production n’a pas été modifié.
 ## Tickets, historique et clôture
 - Le ticket est construit à partir de la RPC vente_ticket, affiche le numéro de vente, les lignes, les montants, le mode de paiement, le montant reçu et la monnaie rendue lorsque ces données sont disponibles, puis peut être imprimé.
 - L'historique affiche les 20 dernières ventes payées créées par le compte connecté ; chaque ticket peut être réimprimé.
@@ -44,6 +57,6 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 ## État de validation
 Les migrations additives 157–163 et les composants du parcours caisse sont enregistrés sur `main`. Les migrations 159–161 ont été appliquées uniquement au projet Supabase de test « naxa-ci-replay-2 » ; aucune migration n'a été appliquée à Supabase Production.
 
-Les tests SQL 044, 055, 159, 160, 161, 163, 164 et 166 ont renvoyé PASS sur le projet de test. Le test 166 vérifie qu’un autre compte Caisse ne peut pas clôturer la session d’un collègue et que le titulaire peut clôturer sa propre session. Le test 164 couvre le motif et le montant, la trace d’audit, le rejet des montants/motifs invalides, la prise en compte du décaissement dans le solde de clôture et le rejet après clôture. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
+Les tests SQL 044, 055, 159, 160, 161, 163, 164, 166, 167 et 168 ont renvoyé PASS sur le projet de test. Le test 164 a été rejoué après correction du périmètre de pharmacie de sa fixture. Le test 166 vérifie qu’un autre compte Caisse ne peut pas clôturer la session d’un collègue et que le titulaire peut clôturer sa propre session. Le test 164 couvre le motif et le montant, la trace d’audit, le rejet des montants/motifs invalides, la prise en compte du décaissement dans le solde de clôture et le rejet après clôture. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
 
 Le projet de test ne contient pas les migrations 133–156 ; la validation SQL reste donc partielle par rapport à l'ensemble du schéma de Production. Build TypeScript, lint et tests E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours. Le PIN et la biométrie de validation d’un décaissement restent à traiter lors du chantier Promoteur.
