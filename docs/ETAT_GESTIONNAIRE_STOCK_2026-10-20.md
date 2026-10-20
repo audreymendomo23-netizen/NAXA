@@ -1,56 +1,72 @@
-# NAXA — État du premier incrément Gestionnaire de stock
+# NAXA — Construction du parcours Gestionnaire de stock
 
 Date : 20 octobre 2026  
 Branche : `main`  
-Périmètre : file de travail groupée par réservation Marketplace, information de stock/lot et annulation via RPC existante. Aucun déploiement ni aucune migration Supabase n'a été exécuté.
+Déploiement : **non demandé, aucun déploiement lancé**.  
+Exécution Supabase : **aucune migration appliquée à une base dans cette intervention**.  
+Vérifications : **volontairement différées**, conformément à la demande de construire le parcours avant de lancer les contrôles.
 
-## Audit préalable
+## Socle existant réutilisé
 
-- La branche `main` auditée avant modification était `0baa2cf03f55a043c5d9037f0305ba148220c9a8`.
-- Le dépôt possède déjà `public.reservations`, `public.reservation_items`, `public.stocks`, `public.stocks_lots` et `public.notifications`.
-- Les réservations Pharmacie utilisent des statuts `en_attente`, `confirmee`, `payee`, `retiree`, `expiree`, `annulee`.
-- La migration 161 documente que le stock d'une réservation est déjà réservé et que l'encaissement POS ne doit pas débiter le stock une seconde fois.
-- La migration 163 expose `public.set_reservation_status`; l'annulation doit réutiliser cette RPC afin de garder les contrôles de transition et la restitution du stock.
-- `stocks_lots` possède les numéros de lot, péremptions, quantités et blocages, mais le schéma inspecté ne contenait pas de localisation physique.
-- La messagerie existante utilise les fils client–pharmacie et les RPC `envoyer_message_client` / `repondre_message`. La liaison conversation-réservation n'est pas démontrée par le schéma audité.
-- Le dépôt ne contenait pas de route identifiée `/pharmacie/gestionnaire-stock` avant cet incrément.
+- Les tables existantes `reservations`, `reservation_items`, `stocks`, `stocks_lots`, `notifications`, `fils_messages`, `messages_pharmacie`, `fournisseurs`, `commandes_fournisseurs`, `receptions_fournisseurs`, `inventaires` et `inventaire_lignes` sont conservées.
+- La réservation reste la source de vérité. L’annulation passe par `public.set_reservation_status`, qui contrôle les transitions et restitue le stock.
+- La migration 161 indique que le stock d’une réservation est déjà réservé; l’encaissement POS ne doit donc pas le débiter une seconde fois.
+- Le paiement et le retrait restent traités par le parcours de caisse existant. NAXA ne propose pas de livraison dans le parcours de réservation avec retrait.
 
-## Changements commis directement sur main
+## Parcours ajouté sur main
+
+### Navigation et espaces
+- Tableau de bord du Gestionnaire de stock.
+- Stock & logistique : stock agrégé, alertes de stock bas et modification d’emplacement via RPC autorisée.
+- Réservations Marketplace : un dossier par client/réservation, lignes produits, stock agrégé, lots bloqués/périmés, quantités utilisables, localisation connue ou explicitement non renseignée, échéance et annulation confirmée.
+- Lots & péremptions : suivi des lots, péremptions, blocages, motifs et emplacements modifiables via RPC.
+- Fournisseurs & réceptions : création fournisseur, création de commande, ajout de lignes, journal de réceptions et formulaire de réception réelle.
+- Inventaires : création complet/ciblé, préparation de lignes, comptage, écarts et clôture via les RPC existantes.
+- Historique & rapports : résumé des stocks/lots et dossiers Marketplace récents.
+- Prise / fin de service : sessions horodatées, fermeture avec note et historique.
+- Profil : accès au profil NAXA.
+- Déconnexion reste une action distincte au bas du panneau latéral.
+
+### Marketplace, client et messagerie
+- Migration 188 : ajoute les emplacements facultatifs et le lien notification-réservation; déclenche une notification de dossier groupée après insertion.
+- Migration 189 : journalise les transitions de statut, crée les notifications client et fournit une fonction idempotente de rappel à 30 minutes; une planification pg_cron est tentée uniquement si l’extension est disponible et accessible.
+- Migration 190 : relie les messages à une réservation, ajoute une RPC sécurisée d’envoi et propage le lien aux réponses dans le fil.
+- Page de détail client : affiche l’historique des transitions et le formulaire de message lié au dossier.
+- Notifications : les alertes de statut/expiration pointent vers le détail client; les notifications de réservation de pharmacie pointent vers la file de traitement.
+
+### Fournisseurs, lots et inventaires
+- Migration 191 : ajoute les RPC d’emplacement pour le stock et les lots, avec vérification de périmètre et de rôle.
+- Migration 192 : ajoute une réception fournisseur atomique, avec lot et péremption obligatoires, mise à jour des quantités, historique de réception et refus en cas d’incohérence stock/lots.
+- Migration 193 : ajoute les sessions de prise/fin de service du Gestionnaire de stock.
+
+## Fichiers de migration et tests SQL ajoutés
 
 - `supabase/migration_188_stock_manager_reservation_notification.sql`
-  - ajoute les colonnes facultatives d'emplacement à `stocks` et `stocks_lots` ;
-  - ajoute `notifications.reservation_id` et une unicité pour empêcher les notifications initiales en double ;
-  - crée une notification groupée par dossier, avec les lignes de produits, le stock agrégé, les lots non bloqués/non périmés et leurs emplacements ;
-  - utilise un déclencheur différé pour lire les lignes de réservation insérées dans la même transaction ;
-  - n'invente aucune localisation absente.
 - `supabase/tests/188_stock_manager_reservation_notification.sql`
-  - ajoute un test SQL structurel du contrat de migration.
-- `src/app/pharmacie/gestionnaire-stock/actions.ts`
-  - annule via la RPC existante `set_reservation_status` et exige une confirmation explicite dans le formulaire.
-- `src/app/pharmacie/gestionnaire-stock/page.tsx`
-  - route d'entrée vers la file de réservations.
-- `src/app/pharmacie/gestionnaire-stock/reservations/page.tsx`
-  - première file de travail organisée par réservation, avec détail des lignes, stock/lots/emplacements et action d'annulation.
-- `src/lib/messagerie.ts` et `src/app/notifications/page.tsx`
-  - exposent le lien vers le dossier de réservation dans les notifications.
+- `supabase/migration_189_reservation_history_expiry_alert.sql`
+- `supabase/tests/189_reservation_history_expiry_alert.sql`
+- `supabase/migration_190_reservation_linked_messaging.sql`
+- `supabase/tests/190_reservation_linked_messaging.sql`
+- `supabase/migration_191_stock_locations.sql`
+- `supabase/tests/191_stock_locations.sql`
+- `supabase/migration_192_fournisseur_reception_atomique.sql`
+- `supabase/tests/192_fournisseur_reception_atomique.sql`
+- `supabase/migration_193_gestionnaire_stock_service.sql`
+- `supabase/tests/193_gestionnaire_stock_service.sql`
 
-## Limites à résoudre avant de déclarer l'incrément complet
+## Points de prudence à conserver
 
-1. La migration 188 est un fichier de dépôt uniquement : elle n'a pas été appliquée à une base Supabase.
-2. Le test SQL 188 a été ajouté mais n'a pas été exécuté faute d'accès à un runner PostgreSQL/Supabase dans cette intervention.
-3. Lint, typecheck et build n'ont pas été exécutés ; la compilation n'est donc pas déclarée verte.
-4. La route affiche un identifiant client court plutôt que des données personnelles, en attendant de confirmer les politiques RLS de lecture des profils.
-5. Les emplacements doivent être renseignés dans les données de stock/lot par une opération autorisée ; ils ne peuvent pas être déduits automatiquement.
-6. L'alerte 30 minutes avant expiration avec planification serveur et livraison application fermée reste à raccorder ; cet incrément affiche l'échéance et les réservations urgentes mais ne prétend pas envoyer cette alerte.
-7. La boîte de réception n'est pas encore filtrée spécifiquement au rôle Gestionnaire de stock et les conversations ne sont pas encore rattachées à une réservation.
-8. La navigation complète à neuf entrées, le traitement des anomalies, les événements d'historique client et les tests bout-en-bout restent à construire.
+- L’alerte de 30 minutes dépend d’un ordonnanceur réellement disponible. La migration contient la fonction idempotente et tente la planification via pg_cron si l’extension est disponible; tant que les migrations et la planification n’ont pas été exécutées, l’envoi effectif n’est pas prouvé.
+- Les notifications et messages sont enregistrés dans l’application. La livraison push quand l’application est fermée dépend de l’infrastructure push générique déjà configurée; elle n’est pas déclarée validée ici.
+- La réception fournisseur refuse les stocks préexistants non lotisés ou incohérents plutôt que de créer des lots avec une péremption inventée.
+- Les données client dans la file stock sont minimisées à un identifiant court; le traitement est groupé par dossier, pas par produit.
+- Les données de stock visibles restent un instantané d’écran; chaque mutation doit être revalidée par les RPC de la base.
+- La file de réservation affiche les statuts actifs `en_attente` et `confirmee`; les dossiers terminés sont accessibles via l’historique/rapports et le détail client.
 
-## État
+## État de livraison du code
 
-- **Code ajouté sur main : oui.**
-- **Tests exécutés : aucun.**
-- **Migration exécutée : non.**
-- **Déploiement : non.**
-- **Parcours complet à 360° : non démontré.**
-
-Ne pas appliquer la migration à Production sans revue et autorisation distinctes. Continuer par la revue de la migration et la vérification de compilation, puis raccorder les notifications et transitions aux parcours client et caisse.
+- Code ajouté directement sur `main` : oui.
+- Lint, typecheck, build, tests SQL : **non exécutés à ce stade**.
+- Migrations Supabase : **non appliquées**.
+- Déploiement : **non lancé**.
+- Parcours déclaré vert : **non**; la demande actuelle est de terminer la construction avant les vérifications.
