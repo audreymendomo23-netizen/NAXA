@@ -32,12 +32,12 @@ begin
     (v_other,'authenticated','authenticated','naxa166_other_'||substr(replace(v_other::text,'-',''),1,10)||'@invalid.local','',now(),now());
   set local session_replication_role = origin;
 
+  insert into public.pharmacies(id,nom,lat,lng,actif,visible_recherche)
+  values(v_pharmacie,'NAXA TEST 166',3.8667,11.5167,true,true);
   insert into public.profiles(id,role,username,actif,pharmacie_id)
   values
     (v_owner,'caisse','naxa166_owner_'||substr(replace(v_owner::text,'-',''),1,10),true,v_pharmacie),
     (v_other,'caisse','naxa166_other_'||substr(replace(v_other::text,'-',''),1,10),true,v_pharmacie);
-  insert into public.pharmacies(id,nom,lat,lng,actif,visible_recherche)
-  values(v_pharmacie,'NAXA TEST 166',3.8667,11.5167,true,true);
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_caisse,v_pharmacie,'Caisse test 166',true);
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,fond_initial,statut)
