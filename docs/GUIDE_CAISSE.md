@@ -37,6 +37,6 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 ## État de validation
 Les migrations additives 157–163 et les composants du parcours caisse sont enregistrés sur `main`. Les migrations 159–161 ont été appliquées uniquement au projet Supabase de test « naxa-ci-replay-2 » ; aucune migration n'a été appliquée à Supabase Production.
 
-Les tests SQL 044, 055, 159, 160 et 161 ont renvoyé PASS sur le projet de test. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
+Les tests SQL 044, 055, 159, 160, 161 et 163 ont renvoyé PASS sur le projet de test. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
 
 Le projet de test ne contient pas les migrations 133–156 ; la validation SQL reste donc partielle par rapport à l'ensemble du schéma de Production. Build TypeScript, lint et tests E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
