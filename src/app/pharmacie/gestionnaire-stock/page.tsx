@@ -1,5 +1,2 @@
-import { redirect } from "next/navigation";
-
-export default function GestionnaireStockDashboardPage() {
-  redirect("/pharmacie/gestionnaire-stock/reservations");
-}
+import { GestionnaireStockEspace } from "@/components/pharmacie/GestionnaireStockEspace";
+export default function GestionnaireStockDashboardPage(){return <GestionnaireStockEspace section="dashboard"/>;}
