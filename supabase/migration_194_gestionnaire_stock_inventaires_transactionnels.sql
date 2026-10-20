@@ -145,7 +145,7 @@ begin
  -- PostgreSQL annule aussi ce changement de statut.
  update public.inventaires set statut='cloture',closed_at=now(),closed_by=v_user,updated_at=now() where id=p_inventaire;
  for v_line in select il.id,il.produit_id,il.lot_id,il.quantite_theorique,il.quantite_comptee
-   from public.inventaire_lignes il where il.inventaire_id=p_inventaire for update loop
+   from public.inventaire_lignes il where il.inventaire_id=p_inventaire order by il.produit_id,il.lot_id nulls first for update loop
   insert into public.inventaire_ajustements(inventaire_id,ligne_id,pharmacie_id,produit_id,lot_id,quantite_theorique,quantite_comptee,acteur_id)
   values(p_inventaire,v_line.id,v_pharmacie,v_line.produit_id,v_line.lot_id,v_line.quantite_theorique,v_line.quantite_comptee,v_user);
   if v_line.lot_id is not null then
