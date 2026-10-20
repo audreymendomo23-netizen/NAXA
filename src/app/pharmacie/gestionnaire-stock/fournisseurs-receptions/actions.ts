@@ -18,7 +18,7 @@ const back="/pharmacie/gestionnaire-stock/fournisseurs-receptions";
 export async function creerFournisseurStock(formData:FormData){
  const {sb,uid}=await authorized();const nom=String(formData.get("nom")??"").trim();
  const contact=String(formData.get("contact")??"").trim(),telephone=String(formData.get("telephone")??"").trim(),email=String(formData.get("email")??"").trim();
- if(nom.length<2||nom.length>160)redirect(back+"?erreur=fournisseur");
+ if(nom.length<2||nom.length>160||contact.length>160||telephone.length>40||email.length>160||(email!==""&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))redirect(back+"?erreur=fournisseur");
  const {error}=await sb.from("fournisseurs").insert({nom,contact:contact||null,telephone:telephone||null,email:email||null,created_by:uid});
  if(error)redirect(back+"?erreur=fournisseur");
  revalidatePath(back);redirect(back+"?ok=fournisseur");
@@ -51,7 +51,9 @@ export async function recevoirCommandeFournisseurStock(formData:FormData){
  const {data:order,error:orderError}=await sb.from("commandes_fournisseurs").select("id,pharmacie_id,statut,commandes_fournisseurs_lignes(id,quantite_commandee,quantite_recue)").eq("id",commande).maybeSingle();
  if(orderError||!order||!ids.includes(order.pharmacie_id)||!["envoyee","partielle"].includes(order.statut))redirect(back+"?erreur=reception");
  const lines=(order as unknown as {commandes_fournisseurs_lignes:{id:string;quantite_commandee:number;quantite_recue:number}[]}).commandes_fournisseurs_lignes??[];
- const payload=lines.map(line=>({commande_ligne_id:line.id,quantite_recue:Number(formData.get("qty_"+line.id)??0),numero_lot:String(formData.get("lot_"+line.id)??"").trim(),date_peremption:String(formData.get("expiry_"+line.id)??""),emplacement:String(formData.get("location_"+line.id)??"").trim()})).filter(line=>line.quantite_recue>0);
+ const received=lines.map(line=>({commande_ligne_id:line.id,quantite_recue:Number(formData.get("qty_"+line.id)??0),quantite_max:line.quantite_commandee-line.quantite_recue,numero_lot:String(formData.get("lot_"+line.id)??"").trim(),date_peremption:String(formData.get("expiry_"+line.id)??""),emplacement:String(formData.get("location_"+line.id)??"").trim()}));
+ if(received.some(line=>!Number.isSafeInteger(line.quantite_recue)||line.quantite_recue<0||line.quantite_recue>line.quantite_max))redirect(back+"?erreur=reception");
+ const payload=received.filter(line=>line.quantite_recue>0).map(({quantite_max,...line})=>line);
  if(!payload.length)redirect(back+"?erreur=reception");
  const reference=String(formData.get("reference_reception")??"").trim();const commentaire=String(formData.get("commentaire")??"").trim();
  if(reference.length>100||commentaire.length>500)redirect(back+"?erreur=reception");
