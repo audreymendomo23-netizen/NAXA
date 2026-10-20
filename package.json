@@ -22,7 +22,9 @@
     "react-dom": "18.3.1",
     "tesseract.js": "5.1.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "web-push": "3.6.7"
+    "web-push": "3.6.7",
+    "@simplewebauthn/server": "13.2.2",
+    "@simplewebauthn/browser": "13.2.2"
   },
   "devDependencies": {
     "@types/node": "20.14.0",
