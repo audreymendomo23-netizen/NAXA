@@ -31,9 +31,10 @@ begin
   if p_row_count is null or p_row_count < 0 or p_row_count > 500 then
     raise exception 'Nombre de lignes exportées invalide';
   end if;
-  select pharmacie_id into p from public.profiles
-  where id=u and actif=true and fonction_interne='pharmacien';
-  if p is null then raise exception 'Export réservé à un compte Pharmacien actif'; end if;
+  select pr.pharmacie_id into p from public.profiles pr
+  join public.pharmacies f on f.id=pr.pharmacie_id and f.actif=true and f.visible_recherche=true
+  where pr.id=u and pr.actif=true and pr.fonction_interne='pharmacien';
+  if p is null then raise exception 'Export réservé à un compte Pharmacien actif d’une pharmacie publiée'; end if;
 
   insert into public.pharmacien_audit_events(
     pharmacie_id, actor_user_id, entity_type, entity_id, action, metadata
