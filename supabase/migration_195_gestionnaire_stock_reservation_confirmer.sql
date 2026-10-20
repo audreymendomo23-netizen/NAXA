@@ -12,7 +12,7 @@ begin
  if not found or v_r.mode<>'reservation' then raise exception 'Réservation avec retrait introuvable'; end if;
  if not public.can_access_pharmacy(v_r.pharmacie_id) then raise exception 'Réservation hors périmètre pharmacie'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
- if not found or not (coalesce(v_profile.role::text) in ('admin','promoteur')
+ if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
    or public.naxa_has_privilege('MANAGE_LOTS',v_r.pharmacie_id,'PHARMACIE')) then
   raise exception 'Confirmation non autorisée pour ce compte';
