@@ -14,6 +14,9 @@ begin
   if to_regprocedure('public.notifier_reservations_expirant_30m()') is null then
     raise exception 'Fonction rappel 30 min absente';
   end if;
+  if to_regclass('public.notifications_reservation_expiry_once_uq') is null then
+    raise exception 'Index anti-doublon du rappel absent';
+  end if;
   if has_function_privilege('anon','public.notifier_reservations_expirant_30m()','EXECUTE')
      or has_function_privilege('authenticated','public.notifier_reservations_expirant_30m()','EXECUTE') then
     raise exception 'Fonction ordonnanceur accessible aux rôles applicatifs';
