@@ -59,6 +59,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 204 : journal append-only des changements de stock agrégé et de lots, exposé en lecture seule dans Historique & rapports.
 - Export CSV authentifié et limité au périmètre pharmacie pour mouvements, réservations et écarts d’inventaire.
 - Migration 205 : initialisation contrôlée d’une référence catalogue à quantité zéro avec prix de vente explicite, avant réception réelle par lot.
+- Migration 206 : mouvements contrôlés de perte, retour et ajustement avec motif obligatoire, variation de lot/stock atomique et journalisation.
 - L’interface de réservation affiche maintenant les lots affectés au dossier et bloque la confirmation côté écran si l’allocation n’est pas vérifiable.
 - Le tableau de bord stock est distinct de la file des réservations; la boîte de messages choisit le périmètre pharmacie correspondant au dossier demandé.
 
