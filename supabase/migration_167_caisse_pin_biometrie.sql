@@ -45,7 +45,10 @@ create index if not exists caisse_dec_auth_grants_live_idx
 alter table public.caisse_decaissement_auth_grants enable row level security;
 revoke all on public.caisse_decaissement_auth_grants from public, anon, authenticated;
 
-drop function if exists public.caisse_decaisser(uuid,integer,text,text,text);
+create or replace function public.caisse_decaisser(p_session uuid,p_montant integer,p_categorie text,p_motif text,p_justificatif_ref text default null)
+returns uuid language plpgsql security definer set search_path=''
+as $legacy$ begin raise exception 'Autorisation PIN ou biométrique obligatoire'; end; $legacy$;
+revoke all on function public.caisse_decaisser(uuid,integer,text,text,text) from public,anon,authenticated;
 create function public.caisse_decaisser(
   p_session uuid,
   p_montant integer,
