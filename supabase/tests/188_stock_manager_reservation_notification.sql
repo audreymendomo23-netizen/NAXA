@@ -57,8 +57,8 @@ begin
     raise exception 'Le déclencheur doit actualiser le dossier lors des mutations de ses lignes produits';
   end if;
 
-  if has_function_privilege('authenticated','private.notifier_reservation_gestion_stock()','EXECUTE')
-     or has_function_privilege('anon','private.notifier_reservation_gestion_stock()','EXECUTE') then
+  if has_function_privilege('authenticated','private.actualiser_notification_reservation_gestion_stock()','EXECUTE')
+     or has_function_privilege('anon','private.actualiser_notification_reservation_gestion_stock()','EXECUTE') then
     raise exception 'La fonction interne du déclencheur ne doit pas être appelable par les rôles applicatifs';
   end if;
 end
