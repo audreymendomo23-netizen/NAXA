@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};\ntype Preparation={prescription_id:string;statut:string;notes_preparation:string|null;motif_complement:string|null;updated_at:string};
+type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
+type Preparation={prescription_id:string;statut:string;notes_preparation:string|null;motif_complement:string|null;updated_at:string};
 
 export default function PharmacienPage(){
   const sb=supabaseBrowser();
@@ -14,12 +15,14 @@ export default function PharmacienPage(){
   const [presc,setPresc]=useState({patient:"",clientId:"",consultationId:"",designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""});
 
   async function charger(id:string){
-    const [mine,received]=await Promise.all([
+    const [mine,received,prep]=await Promise.all([
       sb.rpc("pharmacien_prescriptions_recentes",{p_pharmacie:id,p_limite:30}),
-      sb.from("prescriptions").select("id,document_ref,created_at,motif_rejet,client_id,statut").eq("pharmacie_id",id).eq("source","client").eq("statut","en_attente").order("created_at",{ascending:true})
+      sb.from("prescriptions").select("id,document_ref,created_at,motif_rejet,client_id,statut").eq("pharmacie_id",id).eq("source","client").eq("statut","en_attente").order("created_at",{ascending:true}),
+      sb.from("prescription_preparations").select("prescription_id,statut,notes_preparation,motif_complement,updated_at").eq("pharmacie_id",id).order("updated_at",{ascending:false}).limit(100)
     ]);
-    if(mine.error||received.error)return setMsg(mine.error?.message??received.error?.message??"Impossible de charger les ordonnances.");
+    if(mine.error||received.error||prep.error)return setMsg(mine.error?.message??received.error?.message??prep.error?.message??"Impossible de charger les ordonnances.");
     setInternal((mine.data??[]) as Ord[]);setIncoming((received.data??[]) as Ord[]);
+    setPreparations(Object.fromEntries(((prep.data??[]) as Preparation[]).map(x=>[x.prescription_id,x])));
   }
 
   useEffect(()=>{(async()=>{
@@ -41,6 +44,11 @@ export default function PharmacienPage(){
     const {data,error}=await sb.rpc("pharmacien_creer_prescription",{p_pharmacie:pid,p_patient_nom:presc.patient,p_client_id:presc.clientId.trim()||null,p_consultation_id:presc.consultationId.trim()||null,p_designation:presc.designation,p_quantite:Number(presc.quantite),p_posologie:presc.posologie,p_duree:presc.duree,p_instructions:presc.instructions,p_commentaire:presc.commentaire});
     setBusy(false);if(error)return setMsg(error.message);
     setMsg("Prescription émise et enregistrée.");setPresc(x=>({...x,designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""}));if(pid)charger(pid);setTab("validation");
+  }
+
+  async function demanderComplement(id:string){
+    const {error}=await sb.rpc("pharmacien_demander_complement",{p_prescription:id,p_motif:motif[id]??""});
+    setMsg(error?error.message:"Complément demandé à l’assistant.");if(!error&&pid)charger(pid);
   }
 
   async function decider(id:string,ok:boolean){
