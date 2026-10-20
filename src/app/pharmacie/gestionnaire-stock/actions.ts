@@ -140,3 +140,28 @@ export async function initialiserReferenceStock(formData: FormData) {
   revalidatePath("/pharmacie/gestionnaire-stock/fournisseurs-receptions");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=reference");
 }
+
+export async function ajusterQuantiteStockGestionnaire(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  const produit = String(formData.get("produit_id") ?? "");
+  const lotRaw = String(formData.get("lot_id") ?? "");
+  const type = String(formData.get("type") ?? "");
+  const deltaRaw = String(formData.get("delta") ?? "");
+  const motif = String(formData.get("motif") ?? "").trim();
+  const delta = Number(deltaRaw);
+  const lot = lotRaw || null;
+  if (!safeUuid(pharmacie) || !safeUuid(produit) || (lot && !safeUuid(lot)) || !["perte","retour","ajustement"].includes(type) || !deltaRaw.trim() || !Number.isSafeInteger(delta) || delta===0 || Math.abs(delta)>1000000 || motif.length<3 || motif.length>500 || (type==="perte"&&delta>=0) || (type==="retour"&&delta<=0)) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=mouvement");
+  }
+  const { data, error } = await sb.rpc("gestionnaire_stock_quantite_ajuster", {
+    p_pharmacie: pharmacie, p_produit: produit, p_delta: delta, p_type: type, p_motif: motif, p_lot: lot,
+  });
+  if (error || data !== true) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=mouvement");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
+  revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=mouvement");
+}
