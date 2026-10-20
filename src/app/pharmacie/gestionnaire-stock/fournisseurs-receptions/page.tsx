@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";
