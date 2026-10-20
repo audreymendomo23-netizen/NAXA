@@ -108,3 +108,17 @@ export async function fermerServiceGestionStock(formData: FormData) {
   revalidatePath("/pharmacie/gestionnaire-stock/service");
   redirect("/pharmacie/gestionnaire-stock/service?ok=ferme");
 }
+
+export async function modifierBlocageLotGestionStock(formData: FormData) {
+  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
+  if(!auth.user)redirect("/connexion?retour=/pharmacie/gestionnaire-stock/lots-peremptions");
+  const lot=String(formData.get("lot_id")??"");
+  const bloque=String(formData.get("bloque")??"")==="true";
+  const motif=String(formData.get("motif_blocage")??"").trim();
+  if(!safeUuid(lot)||motif.length>500||(bloque&&motif.length===0))redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=blocage");
+  const {error}=await sb.rpc("stock_lot_blocage_modifier",{p_lot:lot,p_bloque:bloque,p_motif:motif||null});
+  if(error)redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=blocage");
+  revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
+  revalidatePath("/pharmacie/gestionnaire-stock/reservations");
+  redirect("/pharmacie/gestionnaire-stock/lots-peremptions?ok="+(bloque?"bloque":"debloque"));
+}
