@@ -38,6 +38,8 @@ begin
   values
     (v_owner,'caisse','naxa166_owner_'||substr(replace(v_owner::text,'-',''),1,10),true,v_pharmacie),
     (v_other,'caisse','naxa166_other_'||substr(replace(v_other::text,'-',''),1,10),true,v_pharmacie);
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values (v_owner,v_pharmacie,true),(v_other,v_pharmacie,true);
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_caisse,v_pharmacie,'Caisse test 166',true);
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,fond_initial,statut)
