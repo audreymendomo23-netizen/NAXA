@@ -132,7 +132,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     setBusy(false);
     if(error){setMsg("Export bloqué : la journalisation serveur est indisponible. Vérifiez la migration 191 et les droits du compte.");return;}
     const rows=[["Date","Type","Action","Référence dossier","Statut précédent","Statut actuel"],...reportAuditEvents.map(e=>[new Date(e.occurred_at).toISOString(),e.entity_type,e.action,e.entity_id.slice(0,8).toUpperCase(),e.old_status??"",e.new_status??""])];
-    const csv="\\uFEFF"+rows.map(row=>row.map(value=>`"${String(value??"").replace(/"/g,'""')}"`).join(";")).join("\\r\\n");
+    const csv="\uFEFF"+rows.map(row=>row.map(value=>`"${String(value??"").replace(/"/g,'""')}"`).join(";")).join("\r\n");
     const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
     const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=`naxa-rapport-pharmacien-${reportPeriod}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
     setMsg(`Export CSV généré (${reportAuditEvents.length} événements) et journalisé côté serveur.`);
