@@ -26,6 +26,8 @@ export async function creerFournisseurStock(formData:FormData){
 export async function creerCommandeFournisseurStock(formData:FormData){
  const {sb,uid,ids}=await authorized();const pharmacie=String(formData.get("pharmacie_id")??""),fournisseur=String(formData.get("fournisseur_id")??""),reference=String(formData.get("reference")??"").trim();
  if(!ids.includes(pharmacie)||!uuid(fournisseur)||reference.length>100)redirect(back+"?erreur=commande");
+ const {data:supplier,error:supplierError}=await sb.from("fournisseurs").select("id").eq("id",fournisseur).eq("actif",true).maybeSingle();
+ if(supplierError||!supplier)redirect(back+"?erreur=fournisseur");
  const {error}=await sb.from("commandes_fournisseurs").insert({pharmacie_id:pharmacie,fournisseur_id:fournisseur,reference:reference||null,statut:"brouillon",created_by:uid});
  if(error)redirect(back+"?erreur=commande");
  revalidatePath(back);redirect(back+"?ok=commande");
@@ -51,7 +53,9 @@ export async function recevoirCommandeFournisseurStock(formData:FormData){
  const lines=(order as unknown as {commandes_fournisseurs_lignes:{id:string;quantite_commandee:number;quantite_recue:number}[]}).commandes_fournisseurs_lignes??[];
  const payload=lines.map(line=>({commande_ligne_id:line.id,quantite_recue:Number(formData.get("qty_"+line.id)??0),numero_lot:String(formData.get("lot_"+line.id)??"").trim(),date_peremption:String(formData.get("expiry_"+line.id)??""),emplacement:String(formData.get("location_"+line.id)??"").trim()})).filter(line=>line.quantite_recue>0);
  if(!payload.length)redirect(back+"?erreur=reception");
- const {error}=await sb.rpc("fournisseur_reception_enregistrer",{p_commande:commande,p_lignes:payload,p_reference:String(formData.get("reference_reception")??"").trim()||null,p_commentaire:String(formData.get("commentaire")??"").trim()||null});
+ const reference=String(formData.get("reference_reception")??"").trim();const commentaire=String(formData.get("commentaire")??"").trim();
+ if(reference.length>100||commentaire.length>500)redirect(back+"?erreur=reception");
+ const {error}=await sb.rpc("fournisseur_reception_enregistrer",{p_commande:commande,p_lignes:payload,p_reference:reference||null,p_commentaire:commentaire||null});
  if(error)redirect(back+"?erreur=reception");
  revalidatePath(back);revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
  redirect(back+"?ok=reception");
