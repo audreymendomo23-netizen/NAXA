@@ -33,7 +33,7 @@ begin
   if length(trim(coalesce(p_numero_lot,''))) not between 1 and 120 then raise exception 'Numéro de lot requis (120 caractères maximum)'; end if;
   if p_date_peremption is null then raise exception 'Date de péremption requise'; end if;
   if p_quantite is null or p_quantite<=0 then raise exception 'Quantité de lot invalide'; end if;
-  if not public.can_access_pharmacy(p_pharmacie) then raise exception 'Pharmacie hors périmètre'; end if;
+  if not public.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') then raise exception 'Pharmacie hors périmètre'; end if;
 
   select * into v_profile from public.profiles where id=v_user and actif=true;
   if not found or coalesce(v_profile.role::text,'')='caisse' or coalesce(v_profile.fonction_interne,'')='caisse'
