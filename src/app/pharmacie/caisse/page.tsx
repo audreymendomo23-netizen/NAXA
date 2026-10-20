@@ -57,6 +57,7 @@ export default function CaissePage() {
   const [draftCheckErreur, setDraftCheckErreur] = useState(false);
   const [fondInitial, setFondInitial] = useState("");
   const [totalCompte, setTotalCompte] = useState("");
+  const [ecartJustification, setEcartJustification] = useState("");
   const [cloture, setCloture] = useState<{ total_theorique: number; total_compte: number; ecart: number } | null>(null);
   const [vente, setVente] = useState<string | null>(null);
   const [onglet, setOnglet] = useState<"caisse" | "recherche">("caisse");
@@ -514,7 +515,7 @@ export default function CaissePage() {
     if (!window.confirm("Clôturer définitivement cette session et enregistrer l’écart de caisse ?")) return;
     setBusy(true);
     try {
-      const { data, error } = await sb.rpc("caisse_cloturer", { p_session: session.id, p_total_compte: amount });
+      const { data, error } = await sb.rpc("caisse_cloturer", { p_session: session.id, p_total_compte: amount, p_ecart_justification: ecartJustification.trim() || null });
       if (error) return setMsg(error.message);
       const result = Array.isArray(data) ? data[0] : data;
       if (!result) return setMsg("La clôture a été envoyée, mais le résultat de rapprochement n’a pas été renvoyé.");
@@ -607,7 +608,7 @@ export default function CaissePage() {
                 </section>
               </>
             )}
-            {cloture && <section className="carte mt-4" role="status"><h2 className="text-lg font-extrabold">Rapprochement de caisse</h2><dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3"><div><dt className="text-sm text-slate-600">Théorique</dt><dd className="font-bold">{fcfa(cloture.total_theorique)}</dd></div><div><dt className="text-sm text-slate-600">Compté</dt><dd className="font-bold">{fcfa(cloture.total_compte)}</dd></div><div><dt className="text-sm text-slate-600">Écart</dt><dd className={cloture.ecart === 0 ? "font-bold text-emerald-700" : "font-bold text-red-700"}>{fcfa(cloture.ecart)}</dd></div></dl></section>}
+            {cloture && <section className="carte mt-4" role="status"><h2 className="text-lg font-extrabold">Rapprochement de caisse</h2><dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3"><div><dt className="text-sm text-slate-600">Théorique</dt><dd className="font-bold">{fcfa(cloture.total_theorique)}</dd></div><div><dt className="text-sm text-slate-600">Compté</dt><dd className="font-bold">{fcfa(cloture.total_compte)}</dd></div><div><dt className="text-sm text-slate-600">Écart</dt><dd className={cloture.ecart === 0 ? "font-bold text-emerald-700" : "font-bold text-red-700"}>{fcfa(cloture.ecart)}</dd></div></dl>{cloture.ecart !== 0 && <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Écart à vérifier : la clôture doit conserver une justification et ne pas effacer la différence constatée.</p>}</section>}
             {msg && <p role="status" aria-live="polite" className="mt-4 rounded-xl border p-3 text-sm">{msg}</p>}
           </>
         )}
