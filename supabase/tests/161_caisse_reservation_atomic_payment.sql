@@ -142,6 +142,14 @@ begin
     select 1 from public.reservations
     where id=v_reservation and statut='payee' and paiement_statut='effectue' and paiement_mode='especes_retrait'
   ) then raise exception 'La réservation n’a pas été marquée payée'; end if;
+  if not exists (
+    select 1 from public.reservations
+    where id=v_reservation
+      and paiement_montant_percu=200
+      and paiement_monnaie_rendue=100
+      and paiement_ticket_numero=v_result.numero_vente
+      and paiement_valide_at is not null
+  ) then raise exception 'Le reçu client ne conserve pas le montant perçu, la monnaie, la date et le ticket'; end if;
 
   v_rejected := false;
   begin
@@ -183,6 +191,14 @@ begin
     select 1 from public.reservations
     where id=v_reservation2 and statut='payee' and paiement_statut='effectue' and paiement_mode='orange_money'
   ) then raise exception 'Le canal déclaré n’a pas été historisé sur la réservation'; end if;
+  if not exists (
+    select 1 from public.reservations
+    where id=v_reservation2
+      and paiement_montant_percu=100
+      and paiement_monnaie_rendue=0
+      and paiement_ticket_numero=v_result.numero_vente
+      and paiement_valide_at is not null
+  ) then raise exception 'Le reçu non-espèces ne conserve pas les champs de preuve'; end if;
   if not exists (
     select 1 from public.vente_paiements p join public.ventes v on v.id=p.vente_id
     where v.reservation_id=v_reservation2 and p.mode='orange_money'
