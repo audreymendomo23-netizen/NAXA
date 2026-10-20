@@ -19,7 +19,7 @@ export async function POST(request:NextRequest){
   const targetId=typeof b.targetUserId==="string"?b.targetUserId:"",pin=typeof b.pin==="string"?b.pin:"";
   if(!/^\d{6,8}$/.test(pin))return err("Le PIN doit contenir 6 à 8 chiffres.");
   const {data:promoter}=await db.from("profiles").select("id").eq("id",user.id).eq("role","promoteur").eq("actif",true).maybeSingle();
-  const {data:target}=await db.from("profiles").select("id,role,parent_profile_id,pharmacie_id").eq("id",targetId).eq("role","caisse").eq("parent_profile_id",user.id).maybeSingle();
+  const {data:target}=await db.from("profiles").select("id,role,parent_profile_id,pharmacie_id").eq("id",targetId).eq("role","caisse").eq("parent_profile_id",user.id).eq("actif",true).maybeSingle();
   if(!promoter||!target?.pharmacie_id)return err("Caisse hors de votre équipe ou Promoteur inactif.",403);
   const {data:membership}=await db.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",user.id).eq("pharmacie_id",target.pharmacie_id).eq("actif",true).maybeSingle();
   if(!membership)return err("Pharmacie hors périmètre actif.",403);
@@ -50,6 +50,7 @@ export async function POST(request:NextRequest){
   const {error}=await db.from("caisse_security_challenges").upsert({user_id:user.id,challenge:options.challenge,purpose:"registration",expires_at:new Date(Date.now()+300000).toISOString()});if(error)throw error;return NextResponse.json(options);
  }
  if(b.action==="registration-verify"){
+  const sid=typeof b.sessionId==="string"?b.sessionId:"";if(!sid||!(await sessionOK(user.id,sid)))return err("Session Caisse invalide ou expirée.",403);
   const response=b.response as Parameters<typeof verifyRegistrationResponse>[0]["response"]|undefined;if(!response)return err("Preuve biométrique absente.");
   const {data:ch}=await db.from("caisse_security_challenges").select("*").eq("user_id",user.id).eq("purpose","registration").gt("expires_at",new Date().toISOString()).maybeSingle();if(!ch)return err("Demande expirée.",410);
   const v=await verifyRegistrationResponse({response,expectedChallenge:ch.challenge,expectedOrigin:origin(request),expectedRPID:rp(request),requireUserVerification:true});if(!v.verified||!v.registrationInfo)return err("Enregistrement biométrique refusé.",403);
