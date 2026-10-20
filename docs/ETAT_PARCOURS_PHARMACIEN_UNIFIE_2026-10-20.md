@@ -45,7 +45,11 @@ Les entrées du workspace Pharmacien sont maintenant navigables par URL. L'entr�
 
 ## Fichiers modifiés
 - `src/app/pharmacie/pharmacien/page.tsx` : interface commune avec consultation, prescription, préparations et décisions d'ordonnance.
-- `src/components/pharmacie/PharmacienWorkspaceSidebar.tsx` : panneau latéral responsive à dix entrées, dont le lien vers `/suivi`, Historique et Rapports et Performances.
+- `src/components/pharmacie/PharmacienWorkspaceSidebar.tsx` : panneau latéral responsive à neuf entrées métier et Déconnexion, navigation par URL.
+- `src/components/pharmacie/PharmacienWorkspaceShell.tsx` : coquille responsive séparant navigation et contenu.
+- `src/components/pharmacie/PharmacienWorkspace.tsx` : contenu métier partagé entre les routes du workspace.
+- `src/app/pharmacie/pharmacien/[section]/page.tsx` : route dynamique des sections du workspace.
+- `src/app/pharmacie/pharmacien/suivi-patients/page.tsx` : route dédiée affichant honnêtement l’état non connecté du suivi patient.
 - `src/app/pharmacie/assistant/page.tsx` : redirection de compatibilité vers l'interface commune.
 - `src/app/pharmacie/page.tsx` : retrait du lien séparé Assistant pharmacien.
 - `supabase/migration_127_unified_pharmacien_role.sql` : conversion des profils, contrainte sans fonction Assistant, renommage de la colonne d'acteur de préparation et RPC Pharmacien pour préparation et décision.
