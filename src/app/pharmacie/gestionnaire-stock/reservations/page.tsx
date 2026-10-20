@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { annulerReservationGestionStock } from "../actions";
+import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";
 
 type StockRow = {
   pharmacie_id: string;
@@ -120,6 +121,7 @@ export default async function GestionnaireStockReservationsPage({
           <nav className="flex flex-wrap gap-3 text-sm font-bold"><Link className="underline" href="/pharmacie/gestionnaire-stock">Tableau de bord</Link><Link className="underline" href="/pharmacie/messages">Messages pharmacie</Link><Link className="underline" href="/pharmacie/caisse">Caisse</Link></nav>
         </header>
 
+        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]"><GestionnaireStockSidebar active="/pharmacie/gestionnaire-stock/reservations" /><div className="min-w-0 space-y-5">
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Dossiers à traiter</p><p className="mt-1 text-3xl font-black">{reservations.length}</p></div>
           <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Échéance proche (30 min)</p><p className="mt-1 text-3xl font-black">{reservations.filter((r) => new Date(r.expires_at).getTime() - Date.now() <= 30 * 60 * 1000 && new Date(r.expires_at).getTime() > Date.now()).length}</p></div>
@@ -177,6 +179,7 @@ export default async function GestionnaireStockReservationsPage({
           })}
         </div>
         <p className="text-xs leading-relaxed text-slate-500">Les informations de stock sont indicatives au chargement de la page. Le serveur doit revalider le stock, les lots, le statut et le périmètre avant toute préparation ou annulation. Les emplacements absents ne sont jamais inventés.</p>
+        </div></div>
       </div>
     </main>
   );
