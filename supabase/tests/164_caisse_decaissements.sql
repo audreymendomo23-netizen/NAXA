@@ -12,7 +12,7 @@ begin
 
   select pg_get_functiondef(p.oid) into v_fn
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='caisse_decaisser' and p.pronargs=5;
+  where n.nspname='public' and p.proname='caisse_decaisser' and p.pronargs=6;
   if v_fn is null
      or position('auth.uid()' in lower(v_fn))=0
      or position('p_session' in lower(v_fn))=0
@@ -23,8 +23,9 @@ begin
     raise exception 'Garde de session, rôle, montant ou motif du décaissement incomplet';
   end if;
 
-  if not has_function_privilege('authenticated','public.caisse_decaisser(uuid,integer,text,text,text)','EXECUTE')
-     or has_function_privilege('anon','public.caisse_decaisser(uuid,integer,text,text,text)','EXECUTE') then
+  if not has_function_privilege('authenticated','public.caisse_decaisser(uuid,integer,text,text,text,uuid)','EXECUTE')
+     or has_function_privilege('anon','public.caisse_decaisser(uuid,integer,text,text,text,uuid)','EXECUTE')
+     or has_function_privilege('authenticated','public.caisse_decaisser(uuid,integer,text,text,text)','EXECUTE') then
     raise exception 'Droits EXECUTE de caisse_decaisser incorrects';
   end if;
 
@@ -53,10 +54,11 @@ begin
   values(v_admin,'authenticated','authenticated','naxa164_'||substr(replace(v_admin::text,'-',''),1,12)||'@invalid.local','',now(),now());
   set local session_replication_role = origin;
 
-  insert into public.profiles(id,role,username,actif)
-  values(v_admin,'admin','naxa164_'||substr(replace(v_admin::text,'-',''),1,12),true);
+  insert into public.profiles(id,role,username,actif,pharmacie_id)
+  values(v_admin,'caisse','naxa164_'||substr(replace(v_admin::text,'-',''),1,12),true,v_pharmacie);
   insert into public.pharmacies(id,nom,lat,lng,actif,visible_recherche)
   values(v_pharmacie,'NAXA TEST 164',3.8667,11.5167,true,true);
+  update public.profiles set pharmacie_id=v_pharmacie where id=v_admin;
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_caisse,v_pharmacie,'Caisse test 164',true);
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,fond_initial,statut)
