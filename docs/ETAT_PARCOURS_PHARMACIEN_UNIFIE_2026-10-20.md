@@ -13,13 +13,13 @@
 3. Prescriptions
 4. Ordonnances
 5. Préparations
-6. Suivi des dispositifs Patient — ouvre le parcours existant `/suivi`
+6. Suivi des dispositifs Patient — route dédiée `/pharmacie/pharmacien/suivi-patients`, interface de statut non connectée aux données patients
 7. Historique — aperçu des dossiers récents disponibles ; journal d’audit exhaustif à construire
 8. Rapports et Performances — indicateurs de situation sur les données chargées ; rapports consolidés à construire
 9. Profil
 10. Déconnexion
 
-Les entrées 1 à 5 et 7 restent dans l'espace Pharmacien. L'entrée 6 ouvre la page de suivi des dispositifs existante et requiert une connexion ; la déconnexion est une action du panneau latéral.
+Les entrées du workspace Pharmacien sont maintenant navigables par URL. L'entrée 6 ne renvoie plus au suivi personnel `/suivi` ; sa page explique explicitement que le partage de données patient n'est pas encore raccordé. La déconnexion reste une action du panneau latéral.
 
 
 ## Parcours cible — Historique
@@ -56,3 +56,18 @@ Les entrées 1 à 5 et 7 restent dans l'espace Pharmacien. L'entrée 6 ouvre la 
 - Aucun build, lint, typecheck, test automatisé ou test SQL n'a été exécuté dans cette passe.
 - Aucun déploiement n'a été lancé.
 - Le code est donc modifié, mais le parcours n'est pas encore prouvé en exécution. La migration doit être testée/appliquée avant que les profils convertis et la nouvelle RPC fonctionnent sur la base.
+
+## Alignement architectural avec le compte Caisse — 20 octobre 2026
+
+- Ajout de `src/components/pharmacie/PharmacienWorkspaceShell.tsx`, calqué sur le principe de `CaisseWorkspaceShell` : la coquille responsive porte le panneau latéral et le conteneur de contenu ; elle ne porte pas la logique métier.
+- Extraction du contenu opérationnel vers `src/components/pharmacie/PharmacienWorkspace.tsx`, réutilisé par la route principale et les routes de sections.
+- `/pharmacie/pharmacien` ouvre le tableau de bord ; `/pharmacie/pharmacien/[section]` porte les sections Consultations, Prescriptions, Ordonnances, Préparations, Historique, Rapports et Profil.
+- `/pharmacie/pharmacien/suivi-patients` est une route explicite et prioritaire, distincte du suivi personnel client `/suivi`. Elle affiche un avertissement d'absence de connexion aux données patients au lieu de présenter à tort le tableau personnel comme un suivi professionnel.
+- La vérification du profil dans le workspace exige maintenant `actif === true` et la fonction interne `pharmacien`.
+
+### Limites de validation après refonte
+
+- Modifications poussées directement sur `main` ; aucun déploiement lancé.
+- Build, lint, typecheck, tests E2E et tests SQL non exécutés dans cette passe.
+- La nouvelle architecture de navigation est en place dans le code source, mais son exécution n'est pas déclarée validée tant que ces contrôles ne sont pas lancés.
+- Le suivi partagé des patients, les consentements professionnels, les alertes temps réel et l'intégration des prescriptions restent à implémenter et vérifier côté serveur/RLS avant usage réel.
