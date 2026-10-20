@@ -892,13 +892,12 @@ Le dépôt contient désormais :
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
 
 ## ERP-011 — Rappel de lot (F64)
-- Audit corrigé : `vente_lignes.lot_id` et l'allocation FEFO existaient déjà dans `main` via la migration 057 ; la vente d'un lot bloqué/expiré est déjà refusée par le moteur POS existant.
-- Cause racine : aucun écran F64 ; test 052 insuffisant ; clôture de rappel trop large ; contrainte UNIQUE globale empêchant le rappel du même lot après levée ; levée pouvant effacer un blocage préexistant ; double schéma historique/canonique de lots ; possibilité de désynchroniser stock agrégé et lots.
-- Corrections additives sur `main` : migrations 175 à 178 ; RPC `stock_lot_enregistrer` préserve la quantité totale, impose un lot source lors de la répartition et bloque les écritures directes sur `stocks_lots`. Une garde bloque les mises à jour du stock agrégé qui ne correspondent pas à la somme des lots.
-- Interface : `/pharmacie/rappels-lots`, déclaration et historique de rappel, lotisation du stock existant sans modifier la quantité agrégée, clôture Promoteur seule, liens et bannière rouge à l'accueil pharmacie et en caisse. La liste des tickets concernés est limitée au Promoteur et ne montre pas l'identité client.
-- Preuves exécutées sur Supabase de test : `supabase/tests/052_rappel_lot.sql` PASS ; `supabase/tests/175_rappel_lot_cycle_hardening.sql` PASS ; `supabase/tests/177_stock_lot_enregistrer.sql` PASS ; `supabase/tests/054_pos_lignes_fefo.sql` PASS.
-- Supabase Production non modifié et aucun déploiement de Production effectué.
-- **État : 🟡 PARTIEL** — restent le comptage de quarantaine, le raccordement retour/destruction aux mouvements de stock, l'écran des ordonnances concernées pour l'assistant, l'avis réseau F64-ADM, le build complet et les tests navigateur.
+- Audit corrigé : `vente_lignes.lot_id` et l'allocation FEFO existaient déjà via la migration 057 ; le POS refuse les lots bloqués/expirés.
+- Corrections additives 175–184 : clôture Promoteur seule après traitement complet ; restauration du blocage antérieur ; rappel réutilisable après clôture ; synchronisation des colonnes historiques/canoniques ; création/répartition de lots sans changer le stock total ; garde anti-désynchronisation stock/lots ; comptage de quarantaine ; sorties retour/destruction atomiques et historisées ; avis réseau admin et accusés Promoteur.
+- Interface : `/pharmacie/rappels-lots` (déclaration, lots, comptage, traitement, historique, impacts POS et références ordonnancier selon le rôle) ; bannière rouge à l'accueil et à la caisse ; `/admin/rappels-lots` pour les avis réseau ; panneau d'avis sur l'espace Promoteur. Les coûts d'achat sont affichés seulement aux profils disposant du privilège de lecture.
+- Tests exécutés sur Supabase de test : 052, 054, 175, 177, 179, 180, 181 et 184 PASS ; tests Caisse 164, 166, 167 et 168 PASS. Test 161 a passé après migration 173, mais son rejeu ultérieur a été bloqué par le contrôle d'exécution SQL.
+- Aucun changement Production/Supabase live exécuté et aucun déploiement Production.
+- **État : 🟡 FONCTIONNALITÉ CONSTRUITE — compilation Next/TypeScript complète, lint, parcours navigateur et appareils réels restent à vérifier.**
 
 
 ## ERP-012 — Offline ERP avancé — chantier du 08/10/2026
