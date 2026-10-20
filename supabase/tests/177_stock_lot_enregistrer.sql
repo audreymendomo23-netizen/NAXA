@@ -28,6 +28,9 @@ begin
  select sum(quantite)::integer into v_sum from public.stocks_lots where pharmacie_id=v_ph and produit_id=v_produit;
  select quantite into v_stock from public.stocks where pharmacie_id=v_ph and produit_id=v_produit;
  if v_sum<>5 or v_stock<>5 then raise exception 'Création/répartition a changé la quantité agrégée : lots %, stock %',v_sum,v_stock; end if;
+ v_rejected:=false;
+ begin update public.stocks set quantite=6 where pharmacie_id=v_ph and produit_id=v_produit; exception when others then v_rejected:=true; end;
+ if not v_rejected then raise exception 'Une modification directe a désynchronisé stock agrégé et lots'; end if;
  if not exists(select 1 from public.stocks_lots where id=v_lot1 and quantite=3 and lot='INITIAL-177' and numero_lot='INITIAL-177')
     or not exists(select 1 from public.stocks_lots where id=v_lot2 and quantite=2 and lot='LOT-177-B' and numero_lot='LOT-177-B') then
   raise exception 'Répartition ou synchronisation des champs de lot incorrecte';
