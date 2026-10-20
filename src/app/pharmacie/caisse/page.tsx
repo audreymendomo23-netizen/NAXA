@@ -540,6 +540,16 @@ export default function CaissePage() {
           <a href="/pharmacie">← Pharmacie</a>
           <b>Caisse · {pharmacie || "Chargement…"}</b>
         </header>
+        <nav aria-label="Autres espaces caisse" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+          <a className="btn btn-clair" href="/pharmacie/caisse/clients">Clients & crédits</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/assurances">Assurances</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/historique">Historique</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/annulations">Annulations</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/rapports">Rapports</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/profil">Profil & sécurité</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/notifications">Notifications</a>
+          <a className="btn btn-clair" href="/pharmacie/caisse/service">Prise / fin de service</a>
+        </nav>
         <RappelsLotsBanner pharmacieId={pid} />
         {loading && <section className="carte" role="status">Vérification de l’accès et de la session de caisse…</section>}
         {!loading && msg && !ready && <section className="carte" role="alert">{msg}<p className="mt-3"><a className="btn btn-clair" href="/connexion?retour=/pharmacie/caisse">Se reconnecter</a></p></section>}
