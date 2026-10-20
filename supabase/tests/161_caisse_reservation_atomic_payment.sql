@@ -86,6 +86,9 @@ begin
   insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
   values(v_reservation,v_produit,1,100);
 
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+
   -- Un montant insuffisant doit tout annuler : ni vente brouillon ni paiement orphelin.
   begin
     perform * from public.vente_reservation_encaisser(v_reservation,v_session,99);
@@ -95,9 +98,6 @@ begin
   if not v_rejected then raise exception 'Un montant espèces insuffisant a été accepté'; end if;
   select count(*) into v_count from public.ventes where reservation_id=v_reservation;
   if v_count <> 0 then raise exception 'Échec de paiement : vente partielle persistée'; end if;
-
-  perform set_config('request.jwt.claim.sub',v_admin::text,true);
-  perform set_config('request.jwt.claim.role','authenticated',true);
 
   select * into v_result
   from public.vente_reservation_encaisser(v_reservation,v_session,200);
