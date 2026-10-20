@@ -60,8 +60,8 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
     const {data:p}=await sb.from("profiles").select("fonction_interne,pharmacie_id,actif,first_name,last_name,phone,username").eq("id",u.user.id).single();
     if(!p?.pharmacie_id||p.actif!==true||p.fonction_interne!=="pharmacien")return setMsg("Accès réservé à un compte Pharmacien actif.");
-    const {data:pharmacy,error:pharmacyError}=await sb.from("pharmacies").select("id,actif,visible_recherche").eq("id",p.pharmacie_id).maybeSingle();
-    if(pharmacyError||!pharmacy||pharmacy.actif!==true||pharmacy.visible_recherche!==true)return setMsg("La pharmacie est inactive ou non publiée ; accès aux opérations Pharmacien refusé.");
+    const {data:pharmacy,error:pharmacyError}=await sb.from("pharmacies").select("id,actif").eq("id",p.pharmacie_id).maybeSingle();
+    if(pharmacyError||!pharmacy||pharmacy.actif!==true)return setMsg("La pharmacie est inactive ; accès aux opérations Pharmacien refusé.");
     setProfileInfo({first_name:p.first_name??null,last_name:p.last_name??null,phone:p.phone??null,username:p.username??null,email:u.user.email??""});
     setPid(p.pharmacie_id);charger(p.pharmacie_id);
   })()},[sb]);
