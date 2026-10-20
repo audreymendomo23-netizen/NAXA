@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-export type NotificationNaxa = { id: string; type: string; titre: string; corps: string; fil_id: string | null; lu_le: string | null; created_at: string };
+export type NotificationNaxa = { id: string; type: string; titre: string; corps: string; fil_id: string | null; reservation_id?: string | null; lu_le: string | null; created_at: string };
 
 export function useNotifications() {
   const [items, setItems] = useState<NotificationNaxa[]>([]);
@@ -13,7 +13,7 @@ export function useNotifications() {
     const sb = supabaseBrowser();
     const { data: auth } = await sb.auth.getUser();
     if (!auth.user) { setItems([]); setLoading(false); return; }
-    const { data, error } = await sb.from("notifications").select("id,type,titre,corps,fil_id,lu_le,created_at").order("created_at", { ascending: false }).limit(50);
+    const { data, error } = await sb.from("notifications").select("id,type,titre,corps,fil_id,reservation_id,lu_le,created_at").order("created_at", { ascending: false }).limit(50);
     if (error) setErreur("Notifications indisponibles pour le moment.");
     else setItems((data ?? []) as NotificationNaxa[]);
     setLoading(false);
