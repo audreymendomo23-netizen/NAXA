@@ -1,2 +1,27 @@
-import { GestionnaireStockEspace } from "@/components/pharmacie/GestionnaireStockEspace";
-export default function Page(){return <GestionnaireStockEspace section="inventaires"/>;}
+import { redirect } from "next/navigation";
+import { supabaseServer } from "@/lib/supabase/server";
+import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";
+import { creerInventaireStock, compterLigneInventaire, cloturerInventaireStock } from "./actions";
+
+export default async function InventairesPage() {
+ const sb=supabaseServer();
+ const {data:auth}=await sb.auth.getUser();
+ if(!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/inventaires");
+ const {data:profile}=await sb.from("profiles").select("role,fonction_interne,actif").eq("id",auth.user.id).maybeSingle();
+ const role=String(profile?.role??"").toLowerCase(),fn=String(profile?.fonction_interne??"").toLowerCase();
+ if(!profile||profile.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn))) redirect("/");
+ const {data:rawPharmacies,error:pharmacyError}=await sb.rpc("my_pharmacies");
+ const pharmacies=(Array.isArray(rawPharmacies)?rawPharmacies:[]) as {id?:string;pharmacie_id?:string;nom?:string}[];
+ const ids=[...new Set(pharmacies.map(p=>p.pharmacie_id??p.id).filter((id):id is string=>Boolean(id)))];
+ if(pharmacyError||!ids.length) return <main className="p-5">Impossible de déterminer le périmètre pharmacie.</main>;
+ const {data:rows,error}=await sb.from("inventaires").select("id,pharmacie_id,type,statut,reference,created_at,closed_at,inventaire_lignes(id,produit_id,quantite_theorique,quantite_comptee,ecart,produits(nom,dosage))").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(50);
+ const inventories=(rows??[]) as unknown as {id:string;pharmacie_id:string;type:string;statut:string;reference:string|null;created_at:string;closed_at:string|null;inventaire_lignes:{id:string;produit_id:string;quantite_theorique:number;quantite_comptee:number|null;ecart:number;produits:{nom:string;dosage:string|null}|null}[]}[];
+ return <main className="min-h-screen bg-[#F4F8F5] p-4 text-slate-900"><div className="mx-auto max-w-7xl space-y-4"><header className="rounded-2xl bg-[#0B3D26] p-5 text-white"><p className="text-xs font-bold uppercase tracking-widest">NAXA · Poste de travail</p><h1 className="text-2xl font-black">Inventaires</h1></header><div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]"><GestionnaireStockSidebar active="/pharmacie/gestionnaire-stock/inventaires"/><section className="space-y-4">
+ <form action={creerInventaireStock} className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2"><h2 className="font-extrabold sm:col-span-2">Démarrer un inventaire</h2><label className="text-sm font-bold">Pharmacie<select name="pharmacie_id" required className="mt-1 w-full rounded-xl border p-3">{pharmacies.map(p=><option key={p.pharmacie_id??p.id} value={p.pharmacie_id??p.id}>{p.nom||p.pharmacie_id||p.id}</option>)}</select></label><label className="text-sm font-bold">Type<select name="type" className="mt-1 w-full rounded-xl border p-3"><option value="complet">Complet</option><option value="cible">Ciblé</option></select></label><label className="text-sm font-bold sm:col-span-2">Référence facultative<input name="reference" maxLength={80} className="mt-1 w-full rounded-xl border p-3" placeholder="INV-2026-10"/></label><button className="rounded-xl bg-[#0B3D26] p-3 font-bold text-white sm:col-span-2">Créer et préparer les lignes</button></form>
+ {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">La lecture des inventaires est indisponible.</p>}
+ {inventories.map(inv=><article key={inv.id} className="space-y-3 rounded-2xl border bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold">{inv.reference||"Inventaire "+inv.id.slice(0,8).toUpperCase()}</h2><p className="text-sm text-slate-600">{inv.type} · {inv.statut} · {new Date(inv.created_at).toLocaleString("fr-FR")}</p></div>{["brouillon","en_cours"].includes(inv.statut)&&<form action={cloturerInventaireStock}><input type="hidden" name="inventaire_id" value={inv.id}/><button className="rounded-xl border border-emerald-800 px-3 py-2 text-sm font-bold">Clôturer</button></form>}</div>
+ <div className="space-y-2">{inv.inventaire_lignes.map(line=><form key={line.id} action={compterLigneInventaire} className="flex flex-wrap items-center gap-2 rounded-xl border p-3"><input type="hidden" name="ligne_id" value={line.id}/><div className="min-w-36 flex-1"><p className="text-sm font-bold">{line.produits?.nom||line.produit_id} {line.produits?.dosage||""}</p><p className="text-xs text-slate-600">Théorique {line.quantite_theorique} · écart {line.quantite_comptee===null?"à compter":line.ecart}</p></div><input aria-label="Quantité comptée" type="number" min="0" step="1" required name="quantite_comptee" defaultValue={line.quantite_comptee??""} disabled={!["brouillon","en_cours"].includes(inv.statut)} className="w-28 rounded-lg border p-2"/><button disabled={!["brouillon","en_cours"].includes(inv.statut)} className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold">Enregistrer</button></form>)}</div>
+ {inv.statut==="cloture"&&<p className="text-sm text-emerald-800">Clôturé le {inv.closed_at?new Date(inv.closed_at).toLocaleString("fr-FR"):"date non renseignée"}</p>}</article>)}
+ {!inventories.length&&!error&&<p className="rounded-xl border bg-white p-4">Aucun inventaire enregistré.</p>}
+ </section></div></div></main>;
+}
