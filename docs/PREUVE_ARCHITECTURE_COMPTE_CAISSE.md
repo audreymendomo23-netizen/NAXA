@@ -14,6 +14,8 @@
 | Tableau de bord opérationnel | `src/app/pharmacie/caisse/page.tsx` | Route métier existante ; contient des appels Auth, des lectures Supabase et des RPC de caisse/vente/ticket. |
 | Sections opérationnelles | `src/app/pharmacie/caisse/[section]/page.tsx` | Parcours connectés des clients, assurances, historique, annulations, rapports, notifications, profil et service. |
 | Navigation opérationnelle | `src/components/pharmacie/CaisseSidebar.tsx` | Six liens principaux et une action distincte Déconnexion, soit les sept entrées du § 5.2. |
+| Calculs purs de caisse | `src/lib/caisse/calculs.ts` | Module existant pour montants entiers FCFA, total de ligne, total panier, monnaie à rendre et écart de caisse. Présence vérifiée dans le code ; exécution des tests non revendiquée. |
+| Tests des calculs caisse | `scripts/test-caisse-calculs.cjs` et script `test:caisse-calculs` de `package.json` | Script existant contenant 15 assertions. Les résultats d'exécution ne sont pas disponibles dans ce contrôle ; le statut est « présent, non exécuté », pas « vert ». |
 | Onglets contextuels | `src/components/pharmacie/CaisseSectionTabs.tsx` | Navigation secondaire des sections opérationnelles. |
 | Prototype de parcours | `src/app/pharmacie/caisse/parcours-ui/page.tsx` | Prototype navigable séparé, sans opérations métier ni connexions externes. |
 | Maquette visuelle | `src/app/pharmacie/caisse/maquette-visuelle/page.tsx` | Maquette de présentation ; ne constitue pas une preuve de comportement métier. |
@@ -79,6 +81,7 @@ Ce constat est une preuve de présence de connexions dans le code source, pas un
 
 ## 6. Contradictions et limites qui restent ouvertes
 
+0. **Tests existants ≠ tests réussis.** `scripts/test-caisse-calculs.cjs` existe et contient 15 assertions appelant `src/lib/caisse/calculs.ts`; `package.json` expose `npm run test:caisse-calculs`. Aucune exécution n'a été réalisée lors de ce contrôle. Les assertions visibles couvrent les montants entiers, total de ligne/panier, monnaie, écart, format FCFA et erreurs, mais pas toute la formule d'assurance, les paiements mixtes, le crédit ou les transactions serveur.
 1. **Prototype ≠ application opérationnelle.** Les 173 gestionnaires d’événements sont des interactions locales ; ils ne prouvent pas une opération métier. Le fichier affiche explicitement qu’il est non connecté.
 2. **La présence d’une RPC ≠ son intégrité.** Il faut examiner le SQL réellement présent sur `main`, les permissions, les transactions, l’idempotence, les contraintes, les triggers et les policies RLS.
 3. **Déconnexion et mode hors ligne.** La barre latérale opérationnelle bloque la déconnexion si le navigateur est hors ligne, mais le code examiné ne vérifie pas l’existence d’une file de ventes en attente. Cela ne satisfait pas à lui seul le § 6.13.
@@ -106,6 +109,8 @@ Empreintes de contenu (blob SHA) relevées sur `main` pendant le contrôle du 20
 | `src/app/pharmacie/caisse/[section]/page.tsx` | `f9b424854311f5b91badf3e981287ba8d32d551f` |
 | `src/components/pharmacie/CaisseSidebar.tsx` | `70497aad7905bc4a113ff44e1c152dc022298d15` |
 | `src/components/pharmacie/CaisseSectionTabs.tsx` | `e8d857fdb3fdfca23ce14c2ee0efc4c8e6089a71` |
+| `src/lib/caisse/calculs.ts` | `ce3e38732814de74f4d129e692b027195369942f` |
+| `scripts/test-caisse-calculs.cjs` | `1315fb5f1a9baf51768a8f06b5c381e8f26dc33b` |
 | `src/app/pharmacie/caisse/parcours-ui/page.tsx` | `6c37e2e5c76fb4999a54d519f51e57b029477628` |
 | `src/app/pharmacie/caisse/maquette-visuelle/page.tsx` | `1bdfc0e24b0849af668e6b3b9bc7d4f695391e04` |
 
