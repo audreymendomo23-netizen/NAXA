@@ -34,7 +34,7 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 - La caissière peut aussi enregistrer une authentification biométrique WebAuthn depuis sa propre session et son propre appareil. Le système ne reçoit ni ne stocke l’image de l’empreinte : le capteur local valide l’utilisateur et le serveur vérifie cryptographiquement l’assertion. Un Promoteur ne peut pas enrôler à distance l’empreinte d’une autre personne.
 - Chaque décaissement exige un PIN vérifié ou une assertion biométrique fraîche. L’API émet une autorisation temporaire de 90 secondes, liée à l’utilisateur et à la session, consommée une seule fois par la transaction SQL. L’ancienne RPC sans autorisation est neutralisée.
 - L’enregistrement reste lié au titulaire de la session ouverte, au montant, au motif, à la catégorie et au justificatif facultatif. Les migrations 167 et 170 ajoutent les secrets protégés, les défis WebAuthn, les autorisations à usage unique et le verrouillage du PIN.
-- Les bibliothèques WebAuthn doivent être installées par le gestionnaire de paquets (@simplewebauthn/server et @simplewebauthn/browser). L’enrôlement réel dépend d’un navigateur/appareil compatible et d’une origine HTTPS correctement configurée.
+- Les bibliothèques WebAuthn (@simplewebauthn/server et @simplewebauthn/browser) sont déclarées dans package.json. La compilation et l’enrôlement réel restent à vérifier sur un navigateur/appareil compatible avec une origine HTTPS correctement configurée.
 
 ## Écart de caisse
 - À la clôture, NAXA calcule le théorique : fond initial + encaissements espèces confirmés − décaissements enregistrés. Les paiements électroniques non confirmés ne sont pas assimilés à des espèces.
