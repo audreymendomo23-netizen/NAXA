@@ -132,6 +132,9 @@ begin
  if exists(select 1 from public.inventaire_lignes where inventaire_id=p_inventaire and quantite_comptee is null) then raise exception 'Toutes les lignes doivent être comptées avant clôture'; end if;
  -- Contradiction: une ligne agrégée ne peut pas ajuster un stock qui possède des lots,
  -- sinon le stock agrégé divergerait du détail des lots.
+ if exists(select 1 from public.inventaire_lignes il where il.inventaire_id=p_inventaire and il.lot_id is null group by il.produit_id having count(*)>1) then
+  raise exception 'Inventaire avec lignes agrégées dupliquées : clôture refusée';
+ end if;
  if exists(select 1 from public.inventaire_lignes il where il.inventaire_id=p_inventaire and il.lot_id is null
    and exists(select 1 from public.stocks_lots sl where sl.pharmacie_id=v_pharmacie and sl.produit_id=il.produit_id)) then
   raise exception 'Inventaire préparé sans détail par lot : clôture refusée pour éviter un écart stock/lots. Recréez un inventaire avec le parcours actuel.';
