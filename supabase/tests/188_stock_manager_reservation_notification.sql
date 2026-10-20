@@ -53,7 +53,7 @@ begin
     and not t.tgisinternal;
 
   if v_trigger is null
-     or position('AFTER INSERT OR DELETE OR UPDATE' in upper(v_trigger))=0 then
+     or position('AFTER INSERT OR UPDATE OR DELETE' in upper(v_trigger))=0 then
     raise exception 'Le déclencheur doit actualiser le dossier lors des mutations de ses lignes produits';
   end if;
 
