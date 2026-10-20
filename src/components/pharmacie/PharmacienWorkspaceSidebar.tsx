@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Section = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "profil";
+type Section = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "historique" | "rapports" | "profil";
 type Entry = { id: Section | "dispositifs"; label: string; icon: string; href?: string };
 type Props = { activeTab: Section; onNavigate: (section: Section) => void };
 
@@ -15,6 +15,8 @@ const entries: Entry[] = [
   { id: "ordonnances", label: "Ordonnances", icon: "✓" },
   { id: "preparations", label: "Préparations", icon: "☷" },
   { id: "dispositifs", label: "Suivi des dispositifs Patient", icon: "⌁", href: "/suivi" },
+  { id: "historique", label: "Historique", icon: "◷" },
+  { id: "rapports", label: "Rapports et Performances", icon: "▥" },
   { id: "profil", label: "Profil", icon: "♙" },
 ];
 
