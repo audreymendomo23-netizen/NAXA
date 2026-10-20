@@ -46,7 +46,6 @@ export async function GestionnaireStockEspace({ section }: { section: Section })
   sb.from("stocks").select("produit_id",{count:"exact",head:true}).in("pharmacie_id",ids).lte("quantite",5),
   sb.from("stocks_lots").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).or("date_peremption.lte."+cutoff+",bloque.eq.true)
  ]):null;
- const low=stocks.filter(s=>Number(s.quantite)<=5);
  const expiring=lots.filter(l=>l.date_peremption<=cutoff||l.bloque);
  const err=section==="stock-logistique"?stockResult.error:section==="lots-peremptions"?lotsResult.error:section==="historique-rapports"?(reservationsResult.error||adjustmentsResult.error):null;
  return <main className="min-h-screen bg-[#F4F8F5] px-4 pb-10 text-slate-900"><div className="mx-auto max-w-7xl space-y-4 pt-4">
