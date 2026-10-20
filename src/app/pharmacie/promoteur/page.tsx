@@ -35,7 +35,7 @@ export default async function EspacePromoteur() {
       .select("pharmacie_id,actif,created_at")
       .eq("promoteur_id", auth.user.id),
     sb.from("profiles")
-      .select("id,pharmacie_id,actif")
+      .select("id,username,first_name,last_name,pharmacie_id,actif")
       .eq("parent_profile_id", auth.user.id)
       .eq("role", "caisse"),
   ]);
