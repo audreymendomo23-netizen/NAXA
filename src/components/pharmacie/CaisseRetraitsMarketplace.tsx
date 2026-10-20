@@ -100,6 +100,35 @@ export function CaisseRetraitsMarketplace({
     if (raw.startsWith("NAXA:PAY:")) return raw.slice("NAXA:PAY:".length).trim();
     return raw;
   }, [codeInput]);
+
+  async function lookupTransaction() {
+    if (!pharmacieId || !normalizedCode) return;
+    setError("");
+    setMessage("");
+    setReceipt(null);
+    const sb = supabaseBrowser();
+    const columns = "id,code_paiement,statut,total,created_at,expires_at,paiement_statut,paiement_mode,paiement_ref,reservation_items(quantite,prix_unitaire,produits(nom,dosage))";
+    const byCode = await sb.from("reservations").select(columns).eq("pharmacie_id", pharmacieId).eq("mode", "reservation").eq("code_paiement", normalizedCode).maybeSingle();
+    let found = byCode.data as unknown as Reservation | null;
+    let lookupError = byCode.error;
+    if (!found && /^[0-9A-F-]{36}$/i.test(normalizedCode)) {
+      const byId = await sb.from("reservations").select(columns).eq("pharmacie_id", pharmacieId).eq("mode", "reservation").eq("id", normalizedCode).maybeSingle();
+      found = byId.data as unknown as Reservation | null;
+      lookupError = byId.error;
+    }
+    if (lookupError) {
+      setError("La transaction n’a pas pu être vérifiée. Réessayez ou actualisez la caisse.");
+      return;
+    }
+    if (!found) {
+      setError("Aucune réservation Marketplace trouvée pour ce code dans cette pharmacie.");
+      return;
+    }
+    setRows((current) => [found as Reservation, ...current.filter((row) => row.id !== found?.id)]);
+    if (found.statut !== "confirmee" && found.statut !== "payee") {
+      setError("Transaction retrouvée, mais son statut ne permet pas un règlement au retrait.");
+    }
+  }
   const selected = useMemo(() => {
     if (!normalizedCode) return null;
     return rows.find((row) =>
@@ -222,7 +251,7 @@ export function CaisseRetraitsMarketplace({
         <label className="text-sm font-semibold">Code de paiement / contenu du QR code
           <input className="champ mt-1 w-full uppercase" value={codeInput} onChange={(event) => { setCodeInput(event.target.value); setError(""); setReceipt(null); }} placeholder="Ex. A1B2C3D4E5F6" autoCapitalize="characters" autoComplete="off" />
         </label>
-        <button type="button" className="btn btn-clair self-end" disabled={loading || !codeInput.trim()} onClick={() => void load()}>Retrouver la transaction</button>
+        <button type="button" className="btn btn-clair self-end" disabled={loading || !codeInput.trim()} onClick={() => void lookupTransaction()}>Retrouver la transaction</button>
       </div>
       {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 print:hidden">{message}</p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900 print:hidden">{error}</p>}
