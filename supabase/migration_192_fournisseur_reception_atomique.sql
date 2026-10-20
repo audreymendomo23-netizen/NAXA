@@ -14,7 +14,7 @@ begin
  if jsonb_typeof(p_lignes)<>'array' or jsonb_array_length(p_lignes)=0 then raise exception 'Au moins une ligne de réception est requise'; end if;
  select * into v_order from public.commandes_fournisseurs where id=p_commande for update;
  if not found or not public.can_access_pharmacy(v_order.pharmacie_id) then raise exception 'Commande hors périmètre ou introuvable'; end if;
- if v_order.statut in ('recue','annulee') then raise exception 'Cette commande est déjà reçue ou annulée'; end if;
+ if v_order.statut not in ('envoyee','partielle') then raise exception 'La commande doit être envoyée avant sa réception'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
   or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
