@@ -119,3 +119,24 @@ export async function modifierBlocageLotGestionStock(formData: FormData) {
   revalidatePath("/pharmacie/gestionnaire-stock/reservations");
   redirect("/pharmacie/gestionnaire-stock/lots-peremptions?ok="+(bloque?"bloque":"debloque"));
 }
+
+export async function initialiserReferenceStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  const produit = String(formData.get("produit_id") ?? "");
+  const prixRaw = String(formData.get("prix") ?? "");
+  const emplacement = String(formData.get("emplacement") ?? "").trim();
+  const prix = Number(prixRaw);
+  if (!safeUuid(pharmacie) || !safeUuid(produit) || !prixRaw.trim() || !Number.isSafeInteger(prix) || prix < 0 || prix > 100000000 || emplacement.length > 160) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=reference");
+  }
+  const { data, error } = await sb.rpc("gestionnaire_stock_reference_initialiser", {
+    p_pharmacie: pharmacie, p_produit: produit, p_prix: prix, p_emplacement: emplacement || null,
+  });
+  if (error || data !== true) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=reference");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock/fournisseurs-receptions");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=reference");
+}
