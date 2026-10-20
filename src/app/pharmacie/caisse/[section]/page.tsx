@@ -58,6 +58,8 @@ export default function CaisseParcoursPage() {
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("toutes");
+  const [salesFrom, setSalesFrom] = useState("");
+  const [salesTo, setSalesTo] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   const [creditSearch, setCreditSearch] = useState("");
   const [reportPeriod, setReportPeriod] = useState<"jour" | "semaine" | "mois" | "tout">("mois");
@@ -230,8 +232,11 @@ export default function CaisseParcoursPage() {
   const filteredSales = useMemo(() => sales.filter((sale) => {
     const q = search.trim().toLocaleLowerCase("fr");
     const matchesText = !q || [sale.numero_vente, sale.id, sale.mode_paiement, sale.statut].some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(q));
-    return matchesText && (statusFilter === "toutes" || sale.statut === statusFilter);
-  }), [sales, search, statusFilter]);
+    const saleDate = new Date(sale.paid_at || sale.created_at);
+    const afterStart = !salesFrom || saleDate >= new Date(`${salesFrom}T00:00:00`);
+    const beforeEnd = !salesTo || saleDate < new Date(`${salesTo}T23:59:59.999`);
+    return matchesText && afterStart && beforeEnd && (statusFilter === "toutes" || sale.statut === statusFilter);
+  }), [sales, search, statusFilter, salesFrom, salesTo]);
 
   async function openTicket(saleId: string) {
     setBusy(true); setError(""); setNotice(""); setTicketRows([]);
@@ -308,7 +313,7 @@ export default function CaisseParcoursPage() {
         <p className="text-xs text-slate-500">La caisse consulte les dossiers ; elle ne modifie ni plafonds ni décisions de remboursement. Les assureurs ne sont pas vérifiés en ligne.</p>
       </div>}
       {section === "historique" && <Panel title={"Historique · " + filteredSales.length + " résultat(s)"}>
-        <div className="grid gap-2 sm:grid-cols-[1fr_200px]"><input className="champ" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ticket, identifiant, statut ou mode" aria-label="Rechercher une vente" /><select className="champ" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filtrer par statut"><option value="toutes">Tous les statuts</option><option value="payee">Payées</option><option value="brouillon">Brouillons</option><option value="annulee">Annulées</option></select></div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><input className="champ" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ticket, identifiant, statut ou mode" aria-label="Rechercher une vente" /><select className="champ" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filtrer par statut"><option value="toutes">Tous les statuts</option><option value="payee">Payées</option><option value="brouillon">Brouillons</option><option value="annulee">Annulées</option></select><label className="text-xs font-semibold text-slate-600">Du<input className="champ mt-1 w-full" type="date" value={salesFrom} max={salesTo || undefined} onChange={(e) => setSalesFrom(e.target.value)} aria-label="Date de début" /></label><label className="text-xs font-semibold text-slate-600">Au<input className="champ mt-1 w-full" type="date" value={salesTo} min={salesFrom || undefined} onChange={(e) => setSalesTo(e.target.value)} aria-label="Date de fin" /></label></div>
         {filteredSales.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ticket</th><th className="p-2 text-left">Date</th><th className="p-2 text-right">Total</th><th className="p-2">Statut</th><th className="p-2">Action</th></tr></thead><tbody>{filteredSales.map((sale) => <tr key={sale.id} className="border-t"><td className="p-2">{sale.numero_vente || sale.id.slice(0, 8)}</td><td className="p-2">{dateLabel(sale.paid_at || sale.created_at)}</td><td className="p-2 text-right">{fcfa(sale.total_net)}</td><td className="p-2">{sale.statut}</td><td className="p-2 text-center"><div className="flex flex-wrap justify-center gap-1"><button className="btn btn-clair" disabled={busy || sale.statut !== "payee"} onClick={() => void openTicket(sale.id)}>Détail / duplicata</button>{sale.statut === "payee" && <button className="btn btn-clair" disabled={busy} onClick={() => void requestCancellation(sale.id)}>Demander annulation</button>}</div></td></tr>)}</tbody></table></div> : <Empty>Aucune vente ne correspond aux filtres. Les données affichées proviennent uniquement de la base.</Empty>}
       </Panel>}
       {ticketRows.length > 0 && section === "historique" && <section className="carte ticket-detail-print mt-4 space-y-3"><div className="flex items-center justify-between gap-2"><div><p className="text-xs font-bold tracking-widest">DUPLICATA</p><h2 className="text-lg font-extrabold">Ticket {ticketRows[0].numero_vente}</h2><p className="text-xs text-slate-500">{dateLabel(ticketRows[0].paid_at || ticketRows[0].created_at)}</p></div><button className="btn btn-vert print:hidden" onClick={() => window.print()}>Imprimer le duplicata</button></div><div className="border-t border-dashed pt-3">{ticketRows.filter((row) => row.produit_id).map((row, index) => <div key={row.produit_id + "-" + index} className="flex justify-between gap-3 py-1 text-sm"><span>{row.produit_nom}{row.produit_dosage ? " · " + row.produit_dosage : ""} × {row.quantite}</span><span>{fcfa(row.total_ligne ?? 0)}</span></div>)}</div><div className="border-t border-dashed pt-3 text-sm"><div className="flex justify-between"><span>Sous-total</span><span>{fcfa(ticketRows[0].total_brut)}</span></div>{ticketRows[0].remise > 0 && <div className="flex justify-between"><span>Remise</span><span>-{fcfa(ticketRows[0].remise)}</span></div>}<div className="mt-2 flex justify-between text-lg font-extrabold"><span>Total</span><span>{fcfa(ticketRows[0].total_net)}</span></div><p className="mt-2">Paiement : {ticketRows[0].mode_paiement || "—"}</p></div></section>}
