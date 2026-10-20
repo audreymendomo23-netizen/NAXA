@@ -145,9 +145,10 @@ create table if not exists public.rappels_lots (
  quantite_isolee integer,
  compte_par uuid references auth.users(id) on delete restrict,
  compte_at timestamptz,
- check(quantite_trouvee is null or quantite_trouvee>=0),
- check(quantite_isolee is null or quantite_isolee>=0),
- check(quantite_trouvee is null or quantite_isolee is null or quantite_isolee<=quantite_trouvee)
+ constraint rappels_lots_quarantaine_quantites_ck check(
+  (quantite_trouvee is null or quantite_trouvee>=0)
+  and (quantite_isolee is null or quantite_isolee>=0)
+  and (quantite_trouvee is null or quantite_isolee is null or quantite_isolee<=quantite_trouvee))
 );
 create index if not exists rappels_lots_pharmacie_statut_idx on public.rappels_lots(pharmacie_id,statut,created_at desc);
 
