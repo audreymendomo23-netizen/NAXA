@@ -10,8 +10,8 @@ begin
   if position('visible_recherche' in lower(v_export)) > 0 then
     raise exception 'NAXA 193: l’export Pharmacien dépend encore de la publication Marketplace';
   end if;
-  if position('f.actif = true' in lower(v_service)) = 0
-     or position('f.actif=true' in lower(v_export)) = 0 then
+  if position('f.actif' in lower(v_service)) = 0
+     or position('f.actif' in lower(v_export)) = 0 then
     raise exception 'NAXA 193: le contrôle d’activité de la pharmacie doit être conservé';
   end if;
 end;
