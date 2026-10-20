@@ -540,6 +540,7 @@ export default function CaissePage() {
           <a href="/pharmacie">← Pharmacie</a>
           <b>Caisse · {pharmacie || "Chargement…"}</b>
         </header>
+        <RappelsLotsBanner pharmacieId={pid} />
         {loading && <section className="carte" role="status">Vérification de l’accès et de la session de caisse…</section>}
         {!loading && msg && !ready && <section className="carte" role="alert">{msg}<p className="mt-3"><a className="btn btn-clair" href="/connexion?retour=/pharmacie/caisse">Se reconnecter</a></p></section>}
         {ready && !loading && (
