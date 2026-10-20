@@ -17,10 +17,17 @@
 ## Paiements électroniques
 Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être déclarés payés sur la seule base d'une référence saisie. Ces modes sont bloqués côté base tant qu'une intégration marchande officielle ne permet pas de confirmer la transaction. Aucun paiement électronique n'est simulé.
 
-## Retraits Marketplace
+## Réservations Marketplace (retrait des produits par le client)
 - La Caisse affiche les réservations Pharmacie en attente, confirmées ou déjà payées, limitées à la pharmacie du compte connecté.
 - Le bouton « Confirmer le retrait » n'est disponible que si la réservation est déjà au statut « payée » et que son paiement est marqué « effectué ». La transition est vérifiée par la RPC et la réservation ne peut pas être retirée deux fois.
 - Une réservation confirmée, non expirée et dont le mode est « espèces au retrait » ou « à convenir » peut être encaissée en espèces depuis la Caisse. L'opération crée un ticket POS unique lié à la réservation, enregistre le paiement dans la session active, marque la réservation payée dans la même transaction et calcule la monnaie à rendre. Un montant insuffisant, une session hors périmètre, un paiement déjà effectué ou une seconde tentative sont refusés. Le stock n'est pas débité une seconde fois : il a déjà été réservé par le parcours Marketplace. Les modes Mobile Money restent bloqués tant qu'une confirmation opérateur officielle n'est pas intégrée.
+
+## Décaissements de caisse
+- Le volet **Décaissements de caisse** est distinct du retrait des produits Marketplace. Il enregistre une sortie d’espèces avec montant positif, catégorie, motif obligatoire et référence de justificatif facultative.
+- Chaque décaissement est lié à la session active, à la pharmacie et au compte qui l’a enregistré. La base refuse les montants nuls/négatifs, les motifs trop courts, les sessions clôturées et les sessions ouvertes par un autre compte.
+- Les mouvements sont en lecture seule après enregistrement, consignés dans la chaîne d’audit SHA-256 et visibles dans l’historique de la session.
+- La clôture calcule désormais le solde théorique comme : fond initial + encaissements espèces − décaissements. Un solde théorique négatif bloque la clôture.
+- Le PIN et la biométrie ne sont pas implémentés ici : ils sont réservés au chantier Promoteur, comme convenu. Pour le moment, le décaissement est réservé à un compte Caisse actif titulaire de la session (ou à l’administration selon les gardes serveur).
 
 ## Tickets, historique et clôture
 - Le ticket est construit à partir de la RPC vente_ticket, affiche le numéro de vente, les lignes, les montants, le mode de paiement, le montant reçu et la monnaie rendue lorsque ces données sont disponibles, puis peut être imprimé.
@@ -37,6 +44,6 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 ## État de validation
 Les migrations additives 157–163 et les composants du parcours caisse sont enregistrés sur `main`. Les migrations 159–161 ont été appliquées uniquement au projet Supabase de test « naxa-ci-replay-2 » ; aucune migration n'a été appliquée à Supabase Production.
 
-Les tests SQL 044, 055, 159, 160, 161 et 163 ont renvoyé PASS sur le projet de test. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
+Les tests SQL 044, 055, 159, 160, 161, 163 et 164 ont renvoyé PASS sur le projet de test. Le test 164 couvre le motif et le montant, la trace d’audit, le rejet des montants/motifs invalides, la prise en compte du décaissement dans le solde de clôture et le rejet après clôture. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
 
-Le projet de test ne contient pas les migrations 133–156 ; la validation SQL reste donc partielle par rapport à l'ensemble du schéma de Production. Build TypeScript, lint et tests E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours.
+Le projet de test ne contient pas les migrations 133–156 ; la validation SQL reste donc partielle par rapport à l'ensemble du schéma de Production. Build TypeScript, lint et tests E2E non confirmés. Aucun déploiement Vercel n'est autorisé dans le chantier en cours. Le PIN et la biométrie de validation d’un décaissement restent à traiter lors du chantier Promoteur.
