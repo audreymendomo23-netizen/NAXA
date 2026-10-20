@@ -14,7 +14,14 @@ create table if not exists public.reservation_item_lots (
 );
 create index if not exists reservation_item_lots_lot_idx on public.reservation_item_lots(lot_id);
 alter table public.reservation_item_lots enable row level security;
+drop policy if exists reservation_item_lots_participant_read on public.reservation_item_lots;
+create policy reservation_item_lots_participant_read on public.reservation_item_lots
+ for select to authenticated using(exists(
+  select 1 from public.reservations r where r.id=reservation_id and
+   (r.client_id=(select auth.uid()) or public.is_admin()
+    or public.naxa_scope_allows((select auth.uid()),r.pharmacie_id,'PHARMACIE'))));
 revoke all on public.reservation_item_lots from public,anon,authenticated;
+grant select on public.reservation_item_lots to authenticated;
 
 -- Contradiction / migration des réservations actives historiques :
 -- les anciens flux décrémentaient stocks.quantite mais pas nécessairement les lots.
