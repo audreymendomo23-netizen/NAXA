@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PharmacienWorkspaceSidebar } from "@/components/pharmacie/PharmacienWorkspaceSidebar";
+import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
@@ -62,7 +62,7 @@ export default function PharmacienPage(){
     setMsg(error?error.message:"Préparation enregistrée dans le dossier. La décision reste traçable.");if(!error&&pid)charger(pid);
   }
 
-  return <main className="min-h-screen bg-[#F4F8F5] px-3 pb-10 pt-3 sm:px-4 sm:pt-4 lg:px-6"><div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 lg:flex-row lg:items-start lg:gap-5"><PharmacienWorkspaceSidebar activeTab={tab} onNavigate={setTab}/><div className="min-w-0 flex-1 space-y-4">
+  return <PharmacienWorkspaceShell activeTab={tab} onNavigate={setTab}>
     <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Espace Pharmacien</b></header>
     {msg&&<p role="status" className="my-3 carte">{msg}</p>}
     <section className="carte mb-4">
@@ -115,5 +115,5 @@ export default function PharmacienPage(){
     {tab==="rapports"&&<section className="carte space-y-4"><h2 className="text-lg font-bold">Rapports et Performances</h2><p className="text-sm text-slate-600">Indicateurs de situation calculés sur les dossiers actuellement chargés. Ils ne représentent pas encore des statistiques historiques complètes ni des tendances certifiées.</p><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Ordonnances reçues en attente</p><p className="text-2xl font-extrabold">{incoming.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Prescriptions internes chargées</p><p className="text-2xl font-extrabold">{internal.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Préparations chargées</p><p className="text-2xl font-extrabold">{Object.keys(preparations).length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Compléments en attente visibles</p><p className="text-2xl font-extrabold">{incoming.filter(r=>Boolean(preparations[r.id]?.motif_complement)).length}</p></div></div><h3 className="font-bold">Rapports à construire sur données consolidées</h3><ul className="list-disc space-y-1 pl-5 text-sm"><li>Délais de traitement par étape et volume d’ordonnances traitées.</li><li>Motifs de rejet et demandes de complément, sans exposer inutilement les données de santé.</li><li>Activité par période, avec comparaison fiable aux périodes précédentes.</li><li>Disponibilité des produits et ruptures, uniquement après connexion aux données de stock autorisées.</li><li>Export PDF/CSV avec période, filtres, droits d’accès et journalisation des exports.</li></ul><p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Aucun chiffre de tendance, taux de performance ou classement n’est inventé. Ces indicateurs nécessitent des données serveur historisées et vérifiées.</p></section>}
 
     {tab==="profil"&&<section className="carte"><h2 className="text-lg font-bold">Profil professionnel</h2><dl className="mt-3 space-y-2 text-sm"><div><dt className="text-slate-500">Poste</dt><dd className="font-semibold">Pharmacien</dd></div><div><dt className="text-slate-500">Périmètre</dt><dd className="font-semibold">Pharmacie rattachée au compte actif</dd></div><div><dt className="text-slate-500">Droits</dt><dd>Consultation, prescription, préparation, validation/rejet et demande de complément selon le contrôle serveur.</dd></div></dl></section>}
-  </div></div></main>;
+</PharmacienWorkspaceShell>;
 }
