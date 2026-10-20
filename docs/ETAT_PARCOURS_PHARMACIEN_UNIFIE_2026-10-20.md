@@ -115,3 +115,6 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 - Le dépôt distant n'a pas pu être cloné dans l'environnement de travail (résolution réseau GitHub indisponible). Build, lint, typecheck et tests automatisés ne sont donc **pas exécutés** et aucune réussite de compilation n'est revendiquée.
 - Les migrations 188–192 ne sont pas confirmées appliquées à Supabase. Les nouveaux écrans restent dépendants des politiques RLS et fonctions serveur existantes.
 - Le suivi des prescriptions du patient avec consentement distinct, la journalisation des consultations de données sensibles, les agrégats de rapports exhaustifs côté serveur et le parcours de délivrance de bout en bout restent à compléter et à tester.
+
+- **Accès opérationnel indépendant de la publication Marketplace** : l'espace Pharmacien, le suivi patient et le pointage exigent désormais une pharmacie active, mais pas sa visibilité publique dans la recherche. La migration additive 193 met la même règle à jour dans les RPC de prise de service et de journalisation d'export. Cela évite de bloquer le travail interne d'une pharmacie active simplement parce que sa fiche Marketplace n'est pas publiée.
+- Test structurel ajouté : `supabase/tests/193_pharmacien_operational_access_independent_marketplace.sql`. Il n'a pas été exécuté dans cette passe.
