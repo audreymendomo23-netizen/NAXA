@@ -41,6 +41,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 193 : ajoute les sessions de prise/fin de service du Gestionnaire de stock.
 - Migration 194 : ajoute les RPC transactionnelles de démarrage, d’ajout de référence, de comptage et de clôture d’inventaire, le détail par lot, l’application des écarts et un journal d’ajustements consultable dans les rapports. Les mouvements externes ne sont pas encore bloqués pendant le comptage; l’écran avertit de suspendre les mouvements.
 - Migration 197 : durcit les politiques RLS du répertoire fournisseur pour empêcher les comptes non ERP de créer ou modifier des fournisseurs.
+- Migration 198 : réserve les écritures de réception et d’inventaire aux RPC contrôlées; restreint les commandes fournisseur aux rôles ERP autorisés.
 
 ## Fichiers de migration et tests SQL ajoutés
 
@@ -62,6 +63,8 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - `supabase/tests/195_gestionnaire_stock_reservation_confirmer.sql`
 - `supabase/migration_197_fournisseurs_role_security.sql`
 - `supabase/tests/197_fournisseurs_role_security.sql`
+- `supabase/migration_198_stock_workflow_write_security.sql`
+- `supabase/tests/198_stock_workflow_write_security.sql`
 
 ## Points de prudence à conserver
 
