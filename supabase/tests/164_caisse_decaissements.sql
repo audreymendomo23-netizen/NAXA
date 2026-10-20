@@ -58,6 +58,7 @@ begin
   values(v_pharmacie,'NAXA TEST 164',3.8667,11.5167,true,true);
   insert into public.profiles(id,role,username,actif,pharmacie_id)
   values(v_admin,'caisse','naxa164_'||substr(replace(v_admin::text,'-',''),1,12),true,v_pharmacie);
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(v_admin,v_pharmacie,true);
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_caisse,v_pharmacie,'Caisse test 164',true);
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,fond_initial,statut)
