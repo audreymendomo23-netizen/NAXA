@@ -56,12 +56,14 @@ declare
   v_caisse uuid := gen_random_uuid();
   v_session uuid := gen_random_uuid();
   v_reservation uuid := gen_random_uuid();
+  v_reservation2 uuid := gen_random_uuid();
   v_produit uuid;
   v_result record;
   v_rejected boolean := false;
   v_count integer;
   v_stock_before integer;
   v_code text;
+  v_code2 text;
 begin
   select id into v_produit from public.produits limit 1;
   if v_produit is null then raise exception 'Aucun produit de test disponible'; end if;
@@ -155,6 +157,42 @@ begin
   if (select quantite from public.stocks where pharmacie_id=v_pharmacie and produit_id=v_produit) <> v_stock_before then
     raise exception 'L’encaissement de réservation a débité le stock une seconde fois';
   end if;
+  -- Un code erroné ne doit jamais confirmer une transaction.
+  insert into public.reservations(
+    id,client_id,pharmacie_id,statut,total,expires_at,created_at,mode,paiement_statut,paiement_mode,frais_livraison
+  ) values(v_reservation2,v_admin,v_pharmacie,'confirmee',100,now()+interval '1 hour',now(),'reservation','a_verifier','a_convenir',0);
+  insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
+  values(v_reservation2,v_produit,1,100);
+  select code_paiement into v_code2 from public.reservations where id=v_reservation2;
+
+  v_rejected := false;
+  begin
+    perform * from public.vente_reservation_encaisser(v_reservation2,v_session,100,'orange_money','BADCODE00000');
+  exception when others then
+    v_rejected := true;
+  end;
+  if not v_rejected then raise exception 'Un code de paiement erroné a été accepté'; end if;
+
+  -- Le canal non-espèces est consigné manuellement, sans API opérateur ni monnaie rendue.
+  select * into v_result
+  from public.vente_reservation_encaisser(v_reservation2,v_session,100,'orange_money',v_code2);
+  if v_result.total <> 100 or v_result.monnaie_rendue <> 0 or v_result.canal <> 'orange_money' then
+    raise exception 'Le reçu Marketplace non-espèces est incorrect';
+  end if;
+  if not exists (
+    select 1 from public.reservations
+    where id=v_reservation2 and statut='payee' and paiement_statut='effectue' and paiement_mode='orange_money'
+  ) then raise exception 'Le canal déclaré n’a pas été historisé sur la réservation'; end if;
+  if not exists (
+    select 1 from public.vente_paiements p join public.ventes v on v.id=p.vente_id
+    where v.reservation_id=v_reservation2 and p.mode='orange_money'
+      and p.montant=100 and p.montant_percu=100 and p.monnaie_rendue=0
+      and p.reference like 'Marketplace NAXA%'
+  ) then raise exception 'La trace du canal manuel est absente du ticket'; end if;
+  if (select quantite from public.stocks where pharmacie_id=v_pharmacie and produit_id=v_produit) <> v_stock_before then
+    raise exception 'Le second encaissement a débité le stock une seconde fois';
+  end if;
+
 end
 $behavior$;
 
