@@ -206,6 +206,7 @@ export default function CaisseParcoursPage() {
     return clients.filter((client) => !q || [
       client.reference_client,
       clientName(client.client_id, clientIdentities),
+      clientIdentities[client.client_id]?.phone,
       client.client_id,
     ].some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(q)));
   }, [clients, clientIdentities, clientSearch]);
@@ -215,6 +216,7 @@ export default function CaisseParcoursPage() {
     const q = creditSearch.trim().toLocaleLowerCase("fr");
     return openCredits.filter((credit) => !q || [
       clientName(credit.client_id, clientIdentities),
+      clientIdentities[credit.client_id]?.phone,
       credit.client_id,
     ].some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(q)));
   }, [openCredits, clientIdentities, creditSearch]);
