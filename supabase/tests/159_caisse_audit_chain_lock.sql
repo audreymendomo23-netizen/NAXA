@@ -93,6 +93,10 @@ begin
     (v_vente_a,v_pharmacie_a,v_session_a,'brouillon',1,1,v_user_a),
     (v_vente_b,v_pharmacie_b,v_session_b,'brouillon',1,1,v_user_b);
 
+  -- Le trigger POS exige un coût d'achat pour chaque couple pharmacie/produit.
+  insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
+  values (v_pharmacie_a,v_produit,1,'XAF'),(v_pharmacie_b,v_produit,1,'XAF');
+
   insert into public.vente_lignes(vente_id,produit_id,quantite,prix_unitaire)
   values (v_vente_a,v_produit,1,1),(v_vente_b,v_produit,1,1);
 
