@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 type Screen =
   | "dashboard" | "clients" | "assurances" | "historique" | "ticket" | "annulation"
@@ -52,7 +53,7 @@ const shortcuts: { label: string; detail: string; target: Screen; icon: string }
   { label: "Créances assurance", detail: "Consultation et rejets", target: "creances", icon: "▥" },
 ];
 
-function Action({ children, onClick, variant = "primary" }: { children: React.ReactNode; onClick: () => void; variant?: "primary" | "light" | "warning" | "danger" }) {
+function Action({ children, onClick, variant = "primary" }: { children: ReactNode; onClick: () => void; variant?: "primary" | "light" | "warning" | "danger" }) {
   const styles = {
     primary: "bg-[#0b3d26] text-white hover:bg-[#145b39]",
     light: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
@@ -62,7 +63,7 @@ function Action({ children, onClick, variant = "primary" }: { children: React.Re
   return <button type="button" onClick={onClick} className={`inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-sm font-bold transition ${styles[variant]}`}>{children}</button>;
 }
 
-function Panel({ title, subtitle, children, right }: { title: string; subtitle?: string; children: React.ReactNode; right?: React.ReactNode }) {
+function Panel({ title, subtitle, children, right }: { title: string; subtitle?: string; children: ReactNode; right?: ReactNode }) {
   return <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-extrabold text-slate-900">{title}</h2>{subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}</div>{right}</div>{children}</section>;
 }
 
@@ -78,7 +79,7 @@ function TableMock({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{headers.map(h => <th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={i} className="border-t border-slate-100">{row.map((cell, j) => <td key={j} className="p-3 text-slate-700">{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
-function Status({ children, tone = "slate" }: { children: React.ReactNode; tone?: "slate" | "green" | "amber" | "red" | "blue" }) {
+function Status({ children, tone = "slate" }: { children: ReactNode; tone?: "slate" | "green" | "amber" | "red" | "blue" }) {
   const styles = { slate: "bg-slate-100 text-slate-700", green: "bg-emerald-50 text-emerald-800", amber: "bg-amber-50 text-amber-900", red: "bg-red-50 text-red-800", blue: "bg-blue-50 text-blue-800" };
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${styles[tone]}`}>{children}</span>;
 }
@@ -87,7 +88,6 @@ export default function CaisseParcoursPrototypePage() {
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [toast, setToast] = useState("Prototype de parcours : navigation locale uniquement, aucune opération métier exécutée.");
   const [query, setQuery] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [locale, setLocale] = useState<"FR" | "EN">("FR");
   const [demoDialog, setDemoDialog] = useState("");
   const activePrimary = useMemo(() => {
@@ -101,7 +101,6 @@ export default function CaisseParcoursPrototypePage() {
   const go = (target: Screen) => {
     setScreen(target);
     setToast(`Écran « ${titles[target]} » ouvert dans le prototype. Aucune donnée ni opération réelle n’a été modifiée.`);
-    setMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const demoAction = (label: string) => setDemoDialog(label);
