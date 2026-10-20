@@ -25,7 +25,7 @@ export async function POST(request:NextRequest){
   if(!membership)return err("Pharmacie hors périmètre actif.",403);
   const salt=randomBytes(16).toString("hex"),hash=scryptSync(pin,salt,64).toString("hex");
   const {data:old}=await db.from("caisse_security_credentials").select("webauthn_credential_id,webauthn_public_key,webauthn_counter,webauthn_transports,webauthn_enabled").eq("user_id",targetId).maybeSingle();
-  const {error}=await db.from("caisse_security_credentials").upsert({user_id:targetId,pin_salt:salt,pin_hash:hash,...(old||{}),updated_at:new Date().toISOString()});
+  const {error}=await db.from("caisse_security_credentials").upsert({user_id:targetId,...(old||{}),pin_salt:salt,pin_hash:hash,updated_at:new Date().toISOString()});
   if(error)throw error;return NextResponse.json({ok:true,message:"PIN configuré pour cette Caisse."});
  }
  if(b.action==="authorize-pin"){
