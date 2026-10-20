@@ -52,7 +52,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 197 : durcit les politiques RLS du répertoire fournisseur pour empêcher les comptes non ERP de créer ou modifier des fournisseurs.
 - Migration 198 : réserve les écritures de réception et d’inventaire aux RPC contrôlées; restreint les commandes fournisseur aux rôles ERP autorisés et protège la transition brouillon → envoyée.
 - Migration 199 : permet le blocage/déblocage des lots avec motif obligatoire et contrôle de rôle/périmètre.
-- Migration 200 : allocations FEFO par dossier et restitution exacte des lots à l’annulation/expiration, avec préflight qui refuse toute réconciliation historique ambiguë.
+- Migration 200 : allocations FEFO par dossier et restitution exacte des lots à l’annulation/expiration, avec préflight qui refuse toute réconciliation historique ambiguë. Le garde de lotisation empêche aussi de créer des lots si une réservation active antérieure n’a pas d’allocation traçable.
 - Migration 201 : confirmation de réservation fondée sur les allocations réelles; évite de comparer deux fois la demande au stock déjà réservé.
 - Migration 202 : verrou serveur des mouvements de stock pendant un inventaire ouvert; la clôture passe le dossier à l’état fermé dans la même transaction avant d’appliquer les écarts.
 - Migration 203 : annulation d’un dossier de réservation contrôlée par rôle, périmètre pharmacie et transition métier atomique.
