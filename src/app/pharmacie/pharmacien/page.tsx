@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PharmacienWorkspaceSidebar } from "@/components/pharmacie/PharmacienWorkspaceSidebar";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
@@ -8,7 +9,7 @@ type Preparation={prescription_id:string;statut:string;notes_preparation:string|
 
 export default function PharmacienPage(){
   const sb=supabaseBrowser();
-  const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"consultation"|"prescription"|"validation">("consultation");
+  const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"dashboard"|"consultation"|"prescription"|"ordonnances"|"preparations"|"profil">("dashboard");
   const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]),[preparations,setPreparations]=useState<Record<string,Preparation>>({});
   const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({});
   const [consult,setConsult]=useState({patient:"",clientId:"",motif:"",observations:"",conclusion:"",recommandations:""});
@@ -28,7 +29,7 @@ export default function PharmacienPage(){
   useEffect(()=>{(async()=>{
     const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
     const {data:p}=await sb.from("profiles").select("fonction_interne,pharmacie_id,actif").eq("id",u.user.id).single();
-    if(!p?.pharmacie_id||p.actif===false||p.fonction_interne!=="pharmacien")return setMsg("Accès Pharmacien non autorisé.");
+    if(!p?.pharmacie_id||p.actif===false||p.fonction_interne!=="pharmacien")return setMsg("Accès réservé à un compte Pharmacien actif.");
     setPid(p.pharmacie_id);charger(p.pharmacie_id);
   })()},[sb]);
 
@@ -43,12 +44,12 @@ export default function PharmacienPage(){
     if(!pid)return;setBusy(true);
     const {data,error}=await sb.rpc("pharmacien_creer_prescription",{p_pharmacie:pid,p_patient_nom:presc.patient,p_client_id:presc.clientId.trim()||null,p_consultation_id:presc.consultationId.trim()||null,p_designation:presc.designation,p_quantite:Number(presc.quantite),p_posologie:presc.posologie,p_duree:presc.duree,p_instructions:presc.instructions,p_commentaire:presc.commentaire});
     setBusy(false);if(error)return setMsg(error.message);
-    setMsg("Prescription émise et enregistrée.");setPresc(x=>({...x,designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""}));if(pid)charger(pid);setTab("validation");
+    setMsg("Prescription émise et enregistrée.");setPresc(x=>({...x,designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""}));if(pid)charger(pid);setTab("ordonnances");
   }
 
   async function demanderComplement(id:string){
     const {error}=await sb.rpc("pharmacien_demander_complement",{p_prescription:id,p_motif:motif[id]??""});
-    setMsg(error?error.message:"Complément demandé à l’assistant.");if(!error&&pid)charger(pid);
+    setMsg(error?error.message:"Complément demandé à l’équipe Pharmacien.");if(!error&&pid)charger(pid);
   }
 
   async function decider(id:string,ok:boolean){
@@ -56,18 +57,25 @@ export default function PharmacienPage(){
     setMsg(error?error.message:(ok?"Ordonnance validée.":"Ordonnance rejetée."));if(!error&&pid)charger(pid);
   }
 
-  return <main className="mx-auto max-w-4xl px-4 pb-16">
-    <header className="-mx-4 mb-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Espace Pharmacien</b></header>
+  async function soumettrePreparation(id:string){
+    const {error}=await sb.rpc("assistant_soumettre_preparation",{p_prescription:id,p_notes:motif[id]??preparations[id]?.notes_preparation??""});
+    setMsg(error?error.message:"Préparation enregistrée dans le dossier. La décision reste traçable.");if(!error&&pid)charger(pid);
+  }
+
+  return <main className="min-h-screen bg-[#F4F8F5] px-3 pb-10 pt-3 sm:px-4 sm:pt-4 lg:px-6"><div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 lg:flex-row lg:items-start lg:gap-5"><PharmacienWorkspaceSidebar activeTab={tab} onNavigate={setTab}/><div className="min-w-0 flex-1 space-y-4">
+    <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-naxa-green-900 px-4 py-3 text-white"><a href="/pharmacie">← Pharmacie</a><b>Espace Pharmacien</b></header>
     {msg&&<p role="status" className="my-3 carte">{msg}</p>}
     <section className="carte mb-4">
-      <h1 className="text-xl font-extrabold">Consultation, prescription et délivrance</h1>
-      <p className="mt-1 text-sm">Le Pharmacien peut enregistrer une consultation, émettre une prescription et contrôler les ordonnances reçues.</p>
+      <h1 className="text-xl font-extrabold">Espace opérationnel Pharmacien</h1>
+      <p className="mt-1 text-sm">Un seul poste Pharmacien : consultation, prescription, préparation et décision sur les ordonnances dans une interface commune.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <button className={tab==="consultation"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("consultation")}>Consultation</button>
         <button className={tab==="prescription"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("prescription")}>Prescription</button>
-        <button className={tab==="validation"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("validation")}>Ordonnances ({incoming.length})</button>
+        <button className={tab==="ordonnances"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("ordonnances")}>Ordonnances ({incoming.length})</button><button className={tab==="preparations"?"btn btn-vert":"btn btn-clair"} onClick={()=>setTab("preparations")}>Préparations</button>
       </div>
     </section>
+
+    {tab==="dashboard"&&<section className="carte"><h2 className="text-lg font-bold">Tableau de bord</h2><div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Ordonnances en attente</p><p className="text-2xl font-extrabold">{incoming.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Préparations enregistrées</p><p className="text-2xl font-extrabold">{Object.keys(preparations).length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Prescriptions internes récentes</p><p className="text-2xl font-extrabold">{internal.length}</p></div></div><p className="mt-3 text-sm text-slate-600">Choisissez une entrée du menu pour ouvrir les opérations correspondantes. Les décisions pharmaceutiques restent enregistrées via les RPC dédiées.</p></section>}
 
     {tab==="consultation"&&<section className="carte space-y-3">
       <h2 className="text-lg font-bold">Nouvelle consultation pharmaceutique</h2>
@@ -93,11 +101,15 @@ export default function PharmacienPage(){
       <button disabled={busy} className="btn btn-vert w-full" onClick={creerPrescription}>{busy?"Enregistrement…":"Émettre la prescription"}</button>
     </section>}
 
-    {tab==="validation"&&<div className="space-y-4">
+    {tab==="ordonnances"&&<div className="space-y-4">
       <section className="carte"><h2 className="text-lg font-bold">Ordonnances reçues à contrôler</h2>{incoming.length===0&&<p className="my-3 text-sm">Aucune ordonnance en attente.</p>}
         {incoming.map(r=><article key={r.id} className="carte my-3 space-y-3"><div><b>Ordonnance {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm">{new Date(r.created_at).toLocaleString("fr-FR")}</p>{r.document_ref&&<p className="text-sm">Document : {r.document_ref}</p>}{preparations[r.id]&&<div className="rounded-lg bg-slate-50 p-3 text-sm"><b>Préparation assistant · {preparations[r.id].statut}</b>{preparations[r.id].notes_preparation&&<p className="mt-1">{preparations[r.id].notes_preparation}</p>}{preparations[r.id].motif_complement&&<p className="mt-1 text-amber-800">Complément demandé : {preparations[r.id].motif_complement}</p>}</div>}</div><textarea className="champ min-h-20 w-full" placeholder="Motif de rejet ou complément demandé" value={motif[r.id]??""} onChange={e=>setMotif(x=>({...x,[r.id]:e.target.value}))}/><div className="flex flex-wrap gap-2"><button className="btn btn-vert" onClick={()=>decider(r.id,true)}>Valider</button><button className="btn btn-clair" onClick={()=>decider(r.id,false)}>Rejeter</button><button className="btn btn-canari" disabled={!preparations[r.id]||!motif[r.id]?.trim()} onClick={()=>demanderComplement(r.id)}>Demander un complément</button></div></article>)}
       </section>
       <section className="carte"><h2 className="text-lg font-bold">Prescriptions émises par la pharmacie</h2>{internal.length===0&&<p className="my-3 text-sm">Aucune prescription interne récente.</p>}{internal.map(r=><article key={r.id} className="carte my-3"><b>Prescription {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm">{new Date(r.created_at).toLocaleString("fr-FR")} · {r.statut}</p>{r.consultation_id&&<p className="text-sm">Consultation liée : {r.consultation_id.slice(0,8).toUpperCase()}</p>}</article>)}</section>
     </div>}
-  </main>;
+
+    {tab==="preparations"&&<section className="carte space-y-4"><h2 className="text-lg font-bold">Préparation des ordonnances</h2><p className="text-sm text-slate-600">Le même poste Pharmacien peut noter les éléments préparatoires puis prendre la décision dans l’onglet Ordonnances. La note ne change pas le statut pharmaceutique.</p>{incoming.length===0&&<p className="text-sm">Aucune ordonnance en attente de préparation.</p>}{incoming.map(r=><article key={r.id} className="rounded-xl border border-slate-200 p-3 space-y-3"><div><b>Ordonnance {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm text-slate-600">{new Date(r.created_at).toLocaleString("fr-FR")}</p></div><textarea className="champ min-h-24 w-full" placeholder="Notes de préparation, pièces manquantes ou vérifications à tracer" value={motif[r.id]??preparations[r.id]?.notes_preparation??""} onChange={e=>setMotif(x=>({...x,[r.id]:e.target.value}))}/><button className="btn btn-vert" onClick={()=>soumettrePreparation(r.id)}>Enregistrer la préparation</button></article>)}</section>}
+
+    {tab==="profil"&&<section className="carte"><h2 className="text-lg font-bold">Profil professionnel</h2><dl className="mt-3 space-y-2 text-sm"><div><dt className="text-slate-500">Poste</dt><dd className="font-semibold">Pharmacien</dd></div><div><dt className="text-slate-500">Périmètre</dt><dd className="font-semibold">Pharmacie rattachée au compte actif</dd></div><div><dt className="text-slate-500">Droits</dt><dd>Consultation, prescription, préparation, validation/rejet et demande de complément selon le contrôle serveur.</dd></div></dl></section>}
+  </div></div></main>;
 }
