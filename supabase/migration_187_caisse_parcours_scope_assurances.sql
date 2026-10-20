@@ -12,7 +12,7 @@ using (
     select 1
     from public.dossiers_assurance d
     where d.couverture_id = couvertures_assurance.id
-      and public.can_access_pharmacy(d.pharmacie_id)
+      and public.naxa_scope_allows((select auth.uid()),d.pharmacie_id,'PHARMACIE')
   )
 );
 
