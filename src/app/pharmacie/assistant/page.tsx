@@ -33,7 +33,7 @@ export default function AssistantPharmacienPage() {
       sb.from("prescriptions")
         .select("id,document_ref,created_at,motif_rejet,client_id,statut")
         .eq("pharmacie_id", id).eq("source", "client").in("statut", ["en_attente", "validee", "rejetee", "expiree"])
-        .order("created_at", { ascending: true }).limit(100),
+        .order("created_at", { ascending: false }).limit(100),
       sb.from("prescription_preparations")
         .select("prescription_id,statut,notes_preparation,motif_complement,updated_at")
         .eq("pharmacie_id", id).order("updated_at", { ascending: false }).limit(100)
