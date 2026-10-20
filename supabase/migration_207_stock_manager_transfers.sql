@@ -83,6 +83,7 @@ begin
   if v_destination_has_lots then raise exception 'La destination est lotisée alors que la source ne l’est pas'; end if;
  end if;
 
+ perform pg_catalog.set_config('naxa.stock_motif','Transfert '||p_source::text||' vers '||p_destination::text||' : '||v_motif,true);
  if not v_destination_exists then
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite)
    values(p_destination,p_produit,v_source_stock.prix,0)
@@ -90,7 +91,6 @@ begin
   v_destination_exists:=true;
  end if;
 
- perform pg_catalog.set_config('naxa.stock_motif','Transfert '||p_source::text||' vers '||p_destination::text||' : '||v_motif,true);
  if v_source_has_lots then
   update public.stocks_lots set quantite=quantite-p_quantite,updated_at=now() where id=p_lot;
   if v_destination_has_lots then
