@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
+import { CaisseSidebar } from "@/components/pharmacie/CaisseSidebar";
 
 type Section = "clients" | "assurances" | "historique" | "annulations" | "rapports" | "profil" | "notifications" | "service";
 type Sale = { id: string; numero_vente: string | null; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null; client_id: string | null; caisse_session_id: string; remise: number };
@@ -203,14 +204,11 @@ export default function CaisseParcoursPage() {
   }
 
   const title = menu.find((item) => item.id === section)?.label ?? "Parcours caisse";
-  return <main className="mx-auto max-w-6xl px-4 pb-20">
+  return <main className="mx-auto max-w-[1600px] px-4 pb-20"><div className="flex flex-col gap-4 lg:flex-row"><CaisseSidebar sessionOpen={sessions.some((item) => !item.cloture_at)} creditsDue={credits.filter((item) => item.actif && item.solde > 0).length} pharmacyName={pharmacyName} /><div className="min-w-0 flex-1">
     <header className="-mx-4 mb-5 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-4 text-white">
       <div><a href="/pharmacie/caisse" className="text-sm underline underline-offset-4">← Retour à l’encaissement</a><h1 className="mt-1 text-xl font-extrabold">Caisse · {title}</h1><p className="text-sm text-white/80">{pharmacyName}</p></div>
       <span className="rounded-full bg-white/15 px-3 py-2 text-sm">{displayName(account)}</span>
     </header>
-    <nav aria-label="Parcours caisse" className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-      {menu.map((item) => <a key={item.id} href={"/pharmacie/caisse/" + item.id} aria-current={section === item.id ? "page" : undefined} className={"rounded-xl border px-3 py-3 text-sm font-bold " + (section === item.id ? "border-yellow-400 bg-yellow-300 text-green-950" : "border-slate-200 bg-white text-slate-700 hover:border-green-600")}>{item.label}</a>)}
-    </nav>
     {loading && <section className="carte" role="status">Chargement des données réelles et vérification des autorisations…</section>}
     {!loading && error && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
     {!loading && notice && <p role="status" aria-live="polite" className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
@@ -239,6 +237,7 @@ export default function CaisseParcoursPage() {
       {section === "notifications" && <Panel title={"Notifications · " + notifications.length}>{notifications.length ? <ul className="space-y-2">{notifications.map((n) => <li key={n.id} className={"rounded-xl border p-3 " + (n.lu_le ? "border-slate-200 bg-white" : "border-yellow-300 bg-yellow-50")}><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{n.titre}</p><p className="mt-1 text-sm">{n.corps}</p><p className="mt-2 text-xs text-slate-500">{n.type} · {dateLabel(n.created_at)} · {n.lu_le ? "Lue" : "Non lue"}</p></div>{n.user_id === uid && !n.lu_le && <button className="btn btn-clair" disabled={busy} onClick={() => void markRead(n)}>Marquer lue</button>}</div></li>)}</ul> : <Empty>Aucune notification pour ce compte ou cette pharmacie.</Empty>}<p className="text-xs text-slate-500">Les notifications de pharmacie sont consultables ; seules les notifications personnelles disposent ici de l’action de lecture autorisée par la base.</p></Panel>}
       {section === "service" && <Panel title="Prise / fin de service"><p className="text-sm text-slate-600">L’ouverture et la clôture restent pilotées par le moteur de caisse existant.</p>{sessions.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ouverture</th><th className="p-2">État</th><th className="p-2 text-right">Fond initial</th><th className="p-2 text-left">Clôture</th></tr></thead><tbody>{sessions.map((s) => <tr key={s.id} className="border-t"><td className="p-2">{dateLabel(s.ouvert_at)}</td><td className="p-2">{s.statut}</td><td className="p-2 text-right">{fcfa(s.fond_initial)}</td><td className="p-2">{dateLabel(s.cloture_at)}</td></tr>)}</tbody></table></div> : <Empty>Aucune session enregistrée pour ce compte.</Empty>}<a className="btn btn-vert inline-block" href="/pharmacie/caisse">Ouvrir le poste de caisse</a></Panel>}
     </>}
+    </div></div>
     <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-detail-print, .ticket-detail-print * { visibility: visible !important; } .ticket-detail-print { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
   </main>;
 }
