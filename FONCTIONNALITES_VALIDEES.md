@@ -892,16 +892,13 @@ Le dépôt contient désormais :
 - **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
 
 ## ERP-011 — Rappel de lot (F64)
-- Audit : aucune implémentation concurrente de rappel de lot n'a été trouvée dans `main` ; `stocks_lots` reste le socle canonique des lots.
-- Construction additive : `rappels_lots` trace le rappel, son motif, sa référence, son statut et son responsable.
-- Sécurité : RLS par pharmacie ; lecture authentifiée uniquement ; création/levée exclusivement via RPC contrôlées.
-- `lot_rappeler()` enregistre le rappel actif et bloque le lot existant ; `lot_lever_rappel()` lève le rappel et débloque le lot.
-- Aucun second moteur de stock n'est créé.
-- Migration : `supabase/migration_055_rappel_lot.sql`.
-- Test structurel : `supabase/tests/052_rappel_lot.sql`.
-- Limite volontaire : le POS actuel ne porte pas encore de `lot_id` dans `vente_lignes`; l'interdiction de vendre un lot rappelé sera raccordée au chantier de vente/FEFO lotisé, sans inventer un second mécanisme de vente.
-- Aucun changement Production/Supabase live exécuté.
-- **État : 🟡 CONSTRUIT — preuve d'exécution CI/Supabase manquante.**
+- Audit corrigé : `vente_lignes.lot_id` et l'allocation FEFO existaient déjà dans `main` via la migration 057 ; la vente d'un lot bloqué/expiré est déjà refusée par le moteur POS existant.
+- Cause racine : aucun écran F64 ; test 052 insuffisant ; clôture de rappel trop large ; contrainte UNIQUE globale empêchant le rappel du même lot après levée ; levée pouvant effacer un blocage préexistant ; double schéma historique/canonique de lots ; possibilité de désynchroniser stock agrégé et lots.
+- Corrections additives sur `main` : migrations 175 à 178 ; RPC `stock_lot_enregistrer` préserve la quantité totale, impose un lot source lors de la répartition et bloque les écritures directes sur `stocks_lots`. Une garde bloque les mises à jour du stock agrégé qui ne correspondent pas à la somme des lots.
+- Interface : `/pharmacie/rappels-lots`, déclaration et historique de rappel, lotisation du stock existant sans modifier la quantité agrégée, clôture Promoteur seule, liens et bannière rouge à l'accueil pharmacie et en caisse. La liste des tickets concernés est limitée au Promoteur et ne montre pas l'identité client.
+- Preuves exécutées sur Supabase de test : `supabase/tests/052_rappel_lot.sql` PASS ; `supabase/tests/175_rappel_lot_cycle_hardening.sql` PASS ; `supabase/tests/177_stock_lot_enregistrer.sql` PASS ; `supabase/tests/054_pos_lignes_fefo.sql` PASS.
+- Supabase Production non modifié et aucun déploiement de Production effectué.
+- **État : 🟡 PARTIEL** — restent le comptage de quarantaine, le raccordement retour/destruction aux mouvements de stock, l'écran des ordonnances concernées pour l'assistant, l'avis réseau F64-ADM, le build complet et les tests navigateur.
 
 
 ## ERP-012 — Offline ERP avancé — chantier du 08/10/2026
