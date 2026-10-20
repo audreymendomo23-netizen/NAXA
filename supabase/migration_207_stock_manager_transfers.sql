@@ -47,7 +47,7 @@ begin
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
   or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
-  or public.naxa_has_privilege('MANAGE_LOTS',p_source,'PHARMACIE')) then raise exception 'Transfert non autorisé'; end if;
+  or (public.naxa_has_privilege('MANAGE_LOTS',p_source,'PHARMACIE') and public.naxa_has_privilege('MANAGE_LOTS',p_destination,'PHARMACIE'))) then raise exception 'Transfert non autorisé'; end if;
 
  -- Verrouiller les lignes agrégées dans un ordre stable avant toute ligne de lot.
  perform 1 from public.stocks s where s.pharmacie_id in (p_source,p_destination) and s.produit_id=p_produit order by s.pharmacie_id for update;
