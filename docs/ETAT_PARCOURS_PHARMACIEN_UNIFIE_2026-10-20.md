@@ -83,18 +83,20 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 - `src/app/pharmacie/pharmacien/service/page.tsx` : prise et fin de service, note de transmission, historique et durée calculée à partir des horodatages serveur.
 - `supabase/migration_188_pharmacien_service_sessions.sql` : stockage isolé des pointages Pharmacien, contrainte empêchant plusieurs services ouverts par compte, RPC sécurisées et RLS.
 - `supabase/tests/188_pharmacien_service_sessions.sql` : assertions de structure/RLS/index/RPC à exécuter dans la suite SQL.
-- `src/app/pharmacie/pharmacien/suivi-patients/page.tsx` : lecture des partages actifs, onglets Patients partagés / Mesures / Partages et accès, filtres et affichage anonymisé par défaut.
+- `src/app/pharmacie/pharmacien/suivi-patients/page.tsx` : lecture des partages actifs, onglets Patients partagés / Mesures / Alertes / Partages et accès, filtres, affichage anonymisé par défaut, actualisation Realtime lorsque disponible et contrôle périodique toutes les 30 secondes.
 - `supabase/migration_189_pharmacien_read_consented_measurements.sql` : politique de lecture des mesures limitée au destinataire professionnel vérifié, au partage actif du type exact et au consentement encore valide.
 - `supabase/tests/189_pharmacien_read_consented_measurements.sql` : assertions sur les politiques de partage et les fonctions de consentement.
 - `supabase/migration_190_pharmacien_audit_trail.sql` : journal append-only et déclencheurs sur les créations/mises à jour de consultations, prescriptions et préparations.
 - `supabase/tests/190_pharmacien_audit_trail.sql` : assertions sur la table, les déclencheurs, le verrouillage et la RLS.
 - `supabase/migration_191_pharmacien_audited_report_exports.sql` : RPC serveur qui journalise un export CSV sans données patient.
 - `supabase/tests/191_pharmacien_audited_report_exports.sql` : assertions sur la RPC d’export et les contraintes du journal.
+- `supabase/migration_192_pharmacien_shared_measurement_alerts.sql` : lecture des alertes patient uniquement si le type de mesure est explicitement partagé et le consentement actif.
+- `supabase/tests/192_pharmacien_shared_measurement_alerts.sql` : assertions sur les politiques RLS des mesures et alertes partagées.
 
 ### Limites restant à prouver ou compléter
 
 - Les migrations 188 et 189 sont dans le dépôt, mais n’ont pas été exécutées sur Supabase ; tant qu’elles ne sont pas appliquées, le pointage et la lecture professionnelle des mesures partagées peuvent signaler un schéma ou une politique manquante.
 - Le suivi connecté reste limité par l’allowlist expérimentale et la vérification professionnelle existantes. Ce changement ne désactive pas ces garde-fous.
-- Les rapports utilisent encore un échantillon de dossiers chargés (jusqu’à 30 pour certaines listes), et non une agrégation historique serveur. Le journal append-only est désormais défini pour les consultations, prescriptions et préparations, mais son exécution réelle dépend de la migration 190 et de la validation des tests. Les délais fiables, les comparaisons de période complètes, les alertes partagées et le suivi de prescriptions patients ne sont pas encore terminés. L’export CSV du journal actuellement chargé est désormais câblé et appelle la RPC de journalisation de la migration 191 avant de générer le fichier.
+- Les rapports utilisent encore un échantillon de dossiers chargés (jusqu’à 30 pour certaines listes), et non une agrégation historique serveur. Le journal append-only est désormais défini pour les consultations, prescriptions et préparations, mais son exécution réelle dépend de la migration 190 et de la validation des tests. Les délais fiables, les comparaisons de période complètes et le suivi de prescriptions patients ne sont pas encore terminés. Les alertes sont maintenant affichées uniquement quand le partage et le consentement restent actifs, sous réserve de la migration 192. L’export CSV du journal actuellement chargé est désormais câblé et appelle la RPC de journalisation de la migration 191 avant de générer le fichier.
 - Aucun build, lint, typecheck ou test SQL n’a été exécuté dans cette passe. Les assertions SQL ajoutées ne valent pas preuve d’exécution.
 - Aucun déploiement n’a été lancé.
