@@ -29,7 +29,7 @@ begin
  end if;
  select * into v_rappel from public.rappels_lots where id=p_rappel and statut='actif' for update;
  if not found then raise exception 'Rappel actif introuvable'; end if;
- if not public.can_access_pharmacy(v_rappel.pharmacie_id) then raise exception 'Rappel hors périmètre'; end if;
+ if not public.naxa_scope_allows(v_user,v_rappel.pharmacie_id,'PHARMACIE') then raise exception 'Rappel hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found then raise exception 'Compte inactif'; end if;
  if coalesce(v_profile.role::text,'')='client' then raise exception 'Comptage réservé à l’équipe pharmacie'; end if;
