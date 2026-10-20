@@ -10,7 +10,7 @@ create table if not exists public.stock_manager_transfers(
  numero_lot text,
  quantite integer not null check(quantite>0),
  motif text not null check(char_length(btrim(motif)) between 3 and 500),
- acteur_id uuid not null references auth.users(id) on delete restrict,
+ acteur_id uuid references auth.users(id) on delete set null,
  cree_le timestamptz not null default now(),
  check(source_pharmacie_id<>destination_pharmacie_id)
 );
