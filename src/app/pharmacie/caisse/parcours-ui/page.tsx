@@ -223,7 +223,7 @@ export default function CaisseParcoursPrototypePage() {
   }, [screen]);
   const go = (target: Screen) => {
     setScreen(target);
-    setToast(`Écran « ${titles[target]} » ouvert dans le prototype. Aucune donnée ni opération réelle n’a été modifiée.`);
+    setToast(`Écran « ${titles[target]} » ouvert dans le prototype. Pour une écriture métier, utilisez le poste caisse réel ; cet écran de test ne modifie aucune donnée.`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const demoAction = (label: string) => {
@@ -409,8 +409,10 @@ export default function CaisseParcoursPrototypePage() {
                     </div>
                   ) : (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
-                      <p className="text-sm font-bold text-red-900">Aucune opération métier raccordée à cet écran</p>
-                      <p className="mt-1 text-xs text-red-800">Le clic reste un test de notification. Aucun enregistrement, changement de statut ou appel serveur n’est effectué.</p>
+                      <p className="text-sm font-bold text-red-900">Opération spécifique non raccordée</p>
+                      <p className="mt-1 text-xs text-red-800">Ce bouton de maquette ne peut pas produire l’écriture métier demandée : aucun contrat d’opération correspondant n’a été prouvé pour cet écran. NAXA n’écrit aucune donnée de substitution.</p>
+                      <button type="button" onClick={() => window.location.assign("/pharmacie/caisse")} className="mt-3 min-h-11 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-950">Ouvrir le poste de caisse réel →</button>
+                      <p className="mt-2 text-xs text-red-800">Le poste réel permet uniquement les opérations qu’il expose déjà (vente, session, encaissement, ticket et clôture). Ce lien n’active pas le stock, les ordonnances, les imports ou les autres fonctions absentes.</p>
                     </div>
                   )}
                 </div>
