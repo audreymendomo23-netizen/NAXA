@@ -235,6 +235,7 @@ export default async function EspacePromoteur() {
             <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/pharmacie/caisses">Gérer l’équipe</Link>
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/pilotage">Pilotage 360°</Link>
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/pilotage/rapports">Rapports</Link>
+            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/rappels-lots">Rappels de lots</Link>
           </nav>
         </header>
 
