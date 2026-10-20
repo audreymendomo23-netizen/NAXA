@@ -126,3 +126,11 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 - Les partages ne peuvent être créés que par le propriétaire connecté, avec consentement valide, professionnel vérifié et mesure existante. Le retrait du consentement continue de révoquer les partages via le déclencheur existant.
 - Test structurel ajouté : `supabase/tests/194_suivi_production_access_without_test_allowlist.sql`.
 - Limite : le test 194 vérifie les définitions SQL et la présence des gardes, pas encore une matrice RLS d'intégration avec deux identités/pharmacies réelles. Migration non appliquée à Supabase et aucun test SQL/build/lint/typecheck exécuté dans cette intervention. Aucun déploiement lancé.
+
+
+## Validation complémentaire du suivi connecté — 20 octobre 2026
+
+- L'environnement isolé `naxa-ci-replay-2` a reçu les migrations Pharmacien 188–193, puis les correctifs de suivi 194–196. Les migrations 125–127 nécessaires au schéma Pharmacien ont été alignées sur cet environnement; le bloc `DO` mal formé de la migration 127 a été corrigé sur `main`.
+- Les tests SQL structurels 188, 189, 190, 191, 192, 193, 194, 195 et 196 ont tous renvoyé leur résultat de succès après mise à jour des tests 189 et 192 pour la politique consolidée.
+- La migration 196 retire l'ancienne politique de lecture professionnelle des mesures dépendante de l'allowlist et remplace la politique propriétaire des alertes par un contrôle du flag global. Le contrôle reste fondé sur professionnel vérifié, partage actif et consentement correspondant.
+- **Limite importante :** ces tests sont structurels. Ils ne remplacent pas encore un test d'intégration RLS exécuté sous deux identités authentifiées distinctes, avec révocation de consentement/partage et vérification d'isolation entre patients. Aucun déploiement ni changement de base de production n'a été effectué.
