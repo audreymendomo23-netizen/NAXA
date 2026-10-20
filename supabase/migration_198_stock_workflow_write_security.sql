@@ -34,7 +34,8 @@ create policy commandes_fournisseurs_lignes_read_staff on public.commandes_fourn
 create policy commandes_fournisseurs_lignes_insert_draft on public.commandes_fournisseurs_lignes
  for insert to authenticated with check(exists(
   select 1 from public.commandes_fournisseurs c where c.id=commande_id and c.statut='brouillon'
-   and (public.is_admin() or public.naxa_stock_manager_actor(c.pharmacie_id))));
+   and (public.is_admin() or public.naxa_stock_manager_actor(c.pharmacie_id))
+   and exists(select 1 from public.stocks s where s.pharmacie_id=c.pharmacie_id and s.produit_id=commandes_fournisseurs_lignes.produit_id)));
 
 create or replace function public.fournisseur_commande_envoyer(p_commande uuid)
 returns boolean language plpgsql security definer set search_path=''
