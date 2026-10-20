@@ -54,11 +54,19 @@ begin
   from public.profiles p
   where p.id = v_link.promoteur_id
   for update;
-  if not found or v_promoteur.role::text <> 'promoteur' or v_promoteur.architecture_code is null\n     or v_promoteur.pharmacie_id is distinct from p_pharmacie then
+  if not found or v_promoteur.role::text <> 'promoteur' or v_promoteur.architecture_code is null
+     or v_promoteur.pharmacie_id is distinct from p_pharmacie then
     raise exception 'Compte Promoteur ou architecture invalide' using errcode = '23514';
   end if;
 
-  if not exists (\n    select 1 from public.pharmacie_privee pp\n    where pp.pharmacie_id = p_pharmacie and nullif(trim(pp.whatsapp), '') is not null\n  ) then\n    raise exception 'Dossier administratif incomplet' using errcode = '23514';\n  end if;\n\n  select count(*) into v_conventions_count
+  if not exists (
+    select 1 from public.pharmacie_privee pp
+    where pp.pharmacie_id = p_pharmacie and nullif(trim(pp.whatsapp), '') is not null
+  ) then
+    raise exception 'Dossier administratif incomplet' using errcode = '23514';
+  end if;
+
+  select count(*) into v_conventions_count
   from public.conventions_promoteurs c
   where c.promoteur_id = v_promoteur.id;
   select count(*) into v_abonnements_count
