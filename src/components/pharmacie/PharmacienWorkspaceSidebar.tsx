@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Section = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "historique" | "rapports" | "profil";
-type Entry = { id: Section | "dispositifs"; label: string; icon: string; href?: string };
+type Section = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil";
+type Entry = { id: Section; label: string; icon: string; href?: string };
 type Props = { activeTab: Section; onNavigate: (section: Section) => void };
 
 const entries: Entry[] = [
