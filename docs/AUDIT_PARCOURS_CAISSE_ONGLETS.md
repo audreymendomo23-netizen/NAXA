@@ -269,6 +269,6 @@ Les familles d'actions explicitement simulées par `demoAction(...)` demeurent n
 - 45 identifiants d'écran déclarés dans le prototype.
 - 20 identifiants disposent d'un pont vers une route métier existante.
 - 25 identifiants restent sans pont métier prouvé : `demandes`, `favoris`, `paniers`, `ordonnances`, `stock`, `catalogue`, `lots`, `import`, `sortie`, `registre`, `offline`, `remise`, `reception`, `commande`, `aide`, `deconnexion`, `garde`, `coffre`, `ordonnance-offline`, `alertes`, `fournisseurs`, `inventaire-refus`, `connexion`, `premiere-connexion`, `mot-de-passe-oublie`.
-- 77 occurrences d'appel à `demoAction(...)` sont conservées ; elles n'effectuent toujours pas d'opération métier. La fenêtre affiche maintenant un lien vers le parcours réel quand l'écran courant est raccordé, ou un avertissement explicite sinon.
+- 76 appels effectifs à `demoAction(...)` sont conservés (77 occurrences textuelles en comptant la déclaration de la fonction) ; elles n'effectuent toujours pas d'opération métier. La fenêtre affiche maintenant un lien vers le parcours réel quand l'écran courant est raccordé, ou un avertissement explicite sinon.
 - Les 9 destinations utilisées par le pont ont été retrouvées dans la navigation ou les routes de la caisse. Ce contrôle est statique : il ne prouve pas le succès d'une action en navigateur ni les permissions RLS.
 
