@@ -70,7 +70,7 @@ export async function envoyerCommandeFournisseurStock(formData:FormData){
  if(orderError||!order||!ids.includes(order.pharmacie_id)||order.statut!=="brouillon")redirect(back+"?erreur=envoi");
  const lines=(order as unknown as {commandes_fournisseurs_lignes:{id:string;quantite_commandee:number}[]}).commandes_fournisseurs_lignes??[];
  if(!lines.length)redirect(back+"?erreur=commande_vide");
- const {data,error}=await sb.from("commandes_fournisseurs").update({statut:"envoyee",updated_at:new Date().toISOString()}).eq("id",commande).eq("pharmacie_id",order.pharmacie_id).eq("statut","brouillon").select("id").maybeSingle();
- if(error||!data)redirect(back+"?erreur=envoi");
+ const {data,error}=await sb.rpc("fournisseur_commande_envoyer",{p_commande:commande});
+ if(error||data!==true)redirect(back+"?erreur=envoi");
  revalidatePath(back);redirect(back+"?ok=envoyee");
 }
