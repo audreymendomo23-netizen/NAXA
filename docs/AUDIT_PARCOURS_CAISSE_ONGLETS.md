@@ -195,3 +195,19 @@ La navigation latérale correspond à sept entrées du cahier § 5.2 : six liens
 Rapport de preuve détaillé et matrice des éléments restant à tester : [`docs/PREUVE_ARCHITECTURE_COMPTE_CAISSE.md`](PREUVE_ARCHITECTURE_COMPTE_CAISSE.md).
 
 Aucun test de build/lint/SQL/navigateur n’est déclaré réussi par ce rectificatif. Aucun déploiement n’a été demandé ni lancé dans le cadre de cette mise à jour documentaire.
+
+
+## Mise à jour — boucles interactives pour les 77 actions provisoires (20/10/2026)
+
+**Fichier modifié sur `main` :** `src/app/pharmacie/caisse/parcours-ui/page.tsx`
+
+- Les 77 appels `demoAction(...)` ouvrent maintenant un centre de scénarios de notification au lieu de l'ancien dialogue passif.
+- Le catalogue produit **1 000 cas de test déterministes** : 10 rôles × 10 domaines fonctionnels × 10 états.
+- Les cas proposent un rôle et un domaine, une priorité illustrative, un message contextualisé, la navigation précédent/suivant en boucle et le marquage local « lu ».
+- Le rôle et le domaine initiaux sont déduits du libellé de l'action, puis restent modifiables dans la fenêtre.
+- Les scénarios sont générés en mémoire ; aucun message n'est envoyé et aucune vente, session, autorisation, donnée métier ou écriture Supabase n'est modifiée. Ce travail reste un **prototype d'architecture**, pas une intégration de notifications métier.
+- L'inférence du rôle est une règle de démonstration fondée sur les libellés, pas un contrôle d'autorisation. Elle ne doit jamais servir à accorder des droits.
+- Vérification statique du fichier après écriture : les 77 appels sont toujours présents et la génération annonce 1 000 combinaisons. **Typecheck, lint, build et tests navigateur non exécutés** dans cette passe ; compilation et fonctionnement navigateur restent donc non vérifiés.
+- Aucun déploiement lancé.
+
+Commit code : `95427c9cf217138d95bb09f479341c14f0343747`.
