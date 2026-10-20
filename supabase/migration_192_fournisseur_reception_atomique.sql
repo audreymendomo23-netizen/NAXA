@@ -26,7 +26,7 @@ begin
  values(p_commande,v_order.pharmacie_id,nullif(trim(coalesce(p_reference,'')),''),v_user,nullif(trim(coalesce(p_commentaire,'')),''))
  returning id into v_reception;
 
- for v_line in select value from jsonb_array_elements(p_lignes) loop
+ for v_line in select value from jsonb_array_elements(p_lignes) order by value->>'commande_ligne_id' loop
   if coalesce(v_line.value->>'commande_ligne_id','') !~* '^[0-9a-f-]{36}$' then raise exception 'Ligne de commande invalide'; end if;
   v_qty:=nullif(v_line.value->>'quantite_recue','')::integer;
   v_numero:=trim(coalesce(v_line.value->>'numero_lot',''));
