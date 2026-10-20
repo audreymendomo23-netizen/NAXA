@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
+type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};\ntype Preparation={prescription_id:string;statut:string;notes_preparation:string|null;motif_complement:string|null;updated_at:string};
 
 export default function PharmacienPage(){
   const sb=supabaseBrowser();
   const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"consultation"|"prescription"|"validation">("consultation");
-  const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]);
+  const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]),[preparations,setPreparations]=useState<Record<string,Preparation>>({});
   const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({});
   const [consult,setConsult]=useState({patient:"",clientId:"",motif:"",observations:"",conclusion:"",recommandations:""});
   const [presc,setPresc]=useState({patient:"",clientId:"",consultationId:"",designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""});
@@ -87,7 +87,7 @@ export default function PharmacienPage(){
 
     {tab==="validation"&&<div className="space-y-4">
       <section className="carte"><h2 className="text-lg font-bold">Ordonnances reçues à contrôler</h2>{incoming.length===0&&<p className="my-3 text-sm">Aucune ordonnance en attente.</p>}
-        {incoming.map(r=><article key={r.id} className="carte my-3 space-y-3"><div><b>Ordonnance {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm">{new Date(r.created_at).toLocaleString("fr-FR")}</p>{r.document_ref&&<p className="text-sm">Document : {r.document_ref}</p>}</div><textarea className="champ min-h-20 w-full" placeholder="Motif obligatoire si rejet" value={motif[r.id]??""} onChange={e=>setMotif(x=>({...x,[r.id]:e.target.value}))}/><div className="flex flex-wrap gap-2"><button className="btn btn-vert" onClick={()=>decider(r.id,true)}>Valider</button><button className="btn btn-clair" onClick={()=>decider(r.id,false)}>Rejeter</button></div></article>)}
+        {incoming.map(r=><article key={r.id} className="carte my-3 space-y-3"><div><b>Ordonnance {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm">{new Date(r.created_at).toLocaleString("fr-FR")}</p>{r.document_ref&&<p className="text-sm">Document : {r.document_ref}</p>}{preparations[r.id]&&<div className="rounded-lg bg-slate-50 p-3 text-sm"><b>Préparation assistant · {preparations[r.id].statut}</b>{preparations[r.id].notes_preparation&&<p className="mt-1">{preparations[r.id].notes_preparation}</p>}{preparations[r.id].motif_complement&&<p className="mt-1 text-amber-800">Complément demandé : {preparations[r.id].motif_complement}</p>}</div>}</div><textarea className="champ min-h-20 w-full" placeholder="Motif de rejet ou complément demandé" value={motif[r.id]??""} onChange={e=>setMotif(x=>({...x,[r.id]:e.target.value}))}/><div className="flex flex-wrap gap-2"><button className="btn btn-vert" onClick={()=>decider(r.id,true)}>Valider</button><button className="btn btn-clair" onClick={()=>decider(r.id,false)}>Rejeter</button><button className="btn btn-canari" disabled={!preparations[r.id]||!motif[r.id]?.trim()} onClick={()=>demanderComplement(r.id)}>Demander un complément</button></div></article>)}
       </section>
       <section className="carte"><h2 className="text-lg font-bold">Prescriptions émises par la pharmacie</h2>{internal.length===0&&<p className="my-3 text-sm">Aucune prescription interne récente.</p>}{internal.map(r=><article key={r.id} className="carte my-3"><b>Prescription {r.id.slice(0,8).toUpperCase()}</b><p className="text-sm">{new Date(r.created_at).toLocaleString("fr-FR")} · {r.statut}</p>{r.consultation_id&&<p className="text-sm">Consultation liée : {r.consultation_id.slice(0,8).toUpperCase()}</p>}</article>)}</section>
     </div>}
