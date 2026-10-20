@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { CaisseSidebar } from "@/components/pharmacie/CaisseSidebar";
+import { CaisseSectionTabs } from "@/components/pharmacie/CaisseSectionTabs";
 
 type Section = "clients" | "assurances" | "historique" | "annulations" | "rapports" | "profil" | "notifications" | "service";
 type Sale = { id: string; numero_vente: string | null; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null; client_id: string | null; caisse_session_id: string; remise: number };
@@ -209,6 +210,7 @@ export default function CaisseParcoursPage() {
       <div><a href="/pharmacie/caisse" className="text-sm underline underline-offset-4">← Retour à l’encaissement</a><h1 className="mt-1 text-xl font-extrabold">Caisse · {title}</h1><p className="text-sm text-white/80">{pharmacyName}</p></div>
       <span className="rounded-full bg-white/15 px-3 py-2 text-sm">{displayName(account)}</span>
     </header>
+    <CaisseSectionTabs section={section} />
     {loading && <section className="carte" role="status">Chargement des données réelles et vérification des autorisations…</section>}
     {!loading && error && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
     {!loading && notice && <p role="status" aria-live="polite" className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
