@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
+import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
 
 type Produit = {
@@ -236,8 +237,9 @@ export default function CaissePage() {
     return () => { cancelled = true; };
   }, [chargerSession, sb]);
 
-  const total = useMemo(() => lignes.reduce((sum, line) => sum + line.total, 0), [lignes]);
-  const rendu = Math.max((Number(percu) || 0) - total, 0);
+  const total = useMemo(() => totalPanier(lignes.map((line) => line.total)), [lignes]);
+  const montantRecu = Number(percu);
+  const rendu = monnaieARendre(Number.isSafeInteger(montantRecu) && montantRecu >= 0 ? montantRecu : 0, total);
 
   async function changerCaisse(id: string) {
     if (!uid || !id || busy) return;
