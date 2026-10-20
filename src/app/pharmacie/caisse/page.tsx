@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
+import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
 
 type Produit = {
   produit_id: string;
@@ -564,6 +565,7 @@ export default function CaissePage() {
               )}
             </section>
             <CaisseRetraitsMarketplace pharmacieId={pid} sessionId={session?.id ?? null} />
+            <CaisseDecaissements sessionId={session?.id ?? null} />
             <section className="carte mb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="font-extrabold">Historique des ventes</h2><p className="text-sm text-slate-600">Consultez ou réimprimez vos 20 dernières ventes payées.</p></div>
