@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 
@@ -9,21 +9,41 @@ type ReservationItem = {
   prix_unitaire: number;
   produits: { nom: string; dosage: string | null } | null;
 };
-
 type Reservation = {
   id: string;
+  code_paiement: string;
   statut: string;
   total: number;
   created_at: string;
   expires_at: string;
   paiement_statut: string | null;
   paiement_mode: string | null;
+  paiement_ref: string | null;
   reservation_items: ReservationItem[] | null;
 };
-
+type Receipt = {
+  transactionId: string;
+  code: string;
+  numero: string;
+  total: number;
+  montantRecu: number;
+  monnaie: number;
+  canal: string;
+  date: string;
+  items: ReservationItem[];
+};
+const channels = [
+  { value: "especes", label: "Espèces au retrait" },
+  { value: "orange_money", label: "Orange Money (paiement reçu et vérifié par la pharmacie)" },
+  { value: "mtn_momo", label: "MTN MoMo (paiement reçu et vérifié par la pharmacie)" },
+  { value: "mobile_money", label: "Autre Mobile Money (reçu et vérifié par la pharmacie)" },
+  { value: "carte", label: "Carte (paiement reçu et vérifié par la pharmacie)" },
+  { value: "autre", label: "Autre canal (paiement reçu et vérifié par la pharmacie)" },
+];
+const channelLabel = (value: string) => channels.find((item) => item.value === value)?.label ?? value;
 const statusLabel: Record<string, string> = {
-  en_attente: "En attente de confirmation",
-  confirmee: "Confirmée · paiement à traiter",
+  en_attente: "En attente de confirmation pharmacie",
+  confirmee: "Confirmée · paiement à constater",
   payee: "Payée · retrait à confirmer",
   retiree: "Retirée",
   annulee: "Annulée",
@@ -38,11 +58,14 @@ export function CaisseRetraitsMarketplace({
   sessionId: string | null;
 }) {
   const [rows, setRows] = useState<Reservation[]>([]);
+  const [codeInput, setCodeInput] = useState("");
   const [received, setReceived] = useState<Record<string, string>>({});
+  const [channel, setChannel] = useState("especes");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const load = useCallback(async () => {
     if (!pharmacieId) {
@@ -52,10 +75,9 @@ export function CaisseRetraitsMarketplace({
     }
     setLoading(true);
     setError("");
-    const sb = supabaseBrowser();
-    const { data, error: queryError } = await sb
+    const { data, error: queryError } = await supabaseBrowser()
       .from("reservations")
-      .select("id,statut,total,created_at,expires_at,paiement_statut,paiement_mode,reservation_items(quantite,prix_unitaire,produits(nom,dosage))")
+      .select("id,code_paiement,statut,total,created_at,expires_at,paiement_statut,paiement_mode,paiement_ref,reservation_items(quantite,prix_unitaire,produits(nom,dosage))")
       .eq("pharmacie_id", pharmacieId)
       .eq("mode", "reservation")
       .in("statut", ["en_attente", "confirmee", "payee"])
@@ -73,45 +95,85 @@ export function CaisseRetraitsMarketplace({
 
   useEffect(() => { void load(); }, [load]);
 
+  const normalizedCode = useMemo(() => {
+    const raw = codeInput.trim().toUpperCase();
+    if (raw.startsWith("NAXA:PAY:")) return raw.slice("NAXA:PAY:".length).trim();
+    return raw;
+  }, [codeInput]);
+  const selected = useMemo(() => {
+    if (!normalizedCode) return null;
+    return rows.find((row) =>
+      row.code_paiement?.toUpperCase() === normalizedCode ||
+      row.id.toUpperCase() === normalizedCode
+    ) ?? null;
+  }, [normalizedCode, rows]);
+
   async function encaisser(row: Reservation) {
     if (!sessionId) {
-      setError("Ouvrez une session de caisse avant d’encaisser une réservation.");
+      setError("Ouvrez une session de caisse avant de valider un paiement Marketplace.");
       return;
     }
     if (busyId) return;
     const amount = Number(received[row.id]);
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setError("Saisissez le montant espèces reçu, en FCFA.");
+      setError("Saisissez le montant réellement reçu, en FCFA.");
       return;
     }
     if (row.statut !== "confirmee" || row.paiement_statut === "effectue") {
-      setError("Cette réservation n’est plus éligible à l’encaissement. Actualisez la liste.");
+      setError("Cette réservation n’est plus éligible. Actualisez la liste avant toute nouvelle action.");
       return;
     }
-    if (row.paiement_mode && !["especes_retrait", "a_convenir"].includes(row.paiement_mode)) {
-      setError("Le mode de paiement choisi n’est pas encaissable en espèces. Vérifiez le paiement selon le mode indiqué.");
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      setError("Cette réservation a expiré. Aucun paiement ne peut être validé.");
       return;
     }
-    if (!window.confirm("Encaisser en espèces la réservation " + row.id.slice(0, 8).toUpperCase() + " pour " + fcfa(row.total) + " ? Le ticket sera enregistré dans la session de caisse.")) return;
+    if (!normalizedCode || normalizedCode !== row.code_paiement.toUpperCase()) {
+      setError("Scannez le QR code ou saisissez le code de paiement exact de cette facture.");
+      return;
+    }
+    if (channel !== "especes" && amount !== row.total) {
+      setError("Pour un canal autre que les espèces, confirmez exactement le montant du reçu. NAXA ne vérifie pas le paiement auprès d’un opérateur.");
+      return;
+    }
+    if (channel === "especes" && amount < row.total) {
+      setError("Le montant reçu est inférieur au montant dû.");
+      return;
+    }
+    const confirmed = window.confirm(
+      "Confirmez-vous avoir réellement reçu " + fcfa(row.total) + " via " + channelLabel(channel) +
+      " pour la réservation " + row.code_paiement + " ? NAXA n’initie et ne traite aucun paiement."
+    );
+    if (!confirmed) return;
 
     setBusyId(row.id);
     setError("");
     setMessage("");
+    setReceipt(null);
     const { data, error: paymentError } = await supabaseBrowser().rpc("vente_reservation_encaisser", {
       p_reservation: row.id,
       p_session: sessionId,
       p_montant_percu: amount,
+      p_canal: channel,
+      p_code_paiement: normalizedCode,
     });
     if (paymentError) {
-      setError(paymentError.message || "Encaissement non confirmé. Actualisez la liste avant de réessayer.");
+      setError(paymentError.message || "Paiement non confirmé. Actualisez la réservation avant de réessayer.");
     } else {
       const result = Array.isArray(data) ? data[0] : data;
+      const change = Number(result?.monnaie_rendue ?? (channel === "especes" ? amount - row.total : 0));
+      setReceipt({
+        transactionId: row.id,
+        code: String(result?.code_paiement ?? row.code_paiement),
+        numero: String(result?.numero_vente ?? "à consulter dans l’historique"),
+        total: Number(result?.total ?? row.total),
+        montantRecu: amount,
+        monnaie: change,
+        canal: channelLabel(channel),
+        date: new Date().toLocaleString("fr-FR"),
+        items: row.reservation_items ?? [],
+      });
       setReceived((current) => ({ ...current, [row.id]: "" }));
-      setMessage(
-        "Encaissement enregistré · ticket " + (result?.numero_vente ?? "créé") +
-        " · monnaie à rendre : " + fcfa(Number(result?.monnaie_rendue ?? Math.max(amount - row.total, 0)) ) +
-        ". Le ticket peut être réimprimé depuis l’historique des ventes."
-      );
+      setMessage("Règlement enregistré manuellement par la pharmacie. Le reçu Marketplace est prêt à imprimer.");
       await load();
     }
     setBusyId(null);
@@ -124,11 +186,10 @@ export function CaisseRetraitsMarketplace({
     }
     if (busyId) return;
     if (row.statut !== "payee" || row.paiement_statut !== "effectue") {
-      setError("Le retrait ne peut être confirmé qu’après validation du paiement.");
+      setError("Le retrait ne peut être confirmé qu’après validation du paiement par la pharmacie.");
       return;
     }
-    if (!window.confirm("Confirmer le retrait de la réservation " + row.id.slice(0, 8).toUpperCase() + " ?")) return;
-
+    if (!window.confirm("Confirmer la remise des produits de la réservation " + row.code_paiement + " ?")) return;
     setBusyId(row.id);
     setError("");
     setMessage("");
@@ -139,7 +200,8 @@ export function CaisseRetraitsMarketplace({
     if (transitionError) {
       setError("Retrait non confirmé. Vérifiez le statut actuel avant de réessayer.");
     } else {
-      setMessage("Retrait confirmé pour la réservation " + row.id.slice(0, 8).toUpperCase() + ".");
+      setMessage("Retrait confirmé pour la réservation " + row.code_paiement + ".");
+      setCodeInput("");
       await load();
     }
     setBusyId(null);
@@ -147,73 +209,106 @@ export function CaisseRetraitsMarketplace({
 
   return (
     <section className="carte mb-4 space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <style>{`@media print { body * { visibility: hidden !important; } #naxa-marketplace-receipt, #naxa-marketplace-receipt * { visibility: visible !important; } #naxa-marketplace-receipt { position: absolute; inset: 0 auto auto 0; width: 100%; background: white; color: black; padding: 16px; } }`}</style>
+      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div>
-          <h2 className="text-lg font-extrabold">Réservations Marketplace</h2>
-          <p className="text-sm text-slate-600">Encaissement comptoir et remise des produits réservés par les clients. Le paiement est enregistré dans la session POS.</p>
+          <h2 className="text-lg font-extrabold">Retrait Marketplace · règlement au comptoir</h2>
+          <p className="text-sm text-slate-600">Scannez le QR code avec un lecteur compatible ou saisissez le code de paiement. NAXA relie la facture à la pharmacie ; le paiement est reçu et constaté par la pharmacie, jamais par NAXA.</p>
         </div>
-        <button type="button" className="btn btn-clair" disabled={loading || !!busyId} onClick={() => void load()}>
-          Actualiser
-        </button>
+        <button type="button" className="btn btn-clair" disabled={loading || !!busyId} onClick={() => void load()}>Actualiser</button>
       </div>
-      {!sessionId && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Ouvrez une session de caisse pour encaisser ou confirmer un retrait.</p>}
-      {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
-      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{error}</p>}
-      {loading ? (
-        <p role="status" className="text-sm text-slate-600">Chargement des réservations…</p>
-      ) : rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed p-4 text-sm text-slate-600">Aucune réservation en attente de retrait.</p>
+      {!sessionId && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 print:hidden">Ouvrez une session de caisse pour enregistrer un règlement ou confirmer un retrait.</p>}
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto] print:hidden">
+        <label className="text-sm font-semibold">Code de paiement / contenu du QR code
+          <input className="champ mt-1 w-full uppercase" value={codeInput} onChange={(event) => { setCodeInput(event.target.value); setError(""); setReceipt(null); }} placeholder="Ex. A1B2C3D4E5F6" autoCapitalize="characters" autoComplete="off" />
+        </label>
+        <button type="button" className="btn btn-clair self-end" disabled={loading || !codeInput.trim()} onClick={() => void load()}>Retrouver la transaction</button>
+      </div>
+      {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 print:hidden">{message}</p>}
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900 print:hidden">{error}</p>}
+      {loading ? <p role="status" className="text-sm text-slate-600 print:hidden">Chargement des réservations…</p> : rows.length === 0 ? (
+        <p className="rounded-xl border border-dashed p-4 text-sm text-slate-600 print:hidden">Aucune réservation Marketplace en attente.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3 print:hidden">
           {rows.map((row) => {
             const expired = new Date(row.expires_at).getTime() <= Date.now() && row.statut !== "payee";
-            const canCash = row.statut === "confirmee"
-              && row.paiement_statut !== "effectue"
-              && (!row.paiement_mode || ["especes_retrait", "a_convenir"].includes(row.paiement_mode))
-              && !expired;
+            const isSelected = selected?.id === row.id;
+            const canPay = row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
             const paid = row.statut === "payee" && row.paiement_statut === "effectue";
             return (
-              <li key={row.id} className="rounded-xl border p-3">
+              <li key={row.id} className={`rounded-xl border p-3 ${isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : ""}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-bold">Réservation #{row.id.slice(0, 8).toUpperCase()}</p>
-                    <p className="text-xs text-slate-500">{new Date(row.created_at).toLocaleString("fr-FR")}</p>
+                    <p className="font-bold">Transaction {row.code_paiement}</p>
+                    <p className="text-xs text-slate-500">Créée le {new Date(row.created_at).toLocaleString("fr-FR")} · expire le {new Date(row.expires_at).toLocaleString("fr-FR")}</p>
                   </div>
-                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold">
-                    {expired ? "Délai dépassé · vérifier le statut" : statusLabel[row.statut] ?? row.statut}
-                  </span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold">{expired ? "Expirée" : statusLabel[row.statut] ?? row.statut}</span>
                 </div>
                 <div className="mt-2 space-y-1 text-sm">
                   {(row.reservation_items ?? []).map((item, index) => (
-                    <p key={index}>{item.quantite} × {item.produits?.nom ?? "Produit"}{item.produits?.dosage ? " · " + item.produits.dosage : ""}</p>
+                    <p key={index}>{item.quantite} × {item.produits?.nom ?? "Produit"}{item.produits?.dosage ? " · " + item.produits.dosage : ""} — {fcfa(item.quantite * item.prix_unitaire)}</p>
                   ))}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-extrabold">{fcfa(row.total)}</p>
-                    <p className="text-xs text-slate-600">Paiement : {row.paiement_statut === "effectue" ? "confirmé" : "à vérifier"} · {row.paiement_mode ?? "modalité à convenir"}</p>
+                    <p className="font-extrabold">Total dû : {fcfa(row.total)}</p>
+                    <p className="text-xs text-slate-600">Canal enregistré : {row.paiement_mode ?? "à sélectionner au retrait"}</p>
                   </div>
-                  {paid && (
-                    <button type="button" className="btn btn-vert" disabled={!!busyId || !sessionId} onClick={() => void confirmerRetrait(row)}>
-                      {busyId === row.id ? "Confirmation…" : "Confirmer le retrait"}
-                    </button>
-                  )}
+                  {paid && <button type="button" className="btn btn-vert" disabled={!!busyId || !sessionId} onClick={() => void confirmerRetrait(row)}>{busyId === row.id ? "Confirmation…" : "Confirmer la remise des produits"}</button>}
                 </div>
-                {canCash && (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                    <label className="text-sm font-semibold">Espèces reçues (FCFA)
-                      <input className="champ mt-1 w-full" type="number" min={row.total} step="1" inputMode="numeric" value={received[row.id] ?? ""} onChange={(event) => setReceived((current) => ({ ...current, [row.id]: event.target.value }))} disabled={!sessionId || !!busyId} />
+                {canPay && isSelected && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm font-semibold">Canal déclaré par le client
+                      <select className="champ mt-1 w-full" value={channel} onChange={(event) => setChannel(event.target.value)} disabled={!!busyId}>
+                        {channels.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      </select>
                     </label>
-                    <button type="button" className="btn btn-vert" disabled={!sessionId || !!busyId} onClick={() => void encaisser(row)}>
-                      {busyId === row.id ? "Encaissement…" : "Encaisser en espèces"}
+                    <label className="text-sm font-semibold">Montant réellement reçu (FCFA)
+                      <input className="champ mt-1 w-full" type="number" min={row.total} step="1" inputMode="numeric" value={received[row.id] ?? String(row.total)} onChange={(event) => setReceived((current) => ({ ...current, [row.id]: event.target.value }))} disabled={!sessionId || !!busyId} />
+                    </label>
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm sm:col-span-2">
+                      <p>Montant du reçu : <strong>{fcfa(row.total)}</strong></p>
+                      <p>Monnaie à rendre : <strong>{fcfa(channel === "especes" ? Math.max(Number(received[row.id] ?? row.total) - row.total, 0) : 0)}</strong></p>
+                      <p className="mt-1 text-xs text-slate-600">Pour Mobile Money, carte ou autre canal, cochez uniquement après avoir vérifié que la pharmacie a réellement reçu le montant. Aucun appel d’API de paiement n’est effectué par NAXA.</p>
+                    </div>
+                    <button type="button" className="btn btn-vert sm:col-span-2" disabled={!sessionId || !!busyId || !normalizedCode} onClick={() => void encaisser(row)}>
+                      {busyId === row.id ? "Enregistrement…" : "Confirmer le règlement reçu et préparer le reçu"}
                     </button>
                   </div>
                 )}
-                {!paid && !canCash && <p className="mt-2 text-xs text-amber-800">Vérifiez la confirmation, l’expiration et le mode de paiement avant toute opération. Les paiements électroniques ne sont pas simulés.</p>}
               </li>
             );
           })}
         </ul>
+      )}
+      {receipt && (
+        <section id="naxa-marketplace-receipt" className="rounded-xl border border-slate-300 bg-white p-5 text-slate-950">
+          <div className="text-center">
+            <h2 className="text-xl font-extrabold">NAXA · Reçu de retrait Marketplace</h2>
+            <p className="text-sm">Paiement reçu et confirmé par la pharmacie — NAXA ne collecte pas les fonds</p>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <p>Transaction : <strong>{receipt.transactionId}</strong></p>
+            <p>Code paiement : <strong>{receipt.code}</strong></p>
+            <p>Ticket caisse : <strong>{receipt.numero}</strong></p>
+            <p>Date/heure : <strong>{receipt.date}</strong></p>
+            <p>Canal : <strong>{receipt.canal}</strong></p>
+            <p>Statut : <strong>PAYÉ</strong></p>
+          </div>
+          <div className="mt-4 border-t border-b py-3 text-sm">
+            {receipt.items.map((item, index) => <p key={index}>{item.quantite} × {item.produits?.nom ?? "Produit"} {item.produits?.dosage ?? ""} — {fcfa(item.quantite * item.prix_unitaire)}</p>)}
+          </div>
+          <div className="mt-3 space-y-1 text-sm">
+            <p>Total achat : <strong>{fcfa(receipt.total)}</strong></p>
+            <p>Montant perçu : <strong>{fcfa(receipt.montantRecu)}</strong></p>
+            <p>Monnaie à rendre : <strong>{fcfa(receipt.monnaie)}</strong></p>
+          </div>
+          <p className="mt-4 text-xs">Conservez ce reçu. La réservation et son historique sont mis à jour par NAXA après confirmation par la pharmacie.</p>
+          <div className="mt-4 flex gap-2 print:hidden">
+            <button type="button" className="btn btn-vert" onClick={() => window.print()}>Imprimer le reçu</button>
+            <button type="button" className="btn btn-clair" onClick={() => setReceipt(null)}>Fermer</button>
+          </div>
+        </section>
       )}
     </section>
   );
