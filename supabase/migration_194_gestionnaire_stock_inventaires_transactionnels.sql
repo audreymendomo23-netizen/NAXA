@@ -40,6 +40,7 @@ begin
    or public.naxa_has_privilege('MANAGE_LOTS',p_pharmacie,'PHARMACIE')) then
    raise exception 'Démarrage d’inventaire non autorisé';
  end if;
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_pharmacie::text,0));
  if exists(select 1 from public.inventaires i where i.pharmacie_id=p_pharmacie and i.statut in ('brouillon','en_cours')) then
    raise exception 'Un inventaire est déjà ouvert pour cette pharmacie';
  end if;
@@ -74,7 +75,7 @@ begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  select i.pharmacie_id,s.quantite into v_pharmacie,v_quantite
  from public.inventaires i join public.stocks s on s.pharmacie_id=i.pharmacie_id
- where i.id=p_inventaire and s.produit_id=p_produit and i.statut in ('brouillon','en_cours');
+ where i.id=p_inventaire and s.produit_id=p_produit and i.statut in ('brouillon','en_cours') for update of i;
  if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Inventaire ou produit hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
@@ -105,7 +106,7 @@ begin
  if p_quantite is null or p_quantite<0 then raise exception 'Quantité comptée invalide'; end if;
  select i.pharmacie_id into v_pharmacie from public.inventaire_lignes il
  join public.inventaires i on i.id=il.inventaire_id
- where il.id=p_ligne and i.statut in ('brouillon','en_cours');
+ where il.id=p_ligne and i.statut in ('brouillon','en_cours') for update of i;
  if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Ligne d’inventaire fermée ou hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
