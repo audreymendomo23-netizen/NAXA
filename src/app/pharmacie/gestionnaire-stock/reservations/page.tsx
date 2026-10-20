@@ -56,7 +56,7 @@ const fcfa = (value: number) => `${Number(value || 0).toLocaleString("fr-FR")} F
 export default async function GestionnaireStockReservationsPage({
   searchParams,
 }: {
-  searchParams: { ok?: string; erreur?: string; page?: string };
+  searchParams: { ok?: string; erreur?: string; page?: string; reservation?: string };
 }) {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
@@ -88,13 +88,15 @@ export default async function GestionnaireStockReservationsPage({
 
   const pageNumber = Math.max(1, Math.min(10000, Number.parseInt(searchParams.page ?? "1", 10) || 1));
   const pageSize = 50;
-  const { data: rawReservations, error: reservationError, count: reservationCount } = await sb
+  let reservationQuery = sb
     .from("reservations")
     .select("id,pharmacie_id,client_id,statut,total,created_at,expires_at,mode,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))", { count: "exact" })
     .in("pharmacie_id", pharmacyIds)
     .eq("mode", "reservation")
-    .in("statut", ["en_attente", "confirmee"])
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: true });
+  const focusedReservation = searchParams.reservation && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(searchParams.reservation);
+  reservationQuery = focusedReservation ? reservationQuery.eq("id", searchParams.reservation!) : reservationQuery.in("statut", ["en_attente", "confirmee"]);
+  const { data: rawReservations, error: reservationError, count: reservationCount } = await reservationQuery
     .range((pageNumber - 1) * pageSize, pageNumber * pageSize - 1);
 
   const reservations = (rawReservations ?? []) as unknown as ReservationRow[];
