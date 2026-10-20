@@ -38,7 +38,7 @@ export async function ajouterLigneCommandeFournisseurStock(formData:FormData){
  const prix=prixRaw===""?null:Number(prixRaw);
  if(!uuid(commande)||!uuid(produit)||!Number.isSafeInteger(quantite)||quantite<=0||quantite>100000||!(prix===null||(Number.isSafeInteger(prix)&&prix>=0)))redirect(back+"?erreur=ligne");
  const {data:order,error:orderError}=await sb.from("commandes_fournisseurs").select("id,pharmacie_id,statut").eq("id",commande).maybeSingle();
- if(orderError||!order||!ids.includes(order.pharmacie_id)||!["brouillon","envoyee","partielle"].includes(order.statut))redirect(back+"?erreur=ligne");
+ if(orderError||!order||!ids.includes(order.pharmacie_id)||order.statut!=="brouillon")redirect(back+"?erreur=ligne");
  const {error:productError,data:stock}=await sb.from("stocks").select("produit_id").eq("pharmacie_id",order.pharmacie_id).eq("produit_id",produit).maybeSingle();
  if(productError||!stock)redirect(back+"?erreur=produit");
  const {error}=await sb.from("commandes_fournisseurs_lignes").insert({commande_id:commande,produit_id:produit,quantite_commandee:quantite,prix_unitaire_prevu:prix});
@@ -49,7 +49,7 @@ export async function recevoirCommandeFournisseurStock(formData:FormData){
  const {sb,ids}=await authorized();const commande=String(formData.get("commande_id")??"");
  if(!uuid(commande))redirect(back+"?erreur=reception");
  const {data:order,error:orderError}=await sb.from("commandes_fournisseurs").select("id,pharmacie_id,statut,commandes_fournisseurs_lignes(id,quantite_commandee,quantite_recue)").eq("id",commande).maybeSingle();
- if(orderError||!order||!ids.includes(order.pharmacie_id)||!["brouillon","envoyee","partielle"].includes(order.statut))redirect(back+"?erreur=reception");
+ if(orderError||!order||!ids.includes(order.pharmacie_id)||!["envoyee","partielle"].includes(order.statut))redirect(back+"?erreur=reception");
  const lines=(order as unknown as {commandes_fournisseurs_lignes:{id:string;quantite_commandee:number;quantite_recue:number}[]}).commandes_fournisseurs_lignes??[];
  const payload=lines.map(line=>({commande_ligne_id:line.id,quantite_recue:Number(formData.get("qty_"+line.id)??0),numero_lot:String(formData.get("lot_"+line.id)??"").trim(),date_peremption:String(formData.get("expiry_"+line.id)??""),emplacement:String(formData.get("location_"+line.id)??"").trim()})).filter(line=>line.quantite_recue>0);
  if(!payload.length)redirect(back+"?erreur=reception");
