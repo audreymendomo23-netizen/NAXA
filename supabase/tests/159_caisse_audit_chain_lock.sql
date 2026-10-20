@@ -93,6 +93,21 @@ begin
     (v_vente_a,v_pharmacie_a,v_session_a,'brouillon',1,1,v_user_a),
     (v_vente_b,v_pharmacie_b,v_session_b,'brouillon',1,1,v_user_b);
 
+  -- Une vente ne peut jamais utiliser la session d'une autre pharmacie.
+  v_rejected := false;
+  begin
+    insert into public.ventes(
+      id,pharmacie_id,caisse_session_id,statut,total_brut,total_net,created_by
+    ) values (
+      gen_random_uuid(),v_pharmacie_a,v_session_b,'brouillon',0,0,v_user_a
+    );
+  exception when others then
+    v_rejected := true;
+  end;
+  if not v_rejected then
+    raise exception 'Une vente a pu référencer la session d’une autre pharmacie';
+  end if;
+
   -- Le trigger POS exige un coût d'achat pour chaque couple pharmacie/produit.
   insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
   values (v_pharmacie_a,v_produit,1,'XAF'),(v_pharmacie_b,v_produit,1,'XAF');
