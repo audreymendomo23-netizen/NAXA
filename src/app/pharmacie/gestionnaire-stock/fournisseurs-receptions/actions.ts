@@ -8,8 +8,7 @@ async function authorized(){
  const {data:p,error}=await sb.from("profiles").select("role,fonction_interne,actif").eq("id",auth.user.id).maybeSingle();
  const role=String(p?.role??"").toLowerCase(),fn=String(p?.fonction_interne??"").toLowerCase();
  if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)))redirect("/");
- const {data:raw,error:e}=await sb.rpc("my_pharmacies");const rows=(Array.isArray(raw)?raw:[]) as {id?:string;pharmacie_id?:string}[];
- const ids=[...new Set(rows.map(x=>x.pharmacie_id??x.id).filter((x):x is string=>Boolean(x)))];
+ const {data:raw,error:e}=await sb.rpc("my_pharmacies");const ids=[...new Set((Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"))];
  if(e||!ids.length)redirect("/pharmacie/gestionnaire-stock/fournisseurs-receptions?erreur=perimetre");
  return {sb,uid:auth.user.id,ids};
 }
