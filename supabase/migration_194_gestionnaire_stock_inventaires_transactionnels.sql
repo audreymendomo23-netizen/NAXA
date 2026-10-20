@@ -140,6 +140,10 @@ begin
    and exists(select 1 from public.stocks_lots sl where sl.pharmacie_id=v_pharmacie and sl.produit_id=il.produit_id)) then
   raise exception 'Inventaire préparé sans détail par lot : clôture refusée pour éviter un écart stock/lots. Recréez un inventaire avec le parcours actuel.';
  end if;
+ -- Fermer dans la même transaction avant les écritures : le garde de mouvements bloque toute
+ -- vente/réservation/réception concurrente tant que le comptage est ouvert. En cas d’erreur,
+ -- PostgreSQL annule aussi ce changement de statut.
+ update public.inventaires set statut='cloture',closed_at=now(),closed_by=v_user,updated_at=now() where id=p_inventaire;
  for v_line in select il.id,il.produit_id,il.lot_id,il.quantite_theorique,il.quantite_comptee
    from public.inventaire_lignes il where il.inventaire_id=p_inventaire for update loop
   insert into public.inventaire_ajustements(inventaire_id,ligne_id,pharmacie_id,produit_id,lot_id,quantite_theorique,quantite_comptee,acteur_id)
@@ -160,7 +164,6 @@ begin
  ) where s.pharmacie_id=v_pharmacie and exists(
    select 1 from public.inventaire_lignes il where il.inventaire_id=p_inventaire and il.produit_id=s.produit_id and il.lot_id is not null
  );
- update public.inventaires set statut='cloture',closed_at=now(),closed_by=v_user,updated_at=now() where id=p_inventaire;
 end;
 $function$;
 
