@@ -7,7 +7,7 @@ declare v_user uuid:=auth.uid(); v_profile public.profiles%rowtype;
 begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  if p_emplacement is not null and char_length(trim(p_emplacement))>160 then raise exception 'Emplacement limité à 160 caractères'; end if;
- if not public.can_access_pharmacy(p_pharmacie) then raise exception 'Pharmacie hors périmètre'; end if;
+ if not public.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') then raise exception 'Pharmacie hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
@@ -29,7 +29,7 @@ begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  if p_emplacement is not null and char_length(trim(p_emplacement))>160 then raise exception 'Emplacement limité à 160 caractères'; end if;
  select pharmacie_id into v_pharmacie from public.stocks_lots where id=p_lot;
- if v_pharmacie is null or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Lot hors périmètre ou introuvable'; end if;
+ if v_pharmacie is null or not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Lot hors périmètre ou introuvable'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
