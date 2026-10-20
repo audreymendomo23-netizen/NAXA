@@ -32,7 +32,7 @@ export async function compterLigneInventaire(formData:FormData) {
  const id=String(formData.get("ligne_id")??"");
  const raw=String(formData.get("quantite_comptee")??"");
  const qty=Number(raw);
- if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)||!Number.isSafeInteger(qty)||qty<0) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=comptage");
+ if(!raw.trim()||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)||!Number.isSafeInteger(qty)||qty<0) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=comptage");
  const {error}=await sb.rpc("gestionnaire_stock_inventaire_compter",{p_ligne:id,p_quantite:qty});
  if(error) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=comptage");
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
