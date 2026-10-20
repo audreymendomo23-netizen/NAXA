@@ -128,6 +128,7 @@ begin
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
    or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')) then raise exception 'Clôture d’inventaire non autorisée'; end if;
+ if not exists(select 1 from public.inventaire_lignes where inventaire_id=p_inventaire) then raise exception 'Impossible de clôturer un inventaire vide'; end if;
  if exists(select 1 from public.inventaire_lignes where inventaire_id=p_inventaire and quantite_comptee is null) then raise exception 'Toutes les lignes doivent être comptées avant clôture'; end if;
  -- Contradiction: une ligne agrégée ne peut pas ajuster un stock qui possède des lots,
  -- sinon le stock agrégé divergerait du détail des lots.
