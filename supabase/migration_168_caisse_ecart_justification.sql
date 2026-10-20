@@ -9,8 +9,7 @@ alter table public.caisses_sessions drop constraint if exists caisses_sessions_e
 alter table public.caisses_sessions add constraint caisses_sessions_ecart_justification_ck
  check (ecart_justification is null or length(trim(ecart_justification)) between 5 and 500);
 
-drop function if exists public.caisse_cloturer(uuid,integer);
-create function public.caisse_cloturer(p_session uuid,p_total_compte integer,p_ecart_justification text default null)
+create function public.caisse_cloturer(p_session uuid,p_total_compte integer,p_ecart_justification text)
 returns table(total_theorique integer,total_compte integer,ecart integer)
 language plpgsql security definer set search_path=''
 as $cloturer$
@@ -59,4 +58,14 @@ end;
 $cloturer$;
 revoke all on function public.caisse_cloturer(uuid,integer,text) from public,anon,authenticated;
 grant execute on function public.caisse_cloturer(uuid,integer,text) to authenticated;
+create or replace function public.caisse_cloturer(p_session uuid,p_total_compte integer)
+returns table(total_theorique integer,total_compte integer,ecart integer)
+language plpgsql security definer set search_path=''
+as $compat$
+begin
+ return query select * from public.caisse_cloturer(p_session,p_total_compte,null::text);
+end;
+$compat$;
+revoke all on function public.caisse_cloturer(uuid,integer) from public,anon,authenticated;
+grant execute on function public.caisse_cloturer(uuid,integer) to authenticated;
 commit;
