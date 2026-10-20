@@ -28,16 +28,18 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Déconnexion reste une action distincte au bas du panneau latéral.
 
 ### Marketplace, client et messagerie
-- Migration 188 : ajoute les emplacements facultatifs et le lien notification-réservation; déclenche une notification de dossier groupée après insertion.
-- Migration 189 : journalise les transitions de statut, crée les notifications client et fournit une fonction idempotente de rappel à 30 minutes; une planification pg_cron est tentée uniquement si l’extension est disponible et accessible.
+- Migration 188 : ajoute les emplacements facultatifs et le lien notification-réservation. La notification est créée/actualisée à partir des lignes produits, pour couvrir aussi une insertion des lignes dans un appel séparé; une seule notification est conservée par dossier. Les mises à jour de notification sont reçues en temps réel lorsque le client est connecté.
+- Migration 189 : journalise les transitions de statut, crée les notifications client et fournit un rappel idempotent à 30 minutes avec index anti-doublon. La migration tente de planifier pg_cron si disponible; l’exécution réelle reste à confirmer.
 - Migration 190 : relie les messages à une réservation, ajoute une RPC sécurisée d’envoi et propage le lien aux réponses dans le fil.
+- Migration 195 : confirme une réservation via une RPC serveur qui vérifie l’état, l’expiration, le périmètre et la couverture des demandes actives par les lots non périmés/non bloqués lorsqu’ils existent.
 - Page de détail client : affiche l’historique des transitions et le formulaire de message lié au dossier.
-- Notifications : les alertes de statut/expiration pointent vers le détail client; les notifications de réservation de pharmacie pointent vers la file de traitement.
+- Notifications : les alertes de statut/expiration pointent vers le détail client; les notifications de réservation pointent vers la file de traitement; les messages routent vers la boîte de réception correspondant au destinataire.
 
 ### Fournisseurs, lots et inventaires
 - Migration 191 : ajoute les RPC d’emplacement pour le stock et les lots, avec vérification de périmètre et de rôle.
-- Migration 192 : ajoute une réception fournisseur atomique, avec lot et péremption obligatoires, mise à jour des quantités, historique de réception et refus en cas d’incohérence stock/lots.
+- Migration 192 : ajoute une réception fournisseur atomique, avec lot et péremption obligatoires, refus des lots déjà périmés, mise à jour des quantités, historique de réception et refus en cas d’incohérence stock/lots. Les réceptions répétées d’un même lot augmentent sa quantité sans créer de doublon.
 - Migration 193 : ajoute les sessions de prise/fin de service du Gestionnaire de stock.
+- Migration 194 : ajoute les RPC transactionnelles de démarrage, d’ajout de référence, de comptage et de clôture d’inventaire, le détail par lot, l’application des écarts et un journal d’ajustements consultable dans les rapports. Les mouvements externes ne sont pas encore bloqués pendant le comptage; l’écran avertit de suspendre les mouvements.
 
 ## Fichiers de migration et tests SQL ajoutés
 
@@ -53,6 +55,10 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - `supabase/tests/192_fournisseur_reception_atomique.sql`
 - `supabase/migration_193_gestionnaire_stock_service.sql`
 - `supabase/tests/193_gestionnaire_stock_service.sql`
+- `supabase/migration_194_gestionnaire_stock_inventaires_transactionnels.sql`
+- `supabase/tests/194_gestionnaire_stock_inventaires_transactionnels.sql`
+- `supabase/migration_195_gestionnaire_stock_reservation_confirmer.sql`
+- `supabase/tests/195_gestionnaire_stock_reservation_confirmer.sql`
 
 ## Points de prudence à conserver
 
@@ -61,6 +67,8 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - La réception fournisseur refuse les stocks préexistants non lotisés ou incohérents plutôt que de créer des lots avec une péremption inventée.
 - Les données client dans la file stock sont minimisées à un identifiant court; le traitement est groupé par dossier, pas par produit.
 - Les données de stock visibles restent un instantané d’écran; chaque mutation doit être revalidée par les RPC de la base.
+- Les tableaux Stock & logistique, Lots & péremptions et Réservations Marketplace sont paginés; les compteurs principaux utilisent des comptages exacts lorsque l’API les retourne.
+- La commande fournisseur suit maintenant le cycle brouillon → marquée envoyée → réception partielle/complète; la réception est bloquée tant que la commande est encore en brouillon.
 - La file de réservation affiche les statuts actifs `en_attente` et `confirmee`; les dossiers terminés sont accessibles via l’historique/rapports et le détail client.
 
 ## État de livraison du code
