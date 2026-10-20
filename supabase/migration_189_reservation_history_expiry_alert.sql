@@ -12,6 +12,10 @@ create table if not exists public.reservation_statut_historique (
 create index if not exists reservation_statut_historique_reservation_idx
   on public.reservation_statut_historique(reservation_id, cree_le desc);
 
+create unique index if not exists notifications_reservation_expiry_once_uq
+  on public.notifications(reservation_id,type)
+  where reservation_id is not null and type='reservation_expiry_30m';
+
 alter table public.reservation_statut_historique enable row level security;
 drop policy if exists reservation_historique_participants_read on public.reservation_statut_historique;
 create policy reservation_historique_participants_read on public.reservation_statut_historique
@@ -94,6 +98,7 @@ begin
         || '. Contactez la pharmacie ou retirez vos articles avant cette heure.', 1000),
       d.id
     from due d
+    on conflict (reservation_id,type) where reservation_id is not null and type='reservation_expiry_30m' do nothing
     returning id
   )
   select count(*)::integer into v_count from inserted;
