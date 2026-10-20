@@ -102,6 +102,10 @@ begin
     values(p_destination,p_produit,v_source_lot.numero_lot,v_source_lot.date_peremption,v_source_lot.numero_lot,v_source_lot.date_peremption,p_quantite,false,null,null)
     returning id into v_destination_lot_id;
    end if;
+  else
+   insert into public.stocks_lots(pharmacie_id,produit_id,lot,peremption,numero_lot,date_peremption,quantite,bloque,motif_blocage,emplacement)
+   values(p_destination,p_produit,v_source_lot.numero_lot,v_source_lot.date_peremption,v_source_lot.numero_lot,v_source_lot.date_peremption,p_quantite,false,null,null)
+   returning id into v_destination_lot_id;
   end if;
  end if;
  update public.stocks set quantite=quantite-p_quantite where pharmacie_id=p_source and produit_id=p_produit;
