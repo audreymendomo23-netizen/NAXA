@@ -89,7 +89,8 @@ export function RappelsLotsManager() {
     setLots((lotData ?? []) as unknown as Lot[]);
     setRappels((recallData ?? []) as Recall[]);
     const allowedFunction = ["pharmacien", "pharmacien_assistant", "responsable"].includes(profile.fonction_interne || "");
-    setCanManage(profile.role === "promoteur" || (profile.role !== "caisse" && profile.fonction_interne !== "caisse" && (allowedFunction || (!privilegeError && privilege === true))));
+    const manageAllowed = profile.role === "promoteur" || (profile.role !== "caisse" && profile.fonction_interne !== "caisse" && (allowedFunction || (!privilegeError && privilege === true)));
+    setCanManage(manageAllowed);
     const viewCosts = profile.role === "promoteur" || profile.fonction_interne === "comptable" || (!costPrivilegeError && costPrivilege === true);
     setCanViewCosts(viewCosts);
     if (viewCosts) {
@@ -98,9 +99,11 @@ export function RappelsLotsManager() {
         const { data: costRows } = await sb.from("stocks_couts").select("produit_id,cout_unitaire,devise").eq("pharmacie_id", pharmacieId).in("produit_id", productIds);
         setPurchaseCosts((costRows ?? []) as PurchaseCost[]);
       } else setPurchaseCosts([]);
+    } else setPurchaseCosts([]);
+    if (viewCosts || manageAllowed) {
       const { data: treatmentRows } = await sb.from("rappels_lots_traitements").select("id,rappel_id,lot_id,type,quantite,reference,motif,created_at").eq("pharmacie_id", pharmacieId).order("created_at", { ascending: false }).limit(100);
       setTraitements((treatmentRows ?? []) as Traitement[]);
-    } else { setPurchaseCosts([]); setTraitements([]); }
+    } else setTraitements([]);
     const activeIds = (recallData ?? []).filter((r) => r.statut === "actif").map((r) => r.lot_id);
     if ((profile.role === "promoteur" || profile.fonction_interne === "pharmacien_assistant") && activeIds.length) {
       const { data: sold } = await sb.from("vente_lignes").select("lot_id,quantite,ventes!inner(id,numero_vente,created_at,pharmacie_id,prescription_id)").in("lot_id", activeIds);
