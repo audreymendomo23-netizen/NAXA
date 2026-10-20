@@ -34,3 +34,40 @@ export async function annulerReservationGestionStock(formData: FormData) {
   revalidatePath("/pharmacie/caisse/retraits-marketplace");
   redirect("/pharmacie/gestionnaire-stock/reservations?ok=annulee");
 }
+
+export async function modifierEmplacementStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  const produit = String(formData.get("produit_id") ?? "");
+  const emplacementRaw = String(formData.get("emplacement") ?? "").trim();
+  if (!safeUuid(pharmacie) || !safeUuid(produit) || emplacementRaw.length > 160) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=emplacement");
+  }
+  const { error } = await sb.rpc("stock_emplacement_modifier", {
+    p_pharmacie: pharmacie, p_produit: produit, p_emplacement: emplacementRaw || null,
+  });
+  if (error) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=emplacement");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock/reservations");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=emplacement");
+}
+
+export async function modifierEmplacementLot(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/lots-peremptions");
+  const lot = String(formData.get("lot_id") ?? "");
+  const emplacementRaw = String(formData.get("emplacement") ?? "").trim();
+  if (!safeUuid(lot) || emplacementRaw.length > 160) {
+    redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=emplacement");
+  }
+  const { error } = await sb.rpc("stock_lot_emplacement_modifier", {
+    p_lot: lot, p_emplacement: emplacementRaw || null,
+  });
+  if (error) redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=emplacement");
+  revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
+  revalidatePath("/pharmacie/gestionnaire-stock/reservations");
+  redirect("/pharmacie/gestionnaire-stock/lots-peremptions?ok=emplacement");
+}
