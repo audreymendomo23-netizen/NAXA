@@ -82,6 +82,54 @@ function inferNotificationDomain(label: string) {
   return "Vente et encaissement";
 }
 
+const interfaceDirectory: { id: Screen; label: string; group: string }[] = [
+  { id: "dashboard", label: "Tableau de bord", group: "Navigation principale" },
+  { id: "clients", label: "Clients et Assurances", group: "Navigation principale" },
+  { id: "historique", label: "Historique des ventes", group: "Navigation principale" },
+  { id: "service", label: "Prise / fin de service", group: "Navigation principale" },
+  { id: "rapports", label: "Rapports & Performances", group: "Navigation principale" },
+  { id: "profil", label: "Profil", group: "Navigation principale" },
+  { id: "deconnexion", label: "Déconnexion", group: "Navigation principale" },
+  { id: "assurances", label: "Assurances & tiers payant", group: "Clients et ventes" },
+  { id: "assurance-vente", label: "Vente assurée", group: "Clients et ventes" },
+  { id: "vente", label: "Nouvelle vente", group: "Clients et ventes" },
+  { id: "paiement", label: "Paiement", group: "Clients et ventes" },
+  { id: "remise", label: "Remise et promotions", group: "Clients et ventes" },
+  { id: "ticket", label: "Détail et duplicata du ticket", group: "Clients et ventes" },
+  { id: "annulation", label: "Demande d’annulation", group: "Clients et ventes" },
+  { id: "favoris", label: "Favoris et caisse rapide", group: "Clients et ventes" },
+  { id: "paniers", label: "Paniers en attente", group: "Clients et ventes" },
+  { id: "reservations", label: "Réservations reçues", group: "Marketplace et ordonnances" },
+  { id: "ordonnances", label: "Ordonnances", group: "Marketplace et ordonnances" },
+  { id: "coffre", label: "Coffre des ordonnances", group: "Marketplace et ordonnances" },
+  { id: "ordonnance-offline", label: "Ordonnance hors ligne", group: "Marketplace et ordonnances" },
+  { id: "catalogue", label: "Catalogue par molécule", group: "Stock et logistique" },
+  { id: "stock", label: "Mon stock", group: "Stock et logistique" },
+  { id: "lots", label: "Lots et péremptions", group: "Stock et logistique" },
+  { id: "import", label: "Import Excel / CSV", group: "Stock et logistique" },
+  { id: "reception", label: "Réception et contrôle", group: "Stock et logistique" },
+  { id: "sortie", label: "Sortie exceptionnelle", group: "Stock et logistique" },
+  { id: "commande", label: "Suggestion de réapprovisionnement", group: "Stock et logistique" },
+  { id: "fournisseurs", label: "Fournisseurs et dettes", group: "Stock et logistique" },
+  { id: "inventaire-refus", label: "Inventaire — accès réservé", group: "Stock et logistique" },
+  { id: "ouverture", label: "Prendre mon service", group: "Session et sécurité" },
+  { id: "cloture", label: "Clôture de caisse (Z)", group: "Session et sécurité" },
+  { id: "securite", label: "Sécurité du compte", group: "Session et sécurité" },
+  { id: "pin", label: "Validation PIN et sécurité", group: "Session et sécurité" },
+  { id: "verrouillage", label: "Poste verrouillé", group: "Session et sécurité" },
+  { id: "connexion", label: "Connexion au compte caisse", group: "Session et sécurité" },
+  { id: "premiere-connexion", label: "Première connexion", group: "Session et sécurité" },
+  { id: "mot-de-passe-oublie", label: "Mot de passe oublié", group: "Session et sécurité" },
+  { id: "notifications", label: "Centre de notifications", group: "Suivi et assistance" },
+  { id: "demandes", label: "Mes demandes de validation", group: "Suivi et assistance" },
+  { id: "alertes", label: "Centre des alertes", group: "Suivi et assistance" },
+  { id: "offline", label: "Synchronisation et mode hors ligne", group: "Suivi et assistance" },
+  { id: "aide", label: "Aide et assistance", group: "Suivi et assistance" },
+  { id: "garde", label: "Statut de garde", group: "Suivi et assistance" },
+  { id: "creances", label: "Créances et bordereaux", group: "Suivi et assistance" },
+  { id: "registre", label: "Registre réglementé", group: "Suivi et assistance" },
+];
+
 const shortcuts: { label: string; detail: string; target: Screen; icon: string }[] = [
   { label: "Nouvelle vente", detail: "Recherche, scan et panier", target: "vente", icon: "＋" },
   { label: "Ordonnances", detail: "File et statut de validation", target: "ordonnances", icon: "▧" },
@@ -290,7 +338,7 @@ export default function CaisseParcoursPrototypePage() {
           {screen === "offline" && <div className="space-y-4"><Panel title="Réseau et synchronisation" subtitle="États visuels requis par C0"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[["En ligne","green"],["Hors ligne","amber"],["Synchronisation","blue"],["Conflit à traiter","red"]].map(([a,tone])=><div key={a} className="rounded-xl border border-slate-200 p-3"><Status tone={tone as "green"|"amber"|"blue"|"red"}>{a}</Status><p className="mt-2 text-sm text-slate-500">État d’exemple</p></div>)}</div><div className="mt-4"><TableMock headers={["Type","Heure","État","Objet"]} rows={[[ "Vente différée","—","En attente","Vente démo"],["Ordonnance","—","À transférer","Ordonnance démo"],["Mise à jour stock","—","Conflit","Produit démo"]]}/></div><div className="mt-4 flex flex-wrap gap-2"><Action onClick={() => demoAction("Forcer la synchronisation non connecté")}>Forcer la synchronisation</Action><Action variant="light" onClick={() => demoAction("Détail du conflit non connecté")}>Résoudre un conflit (aperçu)</Action><Action variant="light" onClick={() => go("vente")}>Saisie différée</Action></div></Panel></div>}
 
           {screen === "cloture" ? null : null}
-          {screen === "aide" && <Panel title="Aide et assistance" subtitle="Entrées de support prévues"><div className="grid gap-3 sm:grid-cols-2"><button onClick={() => demoAction("Guide caisse non connecté")} className="rounded-xl border p-4 text-left hover:bg-slate-50"><strong>Guide du poste de caisse</strong><p className="mt-1 text-sm text-slate-500">Ventes, tickets, clôture et sécurité</p></button><button onClick={() => demoAction("Contact support non connecté")} className="rounded-xl border p-4 text-left hover:bg-slate-50"><strong>Contacter le support</strong><p className="mt-1 text-sm text-slate-500">Décrire le problème rencontré</p></button><button onClick={() => demoAction("Règles de sécurité affichées en aperçu")} className="rounded-xl border p-4 text-left hover:bg-slate-50"><strong>Sécurité et confidentialité</strong><p className="mt-1 text-sm text-slate-500">Rappels de protection des données</p></button><button onClick={() => go("offline")} className="rounded-xl border p-4 text-left hover:bg-slate-50"><strong>État réseau</strong><p className="mt-1 text-sm text-slate-500">Synchronisation et conflits</p></button></div></Panel>}
+          {screen === "aide" && <div className="space-y-4"><Panel title="Aide et assistance" subtitle="Entrées de support prévues"><div className="grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => demoAction("Guide caisse non connecté")} className="min-h-11 rounded-xl border p-4 text-left hover:bg-slate-50"><strong>Guide du poste de caisse</strong><p className="mt-1 text-sm text-slate-500">Ventes, tickets, clôture et sécurité</p></button><button type="button" onClick={() => demoAction("Contact support non connecté")} className="min-h-11 rounded-xl border p-4 text-left hover:bg-slate-50"><strong>Contacter le support</strong><p className="mt-1 text-sm text-slate-500">Décrire le problème rencontré</p></button><button type="button" onClick={() => demoAction("Règles de sécurité affichées en aperçu")} className="min-h-11 rounded-xl border p-4 text-left hover:bg-slate-50"><strong>Sécurité et confidentialité</strong><p className="mt-1 text-sm text-slate-500">Rappels de protection des données</p></button><button type="button" onClick={() => go("offline")} className="min-h-11 rounded-xl border p-4 text-left hover:bg-slate-50"><strong>État réseau</strong><p className="mt-1 text-sm text-slate-500">Synchronisation et conflits</p></button></div></Panel><Panel title="Répertoire des interfaces du compte caisse" subtitle="Chaque entrée ouvre directement l’écran correspondant du prototype. Les écrans réservés restent soumis à leurs contrôles métier réels, non simulés ici."><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[...new Set(interfaceDirectory.map(item => item.group))].map(group => <section key={group} className="rounded-xl border border-slate-200 p-3"><h3 className="mb-2 text-sm font-extrabold text-slate-700">{group}</h3><div className="space-y-2">{interfaceDirectory.filter(item => item.group === group).map(item => <button type="button" key={item.id} onClick={() => go(item.id)} aria-label={`Ouvrir l’interface ${item.label}`} className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition hover:border-emerald-700 hover:bg-emerald-50 ${screen === item.id ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200"}`}><span>{item.label}</span><span aria-hidden="true">→</span></button>)}</div></section>)}</div><p className="mt-3 text-xs text-slate-500">{interfaceDirectory.length} accès directs répertoriés. Ce répertoire facilite la navigation de test ; il ne crée aucun droit métier.</p></Panel></div>}
 
           {screen === "verrouillage" && <Panel title="Poste verrouillé" subtitle="Interface de reprise, sans verrouillage Auth réel"><div className="mx-auto max-w-md text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-emerald-50 text-3xl">▣</div><p className="mt-4 text-lg font-extrabold">Votre poste est verrouillé</p><p className="mt-1 text-sm text-slate-500">Le panier en cours est conservé dans la maquette.</p><div className="mt-4 text-left"><Field label="Mot de passe ou PIN de reprise" placeholder="Saisie de démonstration"/></div><div className="mt-4 flex justify-center gap-2"><Action onClick={() => demoAction("Déverrouillage non connecté")}>Reprendre le poste</Action><Action variant="light" onClick={() => go("deconnexion")}>Déconnexion</Action><Action variant="light" onClick={() => go("mot-de-passe-oublie")}>Mot de passe oublié</Action></div></div></Panel>}
 
