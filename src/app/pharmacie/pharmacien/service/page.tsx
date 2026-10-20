@@ -44,7 +44,7 @@ export default function PharmacienServicePage() {
     if (queryError) {
       setSchemaMissing(/does not exist|schema cache|could not find the table/i.test(queryError.message));
       setError(/does not exist|schema cache|could not find the table/i.test(queryError.message)
-        ? "Le module de pointage attend l’application de la migration additive 130 sur Supabase. Aucune session n’a été inventée."
+        ? "Le module de pointage attend l’application de la migration additive 188 sur Supabase. Aucune session n’a été inventée."
         : "Les sessions de service ne sont pas accessibles. Vérifiez les droits RLS et réessayez.");
       return false;
     }
