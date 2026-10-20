@@ -9,7 +9,7 @@ begin
  select * into v_lot from public.stocks_lots where id=p_lot for update;
  if not found then raise exception 'Lot introuvable'; end if;
  v_pharmacie:=v_lot.pharmacie_id;
- if not public.can_access_pharmacy(v_pharmacie) then raise exception 'Lot hors périmètre du Promoteur'; end if;
+ if not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Lot hors périmètre du Promoteur'; end if;
  select * into v_rappel from public.rappels_lots where lot_id=p_lot and statut='actif' for update;
  if not found then raise exception 'Aucun rappel actif pour ce lot'; end if;
  if v_lot.quantite>0 then raise exception 'Clôture impossible : % unité(s) restent dans le lot. Enregistrez leur retour ou leur destruction.',v_lot.quantite; end if;
