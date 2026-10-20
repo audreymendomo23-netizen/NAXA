@@ -17,7 +17,7 @@ create index if not exists gestionnaire_stock_sessions_history_idx
 alter table public.gestionnaire_stock_sessions enable row level security;
 drop policy if exists gestionnaire_stock_sessions_read on public.gestionnaire_stock_sessions;
 create policy gestionnaire_stock_sessions_read on public.gestionnaire_stock_sessions
- for select to authenticated using(user_id=(select auth.uid()) or public.is_admin() or public.naxa_scope_allows((select auth.uid()),pharmacie_id,'PHARMACIE'));
+ for select to authenticated using(user_id=(select auth.uid()) or public.is_admin() or public.can_access_pharmacy(pharmacie_id));
 revoke all on public.gestionnaire_stock_sessions from anon,public;
 grant select on public.gestionnaire_stock_sessions to authenticated;
 
