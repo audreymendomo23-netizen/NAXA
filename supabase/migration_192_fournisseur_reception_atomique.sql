@@ -49,7 +49,11 @@ begin
   end if;
   update public.stocks set quantite=quantite+v_qty where pharmacie_id=v_order.pharmacie_id and produit_id=v_order_line.produit_id;
   insert into public.stocks_lots(pharmacie_id,produit_id,lot,peremption,numero_lot,date_peremption,quantite,bloque,motif_blocage,emplacement)
-  values(v_order.pharmacie_id,v_order_line.produit_id,v_numero,v_exp,v_numero,v_exp,v_qty,false,null,v_emplacement);
+  values(v_order.pharmacie_id,v_order_line.produit_id,v_numero,v_exp,v_numero,v_exp,v_qty,false,null,v_emplacement)
+  on conflict (pharmacie_id,produit_id,numero_lot) do update
+    set quantite=public.stocks_lots.quantite+excluded.quantite,
+        emplacement=coalesce(excluded.emplacement,public.stocks_lots.emplacement),
+        updated_at=now();
   update public.commandes_fournisseurs_lignes set quantite_recue=quantite_recue+v_qty where id=v_order_line.id;
   insert into public.receptions_fournisseurs_lignes(reception_id,commande_ligne_id,quantite_recue)
   values(v_reception,v_order_line.id,v_qty);
