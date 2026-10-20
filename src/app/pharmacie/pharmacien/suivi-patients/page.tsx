@@ -8,6 +8,7 @@ type Share = { id: string; owner_user_id: string; measurement_type: string; gran
 type Measurement = { id: string; user_id: string; measurement_type: string; value_numeric: number | null; value_text: string | null; unit: string | null; measured_at: string; source: string; note: string | null };
 type SharedAlert = { id: string; user_id: string; measurement_id: string; measurement_type: string; observed_value: number; alert_kind: "below_user_range" | "above_user_range"; created_at: string; read_at: string | null };
 type ViewTab = "patients" | "mesures" | "alertes" | "partages";
+type TrendPoint = { id: string; measured_at: string; value_numeric: number; unit: string | null };
 const labels: Record<string, string> = {
   tension_systolique: "Tension systolique", tension_diastolique: "Tension diastolique",
   frequence_cardiaque: "Fréquence cardiaque", temperature: "Température",
@@ -33,6 +34,8 @@ export default function PharmacienSuiviPatientsPage() {
   const [alerts, setAlerts] = useState<SharedAlert[]>([]);
   const [alertError, setAlertError] = useState("");
   const [tab, setTab] = useState<ViewTab>("patients");
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [trendType, setTrendType] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("tous");
   const [loading, setLoading] = useState(true);
@@ -122,6 +125,26 @@ export default function PharmacienSuiviPatientsPage() {
     const typeMatch = typeFilter === "tous" || row.measurement_type === typeFilter;
     return patientMatch && typeMatch;
   });
+  const selectedPatient = selectedPatientId && owners.includes(selectedPatientId) ? selectedPatientId : null;
+  const trendTypes = selectedPatient
+    ? [...new Set(measurements.filter(row => row.user_id === selectedPatient && row.value_numeric !== null).map(row => row.measurement_type))].sort()
+    : [];
+  const activeTrendType = trendTypes.includes(trendType) ? trendType : (trendTypes[0] ?? "");
+  const trendPoints: TrendPoint[] = selectedPatient && activeTrendType
+    ? measurements
+        .filter((row): row is Measurement & { value_numeric: number } => row.user_id === selectedPatient && row.measurement_type === activeTrendType && row.value_numeric !== null)
+        .sort((a, b) => a.measured_at.localeCompare(b.measured_at))
+        .slice(-20)
+    : [];
+  const trendValues = trendPoints.map(point => point.value_numeric);
+  const trendMin = trendValues.length ? Math.min(...trendValues) : 0;
+  const trendMax = trendValues.length ? Math.max(...trendValues) : 0;
+  const trendRange = trendMax - trendMin || 1;
+  const trendCoordinates = trendPoints.map((point, index) => ({
+    x: trendPoints.length <= 1 ? 300 : 24 + (index * 552) / (trendPoints.length - 1),
+    y: 142 - ((point.value_numeric - trendMin) / trendRange) * 112,
+  }));
+  const trendPolyline = trendCoordinates.map(point => `${point.x},${point.y}`).join(" ");
   const measurementsByPatient = owners.map(owner => ({
     owner,
     shareCount: shares.filter(item => item.owner_user_id === owner).length,
@@ -149,7 +172,25 @@ export default function PharmacienSuiviPatientsPage() {
       <div className="grid gap-3 sm:grid-cols-[1fr_16rem]"><label className="block text-sm font-semibold">Rechercher un patient partagé<input className="champ mt-1 w-full" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Identifiant anonymisé"/></label>{(tab==="mesures"||tab==="alertes") && <label className="block text-sm font-semibold">Type de mesure<select className="champ mt-1 w-full" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="tous">Tous les types partagés</option>{types.map(type=><option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>}</div>
       {loading ? <p className="rounded-xl bg-slate-50 p-4 text-sm">Chargement des partages autorisés…</p> : <>
         {tab==="patients" && (measurementsByPatient.length ? <div className="space-y-3">{measurementsByPatient.map(patient=><article key={patient.owner} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold">{patientLabel(patient.owner)}</h2><p className="text-sm text-slate-600">{patient.shareCount} type(s) partagé(s)</p></div><button type="button" className="btn btn-clair" onClick={()=>{setSearch(patientLabel(patient.owner));setTab("mesures");}}>Voir les mesures</button></div>{patient.latest ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">Dernière mesure reçue : <b>{labels[patient.latest.measurement_type] ?? patient.latest.measurement_type}</b> · {dateLabel(patient.latest.measured_at)}</p> : <p className="mt-3 text-sm text-slate-500">Aucune mesure disponible pour les types partagés.</p>}</article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucun patient correspondant ou aucun partage actif.</p>)}
-        {tab==="mesures" && (filteredMeasurements.length ? <div className="space-y-3">{filteredMeasurements.map(row=><article key={row.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><b>{labels[row.measurement_type] ?? row.measurement_type}</b><p className="text-sm text-slate-600">{patientLabel(row.user_id)} · {dateLabel(row.measured_at)}</p></div><span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold">{row.value_numeric !== null ? `${row.value_numeric}${row.unit ? " " + row.unit : ""}` : row.value_text || "Valeur non renseignée"}</span></div>{row.note && <p className="mt-3 text-sm text-slate-600">Note partagée : {row.note}</p>}<p className="mt-2 text-xs text-slate-500">Source enregistrée : {row.source}</p></article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucune mesure ne correspond aux filtres. Les mesures restent visibles seulement tant que le partage et le consentement sont actifs.</p>)}
+        {tab==="mesures" && <>
+          {selectedPatient && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold text-emerald-950">Dossier partagé · {patientLabel(selectedPatient)}</h2><p className="text-sm text-emerald-900">Évolution des valeurs numériques partagées, triées par date. Les graphiques décrivent les données reçues et ne constituent pas une interprétation médicale.</p></div><button type="button" className="btn btn-clair" onClick={() => setSelectedPatientId(null)}>Fermer le dossier</button></div>
+            {trendTypes.length > 0 ? <>
+              <label className="block text-sm font-semibold">Mesure à visualiser<select className="champ mt-1 w-full sm:max-w-sm" value={activeTrendType} onChange={event => setTrendType(event.target.value)}>{trendTypes.map(type => <option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>
+              {trendPoints.length > 1 ? <div className="rounded-xl border border-emerald-100 bg-white p-3">
+                <div className="flex flex-wrap justify-between gap-2 text-sm"><span>Minimum observé : <b>{trendMin}</b></span><span>Maximum observé : <b>{trendMax}</b></span><span>{trendPoints.length} dernières valeurs</span></div>
+                <svg viewBox="0 0 600 180" role="img" aria-label={`Évolution des ${labels[activeTrendType] ?? activeTrendType} pour ${patientLabel(selectedPatient)}`} className="mt-3 h-44 w-full">
+                  <line x1="24" y1="142" x2="576" y2="142" stroke="#cbd5e1" strokeWidth="1" />
+                  <line x1="24" y1="30" x2="576" y2="30" stroke="#e2e8f0" strokeWidth="1" />
+                  <polyline points={trendPolyline} fill="none" stroke="#0F6B3F" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+                  {trendCoordinates.map((point, index) => <circle key={trendPoints[index].id} cx={point.x} cy={point.y} r="4" fill="#0F6B3F"><title>{`${trendPoints[index].value_numeric} ${trendPoints[index].unit ?? ""} — ${dateLabel(trendPoints[index].measured_at)}`}</title></circle>)}
+                </svg>
+                <div className="flex justify-between gap-2 text-xs text-slate-500"><span>{dateLabel(trendPoints[0].measured_at)}</span><span>{dateLabel(trendPoints[trendPoints.length - 1].measured_at)}</span></div>
+              </div> : <p className="rounded-lg bg-white p-3 text-sm text-slate-700">Il faut au moins deux mesures numériques partagées pour tracer une évolution. Une seule valeur ne permet pas de conclure à une tendance.</p>}
+            </> : <p className="rounded-lg bg-white p-3 text-sm text-slate-700">Aucune mesure numérique partagée n’est disponible pour tracer une courbe. Les mesures textuelles restent consultables dans la liste.</p>}
+          </section>}
+          {filteredMeasurements.length ? <div className="space-y-3">{filteredMeasurements.map(row=><article key={row.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><b>{labels[row.measurement_type] ?? row.measurement_type}</b><p className="text-sm text-slate-600">{patientLabel(row.user_id)} · {dateLabel(row.measured_at)}</p></div><span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold">{row.value_numeric !== null ? `${row.value_numeric}${row.unit ? " " + row.unit : ""}` : row.value_text || "Valeur non renseignée"}</span></div>{row.note && <p className="mt-3 text-sm text-slate-600">Note partagée : {row.note}</p>}<p className="mt-2 text-xs text-slate-500">Source enregistrée : {row.source}</p><button type="button" className="mt-3 text-sm font-bold underline" onClick={() => {setSelectedPatientId(row.user_id);setTrendType(row.measurement_type);}}>Afficher l’évolution de ce patient</button></article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucune mesure ne correspond aux filtres. Les mesures restent visibles seulement tant que le partage et le consentement sont actifs.</p>}
+        </>}
         {tab==="alertes" && <div className="space-y-3"><p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Ces alertes signalent uniquement un écart par rapport à une plage choisie par le patient. Elles ne constituent ni un diagnostic ni un seuil médical défini par NAXA.</p>{alertError&&<p role="status" className="rounded-lg border border-amber-200 p-3 text-sm">{alertError}</p>}{filteredAlerts.length ? filteredAlerts.map(alert=><article key={alert.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><b>{alert.alert_kind==="below_user_range"?"Sous la plage choisie par le patient":"Au-dessus de la plage choisie par le patient"}</b><p className="text-sm text-slate-600">{patientLabel(alert.user_id)} · {labels[alert.measurement_type]??alert.measurement_type}</p><p className="text-xs text-slate-500">{dateLabel(alert.created_at)}</p></div><span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold">{alert.observed_value}</span></div><p className="mt-2 text-xs text-slate-500">Alerte non traitée par le pharmacien : la modification du statut de lecture reste réservée au compte patient.</p></article>) : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucune alerte partagée ne correspond aux filtres.</p>}</div>}
         {tab==="partages" && (shares.length ? <div className="space-y-2">{shares.map(share=><article key={share.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><b>{patientLabel(share.owner_user_id)}</b><p className="text-sm text-slate-600">{labels[share.measurement_type] ?? share.measurement_type}</p><p className="text-xs text-slate-500">Partage accordé le {dateLabel(share.granted_at)}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Actif</span></article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucun partage actif. Le patient conserve le contrôle de son consentement et peut révoquer le partage depuis son compte.</p>)}
       </>}
