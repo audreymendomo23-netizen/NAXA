@@ -35,11 +35,8 @@ export async function annulerReservationGestionStock(formData: FormData) {
 
   // La RPC existante vérifie le périmètre pharmacie, verrouille la réservation,
   // contrôle la transition et restaure le stock selon ses règles métier.
-  const { error } = await sb.rpc("set_reservation_status", {
-    p_id: id,
-    p_statut: "annulee",
-  });
-  if (error) {
+  const { data, error } = await sb.rpc("gestionnaire_stock_reservation_annuler", { p_reservation: id });
+  if (error || data !== true) {
     redirect("/pharmacie/gestionnaire-stock/reservations?erreur=annulation");
   }
 
