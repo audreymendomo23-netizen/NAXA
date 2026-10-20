@@ -535,7 +535,8 @@ export default function CaissePage() {
   }
 
   return (
-    <CaisseWorkspaceShell sessionOpen={!!session} pharmacyName={pharmacie}>
+    <>
+      <CaisseWorkspaceShell sessionOpen={!!session} pharmacyName={pharmacie}>
       <div className="print:hidden">
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-naxa-green-900 px-4 py-4 text-white shadow-sm">
           <a href="/pharmacie">← Pharmacie</a>
@@ -641,6 +642,6 @@ export default function CaissePage() {
         </section>
       )}
       <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-print, .ticket-print * { visibility: visible !important; } }`}</style>
-    </main>
+    </>
   );
 }
