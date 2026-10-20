@@ -21,8 +21,11 @@ begin
     or not has_function_privilege('service_role','public.caisse_pin_register_failure(uuid)','EXECUTE') then
   raise exception 'Les compteurs PIN atomiques ne sont pas réservés au serveur';
  end if;
- select id into v_user from auth.users limit 1;
- if v_user is null then raise exception 'Utilisateur de test absent pour le verrouillage PIN'; end if;
+ v_user := gen_random_uuid();
+ set local session_replication_role = replica;
+ insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
+ values(v_user,'authenticated','authenticated','naxa167_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now());
+ set local session_replication_role = origin;
  insert into public.caisse_security_credentials(user_id,pin_failed_attempts,pin_locked_until)
  values(v_user,0,null)
  on conflict(user_id) do update set pin_failed_attempts=0,pin_locked_until=null;
