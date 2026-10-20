@@ -88,7 +88,7 @@ export function CaisseRetraitsMarketplace({
       setError("Cette réservation n’est plus éligible à l’encaissement. Actualisez la liste.");
       return;
     }
-    if (row.paiement_mode && !["especes", "a_convenir"].includes(row.paiement_mode)) {
+    if (row.paiement_mode && !["especes_retrait", "a_convenir"].includes(row.paiement_mode)) {
       setError("Le mode de paiement choisi n’est pas encaissable en espèces. Vérifiez le paiement selon le mode indiqué.");
       return;
     }
@@ -169,7 +169,7 @@ export function CaisseRetraitsMarketplace({
             const expired = new Date(row.expires_at).getTime() <= Date.now() && row.statut !== "payee";
             const canCash = row.statut === "confirmee"
               && row.paiement_statut !== "effectue"
-              && (!row.paiement_mode || ["especes", "a_convenir"].includes(row.paiement_mode))
+              && (!row.paiement_mode || ["especes_retrait", "a_convenir"].includes(row.paiement_mode))
               && !expired;
             const paid = row.statut === "payee" && row.paiement_statut === "effectue";
             return (
