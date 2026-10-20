@@ -10,12 +10,11 @@ const titles: Record<Section,string> = {
  "historique-rapports":"Historique & rapports", profil:"Profil"
 };
 const hrefs: Record<Section,string> = {
- dashboard:"/pharmacie/gestionnaire-stock", "stock-logistique":"/pharmacie/gestionnaire-stock/stock-logistique",
+ dashboard:"/pharmacie/gestionnaire-stock",
+ "stock-logistique":"/pharmacie/gestionnaire-stock/stock-logistique",
  "lots-peremptions":"/pharmacie/gestionnaire-stock/lots-peremptions",
- "fournisseurs-receptions":"/pharmacie/gestionnaire-stock/fournisseurs-receptions",
- inventaires:"/pharmacie/gestionnaire-stock/inventaires",
  "historique-rapports":"/pharmacie/gestionnaire-stock/historique-rapports",
- service:"/pharmacie/gestionnaire-stock/service", profil:"/pharmacie/gestionnaire-stock/profil"
+ profil:"/pharmacie/gestionnaire-stock/profil"
 };
 export async function GestionnaireStockEspace({ section, page = 1 }: { section: Section; page?: number }) {
  const sb=supabaseServer();
