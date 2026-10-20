@@ -36,6 +36,33 @@ const titles: Record<Screen, string> = {
   aide: "Aide et assistance", verrouillage: "Poste verrouillé", deconnexion: "Déconnexion", garde: "Statut de garde", coffre: "Coffre des ordonnances", "ordonnance-offline": "Ordonnance hors ligne", pin: "Validation PIN et sécurité", creances: "Créances et bordereaux — consultation", alertes: "Centre des alertes", fournisseurs: "Fournisseurs et dettes — consultation", "inventaire-refus": "Inventaire — accès réservé", connexion: "Connexion au compte caisse", "premiere-connexion": "Choisir le mot de passe", "mot-de-passe-oublie": "Mot de passe oublié",
 };
 
+// Seuls les parcours dont une interface opérationnelle existe dans le code sont raccordés.
+// Ce pont navigue vers l'interface métier existante ; il ne transforme pas une maquette en mutation métier.
+const OPERATIONAL_PATHS: Partial<Record<Screen, { path: string; label: string }>> = {
+  dashboard: { path: "/pharmacie/caisse", label: "Poste de caisse" },
+  vente: { path: "/pharmacie/caisse", label: "Vente et encaissement" },
+  favoris: { path: "/pharmacie/caisse", label: "Vente et encaissement" },
+  paniers: { path: "/pharmacie/caisse", label: "Poste de caisse" },
+  paiement: { path: "/pharmacie/caisse", label: "Vente et encaissement" },
+  reservations: { path: "/pharmacie/caisse", label: "Retraits Marketplace" },
+  clients: { path: "/pharmacie/caisse/clients", label: "Répertoire clients et crédits" },
+  assurances: { path: "/pharmacie/caisse/assurances", label: "Assurances et tiers payant" },
+  "assurance-vente": { path: "/pharmacie/caisse/assurances", label: "Assurances et tiers payant" },
+  historique: { path: "/pharmacie/caisse/historique", label: "Historique et tickets réels" },
+  ticket: { path: "/pharmacie/caisse/historique", label: "Historique et tickets réels" },
+  annulation: { path: "/pharmacie/caisse/annulations", label: "Demandes d'annulation" },
+  service: { path: "/pharmacie/caisse/service", label: "Sessions de caisse" },
+  ouverture: { path: "/pharmacie/caisse/service", label: "Ouverture de service" },
+  cloture: { path: "/pharmacie/caisse/service", label: "Clôture de caisse" },
+  rapports: { path: "/pharmacie/caisse/rapports", label: "Rapports caisse" },
+  profil: { path: "/pharmacie/caisse/profil", label: "Profil du compte" },
+  securite: { path: "/pharmacie/caisse/profil", label: "Sécurité du compte" },
+  verrouillage: { path: "/pharmacie/caisse/profil", label: "Reprise et sécurité du compte" },
+  pin: { path: "/pharmacie/caisse/profil", label: "PIN de reprise" },
+  notifications: { path: "/pharmacie/caisse/notifications", label: "Notifications réelles" },
+  creances: { path: "/pharmacie/caisse/clients", label: "Crédits et créances clients" },
+};
+
 const NOTIFICATION_ROLES = ["Tous les rôles","Caissier","Pharmacien","Assistant pharmacien","Magasinier","Gestionnaire de stock","Responsable","Promoteur","Administrateur NAXA","Comptable","Client"] as const;
 const NOTIFICATION_DOMAINS = ["Tous les domaines","Vente et encaissement","Réservation et retrait","Client et assurance","Session et clôture","Historique et ticket","Stock et péremption","Ordonnance et conformité","Synchronisation hors ligne","Profil et sécurité","Demande et validation"] as const;
 const NOTIFICATION_STATES = ["Information disponible","Action attendue","Confirmation requise","Échéance proche","Contrôle nécessaire","Opération en attente","Échec à traiter","Conflit détecté","Validation reçue","Suivi recommandé"] as const;
@@ -376,6 +403,18 @@ export default function CaisseParcoursPrototypePage() {
                   <h2 id="demo-dialog-title" className="font-extrabold">Boucle de notifications — test d’architecture</h2>
                   <p className="mt-2 text-sm font-semibold text-slate-700">{demoDialog}</p>
                   <p className="mt-1 text-xs text-slate-500">Scénarios synthétiques uniquement : aucune notification externe, opération de caisse ou modification de données n’est exécutée.</p>
+                  {OPERATIONAL_PATHS[screen] ? (
+                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <p className="text-sm font-bold text-emerald-950">Parcours métier raccordé : {OPERATIONAL_PATHS[screen]!.label}</p>
+                      <p className="mt-1 text-xs text-emerald-800">L’action métier réelle doit être effectuée et confirmée dans cette interface, avec ses contrôles serveur et ses droits.</p>
+                      <button type="button" onClick={() => window.location.assign(OPERATIONAL_PATHS[screen]!.path)} className="mt-3 min-h-11 rounded-xl bg-[#0b3d26] px-4 py-2 text-sm font-bold text-white">Ouvrir l’interface métier →</button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                      <p className="text-sm font-bold text-red-900">Aucune opération métier raccordée à cet écran</p>
+                      <p className="mt-1 text-xs text-red-800">Le clic reste un test de notification. Aucun enregistrement, changement de statut ou appel serveur n’est effectué.</p>
+                    </div>
+                  )}
                 </div>
                 <button type="button" onClick={closeDialog} aria-label="Fermer la fenêtre de notification" className="min-h-11 min-w-11 rounded-xl border border-slate-200 font-bold">×</button>
               </div>
