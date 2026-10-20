@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       a.quantite_theorique, a.quantite_comptee, a.ecart, "applique", "produit_id=" + a.produit_id]);
   }
 
-  const transfers = [...new Map([...(outgoingTransfers.data ?? []), ...(incomingTransfers.data ?? [])].map((transfer) => [transfer.id, transfer])).values()].sort((a, b) => new Date(b.cree_le).getTime() - new Date(a.cree_le).getTime()).slice(0, 5000);
+  const transfers = [...(outgoingTransfers.data ?? []), ...(incomingTransfers.data ?? [])].filter((transfer, index, all) => all.findIndex((other) => other.id === transfer.id) === index).sort((a, b) => new Date(b.cree_le).getTime() - new Date(a.cree_le).getTime()).slice(0, 5000);
   for (const transfer of transfers) {
     const product = transfer.produits as unknown as { nom?: string } | null;
     rows.push(["transfert_inter_pharmacie", transfer.cree_le, transfer.source_pharmacie_id,
