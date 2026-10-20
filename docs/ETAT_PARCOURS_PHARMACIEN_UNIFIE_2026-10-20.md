@@ -86,11 +86,13 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 - `src/app/pharmacie/pharmacien/suivi-patients/page.tsx` : lecture des partages actifs, onglets Patients partagés / Mesures / Partages et accès, filtres et affichage anonymisé par défaut.
 - `supabase/migration_189_pharmacien_read_consented_measurements.sql` : politique de lecture des mesures limitée au destinataire professionnel vérifié, au partage actif du type exact et au consentement encore valide.
 - `supabase/tests/189_pharmacien_read_consented_measurements.sql` : assertions sur les politiques de partage et les fonctions de consentement.
+- `supabase/migration_190_pharmacien_audit_trail.sql` : journal append-only et déclencheurs sur les créations/mises à jour de consultations, prescriptions et préparations.
+- `supabase/tests/190_pharmacien_audit_trail.sql` : assertions sur la table, les déclencheurs, le verrouillage et la RLS.
 
 ### Limites restant à prouver ou compléter
 
 - Les migrations 188 et 189 sont dans le dépôt, mais n’ont pas été exécutées sur Supabase ; tant qu’elles ne sont pas appliquées, le pointage et la lecture professionnelle des mesures partagées peuvent signaler un schéma ou une politique manquante.
 - Le suivi connecté reste limité par l’allowlist expérimentale et la vérification professionnelle existantes. Ce changement ne désactive pas ces garde-fous.
-- Les rapports utilisent encore un échantillon de dossiers chargés (jusqu’à 30 pour certaines listes), et non une agrégation historique serveur. Le journal d’audit append-only exhaustif, les délais fiables, les comparaisons de période complètes, les exports audités, les alertes partagées et le suivi de prescriptions patients ne sont pas encore terminés.
+- Les rapports utilisent encore un échantillon de dossiers chargés (jusqu’à 30 pour certaines listes), et non une agrégation historique serveur. Le journal append-only est désormais défini pour les consultations, prescriptions et préparations, mais son exécution réelle dépend de la migration 190 et de la validation des tests. Les délais fiables, les comparaisons de période complètes, les exports audités, les alertes partagées et le suivi de prescriptions patients ne sont pas encore terminés.
 - Aucun build, lint, typecheck ou test SQL n’a été exécuté dans cette passe. Les assertions SQL ajoutées ne valent pas preuve d’exécution.
 - Aucun déploiement n’a été lancé.
