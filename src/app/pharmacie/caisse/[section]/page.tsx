@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { CaisseWorkspaceShell } from "@/components/pharmacie/CaisseWorkspaceShell";
@@ -45,7 +45,8 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 export default function CaisseParcoursPage() {
   const params = useParams<{ section: string }>();
-  const section = (menu.some((item) => item.id === params.section) ? params.section : "clients") as Section;
+  if (!menu.some((item) => item.id === params.section)) notFound();
+  const section = params.section as Section;
   const sb = useMemo(() => supabaseBrowser(), []);
   const [account, setAccount] = useState<Account | null>(null);
   const [uid, setUid] = useState("");
@@ -57,6 +58,9 @@ export default function CaisseParcoursPage() {
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("toutes");
+  const [clientSearch, setClientSearch] = useState("");
+  const [creditSearch, setCreditSearch] = useState("");
+  const [reportPeriod, setReportPeriod] = useState<"jour" | "semaine" | "mois" | "tout">("mois");
   const [sales, setSales] = useState<Sale[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [credits, setCredits] = useState<CreditRow[]>([]);
@@ -195,6 +199,34 @@ export default function CaisseParcoursPage() {
     return () => { alive = false; };
   }, [sb, loadSection]);
 
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLocaleLowerCase("fr");
+    return clients.filter((client) => !q || [
+      client.reference_client,
+      clientName(client.client_id, clientIdentities),
+      client.client_id,
+    ].some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(q)));
+  }, [clients, clientIdentities, clientSearch]);
+
+  const openCredits = useMemo(() => credits.filter((credit) => credit.actif && credit.solde > 0), [credits]);
+  const filteredCredits = useMemo(() => {
+    const q = creditSearch.trim().toLocaleLowerCase("fr");
+    return openCredits.filter((credit) => !q || [
+      clientName(credit.client_id, clientIdentities),
+      credit.client_id,
+    ].some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(q)));
+  }, [openCredits, clientIdentities, creditSearch]);
+
+  const reportSales = useMemo(() => {
+    if (reportPeriod === "tout") return sales;
+    const now = new Date();
+    const start = new Date(now);
+    if (reportPeriod === "jour") start.setHours(0, 0, 0, 0);
+    else if (reportPeriod === "semaine") start.setDate(start.getDate() - 6);
+    else start.setDate(start.getDate() - 29);
+    return sales.filter((sale) => new Date(sale.paid_at || sale.created_at) >= start);
+  }, [sales, reportPeriod]);
+
   const filteredSales = useMemo(() => sales.filter((sale) => {
     const q = search.trim().toLocaleLowerCase("fr");
     const matchesText = !q || [sale.numero_vente, sale.id, sale.mode_paiement, sale.statut].some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(q));
@@ -267,8 +299,8 @@ export default function CaisseParcoursPage() {
     {!loading && !error && <>
       <p className="mb-4 text-sm text-slate-600">{menu.find((item) => item.id === section)?.description}</p>
       {section === "clients" && <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title={"Clients connus · " + clients.length}><p className="text-sm text-slate-600">Références déjà enregistrées. La caisse ne crée pas de compte d’authentification à la place du client.</p>{clients.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Référence</th><th className="p-2 text-left">Client</th><th className="p-2">État</th></tr></thead><tbody>{clients.map((c) => <tr key={c.id} className="border-t"><td className="p-2">{c.reference_client || "—"}</td><td className="p-2">{clientName(c.client_id, clientIdentities)}</td><td className="p-2">{c.actif ? "Actif" : "Inactif"}</td></tr>)}</tbody></table></div> : <Empty>Aucune fiche client enregistrée pour cette pharmacie.</Empty>}</Panel>
-        <Panel title={"Crédits à recouvrer · " + credits.filter((c) => c.actif && c.solde > 0).length}>{credits.filter((c) => c.actif && c.solde > 0).length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Client</th><th className="p-2 text-right">Solde</th><th className="p-2 text-right">Plafond</th><th className="p-2">Action</th></tr></thead><tbody>{credits.filter((c) => c.actif && c.solde > 0).map((c) => <tr key={c.id} className="border-t"><td className="p-2">{clientName(c.client_id, clientIdentities)}</td><td className="p-2 text-right font-semibold">{fcfa(c.solde)}</td><td className="p-2 text-right">{fcfa(c.plafond)}</td><td className="p-2 text-center"><button className="btn btn-clair" disabled={busy} onClick={() => void collectCredit(c)}>Encaisser</button></td></tr>)}</tbody></table></div> : <Empty>Aucune créance ouverte accessible. Aucun montant fictif n’est affiché.</Empty>}</Panel>
+        <Panel title={"Clients connus · " + filteredClients.length}><p className="text-sm text-slate-600">Références déjà enregistrées. La caisse ne crée pas de compte d’authentification à la place du client.</p><input className="champ w-full" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Rechercher par nom, téléphone, identifiant ou référence" aria-label="Rechercher un client" />{filteredClients.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Référence</th><th className="p-2 text-left">Client</th><th className="p-2">État</th></tr></thead><tbody>{filteredClients.map((c) => <tr key={c.id} className="border-t"><td className="p-2">{c.reference_client || "—"}</td><td className="p-2">{clientName(c.client_id, clientIdentities)}</td><td className="p-2">{c.actif ? "Actif" : "Inactif"}</td></tr>)}</tbody></table></div> : <Empty>Aucune fiche client ne correspond à la recherche. Aucune donnée fictive n’est affichée.</Empty>}</Panel>
+        <Panel title={"Crédits à recouvrer · " + openCredits.length}><input className="champ w-full" value={creditSearch} onChange={(e) => setCreditSearch(e.target.value)} placeholder="Rechercher un débiteur" aria-label="Rechercher un crédit client" />{filteredCredits.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Client</th><th className="p-2 text-right">Solde</th><th className="p-2 text-right">Plafond</th><th className="p-2">Action</th></tr></thead><tbody>{filteredCredits.map((c) => <tr key={c.id} className="border-t"><td className="p-2">{clientName(c.client_id, clientIdentities)}</td><td className="p-2 text-right font-semibold">{fcfa(c.solde)}</td><td className="p-2 text-right">{fcfa(c.plafond)}</td><td className="p-2 text-center"><button className="btn btn-clair" disabled={busy} onClick={() => void collectCredit(c)}>Encaisser</button></td></tr>)}</tbody></table></div> : <Empty>{openCredits.length ? "Aucun crédit ne correspond à la recherche." : "Aucune créance ouverte accessible. Aucun montant fictif n’est affiché."}</Empty>}</Panel>
       </div>}
       {section === "assurances" && <div className="space-y-4">
         <Panel title={"Couvertures accessibles · " + coverages.length}>{coverages.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Assureur</th><th className="p-2 text-left">Adhérent</th><th className="p-2">Fin</th><th className="p-2 text-right">Taux</th><th className="p-2">État</th></tr></thead><tbody>{coverages.map((c) => <tr key={c.id} className="border-t"><td className="p-2">{insurerNames[c.assureur_id] || "Assureur non chargé"}</td><td className="p-2">{c.numero_adherent}</td><td className="p-2">{c.date_fin || "Non renseignée"}</td><td className="p-2 text-right">{c.taux_prise_en_charge == null ? "Non renseigné" : c.taux_prise_en_charge + " %"}</td><td className="p-2">{c.actif ? "Active" : "Inactive"}</td></tr>)}</tbody></table></div> : <Empty>Aucune couverture visible pour ce compte ; la consultation est limitée par les règles RLS.</Empty>}</Panel>
