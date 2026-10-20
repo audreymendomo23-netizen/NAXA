@@ -43,6 +43,27 @@ Ces résultats prouvent une cohérence statique entre les 45 identifiants, leurs
 
 Les écrans Assurance et Vente assurée sont couverts par une condition de rendu combinée. La clôture dispose d’un rendu dédié. Aucune lacune de rendu n’a été détectée dans cet inventaire statique.
 
+## 2 bis. Audit des clics et gestionnaires React
+
+Contrôle statique du fichier `src/app/pharmacie/caisse/parcours-ui/page.tsx` (blob SHA `6c37e2e5c76fb4999a54d519f51e57b029477628`) :
+
+| Contrôle | Résultat |
+|---|---:|
+| Éléments JSX `<Action>` | 159 |
+| Éléments JSX natifs `<button>` | 14 |
+| Total de contrôles cliquables recensés | 173 |
+| Contrôles `<Action>` sans prop `onClick` | 0 |
+| Boutons natifs sans `onClick` | 0 |
+| Cibles littérales `go("…")` hors du type `Screen` | 0 détectée |
+| Contrôles de navigation via `go(...)` | 92 gestionnaires, avec cibles parfois dérivées de listes typées |
+| Actions de démonstration via `demoAction(...)` | 77 gestionnaires |
+| Gestionnaires de changement d’état local (langue/recherche) | 2 |
+| Contrôle de fermeture de dialogue | 1 |
+
+**Interprétation :** les 173 éléments cliquables ont un gestionnaire attaché ; aucun bouton ou composant `Action` sans `onClick` n’a été détecté. Le chiffre 173 désigne les contrôles cliquables, pas 173 opérations métier. Les gestionnaires `demoAction` ouvrent un dialogue qui explique que l’opération n’est pas connectée : ils sont liés au clic, mais ne réalisent pas l’action métier demandée. Ils ne doivent donc pas être comptés comme fonctionnalités opérationnelles. Les 2 gestionnaires locaux modifient un état d’interface ; le bouton de fermeture est branché sur `closeDialog`.
+
+Le contrôle porte sur les boutons et composants cliquables de ce prototype uniquement. Il ne certifie pas les interactions clavier dans le navigateur, la compilation, ni les fonctions des routes métier connectées.
+
 ## 3. Barre latérale — exigence § 5.2
 
 Les sept entrées du prototype et leur correspondance avec le cahier sont :
