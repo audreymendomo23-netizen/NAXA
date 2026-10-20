@@ -19,7 +19,7 @@ begin
  insert into public.profiles(id,role,username,actif,pharmacie_id)
  values(v_promoteur,'promoteur','naxa177p_'||substr(replace(v_promoteur::text,'-',''),1,10),true,v_ph),
        (v_caisse,'caisse','naxa177c_'||substr(replace(v_caisse::text,'-',''),1,10),true,v_ph);
- insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(v_promoteur,v_ph,true);
+ insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(v_promoteur,v_ph,true),(v_caisse,v_ph,true);
  insert into public.stocks(pharmacie_id,produit_id,prix,quantite) values(v_ph,v_produit,100,5);
  perform set_config('request.jwt.claim.role','authenticated',true);
  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
