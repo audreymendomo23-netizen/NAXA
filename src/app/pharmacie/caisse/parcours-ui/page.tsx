@@ -41,8 +41,6 @@ const titles: Record<Screen, string> = {
 const OPERATIONAL_PATHS: Partial<Record<Screen, { path: string; label: string }>> = {
   dashboard: { path: "/pharmacie/caisse", label: "Poste de caisse" },
   vente: { path: "/pharmacie/caisse", label: "Vente et encaissement" },
-  favoris: { path: "/pharmacie/caisse", label: "Vente et encaissement" },
-  paniers: { path: "/pharmacie/caisse", label: "Poste de caisse" },
   paiement: { path: "/pharmacie/caisse", label: "Vente et encaissement" },
   reservations: { path: "/pharmacie/caisse", label: "Retraits Marketplace" },
   clients: { path: "/pharmacie/caisse/clients", label: "Répertoire clients et crédits" },
