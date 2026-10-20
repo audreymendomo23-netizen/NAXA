@@ -37,10 +37,10 @@ export function CaisseSidebar({ sessionOpen = false, creditsDue, pharmacyName }:
     void (async () => {
       const { data: auth } = await sb.auth.getUser();
       if (!auth.user) return;
-      const { data: profile } = await sb.from("profils").select("pharmacie_id").eq("id", auth.user.id).maybeSingle();
+      const { data: profile } = await sb.from("profiles").select("pharmacie_id").eq("id", auth.user.id).maybeSingle();
       const pharmacyId = profile?.pharmacie_id;
       if (!pharmacyId) return;
-      const { count, error: queryError } = await sb.from("credits_clients")
+      const { count, error: queryError } = await sb.from("client_credits")
         .select("id", { count: "exact", head: true })
         .eq("pharmacie_id", pharmacyId)
         .eq("actif", true)
