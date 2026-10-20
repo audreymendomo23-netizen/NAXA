@@ -24,7 +24,7 @@ for select to authenticated using (
         or public.can_access_pharmacy(r.pharmacie_id))
   )
 );
-revoke all on public.reservation_statut_historique from anon, public;
+revoke all on public.reservation_statut_historique from anon, public, authenticated;
 grant select on public.reservation_statut_historique to authenticated;
 
 create or replace function private.journaliser_statut_reservation()
