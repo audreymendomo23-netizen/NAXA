@@ -10,7 +10,7 @@ begin
  v_motif:=nullif(trim(coalesce(p_motif,'')),'');
  if p_bloque and (v_motif is null or char_length(v_motif)>500) then raise exception 'Un motif de blocage de 1 à 500 caractères est requis'; end if;
  select pharmacie_id into v_pharmacie from public.stocks_lots where id=p_lot for update;
- if v_pharmacie is null or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Lot hors périmètre ou introuvable'; end if;
+ if v_pharmacie is null or not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Lot hors périmètre ou introuvable'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
