@@ -47,7 +47,20 @@ export async function POST(request:NextRequest){
   return NextResponse.json({grantId:await grant(user.id,sid,"pin"),method:"pin"});
  }
  if(b.action==="registration-options"){
-  const sid=typeof b.sessionId==="string"?b.sessionId:"";if(!sid||!(await sessionOK(user.id,sid)))return err("Session Caisse invalide.",403);
+  const sid=typeof b.sessionId==="string"?b.sessionId:"",pin=typeof b.pin==="string"?b.pin:"";
+  if(!sid||!(await sessionOK(user.id,sid))||!/^\\d{6,8}$/.test(pin))return err("Session Caisse ou PIN Promoteur requis pour enregistrer la biométrie.",403);
+  const {data:credential}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash,pin_locked_until").eq("user_id",user.id).maybeSingle();
+  if(!credential?.pin_salt||!credential.pin_hash)return err("PIN non configuré par le Promoteur.",403);
+  if(credential.pin_locked_until&&new Date(credential.pin_locked_until).getTime()>Date.now())return err("PIN temporairement bloqué après plusieurs échecs.",429);
+  const got=scryptSync(pin,credential.pin_salt,64),expected=Buffer.from(credential.pin_hash,"hex");
+  if(got.length!==expected.length||!timingSafeEqual(got,expected)){
+   const {data:failure,error:failureError}=await db.rpc("caisse_pin_register_failure",{p_user_id:user.id});
+   if(failureError)throw failureError;
+   const state=Array.isArray(failure)?failure[0] as {attempts?:number}|undefined:undefined;
+   return err(Number(state?.attempts||0)>=5?"PIN bloqué pendant 15 minutes après 5 échecs.":"PIN incorrect. Enrôlement biométrique refusé.",403);
+  }
+  const {error:resetError}=await db.rpc("caisse_pin_reset_failures",{p_user_id:user.id});
+  if(resetError)throw resetError;
   const {data:p}=await db.from("profiles").select("username,first_name,last_name").eq("id",user.id).maybeSingle();
   const options=await generateRegistrationOptions({rpName:"NAXA Caisse",rpID:rp(request),userID:new TextEncoder().encode(user.id),userName:user.email||p?.username||user.id,userDisplayName:[p?.first_name,p?.last_name].filter(Boolean).join(" ")||p?.username||"Compte Caisse",attestationType:"none",authenticatorSelection:{residentKey:"preferred",userVerification:"required"},timeout:60000});
   const {error}=await db.from("caisse_security_challenges").upsert({user_id:user.id,challenge:options.challenge,purpose:"registration",expires_at:new Date(Date.now()+300000).toISOString()});if(error)throw error;return NextResponse.json(options);
@@ -55,10 +68,11 @@ export async function POST(request:NextRequest){
  if(b.action==="registration-verify"){
   const sid=typeof b.sessionId==="string"?b.sessionId:"";if(!sid||!(await sessionOK(user.id,sid)))return err("Session Caisse invalide ou expirée.",403);
   const response=b.response as Parameters<typeof verifyRegistrationResponse>[0]["response"]|undefined;if(!response)return err("Preuve biométrique absente.");
-  const {data:ch}=await db.from("caisse_security_challenges").select("*").eq("user_id",user.id).eq("purpose","registration").gt("expires_at",new Date().toISOString()).maybeSingle();if(!ch)return err("Demande expirée.",410);
+  const {data:ch,error:challengeError}=await db.from("caisse_security_challenges").delete().eq("user_id",user.id).eq("purpose","registration").gt("expires_at",new Date().toISOString()).select("challenge").maybeSingle();
+  if(challengeError)throw challengeError;if(!ch)return err("Demande expirée ou déjà consommée.",410);
   const v=await verifyRegistrationResponse({response,expectedChallenge:ch.challenge,expectedOrigin:origin(request),expectedRPID:rp(request),requireUserVerification:true});if(!v.verified||!v.registrationInfo)return err("Enregistrement biométrique refusé.",403);
   const i=v.registrationInfo, {data:old}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash").eq("user_id",user.id).maybeSingle();
-  const {error}=await db.from("caisse_security_credentials").upsert({user_id:user.id,pin_salt:old?.pin_salt??null,pin_hash:old?.pin_hash??null,webauthn_credential_id:i.credential.id,webauthn_public_key:Buffer.from(i.credential.publicKey).toString("base64url"),webauthn_counter:i.credential.counter,webauthn_transports:((response as {response?:{transports?:string[]}}).response?.transports||[]),webauthn_enabled:true,updated_at:new Date().toISOString()});if(error)throw error;await db.from("caisse_security_challenges").delete().eq("user_id",user.id);return NextResponse.json({ok:true,message:"Biométrie de cet appareil enregistrée. NAXA ne stocke pas l’empreinte elle-même."});
+  const {error}=await db.from("caisse_security_credentials").upsert({user_id:user.id,pin_salt:old?.pin_salt??null,pin_hash:old?.pin_hash??null,webauthn_credential_id:i.credential.id,webauthn_public_key:Buffer.from(i.credential.publicKey).toString("base64url"),webauthn_counter:i.credential.counter,webauthn_transports:((response as {response?:{transports?:string[]}}).response?.transports||[]),webauthn_enabled:true,updated_at:new Date().toISOString()});if(error)throw error;return NextResponse.json({ok:true,message:"Biométrie de cet appareil enregistrée. NAXA ne stocke pas l’empreinte elle-même."});
  }
  if(b.action==="authentication-options"){
   const sid=typeof b.sessionId==="string"?b.sessionId:"";if(!sid||!(await sessionOK(user.id,sid)))return err("Session Caisse invalide.",403);
@@ -69,11 +83,13 @@ export async function POST(request:NextRequest){
  if(b.action==="authentication-verify"){
   const sid=typeof b.sessionId==="string"?b.sessionId:"",response=b.response as Parameters<typeof verifyAuthenticationResponse>[0]["response"]|undefined;
   if(!sid||!response||!(await sessionOK(user.id,sid)))return err("Session invalide.",403);
-  const [{data:ch},{data:c}]=await Promise.all([db.from("caisse_security_challenges").select("*").eq("user_id",user.id).eq("purpose","authentication").gt("expires_at",new Date().toISOString()).maybeSingle(),db.from("caisse_security_credentials").select("*").eq("user_id",user.id).eq("webauthn_enabled",true).maybeSingle()]);
-  if(!ch||!c?.webauthn_credential_id||!c.webauthn_public_key)return err("Biométrie non configurée ou expirée.",403);
+  const {data:ch,error:challengeError}=await db.from("caisse_security_challenges").delete().eq("user_id",user.id).eq("purpose","authentication").gt("expires_at",new Date().toISOString()).select("challenge").maybeSingle();
+  if(challengeError)throw challengeError;
+  const {data:c}=await db.from("caisse_security_credentials").select("*").eq("user_id",user.id).eq("webauthn_enabled",true).maybeSingle();
+  if(!ch||!c?.webauthn_credential_id||!c.webauthn_public_key)return err("Biométrie non configurée ou demande expirée/déjà consommée.",403);
   const v=await verifyAuthenticationResponse({response,expectedChallenge:ch.challenge,expectedOrigin:origin(request),expectedRPID:rp(request),requireUserVerification:true,credential:{id:c.webauthn_credential_id,publicKey:Buffer.from(c.webauthn_public_key,"base64url"),counter:Number(c.webauthn_counter||0),transports:(c.webauthn_transports||[]) as AuthenticatorTransport[]}});
   if(!v.verified)return err("Vérification biométrique refusée.",403);
-  await db.from("caisse_security_credentials").update({webauthn_counter:v.authenticationInfo.newCounter,updated_at:new Date().toISOString()}).eq("user_id",user.id);await db.from("caisse_security_challenges").delete().eq("user_id",user.id);
+  const {error:counterError}=await db.from("caisse_security_credentials").update({webauthn_counter:v.authenticationInfo.newCounter,updated_at:new Date().toISOString()}).eq("user_id",user.id);if(counterError)throw counterError;
   return NextResponse.json({grantId:await grant(user.id,sid,"biometric"),method:"biometric"});
  }
  return err("Action inconnue.");
