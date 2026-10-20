@@ -26,6 +26,8 @@ const patientLabel = (id: string) => `Patient ${id.slice(0, 8).toUpperCase()}`;
 
 export default function PharmacienSuiviPatientsPage() {
   const sb = useMemo(() => supabaseBrowser(), []);
+  const [recipientId, setRecipientId] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [shares, setShares] = useState<Share[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [alerts, setAlerts] = useState<SharedAlert[]>([]);
@@ -46,7 +48,7 @@ export default function PharmacienSuiviPatientsPage() {
       .eq("recipient_user_id", userId).eq("active", true).is("revoked_at", null)
       .order("granted_at", { ascending: false }).limit(500);
     if (shareError) {
-      setShares([]); setMeasurements([]); setAlerts([]);
+      setShares([]); setMeasurements([]); setAlerts([]);setLastUpdated(new Date().toISOString());
       setError("Les partages ne sont pas accessibles. Vérifiez la migration 127, la migration 189, la vérification du professionnel et l’autorisation expérimentale du compte.");
       setBusy(false); return;
     }
@@ -55,7 +57,7 @@ export default function PharmacienSuiviPatientsPage() {
     const owners = [...new Set(activeShares.map(item => item.owner_user_id))];
     const types = [...new Set(activeShares.map(item => item.measurement_type))];
     if (!owners.length || !types.length) {
-      setMeasurements([]);setAlerts([]);setAlertError("");
+      setMeasurements([]);setAlerts([]);setAlertError("");setLastUpdated(new Date().toISOString());
       setNotice("Aucun patient ne partage actuellement de mesure avec ce compte.");
       setBusy(false); return;
     }
@@ -74,6 +76,7 @@ export default function PharmacienSuiviPatientsPage() {
     if(alertQueryError){setAlerts([]);setAlertError("Les alertes partagées attendent la migration 192 ou les droits RLS correspondants.");}
     else{setAlerts(((alertRows??[]) as SharedAlert[]).filter(alert=>allowed.has(`${alert.user_id}:${alert.measurement_type}`)));setAlertError("");}
     setNotice("Données affichées uniquement pour les types de mesure explicitement partagés et encore actifs.");
+    setLastUpdated(new Date().toISOString());
     setBusy(false);
   }, [sb]);
 
@@ -91,11 +94,21 @@ export default function PharmacienSuiviPatientsPage() {
     if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
       setError("La pharmacie est inactive ou non publiée ; l’accès au suivi patient est bloqué."); setLoading(false); return;
     }
+    setRecipientId(auth.user.id);
     await loadSharedData(auth.user.id);
     setLoading(false);
   }, [sb, loadSharedData]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    if (!recipientId) return;
+    const channel=sb.channel("pharmacien-suivi-partages")
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements"},()=>{void loadSharedData(recipientId);})
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts"},()=>{void loadSharedData(recipientId);})
+      .subscribe();
+    const poll=window.setInterval(()=>{void loadSharedData(recipientId);},30000);
+    return ()=>{window.clearInterval(poll);void sb.removeChannel(channel);};
+  },[sb,recipientId,loadSharedData]);
   const owners = [...new Set(shares.map(item => item.owner_user_id))];
   const types = [...new Set(shares.map(item => item.measurement_type))].sort();
   const filteredAlerts=alerts.filter(alert=>{
@@ -122,7 +135,7 @@ export default function PharmacienSuiviPatientsPage() {
   }}>
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0B3D26] px-4 py-4 text-white">
       <div><a href="/pharmacie/pharmacien" className="text-sm text-emerald-100 hover:text-white">← Espace Pharmacien</a><h1 className="mt-1 text-2xl font-black">Suivi des patients</h1><p className="mt-1 text-sm text-emerald-100">Mesures partagées, consentement et traçabilité des accès.</p></div>
-      <button type="button" onClick={() => void refresh()} disabled={loading || busy} className="min-h-10 rounded-xl border border-white/30 px-4 py-2 text-sm font-bold disabled:opacity-50">Actualiser</button>
+      <div className="flex flex-col items-end gap-1"><button type="button" onClick={() => void refresh()} disabled={loading || busy} className="min-h-10 rounded-xl border border-white/30 px-4 py-2 text-sm font-bold disabled:opacity-50">Actualiser</button><span className="text-xs text-emerald-100">{lastUpdated ? `Mis à jour ${new Date(lastUpdated).toLocaleTimeString("fr-FR")}` : "Mise à jour en attente"}</span></div>
     </header>
     <section className="carte space-y-3"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Patients partageant des mesures</p><p className="text-2xl font-black">{owners.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Types partagés</p><p className="text-2xl font-black">{types.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Mesures visibles</p><p className="text-2xl font-black">{measurements.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Alertes partagées</p><p className="text-2xl font-black">{alerts.length}</p></div></div>
       <p className="text-sm text-slate-600">Les identités sont masquées par défaut. NAXA affiche les mesures partagées sans poser de diagnostic ni recommander de posologie.</p>
@@ -141,6 +154,6 @@ export default function PharmacienSuiviPatientsPage() {
         {tab==="partages" && (shares.length ? <div className="space-y-2">{shares.map(share=><article key={share.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><b>{patientLabel(share.owner_user_id)}</b><p className="text-sm text-slate-600">{labels[share.measurement_type] ?? share.measurement_type}</p><p className="text-xs text-slate-500">Partage accordé le {dateLabel(share.granted_at)}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Actif</span></article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucun partage actif. Le patient conserve le contrôle de son consentement et peut révoquer le partage depuis son compte.</p>)}
       </>}
     </section>
-    <p className="px-1 text-xs text-slate-500">Le module reste soumis à la vérification professionnelle et à l’autorisation expérimentale existante du suivi connecté. Les alertes affichées sont uniquement celles qui sont liées à des mesures partagées et restent soumises à la migration 192. Le suivi des prescriptions patient exige encore un consentement distinct et un raccordement dédié.</p>
+    <p className="px-1 text-xs text-slate-500">Le module reste soumis à la vérification professionnelle et à l’autorisation expérimentale existante du suivi connecté. Les données se rafraîchissent via Realtime lorsque disponible et par vérification périodique toutes les 30 secondes. Les alertes affichées sont uniquement celles qui sont liées à des mesures partagées et restent soumises à la migration 192. Le suivi des prescriptions patient exige encore un consentement distinct et un raccordement dédié.</p>
   </PharmacienWorkspaceShell>;
 }
