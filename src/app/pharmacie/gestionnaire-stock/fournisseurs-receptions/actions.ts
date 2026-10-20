@@ -56,3 +56,15 @@ export async function recevoirCommandeFournisseurStock(formData:FormData){
  revalidatePath(back);revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
  redirect(back+"?ok=reception");
 }
+
+export async function envoyerCommandeFournisseurStock(formData:FormData){
+ const {sb,ids}=await authorized();const commande=String(formData.get("commande_id")??"");
+ if(!uuid(commande))redirect(back+"?erreur=envoi");
+ const {data:order,error:orderError}=await sb.from("commandes_fournisseurs").select("id,pharmacie_id,statut,commandes_fournisseurs_lignes(id,quantite_commandee)").eq("id",commande).maybeSingle();
+ if(orderError||!order||!ids.includes(order.pharmacie_id)||order.statut!=="brouillon")redirect(back+"?erreur=envoi");
+ const lines=(order as unknown as {commandes_fournisseurs_lignes:{id:string;quantite_commandee:number}[]}).commandes_fournisseurs_lignes??[];
+ if(!lines.length)redirect(back+"?erreur=commande_vide");
+ const {data,error}=await sb.from("commandes_fournisseurs").update({statut:"envoyee",updated_at:new Date().toISOString()}).eq("id",commande).eq("pharmacie_id",order.pharmacie_id).eq("statut","brouillon").select("id").maybeSingle();
+ if(error||!data)redirect(back+"?erreur=envoi");
+ revalidatePath(back);redirect(back+"?ok=envoyee");
+}
