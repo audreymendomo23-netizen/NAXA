@@ -1,3 +1,5 @@
+> **Document remplacé le 20 octobre 2026.** Le poste Assistant pharmacien a été supprimé comme fonction distincte. Se référer à [l’état du parcours Pharmacien unifié](./ETAT_PARCOURS_PHARMACIEN_UNIFIE_2026-10-20.md) et à la migration 127. Les éléments ci-dessous décrivent l’état historique avant unification et ne constituent plus la cible actuelle.
+
 # État de construction — Pharmacien et Assistant pharmacien
 Date : 20 octobre 2026
 
