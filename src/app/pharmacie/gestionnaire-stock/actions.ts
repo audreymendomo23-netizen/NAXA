@@ -7,6 +7,21 @@ import { supabaseServer } from "@/lib/supabase/server";
 const safeUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
+export async function confirmerReservationGestionStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/reservations");
+  const id = String(formData.get("reservation_id") ?? "");
+  if (!safeUuid(id)) redirect("/pharmacie/gestionnaire-stock/reservations?erreur=confirmation");
+  const { error } = await sb.rpc("gestionnaire_stock_reservation_confirmer", { p_reservation: id });
+  if (error) redirect("/pharmacie/gestionnaire-stock/reservations?erreur=confirmation_stock");
+  revalidatePath("/pharmacie/gestionnaire-stock");
+  revalidatePath("/pharmacie/gestionnaire-stock/reservations");
+  revalidatePath("/pharmacie/caisse");
+  revalidatePath("/pharmacie/caisse/retraits-marketplace");
+  redirect("/pharmacie/gestionnaire-stock/reservations?ok=confirmee");
+}
+
 export async function annulerReservationGestionStock(formData: FormData) {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
