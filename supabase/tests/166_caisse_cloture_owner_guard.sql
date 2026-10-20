@@ -6,7 +6,7 @@ declare v_fn text;
 begin
   select pg_get_functiondef(p.oid) into v_fn
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='caisse_cloturer' and p.pronargs=2;
+  where n.nspname='public' and p.proname='caisse_cloturer' and p.pronargs=3;
   if v_fn is null
      or position('v_session.ouvert_par is distinct from auth.uid()' in lower(v_fn))=0
      or position('v_decaissements' in lower(v_fn))=0
