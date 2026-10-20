@@ -29,8 +29,13 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 - Comptez les espèces présentes dans le tiroir, fond initial compris, puis utilisez **Clôturer et rapprocher**. Le résultat indique le total théorique, le total compté et l'écart.
 - Les lots et dates de péremption restent gérés par le moteur de stock ; la Caisse ne contourne pas les contrôles de disponibilité.
 
+## Sécurité du paiement Marketplace
+- Le statut « payé » ne peut plus être activé par une simple transition RPC : il exige un ticket POS finalisé, un paiement lié et un total identique à celui de la réservation.
+- Le suivi Pharmacie des commandes ne propose plus de bouton manuel « Confirmer paiement effectué » ; il affiche un avertissement et la RPC refuse la confirmation sans preuve POS liée.
+- **Limite restante :** le flux de commande (`mode=commande`) n’est pas encore encaissé depuis la Caisse. Jusqu’à l’intégration complète de ce flux POS, il est volontairement impossible de confirmer son paiement par ce suivi. Ne pas contourner cette protection en modifiant directement le statut en base.
+
 ## État de validation
-Les migrations additives 157–161 et les composants du parcours caisse sont enregistrés sur `main`. Les migrations 159–161 ont été appliquées uniquement au projet Supabase de test « naxa-ci-replay-2 » ; aucune migration n'a été appliquée à Supabase Production.
+Les migrations additives 157–163 et les composants du parcours caisse sont enregistrés sur `main`. Les migrations 159–161 ont été appliquées uniquement au projet Supabase de test « naxa-ci-replay-2 » ; aucune migration n'a été appliquée à Supabase Production.
 
 Les tests SQL 044, 055, 159, 160 et 161 ont renvoyé PASS sur le projet de test. Les tests 157 et 158 se sont exécutés sans erreur SQL. Le test 161 vérifie notamment le montant insuffisant, l'encaissement atomique, le ticket POS lié, le paiement de la réservation, le rejet d'un deuxième encaissement et l'absence de second débit du stock.
 
