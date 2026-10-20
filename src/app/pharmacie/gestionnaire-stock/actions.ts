@@ -165,3 +165,27 @@ export async function ajusterQuantiteStockGestionnaire(formData: FormData) {
   revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=mouvement");
 }
+
+export async function transfererStockEntrePharmacies(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+  const source = String(formData.get("source_pharmacie_id") ?? "");
+  const destination = String(formData.get("destination_pharmacie_id") ?? "");
+  const produit = String(formData.get("produit_id") ?? "");
+  const lotRaw = String(formData.get("lot_id") ?? "");
+  const quantiteRaw = String(formData.get("quantite") ?? "");
+  const motif = String(formData.get("motif") ?? "").trim();
+  const quantite = Number(quantiteRaw);
+  if (!safeUuid(source) || !safeUuid(destination) || !safeUuid(produit) || source===destination || (lotRaw&&!safeUuid(lotRaw)) || !quantiteRaw.trim() || !Number.isSafeInteger(quantite) || quantite<1 || quantite>1000000 || motif.length<3 || motif.length>500) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=transfert");
+  }
+  const { data, error } = await sb.rpc("gestionnaire_stock_transfert_atomique", {
+    p_source: source, p_destination: destination, p_produit: produit, p_quantite: quantite, p_lot: lotRaw || null, p_motif: motif,
+  });
+  if (error || !data) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=transfert");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
+  revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=transfert");
+}
