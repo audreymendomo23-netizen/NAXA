@@ -21,6 +21,7 @@ create policy commandes_fournisseurs_insert_draft on public.commandes_fournisseu
  for insert to authenticated with check(
   (public.is_admin() or public.naxa_stock_manager_actor(pharmacie_id))
   and statut='brouillon' and created_by=(select auth.uid())
+  and exists(select 1 from public.fournisseurs f where f.id=fournisseur_id and f.actif=true)
  );
 
 drop policy if exists commandes_fournisseurs_lignes_scope on public.commandes_fournisseurs_lignes;
