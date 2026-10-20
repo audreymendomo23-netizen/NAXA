@@ -127,6 +127,30 @@ create unique index if not exists inventaire_lignes_aggregate_uq on public.inven
 create unique index if not exists inventaire_lignes_lot_uq on public.inventaire_lignes(inventaire_id,produit_id,lot_id) where lot_id is not null;
 create index if not exists inventaire_lignes_inventaire_idx on public.inventaire_lignes(inventaire_id);
 
+-- Lot recall workflow tables are required by the pending migrations 175–183.
+create table if not exists public.rappels_lots (
+ id uuid primary key default gen_random_uuid(),
+ pharmacie_id uuid not null references public.pharmacies(id) on delete restrict,
+ lot_id uuid not null references public.stocks_lots(id) on delete restrict,
+ reference_rappel text,
+ motif text not null check(char_length(btrim(motif)) between 5 and 500),
+ statut text not null default 'actif' check(statut in ('actif','leve')),
+ created_by uuid not null references auth.users(id) on delete restrict,
+ created_at timestamptz not null default now(),
+ leve_at timestamptz,
+ leve_par uuid references auth.users(id) on delete restrict,
+ lot_bloque_avant boolean not null default false,
+ lot_motif_blocage_avant text,
+ quantite_trouvee integer,
+ quantite_isolee integer,
+ compte_par uuid references auth.users(id) on delete restrict,
+ compte_at timestamptz,
+ check(quantite_trouvee is null or quantite_trouvee>=0),
+ check(quantite_isolee is null or quantite_isolee>=0),
+ check(quantite_trouvee is null or quantite_isolee is null or quantite_isolee<=quantite_trouvee)
+);
+create index if not exists rappels_lots_pharmacie_statut_idx on public.rappels_lots(pharmacie_id,statut,created_at desc);
+
 -- All new tables start with RLS; later hardening migrations replace these base policies.
 alter table public.fournisseurs enable row level security;
 alter table public.commandes_fournisseurs enable row level security;
@@ -135,7 +159,11 @@ alter table public.receptions_fournisseurs enable row level security;
 alter table public.receptions_fournisseurs_lignes enable row level security;
 alter table public.inventaires enable row level security;
 alter table public.inventaire_lignes enable row level security;
+alter table public.rappels_lots enable row level security;
 
+drop policy if exists rappels_lots_read_scope on public.rappels_lots;
+create policy rappels_lots_read_scope on public.rappels_lots for select to authenticated
+ using(public.is_admin() or public.naxa_scope_allows((select auth.uid()),pharmacie_id,'PHARMACIE'));
 drop policy if exists fournisseurs_scope on public.fournisseurs;
 create policy fournisseurs_scope on public.fournisseurs for all to authenticated
  using(public.is_admin() or created_by=(select auth.uid()))
@@ -166,9 +194,9 @@ create policy inventaire_lignes_scope on public.inventaire_lignes for all to aut
  with check(exists(select 1 from public.inventaires i where i.id=inventaire_id and (public.is_admin() or public.naxa_scope_allows((select auth.uid()),i.pharmacie_id,'PHARMACIE'))));
 
 revoke all on public.fournisseurs,public.commandes_fournisseurs,public.commandes_fournisseurs_lignes,
- public.receptions_fournisseurs,public.receptions_fournisseurs_lignes,public.inventaires,public.inventaire_lignes
+ public.receptions_fournisseurs,public.receptions_fournisseurs_lignes,public.inventaires,public.inventaire_lignes,public.rappels_lots
  from public,anon;
 grant select,insert,update,delete on public.fournisseurs,public.commandes_fournisseurs,public.commandes_fournisseurs_lignes,
- public.receptions_fournisseurs,public.receptions_fournisseurs_lignes,public.inventaires,public.inventaire_lignes
+ public.receptions_fournisseurs,public.receptions_fournisseurs_lignes,public.inventaires,public.inventaire_lignes,public.rappels_lots
  to authenticated;
 commit;
