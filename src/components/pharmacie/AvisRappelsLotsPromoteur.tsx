@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Notice = { produit_nom: string; numero_lot: string; reference_avis: string | null; motif: string; consigne: string; created_at: string; statut: string };
 type Recipient = { id: string; avis_id: string; pharmacie_id: string; accuse_at: string | null; avis_rappels_lots_reseau: Notice | null; pharmacies: { nom: string } | null };
 
 export function AvisRappelsLotsPromoteur() {
- const sb=useMemo(()=>supabaseBrowser(),[]),router=useRouter();
+ const sb=useMemo(()=>supabaseBrowser(),[]);
  const [rows,setRows]=useState<Recipient[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const load=useCallback(async()=>{
   const {data:auth}=await sb.auth.getUser();
