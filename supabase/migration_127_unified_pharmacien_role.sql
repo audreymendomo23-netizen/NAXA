@@ -25,6 +25,81 @@ alter table public.profiles
     'chef_agence','custom'
   ));
 
+
+-- Harmoniser les politiques RLS avec le poste unique Pharmacien.
+drop policy if exists prescription_preparations_staff_read on public.prescription_preparations;
+create policy prescription_preparations_staff_read
+on public.prescription_preparations for select to authenticated
+using (
+  exists (
+    select 1 from public.profiles p
+    where p.id=(select auth.uid()) and p.actif
+      and p.pharmacie_id=prescription_preparations.pharmacie_id
+      and p.fonction_interne='pharmacien'
+  )
+);
+
+drop policy if exists prescriptions_staff_read on public.prescriptions;
+create policy prescriptions_staff_read
+on public.prescriptions for select to authenticated
+using (
+  exists (
+    select 1 from public.profiles p
+    where p.id=(select auth.uid()) and p.actif
+      and p.pharmacie_id=prescriptions.pharmacie_id
+      and p.fonction_interne='pharmacien'
+  )
+  or exists (
+    select 1 from public.profiles p
+    where p.id=(select auth.uid()) and p.actif
+      and p.role::text='promoteur'
+      and p.pharmacie_id=prescriptions.pharmacie_id
+  )
+);
+
+drop policy if exists prescription_items_staff_read on public.prescription_items;
+create policy prescription_items_staff_read
+on public.prescription_items for select to authenticated
+using (
+  exists (
+    select 1 from public.prescriptions r
+    join public.profiles p on p.pharmacie_id=r.pharmacie_id
+    where r.id=prescription_items.prescription_id
+      and p.id=(select auth.uid()) and p.actif
+      and p.fonction_interne='pharmacien'
+  )
+  or exists (
+    select 1 from public.prescriptions r
+    join public.profiles p on p.pharmacie_id=r.pharmacie_id
+    where r.id=prescription_items.prescription_id
+      and p.id=(select auth.uid()) and p.actif
+      and p.role::text='promoteur'
+  )
+);
+
+drop policy if exists prescription_items_assistant_write on public.prescription_items;
+drop policy if exists prescription_items_pharmacien_write on public.prescription_items;
+create policy prescription_items_pharmacien_write
+on public.prescription_items for all to authenticated
+using (
+  exists (
+    select 1 from public.prescriptions r
+    join public.profiles p on p.pharmacie_id=r.pharmacie_id
+    where r.id=prescription_items.prescription_id
+      and p.id=(select auth.uid()) and p.actif
+      and (p.role::text='promoteur' or p.fonction_interne='pharmacien')
+  )
+)
+with check (
+  exists (
+    select 1 from public.prescriptions r
+    join public.profiles p on p.pharmacie_id=r.pharmacie_id
+    where r.id=prescription_items.prescription_id
+      and p.id=(select auth.uid()) and p.actif
+      and (p.role::text='promoteur' or p.fonction_interne='pharmacien')
+  )
+);
+
 create or replace function public.pharmacien_soumettre_preparation(
   p_prescription uuid,
   p_notes text default null
