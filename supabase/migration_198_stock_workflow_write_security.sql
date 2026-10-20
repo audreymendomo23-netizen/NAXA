@@ -21,12 +21,14 @@ create policy commandes_fournisseurs_lignes_scope on public.commandes_fournisseu
  with check(exists(select 1 from public.commandes_fournisseurs c where c.id=commande_id and (public.is_admin() or public.naxa_stock_manager_actor(c.pharmacie_id))));
 
 drop policy if exists receptions_fournisseurs_scope on public.receptions_fournisseurs;
+drop policy if exists receptions_fournisseurs_read_scope on public.receptions_fournisseurs;
 create policy receptions_fournisseurs_read_scope on public.receptions_fournisseurs
  for select to authenticated using(public.is_admin() or public.can_access_pharmacy(pharmacie_id));
 drop policy if exists receptions_fournisseurs_lignes_scope on public.receptions_fournisseurs_lignes;
+drop policy if exists receptions_fournisseurs_lignes_read_scope on public.receptions_fournisseurs_lignes;
 create policy receptions_fournisseurs_lignes_read_scope on public.receptions_fournisseurs_lignes
  for select to authenticated using(exists(select 1 from public.receptions_fournisseurs r where r.id=receptions_fournisseurs_lignes.reception_id and (public.is_admin() or public.can_access_pharmacy(r.pharmacie_id))));
-revoke insert,update,delete on public.receptions_fournisseurs,public.receptions_fournisseurs_lignes from anon,authenticated;
+revoke insert,update,delete on public.receptions_fournisseurs,public.receptions_fournisseurs_lignes from public,anon,authenticated;
 grant select on public.receptions_fournisseurs,public.receptions_fournisseurs_lignes to authenticated;
 revoke insert,update,delete on public.inventaires,public.inventaire_lignes from anon,authenticated;
 grant select on public.inventaires,public.inventaire_lignes to authenticated;
