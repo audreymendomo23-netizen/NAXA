@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
   const [movements, reservations, adjustments, outgoingTransfers, incomingTransfers] = await Promise.all([
     sb.from("stock_manager_movement_journal")
-      .select("pharmacie_id,produit_id,numero_lot,source_table,event_type,quantite_avant,quantite_apres,bloque_avant,bloque_apres,emplacement_avant,emplacement_apres,cree_le,produits(nom)")
+      .select("pharmacie_id,produit_id,numero_lot,source_table,event_type,quantite_avant,quantite_apres,bloque_avant,bloque_apres,emplacement_avant,emplacement_apres,motif_operation,cree_le,produits(nom)")
       .in("pharmacie_id", pharmacyIds).order("cree_le", { ascending: false }).limit(5000),
     sb.from("reservations")
       .select("id,pharmacie_id,statut,total,created_at,expires_at,mode")
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     rows.push(["mouvement_stock", m.cree_le, m.pharmacie_id, m.numero_lot ?? "", product?.nom ?? m.produit_id,
       m.quantite_avant, m.quantite_apres,
       m.quantite_avant !== null && m.quantite_apres !== null ? Number(m.quantite_apres) - Number(m.quantite_avant) : "",
-      m.event_type, [m.source_table, m.bloque_avant === null && m.bloque_apres === null ? "" : "blocage " + m.bloque_avant + " → " + m.bloque_apres, m.emplacement_avant || m.emplacement_apres || ""].filter(Boolean).join(" · ")]);
+      m.event_type, [m.source_table, m.bloque_avant === null && m.bloque_apres === null ? "" : "blocage " + m.bloque_avant + " → " + m.bloque_apres, m.emplacement_avant || m.emplacement_apres || "", m.motif_operation || ""].filter(Boolean).join(" · ")]);
   }
   for (const r of reservations.data ?? []) {
     rows.push(["reservation", r.created_at, r.pharmacie_id, r.id, "", "", "", "", r.statut,
