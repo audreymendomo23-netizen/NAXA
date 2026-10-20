@@ -44,6 +44,7 @@ begin
  if p_quantite is null or p_quantite<1 or p_quantite>1000000 then raise exception 'Quantité de transfert invalide'; end if;
  if v_motif is null or char_length(v_motif)<3 or char_length(v_motif)>500 then raise exception 'Un motif de transfert de 3 à 500 caractères est obligatoire'; end if;
  if not public.naxa_scope_allows(v_user,p_source,'PHARMACIE') or not public.naxa_scope_allows(v_user,p_destination,'PHARMACIE') then raise exception 'Les deux pharmacies doivent appartenir au périmètre autorisé'; end if;
+ if (select count(*) from public.pharmacies p where p.id in (p_source,p_destination) and p.actif=true and p.archivee_le is null)<>2 then raise exception 'Une des pharmacies est inactive ou archivée'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
   or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
