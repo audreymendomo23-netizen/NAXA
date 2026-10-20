@@ -568,9 +568,17 @@ export default function CaissePage() {
                 </div>
               )}
             </section>
-            <CaisseRetraitsMarketplace pharmacieId={pid} sessionId={session?.id ?? null} />
-            <CaisseDecaissements sessionId={session?.id ?? null} />
-            <section className="carte mb-4">
+            <nav aria-label="Onglets du tableau de bord caisse" className="mb-4 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3">
+              <button type="button" className={onglet === "caisse" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("caisse"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Encaissement</button>
+              <button type="button" className={onglet === "recherche" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("recherche"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Recherche prix</button>
+              <a className="btn btn-clair shrink-0" href="#caisse-retraits">Retraits Marketplace</a>
+              <a className="btn btn-clair shrink-0" href="#caisse-decaissements">Décaissements</a>
+              <a className="btn btn-clair shrink-0" href="#caisse-historique">Historique tickets</a>
+              <a className="btn btn-clair shrink-0" href="#caisse-cloture">Clôture</a>
+            </nav>
+            <div id="caisse-retraits"><CaisseRetraitsMarketplace pharmacieId={pid} sessionId={session?.id ?? null} /></div>
+            <div id="caisse-decaissements"><CaisseDecaissements sessionId={session?.id ?? null} /></div>
+            <section id="caisse-historique" className="carte mb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="font-extrabold">Historique des ventes</h2><p className="text-sm text-slate-600">Consultez ou réimprimez vos 20 dernières ventes payées.</p></div>
                 <button className="btn btn-clair" disabled={busy} onClick={() => historiqueOuvert ? setHistoriqueOuvert(false) : void chargerHistorique()}>{historiqueOuvert ? "Masquer l’historique" : "Afficher l’historique"}</button>
@@ -580,7 +588,7 @@ export default function CaissePage() {
             {session && draftCheckErreur && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">Vérification du panier incomplète : aucune nouvelle vente ne peut être créée et la session ne peut pas être clôturée tant que le contrôle n’a pas réussi.</p>}
             {session && (
               <>
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div id="caisse-encaissement" className="mb-4 flex flex-wrap gap-2">
                   <button className={onglet === "caisse" ? "btn btn-vert" : "btn btn-clair"} onClick={() => setOnglet("caisse")}>Encaissement</button>
                   <button className={onglet === "recherche" ? "btn btn-vert" : "btn btn-clair"} onClick={() => setOnglet("recherche")}>Recherche prix</button>
                   {!vente && <button className="btn btn-canari" disabled={busy || draftCheckErreur} onClick={() => void nouvelleVente()}>Nouvelle vente</button>}
@@ -604,7 +612,7 @@ export default function CaissePage() {
                     <button disabled={busy || !vente || total <= 0} className="btn btn-vert w-full" onClick={() => void payer()}>{busy ? "Traitement…" : "Encaisser en espèces et préparer le ticket"}</button>
                   </aside>
                 </div>
-                <section className="carte mt-4 space-y-3">
+                <section id="caisse-cloture" className="carte mt-4 space-y-3">
                   <h2 className="text-lg font-extrabold">Clôture de session</h2>
                   <p className="text-sm text-slate-600">Comptez les espèces réellement présentes dans le tiroir, fond initial compris. Une vente brouillon doit être finalisée ou abandonnée avant la clôture.</p>
                   <div className="flex flex-col gap-2 sm:flex-row"><label className="flex-1 text-sm font-semibold">Total espèces compté (FCFA)<input className="champ mt-1 w-full" type="number" min="0" step="1" inputMode="numeric" value={totalCompte} onChange={(e) => setTotalCompte(e.target.value)} disabled={!!vente || busy} /></label><button className="btn btn-clair self-end" onClick={() => void cloturerSession()} disabled={!!vente || busy || draftCheckErreur}>Clôturer et rapprocher</button></div>
