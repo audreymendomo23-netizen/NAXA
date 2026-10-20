@@ -57,7 +57,7 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
   sb.from("stock_manager_transfers").select("id,source_pharmacie_id,destination_pharmacie_id,produit_id,numero_lot,quantite,motif,cree_le,produits(nom)").in("source_pharmacie_id",ids).order("cree_le",{ascending:false}).limit(100),
   sb.from("stock_manager_transfers").select("id,source_pharmacie_id,destination_pharmacie_id,produit_id,numero_lot,quantite,motif,cree_le,produits(nom)").in("destination_pharmacie_id",ids).order("cree_le",{ascending:false}).limit(100)
  ]):[{data:[] as unknown as {id:string;source_pharmacie_id:string;destination_pharmacie_id:string;produit_id:string;numero_lot:string|null;quantite:number;motif:string;cree_le:string;produits:{nom:string}|null}[],error:null},{data:[] as unknown as {id:string;source_pharmacie_id:string;destination_pharmacie_id:string;produit_id:string;numero_lot:string|null;quantite:number;motif:string;cree_le:string;produits:{nom:string}|null}[],error:null}];
- const transferRows=[...new Map([...(outgoingTransfers.data??[]),...(incomingTransfers.data??[])].map(transfer=>[transfer.id,transfer])).values()];
+ const transferRows=[...new Map([...(outgoingTransfers.data??[]),...(incomingTransfers.data??[])].map(transfer=>[transfer.id,transfer])).values()].sort((a,b)=>new Date(b.cree_le).getTime()-new Date(a.cree_le).getTime());
  const reportCounts=section==="historique-rapports"?await Promise.all([
   sb.from("reservations").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).eq("mode","reservation").in("statut",["en_attente","confirmee"]),
   sb.from("stocks_lots").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).or("date_peremption.lte."+cutoff+",bloque.eq.true)
