@@ -53,6 +53,7 @@ declare
   v_result record;
   v_rejected boolean := false;
   v_count integer;
+  v_stock_before integer;
 begin
   select id into v_produit from public.produits limit 1;
   if v_produit is null then raise exception 'Aucun produit de test disponible'; end if;
@@ -73,6 +74,13 @@ begin
 
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,fond_initial,statut)
   values(v_session,v_caisse,v_admin,0,'ouverte');
+
+  insert into public.stocks(pharmacie_id,produit_id,prix,quantite)
+  values(v_pharmacie,v_produit,100,4);
+  insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
+  values(v_pharmacie,v_produit,50,'XAF');
+  select quantite into v_stock_before from public.stocks
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
 
   insert into public.reservations(
     id,client_id,pharmacie_id,statut,total,expires_at,created_at,mode,
@@ -133,6 +141,10 @@ begin
 
   select count(*) into v_count from public.ventes where reservation_id=v_reservation;
   if v_count <> 1 then raise exception 'Le garde anti-double-encaissement est inefficace'; end if;
+
+  if (select quantite from public.stocks where pharmacie_id=v_pharmacie and produit_id=v_produit) <> v_stock_before then
+    raise exception 'L’encaissement de réservation a débité le stock une seconde fois';
+  end if;
 end
 $behavior$;
 
