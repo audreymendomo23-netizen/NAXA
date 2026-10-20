@@ -11,8 +11,7 @@ async function scope() {
  const role=String(p?.role??"").toLowerCase(), fn=String(p?.fonction_interne??"").toLowerCase();
  if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn))) redirect("/");
  const {data:rows,error:e}=await sb.rpc("my_pharmacies");
- const pharmacies=(Array.isArray(rows)?rows:[]) as {pharmacie_id?:string;id?:string}[];
- const ids=[...new Set(pharmacies.map(x=>x.pharmacie_id??x.id).filter((x):x is string=>Boolean(x)))];
+ const ids=[...new Set((Array.isArray(rows)?rows:[]).filter((id):id is string=>typeof id==="string"))];
  if(e||!ids.length) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=perimetre");
  return {sb,uid:auth.user.id,ids};
 }
