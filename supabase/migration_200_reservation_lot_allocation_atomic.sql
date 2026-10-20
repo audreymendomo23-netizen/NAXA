@@ -191,6 +191,29 @@ begin
 end;
 $function$;
 
+create or replace function private.naxa_guard_lot_creation_with_unallocated_reservations()
+returns trigger language plpgsql security definer set search_path=''
+as $function$
+begin
+ if exists(
+  select 1 from public.reservations r
+  join public.reservation_items ri on ri.reservation_id=r.id
+  where r.pharmacie_id=new.pharmacie_id and ri.produit_id=new.produit_id
+   and r.statut in ('en_attente','confirmee')
+   and coalesce((select sum(a.quantite) from public.reservation_item_lots a
+    where a.reservation_id=r.id and a.produit_id=ri.produit_id and a.restauree_at is null),0)<ri.quantite
+ ) then
+  raise exception 'Création du premier lot refusée : une réservation active de ce produit n’a pas d’allocation de lot. Confirmez/annulez les dossiers concernés avant de lotiser.';
+ end if;
+ return new;
+end;
+$function$;
+revoke all on function private.naxa_guard_lot_creation_with_unallocated_reservations() from public,anon,authenticated;
+drop trigger if exists trg_stock_lot_requires_active_reservation_allocation on public.stocks_lots;
+create trigger trg_stock_lot_requires_active_reservation_allocation
+before insert on public.stocks_lots for each row
+execute function private.naxa_guard_lot_creation_with_unallocated_reservations();
+
 revoke all on function public.restore_stock(uuid) from public,anon,authenticated;
 comment on table public.reservation_item_lots is 'Allocation FEFO des lots réservés; conserve la traçabilité et restaure chaque lot une seule fois en cas d’annulation/expiration.';
 comment on function private.reserve_stock(uuid,jsonb) is 'Réserve le stock agrégé et les lots FEFO utilisables dans la même transaction; une vente POS liée n’effectue aucun second débit.';
