@@ -41,3 +41,39 @@ Le tableau de bord possède désormais une barre d'onglets permettant d'accéder
 - `d7f35d0fc8636ce7050c30034c5ddc0ee6a4e685` — onglets du tableau de bord et ancres des sections.
 
 Aucun déploiement n'a été lancé. Aucune écriture Supabase Production n'a été exécutée.
+
+## Audit visuel complémentaire — maquette statique des sept entrées
+
+### Référence du cahier des charges
+
+- **§ 5.2** : conserver les sept entrées principales : Tableau de bord, Clients et Assurances, Historique des ventes, Prise / fin de service, Rapports & Performances, Profil, Déconnexion.
+- **§ 13.0 / F00** : accueil avec cartes personnelles du jour, Nouvelle vente, ordonnances, réservations, paniers en attente, stock, demandes, clôture, alertes produits et dernière sauvegarde.
+- **§ 13.1 / C0** : logo, pharmacie, identité/rôle, FR/EN, notifications, aide/verrouillage, état réseau/synchronisation/sauvegarde, cibles tactiles, responsive, mode léger et états chargement/vide/erreur/hors-ligne/accès refusé.
+- **F14–F15** : recherche/scan, panier, contrôles visuels, favoris et paniers en attente.
+- **F35** : indicateurs personnels, courbe horaire, top produits, produits sans prix et raccourci d’action.
+
+### Résultat codé
+
+Nouvelle route de maquette : `/pharmacie/caisse/maquette-visuelle`, fichier `src/app/pharmacie/caisse/maquette-visuelle/page.tsx`.
+
+La page présente en une seule vue, pour revue visuelle :
+1. Tableau de bord et poste de caisse (indicateurs, courbe, raccourcis, alertes, recherche, scan, panier, récapitulatif de paiement).
+2. Clients et Assurances (compteurs, recherche, tableau clients, crédits et états tiers payant).
+3. Historique des ventes (filtres, table tickets, duplicata et demande d’annulation).
+4. Prise / fin de service (fond initial, statut, rapprochement, écart et historique de sessions).
+5. Rapports & Performances (KPI, courbe, répartition des paiements, top produits, produits sans prix et exports illustrés).
+6. Profil (avatar, identité, sécurité, messages de succès/erreur et préférences).
+7. Déconnexion (carte de sortie et variantes de message en ligne/hors ligne/erreur).
+8. Cadre commun C0 (squelettes de chargement, état vide, erreur, hors ligne, accès refusé, mode léger et checklist responsive/accessibilité).
+
+### Limites intentionnelles et constats
+
+- Cette route est **strictement visuelle** : boutons, champs, filtres, cartes et commandes sont des éléments de présentation non interactifs. Aucun appel Supabase, Auth, RPC, paiement, export, notification ou écriture métier n’est effectué.
+- Les montants, noms, tickets et statuts sont explicitement présentés comme exemples/valeurs non connectées ; ils ne doivent pas être interprétés comme des données réelles.
+- La recherche de code n’a pas identifié de fichier logo image NAXA réutilisable. La maquette emploie donc un monogramme « N » stylisé, à remplacer par l’actif officiel lorsqu’il sera identifié. Les vignettes produits sont des placeholders graphiques, pas des photos de médicaments.
+- Le tableau de bord opérationnel existant `/pharmacie/caisse` et les écrans connectés ne sont pas remplacés par cette maquette. La nouvelle route permet de valider l’inventaire visuel sans débrancher les fonctions existantes.
+- La présence de ces éléments visuels ne valide pas les comportements métier. La compilation TypeScript, les tests, la revue navigateur et la recette responsive restent à exécuter ; aucun déploiement n’a été lancé.
+
+## Commit de maquette visuelle
+
+- `97b5bb5f81f60e19dd4d23d24adbf836553cf550` — maquette statique des sept entrées et états communs.
