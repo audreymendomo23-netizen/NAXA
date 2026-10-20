@@ -20,7 +20,7 @@ alter table public.inventaire_ajustements enable row level security;
 drop policy if exists inventaire_ajustements_read_scope on public.inventaire_ajustements;
 create policy inventaire_ajustements_read_scope on public.inventaire_ajustements
  for select to authenticated using(public.is_admin() or public.can_access_pharmacy(pharmacie_id));
-revoke all on public.inventaire_ajustements from public,anon;
+revoke all on public.inventaire_ajustements from public,anon,authenticated;
 grant select on public.inventaire_ajustements to authenticated;
 
 create or replace function public.gestionnaire_stock_inventaire_demarrer(
