@@ -21,11 +21,15 @@ export function useNotifications() {
   useEffect(() => {
     void charger();
     const sb = supabaseBrowser();
-    const channel = sb.channel("naxa-notifications").on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, payload => {
-      const n = payload.new as NotificationNaxa;
+    const receiveNotification = (payload: { new: Record<string, unknown> }) => {
+      const n = payload.new as unknown as NotificationNaxa;
       setItems(old => [n, ...old.filter(x => x.id !== n.id)].slice(0, 50));
       if (typeof document !== "undefined" && document.visibilityState !== "visible" && typeof Notification !== "undefined" && Notification.permission === "granted") new Notification(n.titre, { body: n.corps });
-    }).subscribe();
+    };
+    const channel = sb.channel("naxa-notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, receiveNotification)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications" }, receiveNotification)
+      .subscribe();
     return () => { void sb.removeChannel(channel); };
   }, [charger]);
   const marquerLue = useCallback(async (id: string) => {
