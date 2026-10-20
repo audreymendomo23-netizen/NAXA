@@ -10,7 +10,7 @@ begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  select * into v_r from public.reservations where id=p_reservation for update;
  if not found or v_r.mode<>'reservation' then raise exception 'Réservation avec retrait introuvable'; end if;
- if not public.can_access_pharmacy(v_r.pharmacie_id) then raise exception 'Réservation hors périmètre pharmacie'; end if;
+ if not public.naxa_scope_allows(v_user,v_r.pharmacie_id,'PHARMACIE') then raise exception 'Réservation hors périmètre pharmacie'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
