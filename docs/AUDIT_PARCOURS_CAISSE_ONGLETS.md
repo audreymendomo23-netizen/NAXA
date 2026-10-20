@@ -141,3 +141,19 @@ Date : 20 octobre 2026. Travail de code directement sur `main`. Aucun déploieme
 - Route : `/pharmacie/caisse/parcours-ui`
 - Fichier : `src/app/pharmacie/caisse/parcours-ui/page.tsx`
 - Commits : `928816bd64897834b3e43e7867826d3206086da5` (première version), `cc924d6e185dbaddc3ed311fb86738c7bbfd7d9e` (écrans complémentaires), `f3ba621218b67e6ead57673559bef8a99ab54885` (correction des titres/syntaxe), `f0336a78a1eba57644233c950a507202fe30154a` (nettoyage types/états).
+
+### Complément de couverture après revue des liens
+
+La route `/pharmacie/caisse/parcours-ui` a été étendue pour rendre navigables les interfaces qui manquaient à la première passe : Connexion, Première connexion, Mot de passe oublié/OTP, Statut de garde, Coffre ordonnances, Ordonnance hors ligne/mode dégradé, PIN, Créances/bordereaux/rejets, Fournisseurs/dettes, alertes et état d’accès refusé à l’inventaire.
+
+Contrôle statique de la version relue :
+- 45 identifiants d’écran déclarés dans l’union TypeScript ;
+- 45 titres définis ;
+- 45 écrans couverts par un rendu conditionnel ;
+- 171 gestionnaires locaux `onClick` recensés ;
+- aucune référence Supabase/Auth dans ce fichier ;
+- les actions non disponibles ouvrent un dialogue d’information plutôt que de lancer une opération métier.
+
+Ce contrôle confirme la cohérence de l’inventaire des écrans, pas la compilation. L’installation/build n’a pas pu être exécutée dans l’environnement de travail utilisé pour cette intervention (accès réseau au dépôt indisponible). Le statut TypeScript/build reste donc non vérifié.
+
+Dernier commit du prototype : `97a946e964e4568627e52ff89853128e35a30157` — écrans de connexion et récupération de mot de passe.
