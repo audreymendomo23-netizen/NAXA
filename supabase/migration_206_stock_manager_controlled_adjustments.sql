@@ -8,7 +8,7 @@ create or replace function public.gestionnaire_stock_quantite_ajuster(
 as $function$
 declare
  v_user uuid:=auth.uid(); v_profile public.profiles%rowtype; v_stock integer;
- v_has_lots boolean; v_lot_quantite integer; v_lot_pharmacie uuid; v_lot_produit uuid; v_bloque boolean;
+ v_has_lots boolean; v_lot_total integer; v_lot_quantite integer; v_lot_pharmacie uuid; v_lot_produit uuid; v_bloque boolean;
  v_motif text:=nullif(trim(coalesce(p_motif,'')),'');
 begin
  if v_user is null then raise exception 'Connexion requise'; end if;
@@ -26,6 +26,10 @@ begin
  if not found then raise exception 'Référence absente du stock : initialisez-la avant le mouvement'; end if;
  if v_stock+p_delta<0 then raise exception 'Quantité insuffisante pour cette variation'; end if;
  select exists(select 1 from public.stocks_lots sl where sl.pharmacie_id=p_pharmacie and sl.produit_id=p_produit) into v_has_lots;
+ if v_has_lots then
+  select coalesce(sum(sl.quantite),0)::integer into v_lot_total from public.stocks_lots sl where sl.pharmacie_id=p_pharmacie and sl.produit_id=p_produit;
+  if v_lot_total<>v_stock then raise exception 'Stock agrégé et lots incohérents : réconciliation requise avant mouvement'; end if;
+ end if;
  perform pg_catalog.set_config('naxa.stock_motif',v_motif,true);
  if v_has_lots then
   if p_lot is null then raise exception 'Cette référence est lotisée : choisissez le lot concerné'; end if;
