@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 
@@ -21,6 +21,8 @@ type Reservation = {
   paiement_ref: string | null;
   reservation_items: ReservationItem[] | null;
 };
+type QRDetector = { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
+type QRDetectorConstructor = new (options?: { formats: string[] }) => QRDetector;
 type Receipt = {
   transactionId: string;
   code: string;
@@ -66,6 +68,8 @@ export function CaisseRetraitsMarketplace({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const load = useCallback(async () => {
     if (!pharmacieId) {
@@ -94,6 +98,55 @@ export function CaisseRetraitsMarketplace({
   }, [pharmacieId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!cameraOpen) return;
+    let active = true;
+    let stream: MediaStream | null = null;
+    let frame = 0;
+    let detector: QRDetector | null = null;
+    const stop = () => {
+      if (frame) cancelAnimationFrame(frame);
+      stream?.getTracks().forEach((track) => track.stop());
+      stream = null;
+    };
+    void (async () => {
+      try {
+        const Detector = (window as unknown as { BarcodeDetector?: QRDetectorConstructor }).BarcodeDetector;
+        if (!Detector) throw new Error("Ce navigateur ne prend pas en charge le scan QR caméra. Utilisez un lecteur QR qui saisit le code ou entrez-le manuellement.");
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("La caméra exige un navigateur sécurisé (HTTPS) et une autorisation caméra.");
+        detector = new Detector({ formats: ["qr_code"] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        if (!active) { stop(); return; }
+        const video = videoRef.current;
+        if (!video) { stop(); return; }
+        video.srcObject = stream;
+        await video.play();
+        const scan = async () => {
+          if (!active || !videoRef.current || !detector) return;
+          try {
+            const codes = await detector.detect(videoRef.current);
+            const value = codes.find((item) => item.rawValue)?.rawValue;
+            if (value) {
+              setCodeInput(value);
+              setCameraOpen(false);
+              setMessage("QR code lu. Vérifiez la transaction avant de valider le paiement.");
+              return;
+            }
+          } catch {
+            // Ignore transient frame/focus errors and continue scanning.
+          }
+          frame = requestAnimationFrame(() => { void scan(); });
+        };
+        void scan();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Impossible d’ouvrir le scanner QR.");
+        setCameraOpen(false);
+        stop();
+      }
+    })();
+    return () => { active = false; stop(); };
+  }, [cameraOpen]);
 
   const normalizedCode = useMemo(() => {
     const raw = codeInput.trim().toUpperCase();
@@ -251,8 +304,9 @@ export function CaisseRetraitsMarketplace({
         <label className="text-sm font-semibold">Code de paiement / contenu du QR code
           <input className="champ mt-1 w-full uppercase" value={codeInput} onChange={(event) => { setCodeInput(event.target.value); setError(""); setReceipt(null); }} placeholder="Ex. A1B2C3D4E5F6" autoCapitalize="characters" autoComplete="off" />
         </label>
-        <button type="button" className="btn btn-clair self-end" disabled={loading || !codeInput.trim()} onClick={() => void lookupTransaction()}>Retrouver la transaction</button>
+        <div className="flex flex-wrap gap-2 self-end"><button type="button" className="btn btn-clair" disabled={loading || !!busyId} onClick={() => { setError(""); setCameraOpen((value) => !value); }}>{cameraOpen ? "Fermer le scanner" : "Scanner avec la caméra"}</button><button type="button" className="btn btn-clair" disabled={loading || !codeInput.trim()} onClick={() => void lookupTransaction()}>Retrouver la transaction</button></div>
       </div>
+      {cameraOpen && <div className="rounded-xl border p-3 print:hidden"><video ref={videoRef} muted playsInline className="mx-auto max-h-72 w-full rounded-lg bg-black object-contain" /><p className="mt-2 text-xs text-slate-600">Placez le QR dans le cadre. La caméra sert uniquement à lire le code localement.</p></div>}
       {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 print:hidden">{message}</p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900 print:hidden">{error}</p>}
       {loading ? <p role="status" className="text-sm text-slate-600 print:hidden">Chargement des réservations…</p> : rows.length === 0 ? (
