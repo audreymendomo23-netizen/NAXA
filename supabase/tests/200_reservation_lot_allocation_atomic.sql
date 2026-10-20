@@ -4,6 +4,8 @@ begin
  if to_regclass('public.reservation_item_lots') is null then raise exception 'Allocation de lots par réservation absente'; end if;
  if to_regprocedure('private.reserve_stock(uuid,jsonb)') is null then raise exception 'RPC interne de réservation absente'; end if;
  if to_regprocedure('public.restore_stock(uuid)') is null then raise exception 'RPC de restitution absente'; end if;
+ if to_regprocedure('private.naxa_guard_lot_creation_with_unallocated_reservations()') is null then raise exception 'Garde de création de lot absent'; end if;
+ if not exists(select 1 from pg_trigger where tgname='trg_stock_lot_requires_active_reservation_allocation' and tgrelid='public.stocks_lots'::regclass) then raise exception 'Garde d’allocation avant lotisation absent'; end if;
  if not exists(select 1 from pg_trigger where tgrelid='public.stocks'::regclass and tgname='trg_stocks_guard_lot_quantity_consistency') then
   raise notice 'Le garde de cohérence de stock agrégé dépend de la migration historique 178/185.';
  end if;
