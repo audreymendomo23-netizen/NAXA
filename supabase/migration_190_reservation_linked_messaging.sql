@@ -65,7 +65,7 @@ begin
  select pharmacie_id,client_id into v_pharmacie,v_client from public.fils_messages where id=p_fil;
  if v_client is null then raise exception 'Conversation introuvable'; end if;
  if v_user=v_client then v_expediteur:='client';
- elsif (public.is_admin() or public.can_access_pharmacy(v_pharmacie)) then v_expediteur:='pharmacie';
+ elsif (public.is_admin() or public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE')) then v_expediteur:='pharmacie';
  else raise exception 'Accès refusé'; end if;
  select reservation_id into v_reservation from public.messages_pharmacie
  where fil_id=p_fil and reservation_id is not null order by created_at desc limit 1;
