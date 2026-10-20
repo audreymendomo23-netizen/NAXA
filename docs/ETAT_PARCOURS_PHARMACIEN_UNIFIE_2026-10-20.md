@@ -100,3 +100,18 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 - Les rapports utilisent encore un échantillon de dossiers chargés (jusqu’à 30 pour certaines listes), et non une agrégation historique serveur. Le journal append-only est désormais défini pour les consultations, prescriptions et préparations, mais son exécution réelle dépend de la migration 190 et de la validation des tests. Les délais fiables, les comparaisons de période complètes et le suivi de prescriptions patients ne sont pas encore terminés. Les alertes sont maintenant affichées uniquement quand le partage et le consentement restent actifs, sous réserve de la migration 192. L’export CSV du journal actuellement chargé est désormais câblé et appelle la RPC de journalisation de la migration 191 avant de générer le fichier.
 - Aucun build, lint, typecheck ou test SQL n’a été exécuté dans cette passe. Les assertions SQL ajoutées ne valent pas preuve d’exécution.
 - Aucun déploiement n’a été lancé.
+
+## Compléments du poste Pharmacien — 20 octobre 2026 (suite)
+
+- **Revue d'ordonnance** : l'écran charge maintenant les lignes structurées de `prescription_items` dans le périmètre des ordonnances entrantes et présente la désignation, la quantité, la posologie, la durée, les instructions et les commentaires disponibles avant décision. Si le chargement des lignes échoue, la validation positive est bloquée dans l'interface ; si aucune ligne structurée n'existe, l'écran demande de vérifier le document source avant décision.
+- **Demande de complément** : le pharmacien peut demander un complément dès l'examen de l'ordonnance, sans devoir enregistrer une préparation au préalable. Un motif est obligatoire et l'action est protégée contre les soumissions répétées pendant son exécution.
+- **Dossier de consultation** : les vues récentes affichent maintenant les observations, la conclusion et les recommandations déjà enregistrées, plutôt que la seule conclusion.
+- **Suivi connecté** : un dossier patient partagé peut être ouvert depuis la liste ; le pharmacien peut sélectionner un type de mesure et visualiser une courbe descriptive des 20 dernières valeurs numériques disponibles, avec minimum, maximum et dates. Les données restent filtrées par les partages actifs et les règles de consentement en vigueur. La courbe n'émet aucun diagnostic ni recommandation thérapeutique.
+- **Historique / rapports** : le type d'événement `report` créé par la migration 191 est désormais représenté correctement dans le typage, les libellés, le filtre Historique et le compteur des exports journalisés.
+
+### Limites de validation maintenues
+
+- Ces modifications ont été enregistrées directement sur `main`; aucun déploiement n'a été lancé.
+- Le dépôt distant n'a pas pu être cloné dans l'environnement de travail (résolution réseau GitHub indisponible). Build, lint, typecheck et tests automatisés ne sont donc **pas exécutés** et aucune réussite de compilation n'est revendiquée.
+- Les migrations 188–192 ne sont pas confirmées appliquées à Supabase. Les nouveaux écrans restent dépendants des politiques RLS et fonctions serveur existantes.
+- Le suivi des prescriptions du patient avec consentement distinct, la journalisation des consultations de données sensibles, les agrégats de rapports exhaustifs côté serveur et le parcours de délivrance de bout en bout restent à compléter et à tester.
