@@ -13,7 +13,7 @@ declare
 begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  if p_delta is null or p_delta=0 or p_delta < -1000000 or p_delta > 1000000 then raise exception 'Variation entière comprise entre -1 000 000 et +1 000 000 requise'; end if;
- if p_type not in ('perte','retour','ajustement') then raise exception 'Type de mouvement invalide'; end if;
+ if p_type is null or p_type not in ('perte','retour','ajustement') then raise exception 'Type de mouvement invalide'; end if;
  if p_type='perte' and p_delta>=0 then raise exception 'Une perte doit avoir une variation négative'; end if;
  if p_type='retour' and p_delta<=0 then raise exception 'Un retour doit avoir une variation positive'; end if;
  if v_motif is null or char_length(v_motif)<3 or char_length(v_motif)>500 then raise exception 'Un motif de 3 à 500 caractères est obligatoire'; end if;
