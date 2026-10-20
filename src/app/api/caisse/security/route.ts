@@ -31,10 +31,16 @@ export async function POST(request:NextRequest){
  if(b.action==="authorize-pin"){
   const sid=typeof b.sessionId==="string"?b.sessionId:"",pin=typeof b.pin==="string"?b.pin:"";
   if(!sid||!/^\d{6,8}$/.test(pin)||!(await sessionOK(user.id,sid)))return err("Session ou PIN invalide.",403);
-  const {data:c}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash").eq("user_id",user.id).maybeSingle();
+  const {data:c}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash,pin_failed_attempts,pin_locked_until").eq("user_id",user.id).maybeSingle();
   if(!c?.pin_salt||!c.pin_hash)return err("PIN non configuré par le Promoteur.",403);
+  if(c.pin_locked_until && new Date(c.pin_locked_until).getTime()>Date.now())return err("PIN temporairement bloqué après plusieurs échecs. Réessayez plus tard.",429);
   const got=scryptSync(pin,c.pin_salt,64),expected=Buffer.from(c.pin_hash,"hex");
-  if(got.length!==expected.length||!timingSafeEqual(got,expected))return err("PIN incorrect.",403);
+  if(got.length!==expected.length||!timingSafeEqual(got,expected)){
+   const attempts=Math.min(5,Number(c.pin_failed_attempts||0)+1);
+   await db.from("caisse_security_credentials").update({pin_failed_attempts:attempts,pin_locked_until:attempts>=5?new Date(Date.now()+15*60_000).toISOString():null,updated_at:new Date().toISOString()}).eq("user_id",user.id);
+   return err(attempts>=5?"PIN bloqué pendant 15 minutes après 5 échecs.":"PIN incorrect.",403);
+  }
+  await db.from("caisse_security_credentials").update({pin_failed_attempts:0,pin_locked_until:null,updated_at:new Date().toISOString()}).eq("user_id",user.id);
   return NextResponse.json({grantId:await grant(user.id,sid,"pin"),method:"pin"});
  }
  if(b.action==="registration-options"){
