@@ -7,9 +7,9 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
 type Preparation={prescription_id:string;statut:string;notes_preparation:string|null;motif_complement:string|null;updated_at:string};
 
-export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?: "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "historique" | "rapports" | "profil" }) {
+export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?: "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil" }) {
   const sb=supabaseBrowser();
-  const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"dashboard"|"consultation"|"prescription"|"ordonnances"|"preparations"|"historique"|"rapports"|"profil">(initialTab);
+  const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"dashboard"|"consultation"|"prescription"|"ordonnances"|"preparations"|"dispositifs"|"historique"|"rapports"|"profil">(initialTab);
   const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]),[preparations,setPreparations]=useState<Record<string,Preparation>>({});
   const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({}),[notesPreparation,setNotesPreparation]=useState<Record<string,string>>({});
   const [consult,setConsult]=useState({patient:"",clientId:"",motif:"",observations:"",conclusion:"",recommandations:""});
@@ -29,7 +29,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
   useEffect(()=>{(async()=>{
     const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
     const {data:p}=await sb.from("profiles").select("fonction_interne,pharmacie_id,actif").eq("id",u.user.id).single();
-    if(!p?.pharmacie_id||p.actif===false||p.fonction_interne!=="pharmacien")return setMsg("Accès réservé à un compte Pharmacien actif.");
+    if(!p?.pharmacie_id||p.actif!==true||p.fonction_interne!=="pharmacien")return setMsg("Accès réservé à un compte Pharmacien actif.");
     setPid(p.pharmacie_id);charger(p.pharmacie_id);
   })()},[sb]);
 
@@ -76,6 +76,8 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     </section>
 
     {tab==="dashboard"&&<section className="carte"><h2 className="text-lg font-bold">Tableau de bord</h2><div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Ordonnances en attente</p><p className="text-2xl font-extrabold">{incoming.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Préparations enregistrées</p><p className="text-2xl font-extrabold">{Object.keys(preparations).length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Prescriptions internes récentes</p><p className="text-2xl font-extrabold">{internal.length}</p></div></div><p className="mt-3 text-sm text-slate-600">Choisissez une entrée du menu pour ouvrir les opérations correspondantes. Les décisions pharmaceutiques restent enregistrées via les RPC dédiées.</p></section>}
+
+    {tab==="dispositifs"&&<section className="carte space-y-3"><h2 className="text-lg font-bold">Suivi des dispositifs Patient</h2><p className="text-sm text-slate-600">Cette rubrique est maintenant isolée dans le parcours Pharmacien. Elle n’affiche pas encore de données patient : le suivi partagé exige un consentement explicite et révocable, des droits RLS dédiés et une liaison vérifiée aux mesures et prescriptions.</p><div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><b>Module non connecté aux dossiers patients.</b><p className="mt-1">Aucune donnée médicale ne sera affichée à partir du tableau personnel /suivi. Les alertes, l’historique des accès et le suivi des prescriptions doivent être raccordés et testés avant mise en service.</p></div></section>}
 
     {tab==="consultation"&&<section className="carte space-y-3">
       <h2 className="text-lg font-bold">Nouvelle consultation pharmaceutique</h2>
