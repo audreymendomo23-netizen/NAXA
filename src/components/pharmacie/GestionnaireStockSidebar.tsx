@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeconnexionGestionnaireStock } from "@/components/pharmacie/DeconnexionGestionnaireStock";
 
 const entries = [
   { href: "/pharmacie/gestionnaire-stock", label: "Tableau de bord", icon: "▦" },
@@ -21,6 +22,6 @@ export function GestionnaireStockSidebar({ active }: { active: string }) {
         <span aria-hidden="true" className="w-5 text-center text-base">{entry.icon}</span><span>{entry.label}</span>
       </Link>)}
     </nav>
-    <div className="mt-3 border-t pt-3"><Link href="/deconnexion" className="block rounded-xl px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">↪ Déconnexion</Link></div>
+    <div className="mt-3 border-t pt-3"><DeconnexionGestionnaireStock /></div>
   </aside>;
 }
