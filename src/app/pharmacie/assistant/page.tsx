@@ -32,7 +32,7 @@ export default function AssistantPharmacienPage() {
     const [ord, prep] = await Promise.all([
       sb.from("prescriptions")
         .select("id,document_ref,created_at,motif_rejet,client_id,statut")
-        .eq("pharmacie_id", id).eq("source", "client").in("statut", ["en_attente", "rejetee"])
+        .eq("pharmacie_id", id).eq("source", "client").in("statut", ["en_attente", "validee", "rejetee", "expiree"])
         .order("created_at", { ascending: true }).limit(100),
       sb.from("prescription_preparations")
         .select("prescription_id,statut,notes_preparation,motif_complement,updated_at")
@@ -111,6 +111,19 @@ export default function AssistantPharmacienPage() {
           </article>;
         })}
       </div>
+      {ordonnances.some(o => o.statut !== "en_attente") && <section className="carte mt-6">
+        <h2 className="text-lg font-extrabold">Décisions et historique récent</h2>
+        <div className="mt-3 space-y-3">
+          {ordonnances.filter(o => o.statut !== "en_attente").map(o => <article key={o.id} className="rounded-xl border border-slate-200 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <b>Ordonnance {o.id.slice(0, 8).toUpperCase()}</b>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{o.statut === "validee" ? "Validée par le Pharmacien" : o.statut === "rejetee" ? "Rejetée" : "Expirée"}</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-600">{new Date(o.created_at).toLocaleString("fr-FR")}</p>
+            {o.motif_rejet && <p className="mt-2 text-sm"><b>Motif :</b> {o.motif_rejet}</p>}
+          </article>)}
+        </div>
+      </section>}
       <p className="mt-5 text-xs text-slate-500">Le Pharmacien conserve la décision de validation/rejet, sauf délégation explicite et vérifiée par le moteur de privilèges.</p>
     </main>
   );
