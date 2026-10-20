@@ -49,6 +49,10 @@ begin
  if not v_rejected then raise exception 'La Caisse a pu déclarer un rappel de lot'; end if;
 
  perform set_config('request.jwt.claim.sub',v_promoteur::text,true);
+ v_rejected:=false;
+ begin perform public.lot_lever_rappel(v_lot); exception when others then v_rejected:=true; end;
+ if not v_rejected then raise exception 'Le Promoteur a pu clôturer un rappel avec du stock non traité'; end if;
+ perform public.lot_rappel_traiter_sortie(v_rappel,'destruction',5,null,'Destruction du lot de test');
  perform public.lot_lever_rappel(v_lot);
  if not exists(select 1 from public.rappels_lots where id=v_rappel and statut='leve' and leve_par=v_promoteur) then
    raise exception 'La clôture du rappel n''a pas été historisée';
