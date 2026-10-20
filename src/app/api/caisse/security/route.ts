@@ -48,7 +48,7 @@ export async function POST(request:NextRequest){
  }
  if(b.action==="registration-options"){
   const sid=typeof b.sessionId==="string"?b.sessionId:"",pin=typeof b.pin==="string"?b.pin:"";
-  if(!sid||!(await sessionOK(user.id,sid))||!/^\\d{6,8}$/.test(pin))return err("Session Caisse ou PIN Promoteur requis pour enregistrer la biométrie.",403);
+  if(!sid||!(await sessionOK(user.id,sid))||!/^[0-9]{6,8}$/.test(pin))return err("Session Caisse ou PIN Promoteur requis pour enregistrer la biométrie.",403);
   const {data:credential}=await db.from("caisse_security_credentials").select("pin_salt,pin_hash,pin_locked_until").eq("user_id",user.id).maybeSingle();
   if(!credential?.pin_salt||!credential.pin_hash)return err("PIN non configuré par le Promoteur.",403);
   if(credential.pin_locked_until&&new Date(credential.pin_locked_until).getTime()>Date.now())return err("PIN temporairement bloqué après plusieurs échecs.",429);
@@ -87,7 +87,7 @@ export async function POST(request:NextRequest){
   if(challengeError)throw challengeError;
   const {data:c}=await db.from("caisse_security_credentials").select("*").eq("user_id",user.id).eq("webauthn_enabled",true).maybeSingle();
   if(!ch||!c?.webauthn_credential_id||!c.webauthn_public_key)return err("Biométrie non configurée ou demande expirée/déjà consommée.",403);
-  const v=await verifyAuthenticationResponse({response,expectedChallenge:ch.challenge,expectedOrigin:origin(request),expectedRPID:rp(request),requireUserVerification:true,credential:{id:c.webauthn_credential_id,publicKey:Buffer.from(c.webauthn_public_key,"base64url"),counter:Number(c.webauthn_counter||0),transports:(c.webauthn_transports||[]) as AuthenticatorTransport[]}});
+  const v=await verifyAuthenticationResponse({response,expectedChallenge:ch.challenge,expectedOrigin:origin(request),expectedRPID:rp(request),requireUserVerification:true,credential:{id:c.webauthn_credential_id,publicKey:Uint8Array.from(Array.from(Buffer.from(c.webauthn_public_key,"base64url"))),counter:Number(c.webauthn_counter||0),transports:(c.webauthn_transports||[]) as AuthenticatorTransport[]}});
   if(!v.verified)return err("Vérification biométrique refusée.",403);
   const {error:counterError}=await db.from("caisse_security_credentials").update({webauthn_counter:v.authenticationInfo.newCounter,updated_at:new Date().toISOString()}).eq("user_id",user.id);if(counterError)throw counterError;
   return NextResponse.json({grantId:await grant(user.id,sid,"biometric"),method:"biometric"});
