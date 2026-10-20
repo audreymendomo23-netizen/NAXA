@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
 type Preparation={prescription_id:string;statut:string;notes_preparation:string|null;motif_complement:string|null;updated_at:string};
 type AuditEvent={id:string;actor_user_id:string|null;entity_type:"consultation"|"prescription"|"preparation";entity_id:string;action:string;old_status:string|null;new_status:string|null;reason:string|null;occurred_at:string;metadata:Record<string,unknown>};
+type Consultation={id:string;client_id:string|null;patient_nom:string;motif:string;created_by:string;created_at:string;conclusion:string|null};
 
 export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?: "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil" }) {
   const sb=useMemo(() => supabaseBrowser(), []);
@@ -16,6 +17,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
   const [newPassword,setNewPassword]=useState(""),[confirmPassword,setConfirmPassword]=useState(""),[passwordBusy,setPasswordBusy]=useState(false);
   const [textSize,setTextSize]=useState<"normal"|"grand">("normal"),[compactDisplay,setCompactDisplay]=useState(false),[preferencesReady,setPreferencesReady]=useState(false);
   const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]),[preparations,setPreparations]=useState<Record<string,Preparation>>({});
+  const [consultations,setConsultations]=useState<Consultation[]>([]),[consultSearch,setConsultSearch]=useState("");
   const [auditEvents,setAuditEvents]=useState<AuditEvent[]>([]),[auditError,setAuditError]=useState("");
   const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({}),[notesPreparation,setNotesPreparation]=useState<Record<string,string>>({});
   const [historySearch,setHistorySearch]=useState(""),[historyType,setHistoryType]=useState("toutes"),[historyFrom,setHistoryFrom]=useState(""),[historyTo,setHistoryTo]=useState("");
@@ -32,6 +34,8 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     if(mine.error||received.error||prep.error)return setMsg(mine.error?.message??received.error?.message??prep.error?.message??"Impossible de charger les ordonnances.");
     setInternal((mine.data??[]) as Ord[]);setIncoming((received.data??[]) as Ord[]);
     setPreparations(Object.fromEntries(((prep.data??[]) as Preparation[]).map(x=>[x.prescription_id,x])));
+    const {data:consultationRows,error:consultationError}=await sb.from("consultations_pharmaceutiques").select("id,client_id,patient_nom,motif,created_by,created_at,conclusion").eq("pharmacie_id",id).order("created_at",{ascending:false}).limit(100);
+    if(!consultationError)setConsultations((consultationRows??[]) as Consultation[]);
     const {data:audit,error:auditLoadError}=await sb.from("pharmacien_audit_events").select("id,actor_user_id,entity_type,entity_id,action,old_status,new_status,reason,occurred_at,metadata").eq("pharmacie_id",id).order("occurred_at",{ascending:false}).limit(200);
     if(auditLoadError){setAuditEvents([]);setAuditError("Le journal append-only attend la migration 190 ou ses droits RLS ne sont pas encore disponibles.");}
     else{setAuditEvents((audit??[]) as AuditEvent[]);setAuditError("");}
@@ -139,7 +143,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
 
     {tab==="dispositifs"&&<section className="carte space-y-3"><h2 className="text-lg font-bold">Suivi des dispositifs Patient</h2><p className="text-sm text-slate-600">Cette rubrique est maintenant isolée dans le parcours Pharmacien. Elle n’affiche pas encore de données patient : le suivi partagé exige un consentement explicite et révocable, des droits RLS dédiés et une liaison vérifiée aux mesures et prescriptions.</p><div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><b>Module non connecté aux dossiers patients.</b><p className="mt-1">Aucune donnée médicale ne sera affichée à partir du tableau personnel /suivi. Les alertes, l’historique des accès et le suivi des prescriptions doivent être raccordés et testés avant mise en service.</p></div></section>}
 
-    {tab==="consultation"&&<section className="carte space-y-3">
+    {tab==="consultation"&&<div className="space-y-4"><section className="carte space-y-3">
       <h2 className="text-lg font-bold">Nouvelle consultation pharmaceutique</h2>
       <label className="block text-sm font-semibold">Nom du patient<input className="champ mt-1 w-full" value={consult.patient} onChange={e=>setConsult(x=>({...x,patient:e.target.value}))}/></label>
       <label className="block text-sm font-semibold">ID client NAXA (facultatif)<input className="champ mt-1 w-full" value={consult.clientId} onChange={e=>setConsult(x=>({...x,clientId:e.target.value}))}/></label>
@@ -148,7 +152,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
       <label className="block text-sm font-semibold">Conclusion<textarea className="champ mt-1 min-h-20 w-full" value={consult.conclusion} onChange={e=>setConsult(x=>({...x,conclusion:e.target.value}))}/></label>
       <label className="block text-sm font-semibold">Recommandations<textarea className="champ mt-1 min-h-20 w-full" value={consult.recommandations} onChange={e=>setConsult(x=>({...x,recommandations:e.target.value}))}/></label>
       <button disabled={busy} className="btn btn-vert w-full" onClick={creerConsultation}>{busy?"Enregistrement…":"Enregistrer la consultation et passer à la prescription"}</button>
-    </section>}
+    </section><section className="carte space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">Consultations récentes</h2><span className="text-sm text-slate-500">{consultations.length} dossier(s) chargé(s)</span></div><label className="block text-sm font-semibold">Rechercher par patient, motif ou référence<input className="champ mt-1 w-full" value={consultSearch} onChange={e=>setConsultSearch(e.target.value)} placeholder="Nom, motif, identifiant"/></label>{consultations.filter(item=>{const q=consultSearch.trim().toLowerCase();return !q||item.patient_nom.toLowerCase().includes(q)||item.motif.toLowerCase().includes(q)||item.id.toLowerCase().includes(q)}).map(item=><article key={item.id} className="rounded-xl border border-slate-200 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><b>{item.patient_nom}</b><p className="text-sm text-slate-600">{new Date(item.created_at).toLocaleString("fr-FR")} · {item.motif}</p><p className="text-xs text-slate-500">Dossier {item.id.slice(0,8).toUpperCase()}</p></div><button type="button" className="btn btn-clair" onClick={()=>{setPresc(x=>({...x,patient:item.patient_nom,clientId:item.client_id??"",consultationId:item.id}));setTab("prescription");}}>Créer une prescription liée</button></div>{item.conclusion&&<p className="mt-2 text-sm">Conclusion enregistrée : {item.conclusion}</p>}</article>)}{consultations.length===0&&<p className="text-sm text-slate-600">Aucune consultation enregistrée ou liste non accessible.</p>}</section></div>}
 
     {tab==="prescription"&&<section className="carte space-y-3">
       <h2 className="text-lg font-bold">Émettre une prescription</h2>
