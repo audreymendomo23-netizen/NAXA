@@ -16,14 +16,16 @@ begin
 
   select pg_get_functiondef(p.oid) into v_fn
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='vente_reservation_encaisser' and p.pronargs=3;
+  where n.nspname='public' and p.proname='vente_reservation_encaisser' and p.pronargs=5;
 
   if v_fn is null
      or position('auth.uid()' in lower(v_fn))=0
      or position('p_session' in lower(v_fn))=0
      or position('naxa_caisse_actor_for_pharmacy' in lower(v_fn))=0
      or position('p_montant_percu' in lower(v_fn))=0
-     or position('public.vente_encaisser_finaliser' in lower(v_fn))=0
+     or position('p_canal' in lower(v_fn))=0
+     or position('p_code_paiement' in lower(v_fn))=0
+     or position('public.vente_paiements' in lower(v_fn))=0
      or position('public.set_reservation_status' in lower(v_fn))=0
      or position('reservation_items' in lower(v_fn))=0
      or position('expires_at' in lower(v_fn))=0 then
@@ -35,9 +37,14 @@ begin
     raise exception 'La réservation débite le stock une seconde fois';
   end if;
 
-  if not has_function_privilege('authenticated','public.vente_reservation_encaisser(uuid,uuid,integer)','EXECUTE')
-     or has_function_privilege('anon','public.vente_reservation_encaisser(uuid,uuid,integer)','EXECUTE') then
+  if not has_function_privilege('authenticated','public.vente_reservation_encaisser(uuid,uuid,integer,text,text)','EXECUTE')
+     or has_function_privilege('anon','public.vente_reservation_encaisser(uuid,uuid,integer,text,text)','EXECUTE')
+     or has_function_privilege('authenticated','public.vente_reservation_encaisser(uuid,uuid,integer)','EXECUTE') then
     raise exception 'Droits EXECUTE de l’encaissement réservation incorrects';
+  end if;
+  if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='reservations' and column_name='code_paiement')
+     or not exists(select 1 from pg_indexes where schemaname='public' and indexname='reservations_code_paiement_uidx') then
+    raise exception 'Code de paiement Marketplace ou unicité absents';
   end if;
 end
 $structure$;
@@ -54,6 +61,7 @@ declare
   v_rejected boolean := false;
   v_count integer;
   v_stock_before integer;
+  v_code text;
 begin
   select id into v_produit from public.produits limit 1;
   if v_produit is null then raise exception 'Aucun produit de test disponible'; end if;
@@ -97,9 +105,11 @@ begin
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
 
+  select code_paiement into v_code from public.reservations where id=v_reservation;
+
   -- Un montant insuffisant doit tout annuler : ni vente brouillon ni paiement orphelin.
   begin
-    perform * from public.vente_reservation_encaisser(v_reservation,v_session,99);
+    perform * from public.vente_reservation_encaisser(v_reservation,v_session,99,'especes',v_code);
   exception when others then
     v_rejected := true;
   end;
@@ -108,7 +118,7 @@ begin
   if v_count <> 0 then raise exception 'Échec de paiement : vente partielle persistée'; end if;
 
   select * into v_result
-  from public.vente_reservation_encaisser(v_reservation,v_session,200);
+  from public.vente_reservation_encaisser(v_reservation,v_session,200,'especes',v_code);
 
   if v_result.total <> 100 or v_result.monnaie_rendue <> 100 or v_result.numero_vente is null then
     raise exception 'Montants ou numéro de ticket incorrects';
@@ -133,7 +143,7 @@ begin
 
   v_rejected := false;
   begin
-    perform * from public.vente_reservation_encaisser(v_reservation,v_session,100);
+    perform * from public.vente_reservation_encaisser(v_reservation,v_session,100,'especes',v_code);
   exception when others then
     v_rejected := true;
   end;
