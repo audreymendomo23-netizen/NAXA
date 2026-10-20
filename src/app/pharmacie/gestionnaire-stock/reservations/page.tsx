@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { annulerReservationGestionStock } from "../actions";
+import { annulerReservationGestionStock, confirmerReservationGestionStock } from "../actions";
 import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";
 
 type StockRow = {
@@ -128,8 +128,8 @@ export default async function GestionnaireStockReservationsPage({
           <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Source</p><p className="mt-1 text-sm font-bold">Réservations pharmacie existantes</p><p className="mt-1 text-xs text-slate-500">Aucun dossier ou moteur de stock parallèle.</p></div>
         </section>
 
-        {searchParams.ok === "annulee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La réservation a été annulée et la mise à jour serveur confirmée.</p>}
-        {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "confirmation" ? "Coche la confirmation avant d’annuler." : "Annulation refusée : vérifie le statut actuel et les droits du compte. Aucune réussite n’est présumée."}</p>}
+        {searchParams.ok === "annulee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La réservation a été annulée et la mise à jour serveur confirmée.</p>}{searchParams.ok === "confirmee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation confirmée. Le dossier est transmis au parcours de préparation et de retrait.</p>}
+        {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "confirmation" ? "Coche la confirmation avant d’annuler." : searchParams.erreur === "confirmation_stock" ? "Confirmation refusée : le serveur a détecté une réservation expirée, un stock absent ou des lots utilisables insuffisants. Vérifie les lots et réessaie." : "Annulation refusée : vérifie le statut actuel et les droits du compte. Aucune réussite n’est présumée."}</p>}
         {reservationError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Impossible de charger les réservations dans le périmètre du compte.</p>}
         {(stockResult.error || lotsResult.error) && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Les informations de stock ou de lots sont incomplètes. Ne valide pas la préparation avant d’avoir vérifié ces données.</p>}
 
@@ -172,7 +172,7 @@ export default async function GestionnaireStockReservationsPage({
                   })}
                 </ul>
                 <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t pt-3"><p className="font-black">{fcfa(reservation.total)}</p>
-                  {["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
+                  {reservation.statut === "en_attente" && <form action={confirmerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><button type="submit" className="min-h-10 rounded-xl bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white">Confirmer disponibilité et préparer</button></form>}{["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
                 </div>
               </article>
             );
