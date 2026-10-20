@@ -55,6 +55,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 200 : allocations FEFO par dossier et restitution exacte des lots à l’annulation/expiration, avec préflight qui refuse toute réconciliation historique ambiguë.
 - Migration 201 : confirmation de réservation fondée sur les allocations réelles; évite de comparer deux fois la demande au stock déjà réservé.
 - Migration 202 : verrou serveur des mouvements de stock pendant un inventaire ouvert; la clôture passe le dossier à l’état fermé dans la même transaction avant d’appliquer les écarts.
+- Migration 203 : annulation d’un dossier de réservation contrôlée par rôle, périmètre pharmacie et transition métier atomique.
 - L’interface de réservation affiche maintenant les lots affectés au dossier et bloque la confirmation côté écran si l’allocation n’est pas vérifiable.
 - Le tableau de bord stock est distinct de la file des réservations; la boîte de messages choisit le périmètre pharmacie correspondant au dossier demandé.
 
