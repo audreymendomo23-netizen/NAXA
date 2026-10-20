@@ -59,3 +59,16 @@ export async function ajouterLigneInventaireStock(formData:FormData) {
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
  redirect("/pharmacie/gestionnaire-stock/inventaires?ok=ligne");
 }
+
+export async function annulerInventaireStock(formData:FormData) {
+ const {sb,ids}=await scope();
+ const inventaire=String(formData.get("inventaire_id")??"");
+ const confirmation=formData.get("confirmation")==="oui";
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(inventaire)||!confirmation)redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=annulation");
+ const {data:inv,error:invError}=await sb.from("inventaires").select("id,pharmacie_id,statut").eq("id",inventaire).maybeSingle();
+ if(invError||!inv||!ids.includes(inv.pharmacie_id)||!["brouillon","en_cours"].includes(inv.statut))redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=annulation");
+ const {data,error}=await sb.rpc("gestionnaire_stock_inventaire_annuler",{p_inventaire:inventaire});
+ if(error||data!==true)redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=annulation");
+ revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
+ redirect("/pharmacie/gestionnaire-stock/inventaires?ok=annule");
+}
