@@ -35,6 +35,11 @@ begin
   if v_attempt <> v_i then raise exception 'Compteur PIN non atomique à la tentative %',v_i; end if;
  end loop;
  if v_locked is null or v_locked <= now() then raise exception 'Le verrouillage 15 minutes n’est pas appliqué à la 5e tentative'; end if;
+ update public.caisse_security_credentials set pin_failed_attempts=5,pin_locked_until=now()-interval '1 second' where user_id=v_user;
+ select attempts,locked_until into v_attempt,v_locked from public.caisse_pin_register_failure(v_user);
+ if v_attempt<>1 or v_locked is not null then
+  raise exception 'La fenêtre de tentatives PIN n’a pas été réinitialisée après expiration du verrouillage';
+ end if;
  perform public.caisse_pin_reset_failures(v_user);
  if exists(select 1 from public.caisse_security_credentials where user_id=v_user and (pin_failed_attempts<>0 or pin_locked_until is not null)) then
   raise exception 'La remise à zéro du compteur PIN a échoué';
