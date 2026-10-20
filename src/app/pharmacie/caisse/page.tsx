@@ -8,6 +8,7 @@ import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
+import { CaisseSidebar } from "@/components/pharmacie/CaisseSidebar";
 
 type Produit = {
   produit_id: string;
@@ -534,22 +535,12 @@ export default function CaissePage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16">
+    <main className="mx-auto max-w-[1600px] px-4 pb-16"><div className="flex flex-col gap-4 lg:flex-row"><CaisseSidebar sessionOpen={!!session} pharmacyName={pharmacie} /><div className="min-w-0 flex-1">
       <div className="print:hidden">
         <header className="-mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white">
           <a href="/pharmacie">← Pharmacie</a>
           <b>Caisse · {pharmacie || "Chargement…"}</b>
         </header>
-        <nav aria-label="Autres espaces caisse" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-          <a className="btn btn-clair" href="/pharmacie/caisse/clients">Clients & crédits</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/assurances">Assurances</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/historique">Historique</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/annulations">Annulations</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/rapports">Rapports</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/profil">Profil & sécurité</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/notifications">Notifications</a>
-          <a className="btn btn-clair" href="/pharmacie/caisse/service">Prise / fin de service</a>
-        </nav>
         <RappelsLotsBanner pharmacieId={pid} />
         {loading && <section className="carte" role="status">Vérification de l’accès et de la session de caisse…</section>}
         {!loading && msg && !ready && <section className="carte" role="alert">{msg}<p className="mt-3"><a className="btn btn-clair" href="/connexion?retour=/pharmacie/caisse">Se reconnecter</a></p></section>}
@@ -624,7 +615,7 @@ export default function CaissePage() {
             {msg && <p role="status" aria-live="polite" className="mt-4 rounded-xl border p-3 text-sm">{msg}</p>}
           </>
         )}
-      </div>
+      </div></div>
       {ticket && ticket.length > 0 && (
         <section className="ticket-print mx-auto mt-6 w-full max-w-md rounded-xl border bg-white p-5 text-slate-950">
           <h2 className="text-center text-xl font-extrabold">NAXA · Ticket de caisse</h2>
