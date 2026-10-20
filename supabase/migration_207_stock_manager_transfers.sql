@@ -66,6 +66,7 @@ begin
    where sl.id=p_lot and sl.pharmacie_id=p_source and sl.produit_id=p_produit for update;
   if not found then raise exception 'Lot source introuvable'; end if;
   if v_source_lot.bloque or v_source_lot.date_peremption is null or v_source_lot.date_peremption<current_date then raise exception 'Un lot bloqué, périmé ou sans date ne peut pas être transféré'; end if;
+  if nullif(trim(v_source_lot.numero_lot),'') is null then raise exception 'Le lot source doit avoir un numéro traçable avant transfert'; end if;
   if v_source_lot.quantite<p_quantite then raise exception 'Quantité du lot source insuffisante'; end if;
   select coalesce(sum(sl.quantite),0)::integer into v_source_lot_sum from public.stocks_lots sl where sl.pharmacie_id=p_source and sl.produit_id=p_produit;
   if v_source_lot_sum<>v_source_stock.quantite then raise exception 'Stock source et lots incohérents'; end if;
