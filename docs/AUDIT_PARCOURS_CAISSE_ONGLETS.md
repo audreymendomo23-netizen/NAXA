@@ -77,3 +77,67 @@ La page présente en une seule vue, pour revue visuelle :
 ## Commit de maquette visuelle
 
 - `97b5bb5f81f60e19dd4d23d24adbf836553cf550` — maquette statique des sept entrées et états communs.
+
+## Audit de couverture des parcours interactifs — cahier § 5.2 et § 13
+
+Date : 20 octobre 2026. Travail de code directement sur `main`. Aucun déploiement demandé ni exécuté.
+
+### Les 7 entrées principales (règle § 5.2)
+
+1. **Tableau de bord** : cartes personnelles du jour, activité horaire, alertes, raccourcis, Nouvelle vente, ordonnances, réservations, stock, demandes, paniers en attente, clôture, statut de garde si autorisé, notifications, réseau/synchronisation, aide et verrouillage.
+2. **Clients et Assurances** : répertoire, recherche/filtres, fiche client, crédits et encaissement de créance (parcours existant), assurances/couvertures, tiers payant, vente assurée, créances/bordereaux/rejets en consultation, notifications liées.
+3. **Historique des ventes** : recherche, filtre de statut, détail/ticket, duplicata/impression/PDF/partage, demande d’annulation, suivi du motif/statut et synthèse.
+4. **Prise / fin de service** : prise de poste, fond initial, sessions, poste de caisse, rapprochement, montants comptés, écarts/motifs, clôture Z et aperçu du rapport.
+5. **Rapports & Performances** : KPI personnels, ventes horaires, répartition des paiements, top produits, produits sans prix, alertes, exports PDF/Excel et rapport de fin de journée.
+6. **Profil** : identité/rattachement, préférences d’affichage, texte agrandi/compact/mode léger, activité récente, sécurité/mot de passe/PIN.
+7. **Déconnexion** : écran de confirmation, annuler/retour, variantes de message en ligne/hors ligne/erreur. La navigation de démonstration ne déconnecte personne.
+
+### Matrice des fiches du cahier § 13
+
+| Fiche | Écrans / éléments du parcours caisse recensés | État dans la nouvelle maquette |
+|---|---|---|
+| F00 | Accueil, cartes, actions rapides, alertes, sauvegarde | Présent |
+| F01 | Connexion, OTP/mot de passe oublié, verrouillage, erreurs génériques | Connexion réelle hors maquette ; écran de reprise/verrouillage représenté, sans Auth |
+| F02 | Première connexion et compte bloqué | Acteur principal promoteur ; états de blocage non connectés dans la maquette |
+| F03 | Réservations reçues, détail, échéance, prête/remise/annulation | Écran Réservations et commandes illustratives |
+| F04 | Statut De garde, confirmation et horodatage | Écran Statut de garde |
+| F05 | Stock, recherche/scan, statut, lot/péremption | Écran Mon stock et Lots |
+| F06 | Import Excel/CSV, modèle, association colonnes, contrôles/rapport | Assistant d’import |
+| F07 | État réseau, file, conflits, synchronisation | Écran Synchronisation et mode hors ligne |
+| F08 | Catalogue par molécule/DCI/ATC, marque/générique, prix et stock | Catalogue par molécule |
+| F09 | Entrée stock par lot, fournisseur, BL, quantité, péremption | Formulaire Réception et contrôle |
+| F10–F11 | Statuts d’alerte, seuils, lots proches de péremption, actions prévues | Mon stock, alertes et Lots |
+| F12 | Sortie exceptionnelle, motif, note, pièce et suivi | Formulaire Sortie exceptionnelle + Mes demandes |
+| F13 | Registre réglementé, lot, entrées/sorties/solde, ordonnance/validateur | Registre réglementé en consultation visuelle |
+| F14 | Recherche, scan, panier, quantités, contrôles, générique, remise/attente/payer/vider | Écran Nouvelle vente |
+| F15 | Favoris, raccourcis clavier, paniers en attente, reprise/suppression, écran client | Favoris, Paniers en attente, écran client |
+| F16 | Remise %, montant, plafond, motif, validation | Écran Remise et promotions |
+| F17–F19 | Ajout/aperçu ordonnance, statut, validateur, coffre, hors ligne/transfert | Ordonnances, Coffre et Mode dégradé |
+| F20 | Modes de paiement, montant remis, rendu, référence, paiement mixte | Écran Paiement, champs et messages d’état |
+| F21 | Ticket imprimable, PDF, WhatsApp, nouvelle vente | Aperçu ticket et commandes visuelles |
+| F22 | Historique et demande d’annulation avec motif/statut | Écran Demande d’annulation |
+| F23 | Demandes, filtres, objet, statut, décideur et cloche | Mes demandes et Centre de notifications |
+| F24 | PIN, validation par rôle habilité, refus/motif et verrouillage | Écran PIN / sécurité ; aucune vérification réelle |
+| F25 | Assureur, matricule, droits, plafond, part client/assureur | Vente assurée / Assurances |
+| F26 | Clôture Z, totaux théoriques/comptés, écart/motif, ventes différées, rapport | Écran Clôture |
+| F27 | Saisie différée et carnet papier | Écran Mode dégradé |
+| F28–F30 | Fiches assureurs, créances/bordereaux, rejets et rappels | Consultation illustrative des assurances et créances ; actions externes désactivées |
+| F31–F33 | Fournisseurs/dettes, réapprovisionnement, commande, réception et BL | Écrans Fournisseurs, Commande et Réception |
+| F34 | Inventaire, comptage et soumission | Refus d’accès explicite côté caisse ; le cahier attribue l’action au magasinier et la validation au promoteur |
+| F35 | Tableau de bord personnel, courbe, top produits et prix manquants | Présent au tableau de bord et rapports |
+| F38 | Centre d’alertes, gravité/date/objet et accès à l’objet | Centre d’alertes et liens vers les écrans correspondants |
+
+### Audit contradictoire du code
+
+- **Navigation vs opération** : le prototype ouvre les écrans et dialogues locaux, mais n’effectue aucun paiement, aucune écriture de stock, aucune demande réelle, aucun export, aucune notification, aucune mutation Auth/Supabase.
+- **Données** : références, tickets, profils et valeurs de démonstration sont explicitement fictifs. Aucun indicateur fictif n’est présenté comme résultat réel de la pharmacie.
+- **Rôles** : le prototype expose un état « accès réservé » pour l’inventaire, qui reste une fonction du magasinier/promoteur. Les ordonnances affichent un rappel qu’une caissière ne valide pas elle-même.
+- **Risque de confusion** : la nouvelle route est une maquette navigable et indépendante ; elle ne remplace pas les pages opérationnelles déjà présentes sous `/pharmacie/caisse`. Les contrôles sont des simulations, non une preuve de permission ou de sécurité serveur.
+- **Écarts encore à traiter dans la maquette** : certaines opérations du cahier (création de comptes/OTP, verrouillage temporisé, biométrie, vraie caméra/scanner, impression et PDF réels, partage WhatsApp, synchronisation effective, intégrations assureurs) restent représentées par des états et dialogues, pas par des intégrations.
+- **Validation** : le fichier est enregistré sur `main`, mais aucun environnement de build/test n’a été exécuté ici. La validation TypeScript, lint, build, test responsive et revue des liens restent donc **non vérifiés**. Aucun déploiement n’a été lancé.
+
+### Nouveau parcours de démonstration
+
+- Route : `/pharmacie/caisse/parcours-ui`
+- Fichier : `src/app/pharmacie/caisse/parcours-ui/page.tsx`
+- Commits : `928816bd64897834b3e43e7867826d3206086da5` (première version), `cc924d6e185dbaddc3ed311fb86738c7bbfd7d9e` (écrans complémentaires), `f3ba621218b67e6ead57673559bef8a99ab54885` (correction des titres/syntaxe), `f0336a78a1eba57644233c950a507202fe30154a` (nettoyage types/états).
