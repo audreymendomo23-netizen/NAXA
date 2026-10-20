@@ -290,7 +290,7 @@ export default async function EspacePromoteur() {
           </aside>
         </section>
 
-        <CaisseSecurityManager cashiers={(caisses ?? []).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: c.actif === true }))} />
+        <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
 
         <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-extrabold">Ce que le tableau ne modifie pas</h2>
