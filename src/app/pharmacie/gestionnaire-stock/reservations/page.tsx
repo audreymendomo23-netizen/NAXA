@@ -14,13 +14,15 @@ type StockRow = {
 type LotRow = {
   pharmacie_id: string;
   produit_id: string;
+  id: string;
   numero_lot: string;
-  date_peremption: string;
+  date_peremption: string | null;
   quantite: number;
   bloque: boolean;
   motif_blocage: string | null;
   emplacement: string | null;
 };
+type AllocationRow = { reservation_id: string; produit_id: string; lot_id: string; quantite: number; restauree_at: string | null };
 type ItemRow = {
   produit_id: string;
   quantite: number;
@@ -101,12 +103,16 @@ export default async function GestionnaireStockReservationsPage({
   const [stockResult, lotsResult] = productIds.length
     ? await Promise.all([
         sb.from("stocks").select("pharmacie_id,produit_id,quantite,date_peremption,emplacement").in("pharmacie_id", pharmacyIds).in("produit_id", productIds),
-        sb.from("stocks_lots").select("pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,emplacement").in("pharmacie_id", pharmacyIds).in("produit_id", productIds),
+        sb.from("stocks_lots").select("id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,emplacement").in("pharmacie_id", pharmacyIds).in("produit_id", productIds),
       ])
     : [{ data: [], error: null }, { data: [], error: null }];
 
+  const allocationResult = reservations.length
+    ? await sb.from("reservation_item_lots").select("reservation_id,produit_id,lot_id,quantite,restauree_at").in("reservation_id", reservations.map((reservation) => reservation.id))
+    : { data: [] as AllocationRow[], error: null };
   const stockRows = (stockResult.data ?? []) as StockRow[];
   const lotRows = (lotsResult.data ?? []) as LotRow[];
+  const allocationRows = (allocationResult.data ?? []) as AllocationRow[];
   const stockKey = (pharmacyId: string, productId: string) => pharmacyId + ":" + productId;
   const stocks = new Map(stockRows.map((row) => [stockKey(row.pharmacie_id, row.produit_id), row]));
   const lotsByProduct = new Map<string, LotRow[]>();
@@ -133,7 +139,7 @@ export default async function GestionnaireStockReservationsPage({
         {searchParams.ok === "annulee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La réservation a été annulée et la mise à jour serveur confirmée.</p>}{searchParams.ok === "confirmee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation confirmée. Le dossier est transmis au parcours de préparation et de retrait.</p>}
         {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "confirmation" ? "Coche la confirmation avant d’annuler." : searchParams.erreur === "confirmation_stock" ? "Confirmation refusée : le serveur a détecté une réservation expirée, un stock absent ou des lots utilisables insuffisants. Vérifie les lots et réessaie." : "Annulation refusée : vérifie le statut actuel et les droits du compte. Aucune réussite n’est présumée."}</p>}
         {reservationError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Impossible de charger les réservations dans le périmètre du compte.</p>}
-        {(stockResult.error || lotsResult.error) && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Les informations de stock ou de lots sont incomplètes. Ne valide pas la préparation avant d’avoir vérifié ces données.</p>}
+        {(stockResult.error || lotsResult.error || allocationResult.error) && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Les informations de stock, de lots ou d’allocation sont incomplètes. La confirmation est bloquée si l’affectation des lots ne peut pas être vérifiée.</p>}
 
         {!reservations.length && !reservationError && <section className="rounded-2xl border bg-white p-5"><h2 className="font-bold">Aucune réservation à préparer</h2><p className="mt-1 text-sm text-slate-600">Les nouveaux dossiers apparaîtront ici dès qu’ils seront enregistrés pour une pharmacie accessible à ce compte.</p></section>}
 
@@ -158,7 +164,7 @@ export default async function GestionnaireStockReservationsPage({
                     const stock = stocks.get(key);
                     const lots = lotsByProduct.get(key) ?? [];
                     const lotsTracked = lots.length > 0;
-                    const usableLots = lots.filter((lot) => !lot.bloque && lot.quantite > 0 && lot.date_peremption >= new Date().toISOString().slice(0, 10));
+                    const today = new Date().toISOString().slice(0, 10);\n                    const usableLots = lots.filter((lot) => !lot.bloque && lot.quantite > 0 && Boolean(lot.date_peremption) && lot.date_peremption! >= today);
                     const usableLotQuantity = usableLots.reduce((sum, lot) => sum + Number(lot.quantite || 0), 0);
                     const usableQuantity = lotsTracked ? usableLotQuantity : stock && (!stock.date_peremption || stock.date_peremption >= new Date().toISOString().slice(0, 10)) ? Number(stock.quantite || 0) : 0;
                     const locations = lotsTracked
@@ -167,15 +173,15 @@ export default async function GestionnaireStockReservationsPage({
                     const blockedOrExpired = lotsTracked && usableLots.length === 0;
                     const sufficient = usableQuantity >= item.quantite && !blockedOrExpired;
                     return <li key={item.produit_id} className="rounded-xl border p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{item.produits?.nom ?? "Produit sans nom"} {item.produits?.dosage ?? ""} {item.produits?.forme ?? ""}</p><p className="text-sm text-slate-600">Demandé : {item.quantite} · Stock utilisable affiché : {usableQuantity}</p></div><span className={`rounded-full px-2 py-1 text-xs font-bold ${sufficient ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"}`}>{sufficient ? "Quantité disponible" : "Vérification / rupture"}</span></div>
+                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{item.produits?.nom ?? "Produit sans nom"} {item.produits?.dosage ?? ""} {item.produits?.forme ?? ""}</p><p className="text-sm text-slate-600">Demandé : {item.quantite} · Stock restant après réservations : {usableQuantity} · Déjà affecté à ce dossier : {lotsTracked ? allocatedQuantity : stock ? item.quantite : 0}</p></div><span className={`rounded-full px-2 py-1 text-xs font-bold ${sufficient ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"}`}>{sufficient ? (lotsTracked ? "Lots affectés et valides" : "Stock agrégé réservé") : "Affectation à vérifier"}</span></div>
                       <p className="mt-2 text-sm"><strong>Localisation :</strong> {Array.isArray(locations) ? locations.join(" ; ") || "Aucun lot utilisable" : locations}</p>
-                      {lotsTracked && <ul className="mt-2 space-y-1 text-xs text-slate-600">{lots.map((lot) => <li key={lot.numero_lot}>Lot {lot.numero_lot} · {lot.quantite} unité(s) · péremption {lot.date_peremption} · {lot.bloque ? "BLOQUÉ" : lot.date_peremption < new Date().toISOString().slice(0, 10) ? "PÉRIMÉ" : "contrôle à confirmer"}{lot.motif_blocage ? " · " + lot.motif_blocage : ""}</li>)}</ul>}
+                      {lotsTracked && <p className={`mt-2 text-xs font-semibold ${allocationsValid ? "text-emerald-800" : "text-red-700"}`}>{allocationResult.error ? "Allocation des lots indisponible : appliquer les migrations de réservation avant confirmation." : allocationsValid ? `Allocation FEFO confirmée : ${allocatedQuantity} unité(s) sur ${allocations.length} lot(s).` : `Allocation insuffisante ou lot bloqué/périmé : ${allocatedQuantity}/${item.quantite} unité(s) affectée(s).`}</p>}{lotsTracked && <ul className="mt-2 space-y-1 text-xs text-slate-600">{lots.map((lot) => <li key={lot.numero_lot}>Lot {lot.numero_lot} · {lot.quantite} unité(s) · péremption {lot.date_peremption} · {lot.bloque ? "BLOQUÉ" : lot.date_peremption < new Date().toISOString().slice(0, 10) ? "PÉRIMÉ" : "contrôle à confirmer"}{lot.motif_blocage ? " · " + lot.motif_blocage : ""}</li>)}</ul>}
                       {!lotsTracked && stock?.date_peremption && <p className="mt-1 text-xs text-slate-600">Péremption agrégée enregistrée : {stock.date_peremption}. Vérifie les lots si cette information n’est pas spécifique à l’unité prélevée.</p>}
                     </li>;
                   })}
                 </ul>
                 <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t pt-3"><div><p className="font-black">{fcfa(reservation.total)}</p><Link href={"/pharmacie/messages?reservation="+reservation.id} className="mt-2 inline-block text-sm font-bold text-emerald-900 underline">Ouvrir les messages liés à ce dossier</Link></div>
-                  {reservation.statut === "en_attente" && <form action={confirmerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><button type="submit" className="min-h-10 rounded-xl bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white">Confirmer disponibilité et préparer</button></form>}{["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
+                  {reservation.statut === "en_attente" && <form action={confirmerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><button type="submit" disabled={(reservation.reservation_items ?? []).some((item) => { const key = stockKey(reservation.pharmacie_id, item.produit_id); const stock = stocks.get(key); const itemLots = lotsByProduct.get(key) ?? []; if (!itemLots.length) return !stock || stock.quantite < 0; const allocated = allocationRows.filter((a) => a.reservation_id === reservation.id && a.produit_id === item.produit_id && !a.restauree_at); return Boolean(allocationResult.error) || allocated.reduce((sum, a) => sum + Number(a.quantite || 0), 0) !== item.quantite || allocated.some((a) => { const lot = lotRows.find((l) => l.id === a.lot_id); return !lot || lot.bloque || !lot.date_peremption || lot.date_peremption < new Date().toISOString().slice(0,10); }); })} className="min-h-10 rounded-xl bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">Confirmer disponibilité et préparer</button></form>}{["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
                 </div>
               </article>
             );
