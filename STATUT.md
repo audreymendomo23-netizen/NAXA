@@ -25,16 +25,14 @@
 - Le crédit est raccordé au mode de paiement POS `credit`, sans second moteur de vente.
 - **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
 
-## ERP-011 — Rappel de lot (F64)
-- Audit sans doublon : aucune implémentation concurrente de rappel de lot trouvée dans `main`.
-- Construction : table `rappels_lots`, traçabilité du motif/référence/statut et RPC de rappel/levée.
-- Le rappel actif bloque le lot canonique `stocks_lots`.
-- RLS et exécution RPC limitées au périmètre pharmacie.
-- Le POS n'étant pas encore lotisé, le blocage de vente au niveau d'un lot précis reste une dépendance du futur raccordement vente/FEFO.
-- Migration : `supabase/migration_055_rappel_lot.sql`.
-- Test structurel : `supabase/tests/052_rappel_lot.sql`.
-- Aucun changement Production.
-- **État : 🟡 construit dans `main` — preuve SQL/CI manquante.**
+## ERP-011 — Rappel de lot (F64) — ré-audit et poursuite du 20/10/2026
+- Contradiction documentaire corrigée : `vente_lignes.lot_id` et l'allocation FEFO existaient déjà via `migration_057_pos_lignes_fefo.sql`; le statut historique qui disait le POS « non lotisé » était périmé. Le POS filtre déjà les lots bloqués et expirés.
+- Cause racine réelle : absence d'interface de rappel, test 052 seulement structurel, clôture autorisée trop largement, contrainte UNIQUE empêchant un deuxième rappel après levée, perte possible d'un blocage antérieur, colonnes de lot historiques/canoniques divergentes et écritures directes pouvant désynchroniser lots et stock agrégé.
+- Corrections additives sur `main` : migrations 175 (cycle de rappel/permissions/clôture Promoteur seule/restauration du blocage précédent/unique partiel), 176 (synchronisation des colonnes historiques et canoniques), 177 (RPC de création/répartition des lots sans modifier la quantité agrégée et suppression des écritures directes), 178 (garde d'égalité entre quantité agrégée et somme des lots).
+- Interface ajoutée : `/pharmacie/rappels-lots`, gestion des lots/rappels, accès Promoteur, liens depuis les espaces Pharmacie/Promoteur, bannière rouge sur l'accueil pharmacie et la caisse. Les ventes concernées sont affichées au Promoteur sans données nominatives client.
+- Tests exécutés sur Supabase de test `naxa-ci-replay-2` : `052_rappel_lot.sql` PASS, `175_rappel_lot_cycle_hardening.sql` PASS, `177_stock_lot_enregistrer.sql` PASS, `054_pos_lignes_fefo.sql` PASS. Aucun changement Supabase Production.
+- Limites restantes du F64 : comptage de quarantaine, retour/destruction reliés au mouvement de stock, parcours d'ordonnances pour l'assistant et avis réseau NAXA (F64-ADM) ne sont pas encore clos ; ne pas déclarer F64 vert.
+- **État : 🟡 construit, corrections et preuves SQL partielles ; compilation Next/TypeScript complète et parcours navigateur à vérifier.**
 
 
 ## ERP-012 — Offline ERP avancé — chantier du 08/10/2026
