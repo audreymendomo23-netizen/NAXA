@@ -7,6 +7,7 @@ import { fcfa } from "@/lib/ranking";
 import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
+import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 
 type Produit = {
   produit_id: string;
