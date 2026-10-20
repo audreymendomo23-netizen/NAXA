@@ -32,7 +32,7 @@ begin
   end if;
 
   if not (
-    private.is_admin()
+    public.is_admin()
     or private.naxa_scope_allows(uid, r.pharmacie_id, 'PHARMACIE')
     or (r.client_id = uid and p_statut = 'annulee')
   ) then
