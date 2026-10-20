@@ -72,9 +72,9 @@ export default function PharmacienServicePage() {
       return;
     }
     const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
-      .select("id,actif,visible_recherche").eq("id", p.pharmacie_id).maybeSingle();
-    if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
-      setError("La pharmacie est inactive ou non publiée ; le pointage est bloqué.");
+      .select("id,actif").eq("id", p.pharmacie_id).maybeSingle();
+    if (pharmacyError || !pharmacy || pharmacy.actif !== true) {
+      setError("La pharmacie est inactive ; le pointage est bloqué.");
       setLoading(false);
       return;
     }
