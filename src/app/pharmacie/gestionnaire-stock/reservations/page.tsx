@@ -80,8 +80,8 @@ export default async function GestionnaireStockReservationsPage({
   if (pharmaciesError) {
     return <main className="mx-auto max-w-5xl p-5"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Impossible de déterminer le périmètre pharmacie du compte.</p></main>;
   }
-  const pharmacyRows = (Array.isArray(pharmacies) ? pharmacies : []) as { pharmacie_id?: string; id?: string; nom?: string }[];
-  const pharmacyIds = [...new Set(pharmacyRows.map((row) => row.pharmacie_id ?? row.id).filter((id): id is string => Boolean(id)))];
+  const pharmacyIds = [...new Set((Array.isArray(pharmacies) ? pharmacies : []).filter((id): id is string => typeof id === "string"))];
+  const { data: pharmacyRows } = pharmacyIds.length ? await sb.from("pharmacies").select("id,nom").in("id",pharmacyIds) : { data: [] as {id:string;nom:string}[] };
   if (!pharmacyIds.length) redirect("/");
 
   const pageNumber = Math.max(1, Math.min(10000, Number.parseInt(searchParams.page ?? "1", 10) || 1));
@@ -142,7 +142,7 @@ export default async function GestionnaireStockReservationsPage({
           {reservations.map((reservation) => {
             const expiresAt = new Date(reservation.expires_at).getTime();
             const remaining = expiresAt - Date.now();
-            const pharmacyName = pharmacyRows.find((row) => (row.pharmacie_id ?? row.id) === reservation.pharmacie_id)?.nom;
+            const pharmacyName = pharmacyRows?.find((row) => row.id === reservation.pharmacie_id)?.nom;
             return (
               <article key={reservation.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
