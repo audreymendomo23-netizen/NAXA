@@ -54,11 +54,10 @@ begin
   values(v_admin,'authenticated','authenticated','naxa164_'||substr(replace(v_admin::text,'-',''),1,12)||'@invalid.local','',now(),now());
   set local session_replication_role = origin;
 
-  insert into public.profiles(id,role,username,actif,pharmacie_id)
-  values(v_admin,'caisse','naxa164_'||substr(replace(v_admin::text,'-',''),1,12),true,v_pharmacie);
   insert into public.pharmacies(id,nom,lat,lng,actif,visible_recherche)
   values(v_pharmacie,'NAXA TEST 164',3.8667,11.5167,true,true);
-  update public.profiles set pharmacie_id=v_pharmacie where id=v_admin;
+  insert into public.profiles(id,role,username,actif,pharmacie_id)
+  values(v_admin,'caisse','naxa164_'||substr(replace(v_admin::text,'-',''),1,12),true,v_pharmacie);
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_caisse,v_pharmacie,'Caisse test 164',true);
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,fond_initial,statut)
