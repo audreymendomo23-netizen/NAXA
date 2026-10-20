@@ -30,7 +30,9 @@ export async function GestionnaireStockEspace({ section, page = 1 }: { section: 
  const pharmacyRows=(Array.isArray(pharmacies)?pharmacies:[]) as {pharmacie_id?:string;id?:string;nom?:string}[];
  const ids=[...new Set(pharmacyRows.map(p=>p.pharmacie_id??p.id).filter((id):id is string=>Boolean(id)))];
  if(pharmacyError||!ids.length) return <main className="mx-auto max-w-6xl p-4"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Le périmètre pharmacie n’a pas pu être déterminé. Aucune donnée n’est affichée.</p></main>;
- const pageNumber=Math.max(1,Math.min(10000,Number.isSafeInteger(page)?page:1));\n const pageSize=100;\n const today=new Date().toISOString().slice(0,10);
+ const pageNumber=Math.max(1,Math.min(10000,Number.isSafeInteger(page)?page:1));
+ const pageSize=100;
+ const today=new Date().toISOString().slice(0,10);
  const cutoff=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
  const [stockResult,lotsResult,reservationsResult,adjustmentsResult]=await Promise.all([
   sb.from("stocks").select("pharmacie_id,produit_id,quantite,date_peremption,emplacement,produits(nom,dosage,forme)",{count:"exact"}).in("pharmacie_id",ids).order("quantite",{ascending:true}).range((pageNumber-1)*pageSize,pageNumber*pageSize-1),
