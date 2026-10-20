@@ -18,6 +18,7 @@ create table if not exists public.stock_manager_movement_journal(
  emplacement_apres text,
  motif_avant text,
  motif_apres text,
+ motif_operation text,
  acteur_id uuid references auth.users(id) on delete set null,
  cree_le timestamptz not null default now()
  );
@@ -38,7 +39,7 @@ declare
  v_pharmacie uuid; v_produit uuid; v_lot uuid; v_source text; v_event text;
  v_q_before integer; v_q_after integer; v_numero_lot text; v_block_before boolean; v_block_after boolean;
  v_exp_before date; v_exp_after date; v_loc_before text; v_loc_after text;
- v_reason_before text; v_reason_after text; v_actor uuid:=auth.uid();
+ v_reason_before text; v_reason_after text; v_operation_reason text:=nullif(current_setting('naxa.stock_motif',true),''); v_actor uuid:=auth.uid();
 begin
  v_source:=tg_table_name;
  if tg_op='DELETE' then
@@ -79,10 +80,10 @@ begin
  insert into public.stock_manager_movement_journal(
   pharmacie_id,produit_id,lot_id,numero_lot,source_table,event_type,quantite_avant,quantite_apres,
   bloque_avant,bloque_apres,date_peremption_avant,date_peremption_apres,
-  emplacement_avant,emplacement_apres,motif_avant,motif_apres,acteur_id)
+  emplacement_avant,emplacement_apres,motif_avant,motif_apres,motif_operation,acteur_id)
  values(v_pharmacie,v_produit,v_lot,v_numero_lot,v_source,v_event,v_q_before,v_q_after,
   v_block_before,v_block_after,v_exp_before,v_exp_after,v_loc_before,v_loc_after,
-  v_reason_before,v_reason_after,v_actor);
+  v_reason_before,v_reason_after,v_operation_reason,v_actor);
  if tg_op='DELETE' then return old; end if;
  return new;
 end;
