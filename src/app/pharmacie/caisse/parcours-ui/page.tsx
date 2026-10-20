@@ -61,6 +61,36 @@ const OPERATIONAL_PATHS: Partial<Record<Screen, { path: string; label: string }>
   creances: { path: "/pharmacie/caisse/clients", label: "Crédits et créances clients" },
 };
 
+// Routes de référence pour les écrans hors périmètre opérationnel caisse.
+ // Elles raccordent la navigation au bon parcours principal, sans prétendre que la fonctionnalité spécialisée existe.
+const RELATED_PATHS: Partial<Record<Screen, { path: string; label: string; limitation: string }>> = {
+  demandes: { path: "/pharmacie/caisse/notifications", label: "Notifications et suivi", limitation: "La décision de validation n'est pas exposée par cette page." },
+  favoris: { path: "/pharmacie/caisse", label: "Poste de vente réel", limitation: "Les favoris de démonstration ne sont pas des produits enregistrés." },
+  paniers: { path: "/pharmacie/caisse", label: "Poste de vente réel", limitation: "La persistance et la reprise de paniers ne sont pas prouvées par le prototype." },
+  ordonnances: { path: "/pharmacie/caisse", label: "Poste de vente réel", limitation: "Aucune création/validation d'ordonnance n'est déclenchée par ce lien." },
+  stock: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Ce parcours ne remplace pas un module stock." },
+  catalogue: { path: "/pharmacie/caisse", label: "Poste de vente réel", limitation: "La recherche par molécule dans cette maquette n'interroge pas le catalogue réel." },
+  lots: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Les lots et péremptions de la maquette ne sont pas enregistrés." },
+  import: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Aucun fichier n'est importé depuis ce prototype." },
+  sortie: { path: "/pharmacie/caisse/service", label: "Sessions de caisse", limitation: "Une sortie exceptionnelle de stock/caisse n'est pas exécutée par ce lien." },
+  registre: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Le registre réglementé de la maquette n'est pas un registre de production." },
+  offline: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Aucune file hors ligne n'est synchronisée depuis ce prototype." },
+  remise: { path: "/pharmacie/caisse", label: "Poste de vente réel", limitation: "Aucune remise n'est appliquée depuis la maquette ; utilisez uniquement les contrôles du poste réel." },
+  reception: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "La réception de stock n'est pas disponible dans cette interface caisse." },
+  commande: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Aucune commande fournisseur n'est créée depuis cette maquette." },
+  aide: { path: "/pharmacie/caisse/profil", label: "Profil et sécurité", limitation: "Le lien ouvre le compte réel ; il ne soumet pas de demande d'assistance." },
+  deconnexion: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Utilisez la commande Déconnexion du menu réel pour exécuter auth.signOut." },
+  garde: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Le statut de garde n'est pas modifié depuis cette maquette." },
+  coffre: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Aucune ordonnance n'est lue ni téléchargée depuis cette maquette." },
+  "ordonnance-offline": { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Aucune ordonnance hors ligne n'est enregistrée." },
+  alertes: { path: "/pharmacie/caisse/notifications", label: "Notifications réelles", limitation: "Seules les notifications déjà enregistrées sont consultables." },
+  fournisseurs: { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "Aucun compte fournisseur ou document fournisseur n'est modifié." },
+  "inventaire-refus": { path: "/pharmacie/caisse", label: "Poste de caisse réel", limitation: "L'inventaire réservé n'est pas disponible pour ce rôle dans ce parcours." },
+  connexion: { path: "/connexion", label: "Authentification réelle", limitation: "La connexion se fait sur la page d'authentification NAXA, pas dans la maquette." },
+  "premiere-connexion": { path: "/connexion", label: "Authentification réelle", limitation: "Le changement de mot de passe doit passer par le flux d'authentification sécurisé." },
+  "mot-de-passe-oublie": { path: "/connexion", label: "Authentification réelle", limitation: "La récupération du compte doit passer par le flux d'authentification sécurisé." },
+};
+
 const NOTIFICATION_ROLES = ["Tous les rôles","Caissier","Pharmacien","Assistant pharmacien","Magasinier","Gestionnaire de stock","Responsable","Promoteur","Administrateur NAXA","Comptable","Client"] as const;
 const NOTIFICATION_DOMAINS = ["Tous les domaines","Vente et encaissement","Réservation et retrait","Client et assurance","Session et clôture","Historique et ticket","Stock et péremption","Ordonnance et conformité","Synchronisation hors ligne","Profil et sécurité","Demande et validation"] as const;
 const NOTIFICATION_STATES = ["Information disponible","Action attendue","Confirmation requise","Échéance proche","Contrôle nécessaire","Opération en attente","Échec à traiter","Conflit détecté","Validation reçue","Suivi recommandé"] as const;
@@ -401,7 +431,13 @@ export default function CaisseParcoursPrototypePage() {
                   <h2 id="demo-dialog-title" className="font-extrabold">Boucle de notifications — test d’architecture</h2>
                   <p className="mt-2 text-sm font-semibold text-slate-700">{demoDialog}</p>
                   <p className="mt-1 text-xs text-slate-500">Scénarios synthétiques uniquement : aucune notification externe, opération de caisse ou modification de données n’est exécutée.</p>
-                  {OPERATIONAL_PATHS[screen] ? (
+                  {RELATED_PATHS[screen] ? (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-bold text-amber-950">Parcours de référence raccordé : {RELATED_PATHS[screen]!.label}</p>
+                      <p className="mt-1 text-xs text-amber-900">{RELATED_PATHS[screen]!.limitation}</p>
+                      <button type="button" onClick={() => window.location.assign(RELATED_PATHS[screen]!.path)} className="mt-3 min-h-11 rounded-xl bg-[#0b3d26] px-4 py-2 text-sm font-bold text-white">Ouvrir le parcours de référence →</button>
+                    </div>
+                  ) : OPERATIONAL_PATHS[screen] ? (
                     <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                       <p className="text-sm font-bold text-emerald-950">Parcours métier raccordé : {OPERATIONAL_PATHS[screen]!.label}</p>
                       <p className="mt-1 text-xs text-emerald-800">L’action métier réelle doit être effectuée et confirmée dans cette interface, avec ses contrôles serveur et ses droits.</p>
