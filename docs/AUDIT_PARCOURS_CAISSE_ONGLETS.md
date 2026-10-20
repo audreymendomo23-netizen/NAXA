@@ -20,6 +20,14 @@ Les sept entrées principales restent celles du § 5.2 du cahier : Tableau de bo
 | Profil | Informations du compte, changement du mot de passe via Supabase Auth, vérification du PIN, préférences d'affichage locales, activité de service | Quatre onglets codés : Mon compte, Mot de passe & PIN, Affichage, Activité récente | L'historique de connexions Auth n'est pas exposé par les tables/API vérifiées. L'onglet affiche les sessions de caisse réelles et indique explicitement cette limite ; il ne fabrique pas de journal de connexion |
 | Déconnexion | Action de déconnexion Supabase et redirection vers `/connexion` | Bouton présent dans la barre latérale | Le blocage détecte l'absence de réseau, mais ne vérifie pas encore l'existence d'une file de synchronisation hors-ligne non vide. Ne pas considérer cette règle comme complète |
 
+## Audit statique des gestionnaires de clic
+
+Le prototype `src/app/pharmacie/caisse/parcours-ui/page.tsx` contient 159 composants `Action` et 14 boutons natifs, soit 173 contrôles cliquables. Le contrôle statique relève zéro composant `Action` sans prop `onClick`, zéro bouton natif sans `onClick`, et zéro cible littérale `go("…")` inconnue du type `Screen`.
+
+Les gestionnaires sont répartis en 92 navigations via `go(...)`, 77 ouvertures de dialogue de démonstration via `demoAction(...)`, 2 changements d’état local (langue/recherche) et 1 fermeture de dialogue. **Les 77 dialogues ne sont pas des actions métier connectées** : ils signalent explicitement qu’aucune écriture réelle n’est faite. Le nombre de contrôles liés à un gestionnaire ne doit pas être confondu avec le nombre de fonctionnalités métier exécutables.
+
+Statut du contrôle : **0 contrôle cliquable sans gestionnaire détecté**. Validation limitée au code source récupéré ; aucune recette navigateur, compilation ou test d’exécution n’est revendiqué.
+
 ## Contradictions et risques détectés
 
 1. **Une entrée principale n'est pas la même chose qu'un onglet secondaire.** Les liens secondaires ont été ajoutés sans gonfler les sept entrées principales.
