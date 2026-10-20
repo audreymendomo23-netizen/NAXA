@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { fcfa } from "@/lib/ranking";
 import { CaisseSecurityManager } from "@/components/pharmacie/CaisseSecurityManager";
+import { AvisRappelsLotsPromoteur } from "@/components/pharmacie/AvisRappelsLotsPromoteur";
 
 type Stats = {
   pharmacies?: { total?: number; actives?: number; inactives?: number };
@@ -238,6 +239,7 @@ export default async function EspacePromoteur() {
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/rappels-lots">Rappels de lots</Link>
           </nav>
         </header>
+        <AvisRappelsLotsPromoteur />
 
         {alert && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Certaines données ne sont pas disponibles. Les indicateurs indisponibles sont affichés sans inventer de valeurs.</p>}
 
