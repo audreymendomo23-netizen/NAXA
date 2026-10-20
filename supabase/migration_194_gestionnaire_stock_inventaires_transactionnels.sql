@@ -164,13 +164,33 @@ begin
 end;
 $function$;
 
+create or replace function public.gestionnaire_stock_inventaire_annuler(p_inventaire uuid)
+returns boolean language plpgsql security definer set search_path=''
+as $function$
+declare v_user uuid:=auth.uid(); v_pharmacie uuid; v_profile public.profiles%rowtype;
+begin
+ if v_user is null then raise exception 'Connexion requise'; end if;
+ select pharmacie_id into v_pharmacie from public.inventaires
+  where id=p_inventaire and statut in ('brouillon','en_cours') for update;
+ if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Inventaire hors périmètre ou déjà terminé'; end if;
+ select * into v_profile from public.profiles where id=v_user and actif=true;
+ if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
+  or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
+  or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')) then raise exception 'Annulation d’inventaire non autorisée'; end if;
+ update public.inventaires set statut='annule',closed_at=now(),closed_by=v_user,updated_at=now() where id=p_inventaire;
+ return true;
+end;
+$function$;
+
 revoke all on function public.gestionnaire_stock_inventaire_demarrer(uuid,public.inventaire_type,text) from public,anon;
 revoke all on function public.gestionnaire_stock_inventaire_ajouter_produit(uuid,uuid) from public,anon;
 revoke all on function public.gestionnaire_stock_inventaire_compter(uuid,integer) from public,anon;
+revoke all on function public.gestionnaire_stock_inventaire_annuler(uuid) from public,anon;
 revoke all on function public.inventaire_cloturer(uuid) from public,anon;
 grant execute on function public.gestionnaire_stock_inventaire_demarrer(uuid,public.inventaire_type,text) to authenticated;
 grant execute on function public.gestionnaire_stock_inventaire_ajouter_produit(uuid,uuid) to authenticated;
 grant execute on function public.gestionnaire_stock_inventaire_compter(uuid,integer) to authenticated;
+grant execute on function public.gestionnaire_stock_inventaire_annuler(uuid) to authenticated;
 grant execute on function public.inventaire_cloturer(uuid) to authenticated;
 comment on table public.inventaire_ajustements is 'Journal immuable des quantités théoriques, comptées et des écarts appliqués à la clôture d’inventaire.';
 commit;
