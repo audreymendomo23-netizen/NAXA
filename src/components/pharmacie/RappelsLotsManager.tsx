@@ -8,7 +8,7 @@ type Profile = { id: string; role: string; actif: boolean; pharmacie_id: string 
 type Pharmacy = { id: string; nom: string };
 type StockProduct = { produit_id: string; quantite: number; produits: { nom: string; dosage: string | null } | null };
 type Lot = { id: string; pharmacie_id: string; produit_id: string; numero_lot: string; date_peremption: string; quantite: number; bloque: boolean; motif_blocage: string | null; produits: { nom: string; dosage: string | null } | null };
-type Recall = { id: string; lot_id: string; reference_rappel: string | null; motif: string; statut: "actif" | "leve"; date_rappel: string; leve_at: string | null; leve_par: string | null };
+type Recall = { id: string; lot_id: string; reference_rappel: string | null; motif: string; statut: "actif" | "leve"; date_rappel: string; leve_at: string | null; leve_par: string | null; quantite_trouvee: number | null; quantite_isolee: number | null; compte_at: string | null };
 type SaleImpact = { lot_id: string; quantite: number; ventes: { numero_vente: string; created_at: string; pharmacie_id: string } | null };
 
 export function RappelsLotsManager() {
@@ -34,6 +34,7 @@ export function RappelsLotsManager() {
   const [lotRappel, setLotRappel] = useState("");
   const [motif, setMotif] = useState("");
   const [reference, setReference] = useState("");
+  const [comptages, setComptages] = useState<Record<string, { trouvee: string; isolee: string }>>({});
 
   useEffect(() => {
     void (async () => {
@@ -71,7 +72,7 @@ export function RappelsLotsManager() {
     const [{ data: stockData, error: stockError }, { data: lotData, error: lotError }, { data: recallData, error: recallError }, { data: privilege, error: privilegeError }] = await Promise.all([
       sb.from("stocks").select("produit_id,quantite,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("produit_id"),
       sb.from("stocks_lots").select("id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("date_peremption"),
-      sb.from("rappels_lots").select("id,lot_id,reference_rappel,motif,statut,date_rappel,leve_at,leve_par").eq("pharmacie_id", pharmacieId).order("date_rappel", { ascending: false }).limit(100),
+      sb.from("rappels_lots").select("id,lot_id,reference_rappel,motif,statut,date_rappel,leve_at,leve_par,quantite_trouvee,quantite_isolee,compte_at").eq("pharmacie_id", pharmacieId).order("date_rappel", { ascending: false }).limit(100),
       sb.rpc("naxa_has_privilege", { p_privilege: "MANAGE_LOTS", p_pharmacie: pharmacieId, p_scope: "PHARMACIE" }),
     ]);
     if (stockError || lotError || recallError) { setErreur("Impossible de charger les lots et rappels. Vérifiez les droits et la connexion."); setChargement(false); return; }
@@ -118,6 +119,19 @@ export function RappelsLotsManager() {
     const { error } = await sb.rpc("lot_rappeler", { p_lot: lotRappel, p_motif: motif.trim(), p_reference: reference.trim() || null });
     if (error) setErreur(error.message || "Le rappel n’a pas été enregistré.");
     else { setMessage("Rappel enregistré : le lot est bloqué dans le stock canonique et le POS le refusera."); setMotif(""); setReference(""); await charger(); }
+    setBusy(false);
+  }
+
+  async function enregistrerComptage(rappel: Recall) {
+    const values = comptages[rappel.id] ?? { trouvee: String(rappel.quantite_trouvee ?? ""), isolee: String(rappel.quantite_isolee ?? "") };
+    const trouvee = Number(values.trouvee), isolee = Number(values.isolee);
+    if (!Number.isSafeInteger(trouvee) || !Number.isSafeInteger(isolee) || trouvee < 0 || isolee < 0 || isolee > trouvee || busy) {
+      setErreur("Comptage invalide : les unités isolées doivent être comprises entre 0 et les unités retrouvées."); return;
+    }
+    setBusy(true); setErreur(""); setMessage("");
+    const { error } = await sb.rpc("lot_quarantaine_compter", { p_rappel: rappel.id, p_quantite_trouvee: trouvee, p_quantite_isolee: isolee });
+    if (error) setErreur(error.message || "Comptage non enregistré.");
+    else { setMessage("Comptage de quarantaine enregistré sans modifier le stock ni les prix."); await charger(); }
     setBusy(false);
   }
 
@@ -179,6 +193,7 @@ export function RappelsLotsManager() {
         const sold = impactsParLot.get(r.lot_id) ?? [];
         return <article key={r.id} className="rounded-xl border p-3">
           <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-extrabold">{lot?.produits?.nom ?? "Produit"} · lot {lot?.numero_lot ?? "inconnu"}</p><p className="text-sm">{r.motif}</p><p className="text-xs text-slate-500">Référence : {r.reference_rappel ?? "—"} · Déclaré le {new Date(r.date_rappel).toLocaleString("fr-FR")}</p>{lot && <p className="mt-1 text-sm">Péremption : {new Date(lot.date_peremption).toLocaleDateString("fr-FR")} · Stock restant : {lot.quantite} · Blocage : {lot.bloque ? lot.motif_blocage : "aucun"}</p>}</div><span className={r.statut === "actif" ? "rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800" : "rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"}>{r.statut === "actif" ? "ACTIF · vente bloquée" : "LEVÉ"}</span></div>
+          {r.statut === "actif" && profile && !["client", "admin"].includes(profile.role) && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3"><p className="font-bold text-sm">Comptage de quarantaine</p><p className="text-xs text-slate-600">Saisissez les unités retrouvées et celles physiquement isolées. Ce comptage ne modifie ni le stock ni les prix.</p><div className="mt-2 grid grid-cols-2 gap-2"><label className="text-xs font-semibold">Unités retrouvées<input className="champ mt-1 w-full" type="number" min="0" step="1" value={comptages[r.id]?.trouvee ?? String(r.quantite_trouvee ?? "")} onChange={(e) => setComptages((old) => ({ ...old, [r.id]: { trouvee: e.target.value, isolee: old[r.id]?.isolee ?? String(r.quantite_isolee ?? "") } }))} /></label><label className="text-xs font-semibold">Unités isolées<input className="champ mt-1 w-full" type="number" min="0" step="1" value={comptages[r.id]?.isolee ?? String(r.quantite_isolee ?? "")} onChange={(e) => setComptages((old) => ({ ...old, [r.id]: { trouvee: old[r.id]?.trouvee ?? String(r.quantite_trouvee ?? ""), isolee: e.target.value } }))} /></label></div><button type="button" className="btn btn-clair mt-2" disabled={busy} onClick={() => void enregistrerComptage(r)}>Enregistrer le comptage</button>{r.compte_at && <p className="mt-1 text-xs text-slate-600">Dernier comptage : {r.quantite_trouvee ?? "—"} retrouvé(s), {r.quantite_isolee ?? "—"} isolé(s), le {new Date(r.compte_at).toLocaleString("fr-FR")}</p>}</div>}
           {profile?.role === "promoteur" && r.statut === "actif" && <div className="mt-3 rounded-lg bg-slate-50 p-3"><p className="text-sm font-bold">Ventes concernées (tickets POS)</p>{sold.length ? sold.map((s, i) => <p key={i} className="text-xs text-slate-600">{s.ventes?.numero_vente ?? "Ticket"} · {new Date(s.ventes?.created_at ?? r.date_rappel).toLocaleString("fr-FR")} · {s.quantite} unité(s)</p>) : <p className="text-xs text-slate-500">Aucune ligne de vente POS associée à ce lot.</p>}</div>}
           {profile?.role === "promoteur" && r.statut === "actif" && <button type="button" className="btn btn-clair mt-3" disabled={busy} onClick={() => void leverRappel(r)}>Clôturer le rappel (Promoteur)</button>}
           {r.statut === "leve" && r.leve_at && <p className="mt-2 text-xs text-slate-500">Clôturé le {new Date(r.leve_at).toLocaleString("fr-FR")}</p>}
