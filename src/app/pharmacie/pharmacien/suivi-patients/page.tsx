@@ -25,8 +25,6 @@ const patientLabel = (id: string) => `Patient ${id.slice(0, 8).toUpperCase()}`;
 
 export default function PharmacienSuiviPatientsPage() {
   const sb = useMemo(() => supabaseBrowser(), []);
-  const [uid, setUid] = useState("");
-  const [pharmacyId, setPharmacyId] = useState("");
   const [shares, setShares] = useState<Share[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [tab, setTab] = useState<ViewTab>("patients");
@@ -82,7 +80,6 @@ export default function PharmacienSuiviPatientsPage() {
     if (profileError || !profile || profile.actif !== true || profile.fonction_interne !== "pharmacien" || !profile.pharmacie_id) {
       setError("Accès réservé à un compte Pharmacien actif rattaché à une pharmacie."); setLoading(false); return;
     }
-    setUid(auth.user.id); setPharmacyId(profile.pharmacie_id);
     const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
       .select("id,actif,visible_recherche").eq("id", profile.pharmacie_id).maybeSingle();
     if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
