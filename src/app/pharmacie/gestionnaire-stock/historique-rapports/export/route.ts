@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 const allowedFunctions = ["pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"];
 const csvCell = (value: unknown) => {
   const raw = value === null || value === undefined ? "" : String(value);
-  const safe = typeof value === "string" && /^[\\t\\r ]*[=+\\-@]/.test(raw) ? "'" + raw : raw;
+  const safe = typeof value === "string" && /^[\t\r ]*[=+@-]/.test(raw) ? "'" + raw : raw;
   return '"' + safe.replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
 };
 
