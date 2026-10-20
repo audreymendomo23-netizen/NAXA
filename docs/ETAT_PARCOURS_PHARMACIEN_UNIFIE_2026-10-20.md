@@ -45,7 +45,7 @@ Les sous-entrées disposent chacune d’une URL dédiée et la navigation reste 
 
 ## Fichiers modifiés
 - `src/app/pharmacie/pharmacien/page.tsx` : interface commune avec consultation, prescription, préparations et décisions d'ordonnance.
-- `src/components/pharmacie/PharmacienWorkspaceSidebar.tsx` : panneau latéral responsive à neuf entrées métier et Déconnexion, navigation par URL.
+- `src/components/pharmacie/PharmacienWorkspaceSidebar.tsx` : panneau latéral responsive à sept entrées de premier niveau, sous-entrées regroupées et Déconnexion, navigation par URL.
 - `src/components/pharmacie/PharmacienWorkspaceShell.tsx` : coquille responsive séparant navigation et contenu.
 - `src/components/pharmacie/PharmacienWorkspace.tsx` : contenu métier partagé entre les routes du workspace.
 - `src/app/pharmacie/pharmacien/[section]/page.tsx` : route dynamique des sections du workspace.
