@@ -36,6 +36,52 @@ const titles: Record<Screen, string> = {
   aide: "Aide et assistance", verrouillage: "Poste verrouillé", deconnexion: "Déconnexion", garde: "Statut de garde", coffre: "Coffre des ordonnances", "ordonnance-offline": "Ordonnance hors ligne", pin: "Validation PIN et sécurité", creances: "Créances et bordereaux — consultation", alertes: "Centre des alertes", fournisseurs: "Fournisseurs et dettes — consultation", "inventaire-refus": "Inventaire — accès réservé", connexion: "Connexion au compte caisse", "premiere-connexion": "Choisir le mot de passe", "mot-de-passe-oublie": "Mot de passe oublié",
 };
 
+const NOTIFICATION_ROLES = ["Tous les rôles","Caissier","Pharmacien","Assistant pharmacien","Magasinier","Gestionnaire de stock","Responsable","Promoteur","Administrateur NAXA","Comptable","Client"] as const;
+const NOTIFICATION_DOMAINS = ["Tous les domaines","Vente et encaissement","Réservation et retrait","Client et assurance","Session et clôture","Historique et ticket","Stock et péremption","Ordonnance et conformité","Synchronisation hors ligne","Profil et sécurité","Demande et validation"] as const;
+const NOTIFICATION_STATES = ["Information disponible","Action attendue","Confirmation requise","Échéance proche","Contrôle nécessaire","Opération en attente","Échec à traiter","Conflit détecté","Validation reçue","Suivi recommandé"] as const;
+
+// 10 rôles × 10 domaines fonctionnels × 10 états = 1 000 scénarios de notification
+// générés de façon déterministe pour le test d'architecture. Aucun envoi réel.
+const notificationCases = NOTIFICATION_ROLES.slice(1).flatMap((role, roleIndex) =>
+  NOTIFICATION_DOMAINS.slice(1).flatMap((domain, domainIndex) =>
+    NOTIFICATION_STATES.map((state, stateIndex) => ({
+      id: roleIndex * 100 + domainIndex * 10 + stateIndex + 1,
+      role,
+      domain,
+      state,
+      priority: stateIndex === 6 || stateIndex === 7 ? "À traiter" : stateIndex === 2 || stateIndex === 4 ? "Contrôle" : "Information",
+      message: `${state} — ${domain.toLowerCase()} pour le rôle ${role.toLowerCase()}.`,
+    }))
+  )
+);
+
+function inferNotificationRole(label: string) {
+  const value = label.toLocaleLowerCase("fr");
+  if (/assur|assuré|tiers payant|créance|bordereau/.test(value)) return "Comptable";
+  if (/stock|lot|péremption|réception|fournisseur|import|inventaire/.test(value)) return "Gestionnaire de stock";
+  if (/ordonnance|pharmac|médicament|registre/.test(value)) return "Pharmacien";
+  if (/responsable|validation|annulation|remise|sortie exceptionnelle/.test(value)) return "Responsable";
+  if (/client|crédit/.test(value)) return "Caissier";
+  if (/profil|sécurité|mot de passe|connexion|otp|déconnexion|verrouill/.test(value)) return "Caissier";
+  if (/réservation|qr|retrait/.test(value)) return "Caissier";
+  if (/paiement|encaissement|vente|ticket|caisse|session|service/.test(value)) return "Caissier";
+  return "Caissier";
+}
+
+function inferNotificationDomain(label: string) {
+  const value = label.toLocaleLowerCase("fr");
+  if (/assur|assuré|tiers payant|créance|bordereau|client/.test(value)) return "Client et assurance";
+  if (/stock|lot|péremption|réception|fournisseur|import|inventaire/.test(value)) return "Stock et péremption";
+  if (/ordonnance|pharmac|médicament|registre/.test(value)) return "Ordonnance et conformité";
+  if (/réservation|qr|retrait/.test(value)) return "Réservation et retrait";
+  if (/historique|duplicata|ticket|impression/.test(value)) return "Historique et ticket";
+  if (/hors ligne|synchron|réseau|conflit/.test(value)) return "Synchronisation hors ligne";
+  if (/profil|sécurité|mot de passe|connexion|otp|déconnexion|verrouill/.test(value)) return "Profil et sécurité";
+  if (/annulation|validation|demande|remise|sortie/.test(value)) return "Demande et validation";
+  if (/ouverture|clôture|service|session/.test(value)) return "Session et clôture";
+  return "Vente et encaissement";
+}
+
 const shortcuts: { label: string; detail: string; target: Screen; icon: string }[] = [
   { label: "Nouvelle vente", detail: "Recherche, scan et panier", target: "vente", icon: "＋" },
   { label: "Ordonnances", detail: "File et statut de validation", target: "ordonnances", icon: "▧" },
@@ -90,6 +136,10 @@ export default function CaisseParcoursPrototypePage() {
   const [query, setQuery] = useState("");
   const [locale, setLocale] = useState<"FR" | "EN">("FR");
   const [demoDialog, setDemoDialog] = useState("");
+  const [notificationRole, setNotificationRole] = useState<string>("Caissier");
+  const [notificationDomain, setNotificationDomain] = useState<string>("Tous les domaines");
+  const [notificationCursor, setNotificationCursor] = useState(0);
+  const [readNotificationIds, setReadNotificationIds] = useState<number[]>([]);
   const activePrimary = useMemo(() => {
     if (["assurances"].includes(screen)) return "clients";
     if (["ticket", "annulation"].includes(screen)) return "historique";
@@ -103,8 +153,34 @@ export default function CaisseParcoursPrototypePage() {
     setToast(`Écran « ${titles[target]} » ouvert dans le prototype. Aucune donnée ni opération réelle n’a été modifiée.`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const demoAction = (label: string) => setDemoDialog(label);
+  const demoAction = (label: string) => {
+    setDemoDialog(label);
+    setNotificationRole(inferNotificationRole(label));
+    setNotificationDomain(inferNotificationDomain(label));
+    setNotificationCursor(0);
+  };
   const closeDialog = () => setDemoDialog("");
+  const visibleNotificationCases = notificationCases.filter(item =>
+    (notificationRole === "Tous les rôles" || item.role === notificationRole) &&
+    (notificationDomain === "Tous les domaines" || item.domain === notificationDomain)
+  );
+  const safeNotificationCursor = visibleNotificationCases.length
+    ? notificationCursor % visibleNotificationCases.length
+    : 0;
+  const currentNotification = visibleNotificationCases[safeNotificationCursor];
+  const advanceNotification = (step: number) => {
+    if (!visibleNotificationCases.length) return;
+    setNotificationCursor((current) =>
+      (current + step + visibleNotificationCases.length) % visibleNotificationCases.length
+    );
+  };
+  const markCurrentNotificationRead = () => {
+    if (currentNotification) {
+      setReadNotificationIds(current =>
+        current.includes(currentNotification.id) ? current : [...current, currentNotification.id]
+      );
+    }
+  };
 
   const rowActions = (target: Screen, label: string) => <Action variant="light" onClick={() => go(target)}>{label} →</Action>;
 
@@ -244,7 +320,49 @@ export default function CaisseParcoursPrototypePage() {
 
           {screen === "deconnexion" && <div className="grid gap-4 xl:grid-cols-2"><Panel title="Quitter l’espace caisse" subtitle="Confirmation visuelle uniquement"><div className="flex gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-amber-50 text-2xl">↪</span><div><p className="font-bold">Vous allez quitter votre espace caisse</p><p className="mt-1 text-sm text-slate-500">En situation réelle, vérifiez la clôture de la caisse et les éléments en attente de synchronisation.</p></div></div><div className="mt-4 flex flex-wrap gap-2"><Action variant="danger" onClick={() => demoAction("Déconnexion non exécutée dans le prototype")}>Se déconnecter</Action><Action variant="light" onClick={() => go("dashboard")}>Annuler / retour accueil</Action><Action variant="light" onClick={() => go("connexion")}>Écran de connexion</Action></div></Panel><Panel title="États de message"><div className="space-y-2"><div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">En ligne — connexion disponible.</div><div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Hors ligne — vérifier la synchronisation avant de quitter.</div><div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Erreur — déconnexion impossible, réessayez.</div></div></Panel></div>}
 
-          {demoDialog && <div role="dialog" aria-modal="true" aria-labelledby="demo-dialog-title" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-xl">ⓘ</span><div className="flex-1"><h2 id="demo-dialog-title" className="font-extrabold">Action non connectée</h2><p className="mt-2 text-sm text-slate-600">{demoDialog}</p><p className="mt-2 text-xs text-slate-500">Aucune donnée n’a été envoyée ni modifiée.</p></div></div><div className="mt-5 flex justify-end"><Action onClick={closeDialog}>Fermer</Action></div></div></div>}
+          {demoDialog && <div role="dialog" aria-modal="true" aria-labelledby="demo-dialog-title" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+            <div className="my-4 w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-xl">♧</span>
+                <div className="min-w-0 flex-1">
+                  <h2 id="demo-dialog-title" className="font-extrabold">Boucle de notifications — test d’architecture</h2>
+                  <p className="mt-2 text-sm font-semibold text-slate-700">{demoDialog}</p>
+                  <p className="mt-1 text-xs text-slate-500">Scénarios synthétiques uniquement : aucune notification externe, opération de caisse ou modification de données n’est exécutée.</p>
+                </div>
+                <button type="button" onClick={closeDialog} aria-label="Fermer la fenêtre de notification" className="min-h-11 min-w-11 rounded-xl border border-slate-200 font-bold">×</button>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-semibold text-slate-700">Rôle concerné
+                  <select value={notificationRole} onChange={e => { setNotificationRole(e.target.value); setNotificationCursor(0); }} className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3">
+                    {NOTIFICATION_ROLES.map(role => <option key={role} value={role}>{role}</option>)}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-slate-700">Domaine fonctionnel
+                  <select value={notificationDomain} onChange={e => { setNotificationDomain(e.target.value); setNotificationCursor(0); }} className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3">
+                    {NOTIFICATION_DOMAINS.map(domain => <option key={domain} value={domain}>{domain}</option>)}
+                  </select>
+                </label>
+              </div>
+              {currentNotification ? <section aria-live="polite" className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Status tone={currentNotification.priority === "À traiter" ? "red" : currentNotification.priority === "Contrôle" ? "amber" : "blue"}>{currentNotification.priority}</Status>
+                  <span className="text-xs font-semibold text-slate-500">Cas {currentNotification.id} / 1000 · {safeNotificationCursor + 1} sur {visibleNotificationCases.length} filtrés</span>
+                </div>
+                <h3 className="mt-3 font-extrabold text-slate-900">{currentNotification.state}</h3>
+                <p className="mt-1 text-sm text-slate-600">{currentNotification.message}</p>
+                <p className="mt-2 text-xs text-slate-500">Rôle : {currentNotification.role} · Domaine : {currentNotification.domain}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Action variant="light" onClick={() => advanceNotification(-1)}>← Précédent</Action>
+                  <Action onClick={() => advanceNotification(1)}>Suivant →</Action>
+                  <Action variant="light" onClick={markCurrentNotificationRead}>{currentNotification && readNotificationIds.includes(currentNotification.id) ? "Déjà marqué comme lu" : "Marquer comme lu"}</Action>
+                </div>
+              </section> : <Empty title="Aucun scénario" body="Changez le rôle ou le domaine pour afficher les cas correspondants." />}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <p className="text-xs text-slate-500">{notificationCases.length.toLocaleString("fr-FR")} scénarios générés · {readNotificationIds.length} marqués comme lus dans cette session</p>
+                <Action variant="danger" onClick={closeDialog}>Fermer</Action>
+              </div>
+            </div>
+          </div>}
           <footer className="rounded-2xl bg-[#0b3d26] p-4 text-sm text-white"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#ffe23d] font-black text-[#0b3d26]">N</span><div><p className="font-black">NAXA · Parcours caisse</p><p className="text-xs text-emerald-100">Prototype d’écrans non connecté</p></div></div><p className="text-xs text-emerald-100">Navigation locale seulement · aucun paiement ou enregistrement réel.</p></div></footer>
         </div>
       </div>
