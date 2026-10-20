@@ -17,7 +17,7 @@ create index if not exists gestionnaire_stock_sessions_history_idx
 alter table public.gestionnaire_stock_sessions enable row level security;
 drop policy if exists gestionnaire_stock_sessions_read on public.gestionnaire_stock_sessions;
 create policy gestionnaire_stock_sessions_read on public.gestionnaire_stock_sessions
- for select to authenticated using(user_id=(select auth.uid()) or public.is_admin() or public.can_access_pharmacy(pharmacie_id));
+ for select to authenticated using(user_id=(select auth.uid()) or public.is_admin() or public.naxa_scope_allows((select auth.uid()),pharmacie_id,'PHARMACIE'));
 revoke all on public.gestionnaire_stock_sessions from anon,public,authenticated;
 grant select on public.gestionnaire_stock_sessions to authenticated;
 
@@ -27,7 +27,7 @@ as $function$
 declare v_user uuid:=auth.uid(); v_profile public.profiles%rowtype; v_id uuid;
 begin
  if v_user is null then raise exception 'Connexion requise'; end if;
- if not public.can_access_pharmacy(p_pharmacie) then raise exception 'Pharmacie hors périmètre'; end if;
+ if not public.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') then raise exception 'Pharmacie hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur') or coalesce(v_profile.fonction_interne,'') in ('gestionnaire_stock','magasinier','pharmacien','pharmacien_assistant','responsable')) then raise exception 'Rôle Gestionnaire de stock requis'; end if;
  if exists(select 1 from public.gestionnaire_stock_sessions where pharmacie_id=p_pharmacie and user_id=v_user and ended_at is null) then raise exception 'Un service est déjà ouvert pour ce compte'; end if;
