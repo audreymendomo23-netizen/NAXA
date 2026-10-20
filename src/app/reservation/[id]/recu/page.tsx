@@ -9,7 +9,7 @@ import { QRCodePaiement } from "@/components/QRCodePaiement";
 
 type Ligne = { quantite: number; prix_unitaire: number; produits: { nom: string; dosage: string } | null };
 type RecuData = {
-  r: { total: number; statut: string; paiement_ref: string | null; code_paiement: string; paiement_mode: string | null; expires_at: string; created_at: string; pharmacies: { nom: string } | null };
+  r: { total: number; statut: string; paiement_ref: string | null; code_paiement: string; paiement_mode: string | null; expires_at: string; created_at: string; paiement_montant_percu: number | null; paiement_monnaie_rendue: number | null; paiement_valide_at: string | null; paiement_ticket_numero: string | null; pharmacies: { nom: string } | null };
   lignes: Ligne[];
 };
 
@@ -26,7 +26,7 @@ export default function Recu() {
       const sb = supabaseBrowser();
       const { data: r, error: reservationError } = await sb
         .from("reservations")
-        .select("total,statut,paiement_ref,code_paiement,paiement_mode,expires_at,created_at,pharmacies(nom)")
+        .select("total,statut,paiement_ref,code_paiement,paiement_mode,expires_at,created_at,paiement_montant_percu,paiement_monnaie_rendue,paiement_valide_at,paiement_ticket_numero,pharmacies(nom)")
         .eq("id", id)
         .single();
       if (reservationError || !r) throw reservationError ?? new Error("Réservation introuvable.");
@@ -68,11 +68,21 @@ export default function Recu() {
       )}
       {d && !chargement && (
         <>
-          <p className="text-sm">
-            N° {id.slice(0, 8).toUpperCase()} · {new Date(d.r.created_at).toLocaleString("fr-FR")}<br />
-            Pharmacie : {d.r.pharmacies?.nom ?? "—"}<br />
-            Référence de paiement : {d.r.paiement_ref ?? "—"}
-          </p>
+          <section className="rounded-xl border p-4 text-sm">
+            <p><strong>Transaction Marketplace :</strong> {id.toUpperCase()}</p>
+            <p><strong>Code de paiement :</strong> <span className="font-mono font-bold">{d.r.code_paiement}</span></p>
+            <p><strong>Ticket de caisse :</strong> {d.r.paiement_ticket_numero ?? "—"}</p>
+            <p><strong>Pharmacie :</strong> {d.r.pharmacies?.nom ?? "—"}</p>
+            <p><strong>Réservation créée :</strong> {new Date(d.r.created_at).toLocaleString("fr-FR")}</p>
+            <p><strong>Réservation valable jusqu’au :</strong> {new Date(d.r.expires_at).toLocaleString("fr-FR")}</p>
+            <p><strong>Statut du paiement :</strong> {d.r.statut === "payee" || d.r.statut === "retiree" ? "PAYÉ" : "NON PAYÉ"}</p>
+            <p><strong>Canal constaté par la pharmacie :</strong> {d.r.paiement_mode ?? "—"}</p>
+            <p><strong>Montant de l’achat :</strong> {fcfa(d.r.total)}</p>
+            <p><strong>Montant perçu :</strong> {d.r.paiement_montant_percu == null ? "—" : fcfa(d.r.paiement_montant_percu)}</p>
+            <p><strong>Monnaie rendue :</strong> {d.r.paiement_monnaie_rendue == null ? "—" : fcfa(d.r.paiement_monnaie_rendue)}</p>
+            <p><strong>Paiement validé le :</strong> {d.r.paiement_valide_at ? new Date(d.r.paiement_valide_at).toLocaleString("fr-FR") : "—"}</p>
+            <p><strong>Référence enregistrée :</strong> {d.r.paiement_ref ?? "—"}</p>
+          </section>
           <table className="w-full text-sm">
             <tbody>
               {d.lignes.map((l, i) => (
