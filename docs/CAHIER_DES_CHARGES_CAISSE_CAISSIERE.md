@@ -299,3 +299,131 @@ Migrations SQL, politiques RLS, fonctions de calcul testées, routes serveur, é
 ## Statut de référence
 
 Ce document est la référence fonctionnelle et visuelle de travail pour le compte Caissière NAXA ERP. Il ne constitue pas une preuve que les fonctionnalités sont déjà implémentées ou validées. Les points du §13 restent à confirmer. Toute implémentation doit d'abord être confrontée à l'existant et respecter les règles de sécurité, les paramètres de la pharmacie et l'interdiction de livraison.
+
+
+---
+
+# PARTIE 2B — CODE DE BASE : API, HORS LIGNE, JETONS ET COMPOSANTS
+
+Version reçue le 20/10/2026. Cette partie complète la Partie 2A dans le même cahier des charges. Elle décrit le code de référence transmis et ses contrats ; les extraits restent une base à adapter après audit du dépôt, pas une affirmation d'implémentation existante. Les tables, helpers, composants, jetons et règles déjà présents dans NAXA priment. Ne pas créer de doublons. Montants en entiers FCFA ; aucun montant métier en dur.
+
+## 14. Fichiers concernés
+
+- \`app/api/caisse/ventes/route.ts\` — API de vente avec recalcul et contrôles côté serveur.
+- \`lib/caisse/hors-ligne.ts\` — file locale IndexedDB fondée sur \`idb-keyval\`.
+- \`tailwind.config.ts\` — ajout non destructif des jetons de design.
+- \`app/(erp)/caisse/page.tsx\` — tableau de bord serveur.
+- \`components/caisse/CarteKpi.tsx\` — carte KPI et format d'affichage.
+- \`components/caisse/Encaissement.tsx\` — panier, scan et règlement.
+- \`components/caisse/ReservationQr.tsx\` — lecture du QR de réservation.
+
+## 15. Contrat de l'API de vente
+
+La route \`POST /api/caisse/ventes\` doit suivre ce parcours, sans faire confiance aux prix, taux de TVA, totaux, montants de prise en charge ou droits envoyés par le navigateur.
+
+1. Authentifier l'utilisateur avec le helper Supabase serveur existant. Répondre 401 \`NON_AUTHENTIFIE\` si absent.
+2. Valider le corps avec Zod : clé d'idempotence UUID, session UUID, lignes non vides, quantités entières positives, remises entières non négatives, paiements positifs (maximum deux), identifiants et champs facultatifs valides. Répondre 422 \`DONNEES_INVALIDES\` si invalide.
+3. Vérifier que la session appartient au caissier authentifié et est ouverte. Sinon, 409 \`SESSION_NON_OUVERTE\`.
+4. Lire les paramètres de la pharmacie, les produits, prix TTC, taux de TVA et exigences d'ordonnance depuis la base. Rejeter les produits inconnus, les prix/TVA absents et les ordonnances obligatoires manquantes.
+5. Refuser les remises si les paramètres de pharmacie ne les autorisent pas. Toute limite de remise doit être vérifiée côté serveur selon la configuration effective.
+6. Pour l'assurance, vérifier l'assuré et l'assureur actifs, la validité de la carte, les exigences de photo et d'ordonnance, les exclusions de produits, le taux applicable et le plafond restant. Calculer la prise en charge côté serveur ; demander une confirmation explicite en cas de dépassement du plafond.
+7. Charger les modes de paiement actifs de la pharmacie. Déduire le type du mode en base, jamais du client. Vérifier les règles de surplus et de monnaie rendue ; le surplus non remboursable doit être rejeté.
+8. Si un reste à payer subsiste, vérifier l'autorisation de crédit, l'identification du client et le plafond configuré, en tenant compte du crédit déjà ouvert.
+9. Appeler la RPC transactionnelle \`enregistrer_vente\` pour persister la vente, ses lignes, ses paiements, son éventuel crédit et l'audit. Les contrôles de stock, de session, d'idempotence, de pharmacie et de droits doivent être exécutés dans la transaction côté base, pas uniquement avant la RPC.
+10. Traduire les erreurs métier en codes stables : notamment \`STOCK_INSUFFISANT\`, \`SESSION_CLOTUREE\`, \`PLAFOND_ATTEINT\`, \`CREDIT_REFUSE\`, \`MODE_INCONNU\`. Ne pas exposer les messages SQL internes dans les réponses 500.
+11. Si la vente vient du Marketplace, vérifier l'éligibilité de la réservation et son appartenance à la pharmacie, puis faire évoluer son état de façon atomique selon le workflow Marketplace existant. Le retrait est en pharmacie uniquement ; aucune livraison.
+
+Le corps de référence comporte notamment : \`cleIdempotence\`, \`sessionId\`, \`clientId\`, \`assureId\`, \`ordonnanceNumero\`, \`prescripteur\`, \`photoCartePath\`, \`reservationId\`, \`horsLigne\`, \`confirmerDepassementPlafond\`, les lignes (\`produitId\`, \`lotId\`, \`quantite\`, \`remiseTtc\`) et les paiements (\`modeCode\`, \`montant\`, références opérateur/payeur et indicateur de rapprochement).
+
+## 16. File de ventes hors ligne
+
+Le module \`lib/caisse/hors-ligne.ts\` utilise \`idb-keyval\` pour enregistrer une vente avec une clé d'idempotence UUID et les champs \`essais\`, \`statut\` (\`en_attente\` ou \`rejetee\`) et \`erreur\` facultatif.
+
+- \`nouvelleCle()\` crée une clé d'idempotence.
+- \`empiler(payload)\` enregistre une vente dans la file locale.
+- \`tailleFile()\` compte les entrées dont la clé commence par \`file-vente:\`.
+- \`synchroniser()\` transmet les ventes en attente à \`/api/caisse/ventes\` avec \`horsLigne: true\`.
+- Une réponse réussie retire l'entrée locale ; un rejet 4xx conserve la vente marquée \`rejetee\` pour résolution manuelle ; une réponse 5xx incrémente les essais et interrompt la boucle pour réessayer plus tard ; une erreur réseau interrompt la synchronisation.
+- Déclencher la synchronisation sur l'événement \`online\` et périodiquement lorsque la file n'est pas vide, avec une fréquence définie par la configuration et sans boucle agressive.
+- Les ventes hors ligne ne doivent pas contourner les contrôles serveur, les prix actuels, les droits, la disponibilité du stock ou l'idempotence. Les conflits de prix/stock à la reconnexion doivent être signalés à l'utilisateur plutôt que transformés silencieusement.
+- En mode hors ligne, limiter les moyens aux modes expressément autorisés par la pharmacie. Le Mobile Money reste bloqué ou en rapprochement uniquement si une politique officiellement validée l'autorise. Ne jamais déclarer un paiement électronique réussi sur la seule base d'une saisie locale.
+- Ne pas vider le panier avant que la vente soit durablement enregistrée ou que sa mise en file locale ait réussi. Signaler clairement les ventes en attente et rejetées.
+
+## 17. Jetons Tailwind — extension non destructive
+
+Les jetons proposés dans la base de référence, à comparer à ceux déjà existants et à confirmer sur la maquette, sont :
+
+- \`naxa.green\`: \`#16803C\`
+- \`naxa.deep\`: \`#14532D\`
+- \`naxa.canari\`: \`#FFE01B\`
+- \`naxa.canariSoft\`: \`#FFF8C9\`
+- \`naxa.page\`: \`#F3F4F2\`
+- rayon \`carte\`: \`16px\`
+- ombre \`carte\`: \`0 4px 12px rgba(0,0,0,0.08)\`
+
+Ces valeurs sont approximatives. Fusionner dans \`theme.extend\` sans écraser la configuration existante ni modifier les jetons NAXA déjà utilisés ailleurs.
+
+## 18. Tableau de bord caissière
+
+Le composant serveur \`app/(erp)/caisse/page.tsx\` authentifie l'utilisateur, recherche sa session ouverte, puis lit \`v_kpi_session\` et \`v_credit_restant\`. Sans session, afficher un état vide clair et une action pour ouvrir le service ; ne pas simuler de session ni de chiffres.
+
+Les quatre cartes de référence sont :
+1. Solde du compte / solde théorique espèces.
+2. Encaissement.
+3. Montant remboursé, avec les sous-montants « Principal » et « Remboursement » à confirmer par le promoteur avant de leur attribuer une signification comptable.
+4. Solde crédit, dont le périmètre (session, caissière ou pharmacie) reste à confirmer.
+
+Le tableau de bord affiche ensuite l'encaissement comptoir et le module de scan QR de réservation lorsque la session est ouverte. Protéger la page contre l'absence d'utilisateur et contre une session inexistante ; ne pas utiliser d'assertion non vérifiée \`user!.id\`.
+
+## 19. Carte KPI et montant
+
+\`components/caisse/CarteKpi.tsx\` expose une carte accessible avec titre, contenu, pied de carte facultatif, icône facultative et état de chargement. L'état de chargement utilise un squelette visuel. Le composant \`Montant\` affiche un montant entier avec le séparateur français et l'unité FCFA. Pour une cohérence globale, privilégier le helper partagé \`formaterFcfa\` de la Partie 2A plutôt qu'un formatage divergent.
+
+## 20. Encaissement comptoir
+
+\`components/caisse/Encaissement.tsx\` est un composant client utilisant les fonctions pures de \`lib/caisse/calculs.ts\` pour l'aperçu du panier, la TVA, la prise en charge et le règlement.
+
+- Le panier est piloté par un reducer : ajouter un produit, modifier la quantité, retirer une ligne, vider le panier.
+- Le champ de scan interroge \`/api/caisse/produits?code=...\`. Cette API reste à construire et doit retourner les informations du produit, un lot admissible selon FEFO, le stock et l'alerte de péremption configurée.
+- Les prix, la TVA, les remises autorisées, les plafonds et les totaux affichés par le client ne remplacent jamais le recalcul serveur.
+- Charger les modes de paiement actifs depuis la base ; la structure vide fournie est seulement un emplacement à implémenter, pas une interface terminée.
+- Afficher le total, la ventilation TVA, les parts assureur/client, la monnaie à rendre et les erreurs de règlement.
+- La validation envoie une clé d'idempotence, la session, les lignes et les paiements à l'API de vente.
+- Après un échec réseau, ne mettre en file que si le navigateur est réellement hors ligne et si l'écriture locale réussit ; en cas d'erreur serveur ou métier, conserver le panier et afficher l'erreur au lieu de le vider.
+- Le contrôle du plafond, la sélection de l'assuré, les confirmations, les modes de paiement, les messages d'erreur, les notifications et l'impression du reçu restent à intégrer proprement au parcours complet.
+
+## 21. Lecture du QR de réservation
+
+\`components/caisse/ReservationQr.tsx\` utilise la caméra arrière et \`BarcodeDetector\` lorsqu'il est disponible, avec un repli obligatoire par bibliothèque compatible (par exemple \`@zxing/browser\`) et saisie manuelle du code si la caméra n'est pas disponible. Le flux caméra doit être arrêté au démontage et les refus d'autorisation / erreurs de périphérique doivent être gérés.
+
+Le code lu appelle \`/api/caisse/reservations?code=...&session=...\`. Cette API reste à construire. Elle doit vérifier côté serveur l'identité, la pharmacie et la session, l'état de la réservation, son expiration et son éligibilité. La réponse doit charger les articles dans le parcours d'encaissement existant, pas afficher simplement « Réservation chargée » sans effet. Le passage à « Retirée » doit être atomique et ne doit intervenir qu'au moment prévu par le workflow validé, après paiement et remise effective au client. Aucune livraison.
+
+## 22. Travail restant identifié dans la Partie 2B
+
+- Construire/adopter \`/api/caisse/produits\` : recherche produit, lot FEFO, stock réel, péremption et contrôles de pharmacie.
+- Construire/adopter \`/api/caisse/reservations\` : consultation Marketplace et transition atomique après paiement/retrait.
+- Compléter ouverture et clôture de service avec RPC transactionnelles, réconciliation, justificatifs configurés, file hors ligne vide et ventes en attente.
+- Compléter les parcours Clients et Assurances, Historique, Rapports, Profil, reçus et duplicatas.
+- Ajouter les tests API, fonctions pures, idempotence, concurrence, permissions/RLS, session clôturée, stock, assurance, crédit, hors ligne et réservation.
+- Vérifier l'accessibilité, le rendu mobile, l'impression thermique 58/80 mm et les états vides/chargement/erreur.
+
+## 23. Audit de contradiction obligatoire avant implémentation
+
+Le code fourni est une base de travail, non un code prêt à appliquer tel quel. L'audit doit notamment résoudre les contradictions suivantes avant de le déployer :
+
+1. **Idempotence et sécurité RPC :** \`enregistrer_vente(p jsonb)\` ne doit pas accepter sans contrôle des identifiants de pharmacie, de session ou de caissier fournis dans le JSON. Vérifier l'utilisateur et les permissions dans la base, et ne retourner un doublon qu'après avoir contrôlé que la vente appartient au périmètre autorisé.
+2. **Paiements et crédit :** le code de référence transmet \`reg.resteAPayer\` comme crédit généré dès qu'un reste existe. Cela n'est acceptable que si le crédit est autorisé et explicitement choisi/accepté ; un paiement partiel ne doit pas créer automatiquement un crédit sans consentement.
+3. **Validation du règlement :** les modes de paiement et leur type doivent être reliés à la pharmacie et validés dans la transaction. Le montant total reçu, la monnaie rendue, la somme des paiements et le reste à payer doivent respecter une seule règle comptable cohérente, y compris pour une vente assurée.
+4. **Remises :** contrôler le maximum configuré \`remise_caissiere_max_bp\` et le périmètre de la remise, pas seulement le booléen d'autorisation.
+5. **Stock et lots :** les contrôles FEFO, lot non périmé, quantité disponible et décrément atomique doivent être réellement exécutés ; les commentaires d'adaptation ne protègent pas le stock.
+6. **Assurance :** vérifier que l'assuré, son client, l'assureur, les produits et la pharmacie sont liés entre eux. Le plafond doit être réservé/consommé sans course concurrente ; la vue seule ne suffit pas à garantir le plafond sous concurrence.
+7. **RLS et écriture serveur :** les politiques doivent être complètes pour toutes les tables concernées. Toute élévation de privilèges doit rester côté serveur avec contrôles explicites et aucun accès direct client non autorisé.
+8. **Journal d'audit :** vérifier les droits d'insertion, la concurrence du chaînage et les protections contre les modifications/suppressions, y compris par les rôles privilégiés opérationnels.
+9. **Ventes annulées et remboursement :** les vues de KPI, les paiements, la monnaie rendue et les mouvements de caisse doivent refléter correctement les annulations et remboursements sans supprimer l'historique comptable.
+10. **Hors ligne :** une vente stockée localement ne garantit ni le prix ni le stock au moment de la synchronisation. L'interface doit conserver les rejets et éviter les pertes de panier ; idempotence et réconciliation sont obligatoires.
+11. **Réservations Marketplace :** réutiliser le workflow et les RPC existants pour éviter une seconde déduction de stock ou un double paiement. Le paiement d'une réservation déjà payé ne doit pas être reproduit.
+12. **Schéma existant :** la migration de la Partie 2A ne doit pas être appliquée avant comparaison avec les tables, vues, RPC, index, contraintes, triggers et helpers existants. Toute évolution éventuelle doit être additive et adaptée à la base réelle.
+
+## 24. Statut de cette partie
+
+La Partie 2B est reçue comme référence fonctionnelle et technique. La présence de cette annexe dans le cahier des charges ne signifie pas que les fichiers cités sont créés, que les tests sont verts, que la migration est appliquée ou que Supabase Production est modifiée. Les règles de la Partie 1 et les décisions à confirmer restent prioritaires. Aucun déploiement n'est autorisé par cette intégration documentaire.
