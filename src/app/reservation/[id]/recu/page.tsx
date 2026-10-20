@@ -5,10 +5,11 @@ import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { EnTeteClient } from "@/components/EnTeteClient";
+import { QRCodePaiement } from "@/components/QRCodePaiement";
 
 type Ligne = { quantite: number; prix_unitaire: number; produits: { nom: string; dosage: string } | null };
 type RecuData = {
-  r: { total: number; statut: string; paiement_ref: string | null; created_at: string; pharmacies: { nom: string } | null };
+  r: { total: number; statut: string; paiement_ref: string | null; code_paiement: string; paiement_mode: string | null; expires_at: string; created_at: string; pharmacies: { nom: string } | null };
   lignes: Ligne[];
 };
 
@@ -25,7 +26,7 @@ export default function Recu() {
       const sb = supabaseBrowser();
       const { data: r, error: reservationError } = await sb
         .from("reservations")
-        .select("total,statut,paiement_ref,created_at,pharmacies(nom)")
+        .select("total,statut,paiement_ref,code_paiement,paiement_mode,expires_at,created_at,pharmacies(nom)")
         .eq("id", id)
         .single();
       if (reservationError || !r) throw reservationError ?? new Error("Réservation introuvable.");
@@ -83,6 +84,7 @@ export default function Recu() {
             </tbody>
           </table>
           <p className="text-right text-lg font-extrabold">Total : {fcfa(d.r.total)}</p>
+          <QRCodePaiement code={d.r.code_paiement} />
           <button type="button" className="btn btn-vert no-print w-full" onClick={() => window.print()}>
             Imprimer ou enregistrer en PDF
           </button>
