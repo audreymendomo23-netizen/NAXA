@@ -93,9 +93,9 @@ export default function PharmacienSuiviPatientsPage() {
       setError("Accès réservé à un compte Pharmacien actif rattaché à une pharmacie."); setLoading(false); return;
     }
     const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
-      .select("id,actif,visible_recherche").eq("id", profile.pharmacie_id).maybeSingle();
-    if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
-      setError("La pharmacie est inactive ou non publiée ; l’accès au suivi patient est bloqué."); setLoading(false); return;
+      .select("id,actif").eq("id", profile.pharmacie_id).maybeSingle();
+    if (pharmacyError || !pharmacy || pharmacy.actif !== true) {
+      setError("La pharmacie est inactive ; l’accès au suivi patient est bloqué."); setLoading(false); return;
     }
     setRecipientId(auth.user.id);
     await loadSharedData(auth.user.id);
