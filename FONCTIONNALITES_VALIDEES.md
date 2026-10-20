@@ -893,7 +893,7 @@ Le dépôt contient désormais :
 
 ## ERP-011 — Rappel de lot (F64)
 - Audit corrigé : `vente_lignes.lot_id` et l'allocation FEFO existaient déjà via la migration 057 ; le POS refuse les lots bloqués/expirés.
-- Corrections additives 175–184 : clôture Promoteur seule après traitement complet ; restauration du blocage antérieur ; rappel réutilisable après clôture ; synchronisation des colonnes historiques/canoniques ; création/répartition de lots sans changer le stock total ; garde anti-désynchronisation stock/lots ; comptage de quarantaine ; sorties retour/destruction atomiques et historisées ; avis réseau admin et accusés Promoteur.
+- Corrections additives 175–185 : clôture Promoteur seule après traitement complet ; restauration du blocage antérieur ; rappel réutilisable après clôture ; synchronisation des colonnes historiques/canoniques ; création/répartition de lots sans changer le stock total ; garde anti-désynchronisation stock/lots ; comptage de quarantaine ; sorties retour/destruction atomiques et historisées ; avis réseau admin et accusés Promoteur.
 - Interface : `/pharmacie/rappels-lots` (déclaration, lots, comptage, traitement, historique, impacts POS et références ordonnancier selon le rôle) ; bannière rouge à l'accueil et à la caisse ; `/admin/rappels-lots` pour les avis réseau ; panneau d'avis sur l'espace Promoteur. Les coûts d'achat sont affichés seulement aux profils disposant du privilège de lecture.
 - Tests exécutés sur Supabase de test : 052, 054, 175, 177, 179, 180, 181 et 184 PASS ; tests Caisse 164, 166, 167 et 168 PASS. Test 161 a passé après migration 173, mais son rejeu ultérieur a été bloqué par le contrôle d'exécution SQL.
 - Aucun changement Production/Supabase live exécuté et aucun déploiement Production.
