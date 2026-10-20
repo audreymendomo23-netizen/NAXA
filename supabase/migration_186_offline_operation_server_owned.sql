@@ -15,7 +15,7 @@ begin
  if p_operation_id is null or p_pharmacie_id is null or p_produit_id is null then raise exception 'Identifiant d''opération, pharmacie et produit requis'; end if;
  if p_base_updated_at is null then raise exception 'Horodatage de base requis'; end if;
  if p_quantite is null or p_quantite<0 then raise exception 'Quantité invalide'; end if;
- if not (public.is_admin() or public.can_access_pharmacy(p_pharmacie_id)) then raise exception 'Pharmacie hors périmètre'; end if;
+ if not (public.is_admin() or public.naxa_scope_allows(v_uid,p_pharmacie_id,'PHARMACIE')) then raise exception 'Pharmacie hors périmètre'; end if;
 
  select * into v_op from public.offline_operations where operation_id=p_operation_id for update;
  if not found then
