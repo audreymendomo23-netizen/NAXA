@@ -149,8 +149,8 @@ export function CaisseRetraitsMarketplace({
     <section className="carte mb-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-extrabold">Retraits Marketplace</h2>
-          <p className="text-sm text-slate-600">Encaissement comptoir et retrait des réservations de cette pharmacie. Le paiement est enregistré dans la session POS.</p>
+          <h2 className="text-lg font-extrabold">Réservations Marketplace</h2>
+          <p className="text-sm text-slate-600">Encaissement comptoir et remise des produits réservés par les clients. Le paiement est enregistré dans la session POS.</p>
         </div>
         <button type="button" className="btn btn-clair" disabled={loading || !!busyId} onClick={() => void load()}>
           Actualiser
