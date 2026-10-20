@@ -45,6 +45,18 @@ export default async function EspacePromoteur() {
     ? await adminDb.from("pharmacies").select("id,nom,ville,quartier,actif,visible_recherche,de_garde,stock_updated_at").in("id", ids).order("nom")
     : { data: [] as { id: string; nom: string; ville: string | null; quartier: string | null; actif: boolean; visible_recherche: boolean; de_garde: boolean; stock_updated_at: string | null }[], error: null };
 
+  const operationalIds = [...new Set((links ?? []).filter((link) => link.actif).map((link) => link.pharmacie_id))];
+  const { data: caisseRows } = operationalIds.length
+    ? await adminDb.from("caisses").select("id,nom,pharmacie_id").in("pharmacie_id", operationalIds)
+    : { data: [] as { id: string; nom: string; pharmacie_id: string }[] };
+  const caisseIds = (caisseRows ?? []).map((c) => c.id);
+  const { data: ecartsCaisse } = caisseIds.length
+    ? await adminDb.from("caisses_sessions")
+        .select("id,caisse_id,cloture_at,total_theorique,total_compte,ecart,ecart_justification,ecart_statut")
+        .in("caisse_id", caisseIds).neq("ecart", 0).order("cloture_at", { ascending: false }).limit(20)
+    : { data: [] as { id: string; caisse_id: string; cloture_at: string | null; total_theorique: number; total_compte: number | null; ecart: number | null; ecart_justification: string | null; ecart_statut: string }[] };
+  const caisseById = new Map((caisseRows ?? []).map((c) => [c.id, c] as const));
+
   const { data: statsData, error: statsError } = profile.actif === true
     ? await sb.rpc("stats_pilotage_scope", { p_jours: 30 })
     : { data: null, error: null };
@@ -234,6 +246,26 @@ export default async function EspacePromoteur() {
             <p className="mt-2 text-2xl font-extrabold tabular-nums">{k.value}</p>
             <p className="mt-1 text-xs text-slate-500">{k.note}</p>
           </article>)}
+        </section>
+
+        <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-extrabold">Écarts de caisse à vérifier</h2>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{(ecartsCaisse ?? []).filter((x) => x.ecart_statut === "a_verifier").length} à vérifier</span>
+          </div>
+          <p className="mt-1 text-sm text-slate-600">Les écarts clôturés sont conservés avec leur justification. Cet écran est en lecture seule : une correction comptable doit être une opération séparée et auditée.</p>
+          {!ecartsCaisse?.length ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">Aucun écart de clôture enregistré sur le réseau actif.</p> : <ul className="mt-3 space-y-2">
+            {ecartsCaisse.map((e) => {
+              const caisse = caisseById.get(e.caisse_id);
+              return <li key={e.id} className="rounded-xl border p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div><p className="font-bold">{caisse?.nom ?? "Caisse"} · {date(e.cloture_at)}</p><p className="text-sm text-slate-600">Théorique : {fcfa(e.total_theorique)} · Compté : {e.total_compte === null ? "Non renseigné" : fcfa(e.total_compte)}</p>
+                    {e.ecart_justification && <p className="mt-1 text-sm">Justification : {e.ecart_justification}</p>}
+                  </div><div className="text-right"><p className={Number(e.ecart) < 0 ? "font-extrabold text-red-700" : "font-extrabold text-amber-800"}>{Number(e.ecart) > 0 ? "+" : ""}{fcfa(Number(e.ecart))}</p><p className="text-xs text-slate-500">{e.ecart_statut === "a_verifier" ? "À vérifier" : e.ecart_statut}</p></div>
+                </div>
+              </li>;
+            })}
+          </ul>}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
