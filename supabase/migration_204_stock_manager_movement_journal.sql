@@ -23,6 +23,7 @@ create table if not exists public.stock_manager_movement_journal(
  cree_le timestamptz not null default now()
  );
 alter table public.stock_manager_movement_journal add column if not exists numero_lot text;
+alter table public.stock_manager_movement_journal add column if not exists motif_operation text;
 create index if not exists stock_manager_movement_journal_scope_idx on public.stock_manager_movement_journal(pharmacie_id,cree_le desc);
 create index if not exists stock_manager_movement_journal_lot_idx on public.stock_manager_movement_journal(lot_id,cree_le desc) where lot_id is not null;
 alter table public.stock_manager_movement_journal enable row level security;
