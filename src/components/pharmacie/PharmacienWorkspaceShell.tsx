@@ -3,10 +3,12 @@
 import type { ReactNode } from "react";
 import { PharmacienWorkspaceSidebar } from "@/components/pharmacie/PharmacienWorkspaceSidebar";
 
+type PharmacienSection = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "historique" | "rapports" | "profil";
+
 type PharmacienWorkspaceShellProps = {
   children: ReactNode;
-  activeTab: "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "historique" | "rapports" | "profil";
-  onNavigate: (section: PharmacienWorkspaceShellProps["activeTab"]) => void;
+  activeTab: PharmacienSection;
+  onNavigate: (section: PharmacienSection) => void;
 };
 
 /**
