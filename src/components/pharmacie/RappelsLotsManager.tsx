@@ -11,6 +11,7 @@ type Lot = { id: string; pharmacie_id: string; produit_id: string; numero_lot: s
 type Recall = { id: string; lot_id: string; reference_rappel: string | null; motif: string; statut: "actif" | "leve"; date_rappel: string; leve_at: string | null; leve_par: string | null; quantite_trouvee: number | null; quantite_isolee: number | null; compte_at: string | null };
 type SaleImpact = { lot_id: string; quantite: number; ventes: { id: string; numero_vente: string; created_at: string; pharmacie_id: string; prescription_id: string | null } | null };
 type OrdonnanceImpact = { lot_id: string; vente_id: string; reference_interne: string | null; designation: string; quantite_dispensee: number; statut: string; dispensed_at: string | null; created_at: string };
+type Traitement = { id: string; rappel_id: string; lot_id: string; type: "retour_fournisseur" | "destruction"; quantite: number; reference: string | null; motif: string; created_at: string };
 
 export function RappelsLotsManager() {
   const sb = useMemo(() => supabaseBrowser(), []);
@@ -23,6 +24,8 @@ export function RappelsLotsManager() {
   const [rappels, setRappels] = useState<Recall[]>([]);
   const [impacts, setImpacts] = useState<SaleImpact[]>([]);
   const [ordonnances, setOrdonnances] = useState<OrdonnanceImpact[]>([]);
+  const [traitements, setTraitements] = useState<Traitement[]>([]);
+  const [sorties, setSorties] = useState<Record<string, { type: "retour_fournisseur" | "destruction"; quantite: string; reference: string; motif: string }>>({});
   const [canManage, setCanManage] = useState(false);
   const [chargement, setChargement] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -83,6 +86,10 @@ export function RappelsLotsManager() {
     setRappels((recallData ?? []) as Recall[]);
     const allowedFunction = ["pharmacien", "pharmacien_assistant", "responsable"].includes(profile.fonction_interne || "");
     setCanManage(profile.role === "promoteur" || (profile.role !== "caisse" && profile.fonction_interne !== "caisse" && (allowedFunction || (!privilegeError && privilege === true))));
+    if (profile.role === "promoteur") {
+      const { data: treatmentRows } = await sb.from("rappels_lots_traitements").select("id,rappel_id,lot_id,type,quantite,reference,motif,created_at").eq("pharmacie_id", pharmacieId).order("created_at", { ascending: false }).limit(100);
+      setTraitements((treatmentRows ?? []) as Traitement[]);
+    } else setTraitements([]);
     const activeIds = (recallData ?? []).filter((r) => r.statut === "actif").map((r) => r.lot_id);
     if ((profile.role === "promoteur" || profile.fonction_interne === "pharmacien_assistant") && activeIds.length) {
       const { data: sold } = await sb.from("vente_lignes").select("lot_id,quantite,ventes!inner(id,numero_vente,created_at,pharmacie_id,prescription_id)").in("lot_id", activeIds);
@@ -148,6 +155,19 @@ export function RappelsLotsManager() {
     setBusy(false);
   }
 
+  async function traiterSortie(rappel: Recall) {
+    const values = sorties[rappel.id] ?? { type: "retour_fournisseur" as const, quantite: "", reference: "", motif: "" };
+    const quantite = Number(values.quantite);
+    if (!Number.isSafeInteger(quantite) || quantite <= 0 || values.motif.trim().length < 5 || busy) {
+      setErreur("Renseignez une quantité positive et un motif de 5 à 500 caractères."); return;
+    }
+    setBusy(true); setErreur(""); setMessage("");
+    const { error } = await sb.rpc("lot_rappel_traiter_sortie", { p_rappel: rappel.id, p_type: values.type, p_quantite: quantite, p_reference: values.reference.trim() || null, p_motif: values.motif.trim() });
+    if (error) setErreur(error.message || "Sortie de lot non enregistrée.");
+    else { setMessage(values.type === "retour_fournisseur" ? "Retour fournisseur enregistré et stock décrémenté." : "Destruction enregistrée et stock décrémenté."); setSorties((old) => ({ ...old, [rappel.id]: { ...values, quantite: "", reference: "", motif: "" } })); await charger(); }
+    setBusy(false);
+  }
+
   async function leverRappel(rappel: Recall) {
     if (busy || profile?.role !== "promoteur") return;
     if (!window.confirm("Confirmez-vous la clôture du rappel ? Le blocage antérieur du lot sera conservé, s’il existait.")) return;
@@ -210,6 +230,7 @@ export function RappelsLotsManager() {
           {r.statut === "actif" && profile && !["client", "admin"].includes(profile.role) && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3"><p className="font-bold text-sm">Comptage de quarantaine</p><p className="text-xs text-slate-600">Saisissez les unités retrouvées et celles physiquement isolées. Ce comptage ne modifie ni le stock ni les prix.</p><div className="mt-2 grid grid-cols-2 gap-2"><label className="text-xs font-semibold">Unités retrouvées<input className="champ mt-1 w-full" type="number" min="0" step="1" value={comptages[r.id]?.trouvee ?? String(r.quantite_trouvee ?? "")} onChange={(e) => setComptages((old) => ({ ...old, [r.id]: { trouvee: e.target.value, isolee: old[r.id]?.isolee ?? String(r.quantite_isolee ?? "") } }))} /></label><label className="text-xs font-semibold">Unités isolées<input className="champ mt-1 w-full" type="number" min="0" step="1" value={comptages[r.id]?.isolee ?? String(r.quantite_isolee ?? "")} onChange={(e) => setComptages((old) => ({ ...old, [r.id]: { trouvee: old[r.id]?.trouvee ?? String(r.quantite_trouvee ?? ""), isolee: e.target.value } }))} /></label></div><button type="button" className="btn btn-clair mt-2" disabled={busy} onClick={() => void enregistrerComptage(r)}>Enregistrer le comptage</button>{r.compte_at && <p className="mt-1 text-xs text-slate-600">Dernier comptage : {r.quantite_trouvee ?? "—"} retrouvé(s), {r.quantite_isolee ?? "—"} isolé(s), le {new Date(r.compte_at).toLocaleString("fr-FR")}</p>}</div>}
           {profile?.role === "promoteur" && r.statut === "actif" && <div className="mt-3 rounded-lg bg-slate-50 p-3"><p className="text-sm font-bold">Ventes concernées (tickets POS)</p>{sold.length ? sold.map((s, i) => <p key={i} className="text-xs text-slate-600">{s.ventes?.numero_vente ?? "Ticket"} · {new Date(s.ventes?.created_at ?? r.date_rappel).toLocaleString("fr-FR")} · {s.quantite} unité(s)</p>) : <p className="text-xs text-slate-500">Aucune ligne de vente POS associée à ce lot.</p>}</div>}
           {profile?.fonction_interne === "pharmacien_assistant" && r.statut === "actif" && <div className="mt-3 rounded-lg bg-blue-50 p-3"><p className="text-sm font-bold">Ordonnances concernées</p>{ordersForLot.length ? ordersForLot.map((o, i) => <p key={o.vente_id + "-" + i} className="text-xs text-slate-700">{o.reference_interne ?? "Numéro d’ordre non renseigné"} · {o.designation} · {o.quantite_dispensee} unité(s) · {o.statut}</p>) : <p className="text-xs text-slate-500">Aucune ligne d’ordonnancier liée à une vente de ce lot.</p>}</div>}
+          {profile?.role === "promoteur" && r.statut === "actif" && <div className="mt-3 rounded-lg border p-3"><p className="text-sm font-bold">Retour fournisseur / destruction</p><div className="mt-2 grid gap-2 sm:grid-cols-2"><label className="text-xs font-semibold">Type de sortie<select className="champ mt-1 w-full" value={sorties[r.id]?.type ?? "retour_fournisseur"} onChange={(e) => setSorties((old) => ({ ...old, [r.id]: { type: e.target.value as "retour_fournisseur" | "destruction", quantite: old[r.id]?.quantite ?? "", reference: old[r.id]?.reference ?? "", motif: old[r.id]?.motif ?? "" } }))}><option value="retour_fournisseur">Retour fournisseur</option><option value="destruction">Destruction</option></select></label><label className="text-xs font-semibold">Quantité<input className="champ mt-1 w-full" type="number" min="1" step="1" value={sorties[r.id]?.quantite ?? ""} onChange={(e) => setSorties((old) => ({ ...old, [r.id]: { type: old[r.id]?.type ?? "retour_fournisseur", quantite: e.target.value, reference: old[r.id]?.reference ?? "", motif: old[r.id]?.motif ?? "" } }))} /></label><label className="text-xs font-semibold sm:col-span-2">Référence du retour (facultative)<input className="champ mt-1 w-full" maxLength={120} value={sorties[r.id]?.reference ?? ""} onChange={(e) => setSorties((old) => ({ ...old, [r.id]: { type: old[r.id]?.type ?? "retour_fournisseur", quantite: old[r.id]?.quantite ?? "", reference: e.target.value, motif: old[r.id]?.motif ?? "" } }))} /></label><label className="text-xs font-semibold sm:col-span-2">Motif / preuve<textarea className="champ mt-1 w-full" rows={2} maxLength={500} value={sorties[r.id]?.motif ?? ""} onChange={(e) => setSorties((old) => ({ ...old, [r.id]: { type: old[r.id]?.type ?? "retour_fournisseur", quantite: old[r.id]?.quantite ?? "", reference: old[r.id]?.reference ?? "", motif: e.target.value } }))} /></label></div><button type="button" className="btn btn-clair mt-2" disabled={busy} onClick={() => void traiterSortie(r)}>Enregistrer la sortie et ajuster le stock</button>{traitements.filter((t) => t.rappel_id === r.id).map((t) => <p key={t.id} className="mt-2 text-xs text-slate-600">{t.type === "retour_fournisseur" ? "Retour fournisseur" : "Destruction"} · {t.quantite} unité(s) · {t.reference ?? "sans référence"} · {new Date(t.created_at).toLocaleString("fr-FR")} — {t.motif}</p>)}</div>}
           {profile?.role === "promoteur" && r.statut === "actif" && <button type="button" className="btn btn-clair mt-3" disabled={busy} onClick={() => void leverRappel(r)}>Clôturer le rappel (Promoteur)</button>}
           {r.statut === "leve" && r.leve_at && <p className="mt-2 text-xs text-slate-500">Clôturé le {new Date(r.leve_at).toLocaleString("fr-FR")}</p>}
         </article>;
