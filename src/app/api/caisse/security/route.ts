@@ -36,11 +36,14 @@ export async function POST(request:NextRequest){
   if(c.pin_locked_until && new Date(c.pin_locked_until).getTime()>Date.now())return err("PIN temporairement bloqué après plusieurs échecs. Réessayez plus tard.",429);
   const got=scryptSync(pin,c.pin_salt,64),expected=Buffer.from(c.pin_hash,"hex");
   if(got.length!==expected.length||!timingSafeEqual(got,expected)){
-   const attempts=Math.min(5,Number(c.pin_failed_attempts||0)+1);
-   await db.from("caisse_security_credentials").update({pin_failed_attempts:attempts,pin_locked_until:attempts>=5?new Date(Date.now()+15*60_000).toISOString():null,updated_at:new Date().toISOString()}).eq("user_id",user.id);
+   const {data:failure,error:failureError}=await db.rpc("caisse_pin_register_failure",{p_user_id:user.id});
+   if(failureError)throw failureError;
+   const state=Array.isArray(failure)?failure[0] as {attempts?:number;locked_until?:string|null}|undefined:undefined;
+   const attempts=Number(state?.attempts||0);
    return err(attempts>=5?"PIN bloqué pendant 15 minutes après 5 échecs.":"PIN incorrect.",403);
   }
-  await db.from("caisse_security_credentials").update({pin_failed_attempts:0,pin_locked_until:null,updated_at:new Date().toISOString()}).eq("user_id",user.id);
+  const {error:resetError}=await db.rpc("caisse_pin_reset_failures",{p_user_id:user.id});
+  if(resetError)throw resetError;
   return NextResponse.json({grantId:await grant(user.id,sid,"pin"),method:"pin"});
  }
  if(b.action==="registration-options"){
