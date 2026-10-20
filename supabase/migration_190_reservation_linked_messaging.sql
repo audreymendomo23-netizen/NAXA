@@ -54,6 +54,36 @@ end;
 $function$;
 revoke all on function public.envoyer_message_reservation(uuid,text,boolean) from public, anon;
 grant execute on function public.envoyer_message_reservation(uuid,text,boolean) to authenticated;
+create or replace function public.repondre_message(p_fil uuid, p_corps text)
+returns uuid language plpgsql security definer set search_path = ''
+as $function$
+declare
+ v_user uuid := auth.uid(); v_pharmacie uuid; v_client uuid; v_expediteur text; v_id uuid; v_reservation uuid;
+begin
+ if v_user is null then raise exception 'Connexion requise'; end if;
+ if char_length(trim(coalesce(p_corps,''))) not between 1 and 1000 then raise exception 'Message invalide'; end if;
+ select pharmacie_id,client_id into v_pharmacie,v_client from public.fils_messages where id=p_fil;
+ if v_client is null then raise exception 'Conversation introuvable'; end if;
+ if v_user=v_client then v_expediteur:='client';
+ elsif (public.is_admin() or public.naxa_scope_allows(v_user, v_pharmacie, 'PHARMACIE')) then v_expediteur:='pharmacie';
+ else raise exception 'Accès refusé'; end if;
+ select reservation_id into v_reservation from public.messages_pharmacie
+ where fil_id=p_fil and reservation_id is not null order by created_at desc limit 1;
+ insert into public.messages_pharmacie(fil_id,expediteur,corps,reservation_id)
+ values(p_fil,v_expediteur,trim(p_corps),v_reservation) returning id into v_id;
+ if v_expediteur='client' then
+  insert into public.notifications(pharmacie_id,type,titre,corps,fil_id,reservation_id)
+  values(v_pharmacie,'message','Nouveau message client',left(trim(p_corps),1000),p_fil,v_reservation);
+ else
+  insert into public.notifications(user_id,type,titre,corps,fil_id,reservation_id)
+  values(v_client,'message','Réponse de la pharmacie',left(trim(p_corps),1000),p_fil,v_reservation);
+ end if;
+ return v_id;
+end;
+$function$;
+revoke all on function public.repondre_message(uuid,text) from public, anon;
+grant execute on function public.repondre_message(uuid,text) to authenticated;
+
 comment on function public.envoyer_message_reservation(uuid,text,boolean) is
   'Envoie un message in-app côté client lié au dossier de réservation et notifie la pharmacie; pas de SMS/WhatsApp automatique.';
 commit;
