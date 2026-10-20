@@ -40,6 +40,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 192 : ajoute une réception fournisseur atomique, avec lot et péremption obligatoires, refus des lots déjà périmés, mise à jour des quantités, historique de réception et refus en cas d’incohérence stock/lots. Les réceptions répétées d’un même lot augmentent sa quantité sans créer de doublon.
 - Migration 193 : ajoute les sessions de prise/fin de service du Gestionnaire de stock.
 - Migration 194 : ajoute les RPC transactionnelles de démarrage, d’ajout de référence, de comptage et de clôture d’inventaire, le détail par lot, l’application des écarts et un journal d’ajustements consultable dans les rapports. Les mouvements externes ne sont pas encore bloqués pendant le comptage; l’écran avertit de suspendre les mouvements.
+- Migration 197 : durcit les politiques RLS du répertoire fournisseur pour empêcher les comptes non ERP de créer ou modifier des fournisseurs.
 
 ## Fichiers de migration et tests SQL ajoutés
 
@@ -59,6 +60,8 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - `supabase/tests/194_gestionnaire_stock_inventaires_transactionnels.sql`
 - `supabase/migration_195_gestionnaire_stock_reservation_confirmer.sql`
 - `supabase/tests/195_gestionnaire_stock_reservation_confirmer.sql`
+- `supabase/migration_197_fournisseurs_role_security.sql`
+- `supabase/tests/197_fournisseurs_role_security.sql`
 
 ## Points de prudence à conserver
 
