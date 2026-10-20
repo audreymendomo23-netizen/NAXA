@@ -25,7 +25,7 @@ for select to authenticated using (
     where r.id = reservation_id
       and (r.client_id = (select auth.uid())
         or public.is_admin()
-        or public.can_access_pharmacy(r.pharmacie_id))
+        or public.naxa_scope_allows((select auth.uid()),r.pharmacie_id,'PHARMACIE'))
   )
 );
 revoke all on public.reservation_statut_historique from anon, public, authenticated;
