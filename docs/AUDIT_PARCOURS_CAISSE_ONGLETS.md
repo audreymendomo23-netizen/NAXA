@@ -226,3 +226,41 @@ Le prototype `src/app/pharmacie/caisse/parcours-ui/page.tsx` contient 45 valeurs
 - Build, lint, typecheck et tests navigateur non exécutés dans cette passe. Aucun déploiement lancé.
 
 Commit répertoire d'interfaces : `0029f8417f19850000aee4600f9f276312cf0a6a`.
+
+## Audit de raccordement parcours → opérations métier (20/10/2026)
+
+### Périmètre et preuve
+
+Le prototype d'architecture est `src/app/pharmacie/caisse/parcours-ui/page.tsx`. Il contient 45 écrans déclarés et 45 branches de rendu. Les contrôles de navigation `go(...)` changent uniquement l'écran local : ils ne sont pas, à eux seuls, des opérations métier. Les appels `demoAction(...)` ouvrent une boucle de notification synthétique et n'écrivent aucune donnée.
+
+Le commit `a84cd89f2b4a3a9e1fc80679b71fa5d478d12a76` ajoute un pont explicite depuis la boîte d'action vers une interface métier déjà existante. Le pont utilise une liste blanche de routes vérifiées dans le code caisse. Le bouton « Ouvrir l’interface métier » navigue vers cette interface ; l'utilisateur doit y effectuer l'opération réelle et le serveur reste responsable de l'autorisation, du recalcul et de l'enregistrement. Le pont ne prétend pas que le clic initial a déjà modifié les données.
+
+### Écrans avec parcours métier existant raccordé
+
+| Écrans prototype | Interface métier existante | Portée réelle disponible dans le code |
+|---|---|---|
+| Tableau de bord, vente, favoris, paniers, paiement | `/pharmacie/caisse` | Recherche produit, panier de vente, encaissement et ticket via les opérations serveur déjà présentes ; ne pas confondre avec les boutons simulés du prototype |
+| Réservations | `/pharmacie/caisse` | Accès au poste qui affiche les retraits Marketplace ; la simulation « prête/remise/annuler » du prototype ne modifie pas la réservation |
+| Clients, créances | `/pharmacie/caisse/clients` | Répertoire/consultation et recouvrement de crédit selon les opérations réellement exposées par la page |
+| Assurances, vente assurée | `/pharmacie/caisse/assurances` | Consultation des couvertures/dossiers et parcours assuré présent dans la page ; ne vaut pas intégration assureur externe |
+| Historique, ticket | `/pharmacie/caisse/historique` | Consultation, duplicata et demande d'annulation selon les actions présentes |
+| Demande d'annulation | `/pharmacie/caisse/annulations` | Interface de demandes d'annulation ; décision réservée au rôle habilité |
+| Service, ouverture, clôture | `/pharmacie/caisse/service` | Sessions et opérations de service présentes ; l'ouverture/clôture du prototype ne déclenche rien directement |
+| Rapports | `/pharmacie/caisse/rapports` | Page réelle de rapports, sous réserve des données et droits renvoyés par la base |
+| Profil, sécurité, verrouillage, PIN | `/pharmacie/caisse/profil` | Profil, préférences, changement de mot de passe et contrôles de reprise réellement implémentés dans la page ; la maquette n'effectue pas ces opérations |
+| Notifications | `/pharmacie/caisse/notifications` | Lecture des notifications et action « marquer lue » disponible selon les règles de la base |
+
+### Entrées qui restent déconnectées
+
+Les écrans suivants n'ont pas de route métier caisse suffisamment établie pour être proposés comme raccordés par ce pont. Les boutons y restent des tests d'architecture ou de navigation, sans mutation métier : **Ordonnances, Catalogue par molécule, Stock, Lots/péremptions, Import Excel/CSV, Sortie exceptionnelle, Registre réglementé, Synchronisation/hors ligne, Remise et promotions, Réception/contrôle, Suggestion de réapprovisionnement, Aide, Déconnexion du prototype, Statut de garde, Coffre des ordonnances, Ordonnance hors ligne, Validation PIN si elle ne passe pas par le profil réel, Centre des alertes, Fournisseurs/dettes, Inventaire réservé, Connexion, Première connexion et Mot de passe oublié.**
+
+Les familles d'actions explicitement simulées par `demoAction(...)` demeurent non exécutées dans le prototype, notamment : scanner/caméra, ajout au panier depuis favoris, filtre/suppression de panier, sélection de mode de paiement, impression/PDF/WhatsApp depuis l'aperçu, demande de remise, ajout/import/validation d'ordonnance, changement de statut ou remise de réservation, import de fichier et téléchargement de modèle, sortie exceptionnelle, export du registre, ajout/réception de stock, commande fournisseur, vérification de droits externe, demande de validation, historique de session de démonstration, ouverture/clôture depuis la maquette, export de rapport, enregistrement des préférences dans la maquette, modification du mot de passe de la maquette, synchronisation forcée, guide d'aide, déverrouillage simulé, statut de garde, visionneuse du coffre, enregistrement hors ligne, validation PIN simulée, bordereau, documents fournisseur, connexion, OTP et déconnexion simulés. Le libellé exact de chaque bouton doit être vérifié dans le code avant de le déclarer raccordé.
+
+### Conclusion de contrôle
+
+- Les entrées qui ouvrent un écran local sont **navigables**, mais ne sont pas automatiquement des opérations métier.
+- Les écrans de la liste blanche ont maintenant un accès explicite vers la page opérationnelle existante.
+- Les actions de démonstration ne sont pas converties en écritures métier fictives : elles sont signalées comme telles.
+- Le nombre « 173 clics » correspond à un relevé antérieur, avant l'ajout du répertoire de 45 interfaces ; il ne doit pas être présenté comme le total actuel sans recompter les contrôles dans la version courante.
+- Vérifications statiques uniquement à ce stade. Build, TypeScript, lint, tests de navigateur, contrôle RLS et tests transactionnels n'ont pas été exécutés ici. Aucun déploiement n'a été effectué.
+
