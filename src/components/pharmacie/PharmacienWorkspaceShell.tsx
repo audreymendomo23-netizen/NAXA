@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { PharmacienWorkspaceSidebar } from "@/components/pharmacie/PharmacienWorkspaceSidebar";
 
-type PharmacienSection = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "historique" | "rapports" | "profil";
+type PharmacienSection = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil";
 
 type PharmacienWorkspaceShellProps = {
   children: ReactNode;
