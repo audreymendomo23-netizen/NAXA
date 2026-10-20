@@ -25,7 +25,7 @@ declare
   v_id uuid;
 begin
   if u is null then raise exception 'Connexion requise'; end if;
-  if p_period not in ('jour','7jours','30jours','tout') then
+  if p_period is null or p_period not in ('jour','7jours','30jours','tout') then
     raise exception 'Période de rapport invalide';
   end if;
   if p_row_count is null or p_row_count < 0 or p_row_count > 500 then
