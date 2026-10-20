@@ -25,7 +25,7 @@ begin
  insert into public.profiles(id,role,username,actif,pharmacie_id)
  values(v_promoteur,'promoteur','naxa175p_'||substr(replace(v_promoteur::text,'-',''),1,10),true,v_ph),
        (v_caisse,'caisse','naxa175c_'||substr(replace(v_caisse::text,'-',''),1,10),true,v_ph);
- insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(v_promoteur,v_ph,true);
+ insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(v_promoteur,v_ph,true),(v_caisse,v_ph,true);
  insert into public.stocks(pharmacie_id,produit_id,prix,quantite) values(v_ph,v_produit,100,5);
  insert into public.stocks_lots(id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage)
  values(v_lot,v_ph,v_produit,'NAXA175-LOT',current_date+30,5,true,'Blocage qualité antérieur');
