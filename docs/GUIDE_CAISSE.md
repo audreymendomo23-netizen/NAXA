@@ -39,7 +39,7 @@ Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être décla
 ## Écart de caisse
 - À la clôture, NAXA calcule le théorique : fond initial + encaissements espèces confirmés − décaissements enregistrés. Les paiements électroniques non confirmés ne sont pas assimilés à des espèces.
 - La caissière saisit le comptage réel. L’écart est compté moins théorique : négatif = manquant, positif = excédent, zéro = caisse équilibrée.
-- Si l’écart n’est pas nul, une justification de 5 à 500 caractères est obligatoire avant la clôture. Sans justification, la session reste ouverte. La valeur, le motif et le statut a_verifier sont conservés dans la session auditée ; aucun écart initial n’est effacé.
+- Si l’écart n’est pas nul, une justification de 5 à 500 caractères est obligatoire avant la clôture. Sans justification, la session reste ouverte. La valeur, le motif et le statut a_verifier sont conservés dans la session auditée ; aucun écart initial n’est effacé. Le tableau de bord Promoteur affiche les 20 derniers écarts du réseau actif en lecture seule.
 - La garde SQL de clôture vérifie également le calcul en intégrant les décaissements. Un ajustement comptable ultérieur devra être une opération séparée, autorisée et auditée ; il ne faut pas convertir automatiquement un écart en décaissement.
 - PIN, biométrie et écarts sont ajoutés au projet de test uniquement ; Supabase Production n’a pas été modifié.
 ## Tickets, historique et clôture
