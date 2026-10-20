@@ -32,6 +32,7 @@ begin
   v_emplacement:=nullif(trim(coalesce(v_line.value->>'emplacement','')),'');
   if v_qty is null or v_qty<=0 then continue; end if;
   if length(v_numero)=0 or length(v_numero)>120 or v_exp is null then raise exception 'Numéro de lot et péremption sont obligatoires pour chaque quantité reçue'; end if;
+  if v_exp < current_date then raise exception 'Date de péremption invalide'; end if;
   select * into v_order_line from public.commandes_fournisseurs_lignes
    where id=(v_line.value->>'commande_ligne_id')::uuid and commande_id=p_commande for update;
   if not found then raise exception 'Ligne absente de cette commande'; end if;
