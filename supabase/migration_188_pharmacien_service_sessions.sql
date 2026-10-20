@@ -61,6 +61,10 @@ begin
   from public.profiles
   where id = u and actif = true and fonction_interne = 'pharmacien';
   if p is null then raise exception 'Accès réservé à un compte Pharmacien actif'; end if;
+  if not exists (
+    select 1 from public.pharmacies f
+    where f.id = p and f.actif = true and f.visible_recherche = true
+  ) then raise exception 'La pharmacie est inactive ou non publiée'; end if;
 
   if exists (
     select 1 from public.pharmacien_service_sessions s
