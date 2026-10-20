@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
+import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
 
 type Produit = {
   produit_id: string;
@@ -560,6 +561,7 @@ export default function CaissePage() {
                 </div>
               )}
             </section>
+            <CaisseRetraitsMarketplace pharmacieId={pid} />
             <section className="carte mb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="font-extrabold">Historique des ventes</h2><p className="text-sm text-slate-600">Consultez ou réimprimez vos 20 dernières ventes payées.</p></div>
