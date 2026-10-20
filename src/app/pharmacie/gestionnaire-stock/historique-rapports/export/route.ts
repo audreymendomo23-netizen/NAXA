@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     .filter((id): id is string => Boolean(id))];
   if (scopeError || !pharmacyIds.length) return new Response("Périmètre pharmacie indisponible", { status: 503 });
 
-  const [movements, reservations, adjustments] = await Promise.all([
+  const [movements, reservations, adjustments, outgoingTransfers, incomingTransfers] = await Promise.all([
     sb.from("stock_manager_movement_journal")
       .select("pharmacie_id,produit_id,numero_lot,source_table,event_type,quantite_avant,quantite_apres,bloque_avant,bloque_apres,emplacement_avant,emplacement_apres,cree_le,produits(nom)")
       .in("pharmacie_id", pharmacyIds).order("cree_le", { ascending: false }).limit(5000),
@@ -35,8 +35,14 @@ export async function GET(request: Request) {
     sb.from("inventaire_ajustements")
       .select("pharmacie_id,produit_id,quantite_theorique,quantite_comptee,ecart,cree_le,produits(nom),inventaires(reference)")
       .in("pharmacie_id", pharmacyIds).order("cree_le", { ascending: false }).limit(5000),
+    sb.from("stock_manager_transfers")
+      .select("id,source_pharmacie_id,destination_pharmacie_id,produit_id,numero_lot,quantite,motif,cree_le,produits(nom)")
+      .in("source_pharmacie_id", pharmacyIds).order("cree_le", { ascending: false }).limit(5000),
+    sb.from("stock_manager_transfers")
+      .select("id,source_pharmacie_id,destination_pharmacie_id,produit_id,numero_lot,quantite,motif,cree_le,produits(nom)")
+      .in("destination_pharmacie_id", pharmacyIds).order("cree_le", { ascending: false }).limit(5000),
   ]);
-  if (movements.error || reservations.error || adjustments.error) {
+  if (movements.error || reservations.error || adjustments.error || outgoingTransfers.error || incomingTransfers.error) {
     return new Response("Export indisponible : appliquez les migrations du poste stock et vérifiez les accès de lecture.", { status: 503 });
   }
 
@@ -57,6 +63,14 @@ export async function GET(request: Request) {
     const inventory = a.inventaires as unknown as { reference?: string | null } | null;
     rows.push(["ecart_inventaire", a.cree_le, a.pharmacie_id, inventory?.reference ?? "", product?.nom ?? a.produit_id,
       a.quantite_theorique, a.quantite_comptee, a.ecart, "applique", "produit_id=" + a.produit_id]);
+  }
+
+  const transfers = [...new Map([...(outgoingTransfers.data ?? []), ...(incomingTransfers.data ?? [])].map((transfer) => [transfer.id, transfer])).values()];
+  for (const transfer of transfers) {
+    const product = transfer.produits as unknown as { nom?: string } | null;
+    rows.push(["transfert_inter_pharmacie", transfer.cree_le, transfer.source_pharmacie_id,
+      transfer.id, product?.nom ?? transfer.produit_id, "", transfer.quantite, transfer.quantite,
+      "transfere", "destination=" + transfer.destination_pharmacie_id + "; lot=" + (transfer.numero_lot ?? "non lotisé") + "; motif=" + transfer.motif]);
   }
 
   const csv = "\uFEFF" + rows.map((row) => row.map(csvCell).join(";")).join("\r\n");
