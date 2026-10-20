@@ -64,7 +64,7 @@ begin
   if r.paiement_statut = 'effectue' then
     raise exception 'Cette réservation est déjà marquée comme payée';
   end if;
-  if r.paiement_mode is not null and r.paiement_mode not in ('especes', 'a_convenir') then
+  if r.paiement_mode is not null and r.paiement_mode not in ('especes_retrait', 'a_convenir') then
     raise exception 'Le mode choisi ne peut pas être confirmé en espèces par la caisse. Vérifiez le paiement selon le mode indiqué.';
   end if;
   if not public.naxa_caisse_actor_for_pharmacy(r.pharmacie_id) then
@@ -130,7 +130,7 @@ begin
   perform public.vente_encaisser_finaliser(v_vente, p_montant_percu);
 
   update public.reservations
-  set paiement_mode = 'especes',
+  set paiement_mode = 'especes_retrait',
       paiement_ref = null
   where id = r.id;
 
