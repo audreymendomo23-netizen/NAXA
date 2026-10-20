@@ -19,7 +19,7 @@ create index if not exists inventaire_ajustements_inventaire_idx on public.inven
 alter table public.inventaire_ajustements enable row level security;
 drop policy if exists inventaire_ajustements_read_scope on public.inventaire_ajustements;
 create policy inventaire_ajustements_read_scope on public.inventaire_ajustements
- for select to authenticated using(public.is_admin() or public.can_access_pharmacy(pharmacie_id));
+ for select to authenticated using(public.is_admin() or public.naxa_scope_allows((select auth.uid()),pharmacie_id,'PHARMACIE'));
 revoke all on public.inventaire_ajustements from public,anon,authenticated;
 grant select on public.inventaire_ajustements to authenticated;
 
@@ -56,10 +56,10 @@ begin
      raise exception 'Inventaire interrompu : stock et lots incohérents pour le produit %. Agrégé %, lots %',v_stock.produit_id,v_stock.quantite,v_lot_total;
     end if;
     for v_lot in select sl.id from public.stocks_lots sl where sl.pharmacie_id=p_pharmacie and sl.produit_id=v_stock.produit_id loop
-     perform public.inventaire_preparer_ligne(v_inv,v_stock.produit_id,v_lot.id);
+     insert into public.inventaire_lignes(inventaire_id,produit_id,lot_id,quantite_theorique) select v_inv,v_stock.produit_id,sl.id,sl.quantite from public.stocks_lots sl where sl.id=v_lot.id;
     end loop;
    else
-    perform public.inventaire_preparer_ligne(v_inv,v_stock.produit_id,null);
+    insert into public.inventaire_lignes(inventaire_id,produit_id,lot_id,quantite_theorique) values(v_inv,v_stock.produit_id,null,v_stock.quantite);
    end if;
   end loop;
  end if;
@@ -88,10 +88,10 @@ begin
   select coalesce(sum(sl.quantite),0)::integer into v_lot_total from public.stocks_lots sl where sl.pharmacie_id=v_pharmacie and sl.produit_id=p_produit;
   if v_lot_total<>v_quantite then raise exception 'Stock agrégé et lots incohérents; réconciliez avant inventaire'; end if;
   for v_lot in select sl.id from public.stocks_lots sl where sl.pharmacie_id=v_pharmacie and sl.produit_id=p_produit loop
-   perform public.inventaire_preparer_ligne(p_inventaire,p_produit,v_lot.id); v_count:=v_count+1;
+   insert into public.inventaire_lignes(inventaire_id,produit_id,lot_id,quantite_theorique) select p_inventaire,p_produit,sl.id,sl.quantite from public.stocks_lots sl where sl.id=v_lot.id; v_count:=v_count+1;
   end loop;
  else
-  perform public.inventaire_preparer_ligne(p_inventaire,p_produit,null); v_count:=1;
+  insert into public.inventaire_lignes(inventaire_id,produit_id,lot_id,quantite_theorique) values(p_inventaire,p_produit,null,v_quantite); v_count:=1;
  end if;
  return v_count;
 end;
