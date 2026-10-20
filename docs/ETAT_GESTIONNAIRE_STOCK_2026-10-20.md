@@ -8,6 +8,12 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 
 ## Socle existant réutilisé
 
+### Constat du schéma NAXA (lecture seule, 21 octobre 2026)
+- Le projet Supabase Naxa actif a été inspecté sans écriture : `my_pharmacies()` retourne un ensemble d’UUID, pas des objets; les écrans ont été corrigés pour utiliser ce contrat et charger les noms séparément.
+- Le schéma actif possède déjà `naxa_scope_allows(uuid,uuid,text)` et `naxa_has_privilege(text,uuid,text)`, mais pas `can_access_pharmacy`. Les nouvelles migrations et les migrations de lots concernées utilisent désormais le helper de périmètre réellement présent.
+- La table `stocks_lots` active ne contenait que les colonnes historiques `lot/peremption` et n’avait pas d’identifiant `id` ni de colonnes canoniques. Les tables fournisseurs, réceptions et inventaires ne sont pas présentes dans le schéma actif. La migration fondation ci-dessous comble explicitement cet écart, sans inventer de numéros de lot ni de péremptions.
+- La liste Supabase indique des migrations enregistrées jusqu’à la série 153; les migrations ERP 154+ du dépôt ne sont pas considérées comme exécutées par ce constat.
+
 - Les tables existantes `reservations`, `reservation_items`, `stocks`, `stocks_lots`, `notifications`, `fils_messages`, `messages_pharmacie`, `fournisseurs`, `commandes_fournisseurs`, `receptions_fournisseurs`, `inventaires` et `inventaire_lignes` sont conservées.
 - La réservation reste la source de vérité. L’annulation passe par `public.set_reservation_status`, qui contrôle les transitions et restitue le stock.
 - La migration 161 indique que le stock d’une réservation est déjà réservé; l’encaissement POS ne doit donc pas le débiter une seconde fois.
@@ -35,6 +41,9 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Page de détail client : affiche l’historique des transitions et le formulaire de message lié au dossier.
 - Notifications : les alertes de statut/expiration pointent vers le détail client; les notifications de réservation pointent vers la file de traitement; les messages routent vers la boîte de réception correspondant au destinataire.
 
+### Fondations et lots
+- Migration 174-z : réconcilie les colonnes canoniques des lots avec le schéma historique, autorise les fonctions internes du Gestionnaire de stock et crée les tables fournisseurs, commandes, réceptions, inventaires et rappels de lots avec RLS de base.
+
 ### Fournisseurs, lots et inventaires
 - Migration 191 : ajoute les RPC d’emplacement pour le stock et les lots, avec vérification de périmètre et de rôle.
 - Migration 192 : ajoute une réception fournisseur atomique, avec lot et péremption obligatoires, refus des lots déjà périmés, mise à jour des quantités, historique de réception et refus en cas d’incohérence stock/lots. Les réceptions répétées d’un même lot augmentent sa quantité sans créer de doublon.
@@ -46,6 +55,8 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 
 ## Fichiers de migration et tests SQL ajoutés
 
+- `supabase/migration_174_z_gestionnaire_stock_foundation.sql`
+- `supabase/tests/174_z_gestionnaire_stock_foundation.sql`
 - `supabase/migration_188_stock_manager_reservation_notification.sql`
 - `supabase/tests/188_stock_manager_reservation_notification.sql`
 - `supabase/migration_189_reservation_history_expiry_alert.sql`
@@ -83,7 +94,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 ## État de livraison du code
 
 - Code ajouté directement sur `main` : oui.
-- Lint, typecheck, build, tests SQL : **non exécutés à ce stade**.
-- Migrations Supabase : **non appliquées**.
+- Lint, typecheck, build, tests SQL : **non exécutés** (pas de CI lancée).
+- Migrations Supabase : **non appliquées**; l’audit SQL effectué était en lecture seule. La base active reste donc non alignée avec le nouveau parcours tant que la fondation et les migrations requises ne sont pas exécutées dans l’ordre.
 - Déploiement : **non lancé**.
 - Parcours déclaré vert : **non**; la demande actuelle est de terminer la construction avant les vérifications.
