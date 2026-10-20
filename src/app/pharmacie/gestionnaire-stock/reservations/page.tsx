@@ -164,7 +164,8 @@ export default async function GestionnaireStockReservationsPage({
                     const stock = stocks.get(key);
                     const lots = lotsByProduct.get(key) ?? [];
                     const lotsTracked = lots.length > 0;
-                    const today = new Date().toISOString().slice(0, 10);\n                    const usableLots = lots.filter((lot) => !lot.bloque && lot.quantite > 0 && Boolean(lot.date_peremption) && lot.date_peremption! >= today);
+                    const today = new Date().toISOString().slice(0, 10);
+                    const usableLots = lots.filter((lot) => !lot.bloque && lot.quantite > 0 && Boolean(lot.date_peremption) && lot.date_peremption! >= today);
                     const usableLotQuantity = usableLots.reduce((sum, lot) => sum + Number(lot.quantite || 0), 0);
                     const usableQuantity = lotsTracked ? usableLotQuantity : stock && (!stock.date_peremption || stock.date_peremption >= new Date().toISOString().slice(0, 10)) ? Number(stock.quantite || 0) : 0;
                     const locations = lotsTracked
