@@ -6,7 +6,7 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const err=(error:string,status=400)=>NextResponse.json({error},{status});
 const rp=(r:NextRequest)=>new URL(process.env.NEXT_PUBLIC_APP_URL||r.url).hostname;
-const origin=(r:NextRequest)=>new URL(r.url).origin;
+const origin=(r:NextRequest)=>new URL(process.env.NEXT_PUBLIC_APP_URL||r.url).origin;
 async function authUser(){const {data,error}=await supabaseServer().auth.getUser();return !error?data.user:null;}
 async function sessionOK(userId:string,sessionId:string){const db=supabaseAdmin();const {data:s}=await db.from("caisses_sessions").select("id,ouvert_par,statut,caisses!inner(pharmacie_id,actif)").eq("id",sessionId).eq("ouvert_par",userId).eq("statut","ouverte").eq("caisses.actif",true).maybeSingle();if(!s)return false;const ph=(s.caisses as unknown as {pharmacie_id:string}).pharmacie_id;const {data:p}=await db.from("profiles").select("id,role,actif,pharmacie_id").eq("id",userId).eq("role","caisse").eq("actif",true).maybeSingle();return !!p&&p.pharmacie_id===ph;}
 async function grant(userId:string,sessionId:string,method:"pin"|"biometric"){const {data,error}=await supabaseAdmin().from("caisse_decaissement_auth_grants").insert({user_id:userId,session_id:sessionId,method,expires_at:new Date(Date.now()+90_000).toISOString()}).select("id").single();if(error||!data)throw new Error("Grant unavailable");return data.id;}
