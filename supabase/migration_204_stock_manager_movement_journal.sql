@@ -20,7 +20,8 @@ create table if not exists public.stock_manager_movement_journal(
  motif_apres text,
  acteur_id uuid references auth.users(id) on delete set null,
  cree_le timestamptz not null default now()
-);
+ );
+alter table public.stock_manager_movement_journal add column if not exists numero_lot text;
 create index if not exists stock_manager_movement_journal_scope_idx on public.stock_manager_movement_journal(pharmacie_id,cree_le desc);
 create index if not exists stock_manager_movement_journal_lot_idx on public.stock_manager_movement_journal(lot_id,cree_le desc) where lot_id is not null;
 alter table public.stock_manager_movement_journal enable row level security;
