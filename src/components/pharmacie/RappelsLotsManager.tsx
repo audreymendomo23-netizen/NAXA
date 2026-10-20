@@ -6,10 +6,11 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Profile = { id: string; role: string; actif: boolean; pharmacie_id: string | null; fonction_interne: string | null };
 type Pharmacy = { id: string; nom: string };
-type StockProduct = { produit_id: string; quantite: number; produits: { nom: string; dosage: string | null } | null };
+type StockProduct = { produit_id: string; quantite: number; emplacement: string | null; produits: { nom: string; dosage: string | null } | null };
 type Lot = { id: string; pharmacie_id: string; produit_id: string; numero_lot: string; date_peremption: string; quantite: number; bloque: boolean; motif_blocage: string | null; produits: { nom: string; dosage: string | null } | null };
 type Recall = { id: string; lot_id: string; reference_rappel: string | null; motif: string; statut: "actif" | "leve"; date_rappel: string; leve_at: string | null; leve_par: string | null; quantite_trouvee: number | null; quantite_isolee: number | null; compte_at: string | null };
-type SaleImpact = { lot_id: string; quantite: number; ventes: { numero_vente: string; created_at: string; pharmacie_id: string } | null };
+type SaleImpact = { lot_id: string; quantite: number; ventes: { id: string; numero_vente: string; created_at: string; pharmacie_id: string; prescription_id: string | null } | null };
+type OrdonnanceImpact = { vente_id: string; reference_interne: string | null; designation: string; quantite_dispensee: number; statut: string; dispensed_at: string | null; created_at: string };
 
 export function RappelsLotsManager() {
   const sb = useMemo(() => supabaseBrowser(), []);
@@ -21,6 +22,7 @@ export function RappelsLotsManager() {
   const [lots, setLots] = useState<Lot[]>([]);
   const [rappels, setRappels] = useState<Recall[]>([]);
   const [impacts, setImpacts] = useState<SaleImpact[]>([]);
+  const [ordonnances, setOrdonnances] = useState<OrdonnanceImpact[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [chargement, setChargement] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -70,7 +72,7 @@ export function RappelsLotsManager() {
     if (!pharmacieId || !profile) return;
     setChargement(true); setErreur("");
     const [{ data: stockData, error: stockError }, { data: lotData, error: lotError }, { data: recallData, error: recallError }, { data: privilege, error: privilegeError }] = await Promise.all([
-      sb.from("stocks").select("produit_id,quantite,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("produit_id"),
+      sb.from("stocks").select("produit_id,quantite,emplacement,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("produit_id"),
       sb.from("stocks_lots").select("id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("date_peremption"),
       sb.from("rappels_lots").select("id,lot_id,reference_rappel,motif,statut,date_rappel,leve_at,leve_par,quantite_trouvee,quantite_isolee,compte_at").eq("pharmacie_id", pharmacieId).order("date_rappel", { ascending: false }).limit(100),
       sb.rpc("naxa_has_privilege", { p_privilege: "MANAGE_LOTS", p_pharmacie: pharmacieId, p_scope: "PHARMACIE" }),
@@ -82,10 +84,19 @@ export function RappelsLotsManager() {
     const allowedFunction = ["pharmacien", "pharmacien_assistant", "responsable"].includes(profile.fonction_interne || "");
     setCanManage(profile.role === "promoteur" || (profile.role !== "caisse" && profile.fonction_interne !== "caisse" && (allowedFunction || (!privilegeError && privilege === true))));
     const activeIds = (recallData ?? []).filter((r) => r.statut === "actif").map((r) => r.lot_id);
-    if (profile.role === "promoteur" && activeIds.length) {
-      const { data: sold } = await sb.from("vente_lignes").select("lot_id,quantite,ventes!inner(numero_vente,created_at,pharmacie_id)").in("lot_id", activeIds);
-      setImpacts((sold ?? []) as unknown as SaleImpact[]);
-    } else setImpacts([]);
+    if ((profile.role === "promoteur" || profile.fonction_interne === "pharmacien_assistant") && activeIds.length) {
+      const { data: sold } = await sb.from("vente_lignes").select("lot_id,quantite,ventes!inner(id,numero_vente,created_at,pharmacie_id,prescription_id)").in("lot_id", activeIds);
+      const sales = (sold ?? []) as unknown as SaleImpact[];
+      if (profile.role === "promoteur") { setImpacts(sales); setOrdonnances([]); }
+      else {
+        setImpacts([]);
+        const prescriptionSales = [...new Set(sales.filter((s) => s.ventes?.prescription_id).map((s) => s.ventes!.id))];
+        if (prescriptionSales.length) {
+          const { data: orderRows } = await sb.from("ordonnancier").select("vente_id,reference_interne,designation,quantite_dispensee,statut,dispensed_at,created_at").in("vente_id", prescriptionSales).eq("pharmacie_id", pharmacieId);
+          setOrdonnances((orderRows ?? []) as OrdonnanceImpact[]);
+        } else setOrdonnances([]);
+      }
+    } else { setImpacts([]); setOrdonnances([]); }
     setChargement(false);
   }, [pharmacieId, profile, sb]);
 
@@ -192,9 +203,10 @@ export function RappelsLotsManager() {
         const lot = lotMap.get(r.lot_id);
         const sold = impactsParLot.get(r.lot_id) ?? [];
         return <article key={r.id} className="rounded-xl border p-3">
-          <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-extrabold">{lot?.produits?.nom ?? "Produit"} · lot {lot?.numero_lot ?? "inconnu"}</p><p className="text-sm">{r.motif}</p><p className="text-xs text-slate-500">Référence : {r.reference_rappel ?? "—"} · Déclaré le {new Date(r.date_rappel).toLocaleString("fr-FR")}</p>{lot && <p className="mt-1 text-sm">Péremption : {new Date(lot.date_peremption).toLocaleDateString("fr-FR")} · Stock restant : {lot.quantite} · Blocage : {lot.bloque ? lot.motif_blocage : "aucun"}</p>}</div><span className={r.statut === "actif" ? "rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800" : "rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"}>{r.statut === "actif" ? "ACTIF · vente bloquée" : "LEVÉ"}</span></div>
+          <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-extrabold">{lot?.produits?.nom ?? "Produit"} · lot {lot?.numero_lot ?? "inconnu"}</p><p className="text-sm">{r.motif}</p><p className="text-xs text-slate-500">Référence : {r.reference_rappel ?? "—"} · Déclaré le {new Date(r.date_rappel).toLocaleString("fr-FR")}</p>{lot && <p className="mt-1 text-sm">Péremption : {new Date(lot.date_peremption).toLocaleDateString("fr-FR")} · Stock restant : {lot.quantite} · Emplacement : {stocks.find((s) => s.produit_id === lot.produit_id)?.emplacement ?? "—"} · Blocage : {lot.bloque ? lot.motif_blocage : "aucun"}</p>}</div><span className={r.statut === "actif" ? "rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800" : "rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"}>{r.statut === "actif" ? "ACTIF · vente bloquée" : "LEVÉ"}</span></div>
           {r.statut === "actif" && profile && !["client", "admin"].includes(profile.role) && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3"><p className="font-bold text-sm">Comptage de quarantaine</p><p className="text-xs text-slate-600">Saisissez les unités retrouvées et celles physiquement isolées. Ce comptage ne modifie ni le stock ni les prix.</p><div className="mt-2 grid grid-cols-2 gap-2"><label className="text-xs font-semibold">Unités retrouvées<input className="champ mt-1 w-full" type="number" min="0" step="1" value={comptages[r.id]?.trouvee ?? String(r.quantite_trouvee ?? "")} onChange={(e) => setComptages((old) => ({ ...old, [r.id]: { trouvee: e.target.value, isolee: old[r.id]?.isolee ?? String(r.quantite_isolee ?? "") } }))} /></label><label className="text-xs font-semibold">Unités isolées<input className="champ mt-1 w-full" type="number" min="0" step="1" value={comptages[r.id]?.isolee ?? String(r.quantite_isolee ?? "")} onChange={(e) => setComptages((old) => ({ ...old, [r.id]: { trouvee: old[r.id]?.trouvee ?? String(r.quantite_trouvee ?? ""), isolee: e.target.value } }))} /></label></div><button type="button" className="btn btn-clair mt-2" disabled={busy} onClick={() => void enregistrerComptage(r)}>Enregistrer le comptage</button>{r.compte_at && <p className="mt-1 text-xs text-slate-600">Dernier comptage : {r.quantite_trouvee ?? "—"} retrouvé(s), {r.quantite_isolee ?? "—"} isolé(s), le {new Date(r.compte_at).toLocaleString("fr-FR")}</p>}</div>}
           {profile?.role === "promoteur" && r.statut === "actif" && <div className="mt-3 rounded-lg bg-slate-50 p-3"><p className="text-sm font-bold">Ventes concernées (tickets POS)</p>{sold.length ? sold.map((s, i) => <p key={i} className="text-xs text-slate-600">{s.ventes?.numero_vente ?? "Ticket"} · {new Date(s.ventes?.created_at ?? r.date_rappel).toLocaleString("fr-FR")} · {s.quantite} unité(s)</p>) : <p className="text-xs text-slate-500">Aucune ligne de vente POS associée à ce lot.</p>}</div>}
+          {profile?.fonction_interne === "pharmacien_assistant" && r.statut === "actif" && <div className="mt-3 rounded-lg bg-blue-50 p-3"><p className="text-sm font-bold">Ordonnances concernées</p>{ordonnances.length ? ordonnances.map((o, i) => <p key={o.vente_id + "-" + i} className="text-xs text-slate-700">{o.reference_interne ?? "Numéro d’ordre non renseigné"} · {o.designation} · {o.quantite_dispensee} unité(s) · {o.statut}</p>) : <p className="text-xs text-slate-500">Aucune ligne d’ordonnancier liée à une vente de ce lot.</p>}</div>}
           {profile?.role === "promoteur" && r.statut === "actif" && <button type="button" className="btn btn-clair mt-3" disabled={busy} onClick={() => void leverRappel(r)}>Clôturer le rappel (Promoteur)</button>}
           {r.statut === "leve" && r.leve_at && <p className="mt-2 text-xs text-slate-500">Clôturé le {new Date(r.leve_at).toLocaleString("fr-FR")}</p>}
         </article>;
