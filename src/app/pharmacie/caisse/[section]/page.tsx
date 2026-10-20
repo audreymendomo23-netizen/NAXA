@@ -71,6 +71,56 @@ export default function CaisseParcoursPage() {
   const [sessionId, setSessionId] = useState("");
   const [pin, setPin] = useState("");
   const [ticketRows, setTicketRows] = useState<TicketRow[]>([]);
+  const [profileTab, setProfileTab] = useState<"compte" | "securite" | "preferences" | "activite">("compte");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [textSize, setTextSize] = useState<"normal" | "grand">("normal");
+  const [compactDisplay, setCompactDisplay] = useState(false);
+  const [preferencesReady, setPreferencesReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedSize = window.localStorage.getItem("naxa-caisse-text-size");
+      const savedCompact = window.localStorage.getItem("naxa-caisse-compact");
+      if (savedSize === "grand") setTextSize("grand");
+      setCompactDisplay(savedCompact === "true");
+    } catch {
+      // Les préférences restent utilisables en mémoire si le stockage local est indisponible.
+    } finally {
+      setPreferencesReady(true);
+    }
+  }, []);
+
+  async function saveProfilePreferences() {
+    try {
+      window.localStorage.setItem("naxa-caisse-text-size", textSize);
+      window.localStorage.setItem("naxa-caisse-compact", String(compactDisplay));
+      setNotice("Préférences d’affichage enregistrées sur cet appareil.");
+      setError("");
+    } catch {
+      setError("Le navigateur ne permet pas d’enregistrer les préférences sur cet appareil.");
+    }
+  }
+
+  async function changePassword() {
+    if (newPassword.length < 10 || newPassword !== confirmPassword) {
+      setError("Le nouveau mot de passe doit contenir au moins 10 caractères et les deux saisies doivent être identiques.");
+      return;
+    }
+    setPasswordBusy(true);
+    setError("");
+    setNotice("");
+    const { error: updateError } = await sb.auth.updateUser({ password: newPassword });
+    setPasswordBusy(false);
+    if (updateError) {
+      setError(updateError.message || "Le changement de mot de passe a échoué.");
+      return;
+    }
+    setNewPassword("");
+    setConfirmPassword("");
+    setNotice("Mot de passe mis à jour par le service d’authentification.");
+  }
 
   const loadSection = useCallback(async (pid: string, userId: string) => {
     setError("");
@@ -235,7 +285,23 @@ export default function CaisseParcoursPage() {
         ["Ventes chargées", String(sales.length)], ["Ventes payées", String(sales.filter((v) => v.statut === "payee").length)],
         ["Montant encaissé", fcfa(sales.filter((v) => v.statut === "payee").reduce((sum, v) => sum + Number(v.total_net || 0), 0))], ["Sessions consultables", String(sessions.length)],
       ].map(([label, value]) => <article key={label} className="carte"><p className="text-sm text-slate-600">{label}</p><p className="mt-2 text-xl font-extrabold">{value}</p></article>)}</div><Panel title="Sessions récentes"><p className="text-sm text-slate-600">Périmètre limité aux sessions ouvertes par ce compte ; ventes limitées aux 500 plus récentes.</p>{sessions.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ouverture</th><th className="p-2">État</th><th className="p-2 text-right">Fond</th><th className="p-2 text-right">Théorique</th><th className="p-2 text-right">Écart</th></tr></thead><tbody>{sessions.map((s) => <tr key={s.id} className="border-t"><td className="p-2">{dateLabel(s.ouvert_at)}</td><td className="p-2">{s.statut}</td><td className="p-2 text-right">{fcfa(s.fond_initial)}</td><td className="p-2 text-right">{fcfa(s.total_theorique)}</td><td className="p-2 text-right">{s.ecart == null ? "—" : fcfa(s.ecart)}</td></tr>)}</tbody></table></div> : <Empty>Aucune session accessible.</Empty>}</Panel></div>}
-      {section === "profil" && <div className="grid gap-4 lg:grid-cols-2"><Panel title="Compte caisse"><dl className="grid gap-3 sm:grid-cols-2">{[["Nom", displayName(account)],["Identifiant", account?.username || "—"],["Téléphone", account?.phone || "Non renseigné"],["Rôle", account?.fonction_interne || account?.role || "—"],["Pharmacie", pharmacyName],["Compte", account?.actif ? "Actif" : "Inactif"]].map(([label, value]) => <div key={label}><dt className="text-sm text-slate-500">{label}</dt><dd className="font-semibold">{value}</dd></div>)}</dl><p className="text-xs text-slate-500">Cette page ne modifie pas l’identité ni le mot de passe du compte.</p></Panel><Panel title="Vérification du PIN"><p className="text-sm text-slate-600">Le PIN doit avoir été configuré par le Promoteur. Le serveur applique le contrôle de session et la limitation des tentatives.</p>{!locked ? <button className="btn btn-vert" onClick={() => setLocked(true)}>Ouvrir la vérification PIN</button> : <div className="space-y-3"><p className="text-sm">Session ouverte détectée : {sessionId ? sessionId.slice(0, 8) + "…" : "aucune"}</p><label className="block text-sm font-semibold">PIN<input className="champ mt-1 w-full" value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" type="password" maxLength={8} /></label><button className="btn btn-vert" disabled={busy || !sessionId} onClick={() => void unlock()}>Vérifier le PIN</button><button className="btn btn-clair ml-2" onClick={() => { setLocked(false); setPin(""); }}>Annuler</button></div>}</Panel></div>}
+      {section === "profil" && <div className={textSize === "grand" ? "space-y-4 text-lg" : "space-y-4"}>
+        <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Onglets du profil">
+          {([
+            ["compte", "Mon compte"],
+            ["securite", "Mot de passe & PIN"],
+            ["preferences", "Affichage"],
+            ["activite", "Activité récente"],
+          ] as const).map(([id, label]) => <button key={id} type="button" aria-current={profileTab === id ? "page" : undefined} onClick={() => setProfileTab(id)} className={"min-h-11 shrink-0 rounded-xl px-4 py-2 text-sm font-bold " + (profileTab === id ? "bg-[#0B3D26] text-white" : "border border-slate-200 bg-white text-slate-700")}>{label}</button>)}
+        </nav>
+        {profileTab === "compte" && <Panel title="Informations du compte"><dl className="grid gap-3 sm:grid-cols-2">{[["Nom", displayName(account)],["Identifiant", account?.username || "—"],["Téléphone", account?.phone || "Non renseigné"],["Rôle", account?.fonction_interne || account?.role || "—"],["Pharmacie", pharmacyName],["Compte", account?.actif ? "Actif" : "Inactif"]].map(([label, value]) => <div key={label}><dt className="text-sm text-slate-500">{label}</dt><dd className="font-semibold">{value}</dd></div>)}</dl><p className="text-xs text-slate-500">Les informations d’identité sont affichées en lecture seule : leur modification doit rester dans le parcours d’administration autorisé.</p></Panel>}
+        {profileTab === "securite" && <div className="grid gap-4 lg:grid-cols-2">
+          <Panel title="Changer le mot de passe"><p className="text-sm text-slate-600">Le changement est transmis à Supabase Auth. Utilisez un mot de passe long et unique.</p><label className="block text-sm font-semibold">Nouveau mot de passe<input className="champ mt-1 w-full" type="password" autoComplete="new-password" minLength={10} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label><label className="mt-3 block text-sm font-semibold">Confirmer le mot de passe<input className="champ mt-1 w-full" type="password" autoComplete="new-password" minLength={10} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></label><button type="button" className="btn btn-vert mt-3" disabled={passwordBusy || !newPassword || !confirmPassword} onClick={() => void changePassword()}>{passwordBusy ? "Mise à jour…" : "Mettre à jour le mot de passe"}</button></Panel>
+          <Panel title="Vérification du PIN de reprise"><p className="text-sm text-slate-600">Le PIN doit être configuré par le Promoteur. Le serveur applique les contrôles de session et la limitation des tentatives.</p>{!locked ? <button className="btn btn-vert" onClick={() => setLocked(true)}>Ouvrir la vérification PIN</button> : <div className="space-y-3"><p className="text-sm">Session ouverte détectée : {sessionId ? sessionId.slice(0, 8) + "…" : "aucune"}</p><label className="block text-sm font-semibold">PIN<input className="champ mt-1 w-full" value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" type="password" maxLength={8} autoComplete="off" /></label><button className="btn btn-vert" disabled={busy || !sessionId} onClick={() => void unlock()}>Vérifier le PIN</button><button className="btn btn-clair ml-2" onClick={() => { setLocked(false); setPin(""); }}>Annuler</button></div>}</Panel>
+        </div>}
+        {profileTab === "preferences" && <Panel title="Préférences d’affichage"><p className="text-sm text-slate-600">Ces réglages sont enregistrés localement sur cet appareil et ne modifient ni les données métier ni les droits du compte.</p><label className="flex items-center justify-between gap-3 rounded-xl border p-3"><span><span className="block font-semibold">Taille du texte</span><span className="text-sm text-slate-500">Améliore la lisibilité de cet espace</span></span><select className="champ max-w-40" value={textSize} onChange={(e) => setTextSize(e.target.value as "normal" | "grand")}><option value="normal">Normale</option><option value="grand">Grande</option></select></label><label className="flex items-center justify-between gap-3 rounded-xl border p-3"><span><span className="block font-semibold">Affichage compact</span><span className="text-sm text-slate-500">Réduit les espacements des tableaux de ce parcours</span></span><input type="checkbox" checked={compactDisplay} onChange={(e) => setCompactDisplay(e.target.checked)} /></label><button type="button" className="btn btn-vert" disabled={!preferencesReady} onClick={() => void saveProfilePreferences()}>Enregistrer les préférences</button>{compactDisplay && <style jsx global>{`main .carte { padding: 0.75rem !important; } main table td, main table th { padding: 0.35rem !important; }`}</style>}</Panel>}
+        {profileTab === "activite" && <Panel title="Activité récente"><p className="text-sm text-slate-600">Les sessions de caisse sont consultables ci-dessous. L’historique des connexions Auth (heure, appareil et adresse IP) n’est pas exposé par les tables et API vérifiées ; aucune connexion fictive n’est affichée.</p>{sessions.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ouverture du service</th><th className="p-2">État</th><th className="p-2 text-left">Clôture</th></tr></thead><tbody>{sessions.slice(0, 10).map((s) => <tr key={s.id} className="border-t"><td className="p-2">{dateLabel(s.ouvert_at)}</td><td className="p-2">{s.statut}</td><td className="p-2">{dateLabel(s.cloture_at)}</td></tr>)}</tbody></table></div> : <Empty>Aucune session de caisse enregistrée pour ce compte.</Empty>}</Panel>}
+      </div>}
       {section === "notifications" && <Panel title={"Notifications · " + notifications.length}>{notifications.length ? <ul className="space-y-2">{notifications.map((n) => <li key={n.id} className={"rounded-xl border p-3 " + (n.lu_le ? "border-slate-200 bg-white" : "border-yellow-300 bg-yellow-50")}><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{n.titre}</p><p className="mt-1 text-sm">{n.corps}</p><p className="mt-2 text-xs text-slate-500">{n.type} · {dateLabel(n.created_at)} · {n.lu_le ? "Lue" : "Non lue"}</p></div>{n.user_id === uid && !n.lu_le && <button className="btn btn-clair" disabled={busy} onClick={() => void markRead(n)}>Marquer lue</button>}</div></li>)}</ul> : <Empty>Aucune notification pour ce compte ou cette pharmacie.</Empty>}<p className="text-xs text-slate-500">Les notifications de pharmacie sont consultables ; seules les notifications personnelles disposent ici de l’action de lecture autorisée par la base.</p></Panel>}
       {section === "service" && <Panel title="Prise / fin de service"><p className="text-sm text-slate-600">L’ouverture et la clôture restent pilotées par le moteur de caisse existant.</p>{sessions.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ouverture</th><th className="p-2">État</th><th className="p-2 text-right">Fond initial</th><th className="p-2 text-left">Clôture</th></tr></thead><tbody>{sessions.map((s) => <tr key={s.id} className="border-t"><td className="p-2">{dateLabel(s.ouvert_at)}</td><td className="p-2">{s.statut}</td><td className="p-2 text-right">{fcfa(s.fond_initial)}</td><td className="p-2">{dateLabel(s.cloture_at)}</td></tr>)}</tbody></table></div> : <Empty>Aucune session enregistrée pour ce compte.</Empty>}<a className="btn btn-vert inline-block" href="/pharmacie/caisse">Ouvrir le poste de caisse</a></Panel>}
     </>}
