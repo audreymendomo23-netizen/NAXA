@@ -28,11 +28,16 @@ Les sept entrées principales restent celles du § 5.2 du cahier : Tableau de bo
 4. **Droits et données.** Les actions de vente, de crédit et d'annulation continuent d'utiliser les opérations existantes. Les onglets de navigation ne constituent pas une autorisation : RLS et contrôles serveur doivent rester la source d'autorité.
 5. **Vérification.** Les commits sont poussés sur `main`, mais aucune compilation, suite SQL, recette navigateur ou déploiement n'a été exécuté dans cette intervention. Le statut « codé » ne signifie donc pas « validé en exécution ».
 
+## Mise à jour de l'architecture des onglets
+
+Le tableau de bord possède désormais une barre d'onglets permettant d'accéder à l'encaissement, à la recherche de prix, aux retraits Marketplace, aux décaissements, à l'historique des tickets et à la clôture par navigation vers les sections correspondantes. Les autres entrées conservent leurs sous-onglets contextuels et le Profil conserve ses quatre onglets internes. Il s'agit d'une structuration d'interface : elle ne prétend pas ajouter des intégrations métier absentes.
+
 ## Changements enregistrés sur main
 
 - `db8a0e38e7b18a745a5058d0d341d3ad6d4d7214` — composant d'onglets contextuels.
 - `ac2c3ecdf63e7526979dd91d760f156b13672772` — intégration des onglets au parcours.
 - `ca11b6bacfca73635e8d7297f443d1dfff92cccc` — onglets du profil, changement de mot de passe et préférences locales.
 - `bba829dacccd88e61cea271f7549c251bf0a6771` — styles des préférences limités au profil.
+- `d7f35d0fc8636ce7050c30034c5ddc0ee6a4e685` — onglets du tableau de bord et ancres des sections.
 
 Aucun déploiement n'a été lancé. Aucune écriture Supabase Production n'a été exécutée.
