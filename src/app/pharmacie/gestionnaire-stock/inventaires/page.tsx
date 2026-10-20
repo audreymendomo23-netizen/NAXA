@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";
-import { creerInventaireStock, compterLigneInventaire, cloturerInventaireStock } from "./actions";
+import { creerInventaireStock, compterLigneInventaire, cloturerInventaireStock, ajouterLigneInventaireStock } from "./actions";
 
 export default async function InventairesPage() {
  const sb=supabaseServer();
@@ -14,7 +14,7 @@ export default async function InventairesPage() {
  const pharmacies=(Array.isArray(rawPharmacies)?rawPharmacies:[]) as {id?:string;pharmacie_id?:string;nom?:string}[];
  const ids=[...new Set(pharmacies.map(p=>p.pharmacie_id??p.id).filter((id):id is string=>Boolean(id)))];
  if(pharmacyError||!ids.length) return <main className="p-5">Impossible de déterminer le périmètre pharmacie.</main>;
- const {data:rows,error}=await sb.from("inventaires").select("id,pharmacie_id,type,statut,reference,created_at,closed_at,inventaire_lignes(id,produit_id,quantite_theorique,quantite_comptee,ecart,produits(nom,dosage))").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(50);
+ const {data:stockRows}=await sb.from("stocks").select("pharmacie_id,produit_id,produits(nom,dosage)").in("pharmacie_id",ids).limit(1000);\n const productRows=(stockRows??[]) as unknown as {pharmacie_id:string;produit_id:string;produits:{nom:string;dosage:string|null}|null}[];\n const {data:rows,error}=await sb.from("inventaires").select("id,pharmacie_id,type,statut,reference,created_at,closed_at,inventaire_lignes(id,produit_id,quantite_theorique,quantite_comptee,ecart,produits(nom,dosage))").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(50);
  const inventories=(rows??[]) as unknown as {id:string;pharmacie_id:string;type:string;statut:string;reference:string|null;created_at:string;closed_at:string|null;inventaire_lignes:{id:string;produit_id:string;quantite_theorique:number;quantite_comptee:number|null;ecart:number;produits:{nom:string;dosage:string|null}|null}[]}[];
  return <main className="min-h-screen bg-[#F4F8F5] p-4 text-slate-900"><div className="mx-auto max-w-7xl space-y-4"><header className="rounded-2xl bg-[#0B3D26] p-5 text-white"><p className="text-xs font-bold uppercase tracking-widest">NAXA · Poste de travail</p><h1 className="text-2xl font-black">Inventaires</h1></header><div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]"><GestionnaireStockSidebar active="/pharmacie/gestionnaire-stock/inventaires"/><section className="space-y-4">
  <form action={creerInventaireStock} className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2"><h2 className="font-extrabold sm:col-span-2">Démarrer un inventaire</h2><label className="text-sm font-bold">Pharmacie<select name="pharmacie_id" required className="mt-1 w-full rounded-xl border p-3">{pharmacies.map(p=><option key={p.pharmacie_id??p.id} value={p.pharmacie_id??p.id}>{p.nom||p.pharmacie_id||p.id}</option>)}</select></label><label className="text-sm font-bold">Type<select name="type" className="mt-1 w-full rounded-xl border p-3"><option value="complet">Complet</option><option value="cible">Ciblé</option></select></label><label className="text-sm font-bold sm:col-span-2">Référence facultative<input name="reference" maxLength={80} className="mt-1 w-full rounded-xl border p-3" placeholder="INV-2026-10"/></label><button className="rounded-xl bg-[#0B3D26] p-3 font-bold text-white sm:col-span-2">Créer et préparer les lignes</button></form>
