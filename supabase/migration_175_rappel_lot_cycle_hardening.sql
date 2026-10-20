@@ -36,7 +36,7 @@ begin
 
   select * into v_lot from public.stocks_lots where id=p_lot for update;
   if not found then raise exception 'Lot introuvable'; end if;
-  if not public.can_access_pharmacy(v_lot.pharmacie_id) then
+  if not public.naxa_scope_allows(v_user,v_lot.pharmacie_id,'PHARMACIE') then
     raise exception 'Lot non autorisé';
   end if;
 
@@ -88,7 +88,7 @@ begin
 
   select pharmacie_id into v_pharmacie from public.stocks_lots where id=p_lot for update;
   if v_pharmacie is null then raise exception 'Lot introuvable'; end if;
-  if not public.can_access_pharmacy(v_pharmacie) then raise exception 'Lot hors périmètre du Promoteur'; end if;
+  if not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Lot hors périmètre du Promoteur'; end if;
 
   select * into v_rappel from public.rappels_lots
   where lot_id=p_lot and statut='actif' for update;
