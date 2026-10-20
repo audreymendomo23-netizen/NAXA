@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     .select("role,fonction_interne,actif").eq("id", auth.user.id).maybeSingle();
   const role = String(profile?.role ?? "").toLowerCase();
   const fn = String(profile?.fonction_interne ?? "").toLowerCase();
-  if (profileError || !profile || profile.actif === false || !(role === "admin" || role === "promoteur" || allowedFunctions.includes(fn))) {
+  if (profileError || !profile || profile.actif !== true || !(role === "admin" || role === "promoteur" || allowedFunctions.includes(fn))) {
     return new Response("Accès refusé", { status: 403 });
   }
 
