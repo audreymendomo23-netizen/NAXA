@@ -10,12 +10,12 @@ set fonction_interne = 'pharmacien'
 where fonction_interne = 'pharmacien_assistant';
 
 -- Renommer la colonne d'acteur sans perdre l'historique des préparations.
-do $ begin
+do $$ begin
   if exists (select 1 from information_schema.columns where table_schema='public' and table_name='prescription_preparations' and column_name='assistant_id')
      and not exists (select 1 from information_schema.columns where table_schema='public' and table_name='prescription_preparations' and column_name='pharmacien_id') then
     alter table public.prescription_preparations rename column assistant_id to pharmacien_id;
   end if;
-end $;
+end $$;
 
 alter table public.profiles
   add constraint profiles_fonction_interne_check
