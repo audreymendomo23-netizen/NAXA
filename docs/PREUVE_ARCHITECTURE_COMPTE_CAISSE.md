@@ -94,3 +94,19 @@ Pour établir une preuve complète de livraison, les preuves restantes sont : (1
 ## 8. Périmètre d’intervention
 
 Cette preuve est limitée à l’architecture et à la documentation du compte Caissière. Elle n’ajoute aucune connexion métier, ne modifie pas les règles de vente, ne change pas la base de données et ne constitue pas une autorisation de déploiement.
+
+## 9. Empreintes des sources examinées
+
+Empreintes de contenu (blob SHA) relevées sur `main` pendant le contrôle du 20/10/2026 :
+
+| Source | Blob SHA |
+|---|---|
+| `docs/CAHIER_DES_CHARGES_CAISSE_CAISSIERE.md` | `1f2fc17e25d163d13a8a903576a888cfece024df` |
+| `src/app/pharmacie/caisse/page.tsx` | `6caadf05ec514025ccd2e6a6d484f9ed1d0519b3` |
+| `src/app/pharmacie/caisse/[section]/page.tsx` | `f9b424854311f5b91badf3e981287ba8d32d551f` |
+| `src/components/pharmacie/CaisseSidebar.tsx` | `70497aad7905bc4a113ff44e1c152dc022298d15` |
+| `src/components/pharmacie/CaisseSectionTabs.tsx` | `e8d857fdb3fdfca23ce14c2ee0efc4c8e6089a71` |
+| `src/app/pharmacie/caisse/parcours-ui/page.tsx` | `6c37e2e5c76fb4999a54d519f51e57b029477628` |
+| `src/app/pharmacie/caisse/maquette-visuelle/page.tsx` | `1bdfc0e24b0849af668e6b3b9bc7d4f695391e04` |
+
+Ces SHA permettent de savoir exactement quelles versions de fichier ont été lues lors du contrôle. Ils ne remplacent pas le SHA du commit qui sera testé par les outils de build/recette.
