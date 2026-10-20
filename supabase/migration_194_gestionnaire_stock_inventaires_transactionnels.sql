@@ -33,7 +33,7 @@ begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  if p_type is null then raise exception 'Type d’inventaire requis'; end if;
  if p_reference is not null and char_length(trim(p_reference))>80 then raise exception 'Référence limitée à 80 caractères'; end if;
- if not public.can_access_pharmacy(p_pharmacie) then raise exception 'Pharmacie hors périmètre'; end if;
+ if not public.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') then raise exception 'Pharmacie hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
@@ -76,7 +76,7 @@ begin
  select i.pharmacie_id,s.quantite into v_pharmacie,v_quantite
  from public.inventaires i join public.stocks s on s.pharmacie_id=i.pharmacie_id
  where i.id=p_inventaire and s.produit_id=p_produit and i.statut in ('brouillon','en_cours') for update of i;
- if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Inventaire ou produit hors périmètre'; end if;
+ if not found or not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Inventaire ou produit hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
@@ -107,7 +107,7 @@ begin
  select i.pharmacie_id into v_pharmacie from public.inventaire_lignes il
  join public.inventaires i on i.id=il.inventaire_id
  where il.id=p_ligne and i.statut in ('brouillon','en_cours') for update of i;
- if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Ligne d’inventaire fermée ou hors périmètre'; end if;
+ if not found or not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Ligne d’inventaire fermée ou hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
@@ -124,7 +124,7 @@ declare v_user uuid:=auth.uid(); v_pharmacie uuid; v_profile public.profiles%row
 begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  select pharmacie_id into v_pharmacie from public.inventaires where id=p_inventaire and statut in ('brouillon','en_cours') for update;
- if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Inventaire non autorisé ou déjà clôturé'; end if;
+ if not found or not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Inventaire non autorisé ou déjà clôturé'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
@@ -172,7 +172,7 @@ begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  select pharmacie_id into v_pharmacie from public.inventaires
   where id=p_inventaire and statut in ('brouillon','en_cours') for update;
- if not found or not public.can_access_pharmacy(v_pharmacie) then raise exception 'Inventaire hors périmètre ou déjà terminé'; end if;
+ if not found or not public.naxa_scope_allows(v_user,v_pharmacie,'PHARMACIE') then raise exception 'Inventaire hors périmètre ou déjà terminé'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
   or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
