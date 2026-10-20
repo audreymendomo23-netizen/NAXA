@@ -8,7 +8,7 @@ import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
-import { CaisseSidebar } from "@/components/pharmacie/CaisseSidebar";
+import { CaisseWorkspaceShell } from "@/components/pharmacie/CaisseWorkspaceShell";
 
 type Produit = {
   produit_id: string;
@@ -535,9 +535,9 @@ export default function CaissePage() {
   }
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 pb-16"><div className="flex flex-col gap-4 lg:flex-row"><CaisseSidebar sessionOpen={!!session} pharmacyName={pharmacie} /><div className="min-w-0 flex-1">
+    <CaisseWorkspaceShell sessionOpen={!!session} pharmacyName={pharmacie}>
       <div className="print:hidden">
-        <header className="-mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-naxa-green-900 px-4 py-4 text-white shadow-sm">
           <a href="/pharmacie">← Pharmacie</a>
           <b>Caisse · {pharmacie || "Chargement…"}</b>
         </header>
@@ -623,7 +623,7 @@ export default function CaissePage() {
             {msg && <p role="status" aria-live="polite" className="mt-4 rounded-xl border p-3 text-sm">{msg}</p>}
           </>
         )}
-      </div></div>
+      </CaisseWorkspaceShell>
       {ticket && ticket.length > 0 && (
         <section className="ticket-print mx-auto mt-6 w-full max-w-md rounded-xl border bg-white p-5 text-slate-950">
           <h2 className="text-center text-xl font-extrabold">NAXA · Ticket de caisse</h2>
