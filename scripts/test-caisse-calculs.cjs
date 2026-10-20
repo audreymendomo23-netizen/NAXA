@@ -24,7 +24,7 @@ assert.equal(calc.monnaieARendre(1000, 700), 300);
 assert.equal(calc.monnaieARendre(500, 700), 0);
 assert.equal(calc.calculerEcartCaisse(9000, 8500), 500);
 assert.equal(calc.calculerEcartCaisse(8000, 8500), -500);
-assert.equal(format.formaterFcfa(1250).replace(/\\s/g, " "), "1 250 FCFA");
+assert.equal(format.formaterFcfa(1250).replace(/\s/g, " "), "1 250 FCFA");
 
 assert.throws(() => calc.montantEntier("12.5"), RangeError);
 assert.throws(() => calc.totalLigne(-1, 1), RangeError);
