@@ -211,3 +211,18 @@ Aucun test de build/lint/SQL/navigateur n’est déclaré réussi par ce rectifi
 - Aucun déploiement lancé.
 
 Commit code : `95427c9cf217138d95bb09f479341c14f0343747`.
+
+
+## Mise à jour — traçabilité des interfaces et contrôles cliquables (20/10/2026)
+
+Le prototype `src/app/pharmacie/caisse/parcours-ui/page.tsx` contient 45 valeurs dans le type `Screen` et 45 branches d'affichage correspondantes. Un répertoire visible a été ajouté à l'écran **Aide et assistance** : il référence chaque identifiant d'écran une seule fois et chaque entrée appelle `go(item.id)`.
+
+- Interfaces déclarées : 45.
+- Interfaces répertoriées dans le répertoire : 45.
+- Interfaces déclarées sans entrée de répertoire : 0 (contrôle statique après écriture).
+- Chaque entrée est un contrôle cliquable avec libellé accessible et cible typée `Screen`.
+- Les écrans à accès réservé, la connexion, la déconnexion et les fonctions sensibles restent un prototype de navigation ; ce répertoire n'ajoute aucune autorisation et ne remplace pas l'authentification ni les contrôles métier.
+- Le répertoire ajoute 45 boutons de navigation. Le décompte antérieur des 173 contrôles décrivait l'état avant cette extension ; le nombre total de contrôles cliquables n'est donc plus 173 après modification.
+- Build, lint, typecheck et tests navigateur non exécutés dans cette passe. Aucun déploiement lancé.
+
+Commit répertoire d'interfaces : `0029f8417f19850000aee4600f9f276312cf0a6a`.
