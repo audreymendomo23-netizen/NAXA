@@ -43,6 +43,7 @@ declare
   v_caisse uuid := gen_random_uuid();
   v_session uuid := gen_random_uuid();
   v_mouvement uuid;
+  v_grant uuid := gen_random_uuid();
   v_result record;
   v_count integer;
   v_rejected boolean := false;
@@ -64,7 +65,9 @@ begin
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
 
-  v_mouvement := public.caisse_decaisser(v_session,200,'depense','Achat de fournitures','REC-164');
+  insert into public.caisse_decaissement_auth_grants(id,user_id,session_id,method,expires_at)
+  values(v_grant,v_admin,v_session,'pin',now()+interval '1 minute');
+  v_mouvement := public.caisse_decaisser(v_session,200,'depense','Achat de fournitures','REC-164',v_grant);
   if not exists (
     select 1 from public.caisse_decaissements
     where id=v_mouvement and pharmacie_id=v_pharmacie and caisse_session_id=v_session
@@ -78,14 +81,14 @@ begin
 
   v_rejected := false;
   begin
-    perform public.caisse_decaisser(v_session,0,'depense','Montant invalide',null);
+    perform public.caisse_decaisser(v_session,0,'depense','Montant invalide',null,gen_random_uuid());
   exception when others then v_rejected := true;
   end;
   if not v_rejected then raise exception 'Un décaissement nul a été accepté'; end if;
 
   v_rejected := false;
   begin
-    perform public.caisse_decaisser(v_session,50,'depense','non',null);
+    perform public.caisse_decaisser(v_session,50,'depense','non',null,gen_random_uuid());
   exception when others then v_rejected := true;
   end;
   if not v_rejected then raise exception 'Un motif trop court a été accepté'; end if;
@@ -98,7 +101,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.caisse_decaisser(v_session,50,'autre','Après clôture',null);
+    perform public.caisse_decaisser(v_session,50,'autre','Après clôture',null,gen_random_uuid());
   exception when others then v_rejected := true;
   end;
   if not v_rejected then raise exception 'Un décaissement après clôture a été accepté'; end if;
