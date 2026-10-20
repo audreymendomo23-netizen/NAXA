@@ -97,13 +97,13 @@ create or replace function private.reserve_stock(p_pharmacie uuid,p_items jsonb)
 returns uuid language plpgsql security definer set search_path=''
 as $function$
 declare
- v_id uuid; v_item jsonb; v_total integer:=0; v_price integer; v_qty integer;
+ v_id uuid; v_item jsonb; v_total bigint:=0; v_price integer; v_qty integer;
  v_stock integer; v_lot_total integer; v_usable integer; v_need integer; v_take integer;
  v_lot record; v_has_lots boolean;
 begin
  if auth.uid() is null then raise exception 'Connexion requise'; end if;
  if not exists(select 1 from public.pharmacies p where p.id=p_pharmacie and p.actif=true) then raise exception 'Pharmacie indisponible'; end if;
- if jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>10 then raise exception 'Panier invalide'; end if;
+ if p_items is null or jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>10 then raise exception 'Panier invalide'; end if;
  if exists(select 1 from (select value->>'produit_id' pid,count(*) n from jsonb_array_elements(p_items) group by value->>'produit_id' having count(*)>1) d) then raise exception 'Produit dupliqué dans le panier'; end if;
  insert into public.reservations(client_id,pharmacie_id,expires_at) values(auth.uid(),p_pharmacie,now()+interval '3 hours') returning id into v_id;
  for v_item in select value from jsonb_array_elements(p_items) order by value->>'produit_id'
@@ -148,9 +148,10 @@ begin
   update public.stocks set quantite=quantite-v_qty
    where pharmacie_id=p_pharmacie and produit_id=(v_item->>'produit_id')::uuid and quantite>=v_qty;
   if not found then raise exception 'Stock modifié simultanément; réessayez'; end if;
-  v_total:=v_total+v_price*v_qty;
+  v_total:=v_total+v_price::bigint*v_qty;
+  if v_total>2147483647 then raise exception 'Total de réservation supérieur à la limite de stockage'; end if;
  end loop;
- update public.reservations set total=v_total where id=v_id;
+ update public.reservations set total=v_total::integer where id=v_id;
  return v_id;
 end;
 $function$;
