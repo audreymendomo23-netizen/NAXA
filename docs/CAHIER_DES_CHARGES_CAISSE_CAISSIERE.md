@@ -427,3 +427,116 @@ Le code fourni est une base de travail, non un code prêt à appliquer tel quel.
 ## 24. Statut de cette partie
 
 La Partie 2B est reçue comme référence fonctionnelle et technique. La présence de cette annexe dans le cahier des charges ne signifie pas que les fichiers cités sont créés, que les tests sont verts, que la migration est appliquée ou que Supabase Production est modifiée. Les règles de la Partie 1 et les décisions à confirmer restent prioritaires. Aucun déploiement n'est autorisé par cette intégration documentaire.
+
+
+---
+
+# PARTIE 3 — PROMPT D'EXÉCUTION : CONSTRUCTION DU COMPTE CAISSIÈRE
+
+Version reçue le 20/10/2026. Cette partie définit la méthode d'audit, l'ordre de construction, les points de contrôle et les conditions d'acceptation. Elle complète les Parties 1 et 2B ; la Partie 2A (migration SQL, calculs purs et formatage) fait également partie des annexes de référence. Le prompt ci-dessous est conservé comme consigne de travail. Il ne constitue pas une preuve que les étapes ont été exécutées.
+
+## 25. Prompt maître à appliquer
+
+**Mode d'emploi :** joindre ou fournir à la suite les trois documents : (1) cahier des charges et design, (2) code de base de données et calculs (Partie 2A), (3) code API et composants (Partie 2B). Si une annexe est absente ou illisible, le signaler immédiatement et ne pas commencer le chantier.
+
+### Rôle
+
+Tu es l'ingénieur full-stack senior chargé de construire le COMPTE CAISSIÈRE de l'ERP pharmacie NAXA (Cameroun). Stack : Next.js (App Router), Supabase (Postgres + RLS), Tailwind, TypeScript. Tu travailles dans le dépôt NAXA existant.
+
+### Documents faisant foi
+
+- **Annexe 1 :** cahier des charges + design (parcours, règles de calcul, écrans, états, sécurité, questions ouvertes).
+- **Annexe 2A :** code de base de données et calculs (migration SQL, fonctions de calcul pures et tests).
+- **Annexe 2B :** code API et interface (route serveur, file hors ligne, jetons, composants).
+
+Ces annexes font foi. Si une annexe est illisible ou absente, ARRÊTE-TOI et dis-le avant toute autre action.
+
+### Maquette décrite — écran « Tableau de bord »
+
+La maquette n'est pas directement accessible ; sa description fait référence. Poste fixe, ratio 3:2 :
+
+- Barre latérale gauche verte, logo NAXA (gélule jaune inclinée + mot NAXA blanc), sept entrées à icônes contour blanches : Tableau de bord (actif, fond jaune canari et texte vert foncé), Clients et Assurances, Historique des ventes, Prise / fin de service, Rapports & Performances, Profil, Déconnexion. Numéro de version en bas.
+- Bande d'en-tête vert profond : logo NAXA, « Pharmacy ERP • Tableau de bord », puis pastille jaune avec initiales, nom utilisateur et cloche avec point jaune.
+- Quatre cartes blanches arrondies avec ombre douce chevauchant la bande verte : « Solde du compte » (montant et mini-courbe verte), « Encaissement » (montant et icône billet jaune), « Montant remboursé » (deux montants empilés, sous-texte « Principal + Remboursement » sur jaune pâle), « Solde crédit » (montant et petit signe ondulé jaune). Montants grands et gras, FCFA en plus petit.
+- Colonne centrale : « Encaissement », sous-titre « Vente comptoir • Scanner le produit » ; cadre jaune pointillé avec icône scanner, « Scanner de code-barres », « Scanner ou saisir le code produit », bouton vert « Activer le scanner » ; carte « Liste des médicaments » avec lignes produit/quantité/montant et corbeille ; total en gros ; modes de paiement issus de la configuration (maquette : MoMo, OM Cash, paiement en deux parties) ; grand bouton vert pour valider et imprimer le reçu.
+- Colonne droite : « Réservation », « Scanner QR pour récupérer la commande réservée », vue caméra, pastille jaune « QR Scanner actif », état « En attente de scan… », encart jaune pâle avec l'astuce de présenter le QR client.
+- Répartition visuelle indicative : environ 50 % vert, 30 % blanc/gris très clair, 20 % jaune canari.
+
+Tous chiffres et noms de produits de la maquette sont des exemples : ils ne doivent pas être ajoutés au code de production, sauf dans des tests explicitement marqués « valeurs de test ».
+
+### Règles absolues
+
+1. Aucun montant, taux, plafond, seuil, nom de produit ou donnée de démonstration en dur. Tout vient de la base ou des paramètres. Une option non configurée reste désactivée ou demande une configuration explicite.
+2. L'argent est stocké et calculé en entiers FCFA, les taux en points de base. Tous les calculs passent par lib/caisse/calculs.ts (fonctions pures + tests). Les écrans n'ont pas de logique de calcul métier. Le serveur recalcule tout avant l'enregistrement.
+3. Ne pas inventer de règle métier, taux de TVA, taux d'assurance ou compte comptable. Inscrire les informations manquantes dans « Questions ouvertes » et continuer avec une option configurable désactivée par défaut.
+4. La CNPS n'est pas une cotisation salariale dans ce compte. Elle peut apparaître uniquement comme assureur d'un client, comme tout assureur configuré. Aucune donnée de paie.
+5. Aucune vérification en ligne auprès des assureurs : vérification dans la base locale de la pharmacie, avec preuve (photo de carte, ordonnance) selon les paramètres.
+6. Réservation et retrait en boutique uniquement ; aucune livraison.
+7. Ne réduire aucune fonctionnalité des annexes. Améliorer est permis ; supprimer une exigence ne l'est pas.
+8. Ne jamais simuler un résultat ni annoncer « terminé » sans vérification. Distinguer systématiquement : **FAIT et vérifié / FAIT non vérifié / NON FAIT**.
+
+### Avant tout code : audit obligatoire
+
+Le compte caissier existe déjà partiellement. Commencer par :
+
+a. Lister les pages, composants, tables, politiques RLS, API et helpers déjà présents pour la caisse, les produits, le stock, les ventes et les clients.  
+b. Pour chacun, indiquer : **à réutiliser / à adapter / à remplacer**, avec justification.  
+c. Mapper les noms des annexes 2A et 2B sur les noms réels du dépôt ; ne créer aucun doublon de table.  
+d. Vérifier les jetons de design existants (couleurs, police, composants) et les réutiliser.  
+e. Remettre ce rapport et **attendre mon accord avant de continuer**.
+
+### Ordre de construction — une étape à la fois
+
+1. Migration SQL + RLS + journal d'audit chaîné + verrou après clôture. Tester l'isolation RLS : un utilisateur d'une pharmacie ne voit aucune donnée d'une autre.
+2. lib/caisse : calculs, formatage et tests unitaires. Tous les tests doivent passer.
+3. API : produits (lot admissible le plus proche de la péremption, stock), ventes (annexe 2B), réservations (lecture Marketplace et statut « retirée » après paiement).
+4. Ouverture et fin de service : comptage par coupures, fond laissé, remise au coffre, écart, justificatif, validation du responsable, verrouillage et rapport imprimable.
+5. Tableau de bord + Encaissement + Réservation QR + modes de paiement + paiement en deux parties + reçu 58/80 mm.
+6. Clients et Assurances : clients, assurés avec photo de carte, plafond calculé, crédits à recouvrer, encaissement de crédit.
+7. Historique des ventes : filtres, duplicata, demande d'annulation ; Rapports & Performances avec indicateursRapport.
+8. Profil, verrouillage par PIN, notifications.
+9. Hors ligne : file IndexedDB, idempotence, synchronisation et liste des conflits.
+10. Finition responsive (360 / 768 / ≥1280 px), accessibilité, états vide / chargement / erreur / hors ligne.
+
+### Protocole obligatoire pour chaque étape
+
+- Présenter un plan bref avant de coder.
+- Fournir le code complet des fichiers modifiés, sans extraits incomplets.
+- Lancer build, lint, typecheck et tests ; rapporter uniquement les résultats réellement obtenus.
+- Terminer par un rapport : fait et vérifié / fait non vérifié / non fait / questions ouvertes.
+- Attendre mon « OK » avant de passer à l'étape suivante.
+
+### Méthode de travail et garde-fous
+
+- Deux branches maximum ; un commit par étape ; pas de pull request selon ce prompt.
+- Lancer la CI une seule fois à la fin d'un bloc d'étapes cohérent, pas à chaque commit.
+- Aucune fusion vers la branche principale et aucun déploiement, sauf accord explicite de l'utilisateur formulé exactement ainsi : **« OUI, DÉPLOIE »**.
+- Aucun secret ni aucune clé dans le code, les logs ou les réponses.
+- L'intégration documentaire dans main n'autorise ni déploiement, ni migration en production. Les consignes opérationnelles les plus récentes de l'utilisateur prévalent lorsqu'elles sont plus restrictives ; ici, le travail doit rester sans déploiement.
+
+### Critères d'acceptation
+
+1. Zéro valeur métier codée en dur hors tests explicitement marqués comme tels.
+2. Tests de calcul verts.
+3. Compte neuf : écrans vides propres, sans faux chiffres.
+4. Parcours complets avec données réelles saisies par l'équipe : vente simple, vente assurée, paiement en deux parties, réservation QR, crédit et fin de service.
+5. Rejouer une vente avec la même clé d'idempotence ne crée qu'une vente.
+6. Après clôture, toute modification est refusée et journalisée.
+7. Isolation entre pharmacies démontrée par un test.
+8. Rendu correct sur mobile, tablette et poste fixe.
+
+### Questions ouvertes à poser au promoteur — ne pas trancher seul
+
+1. Carte « Montant remboursé » : « Principal » et « Remboursement » signifient-ils part assureur et part client ?
+2. « OM Cash » signifie-t-il Orange Money ? Faut-il conserver aussi le bouton Espèces ?
+3. « Solde crédit » concerne-t-il la session, la caissière ou toute la pharmacie ?
+4. Quels seuils d'écart, règles de validation du responsable, autorisations de crédit et limites de remise doivent être configurés par la pharmacie ?
+5. Quelle largeur d'imprimante utilisent les pharmacies pilotes : 58 ou 80 mm ?
+
+### Instruction de démarrage
+
+Commencer par confirmer que les trois annexes ont été lues, en résumant en dix lignes ce qui sera construit, puis lancer l'audit décrit ci-dessus. **Ne pas coder avant d'avoir remis le rapport d'audit et reçu l'accord.**
+
+## 26. Statut de la Partie 3
+
+Cette partie est intégrée comme prompt de référence dans le document. Son intégration ne signifie pas que l'audit a été exécuté, que les étapes de développement sont achevées ou que les tests sont verts. Les questions ouvertes restent ouvertes jusqu'à décision explicite du promoteur. Aucun déploiement ni changement de Supabase Production n'est autorisé par ce document.
