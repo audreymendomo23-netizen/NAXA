@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
@@ -8,7 +8,7 @@ type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:strin
 type Preparation={prescription_id:string;statut:string;notes_preparation:string|null;motif_complement:string|null;updated_at:string};
 
 export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?: "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil" }) {
-  const sb=supabaseBrowser();
+  const sb=useMemo(() => supabaseBrowser(), []);
   const [pid,setPid]=useState<string|null>(null),[tab,setTab]=useState<"dashboard"|"consultation"|"prescription"|"ordonnances"|"preparations"|"dispositifs"|"historique"|"rapports"|"profil">(initialTab);
   const [internal,setInternal]=useState<Ord[]>([]),[incoming,setIncoming]=useState<Ord[]>([]),[preparations,setPreparations]=useState<Record<string,Preparation>>({});
   const [msg,setMsg]=useState(""),[busy,setBusy]=useState(false),[motif,setMotif]=useState<Record<string,string>>({}),[notesPreparation,setNotesPreparation]=useState<Record<string,string>>({});
