@@ -45,6 +45,15 @@ begin
  if not exists(select 1 from pg_trigger where tgrelid='public.stocks_lots'::regclass and tgname='trg_stocks_lots_sync_compat' and not tgisinternal) then
   raise exception 'Synchronisation des colonnes historiques/canoniques absente';
  end if;
+ if to_regprocedure('public.lot_quarantaine_compter(uuid,integer,integer)') is null
+    or to_regprocedure('public.lot_rappel_traiter_sortie(uuid,text,integer,text,text)') is null
+    or to_regprocedure('public.admin_avis_rappel_lot_diffuser(text,text,text,text,text)') is null
+    or to_regprocedure('public.promoteur_accuser_avis_rappel_lot(uuid)') is null
+    or to_regclass('public.rappels_lots_traitements') is null
+    or to_regclass('public.avis_rappels_lots_reseau') is null
+    or to_regclass('public.avis_rappels_lots_destinataires') is null then
+  raise exception 'Comptage, traitement retour/destruction ou avis réseau F64 manquant';
+ end if;
  if has_function_privilege('anon','public.lot_rappeler(uuid,text,text)','EXECUTE')
     or has_function_privilege('anon','public.lot_lever_rappel(uuid)','EXECUTE')
     or has_function_privilege('anon','public.stock_lot_enregistrer(uuid,uuid,text,date,integer,uuid)','EXECUTE') then
