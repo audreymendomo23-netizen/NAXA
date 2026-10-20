@@ -9,6 +9,14 @@ update public.profiles
 set fonction_interne = 'pharmacien'
 where fonction_interne = 'pharmacien_assistant';
 
+-- Renommer la colonne d'acteur sans perdre l'historique des préparations.
+do $ begin
+  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='prescription_preparations' and column_name='assistant_id')
+     and not exists (select 1 from information_schema.columns where table_schema='public' and table_name='prescription_preparations' and column_name='pharmacien_id') then
+    alter table public.prescription_preparations rename column assistant_id to pharmacien_id;
+  end if;
+end $;
+
 alter table public.profiles
   add constraint profiles_fonction_interne_check
   check (fonction_interne is null or fonction_interne in (
@@ -17,7 +25,7 @@ alter table public.profiles
     'chef_agence','custom'
   ));
 
-create or replace function public.assistant_soumettre_preparation(
+create or replace function public.pharmacien_soumettre_preparation(
   p_prescription uuid,
   p_notes text default null
 )
@@ -43,18 +51,19 @@ begin
   if v.statut <> 'en_attente' then raise exception 'Cette ordonnance n''est plus en attente'; end if;
 
   insert into public.prescription_preparations(
-    prescription_id,pharmacie_id,assistant_id,statut,notes_preparation,motif_complement,updated_at
+    prescription_id,pharmacie_id,pharmacien_id,statut,notes_preparation,motif_complement,updated_at
   ) values (p_prescription,p,u,'soumise',nullif(trim(coalesce(p_notes,'')),''),null,now())
   on conflict (prescription_id) do update set
-    assistant_id=excluded.assistant_id,
+    pharmacien_id=excluded.pharmacien_id,
     statut='soumise',
     notes_preparation=excluded.notes_preparation,
     motif_complement=null,
     updated_at=now();
 end;
 $$;
-revoke all on function public.assistant_soumettre_preparation(uuid,text) from public,anon,authenticated;
-grant execute on function public.assistant_soumettre_preparation(uuid,text) to authenticated;
+revoke all on function public.pharmacien_soumettre_preparation(uuid,text) from public,anon,authenticated;
+grant execute on function public.pharmacien_soumettre_preparation(uuid,text) to authenticated;
+drop function if exists public.assistant_soumettre_preparation(uuid,text);
 
 create or replace function public.prescription_valider(
   p_prescription uuid,
