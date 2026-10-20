@@ -80,7 +80,7 @@ begin
   )
   values(
     v_reservation,v_admin,v_pharmacie,'confirmee',100,now()+interval '1 hour',now(),
-    'reservation','a_verifier','especes',0
+    'reservation','a_verifier','especes_retrait',0
   );
 
   insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
@@ -120,7 +120,7 @@ begin
 
   if not exists (
     select 1 from public.reservations
-    where id=v_reservation and statut='payee' and paiement_statut='effectue' and paiement_mode='especes'
+    where id=v_reservation and statut='payee' and paiement_statut='effectue' and paiement_mode='especes_retrait'
   ) then raise exception 'La réservation n’a pas été marquée payée'; end if;
 
   v_rejected := false;
