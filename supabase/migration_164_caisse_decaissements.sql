@@ -58,8 +58,8 @@ begin
     raise exception 'Référence de justificatif trop longue';
   end if;
 
-  select cs.*, c.pharmacie_id
-    into v_session, v_pharmacie
+  select cs
+    into v_session
   from public.caisses_sessions cs
   join public.caisses c on c.id = cs.caisse_id
   where cs.id = p_session
@@ -68,6 +68,11 @@ begin
     and c.actif = true
   for update of cs;
   if not found then raise exception 'Session ouverte introuvable, inactive ou non détenue par ce compte'; end if;
+
+  select c.pharmacie_id into v_pharmacie
+  from public.caisses c
+  where c.id = v_session.caisse_id and c.actif = true;
+  if v_pharmacie is null then raise exception 'Pharmacie de caisse introuvable ou inactive'; end if;
 
   select * into v_profile
   from public.profiles p
