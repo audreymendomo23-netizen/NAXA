@@ -21,7 +21,7 @@ for select to authenticated using (
     where r.id = reservation_id
       and (r.client_id = (select auth.uid())
         or public.is_admin()
-        or public.naxa_scope_allows((select auth.uid()), r.pharmacie_id, 'PHARMACIE'))
+        or public.can_access_pharmacy(r.pharmacie_id))
   )
 );
 revoke all on public.reservation_statut_historique from anon, public;
@@ -104,7 +104,17 @@ revoke all on function public.notifier_reservations_expirant_30m() from public, 
 comment on function public.notifier_reservations_expirant_30m() is
   'À planifier toutes les 5 minutes via pg_cron/ordonnanceur de confiance; crée une seule notification par réservation dans la fenêtre de 25–30 min.';
 
--- Planification uniquement si pg_cron est déjà installé. Aucun secret ni accès HTTP ajouté.
+-- Tentative de planification pg_cron si l'extension est disponible; aucune clé HTTP ni secret ajouté.
+do $extension$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pg_cron') then
+    create extension pg_cron with schema pg_catalog;
+  end if;
+exception when undefined_file or insufficient_privilege or feature_not_supported then
+  raise notice 'pg_cron non activable : le rappel doit être planifié par un ordonnanceur sécurisé.';
+end;
+$extension$;
+
 do $schedule$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
