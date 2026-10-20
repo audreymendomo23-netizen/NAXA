@@ -54,7 +54,7 @@ const fcfa = (value: number) => `${Number(value || 0).toLocaleString("fr-FR")} F
 export default async function GestionnaireStockReservationsPage({
   searchParams,
 }: {
-  searchParams: { ok?: string; erreur?: string };
+  searchParams: { ok?: string; erreur?: string; page?: string };
 }) {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
@@ -84,14 +84,16 @@ export default async function GestionnaireStockReservationsPage({
   const pharmacyIds = [...new Set(pharmacyRows.map((row) => row.pharmacie_id ?? row.id).filter((id): id is string => Boolean(id)))];
   if (!pharmacyIds.length) redirect("/");
 
-  const { data: rawReservations, error: reservationError } = await sb
+  const pageNumber = Math.max(1, Math.min(10000, Number.parseInt(searchParams.page ?? "1", 10) || 1));
+  const pageSize = 50;
+  const { data: rawReservations, error: reservationError, count: reservationCount } = await sb
     .from("reservations")
-    .select("id,pharmacie_id,client_id,statut,total,created_at,expires_at,mode,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))")
+    .select("id,pharmacie_id,client_id,statut,total,created_at,expires_at,mode,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))", { count: "exact" })
     .in("pharmacie_id", pharmacyIds)
     .eq("mode", "reservation")
     .in("statut", ["en_attente", "confirmee"])
     .order("created_at", { ascending: true })
-    .limit(100);
+    .range((pageNumber - 1) * pageSize, pageNumber * pageSize - 1);
 
   const reservations = (rawReservations ?? []) as unknown as ReservationRow[];
   const productIds = [...new Set(reservations.flatMap((reservation) => (reservation.reservation_items ?? []).map((item) => item.produit_id)))];
@@ -135,6 +137,7 @@ export default async function GestionnaireStockReservationsPage({
 
         {!reservations.length && !reservationError && <section className="rounded-2xl border bg-white p-5"><h2 className="font-bold">Aucune réservation à préparer</h2><p className="mt-1 text-sm text-slate-600">Les nouveaux dossiers apparaîtront ici dès qu’ils seront enregistrés pour une pharmacie accessible à ce compte.</p></section>}
 
+        <p className="text-sm text-slate-600">Dossiers actifs : {reservationCount ?? "—"} · page {pageNumber} sur {Math.max(1, Math.ceil((reservationCount ?? 0) / pageSize))}</p>
         <div className="space-y-4">
           {reservations.map((reservation) => {
             const expiresAt = new Date(reservation.expires_at).getTime();
@@ -178,6 +181,7 @@ export default async function GestionnaireStockReservationsPage({
             );
           })}
         </div>
+        <nav aria-label="Pagination des réservations" className="flex items-center justify-between gap-3"><span className="text-xs text-slate-500">Page {pageNumber} · {Math.min((pageNumber - 1) * pageSize + 1, reservationCount ?? 0)}–{Math.min(pageNumber * pageSize, reservationCount ?? 0)} sur {reservationCount ?? "—"}</span><div className="flex gap-2">{pageNumber > 1 && <Link className="rounded-xl border bg-white px-3 py-2 text-sm font-bold" href={"?page=" + (pageNumber - 1)}>Précédent</Link>}{pageNumber < Math.ceil((reservationCount ?? 0) / pageSize) && <Link className="rounded-xl border bg-white px-3 py-2 text-sm font-bold" href={"?page=" + (pageNumber + 1)}>Suivant</Link>}</div></nav>
         <p className="text-xs leading-relaxed text-slate-500">Les informations de stock sont indicatives au chargement de la page. Le serveur doit revalider le stock, les lots, le statut et le périmètre avant toute préparation ou annulation. Les emplacements absents ne sont jamais inventés.</p>
         </div></div>
       </div>
