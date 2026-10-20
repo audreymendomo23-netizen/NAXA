@@ -28,7 +28,8 @@ begin
 
   if v_transition is null
      or position('transition_ok' in lower(v_transition))=0
-     or position('r.statut = ''payee''' in lower(v_transition))=0
+     or position('public.vente_paiements' in lower(v_transition))=0
+     or position('ticket pos payé' in lower(v_transition))=0
      or position('p_statut = ''retiree''' in lower(v_transition))=0
      or position('public.restore_stock' in lower(v_transition))=0
      or position('naxa_scope_allows' in lower(v_transition))=0 then
