@@ -16,7 +16,7 @@ alter table public.rappels_lots_traitements enable row level security;
 drop policy if exists rappels_lots_traitements_read on public.rappels_lots_traitements;
 create policy rappels_lots_traitements_read on public.rappels_lots_traitements for select to authenticated
 using (
- public.can_access_pharmacy(pharmacie_id)
+ public.naxa_scope_allows((select auth.uid()),pharmacie_id,'PHARMACIE')
  and exists(select 1 from public.profiles p where p.id=auth.uid() and p.actif=true
    and p.role::text not in ('client','admin','caisse') and coalesce(p.fonction_interne,'')<>'caisse')
 );
@@ -39,7 +39,7 @@ begin
  if not found or coalesce(v_profile.role::text,'')<>'promoteur' then raise exception 'Traitement du rappel réservé au Promoteur actif'; end if;
  select * into v_rappel from public.rappels_lots where id=p_rappel and statut='actif' for update;
  if not found then raise exception 'Rappel actif introuvable'; end if;
- if not public.can_access_pharmacy(v_rappel.pharmacie_id) then raise exception 'Rappel hors périmètre'; end if;
+ if not public.naxa_scope_allows(v_user,v_rappel.pharmacie_id,'PHARMACIE') then raise exception 'Rappel hors périmètre'; end if;
  select * into v_lot from public.stocks_lots where id=v_rappel.lot_id for update;
  if not found or v_lot.quantite<p_quantite then raise exception 'Quantité supérieure au stock restant du lot'; end if;
  select * into v_stock from public.stocks where pharmacie_id=v_lot.pharmacie_id and produit_id=v_lot.produit_id for update;
