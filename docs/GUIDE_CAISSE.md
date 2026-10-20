@@ -17,6 +17,11 @@
 ## Paiements électroniques
 Orange Money, MTN MoMo et l'ancien mode Mobile Money ne doivent pas être déclarés payés sur la seule base d'une référence saisie. Ces modes sont bloqués côté base tant qu'une intégration marchande officielle ne permet pas de confirmer la transaction. Aucun paiement électronique n'est simulé.
 
+## Retraits Marketplace
+- La Caisse affiche les réservations Pharmacie en attente, confirmées ou déjà payées, limitées à la pharmacie du compte connecté.
+- Le bouton « Confirmer le retrait » n'est disponible que si la réservation est déjà au statut « payée » et que son paiement est marqué « effectué ». La transition est vérifiée par la RPC et la réservation ne peut pas être retirée deux fois.
+- Une réservation non payée reste visible avec un avertissement ; cette vue ne l'encaisse pas. Le paiement d'une réservation au comptoir n'est pas encore relié à une vente POS/session de caisse : ne pas la déclarer payée dans ce panneau. Ce raccordement doit être traité séparément pour que le paiement entre dans le rapprochement espèces sans double comptabiliser le chiffre d'affaires.
+
 ## Tickets, historique et clôture
 - Le ticket est construit à partir de la RPC vente_ticket, affiche le numéro de vente, les lignes, les montants, le mode de paiement, le montant reçu et la monnaie rendue lorsque ces données sont disponibles, puis peut être imprimé.
 - L'historique affiche les 20 dernières ventes payées créées par le compte connecté ; chaque ticket peut être réimprimé.
