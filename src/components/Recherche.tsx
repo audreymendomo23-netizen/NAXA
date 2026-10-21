@@ -132,18 +132,24 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
         const ciblesPhoto = results.filter((item) => !item.imageUrl).slice(0, 3);
         if (ciblesPhoto.length) {
           void Promise.all(ciblesPhoto.map(async (item) => {
-            const identity = (item.brand || item.name).trim();
-            if (identity.length < 3) return null;
+            const identities = [...new Set([item.brand, item.name, item.activeIngredient]
+              .filter((value): value is string => Boolean(value && value.trim().length >= 3))
+              .map((value) => value.trim()))];
+            if (!identities.length) return null;
             try {
-              const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), { signal: controller.signal });
-              if (!photoResponse.ok) return null;
-              const payload = await photoResponse.json() as {
-                photos?: {
-                  boite?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
-                  comprime?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
+              let imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> = { boite: null, comprime: null };
+              for (const identity of identities) {
+                const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), { signal: controller.signal });
+                if (!photoResponse.ok) continue;
+                const payload = await photoResponse.json() as {
+                  photos?: {
+                    boite?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
+                    comprime?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
+                  };
                 };
-              };
-              const imageVariants = { boite: payload.photos?.boite ?? null, comprime: payload.photos?.comprime ?? null };
+                imageVariants = { boite: payload.photos?.boite ?? null, comprime: payload.photos?.comprime ?? null };
+                if (imageVariants.boite || imageVariants.comprime) break;
+              }
               const primary = imageVariants.boite ?? imageVariants.comprime;
               if (!primary || controller.signal.aborted) return null;
               return {
