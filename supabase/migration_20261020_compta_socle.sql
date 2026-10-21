@@ -373,4 +373,100 @@ grant select on public.compta_periodes,public.compta_parametre,
   public.compta_evenement,public.compta_ecriture,public.compta_ligne,
   public.compta_audit to authenticated;
 
+
+-- Les écritures ne peuvent être créées que par le serveur avec le rôle service_role.
+-- La clé service_role ne doit jamais être exposée au navigateur.
+create or replace function public.compta_poster_ecriture(
+  p_pharmacie uuid,
+  p_periode uuid,
+  p_date date,
+  p_journal text,
+  p_source_type text,
+  p_source_id text,
+  p_cle_idempotence text,
+  p_libelle text,
+  p_lignes jsonb,
+  p_acteur uuid default null
+) returns uuid
+language plpgsql security definer set search_path=''
+as $
+declare
+  v_existing uuid;
+  v_ecriture uuid := gen_random_uuid();
+  v_ligne jsonb;
+  v_compte uuid;
+  v_debit bigint;
+  v_credit bigint;
+  v_libelle_ligne text;
+  v_count integer := 0;
+begin
+  if coalesce(auth.role(),'') <> 'service_role' then
+    raise exception 'Écriture comptable réservée au service serveur';
+  end if;
+  if p_pharmacie is null or p_periode is null or p_date is null
+     or p_journal is null or length(trim(p_journal))=0
+     or p_source_type is null or p_source_id is null
+     or p_cle_idempotence is null or length(trim(p_cle_idempotence))<8
+     or p_libelle is null or length(trim(p_libelle))<2
+     or jsonb_typeof(p_lignes) <> 'array' or jsonb_array_length(p_lignes)<2 then
+    raise exception 'Paramètres de comptabilisation incomplets';
+  end if;
+
+  select e.id into v_existing from public.compta_ecriture e
+  where e.pharmacie_id=p_pharmacie and e.cle_idempotence=p_cle_idempotence;
+  if found then return v_existing; end if;
+
+  insert into public.compta_ecriture(
+    id,pharmacie_id,periode_id,journal_code,date_ecriture,
+    source_type,source_id,cle_idempotence,libelle,cree_par
+  ) values (
+    v_ecriture,p_pharmacie,p_periode,trim(p_journal),p_date,
+    trim(p_source_type),trim(p_source_id),trim(p_cle_idempotence),trim(p_libelle),p_acteur
+  );
+
+  for v_ligne in select value from jsonb_array_elements(p_lignes)
+  loop
+    begin
+      v_compte := (v_ligne->>'compte_id')::uuid;
+      v_debit := coalesce((v_ligne->>'debit_fcfa')::bigint,0);
+      v_credit := coalesce((v_ligne->>'credit_fcfa')::bigint,0);
+      v_libelle_ligne := trim(coalesce(v_ligne->>'libelle',''));
+    exception when others then
+      raise exception 'Ligne comptable invalide';
+    end;
+    if v_compte is null or v_libelle_ligne='' or v_debit<0 or v_credit<0
+       or not ((v_debit>0 and v_credit=0) or (v_credit>0 and v_debit=0)) then
+      raise exception 'Ligne comptable invalide';
+    end if;
+    if not exists (
+      select 1 from public.compta_plan_comptable c
+      where c.id=v_compte and c.pharmacie_id=p_pharmacie and c.statut='valide'
+    ) then raise exception 'Compte absent ou non validé'; end if;
+    insert into public.compta_ligne(
+      ecriture_id,pharmacie_id,compte_id,libelle,debit_fcfa,credit_fcfa
+    ) values(v_ecriture,p_pharmacie,v_compte,v_libelle_ligne,v_debit,v_credit);
+    v_count := v_count + 1;
+  end loop;
+  if v_count<2 then raise exception 'Une écriture doit contenir au moins deux lignes'; end if;
+  perform public.compta_auditer(
+    p_pharmacie,p_acteur,'ecriture_comptable_passee','ecriture',v_ecriture::text,'succes',null
+  );
+  return v_ecriture;
+end;
+$;
+revoke all on function public.compta_poster_ecriture(uuid,uuid,date,text,text,text,text,text,jsonb,uuid) from public,anon,authenticated;
+grant execute on function public.compta_poster_ecriture(uuid,uuid,date,text,text,text,text,text,jsonb,uuid) to service_role;
+
+-- Le journal d'audit est append-only ; l'intégrité de chaque ligne est vérifiable.
+create or replace function public.compta_refuser_modification_audit()
+returns trigger language plpgsql security definer set search_path=''
+as $
+begin
+  raise exception 'Journal comptable append-only';
+end;
+$;
+drop trigger if exists compta_audit_immutable on public.compta_audit;
+create trigger compta_audit_immutable before update or delete on public.compta_audit
+for each row execute function public.compta_refuser_modification_audit();
+
 commit;
