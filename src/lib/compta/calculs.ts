@@ -131,3 +131,40 @@ export function calculerIndicateurs(input: {
         ? Number(creances) / Number(ventesCredit) * jours : null,
   };
 }
+
+
+export interface SectionBalance {
+  section: string;
+  lignes: LigneBalance[];
+  totalSoldeDebitFcfa: bigint;
+  totalSoldeCreditFcfa: bigint;
+}
+
+/**
+ * Agrège les comptes par section explicitement renseignée dans le référentiel.
+ * Les comptes sans section validée restent dans "À classer" : aucun numéro
+ * SYSCOHADA ni aucune classe n'est interprété implicitement.
+ */
+export function regrouperBalanceParSections(
+  balance: BalanceComptable,
+  comptes: readonly CompteComptable[],
+  sectionsValidees: ReadonlySet<string>,
+): SectionBalance[] {
+  const comptesParId = new Map(comptes.map(c => [c.id, c]));
+  const groupes = new Map<string, LigneBalance[]>();
+  for (const ligne of balance.lignes) {
+    const compte = comptesParId.get(ligne.compteId);
+    const section = compte?.sectionEtats && sectionsValidees.has(compte.sectionEtats)
+      ? compte.sectionEtats
+      : "À classer";
+    const lignes = groupes.get(section) ?? [];
+    lignes.push(ligne);
+    groupes.set(section, lignes);
+  }
+  return [...groupes.entries()].map(([section, lignes]) => ({
+    section,
+    lignes,
+    totalSoldeDebitFcfa: lignes.reduce((s, l) => s + l.soldeDebitFcfa, 0n),
+    totalSoldeCreditFcfa: lignes.reduce((s, l) => s + l.soldeCreditFcfa, 0n),
+  }));
+}
