@@ -89,6 +89,12 @@ La fonction `public.compta_generer_rapport_mensuel()` existe sur la base isolée
 - Relecture du conseiller de performance après migration : les alertes `unindexed_foreign_keys` visant les tables `compta_*` ont disparu. Le conseiller signale maintenant ces index comme « non utilisés » dans la fenêtre observée, ainsi que plusieurs index comptables préexistants. La base de test ne contient pas de charge métier; **ne pas supprimer ces index sur cette seule base**.
 - La migration n'a pas été appliquée à la base active et aucun déploiement n'a été effectué.
 
+### Revue des alertes de sécurité comptables
+
+Le conseiller de sécurité signale trois RPC comptables `SECURITY DEFINER` exécutables par `authenticated` : `compta_lire_recus_abonnement(date,date)`, `compta_scope_autorise(uuid)` et `compta_verifier_audit(uuid)`. Leur contrat dans les migrations impose l'authentification et/ou le périmètre Comptable, le privilège `MANAGE_ACCOUNTING` et la pharmacie autorisée; les tests 165 et 166 vérifient notamment les privilèges de la RPC des reçus. Ces permissions sont des points d'entrée contrôlés, pas une raison suffisante de révoquer tous les droits `authenticated` sans test de contrat. La table `compta_audit_tete` a RLS sans politique et aucun privilège direct SELECT/INSERT/UPDATE/DELETE pour `anon` ou `authenticated`; ce verrouillage direct est cohérent avec une table technique manipulée par le serveur. Aucun changement de permissions n'a été fait à l'aveugle.
+
+Le conseiller de sécurité conserve aussi une alerte ERROR sur `public.v_reservations_ca` et d'autres alertes générales de l'environnement isolé (fonctions d'autres modules, extensions et tables internes). Elles ne sont pas modifiées dans le chantier Comptable sans preuve de lien et analyse d'impact.
+
 ## État de l'historique des migrations de test
 
 Le dépôt contient maintenant dix migrations Comptable identifiées (dont la nouvelle migration d'index), tandis que l'historique de la base isolée expose les huit entrées historiques précédentes plus la nouvelle migration d'index et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé. Aucun rejeu ni réparation automatique n'a été tenté : cette base ne constitue pas un historique canonique et la migration des rapports planifiés contient un éventuel enregistrement `pg_cron` à inspecter avant application.
