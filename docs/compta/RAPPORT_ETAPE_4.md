@@ -1,69 +1,83 @@
 # Rapport d’étape 4 — Worker et premier poste Comptable
 
-Date : 21 octobre 2026  
+Date de mise à jour : 21 octobre 2026  
 Branche : `main`  
 Référence fonctionnelle : `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`  
-Statut : **CODE ENREGISTRÉ — EXÉCUTION LOCALE, MIGRATION ET TESTS NON VALIDÉS**.
+Statut : **ÉTAPE TECHNIQUE 4 TERMINÉE POUR SON PÉRIMÈTRE — VALIDATION SQL EN BASE DE TEST**.
 
-> Le cahier des charges décrit les fonctionnalités du poste mais ne numérote pas lui-même les phases d’implémentation. Cette étape 4 est donc la suite technique du chantier : terminer le chemin worker minimal puis commencer l’écran de pilotage sans données fictives.
+> Le cahier des charges décrit les fonctionnalités du poste mais ne numérote pas lui-même les phases d’implémentation. Cette étape 4 est la suite technique définie pour le chantier : construire le chemin worker minimal, le valider sur une base isolée et commencer l’écran de pilotage sans données fictives. Elle ne signifie pas que les dix entrées du parcours Comptable complet sont déjà toutes livrées.
 
 ## 1. Worker comptable
 
-Fichiers ajoutés/modifiés :
-
+Fichiers :
 - `supabase/migration_20261022_compta_worker.sql`
 - `supabase/functions/compta-worker/index.ts`
 - `supabase/tests/162_compta_worker.sql`
-- `supabase/migration_20261021_compta_outbox.sql` — correction du fuseau métier de vente.
-- `docs/compta/RAPPORT_ETAPE_4.md`
+- `supabase/migration_20261021_compta_outbox.sql`
+- `supabase/tests/161_compta_outbox.sql`
 
-### Traitement
-1. Le worker Edge Function réclame jusqu’à 50 événements via RPC, puis les traite séquentiellement.
+Traitement :
+1. L’Edge Function réclame jusqu’à 50 événements via RPC, puis les traite séquentiellement.
 2. Le traitement vérifie le jeton de réclamation et le rôle serveur.
 3. Il valide le montant FCFA entier, la date comptable, l’existence d’une seule période ouverte et d’un seul journal validé applicable.
-4. Il exige un mapping débit et un mapping crédit uniques, valides à la date, avec comptes validés dans la même pharmacie.
-5. Il crée une écriture par partie double via `compta_poster_ecriture`, protégée par clé d’idempotence.
+4. Il exige un mapping débit et un mapping crédit uniques, valides à la date, avec des comptes validés dans la même pharmacie.
+5. Il crée une écriture en partie double via `compta_poster_ecriture`, protégée par une clé d’idempotence.
 6. L’événement n’est finalisé qu’après présence de l’écriture correspondante.
-7. Les erreurs ne stockent qu’un code SQL technique; reprise après 15 minutes, arrêt après 8 tentatives. Aucun taux ou compte par défaut.
+7. Les erreurs stockent uniquement un code SQL technique; reprise après 15 minutes, arrêt après 8 tentatives. Aucun compte, taux ou journal par défaut.
 
-La date comptable des ventes est désormais dérivée de l’horodatage de paiement dans le fuseau `Africa/Douala`. Les dépenses utilisent leur date métier `date_depense`.
+La date comptable des ventes est dérivée de l’horodatage de paiement dans le fuseau `Africa/Douala`. Les dépenses utilisent leur date métier `date_depense`.
 
-### Activation non effectuée
-Le worker n’est pas encore planifié automatiquement : il faut configurer les secrets `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `COMPTA_WORKER_SECRET` et le déclenchement planifié (cible toutes les 15 minutes) dans un environnement de test. Le secret de worker ne doit jamais être livré au navigateur. Aucune migration n’a été appliquée à la base active.
+## 2. Validation effectivement exécutée
 
-## 2. Étape 4 du parcours Comptable — première interface
+Environnement isolé : projet Supabase de test `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`). Les migrations ont été appliquées uniquement sur cette base de test, dans l’ordre outbox puis worker. Aucune migration comptable n’a été appliquée à la base active NAXA.
 
-Ajout de `src/app/pharmacie/comptable/page.tsx` :
-
-- route protégée par session serveur, compte actif, pharmacie liée et privilège `MANAGE_ACCOUNTING`;
-- lecture bornée à la pharmacie du profil, sans accès multi-pharmacie implicite;
-- tableau de bord avec derniers événements de la file, dernières écritures, périodes ouvertes et erreurs;
-- états vides et erreurs explicites; aucun chiffre de démonstration;
-- affichage des références financières uniquement, sans identité patient ni détail médical;
-- aucune action d’encaissement, de validation finale ou de modification de source.
-
-La page reste une première tranche de l’interface. Les autres entrées du cahier (journal des ventes, créances/bordereaux, rejets/relances, trésorerie, rapports/exports, documents, audit, profil et déconnexion dédiée) ne sont pas déclarées terminées.
-
-## 3. Fichiers
-
-- [Migration worker](../../supabase/migration_20261022_compta_worker.sql)
-- [Edge Function](../../supabase/functions/compta-worker/index.ts)
-- [Test SQL worker](../../supabase/tests/162_compta_worker.sql)
-- [Dashboard Comptable](../../src/app/pharmacie/comptable/page.tsx)
-- [Migration outbox](../../supabase/migration_20261021_compta_outbox.sql)
-
-## 4. Vérifications — état réel
-
-| Vérification | État |
+| Contrôle | Résultat |
 |---|---|
-| Changements enregistrés sur `main` | PASS — fichiers relus via l’API GitHub |
-| Tests TypeScript locaux | NON EXÉCUTÉS — pas de clone local / résolution GitHub indisponible |
-| Typecheck du dépôt | NON EXÉCUTÉ — aucun `tsconfig.json` local |
-| Tests SQL 160, 161, 162 après nouvelles migrations | NON EXÉCUTÉS |
-| Exécution réelle du worker | NON EXÉCUTÉE |
+| Application migration outbox | PASS |
+| Application migration worker | PASS |
+| `supabase/tests/160_compta_socle.sql` | PASS — retour explicite `160_compta_socle PASS` |
+| `supabase/tests/161_compta_outbox.sql` | PASS — aucune exception SQL |
+| `supabase/tests/162_compta_worker.sql` | PASS — aucune exception SQL |
+| Parcours worker transactionnel | PASS — réclamation, jeton, finalisation prématurée refusée, absence de configuration gérée en reprise |
+| Vérification après rollback | PASS — aucun événement de test conservé |
+| Exécution locale TypeScript / typecheck | NON EXÉCUTÉE |
 | Build frontend | NON EXÉCUTÉ |
 | CI | NON CONSULTÉE / NON LANCÉE |
-| Migration Supabase active | NON APPLIQUÉE |
-| Déploiement | NON EFFECTUÉ |
+| Migration base active | NON APPLIQUÉE |
+| Déploiement Edge Function / activation cron | NON EFFECTUÉS |
 
-Les tests structurels ajoutés ne prouvent pas l’exécution métier bout en bout. La suite doit être exécutée dans un clone local fonctionnel ou une base de test isolée avant de considérer ce parcours validé.
+Le test fonctionnel confirme le chemin d’échec sûr : si la période ou les mappings validés manquent, aucune écriture n’est créée, l’événement est remis en attente, et seul un code technique assaini est enregistré. Il ne constitue pas encore une preuve de comptabilisation métier réussie pour des mappings réels : ce parcours positif exige des référentiels comptables validés dans une base de test disposant des profils de validation requis.
+
+## 3. Premier écran Comptable
+
+Fichier : `src/app/pharmacie/comptable/page.tsx`.
+
+- route protégée par session serveur, compte actif, pharmacie liée et privilège `MANAGE_ACCOUNTING`;
+- lecture bornée à la pharmacie du profil;
+- affichage des écritures récentes, événements de file, erreurs et périodes ouvertes;
+- états vides et erreurs explicites; aucun chiffre de démonstration;
+- références financières uniquement, sans identité patient ni détail médical;
+- aucune action d’encaissement, de validation finale ou de modification de source.
+
+Le code frontend a été relu mais pas compilé dans cette session, faute de clone local accessible. Le tableau de bord est la première tranche d’interface, pas l’ensemble du poste Comptable.
+
+## 4. Activation opérationnelle — non effectuée
+
+L’Edge Function n’est pas déployée et aucun déclencheur périodique n’est activé. Avant activation, configurer dans l’environnement cible les secrets serveur `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` et `COMPTA_WORKER_SECRET`, puis mettre en place un déclenchement planifié côté serveur. Le secret personnalisé doit être long, aléatoire et absent du navigateur, des journaux et du dépôt. La clé service-role ne doit jamais être exposée côté client.
+
+Ne pas activer le worker sur une pharmacie réelle tant que son plan comptable, ses mappings par événement, ses périodes et ses codes de journaux n’ont pas été validés par le responsable compétent.
+
+## 5. Limites et suite du parcours complet
+
+Les autres entrées du cahier des charges — journal des ventes, créances/bordereaux, rejets/relances, trésorerie/rapprochements, rapports/exports, documents, journal d’audit, profil et déconnexion dédiée — restent des chantiers séparés. Elles ne sont pas déclarées terminées dans ce rapport.
+
+Aucune valeur fiscale, règle de TVA ou mapping SYSCOHADA n’a été inventé. Les exports futurs devront porter la mention : « État préparé par NAXA, à contrôler par votre expert-comptable ».
+
+## 6. Fichiers de référence
+
+- [Migration outbox](../../supabase/migration_20261021_compta_outbox.sql)
+- [Migration worker](../../supabase/migration_20261022_compta_worker.sql)
+- [Edge Function](../../supabase/functions/compta-worker/index.ts)
+- [Test SQL outbox](../../supabase/tests/161_compta_outbox.sql)
+- [Test SQL worker](../../supabase/tests/162_compta_worker.sql)
+- [Dashboard Comptable](../../src/app/pharmacie/comptable/page.tsx)
