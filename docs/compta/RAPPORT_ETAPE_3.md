@@ -3,7 +3,7 @@
 Date : 21 octobre 2026  
 Branche : `main`  
 Source normative : `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`  
-Statut : **SOCLE OUTBOX INTÉGRÉ AU DÉPÔT — MIGRATION ET TEST SQL NON EXÉCUTÉS SUR UNE BASE LOCALE/ACTIVE — WORKER DE COMPTABILISATION À POURSUIVRE**.
+Statut : **OUTBOX VALIDÉE SUR BASE DE TEST ISOLÉE — VOIR LE RAPPORT D’ÉTAPE 4 POUR LE WORKER ET LE PARCOURS DE VALIDATION**.
 
 ## Changements enregistrés
 
@@ -23,9 +23,9 @@ Statut : **SOCLE OUTBOX INTÉGRÉ AU DÉPÔT — MIGRATION ET TEST SQL NON EXÉC
 
 - Le traitement des mappings, de la période et de la partie double a depuis été ajouté dans `supabase/migration_20261022_compta_worker.sql`, avec un appelant Edge Function dans `supabase/functions/compta-worker/index.ts`. Voir le rapport d’étape 4 pour le détail et les limites de validation.
 - Les événements d’annulation/retour, réception fournisseur, pertes/péremptions, mouvements de stock, clôture de caisse, paie et immobilisations ne sont pas émis ici. Ils exigent d’abord une source validée et une règle de valorisation/mapping confirmée ; aucune table ou valeur fiscale n’a été inventée.
-- La migration et le test SQL n’ont pas été appliqués à la base Supabase active.
+- La migration outbox et le test SQL 161 ont depuis été appliqués/exécutés avec succès sur la base isolée `naxa-ci-replay-2`; voir `docs/compta/RAPPORT_ETAPE_4.md` pour le résultat daté. Ils n’ont pas été appliqués à la base Supabase active.
 - Les tests TypeScript de l’étape 2 et le typecheck du dépôt n’ont pas pu être exécutés dans l’environnement local disponible : le clone NAXA n’est pas présent et l’accès réseau à `github.com` échoue avec `Could not resolve host: github.com`. La tentative `npm run test:compta-moteur` échoue donc faute de `/package.json`; `tsc --noEmit` affiche l’aide car aucun `tsconfig.json` local n’est présent. Ce ne sont pas des échecs du moteur : l’exécution reste non vérifiée.
 
 ## Sécurité et déploiement
 
-Aucune donnée de démonstration ajoutée. Aucune migration appliquée à la base active. Aucun déploiement, build ou pipeline CI lancé.
+Aucune donnée de démonstration conservée : les scénarios transactionnels se terminent par rollback. Aucune migration appliquée à la base active. Aucun déploiement, build ou pipeline CI lancé.
