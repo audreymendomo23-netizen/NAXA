@@ -129,7 +129,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
 
         // Recherche indépendante : une requête par fiche, afin de ne jamais
         // attribuer la photo d'un médicament à un autre résultat de la liste.
-        const ciblesPhoto = results.filter((item) => !item.imageUrl).slice(0, 3);
+        const ciblesPhoto = results.filter((item) => !item.imageUrl).slice(0, 10);
         if (ciblesPhoto.length) {
           void Promise.all(ciblesPhoto.map(async (item) => {
             const identities = [...new Set([item.brand, item.name, item.activeIngredient]
