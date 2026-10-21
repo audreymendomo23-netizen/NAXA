@@ -13,6 +13,7 @@ Statut : **SOCLE OUTBOX INTÉGRÉ AU DÉPÔT — MIGRATION ET TEST SQL NON EXÉC
   - N’insère dans le payload que le montant FCFA, la date comptable et une référence source. Aucun identifiant patient, détail de ligne de vente ou donnée clinique n’est copié.
   - Expose les RPC de réclamation et de finalisation uniquement à `service_role`.
   - Protège la file contre le traitement concurrent via `FOR UPDATE SKIP LOCKED` et un jeton de réclamation.
+  - Refuse de marquer un événement `traite` si aucune écriture comptable correspondante (même pharmacie, source et clé d’idempotence) n’existe.
   - Après un échec, programme une nouvelle tentative à 15 minutes ; après 8 tentatives, l’événement passe à `erreur`. Le code d’erreur stocké est réduit à un identifiant technique borné, pas au message brut d’une exception.
 - `supabase/tests/161_compta_outbox.sql`
   - Vérifie la présence des deux triggers, l’état `en_cours` et les privilèges des RPC.
