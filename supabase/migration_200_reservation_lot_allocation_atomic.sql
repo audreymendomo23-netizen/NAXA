@@ -105,7 +105,7 @@ begin
  if not exists(select 1 from public.pharmacies p where p.id=p_pharmacie and p.actif=true) then raise exception 'Pharmacie indisponible'; end if;
  if p_items is null or jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>10 then raise exception 'Panier invalide'; end if;
  if exists(select 1 from (select value->>'produit_id' pid,count(*) n from jsonb_array_elements(p_items) group by value->>'produit_id' having count(*)>1) d) then raise exception 'Produit dupliqué dans le panier'; end if;
- insert into public.reservations(client_id,pharmacie_id,expires_at) values(auth.uid(),p_pharmacie,now()+interval '3 hours') returning id into v_id;
+ insert into public.reservations(client_id,pharmacie_id,expires_at) values(auth.uid(),p_pharmacie,now()+interval '4 hours') returning id into v_id;
  perform pg_catalog.set_config('naxa.stock_motif','Réservation Marketplace '||v_id::text,true);
  for v_item in select value from jsonb_array_elements(p_items) order by value->>'produit_id'
  loop
