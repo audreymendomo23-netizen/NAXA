@@ -110,6 +110,8 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
           {type:"depenses", title:"Dépenses", description:"Dates, références, montants et statuts enregistrés."},
           {type:"tresorerie", title:"Trésorerie", description:"Mouvements et références sources, sans libellé libre."},
           {type:"ecritures", title:"Journal comptable", description:"Dates, journaux et références d’écritures comptables."},
+          {type:"grand_livre", title:"Grand livre", description:"Détail par écriture et compte, avec débit/crédit exacts."},
+          {type:"balance", title:"Balance comptable", description:"Totaux et soldes par compte ; la classe et le statut du référentiel restent visibles."},
         ].map(item => <article key={item.type} className="rounded-xl border border-slate-200 p-4">
           <h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-sm text-slate-600">{item.description}</p>
           <div className="mt-3 flex flex-wrap gap-2"><a href={qs(item.type,"csv")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">CSV</a><a href={qs(item.type,"xlsx")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">Excel</a><a href={qs(item.type,"pdf")} className="inline-flex min-h-11 items-center rounded-xl bg-naxa-green-900 px-4 text-sm font-semibold text-white">PDF</a></div>
