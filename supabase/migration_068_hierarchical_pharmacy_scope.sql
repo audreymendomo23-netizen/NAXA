@@ -5,7 +5,7 @@
 begin;
 
 create or replace function public.naxa_scope_allows(
-  p_actor uuid,
+  p_profile uuid,
   p_pharmacie uuid,
   p_scope text
 )
@@ -18,7 +18,7 @@ as $scope$
   with recursive ancestors(id,parent_profile_id,role,actif,depth) as (
     select p.id,p.parent_profile_id,p.role::text,p.actif,0
     from public.profiles p
-    where p.id=p_actor
+    where p.id=p_profile
     union all
     select parent.id,parent.parent_profile_id,parent.role::text,parent.actif,a.depth+1
     from ancestors a
@@ -26,19 +26,19 @@ as $scope$
     where a.depth < 3
   )
   select case
-    when p_actor is null then false
+    when p_profile is null then false
     when p_scope='RESEAU' then
       exists (
         select 1
         from public.profiles p
-        where p.id=p_actor and p.role::text='promoteur' and p.actif
+        where p.id=p_profile and p.role::text='promoteur' and p.actif
           and private.naxa_promoteur_valide(p.id)
       )
       and (
         p_pharmacie is null
         or exists (
           select 1 from public.promoteur_pharmacies pp
-          where pp.promoteur_id=p_actor and pp.pharmacie_id=p_pharmacie and pp.actif
+          where pp.promoteur_id=p_profile and pp.pharmacie_id=p_pharmacie and pp.actif
         )
       )
     when p_scope='PHARMACIE' then
@@ -49,13 +49,13 @@ as $scope$
           from public.profiles p
           join public.promoteur_pharmacies pp
             on pp.promoteur_id=p.id and pp.pharmacie_id=p_pharmacie and pp.actif
-          where p.id=p_actor and p.role::text='promoteur' and p.actif
+          where p.id=p_profile and p.role::text='promoteur' and p.actif
             and private.naxa_promoteur_valide(p.id)
         )
         or (
           exists (
             select 1 from public.profiles actor
-            where actor.id=p_actor and actor.actif
+            where actor.id=p_profile and actor.actif
               and actor.pharmacie_id=p_pharmacie
               and actor.role::text in ('pharmacie','caisse')
           )
@@ -74,7 +74,7 @@ as $scope$
       and exists (
         select 1
         from public.profiles actor
-        where actor.id=p_actor and actor.role::text='caisse' and actor.actif
+        where actor.id=p_profile and actor.role::text='caisse' and actor.actif
           and actor.pharmacie_id=p_pharmacie
       )
       and exists (
