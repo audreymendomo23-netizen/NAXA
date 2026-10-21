@@ -74,7 +74,8 @@ begin
       and r.statut in ('en_attente','confirmee')
       and r.expires_at > now()
       and r.consumed_at is null
-      and r.stock_restored = false;
+      and r.stock_restored = false
+      and r.stock_decremented = false;
 
     if v_stock - v_reserved < v_q then
       raise exception 'Stock disponible insuffisant après réservations actives';
@@ -189,6 +190,53 @@ $function$;
 
 revoke all on function public.marketplace_offre_stock_disponible(uuid,uuid) from public;
 grant execute on function public.marketplace_offre_stock_disponible(uuid,uuid) to anon,authenticated;
+
+
+-- Must be called from the same transaction that validates a cash-register sale.
+-- The sale itself decrements physical stock; this function only consumes the hold.
+create or replace function public.consume_reservation_for_sale(p_reservation uuid,p_vente uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare r public.reservations%rowtype; v_pharmacie uuid; v_vente_statut text;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  if to_regclass('public.ventes') is null then
+    raise exception 'Le module caisse n’est pas encore installé sur cette base';
+  end if;
+
+  execute 'select pharmacie_id, statut::text from public.ventes where id=$1 for update'
+    into v_pharmacie,v_vente_statut using p_vente;
+  if v_pharmacie is null then raise exception 'Vente introuvable'; end if;
+  if v_vente_statut not in ('brouillon','finalisee','payee','validee') then
+    raise exception 'État de vente incompatible avec la consommation de réservation';
+  end if;
+
+  select * into r from public.reservations where id=p_reservation for update;
+  if not found then raise exception 'Réservation introuvable'; end if;
+  if r.pharmacie_id<>v_pharmacie then raise exception 'La réservation appartient à une autre pharmacie'; end if;
+  if not (private.is_admin() or private.naxa_scope_allows(auth.uid(),r.pharmacie_id,'PHARMACIE')) then
+    raise exception 'Action non autorisée';
+  end if;
+  if r.consumed_at is not null or r.consumed_by_vente_id is not null then
+    if r.consumed_by_vente_id=p_vente then return; end if;
+    raise exception 'Réservation déjà consommée par une autre vente';
+  end if;
+  if r.statut not in ('en_attente','confirmee') or r.expires_at<=now() then
+    raise exception 'Réservation inactive ou expirée';
+  end if;
+
+  update public.reservations
+    set statut='retiree',consumed_by_vente_id=p_vente,consumed_at=now(),
+        stock_decremented=false,stock_restored=false
+    where id=p_reservation;
+end;
+$function$;
+revoke all on function public.consume_reservation_for_sale(uuid,uuid) from public,anon;
+grant execute on function public.consume_reservation_for_sale(uuid,uuid) to authenticated;
+
 
 -- A service session belongs to one stock manager and one pharmacy.
 create table if not exists public.stock_service_sessions (
