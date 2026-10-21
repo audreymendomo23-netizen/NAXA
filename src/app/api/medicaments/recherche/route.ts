@@ -267,7 +267,7 @@ export async function GET(request: NextRequest) {
     const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
     const availability = !localProduct || !localStocks.verified ? "non_verifiee" : stock?.pharmacies ? "disponible" : "indisponible";
     return {
-      id: candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
+      id: localProduct?.id ?? candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
       brand: brand ? cleanName(brand) : null,
       activeIngredient: activeIngredient || null,
