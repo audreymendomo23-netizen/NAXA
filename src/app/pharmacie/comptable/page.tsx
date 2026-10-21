@@ -77,11 +77,11 @@ export default async function ComptableDashboardPage() {
   const nextMonthStartDate = nextMonthStart.toISOString().slice(0, 10);
   const [salesResult, expensesResult, cashResult, claimsResult, controlsResult, auditIntegrity] = await Promise.all([
     sb.from("ventes").select("statut,total_net,created_at").eq("pharmacie_id", profile.pharmacie_id)
-      .gte("created_at", monthStart.toISOString()).lt("created_at", nextMonthStart.toISOString()).limit(5000),
+      .gte("created_at", monthStartDate + "T00:00:00+01:00").lt("created_at", nextMonthStartDate + "T00:00:00+01:00").limit(5000),
     sb.from("depenses").select("montant,date_depense,statut").eq("pharmacie_id", profile.pharmacie_id)
       .gte("date_depense", monthStartDate).lt("date_depense", nextMonthStartDate).limit(5000),
     sb.from("tresorerie_mouvements").select("montant,nature,date_operation").eq("pharmacie_id", profile.pharmacie_id)
-      .gte("date_operation", monthStart.toISOString()).lt("date_operation", nextMonthStart.toISOString()).limit(5000),
+      .gte("date_operation", monthStartDate + "T00:00:00+01:00").lt("date_operation", nextMonthStartDate + "T00:00:00+01:00").limit(5000),
     sb.from("dossiers_assurance").select("statut,montant_prise_en_charge,created_at").eq("pharmacie_id", profile.pharmacie_id)
       .gte("created_at", monthStart.toISOString()).lt("created_at", nextMonthStart.toISOString()).limit(5000),
     sb.from("compta_controles_cloture").select("controle_code,statut").eq("pharmacie_id", profile.pharmacie_id).limit(1000),
