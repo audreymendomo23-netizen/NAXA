@@ -55,6 +55,11 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
   const [salesResult, expensesResult, cashResult, entriesResult] = invalidPeriod
     ? [{ data: null, error: { message: "Période invalide" } }, { data: null, error: { message: "Période invalide" } }, { data: null, error: { message: "Période invalide" } }, { data: null, error: { message: "Période invalide" } }] as const
     : await Promise.all([salesQuery, expensesQuery, cashQuery, entriesQuery]);
+  const { data: scheduledReports, error: scheduledReportsError } = await sb.from("rapports")
+    .select("id,periode,du,au,texte,created_at,contenu")
+    .eq("scope_type", "PHARMACIE").eq("scope_pharmacie_id", profile.pharmacie_id)
+    .not("contenu->compta_naxa", "is", null)
+    .order("created_at", { ascending: false }).limit(12);
   const { data: exportHistory, error: exportHistoryError } = await sb.from("compta_audit")
     .select("sequence_no,acteur_id,action,objet_type,objet_id,resultat,motif,horodatage")
     .eq("pharmacie_id", profile.pharmacie_id).eq("action", "export_generation")
@@ -107,9 +112,16 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
           {type:"ecritures", title:"Journal comptable", description:"Dates, journaux et références d’écritures comptables."},
         ].map(item => <article key={item.type} className="rounded-xl border border-slate-200 p-4">
           <h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-sm text-slate-600">{item.description}</p>
-          <div className="mt-3 flex flex-wrap gap-2"><a href={qs(item.type,"csv")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">Télécharger CSV</a><a href={qs(item.type,"xlsx")} className="inline-flex min-h-11 items-center rounded-xl bg-naxa-green-900 px-4 text-sm font-semibold text-white">Télécharger Excel</a></div>
+          <div className="mt-3 flex flex-wrap gap-2"><a href={qs(item.type,"csv")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">CSV</a><a href={qs(item.type,"xlsx")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">Excel</a><a href={qs(item.type,"pdf")} className="inline-flex min-h-11 items-center rounded-xl bg-naxa-green-900 px-4 text-sm font-semibold text-white">PDF</a></div>
         </article>)}
       </div>
+    </section>
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <h2 className="text-lg font-bold">Rapports mensuels planifiés</h2>
+      <p className="mt-1 text-sm text-slate-600">Le job est défini dans la migration additive et doit être installé sur la base cible. Cette liste n’affiche que les rapports comptables marqués par le schéma NAXA.</p>
+      {scheduledReportsError ? <p role="alert" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Les rapports planifiés ne sont pas accessibles.</p>
+        : !scheduledReports?.length ? <p className="mt-3 text-sm text-slate-600">Aucun rapport planifié disponible pour ce périmètre.</p>
+        : <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead><tr className="border-b bg-slate-50 text-xs uppercase text-slate-500">{["Généré le","Période","Ventes payées FCFA","Dépenses FCFA","Mouvements bruts FCFA"].map(h=><th key={h} className="px-3 py-3">{h}</th>)}</tr></thead><tbody>{scheduledReports.map(report=>{const data=(report.contenu as {compta_naxa?:{ventes_payees_total_net_fcfa?:number;depenses_enregistrees_fcfa?:number;mouvements_tresorerie_bruts_fcfa?:number}})?.compta_naxa;return <tr key={report.id} className="border-b"><td className="px-3 py-3">{new Date(report.created_at).toLocaleDateString("fr-CM")}</td><td className="px-3 py-3">{report.du} — {report.au}</td><td className="px-3 py-3">{fcfa(data?.ventes_payees_total_net_fcfa??0)}</td><td className="px-3 py-3">{fcfa(data?.depenses_enregistrees_fcfa??0)}</td><td className="px-3 py-3">{fcfa(data?.mouvements_tresorerie_bruts_fcfa??0)}</td></tr>})}</tbody></table></div>}
     </section>
     <section className="rounded-2xl border border-slate-200 bg-white p-4">
       <h2 className="text-lg font-bold">Historique récent des exports</h2>
