@@ -37,9 +37,9 @@ begin
   values
     (v_uid,'admin',v_username,true),
     (v_cashier,'caisse',v_cashier_username,true);
-  update public.profiles set pharmacie_id=v_pharmacie where id=v_cashier;
   insert into public.pharmacies(id,nom,lat,lng)
   values(v_pharmacie,'NAXA TEST COMPTA',3.8667,11.5167);
+  update public.profiles set pharmacie_id=v_pharmacie where id=v_cashier;
 
   insert into public.compta_periodes(id,pharmacie_id,date_debut,date_fin)
   values(v_periode,v_pharmacie,current_date-10,current_date+10);
