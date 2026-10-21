@@ -88,6 +88,8 @@ test("OpenStreetMap : rapprochement exact seulement et préservation des coordon
   assert.match(route, /Number\.isFinite\(pharmacy\.lat\).*Number\.isFinite\(pharmacy\.lng\)/s);
   assert.match(route, /\.is\("lat", null\)\.is\("lng", null\)/);
   assert.match(route, /pharmaciesPartenairesRapprochees/);
+  assert.match(route, /healthcare === "veterinary"/);
+  assert.doesNotMatch(route, /replace\\(\\/\\\\b\\(pharmacie\\|pharm\\)/);
   assert.match(route, /candidats ne sont pas des partenaires NAXA/);
 });
 
