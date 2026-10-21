@@ -179,8 +179,8 @@ function cleanLabelSection(value: unknown, max = 420): string | null {
   const raw = strings(value)[0];
   if (!raw) return null;
   const cleaned = raw
-    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -188,10 +188,11 @@ function cleanLabelSection(value: unknown, max = 420): string | null {
     .replace(/&gt;/gi, ">")
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&quot;/gi, '"')
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
   return cleaned ? cleaned.slice(0, max).trim() : null;
 }
+
 async function dailyMedSearch(term: string): Promise<AnyRecord[]> {
   const json = await jsonFetch("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls.json?pagesize=10&page=1&drug_name=" + encodeURIComponent(term));
   return Array.isArray(json?.data) ? json.data as AnyRecord[] : [];
