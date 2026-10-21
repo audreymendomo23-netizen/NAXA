@@ -114,10 +114,11 @@ async function realPartnerAvailability(productIds: string[]): Promise<{ verified
     for (const [id, stock] of grouped) {
       result.set(id, { pharmacies: stock.pharmacies.size, quantity: stock.quantity, lowestPrice: stock.lowestPrice });
     }
+    return { verified: true, byProduct: result };
   } catch {
-    // Un échec de lecture ne doit jamais être interprété comme une indisponibilité confirmée.
+    // Une erreur de lecture ne doit jamais être interprétée comme une indisponibilité confirmée.
+    return { verified: false, byProduct: result };
   }
-  return result;
 }
 
 async function jsonFetch(url: string): Promise<AnyRecord | null> {
