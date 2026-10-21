@@ -67,3 +67,36 @@ test("GPS : Yaoundé et Douala ont des replis explicites, sans suivi permanent",
   assert.doesNotMatch(page, /watchPosition\s*\(/);
   assert.doesNotMatch(page, /localStorage\.setItem\([^\n]*(?:lat|lng|position|coord)/i);
 });
+
+test("OpenStreetMap : endpoint administratif protégé et synchronisation limitée à Yaoundé", () => {
+  const route = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "geolocalisation-osm", "route.ts"), "utf8");
+  assert.match(route, /auth\.getUser\(\)/);
+  assert.match(route, /rpc\("is_admin"\)/);
+  assert.match(route, /YAOUNDE_BBOX/);
+  assert.match(route, /openstreetmap\.org/);
+  assert.match(route, /pharmacies_geo_osm_sync/);
+  assert.match(route, /24 \* 60 \* 60 \* 1000/);
+  assert.match(route, /onConflict: "nom_source,source_url"/);
+  assert.match(route, /source_publique_a_confirmer/);
+  assert.match(route, /© OpenStreetMap contributors/);
+  assert.doesNotMatch(route, /from\("pharmacies"\)\.insert/);
+});
+
+test("OpenStreetMap : rapprochement exact seulement et préservation des coordonnées existantes", () => {
+  const route = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "geolocalisation-osm", "route.ts"), "utf8");
+  assert.match(route, /normaliserNom\(pharmacy\.nom\)/);
+  assert.match(route, /Number\.isFinite\(pharmacy\.lat\).*Number\.isFinite\(pharmacy\.lng\)/s);
+  assert.match(route, /\.is\("lat", null\)\.is\("lng", null\)/);
+  assert.match(route, /pharmaciesPartenairesRapprochees/);
+  assert.match(route, /candidats ne sont pas des partenaires NAXA/);
+});
+
+test("Migration OSM : état de synchronisation sécurisé et additif", () => {
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migration_072_geolocalisation_osm.sql"), "utf8");
+  assert.match(migration, /create table if not exists public\.pharmacies_geo_osm_sync/i);
+  assert.match(migration, /last_started_at timestamptz/i);
+  assert.match(migration, /grant all on public\.pharmacies_geo_osm_sync to service_role/i);
+  assert.match(migration, /revoke all on public\.pharmacies_geo_osm_sync from anon, authenticated/i);
+  assert.match(migration, /alter table public\.pharmacies_geolocalisation_referentiel enable row level security/i);
+  assert.doesNotMatch(migration, /drop table|delete from public\.pharmacies/i);
+});
