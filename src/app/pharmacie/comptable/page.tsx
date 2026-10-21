@@ -26,9 +26,6 @@ type Ecriture = {
   created_at: string;
 };
 
-const fcfa = (value: number | bigint) =>
-  new Intl.NumberFormat("fr-CM", { style: "currency", currency: "XAF", maximumFractionDigits: 0 }).format(value);
-
 const dateFr = (value: string) =>
   new Intl.DateTimeFormat("fr-CM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 
@@ -102,9 +99,9 @@ export default async function ComptableDashboardPage() {
         <>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-600">Écritures comptabilisées</p>
+              <p className="text-sm text-slate-600">Écritures récentes</p>
               <p className="mt-2 text-2xl font-extrabold text-slate-950">{entryRows.length}</p>
-              <p className="mt-1 text-xs text-slate-500">Dernières écritures chargées, maximum 8</p>
+              <p className="mt-1 text-xs text-slate-500">Dernières écritures affichées, maximum 8</p>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-600">Événements en attente</p>
