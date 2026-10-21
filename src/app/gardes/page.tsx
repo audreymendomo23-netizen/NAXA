@@ -47,7 +47,6 @@ async function chargerGardesLocales(): Promise<PharmacieGarde[] | null> {
 export default async function PharmaciesDeGarde() {
   const externe = await chargerGardesMfasha();
   const pharmaciesLocales = externe ? null : await chargerGardesLocales();
-  const utiliseSourceExterne = Boolean(externe);
   const aucuneSource = !externe && pharmaciesLocales === null;
   const aucunePharmacie =
     Boolean(externe && externe.pharmacies.length === 0) ||
