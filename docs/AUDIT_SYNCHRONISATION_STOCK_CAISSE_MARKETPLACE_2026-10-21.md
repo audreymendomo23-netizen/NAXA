@@ -67,7 +67,7 @@ Les routes de navigation existantes contiennent déjà « Prise / fin de service
 
 ## Corrections POS/ERP appliquées sur la base active
 
-La dérive POS a été corrigée par restauration des fondations POS, puis réconciliation des migrations dépendantes. Les tables `caisses`, `caisses_sessions`, `ventes`, `vente_lignes`, `vente_paiements` et les RPC d'encaissement existent désormais sur la base active. Les migrations de caisse Marketplace 161–173, le parcours caisse 154–170, les correctifs lots 175–185, le périmètre caisse/assurance 187, les notifications et historiques 188–189, puis la disponibilité vendable 211 ont été appliqués après restauration de leurs dépendances manquantes. Les écarts de schéma ont été traités par des migrations de compatibilité additives, sans supprimer de données.
+La dérive POS a été corrigée par restauration des fondations POS, puis réconciliation des migrations dépendantes. Les tables `caisses`, `caisses_sessions`, `ventes`, `vente_lignes`, `vente_paiements` et les RPC d'encaissement existent désormais sur la base active. Les migrations de caisse Marketplace 161–173, le parcours caisse 154–170, les correctifs lots 175–185, le périmètre caisse/assurance 187, les notifications et historiques 188–189, puis la disponibilité vendable 211 ont été appliqués après restauration de leurs dépendances manquantes. Les écarts de schéma ont été traités par des migrations de compatibilité additives, sans supprimer de données. Le socle des lots a aussi été réconcilié avec les migrations 042b/043, et la valorisation/inventaire avec la migration de compatibilité 217 plutôt que de rejouer la migration 047 non idempotente sur les tables déjà créées.
 
 ### Règle POS corrigée
 
@@ -104,7 +104,7 @@ Les scénarios ont été exécutés dans des transactions annulées ensuite : au
 3. La disponibilité Marketplace reste au niveau du hold précédent, sans double décrément.
 4. La réservation passe à `payee` et son `consumed_by_vente_id` correspond à la vente créée.
 
-**PASS —** le test existant `supabase/tests/212_reservation_holds_stock_service_inventory.sql` a été rejoué après la restauration POS/ERP, sans erreur.
+**PASS —** le test `supabase/tests/215_pos_debit_at_finalization.sql` a été rejoué après les dernières réconciliations de lots, sans erreur. Le test existant `supabase/tests/212_reservation_holds_stock_service_inventory.sql` a également été rejoué après la restauration POS/ERP, sans erreur. Le comptage post-test confirme qu’aucune caisse de test n’a été conservée.
 
 ## Reste vérifiable
 
