@@ -59,6 +59,7 @@ type LocalProduct = {
   id: string;
   nom: string;
   dci: string | null;
+  forme: string | null;
   photo_url: string | null;
   photo_path: string | null;
   photo_source_url: string | null;
@@ -79,7 +80,7 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   if (needle.length < 2) return [];
   try {
     const [byName, byDci] = await Promise.all([
-      sb.from("produits").select("id,nom,dci,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
+      sb.from("produits").select("id,nom,dci,forme,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
       sb.from("produits").select("id,nom,dci,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
     ]);
     if (byName.error && byDci.error) return [];
@@ -111,7 +112,7 @@ async function realPartnerAvailability(productIds: string[]): Promise<{ verified
       const current = grouped.get(row.produit_id) ?? { pharmacies: new Set<string>(), quantity: 0, lowestPrice: null };
       current.pharmacies.add(row.pharmacie_id);
       current.quantity += Math.max(0, Number(row.quantite) || 0);
-      const price = Number(row.prix);
+      const price = row.prix === null || row.prix === undefined ? Number.NaN : Number(row.prix);
       if (Number.isFinite(price) && price >= 0 && (current.lowestPrice === null || price < current.lowestPrice)) current.lowestPrice = price;
       grouped.set(row.produit_id, current);
     }
@@ -262,7 +263,7 @@ export async function GET(request: NextRequest) {
       name,
       brand: brand ? cleanName(brand) : null,
       activeIngredient: localProduct?.dci || activeIngredient || null,
-      form: formValue ? cleanName(formValue) : null,
+      form: localProduct?.forme || (formValue ? cleanName(formValue) : null),
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
       imageUrl: storagePhotoUrl,
