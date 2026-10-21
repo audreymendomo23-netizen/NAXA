@@ -47,6 +47,10 @@ export function BottomNav() {
    const lettres=nomComplet.split(/[\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
    setInitiales(lettres||"C");
    let photo: string | null = typeof profile?.avatar_url === "string" ? profile.avatar_url : typeof meta.avatar_url === "string" ? meta.avatar_url : typeof meta.picture === "string" ? meta.picture : typeof meta.photo_url === "string" ? meta.photo_url : null;
+   try {
+    const localPhoto = window.localStorage.getItem(`naxa-client-profile-photo-v1:${utilisateur.id}`);
+    if (localPhoto) photo = localPhoto;
+   } catch {}
 
    let address=typeof prefs?.adresse_defaut==="string"?prefs.adresse_defaut:"";
    try {
@@ -66,7 +70,7 @@ export function BottomNav() {
   void chargerProfil();
   const {data:{subscription}}=sb.auth.onAuthStateChange((_event,session)=>{void chargerProfil(session?.user??null)});
   const refreshProfile=()=>{void chargerProfil()};
-  const refreshStorage=(event:StorageEvent)=>{if(!event.key||event.key==="naxa-client-addresses-v1")refreshProfile()};
+  const refreshStorage=(event:StorageEvent)=>{if(!event.key||event.key.startsWith("naxa-client-profile-photo-v1:")||event.key==="naxa-client-addresses-v1")refreshProfile()};
   window.addEventListener("naxa-profile-updated",refreshProfile);
   window.addEventListener("naxa-addresses-updated",refreshProfile);
   window.addEventListener("storage",refreshStorage);
