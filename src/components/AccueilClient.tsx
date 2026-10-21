@@ -119,7 +119,6 @@ export function AccueilClient() {
   const [homeFilterOpen, setHomeFilterOpen] = useState(false);
   const [firstName, setFirstName] = useState("Client");
   const [hourLocale, setHourLocale] = useState<number | null>(null);
-  const [quartier, setQuartier] = useState("Douala");
   const [coord, setCoord] = useState<{lat:number;lng:number}|null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
   const [gardesAutomatiques, setGardesAutomatiques] = useState<GardeAuto[]>([]);
@@ -474,17 +473,16 @@ export function AccueilClient() {
     router.push("/resultats?" + params.toString());
   };
   const localiser = useCallback(() => {
-    if (!navigator.geolocation) { setQuartier("Douala"); return; }
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const point = {lat:pos.coords.latitude,lng:pos.coords.longitude};
-      setCoord(point);
-      // La ville/quartier affichés viennent d'une pharmacie partenaire géographiquement proche.
-      const nearest = pharmacies.map(p => ({p,d:p.lat!=null&&p.lng!=null?distance(point.lat,point.lng,p.lat,p.lng):Infinity})).sort((a,b)=>a.d-b.d)[0];
-      if (nearest && nearest.d < 15) setQuartier([nearest.p.quartier,nearest.p.ville].filter(Boolean).join(", ") || "Douala");
-      else setQuartier("Douala");
-    }, () => setQuartier("Douala"), {maximumAge:300000,timeout:8000});
-  }, [pharmacies]);
-  const pharmacyCount = pharmaciesProches.filter(p => p.distanceKm !== null && p.distanceKm <= 1.2).length;
+    if (!navigator.geolocation) {
+      notifierNAXA("La géolocalisation n’est pas disponible sur cet appareil. Vous pouvez toujours consulter la liste des pharmacies.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => setCoord({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => notifierNAXA("Position non accessible. Autorisez le GPS ou consultez les pharmacies sans distance calculée."),
+      { enableHighAccuracy: true, maximumAge: 60000, timeout: 12000 },
+    );
+  }, []);
   const toggleFavori = (p: Produit) => {
     const suivants = basculerFavori({ id: p.id, nom: p.nom, dosage: p.dosage, photo_url: p.photo_url, prix: p.prix, pharmacie: p.pharmacie, demo: !!p.demo });
     setFavoris(suivants.map(f => f.id));
