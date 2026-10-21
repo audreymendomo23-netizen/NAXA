@@ -68,11 +68,17 @@ export const chargerGardesMfasha = cache(async (): Promise<{
       next: { revalidate: 300 },
       signal: AbortSignal.timeout(7000),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[mfasha] Source returned HTTP ${response.status}`);
+      return null;
+    }
     const html = await response.text();
     const text = plainText(html);
     const periode = extractPeriod(text);
-    if (!periode) return null;
+    if (!periode) {
+      console.warn("[mfasha] Source fetched but duty period could not be parsed");
+      return null;
+    }
 
     const headings = [...html.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi)];
     const pharmacies: GardeExterne[] = [];
@@ -115,7 +121,10 @@ export const chargerGardesMfasha = cache(async (): Promise<{
       });
     }
 
-    if (pharmacies.length < 5) return null;
+    if (pharmacies.length < 5) {
+      console.warn("[mfasha] Parsed duty list below validation threshold", { count: pharmacies.length });
+      return null;
+    }
     return { pharmacies, periode, fetchedAt: new Date().toISOString() };
   } catch (error) {
     // Keep the public fallback safe, but make the actual failure observable in Vercel logs.
