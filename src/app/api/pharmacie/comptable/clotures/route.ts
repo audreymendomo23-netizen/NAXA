@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   if (action === "ouvrir") {
     const debut = String(form.get("date_debut") ?? "");
     const fin = String(form.get("date_fin") ?? "");
-    const validIsoDate = (value: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(value)
+    const validIsoDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
       && !Number.isNaN(new Date(value + "T00:00:00Z").getTime())
       && new Date(value + "T00:00:00Z").toISOString().slice(0, 10) === value;
     if (!validIsoDate(debut) || !validIsoDate(fin) || debut > fin) {
