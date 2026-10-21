@@ -5,7 +5,7 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type ExportType = "ventes" | "depenses" | "tresorerie" | "ecritures";
+type ExportType = "ventes" | "depenses" | "tresorerie" | "ecritures" | "grand_livre" | "balance";
 type Row = Record<string, string | number | boolean | null>;
 
 const validDate = (value: string | null) => {
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const type = url.searchParams.get("type") as ExportType | null;
-  if (!type || !["ventes", "depenses", "tresorerie", "ecritures"].includes(type)) {
+  if (!type || !["ventes", "depenses", "tresorerie", "ecritures", "grand_livre", "balance"].includes(type)) {
     return NextResponse.json({ error: "type_export_invalide" }, { status: 400 });
   }
   const debut = validDate(url.searchParams.get("debut"));
@@ -102,8 +102,14 @@ export async function GET(request: Request) {
       .eq("pharmacie_id", profile.pharmacie_id).order("date_operation", { ascending: true }).limit(limit);
   } else {
     dateField = "date_ecriture";
-    columns = ["Date écriture", "Journal", "Référence source", "Libellé", "Type source", "Identifiant source"];
-    query = sb.from("compta_ecriture").select("date_ecriture,journal_code,reference_source,libelle,source_type,source_id")
+    if (type === "grand_livre") {
+      columns = ["Date écriture", "Journal", "Référence écriture", "Compte", "Libellé compte", "Libellé ligne", "Débit FCFA", "Crédit FCFA", "Statut compte"];
+    } else if (type === "balance") {
+      columns = ["Compte", "Libellé compte", "Classe renseignée", "Total débit FCFA", "Total crédit FCFA", "Solde débiteur FCFA", "Solde créditeur FCFA", "Statut compte"];
+    } else {
+      columns = ["Date écriture", "Journal", "Référence source", "Libellé", "Type source", "Identifiant source"];
+    }
+    query = sb.from("compta_ecriture").select("id,date_ecriture,journal_code,reference_source,libelle,source_type,source_id")
       .eq("pharmacie_id", profile.pharmacie_id).order("date_ecriture", { ascending: true }).limit(limit);
   }
   if (debut) query = query.gte(dateField, type === "depenses" ? debut : debut + "T00:00:00+01:00");
@@ -121,12 +127,55 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "source_indisponible" }, { status: 503 });
   }
   const rows = (data ?? []) as Row[];
-  const records: (string | number)[][] = rows.map((row) => {
-    if (type === "ventes") return [row.created_at as string, row.paid_at as string | null ?? "", row.numero_vente as string, row.statut as string, row.total_brut as number, row.remise as number, row.total_net as number, row.mode_paiement as string | null ?? "", row.paiement_ref as string | null ?? ""];
-    if (type === "depenses") return [row.date_depense as string, row.reference as string | null ?? "", row.montant as number, row.statut as string, row.created_at as string];
-    if (type === "tresorerie") return [row.date_operation as string, row.nature as string, row.montant as number, row.reference as string | null ?? "", row.source_type as string, row.source_id as string | null ?? ""];
-    return [row.date_ecriture as string, row.journal_code as string, row.reference_source as string | null ?? "", row.libelle as string, row.source_type as string, row.source_id as string];
-  });
+  let records: (string | number)[][];
+  if (type === "grand_livre" || type === "balance") {
+    const entryIds = rows.map(row => String(row.id ?? "")).filter(Boolean);
+    const lineResult = entryIds.length
+      ? await sb.from("compta_ligne").select("ecriture_id,compte_id,libelle,debit_fcfa,credit_fcfa").eq("pharmacie_id", profile.pharmacie_id).in("ecriture_id", entryIds).limit(20000)
+      : { data: [], error: null };
+    if (lineResult.error) return NextResponse.json({ error: "lignes_comptables_indisponibles" }, { status: 503 });
+    const lineRows = (lineResult.data ?? []) as Row[];
+    const accountIds = [...new Set(lineRows.map(line => String(line.compte_id ?? "")).filter(Boolean))];
+    const accountResult = accountIds.length
+      ? await sb.from("compta_plan_comptable").select("id,code,libelle,classe,statut").eq("pharmacie_id", profile.pharmacie_id).in("id", accountIds)
+      : { data: [], error: null };
+    if (accountResult.error) return NextResponse.json({ error: "plan_comptable_indisponible" }, { status: 503 });
+    const accounts = new Map(((accountResult.data ?? []) as Row[]).map(account => [String(account.id), account]));
+    const entries = new Map(rows.map(entry => [String(entry.id), entry]));
+    if (type === "grand_livre") {
+      records = lineRows.map(line => {
+        const entry = entries.get(String(line.ecriture_id));
+        const account = accounts.get(String(line.compte_id));
+        return [
+          String(entry?.date_ecriture ?? ""), String(entry?.journal_code ?? ""),
+          String(entry?.reference_source ?? entry?.id ?? ""), String(account?.code ?? line.compte_id ?? ""),
+          String(account?.libelle ?? "Compte absent du référentiel"), String(line.libelle ?? ""),
+          Number(line.debit_fcfa ?? 0), Number(line.credit_fcfa ?? 0), String(account?.statut ?? "absent"),
+        ];
+      });
+    } else {
+      const grouped = new Map<string, { account: Row; debit: number; credit: number }>();
+      for (const line of lineRows) {
+        const id = String(line.compte_id ?? "");
+        const account = accounts.get(id) ?? { id, code: id, libelle: "Compte absent du référentiel", classe: null, statut: "absent" };
+        const current = grouped.get(id) ?? { account, debit: 0, credit: 0 };
+        current.debit += Number(line.debit_fcfa ?? 0);
+        current.credit += Number(line.credit_fcfa ?? 0);
+        grouped.set(id, current);
+      }
+      records = [...grouped.values()].sort((a,b) => String(a.account.code).localeCompare(String(b.account.code), "fr")).map(({account,debit,credit}) => [
+        String(account.code ?? ""), String(account.libelle ?? ""), account.classe == null ? "À renseigner" : Number(account.classe),
+        debit, credit, Math.max(debit-credit,0), Math.max(credit-debit,0), String(account.statut ?? "absent"),
+      ]);
+    }
+  } else {
+    records = rows.map((row) => {
+      if (type === "ventes") return [String(row.created_at ?? ""), String(row.paid_at ?? ""), String(row.numero_vente ?? ""), String(row.statut ?? ""), Number(row.total_brut ?? 0), Number(row.remise ?? 0), Number(row.total_net ?? 0), String(row.mode_paiement ?? ""), String(row.paiement_ref ?? "")];
+      if (type === "depenses") return [String(row.date_depense ?? ""), String(row.reference ?? ""), Number(row.montant ?? 0), String(row.statut ?? ""), String(row.created_at ?? "")];
+      if (type === "tresorerie") return [String(row.date_operation ?? ""), String(row.nature ?? ""), Number(row.montant ?? 0), String(row.reference ?? ""), String(row.source_type ?? ""), String(row.source_id ?? "")];
+      return [String(row.date_ecriture ?? ""), String(row.journal_code ?? ""), String(row.reference_source ?? ""), String(row.libelle ?? ""), String(row.source_type ?? ""), String(row.source_id ?? "")];
+    });
+  }
   const metadata = [
     ["Rapport NAXA — état préparé à contrôler par votre expert-comptable"],
     ["Pharmacie", profile.pharmacie_id],
