@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 import { LUCIOLE_TIMING } from "@/components/luciole-constants";
 
-const SPARKS = 12;
+const SPARKS = 8;
 
 export function Luciole() {
   const { night } = useTheme();
