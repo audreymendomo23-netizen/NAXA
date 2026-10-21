@@ -41,7 +41,7 @@ begin
    where s.pharmacie_id=v.pharmacie_id and s.produit_id=v.produit_id;
   select coalesce(sum(ri.quantite),0) into v_reserved
    from public.reservation_items ri join public.reservations r on r.id=ri.reservation_id
-   where r.pharmacie_id=v.pharmacie_id and r.statut in ('en_attente','confirmee')
+   where r.pharmacie_id=v.pharmacie_id and r.mode='reservation' and r.statut in ('en_attente','confirmee')
     and ri.produit_id=v.produit_id;
   if v_lots <> v_stock + v_reserved then
    raise exception 'Réconciliation requise avant migration 200 pour pharmacie %, produit % : lots %, stock agrégé %, réservations actives %. Aucun stock modifié.',
@@ -59,7 +59,7 @@ begin
  for r in
   select res.id as reservation_id,res.pharmacie_id,res.expires_at,ri.produit_id,ri.quantite
   from public.reservations res join public.reservation_items ri on ri.reservation_id=res.id
-  where res.statut in ('en_attente','confirmee')
+  where res.mode='reservation' and res.statut in ('en_attente','confirmee')
    and exists(select 1 from public.stocks_lots sl where sl.pharmacie_id=res.pharmacie_id and sl.produit_id=ri.produit_id)
   order by res.created_at,res.id,ri.produit_id
  loop
@@ -105,7 +105,7 @@ begin
  if not exists(select 1 from public.pharmacies p where p.id=p_pharmacie and p.actif=true) then raise exception 'Pharmacie indisponible'; end if;
  if p_items is null or jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>10 then raise exception 'Panier invalide'; end if;
  if exists(select 1 from (select value->>'produit_id' pid,count(*) n from jsonb_array_elements(p_items) group by value->>'produit_id' having count(*)>1) d) then raise exception 'Produit dupliqué dans le panier'; end if;
- insert into public.reservations(client_id,pharmacie_id,expires_at) values(auth.uid(),p_pharmacie,now()+interval '4 hours') returning id into v_id;
+ insert into public.reservations(client_id,pharmacie_id,expires_at,mode) values(auth.uid(),p_pharmacie,now()+interval '4 hours','reservation') returning id into v_id;
  perform pg_catalog.set_config('naxa.stock_motif','Réservation Marketplace '||v_id::text,true);
  for v_item in select value from jsonb_array_elements(p_items) order by value->>'produit_id'
  loop
@@ -201,7 +201,7 @@ begin
   select 1 from public.reservations r
   join public.reservation_items ri on ri.reservation_id=r.id
   where r.pharmacie_id=new.pharmacie_id and ri.produit_id=new.produit_id
-   and r.statut in ('en_attente','confirmee')
+   and r.mode='reservation' and r.statut in ('en_attente','confirmee')
    and coalesce((select sum(a.quantite) from public.reservation_item_lots a
     where a.reservation_id=r.id and a.produit_id=ri.produit_id and a.restauree_at is null),0)<ri.quantite
  ) then
