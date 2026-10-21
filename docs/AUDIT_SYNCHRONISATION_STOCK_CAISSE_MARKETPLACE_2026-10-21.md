@@ -1,55 +1,78 @@
-# Audit — synchronisation caisse, stock et Marketplace
+# Audit — synchronisation caisse, réservations et Marketplace
 
 Date : 21 octobre 2026  
 Branche : `main`  
 Déploiement : **aucun**  
-Migrations appliquées : **aucune pendant cet audit**  
-Build, lint, typecheck et tests SQL : **non exécutés**
+Migrations appliquées à la base active pendant cette intervention : `naxa_reservation_holds_stock_service_inventory_212` et `naxa_reservation_consumption_privileges_213`.
 
-## Résultat confirmé dans le code source
+## Règle métier cible
 
-### Vente en boutique
+- Une réservation crée un **hold temporaire**. Elle ne modifie pas la quantité physique dans `stocks` ni dans les lots.
+- La quantité Marketplace vendable est le stock physique vendable moins les réservations actives non expirées.
+- L’annulation et l’expiration libèrent le hold ; elles ne réajoutent pas de stock pour les nouvelles réservations.
+- Une vente ne devient un mouvement physique qu’à sa validation par la caisse.
+- Une réservation consommée doit être reliée à une vente et ne peut être consommée deux fois.
+- L’inventaire de prise et de fin de service doit être horodaté par gestionnaire. Les écarts sont tracés et ne modifient pas silencieusement le stock.
 
-La migration `057_pos_lignes_fefo.sql` définit `vente_ajouter_produit`. Elle verrouille la vente et la ligne de stock, puis :
-- pour un produit lotisé, réserve les lots FEFO utilisables (non bloqués et non périmés), débite les lots et le stock agrégé dans la même transaction, et insère les lignes POS avec leur `lot_id`;
-- pour un produit non lotisé, débite `stocks.quantite`;
-- recalcule les totaux de la vente;
-- laisse PostgreSQL annuler toute la transaction si une opération échoue.
+## Migrations appliquées sur la base active
 
-Le parcours caisse appelle cette RPC dans `src/app/pharmacie/caisse/page.tsx`. Les réservations Marketplace encaissées au comptoir ne doivent pas débiter le stock une deuxième fois : cette règle est documentée dans `migration_161_caisse_reservation_atomic_payment.sql`.
+### Migration 212 — holds de réservation et inventaire de service
 
-### Écart trouvé
+Fichier : `supabase/migration_212_reservation_holds_stock_service_inventory.sql`.
 
-La recherche Caisse de la migration `063_caisse_pharmacien_barcode.sql` renvoyait la quantité agrégée de `stocks`, même quand une partie de cette quantité était bloquée ou périmée dans les lots. Le débit POS pouvait refuser ensuite la vente, mais la quantité affichée à la caisse n’était pas nécessairement vendable. Le débit POS historique ne refusait pas non plus explicitement un stock non lotisé dont `stocks.date_peremption` était passée.
+- Ajoute des marqueurs de compatibilité pour les réservations historiques qui ont déjà décrémenté physiquement le stock.
+- Remplace `private.reserve_stock` : verrouille les références en ordre déterministe, calcule le stock disponible après holds actifs, crée une réservation sans décrémenter la quantité physique.
+- Remplace `public.restore_stock` : ne restaure que les anciennes réservations physiquement débitées, une seule fois, et jamais une réservation déjà consommée.
+- Remplace `marketplace_offre_stock_disponible` : soustrait les réservations actives non expirées du stock physique vendable.
+- Crée `stock_service_sessions` et `stock_service_inventory_counts`, avec les RPC d’ouverture, de comptage et de clôture de service.
 
-La fiche Marketplace `src/app/offre/[pharmacieId]/[produitId]/page.tsx` lisait également directement `stocks.quantite`, sans calculer la somme des lots vendables ni se rafraîchir systématiquement quand le stock changeait.
+### Migration 213 — garde de privilèges
 
-## Correctifs préparés sur main
+Fichier : `supabase/migration_213_reservation_consumption_privileges.sql`.
 
-- `supabase/migration_210_marketplace_sellable_stock.sql` : ajoute `marketplace_offre_stock_disponible`, qui calcule la quantité utilisable à partir des lots non bloqués et non périmés, ou du stock agrégé non périmé si la référence n’est pas lotisée.
-- `supabase/migration_211_pos_marketplace_sellable_stock.sql` : aligne la recherche Caisse (y compris codes-barres) sur cette disponibilité, et refuse la vente d’un stock non lotisé périmé.
-- `src/app/offre/[pharmacieId]/[produitId]/page.tsx` : consomme la nouvelle RPC, s’abonne aux changements de stock et relit la disponibilité au retour sur la page.
-- Tests structurels ajoutés : `supabase/tests/210_marketplace_sellable_stock.sql` et `supabase/tests/211_pos_marketplace_sellable_stock.sql`.
+- Retire aux rôles clients l’exécution directe de `consume_reservation_for_sale`. Cette fonction ne doit être appelée que depuis une transaction de caisse de confiance.
 
-## Vérification en lecture seule de la base Supabase active
+## Vérification réelle exécutée sur la base active
 
-La base active a été interrogée sans écriture. Résultats :
-- dernière migration enregistrée : `20261019161435`;
-- les RPC publiques `vente_ajouter_produit`, `caisse_rechercher_produit` et `vente_encaisser_finaliser` ne sont pas présentes dans le schéma actif au moment de la lecture;
-- `stocks_lots` ne contient actuellement que les colonnes historiques `pharmacie_id, produit_id, lot, peremption, quantite, updated_at`;
-- `stocks` possède `date_peremption`.
+Un scénario transactionnel a utilisé une pharmacie, un produit et un compte existants. La transaction a ensuite été annulée pour ne conserver aucune donnée de test.
 
-Cela signifie que la chaîne ERP POS/stock préparée dans le dépôt n’est **pas encore déployée dans cette base**. La migration 210 dépend de la migration fondation `174_z_gestionnaire_stock_foundation.sql` et des migrations de lots qui ajoutent notamment `id`, `bloque` et `date_peremption`. Il ne faut donc pas appliquer 210 ou 211 isolément, ni déployer le frontend avant d’avoir appliqué et validé toute la chaîne de dépendances.
+Résultat : **PASS** pour les assertions suivantes :
 
-## Limites restantes
+1. La création d’une réservation laisse la quantité physique inchangée.
+2. La disponibilité Marketplace diminue d’une unité réservée.
+3. L’annulation libère la réservation sans augmenter la quantité physique.
+4. L’ouverture de service, le comptage d’ouverture, le comptage de fermeture et la clôture fonctionnent.
+5. Les tests structurels `supabase/tests/212_reservation_holds_stock_service_inventory.sql` passent sur le schéma actif.
 
-- Aucun test d’intégration n’a créé un stock de test pour prouver vente boutique → diminution du stock → disponibilité Marketplace.
-- Aucune course concurrente caisse/réservation n’a été exécutée contre la base.
-- La publication Realtime de `stocks` n’a pas été vérifiée; le rafraîchissement au focus/retour de visibilité constitue un repli, mais n’est pas une preuve de diffusion instantanée.
-- Les tests SQL sont écrits mais n’ont pas été exécutés.
+Le compte actif ne possède actuellement pas de tables `public.ventes`, `public.caisses_sessions` ou des RPC de caisse attendues (`vente_encaisser_finaliser`, `vente_reservation_encaisser`). Elles ont été vérifiées via le catalogue PostgreSQL et sont absentes. Il est donc impossible d’exécuter honnêtement un scénario de bout en bout caisse → vente validée → stock → Marketplace sur cette base, tant que la chaîne POS manquante n’a pas été appliquée.
+
+## Inventaire de prise et fin de service — interface
+
+La page `/pharmacie/gestionnaire-stock/service` a été raccordée aux nouvelles RPC :
+
+- ouverture horodatée par gestionnaire et pharmacie ;
+- comptage physique initial obligatoire ;
+- comptage physique final obligatoire ;
+- clôture refusée tant que les quantités requises ne sont pas saisies ;
+- écarts affichés/tracés, sans ajustement physique automatique ;
+- historique des services clôturés.
+
+Les routes de navigation existantes contiennent déjà « Prise / fin de service » et « Inventaires ».
+
+## Correctif de caisse Marketplace préparé mais non appliqué
+
+Le fichier source `supabase/migration_161_caisse_reservation_atomic_payment.sql` a été corrigé pour que l’encaissement d’une réservation récente débite le stock physique pendant la transaction de caisse, en respectant les lots FEFO et en liant la réservation à une seule vente. Il conserve une branche de compatibilité pour les réservations historiques déjà débitées.
+
+Cette migration n’a **pas** été appliquée à la base active : ses tables POS dépendantes n’existent pas encore dans cette base.
+
+## Blocages et vérifications restantes
+
+- **La chaîne complète des migrations POS/ERP n’a pas été appliquée.** La base active est en dérive par rapport au dépôt et ne contient pas le socle POS. Appliquer 161, 174, 210 ou 211 isolément n’est pas sûr.
+- Le scénario caisse complet n’a pas pu être lancé, car la vente, la session de caisse et la fonction d’encaissement sont absentes.
+- Le parcours POS ordinaire doit encore être aligné pour que l’ajout d’un produit au brouillon ne soit pas un débit physique anticipé : le débit doit se produire à la validation finale de la vente, dans la même transaction que le paiement et la consommation d’un éventuel hold.
+- Aucun build, lint ou typecheck du frontend n’a été exécuté dans cet environnement.
+- Aucun déploiement n’a été lancé.
 
 ## Conclusion
 
-**Le code POS existant prévoit bien le débit atomique du même stock que lit le Marketplace.** Des incohérences d’affichage sur les lots et un contrôle manquant sur le stock non lotisé périmé ont été corrigés dans les migrations 210–211 et dans la fiche d’offre.
-
-Le statut opérationnel reste **non validé** tant que la chaîne de migrations n’est pas appliquée dans l’ordre, que les RPC sont présentes dans la base et que le scénario de bout en bout n’a pas été exécuté. Aucun déploiement n’a été lancé.
+Les nouvelles règles de réservation et l’inventaire par service sont **appliqués et testés sur la base active**. La synchronisation de bout en bout avec la caisse ne peut pas être déclarée verte : le socle POS manque dans la base active, et le débit des ventes POS ordinaires doit encore être déplacé de l’ajout au panier vers la validation finale avant que la règle métier soit intégralement respectée.
