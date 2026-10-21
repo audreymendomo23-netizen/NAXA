@@ -396,7 +396,7 @@ create or replace function public.compta_poster_ecriture(
   p_acteur uuid default null
 ) returns uuid
 language plpgsql security definer set search_path=''
-as $
+as $compta_post$
 declare
   v_existing uuid;
   v_ecriture uuid := gen_random_uuid();
@@ -460,18 +460,18 @@ begin
   );
   return v_ecriture;
 end;
-$;
+$compta_post$;
 revoke all on function public.compta_poster_ecriture(uuid,uuid,date,text,text,text,text,text,jsonb,uuid) from public,anon,authenticated;
 grant execute on function public.compta_poster_ecriture(uuid,uuid,date,text,text,text,text,text,jsonb,uuid) to service_role;
 
 -- Le journal d'audit est append-only ; l'intégrité de chaque ligne est vérifiable.
 create or replace function public.compta_refuser_modification_audit()
 returns trigger language plpgsql security definer set search_path=''
-as $
+as $compta_audit_guard$
 begin
   raise exception 'Journal comptable append-only';
 end;
-$;
+$compta_audit_guard$;
 drop trigger if exists compta_audit_immutable on public.compta_audit;
 create trigger compta_audit_immutable before update or delete on public.compta_audit
 for each row execute function public.compta_refuser_modification_audit();
