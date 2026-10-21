@@ -49,6 +49,11 @@ test("recherche : résultats instantanés et disponibilité partenaire séparée
   assert.match(route, /\.eq\("pharmacies\.actif", true\)/);
 });
 
+test("réglementation : le catalogue renvoie vers le répertoire officiel DPML", () => {
+  assert.match(route, /https:\\/\\/dpml\\.cm\\/repertoireDesAmm\\/index\\.php/);
+  assert.match(recherche, /Vérifier l’autorisation au Cameroun/);
+});
+
 test("stock : la recherche affiche les statuts réels du réseau partenaire", () => {
   assert.match(recherche, /Disponible chez nos partenaires/);
   assert.match(recherche, /Indisponible dans le réseau partenaire/);
@@ -57,7 +62,8 @@ test("stock : la recherche affiche les statuts réels du réseau partenaire", ()
 });
 
 test("images : la photo locale est prioritaire et le placeholder reste disponible", () => {
-  assert.match(route, /imageUrl: storagePhotoUrl \\|\\| localProduct\\?\\.photo_url/);
+  assert.ok(route.includes("imageUrl: storagePhotoUrl,"));
+  assert.match(route, /Photo masquée jusqu’à validation/);
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
 });
 
