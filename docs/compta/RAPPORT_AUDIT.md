@@ -1,65 +1,63 @@
-# Rapport d'audit préalable — Compte Comptable NAXA
+# Rapport d'audit — Compte Comptable NAXA
 
 Date : 2026-10-21  
-Branche examinée : `main`  
-Statut : **BLOQUÉ — audit préliminaire uniquement**  
-Aucun module ERP ni aucune migration n'ont été modifiés. Aucun contrôle CI n'a été lancé ou consulté.
+Branche : `main`  
+Source unique validée : `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md` (SHA `99700259f7da546fd68e01256a724a9395da1182`).  
+Statut : **AUDIT PARTIEL — écarts techniques identifiés ; aucun changement applicatif**.
 
-## 1. Blocage documentaire à lever
+## 1. Source de vérité
 
-Les trois sources désignées comme autorité dans la demande n'ont pas été trouvées sur `main`, aux chemins testés :
+L'utilisateur a confirmé que les trois documents de préparation ont été fusionnés. Le seul cahier normatif pour ce chantier est `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`. Les fichiers séparés `01_...`, `02_...`, `03_...` ne sont donc plus attendus. Le cahier lui-même indique qu'il ne prouve pas que les écrans ou tests sont déjà implémentés.
 
-- `01_CAHIER_DES_CHARGES_COMPTABLE_NAXA.md`
-- `02_DESIGN_COMPTABLE_NAXA.md`
-- `03_CODE_BASE_COMPTABLE_NAXA.md`
+## 2. Identité, rôles et périmètre
 
-Les chemins exacts testés à la racine et dans `docs/compta/` renvoient 404 pour les trois fichiers. Le dossier `docs/compta/` existe bien sur `main` et contient ce rapport ; la formulation précédente indiquant que ce dossier n'existait pas était erronée. L'inventaire récursif du dépôt confirme également la présence de `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`, distinct des trois sources demandées.
+- Table d'identité repérée : `public.profiles`; champ métier `fonction_interne`.
+- Migration `supabase/migration_072_fonctions_validation_distance.sql` autorise la fonction interne `comptable` et le privilège `MANAGE_ACCOUNTING`.
+- Le code existant utilise aussi `public.can_access_pharmacy(pharmacie_id)`, `public.my_pharmacie()`, `public.is_admin()` et `public.naxa_scope_allows(...)`.
+- `supabase/migration_024...` (nom à confirmer dans l'inventaire des migrations) décrit `promoteur_pharmacies(promoteur_id, pharmacie_id, actif, created_at)`; cette table n'est pas considérée comme table d'appartenance du Comptable sans preuve.
+- **À confirmer avant l'étape 1** : le schéma complet de `profiles`, la fonction canonique déterminant la pharmacie du Comptable et les privilèges effectifs via RLS/RPC. Aucun accès comptable ne doit être accordé sur la seule base du code `MANAGE_ACCOUNTING`.
 
-Un autre document est présent : `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`. Il ne peut pas être traité automatiquement comme équivalent aux trois sources prioritaires que tu viens de spécifier, notamment pour reprendre « tels quels » le moteur et les tests déjà validés.
+## 3. Modules et points d'accroche repérés
 
-**Question bloquante (1/10)** : où se trouvent les trois fichiers de référence — faut-il les ajouter au dépôt, ou sont-ils disponibles dans un autre chemin/dépôt ? Merci de fournir leurs chemins exacts ou de les joindre. Conformément à la consigne, le chantier s'arrête ici jusqu'à résolution de ce point.
-
-## 2. Éléments existants observés — non exhaustifs
-
-| Domaine | Éléments repérés dans le dépôt | Limite de l'observation |
+| Domaine | Éléments établis | Écart / précaution |
 |---|---|---|
-| Identité et fonctions internes | `public.profiles`, champ `fonction_interne` ; la migration 072 accepte notamment `comptable`, `caisse`, `pharmacien`, `gestionnaire_stock`, `magasinier`. | La table d'appartenance canonique et ses colonnes n'ont pas encore été déterminées de façon suffisamment complète pour adapter `compta_peut`. Ne pas supposer l'existence de `membre_pharmacie`. |
-| Périmètre Promoteur/pharmacie | `public.promoteur_pharmacies(promoteur_id, pharmacie_id, actif, created_at)`, migration 024. | Cette table décrit le lien Promoteur/pharmacie ; elle ne prouve pas qu'elle est la bonne source pour les droits Comptable. |
-| Ventes et paiements | Les migrations existantes font référence à `public.ventes` et `public.vente_paiements` ; migration 058 définit `vente_ajouter_paiement`. | Le point d'émission sûr d'événements comptables doit être déterminé à partir du flux métier complet avant tout branchement. |
-| Catalogue | `public.produits` existe ; migration 002 étend le catalogue. | Aucun champ de régime TVA par catégorie n'a été confirmé dans les fichiers consultés. Il ne faut pas en inventer. |
-| Coûts de stock | `public.stocks_couts(pharmacie_id, produit_id, cout_unitaire, devise, updated_at)`, migration 013. | Le coût courant seul ne garantit pas le coût historique au moment d'une vente. |
-| Lots et péremption | `public.stocks_lots`, migration 043 ; tables opérationnelles de stock existantes. | Les règles de valorisation comptable et points d'événement restent à confronter au cahier prioritaire. |
-| Trésorerie et dépenses | Migrations 053 : `tresorerie_comptes`, `categories_depenses`, `depenses`, `tresorerie_mouvements`. | Fondation existante, mais aucun moteur comptable `compta_*` n'a été confirmé par les chemins inspectés. |
-| Service | Migrations 188 (service Pharmacien) et 193 (service Gestionnaire de stock). | Elles ne doivent pas être réutilisées comme sessions de caisse ou sessions comptables sans spécification explicite. |
-| Paie/RH et immobilisations | Aucun socle comptable correspondant n'a été confirmé dans les chemins inspectés. | Cela ne prouve pas leur absence totale du dépôt ; audit exhaustif non effectué en raison du blocage documentaire. |
+| Ventes / POS | `ventes`, `vente_lignes`, `caisses`, `caisses_sessions` dans `migration_044_pos_caisse.sql`; paiements étendus dans `migration_058_pos_paiements.sql`. | Émettre les événements uniquement après transition métier réussie, avec clé d'idempotence et date réelle de vente. |
+| Assurances / tiers payant | `assureurs`, `couvertures_assurance`, `dossiers_assurance` dans `migration_052_assurances.sql`. | Montants de schéma en `numeric(14,2)` ; à traiter avec conversion contrôlée, sans flottants côté moteur. Les données de santé nominatives sont interdites au Comptable. |
+| Trésorerie / dépenses | `tresorerie_comptes`, `categories_depenses`, `depenses`, `tresorerie_mouvements` dans `migration_053_tresorerie_depenses.sql`. | Les montants opérationnels sont majoritairement des entiers, devise XAF ; auditer les RPC d'écriture et leurs événements. |
+| Stock / coûts | `stocks_couts(pharmacie_id, produit_id, cout_unitaire, devise, updated_at)` dans `migration_013_stocks_couts.sql`; `stocks_lots` dans `migration_043_stocks_lots.sql`; nombreuses migrations de mouvement/inventaire jusqu'à 214+. | Le coût courant ne suffit pas pour valoriser une vente passée ; les pertes/péremptions doivent être reliées aux mouvements transactionnels réels. |
+| Fournisseurs / achats | Références à `fournisseurs` et `commandes_fournisseurs`, notamment `migration_197_fournisseurs_role_security.sql`. | Audit complet du cycle commande/réception/facture requis avant branchement. |
+| Rôles | `profiles.role`, `profiles.fonction_interne`, tables de privilèges `naxa_role_privileges`, `naxa_architecture_privileges`, fonctions de périmètre. | Les droits Comptable effectifs et les colonnes exactes d'appartenance ne sont pas encore prouvés intégralement. |
+| Paie / RH | Aucun module de paie complet n'a été confirmé dans les fichiers inspectés. | Ne pas créer d'événements de paie avant d'avoir trouvé le modèle réel ou constaté formellement son absence. |
+| Immobilisations | Aucun module d'immobilisations comptables confirmé dans les chemins inspectés. | À concevoir dans le périmètre comptable si le cahier le requiert, sans inventer de données sources. |
+| Catalogue / TVA | `public.produits` est référencé par le POS ; le coût de stock est séparé du prix public. | Aucun champ régime TVA par catégorie n'a été confirmé dans les fichiers consultés. Pas de taux par défaut. |
+| Rapports | `src/app/api/rapports/route.ts`, `src/app/pharmacie/pilotage/rapports/page.tsx`. | Rapports génériques existants, non équivalents aux états comptables SYSCOHADA. |
+| Caisse | `src/app/pharmacie/caisse/page.tsx`; migrations et tests spécialisés, dont `159_caisse_audit_chain_lock.sql`. | La comptabilité ne doit pas ouvrir/fermer la caisse ni écrire les encaissements. |
 
-## 3. Écarts et risques immédiats
+## 4. Écarts vis-à-vis du cahier unique
 
-1. Les sources normatives demandées sont introuvables aux chemins testés : impossible de garantir l'ordre cahier > design > code.
-2. La migration 072 définit un privilège `MANAGE_ACCOUNTING`, mais son existence ne prouve pas que les droits sont limités conformément au moindre privilège.
-3. Les migrations d'assurances et de trésorerie sont des fondations ERP, pas une preuve d'un grand livre SYSCOHADA.
-4. Le schéma TVA, les paramètres fiscaux validés, le mapping SYSCOHADA, le journal comptable immuable et la boîte d'envoi `compta_evenement` restent à confirmer dans un audit complet.
-5. Aucun changement de schéma, aucune migration SQL, aucun moteur de calcul, aucune interface, aucun test SQL ou Vitest et aucune recette n'ont été exécutés dans cette étape.
+1. Aucun moteur `lib/compta/*` ni suite Vitest comptable n'a été trouvé dans l'inventaire récursif `main`.
+2. Aucune migration `compta_*` ni table `compta_evenement`, `compta_balance`, `compta_mapping_compte` ou `compta_parametre` n'a été trouvée dans l'inventaire du dépôt.
+3. Le privilège `MANAGE_ACCOUNTING` existe mais n'est pas à lui seul une autorisation suffisante pour écrire le grand livre.
+4. Le schéma TVA et les mappings de comptes n'ont pas été confirmés ; tout paramètre absent devra rester « à renseigner » et alimenter « À traiter ».
+5. Le cahier décrit le poste comme lecture/rapprochement/export et interdit les données de santé nominatives ; les policies existantes larges sur ventes/assurances doivent être contournées par des vues/RPC dédiées et non exposées directement au Comptable.
+6. Les modules paie et immobilisations n'ont pas été établis dans cet audit ciblé ; leur absence doit être confirmée par un inventaire approfondi avant d'implémenter les événements.
 
-## 4. Fichiers existants touchés
+## 5. Fichiers existants touchés
 
-**Aucun fichier applicatif ou migration existante n'a été touché.** Ce rapport est le seul fichier créé.
+- Aucun module applicatif, aucune migration SQL opérationnelle, aucun test existant n'a été modifié.
+- Ce rapport d'audit a été corrigé pour refléter la source unique de vérité confirmée par l'utilisateur.
 
-## 5. Tests et vérifications
+## 6. Tests / limites
 
-- Vérification de présence des trois documents dans les chemins racine et `docs/compta/` : **introuvables**.
-- Lecture de fichiers ciblés de migrations existantes : **partielle**.
-- CI : **non exécutée et non consultée**, conformément à la demande.
-- SQL, Vitest, lint, typecheck, build, tests E2E et vérification de base active : **non exécutés**.
+- Source unique lue sur `main` : **confirmée**, SHA ci-dessus.
+- Inventaire récursif GitHub de l'arbre `main) : effectué.
+- Lecture de migrations/fichiers métier : ciblée, pas exhaustive.
+- SQL, base Supabase active, Vitest, lint, typecheck, build, E2E : **non exécutés**.
+- CI : **non consultée et non exécutée**, conformément aux consignes.
 
-## 6. Suite proposée après levée du blocage
+## 7. Questions bloquantes restantes
 
-1. Reprendre les trois sources exactes et relever les critères du cahier et le moteur déjà testé.
-2. Achever l'inventaire des tables, colonnes, RLS, fonctions RPC, événements métier et régime TVA.
-3. Confirmer la table et les colonnes canoniques d'appartenance/pharmacie avant d'écrire `compta_peut`.
-4. Présenter les écarts et questions bloquantes restants dans ce rapport avant toute migration.
-5. N'entamer l'étape 1 qu'une fois l'audit complet et les incompatibilités résolues.
+1. Confirmer le schéma exact de `profiles` et la source canonique du rattachement du Comptable à une pharmacie avant de définir `compta_peut`.
+2. Confirmer si une base Supabase de test est disponible et autorisée pour appliquer la migration ; aucun accès actif ni preuve d'application de migration n'a été établi dans cet audit.
 
-## 7. Validation demandée
-
-Fournir ou localiser les trois fichiers de référence nommés dans la consigne. Aucune migration ne sera appliquée et aucun moteur ne sera recopié ou réécrit avant ce point.
+Ces questions ne bloquent pas la préparation locale des migrations et tests, mais bloquent l'affirmation qu'une migration est appliquée en base active et que les tests RLS réels passent.
