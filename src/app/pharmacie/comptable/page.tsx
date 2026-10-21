@@ -70,8 +70,39 @@ export default async function ComptableDashboardPage() {
       .order("date_debut", { ascending: false }).limit(4),
   ]);
 
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const monthStartDate = monthStart.toISOString().slice(0, 10);
+  const nextMonthStartDate = nextMonthStart.toISOString().slice(0, 10);
+  const [salesResult, expensesResult, cashResult, claimsResult, controlsResult, auditIntegrity] = await Promise.all([
+    sb.from("ventes").select("statut,total_net,created_at").eq("pharmacie_id", profile.pharmacie_id)
+      .gte("created_at", monthStart.toISOString()).lt("created_at", nextMonthStart.toISOString()).limit(5000),
+    sb.from("depenses").select("montant,date_depense,statut").eq("pharmacie_id", profile.pharmacie_id)
+      .gte("date_depense", monthStartDate).lt("date_depense", nextMonthStartDate).limit(5000),
+    sb.from("tresorerie_mouvements").select("montant,nature,date_operation").eq("pharmacie_id", profile.pharmacie_id)
+      .gte("date_operation", monthStart.toISOString()).lt("date_operation", nextMonthStart.toISOString()).limit(5000),
+    sb.from("dossiers_assurance").select("statut,montant_prise_en_charge,created_at").eq("pharmacie_id", profile.pharmacie_id)
+      .gte("created_at", monthStart.toISOString()).lt("created_at", nextMonthStart.toISOString()).limit(5000),
+    sb.from("compta_controles_cloture").select("controle_code,statut").eq("pharmacie_id", profile.pharmacie_id).limit(1000),
+    sb.rpc("compta_verifier_audit", { p_pharmacie: profile.pharmacie_id }),
+  ]);
+
   const error = pharmacyError || eventsError || entriesError || periodsError;
   const eventRows = (evenements ?? []) as Evenement[];
+  const paidSales = salesResult.data?.filter(row => row.statut === "payee") ?? [];
+  const paidSalesTotal = paidSales.reduce((sum, row) => sum + BigInt(String(row.total_net ?? 0)), 0n);
+  const expenseTotal = (expensesResult.data ?? []).reduce((sum, row) => sum + BigInt(String(row.montant ?? 0)), 0n);
+  const cashGrossTotal = (cashResult.data ?? []).reduce((sum, row) => sum + BigInt(String(row.montant ?? 0)), 0n);
+  const claimRows = claimsResult.data ?? [];
+  const claimStatuses = [...new Set(claimRows.map(row => String(row.statut)))].sort();
+  const controlRows = controlsResult.data ?? [];
+  const controlPending = controlRows.filter(row => row.statut === "a_controler").length;
+  const monthlySourceErrors = [salesResult.error, expensesResult.error, cashResult.error, claimsResult.error, controlsResult.error].some(Boolean);
+  const monthlyTruncated = [salesResult.data, expensesResult.data, cashResult.data, claimsResult.data].some(rows => rows?.length === 5000);
+  const auditState = auditIntegrity.error ? "indisponible" : auditIntegrity.data === true ? "valide" : "invalide";
+  const fcfa = (value: bigint) => new Intl.NumberFormat("fr-CM", { style: "currency", currency: "XAF", maximumFractionDigits: 0 }).format(value);
+
   const entryRows = (ecritures ?? []) as Ecriture[];
   const openPeriods = (periodes ?? []).filter((period) => period.statut === "ouverte").length;
   const pending = eventRows.filter((event) => event.statut === "a_traiter" || event.statut === "en_cours").length;
@@ -147,6 +178,26 @@ export default async function ComptableDashboardPage() {
               <p className="mt-2 text-2xl font-extrabold text-slate-950">{openPeriods}</p>
               <p className="mt-1 text-xs text-slate-500">Parmi les 4 périodes les plus récentes</p>
             </article>
+          </section>
+
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><h2 className="text-lg font-bold text-slate-950">Pilotage comptable 360°</h2><p className="mt-1 text-sm text-slate-600">Indicateurs calculés depuis les sources accessibles pour la période du {monthStartDate} au {new Date(nextMonthStart.getTime() - 86400000).toISOString().slice(0,10)}.</p></div>
+              <span className={"rounded-full px-3 py-1 text-xs font-semibold " + (auditState === "valide" ? "bg-emerald-50 text-emerald-800" : auditState === "invalide" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900")}>Chaîne d’audit : {auditState === "valide" ? "vérifiée" : auditState === "invalide" ? "alerte" : "non vérifiée"}</span>
+            </div>
+            {monthlySourceErrors ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Au moins une source de pilotage est indisponible. Les indicateurs de cette source ne doivent pas être interprétés comme des zéros.</p> : null}
+            {monthlyTruncated ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Une source a atteint la limite de 5 000 lignes ; les sommes sont partielles. Réduisez la période avant de prendre une décision.</p> : null}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <article className="rounded-xl border border-slate-200 p-4"><p className="text-sm text-slate-600">Ventes payées</p><p className="mt-2 text-xl font-extrabold">{salesResult.error ? "Indisponible" : paidSales.length}</p><p className="mt-1 text-sm text-slate-600">{salesResult.error ? "Source inaccessible" : fcfa(paidSalesTotal)}</p></article>
+              <article className="rounded-xl border border-slate-200 p-4"><p className="text-sm text-slate-600">Dépenses enregistrées</p><p className="mt-2 text-xl font-extrabold">{expensesResult.error ? "Indisponible" : expensesResult.data?.length ?? 0}</p><p className="mt-1 text-sm text-slate-600">{expensesResult.error ? "Source inaccessible" : fcfa(expenseTotal)}</p><p className="mt-1 text-xs text-slate-500">Statuts non déduits du total</p></article>
+              <article className="rounded-xl border border-slate-200 p-4"><p className="text-sm text-slate-600">Mouvements de trésorerie</p><p className="mt-2 text-xl font-extrabold">{cashResult.error ? "Indisponible" : cashResult.data?.length ?? 0}</p><p className="mt-1 text-sm text-slate-600">{cashResult.error ? "Source inaccessible" : fcfa(cashGrossTotal)}</p><p className="mt-1 text-xs text-slate-500">Somme brute, entrées/sorties non compensées</p></article>
+              <article className="rounded-xl border border-slate-200 p-4"><p className="text-sm text-slate-600">Dossiers d’assurance</p><p className="mt-2 text-xl font-extrabold">{claimsResult.error ? "Indisponible" : claimRows.length}</p><p className="mt-1 text-xs text-slate-500">Dossiers créés sur la période, sans identité client</p></article>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border border-slate-200 p-4"><h3 className="font-semibold">Contrôles de clôture</h3><p className="mt-2 text-2xl font-extrabold">{controlsResult.error ? "Indisponible" : controlPending}</p><p className="text-sm text-slate-600">Contrôles à traiter sur les périodes accessibles</p><Link href="/pharmacie/comptable/clotures" className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-slate-300 px-3 text-sm font-semibold">Ouvrir les clôtures</Link></article>
+              <article className="rounded-xl border border-slate-200 p-4"><h3 className="font-semibold">Statuts des dossiers d’assurance</h3>{claimsResult.error ? <p className="mt-2 text-sm text-amber-800">Source indisponible.</p> : claimStatuses.length ? <ul className="mt-2 space-y-1 text-sm">{claimStatuses.map(status => <li key={status} className="flex justify-between gap-3"><span>{status}</span><span className="font-semibold">{claimRows.filter(row => String(row.statut) === status).length}</span></li>)}</ul> : <p className="mt-2 text-sm text-slate-600">Aucun dossier sur cette période.</p>}</article>
+            </div>
+            <p className="text-xs text-slate-500">TVA, paie, bilan réglementaire et valeur du stock ne sont pas affichés comme des KPI tant que leurs sources et règles de calcul ne sont pas confirmées. La chaîne d’audit « valide » signifie que le contrôle disponible a réussi, pas que les données métier sont certifiées.</p>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
