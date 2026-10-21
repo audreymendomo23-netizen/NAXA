@@ -17,7 +17,7 @@ Migration additive : `supabase/migration_20261025_compta_cloture_etape8.sql`.
 
 Limite : le schéma consulté ne confirme pas de module de paie ni de registre autonome de dotations. La clôture doit donc rester bloquée tant qu’une preuve vérifiable ou une non-applicabilité documentée n’est pas fournie. Le mécanisme de clôture n’est pas déclaré opérationnel de bout en bout : aucun profil métier n’existe dans la base isolée pour tester une période réelle.
 
-- Un écran de contrôles est ajouté sur `/pharmacie/comptable/clotures`, avec API POST protégée `/api/pharmacie/comptable/clotures` pour enregistrer un contrôle ou demander une clôture. Les contrôles sont écrits via une RPC serveur atomique et auditée. La page n’ouvre pas de nouvelle période et affiche explicitement l’absence de période si le modèle n’en contient aucune.
+- Un écran de contrôles est ajouté sur `/pharmacie/comptable/clotures`, avec API POST protégée `/api/pharmacie/comptable/clotures` pour enregistrer un contrôle ou demander une clôture. Les contrôles sont écrits via une RPC serveur atomique et auditée. La page permet désormais d’ouvrir une période via la RPC additive `compta_ouvrir_periode` (migration `supabase/migration_20261027_compta_ouvrir_periode.sql`) : validation des dates, acteur actif du périmètre, verrou concurrent, refus des chevauchements et audit. L’absence de période reste explicitement affichée.
 
 ## 2. Exports ajoutés
 
@@ -28,6 +28,8 @@ Les exports CSV/XLSX/PDF existants sont étendus avec :
 - Les montants du grand livre et de la balance sont agrégés en entiers `bigint` pour éviter une perte de précision JavaScript.
 - Les filtres sur les colonnes date SQL de type `date` utilisent maintenant des dates ISO sans horodatage.
 - Les contrôles d’authentification, de privilège, de pharmacie, la prévention de l’injection de formules, les métadonnées et la journalisation d’export sont conservés.
+- Le nom et l’identifiant de pharmacie figurent dans les métadonnées ; la génération est horodatée. L’empreinte SHA-256 des octets effectivement envoyés est renvoyée dans `X-NAXA-Export-SHA256` et inscrite dans le journal d’audit.
+- Les états bilan, résultat, TVA et paie sont visibles comme indisponibles dans l’interface et l’API répond HTTP 409 au lieu de générer un état non justifié.
 
 Non encore livrés comme états comptables complets :
 - **Bilan et résultat** : la classification des comptes et les règles de présentation doivent être validées ; aucun mapping réglementaire implicite n’est appliqué.
@@ -58,6 +60,7 @@ Ces quatre états restent des écarts ouverts à traiter à partir de sources et
 1. Construire le parcours UI/API de gestion des contrôles et de clôture, avec validation serveur et audit.
 2. Ajouter un test transactionnel de clôture positive et des tests négatifs (contrôle manquant, événement en erreur, écriture déséquilibrée, chaîne invalide, acteur hors pharmacie), avec fixtures isolées.
 3. Compléter bilan/résultat/TVA/paie seulement après confirmation des mappings et sources.
+4. Recette détaillée et matrice des 12 critères : `docs/compta/RAPPORT_ETAPE_9.md`.
 4. Ajouter des tests de chaîne d’audit avec événements successifs et altération contrôlée en transaction annulée.
 5. Exécuter typecheck, lint, build et tests navigateur sur le HEAD exact, sans lancer la CI.
 6. Mettre à jour le statut global du projet avec les mêmes limites explicites.
