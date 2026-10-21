@@ -32,6 +32,8 @@ async function chargerGardes(): Promise<PharmacieGarde[] | null> {
       .from("pharmacies")
       .select("id,nom,quartier,adresse,lat,lng")
       .eq("actif", true)
+      .eq("visible_recherche", true)
+      .is("archivee_le", null)
       .eq("de_garde", true)
       .order("nom");
     if (error) return null;
