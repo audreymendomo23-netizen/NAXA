@@ -184,31 +184,51 @@ export function Luciole() {
       specialTimer = undefined; teleportTimer = undefined;
       firefly.classList.remove("luciole-sitting", "luciole-yawning", "luciole-teleporting");
     };
-    const triggerRandomSpecial = (now: number) => {
-      const choices = ["sit", "yawn", "teleport"] as const;
-      const choice = choices[Math.floor(Math.random() * choices.length)];
-      const className = choice === "sit" ? "luciole-sitting" : choice === "yawn" ? "luciole-yawning" : "luciole-teleporting";
+    let fairyTimer: number | undefined;
+    let fairyVisible = false;
+    let lastFairyTouchAt = 0;
+    let fairyTouchCount = 0;
+    const returnToFirefly = () => {
+      if (!fairyVisible) return;
+      fairyVisible = false;
+      if (fairyTimer) window.clearTimeout(fairyTimer);
+      fairyTimer = undefined;
+      firefly.classList.remove("luciole-fairy-entering", "luciole-fairy-visible");
+      firefly.classList.add("luciole-fairy-leaving");
+      window.setTimeout(() => firefly.classList.remove("luciole-fairy-leaving"), LUCIOLE_TIMING.fairyFade);
+    };
+    const transformToFairy = () => {
+      if (sleeping || sleepPending || guidedTarget || businessGesture || fairyVisible || !motionAllowed) return;
       clearRandomSpecial();
-      firefly.classList.add(className);
-      if (choice === "teleport") {
-        teleportTimer = window.setTimeout(() => {
-          const point = randomViewportPoint();
-          x = point.x; y = point.y; targetX = point.x; targetY = point.y; vx = 0; vy = 0;
-          paint();
-          teleportTimer = undefined;
-        }, Math.min(300, LUCIOLE_TIMING.teleportFade / 2));
-        specialTimer = window.setTimeout(() => {
-          firefly.classList.remove(className);
-          specialTimer = undefined;
-        }, LUCIOLE_TIMING.teleportFade);
-      } else {
-        const duration = choice === "sit"
-          ? LUCIOLE_TIMING.sitMin + Math.random() * (LUCIOLE_TIMING.sitMax - LUCIOLE_TIMING.sitMin)
-          : LUCIOLE_TIMING.yawn;
-        specialTimer = window.setTimeout(() => {
-          firefly.classList.remove(className);
-          specialTimer = undefined;
-        }, duration);
+      fairyVisible = true;
+      firefly.classList.remove("luciole-fairy-leaving");
+      firefly.classList.add("luciole-fairy-entering");
+      burst();
+      window.setTimeout(() => { if (fairyVisible) { firefly.classList.remove("luciole-fairy-entering"); firefly.classList.add("luciole-fairy-visible"); } }, LUCIOLE_TIMING.fairyFade);
+      fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration - LUCIOLE_TIMING.fairyFade);
+    };
+    const onFairyTripleTouch = (event: PointerEvent) => {
+      if (event.pointerType !== "touch" || sleeping || sleepPending) return;
+      const rect = firefly.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+      const now = performance.now();
+      if (now - lastFairyTouchAt > LUCIOLE_TIMING.tripleTouchWindow) fairyTouchCount = 0;
+      lastFairyTouchAt = now; fairyTouchCount += 1;
+      if (fairyTouchCount >= 3) { fairyTouchCount = 0; transformToFairy(); }
+    };
+    const triggerRandomSpecial = (now: number) => {
+      const choice = Math.floor(Math.random() * 4);
+      if (choice === 3) transformToFairy();
+      else {
+        const className = choice === 0 ? "luciole-sitting" : choice === 1 ? "luciole-yawning" : "luciole-teleporting";
+        clearRandomSpecial(); firefly.classList.add(className);
+        if (choice === 2) {
+          teleportTimer = window.setTimeout(() => { const point = randomViewportPoint(); x = point.x; y = point.y; targetX = point.x; targetY = point.y; vx = 0; vy = 0; paint(); teleportTimer = undefined; }, Math.min(300, LUCIOLE_TIMING.teleportFade / 2));
+          specialTimer = window.setTimeout(() => { firefly.classList.remove(className); specialTimer = undefined; }, LUCIOLE_TIMING.teleportFade);
+        } else {
+          const duration = choice === 0 ? LUCIOLE_TIMING.sitMin + Math.random() * (LUCIOLE_TIMING.sitMax - LUCIOLE_TIMING.sitMin) : LUCIOLE_TIMING.yawn;
+          specialTimer = window.setTimeout(() => { firefly.classList.remove(className); specialTimer = undefined; }, duration);
+        }
       }
       nextSpecialAt = now + LUCIOLE_TIMING.specialIntervalMin + Math.random() * (LUCIOLE_TIMING.specialIntervalMax - LUCIOLE_TIMING.specialIntervalMin);
     };
@@ -225,6 +245,7 @@ export function Luciole() {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      if (fairyVisible && event.pointerType === "mouse") returnToFirefly();
       wake();
       clearRandomSpecial();
       if (event.pointerType === "mouse" && event.buttons === 0) {
@@ -240,6 +261,7 @@ export function Luciole() {
       start();
     };
     const onInteraction = (event: Event) => {
+      returnToFirefly();
       const now = performance.now();
       clearRandomSpecial();
       nextSpecialAt = now + LUCIOLE_TIMING.specialFirstMin + Math.random() * (LUCIOLE_TIMING.specialFirstMax - LUCIOLE_TIMING.specialFirstMin);
@@ -470,6 +492,7 @@ export function Luciole() {
 
     document.addEventListener("pointermove", onPointerMove, { passive: true });
     document.addEventListener("pointerdown", onInteraction, { passive: true });
+    document.addEventListener("pointerdown", onFairyTripleTouch, { passive: true });
     document.addEventListener("keydown", onInteraction);
     document.addEventListener("focusin", onInteraction);
     if (motionAllowed) {
@@ -492,6 +515,8 @@ export function Luciole() {
       if (frameId) cancelAnimationFrame(frameId);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerdown", onInteraction);
+      document.removeEventListener("pointerdown", onFairyTripleTouch);
+      if (fairyTimer) window.clearTimeout(fairyTimer);
       document.removeEventListener("keydown", onInteraction);
       document.removeEventListener("focusin", onInteraction);
       document.removeEventListener("focusin", onGuidanceFocusIn, true);
