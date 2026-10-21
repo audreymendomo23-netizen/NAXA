@@ -167,6 +167,33 @@ export default async function GestionnaireStockReservationsPage({
                     const lots = lotsByProduct.get(key) ?? [];
                     const lotsTracked = lots.length > 0;
                     const today = new Date().toISOString().slice(0, 10);
+                    const allocations = allocationRows.filter(
+                      (allocation) =>
+                        allocation.reservation_id === reservation.id &&
+                        allocation.produit_id === item.produit_id &&
+                        !allocation.restauree_at
+                    );
+                    const allocatedQuantity = allocations.reduce(
+                      (sum, allocation) => sum + Number(allocation.quantite || 0),
+                      0
+                    );
+                    const allocationsValid =
+                      !allocationResult.error &&
+                      allocatedQuantity === item.quantite &&
+                      allocations.length > 0 &&
+                      allocations.every((allocation) => {
+                        const lot = lotRows.find((row) => row.id === allocation.lot_id);
+                        return Boolean(
+                          lot &&
+                          lot.pharmacie_id === reservation.pharmacie_id &&
+                          lot.produit_id === item.produit_id &&
+                          !lot.bloque &&
+                          lot.date_peremption &&
+                          lot.date_peremption >= today &&
+                          Number.isSafeInteger(Number(allocation.quantite)) &&
+                          Number(allocation.quantite) > 0
+                        );
+                      });
                     const usableLots = lots.filter((lot) => !lot.bloque && lot.quantite > 0 && Boolean(lot.date_peremption) && lot.date_peremption! >= today);
                     const usableLotQuantity = usableLots.reduce((sum, lot) => sum + Number(lot.quantite || 0), 0);
                     const usableQuantity = lotsTracked ? usableLotQuantity : stock && (!stock.date_peremption || stock.date_peremption >= new Date().toISOString().slice(0, 10)) ? Number(stock.quantite || 0) : 0;
@@ -184,7 +211,7 @@ export default async function GestionnaireStockReservationsPage({
                   })}
                 </ul>
                 <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t pt-3"><div><p className="font-black">{fcfa(reservation.total)}</p><Link href={"/pharmacie/messages?reservation="+reservation.id} className="mt-2 inline-block text-sm font-bold text-emerald-900 underline">Ouvrir les messages liés à ce dossier</Link></div>
-                  {reservation.statut === "en_attente" && <form action={confirmerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><button type="submit" disabled={(reservation.reservation_items ?? []).some((item) => { const key = stockKey(reservation.pharmacie_id, item.produit_id); const stock = stocks.get(key); const itemLots = lotsByProduct.get(key) ?? []; if (!itemLots.length) return !stock || stock.quantite < 0; const allocated = allocationRows.filter((a) => a.reservation_id === reservation.id && a.produit_id === item.produit_id && !a.restauree_at); return Boolean(allocationResult.error) || allocated.reduce((sum, a) => sum + Number(a.quantite || 0), 0) !== item.quantite || allocated.some((a) => { const lot = lotRows.find((l) => l.id === a.lot_id); return !lot || lot.bloque || !lot.date_peremption || lot.date_peremption < new Date().toISOString().slice(0,10); }); })} className="min-h-10 rounded-xl bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">Confirmer disponibilité et préparer</button></form>}{["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
+                  {reservation.statut === "en_attente" && <form action={confirmerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><button type="submit" disabled={(reservation.reservation_items ?? []).some((item) => { const key = stockKey(reservation.pharmacie_id, item.produit_id); const stock = stocks.get(key); const itemLots = lotsByProduct.get(key) ?? []; if (!itemLots.length) return !stock || Number(stock.quantite || 0) < item.quantite || Boolean(stock.date_peremption && stock.date_peremption < new Date().toISOString().slice(0,10)); const allocated = allocationRows.filter((a) => a.reservation_id === reservation.id && a.produit_id === item.produit_id && !a.restauree_at); return Boolean(allocationResult.error) || allocated.length === 0 || allocated.reduce((sum, a) => sum + Number(a.quantite || 0), 0) !== item.quantite || allocated.some((a) => { const lot = lotRows.find((l) => l.id === a.lot_id); return !lot || lot.pharmacie_id !== reservation.pharmacie_id || lot.produit_id !== item.produit_id || lot.bloque || !lot.date_peremption || lot.date_peremption < new Date().toISOString().slice(0,10) || !Number.isSafeInteger(Number(a.quantite)) || Number(a.quantite) <= 0; }); })} className="min-h-10 rounded-xl bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">Confirmer disponibilité et préparer</button></form>}{["en_attente", "confirmee"].includes(reservation.statut) && <form action={annulerReservationGestionStock} className="flex flex-wrap items-center gap-2"><input type="hidden" name="reservation_id" value={reservation.id}/><label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" name="confirmation" value="oui" required/> Je confirme l’annulation de ce dossier</label><button type="submit" className="min-h-10 rounded-xl border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Annuler la réservation</button></form>}
                 </div>
               </article>
             );
