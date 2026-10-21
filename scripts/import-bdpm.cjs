@@ -34,7 +34,10 @@ function rows(text) {
 function normalizeCis(value) { return String(value || "").trim(); }
 function main() { return run().catch((error) => { console.error(error.message || error); process.exitCode = 1; }); }
 async function run() {
-  const [specialtyText, compositionText] = await Promise.all([download(FILES.specialties), download(FILES.compositions)]);
+  const [specialtyText, compositionText, officialPage] = await Promise.all([download(FILES.specialties), download(FILES.compositions), download(SOURCE_URL)]);
+  const dateMatch = officialPage.match(/Dernière mise à jour\\s+le\\s+(\\d{2})\\/(\\d{2})\\/(\\d{4})/i);
+  const updatedAt = requestedUpdatedAt || (dateMatch ? dateMatch[3] + "-" + dateMatch[2] + "-" + dateMatch[1] : null);
+  if (!updatedAt) console.warn("WARNING: impossible de confirmer la date officielle BDPM; la date sera laissée NULL.");
   const activeByCis = new Map();
   for (const row of rows(compositionText)) {
     const cis = normalizeCis(row[0]);
