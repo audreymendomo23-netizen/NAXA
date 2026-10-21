@@ -59,7 +59,7 @@ export async function rechercherPhotoMedicament(term: string): Promise<Medicamen
       const normalizedTitle = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       const commercialLicense = /^(CC0|Public domain|CC BY(?:-SA)?(?:\s|$))/i.test(license);
       const noNcNd = !/\b(NC|ND)\b/i.test(license);
-      const relevant = tokens.some((token) => normalizedTitle.includes(token));
+      const relevant = tokens.every((token) => normalizedTitle.includes(token));
       if (!commercialLicense || !noNcNd || !relevant) continue;
       const artist = (metadata.Artist?.value ?? metadata.Credit?.value ?? "").replace(/<[^>]*>/g, "").trim();
       return {
