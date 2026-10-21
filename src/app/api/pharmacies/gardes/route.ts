@@ -40,16 +40,16 @@ async function associerPhotos(pharmacies: GardeExterne[]): Promise<GardeExterne[
       const cle = normaliserNom(row.nom);
       // A photo is used only for an exact normalized name match and when
       // a verification date is present; never guess from a nearby name.
-      if (cle && row.photo_url && row.photo_verified_at && !photos.has(cle)) {
+      if (cle && row.photo_url && row.photo_verified_at && row.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) && !photos.has(cle)) {
         photos.set(cle, row);
       }
     }
 
     return pharmacies.map((pharmacie) => {
-      if (pharmacie.imageUrl) return pharmacie;
       const photo = photos.get(normaliserNom(pharmacie.nom));
-      if (!photo) return pharmacie;
-      return { ...pharmacie, imageUrl: photo.photo_url };
+      // A verified image in our own Supabase bucket takes priority over any source image.
+      if (photo?.photo_url) return { ...pharmacie, imageUrl: photo.photo_url };
+      return pharmacie;
     });
   } catch {
     // The external duty list remains available if the optional photo lookup fails.
