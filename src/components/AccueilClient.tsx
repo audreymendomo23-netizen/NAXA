@@ -466,7 +466,9 @@ export function AccueilClient() {
     distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
-  const gardes = gardesAutomatiques.slice(0,4);
+  const gardes: GardeAuto[] = gardesAutomatiques.length
+    ? gardesAutomatiques.slice(0,4)
+    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], periode: null, source: "NAXA" }));
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
