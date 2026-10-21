@@ -37,11 +37,24 @@ function enregistrerCacheRecherche(query: string, results: MedicamentRecherche[]
     cache.byQuery = Object.fromEntries(Object.entries(cache.byQuery).slice(-80));
     const unique = new Map<string, MedicamentRecherche>();
     for (const item of [...cache.corpus, ...results]) unique.set(item.id, item);
-    cache.corpus = [...unique.values()].slice(-250);
+    cache.corpus = [...unique.values()].slice(-500);
     cache.updatedAt = Date.now();
     window.localStorage.setItem(CACHE_RECHERCHE_KEY, JSON.stringify(cache));
   } catch {
     // Le stockage local est facultatif et ne bloque jamais la recherche en ligne.
+  }
+}
+
+function enregistrerCatalogueHorsLigne(results: MedicamentRecherche[]): void {
+  try {
+    const cache = lireCacheRecherche();
+    const unique = new Map<string, MedicamentRecherche>();
+    for (const item of [...cache.corpus, ...results]) unique.set(item.id, item);
+    cache.corpus = [...unique.values()].slice(-500);
+    cache.updatedAt = Date.now();
+    window.localStorage.setItem(CACHE_RECHERCHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Le catalogue peut être rechargé lors d'une prochaine connexion.
   }
 }
 
@@ -150,6 +163,29 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [q]);
+
+  useEffect(() => {
+    let active = true;
+    const synchroniserCatalogue = async () => {
+      if (!navigator.onLine) return;
+      try {
+        const response = await fetch("/api/medicaments/catalogue-hors-ligne", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as { results?: MedicamentRecherche[] };
+        if (active && Array.isArray(data.results) && data.results.length) {
+          enregistrerCatalogueHorsLigne(data.results);
+        }
+      } catch {
+        // Les résultats déjà enregistrés restent consultables sans réseau.
+      }
+    };
+    void synchroniserCatalogue();
+    window.addEventListener("online", synchroniserCatalogue);
+    return () => {
+      active = false;
+      window.removeEventListener("online", synchroniserCatalogue);
+    };
+  }, []);
 
   useEffect(() => {
     const updateConnection = () => setHorsConnexion(!navigator.onLine);
