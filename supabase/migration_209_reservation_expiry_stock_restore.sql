@@ -12,8 +12,8 @@ begin
   from public.reservations r
   where r.statut in ('en_attente','confirmee') and r.expires_at<=now()
   order by r.expires_at,r.id
-  for update skip locked
   limit p_limit
+  for update skip locked
  loop
   begin
    -- Restitution lot/stock et statut sont dans la même transaction.
