@@ -424,7 +424,7 @@ export default function CaissePage() {
 
   async function retirerProduit(line: Ligne) {
     if (!vente || !session || !uid || busy) return;
-    if (!window.confirm("Retirer les " + line.q + " unité(s) de « " + line.nom + " » du panier et restituer le stock ?")) return;
+    if (!window.confirm("Retirer les " + line.q + " unité(s) de « " + line.nom + " » du panier ? Le stock physique reste inchangé.")) return;
     const venteId = vente;
     setBusy(true);
     try {
