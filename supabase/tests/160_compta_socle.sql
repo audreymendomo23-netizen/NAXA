@@ -4,8 +4,10 @@ begin;
 do $setup$
 declare
   v_uid uuid := gen_random_uuid();
+  v_cashier uuid := gen_random_uuid();
   v_pharmacie uuid := gen_random_uuid();
   v_username text := 'cpta_' || substr(replace(gen_random_uuid()::text,'-',''),1,16);
+  v_cashier_username text := 'cash_' || substr(replace(gen_random_uuid()::text,'-',''),1,16);
   v_periode uuid := gen_random_uuid();
   v_periode_close uuid := gen_random_uuid();
   v_compte_a uuid := gen_random_uuid();
@@ -27,10 +29,15 @@ begin
   -- Compte et pharmacie de test strictement éphémères.
   set local session_replication_role = replica;
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
-  values(v_uid,'authenticated','authenticated',v_username||'@invalid.local','',now(),now());
+  values
+    (v_uid,'authenticated','authenticated',v_username||'@invalid.local','',now(),now()),
+    (v_cashier,'authenticated','authenticated',v_cashier_username||'@invalid.local','',now(),now());
   set local session_replication_role = origin;
   insert into public.profiles(id,role,username,actif)
-  values(v_uid,'admin',v_username,true);
+  values
+    (v_uid,'admin',v_username,true),
+    (v_cashier,'caisse',v_cashier_username,true);
+  update public.profiles set pharmacie_id=v_pharmacie where id=v_cashier;
   insert into public.pharmacies(id,nom,lat,lng)
   values(v_pharmacie,'NAXA TEST COMPTA',3.8667,11.5167);
 
@@ -124,6 +131,9 @@ begin
   alter table public.compta_audit enable trigger compta_audit_immutable;
   select public.compta_verifier_audit(v_pharmacie) into v_ok;
   if v_ok then raise exception 'Échec test : altération de la chaîne non détectée'; end if;
+
+  perform set_config('naxa.test.cashier',v_cashier::text,true);
+  perform set_config('naxa.test.pharmacie',v_pharmacie::text,true);
 
   -- 6. Aucun droit direct de mutation comptable pour les rôles clients.
   if has_function_privilege('authenticated','public.compta_poster_ecriture(uuid,uuid,date,text,text,text,text,text,jsonb,uuid)','EXECUTE')
