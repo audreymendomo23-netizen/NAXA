@@ -1,0 +1,110 @@
+name: NAXA independent database backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naxa-independent-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate required secrets
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
+          ENCRYPTION_KEY: ${{ secrets.NAXA_BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_URL" || { echo "::error::Missing NAXA_DATABASE_URL repository secret"; exit 1; }
+          test -n "$ENCRYPTION_KEY" || { echo "::error::Missing NAXA_BACKUP_ENCRYPTION_KEY repository secret"; exit 1; }
+          case "$DATABASE_URL" in
+            postgres://*|postgresql://*) ;;
+            *) echo "::error::NAXA_DATABASE_URL must be a PostgreSQL connection URI"; exit 1 ;;
+          esac
+
+      - name: Dump PostgreSQL 17 database
+        shell: bash
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          docker run --rm \
+            --env SUPABASE_DATABASE_URL \
+            --volume "$PWD/backup:/backup" \
+            postgres:17-alpine sh -euc '
+              pg_dump --dbname="$SUPABASE_DATABASE_URL" --format=custom --no-owner --no-privileges --file=/backup/naxa.dump
+              pg_restore --list /backup/naxa.dump >/backup/restore-catalog.txt
+              test -s /backup/naxa.dump
+              test -s /backup/restore-catalog.txt
+            '
+          sha256sum backup/naxa.dump > backup/naxa.dump.sha256
+
+      - name: Encrypt backup before storage
+        shell: bash
+        env:
+          NAXA_BACKUP_ENCRYPTION_KEY: ${{ secrets.NAXA_BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
+            -in backup/naxa.dump -out backup/naxa.dump.enc
+          test -s backup/naxa.dump.enc
+          sha256sum backup/naxa.dump.enc > backup/naxa.dump.enc.sha256
+          rm -f backup/naxa.dump
+
+      - name: Write backup manifest
+        shell: bash
+        env:
+          PROJECT_REF: eouwtuusnsuxaejsxknf
+        run: |
+          set -euo pipefail
+          printf '{"project_ref":"%s","created_at_utc":"%s","commit":"%s","encrypted":true,"format":"pg_dump custom","restore_catalog_validated":true}\n' \
+            "$PROJECT_REF" "$(date -u +%FT%TZ)" "$GITHUB_SHA" > backup/manifest.json
+
+      - name: Store encrypted backup in GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: naxa-db-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            backup/naxa.dump.enc
+            backup/naxa.dump.enc.sha256
+            backup/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Configure external S3-compatible backup destination
+        if: ${{ secrets.NAXA_BACKUP_S3_BUCKET != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.NAXA_BACKUP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.NAXA_BACKUP_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.NAXA_BACKUP_AWS_REGION || 'eu-west-1' }}
+
+      - name: Copy encrypted backup to independent S3 storage
+        if: ${{ secrets.NAXA_BACKUP_S3_BUCKET != '' }}
+        shell: bash
+        env:
+          BUCKET: ${{ secrets.NAXA_BACKUP_S3_BUCKET }}
+          PREFIX: ${{ vars.NAXA_BACKUP_S3_PREFIX || 'naxa/postgres' }}
+          ENDPOINT_URL: ${{ secrets.NAXA_BACKUP_S3_ENDPOINT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -n "$ENDPOINT_URL" ]; then
+            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/naxa.dump.enc "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc"
+            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/naxa.dump.enc.sha256 "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc.sha256"
+            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/manifest.json "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.manifest.json"
+          else
+            aws s3 cp backup/naxa.dump.enc "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc"
+            aws s3 cp backup/naxa.dump.enc.sha256 "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc.sha256"
+            aws s3 cp backup/manifest.json "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.manifest.json"
+          fi
