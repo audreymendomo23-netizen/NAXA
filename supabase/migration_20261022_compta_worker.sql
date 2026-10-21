@@ -38,6 +38,10 @@ begin
   if not found then
     raise exception 'Événement non réclamé ou jeton expiré';
   end if;
+  if v_event.evenement_type not in ('vente_encaissee','depense_validee')
+     or v_event.source_type not in ('vente','depense') then
+    raise exception 'type_evenement_non_pris_en_charge';
+  end if;
 
   -- Un événement ne peut être finalisé qu'avec une période ouverte, des mappings
   -- exactement uniques et un journal explicitement validé pour cette pharmacie.
