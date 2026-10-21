@@ -103,3 +103,4 @@ end;
 $functional$;
 
 rollback;
+select '162_compta_worker PASS' as resultat;
