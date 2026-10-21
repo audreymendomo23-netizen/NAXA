@@ -101,3 +101,13 @@ test("Migration OSM : état de synchronisation sécurisé et additif", () => {
   assert.match(migration, /alter table public\.pharmacies_geolocalisation_referentiel enable row level security/i);
   assert.doesNotMatch(migration, /drop table|delete from public\.pharmacies/i);
 });
+
+test("Interface admin : synchronisation explicite, sans lancement automatique", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "geolocalisation", "page.tsx"), "utf8");
+  assert.match(page, /Synchroniser OpenStreetMap/);
+  assert.match(page, /method: "POST"/);
+  assert.match(page, /method: "GET"/);
+  assert.match(page, /candidats de l’annuaire ne deviennent jamais des partenaires NAXA/);
+  assert.match(page, /OpenStreetMap contributors/);
+  assert.doesNotMatch(page, /useEffect\(\(\)\s*=>\s*\{\s*void synchroniser\(\)/);
+});
