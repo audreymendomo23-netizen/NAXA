@@ -167,10 +167,31 @@ async function rxNormSearch(term: string): Promise<Candidate[]> {
 async function openFdaSearch(term: string): Promise<AnyRecord[]> {
   const safe = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const search = 'openfda.generic_name:"' + safe + '" OR openfda.brand_name:"' + safe + '"';
-  const json = await jsonFetch("https://api.fda.gov/drug/label.json?limit=10&search=" + encodeURIComponent(search));
+  const apiKey = process.env.OPENFDA_API_KEY;
+  const url = "https://api.fda.gov/drug/label.json?limit=10" +
+    (apiKey ? "&api_key=" + encodeURIComponent(apiKey) : "") +
+    "&search=" + encodeURIComponent(search);
+  const json = await jsonFetch(url);
   return Array.isArray(json?.results) ? json.results as AnyRecord[] : [];
 }
 
+function cleanLabelSection(value: unknown, max = 420): string | null {
+  const raw = strings(value)[0];
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
+    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\\s+/g, " ")
+    .trim();
+  return cleaned ? cleaned.slice(0, max).trim() : null;
+}
 async function dailyMedSearch(term: string): Promise<AnyRecord[]> {
   const json = await jsonFetch("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls.json?pagesize=10&page=1&drug_name=" + encodeURIComponent(term));
   return Array.isArray(json?.data) ? json.data as AnyRecord[] : [];
@@ -198,7 +219,11 @@ export async function GET(request: NextRequest) {
   const rxCandidates = batches.flatMap((batch) => batch.rx);
   const fdaRecords = batches.flatMap((batch) => batch.fda);
   const dailyRecords = batches.flatMap((batch) => batch.daily);
-  const preferredFda = fdaRecords.find((record) => fdaField(record, "generic_name").length || fdaField(record, "brand_name").length);
+  const exactTerm = normaliserTerme(query);
+  const preferredFda = fdaRecords.find((record) => {
+    const names = [...fdaField(record, "generic_name"), ...fdaField(record, "brand_name")].map(normaliserTerme);
+    return names.some((name) => name === exactTerm || name.includes(exactTerm) || exactTerm.includes(name));
+  }) ?? fdaRecords.find((record) => fdaField(record, "generic_name").length || fdaField(record, "brand_name").length);
   const genericName = fdaField(preferredFda, "generic_name")[0] ?? pilot?.substanceFr ?? query;
   const form = fdaField(preferredFda, "dosage_form")[0] ?? "";
 
@@ -270,6 +295,21 @@ export async function GET(request: NextRequest) {
       form: localProduct?.forme || (formValue ? cleanName(formValue) : null),
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
+      safetyInformation: candidateHasIngredient ? {
+        warnings: cleanLabelSection(preferredFda?.warnings, 560),
+        adverseReactions: cleanLabelSection(preferredFda?.adverse_reactions, 560),
+        contraindications: cleanLabelSection(preferredFda?.contraindications, 560),
+        precautions: cleanLabelSection(preferredFda?.precautions, 560),
+        source: preferredFda ? "openFDA — notice américaine, non spécifique à l’autorisation camerounaise" : null,
+        sourceUrl: "https://open.fda.gov/apis/drug/label/",
+        updatedAt: typeof preferredFda?.effective_time === "string" ? preferredFda.effective_time : null
+      } : null,
+      sourceDetails: [
+        ...(candidate.rxcui ? [{ name: "RxNorm", role: "normalisation du nom", url: "https://rxnav.nlm.nih.gov/REST/rxcui/" + candidate.rxcui + "/allProperties.json" }] : []),
+        ...(preferredFda ? [{ name: "openFDA", role: "notice et rubriques de sécurité", url: "https://open.fda.gov/apis/drug/label/", updatedAt: typeof preferredFda.effective_time === "string" ? preferredFda.effective_time : null }] : []),
+        ...(matchedDaily && typeof matchedDaily.setid === "string" ? [{ name: "DailyMed", role: "notice structurée SPL", url: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + matchedDaily.setid }] : []),
+        ...(localProduct?.source_fiche ? [{ name: localProduct.source_fiche.toLowerCase().includes("bdpm") ? "BDPM / catalogue local" : "Catalogue local NAXA", role: localProduct.fiche_validee ? "fiche locale validée" : "fiche locale non validée", url: "https://base-donnees-publique.medicaments.gouv.fr/telechargement" }] : [])
+      ],
       imageUrl: storagePhotoUrl,
       imageSource: storagePhotoUrl ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
       imageSourceUrl: localProduct?.photo_source_url ?? null,
@@ -300,7 +340,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     query,
     results,
-    sourcesChecked: ["RxNorm", "OpenFDA", "DailyMed"],
+    sourcesChecked: ["RxNorm", "openFDA", "DailyMed", ...(localProducts.some((product) => (product.source_fiche ?? "").toLowerCase().includes("bdpm")) ? ["BDPM (données locales déjà importées)"] : [])],
     prototypeTerms: pilot ? [pilot.nomFr] : [],
     cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
     notice: "Catalogue informatif. Disponibilité et prix affichés uniquement lorsqu’ils sont issus des stocks réels des pharmacies partenaires NAXA. Si le stock ne peut pas être vérifié, son statut reste non vérifié."
