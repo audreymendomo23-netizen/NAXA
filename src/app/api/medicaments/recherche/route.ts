@@ -60,6 +60,10 @@ type LocalProduct = {
   nom: string;
   dci: string | null;
   photo_url: string | null;
+  photo_path: string | null;
+  photo_source_url: string | null;
+  photo_licence: string | null;
+  photo_verifiee_le: string | null;
   description: string | null;
   indications: string | null;
   precautions: string | null;
@@ -75,7 +79,7 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   if (needle.length < 2) return [];
   try {
     const [byName, byDci] = await Promise.all([
-      sb.from("produits").select("id,nom,dci,photo_url,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
+      sb.from("produits").select("id,nom,dci,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
       sb.from("produits").select("id,nom,dci,photo_url,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
     ]);
     if (byName.error && byDci.error) return [];
@@ -237,8 +241,7 @@ export async function GET(request: NextRequest) {
     const title = normaliserTerme(typeof record.title === "string" ? record.title : "").replace(/\s/g, "");
     return termsFlat.some((term) => term.length > 2 && title.includes(term));
   }) ?? dailyRecords[0];
-  let imageUrl: string | null = null;
-  if (matchedDaily && typeof matchedDaily.setid === "string") imageUrl = await dailyMedImage(matchedDaily.setid);
+  // Les images SPL de tiers ne sont pas copiées ni affichées sans licence commerciale vérifiée.
 
   const localProducts = await localProductsFor(query);
   const localStocks = await realPartnerAvailability(localProducts.map((product) => product.id));
@@ -257,19 +260,10 @@ export async function GET(request: NextRequest) {
     const activeIngredient = pilot?.substanceFr ?? cleanName(genericName) ?? null;
     const formValue = formFromText(form) || formInName || (form ? cleanName(form) : null);
     const candidateHasIngredient = normaliserTerme(raw).includes(normaliserTerme(genericName)) || Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
-    const title = typeof matchedDaily?.title === "string" ? matchedDaily.title : "";
-    const titleNormalized = normaliserTerme(title);
-    const imageMatches = Boolean(imageUrl && (candidate.tty === "IN" || candidate.tty === "PIN") && (
-      titleNormalized.includes(normaliserTerme(genericName)) ||
-      titleNormalized.includes(normaliserTerme(query)) ||
-      (pilot && pilot.alias.some((alias) => titleNormalized.includes(normaliserTerme(alias))))
-    ));
-    const localProduct = localProducts.find((product) => {
-      const productNames = [product.nom, product.dci].filter((value): value is string => Boolean(value)).map(normaliserTerme);
-      return productNames.some((productName) => productName === candidateNorm || productName === normaliserTerme(name) || productName.includes(candidateNorm) || candidateNorm.includes(productName));
-    }) ?? localProducts.find((product) => [product.nom, product.dci].filter(Boolean).some((value) => normaliserTerme(value as string) === normaliserTerme(query)));
-    const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
-    const availability = !localProduct || !localStocks.verified ? "non_verifiee" : stock?.pharmacies ? "disponible" : "indisponible";
+    const storagePhotoVerified = Boolean(localProduct?.photo_path && localProduct.photo_licence && localProduct.photo_verifiee_le);
+    const storagePhotoUrl = storagePhotoVerified && localProduct?.photo_path
+      ? supabaseServer().storage.from("medicaments").getPublicUrl(localProduct.photo_path).data.publicUrl
+      : null;
     return {
       id: localProduct?.id ?? candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
@@ -278,8 +272,8 @@ export async function GET(request: NextRequest) {
       form: formValue ? cleanName(formValue) : null,
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
-      imageUrl: localProduct?.photo_url || (imageMatches ? imageUrl : null),
-      imageSource: imageMatches ? "DailyMed — étiquetage américain, conditionnement local non garanti" : null,
+      imageUrl: storagePhotoUrl || localProduct?.photo_url || null,
+      imageSource: storagePhotoVerified ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo locale existante — provenance à confirmer" : null,
       source: [
         candidate.rxcui ? "RxNorm" : null,
         preferredFda ? "OpenFDA" : null,
