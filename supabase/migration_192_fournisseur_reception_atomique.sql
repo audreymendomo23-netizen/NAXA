@@ -11,7 +11,7 @@ declare
  v_total integer:=0; v_remaining integer; v_all_received boolean;
 begin
  if v_user is null then raise exception 'Connexion requise'; end if;
- if jsonb_typeof(p_lignes)<>'array' or jsonb_array_length(p_lignes)=0 then raise exception 'Au moins une ligne de réception est requise'; end if;
+ if p_lignes is null or jsonb_typeof(p_lignes) is distinct from 'array' or jsonb_array_length(p_lignes)=0 then raise exception 'Au moins une ligne de réception est requise'; end if;
  if jsonb_array_length(p_lignes)>100 then raise exception 'Une réception est limitée à 100 lignes'; end if;
  if char_length(trim(coalesce(p_reference,'')))>100 or char_length(trim(coalesce(p_commentaire,'')))>500 then raise exception 'Référence ou commentaire trop long'; end if;
  select * into v_order from public.commandes_fournisseurs where id=p_commande for update;
