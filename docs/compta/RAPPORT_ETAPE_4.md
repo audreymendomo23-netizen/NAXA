@@ -13,6 +13,7 @@ Fichiers :
 - `supabase/migration_20261022_compta_worker.sql`
 - `supabase/functions/compta-worker/index.ts`
 - `supabase/tests/162_compta_worker.sql`
+- `supabase/tests/163_compta_worker_positive.sql`
 - `supabase/migration_20261021_compta_outbox.sql`
 - `supabase/tests/161_compta_outbox.sql`
 
@@ -38,7 +39,8 @@ Environnement isolé : projet Supabase de test `naxa-ci-replay-2` (`pwfftcsjyeib
 | `supabase/tests/160_compta_socle.sql` | PASS — retour explicite `160_compta_socle PASS` |
 | `supabase/tests/161_compta_outbox.sql` | PASS — aucune exception SQL |
 | `supabase/tests/162_compta_worker.sql` | PASS — aucune exception SQL |
-| Parcours worker transactionnel | PASS — réclamation, jeton, finalisation prématurée refusée, absence de configuration gérée en reprise |
+| Parcours worker transactionnel négatif (`162`) | PASS — réclamation, jeton, finalisation prématurée refusée, absence de configuration gérée en reprise |
+| Parcours worker positif (`163`) | PASS — période ouverte, mappings débit/crédit et journal explicitement validés, réclamation, écriture de deux lignes équilibrées à 12 500 FCFA, événement finalisé |
 | Vérification après rollback | PASS — aucun événement de test conservé |
 | Exécution locale TypeScript / typecheck | NON EXÉCUTÉE |
 | Build frontend | NON EXÉCUTÉ |
@@ -46,7 +48,7 @@ Environnement isolé : projet Supabase de test `naxa-ci-replay-2` (`pwfftcsjyeib
 | Migration base active | NON APPLIQUÉE |
 | Déploiement Edge Function / activation cron | NON EFFECTUÉS |
 
-Le test fonctionnel confirme le chemin d’échec sûr : si la période ou les mappings validés manquent, aucune écriture n’est créée, l’événement est remis en attente, et seul un code technique assaini est enregistré. Il ne constitue pas encore une preuve de comptabilisation métier réussie pour des mappings réels : ce parcours positif exige des référentiels comptables validés dans une base de test disposant des profils de validation requis.
+Les tests `162` et `163` couvrent maintenant les deux chemins du worker. Le chemin négatif prouve la reprise sûre en l’absence de configuration. Le chemin positif utilise des références techniques temporaires, explicitement validées dans la transaction de test, et prouve la création de deux lignes totalisant 12 500 FCFA au débit comme au crédit puis la finalisation de l’événement. Toutes les fixtures sont annulées par `ROLLBACK`. Cela valide le mécanisme, mais ne valide pas les mappings SYSCOHADA propres à une pharmacie réelle.
 
 ## 3. Premier écran Comptable
 
@@ -79,5 +81,6 @@ Aucune valeur fiscale, règle de TVA ou mapping SYSCOHADA n’a été inventé. 
 - [Migration worker](../../supabase/migration_20261022_compta_worker.sql)
 - [Edge Function](../../supabase/functions/compta-worker/index.ts)
 - [Test SQL outbox](../../supabase/tests/161_compta_outbox.sql)
-- [Test SQL worker](../../supabase/tests/162_compta_worker.sql)
+- [Test SQL worker — sécurité et reprise](../../supabase/tests/162_compta_worker.sql)
+- [Test SQL worker — chemin positif](../../supabase/tests/163_compta_worker_positive.sql)
 - [Dashboard Comptable](../../src/app/pharmacie/comptable/page.tsx)
