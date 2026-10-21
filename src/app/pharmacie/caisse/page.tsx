@@ -624,6 +624,7 @@ export default function CaissePage() {
             {msg && <p role="status" aria-live="polite" className="mt-4 rounded-xl border p-3 text-sm">{msg}</p>}
           </>
         )}
+      </div>
       </CaisseWorkspaceShell>
       {ticket && ticket.length > 0 && (
         <section className="ticket-print mx-auto mt-6 w-full max-w-md rounded-xl border bg-white p-5 text-slate-950">
