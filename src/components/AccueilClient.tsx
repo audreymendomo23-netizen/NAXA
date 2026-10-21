@@ -35,7 +35,7 @@ type Produit = {
 };
 type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
-  adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean;
+  adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null;
 };
 type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; periode: string | null; source: string };
 type StockRow = {
@@ -378,7 +378,7 @@ export function AccueilClient() {
         try {
           const { data: pharmRows, error: pharmError } = await sb
             .from("pharmacies")
-            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde")
+            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at")
             .eq("actif", true)
             .eq("visible_recherche", true)
             .is("archivee_le", null)
@@ -468,7 +468,7 @@ export function AccueilClient() {
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes: GardeAuto[] = gardesAutomatiques.length
     ? gardesAutomatiques.slice(0,4)
-    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], imageUrl: null, periode: null, source: "NAXA" }));
+    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], imageUrl: p.photo_url && p.photo_verified_at && p.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) ? p.photo_url : null, periode: null, source: "NAXA" }));
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
