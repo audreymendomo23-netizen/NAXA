@@ -535,27 +535,32 @@ export function Luciole() {
         </svg>
       </div>
       <div ref={fireflyRef} className="naxa-luciole" aria-hidden="true">
-        <svg className="luciole-anatomy" viewBox="0 0 48 48" aria-hidden="true">
+        <svg className="luciole-anatomy luciole-insect" viewBox="0 0 48 48" aria-hidden="true">
+          <defs><linearGradient id="luciole-wing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#F4FFF9" stopOpacity=".92" /><stop offset=".55" stopColor="#A9FFD7" stopOpacity=".48" /><stop offset="1" stopColor="#8AF5C2" stopOpacity=".08" /></linearGradient><radialGradient id="luciole-abdomen"><stop offset="0" stopColor="#FFFBE0" /><stop offset=".42" stopColor="#FFE36A" /><stop offset="1" stopColor="#F5A623" stopOpacity=".2" /></radialGradient></defs>
+          <ellipse className="luciole-wing luciole-wing-left" cx="18" cy="17" rx="10" ry="4.4" transform="rotate(-38 18 17)" /><ellipse className="luciole-wing luciole-wing-right" cx="28" cy="17" rx="10" ry="4.4" transform="rotate(38 28 17)" /><path className="luciole-wing-vein" d="M11 21 20 14M37 21 28 14" />
+          <ellipse className="luciole-thorax" cx="24" cy="23" rx="4.1" ry="5.2" /><circle className="luciole-head" cx="24" cy="17.8" r="3.1" /><path className="luciole-antenna" d="M22 15.5 19.4 12M26 15.5 28.6 12" /><ellipse className="luciole-abdomen" cx="24" cy="30" rx="4.4" ry="7" /><ellipse className="luciole-glow-core" cx="24" cy="32" rx="2.8" ry="4.2" />
+        </svg>
+        <svg className="luciole-anatomy luciole-fairy" viewBox="0 0 48 48" aria-hidden="true">
           <defs>
-            <linearGradient id="luciole-wing" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#F4FFF9" stopOpacity=".92" />
-              <stop offset=".55" stopColor="#A9FFD7" stopOpacity=".48" />
-              <stop offset="1" stopColor="#8AF5C2" stopOpacity=".08" />
-            </linearGradient>
-            <radialGradient id="luciole-abdomen">
-              <stop offset="0" stopColor="#FFFBE0" />
-              <stop offset=".42" stopColor="#FFE36A" />
-              <stop offset="1" stopColor="#F5A623" stopOpacity=".2" />
-            </radialGradient>
+            <linearGradient id="luciole-fairy-wing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFFFFF" stopOpacity=".98" /><stop offset=".48" stopColor="#B7F5F0" stopOpacity=".82" /><stop offset="1" stopColor="#D7B8FF" stopOpacity=".34" /></linearGradient>
+            <linearGradient id="luciole-fairy-hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFF4A8" /><stop offset=".55" stopColor="#E8B94E" /><stop offset="1" stopColor="#A96B20" /></linearGradient>
+            <linearGradient id="luciole-fairy-jacket" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#16834D" /><stop offset="1" stopColor="#064526" /></linearGradient>
           </defs>
-          <ellipse className="luciole-wing luciole-wing-left" cx="18" cy="17" rx="10" ry="4.4" transform="rotate(-38 18 17)" />
-          <ellipse className="luciole-wing luciole-wing-right" cx="28" cy="17" rx="10" ry="4.4" transform="rotate(38 28 17)" />
-          <path className="luciole-wing-vein" d="M11 21 20 14M37 21 28 14" />
-          <ellipse className="luciole-thorax" cx="24" cy="23" rx="4.1" ry="5.2" />
-          <circle className="luciole-head" cx="24" cy="17.8" r="3.1" />
-          <path className="luciole-antenna" d="M22 15.5 19.4 12M26 15.5 28.6 12" />
-          <ellipse className="luciole-abdomen" cx="24" cy="30" rx="4.4" ry="7" />
-          <ellipse className="luciole-glow-core" cx="24" cy="32" rx="2.8" ry="4.2" />
+          <g className="luciole-fairy-wings" stroke="#E7C66A" strokeWidth=".42">
+            <path d="M22 17C16 7 8 3 6 7c-2 4 3 10 14 13Z" fill="url(#luciole-fairy-wing)" /><path d="M26 17C32 7 40 3 42 7c2 4-3 10-14 13Z" fill="url(#luciole-fairy-wing)" /><path d="M22 20C13 14 6 15 7 20c1 4 7 6 14 5Z" fill="url(#luciole-fairy-wing)" /><path d="M26 20C35 14 42 15 41 20c-1 4-7 6-14 5Z" fill="url(#luciole-fairy-wing)" /><path d="M23 18 8 7M23 19 8 19M25 18 40 7M25 19 40 19" fill="none" strokeOpacity=".85" />
+          </g>
+          <g className="luciole-fairy-halo" fill="none" stroke="#FFD95C" strokeWidth=".65"><ellipse cx="24" cy="4.1" rx="7.2" ry="1.7" /><ellipse cx="24" cy="4.1" rx="5.2" ry="1.15" strokeOpacity=".82" /><ellipse cx="24" cy="4.1" rx="3.1" ry=".7" strokeOpacity=".68" /></g>
+          <path d="M19 10C16 12 17 19 18 24L18.5 30 20 31 21 22 21 13ZM29 10C32 12 31 19 30 24L29.5 30 28 31 27 22 27 13Z" fill="url(#luciole-fairy-hair)" stroke="#C58B2C" strokeWidth=".45" />
+          <circle cx="24" cy="11.2" r="5" fill="#8C5139" /><path d="M19.5 10.5C19 7.3 21.2 6 24 6s5 1.4 4.5 4.5c-1.8-1-2.8-2.2-3.3-3.2-1.5 1.9-3.1 2.8-5.7 3.2Z" fill="url(#luciole-fairy-hair)" /><path d="M19.2 9.2Q24 6.6 28.8 9.2L28.4 10.3Q24 8.5 19.6 10.3Z" fill="#FFE23D" />
+          <ellipse cx="22" cy="11.2" rx="2" ry="1.8" fill="none" stroke="#E8E7DC" strokeWidth=".65" /><ellipse cx="26" cy="11.2" rx="2" ry="1.8" fill="none" stroke="#E8E7DC" strokeWidth=".65" /><path d="M24 11.2h.1" stroke="#E8E7DC" strokeWidth=".8" /><circle cx="22" cy="11.2" r=".4" fill="#242424" /><circle cx="26" cy="11.2" r=".4" fill="#242424" /><path d="M22 13.2Q24 14.5 26 13.2" fill="none" stroke="#6B3026" strokeWidth=".55" strokeLinecap="round" />
+          <g className="luciole-fairy-body" strokeLinecap="round" strokeLinejoin="round">
+            <path className="luciole-arm-back" d="M21 16 15 19 11 17" fill="none" stroke="#8C5139" strokeWidth="1.8" /><path className="luciole-arm-front" d="M27 16 33 19 37 17" fill="none" stroke="#8C5139" strokeWidth="1.8" />
+            <path d="M20 15.5 17.5 17.3 19.3 24 28.7 24 30.5 17.3 28 15.5 26 17 22 17Z" fill="url(#luciole-fairy-jacket)" stroke="#0B4A2A" strokeWidth=".45" /><path d="M22 16.5 24 19 26 16.5 27 23.8 21 23.8Z" fill="#FFFFFF" />
+            <text x="24" y="21.5" textAnchor="middle" fontSize="2.55" fontWeight="800" fill="#FFE23D">N<tspan fill="#16834D">AXA</tspan></text>
+            <path d="M19.3 23.5 28.7 23.5 30 30 18 30Z" fill="#FFFFFF" stroke="#D8D8D8" strokeWidth=".4" /><path d="M18 29.5 30 29.5 28.8 31.5 19.2 31.5Z" fill="#FFFFFF" stroke="#D8D8D8" strokeWidth=".4" /><path d="M19.2 31.5 28.8 31.5 27.5 33 20.5 33Z" fill="#FFFFFF" /><path d="M19.1 31.5 28.9 31.5" stroke="#E8C45D" strokeWidth=".7" />
+            <path d="M21 33 22 40M27 33 26 40" stroke="#8C5139" strokeWidth="1.1" strokeLinecap="round" /><path d="M21.4 39.6 21.1 41.5M26.6 39.6 26.9 41.5" stroke="#8C5139" strokeWidth=".85" strokeLinecap="round" />
+          </g>
+          <circle className="luciole-glow-core" cx="24" cy="24" r="2.4" fill="#FFE78A" opacity=".18" />
         </svg>
         <span className="luciole-core" />
         {Array.from({ length: SPARKS }, (_, i) => <i key={i} className="luciole-spark" />)}
