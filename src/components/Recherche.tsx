@@ -232,7 +232,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                   <img
                     src={medicament.imageUrl || PHOTO_MEDICAMENT_PAR_DEFAUT}
                     onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
-                    alt={medicament.imageUrl ? "Image issue de l'étiquetage externe, pas nécessairement du conditionnement camerounais" : "Photo non disponible"}
+                    alt={medicament.imageUrl ? "Image illustrative externe, vérifier la correspondance avec le médicament et son conditionnement" : "Photo non disponible"}
                     className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain"
                     loading="lazy" decoding="async"
                   />
