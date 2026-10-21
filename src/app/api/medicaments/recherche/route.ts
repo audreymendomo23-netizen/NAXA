@@ -276,7 +276,9 @@ export async function GET(request: NextRequest) {
       lowestPartnerPrice: stock?.lowestPrice ?? null,
       localProductId: localProduct?.id ?? null,
       localInformationValidated: localProduct?.fiche_validee === true,
-      localInformationSource: localProduct?.source_fiche ?? null
+      localInformationSource: localProduct?.source_fiche ?? null,
+      cameroonRegulatoryStatus: "a_verifier",
+      cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php"
     };
   });
 
@@ -285,6 +287,7 @@ export async function GET(request: NextRequest) {
     results,
     sourcesChecked: ["RxNorm", "OpenFDA", "DailyMed"],
     prototypeTerms: pilot ? [pilot.nomFr] : [],
+    cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
     notice: "Catalogue informatif. Disponibilité et prix affichés uniquement lorsqu’ils sont issus des stocks réels des pharmacies partenaires NAXA. Si le stock ne peut pas être vérifié, son statut reste non vérifié."
   }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } });
 }
