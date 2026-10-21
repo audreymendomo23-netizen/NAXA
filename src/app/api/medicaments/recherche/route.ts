@@ -74,6 +74,13 @@ type LocalProduct = {
 };
 
 type LocalStock = { produit_id: string; pharmacie_id: string; quantite: number; prix: number | null };
+type BdpmProduct = {
+  cis: string; nom: string; forme: string | null; voies_administration: string | null;
+  statut_amm: string | null; etat_commercialisation: string | null; date_amm: string | null;
+  titulaires: string | null; substances_actives: string | null; source_nom: string;
+  source_url: string; source_dataset_updated_at: string | null;
+};
+
 
 async function localProductsFor(term: string): Promise<LocalProduct[]> {
   const sb = supabaseServer();
@@ -92,6 +99,25 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
       unique.set(product.id, product);
     }
     return [...unique.values()].slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+
+async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
+  const needle = term.trim().replace(/[,%()]/g, " ").replace(/\\s+/g, " ").slice(0, 80);
+  if (needle.length < 2) return [];
+  try {
+    const sb = supabaseServer();
+    const fields = "cis,nom,forme,voies_administration,statut_amm,etat_commercialisation,date_amm,titulaires,substances_actives,source_nom,source_url,source_dataset_updated_at";
+    const [byName, bySubstance] = await Promise.all([
+      sb.from("medicaments_referentiel_sources").select(fields).ilike("nom", "%" + needle + "%").limit(8),
+      sb.from("medicaments_referentiel_sources").select(fields).ilike("substances_actives", "%" + needle + "%").limit(8)
+    ]);
+    const unique = new Map<string, BdpmProduct>();
+    for (const item of [...(byName.data ?? []), ...(bySubstance.data ?? [])] as BdpmProduct[]) unique.set(item.cis, item);
+    return [...unique.values()].slice(0, 10);
   } catch {
     return [];
   }
@@ -260,7 +286,7 @@ export async function GET(request: NextRequest) {
   });
   // Les images SPL de tiers ne sont pas copiées ni affichées sans licence commerciale vérifiée.
 
-  const localProducts = await localProductsFor(query);
+  const [localProducts, bdpmProducts] = await Promise.all([localProductsFor(query), bdpmProductsFor(query)]);
   const localStocks = await realPartnerAvailability(localProducts.map((product) => product.id));
   const normalizedQuery = normaliserTerme(query);
   const candidates: Candidate[] = [];
@@ -309,7 +335,8 @@ export async function GET(request: NextRequest) {
         ...(candidate.rxcui ? [{ name: "RxNorm", role: "normalisation du nom", url: "https://rxnav.nlm.nih.gov/REST/rxcui/" + candidate.rxcui + "/allProperties.json" }] : []),
         ...(preferredFda ? [{ name: "openFDA", role: "notice et rubriques de sécurité", url: "https://open.fda.gov/apis/drug/label/", updatedAt: typeof preferredFda.effective_time === "string" ? preferredFda.effective_time : null }] : []),
         ...(matchedDaily && typeof matchedDaily.setid === "string" ? [{ name: "DailyMed", role: "notice structurée SPL", url: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + matchedDaily.setid }] : []),
-        ...(localProduct?.source_fiche ? [{ name: localProduct.source_fiche.toLowerCase().includes("bdpm") ? "BDPM / catalogue local" : "Catalogue local NAXA", role: localProduct.fiche_validee ? "fiche locale validée" : "fiche locale non validée", url: "https://base-donnees-publique.medicaments.gouv.fr/telechargement" }] : [])
+        ...(localProduct?.source_fiche ? [{ name: localProduct.source_fiche.toLowerCase().includes("bdpm") ? "BDPM / catalogue local" : "Catalogue local NAXA", role: localProduct.fiche_validee ? "fiche locale validée" : "fiche locale non validée", url: "https://base-donnees-publique.medicaments.gouv.fr/telechargement" }] : []),
+        { name: "DPML Cameroun", role: "référence à consulter pour vérifier l’autorisation locale", url: "https://dpml.cm/repertoireDesAmm/index.php" }
       ],
       imageUrl: storagePhotoUrl,
       imageSource: storagePhotoUrl ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
@@ -338,10 +365,52 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  const existingNames = new Set(results.map((item) => normaliserTerme(item.name)));
+  const bdpmResults = bdpmProducts
+    .filter((item) => !existingNames.has(normaliserTerme(item.nom)))
+    .slice(0, Math.max(0, 10 - results.length))
+    .map((item) => ({
+      id: "bdpm-" + item.cis,
+      name: item.nom,
+      brand: null,
+      activeIngredient: item.substances_actives,
+      form: item.forme,
+      definition: null,
+      indications: null,
+      safetyInformation: null,
+      sourceDetails: [
+        { name: item.source_nom || "BDPM", role: "référentiel français importé dans NAXA", url: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement", updatedAt: item.source_dataset_updated_at },
+        { name: "DPML Cameroun", role: "à consulter pour vérifier l’autorisation au Cameroun", url: "https://dpml.cm/repertoireDesAmm/index.php" }
+      ],
+      imageUrl: null,
+      imageSource: null,
+      imageSourceUrl: null,
+      imageLicense: null,
+      imageAttribution: null,
+      imageTitle: null,
+      source: [item.source_nom || "BDPM"],
+      sourceUrl: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
+      availability: "non_verifiee" as const,
+      partnerPharmacyCount: null,
+      lowestPartnerPrice: null,
+      localProductId: null,
+      localInformationValidated: false,
+      localInformationSource: item.source_nom,
+      cameroonRegulatoryStatus: "a_verifier" as const,
+      cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
+      bdpmCis: item.cis,
+      bdpmCommercialStatus: item.etat_commercialisation,
+      bdpmAmmaStatus: item.statut_amm,
+      bdpmRoutes: item.voies_administration,
+      bdpmHolder: item.titulaires,
+      bdpmSourceDatasetUpdatedAt: item.source_dataset_updated_at
+    }));
+  const combinedResults = [...results, ...bdpmResults].slice(0, 10);
+
   return NextResponse.json({
     query,
-    results,
-    sourcesChecked: ["RxNorm", "openFDA", "DailyMed", ...(localProducts.some((product) => (product.source_fiche ?? "").toLowerCase().includes("bdpm")) ? ["BDPM (données locales déjà importées)"] : [])],
+    results: combinedResults,
+    sourcesChecked: ["RxNorm", "openFDA", "DailyMed", ...(bdpmProducts.length || localProducts.some((product) => (product.source_fiche ?? "").toLowerCase().includes("bdpm")) ? ["BDPM (référentiel français importé)"] : [])],
     prototypeTerms: pilot ? [pilot.nomFr] : [],
     cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
     notice: "Catalogue informatif. Disponibilité et prix affichés uniquement lorsqu’ils sont issus des stocks réels des pharmacies partenaires NAXA. Si le stock ne peut pas être vérifié, son statut reste non vérifié."
