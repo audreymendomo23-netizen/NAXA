@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { chargerGardesMfasha, MFASHA_SOURCE_URL } from "@/lib/pharmacies-gardes/mfasha";
+import { PhotoPharmacie } from "@/components/PhotoPharmacie";
 
 export const dynamic = "force-dynamic";
 
@@ -122,13 +123,7 @@ export default async function PharmaciesDeGarde() {
           <ul className="space-y-3">
             {externe.pharmacies.map((p) => (
               <li key={p.id} className="carte overflow-hidden space-y-0">
-                {p.imageUrl ? (
-                  <img src={p.imageUrl} alt={`Photo de la pharmacie ${p.nom}`} loading="lazy" className="mb-3 h-44 w-full rounded-xl object-cover" />
-                ) : (
-                  <div className="mb-3 flex h-36 w-full items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-800" role="img" aria-label={`Photo non fournie pour ${p.nom}`}>
-                    <div className="text-center"><span className="text-4xl" aria-hidden="true">✚</span><p className="mt-2 text-xs font-medium">Photo non publiée par la source</p></div>
-                  </div>
-                )}
+                <PhotoPharmacie nom={p.nom} src={p.imageUrl} lieu={p.quartier} />
                 <div className="space-y-1">
                 <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
                 {p.quartier && <p className="text-sm text-slate-600">{p.quartier}</p>}
@@ -160,7 +155,7 @@ export default async function PharmaciesDeGarde() {
           <ul className="space-y-3">
             {pharmaciesLocales.map((p) => (
               <li key={p.id} className="carte space-y-1">
-                {p.photo_url ? <img src={p.photo_url} alt={`Photo de ${p.nom}`} loading="lazy" className="mb-3 h-40 w-full rounded-xl object-cover" /> : <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800" role="img" aria-label={`Photo non disponible pour ${p.nom}`}><span className="text-center text-sm">✚<br />Photo non disponible</span></div>}
+                <PhotoPharmacie nom={p.nom} src={p.photo_url} lieu={p.quartier || p.adresse} hauteur="compacte" />
                 <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
                 {(p.quartier || p.adresse) && (
                   <p className="text-sm text-slate-600">
