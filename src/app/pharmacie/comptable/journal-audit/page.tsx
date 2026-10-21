@@ -38,6 +38,9 @@ export default async function JournalAuditComptablePage({ searchParams }: { sear
   if (action) query = query.ilike("action", "%" + action.replace(/[%,()]/g, "") + "%");
   const result = invalid ? { data: null, error: { message: "Période invalide" } } : await query;
   const rows = result.data ?? [];
+  const integrity = invalid
+    ? { data: null, error: { message: "Période invalide" } }
+    : await sb.rpc("compta_verifier_audit", { p_pharmacie: profile.pharmacie_id });
 
   return <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 pb-16">
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-naxa-green-900 p-5 text-white">
@@ -50,6 +53,7 @@ export default async function JournalAuditComptablePage({ searchParams }: { sear
       <label className="text-sm font-medium text-slate-700">Action contient<input name="action" maxLength={80} defaultValue={action} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 px-3" /></label>
       <div className="flex items-end gap-2"><button className="min-h-11 rounded-xl bg-naxa-green-900 px-4 font-semibold text-white">Filtrer</button><Link href="/pharmacie/comptable/journal-audit" className="rounded-xl border border-slate-300 px-3 py-3 text-sm">Réinitialiser</Link></div>
     </form>
+    {integrity.error ? <section role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>Intégrité non vérifiée.</strong> La vérification de la chaîne n’a pas pu aboutir ; cela ne signifie pas nécessairement qu’elle est altérée. Contrôlez les privilèges et réessayez.</section> : <section role="status" className={integrity.data === true ? "rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" : "rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"}><strong>{integrity.data === true ? "Chaîne d’audit vérifiée." : "Alerte : chaîne d’audit invalide."}</strong> {integrity.data === true ? "Séquences, liens de hachage et empreintes correspondent au contrôle disponible." : "Ne considérez pas le journal comme intègre avant investigation."}</section>}
     {result.error ? <section role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Le journal d’audit n’a pas pu être chargé. Vérifiez les privilèges et les politiques RLS.</section> :
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 p-4"><h2 className="font-bold">Événements récents</h2><p className="mt-1 text-sm text-slate-600">{rows.length} événement(s) affiché(s), maximum 200. Les données sont consultables mais non modifiables depuis ce poste.</p></div>
