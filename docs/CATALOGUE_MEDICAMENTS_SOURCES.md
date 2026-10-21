@@ -33,4 +33,4 @@ Le prix éventuel vient exclusivement des lignes de stock locales. La quantité 
 
 - Test statique applicatif : `npm run test:catalogue-medicaments`
 - Test SQL : `supabase/tests/221_medicament_photo_provenance_storage.sql`
-- La migration est additive et doit être appliquée avant le déploiement du code qui lit les nouvelles colonnes. Aucun déploiement ni changement de base de production n'est inclus dans ce chantier.
+- La migration additive `naxa_medicament_photo_provenance_storage_221` a été appliquée au projet Supabase Naxa le 21 octobre 2026 et les colonnes, le bucket et les quatre policies ont été vérifiés en base. Le code applicatif n'a pas été déployé : la version actuellement servie sur le site ne reflète donc pas encore ces modifications. Aucun déploiement Vercel n'a été déclenché.
