@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normaliserTerme, termesRecherche, trouverMedicamentPilote } from "@/lib/medicaments/catalogue-pilote";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,72 @@ function formFromText(value: string): string | null {
     [/\b(oral powder|powder)\b/i, "Poudre orale"]
   ];
   return forms.find(([pattern]) => pattern.test(value))?.[1] ?? null;
+}
+
+
+type LocalProduct = {
+  id: string;
+  nom: string;
+  dci: string | null;
+  photo_url: string | null;
+  description: string | null;
+  indications: string | null;
+  precautions: string | null;
+  source_fiche: string | null;
+  fiche_validee: boolean | null;
+};
+
+type LocalStock = { produit_id: string; pharmacie_id: string; quantite: number; prix: number | null };
+
+async function localProductsFor(term: string): Promise<LocalProduct[]> {
+  const sb = supabaseServer();
+  const needle = term.trim().slice(0, 80);
+  if (needle.length < 2) return [];
+  try {
+    const [byName, byDci] = await Promise.all([
+      sb.from("produits").select("id,nom,dci,photo_url,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
+      sb.from("produits").select("id,nom,dci,photo_url,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
+    ]);
+    if (byName.error && byDci.error) return [];
+    const unique = new Map<string, LocalProduct>();
+    for (const product of [...(byName.data ?? []), ...(byDci.data ?? [])] as LocalProduct[]) {
+      unique.set(product.id, product);
+    }
+    return [...unique.values()].slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+async function realPartnerAvailability(productIds: string[]): Promise<Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }>> {
+  const result = new Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }>();
+  if (!productIds.length) return result;
+  try {
+    const sb = supabaseServer();
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await sb.from("stocks")
+      .select("produit_id,pharmacie_id,quantite,prix,pharmacies!inner(actif)")
+      .in("produit_id", productIds)
+      .gt("quantite", 0)
+      .eq("pharmacies.actif", true)
+      .or("date_peremption.is.null,date_peremption.gte." + today);
+    if (error || !data) return result;
+    const grouped = new Map<string, { pharmacies: Set<string>; quantity: number; lowestPrice: number | null }>();
+    for (const row of data as unknown as LocalStock[]) {
+      const current = grouped.get(row.produit_id) ?? { pharmacies: new Set<string>(), quantity: 0, lowestPrice: null };
+      current.pharmacies.add(row.pharmacie_id);
+      current.quantity += Math.max(0, Number(row.quantite) || 0);
+      const price = Number(row.prix);
+      if (Number.isFinite(price) && price >= 0 && (current.lowestPrice === null || price < current.lowestPrice)) current.lowestPrice = price;
+      grouped.set(row.produit_id, current);
+    }
+    for (const [id, stock] of grouped) {
+      result.set(id, { pharmacies: stock.pharmacies.size, quantity: stock.quantity, lowestPrice: stock.lowestPrice });
+    }
+  } catch {
+    // Un échec de lecture ne doit jamais être interprété comme une indisponibilité confirmée.
+  }
+  return result;
 }
 
 async function jsonFetch(url: string): Promise<AnyRecord | null> {
@@ -173,6 +240,8 @@ export async function GET(request: NextRequest) {
   if (matchedDaily && typeof matchedDaily.setid === "string") imageUrl = await dailyMedImage(matchedDaily.setid);
 
   const candidates = [...uniqueCandidates.values()].slice(0, 10);
+  const localProducts = await localProductsFor(query);
+  const localStocks = await realPartnerAvailability(localProducts.map((product) => product.id));
   const results = candidates.map((candidate, index) => {
     const raw = candidate.rawName;
     const localizedGeneric = Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
@@ -198,7 +267,7 @@ export async function GET(request: NextRequest) {
       form: formValue ? cleanName(formValue) : null,
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
-      imageUrl: imageMatches ? imageUrl : null,
+      imageUrl: localProduct?.photo_url || (imageMatches ? imageUrl : null),
       imageSource: imageMatches ? "DailyMed — étiquetage américain, conditionnement local non garanti" : null,
       source: [
         candidate.rxcui ? "RxNorm" : null,
@@ -210,7 +279,12 @@ export async function GET(request: NextRequest) {
         : matchedDaily && typeof matchedDaily.setid === "string"
           ? "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + matchedDaily.setid
           : "https://open.fda.gov/apis/drug/label/",
-      availability: "non_verifiee"
+      availability,
+      partnerPharmacyCount: stock?.pharmacies ?? null,
+      lowestPartnerPrice: stock?.lowestPrice ?? null,
+      localProductId: localProduct?.id ?? null,
+      localInformationValidated: localProduct?.fiche_validee === true,
+      localInformationSource: localProduct?.source_fiche ?? null
     };
   });
 
@@ -219,6 +293,6 @@ export async function GET(request: NextRequest) {
     results,
     sourcesChecked: ["RxNorm", "OpenFDA", "DailyMed"],
     prototypeTerms: pilot ? [pilot.nomFr] : [],
-    notice: "Catalogue informatif. Les stocks et prix sont confirmés uniquement par les pharmacies partenaires NAXA."
+    notice: "Catalogue informatif. Disponibilité et prix affichés uniquement lorsqu’ils sont issus des stocks réels des pharmacies partenaires NAXA. Si le stock ne peut pas être vérifié, son statut reste non vérifié."
   }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } });
 }
