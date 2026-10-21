@@ -136,3 +136,19 @@ Le tableau de bord du gestionnaire de stock a également été corrigé sur `mai
 - Aucun déploiement n’a été lancé, conformément à la consigne.
 - Le build, le lint et le typecheck frontend ne sont toujours pas exécutés ici. Les modifications TypeScript/React ne sont donc pas certifiées compilées.
 - Le test d’inventaire transactionnel automatisé a réussi ses assertions structurelles. Un scénario de comptage/clôture avec changement physique a été tenté mais n’a pas pu démarrer, car aucun couple profil-pharmacie actuellement présent ne satisfait le contrôle `naxa_scope_allows` dans les données de test disponibles. Ce n’est pas présenté comme un succès E2E.
+
+
+### Diagnostic complémentaire après la demande d’exécution
+
+Le blocage de l’inventaire a été diagnostiqué dans les données de l’environnement, sans contourner les contrôles d’accès :
+
+- La base contient 9 profils actifs, mais uniquement les rôles `admin` et `client`.
+- Les 3 pharmacies actives n’ont aucun profil lié par `profiles.pharmacie_id`.
+- Aucun profil Promoteur n’est présent pour satisfaire la hiérarchie et la validation commerciale requises par `naxa_scope_allows(..., 'PHARMACIE')`.
+- La base contient 9 lignes de stock, 0 lot et 0 inventaire avant les scénarios; les scénarios transactionnels n’ont laissé aucune ligne de test.
+
+Le test E2E de clôture ne doit donc pas être forcé en désactivant temporairement la vérification de périmètre : cela invaliderait la preuve de sécurité recherchée. Il doit être relancé avec un jeu de test isolé comprenant un Promoteur valide, sa relation active à une pharmacie, un profil pharmacie autorisé et un stock associé.
+
+### Vérification frontend
+
+J’ai tenté de cloner `main` pour exécuter les commandes locales. L’environnement d’exécution ne résout pas `github.com` (`Could not resolve host: github.com`). Aucun build, lint ou typecheck n’a donc été exécuté. Aucun nouveau déploiement n’a été déclenché pour contourner cette limite.
