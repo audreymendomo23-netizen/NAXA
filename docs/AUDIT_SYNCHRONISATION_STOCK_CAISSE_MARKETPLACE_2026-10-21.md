@@ -104,7 +104,7 @@ Les scénarios ont été exécutés dans des transactions annulées ensuite : au
 3. La disponibilité Marketplace reste au niveau du hold précédent, sans double décrément.
 4. La réservation passe à `payee` et son `consumed_by_vente_id` correspond à la vente créée.
 
-**PASS —** le test `supabase/tests/215_pos_debit_at_finalization.sql` a été rejoué après les dernières réconciliations de lots, sans erreur. Le test existant `supabase/tests/212_reservation_holds_stock_service_inventory.sql` a également été rejoué après la restauration POS/ERP, sans erreur. Le comptage post-test confirme qu’aucune caisse de test n’a été conservée.
+**PASS —** les tests `supabase/tests/215_pos_debit_at_finalization.sql`, `supabase/tests/219_pos_fefo_lot_stock_sync.sql` et `supabase/tests/212_reservation_holds_stock_service_inventory.sql` ont été exécutés après les dernières réconciliations, sans erreur. Le test 219 crée deux lots synthétiques avec échéances différentes dans une transaction annulée, vérifie que le lot FEFO est consommé en premier et que la somme des lots, le stock agrégé et la disponibilité Marketplace restent alignés. Le comptage post-test confirme qu’aucune caisse, aucun lot ni aucun brouillon de test n’a été conservé.
 
 ## Reste vérifiable
 
