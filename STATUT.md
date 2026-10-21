@@ -482,8 +482,9 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 ## Compte Comptable — Étape 8 « Clôtures, exports, audit » — 21/10/2026
 - Migration additive `supabase/migration_20261025_compta_cloture_etape8.sql` : table des contrôles de clôture et RPC serveur `compta_cloturer_periode` ; vérifications des preuves de dotations, paie, TVA, stock et rapprochements, avec régularisations/à-nouveaux pour la clôture annuelle, événements en attente/erreur, équilibre des écritures et chaîne d’audit.
 - Exports CSV/XLSX/PDF étendus au grand livre et à la balance ; agrégation monétaire en bigint, dates de période corrigées. Les états bilan/résultat/TVA/paie restent à construire après confirmation des sources et mappings validés.
+- Parcours `/pharmacie/comptable/clotures` et API `/api/pharmacie/comptable/clotures` ajoutés pour enregistrer les contrôles via RPC serveur et demander la clôture ; la page ne crée pas de période et indique explicitement si aucune n’existe.
 - La page Journal d’audit affiche le résultat de la vérification de chaîne.
-- Test SQL structurel `supabase/tests/167_compta_cloture_etape8_structure.sql` : PASS sur la base isolée `naxa-ci-replay-2`. Chaînes d’audit vides : 6/6 valides, 0 invalide.
+- Tests SQL structurels `167_compta_cloture_etape8_structure.sql` et `169_compta_controles_cloture_rpc.sql` : PASS sur la base isolée. Test transactionnel `168_compta_audit_chain_integrity.sql` : PASS, chaîne valide acceptée et altération simulée détectée puis annulée. Chaînes vides : 6/6 valides, 0 invalide.
 - Limites : aucun profil de test dans la base isolée, donc pas de test positif de clôture réelle ni de tests négatifs par identité. Typecheck, lint, build et navigateur NON EXÉCUTÉS. CI NON CONSULTÉE/LANCÉE. Base active NON MODIFIÉE. Aucun déploiement.
 - Rapport : `docs/compta/RAPPORT_ETAPE_8.md`.
 - **État : 🟡 étape 8 engagée, non certifiée ni terminée.**
