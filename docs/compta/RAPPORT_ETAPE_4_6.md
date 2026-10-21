@@ -35,12 +35,17 @@ L’étape 4 est donc **terminée au niveau du périmètre technique testé**, m
 Fichiers ajoutés :
 - `src/app/pharmacie/comptable/rapports-exports/page.tsx`
 - `src/app/api/pharmacie/comptable/exports/route.ts`
+- `supabase/migration_20261023_compta_rapports_planifies.sql`
+- `supabase/tests/164_compta_reports_rls.sql`
+- `src/app/pharmacie/comptable/creances-bordereaux/page.tsx`
+- `src/app/pharmacie/comptable/rejets-relances/page.tsx`
 
 Navigation :
 - la page est accessible depuis le tableau de bord Comptable ;
 - filtres de période début/fin ;
 - synthèses calculées depuis les données accessibles : ventes payées, dépenses, mouvements de trésorerie et écritures comptables ;
-- téléchargements CSV UTF-8 avec BOM et Excel `.xlsx` via la dépendance `xlsx` déjà déclarée dans le projet.
+- téléchargements CSV UTF-8 avec BOM, Excel `.xlsx` via la dépendance `xlsx` existante et PDF compact côté serveur (une page, limité à 48 lignes affichées). Le PDF n’est pas un export exhaustif : le CSV/Excel reste nécessaire pour les longues listes.
+- navigation vers les vues Créances & bordereaux et Rejets & relances, construites en lecture seule depuis `dossiers_assurance` et `assureurs`, sans identité client ni numéro d’adhérent/police.
 
 Types de rapport exportables :
 - ventes : dates, référence, statut, brut, remise, net et moyen de paiement ;
@@ -62,22 +67,31 @@ Types de rapport exportables :
 
 ## 3. Limites restantes de l’étape 6
 
-- Les fichiers PDF ne sont pas encore produits ; les formats livrés dans cette tranche sont CSV et Excel.
+- La génération PDF est implémentée sous forme d’état compact d’une page. La mise en page et l’ouverture dans un lecteur PDF n’ont pas été validées par un test navigateur ; le PDF limite son contenu à 48 lignes.
 - L’historique des exports est consulté depuis `compta_audit`, journal append-only existant. Le handler enregistre le type, la période, le format, le nombre de lignes et le résultat, sans stocker le contenu du fichier.
-- La génération planifiée n’est pas configurée.
+- Une migration additive définit un rapport comptable mensuel et un job `pg_cron` à 04:15 le 2 de chaque mois. Cette migration a été exécutée sur la base isolée sans erreur SQL. L’activation effective du job n’a pas pu être confirmée indépendamment ; elle n’est ni installée ni activée sur la base active.
 - Les totaux sont bornés par les données accessibles et la limite par source ; ils ne constituent pas un état exhaustif si la limite est atteinte.
 - La TVA n’est ni calculée ni supposée. Le total des mouvements de trésorerie est une somme brute, sans compensation entre entrées et sorties.
-- Le contrôle exhaustif des politiques RLS par identité de rôle n’a pas été effectué.
+- Le test `164_compta_reports_rls.sql` a réussi : `164_compta_reports_rls PASS`. Il vérifie RLS activée sur les tables comptables, l’absence de privilèges directs INSERT/UPDATE/DELETE sur les écritures et l’audit pour `authenticated`, ainsi que l’accès du `service_role` au générateur.
+- Vérification supplémentaire des privilèges SQL : le rôle `authenticated` n’a pas les privilèges de table UPDATE/DELETE sur `ventes`, `dossiers_assurance` et `tresorerie_mouvements` dans la base isolée.
+- La vérification par identité de rôle et de bout en bout reste incomplète : la base de test ne contient aucun profil, donc les parcours réels Comptable/Caissier/Pharmacien/Stock ne peuvent pas être entièrement simulés. Des politiques de lecture existantes utilisent `can_access_pharmacy` et ne constituent pas, à elles seules, une matrice complète des privilèges applicatifs.
 - Tests UI, typecheck, lint et build : NON EXÉCUTÉS. CI : NON CONSULTÉE / NON LANCÉE.
 
 Mention affichée dans les métadonnées d’export : « État préparé par NAXA, à contrôler par votre expert-comptable ».
 
-## 4. Parcours métier non modifiés
+## 4. Créances, bordereaux, rejets et relances
+
+Les deux nouvelles pages lisent les dossiers d’assurance par `pharmacie_id` et affichent uniquement les montants, le statut, les dates et la référence externe/motif de refus lorsqu’ils existent. Aucun client_id, numéro d’adhérent, numéro de police ou donnée clinique n’est présenté.
+
+La préparation/soumission de bordereaux, l’envoi de relances et les tâches assignées ne sont pas activés : aucune RPC ou privilège atomique dédié n’a été confirmé dans le schéma consulté. Les dossiers sans référence ou date de traitement sont indiqués « à examiner » et non automatiquement « rejetés ». Le compte Comptable ne peut pas s’auto-valider un bordereau.
+
+## 5. Parcours métier non modifiés
 
 Cette tranche n’ajoute aucune action de caisse et ne modifie aucune vente, dépense, écriture, clôture ou donnée de stock. Les pages de rapports et le handler sont en lecture seule sur les sources métier. Aucun déploiement n’a été effectué.
 
-## 5. Suite logique
+## 6. Suite logique
 
-1. Exécuter les contrôles frontend locaux sur le HEAD exact lorsque l’environnement de travail sera disponible.
-2. Compléter PDF, historique durable des exports et audit de génération après inspection des tables/permissions existantes.
-3. Poursuivre les créances/bordereaux et rejets/relances après validation des schémas assureurs et des privilèges de soumission.
+1. Exécuter typecheck, lint, build et tests navigateur sur le HEAD exact.
+2. Vérifier le job cron après application contrôlée de la migration sur la base cible.
+3. Définir et tester le workflow métier de préparation, validation Promoteur, dépôt, paiement rapproché et relance avec des privilèges atomiques distincts.
+4. Faire une revue complète de RLS et des RPC par rôle sur une base de test dotée de profils dédiés.
