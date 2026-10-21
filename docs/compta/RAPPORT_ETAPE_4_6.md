@@ -15,6 +15,7 @@ Les migrations outbox/worker déjà présentes sur la base de test ont été uti
 | `161_compta_outbox.sql` | Exécuté sans exception SQL ; aucun résultat tabulaire retourné |
 | `162_compta_worker.sql` | Exécuté sans exception SQL ; contrôle de rôle service_role exécuté |
 | `163_compta_worker_positive.sql` | PASS explicite : `163_compta_worker_positive PASS` |
+| Audit transactionnel de génération d’export | PASS explicite : `audit_export_transactionnel PASS`; événement temporaire annulé par ROLLBACK |
 
 Le scénario positif confirme, dans une transaction annulée ensuite, la réclamation d’un événement de vente, le traitement avec une période ouverte, des mappings et un journal de test explicitement validés, la création d’une écriture de deux lignes équilibrées à 12 500 FCFA et la finalisation de l’événement. Les fixtures de test sont annulées par `ROLLBACK`.
 
@@ -62,7 +63,7 @@ Types de rapport exportables :
 ## 3. Limites restantes de l’étape 6
 
 - Les fichiers PDF ne sont pas encore produits ; les formats livrés dans cette tranche sont CSV et Excel.
-- L’historique persistant des exports n’est pas implémenté : aucune table confirmée pour cet usage n’a été ajoutée.
+- L’historique des exports est consulté depuis `compta_audit`, journal append-only existant. Le handler enregistre le type, la période, le format, le nombre de lignes et le résultat, sans stocker le contenu du fichier.
 - La génération planifiée n’est pas configurée.
 - Les totaux sont bornés par les données accessibles et la limite par source ; ils ne constituent pas un état exhaustif si la limite est atteinte.
 - La TVA n’est ni calculée ni supposée. Le total des mouvements de trésorerie est une somme brute, sans compensation entre entrées et sorties.
