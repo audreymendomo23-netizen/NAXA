@@ -123,6 +123,8 @@ export default function ProfilClientPage() {
       const { data: { user } } = await sb.auth.getUser();
       if (!active) return;
       if (!user) { router.replace("/connexion?retour=" + encodeURIComponent("/client/profil")); return; }
+      photoStorageKey = `${PHOTO_KEY}:${user.id}`;
+      setCurrentUserId(user.id);
       const { data: row } = await sb.from("profiles").select("username,first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
       const { data: prefs } = await sb.from("client_preferences").select("adresse_defaut,quartier").eq("user_id", user.id).maybeSingle();
       const { count } = await sb.from("reservations").select("id", { count: "exact", head: true }).eq("client_id", user.id);
@@ -151,7 +153,7 @@ export default function ProfilClientPage() {
       setDraft({ name, phone, email });
       setLoaded(true);
     })();
-    const onPhotoUpdate = () => { try { const photo = window.localStorage.getItem(PHOTO_KEY); setProfile(p => ({ ...p, photo })); } catch {} };
+    const onPhotoUpdate = () => { try { const photo = window.localStorage.getItem(photoStorageKey); setProfile(p => ({ ...p, photo })); } catch {} };
     window.addEventListener(PROFILE_EVENT, onPhotoUpdate);
     return () => { active = false; window.removeEventListener(PROFILE_EVENT, onPhotoUpdate); streamRef.current?.getTracks().forEach(track => track.stop()); };
   }, [router]);
