@@ -14,7 +14,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - La table `stocks_lots` active ne contenait que les colonnes historiques `lot/peremption` et n’avait pas d’identifiant `id` ni de colonnes canoniques. Les tables fournisseurs, réceptions et inventaires ne sont pas présentes dans le schéma actif. La migration fondation ci-dessous comble explicitement cet écart, sans inventer de numéros de lot ni de péremptions.
 - La liste Supabase indique des migrations enregistrées jusqu’à la série 153; les migrations ERP 154+ du dépôt ne sont pas considérées comme exécutées par ce constat.
 
-- Les tables existantes `reservations`, `reservation_items`, `stocks`, `stocks_lots`, `notifications`, `fils_messages`, `messages_pharmacie`, `fournisseurs`, `commandes_fournisseurs`, `receptions_fournisseurs`, `inventaires` et `inventaire_lignes` sont conservées.
+- Les tables déjà présentes dans la base inspectée sont `reservations`, `reservation_items`, `stocks`, `stocks_lots`, `notifications`, `fils_messages` et `messages_pharmacie`. Les tables `fournisseurs`, `commandes_fournisseurs`, `receptions_fournisseurs`, `inventaires` et `inventaire_lignes` doivent être créées par la migration de fondation; elles ne sont pas présentées comme déjà déployées.
 - La réservation reste la source de vérité. L’annulation passe par `public.set_reservation_status`, qui contrôle les transitions et restitue le stock.
 - La migration 161 indique que le stock d’une réservation est déjà réservé; l’encaissement POS ne doit donc pas le débiter une seconde fois.
 - Le paiement et le retrait restent traités par le parcours de caisse existant. NAXA ne propose pas de livraison dans le parcours de réservation avec retrait.
@@ -37,7 +37,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 188 : ajoute les emplacements facultatifs et le lien notification-réservation. La notification est créée/actualisée à partir des lignes produits, pour couvrir aussi une insertion des lignes dans un appel séparé; une seule notification est conservée par dossier. Les mises à jour de notification sont reçues en temps réel lorsque le client est connecté.
 - Migration 189 : journalise les transitions de statut, crée les notifications client et fournit un rappel idempotent à 30 minutes avec index anti-doublon. La migration tente de planifier pg_cron si disponible; l’exécution réelle reste à confirmer.
 - Migration 190 : relie les messages à une réservation, ajoute une RPC sécurisée d’envoi et propage le lien aux réponses dans le fil.
-- Migration 195 : confirme une réservation via une RPC serveur qui vérifie l’état, l’expiration, le périmètre et la couverture des demandes actives par les lots non périmés/non bloqués lorsqu’ils existent.
+- Migration 195 introduit la RPC de confirmation; migration 201 la remplace par une vérification des allocations de lots réellement réservées, de l’état, de l’expiration et du périmètre, sans comparer une seconde fois la demande au stock déjà réservé.
 - Page de détail client : affiche l’historique des transitions et le formulaire de message lié au dossier.
 - Notifications : les alertes de statut/expiration pointent vers le détail client; les notifications de réservation pointent vers la file de traitement; les messages routent vers la boîte de réception correspondant au destinataire.
 
@@ -48,7 +48,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 191 : ajoute les RPC d’emplacement pour le stock et les lots, avec vérification de périmètre et de rôle.
 - Migration 192 : ajoute une réception fournisseur atomique, avec lot et péremption obligatoires, refus des lots déjà périmés, mise à jour des quantités, historique de réception et refus en cas d’incohérence stock/lots. Les réceptions répétées d’un même lot augmentent sa quantité sans créer de doublon.
 - Migration 193 : ajoute les sessions de prise/fin de service du Gestionnaire de stock.
-- Migration 194 : ajoute les RPC transactionnelles de démarrage, d’ajout de référence, de comptage, de clôture et d’annulation d’inventaire, le détail par lot, l’application des écarts et un journal d’ajustements consultable dans les rapports. Les mouvements externes ne sont pas encore bloqués pendant le comptage; l’écran avertit de suspendre les mouvements.
+- Migration 194 : ajoute les RPC transactionnelles de démarrage, d’ajout de référence, de comptage, de clôture et d’annulation d’inventaire, le détail par lot, l’application des écarts et un journal d’ajustements consultable dans les rapports. Migration 202 ajoute le verrou serveur des mouvements pendant le comptage; la clôture ferme le comptage dans la même transaction avant d’appliquer les écarts.
 - Migration 197 : durcit les politiques RLS du répertoire fournisseur pour empêcher les comptes non ERP de créer ou modifier des fournisseurs.
 - Migration 198 : réserve les écritures de réception et d’inventaire aux RPC contrôlées; restreint les commandes fournisseur aux rôles ERP autorisés et protège la transition brouillon → envoyée.
 - Migration 199 : permet le blocage/déblocage des lots avec motif obligatoire et contrôle de rôle/périmètre.
@@ -91,6 +91,26 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - `supabase/tests/198_stock_workflow_write_security.sql`
 - `supabase/migration_199_stock_lot_blocking.sql`
 - `supabase/tests/199_stock_lot_blocking.sql`
+- `supabase/migration_200_reservation_lot_allocation_atomic.sql`
+- `supabase/tests/200_reservation_lot_allocation_atomic.sql`
+- `supabase/migration_201_stock_reservation_confirmation_allocation.sql`
+- `supabase/tests/201_stock_reservation_confirmation_allocation.sql`
+- `supabase/migration_202_inventory_lock_stock_movements.sql`
+- `supabase/tests/202_inventory_lock_stock_movements.sql`
+- `supabase/migration_203_stock_reservation_cancel_role_guard.sql`
+- `supabase/tests/203_stock_reservation_cancel_role_guard.sql`
+- `supabase/migration_204_stock_manager_movement_journal.sql`
+- `supabase/tests/204_stock_manager_movement_journal.sql`
+- `supabase/migration_205_stock_reference_initialiser.sql`
+- `supabase/tests/205_stock_reference_initialiser.sql`
+- `supabase/migration_206_stock_manager_controlled_adjustments.sql`
+- `supabase/tests/206_stock_manager_controlled_adjustments.sql`
+- `supabase/migration_207_stock_manager_transfers.sql`
+- `supabase/tests/207_stock_manager_transfers.sql`
+- `supabase/migration_208_reservation_expiry_scheduler_service_role.sql`
+- `supabase/tests/208_reservation_expiry_scheduler_service_role.sql`
+- `src/app/api/cron/reservation-expiry/route.ts`
+- `src/app/pharmacie/gestionnaire-stock/historique-rapports/export/route.ts`
 
 ## Points de prudence à conserver
 
