@@ -103,7 +103,7 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
     {truncated && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Au moins une source atteint la limite de 5 000 lignes. Les indicateurs affichés sont partiels ; resserrez la période et vérifiez l’en-tête de l’export avant de l’utiliser.</p>}
     <section className="rounded-2xl border border-slate-200 bg-white p-4">
       <h2 className="text-lg font-bold">Générer un rapport</h2>
-      <p className="mt-1 text-sm text-slate-600">Choisissez une source et un format. Les téléchargements recontrôlent la session, le privilège et la pharmacie côté serveur.</p>
+      <p className="mt-1 text-sm text-slate-600">Choisissez une source et un format. Les téléchargements recontrôlent la session, le privilège et la pharmacie côté serveur. L’empreinte SHA-256 est renvoyée dans l’en-tête de réponse et conservée dans le journal d’audit.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {[
           {type:"ventes", title:"Journal des ventes", description:"Références, statuts, brut, remises, net et paiement."},
@@ -115,6 +115,20 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
         ].map(item => <article key={item.type} className="rounded-xl border border-slate-200 p-4">
           <h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-sm text-slate-600">{item.description}</p>
           <div className="mt-3 flex flex-wrap gap-2"><a href={qs(item.type,"csv")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">CSV</a><a href={qs(item.type,"xlsx")} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold">Excel</a><a href={qs(item.type,"pdf")} className="inline-flex min-h-11 items-center rounded-xl bg-naxa-green-900 px-4 text-sm font-semibold text-white">PDF</a></div>
+        </article>)}
+      </div>
+    </section>
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <h2 className="text-lg font-bold">États indisponibles — sources à confirmer</h2>
+      <p className="mt-1 text-sm text-slate-600">Ces exports ne sont volontairement pas générés tant que les sources et règles comptables/fiscales ne sont pas validées. Une réponse API 409 bloque aussi toute génération directe.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { title: "Bilan", reason: "Classification et règles de présentation du plan comptable à valider." },
+          { title: "Compte de résultat", reason: "Mapping des comptes de charges/produits à valider." },
+          { title: "État de TVA", reason: "Aucune source de TVA enregistrée confirmée ; aucun taux n’est supposé." },
+          { title: "État de paie", reason: "Aucune source de paie confirmée ; aucune donnée salariale n’est inventée." },
+        ].map(item => <article key={item.title} className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4">
+          <h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-sm text-slate-600">{item.reason}</p><span className="mt-3 inline-flex rounded-full border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-900">Non généré</span>
         </article>)}
       </div>
     </section>
