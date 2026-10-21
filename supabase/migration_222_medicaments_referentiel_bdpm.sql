@@ -28,6 +28,9 @@ drop policy if exists medicaments_referentiel_sources_public_read on public.medi
 create policy medicaments_referentiel_sources_public_read
   on public.medicaments_referentiel_sources for select to anon, authenticated using (true);
 
+grant select on public.medicaments_referentiel_sources to anon, authenticated;
+grant select, insert, update on public.medicaments_referentiel_sources to service_role;
+
 comment on table public.medicaments_referentiel_sources is
   'Référentiel de recherche importé de la BDPM française. Source et date du jeu conservées. Ne vaut pas autorisation au Cameroun.';
 comment on column public.medicaments_referentiel_sources.source_dataset_updated_at is
