@@ -115,6 +115,9 @@ export default async function ComptableDashboardPage() {
             <Link href="/pharmacie/comptable/documents" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
               <span className="text-sm font-semibold text-emerald-800">Documents</span><p className="mt-1 text-sm text-slate-600">Rapports, références d’abonnement et rappels de lots autorisés.</p>
             </Link>
+            <Link href="/pharmacie/comptable/referentiels" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
+              <span className="text-sm font-semibold text-emerald-800">Assureurs & fournisseurs</span><p className="mt-1 text-sm text-slate-600">Référentiels et commandes consultables sans modification.</p>
+            </Link>
             <Link href="/pharmacie/comptable/profil" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
               <span className="text-sm font-semibold text-emerald-800">Profil & déconnexion</span><p className="mt-1 text-sm text-slate-600">Compte, pharmacie rattachée et fermeture de session.</p>
             </Link>
