@@ -106,7 +106,7 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
 
 
 async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
-  const needle = term.trim().replace(/[,%()]/g, " ").replace(/\\s+/g, " ").slice(0, 80);
+  const needle = term.trim().replace(/[%,_()]/g, " ").replace(/\s+/g, " ").slice(0, 80);
   if (needle.length < 2) return [];
   try {
     const sb = supabaseServer();
@@ -365,10 +365,28 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const existingNames = new Set(results.map((item) => normaliserTerme(item.name)));
+  const mergedResults = results.map((item) => {
+    const match = bdpmProducts.find((bdpm) =>
+      normaliserTerme(bdpm.nom) === normaliserTerme(item.name) ||
+      (bdpm.substances_actives && item.activeIngredient && normaliserTerme(bdpm.substances_actives).includes(normaliserTerme(item.activeIngredient)))
+    );
+    if (!match) return item;
+    const bdpmSource = {
+      name: match.source_nom || "BDPM",
+      role: "référentiel français importé dans NAXA; ne confirme pas l’autorisation au Cameroun",
+      url: match.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
+      updatedAt: match.source_dataset_updated_at
+    };
+    return {
+      ...item,
+      source: [...new Set([...item.source, match.source_nom || "BDPM"])],
+      sourceDetails: [...item.sourceDetails, bdpmSource]
+    };
+  });
+  const existingNames = new Set(mergedResults.map((item) => normaliserTerme(item.name)));
   const bdpmResults = bdpmProducts
     .filter((item) => !existingNames.has(normaliserTerme(item.nom)))
-    .slice(0, Math.max(0, 10 - results.length))
+    .slice(0, Math.max(0, 10 - mergedResults.length))
     .map((item) => ({
       id: "bdpm-" + item.cis,
       name: item.nom,
@@ -405,7 +423,7 @@ export async function GET(request: NextRequest) {
       bdpmHolder: item.titulaires,
       bdpmSourceDatasetUpdatedAt: item.source_dataset_updated_at
     }));
-  const combinedResults = [...results, ...bdpmResults].slice(0, 10);
+  const combinedResults = [...mergedResults, ...bdpmResults].slice(0, 10);
 
   return NextResponse.json({
     query,
