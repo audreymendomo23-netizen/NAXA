@@ -18,7 +18,7 @@ begin
     raise exception 'FAIL: service_role ne peut pas enregistrer les contrôles';
   end if;
   select pg_get_functiondef(v_proc) into v_def;
-  if v_def not ilike '%reference de preuve est obligatoire%'
+  if v_def not ilike '%référence de preuve est obligatoire%'
      or v_def not ilike '%motif est obligatoire%'
      or v_def not ilike '%profiles%'
      or v_def not ilike '%compta_auditer%' then
