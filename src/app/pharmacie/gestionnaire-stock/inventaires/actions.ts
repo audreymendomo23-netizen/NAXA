@@ -23,6 +23,7 @@ export async function creerInventaireStock(formData:FormData) {
  if(!ids.includes(pharmacie)||!["complet","cible"].includes(type)) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=validation");
  const {data,error}=await sb.rpc("gestionnaire_stock_inventaire_demarrer",{p_pharmacie:pharmacie,p_type:type,p_reference:reference});
  if(error||!data) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=creation");
+ revalidatePath("/pharmacie/gestionnaire-stock");
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
  redirect("/pharmacie/gestionnaire-stock/inventaires?ok=cree");
 }
@@ -34,6 +35,7 @@ export async function compterLigneInventaire(formData:FormData) {
  if(!raw.trim()||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)||!Number.isSafeInteger(qty)||qty<0) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=comptage");
  const {error}=await sb.rpc("gestionnaire_stock_inventaire_compter",{p_ligne:id,p_quantite:qty});
  if(error) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=comptage");
+ revalidatePath("/pharmacie/gestionnaire-stock");
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
 }
 export async function cloturerInventaireStock(formData:FormData) {
@@ -42,6 +44,7 @@ export async function cloturerInventaireStock(formData:FormData) {
  if(!/^[0-9a-f-]{36}$/i.test(id)) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=validation");
  const {error}=await sb.rpc("inventaire_cloturer",{p_inventaire:id});
  if(error) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=cloture");
+ revalidatePath("/pharmacie/gestionnaire-stock");
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
  redirect("/pharmacie/gestionnaire-stock/inventaires?ok=cloture");
 }
@@ -55,6 +58,7 @@ export async function ajouterLigneInventaireStock(formData:FormData) {
  if(invError||!inv||!ids.includes(inv.pharmacie_id)||!["brouillon","en_cours"].includes(inv.statut)) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=validation");
  const {data,error}=await sb.rpc("gestionnaire_stock_inventaire_ajouter_produit",{p_inventaire:inventaire,p_produit:produit});
  if(error||!data) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=ligne");
+ revalidatePath("/pharmacie/gestionnaire-stock");
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
  redirect("/pharmacie/gestionnaire-stock/inventaires?ok=ligne");
 }
@@ -68,6 +72,7 @@ export async function annulerInventaireStock(formData:FormData) {
  if(invError||!inv||!ids.includes(inv.pharmacie_id)||!["brouillon","en_cours"].includes(inv.statut))redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=annulation");
  const {data,error}=await sb.rpc("gestionnaire_stock_inventaire_annuler",{p_inventaire:inventaire});
  if(error||data!==true)redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=annulation");
+ revalidatePath("/pharmacie/gestionnaire-stock");
  revalidatePath("/pharmacie/gestionnaire-stock/inventaires");
  redirect("/pharmacie/gestionnaire-stock/inventaires?ok=annule");
 }
