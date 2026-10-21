@@ -29,10 +29,10 @@ Aucun écran frontend ou module métier existant n’a été modifié à cette �
 - `compta_evenement` : outbox idempotente avec état, tentatives et prochaine tentative.
 - `compta_ecriture` et `compta_ligne` : montants FCFA entiers en `bigint`, références de source et contre-passation ; contrainte différée de partie double.
 - `compta_audit` et `compta_audit_tete` : chaîne SHA-256 séquencée et fonction `compta_verifier_audit(uuid)`.
-- `compta_poster_ecriture(...)` : RPC de comptabilisation réservée au rôle serveur `service_role`, non exécutable par `anon` ou `authenticated`.
+- `compta_poster_ecriture(...)` : RPC de comptabilisation réservée au rôle serveur `service_role`, non exécutable par `anon` ou `authenticated`. La réutilisation d’une clé d’idempotence avec un contenu différent est refusée.
 - RLS activée sur toutes les tables ; lecture Comptable bornée à la pharmacie et au privilège actif ; aucune mutation directe des écritures depuis le client ; journal append-only.
 
-Le correctif du déclencheur différé a été appliqué après le premier test révélant une différence de structure entre ligne d’écriture et ligne de journal. Le test a ensuite été rejoué avec succès.
+Le correctif du déclencheur différé a été appliqué après le premier test révélant une différence de structure entre ligne d’écriture et ligne de journal. Le test a ensuite été rejoué avec succès. Le RPC a ensuite été durci pour refuser une clé d’idempotence réutilisée avec des lignes ou métadonnées différentes ; la suite SQL a été rejouée une dernière fois avec succès.
 
 ## 4. Preuves de test
 
