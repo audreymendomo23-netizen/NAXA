@@ -58,7 +58,7 @@ export async function recevoirCommandeFournisseurStock(formData:FormData){
  if(reference.length>100||commentaire.length>500)redirect(back+"?erreur=reception");
  const {error}=await sb.rpc("fournisseur_reception_enregistrer",{p_commande:commande,p_lignes:payload,p_reference:reference||null,p_commentaire:commentaire||null});
  if(error)redirect(back+"?erreur=reception");
- revalidatePath(back);revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
+ revalidatePath(back);revalidatePath("/pharmacie/gestionnaire-stock");revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
  redirect(back+"?ok=reception");
 }
 
