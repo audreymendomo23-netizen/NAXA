@@ -249,6 +249,7 @@ export default function ProfilClientPage() {
   }
   async function saveCrop() {
     if (!cropSource) return;
+    if (!currentUserId) { flash("Reconnectez-vous pour modifier votre profil."); return; }
     setSaving(true);
     try {
       const image = new Image();
