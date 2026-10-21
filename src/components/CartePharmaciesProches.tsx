@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
@@ -184,9 +183,11 @@ export default function CartePharmaciesProches({
     }
   }, []);
 
+  const selectedPharmacyId = selectedPharmacy?.id;
+
   useEffect(() => {
     let active = true;
-    if (!selectedPharmacy) {
+    if (!selectedPharmacyId) {
       setDisponibilites([]);
       setDisponibilitesState("idle");
       return () => { active = false; };
@@ -200,7 +201,7 @@ export default function CartePharmaciesProches({
         const { data: stocks, error: stockError } = await sb
           .from("stocks")
           .select("produit_id,prix,quantite,date_peremption")
-          .eq("pharmacie_id", selectedPharmacy.id)
+          .eq("pharmacie_id", selectedPharmacyId)
           .gt("quantite", 0)
           .or(`date_peremption.is.null,date_peremption.gte.${today}`)
           .limit(100);
@@ -231,7 +232,7 @@ export default function CartePharmaciesProches({
       }
     })();
     return () => { active = false; };
-  }, [selectedPharmacy?.id]);
+  }, [selectedPharmacyId]);
 
   return (
     <section className="overflow-hidden rounded-[24px] border border-[#D7E7DC] bg-white shadow-[0_12px_28px_rgba(5,74,41,0.12)]" aria-labelledby="naxa-map-title">
