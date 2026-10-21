@@ -10,7 +10,7 @@ Base utilisée pour les contrôles SQL : projet Supabase isolé `naxa-ci-replay-
 
 **PARCOURS PARTIEL — certification E2E non acquise.**
 
-Les artefacts applicatifs et migrations sont présents sur `main`, et les tests SQL 167 à 171 ont déjà renvoyé PASS sur la base isolée. Ces résultats prouvent certains garde-fous structurels, pas le parcours authentifié complet. La base isolée reste non canonique pour un rejeu intégral et ne contient pas les profils ni les données métier nécessaires à la recette E2E.
+Les artefacts applicatifs et migrations sont présents sur `main`. Lors de la reprise du 21 octobre, les tests SQL 160, 163, 164, 165, 166 et 167 à 171 ont renvoyé un marqueur PASS explicite sur la base isolée. Les tests 161 et 162 ont été exécutés sans erreur SQL remontée, mais sans marqueur PASS explicite. Ces résultats prouvent certains garde-fous structurels et un chemin positif du worker, pas le parcours authentifié complet. La base isolée reste non canonique pour un rejeu intégral et ne contient pas les profils ni les données métier nécessaires à la recette E2E.
 
 Aucun contrôle CI n'a été lancé ou consulté. Aucun déploiement n'a été effectué. Aucun changement n'a été appliqué à la base active. Aucun résultat non exécuté n'est déclaré PASS.
 
@@ -19,9 +19,9 @@ Aucun contrôle CI n'a été lancé ou consulté. Aucun déploiement n'a été e
 | Étape initiale | État constaté | Preuves | Reste à faire / critère de sortie |
 |---|---|---|---|
 | 0 — Audit initial sans modification | PARTIEL / À actualiser | `docs/compta/RAPPORT_AUDIT.md`, cahier normatif unique | L'audit initial précède plusieurs ajouts et contient des constats devenus obsolètes (ex. moteur absent). Réconcilier chaque exigence du cahier avec le code actuel, les API/RPC, RLS, migrations et tests. |
-| 1 — Base de données | PARTIELLEMENT VALIDÉ | `RAPPORT_ETAPE_1.md`; tests SQL 160 et 167–171 déjà rapportés PASS en base isolée | Réconcilier l'historique de migrations avec `main` et obtenir un rejeu propre; tester les droits par sessions authentifiées et par pharmacie. Ne pas appliquer aveuglément les migrations 133–156 sur une base dont les migrations ultérieures sont déjà enregistrées. |
+| 1 — Base de données | PARTIELLEMENT VALIDÉ | `RAPPORT_ETAPE_1.md`; tests SQL 160, 164–171 (sauf 161–162 non certifiés) exécutés sur base isolée | Réconcilier l'historique de migrations avec `main` et obtenir un rejeu propre; tester les droits par sessions authentifiées et par pharmacie. L'historique isolé présente des doublons de noms et ne comporte pas l'entrée attendue pour `migration_20261023_compta_rapports_planifies.sql`; ne pas appliquer aveuglément des migrations anciennes.
 | 2 — Moteur de calcul | CODE PRÉSENT, EXÉCUTION NON CONFIRMÉE | `src/lib/compta/{types,calculs,moteur,index}.ts`; `scripts/test-compta-moteur.cjs`; script `test:compta-moteur` dans `package.json` | Exécuter le script unitaire hors CI, corriger les échecs et prouver les cas limites, puis typecheck local hors CI. Jusqu'à cette exécution, tests = NON EXÉCUTÉS. |
-| 3 — Alimentation automatique | PARTIELLE | `RAPPORT_ETAPE_3.md`, `RAPPORT_ETAPE_4.md`; outbox et worker; tests SQL 161–163 rapportés | Prouver un flux source → événement → worker → écriture équilibrée → audit; couvrir les reprises, doublons, erreurs et les flux métier réellement pris en charge. Les retours, mouvements de stock, réception fournisseur, paie et immobilisations ne sont pas démontrés comme intégrés. |
+| 3 — Alimentation automatique | PARTIELLEMENT VALIDÉE | `RAPPORT_ETAPE_3.md`, `RAPPORT_ETAPE_4.md`; tests 160–163 exécutés, 160 et 163 PASS explicites; 161–162 sans marqueur final | Le chemin positif transactionnel du worker est vérifié; restent à certifier les tests 161–162, l'appel depuis les événements métier réels, les reprises/doublons/erreurs et les flux métier non démontrés.
 | 4 — Interface utilisateur | PARTIELLE | Routes présentes : tableau de bord, journal ventes, rapprochements, créances/bordereaux, clôtures, documents, audit, rapports/exports, profil et référentiels | Inspecter chaque route et API; prouver les états vide/erreur/interdit, les filtres, la navigation, l'accessibilité, les permissions et l'absence de données de santé. Les tests navigateur n'ont pas été exécutés. |
 | 5 — Clôtures, exports et audit | PARTIELLEMENT VALIDÉ | `RAPPORT_ETAPE_8.md`, `RAPPORT_ETAPE_9.md`, `RAPPORT_ETAPE_10.md`; SQL 167–171 PASS rapportés; CSV/XLSX/PDF et SHA-256 dans le code | Exécuter les parcours réels d'ouverture/clôture et télécharger/inspecter les exports. Bilan, résultat, TVA et paie restent correctement bloqués (HTTP 409) tant que sources/mappings ne sont pas confirmés. Tester une chaîne d'audit avec écritures réelles et une contre-passation. |
 | 6 — Recette et acceptation | BLOQUÉE / NON TERMINÉE | Rapport étape 9 et 10 : profils = 0, ventes = 0, écritures = 0 dans la base isolée | Préparer un jeu de test transactionnel et des identités de test contrôlées, puis exécuter les scénarios positifs et négatifs du cahier, avec preuves par scénario. Aucun E2E authentifié n'est confirmé. |
@@ -78,3 +78,18 @@ Ces constats proviennent de l'environnement isolé; ils ne prouvent pas que la b
 ## Prochaine étape
 
 Le premier blocage pratique est l'absence d'un environnement de test canonique avec profils et données métier. Avant d'injecter des fixtures ou de corriger l'historique, inventorier les migrations du dépôt et les dépendances réelles de la base isolée. Ne pas créer de branche ou de projet Supabase payant sans accord explicite. Ne pas toucher à la base active. Aucun CI, déploiement ou pipeline ne fait partie de cette validation.
+
+
+## Mise à jour de la reprise — 21 octobre 2026
+
+- Correction moteur sur `main` : `03b583e03d96ec5c800283438a6c36857c23cce5` — validation stricte des dates calendaires dans `resoudreMappingEvenement`.
+- Tests de régression ajoutés : `9d913120a14178bf5cd8b55f16b58151b0ec2818` — dates d'événement et de mapping impossibles, intervalle de mapping inversé.
+- Documentation de résultats actualisée : `fcb5f023afb93c84b355364b80453863be852aff`.
+- Les tests SQL 164, 165 et 166 ont été retrouvés dans le dépôt et exécutés sur la base isolée : tous trois ont retourné un marqueur PASS explicite. Ils couvrent RLS des rapports, référentiels en lecture seule et RPC des reçus d'abonnement.
+- Le contrôle JavaScript ciblé de validation de date a passé 6/6 cas attendus. Le script `npm run test:compta-moteur` n'a toujours pas été exécuté dans un checkout local; les tests ajoutés ne sont donc pas déclarés verts tant que ce script n'est pas réellement lancé.
+- Le rejeu canonique des migrations, le typecheck, le lint, le build, les tests navigateur et la recette E2E authentifiée restent non exécutés ou bloqués par l'absence d'un checkout local et de profils/données métier dans la base de test.
+- La base active Supabase n'a pas été modifiée. Aucun contrôle CI ni déploiement n'a été effectué.
+
+## Prochaine étape
+
+Obtenir un checkout local reproductible autorisé pour lancer le moteur TypeScript, typecheck, lint et build hors CI; puis constituer des identités et fixtures strictement isolées pour la recette E2E. Avant toute application de migration, examiner les dépendances de `migration_20261023_compta_rapports_planifies.sql` et les doublons de l'historique de test.
