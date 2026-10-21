@@ -12,8 +12,8 @@ Les scripts ont été récupérés depuis `main` et envoyés directement à la b
 | Test | Résultat observé | Portée |
 |---|---|---|
 | `160_compta_socle.sql` | **PASS** — marqueur explicite | Socle, équilibre, périodes, idempotence et droits couverts par ce script transactionnel. |
-| `161_compta_outbox.sql` | **EXÉCUTÉ — aucun marqueur PASS émis** | Assertions structurelles exécutées sans erreur SQL retournée; ne pas compter comme PASS explicite. |
-| `162_compta_worker.sql` | **EXÉCUTÉ — aucun marqueur PASS final émis** | Assertions de worker/reprise exécutées sans erreur SQL retournée; ne pas compter comme PASS explicite. |
+| `161_compta_outbox.sql` | **PASS** — marqueur explicite ajouté puis vérifié | Assertions structurelles de l’outbox; le script affiche maintenant un résultat explicite après rollback. |
+| `162_compta_worker.sql` | **PASS** — marqueur explicite ajouté puis vérifié | Sécurité du worker, refus de finalisation prématurée et chemin sans mapping; résultat explicite après rollback. |
 | `163_compta_worker_positive.sql` | **PASS** — marqueur explicite | Chemin positif transactionnel du worker, fixtures annulées par rollback. |
 | `164_compta_reports_rls.sql` | **PASS** — marqueur explicite | RLS des rapports planifiés. |
 | `165_compta_readonly_reference_rls.sql` | **PASS** — marqueur explicite | Référentiels en lecture seule. |
@@ -24,7 +24,7 @@ Les scripts ont été récupérés depuis `main` et envoyés directement à la b
 | `170_compta_recette_etape9_security.sql` | **PASS** — marqueur explicite | Contrôles structurels de sécurité comptable. |
 | `171_compta_recette_etape10_hardening.sql` | **PASS** — marqueur explicite | Immutabilité, partie double différée, RLS et séparation des droits. |
 
-Les tests SQL s'exécutent avec des transactions et rollback dans les scripts concernés. Au total, **10 tests ont retourné un marqueur PASS explicite** : 160, 163, 164, 165, 166 et 167 à 171. Les tests 161 et 162 ont été exécutés sans erreur SQL remontée, mais sans marqueur PASS explicite : ils restent donc non certifiés.
+Les tests SQL s'exécutent avec des transactions et rollback dans les scripts concernés. Au total, **les 12 tests comptables 160–171 ont maintenant retourné un marqueur PASS explicite** sur la base isolée. Les scripts 161 et 162 ont été ajustés pour émettre un résultat explicite après rollback, puis réexécutés avec succès.
 
 ## État de la base de test
 
@@ -74,6 +74,7 @@ Ces alertes ont été consultées sur le projet isolé uniquement. Aucune modifi
 
 - Commit `03b583e03d96ec5c800283438a6c36857c23cce5` : le moteur `src/lib/compta/moteur.ts` valide désormais les dates calendaires ISO strictement (une date comme `2026-02-31` est refusée au lieu d'être normalisée par `Date.parse`). Les fenêtres de validité des mappings avec date invalide ou intervalle inversé sont ignorées, ce qui laisse l'événement `à traiter` plutôt que de comptabiliser à partir d'un mapping mal formé.
 - Commit `9d913120a14178bf5cd8b55f16b58151b0ec2818` : tests de régression ajoutés pour date d'événement impossible, date de mapping impossible et intervalle de validité inversé.
+- Commit `5f0282cfe89d53c1f038470a288e87069956d0aa` : le test SQL 162 expose désormais un marqueur PASS après rollback. Le test 161 a également été corrigé pour exposer `161_compta_outbox PASS` (commit créé juste avant celui du test 162).
 - Un contrôle de cohérence de l'algorithme de date a été exécuté dans le runtime JavaScript sur six cas (date normale, 31 février, 29 février non bissextile, 29 février bissextile, mois invalide, format invalide) : **6/6 attendus**. Ce contrôle ciblé ne remplace pas l'exécution du script npm complet.
 
 ## État de l'historique des migrations de test
