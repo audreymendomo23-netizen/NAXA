@@ -89,9 +89,9 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   }
 }
 
-async function realPartnerAvailability(productIds: string[]): Promise<Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }>> {
+async function realPartnerAvailability(productIds: string[]): Promise<{ verified: boolean; byProduct: Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }> }> {
   const result = new Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }>();
-  if (!productIds.length) return result;
+  if (!productIds.length) return { verified: false, byProduct: result };
   try {
     const sb = supabaseServer();
     const today = new Date().toISOString().slice(0, 10);
@@ -101,7 +101,7 @@ async function realPartnerAvailability(productIds: string[]): Promise<Map<string
       .gt("quantite", 0)
       .eq("pharmacies.actif", true)
       .or("date_peremption.is.null,date_peremption.gte." + today);
-    if (error || !data) return result;
+    if (error || !data) return { verified: false, byProduct: result };
     const grouped = new Map<string, { pharmacies: Set<string>; quantity: number; lowestPrice: number | null }>();
     for (const row of data as unknown as LocalStock[]) {
       const current = grouped.get(row.produit_id) ?? { pharmacies: new Set<string>(), quantity: 0, lowestPrice: null };
