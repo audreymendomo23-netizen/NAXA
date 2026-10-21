@@ -127,14 +127,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "source_indisponible" }, { status: 503 });
   }
   const rows = (data ?? []) as Row[];
+  let sourceTruncated = rows.length === limit;
   let records: (string | number)[][];
   if (type === "grand_livre" || type === "balance") {
     const entryIds = rows.map(row => String(row.id ?? "")).filter(Boolean);
     const lineResult = entryIds.length
-      ? await sb.from("compta_ligne").select("ecriture_id,compte_id,libelle,debit_fcfa,credit_fcfa").eq("pharmacie_id", profile.pharmacie_id).in("ecriture_id", entryIds).limit(20000)
+      ? await sb.from("compta_ligne").select("ecriture_id,compte_id,libelle,debit_fcfa,credit_fcfa").eq("pharmacie_id", profile.pharmacie_id).in("ecriture_id", entryIds).limit(limit)
       : { data: [], error: null };
     if (lineResult.error) return NextResponse.json({ error: "lignes_comptables_indisponibles" }, { status: 503 });
     const lineRows = (lineResult.data ?? []) as Row[];
+    sourceTruncated = sourceTruncated || lineRows.length === limit;
     const accountIds = [...new Set(lineRows.map(line => String(line.compte_id ?? "")).filter(Boolean))];
     const accountResult = accountIds.length
       ? await sb.from("compta_plan_comptable").select("id,code,libelle,classe,statut").eq("pharmacie_id", profile.pharmacie_id).in("id", accountIds)
@@ -150,22 +152,22 @@ export async function GET(request: Request) {
           String(entry?.date_ecriture ?? ""), String(entry?.journal_code ?? ""),
           String(entry?.reference_source ?? entry?.id ?? ""), String(account?.code ?? line.compte_id ?? ""),
           String(account?.libelle ?? "Compte absent du référentiel"), String(line.libelle ?? ""),
-          Number(line.debit_fcfa ?? 0), Number(line.credit_fcfa ?? 0), String(account?.statut ?? "absent"),
+          String(line.debit_fcfa ?? "0"), String(line.credit_fcfa ?? "0"), String(account?.statut ?? "absent"),
         ];
       });
     } else {
-      const grouped = new Map<string, { account: Row; debit: number; credit: number }>();
+      const grouped = new Map<string, { account: Row; debit: bigint; credit: bigint }>();
       for (const line of lineRows) {
         const id = String(line.compte_id ?? "");
         const account = accounts.get(id) ?? { id, code: id, libelle: "Compte absent du référentiel", classe: null, statut: "absent" };
-        const current = grouped.get(id) ?? { account, debit: 0, credit: 0 };
-        current.debit += Number(line.debit_fcfa ?? 0);
-        current.credit += Number(line.credit_fcfa ?? 0);
+        const current = grouped.get(id) ?? { account, debit: 0n, credit: 0n };
+        current.debit += BigInt(String(line.debit_fcfa ?? "0"));
+        current.credit += BigInt(String(line.credit_fcfa ?? "0"));
         grouped.set(id, current);
       }
       records = [...grouped.values()].sort((a,b) => String(a.account.code).localeCompare(String(b.account.code), "fr")).map(({account,debit,credit}) => [
         String(account.code ?? ""), String(account.libelle ?? ""), account.classe == null ? "À renseigner" : Number(account.classe),
-        debit, credit, Math.max(debit-credit,0), Math.max(credit-debit,0), String(account.statut ?? "absent"),
+        debit.toString(), credit.toString(), (debit > credit ? debit-credit : 0n).toString(), (credit > debit ? credit-debit : 0n).toString(), String(account.statut ?? "absent"),
       ]);
     }
   } else {
@@ -183,7 +185,7 @@ export async function GET(request: Request) {
     ["Période début", debut ?? "Non précisée"],
     ["Période fin", fin ?? "Non précisée"],
     ["Lignes exportées", records.length],
-    ["Limite atteinte", records.length === limit ? "Oui — export potentiellement tronqué" : "Non"],
+    ["Limite atteinte", sourceTruncated || records.length === limit ? "Oui — export potentiellement tronqué" : "Non"],
     [],
   ];
   const filename = `naxa-${type}-${debut ?? "debut"}-${fin ?? "fin"}`;
@@ -196,7 +198,7 @@ export async function GET(request: Request) {
     p_objet_type: type,
     p_objet_id: filename,
     p_resultat: "succes",
-    p_motif: `format=${format}; debut=${debut ?? "non_precise"}; fin=${fin ?? "non_precise"}; lignes=${records.length}; tronque=${records.length === limit}`,
+    p_motif: `format=${format}; debut=${debut ?? "non_precise"}; fin=${fin ?? "non_precise"}; lignes=${records.length}; tronque=${sourceTruncated || records.length === limit}`,
   });
   if (audit.error) {
     return NextResponse.json({ error: "journalisation_export_indisponible" }, { status: 503 });
@@ -207,7 +209,7 @@ export async function GET(request: Request) {
       `Type: ${type} | Pharmacie: ${profile.pharmacie_id}`,
       `Genere le: ${new Date().toISOString()}`,
       `Periode: ${debut ?? "non precise"} au ${fin ?? "non precise"}`,
-      `Lignes: ${records.length}${records.length === limit ? " - LIMITE ATTEINTE" : ""}`,
+      `Lignes: ${records.length}${sourceTruncated || records.length === limit ? " - LIMITE ATTEINTE" : ""}`,
       "Etat prepare par NAXA, a controler par votre expert-comptable.",
       "",
       columns.join(" | "),
@@ -221,7 +223,7 @@ export async function GET(request: Request) {
       "Content-Disposition": `attachment; filename="${filename}.pdf"`,
       "Cache-Control": "no-store",
       "X-NAXA-Export-Rows": String(records.length),
-      "X-NAXA-Export-Truncated": records.length === limit || pdfRows.length > 48 ? "true" : "false",
+      "X-NAXA-Export-Truncated": sourceTruncated || records.length === limit || pdfRows.length > 48 ? "true" : "false",
     }});
   }
   if (format === "xlsx") {
@@ -235,7 +237,7 @@ export async function GET(request: Request) {
       "Content-Disposition": `attachment; filename="${filename}.xlsx"`,
       "Cache-Control": "no-store",
       "X-NAXA-Export-Rows": String(records.length),
-      "X-NAXA-Export-Truncated": records.length === limit ? "true" : "false",
+      "X-NAXA-Export-Truncated": sourceTruncated || records.length === limit ? "true" : "false",
     }});
   }
   const csv = [...metadata, columns, ...records].map(row => row.map(csvEscape).join(";")).join("\r\n");
