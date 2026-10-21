@@ -37,7 +37,7 @@ type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
   adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean;
 };
-type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; periode: string | null; source: string };
+type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; periode: string | null; source: string };
 type StockRow = {
   produit_id: string; pharmacie_id: string; prix: number; quantite: number;
   date_peremption: string | null;
@@ -468,7 +468,7 @@ export function AccueilClient() {
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes: GardeAuto[] = gardesAutomatiques.length
     ? gardesAutomatiques.slice(0,4)
-    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], periode: null, source: "NAXA" }));
+    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], imageUrl: null, periode: null, source: "NAXA" }));
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -691,7 +691,7 @@ export function AccueilClient() {
           {gardes.length ? <div className="naxa-carousel-viewport overflow-hidden">
             <div className="naxa-carousel-loop naxa-gardes-loop flex w-max">{[false,true].map(copy => <div key={copy?"gardes-copie":"gardes-originales"} aria-hidden={copy||undefined} className="flex w-[calc(min(100vw,480px)-2rem)] shrink-0 flex-col">
               {gardes.map((p) => copy ? <div key={p.id} className="pointer-events-none mx-3 my-2 flex min-h-[112px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-[18px] border border-[#DDE3DE] bg-white px-3 py-3 shadow-[0_3px_12px_rgba(60,64,67,0.16)]">
-                <span className="naxa-map-tile flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5] text-[#D93025]" aria-hidden="true"><svg viewBox="0 0 76 64" className="h-full w-full"><rect width="76" height="64" fill="#E9F0E4"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#fff" strokeWidth="8"/><path d="M-5 12 81 50M-6 52 80 9M22-5 49 70M58-5 16 70" stroke="#D4DED4" strokeWidth="1.2"/><path d="M0 31H76M37 0V64" stroke="#D5E7F8" strokeWidth="4"/><path d="M38 18c-6 0-10 4-10 10 0 7 10 18 10 18s10-11 10-18c0-6-4-10-10-10Z" fill="#D93025" stroke="#fff" strokeWidth="2"/><circle cx="38" cy="28" r="3" fill="#fff"/></svg></span>
+                <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]">{p.imageUrl ? <img src={p.imageUrl} alt={`Pharmacie ${p.nom}`} loading="lazy" className="h-full w-full object-cover" /> : <span className="text-2xl text-[#0F6B3F]" aria-label="Photo non disponible">✚</span>}</span>
                 <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{p.quartier || "Yaoundé"}</span></span>
                 <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
               </div> : <Link key={p.id} href="/gardes" className="mx-3 my-2 flex min-h-[112px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-[18px] border border-[#DDE3DE] bg-white px-3 py-3 shadow-[0_3px_12px_rgba(60,64,67,0.16)]">
