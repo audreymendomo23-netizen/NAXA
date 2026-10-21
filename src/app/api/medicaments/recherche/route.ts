@@ -260,6 +260,12 @@ export async function GET(request: NextRequest) {
       titleNormalized.includes(normaliserTerme(query)) ||
       (pilot && pilot.alias.some((alias) => titleNormalized.includes(normaliserTerme(alias))))
     ));
+    const localProduct = localProducts.find((product) => {
+      const productNames = [product.nom, product.dci].filter((value): value is string => Boolean(value)).map(normaliserTerme);
+      return productNames.some((productName) => productName === candidateNorm || productName === normaliserTerme(name) || productName.includes(candidateNorm) || candidateNorm.includes(productName));
+    }) ?? localProducts.find((product) => [product.nom, product.dci].filter(Boolean).some((value) => normaliserTerme(value as string) === normaliserTerme(query)));
+    const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
+    const availability = !localProduct || !localStocks.verified ? "non_verifiee" : stock?.pharmacies ? "disponible" : "indisponible";
     return {
       id: candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
