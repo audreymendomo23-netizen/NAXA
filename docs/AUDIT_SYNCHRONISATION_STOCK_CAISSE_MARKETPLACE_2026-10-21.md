@@ -3,7 +3,7 @@
 Date : 21 octobre 2026  
 Branche : `main`  
 Déploiement : **aucun**  
-Migrations appliquées à la base active pendant cette intervention : `naxa_reservation_holds_stock_service_inventory_212` et `naxa_reservation_consumption_privileges_213`.
+Migrations appliquées à la base active pendant cette intervention : `naxa_reservation_holds_stock_service_inventory_212`, `naxa_reservation_consumption_privileges_213` et `naxa_stock_service_role_guard_214`.
 
 ## Règle métier cible
 
@@ -31,6 +31,12 @@ Fichier : `supabase/migration_212_reservation_holds_stock_service_inventory.sql`
 Fichier : `supabase/migration_213_reservation_consumption_privileges.sql`.
 
 - Retire aux rôles clients l’exécution directe de `consume_reservation_for_sale`. Cette fonction ne doit être appelée que depuis une transaction de caisse de confiance.
+
+### Migration 214 — restriction du poste de service
+
+Fichier : `supabase/migration_214_stock_service_role_guard.sql`.
+
+- Restreint l’ouverture d’un service aux comptes admin/promoteur autorisés ou aux fonctions internes `gestionnaire_stock` et `magasinier`, avec vérification du périmètre pharmacie.
 
 ## Vérification réelle exécutée sur la base active
 
