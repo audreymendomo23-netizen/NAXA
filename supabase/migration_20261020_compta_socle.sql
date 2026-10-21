@@ -482,4 +482,10 @@ drop trigger if exists compta_audit_immutable on public.compta_audit;
 create trigger compta_audit_immutable before update or delete on public.compta_audit
 for each row execute function public.compta_refuser_modification_audit();
 
+-- Les fonctions de trigger ne sont pas des endpoints RPC exposés.
+revoke all on function public.compta_refuser_modification_ecriture() from public,anon,authenticated;
+revoke all on function public.compta_verifier_periode_ouverte() from public,anon,authenticated;
+revoke all on function public.compta_verifier_partie_double() from public,anon,authenticated;
+revoke all on function public.compta_refuser_modification_audit() from public,anon,authenticated;
+
 commit;
