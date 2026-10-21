@@ -87,26 +87,77 @@ export async function modifierEmplacementLot(formData: FormData) {
 }
 
 export async function ouvrirServiceGestionStock(formData: FormData) {
-  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
-  if(!auth.user)redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
-  const pharmacie=String(formData.get("pharmacie_id")??"");
-  if(!safeUuid(pharmacie))redirect("/pharmacie/gestionnaire-stock/service?erreur=validation");
-  const {error}=await sb.rpc("gestionnaire_stock_service_ouvrir",{p_pharmacie:pharmacie});
-  if(error)redirect("/pharmacie/gestionnaire-stock/service?erreur=ouverture");
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  if (!safeUuid(pharmacie)) redirect("/pharmacie/gestionnaire-stock/service?erreur=validation");
+  const { error } = await sb.rpc("stock_service_open", {
+    p_pharmacie: pharmacie,
+    p_note: String(formData.get("note_debut") ?? "").trim() || null,
+  });
+  if (error) redirect("/pharmacie/gestionnaire-stock/service?erreur=ouverture");
   revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/service");
   redirect("/pharmacie/gestionnaire-stock/service?ok=ouvert");
 }
-export async function fermerServiceGestionStock(formData: FormData) {
-  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
-  if(!auth.user)redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
-  const session=String(formData.get("session_id")??"");
-  const note=String(formData.get("note_fin")??"").trim();
-  if(!safeUuid(session)||note.length>500)redirect("/pharmacie/gestionnaire-stock/service?erreur=validation");
-  const {error}=await sb.rpc("gestionnaire_stock_service_fermer",{p_session:session,p_note:note||null});
-  if(error)redirect("/pharmacie/gestionnaire-stock/service?erreur=fermeture");
+
+function collectInventoryCounts(formData: FormData) {
+  const counts: { produit_id: string; quantite_comptee: number }[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("count_")) continue;
+    const produit_id = key.slice("count_".length);
+    const raw = String(value ?? "").trim();
+    const quantite_comptee = Number(raw);
+    if (!safeUuid(produit_id) || raw === "" || !Number.isSafeInteger(quantite_comptee) || quantite_comptee < 0) {
+      throw new Error("Comptage invalide");
+    }
+    counts.push({ produit_id, quantite_comptee });
+  }
+  if (counts.length === 0 || counts.length > 5000) throw new Error("Inventaire vide ou trop volumineux");
+  if (new Set(counts.map((line) => line.produit_id)).size !== counts.length) throw new Error("Produit dupliqué");
+  return counts;
+}
+
+export async function enregistrerComptageOuvertureServiceGestionStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
+  const session = String(formData.get("session_id") ?? "");
+  let counts;
+  try { if (!safeUuid(session)) throw new Error("Session invalide"); counts = collectInventoryCounts(formData); }
+  catch { redirect("/pharmacie/gestionnaire-stock/service?erreur=comptage_ouverture"); }
+  const { error } = await sb.rpc("stock_service_record_count", {
+    p_session: session, p_phase: "opening", p_counts: counts,
+  });
+  if (error) redirect("/pharmacie/gestionnaire-stock/service?erreur=comptage_ouverture");
   revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/service");
+  redirect("/pharmacie/gestionnaire-stock/service?ok=inventaire_ouverture");
+}
+
+export async function fermerServiceGestionStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
+  const session = String(formData.get("session_id") ?? "");
+  const note = String(formData.get("note_fin") ?? "").trim();
+  let counts;
+  try {
+    if (!safeUuid(session) || note.length > 500) throw new Error("Session invalide");
+    counts = collectInventoryCounts(formData);
+  } catch { redirect("/pharmacie/gestionnaire-stock/service?erreur=comptage_fermeture"); }
+  const { error: countError } = await sb.rpc("stock_service_record_count", {
+    p_session: session, p_phase: "closing", p_counts: counts,
+  });
+  if (countError) redirect("/pharmacie/gestionnaire-stock/service?erreur=comptage_fermeture");
+  const { error } = await sb.rpc("stock_service_close", {
+    p_session: session, p_note: note || null,
+  });
+  if (error) redirect("/pharmacie/gestionnaire-stock/service?erreur=fermeture");
+  revalidatePath("/pharmacie/gestionnaire-stock");
+  revalidatePath("/pharmacie/gestionnaire-stock/service");
+  revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
   redirect("/pharmacie/gestionnaire-stock/service?ok=ferme");
 }
 
