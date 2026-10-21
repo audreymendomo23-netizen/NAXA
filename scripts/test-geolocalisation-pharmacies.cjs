@@ -111,3 +111,28 @@ test("Interface admin : synchronisation explicite, sans lancement automatique", 
   assert.match(page, /OpenStreetMap contributors/);
   assert.doesNotMatch(page, /useEffect\(\(\)\s*=>\s*\{\s*void synchroniser\(\)/);
 });
+
+
+test("Tableau de bord : carte réelle et liste des pharmacies partagent les mêmes identifiants", () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, "..", "src", "components", "AccueilClient.tsx"), "utf8");
+  const map = fs.readFileSync(path.join(__dirname, "..", "src", "components", "CartePharmaciesProches.tsx"), "utf8");
+  assert.match(dashboard, /<CartePharmaciesProches pharmacies=\{pharmaciesProches\} position=\{coord\}/);
+  assert.match(map, /tileLayer\("https:\/\/\{s\}\.tile\.openstreetmap\.org/);
+  assert.match(map, /markersRef\.current\.set\(p\.id, marker\)/);
+  assert.match(map, /key=\{p\.id\}/);
+  assert.match(map, /ouvrirPharmacie\(p\)/);
+  assert.match(map, /fitBounds/);
+  assert.match(map, /© OpenStreetMap/);
+  assert.match(map, /Les marqueurs représentent uniquement les pharmacies partenaires NAXA/);
+  assert.doesNotMatch(dashboard, /CarteIllustrative/);
+  assert.doesNotMatch(dashboard, /liste complète des pharmacies à proximité sera bientôt disponible/);
+});
+
+test("Migration de géolocalisation : politiques RLS limitées aux administrateurs authentifiés", () => {
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migration_073_geolocalisation_rls_policy_scope.sql"), "utf8");
+  assert.match(migration, /for select to authenticated\s+using \(public\.is_admin\(\)\)/i);
+  assert.match(migration, /for insert to authenticated\s+with check \(public\.is_admin\(\)\)/i);
+  assert.match(migration, /for update to authenticated\s+using \(public\.is_admin\(\)\)\s+with check \(public\.is_admin\(\)\)/i);
+  assert.match(migration, /revoke all on public\.pharmacies_geolocalisation_referentiel from anon/i);
+  assert.doesNotMatch(migration, /drop table|delete from public\.pharmacies/i);
+});
