@@ -231,13 +231,13 @@ export async function GET(request: Request) {
       `Type: ${type} | Pharmacie: ${pharmacyName}`,
       `Genere le: ${new Date().toISOString()}`,
       `Periode: ${debut ?? "non precise"} au ${fin ?? "non precise"}`,
-      `Lignes: ${records.length}${sourceTruncated || records.length === limit ? " - LIMITE ATTEINTE" : ""}`,
+      `Source: ${records.length} ligne(s). PDF resume partiel: maximum 40 lignes detaillees; CSV/Excel pour le detail complet.`,
       "Etat prepare par NAXA, a controler par votre expert-comptable.",
       "",
       columns.join(" | "),
       ...records.map(row => row.map(pdfAscii).join(" | ")),
       "",
-      "Document limite a une page; consulter CSV/Excel pour le detail complet.",
+      "Le PDF est un resume non exhaustif; empreinte SHA-256 disponible dans les en-tetes et le journal d audit.",
     ];
     sourceTruncated = sourceTruncated || pdfRows.length > 48;
     const bytes = createSimplePdf(pdfRows);
