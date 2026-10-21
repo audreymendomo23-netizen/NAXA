@@ -8,6 +8,7 @@ export type GardeExterne = {
   quartier: string | null;
   telephone: string | null;
   autresTelephones: string[];
+  imageUrl: string | null;
   periode: string | null;
   source: typeof MFASHA_SOURCE_URL;
 };
@@ -84,6 +85,17 @@ export const chargerGardesMfasha = cache(async (): Promise<{
       const end = headings[index + 1]?.index ?? html.length;
       const section = plainText(html.slice(start, end));
       const phones = phoneNumbers(section);
+      const sectionHtml = html.slice(start, end);
+      const imageMatch = sectionHtml.match(/<img\\b[^>]*?src=["']([^"']+)["'][^>]*>/i);
+      let imageUrl: string | null = null;
+      if (imageMatch?.[1]) {
+        try {
+          const candidate = new URL(decodeHtml(imageMatch[1]), MFASHA_SOURCE_URL);
+          if (candidate.protocol === "https:" && /mfasha\\.com$/i.test(candidate.hostname)) imageUrl = candidate.toString();
+        } catch {
+          imageUrl = null;
+        }
+      }
       const quartier = section
         .replace(/Zone\s*\d+/gi, " ")
         .replace(/Autres numéros?/gi, " ")
@@ -97,6 +109,7 @@ export const chargerGardesMfasha = cache(async (): Promise<{
         quartier: quartier || null,
         telephone: phones[0] ?? null,
         autresTelephones: phones.slice(1),
+        imageUrl,
         periode,
         source: MFASHA_SOURCE_URL,
       });
