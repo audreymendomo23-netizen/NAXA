@@ -113,3 +113,19 @@ test("photos : aucune API RxImage arrêtée ni image non licenciée injectée au
   assert.match(recherche, /imageVariants\?\.boite/);
   assert.match(recherche, /Wikimedia Commons/);
 });
+
+
+test("provenance et notices de sécurité : champs contrôlés et visibles", () => {
+  assert.match(route, /OPENFDA_API_KEY/);
+  assert.match(route, /adverse_reactions/);
+  assert.match(route, /contraindications/);
+  assert.match(route, /sourceDetails/);
+  assert.match(recherche, /Informations de sécurité disponibles/);
+  assert.match(recherche, /Provenance des données/);
+  assert.match(recherche, /Notice de référence étrangère/);
+});
+
+test("DailyMed : ne pas réutiliser arbitrairement le premier résultat sans correspondance", () => {
+  assert.match(route, /const matchedDaily = dailyRecords\.find/);
+  assert.doesNotMatch(route, /\?\? dailyRecords\[0\]/);
+});
