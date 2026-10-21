@@ -219,11 +219,11 @@ export async function GET(request: NextRequest) {
   const rxCandidates = batches.flatMap((batch) => batch.rx);
   const fdaRecords = batches.flatMap((batch) => batch.fda);
   const dailyRecords = batches.flatMap((batch) => batch.daily);
-  const exactTerm = normaliserTerme(query);
+  const matchTerms = [...new Set([query, ...terms].map(normaliserTerme).filter((term) => term.length >= 4))];
   const preferredFda = fdaRecords.find((record) => {
     const names = [...fdaField(record, "generic_name"), ...fdaField(record, "brand_name")].map(normaliserTerme);
-    return names.some((name) => name === exactTerm || name.includes(exactTerm) || exactTerm.includes(name));
-  }) ?? fdaRecords.find((record) => fdaField(record, "generic_name").length || fdaField(record, "brand_name").length);
+    return names.some((name) => matchTerms.some((term) => name === term || name.includes(term)));
+  });
   const genericName = fdaField(preferredFda, "generic_name")[0] ?? pilot?.substanceFr ?? query;
   const form = fdaField(preferredFda, "dosage_form")[0] ?? "";
 
@@ -255,8 +255,8 @@ export async function GET(request: NextRequest) {
   const termsFlat = terms.map((term) => normaliserTerme(term).replace(/\s/g, ""));
   const matchedDaily = dailyRecords.find((record) => {
     const title = normaliserTerme(typeof record.title === "string" ? record.title : "").replace(/\s/g, "");
-    return termsFlat.some((term) => term.length > 2 && title.includes(term));
-  }) ?? dailyRecords[0];
+    return termsFlat.some((term) => term.length > 3 && title.includes(term));
+  });
   // Les images SPL de tiers ne sont pas copiées ni affichées sans licence commerciale vérifiée.
 
   const localProducts = await localProductsFor(query);
