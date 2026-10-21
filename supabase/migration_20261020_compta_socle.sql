@@ -405,6 +405,9 @@ language plpgsql security definer set search_path=''
 as $compta_post$
 declare
   v_existing uuid;
+  v_existing_row public.compta_ecriture%rowtype;
+  v_input_lines jsonb;
+  v_existing_lines jsonb;
   v_ecriture uuid := gen_random_uuid();
   v_ligne jsonb;
   v_compte uuid;
@@ -425,9 +428,34 @@ begin
     raise exception 'Paramètres de comptabilisation incomplets';
   end if;
 
-  select e.id into v_existing from public.compta_ecriture e
+  select e.* into v_existing_row from public.compta_ecriture e
   where e.pharmacie_id=p_pharmacie and e.cle_idempotence=p_cle_idempotence;
-  if found then return v_existing; end if;
+  if found then
+    select jsonb_agg(jsonb_build_object(
+      'compte_id',x.compte_id::text,'libelle',x.libelle,
+      'debit_fcfa',x.debit_fcfa,'credit_fcfa',x.credit_fcfa
+    ) order by x.compte_id::text,x.libelle,x.debit_fcfa,x.credit_fcfa)
+      into v_existing_lines
+    from public.compta_ligne x where x.ecriture_id=v_existing_row.id;
+    select jsonb_agg(jsonb_build_object(
+      'compte_id',(j.value->>'compte_id')::uuid::text,
+      'libelle',trim(j.value->>'libelle'),
+      'debit_fcfa',coalesce((j.value->>'debit_fcfa')::bigint,0),
+      'credit_fcfa',coalesce((j.value->>'credit_fcfa')::bigint,0)
+    ) order by (j.value->>'compte_id'),trim(j.value->>'libelle'),
+      coalesce((j.value->>'debit_fcfa')::bigint,0),coalesce((j.value->>'credit_fcfa')::bigint,0))
+      into v_input_lines
+    from jsonb_array_elements(p_lignes) j;
+    if v_existing_row.periode_id<>p_periode or v_existing_row.date_ecriture<>p_date
+      or v_existing_row.journal_code<>trim(p_journal)
+      or v_existing_row.source_type<>trim(p_source_type)
+      or v_existing_row.source_id<>trim(p_source_id)
+      or v_existing_row.libelle<>trim(p_libelle)
+      or v_existing_lines is distinct from v_input_lines then
+      raise exception 'Clé d’idempotence déjà utilisée pour un contenu différent';
+    end if;
+    return v_existing_row.id;
+  end if;
 
   insert into public.compta_ecriture(
     id,pharmacie_id,periode_id,journal_code,date_ecriture,
