@@ -11,6 +11,7 @@ type PharmacieGarde = {
   adresse: string | null;
   lat: number | null;
   lng: number | null;
+  photo_url: string | null;
 };
 
 function coordonneesValides(lat: number | null, lng: number | null): boolean {
@@ -31,7 +32,7 @@ async function chargerGardesLocales(): Promise<PharmacieGarde[] | null> {
   try {
     const { data, error } = await supabasePublic(60)
       .from("pharmacies")
-      .select("id,nom,quartier,adresse,lat,lng")
+      .select("id,nom,quartier,adresse,lat,lng,photo_url")
       .eq("actif", true)
       .eq("visible_recherche", true)
       .is("archivee_le", null)
@@ -159,6 +160,7 @@ export default async function PharmaciesDeGarde() {
           <ul className="space-y-3">
             {pharmaciesLocales.map((p) => (
               <li key={p.id} className="carte space-y-1">
+                {p.photo_url ? <img src={p.photo_url} alt={`Photo de ${p.nom}`} loading="lazy" className="mb-3 h-40 w-full rounded-xl object-cover" /> : <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800" role="img" aria-label={`Photo non disponible pour ${p.nom}`}><span className="text-center text-sm">✚<br />Photo non disponible</span></div>}
                 <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
                 {(p.quartier || p.adresse) && (
                   <p className="text-sm text-slate-600">
