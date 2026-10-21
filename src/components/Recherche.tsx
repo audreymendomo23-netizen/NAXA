@@ -4,12 +4,7 @@ import { useRouter } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { BulleErreur } from "@/components/BulleErreur";
-import {
-  normaliserRecherche,
-  suggestionsMedicaments,
-  textes,
-  type Langue,
-} from "@/lib/accueil-textes";
+import { textes } from "@/lib/accueil-textes";
 
 type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
