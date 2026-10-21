@@ -259,8 +259,8 @@ export async function GET(request: NextRequest) {
       form: formValue ? cleanName(formValue) : null,
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
-      imageUrl: storagePhotoUrl || localProduct?.photo_url || null,
-      imageSource: storagePhotoVerified ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo locale existante — provenance à confirmer" : null,
+      imageUrl: storagePhotoUrl,
+      imageSource: storagePhotoVerified ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
       source: [
         candidate.rxcui ? "RxNorm" : null,
         preferredFda ? "OpenFDA" : null,
