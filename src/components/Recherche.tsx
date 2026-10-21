@@ -6,7 +6,7 @@ import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { BulleErreur } from "@/components/BulleErreur";
 import { textes } from "@/lib/accueil-textes";
 
-type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
+type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 const CACHE_RECHERCHE_KEY = "naxa-medicament-search-v1";
 type CacheRecherche = { updatedAt: number; byQuery: Record<string, MedicamentRecherche[]>; corpus: MedicamentRecherche[] };
@@ -63,9 +63,9 @@ function rechercherDansCache(query: string): MedicamentRecherche[] {
   const needle = normaliserCache(query);
   const exact = cache.byQuery[needle];
   const matches = exact?.length ? exact : cache.corpus.filter((item) =>
-    [item.name, item.brand, item.activeIngredient, item.form]
+    [item.name, item.brand, item.activeIngredient, item.form, ...(item.synonyms ?? [])]
       .filter((value): value is string => Boolean(value))
-      .some((value) => normaliserCache(value).includes(needle) || needle.includes(normaliserCache(value)))
+      .some((value) => { const normalized = normaliserCache(value); return normalized.length >= 2 && (normalized.includes(needle) || needle.includes(normalized)); })
   );
   return matches.slice(0, 10).map((item) => ({
     ...item,
