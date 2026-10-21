@@ -102,7 +102,8 @@ export async function GET(request: Request) {
   const format = url.searchParams.get("format") === "xlsx" ? "xlsx" : "csv";
   if (format === "xlsx") {
     const workbook = XLSX.utils.book_new();
-    const sheet = XLSX.utils.aoa_to_sheet([...metadata, columns, ...records]);
+    const safeRecords = records.map((row) => row.map((cell) => safeCell(cell)));
+    const sheet = XLSX.utils.aoa_to_sheet([...metadata, columns, ...safeRecords]);
     XLSX.utils.book_append_sheet(workbook, sheet, "Rapport");
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }) as Buffer;
     return new NextResponse(buffer, { headers: {
