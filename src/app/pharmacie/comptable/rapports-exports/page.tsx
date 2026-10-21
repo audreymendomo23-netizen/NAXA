@@ -7,8 +7,12 @@ export const dynamic = "force-dynamic";
 const fcfa = (value: number) => new Intl.NumberFormat("fr-CM", {
   style: "currency", currency: "XAF", maximumFractionDigits: 0,
 }).format(value);
-const validDate = (value: string | undefined) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
-const endExclusive = (value: string) => new Date(Date.parse(value + "T00:00:00Z") + 86400000).toISOString();
+const validDate = (value: string | undefined) => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const parsed = new Date(value + "T00:00:00+01:00");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : "";
+};
+const endExclusive = (value: string) => new Date(Date.parse(value + "T00:00:00+01:00") + 86400000).toISOString();
 
 export default async function RapportsExportsPage({ searchParams }: { searchParams?: { debut?: string; fin?: string } }) {
   const sb = supabaseServer();
@@ -25,7 +29,7 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
   const debut = validDate(searchParams?.debut);
   const fin = validDate(searchParams?.fin);
   const invalidPeriod = Boolean(debut && fin && debut > fin);
-  const fromTimestamp = debut ? debut + "T00:00:00.000Z" : null;
+  const fromTimestamp = debut ? debut + "T00:00:00+01:00" : null;
   const toTimestamp = fin ? endExclusive(fin) : null;
 
   let salesQuery = sb.from("ventes").select("statut,total_net,created_at,paid_at")
