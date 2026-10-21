@@ -22,19 +22,20 @@ Migration candidate : `supabase/migration_071_geolocalisation_pharmacies_yaounde
 
 Les valeurs X/Y du document municipal sont interprétées comme longitude/latitude, puis stockées dans l'ordre attendu par NAXA : latitude puis longitude. Les coordonnées sont converties à partir des valeurs publiées, pas calculées depuis une adresse.
 
-## Limites et critères de feu vert
+## Synchronisation OSM ajoutée sur `main`
 
-- Les données municipales datent de 2022; la présence, le nom et la position doivent être reconfirmés.
-- Une fiche cartographique peut être déplacée ou mal associée à une enseigne.
-- Les résultats de cette recherche ne couvrent pas encore toutes les pharmacies de Yaoundé.
-- Les pharmacies du référentiel ne deviennent pas automatiquement des partenaires, n'apparaissent pas dans la recherche de produits et ne reçoivent aucun stock.
-- La migration `migration_072_geolocalisation_osm.sql` est ajoutée au dépôt, mais n'a pas été appliquée à Supabase Production. Le déploiement n'a pas été lancé.
-- Le SQL replay local et les tests CircleCI doivent passer avant de considérer le code vert; une validation terrain reste obligatoire.
+- Endpoint administratif `POST /api/admin/geolocalisation-osm` : interroge Overpass pour les pharmacies cartographiées dans Yaoundé et enregistre les candidats dans le référentiel, sans créer de partenaires.
+- `GET /api/admin/geolocalisation-osm` : retourne l'état de la dernière synchronisation, le nombre de candidats à confirmer et le nombre de partenaires de Yaoundé sans coordonnées.
+- Protection par session Supabase et `public.is_admin()`; la clé `SUPABASE_SERVICE_ROLE_KEY` reste exclusivement côté serveur.
+- Une seule synchronisation par 24 heures grâce à un état persistant Supabase; la collecte n'est pas déclenchée à chaque recherche client.
+- Rapprochement par nom complet normalisé (accents/ponctuation), uniquement pour les partenaires de Yaoundé dont latitude ET longitude sont absentes. Les coordonnées déjà présentes, même partielles, sont préservées.
+- Les annonces vétérinaires sont exclues. Les candidats OSM ne deviennent jamais des partenaires.
+- Les coordonnées importées restent `source_publique_a_confirmer`; attribution : © OpenStreetMap contributors — ODbL.
 
-## Prochaines étapes
+## Limites et mise en service
 
-1. Vérifier les tests de qualité et SQL sur le dernier commit de cette branche.
-2. Enrichir le référentiel avec des coordonnées numériques supplémentaires obtenues de sources cartographiques traçables.
-3. Dédupliquer les alias et confirmer chaque position sur carte / par téléphone / sur le terrain.
-4. Appliquer la migration uniquement à l'environnement de test après revue du schéma.
-5. Faire valider chaque point avant de changer son statut vers `verifiee_terrain`.
+1. Appliquer `supabase/migration_072_geolocalisation_osm.sql` dans l'environnement Supabase ciblé avant d'appeler l'endpoint.
+2. La synchronisation couvre seulement les objets OSM présents dans la zone cartographique ciblée; elle n'est pas exhaustive.
+3. La synchronisation Overpass ne se lance que sur action administrative, au plus une fois toutes les 24 heures. Aucun géocodage Nominatim répétitif ni collecte lors d'une recherche client.
+4. Les correspondances exactes restent à confirmer sur carte et sur le terrain avant tout passage à `verifiee_terrain`.
+5. La migration n'a pas été exécutée en Production et aucun déploiement n'a été lancé.
