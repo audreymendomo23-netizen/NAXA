@@ -43,3 +43,27 @@ test("migration : aucune pharmacie partenaire n'est créée à partir d'un annua
   assert.match(sql, /geo_statut\s*=\s*'source_publique_a_confirmer'/i);
   assert.match(sql, /r\.categorie\s*=\s*'pharmacie_humaine'/i);
 });
+
+test("GPS navigateur : permission, précision et délai bornés", () => {
+  const helper = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "geolocation.ts"), "utf8");
+  assert.match(helper, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(helper, /enableHighAccuracy:\s*true/);
+  assert.match(helper, /timeout:\s*12000/);
+  assert.match(helper, /maximumAge:\s*60000/);
+  assert.match(helper, /error\.code === 1 \? "refusee"/);
+  assert.match(helper, /error\.code === 2 \? "introuvable"/);
+  assert.match(helper, /error\.code === 3 \? "timeout"/);
+  assert.match(helper, /lat < -90 \|\| lat > 90 \|\| lng < -180 \|\| lng > 180/);
+});
+
+test("GPS : Yaoundé et Douala ont des replis explicites, sans suivi permanent", () => {
+  const helper = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "geolocation.ts"), "utf8");
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "resultats", "page.tsx"), "utf8");
+  assert.match(helper, /Yaoundé:\s*\{\s*lat:\s*3\.8480,\s*lng:\s*11\.5021\s*\}/);
+  assert.match(helper, /Douala:\s*\{\s*lat:\s*4\.0511,\s*lng:\s*9\.7679\s*\}/);
+  assert.match(page, /Actualiser GPS/);
+  assert.match(page, /id="naxa-ville"/);
+  assert.match(page, /Position approximative/);
+  assert.doesNotMatch(page, /watchPosition\s*\(/);
+  assert.doesNotMatch(page, /localStorage\.setItem\([^\n]*(?:lat|lng|position|coord)/i);
+});
