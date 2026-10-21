@@ -13,7 +13,7 @@ Les trois sources désignées comme autorité dans la demande n'ont pas été tr
 - `02_DESIGN_COMPTABLE_NAXA.md`
 - `03_CODE_BASE_COMPTABLE_NAXA.md`
 
-Les recherches ont couvert la racine et `docs/compta/`. Le dossier `docs/compta/` n'existe pas actuellement sur `main`.
+Les chemins exacts testés à la racine et dans `docs/compta/` renvoient 404 pour les trois fichiers. Le dossier `docs/compta/` existe bien sur `main` et contient ce rapport ; la formulation précédente indiquant que ce dossier n'existait pas était erronée. L'inventaire récursif du dépôt confirme également la présence de `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`, distinct des trois sources demandées.
 
 Un autre document est présent : `docs/CAHIER_DES_CHARGES_COMPTE_COMPTABLE.md`. Il ne peut pas être traité automatiquement comme équivalent aux trois sources prioritaires que tu viens de spécifier, notamment pour reprendre « tels quels » le moteur et les tests déjà validés.
 
