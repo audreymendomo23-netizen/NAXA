@@ -51,3 +51,14 @@ Les valeurs X/Y du document municipal sont interprétées comme longitude/latitu
 - Contrôle SQL direct après migration : tables du référentiel présentes; colonnes géographiques de `pharmacies` présentes; une ligne de contrôle de synchronisation; quatre politiques administrateur authentifié. Au moment du contrôle, 3 partenaires visibles, tous les 3 avec latitude et longitude; aucun candidat OSM importé.
 - Vérification statique de la liaison carte/liste et du nettoyage des marqueurs effectuée. Le build TypeScript/Next.js et le test Node complet n'ont pas pu être exécutés dans cet environnement. Le statut CircleCI reste en échec sur une vérification préexistante de comptage des migrations (le script attend 96 fichiers, tandis que le répertoire en contient 265); ce statut n'est pas présenté comme vert.
 - Aucun déploiement effectué.
+
+
+## Vérification opérationnelle — 21 octobre 2026
+
+- Environnement cible confirmé via la connexion Supabase NAXA : projet `eouwtuusnsuxaejsxknf` (`Naxa`, région `eu-west-1`).
+- Historique Supabase : `migration_072_geolocalisation_osm` et `migration_073_geolocalisation_rls_policy_scope` sont enregistrées comme appliquées. Les tables de synchronisation et de référentiel ainsi que les colonnes de géolocalisation sont présentes; la migration 072 n'a donc pas été réexécutée au risque de recréer ses politiques.
+- Données constatées : 3 pharmacies actives géolocalisées, 0 candidat OSM importé et 1 ligne de contrôle de synchronisation.
+- Parcours client : clic sur un marqueur ou une pharmacie ouvre maintenant sa fiche intégrée; la distance GPS, les horaires disponibles, le statut de garde et les stocks déclarés consultables sont présentés ensemble.
+- Les stocks sont lus uniquement depuis les lignes de stock existantes avec quantité positive et date de péremption non dépassée. Une erreur d'accès ou l'absence de lignes ne sont jamais présentées comme une preuve d'indisponibilité réelle. Les données de stock restent déclaratives.
+- Les tests statiques ont été étendus au clic du marqueur, à la fiche et à la séparation entre présence sur carte et disponibilité réelle.
+- Limite de validation : l'exécution du build TypeScript/Next.js et de la suite Node complète n'est pas disponible dans cet environnement. Ne pas considérer la CI comme verte sans une exécution réussie.
