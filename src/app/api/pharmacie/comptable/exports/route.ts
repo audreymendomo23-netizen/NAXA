@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import * as XLSX from "xlsx";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
@@ -68,6 +69,8 @@ export async function GET(request: Request) {
   const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", {
     p_privilege: "MANAGE_ACCOUNTING", p_pharmacie: profile.pharmacie_id, p_target: null,
   });
+  const { data: pharmacy } = await sb.from("pharmacies").select("nom").eq("id", profile.pharmacie_id).maybeSingle();
+  const pharmacyName = pharmacy?.nom ?? "Pharmacie non renseignée";
   if (permissionError || allowed !== true) return NextResponse.json({ error: "acces_refuse" }, { status: 403 });
 
   const url = new URL(request.url);
@@ -182,7 +185,8 @@ export async function GET(request: Request) {
   }
   const metadata = [
     ["Rapport NAXA — état préparé à contrôler par votre expert-comptable"],
-    ["Pharmacie", profile.pharmacie_id],
+    ["Pharmacie", pharmacyName],
+    ["Identifiant pharmacie", profile.pharmacie_id],
     ["Généré le", new Date().toISOString()],
     ["Période début", debut ?? "Non précisée"],
     ["Période fin", fin ?? "Non précisée"],
@@ -193,18 +197,27 @@ export async function GET(request: Request) {
   const filename = `naxa-${type}-${debut ?? "debut"}-${fin ?? "fin"}`;
   const requestedFormat = url.searchParams.get("format");
   const format = requestedFormat === "xlsx" ? "xlsx" : requestedFormat === "pdf" ? "pdf" : "csv";
-  const audit = await supabaseAdmin().rpc("compta_auditer", {
-    p_pharmacie: profile.pharmacie_id,
-    p_acteur: auth.user.id,
-    p_action: "export_generation",
-    p_objet_type: type,
-    p_objet_id: filename,
-    p_resultat: "succes",
-    p_motif: `format=${format}; debut=${debut ?? "non_precise"}; fin=${fin ?? "non_precise"}; lignes=${records.length}; tronque=${sourceTruncated || records.length === limit}`,
-  });
-  if (audit.error) {
-    return NextResponse.json({ error: "journalisation_export_indisponible" }, { status: 503 });
-  }
+  const finalizeExport = async (bytes: Uint8Array, contentType: string, extension: string) => {
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const audit = await supabaseAdmin().rpc("compta_auditer", {
+      p_pharmacie: profile.pharmacie_id,
+      p_acteur: auth.user.id,
+      p_action: "export_generation",
+      p_objet_type: type,
+      p_objet_id: filename,
+      p_resultat: "succes",
+      p_motif: `format=${format}; debut=${debut ?? "non_precise"}; fin=${fin ?? "non_precise"}; lignes=${records.length}; tronque=${sourceTruncated || records.length === limit}; sha256=${sha256}`,
+    });
+    if (audit.error) return NextResponse.json({ error: "journalisation_export_indisponible" }, { status: 503 });
+    return new NextResponse(bytes, { headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${filename}.${extension}"`,
+      "Cache-Control": "no-store",
+      "X-NAXA-Export-Rows": String(records.length),
+      "X-NAXA-Export-Truncated": sourceTruncated || records.length === limit ? "true" : "false",
+      "X-NAXA-Export-SHA256": sha256,
+    }});
+  };
   if (format === "pdf") {
     const pdfRows = [
       "NAXA - Rapport comptable",
@@ -220,13 +233,7 @@ export async function GET(request: Request) {
       "Document limite a une page; consulter CSV/Excel pour le detail complet.",
     ];
     const bytes = createSimplePdf(pdfRows);
-    return new NextResponse(bytes, { headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}.pdf"`,
-      "Cache-Control": "no-store",
-      "X-NAXA-Export-Rows": String(records.length),
-      "X-NAXA-Export-Truncated": sourceTruncated || records.length === limit || pdfRows.length > 48 ? "true" : "false",
-    }});
+    return finalizeExport(bytes, "application/pdf", "pdf");
   }
   if (format === "xlsx") {
     const workbook = XLSX.utils.book_new();
@@ -234,20 +241,8 @@ export async function GET(request: Request) {
     const sheet = XLSX.utils.aoa_to_sheet([...metadata, columns, ...safeRecords]);
     XLSX.utils.book_append_sheet(workbook, sheet, "Rapport");
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }) as Buffer;
-    return new NextResponse(buffer, { headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${filename}.xlsx"`,
-      "Cache-Control": "no-store",
-      "X-NAXA-Export-Rows": String(records.length),
-      "X-NAXA-Export-Truncated": sourceTruncated || records.length === limit ? "true" : "false",
-    }});
+    return finalizeExport(new Uint8Array(buffer), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx");
   }
   const csv = [...metadata, columns, ...records].map(row => row.map(csvEscape).join(";")).join("\r\n");
-  return new NextResponse("\uFEFF" + csv, { headers: {
-    "Content-Type": "text/csv; charset=utf-8",
-    "Content-Disposition": `attachment; filename="${filename}.csv"`,
-    "Cache-Control": "no-store",
-    "X-NAXA-Export-Rows": String(records.length),
-    "X-NAXA-Export-Truncated": records.length === limit ? "true" : "false",
-  }});
+  return finalizeExport(new TextEncoder().encode("\uFEFF" + csv), "text/csv; charset=utf-8", "csv");
 }
