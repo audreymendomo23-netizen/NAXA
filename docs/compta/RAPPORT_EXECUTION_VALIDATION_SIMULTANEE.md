@@ -15,13 +15,16 @@ Les scripts ont été récupérés depuis `main` et envoyés directement à la b
 | `161_compta_outbox.sql` | **EXÉCUTÉ — aucun marqueur PASS émis** | Assertions structurelles exécutées sans erreur SQL retournée; ne pas compter comme PASS explicite. |
 | `162_compta_worker.sql` | **EXÉCUTÉ — aucun marqueur PASS final émis** | Assertions de worker/reprise exécutées sans erreur SQL retournée; ne pas compter comme PASS explicite. |
 | `163_compta_worker_positive.sql` | **PASS** — marqueur explicite | Chemin positif transactionnel du worker, fixtures annulées par rollback. |
+| `164_compta_reports_rls.sql` | **PASS** — marqueur explicite | RLS des rapports planifiés. |
+| `165_compta_readonly_reference_rls.sql` | **PASS** — marqueur explicite | Référentiels en lecture seule. |
+| `166_compta_recus_abonnement_rpc.sql` | **PASS** — marqueur explicite | RPC de consultation des reçus d’abonnement. |
 | `167_compta_cloture_etape8_structure.sql` | **PASS** — marqueur explicite | Structure des contrôles de clôture. |
 | `168_compta_audit_chain_integrity.sql` | **PASS** — marqueur explicite | Intégrité de la chaîne d'audit et détection de modification simulée. |
 | `169_compta_controles_cloture_rpc.sql` | **PASS** — marqueur explicite | Garde-fous de la RPC des contrôles de clôture. |
 | `170_compta_recette_etape9_security.sql` | **PASS** — marqueur explicite | Contrôles structurels de sécurité comptable. |
 | `171_compta_recette_etape10_hardening.sql` | **PASS** — marqueur explicite | Immutabilité, partie double différée, RLS et séparation des droits. |
 
-Les tests SQL s'exécutent avec des transactions et rollback dans les scripts concernés. Les tests 160 et 163 ont retourné explicitement leur marqueur PASS. Les tests 167 à 171 ont également retourné explicitement PASS pendant cette session.
+Les tests SQL s'exécutent avec des transactions et rollback dans les scripts concernés. Au total, **10 tests ont retourné un marqueur PASS explicite** : 160, 163, 164, 165, 166 et 167 à 171. Les tests 161 et 162 ont été exécutés sans erreur SQL remontée, mais sans marqueur PASS explicite : ils restent donc non certifiés.
 
 ## État de la base de test
 
@@ -43,7 +46,7 @@ Cela bloque la recette authentifiée E2E avec les données actuellement disponib
 
 ## Vérifications non exécutées
 
-- `npm run test:compta-moteur` : **NON EXÉCUTÉ** (pas de checkout local du dépôt accessible à ce runtime).
+- `npm run test:compta-moteur` : **NON EXÉCUTÉ** (pas de checkout local du dépôt accessible à ce runtime). Le script a été complété pour couvrir les dates calendaires impossibles, mais son exécution réelle reste à faire.
 - Typecheck, lint et build : **NON EXÉCUTÉS**.
 - Tests frontend/navigateur et téléchargement effectif CSV/XLSX/PDF : **NON EXÉCUTÉS**.
 - Recette E2E authentifiée inter-pharmacies : **BLOQUÉE**, car aucun profil et aucune donnée métier de test n'existent dans cette base.
@@ -66,6 +69,16 @@ Liens de remédiation :
 - [Fonctions SECURITY DEFINER exécutables par anon](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable)
 
 Ces alertes ont été consultées sur le projet isolé uniquement. Aucune modification de sécurité globale n'a été appliquée : il faut analyser les consommateurs et les effets RLS avant de toucher une vue ou une fonction partagée.
+
+## Correction de code réalisée pendant la poursuite
+
+- Commit `03b583e03d96ec5c800283438a6c36857c23cce5` : le moteur `src/lib/compta/moteur.ts` valide désormais les dates calendaires ISO strictement (une date comme `2026-02-31` est refusée au lieu d'être normalisée par `Date.parse`). Les fenêtres de validité des mappings avec date invalide ou intervalle inversé sont ignorées, ce qui laisse l'événement `à traiter` plutôt que de comptabiliser à partir d'un mapping mal formé.
+- Commit `9d913120a14178bf5cd8b55f16b58151b0ec2818` : tests de régression ajoutés pour date d'événement impossible, date de mapping impossible et intervalle de validité inversé.
+- Un contrôle de cohérence de l'algorithme de date a été exécuté dans le runtime JavaScript sur six cas (date normale, 31 février, 29 février non bissextile, 29 février bissextile, mois invalide, format invalide) : **6/6 attendus**. Ce contrôle ciblé ne remplace pas l'exécution du script npm complet.
+
+## État de l'historique des migrations de test
+
+Le dépôt contient neuf migrations Comptable identifiées, tandis que l'historique de la base isolée expose huit entrées Comptable et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé. Aucun rejeu ni réparation automatique n'a été tenté : cette base ne constitue pas un historique canonique et la migration des rapports planifiés contient un éventuel enregistrement `pg_cron` à inspecter avant application.
 
 ## Conclusion opérationnelle
 
