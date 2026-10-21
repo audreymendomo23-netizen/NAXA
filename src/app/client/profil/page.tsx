@@ -53,6 +53,7 @@ export default function ProfilClientPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData>({ name: "Client NAXA", phone: "", email: "", address: "", photo: null, orders: 0 });
   const [loaded, setLoaded] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
@@ -108,6 +109,7 @@ export default function ProfilClientPage() {
 
   useEffect(() => {
     let active = true;
+    let photoStorageKey = PHOTO_KEY;
     void (async () => {
       const demoModeRequested = new URLSearchParams(window.location.search).get("demo") === "1";
       if (demoModeRequested) {
@@ -125,7 +127,7 @@ export default function ProfilClientPage() {
       const { data: prefs } = await sb.from("client_preferences").select("adresse_defaut,quartier").eq("user_id", user.id).maybeSingle();
       const { count } = await sb.from("reservations").select("id", { count: "exact", head: true }).eq("client_id", user.id);
       let savedPhoto: string | null = null;
-      try { savedPhoto = window.localStorage.getItem(PHOTO_KEY); } catch { /* Le profil reste utilisable sans stockage local. */ }
+      try { savedPhoto = window.localStorage.getItem(photoStorageKey); } catch { /* Le profil reste utilisable sans stockage local. */ }
       const meta = user.user_metadata ?? {};
       const isGoogle = user.app_metadata?.provider === "google" || Boolean(user.identities?.some(identity => identity.provider === "google"));
       const googleName = String(meta.full_name ?? meta.name ?? "").trim();
@@ -261,7 +263,7 @@ export default function ProfilClientPage() {
       const ratio = 512 / frame;
       ctx.drawImage(image, (frame - image.naturalWidth * scale) / 2 * ratio + offset.x * ratio, (frame - image.naturalHeight * scale) / 2 * ratio + offset.y * ratio, image.naturalWidth * scale * ratio, image.naturalHeight * scale * ratio);
       const compressed = canvas.toDataURL("image/jpeg", 0.76);
-      try { window.localStorage.setItem(PHOTO_KEY, compressed); } catch { throw new Error("storage"); }
+      try { window.localStorage.setItem(`${PHOTO_KEY}:${currentUserId}`, compressed); } catch { throw new Error("storage"); }
       setProfile(p => ({ ...p, photo: compressed }));
       window.dispatchEvent(new Event(PROFILE_EVENT));
       setCropSource(null); setSheet(null); flash("Photo de profil mise à jour.");
@@ -270,9 +272,9 @@ export default function ProfilClientPage() {
     } finally { setSaving(false); }
   }
   async function deletePhoto() {
-    try { window.localStorage.removeItem(PHOTO_KEY); } catch {}
     const sb = supabaseBrowser();
     const { data: { user } } = await sb.auth.getUser();
+    try { if (user) window.localStorage.removeItem(`${PHOTO_KEY}:${user.id}`); } catch {}
     let remoteFailed = false;
     if (user) {
       const { error: profileError } = await sb.from("profiles").update({ avatar_url: null }).eq("id", user.id);
