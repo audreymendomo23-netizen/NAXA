@@ -51,7 +51,7 @@ const aging = calc.calculerAncienneteCreances([
 ], "2026-10-21");
 assert.equal(aging[1].montantFcfa, 800n);
 assert.equal(aging[1].nombre, 1);
-assert.equal(aging[3].montantFcfa, 2500n);
+assert.equal(aging[2].montantFcfa, 2500n);
 assert.throws(() => calc.calculerAncienneteCreances([{ id: "r4", reference: "R4", debiteur: "X", dateEcheance: null, montantInitialFcfa: 100, montantRegleFcfa: 0 }], "2026-10-21"), /Échéance manquante/);
 assert.throws(() => calc.calculerAncienneteCreances([{ id: "r5", reference: "R5", debiteur: "X", dateEcheance: "2026-10-01", montantInitialFcfa: 100, montantRegleFcfa: 101 }], "2026-10-21"), /dépasse/);
 
