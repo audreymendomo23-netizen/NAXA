@@ -19,10 +19,8 @@ create table if not exists public.medicaments_referentiel_sources (
   raw_record jsonb not null default '{}'::jsonb
 );
 
-create index if not exists medicaments_referentiel_sources_nom_trgm_idx
-  on public.medicaments_referentiel_sources using gin (nom gin_trgm_ops);
-create index if not exists medicaments_referentiel_sources_substances_trgm_idx
-  on public.medicaments_referentiel_sources using gin (substances_actives gin_trgm_ops);
+create index if not exists medicaments_referentiel_sources_nom_idx
+  on public.medicaments_referentiel_sources (nom);
 
 alter table public.medicaments_referentiel_sources enable row level security;
 
