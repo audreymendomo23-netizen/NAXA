@@ -109,6 +109,9 @@ export default async function ComptableDashboardPage() {
             <Link href="/pharmacie/comptable/rapports-exports" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
               <span className="text-sm font-semibold text-emerald-800">Rapports & exports</span><p className="mt-1 text-sm text-slate-600">Synthèses de période et téléchargements CSV/Excel sécurisés.</p>
             </Link>
+            <Link href="/pharmacie/comptable/clotures" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
+              <span className="text-sm font-semibold text-emerald-800">Clôtures comptables</span><p className="mt-1 text-sm text-slate-600">Contrôles documentés, verrouillage de période et vérification de la chaîne.</p>
+            </Link>
             <Link href="/pharmacie/comptable/journal-audit" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
               <span className="text-sm font-semibold text-emerald-800">Journal d’audit</span><p className="mt-1 text-sm text-slate-600">Historique des actions comptables, en lecture seule.</p>
             </Link>
