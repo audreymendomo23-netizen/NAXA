@@ -57,7 +57,7 @@ do $backfill$
 declare r record; v_lot record; v_need integer; v_take integer; v_total integer;
 begin
  for r in
-  select res.id as reservation_id,res.pharmacie_id,ri.produit_id,ri.quantite
+  select res.id as reservation_id,res.pharmacie_id,res.expires_at,ri.produit_id,ri.quantite
   from public.reservations res join public.reservation_items ri on ri.reservation_id=res.id
   where res.statut in ('en_attente','confirmee')
    and exists(select 1 from public.stocks_lots sl where sl.pharmacie_id=res.pharmacie_id and sl.produit_id=ri.produit_id)
@@ -69,15 +69,15 @@ begin
   v_need:=r.quantite;
   select coalesce(sum(sl.quantite),0)::integer into v_total from public.stocks_lots sl
    where sl.pharmacie_id=r.pharmacie_id and sl.produit_id=r.produit_id
-    and not sl.bloque and sl.date_peremption>=current_date;
+    and (r.expires_at<=now() or (not sl.bloque and sl.date_peremption>=current_date));
   if v_total<v_need then
    raise exception 'Réservation active % : lots utilisables insuffisants pour le produit %. Réconciliation manuelle requise; aucun déploiement applicatif.',r.reservation_id,r.produit_id;
   end if;
   for v_lot in
    select sl.id,sl.quantite from public.stocks_lots sl
-   where sl.pharmacie_id=r.pharmacie_id and sl.produit_id=r.produit_id
-    and not sl.bloque and sl.date_peremption>=current_date and sl.quantite>0
-   order by sl.date_peremption,sl.numero_lot,sl.id for update
+   where sl.pharmacie_id=r.pharmacie_id and sl.produit_id=r.produit_id and sl.quantite>0
+    and (r.expires_at<=now() or (not sl.bloque and sl.date_peremption>=current_date))
+   order by case when r.expires_at<=now() then sl.date_peremption end nulls first,sl.date_peremption,sl.numero_lot,sl.id for update
   loop
    exit when v_need=0;
    v_take:=least(v_need,v_lot.quantite);
