@@ -92,3 +92,24 @@ test("sécurité : recherche courte refusée et appels externes limités dans le
   assert.match(route, /query\.length < 2/);
   assert.match(route, /AbortSignal\.timeout\(4500\)/);
 });
+
+const photoResolver = fs.readFileSync(path.join(root, "src/lib/medicaments/photos-externes.ts"), "utf8");
+const photoRoute = fs.readFileSync(path.join(root, "src/app/api/medicaments/photo/route.ts"), "utf8");
+
+test("photos : recherche séparée de boîtes et de comprimés avec licence commerciale", () => {
+  assert.match(photoRoute, /rechercherPhotosMedicament/);
+  assert.match(photoRoute, /photos\.boite/);
+  assert.match(photoRoute, /photos\.comprime/);
+  assert.match(photoResolver, /kind: "boite" \| "comprime"/);
+  assert.match(photoResolver, /item\.coverage === 1/);
+  assert.match(photoResolver, /allowedCommercialLicense/);
+  assert.match(photoResolver, /sourceUrl: info\.descriptionurl/);
+});
+
+test("photos : aucune API RxImage arrêtée ni image non licenciée injectée automatiquement", () => {
+  assert.doesNotMatch(photoResolver, /rximage\.nlm\.nih\.gov/);
+  assert.match(photoResolver, /sans preuve explicite de droits commerciaux/);
+  assert.match(recherche, /imageVariants\?\.comprime/);
+  assert.match(recherche, /imageVariants\?\.boite/);
+  assert.match(recherche, /Wikimedia Commons/);
+});
