@@ -60,6 +60,7 @@ type LocalProduct = {
   nom: string;
   dci: string | null;
   forme: string | null;
+  synonymes: string[] | null;
   photo_url: string | null;
   photo_path: string | null;
   photo_source_url: string | null;
@@ -79,13 +80,15 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   const needle = term.trim().slice(0, 80);
   if (needle.length < 2) return [];
   try {
-    const [byName, byDci] = await Promise.all([
-      sb.from("produits").select("id,nom,dci,forme,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
-      sb.from("produits").select("id,nom,dci,forme,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
+    const fields = "id,nom,dci,forme,synonymes,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee";
+    const [byName, byDci, bySynonym] = await Promise.all([
+      sb.from("produits").select(fields).ilike("nom", "%" + needle + "%").limit(12),
+      sb.from("produits").select(fields).ilike("dci", "%" + needle + "%").limit(12),
+      sb.from("produits").select(fields).contains("synonymes", [needle]).limit(12)
     ]);
-    if (byName.error && byDci.error) return [];
+    if (byName.error && byDci.error && bySynonym.error) return [];
     const unique = new Map<string, LocalProduct>();
-    for (const product of [...(byName.data ?? []), ...(byDci.data ?? [])] as LocalProduct[]) {
+    for (const product of [...(byName.data ?? []), ...(byDci.data ?? []), ...(bySynonym.data ?? [])] as LocalProduct[]) {
       unique.set(product.id, product);
     }
     return [...unique.values()].slice(0, 20);
