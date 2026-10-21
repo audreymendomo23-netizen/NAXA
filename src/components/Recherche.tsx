@@ -6,7 +6,7 @@ import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { BulleErreur } from "@/components/BulleErreur";
 import { textes } from "@/lib/accueil-textes";
 
-type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
+type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; imageVariants?: { boite: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null; comprime: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null }; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 const CACHE_RECHERCHE_KEY = "naxa-medicament-search-v1";
 type CacheRecherche = { updatedAt: number; byQuery: Record<string, MedicamentRecherche[]>; corpus: MedicamentRecherche[] };
@@ -127,30 +127,46 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
         setRechercheCatalogue("repos");
         enregistrerCacheRecherche(terme, results);
 
-        // La recherche des photos est indépendante et ne retarde pas les fiches médicaments.
-        if (results.some((item) => !item.imageUrl)) {
-          void fetch("/api/medicaments/photo?q=" + encodeURIComponent(terme), { signal: controller.signal })
-            .then((photoResponse) => photoResponse.ok ? photoResponse.json() : null)
-            .then((payload: { photo?: { url?: string; sourceUrl?: string; licence?: string; attribution?: string | null; title?: string } | null } | null) => {
-              const photo = payload?.photo;
-              if (!photo?.url || controller.signal.aborted) return;
-              const needle = normaliserCache(terme);
-              const matching = results.filter((item) =>
-                [item.name, item.activeIngredient, item.brand]
-                  .filter((value): value is string => Boolean(value))
-                  .some((value) => {
-                    const normalized = normaliserCache(value);
-                    return normalized === needle || (needle.length >= 5 && normalized.includes(needle)) || (normalized.length >= 5 && needle.includes(normalized));
-                  })
-              );
-              if (!matching.length) return;
-              const updated = results.map((item) => matching.some((match) => match.id === item.id) && !item.imageUrl
-                ? { ...item, imageUrl: photo.url!, imageSource: "Wikimedia Commons — licence et source disponibles", imageSourceUrl: photo.sourceUrl ?? null, imageLicense: photo.licence ?? null, imageAttribution: photo.attribution ?? null, imageTitle: photo.title ?? null }
-                : item);
-              setMedicaments((current) => current.map((item) => updated.find((next) => next.id === item.id) ?? item));
-              enregistrerCacheRecherche(terme, updated);
-            })
-            .catch(() => undefined);
+        // Recherche indépendante : une requête par fiche, afin de ne jamais
+        // attribuer la photo d'un médicament à un autre résultat de la liste.
+        const ciblesPhoto = results.filter((item) => !item.imageUrl).slice(0, 3);
+        if (ciblesPhoto.length) {
+          void Promise.all(ciblesPhoto.map(async (item) => {
+            const identity = (item.brand || item.name).trim();
+            if (identity.length < 3) return null;
+            try {
+              const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), { signal: controller.signal });
+              if (!photoResponse.ok) return null;
+              const payload = await photoResponse.json() as {
+                photos?: {
+                  boite?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
+                  comprime?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
+                };
+              };
+              const imageVariants = { boite: payload.photos?.boite ?? null, comprime: payload.photos?.comprime ?? null };
+              const primary = imageVariants.boite ?? imageVariants.comprime;
+              if (!primary || controller.signal.aborted) return null;
+              return {
+                ...item,
+                imageUrl: primary.url,
+                imageSource: "Wikimedia Commons — " + (primary.kind === "boite" ? "boîte" : "comprimé") + " · " + primary.licence,
+                imageSourceUrl: primary.sourceUrl,
+                imageLicense: primary.licence,
+                imageAttribution: primary.attribution,
+                imageTitle: primary.title,
+                imageVariants
+              } satisfies MedicamentRecherche;
+            } catch {
+              return null;
+            }
+          })).then((updates) => {
+            if (controller.signal.aborted) return;
+            const byId = new Map(updates.filter((item): item is MedicamentRecherche => item !== null).map((item) => [item.id, item]));
+            if (!byId.size) return;
+            const updated = results.map((item) => byId.get(item.id) ?? item);
+            setMedicaments((current) => current.map((item) => byId.get(item.id) ?? item));
+            enregistrerCacheRecherche(terme, updated);
+          }).catch(() => undefined);
         }
       } catch {
         if (controller.signal.aborted) return;
@@ -260,13 +276,33 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
             {medicaments.map((medicament) => (
               <li key={medicament.id} className="rounded-lg border border-slate-100 p-3">
                 <div className="flex items-start gap-3">
-                  <img
-                    src={medicament.imageUrl || PHOTO_MEDICAMENT_PAR_DEFAUT}
-                    onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
-                    alt={medicament.imageUrl ? "Image illustrative externe, vérifier la correspondance avec le médicament et son conditionnement" : "Photo non disponible"}
-                    className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain"
-                    loading="lazy" decoding="async"
-                  />
+                  <div className="flex shrink-0 gap-1.5">
+                    <img
+                      src={medicament.imageUrl || PHOTO_MEDICAMENT_PAR_DEFAUT}
+                      onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
+                      alt={medicament.imageUrl ? "Photo de référence sous licence, vérifier la correspondance avec le conditionnement local" : "Photo non disponible"}
+                      className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                      loading="lazy" decoding="async"
+                    />
+                    {medicament.imageVariants?.comprime?.url && medicament.imageVariants.comprime.url !== medicament.imageUrl && (
+                      <img
+                        src={medicament.imageVariants.comprime.url}
+                        alt="Référence visuelle du comprimé — vérifier l'identité avant toute utilisation"
+                        title={"Comprimé · " + medicament.imageVariants.comprime.licence}
+                        className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                        loading="lazy" decoding="async"
+                      />
+                    )}
+                    {medicament.imageVariants?.boite?.url && medicament.imageVariants.boite.url !== medicament.imageUrl && (
+                      <img
+                        src={medicament.imageVariants.boite.url}
+                        alt="Référence visuelle de la boîte — vérifier la présentation locale"
+                        title={"Boîte · " + medicament.imageVariants.boite.licence}
+                        className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                        loading="lazy" decoding="async"
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-bold text-naxa-green-900">{medicament.name}</h3>
                     {medicament.brand && <p className="text-sm text-slate-700">{medicament.brand}</p>}
