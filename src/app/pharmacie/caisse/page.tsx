@@ -105,7 +105,7 @@ export default function CaissePage() {
       setDraftCheckErreur(true);
       setVente(draft.id);
       setLignes([]);
-      setMsg("Le panier existe mais ses lignes n’ont pas pu être chargées. Nouvelle vente et clôture bloquées ; rechargez la page. Vous pouvez abandonner le panier pour restituer le stock.");
+      setMsg("Le panier existe mais ses lignes n’ont pas pu être chargées. Nouvelle vente et clôture bloquées ; rechargez la page. Vous pouvez abandonner ce panier puis en créer un nouveau.");
       return false;
     }
     setDraftCheckErreur(false);
@@ -136,7 +136,7 @@ export default function CaissePage() {
     }
     setVente(draft.id);
     setLignes([...groups.values()]);
-    setMsg("Panier en cours repris. Le stock avait déjà été réservé par la base de données.");
+    setMsg("Panier en cours repris. Le stock physique sera débité uniquement à la validation de l’encaissement.");
     return true;
   }, [sb]);
 
@@ -439,7 +439,7 @@ export default function CaissePage() {
         return;
       }
       setPercu("");
-      setMsg(Number(data) + " unité(s) retirée(s) du panier ; le stock et les lots d’origine ont été restitués.");
+      setMsg(Number(data) + " unité(s) retirée(s) du panier ; aucun débit physique n’est effectué avant l’encaissement.");
     } catch (error) {
       await chargerVenteBrouillon(session.id, uid);
       setMsg(error instanceof Error ? error.message : "Retrait non confirmé. Le panier a été relu depuis la base.");
@@ -450,7 +450,7 @@ export default function CaissePage() {
 
   async function abandonnerVente() {
     if (!vente || busy) return;
-    if (!window.confirm("Abandonner ce panier ? Les quantités réservées seront restituées au stock.")) return;
+    if (!window.confirm("Abandonner ce panier ? Le stock physique reste inchangé pour les nouveaux paniers.")) return;
     const venteId = vente;
     setBusy(true);
     try {
@@ -463,7 +463,7 @@ export default function CaissePage() {
       setDraftCheckErreur(false);
       setLignes([]);
       setPercu("");
-      setMsg("Panier abandonné ; le stock a été restitué.");
+      setMsg("Panier abandonné ; aucun nouveau débit physique n’a été effectué.");
     } catch {
       if (session && uid) await chargerSession(session.id, uid);
       setMsg("Abandon non confirmé. Le panier et le stock ont été revérifiés depuis la base.");
