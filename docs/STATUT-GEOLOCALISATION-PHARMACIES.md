@@ -39,3 +39,15 @@ Les valeurs X/Y du document municipal sont interprétées comme longitude/latitu
 3. La synchronisation Overpass ne se lance que sur action administrative, au plus une fois toutes les 24 heures. Aucun géocodage Nominatim répétitif ni collecte lors d'une recherche client.
 4. Les correspondances exactes restent à confirmer sur carte et sur le terrain avant tout passage à `verifiee_terrain`.
 5. La migration n'a pas été exécutée en Production et aucun déploiement n'a été lancé.
+
+## Carte interactive du tableau de bord — correction
+
+- Le bloc illustratif du tableau de bord a été remplacé par `CartePharmaciesProches`, une carte Leaflet alimentée par les tuiles OpenStreetMap.
+- Les marqueurs et la liste utilisent le même identifiant partenaire Supabase. Sélectionner une ligne centre la carte et ouvre la fiche du marqueur correspondant; la carte ajuste son cadrage aux coordonnées présentes.
+- Le GPS est demandé uniquement après action du client. En cas de refus, d'indisponibilité ou d'échec, un message explicite est présenté et la liste reste accessible.
+- Les partenaires sans coordonnées restent identifiables dans la liste avec « GPS indisponible »; aucune coordonnée n'est inventée. Les candidats OSM ne sont jamais affichés comme partenaires.
+- Attribution cartographique affichée : © OpenStreetMap contributors. La carte ne prouve pas la disponibilité des médicaments.
+- Migrations `migration_072_geolocalisation_osm` et `migration_073_geolocalisation_rls_policy_scope` appliquées au projet Supabase Naxa actif. Les politiques RLS du référentiel sont limitées à `authenticated` avec `public.is_admin()`.
+- Contrôle SQL direct après migration : tables du référentiel présentes; colonnes géographiques de `pharmacies` présentes; une ligne de contrôle de synchronisation; quatre politiques administrateur authentifié. Au moment du contrôle, 3 partenaires visibles, tous les 3 avec latitude et longitude; aucun candidat OSM importé.
+- Vérification statique de la liaison carte/liste et du nettoyage des marqueurs effectuée. Le build TypeScript/Next.js et le test Node complet n'ont pas pu être exécutés dans cet environnement. Le statut CircleCI reste en échec sur une vérification préexistante de comptage des migrations (le script attend 96 fichiers, tandis que le répertoire en contient 265); ce statut n'est pas présenté comme vert.
+- Aucun déploiement effectué.
