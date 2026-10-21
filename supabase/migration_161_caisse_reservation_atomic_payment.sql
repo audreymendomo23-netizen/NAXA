@@ -1,6 +1,6 @@
 -- NAXA 161 — encaissement comptoir des réservations Marketplace via la caisse POS.
--- Le stock de la réservation est déjà réservé : cette vente POS enregistre le paiement
--- et la session de caisse sans débiter une seconde fois le stock.
+-- Une réservation est un hold temporaire, pas un débit physique. La caisse débite le stock
+-- pendant la validation de la vente, puis consomme le hold dans la même transaction.
 begin;
 
 alter table public.ventes
