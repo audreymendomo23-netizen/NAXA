@@ -165,6 +165,18 @@ begin
   if p_evenement is null or p_claim_token is null or p_succes is null then
     raise exception 'Résultat de traitement incomplet';
   end if;
+  if p_succes and not exists (
+    select 1
+    from public.compta_evenement ev
+    join public.compta_ecriture ce
+      on ce.pharmacie_id=ev.pharmacie_id
+     and ce.source_type=ev.source_type
+     and ce.source_id=ev.source_id
+     and ce.cle_idempotence=ev.cle_idempotence
+    where ev.id=p_evenement
+  ) then
+    raise exception 'Impossible de marquer traité sans écriture comptable correspondante';
+  end if;
 
   update public.compta_evenement e
   set statut=case
