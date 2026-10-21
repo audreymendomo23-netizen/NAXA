@@ -36,7 +36,7 @@ type Produit = {
 };
 type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
-  adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null;
+  adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null; horaires: string | null; stock_updated_at: string | null;
 };
 type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; periode: string | null; source: string };
 type StockRow = {
@@ -359,7 +359,7 @@ export function AccueilClient() {
         try {
           const { data: pharmRows, error: pharmError } = await sb
             .from("pharmacies")
-            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at")
+            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at,horaires,stock_updated_at")
             .eq("actif", true)
             .eq("visible_recherche", true)
             .is("archivee_le", null)
