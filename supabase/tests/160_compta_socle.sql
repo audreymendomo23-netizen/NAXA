@@ -139,4 +139,4 @@ end
 $setup$;
 
 rollback;
-select '160_compta_socle PASS (à exécuter dans une base de test Supabase)' as resultat;
+select '160_compta_socle PASS' as resultat;
