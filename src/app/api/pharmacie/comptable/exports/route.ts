@@ -228,7 +228,7 @@ export async function GET(request: Request) {
   if (format === "pdf") {
     const pdfRows = [
       "NAXA - Rapport comptable",
-      `Type: ${type} | Pharmacie: ${profile.pharmacie_id}`,
+      `Type: ${type} | Pharmacie: ${pharmacyName}`,
       `Genere le: ${new Date().toISOString()}`,
       `Periode: ${debut ?? "non precise"} au ${fin ?? "non precise"}`,
       `Lignes: ${records.length}${sourceTruncated || records.length === limit ? " - LIMITE ATTEINTE" : ""}`,
