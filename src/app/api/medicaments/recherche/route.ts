@@ -80,7 +80,7 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   try {
     const [byName, byDci] = await Promise.all([
       sb.from("produits").select("id,nom,dci,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
-      sb.from("produits").select("id,nom,dci,photo_url,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
+      sb.from("produits").select("id,nom,dci,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
     ]);
     if (byName.error && byDci.error) return [];
     const unique = new Map<string, LocalProduct>();
@@ -255,7 +255,7 @@ export async function GET(request: NextRequest) {
       id: localProduct?.id ?? candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
       brand: brand ? cleanName(brand) : null,
-      activeIngredient: activeIngredient || null,
+      activeIngredient: localProduct?.dci || activeIngredient || null,
       form: formValue ? cleanName(formValue) : null,
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
