@@ -112,8 +112,10 @@ export async function GET(request: Request) {
     query = sb.from("compta_ecriture").select("id,date_ecriture,journal_code,reference_source,libelle,source_type,source_id")
       .eq("pharmacie_id", profile.pharmacie_id).order("date_ecriture", { ascending: true }).limit(limit);
   }
-  if (debut) query = query.gte(dateField, type === "depenses" ? debut : debut + "T00:00:00+01:00");
-  if (type === "depenses" && fin) query = query.lte(dateField, fin);
+  const dateOnly = type === "depenses" || type === "ecritures" || type === "grand_livre" || type === "balance";
+  if (debut) query = query.gte(dateField, dateOnly ? debut : debut + "T00:00:00+01:00");
+  if (dateOnly && fin) query = query.lte(dateField, fin);
+  else if (type === "depenses" && fin) query = query.lte(dateField, fin);
   else if (endExclusive) query = query.lt(dateField, endExclusive);
 
   const { data, error } = await query;
