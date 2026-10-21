@@ -38,14 +38,13 @@ begin
   if not found then
     raise exception 'Événement non réclamé ou jeton expiré';
   end if;
-  if v_event.evenement_type not in ('vente_encaissee','depense_validee')
-     or v_event.source_type not in ('vente','depense') then
-    raise exception 'type_evenement_non_pris_en_charge';
-  end if;
-
   -- Un événement ne peut être finalisé qu'avec une période ouverte, des mappings
   -- exactement uniques et un journal explicitement validé pour cette pharmacie.
   begin
+    if v_event.evenement_type not in ('vente_encaissee','depense_validee')
+       or v_event.source_type not in ('vente','depense') then
+      raise exception 'type_evenement_non_pris_en_charge';
+    end if;
     v_date := (v_event.donnees->>'date_comptable')::date;
     v_montant := (v_event.donnees->>'montant_fcfa')::bigint;
     if v_date is null or v_montant is null or v_montant <= 0 then
