@@ -38,3 +38,4 @@ end;
 $test$;
 
 rollback;
+select '161_compta_outbox PASS' as resultat;
