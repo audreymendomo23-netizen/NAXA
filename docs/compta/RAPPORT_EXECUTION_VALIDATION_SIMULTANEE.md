@@ -77,6 +77,10 @@ Ces alertes ont été consultées sur le projet isolé uniquement. Aucune modifi
 - Commit `5f0282cfe89d53c1f038470a288e87069956d0aa` : le test SQL 162 expose désormais un marqueur PASS après rollback. Le test 161 a également été corrigé pour exposer `161_compta_outbox PASS` (commit créé juste avant celui du test 162).
 - Un contrôle de cohérence de l'algorithme de date a été exécuté dans le runtime JavaScript sur six cas (date normale, 31 février, 29 février non bissextile, 29 février bissextile, mois invalide, format invalide) : **6/6 attendus**. Ce contrôle ciblé ne remplace pas l'exécution du script npm complet.
 
+### Vérification supplémentaire des rapports mensuels planifiés
+
+La fonction `public.compta_generer_rapport_mensuel()` existe sur la base isolée, et le job `naxa-compta-rapport-mensuel` est présent dans `pg_cron`. Un test transactionnel a appelé la fonction, comparé le nombre de rapports créés au nombre retourné, puis effectué un `ROLLBACK` : **PASS** (`PASS compta_generer_rapport_mensuel transactionnel`). Une requête post-test confirme qu'aucun rapport comptable de test n'est resté persistant. Ce test valide l'exécution transactionnelle de la fonction sur la base isolée, pas la livraison réelle d'un rapport à un utilisateur.
+
 ## État de l'historique des migrations de test
 
 Le dépôt contient neuf migrations Comptable identifiées, tandis que l'historique de la base isolée expose huit entrées Comptable et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé. Aucun rejeu ni réparation automatique n'a été tenté : cette base ne constitue pas un historique canonique et la migration des rapports planifiés contient un éventuel enregistrement `pg_cron` à inspecter avant application.
@@ -91,4 +95,4 @@ Le socle SQL comptable dispose de plusieurs preuves structurelles positives, mai
 4. réaliser les parcours UI/API et les scénarios positifs/négatifs du cahier;
 5. corriger uniquement les alertes de sécurité confirmées après analyse d'impact.
 
-Aucun déploiement n'est autorisé par ce rapport.
+Aucun déploiement n'est autorisé par ce rapport. Dernier commit documentaire observé après cette mise à jour : voir la tête actuelle de `main`.
