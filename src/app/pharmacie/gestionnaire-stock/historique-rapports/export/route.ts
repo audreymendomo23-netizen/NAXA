@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const { data: rawPharmacies, error: scopeError } = await sb.rpc("my_pharmacies");
   const pharmacyIds = [...new Set((Array.isArray(rawPharmacies) ? rawPharmacies : [])
     .map((row) => typeof row === "string" ? row : row && typeof row === "object" ? ((row as { pharmacie_id?: string; id?: string }).pharmacie_id ?? (row as { id?: string }).id) : undefined)
-    .filter((id): id is string => Boolean(id))];
+    .filter((id): id is string => Boolean(id)))];
   if (scopeError || !pharmacyIds.length) return new Response("Périmètre pharmacie indisponible", { status: 503 });
 
   const [movements, reservations, adjustments, outgoingTransfers, incomingTransfers] = await Promise.all([
