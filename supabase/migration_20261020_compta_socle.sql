@@ -220,7 +220,13 @@ declare
   v_credit numeric;
   v_lignes bigint;
 begin
-  v_ecriture := case when tg_table_name='compta_ecriture' then new.id else coalesce(new.ecriture_id,old.ecriture_id) end;
+  if tg_table_name='compta_ecriture' then
+    v_ecriture := new.id;
+  elsif tg_op='INSERT' then
+    v_ecriture := new.ecriture_id;
+  else
+    v_ecriture := old.ecriture_id;
+  end if;
   select count(*),coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
     into v_lignes,v_debit,v_credit
   from public.compta_ligne l where l.ecriture_id=v_ecriture;
