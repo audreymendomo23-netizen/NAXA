@@ -161,7 +161,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
             }
           })).then((updates) => {
             if (controller.signal.aborted) return;
-            const byId = new Map(updates.filter((item): item is MedicamentRecherche => item !== null).map((item) => [item.id, item]));
+            const byId = new Map(updates.filter((item): item is MedicamentRecherche => item !== null).map((item) => [item.id, item] as const));
             if (!byId.size) return;
             const updated = results.map((item) => byId.get(item.id) ?? item);
             setMedicaments((current) => current.map((item) => byId.get(item.id) ?? item));
