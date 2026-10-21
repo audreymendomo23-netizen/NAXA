@@ -55,6 +55,10 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
   const [salesResult, expensesResult, cashResult, entriesResult] = invalidPeriod
     ? [{ data: null, error: { message: "Période invalide" } }, { data: null, error: { message: "Période invalide" } }, { data: null, error: { message: "Période invalide" } }, { data: null, error: { message: "Période invalide" } }] as const
     : await Promise.all([salesQuery, expensesQuery, cashQuery, entriesQuery]);
+  const { data: exportHistory, error: exportHistoryError } = await sb.from("compta_audit")
+    .select("sequence_no,acteur_id,action,objet_type,objet_id,resultat,motif,horodatage")
+    .eq("pharmacie_id", profile.pharmacie_id).eq("action", "export_generation")
+    .order("horodatage", { ascending: false }).limit(50);
 
   const sales = salesResult.data ?? [];
   const expenses = expensesResult.data ?? [];
@@ -107,10 +111,17 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
         </article>)}
       </div>
     </section>
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <h2 className="text-lg font-bold">Historique récent des exports</h2>
+      <p className="mt-1 text-sm text-slate-600">Journal comptable append-only, limité aux 50 dernières générations. Aucun contenu exporté ni donnée patient n’est conservé ici.</p>
+      {exportHistoryError ? <p role="alert" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Le journal d’export n’est pas accessible dans cet environnement. Aucun historique n’est inventé.</p>
+        : !exportHistory?.length ? <p className="mt-3 text-sm text-slate-600">Aucun export journalisé pour le moment.</p>
+        : <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b bg-slate-50 text-xs uppercase text-slate-500">{["Date","Type","Fichier logique","Résultat","Détails techniques"].map(h=><th key={h} className="px-3 py-3">{h}</th>)}</tr></thead><tbody>{exportHistory.map(event=><tr key={event.sequence_no} className="border-b last:border-0"><td className="whitespace-nowrap px-3 py-3">{new Intl.DateTimeFormat("fr-CM",{dateStyle:"medium",timeStyle:"short"}).format(new Date(event.horodatage))}</td><td className="px-3 py-3">{event.objet_type}</td><td className="px-3 py-3">{event.objet_id ?? "—"}</td><td className="px-3 py-3">{event.resultat}</td><td className="px-3 py-3">{event.motif ?? "—"}</td></tr>)}</tbody></table></div>}
+    </section>
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
       <h2 className="font-bold">Périmètre et limites</h2>
       <p className="mt-1">Les rapports utilisent les dates et montants effectivement enregistrés dans NAXA. Aucune TVA n’est calculée ou supposée. La somme de trésorerie est brute et ne représente pas un solde net. Les exports sont limités à 5 000 lignes par source ; l’en-tête indique si la limite est atteinte.</p>
-      <p className="mt-1">Le stockage d’un historique durable des exports n’est pas activé dans cette tranche : aucune table d’historique n’a été confirmée et aucune migration de base active n’a été appliquée. Mention d’usage : « État préparé par NAXA, à contrôler par votre expert-comptable ».</p>
+      <p className="mt-1">Les générations d’exports sont journalisées dans la table comptable append-only existante. L’historique affiché est limité aux 50 événements récents et n’enregistre pas le contenu des fichiers. Mention d’usage : « État préparé par NAXA, à contrôler par votre expert-comptable ».</p>
     </section>
   </main>;
 }
