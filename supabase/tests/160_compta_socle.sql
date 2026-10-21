@@ -118,10 +118,10 @@ begin
   perform public.compta_auditer(v_pharmacie,v_uid,'test_export','rapport','fixture-2','succes','test');
   select public.compta_verifier_audit(v_pharmacie) into v_ok;
   if not v_ok then raise exception 'Échec test : chaîne d’audit valide déclarée invalide'; end if;
-  alter table public.compta_audit disable trigger all;
+  alter table public.compta_audit disable trigger compta_audit_immutable;
   update public.compta_audit set hash_payload='{"tampered":true}'::jsonb
     where pharmacie_id=v_pharmacie and sequence_no=1;
-  alter table public.compta_audit enable trigger all;
+  alter table public.compta_audit enable trigger compta_audit_immutable;
   select public.compta_verifier_audit(v_pharmacie) into v_ok;
   if v_ok then raise exception 'Échec test : altération de la chaîne non détectée'; end if;
 
