@@ -118,6 +118,7 @@ export function AccueilClient() {
   const [homeFilters, setHomeFilters] = useState({stock:true,distance:"",sort:"prix" as "prix"|"distance",ascending:true,open:false,prescription:false,price:""});
   const [homeFilterOpen, setHomeFilterOpen] = useState(false);
   const [firstName, setFirstName] = useState("Client");
+  const [clientConnecte, setClientConnecte] = useState(false);
   const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [coord, setCoord] = useState<{lat:number;lng:number}|null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
@@ -374,6 +375,7 @@ export function AccueilClient() {
         }
         const { data: { user } } = await sb.auth.getUser();
         if (!active) return;
+        setClientConnecte(Boolean(user));
         if (user) {
           const { data: profile } = await sb.from("profiles").select("username,first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
           const isGoogle = user.app_metadata?.provider === "google" || Boolean(user.identities?.some(identity => identity.provider === "google"));
@@ -624,7 +626,7 @@ export function AccueilClient() {
         <CartePharmaciesProches pharmacies={pharmaciesProches} position={coord} onLocaliser={localiser} />
       </div>
 
-      <section className="mb-6">
+      {clientConnecte && <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
         {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="naxa-carousel-viewport overflow-hidden">
           <div className="naxa-carousel-loop flex w-max">{[false,true].map(copy => <div key={copy?"medicaments-copie":"medicaments-originaux"} aria-hidden={copy||undefined} className={`flex w-max shrink-0 ${copy ? "pointer-events-none" : ""}`}>{Array.from({ length: nombreSlidesProduits }, (_, slide) => produits.slice(slide * 2, slide * 2 + 2)).map((groupe, slide) => <div key={(copy?"copie-":"page-")+slide} className="naxa-reveal-list grid w-[calc(min(100vw,480px)-2rem)] shrink-0 grid-cols-2 gap-2.5">
@@ -654,7 +656,7 @@ export function AccueilClient() {
             </div>)}</div>)}</div>
         </div> : <p className="rounded-2xl bg-white px-4 py-5 text-sm leading-5 text-[#53685C]">Les recherches réelles des clients apparaîtront ici dès qu’elles seront disponibles.</p>}
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
-      </section>
+      </section>}
 
       <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
