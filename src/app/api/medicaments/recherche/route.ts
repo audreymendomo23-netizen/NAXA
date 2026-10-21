@@ -243,6 +243,12 @@ export async function GET(request: NextRequest) {
     const formInName = formFromText(raw);
     const name = localizedGeneric ? pilot!.nomFr + (formInName ? " — " + formInName.toLowerCase() : "") : raw;
     const candidateNorm = normaliserTerme(raw);
+    const localProduct = localProducts.find((product) => {
+      const productNames = [product.nom, product.dci].filter((value): value is string => Boolean(value)).map(normaliserTerme);
+      return productNames.some((productName) => productName === candidateNorm || productName === normaliserTerme(name) || productName.includes(candidateNorm) || candidateNorm.includes(productName));
+    }) ?? localProducts.find((product) => [product.nom, product.dci].filter(Boolean).some((value) => normaliserTerme(value as string) === normaliserTerme(query)));
+    const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
+    const availability = !localProduct || !localStocks.verified ? "non_verifiee" : stock?.pharmacies ? "disponible" : "indisponible";
     const brand = fdaField(preferredFda, "brand_name").find((value) => candidateNorm.includes(normaliserTerme(value))) ?? null;
     const activeIngredient = pilot?.substanceFr ?? cleanName(genericName) ?? null;
     const formValue = formFromText(form) || formInName || (form ? cleanName(form) : null);
