@@ -86,12 +86,12 @@ export const chargerGardesMfasha = cache(async (): Promise<{
       const section = plainText(html.slice(start, end));
       const phones = phoneNumbers(section);
       const sectionHtml = html.slice(start, end);
-      const imageMatch = sectionHtml.match(/<img\\b[^>]*?src=["']([^"']+)["'][^>]*>/i);
+      const imageMatch = sectionHtml.match(/<img\b[^>]*?src=["']([^"']+)["'][^>]*>/i);
       let imageUrl: string | null = null;
       if (imageMatch?.[1]) {
         try {
           const candidate = new URL(decodeHtml(imageMatch[1]), MFASHA_SOURCE_URL);
-          if (candidate.protocol === "https:" && /mfasha\\.com$/i.test(candidate.hostname)) imageUrl = candidate.toString();
+          if (candidate.protocol === "https:" && /mfasha\.com$/i.test(candidate.hostname)) imageUrl = candidate.toString();
         } catch {
           imageUrl = null;
         }
