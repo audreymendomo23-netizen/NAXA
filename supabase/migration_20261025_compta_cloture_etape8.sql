@@ -62,6 +62,12 @@ begin
   if p_pharmacie is null or p_periode is null or p_acteur is null then
     raise exception 'Pharmacie, période et acteur obligatoires';
   end if;
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = p_acteur and p.actif is true and p.pharmacie_id = p_pharmacie
+  ) then
+    raise exception 'Acteur inactif ou hors du périmètre de la pharmacie' using errcode = '42501';
+  end if;
 
   select * into v_periode
   from public.compta_periodes
