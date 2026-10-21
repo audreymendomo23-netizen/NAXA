@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
+import { chargerGardesMfasha, MFASHA_SOURCE_URL } from "@/lib/pharmacies-gardes/mfasha";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ type PharmacieGarde = {
   lng: number | null;
 };
 
-function coordonneesValides(lat: number | null, lng: number | null): lat is number {
+function coordonneesValides(lat: number | null, lng: number | null): boolean {
   return (
     typeof lat === "number" &&
     typeof lng === "number" &&
@@ -26,7 +27,7 @@ function coordonneesValides(lat: number | null, lng: number | null): lat is numb
   );
 }
 
-async function chargerGardes(): Promise<PharmacieGarde[] | null> {
+async function chargerGardesLocales(): Promise<PharmacieGarde[] | null> {
   try {
     const { data, error } = await supabasePublic(60)
       .from("pharmacies")
@@ -44,7 +45,13 @@ async function chargerGardes(): Promise<PharmacieGarde[] | null> {
 }
 
 export default async function PharmaciesDeGarde() {
-  const pharmacies = await chargerGardes();
+  const externe = await chargerGardesMfasha();
+  const pharmaciesLocales = externe ? null : await chargerGardesLocales();
+  const utiliseSourceExterne = Boolean(externe);
+  const aucuneSource = !externe && pharmaciesLocales === null;
+  const aucunePharmacie =
+    Boolean(externe && externe.pharmacies.length === 0) ||
+    Boolean(pharmaciesLocales && pharmaciesLocales.length === 0);
 
   return (
     <main className="min-h-dvh bg-naxa-green-50 px-4 py-6 text-naxa-ink">
@@ -59,25 +66,90 @@ export default async function PharmaciesDeGarde() {
         <header className="rounded-2xl bg-naxa-green-900 p-5 text-white">
           <h1 className="text-2xl font-extrabold">Pharmacies de garde</h1>
           <p className="mt-2 text-sm leading-relaxed">
-            Pharmacies actuellement de garde sur NAXA. Vérifiez la disponibilité directement auprès de la pharmacie avant de vous déplacer.
+            Liste publiée pour la période indiquée par la source. Appelez la pharmacie avant de vous déplacer : les gardes peuvent être modifiées.
           </p>
         </header>
 
-        {pharmacies === null && (
+        {externe && (
+          <section className="carte space-y-2" aria-label="Provenance des données">
+            <p className="text-sm font-semibold text-naxa-green-900">
+              Source : Mfasha · Yaoundé
+            </p>
+            <p className="text-sm text-slate-600">
+              Période publiée : {externe.periode}
+            </p>
+            <p className="text-xs text-slate-500">
+              Récupération vérifiée le {new Date(externe.fetchedAt).toLocaleString("fr-FR", { timeZone: "Africa/Douala" })}. Cette source publique n’est pas une API officielle; NAXA ne certifie pas indépendamment les tours de garde.
+            </p>
+            <a
+              href={MFASHA_SOURCE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center font-semibold text-naxa-green-700 underline underline-offset-4"
+            >
+              Vérifier la liste sur Mfasha
+            </a>
+          </section>
+        )}
+
+        {!externe && pharmaciesLocales !== null && (
+          <p className="carte text-sm text-amber-800">
+            La source Mfasha est momentanément indisponible. Affichage des données locales NAXA, qui peuvent ne pas refléter le planning le plus récent.
+            {" "}
+            <a className="font-semibold underline" href={MFASHA_SOURCE_URL} target="_blank" rel="noreferrer">
+              Consulter Mfasha
+            </a>
+          </p>
+        )}
+
+        {aucuneSource && (
           <p role="alert" className="carte text-sm text-red-700">
-            Impossible de charger les pharmacies de garde. Réessayez dans un instant.
+            Impossible de charger les pharmacies de garde. Consultez directement la source publique Mfasha et réessayez plus tard.
+            {" "}
+            <a className="font-semibold underline" href={MFASHA_SOURCE_URL} target="_blank" rel="noreferrer">
+              Ouvrir Mfasha
+            </a>
           </p>
         )}
 
-        {pharmacies !== null && pharmacies.length === 0 && (
+        {aucunePharmacie && (
           <p className="carte text-sm text-slate-600">
-            Aucune pharmacie de garde n’est indiquée pour le moment.
+            Aucune pharmacie de garde n’a pu être extraite pour cette période. Consultez la source directement.
           </p>
         )}
 
-        {pharmacies !== null && pharmacies.length > 0 && (
+        {externe && externe.pharmacies.length > 0 && (
           <ul className="space-y-3">
-            {pharmacies.map((p) => (
+            {externe.pharmacies.map((p) => (
+              <li key={p.id} className="carte space-y-1">
+                <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
+                {p.quartier && <p className="text-sm text-slate-600">{p.quartier}</p>}
+                {p.telephone && (
+                  <p className="text-sm">
+                    Téléphone :{" "}
+                    <a className="font-semibold text-naxa-green-700 underline" href={`tel:${p.telephone.replace(/[^+\d]/g, "")}`}>
+                      {p.telephone}
+                    </a>
+                  </p>
+                )}
+                {p.autresTelephones.length > 0 && (
+                  <p className="text-sm text-slate-600">
+                    Autres numéros : {p.autresTelephones.join(" · ")}
+                  </p>
+                )}
+                <p className="text-xs text-slate-500">
+                  <a href={p.source} target="_blank" rel="noreferrer" className="underline">
+                    Source et vérification
+                  </a>
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {!externe && pharmaciesLocales && pharmaciesLocales.length > 0 && (
+          <ul className="space-y-3">
+            {pharmaciesLocales.map((p) => (
               <li key={p.id} className="carte space-y-1">
                 <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
                 {(p.quartier || p.adresse) && (
