@@ -66,7 +66,8 @@ function chargerLeaflet(): Promise<LeafletApi> {
 }
 
 function popupHtml(p: PharmacieCarte) {
-  const safe = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char] ?? char));
+  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  const safe = (value: string) => value.replace(/[&<>"']/g, char => replacements[char] ?? char);
   const location = [p.quartier, p.ville].filter(Boolean).join(", ");
   const distanceText = p.distanceKm == null ? "Distance indisponible" : p.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " km";
   return '<div style="min-width:160px"><strong>' + safe(p.nom) + '</strong><div>' + safe(location || p.adresse || "Adresse à confirmer") + '</div><div>' + safe(distanceText) + '</div>' + (p.de_garde ? '<div style="color:#0F6B3F;font-weight:700">Pharmacie de garde</div>' : "") + '</div>';
