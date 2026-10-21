@@ -10,6 +10,7 @@
     "test:travel-taxi": "node scripts/test-travel-taxi.cjs",
     "test:geolocalisation": "node scripts/test-geolocalisation-pharmacies.cjs",
     "test:catalogue-medicaments": "node scripts/test-catalogue-medicaments.cjs",
+    "import:bdpm": "node scripts/import-bdpm.cjs",
     "test:suivi-interoperabilite": "node scripts/test-suivi-interoperabilite.cjs",
     "test:caisse-calculs": "node scripts/test-caisse-calculs.cjs",
     "test:compta-moteur": "node scripts/test-compta-moteur.cjs"
