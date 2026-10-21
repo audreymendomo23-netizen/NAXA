@@ -81,9 +81,17 @@ Ces alertes ont été consultées sur le projet isolé uniquement. Aucune modifi
 
 La fonction `public.compta_generer_rapport_mensuel()` existe sur la base isolée, et le job `naxa-compta-rapport-mensuel` est présent dans `pg_cron`. Un test transactionnel a appelé la fonction, comparé le nombre de rapports créés au nombre retourné, puis effectué un `ROLLBACK` : **PASS** (`PASS compta_generer_rapport_mensuel transactionnel`). Une requête post-test confirme qu'aucun rapport comptable de test n'est resté persistant. Ce test valide l'exécution transactionnelle de la fonction sur la base isolée, pas la livraison réelle d'un rapport à un utilisateur.
 
+### Optimisation des clés étrangères comptables
+
+- Commit `0e1495fa8c014487e6734844e90bdac3a3457842` : nouvelle migration additive `supabase/migration_20261028_compta_fk_indexes.sql` créant 13 index couvrants pour les clés étrangères du périmètre comptable, sans supprimer d'index existant.
+- Commit `19f7ebe400f686674840a5dc74a6ff416455fc7e` : test structurel `supabase/tests/172_compta_fk_indexes.sql`.
+- Migration appliquée **uniquement** à la base isolée `naxa-ci-replay-2`, puis test 172 exécuté : **PASS**.
+- Relecture du conseiller de performance après migration : les alertes `unindexed_foreign_keys` visant les tables `compta_*` ont disparu. Le conseiller signale maintenant ces index comme « non utilisés » dans la fenêtre observée, ainsi que plusieurs index comptables préexistants. La base de test ne contient pas de charge métier; **ne pas supprimer ces index sur cette seule base**.
+- La migration n'a pas été appliquée à la base active et aucun déploiement n'a été effectué.
+
 ## État de l'historique des migrations de test
 
-Le dépôt contient neuf migrations Comptable identifiées, tandis que l'historique de la base isolée expose huit entrées Comptable et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé. Aucun rejeu ni réparation automatique n'a été tenté : cette base ne constitue pas un historique canonique et la migration des rapports planifiés contient un éventuel enregistrement `pg_cron` à inspecter avant application.
+Le dépôt contient maintenant dix migrations Comptable identifiées (dont la nouvelle migration d'index), tandis que l'historique de la base isolée expose les huit entrées historiques précédentes plus la nouvelle migration d'index et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé. Aucun rejeu ni réparation automatique n'a été tenté : cette base ne constitue pas un historique canonique et la migration des rapports planifiés contient un éventuel enregistrement `pg_cron` à inspecter avant application.
 
 ## Conclusion opérationnelle
 
