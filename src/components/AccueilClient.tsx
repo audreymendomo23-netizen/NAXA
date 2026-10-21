@@ -678,7 +678,7 @@ export function AccueilClient() {
               </Link>)}
             </div>)}</div>
           </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
-            <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]">{p.imageUrl ? <img src={p.imageUrl} alt={`Pharmacie ${p.nom}`} loading="lazy" className="h-full w-full object-cover" /> : <span className="text-2xl text-[#0F6B3F]" aria-label="Photo non disponible">✚</span>}</span>
+            <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]"><span className="text-2xl text-[#0F6B3F]" aria-label="Photo non disponible">✚</span></span>
             <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
           </div>}
         </div>
