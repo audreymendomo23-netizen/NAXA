@@ -86,7 +86,7 @@ export function CaisseSidebar({ sessionOpen = false, creditsDue, pharmacyName }:
               className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${active ? "bg-[#FFE23D] text-[#0B3D26]" : "text-white hover:bg-white/10"}`}>
               <span aria-hidden="true" className="w-5 shrink-0 text-center text-lg">{entry.icon}</span>
               <span className="min-w-0 flex-1">{entry.label}</span>
-              {badge !== null && badge !== 0 && badge !== false && (
+              {badge !== null && badge !== 0 && (
                 <span className={`min-w-6 rounded-full px-2 py-0.5 text-center text-xs font-extrabold ${entry.badge === "session" ? "bg-[#FFE23D] text-[#0B3D26]" : "bg-white text-[#0B3D26]"}`}>
                   {badge}
                 </span>
