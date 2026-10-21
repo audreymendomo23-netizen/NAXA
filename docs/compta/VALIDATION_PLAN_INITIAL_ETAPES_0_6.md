@@ -86,7 +86,7 @@ Le premier blocage pratique est l'absence d'un environnement de test canonique a
 - Tests de régression ajoutés : `9d913120a14178bf5cd8b55f16b58151b0ec2818` — dates d'événement et de mapping impossibles, intervalle de mapping inversé.
 - Documentation de résultats actualisée : `fcb5f023afb93c84b355364b80453863be852aff`, puis `eaae9325ff6cb291269e13d6625c580240929691` après confirmation des 12 tests SQL.
 - Les tests SQL 164, 165 et 166 ont été retrouvés dans le dépôt et exécutés sur la base isolée : tous trois ont retourné un marqueur PASS explicite. Ils couvrent RLS des rapports, référentiels en lecture seule et RPC des reçus d'abonnement.
-- Le contrôle JavaScript ciblé de validation de date a passé 6/6 cas attendus. Le script `npm run test:compta-moteur` n'a toujours pas été exécuté dans un checkout local; les tests ajoutés ne sont donc pas déclarés verts tant que ce script n'est pas réellement lancé.
+- Le contrôle JavaScript ciblé de validation de date a passé 6/6 cas attendus. Le script `npm run test:compta-moteur` n'a toujours pas été exécuté dans un checkout local; une tentative de clone a échoué car l'environnement d'exécution ne résout pas `github.com`. Les tests ajoutés ne sont donc pas déclarés verts tant que ce script n'est pas réellement lancé.
 - Le rejeu canonique des migrations, le typecheck, le lint, le build, les tests navigateur et la recette E2E authentifiée restent non exécutés ou bloqués par l'absence d'un checkout local et de profils/données métier dans la base de test.
 - La base active Supabase n'a pas été modifiée. Aucun contrôle CI ni déploiement n'a été effectué.
 
