@@ -815,7 +815,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-fairy-leaving .luciole-insect { opacity: 1; transform: scale(1); }
 .naxa-luciole .luciole-fairy-halo { transform-origin: 24px 4px; animation: luciole-fairy-halo-pulse 2.2s ease-in-out infinite; }
 .naxa-luciole .luciole-fairy-wings { transform-origin: 24px 19px; animation: luciole-fairy-wing-shimmer 1.8s ease-in-out infinite alternate; }
-@keyframes luciole-fairy-pop { 0% { opacity: 0; transform: scale(.35) rotate(-7deg); } 72% { opacity: 1; transform: scale(calc(var(--luciole-fairy-scale) * 1.12)) rotate(1.5deg); } 100% { opacity: 1; transform: scale(var(--luciole-fairy-scale)) rotate(0); } }
+@keyframes luciole-fairy-pop { 0% { opacity: 0; transform: scale(.35) rotate(-7deg); } 72% { opacity: 1; transform: scale(1.12) rotate(1.5deg); } 100% { opacity: 1; transform: scale(var(--luciole-fairy-scale)) rotate(0); } }
 @keyframes luciole-fairy-halo-pulse { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
 @keyframes luciole-fairy-wing-shimmer { from { opacity: .78; transform: scaleY(.97); } to { opacity: 1; transform: scaleY(1.025); } }
 @media (prefers-reduced-motion: reduce) { .naxa-luciole .luciole-anatomy,.naxa-luciole.luciole-fairy-entering .luciole-fairy,.naxa-luciole .luciole-fairy-halo,.naxa-luciole .luciole-fairy-wings { animation: none !important; transition: none !important; } .naxa-luciole.luciole-fairy-entering .luciole-fairy,.naxa-luciole.luciole-fairy-visible .luciole-fairy { opacity: 1; transform: scale(var(--luciole-fairy-scale)); } .naxa-luciole.luciole-fairy-entering .luciole-insect,.naxa-luciole.luciole-fairy-visible .luciole-insect { opacity: 0; } }
