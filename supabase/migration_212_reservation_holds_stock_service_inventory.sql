@@ -235,8 +235,7 @@ begin
     where id=p_reservation;
 end;
 $function$;
-revoke all on function public.consume_reservation_for_sale(uuid,uuid) from public,anon;
-grant execute on function public.consume_reservation_for_sale(uuid,uuid) to authenticated;
+revoke all on function public.consume_reservation_for_sale(uuid,uuid) from public,anon,authenticated;
 
 
 -- A service session belongs to one stock manager and one pharmacy.
