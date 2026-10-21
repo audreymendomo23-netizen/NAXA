@@ -29,9 +29,31 @@ export async function POST(request: Request) {
   }
   const action = String(form.get("action") ?? "");
   const periode = String(form.get("periode") ?? "");
-  if (!/^[0-9a-f-]{36}$/i.test(periode)) return redirectResult(request, "periode_invalide");
-
   const admin = supabaseAdmin();
+
+  if (action === "ouvrir") {
+    const debut = String(form.get("date_debut") ?? "");
+    const fin = String(form.get("date_fin") ?? "");
+    const validIsoDate = (value: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(value)
+      && !Number.isNaN(new Date(value + "T00:00:00Z").getTime())
+      && new Date(value + "T00:00:00Z").toISOString().slice(0, 10) === value;
+    if (!validIsoDate(debut) || !validIsoDate(fin) || debut > fin) {
+      return redirectResult(request, "dates_periode_invalides");
+    }
+    const { error } = await admin.rpc("compta_ouvrir_periode", {
+      p_pharmacie: profile.pharmacie_id,
+      p_date_debut: debut,
+      p_date_fin: fin,
+      p_acteur: auth.user.id,
+    });
+    if (error) {
+      const overlap = /chevauche/i.test(error.message ?? "");
+      return redirectResult(request, overlap ? "chevauchement_periode" : "ouverture_refusee");
+    }
+    return redirectResult(request, "periode_ouverte");
+  }
+
+  if (!/^[0-9a-f-]{36}$/i.test(periode)) return redirectResult(request, "periode_invalide");
   if (action === "controle") {
     const code = String(form.get("controle_code") ?? "");
     const statut = String(form.get("statut") ?? "");
