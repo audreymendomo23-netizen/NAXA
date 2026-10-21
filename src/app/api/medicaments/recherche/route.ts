@@ -320,8 +320,8 @@ export async function GET(request: NextRequest) {
       brand: brand ? cleanName(brand) : null,
       activeIngredient: localProduct?.dci || activeIngredient || null,
       form: localProduct?.forme || (formValue ? cleanName(formValue) : null),
-      definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
-      indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
+      definition: cleanPublicText(localProduct?.description, 460) ?? (candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null),
+      indications: cleanPublicText(localProduct?.indications, 620) ?? (candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null),
       safetyInformation: candidateHasIngredient ? {
         warnings: cleanLabelSection(preferredFda?.warnings, 560),
         adverseReactions: cleanLabelSection(preferredFda?.adverse_reactions, 560),
