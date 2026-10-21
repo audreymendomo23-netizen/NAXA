@@ -482,10 +482,18 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 ## Compte Comptable — Étape 8 « Clôtures, exports, audit » — 21/10/2026
 - Migration additive `supabase/migration_20261025_compta_cloture_etape8.sql` : table des contrôles de clôture et RPC serveur `compta_cloturer_periode` ; vérifications des preuves de dotations, paie, TVA, stock et rapprochements, avec régularisations/à-nouveaux pour la clôture annuelle, événements en attente/erreur, équilibre des écritures et chaîne d’audit.
 - Exports CSV/XLSX/PDF étendus au grand livre et à la balance ; agrégation monétaire en bigint, dates de période corrigées. Les états bilan/résultat/TVA/paie restent à construire après confirmation des sources et mappings validés.
-- Parcours `/pharmacie/comptable/clotures` et API `/api/pharmacie/comptable/clotures` ajoutés pour enregistrer les contrôles via RPC serveur et demander la clôture ; la page ne crée pas de période et indique explicitement si aucune n’existe.
+- Parcours `/pharmacie/comptable/clotures` et API `/api/pharmacie/comptable/clotures` ajoutés : ouverture de période via RPC serveur sans chevauchement, contrôles documentés et demande de clôture ; chaque action est auditée.
 - La page Journal d’audit affiche le résultat de la vérification de chaîne.
 - Tests SQL structurels `167_compta_cloture_etape8_structure.sql` et `169_compta_controles_cloture_rpc.sql` : PASS sur la base isolée. Test transactionnel `168_compta_audit_chain_integrity.sql` : PASS, chaîne valide acceptée et altération simulée détectée puis annulée. Chaînes vides : 6/6 valides, 0 invalide.
 - Limites : aucun profil de test dans la base isolée, donc pas de test positif de clôture réelle ni de tests négatifs par identité. Typecheck, lint, build et navigateur NON EXÉCUTÉS. CI NON CONSULTÉE/LANCÉE. Base active NON MODIFIÉE. Aucun déploiement.
 - Rapport : `docs/compta/RAPPORT_ETAPE_8.md`.
 - **État : 🟡 étape 8 engagée, non certifiée ni terminée.**
+
+## Compte Comptable — Étape 9 « Recette et pilotage 360° » — 21/10/2026
+- Dashboard `/pharmacie/comptable` étendu avec KPI réels sur ventes payées, dépenses, mouvements bruts de trésorerie, dossiers d’assurance, contrôles de clôture et chaîne d’audit ; filtrage par pharmacie et mois, sommes en `bigint`, états indisponibles et troncature signalés.
+- Exports : nom/id pharmacie, dates et date de génération ; empreinte SHA-256 dans l’en-tête de réponse et le journal d’audit. Bilan, résultat, TVA et paie explicitement non générés tant que les sources/mappings ne sont pas confirmés (HTTP 409).
+- Test `supabase/tests/170_compta_recette_etape9_security.sql` : PASS sur base isolée. `167`, `168`, `169` rejoués : PASS.
+- Base isolée au contrôle : 6 pharmacies, 0 profil, 0 vente, 0 ligne de vente, 0 dépense, 0 mouvement de trésorerie, 0 dossier d’assurance, 0 période, 0 écriture, 0 ligne comptable, 0 compte du plan. Les parcours E2E réels ne peuvent donc pas être certifiés sans fixtures autorisées.
+- Matrice 12 critères, risques et preuves : `docs/compta/RAPPORT_ETAPE_9.md`. Typecheck, lint, build et navigateur NON EXÉCUTÉS ; CI NON CONSULTÉE/LANCÉE ; base active NON MODIFIÉE ; aucun déploiement.
+- **État : 🟡 étape 9 engagée, recette métier non certifiée.**
 
