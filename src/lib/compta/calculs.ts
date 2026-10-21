@@ -150,7 +150,7 @@ export function regrouperBalanceParSections(
   comptes: readonly CompteComptable[],
   sectionsValidees: ReadonlySet<string>,
 ): SectionBalance[] {
-  const comptesParId = new Map(comptes.map(c => [c.id, c]));
+  const comptesParId = new Map(comptes.map(c => [c.id, c] as const));
   const groupes = new Map<string, LigneBalance[]>();
   for (const ligne of balance.lignes) {
     const compte = comptesParId.get(ligne.compteId);
