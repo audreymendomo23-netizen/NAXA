@@ -70,6 +70,9 @@ const mappings = [
 const ready = moteur.resoudreMappingEvenement({ evenementType: "vente_payee", dateEvenement: "2026-10-21", mappings, comptesValides: new Set(["a", "b"]), parametresRequisValides: true });
 assert.equal(ready.statut, "pret");
 assert.equal(ready.comptesResolus.debit, "a");
+assert.equal(moteur.resoudreMappingEvenement({ evenementType: "vente_payee", dateEvenement: "2026-02-31", mappings, comptesValides: new Set(["a", "b"]) }).statut, "a_traiter");
+assert.equal(moteur.resoudreMappingEvenement({ evenementType: "vente_payee", dateEvenement: "2026-10-21", mappings: mappings.map(m => ({ ...m, valideDu: "2026-02-31" })), comptesValides: new Set(["a", "b"]) }).statut, "a_traiter");
+assert.equal(moteur.resoudreMappingEvenement({ evenementType: "vente_payee", dateEvenement: "2026-10-21", mappings: mappings.map(m => ({ ...m, valideDu: "2026-11-01", valideJusquau: "2026-01-01" })), comptesValides: new Set(["a", "b"]) }).statut, "a_traiter");
 assert.equal(moteur.resoudreMappingEvenement({ evenementType: "achat", dateEvenement: "2026-10-21", mappings, comptesValides: new Set(["a", "b"]) }).statut, "a_traiter");
 assert.equal(moteur.resoudreMappingEvenement({ evenementType: "vente_payee", dateEvenement: "2026-10-21", mappings, comptesValides: new Set(["a", "b"]), parametresRequisValides: false }).statut, "a_traiter");
 assert.equal(moteur.statutParametreApresLecture("a_valider"), "a_traiter");
