@@ -76,6 +76,11 @@ test("images : la photo locale est prioritaire et le placeholder reste disponibl
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
 });
 
+test("fiche publique : les photos sans licence validée ne sont pas affichées", () => {
+  assert.match(produit, /p\.photo_path&&p\.photo_licence&&p\.photo_verifiee_le/);
+  assert.doesNotMatch(produit, /src=\{p\.photo_url\}/);
+});
+
 test("dosage : aucun dosage n'est rendu dans les vues client principales", () => {
   assert.doesNotMatch(resultats, /\{i\.nom\}\s*\{i\.dosage\}/);
   assert.doesNotMatch(produit, /\{p\.nom\}\s*\{p\.dosage\}/);
