@@ -205,7 +205,7 @@ export function Luciole() {
       firefly.classList.add("luciole-fairy-entering");
       burst();
       window.setTimeout(() => { if (fairyVisible) { firefly.classList.remove("luciole-fairy-entering"); firefly.classList.add("luciole-fairy-visible"); } }, LUCIOLE_TIMING.fairyFade);
-      fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration - LUCIOLE_TIMING.fairyFade);
+      fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration);
     };
     const onFairyTripleTouch = (event: PointerEvent) => {
       if (event.pointerType !== "touch" || sleeping || sleepPending) return;
