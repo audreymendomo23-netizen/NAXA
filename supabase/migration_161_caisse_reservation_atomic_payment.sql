@@ -33,6 +33,13 @@ declare
   v_numero text;
   v_total_lignes integer;
   v_monnaie integer;
+  v_item record;
+  v_lot record;
+  v_stock_qty integer;
+  v_lots_count integer;
+  v_remaining integer;
+  v_take integer;
+  v_legacy_decremented boolean;
 begin
   if auth.uid() is null then
     raise exception 'Connexion requise';
@@ -119,19 +126,77 @@ begin
   )
   returning id into v_vente;
 
-  -- La réservation a déjà réservé les quantités. Copier les lignes dans le ticket
-  -- POS sans toucher à stocks ni stocks_lots évite un double débit de stock.
-  insert into public.vente_lignes(vente_id, produit_id, quantite, prix_unitaire)
-  select v_vente, ri.produit_id, ri.quantite, ri.prix_unitaire
-  from public.reservation_items ri
-  where ri.reservation_id = r.id
-  order by ri.produit_id;
+  -- Nouvelle règle métier : la réservation ne débite pas le stock physique.
+  -- Le débit intervient ici, pendant la validation atomique par la caisse.
+  -- Les anciennes réservations sont reconnues par le marqueur ajouté en migration 212;
+  -- avant cette colonne, l'absence du champ est traitée comme une réservation legacy déjà débitée.
+  v_legacy_decremented := coalesce((to_jsonb(r)->>'stock_decremented')::boolean, true);
+
+  for v_item in
+    select ri.produit_id, ri.quantite, ri.prix_unitaire
+    from public.reservation_items ri
+    where ri.reservation_id = r.id
+    order by ri.produit_id
+  loop
+    select s.quantite into v_stock_qty
+    from public.stocks s
+    where s.pharmacie_id = r.pharmacie_id and s.produit_id = v_item.produit_id
+    for update;
+    if not found then raise exception 'Produit absent du stock lors de l’encaissement'; end if;
+
+    select count(*) into v_lots_count
+    from public.stocks_lots l
+    where l.pharmacie_id = r.pharmacie_id and l.produit_id = v_item.produit_id;
+
+    if v_lots_count > 0 then
+      v_remaining := v_item.quantite;
+      for v_lot in
+        select l.id,l.quantite,l.date_peremption
+        from public.stocks_lots l
+        where l.pharmacie_id=r.pharmacie_id and l.produit_id=v_item.produit_id
+          and l.quantite>0 and coalesce(l.bloque,false)=false
+          and (l.date_peremption is null or l.date_peremption>=current_date)
+        order by l.date_peremption asc nulls last,l.created_at asc,l.id asc
+        for update
+      loop
+        exit when v_remaining=0;
+        v_take:=least(v_remaining,v_lot.quantite);
+        update public.stocks_lots set quantite=quantite-v_take where id=v_lot.id;
+        insert into public.vente_lignes(vente_id,produit_id,lot_id,quantite,prix_unitaire)
+        values(v_vente,v_item.produit_id,v_lot.id,v_take,v_item.prix_unitaire);
+        v_remaining:=v_remaining-v_take;
+      end loop;
+      if v_remaining>0 then raise exception 'Lots vendables insuffisants lors de l’encaissement'; end if;
+    else
+      if exists(select 1 from public.stocks s where s.pharmacie_id=r.pharmacie_id
+        and s.produit_id=v_item.produit_id and s.date_peremption is not null
+        and s.date_peremption<current_date) then
+        raise exception 'Stock périmé : encaissement refusé';
+      end if;
+      insert into public.vente_lignes(vente_id,produit_id,quantite,prix_unitaire)
+      values(v_vente,v_item.produit_id,v_item.quantite,v_item.prix_unitaire);
+    end if;
+
+    -- Les réservations legacy ont déjà réduit stocks.quantite à leur création.
+    -- Les nouvelles réservations ne la réduisent qu'à la vente validée.
+    if not v_legacy_decremented then
+      update public.stocks
+      set quantite=quantite-v_item.quantite,updated_at=now()
+      where pharmacie_id=r.pharmacie_id and produit_id=v_item.produit_id
+        and quantite>=v_item.quantite;
+      if not found then raise exception 'Stock physique insuffisant lors de l’encaissement'; end if;
+    end if;
+  end loop;
 
   perform public.vente_encaisser_finaliser(v_vente, p_montant_percu);
 
   update public.reservations
   set paiement_mode = 'especes_retrait',
-      paiement_ref = null
+      paiement_ref = null,
+      consumed_by_vente_id = v_vente,
+      consumed_at = now(),
+      stock_decremented = true,
+      stock_restored = false
   where id = r.id;
 
   perform public.set_reservation_status(r.id, 'payee'::public.resa_statut);
@@ -149,9 +214,9 @@ revoke all on function public.vente_reservation_encaisser(uuid, uuid, integer) f
 grant execute on function public.vente_reservation_encaisser(uuid, uuid, integer) to authenticated;
 
 comment on column public.ventes.reservation_id is
-  'Réservation Marketplace liée à la vente POS. Unique pour empêcher un double encaissement; le stock de la réservation n’est pas débité une seconde fois.';
+  'Réservation Marketplace liée à la vente POS. Unique pour empêcher un double encaissement; le stock physique est débité à la validation de caisse, une seule fois.';
 
 comment on function public.vente_reservation_encaisser(uuid, uuid, integer) is
-  'Encaisse une réservation Pharmacie confirmée en espèces dans une session ouverte, crée le ticket POS lié et marque le paiement dans une transaction atomique.';
+  'Encaisse une réservation Pharmacie confirmée dans une session ouverte, débite le stock physique à la validation de caisse, lie le ticket POS et consomme la réservation une seule fois dans une transaction atomique.';
 
 commit;
