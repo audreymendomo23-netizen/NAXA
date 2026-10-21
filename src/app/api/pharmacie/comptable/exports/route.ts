@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -80,7 +80,15 @@ export async function GET(request: Request) {
   else if (endExclusive) query = query.lt(dateField, endExclusive);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: "source_indisponible" }, { status: 503 });
+  if (error) {
+    const admin = supabaseAdmin();
+    await admin.rpc("compta_auditer", {
+      p_pharmacie: profile.pharmacie_id, p_acteur: auth.user.id,
+      p_action: "export_generation", p_objet_type: type, p_objet_id: type,
+      p_resultat: "erreur", p_motif: "source_indisponible",
+    });
+    return NextResponse.json({ error: "source_indisponible" }, { status: 503 });
+  }
   const rows = (data ?? []) as Row[];
   const records: (string | number)[][] = rows.map((row) => {
     if (type === "ventes") return [row.created_at as string, row.paid_at as string | null ?? "", row.numero_vente as string, row.statut as string, row.total_brut as number, row.remise as number, row.total_net as number, row.mode_paiement as string | null ?? "", row.paiement_ref as string | null ?? ""];
@@ -100,6 +108,18 @@ export async function GET(request: Request) {
   ];
   const filename = `naxa-${type}-${debut ?? "debut"}-${fin ?? "fin"}`;
   const format = url.searchParams.get("format") === "xlsx" ? "xlsx" : "csv";
+  const audit = await supabaseAdmin().rpc("compta_auditer", {
+    p_pharmacie: profile.pharmacie_id,
+    p_acteur: auth.user.id,
+    p_action: "export_generation",
+    p_objet_type: type,
+    p_objet_id: filename,
+    p_resultat: "succes",
+    p_motif: `format=${format}; debut=${debut ?? "non_precise"}; fin=${fin ?? "non_precise"}; lignes=${records.length}; tronque=${records.length === limit}`,
+  });
+  if (audit.error) {
+    return NextResponse.json({ error: "journalisation_export_indisponible" }, { status: 503 });
+  }
   if (format === "xlsx") {
     const workbook = XLSX.utils.book_new();
     const safeRecords = records.map((row) => row.map((cell) => safeCell(cell)));
