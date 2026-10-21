@@ -497,3 +497,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Matrice 12 critères, risques et preuves : `docs/compta/RAPPORT_ETAPE_9.md`. Typecheck, lint, build et navigateur NON EXÉCUTÉS ; CI NON CONSULTÉE/LANCÉE ; base active NON MODIFIÉE ; aucun déploiement.
 - **État : 🟡 étape 9 engagée, recette métier non certifiée.**
 
+
+
+## Compte Comptable — Étape 10 « Recette renforcée » — 21/10/2026
+- Test ajouté : `supabase/tests/171_compta_recette_etape10_hardening.sql`. Il vérifie les triggers d'immuabilité, la contrainte différée de partie double, RLS sur les tables comptables sensibles, l'absence d'écriture directe authentifiée et la séparation des RPC ouverture/clôture.
+- Tests 167, 168, 169, 170 et 171 rejoués sur le projet isolé `naxa-ci-replay-2` : les cinq marqueurs PASS ont été observés.
+- Aucun profil, vente, écriture ou fixture E2E persistant créé. La base de test présente un historique non canonique (saut du socle 132 aux séries 157 et suivantes, migrations 133–156 absentes de son historique observé) ; ne pas appliquer ces migrations hors ordre sans réconciliation.
+- Sources dédiées confirmées de paie et d'immobilisations/amortissements absentes : la clôture positive complète reste bloquée plutôt que de valider des contrôles fictifs.
+- Rapport détaillé : `docs/compta/RAPPORT_ETAPE_10.md`.
+- Typecheck, lint, build, Vitest et navigateur NON EXÉCUTÉS ; CI NON CONSULTÉE/LANCÉE ; Supabase active NON MODIFIÉE ; aucun déploiement.
+- **État : 🟡 étape 10 partielle, SQL structurel PASS, E2E métier non certifié.**
