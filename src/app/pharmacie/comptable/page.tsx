@@ -97,6 +97,16 @@ export default async function ComptableDashboardPage() {
         </section>
       ) : (
         <>
+          <nav aria-label="Navigation Comptable" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link href="/pharmacie/comptable/journal-ventes" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
+              <span className="text-sm font-semibold text-emerald-800">Journal des ventes</span><p className="mt-1 text-sm text-slate-600">Ventes sources et montants enregistrés, en lecture seule.</p>
+            </Link>
+            <Link href="/pharmacie/comptable/rapprochements" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
+              <span className="text-sm font-semibold text-emerald-800">Trésorerie & rapprochements</span><p className="mt-1 text-sm text-slate-600">Comparer les mouvements de trésorerie aux ventes payées.</p>
+            </Link>
+            <div className="rounded-2xl border border-dashed border-slate-300 p-4"><span className="text-sm font-semibold text-slate-700">Créances & bordereaux</span><p className="mt-1 text-sm text-slate-500">Prochaine tranche : confirmer les sources métier et les droits de soumission.</p></div>
+          </nav>
+
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-600">Écritures récentes</p>
