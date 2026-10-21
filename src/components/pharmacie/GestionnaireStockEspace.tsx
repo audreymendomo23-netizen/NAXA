@@ -26,7 +26,8 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
  if(!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fonction))) redirect("/");
  const {data:pharmacies,error:pharmacyError}=await sb.rpc("my_pharmacies");
  const ids=[...new Set((Array.isArray(pharmacies)?pharmacies:[]).filter((id):id is string=>typeof id==="string"))];
- const {data:pharmacyRows}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
+ const {data:pharmacyRowsRaw}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
+ const pharmacyRows=(Array.isArray(pharmacyRowsRaw)?pharmacyRowsRaw.flat(Infinity):[]) as unknown as {id:string;nom:string}[];
  if(pharmacyError||!ids.length) return <main className="mx-auto max-w-6xl p-4"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Le périmètre pharmacie n’a pas pu être déterminé. Aucune donnée n’est affichée.</p></main>;
  const pageNumber=Math.max(1,Math.min(10000,Number.isSafeInteger(page)?page:1));
  const pageSize=100;
