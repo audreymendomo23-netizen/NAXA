@@ -50,7 +50,7 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
   sb.from("stocks_lots").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).or("date_peremption.is.null,date_peremption.lte."+cutoff+",bloque.eq.true"),
   sb.from("reservations").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).eq("mode","reservation").in("statut",["en_attente","confirmee"]),
   sb.from("inventaires").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).in("statut",["brouillon","en_cours"]),
-  sb.from("gestionnaire_stock_sessions").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).eq("user_id",auth.user.id).is("ended_at",null)
+  sb.from("stock_service_sessions").select("id",{count:"exact",head:true}).in("pharmacie_id",ids).eq("gestionnaire_id",auth.user.id).eq("status","open")
  ]):null;
  const movementResult=section==="historique-rapports"?await sb.from("stock_manager_movement_journal").select("id,source_table,event_type,numero_lot,quantite_avant,quantite_apres,bloque_avant,bloque_apres,date_peremption_avant,date_peremption_apres,emplacement_avant,emplacement_apres,motif_operation,cree_le,produits(nom)").in("pharmacie_id",ids).order("cree_le",{ascending:false}).limit(100):{data:[] as unknown as {id:number;source_table:string;event_type:string;numero_lot:string|null;quantite_avant:number|null;quantite_apres:number|null;bloque_avant:boolean|null;bloque_apres:boolean|null;date_peremption_avant:string|null;date_peremption_apres:string|null;emplacement_avant:string|null;emplacement_apres:string|null;motif_operation:string|null;cree_le:string;produits:{nom:string}|null}[],error:null};
  const [outgoingTransfers,incomingTransfers]=section==="historique-rapports"?await Promise.all([
