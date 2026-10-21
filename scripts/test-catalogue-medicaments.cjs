@@ -129,3 +129,20 @@ test("DailyMed : ne pas réutiliser arbitrairement le premier résultat sans cor
   assert.match(route, /const matchedDaily = dailyRecords\.find/);
   assert.doesNotMatch(route, /\?\? dailyRecords\[0\]/);
 });
+
+test("BDPM : référentiel séparé, source publique, RLS et script d’import officiel", () => {
+  const migration = fs.readFileSync(path.join(root, "supabase/migration_222_medicaments_referentiel_bdpm.sql"), "utf8");
+  const importer = fs.readFileSync(path.join(root, "scripts/import-bdpm.cjs"), "utf8");
+  assert.match(migration, /create table if not exists public\.medicaments_referentiel_sources/);
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /medicaments_referentiel_sources_public_read/);
+  assert.match(importer, /CIS_bdpm\.txt/);
+  assert.match(importer, /CIS_COMPO_bdpm\.txt/);
+  assert.match(importer, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(importer, /source_dataset_updated_at/);
+  assert.match(importer, /upsert\(batch, \{ onConflict: "cis" \}\)/);
+  assert.match(route, /bdpmProductsFor\(query\)/);
+  assert.match(route, /référentiel français importé dans NAXA/);
+  assert.match(recherche, /Sources des informations/);
+  assert.match(recherche, /Provenance et vérification/);
+});
