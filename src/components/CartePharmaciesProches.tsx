@@ -18,7 +18,7 @@ type PharmacieCarte = {
 
 type Point = { lat: number; lng: number };
 
-type LeafletLayer = { addTo(map: LeafletMap): LeafletLayer; bindPopup(html: string): LeafletLayer; openPopup(): LeafletLayer };
+type LeafletLayer = { addTo(map: LeafletMap): LeafletLayer; bindPopup(html: string): LeafletLayer; openPopup(): LeafletLayer; remove(): LeafletLayer };
 type LeafletMap = {
   setView(point: [number, number], zoom: number): LeafletMap;
   fitBounds(bounds: [[number, number], [number, number]], options?: { padding?: [number, number]; maxZoom?: number }): LeafletMap;
@@ -84,6 +84,7 @@ export default function CartePharmaciesProches({
   const mapElement = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Map<string, LeafletLayer>>(new Map());
+  const userMarkerRef = useRef<LeafletLayer | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapError, setMapError] = useState("");
   const [mapReady, setMapReady] = useState(false);
@@ -119,7 +120,10 @@ export default function CartePharmaciesProches({
     const map = mapRef.current;
     const L = window.L;
     if (!map || !L || !mapReady) return;
+    markersRef.current.forEach(marker => marker.remove());
     markersRef.current.clear();
+    userMarkerRef.current?.remove();
+    userMarkerRef.current = null;
     const bounds: [number, number][] = [];
     pharmaciesAvecGPS.forEach(p => {
       const point: [number, number] = [p.lat as number, p.lng as number];
@@ -147,7 +151,7 @@ export default function CartePharmaciesProches({
         }),
         title: "Votre position",
       }).addTo(map).bindPopup("Votre position (visible uniquement sur votre appareil)");
-      void you;
+      userMarkerRef.current = you;
       bounds.push([position.lat, position.lng]);
     }
     if (bounds.length > 1) map.fitBounds([bounds.reduce((a, p) => [Math.min(a[0], p[0]), Math.min(a[1], p[1])], [90, 180]), bounds.reduce((a, p) => [Math.max(a[0], p[0]), Math.max(a[1], p[1])], [-90, -180])] as [[number, number], [number, number]], { padding: [24, 24], maxZoom: 14 });
