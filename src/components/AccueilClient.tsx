@@ -15,6 +15,7 @@ import { BoutonTheme } from "@/components/BoutonTheme";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 import { normaliserRecherche, suggestionsMedicaments } from "@/lib/accueil-textes";
+import CartePharmaciesProches from "@/components/CartePharmaciesProches";
 
 type Produit = {
   id: string;
@@ -80,25 +81,6 @@ const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
 };
 function LogoNAXA() {
   return <Logo clair taille={38} />;
-}
-
-function CarteIllustrative({ quartier }: { quartier: string }) {
-  return <div className="relative h-full min-h-[150px] overflow-hidden bg-[#E2F2EF]" aria-label={`Carte de proximité : ${quartier}`}>
-    <svg viewBox="0 0 180 160" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden="true">
-      <rect width="180" height="160" fill="#DDF0ED"/>
-      <path d="M-10 18C30 32 28 3 64 22S104 44 118 22 157 6 195 23" stroke="#B9DFDB" strokeWidth="8" fill="none"/>
-      <path d="M-12 76C18 55 38 88 63 70S107 61 132 84 165 104 193 88" stroke="#B9DFDB" strokeWidth="5" fill="none"/>
-      <path d="M-6 128C23 104 48 130 72 116S119 112 138 134 167 143 193 132" stroke="#B9DFDB" strokeWidth="4" fill="none"/>
-      <path d="M93 -10C79 19 106 34 96 55S113 79 103 99 122 130 109 171H190V-10Z" fill="#F1E5CB"/>
-      <path d="M93 -10C79 19 106 34 96 55S113 79 103 99 122 130 109 171" stroke="#D8C8A8" strokeWidth="2" fill="none"/>
-      <path d="M119 10l30 25M115 52l43 18M124 94l34 22M137 135l23 10" stroke="#D9CBB2" strokeWidth="2"/>
-    </svg>
-    <span className="naxa-pin-marker absolute bottom-[48px] left-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#FFE23D] text-[#0B3D26] shadow-lg">
-      <IconeNAXA name="map-pin" size={21}/>
-      <span className="naxa-pin-pulse" />
-    </span>
-    <span className="absolute inset-x-2 bottom-2 z-10 rounded-lg bg-white/90 px-2 py-1 text-[12px] font-semibold leading-4 text-[#0B3D26] shadow-sm">{quartier}</span>
-  </div>;
 }
 
 function Blister() {
@@ -640,14 +622,9 @@ export function AccueilClient() {
         </Link>
       </div>
 
-      <h2 className="naxa-enter mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies à Proximité</h2>
-      <section className="naxa-enter mb-6 grid min-h-[168px] grid-cols-[44%_56%] overflow-hidden rounded-[24px] border border-[#D7E7DC] bg-white shadow-[0_12px_28px_rgba(5,74,41,0.12)] ring-1 ring-white">
-        <button type="button" onClick={localiser} aria-label="Utiliser ma position pour calculer les distances" className="min-w-0 text-left"><CarteIllustrative quartier={quartier === "Douala" ? "Douala" : "Vous êtes à "+quartier} /></button>
-        <div className="flex min-w-0 flex-col items-start justify-center gap-3 bg-gradient-to-br from-white to-[#F0F8F2] p-3">
-          <p className="w-full text-[16px] font-extrabold leading-5 text-[#0B3D26]">{coord ? `${pharmacyCount} pharmacie${pharmacyCount === 1 ? "" : "s"} à proximité` : "Activez la localisation pour voir les pharmacies proches"}</p>
-          <div><button type="button" onClick={() => { if (!coord) { localiser(); return; } notifierNAXA("La liste complète des pharmacies à proximité sera bientôt disponible."); }} className="inline-flex min-h-10 items-center justify-center rounded-[14px] bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26] shadow-sm">Voir plus</button></div>
-        </div>
-      </section>
+      <div className="naxa-enter mb-6">
+        <CartePharmaciesProches pharmacies={pharmaciesProches} position={coord} onLocaliser={localiser} />
+      </div>
 
       <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
