@@ -41,6 +41,24 @@ begin
     raise exception 'FAIL: écriture directe sur contrôles de clôture';
   end if;
 
+  select p.oid into v_proc
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='compta_cloturer_periode'
+    and pg_get_function_identity_arguments(p.oid)='p_pharmacie uuid, p_periode uuid, p_acteur uuid';
+  if v_proc is null or has_function_privilege('authenticated',v_proc,'EXECUTE')
+     or not has_function_privilege('service_role',v_proc,'EXECUTE') then
+    raise exception 'FAIL: privilèges de clôture incorrects';
+  end if;
+
+  select p.oid into v_proc
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='compta_enregistrer_controle_cloture'
+    and pg_get_function_identity_arguments(p.oid)='p_pharmacie uuid, p_periode uuid, p_controle_code text, p_statut text, p_reference_preuve text, p_motif text, p_acteur uuid';
+  if v_proc is null or has_function_privilege('authenticated',v_proc,'EXECUTE')
+     or not has_function_privilege('service_role',v_proc,'EXECUTE') then
+    raise exception 'FAIL: privilèges d''enregistrement des contrôles incorrects';
+  end if;
+
   if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='ventes' and column_name='total_net')
      or not exists(select 1 from information_schema.columns where table_schema='public' and table_name='depenses' and column_name='montant')
      or not exists(select 1 from information_schema.columns where table_schema='public' and table_name='tresorerie_mouvements' and column_name='montant')
