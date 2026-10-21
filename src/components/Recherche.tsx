@@ -313,6 +313,10 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 {medicament.definition && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Définition :</span> {medicament.definition}</p>}
                 {medicament.indications && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Indications générales :</span> {medicament.indications}</p>}
                 {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}{medicament.imageAttribution ? " · " + medicament.imageAttribution : ""}{medicament.imageSourceUrl ? <> · <a href={medicament.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">Source photo</a></> : ""}</p>}
+                {medicament.imageVariants && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                  {medicament.imageVariants.boite && <a href={medicament.imageVariants.boite.sourceUrl} target="_blank" rel="noreferrer" className="underline">Boîte · {medicament.imageVariants.boite.licence}{medicament.imageVariants.boite.attribution ? " · " + medicament.imageVariants.boite.attribution : ""}</a>}
+                  {medicament.imageVariants.comprime && <a href={medicament.imageVariants.comprime.sourceUrl} target="_blank" rel="noreferrer" className="underline">Comprimé · {medicament.imageVariants.comprime.licence}{medicament.imageVariants.comprime.attribution ? " · " + medicament.imageVariants.comprime.attribution : ""}</a>}
+                </div>}
                 <div className="mt-2 space-y-1">
                   <p className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${medicament.availability === "disponible" ? "bg-emerald-100 text-emerald-800" : medicament.availability === "indisponible" ? "bg-slate-100 text-slate-700" : "bg-amber-100 text-amber-800"}`}>
                     {medicament.availability === "disponible" ? "Disponible chez nos partenaires" : medicament.availability === "indisponible" ? "Indisponible dans le réseau partenaire" : "Stock non vérifié"}
