@@ -61,8 +61,12 @@ jobs:
             -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
             -in backup/naxa.dump -out backup/naxa.dump.enc
           test -s backup/naxa.dump.enc
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
+            -in backup/naxa.dump.enc -out backup/verify.dump
+          cmp backup/naxa.dump backup/verify.dump
           sha256sum backup/naxa.dump.enc > backup/naxa.dump.enc.sha256
-          rm -f backup/naxa.dump
+          rm -f backup/naxa.dump backup/verify.dump
 
       - name: Write backup manifest
         shell: bash
