@@ -119,6 +119,11 @@ test("Tableau de bord : carte réelle et liste des pharmacies partagent les mêm
   assert.match(dashboard, /<CartePharmaciesProches pharmacies=\{pharmaciesProches\} position=\{coord\}/);
   assert.match(map, /tileLayer\("https:\/\/\{s\}\.tile\.openstreetmap\.org/);
   assert.match(map, /markersRef\.current\.set\(p\.id, marker\)/);
+  assert.match(map, /marker\.on\("click", \(\) =>/);
+  assert.match(map, /Disponibilités connues/);
+  assert.match(map, /from\("stocks"\)/);
+  assert.match(map, /Une pharmacie affichée sur la carte n’est pas une garantie de stock/);
+  assert.match(map, /setSelectedPharmacy\(p\)/);
   assert.match(map, /key=\{p\.id\}/);
   assert.match(map, /ouvrirPharmacie\(p\)/);
   assert.match(map, /fitBounds/);
