@@ -50,7 +50,7 @@ test("recherche : résultats instantanés et disponibilité partenaire séparée
 });
 
 test("réglementation : le catalogue renvoie vers le répertoire officiel DPML", () => {
-  assert.match(route, /https:\\/\\/dpml\\.cm\\/repertoireDesAmm\\/index\\.php/);
+  assert.ok(route.includes("https://dpml.cm/repertoireDesAmm/index.php"));
   assert.match(recherche, /Vérifier l’autorisation au Cameroun/);
 });
 
