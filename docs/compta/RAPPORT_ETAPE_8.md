@@ -17,6 +17,8 @@ Migration additive : `supabase/migration_20261025_compta_cloture_etape8.sql`.
 
 Limite : le schéma consulté ne confirme pas de module de paie ni de registre autonome de dotations. La clôture doit donc rester bloquée tant qu’une preuve vérifiable ou une non-applicabilité documentée n’est pas fournie. Le mécanisme de clôture n’est pas déclaré opérationnel de bout en bout : aucun profil métier n’existe dans la base isolée pour tester une période réelle.
 
+- Un écran de contrôles est ajouté sur `/pharmacie/comptable/clotures`, avec API POST protégée `/api/pharmacie/comptable/clotures` pour enregistrer un contrôle ou demander une clôture. Les contrôles sont écrits via une RPC serveur atomique et auditée. La page n’ouvre pas de nouvelle période et affiche explicitement l’absence de période si le modèle n’en contient aucune.
+
 ## 2. Exports ajoutés
 
 Les exports CSV/XLSX/PDF existants sont étendus avec :
