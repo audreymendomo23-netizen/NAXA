@@ -22,7 +22,7 @@ const safeCell = (value: unknown): string | number => {
 
 const pdfAscii = (value: unknown) => String(safeCell(value))
   .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/[^\x20-\x7E]/g, "?").replace(/[\\\\()]/g, (character) => "\\\\" + character);
+  .replace(/[^\x20-\x7E]/g, "?").replace(/[\\()]/g, (character) => "\\" + character);
 function createSimplePdf(lines: string[]) {
   const pageLines = lines.slice(0, 48);
   const stream = ["BT", "/F1 9 Tf", "42 800 Td", "12 TL",
