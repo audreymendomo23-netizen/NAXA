@@ -9,7 +9,7 @@ const fcfa = (value: number) => new Intl.NumberFormat("fr-CM", {
 }).format(value);
 const validDate = (value: string | undefined) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
-  const parsed = new Date(value + "T00:00:00+01:00");
+  const parsed = new Date(value + "T00:00:00Z");
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : "";
 };
 const endExclusive = (value: string) => new Date(Date.parse(value + "T00:00:00+01:00") + 86400000).toISOString();
