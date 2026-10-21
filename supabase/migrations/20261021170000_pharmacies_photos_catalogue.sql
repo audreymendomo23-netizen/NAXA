@@ -22,8 +22,4 @@ comment on column public.pharmacies.photo_verified_at is
 create index if not exists pharmacies_photo_verified_idx
   on public.pharmacies (photo_verified_at desc)
   where photo_url is not null;
-
-drop policy if exists "Photos pharmacies visibles publiquement" on storage.objects;
-create policy "Photos pharmacies visibles publiquement"
-on storage.objects for select
-using (bucket_id = 'pharmacies-photos');
+ 
