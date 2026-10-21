@@ -31,7 +31,22 @@ test("API : les images externes sont limitées au domaine DailyMed", () => {
 test("recherche : résultats instantanés et disponibilité partenaire séparée", () => {
   assert.match(recherche, /\/api\/medicaments\/recherche\?q=/);
   assert.match(recherche, /Vérifier le stock des pharmacies partenaires/);
-  assert.match(route, /availability: "non_verifiee"/);
+  assert.match(route, /const availability = !localProduct/);
+  assert.match(route, /from\("stocks"\)/);
+  assert.match(route, /\.gt\("quantite", 0\)/);
+  assert.match(route, /\.eq\("pharmacies\.actif", true\)/);
+});
+
+test("stock : la recherche affiche les statuts réels du réseau partenaire", () => {
+  assert.match(recherche, /Disponible chez nos partenaires/);
+  assert.match(recherche, /Indisponible dans le réseau partenaire/);
+  assert.match(recherche, /Stock non vérifié/);
+  assert.match(recherche, /partnerPharmacyCount/);
+});
+
+test("images : la photo locale est prioritaire et le placeholder reste disponible", () => {
+  assert.match(route, /imageUrl: localProduct\\?\\.photo_url \\|\\|/);
+  assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
 });
 
 test("dosage : aucun dosage n'est rendu dans les vues client principales", () => {
