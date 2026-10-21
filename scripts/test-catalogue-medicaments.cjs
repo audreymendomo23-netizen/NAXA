@@ -7,6 +7,7 @@ const root = path.join(__dirname, "..");
 const catalogue = fs.readFileSync(path.join(root, "src/lib/medicaments/catalogue-pilote.ts"), "utf8");
 const route = fs.readFileSync(path.join(root, "src/app/api/medicaments/recherche/route.ts"), "utf8");
 const recherche = fs.readFileSync(path.join(root, "src/components/Recherche.tsx"), "utf8");
+const upload = fs.readFileSync(path.join(root, "src/components/PhotoUpload.tsx"), "utf8");
 const resultats = fs.readFileSync(path.join(root, "src/app/resultats/page.tsx"), "utf8");
 const produit = fs.readFileSync(path.join(root, "src/app/produit/[id]/page.tsx"), "utf8");
 const panier = fs.readFileSync(path.join(root, "src/app/panier/page.tsx"), "utf8");
@@ -30,6 +31,14 @@ test("images : aucune image tierce n'est réutilisée sans licence vérifiée", 
   assert.match(route, /getPublicUrl\(localProduct\.photo_path\)/);
   assert.doesNotMatch(route, /dailyMedImage\(/);
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
+});
+
+test("upload photo : licence, URL HTTPS et confirmation des droits obligatoires", () => {
+  assert.match(upload, /sourceUrl\.trim\(\)\.startsWith\("https:\/\/"\)/);
+  assert.match(upload, /licence\.trim\(\)\.length < 5/);
+  assert.match(upload, /!droitsConfirmes/);
+  assert.match(upload, /from\("medicaments"\)\.upload/);
+  assert.match(upload, /photo_verifiee_le/);
 });
 
 test("storage : bucket médicaments et écriture réservée aux administrateurs", () => {
