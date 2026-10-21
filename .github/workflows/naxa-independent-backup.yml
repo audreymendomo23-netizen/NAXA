@@ -16,6 +16,8 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      NAXA_BACKUP_S3_BUCKET: ${{ secrets.NAXA_BACKUP_S3_BUCKET }}
     steps:
       - name: Validate required secrets
         shell: bash
@@ -83,7 +85,7 @@ jobs:
           retention-days: 90
 
       - name: Configure external S3-compatible backup destination
-        if: ${{ secrets.NAXA_BACKUP_S3_BUCKET != '' }}
+        if: ${{ env.NAXA_BACKUP_S3_BUCKET != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.NAXA_BACKUP_AWS_ACCESS_KEY_ID }}
