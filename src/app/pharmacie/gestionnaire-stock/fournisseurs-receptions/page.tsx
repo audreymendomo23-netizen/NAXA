@@ -11,7 +11,8 @@ export default async function FournisseursReceptionsPage({searchParams}:{searchP
  if(!profile||profile.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)))redirect("/");
  const {data:raw,error:scopeError}=await sb.rpc("my_pharmacies");
  const ids=[...new Set((Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"))];
- const {data:pharmacies}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
+ const {data:pharmaciesData}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
+ const pharmacies=pharmaciesData??[];
  if(scopeError||!ids.length)return <main className="p-5">Périmètre pharmacie indisponible.</main>;
  const {data:productData}=await sb.from("stocks").select("pharmacie_id,produit_id,produits(nom,dosage)").in("pharmacie_id",ids).limit(1000);
  const products=(productData??[]) as unknown as {pharmacie_id:string;produit_id:string;produits:{nom:string;dosage:string|null}|null}[];
