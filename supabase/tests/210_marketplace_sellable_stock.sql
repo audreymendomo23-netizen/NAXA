@@ -27,7 +27,14 @@ begin
     raise exception 'Le rôle authenticated ne peut pas lire la disponibilité';
   end if;
 
-  if has_function_privilege('public', 'public.marketplace_offre_stock_disponible(uuid,uuid)', 'EXECUTE') then
+  if exists (
+    select 1
+    from pg_proc p
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    where p.oid = 'public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure
+      and a.grantee = 0
+      and a.privilege_type = 'EXECUTE'
+  ) then
     raise exception 'La fonction ne doit pas être exécutable par PUBLIC';
   end if;
 end;
