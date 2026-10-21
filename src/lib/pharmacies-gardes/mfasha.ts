@@ -43,7 +43,7 @@ function phoneNumbers(value: string): string[] {
 }
 
 function extractPeriod(text: string): string | null {
-  const match = text.match(/Garde\s+(?:à\s+venir\s+)?(?:du\s+)?(.{3,80}?)\s+au\s+(.{3,80}?)(?=\s+Filtrer\s+par|\s+Mfasha\s*[·|]|$)/i);
+  const match = text.match(/Garde\s+du\s+(.{3,80}?)\s+au\s+(.{3,80}?)(?=\s+Filtrer\s+par|\s+Mfasha\s*[·|]|$)/i);
   if (!match) return null;
   return `${match[1].trim()} au ${match[2].trim()}`;
 }
