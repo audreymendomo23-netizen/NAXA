@@ -363,6 +363,24 @@ export function AccueilClient() {
           const displayName = isGoogle && googleName.trim() ? googleName.trim() : typeof profile?.username === "string" && profile.username.trim() ? profile.username.trim() : [profile?.first_name,profile?.last_name].filter((value): value is string => typeof value === "string" && Boolean(value.trim())).join(" ") || "Client";
           setFirstName(displayName);
         }
+        // Charger les pharmacies indépendamment du catalogue : une erreur de classement
+        // des produits ne doit jamais empêcher l'affichage des pharmacies de garde.
+        try {
+          const { data: pharmRows, error: pharmError } = await sb
+            .from("pharmacies")
+            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde")
+            .eq("actif", true)
+            .eq("visible_recherche", true)
+            .is("archivee_le", null)
+            .limit(100);
+          if (pharmError) {
+            console.error("[NAXA] Chargement des pharmacies impossible", pharmError);
+          } else if (active) {
+            setPharmacies((pharmRows ?? []) as Pharmacie[]);
+          }
+        } catch (pharmError) {
+          console.error("[NAXA] Chargement des pharmacies impossible", pharmError);
+        }
         const { data: popularRows, error: popularError } = await sb.rpc("produits_populaires", { p_limit: 10, p_jours: 7 });
         if (popularError) throw popularError;
         // La RPC renvoie actuellement `id` (et non `produit_id`) pour chaque produit.
@@ -410,24 +428,7 @@ export function AccueilClient() {
         setProduits(sorted);
         if (!sorted.length) setError(true);
         }
-        // Charger les pharmacies indépendamment du catalogue : une erreur de classement
-        // des produits ne doit jamais empêcher l'affichage des pharmacies de garde.
-        try {
-          const { data: pharmRows, error: pharmError } = await sb
-            .from("pharmacies")
-            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde")
-            .eq("actif", true)
-            .eq("visible_recherche", true)
-            .is("archivee_le", null)
-            .limit(100);
-          if (pharmError) {
-            console.error("[NAXA] Chargement des pharmacies impossible", pharmError);
-          } else if (active) {
-            setPharmacies((pharmRows ?? []) as Pharmacie[]);
-          }
-        } catch (pharmError) {
-          console.error("[NAXA] Chargement des pharmacies impossible", pharmError);
-        }
+
       } catch {
         if (active) {
           setProduits([]);
