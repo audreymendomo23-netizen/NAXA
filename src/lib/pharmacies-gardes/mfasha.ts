@@ -117,7 +117,13 @@ export const chargerGardesMfasha = cache(async (): Promise<{
 
     if (pharmacies.length < 5) return null;
     return { pharmacies, periode, fetchedAt: new Date().toISOString() };
-  } catch {
+  } catch (error) {
+    // Keep the public fallback safe, but make the actual failure observable in Vercel logs.
+    // Never log response bodies, credentials, or personal data.
+    console.warn("[mfasha] Source fetch/parse failed", {
+      reason: error instanceof Error ? error.name : "unknown",
+      message: error instanceof Error ? error.message.slice(0, 180) : "unknown error",
+    });
     return null;
   }
 });
