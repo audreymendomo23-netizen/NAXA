@@ -62,6 +62,7 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - Migration 206 : mouvements contrôlés de perte, retour et ajustement avec motif obligatoire, variation de lot/stock atomique et journalisation.
 - Migration 207 : transferts internes atomiques entre pharmacies autorisées, avec conservation du lot, contrôle de péremption et journal dédié.
 - Migration 208 et route `/api/cron/reservation-expiry` : exécution du rappel à 30 minutes par un ordonnanceur serveur authentifié si `pg_cron` n’est pas disponible. La planification externe et les secrets d’environnement restent à configurer dans l’environnement de déploiement.
+- Migration 209 : expiration des dossiers échus avec restitution atomique des stocks/lots; les dossiers incohérents restent actifs et sont retournés en erreur pour réconciliation plutôt que d’être supprimés silencieusement.
 - L’interface de réservation affiche maintenant les lots affectés au dossier et bloque la confirmation côté écran si l’allocation n’est pas vérifiable.
 - Le tableau de bord stock est distinct de la file des réservations; la boîte de messages choisit le périmètre pharmacie correspondant au dossier demandé.
 
@@ -109,6 +110,8 @@ Vérifications : **volontairement différées**, conformément à la demande de 
 - `supabase/tests/207_stock_manager_transfers.sql`
 - `supabase/migration_208_reservation_expiry_scheduler_service_role.sql`
 - `supabase/tests/208_reservation_expiry_scheduler_service_role.sql`
+- `supabase/migration_209_reservation_expiry_stock_restore.sql`
+- `supabase/tests/209_reservation_expiry_stock_restore.sql`
 - `src/app/api/cron/reservation-expiry/route.ts`
 - `src/app/pharmacie/gestionnaire-stock/historique-rapports/export/route.ts`
 
