@@ -61,6 +61,7 @@ export async function modifierEmplacementStock(formData: FormData) {
     p_pharmacie: pharmacie, p_produit: produit, p_emplacement: emplacementRaw || null,
   });
   if (error) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=emplacement");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
   revalidatePath("/pharmacie/gestionnaire-stock/reservations");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=emplacement");
@@ -79,6 +80,7 @@ export async function modifierEmplacementLot(formData: FormData) {
     p_lot: lot, p_emplacement: emplacementRaw || null,
   });
   if (error) redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=emplacement");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
   revalidatePath("/pharmacie/gestionnaire-stock/reservations");
   redirect("/pharmacie/gestionnaire-stock/lots-peremptions?ok=emplacement");
@@ -91,6 +93,7 @@ export async function ouvrirServiceGestionStock(formData: FormData) {
   if(!safeUuid(pharmacie))redirect("/pharmacie/gestionnaire-stock/service?erreur=validation");
   const {error}=await sb.rpc("gestionnaire_stock_service_ouvrir",{p_pharmacie:pharmacie});
   if(error)redirect("/pharmacie/gestionnaire-stock/service?erreur=ouverture");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/service");
   redirect("/pharmacie/gestionnaire-stock/service?ok=ouvert");
 }
@@ -102,6 +105,7 @@ export async function fermerServiceGestionStock(formData: FormData) {
   if(!safeUuid(session)||note.length>500)redirect("/pharmacie/gestionnaire-stock/service?erreur=validation");
   const {error}=await sb.rpc("gestionnaire_stock_service_fermer",{p_session:session,p_note:note||null});
   if(error)redirect("/pharmacie/gestionnaire-stock/service?erreur=fermeture");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/service");
   redirect("/pharmacie/gestionnaire-stock/service?ok=ferme");
 }
@@ -115,6 +119,7 @@ export async function modifierBlocageLotGestionStock(formData: FormData) {
   if(!safeUuid(lot)||motif.length>500||(bloque&&motif.length===0))redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=blocage");
   const {error}=await sb.rpc("stock_lot_blocage_modifier",{p_lot:lot,p_bloque:bloque,p_motif:motif||null});
   if(error)redirect("/pharmacie/gestionnaire-stock/lots-peremptions?erreur=blocage");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
   revalidatePath("/pharmacie/gestionnaire-stock/reservations");
   redirect("/pharmacie/gestionnaire-stock/lots-peremptions?ok="+(bloque?"bloque":"debloque"));
@@ -136,6 +141,7 @@ export async function initialiserReferenceStock(formData: FormData) {
     p_pharmacie: pharmacie, p_produit: produit, p_prix: prix, p_emplacement: emplacement || null,
   });
   if (error || data !== true) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=reference");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
   revalidatePath("/pharmacie/gestionnaire-stock/fournisseurs-receptions");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=reference");
@@ -160,7 +166,9 @@ export async function ajusterQuantiteStockGestionnaire(formData: FormData) {
     p_pharmacie: pharmacie, p_produit: produit, p_delta: delta, p_type: type, p_motif: motif, p_lot: lot,
   });
   if (error || data !== true) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=mouvement");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
   revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=mouvement");
@@ -184,7 +192,9 @@ export async function transfererStockEntrePharmacies(formData: FormData) {
     p_source: source, p_destination: destination, p_produit: produit, p_quantite: quantite, p_lot: lotRaw || null, p_motif: motif,
   });
   if (error || !data) redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=transfert");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
   revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=transfert");
