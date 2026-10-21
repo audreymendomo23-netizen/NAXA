@@ -6,7 +6,7 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type ExportType = "ventes" | "depenses" | "tresorerie" | "ecritures" | "grand_livre" | "balance";
+type ExportType = "ventes" | "depenses" | "tresorerie" | "ecritures" | "grand_livre" | "balance" | "bilan" | "resultat" | "tva" | "paie";
 type Row = Record<string, string | number | boolean | null>;
 
 const validDate = (value: string | null) => {
@@ -75,6 +75,13 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const type = url.searchParams.get("type") as ExportType | null;
+  if (type && ["bilan", "resultat", "tva", "paie"].includes(type)) {
+    return NextResponse.json({
+      error: "source_ou_mapping_non_confirme",
+      type,
+      detail: "Aucun état officiel n’est généré tant que les sources métier et règles de classement/fiscalité ne sont pas confirmées.",
+    }, { status: 409 });
+  }
   if (!type || !["ventes", "depenses", "tresorerie", "ecritures", "grand_livre", "balance"].includes(type)) {
     return NextResponse.json({ error: "type_export_invalide" }, { status: 400 });
   }
@@ -232,6 +239,7 @@ export async function GET(request: Request) {
       "",
       "Document limite a une page; consulter CSV/Excel pour le detail complet.",
     ];
+    sourceTruncated = sourceTruncated || pdfRows.length > 48;
     const bytes = createSimplePdf(pdfRows);
     return finalizeExport(bytes, "application/pdf", "pdf");
   }
