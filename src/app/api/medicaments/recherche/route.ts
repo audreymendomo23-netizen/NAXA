@@ -81,7 +81,7 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   try {
     const [byName, byDci] = await Promise.all([
       sb.from("produits").select("id,nom,dci,forme,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("nom", "%" + needle + "%").limit(12),
-      sb.from("produits").select("id,nom,dci,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
+      sb.from("produits").select("id,nom,dci,forme,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee").ilike("dci", "%" + needle + "%").limit(12)
     ]);
     if (byName.error && byDci.error) return [];
     const unique = new Map<string, LocalProduct>();
