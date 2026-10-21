@@ -17,7 +17,7 @@ const CACHE_RECHERCHE_KEY = "naxa-medicament-search-v1";
 type CacheRecherche = { updatedAt: number; byQuery: Record<string, MedicamentRecherche[]>; corpus: MedicamentRecherche[] };
 
 function normaliserCache(value: string): string {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function lireCacheRecherche(): CacheRecherche {
