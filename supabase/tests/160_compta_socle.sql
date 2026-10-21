@@ -126,7 +126,8 @@ begin
   if v_ok then raise exception 'Échec test : altération de la chaîne non détectée'; end if;
 
   -- 6. Aucun droit direct de mutation comptable pour les rôles clients.
-  if has_table_privilege('authenticated','public.compta_ecriture','INSERT')
+  if has_function_privilege('authenticated','public.compta_poster_ecriture(uuid,uuid,date,text,text,text,text,text,jsonb,uuid)','EXECUTE')
+    or has_table_privilege('authenticated','public.compta_ecriture','INSERT')
     or has_table_privilege('authenticated','public.compta_ecriture','UPDATE')
     or has_table_privilege('authenticated','public.compta_ecriture','DELETE')
     or has_table_privilege('anon','public.compta_ecriture','SELECT')
