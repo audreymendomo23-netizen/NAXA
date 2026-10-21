@@ -105,6 +105,9 @@ export default async function ComptableDashboardPage() {
               <span className="text-sm font-semibold text-emerald-800">Trésorerie & rapprochements</span><p className="mt-1 text-sm text-slate-600">Comparer les mouvements de trésorerie aux ventes payées.</p>
             </Link>
             <div className="rounded-2xl border border-dashed border-slate-300 p-4"><span className="text-sm font-semibold text-slate-700">Créances & bordereaux</span><p className="mt-1 text-sm text-slate-500">Prochaine tranche : confirmer les sources métier et les droits de soumission.</p></div>
+            <Link href="/pharmacie/comptable/rapports-exports" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-600">
+              <span className="text-sm font-semibold text-emerald-800">Rapports & exports</span><p className="mt-1 text-sm text-slate-600">Synthèses de période et téléchargements CSV/Excel sécurisés.</p>
+            </Link>
           </nav>
 
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
