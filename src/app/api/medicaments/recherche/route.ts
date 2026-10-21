@@ -240,10 +240,14 @@ export async function GET(request: NextRequest) {
   let imageUrl: string | null = null;
   if (matchedDaily && typeof matchedDaily.setid === "string") imageUrl = await dailyMedImage(matchedDaily.setid);
 
-  const candidates = [...uniqueCandidates.values()].slice(0, 10);
   const localProducts = await localProductsFor(query);
   const localStocks = await realPartnerAvailability(localProducts.map((product) => product.id));
-  const results = candidates.map((candidate, index) => {
+  const candidates: Candidate[] = [];
+  for (const product of localProducts) candidates.push({ rawName: product.nom });
+  for (const candidate of uniqueCandidates.values()) {
+    if (!candidates.some((existing) => normaliserTerme(existing.rawName) === normaliserTerme(candidate.rawName))) candidates.push(candidate);
+  }
+  const results = candidates.slice(0, 10).map((candidate, index) => {
     const raw = candidate.rawName;
     const localizedGeneric = Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
     const formInName = formFromText(raw);
