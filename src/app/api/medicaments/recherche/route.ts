@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normaliserTerme, termesRecherche, trouverMedicamentPilote } from "@/lib/medicaments/catalogue-pilote";
 import { supabaseServer } from "@/lib/supabase/server";
-import { rechercherPhotoMedicament } from "@/lib/medicaments/photos-externes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -237,8 +236,6 @@ export async function GET(request: NextRequest) {
 
   const localProducts = await localProductsFor(query);
   const localStocks = await realPartnerAvailability(localProducts.map((product) => product.id));
-  // Une seule recherche d’image par requête; aucune image non licenciée n’est affichée.
-  const externalPhoto = await rechercherPhotoMedicament(pilot?.nomFr ?? query);
   const normalizedQuery = normaliserTerme(query);
   const candidates: Candidate[] = [];
   for (const product of localProducts) candidates.push({ rawName: product.nom });
@@ -266,7 +263,6 @@ export async function GET(request: NextRequest) {
       ? supabaseServer().storage.from("medicaments").getPublicUrl(localProduct.photo_path).data.publicUrl
       : null;
     const candidateMatchesQuery = candidateNorm.includes(normalizedQuery) || normalizedQuery.includes(candidateNorm) || Boolean(pilot && pilot.alias.some((alias) => candidateNorm.includes(normaliserTerme(alias)) || normaliserTerme(alias).includes(candidateNorm)));
-    const verifiedExternalPhoto = !storagePhotoUrl && candidateMatchesQuery ? externalPhoto : null;
     return {
       id: localProduct?.id ?? candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
@@ -275,12 +271,12 @@ export async function GET(request: NextRequest) {
       form: localProduct?.forme || (formValue ? cleanName(formValue) : null),
       definition: candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null,
       indications: candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null,
-      imageUrl: storagePhotoUrl ?? verifiedExternalPhoto?.url ?? null,
-      imageSource: storagePhotoUrl ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : verifiedExternalPhoto ? "Wikimedia Commons — licence commerciale vérifiée" : localProduct?.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
-      imageSourceUrl: verifiedExternalPhoto?.sourceUrl ?? localProduct?.photo_source_url ?? null,
-      imageLicense: verifiedExternalPhoto?.licence ?? localProduct?.photo_licence ?? null,
-      imageAttribution: verifiedExternalPhoto?.attribution ?? null,
-      imageTitle: verifiedExternalPhoto?.title ?? null,
+      imageUrl: storagePhotoUrl,
+      imageSource: storagePhotoUrl ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
+      imageSourceUrl: localProduct?.photo_source_url ?? null,
+      imageLicense: localProduct?.photo_licence ?? null,
+      imageAttribution: null,
+      imageTitle: null,
       source: [
         candidate.rxcui ? "RxNorm" : null,
         preferredFda ? "OpenFDA" : null,
