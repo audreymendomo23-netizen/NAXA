@@ -38,7 +38,7 @@ begin
     v_type := 'vente_encaissee';
     v_source := 'vente';
     v_date := coalesce(new.paid_at,new.created_at,clock_timestamp());
-    v_date_comptable := coalesce(new.paid_at,new.created_at,clock_timestamp())::date;
+    v_date_comptable := (timezone('Africa/Douala',coalesce(new.paid_at,new.created_at,clock_timestamp())))::date;
     v_montant := new.total_net::bigint;
     v_ref := new.id::text;
   elsif tg_table_name='depenses' then
