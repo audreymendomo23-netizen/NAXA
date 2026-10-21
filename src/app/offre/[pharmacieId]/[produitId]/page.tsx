@@ -58,11 +58,10 @@ export default function OffrePage() {
           .select("id,nom,quartier,adresse,garde_debut,garde_fin")
           .eq("id", pharmacieId)
           .maybeSingle(),
-        sb.from("stocks")
-          .select("prix,quantite")
-          .eq("pharmacie_id", pharmacieId)
-          .eq("produit_id", produitId)
-          .maybeSingle(),
+        sb.rpc("marketplace_offre_stock_disponible", {
+          p_pharmacie: pharmacieId,
+          p_produit: produitId,
+        }).maybeSingle(),
       ]);
 
       if (!actif) return;
@@ -73,7 +72,7 @@ export default function OffrePage() {
         setPharmacie(resultatPharmacie.data as Pharmacie);
         if (!resultatStock.error && resultatStock.data) {
           const donneesStock = resultatStock.data as Stock;
-          setStock(donneesStock);
+          setStock({ prix: donneesStock.prix, quantite: Math.max(0, donneesStock.quantite || 0) });
           setQuantite((ancienne) => Math.max(1, Math.min(ancienne, 10, donneesStock.quantite || 1)));
         } else {
           setStock(null);
@@ -87,6 +86,51 @@ export default function OffrePage() {
       setChargement(false);
     });
     return () => { actif = false; };
+  }, [pharmacieId, produitId]);
+
+  // La disponibilité est recalculée côté base en tenant compte des lots utilisables.
+  // Relecture à chaque mise à jour du stock et au retour sur la page (fallback si Realtime n'est pas activé).
+  useEffect(() => {
+    let actif = true;
+    const sb = supabaseBrowser();
+    const rafraichirStock = async () => {
+      const { data, error: erreurStock } = await sb.rpc("marketplace_offre_stock_disponible", {
+        p_pharmacie: pharmacieId,
+        p_produit: produitId,
+      }).maybeSingle();
+      if (!actif || erreurStock) return;
+      if (!data) {
+        setStock(null);
+        return;
+      }
+      const stockActuel = data as Stock;
+      setStock({ prix: stockActuel.prix, quantite: Math.max(0, stockActuel.quantite || 0) });
+      setQuantite((ancienne) => Math.max(1, Math.min(ancienne, 10, stockActuel.quantite || 1)));
+    };
+    const channel = sb
+      .channel(`marketplace-stock-${pharmacieId}-${produitId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "stocks",
+        filter: `pharmacie_id=eq.${pharmacieId}`,
+      }, (payload) => {
+        const record = (payload.new || payload.old) as { produit_id?: string } | null;
+        if (record?.produit_id === produitId) void rafraichirStock();
+      })
+      .subscribe();
+    const onFocus = () => { void rafraichirStock(); };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void rafraichirStock();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      actif = false;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      void sb.removeChannel(channel);
+    };
   }, [pharmacieId, produitId]);
 
   const dejaAuPanier = Boolean(produit && lignes.some((ligne) => ligne.produit_id === produit.id));
