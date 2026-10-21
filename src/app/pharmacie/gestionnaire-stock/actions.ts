@@ -124,7 +124,7 @@ export async function enregistrerComptageOuvertureServiceGestionStock(formData: 
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
   const session = String(formData.get("session_id") ?? "");
-  let counts;
+  let counts: { produit_id: string; quantite_comptee: number }[];
   try { if (!safeUuid(session)) throw new Error("Session invalide"); counts = collectInventoryCounts(formData); }
   catch { redirect("/pharmacie/gestionnaire-stock/service?erreur=comptage_ouverture"); }
   const { error } = await sb.rpc("stock_service_record_count", {
@@ -142,7 +142,7 @@ export async function fermerServiceGestionStock(formData: FormData) {
   if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
   const session = String(formData.get("session_id") ?? "");
   const note = String(formData.get("note_fin") ?? "").trim();
-  let counts;
+  let counts: { produit_id: string; quantite_comptee: number }[];
   try {
     if (!safeUuid(session) || note.length > 500) throw new Error("Session invalide");
     counts = collectInventoryCounts(formData);
