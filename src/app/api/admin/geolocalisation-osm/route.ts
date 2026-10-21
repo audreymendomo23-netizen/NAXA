@@ -24,7 +24,7 @@ function jsonError(message: string, status: number) {
 function normaliserNom(value: unknown): string {
   return typeof value === "string"
     ? value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr")
-        .replace(/\b(pharmacie|pharm)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim()
+        .replace(/[^a-z0-9]+/g, " ").trim()
     : "";
 }
 
