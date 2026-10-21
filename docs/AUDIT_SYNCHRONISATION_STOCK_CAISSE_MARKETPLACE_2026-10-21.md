@@ -65,20 +65,49 @@ La page `/pharmacie/gestionnaire-stock/service` a été raccordée aux nouvelles
 
 Les routes de navigation existantes contiennent déjà « Prise / fin de service » et « Inventaires ».
 
-## Correctif de caisse Marketplace préparé mais non appliqué
+## Corrections POS/ERP appliquées sur la base active
 
-Le fichier source `supabase/migration_161_caisse_reservation_atomic_payment.sql` a été corrigé pour que l’encaissement d’une réservation récente débite le stock physique pendant la transaction de caisse, en respectant les lots FEFO et en liant la réservation à une seule vente. Il conserve une branche de compatibilité pour les réservations historiques déjà débitées.
+La dérive POS a été corrigée par restauration des fondations POS, puis réconciliation des migrations dépendantes. Les tables `caisses`, `caisses_sessions`, `ventes`, `vente_lignes`, `vente_paiements` et les RPC d'encaissement existent désormais sur la base active. Les migrations de caisse Marketplace 161–173, le parcours caisse 154–170, les correctifs lots 175–185, le périmètre caisse/assurance 187, les notifications et historiques 188–189, puis la disponibilité vendable 211 ont été appliqués après restauration de leurs dépendances manquantes. Les écarts de schéma ont été traités par des migrations de compatibilité additives, sans supprimer de données.
 
-Cette migration n’a **pas** été appliquée à la base active : ses tables POS dépendantes n’existent pas encore dans cette base.
+### Règle POS corrigée
 
-## Blocages et vérifications restantes
+- Un nouveau panier est un brouillon : `vente_ajouter_produit` ne décrémente ni `stocks.quantite` ni les lots.
+- Un trigger transactionnel intercepte uniquement la transition `brouillon → payee` et déclenche le débit physique FEFO.
+- La transaction de finalisation comprend le paiement, le débit des lots et du stock agrégé, puis le passage à `payee`. Toute erreur annule l'ensemble.
+- Les anciens brouillons sont marqués comme historiquement débités pour éviter un double débit ; ils sont régularisés lors de leur retrait/abandon et ne peuvent pas recevoir de nouvelles lignes.
+- Les lignes de vente conservent leur coût unitaire historique quand il est renseigné ; un coût inconnu reste NULL plutôt que de fabriquer une marge.
+- La réservation Marketplace reste un hold temporaire : la disponibilité baisse à la réservation sans débit physique. Lors de l'encaissement, le hold est consommé et le stock physique est débité une seule fois. Une garde unique relie la réservation à sa vente payée.
+- La disponibilité Marketplace exclut désormais les lots bloqués et expirés.
+- Le texte de la caisse a été aligné : l'ajout au panier n'est plus présenté comme un débit physique.
 
-- **La chaîne complète des migrations POS/ERP n’a pas été appliquée.** La base active est en dérive par rapport au dépôt et ne contient pas le socle POS. Appliquer 161, 174, 210 ou 211 isolément n’est pas sûr.
-- Le scénario caisse complet n’a pas pu être lancé, car la vente, la session de caisse et la fonction d’encaissement sont absentes.
-- Le parcours POS ordinaire doit encore être aligné pour que l’ajout d’un produit au brouillon ne soit pas un débit physique anticipé : le débit doit se produire à la validation finale de la vente, dans la même transaction que le paiement et la consommation d’un éventuel hold.
-- Aucun build, lint ou typecheck du frontend n’a été exécuté dans cet environnement.
-- Aucun déploiement n’a été lancé.
+### Migrations/correctifs de compatibilité ajoutés sur `main`
 
-## Conclusion
+- `migration_215_pos_debit_at_finalization.sql` — déplacement du débit des ventes ordinaires à la validation finale et règles d'abandon/retrait compatibles.
+- `migration_216_pos_debit_trigger_reentrancy_fix.sql` — évite la réécriture récursive de la vente dans le trigger de finalisation.
+- `migration_217_inventory_valuation_compat.sql` — réconciliation de l'inventaire/valorisation avec les tables déjà créées ; coûts inconnus conservés comme inconnus.
+- `migration_218_pos_preserve_frozen_cost.sql` et `migration_219_pos_preserve_frozen_cost_fix.sql` — préservation du coût figé lors de l'allocation FEFO.
+- `migration_068_hierarchical_pharmacy_scope.sql` a été corrigée sur `main` pour conserver le nom et la valeur par défaut des paramètres de fonction déjà utilisés par la base active.
 
-Les nouvelles règles de réservation et l’inventaire par service sont **appliqués et testés sur la base active**. La synchronisation de bout en bout avec la caisse ne peut pas être déclarée verte : le socle POS manque dans la base active, et le débit des ventes POS ordinaires doit encore être déplacé de l’ajout au panier vers la validation finale avant que la règle métier soit intégralement respectée.
+## Preuves de test exécutées sur la base active
+
+Les scénarios ont été exécutés dans des transactions annulées ensuite : aucun panier, session, vente ou réservation de test n'a été conservé.
+
+**PASS — vente ordinaire :**
+1. Création d'une session et d'un brouillon POS.
+2. Ajout d'un produit : stock physique et disponibilité Marketplace inchangés.
+3. Encaissement final : vente passée à `payee`, stock physique diminué d'une unité, disponibilité Marketplace diminuée d'une unité.
+4. Les assertions ont été rejouées après correction du trigger et après la réconciliation de valorisation.
+
+**PASS — réservation Marketplace :**
+1. Création du hold : stock physique inchangé et disponibilité Marketplace diminuée d'une unité.
+2. Encaissement dans une session de caisse : stock physique diminué d'une unité.
+3. La disponibilité Marketplace reste au niveau du hold précédent, sans double décrément.
+4. La réservation passe à `payee` et son `consumed_by_vente_id` correspond à la vente créée.
+
+**PASS —** le test existant `supabase/tests/212_reservation_holds_stock_service_inventory.sql` a été rejoué après la restauration POS/ERP, sans erreur.
+
+## Reste vérifiable
+
+- Aucun déploiement n'a été lancé, conformément à la consigne.
+- Le build, le lint et le typecheck frontend n'ont pas été exécutés dans cet environnement ; les modifications de texte de la page caisse ne sont donc pas présentées comme compilées.
+- Le scénario SQL réel de vente ordinaire et de réservation a passé ses assertions, mais le parcours navigateur complet n'a pas été testé.
