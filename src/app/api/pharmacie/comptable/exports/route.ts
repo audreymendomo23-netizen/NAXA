@@ -8,7 +8,11 @@ export const runtime = "nodejs";
 type ExportType = "ventes" | "depenses" | "tresorerie" | "ecritures";
 type Row = Record<string, string | number | boolean | null>;
 
-const validDate = (value: string | null) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+const validDate = (value: string | null) => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(value + "T00:00:00+01:00");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : null;
+};
 const safeCell = (value: unknown): string | number => {
   if (typeof value === "number") return value;
   const raw = value == null ? "" : String(value);
@@ -45,7 +49,7 @@ export async function GET(request: Request) {
   if ((url.searchParams.get("debut") && !debut) || (url.searchParams.get("fin") && !fin) || (debut && fin && debut > fin)) {
     return NextResponse.json({ error: "periode_invalide" }, { status: 400 });
   }
-  const endExclusive = fin ? new Date(Date.parse(fin + "T00:00:00Z") + 86400000).toISOString() : null;
+  const endExclusive = fin ? new Date(Date.parse(fin + "T00:00:00+01:00") + 86400000).toISOString() : null;
   const limit = 5000;
   let query: any;
   let dateField: string;
@@ -71,8 +75,9 @@ export async function GET(request: Request) {
     query = sb.from("compta_ecriture").select("date_ecriture,journal_code,reference_source,libelle,source_type,source_id")
       .eq("pharmacie_id", profile.pharmacie_id).order("date_ecriture", { ascending: true }).limit(limit);
   }
-  if (debut) query = query.gte(dateField, type === "depenses" ? debut : debut + "T00:00:00.000Z");
-  if (endExclusive) query = query.lt(dateField, type === "depenses" ? fin! + "T23:59:59.999Z" : endExclusive);
+  if (debut) query = query.gte(dateField, type === "depenses" ? debut : debut + "T00:00:00+01:00");
+  if (type === "depenses" && fin) query = query.lte(dateField, fin);
+  else if (endExclusive) query = query.lt(dateField, endExclusive);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: "source_indisponible" }, { status: 503 });
