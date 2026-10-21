@@ -11,8 +11,61 @@ import {
   type Langue,
 } from "@/lib/accueil-textes";
 
-type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
+type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
+const CACHE_RECHERCHE_KEY = "naxa-medicament-search-v1";
+type CacheRecherche = { updatedAt: number; byQuery: Record<string, MedicamentRecherche[]>; corpus: MedicamentRecherche[] };
+
+function normaliserCache(value: string): string {
+  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function lireCacheRecherche(): CacheRecherche {
+  try {
+    const raw = window.localStorage.getItem(CACHE_RECHERCHE_KEY);
+    if (!raw) return { updatedAt: 0, byQuery: {}, corpus: [] };
+    const parsed = JSON.parse(raw) as Partial<CacheRecherche>;
+    return {
+      updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0,
+      byQuery: parsed.byQuery && typeof parsed.byQuery === "object" ? parsed.byQuery : {},
+      corpus: Array.isArray(parsed.corpus) ? parsed.corpus : [],
+    };
+  } catch {
+    return { updatedAt: 0, byQuery: {}, corpus: [] };
+  }
+}
+
+function enregistrerCacheRecherche(query: string, results: MedicamentRecherche[]): void {
+  try {
+    const cache = lireCacheRecherche();
+    cache.byQuery[normaliserCache(query)] = results;
+    cache.byQuery = Object.fromEntries(Object.entries(cache.byQuery).slice(-80));
+    const unique = new Map<string, MedicamentRecherche>();
+    for (const item of [...cache.corpus, ...results]) unique.set(item.id, item);
+    cache.corpus = [...unique.values()].slice(-250);
+    cache.updatedAt = Date.now();
+    window.localStorage.setItem(CACHE_RECHERCHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Le stockage local est facultatif et ne bloque jamais la recherche en ligne.
+  }
+}
+
+function rechercherDansCache(query: string): MedicamentRecherche[] {
+  const cache = lireCacheRecherche();
+  const needle = normaliserCache(query);
+  const exact = cache.byQuery[needle];
+  const matches = exact?.length ? exact : cache.corpus.filter((item) =>
+    [item.name, item.brand, item.activeIngredient, item.form]
+      .filter((value): value is string => Boolean(value))
+      .some((value) => normaliserCache(value).includes(needle) || needle.includes(normaliserCache(value)))
+  );
+  return matches.slice(0, 10).map((item) => ({
+    ...item,
+    availability: "non_verifiee" as const,
+    partnerPharmacyCount: null,
+    lowestPartnerPrice: null,
+  }));
+}
 
 export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en"; mode?: "recherche" | "scanner" }) {
   const router = useRouter();
@@ -31,8 +84,14 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
   const [rechercheCatalogue, setRechercheCatalogue] = useState<"repos" | "chargement" | "erreur">("repos");
   const [rechercheActive, setRechercheActive] = useState(false);
 
+ 
+  const [horsConnexion, setHorsConnexion] = useState(false);
+  const [resultatsEnCache, setResultatsEnCache] = useState(false);
+
   useEffect(() => {
     const terme = q.trim();
+    setHorsConnexion(!navigator.onLine);
+    setResultatsEnCache(false);
     if (terme.length < 2) {
       setMedicaments([]);
       setRechercheCatalogue("repos");
@@ -41,22 +100,71 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
     }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
-      setRechercheCatalogue("chargement");
       setRechercheActive(true);
+      if (!navigator.onLine) {
+        const cached = rechercherDansCache(terme);
+        setMedicaments(cached);
+        setResultatsEnCache(cached.length > 0);
+        setRechercheCatalogue(cached.length ? "repos" : "erreur");
+        return;
+      }
+      setRechercheCatalogue("chargement");
       try {
         const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(terme), { signal: controller.signal });
         if (!response.ok) throw new Error("catalogue indisponible");
         const data = await response.json() as { results?: MedicamentRecherche[] };
-        setMedicaments(Array.isArray(data.results) ? data.results : []);
+        const results = Array.isArray(data.results) ? data.results : [];
+        if (controller.signal.aborted) return;
+        setMedicaments(results);
         setRechercheCatalogue("repos");
+        enregistrerCacheRecherche(terme, results);
+
+        // La recherche des photos est indépendante et ne retarde pas les fiches médicaments.
+        if (results.some((item) => !item.imageUrl)) {
+          void fetch("/api/medicaments/photo?q=" + encodeURIComponent(terme), { signal: controller.signal })
+            .then((photoResponse) => photoResponse.ok ? photoResponse.json() : null)
+            .then((payload: { photo?: { url?: string; sourceUrl?: string; licence?: string; attribution?: string | null; title?: string } | null } | null) => {
+              const photo = payload?.photo;
+              if (!photo?.url || controller.signal.aborted) return;
+              const needle = normaliserCache(terme);
+              const matching = results.filter((item) =>
+                [item.name, item.activeIngredient, item.brand]
+                  .filter((value): value is string => Boolean(value))
+                  .some((value) => {
+                    const normalized = normaliserCache(value);
+                    return normalized === needle || (needle.length >= 5 && normalized.includes(needle)) || (normalized.length >= 5 && needle.includes(normalized));
+                  })
+              );
+              if (!matching.length) return;
+              const updated = results.map((item) => matching.some((match) => match.id === item.id) && !item.imageUrl
+                ? { ...item, imageUrl: photo.url!, imageSource: "Wikimedia Commons — licence et source disponibles", imageSourceUrl: photo.sourceUrl ?? null, imageLicense: photo.licence ?? null, imageAttribution: photo.attribution ?? null, imageTitle: photo.title ?? null }
+                : item);
+              setMedicaments((current) => current.map((item) => updated.find((next) => next.id === item.id) ?? item));
+              enregistrerCacheRecherche(terme, updated);
+            })
+            .catch(() => undefined);
+        }
       } catch {
         if (controller.signal.aborted) return;
-        setMedicaments([]);
-        setRechercheCatalogue("erreur");
+        const cached = rechercherDansCache(terme);
+        setMedicaments(cached);
+        setResultatsEnCache(cached.length > 0);
+        setRechercheCatalogue(cached.length ? "repos" : "erreur");
+        setHorsConnexion(!navigator.onLine);
       }
-    }, 350);
+    }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [q]);
+
+  useEffect(() => {
+    const updateConnection = () => setHorsConnexion(!navigator.onLine);
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    return () => {
+      window.removeEventListener("online", updateConnection);
+      window.removeEventListener("offline", updateConnection);
+    };
+  }, []);
 
   const aller = (termes: string[]) => {
     const p = new URLSearchParams();
@@ -112,10 +220,10 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
       {rechercheActive && (
         <section className="max-h-[45dvh] space-y-3 overflow-y-auto rounded-xl border border-naxa-green-100 bg-white p-3" aria-live="polite" aria-label="Résultats du catalogue médicaments">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-extrabold text-naxa-green-900">Résultats du catalogue</h2>
+            <h2 className="text-sm font-extrabold text-naxa-green-900">Résultats du catalogue</h2>\n            {horsConnexion && <span className="text-xs font-semibold text-amber-800">Hors connexion</span>}
             {rechercheCatalogue === "chargement" && <span className="text-xs text-slate-500">Recherche…</span>}
           </div>
-          {rechercheCatalogue === "erreur" && <><p className="text-sm text-slate-600">Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires.</p><BulleErreur message="Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires." /></>}
+          {rechercheCatalogue === "erreur" && <><p className="text-sm text-slate-600">{horsConnexion ? "Aucun résultat correspondant n’a été enregistré sur cet appareil. Reconnectez-vous pour enrichir le catalogue hors ligne." : "Le catalogue externe est momentanément indisponible. Vous pouvez toujours lancer la recherche dans les stocks partenaires."}</p><BulleErreur message={horsConnexion ? "Aucun résultat hors ligne en cache." : "Le catalogue externe est momentanément indisponible."} /></>}\n          {resultatsEnCache && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Résultats enregistrés sur cet appareil. Stocks et prix ne sont pas actualisés hors connexion.</p>}
           {rechercheCatalogue === "repos" && medicaments.length === 0 && <p className="text-sm text-slate-600">Aucun résultat confirmé par les sources interrogées. Essayez le nom de la substance active.</p>}
           <ul className="space-y-3">
             {medicaments.map((medicament) => (
@@ -126,7 +234,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                     onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
                     alt={medicament.imageUrl ? "Image issue de l'étiquetage externe, pas nécessairement du conditionnement camerounais" : "Photo non disponible"}
                     className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain"
-                    loading="lazy"
+                    loading="lazy" decoding="async"
                   />
                   <div className="min-w-0 flex-1">
                     <h3 className="font-bold text-naxa-green-900">{medicament.name}</h3>
@@ -137,7 +245,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 </div>
                 {medicament.definition && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Définition :</span> {medicament.definition}</p>}
                 {medicament.indications && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Indications générales :</span> {medicament.indications}</p>}
-                {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}</p>}
+                {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}{medicament.imageAttribution ? " · " + medicament.imageAttribution : ""}{medicament.imageSourceUrl ? <> · <a href={medicament.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">Source photo</a></> : ""}</p>}
                 <div className="mt-2 space-y-1">
                   <p className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${medicament.availability === "disponible" ? "bg-emerald-100 text-emerald-800" : medicament.availability === "indisponible" ? "bg-slate-100 text-slate-700" : "bg-amber-100 text-amber-800"}`}>
                     {medicament.availability === "disponible" ? "Disponible chez nos partenaires" : medicament.availability === "indisponible" ? "Indisponible dans le réseau partenaire" : "Stock non vérifié"}
