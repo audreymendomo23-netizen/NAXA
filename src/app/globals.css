@@ -819,3 +819,28 @@ html[data-theme="jour"] .naxa-night-wave {
 @keyframes luciole-fairy-halo-pulse { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
 @keyframes luciole-fairy-wing-shimmer { from { opacity: .78; transform: scaleY(.97); } to { opacity: 1; transform: scaleY(1.025); } }
 @media (prefers-reduced-motion: reduce) { .naxa-luciole .luciole-anatomy,.naxa-luciole.luciole-fairy-entering .luciole-fairy,.naxa-luciole .luciole-fairy-halo,.naxa-luciole .luciole-fairy-wings { animation: none !important; transition: none !important; } .naxa-luciole.luciole-fairy-entering .luciole-fairy,.naxa-luciole.luciole-fairy-visible .luciole-fairy { opacity: 1; transform: scale(var(--luciole-fairy-scale)); } .naxa-luciole.luciole-fairy-entering .luciole-insect,.naxa-luciole.luciole-fairy-visible .luciole-insect { opacity: 0; } }
+
+
+/* Battements d'ailes ponctuels : séquences de 3 s et poussière lumineuse discrète. */
+.naxa-luciole .luciole-fairy-dust { opacity: 0; pointer-events: none; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-fairy-wings { animation: luciole-fairy-wing-flutter 150ms ease-in-out infinite alternate; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-fairy-dust { opacity: 1; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-dust-a { animation: luciole-dust-a 820ms ease-out both infinite; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-dust-b { animation: luciole-dust-b 980ms ease-out 120ms both infinite; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-dust-c { animation: luciole-dust-c 760ms ease-out 240ms both infinite; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-dust-d { animation: luciole-dust-d 1s ease-out 80ms both infinite; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-dust-e { animation: luciole-dust-e 900ms ease-out 300ms both infinite; }
+.naxa-luciole.luciole-fairy-fluttering .luciole-dust-f { animation: luciole-dust-f 850ms ease-out 180ms both infinite; }
+@keyframes luciole-fairy-wing-flutter { from { transform: scaleX(.84) scaleY(.96) rotate(-2deg); } to { transform: scaleX(1.04) scaleY(1.03) rotate(2deg); } }
+@keyframes luciole-dust-a { 0% { opacity: 0; transform: translate(0,0) scale(.3); } 22% { opacity: .95; } 100% { opacity: 0; transform: translate(-4px,-5px) scale(.15); } }
+@keyframes luciole-dust-b { 0% { opacity: 0; transform: translate(0,0) scale(.25); } 25% { opacity: .9; } 100% { opacity: 0; transform: translate(5px,-4px) scale(.1); } }
+@keyframes luciole-dust-c { 0% { opacity: 0; transform: translate(0,0) scale(.25); } 25% { opacity: .8; } 100% { opacity: 0; transform: translate(-5px,2px) scale(.1); } }
+@keyframes luciole-dust-d { 0% { opacity: 0; transform: translate(0,0) scale(.3); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(4px,4px) scale(.12); } }
+@keyframes luciole-dust-e { 0% { opacity: 0; transform: translate(0,0) scale(.2); } 25% { opacity: .85; } 100% { opacity: 0; transform: translate(-3px,-6px) scale(.1); } }
+@keyframes luciole-dust-f { 0% { opacity: 0; transform: translate(0,0) scale(.2); } 25% { opacity: .9; } 100% { opacity: 0; transform: translate(4px,-6px) scale(.1); } }
+@media (prefers-reduced-motion: reduce) {
+  .naxa-luciole.luciole-fairy-fluttering .luciole-fairy-wings,
+  .naxa-luciole.luciole-fairy-fluttering .luciole-fairy-dust,
+  .naxa-luciole.luciole-fairy-fluttering .luciole-fairy-dust circle { animation: none !important; }
+  .naxa-luciole .luciole-fairy-dust { opacity: 0 !important; }
+}
