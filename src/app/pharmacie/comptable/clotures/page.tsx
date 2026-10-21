@@ -52,6 +52,10 @@ export default async function CloturesComptablesPage({
     acces_refuse: "Accès refusé.",
     formulaire_invalide: "Le formulaire reçu est invalide.",
     periode_invalide: "La période sélectionnée est invalide.",
+    dates_periode_invalides: "Les dates de la période sont invalides.",
+    chevauchement_periode: "Ouverture refusée : cette période chevauche une période déjà enregistrée.",
+    ouverture_refusee: "La période n’a pas pu être ouverte. Vérifiez les dates, les droits et le journal d’audit.",
+    periode_ouverte: "Période ouverte et action journalisée.",
     controle_invalide: "Le contrôle demandé est invalide.",
     enregistrement_refuse: "Le contrôle n’a pas été enregistré. Vérifiez la période, votre périmètre et les champs requis.",
     controle_enregistre: "Contrôle enregistré et journalisé.",
@@ -70,7 +74,17 @@ export default async function CloturesComptablesPage({
     </header>
     {notice ? <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">{notice}</p> : null}
     {periodResult.error || controlResult.error ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Les périodes ou les contrôles ne sont pas accessibles dans cet environnement.</p> : null}
-    {!periods.length ? <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-bold">Aucune période comptable</h2><p className="mt-2 text-sm text-slate-600">Aucune période n’a été créée pour cette pharmacie. La création de périodes n’est pas proposée ici afin d’éviter d’ouvrir des périodes en doublon ou en chevauchement.</p></section> : null}
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <h2 className="text-lg font-bold">Ouvrir une période comptable</h2>
+      <p className="mt-1 text-sm text-slate-600">Les dates sont validées côté serveur. Les périodes qui chevauchent une période existante sont refusées et chaque ouverture est journalisée.</p>
+      <form method="post" action="/api/pharmacie/comptable/clotures" className="mt-3 grid gap-3 sm:grid-cols-3">
+        <input type="hidden" name="action" value="ouvrir" />
+        <label className="text-sm">Début<input required type="date" name="date_debut" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" /></label>
+        <label className="text-sm">Fin<input required type="date" name="date_fin" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" /></label>
+        <div className="flex items-end"><button className="min-h-11 rounded-xl bg-naxa-green-900 px-4 font-semibold text-white">Ouvrir la période</button></div>
+      </form>
+    </section>
+    {!periods.length ? <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-bold">Aucune période comptable</h2><p className="mt-2 text-sm text-slate-600">Aucune période n’est encore enregistrée pour cette pharmacie.</p></section> : null}
     {periods.map(period => {
       const annual = new Date(period.date_fin + "T00:00:00Z").getUTCMonth() === 11
         && new Date(period.date_fin + "T00:00:00Z").getUTCDate() === 31;
