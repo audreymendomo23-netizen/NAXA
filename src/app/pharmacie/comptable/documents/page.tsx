@@ -20,7 +20,7 @@ export default async function DocumentsComptablePage() {
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
   const [reportsResult, recallsResult, receiptsResult] = await Promise.all([
-    sb.from("rapports").select("id,periode,du,au,texte,created_at,contenu")
+    sb.from("rapports").select("id,periode,du,au,texte,created_at")
       .eq("scope_type", "PHARMACIE").eq("scope_pharmacie_id", profile.pharmacie_id)
       .order("created_at", { ascending: false }).limit(50),
     sb.from("rappels_lots").select("id,reference_rappel,motif,statut,date_rappel,created_at")
