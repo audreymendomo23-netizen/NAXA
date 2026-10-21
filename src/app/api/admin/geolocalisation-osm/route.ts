@@ -105,6 +105,8 @@ export async function POST() {
       const name = element.tags?.name?.trim();
       const position = coordonnees(element);
       if (!name || !position) return [];
+      if (element.tags?.healthcare === "veterinary" || element.tags?.veterinary === "yes"
+        || /vétérinaire|veterinary/i.test(name)) return [];
       const osmUrl = `https://www.openstreetmap.org/${element.type}/${element.id}`;
       return [{
         nom_source: name.slice(0, 250),
@@ -144,8 +146,7 @@ export async function POST() {
     let skippedWithCoords = 0;
     let unmatched = 0;
     for (const pharmacy of pharmacies ?? []) {
-      if (Number.isFinite(pharmacy.lat) && Number.isFinite(pharmacy.lng)
-        && pharmacy.lat !== null && pharmacy.lng !== null) {
+      if (pharmacy.lat !== null || pharmacy.lng !== null) {
         skippedWithCoords++;
         continue;
       }
