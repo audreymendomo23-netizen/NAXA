@@ -373,6 +373,13 @@ grant select on public.compta_periodes,public.compta_parametre,
   public.compta_evenement,public.compta_ecriture,public.compta_ligne,
   public.compta_audit to authenticated;
 
+-- Accès serveur pour le worker outbox et les RPC backend uniquement.
+grant select,insert,update,delete on public.compta_periodes,public.compta_parametre,
+  public.compta_plan_comptable,public.compta_mapping_compte,
+  public.compta_evenement,public.compta_ecriture,public.compta_ligne,
+  public.compta_audit_tete,public.compta_audit to service_role;
+grant usage,select on sequence public.compta_audit_id_seq to service_role;
+
 
 -- Les écritures ne peuvent être créées que par le serveur avec le rôle service_role.
 -- La clé service_role ne doit jamais être exposée au navigateur.
@@ -400,7 +407,7 @@ declare
   v_libelle_ligne text;
   v_count integer := 0;
 begin
-  if coalesce(auth.role(),'') <> 'service_role' then
+  if coalesce(current_setting('request.jwt.claim.role',true),'') <> 'service_role' then
     raise exception 'Écriture comptable réservée au service serveur';
   end if;
   if p_pharmacie is null or p_periode is null or p_date is null
