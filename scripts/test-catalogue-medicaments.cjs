@@ -10,6 +10,7 @@ const recherche = fs.readFileSync(path.join(root, "src/components/Recherche.tsx"
 const resultats = fs.readFileSync(path.join(root, "src/app/resultats/page.tsx"), "utf8");
 const produit = fs.readFileSync(path.join(root, "src/app/produit/[id]/page.tsx"), "utf8");
 const panier = fs.readFileSync(path.join(root, "src/app/panier/page.tsx"), "utf8");
+const photos = fs.readFileSync(path.join(root, "supabase/migration_221_medicament_photo_provenance_storage.sql"), "utf8");
 
 test("prototype : dix termes fréquents à valider avec les pharmacies camerounaises", () => {
   const rows = [...catalogue.matchAll(/\{ nomFr: "[^"]+", substanceFr: "[^"]+", alias: \[[^\]]+\] \}/g)];
@@ -23,9 +24,20 @@ test("API : trois sources attendues et aucune dépendance à RxImage", () => {
   assert.doesNotMatch(route, /rximage\.nlm\.nih\.gov/);
 });
 
-test("API : les images externes sont limitées au domaine DailyMed", () => {
-  assert.match(route, /image\.url\.startsWith\("https:\/\/dailymed\.nlm\.nih\.gov\/"\)/);
+test("images : aucune image tierce n'est réutilisée sans licence vérifiée", () => {
+  assert.match(route, /photo_licence/);
+  assert.match(route, /photo_verifiee_le/);
+  assert.match(route, /getPublicUrl\(localProduct\.photo_path\)/);
+  assert.doesNotMatch(route, /dailyMedImage\(/);
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
+});
+
+test("storage : bucket médicaments et écriture réservée aux administrateurs", () => {
+  assert.match(photos, /values \('medicaments', 'medicaments', true/);
+  assert.match(photos, /medicaments_admin_insert/);
+  assert.match(photos, /p\.role = 'admin'/);
+  assert.match(photos, /photo_source_url/);
+  assert.match(photos, /photo_licence/);
 });
 
 test("recherche : résultats instantanés et disponibilité partenaire séparée", () => {
@@ -45,7 +57,7 @@ test("stock : la recherche affiche les statuts réels du réseau partenaire", ()
 });
 
 test("images : la photo locale est prioritaire et le placeholder reste disponible", () => {
-  assert.match(route, /imageUrl: localProduct\\?\\.photo_url \\|\\|/);
+  assert.match(route, /imageUrl: storagePhotoUrl \\|\\| localProduct\\?\\.photo_url/);
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
 });
 
