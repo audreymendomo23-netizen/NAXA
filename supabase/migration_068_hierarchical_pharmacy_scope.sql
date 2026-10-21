@@ -7,7 +7,7 @@ begin;
 create or replace function public.naxa_scope_allows(
   p_profile uuid,
   p_pharmacie uuid,
-  p_scope text
+  p_scope text default 'PHARMACIE'
 )
 returns boolean
 language sql
