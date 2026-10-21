@@ -1,48 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
 import { clearPharmacyCookie, readPharmacyCookie } from "@/lib/pharmacie-code-session";
-import { isIP } from "node:net";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
-import { hasAvailableSessionSlot, MAX_CONCURRENT_SESSIONS } from "@/lib/auth/session-limit";
 import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
-
-function requestIp(request: Request): string | null {
-  const candidate = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip")?.trim() ?? null;
-  return candidate && isIP(candidate) ? candidate : null;
-}
-
-// Journalise le refus pour plafond de sessions. Ne bloque jamais la réponse :
-// toute défaillance laisse une trace dans les logs serveur.
-async function auditSessionLimitRejected(request: Request, profile: Record<string, unknown>, provider: string) {
-  try {
-    const { error } = await supabaseAdmin().rpc("naxa_record_session_limit_rejected", {
-      p_session_id: crypto.randomUUID(), p_user_id: String(profile[S.profileIdColumn]), p_pharmacie_id: profile[S.profilePharmacyIdColumn] ? String(profile[S.profilePharmacyIdColumn]) : null,
-      p_ip_address: requestIp(request), p_user_agent: request.headers.get("user-agent"), p_provider: provider,
-    });
-    if (error) console.error("NAXA_SESSION_LIMIT_AUDIT_FAILED", error);
-  } catch (auditError) {
-    console.error("NAXA_SESSION_LIMIT_AUDIT_FAILED", auditError);
-  }
-}
-
-// Pré-contrôle de confort (message clair). Le plafond réel reste appliqué par la base :
-// si le comptage échoue, on laisse la connexion continuer et on laisse une trace.
-async function sessionSlotAvailable(userId: string): Promise<boolean> {
-  try {
-    return await hasAvailableSessionSlot(userId);
-  } catch (slotError) {
-    console.error("NAXA_SESSION_COUNT_FAILED", slotError);
-    return true;
-  }
-}
-
-function sessionLimitResponse() {
-  return NextResponse.json(
-    { error: `Ce compte est déjà connecté sur ${MAX_CONCURRENT_SESSIONS} appareils. Déconnectez-vous d'un appareil avant de vous connecter ici.` },
-    { status: 429 }
-  );
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (profile[S.profileActiveColumn] === false) {
       return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
-    if (espacePharmacie && (profile[S.profilePharmacyIdColumn] !== pharmacyId || !["pharmacie","promoteur","caisse"].includes(String(profile[S.profileRoleColumn])))) {
+    if (espacePharmacie && (profile[S.profilePharmacyIdColumn] !== pharmacyId || !["pharmacie", "promoteur", "caisse"].includes(String(profile[S.profileRoleColumn])))) {
       return NextResponse.json({ error: "Identifiants non valides pour cette pharmacie" }, { status: 401 });
     }
 
@@ -98,19 +59,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: espacePharmacie ? "Identifiants non valides pour cette pharmacie" : "Identifiants incorrects." }, { status: 401 });
     }
 
-    if (!(await sessionSlotAvailable(String(profile[S.profileIdColumn])))) {
-      await auditSessionLimitRejected(request, profile, "password");
-      return sessionLimitResponse();
-    }
-
     const supabase = supabaseServer();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      if (error.message?.includes("NAXA_SESSION_LIMIT_REACHED")) {
-        await auditSessionLimitRejected(request, profile, "password");
-        return sessionLimitResponse();
-      }
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
