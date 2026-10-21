@@ -97,7 +97,7 @@ Le conseiller de sécurité conserve aussi une alerte ERROR sur `public.v_reserv
 
 ## État de l'historique des migrations de test
 
-Le dépôt contient maintenant dix migrations Comptable identifiées (dont la nouvelle migration d'index), tandis que l'historique de la base isolée expose les huit entrées historiques précédentes plus la nouvelle migration d'index et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé. Aucun rejeu ni réparation automatique n'a été tenté : cette base ne constitue pas un historique canonique et la migration des rapports planifiés contient un éventuel enregistrement `pg_cron` à inspecter avant application.
+Le dépôt contient maintenant dix migrations Comptable identifiées (dont la nouvelle migration d'index), tandis que l'historique de la base isolée expose les huit entrées historiques précédentes plus la nouvelle migration d'index et comporte des doublons de noms de migration ailleurs dans l'historique. La migration `migration_20261023_compta_rapports_planifies.sql` n'apparaît pas sous ce nom dans l'historique observé, mais la fonction `compta_generer_rapport_mensuel()` et le job `naxa-compta-rapport-mensuel` sont déjà présents et le test transactionnel passe. Cela indique que l'historique de migration ne suffit pas à déduire l'état du schéma. Aucun rejeu ni réparation automatique n'a été tenté : la base ne constitue pas un historique canonique.
 
 ## Conclusion opérationnelle
 
