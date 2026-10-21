@@ -17,6 +17,22 @@ const withPWA = withPWAInit({
     runtimeCaching: [
       {
         urlPattern: ({ request, url }) =>
+          request.destination === "image" &&
+          (url.hostname === "upload.wikimedia.org" ||
+            url.hostname === "commons.wikimedia.org" ||
+            url.hostname.endsWith(".supabase.co")),
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "naxa-medicine-images-v1",
+          expiration: {
+            maxEntries: 250,
+            maxAgeSeconds: 30 * 24 * 60 * 60,
+          },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
+        urlPattern: ({ request, url }) =>
           request.mode === "navigate" && url.pathname === "/connexion",
         handler: "NetworkFirst",
         options: {
