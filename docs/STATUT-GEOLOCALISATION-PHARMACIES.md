@@ -1,7 +1,7 @@
 # NAXA — géolocalisation des pharmacies de Yaoundé
 
 Date de collecte initiale : 11 octobre 2026  
-Branche : `feat/yaounde-pharmacy-geolocation`  
+Branche : `main` (intégration du référentiel et du GPS navigateur)  
 Migration candidate : `supabase/migration_071_geolocalisation_pharmacies_yaounde.sql`
 
 ## Implémenté sur la branche
@@ -13,7 +13,7 @@ Migration candidate : `supabase/migration_071_geolocalisation_pharmacies_yaounde
 - Les établissements vétérinaires ne sont pas rapprochés comme pharmacies humaines.
 - Les coordonnées appliquées à une pharmacie existante sont marquées `source_publique_a_confirmer`; elles ne sont pas présentées comme vérifiées sur le terrain.
 - RLS : lecture et modification du référentiel réservées à l'administrateur NAXA.
-- Test statique ajouté : `npm run test:geolocalisation`; branchement dans CircleCI.
+- Test statique : `npm run test:geolocalisation` (GPS, migration et API de synchronisation OSM). Aucun contrôle CircleCI/Netlify n'est requis.
 
 ## Sources initiales
 
@@ -28,7 +28,7 @@ Les valeurs X/Y du document municipal sont interprétées comme longitude/latitu
 - Une fiche cartographique peut être déplacée ou mal associée à une enseigne.
 - Les résultats de cette recherche ne couvrent pas encore toutes les pharmacies de Yaoundé.
 - Les pharmacies du référentiel ne deviennent pas automatiquement des partenaires, n'apparaissent pas dans la recherche de produits et ne reçoivent aucun stock.
-- La migration n'a pas été appliquée à Supabase Production. Aucun déploiement ni changement de `main`.
+- La migration `migration_072_geolocalisation_osm.sql` est ajoutée au dépôt, mais n'a pas été appliquée à Supabase Production. Le déploiement n'a pas été lancé.
 - Le SQL replay local et les tests CircleCI doivent passer avant de considérer le code vert; une validation terrain reste obligatoire.
 
 ## Prochaines étapes
