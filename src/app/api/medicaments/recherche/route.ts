@@ -262,7 +262,6 @@ export async function GET(request: NextRequest) {
     const storagePhotoUrl = storagePhotoVerified && localProduct?.photo_path
       ? supabaseServer().storage.from("medicaments").getPublicUrl(localProduct.photo_path).data.publicUrl
       : null;
-    const candidateMatchesQuery = candidateNorm.includes(normalizedQuery) || normalizedQuery.includes(candidateNorm) || Boolean(pilot && pilot.alias.some((alias) => candidateNorm.includes(normaliserTerme(alias)) || normaliserTerme(alias).includes(candidateNorm)));
     return {
       id: localProduct?.id ?? candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
