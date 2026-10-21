@@ -10,7 +10,7 @@ type Row = Record<string, string | number | boolean | null>;
 
 const validDate = (value: string | null) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const parsed = new Date(value + "T00:00:00+01:00");
+  const parsed = new Date(value + "T00:00:00Z");
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : null;
 };
 const safeCell = (value: unknown): string | number => {
