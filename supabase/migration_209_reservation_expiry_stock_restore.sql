@@ -10,7 +10,7 @@ begin
  for v_row in
   select r.id
   from public.reservations r
-  where r.statut in ('en_attente','confirmee') and r.expires_at<=now()
+  where r.mode='reservation' and r.statut in ('en_attente','confirmee') and r.expires_at<=now()
   order by r.expires_at,r.id
   limit p_limit
   for update skip locked
