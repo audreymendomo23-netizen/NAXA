@@ -120,7 +120,15 @@ export default async function PharmaciesDeGarde() {
         {externe && externe.pharmacies.length > 0 && (
           <ul className="space-y-3">
             {externe.pharmacies.map((p) => (
-              <li key={p.id} className="carte space-y-1">
+              <li key={p.id} className="carte overflow-hidden space-y-0">
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt={`Photo de la pharmacie ${p.nom}`} loading="lazy" className="mb-3 h-44 w-full rounded-xl object-cover" />
+                ) : (
+                  <div className="mb-3 flex h-36 w-full items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-800" role="img" aria-label={`Photo non fournie pour ${p.nom}`}>
+                    <div className="text-center"><span className="text-4xl" aria-hidden="true">✚</span><p className="mt-2 text-xs font-medium">Photo non publiée par la source</p></div>
+                  </div>
+                )}
+                <div className="space-y-1">
                 <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
                 {p.quartier && <p className="text-sm text-slate-600">{p.quartier}</p>}
                 {p.telephone && (
@@ -141,6 +149,7 @@ export default async function PharmaciesDeGarde() {
                     Source et vérification
                   </a>
                 </p>
+                </div>
               </li>
             ))}
           </ul>
