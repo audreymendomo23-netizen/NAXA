@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type PhotoPharmacieProps = {
   nom: string;
@@ -21,12 +21,8 @@ export function PhotoPharmacie({
   className = "",
   hauteur = "standard",
 }: PhotoPharmacieProps) {
-  const [imageEnErreur, setImageEnErreur] = useState(false);
-  const afficherPhoto = Boolean(src) && !imageEnErreur;
-
-  useEffect(() => {
-    setImageEnErreur(false);
-  }, [src]);
+  const [sourceEnErreur, setSourceEnErreur] = useState<string | null>(null);
+  const afficherPhoto = Boolean(src) && sourceEnErreur !== src;
 
   const hauteurClasse = hauteur === "compacte" ? "h-28" : "h-44";
 
@@ -40,7 +36,7 @@ export function PhotoPharmacie({
           src={src ?? undefined}
           alt={`Photo de la pharmacie ${nom}`}
           loading="lazy"
-          onError={() => setImageEnErreur(true)}
+          onError={() => setSourceEnErreur(src ?? null)}
           className="h-full w-full object-cover"
         />
       ) : (
