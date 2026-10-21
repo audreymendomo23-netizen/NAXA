@@ -172,19 +172,6 @@ async function dailyMedSearch(term: string): Promise<AnyRecord[]> {
   return Array.isArray(json?.data) ? json.data as AnyRecord[] : [];
 }
 
-async function dailyMedImage(setid: string): Promise<string | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(setid)) return null;
-  const json = await jsonFetch("https://dailymed.nlm.nih.gov/dailymed/services/v2/spls/" + setid + "/media.json");
-  const data = json?.data as AnyRecord | undefined;
-  const media = Array.isArray(data?.media) ? data.media as AnyRecord[] : [];
-  const image = media.find((image) =>
-    image.mime_type === "image/jpeg" &&
-    typeof image.url === "string" &&
-    image.url.startsWith("https://dailymed.nlm.nih.gov/")
-  );
-  return typeof image?.url === "string" ? image.url : null;
-}
-
 function fdaField(record: AnyRecord | undefined, field: string): string[] {
   if (!record) return [];
   const openfda = record.openfda as AnyRecord | undefined;
