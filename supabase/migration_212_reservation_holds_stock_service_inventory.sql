@@ -164,7 +164,8 @@ begin
     and r.statut in ('en_attente','confirmee')
     and r.expires_at>now()
     and r.consumed_at is null
-    and r.stock_restored=false;
+    and r.stock_restored=false
+    and r.stock_decremented=false;
 
   select exists(select 1 from public.stocks_lots l
     where l.pharmacie_id=p_pharmacie and l.produit_id=p_produit)
