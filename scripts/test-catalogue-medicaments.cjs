@@ -121,7 +121,7 @@ test("provenance et notices de sécurité : champs contrôlés et visibles", () 
   assert.match(route, /contraindications/);
   assert.match(route, /sourceDetails/);
   assert.match(recherche, /Informations de sécurité disponibles/);
-  assert.match(recherche, /Provenance des données/);
+  assert.match(recherche, /Provenance et vérification/);
   assert.match(recherche, /Notice de référence étrangère/);
 });
 
