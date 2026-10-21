@@ -410,8 +410,24 @@ export function AccueilClient() {
         setProduits(sorted);
         if (!sorted.length) setError(true);
         }
-        const { data: pharmRows } = await sb.from("pharmacies").select("id,nom,ville,quartier,adresse,lat,lng,de_garde").eq("actif",true).limit(100);
-        if (active) setPharmacies((pharmRows ?? []) as Pharmacie[]);
+        // Charger les pharmacies indépendamment du catalogue : une erreur de classement
+        // des produits ne doit jamais empêcher l'affichage des pharmacies de garde.
+        try {
+          const { data: pharmRows, error: pharmError } = await sb
+            .from("pharmacies")
+            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde")
+            .eq("actif", true)
+            .eq("visible_recherche", true)
+            .is("archivee_le", null)
+            .limit(100);
+          if (pharmError) {
+            console.error("[NAXA] Chargement des pharmacies impossible", pharmError);
+          } else if (active) {
+            setPharmacies((pharmRows ?? []) as Pharmacie[]);
+          }
+        } catch (pharmError) {
+          console.error("[NAXA] Chargement des pharmacies impossible", pharmError);
+        }
       } catch {
         if (active) {
           setProduits([]);
