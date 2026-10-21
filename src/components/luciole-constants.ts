@@ -21,5 +21,8 @@ export const LUCIOLE_TIMING = {
   specialMaxFinish: 2_000,
   fairyFade: 900,
   fairyDuration: 10_000,
+  fairyWingFlutter: 3_000,
+  fairyWingFlutterDelayMin: 1_200,
+  fairyWingFlutterDelayMax: 2_800,
   tripleTouchWindow: 850,
 } as const;
