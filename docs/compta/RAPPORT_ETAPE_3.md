@@ -21,7 +21,7 @@ Statut : **SOCLE OUTBOX INTÉGRÉ AU DÉPÔT — MIGRATION ET TEST SQL NON EXÉC
 
 ## Limites explicites
 
-- Cette étape établit la capture et la réclamation sécurisée de la file, mais **ne constitue pas encore le worker complet** : la fonction qui résout les mappings, vérifie la période comptable, crée l’écriture en partie double et appelle la finalisation doit être raccordée dans la suite.
+- Le traitement des mappings, de la période et de la partie double a depuis été ajouté dans `supabase/migration_20261022_compta_worker.sql`, avec un appelant Edge Function dans `supabase/functions/compta-worker/index.ts`. Voir le rapport d’étape 4 pour le détail et les limites de validation.
 - Les événements d’annulation/retour, réception fournisseur, pertes/péremptions, mouvements de stock, clôture de caisse, paie et immobilisations ne sont pas émis ici. Ils exigent d’abord une source validée et une règle de valorisation/mapping confirmée ; aucune table ou valeur fiscale n’a été inventée.
 - La migration et le test SQL n’ont pas été appliqués à la base Supabase active.
 - Les tests TypeScript de l’étape 2 et le typecheck du dépôt n’ont pas pu être exécutés dans l’environnement local disponible : le clone NAXA n’est pas présent et l’accès réseau à `github.com` échoue avec `Could not resolve host: github.com`. La tentative `npm run test:compta-moteur` échoue donc faute de `/package.json`; `tsc --noEmit` affiche l’aide car aucun `tsconfig.json` local n’est présent. Ce ne sont pas des échecs du moteur : l’exécution reste non vérifiée.
