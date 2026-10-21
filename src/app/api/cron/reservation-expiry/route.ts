@@ -11,9 +11,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   const db = supabaseAdmin();
+  const { data: expiry, error: expiryError } = await db.rpc("expirer_reservations_cron", { p_limit: 500 });
+  if (expiryError) {
+    return NextResponse.json({ error: "Expiration et restitution de stock indisponibles" }, { status: 500 });
+  }
   const { data: created, error } = await db.rpc("notifier_reservations_expirant_30m");
   if (error) {
     return NextResponse.json({ error: "Rappel de réservation indisponible" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, notificationsCreated: created ?? 0, at: new Date().toISOString() });
+  return NextResponse.json({ ok: true, expiration: expiry, notificationsCreated: created ?? 0, at: new Date().toISOString() });
 }
