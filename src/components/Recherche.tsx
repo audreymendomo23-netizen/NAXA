@@ -11,7 +11,7 @@ import {
   type Langue,
 } from "@/lib/accueil-textes";
 
-type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; source: string[]; availability: string };
+type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 
 export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en"; mode?: "recherche" | "scanner" }) {
@@ -138,6 +138,18 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 {medicament.definition && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Définition :</span> {medicament.definition}</p>}
                 {medicament.indications && <p className="mt-2 text-sm text-slate-700"><span className="font-semibold">Indications générales :</span> {medicament.indications}</p>}
                 {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}</p>}
+                <div className="mt-2 space-y-1">
+                  <p className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${medicament.availability === "disponible" ? "bg-emerald-100 text-emerald-800" : medicament.availability === "indisponible" ? "bg-slate-100 text-slate-700" : "bg-amber-100 text-amber-800"}`}>
+                    {medicament.availability === "disponible" ? "Disponible chez nos partenaires" : medicament.availability === "indisponible" ? "Indisponible dans le réseau partenaire" : "Stock non vérifié"}
+                  </p>
+                  {medicament.availability === "disponible" && medicament.partnerPharmacyCount !== null && (
+                    <p className="text-xs text-slate-600">
+                      {medicament.partnerPharmacyCount} pharmacie{medicament.partnerPharmacyCount > 1 ? "s" : ""} partenaire{medicament.partnerPharmacyCount > 1 ? "s" : ""} avec un stock positif confirmé
+                      {medicament.lowestPartnerPrice !== null ? ` · dès ${new Intl.NumberFormat("fr-FR").format(medicament.lowestPartnerPrice)} FCFA` : ""}
+                    </p>
+                  )}
+                  {medicament.availability === "non_verifiee" && <p className="text-xs text-slate-500">Le statut ne sera confirmé qu'après vérification des stocks NAXA.</p>}
+                </div>
                 <p className="mt-2 text-xs text-slate-500">Sources : {medicament.source.join(", ") || "aucune source externe confirmée"}. Les données médicales sont informatives et ne remplacent pas l’avis d’un pharmacien.</p>
                 <button type="button" className="btn btn-vert mt-3 w-full" onClick={() => aller([medicament.name])}>
                   Vérifier le stock des pharmacies partenaires
