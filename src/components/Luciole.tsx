@@ -185,14 +185,36 @@ export function Luciole() {
       firefly.classList.remove("luciole-sitting", "luciole-yawning", "luciole-teleporting");
     };
     let fairyTimer: number | undefined;
+    let fairyFlutterTimer: number | undefined;
+    let fairyFlutterEndTimer: number | undefined;
     let fairyVisible = false;
     let lastFairyTouchAt = 0;
     let fairyTouchCount = 0;
+    const stopFairyFlutter = () => {
+      if (fairyFlutterTimer) window.clearTimeout(fairyFlutterTimer);
+      if (fairyFlutterEndTimer) window.clearTimeout(fairyFlutterEndTimer);
+      fairyFlutterTimer = undefined;
+      fairyFlutterEndTimer = undefined;
+      firefly.classList.remove("luciole-fairy-fluttering");
+    };
+    const scheduleFairyFlutter = () => {
+      if (!fairyVisible || !motionAllowed) return;
+      fairyFlutterTimer = window.setTimeout(() => {
+        if (!fairyVisible) return;
+        firefly.classList.add("luciole-fairy-fluttering");
+        fairyFlutterEndTimer = window.setTimeout(() => {
+          firefly.classList.remove("luciole-fairy-fluttering");
+          fairyFlutterEndTimer = undefined;
+          if (fairyVisible) scheduleFairyFlutter();
+        }, LUCIOLE_TIMING.fairyWingFlutter);
+      }, LUCIOLE_TIMING.fairyWingFlutterDelayMin + Math.random() * (LUCIOLE_TIMING.fairyWingFlutterDelayMax - LUCIOLE_TIMING.fairyWingFlutterDelayMin));
+    };
     const returnToFirefly = () => {
       if (!fairyVisible) return;
       fairyVisible = false;
       if (fairyTimer) window.clearTimeout(fairyTimer);
       fairyTimer = undefined;
+      stopFairyFlutter();
       firefly.classList.remove("luciole-fairy-entering", "luciole-fairy-visible");
       firefly.classList.add("luciole-fairy-leaving");
       window.setTimeout(() => firefly.classList.remove("luciole-fairy-leaving"), LUCIOLE_TIMING.fairyFade);
@@ -204,6 +226,7 @@ export function Luciole() {
       firefly.classList.remove("luciole-fairy-leaving");
       firefly.classList.add("luciole-fairy-entering");
       burst();
+      scheduleFairyFlutter();
       window.setTimeout(() => { if (fairyVisible) { firefly.classList.remove("luciole-fairy-entering"); firefly.classList.add("luciole-fairy-visible"); } }, LUCIOLE_TIMING.fairyFade);
       fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration);
     };
@@ -517,6 +540,7 @@ export function Luciole() {
       document.removeEventListener("pointerdown", onInteraction);
       document.removeEventListener("pointerdown", onFairyTripleTouch);
       if (fairyTimer) window.clearTimeout(fairyTimer);
+      stopFairyFlutter();
       document.removeEventListener("keydown", onInteraction);
       document.removeEventListener("focusin", onInteraction);
       document.removeEventListener("focusin", onGuidanceFocusIn, true);
@@ -571,6 +595,14 @@ export function Luciole() {
             <linearGradient id="luciole-fairy-hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFF4A8" /><stop offset=".55" stopColor="#E8B94E" /><stop offset="1" stopColor="#A96B20" /></linearGradient>
             <linearGradient id="luciole-fairy-jacket" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#16834D" /><stop offset="1" stopColor="#064526" /></linearGradient>
           </defs>
+          <g className="luciole-fairy-dust" fill="#FFF2A6">
+            <circle className="luciole-dust-a" cx="11" cy="17" r=".65" />
+            <circle className="luciole-dust-b" cx="37" cy="18" r=".55" />
+            <circle className="luciole-dust-c" cx="15" cy="22" r=".45" />
+            <circle className="luciole-dust-d" cx="33" cy="23" r=".7" />
+            <circle className="luciole-dust-e" cx="18" cy="14" r=".4" />
+            <circle className="luciole-dust-f" cx="30" cy="14" r=".45" />
+          </g>
           <g className="luciole-fairy-wings" stroke="#E7C66A" strokeWidth=".42">
             <path d="M22 17C16 7 8 3 6 7c-2 4 3 10 14 13Z" fill="url(#luciole-fairy-wing)" /><path d="M26 17C32 7 40 3 42 7c2 4-3 10-14 13Z" fill="url(#luciole-fairy-wing)" /><path d="M22 20C13 14 6 15 7 20c1 4 7 6 14 5Z" fill="url(#luciole-fairy-wing)" /><path d="M26 20C35 14 42 15 41 20c-1 4-7 6-14 5Z" fill="url(#luciole-fairy-wing)" /><path d="M23 18 8 7M23 19 8 19M25 18 40 7M25 19 40 19" fill="none" strokeOpacity=".85" />
           </g>
