@@ -52,14 +52,17 @@ begin
       raise exception 'date_comptable_invalide';
     end if;
 
+    if (select count(*) from public.compta_periodes p
+        where p.pharmacie_id=v_event.pharmacie_id
+          and p.statut='ouverte'
+          and v_date between p.date_debut and p.date_fin) <> 1 then
+      raise exception 'periode_absente_ou_ambigue';
+    end if;
     select p.id into v_periode
     from public.compta_periodes p
     where p.pharmacie_id=v_event.pharmacie_id
       and p.statut='ouverte'
-      and v_date between p.date_debut and p.date_fin
-    order by p.date_debut desc
-    limit 1;
-    if v_periode is null then raise exception 'periode_absente_ou_cloturee'; end if;
+      and v_date between p.date_debut and p.date_fin;
 
     if (select count(*) from public.compta_mapping_compte m
         join public.compta_plan_comptable c
@@ -101,16 +104,22 @@ begin
       and (m.valide_du is null or m.valide_du<=v_date)
       and (m.valide_jusquau is null or m.valide_jusquau>=v_date);
 
+    if (select count(*) from public.compta_parametre p
+        where p.pharmacie_id=v_event.pharmacie_id
+          and p.cle='journal_code.' || v_event.evenement_type
+          and p.statut='valide'
+          and p.valide_du<=v_date
+          and (p.valide_jusquau is null or p.valide_jusquau>=v_date)) <> 1 then
+      raise exception 'journal_comptable_absent_ou_ambigu';
+    end if;
     select * into v_param
     from public.compta_parametre p
     where p.pharmacie_id=v_event.pharmacie_id
       and p.cle='journal_code.' || v_event.evenement_type
       and p.statut='valide'
       and p.valide_du<=v_date
-      and (p.valide_jusquau is null or p.valide_jusquau>=v_date)
-    order by p.valide_du desc
-    limit 1;
-    if not found or jsonb_typeof(v_param.valeur) <> 'string'
+      and (p.valide_jusquau is null or p.valide_jusquau>=v_date);
+    if jsonb_typeof(v_param.valeur) <> 'string'
        or length(trim(v_param.valeur #>> '{}')) not between 1 and 20 then
       raise exception 'journal_comptable_non_configure';
     end if;
