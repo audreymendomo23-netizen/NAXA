@@ -1,0 +1,53 @@
+name: Importer le référentiel BDPM dans Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_date:
+        description: "Date du jeu de données BDPM (YYYY-MM-DD), laisser vide pour détecter la date officielle"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naxa-import-bdpm
+  cancel-in-progress: false
+
+jobs:
+  import-bdpm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Configurer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier la configuration sans afficher les secrets
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" || { echo "::error::La variable de dépôt SUPABASE_URL est absente."; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Le secret SUPABASE_SERVICE_ROLE_KEY est absent."; exit 1; }
+          case "$SUPABASE_URL" in
+            https://*.supabase.co) echo "URL Supabase présente." ;;
+            *) echo "::error::SUPABASE_URL ne ressemble pas à l'URL d'un projet Supabase."; exit 1 ;;
+          esac
+          echo "Secret présent (valeur masquée)."
+
+      - name: Importer le référentiel officiel BDPM
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BDPM_UPDATED_AT: ${{ inputs.source_date }}
+        run: npm run import:bdpm
