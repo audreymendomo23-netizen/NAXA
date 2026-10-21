@@ -85,7 +85,7 @@ test("OpenStreetMap : endpoint administratif protégé et synchronisation limit�
 test("OpenStreetMap : rapprochement exact seulement et préservation des coordonnées existantes", () => {
   const route = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "geolocalisation-osm", "route.ts"), "utf8");
   assert.match(route, /normaliserNom\(pharmacy\.nom\)/);
-  assert.match(route, /Number\.isFinite\(pharmacy\.lat\).*Number\.isFinite\(pharmacy\.lng\)/s);
+  assert.match(route, /pharmacy\.lat !== null \|\| pharmacy\.lng !== null/);
   assert.match(route, /\.is\("lat", null\)\.is\("lng", null\)/);
   assert.match(route, /pharmaciesPartenairesRapprochees/);
   assert.match(route, /healthcare === "veterinary"/);
