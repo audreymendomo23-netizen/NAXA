@@ -15,7 +15,8 @@ type Stats = {
   serie?: { jour: string; recherches: number; reservations: number; ventes: number }[];
 };
 
-const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";\nconst dateTime = (v: string | null | undefined) => v ? new Date(v).toLocaleString("fr-FR") : "Non renseignée";
+const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";
+const dateTime = (v: string | null | undefined) => v ? new Date(v).toLocaleString("fr-FR") : "Non renseignée";
 
 export default async function EspacePromoteur() {
   const sb = supabaseServer();
@@ -249,7 +250,8 @@ export default async function EspacePromoteur() {
   for (const row of networkSalesResult.data ?? []) { const current = salesByPharmacy.get(row.pharmacie_id) ?? { ca: 0, ventes: 0 }; current.ca += Number(row.total ?? 0); current.ventes += Number(row.ventes ?? 0); salesByPharmacy.set(row.pharmacie_id, current); }
   const staffProfiles = staffProfilesResult.data ?? [];
   const staffById = new Map(staffProfiles.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"] as const));
-  const periodsByPharmacy = new Map<string, { id: string; pharmacie_id: string; date_debut: string; date_fin: string; statut: string }>();\n  for (const period of accountingPeriodsListResult.data ?? []) if (!periodsByPharmacy.has(period.pharmacie_id)) periodsByPharmacy.set(period.pharmacie_id, period);
+  const periodsByPharmacy = new Map<string, { id: string; pharmacie_id: string; date_debut: string; date_fin: string; statut: string }>();
+  for (const period of accountingPeriodsListResult.data ?? []) if (!periodsByPharmacy.has(period.pharmacie_id)) periodsByPharmacy.set(period.pharmacie_id, period);
   const pharmacistSessions = pharmacistSessionsResult.data ?? [];
   const stockSessions = stockSessionsResult.data ?? [];
   const staffSessions = [
