@@ -49,7 +49,7 @@ function ClientPageContent(){
  if(userError) throw userError;
  if(!user){router.replace("/connexion?retour=/client");return}
  const [{data:p,error:profileError},{data:r,error:reservationError},{data:historique,error:historiqueError},{data:homeServiceData,error:homeServiceError},{data:examData,error:examError}]=await Promise.all([
-  sb.from("profiles").select("username,first_name,last_name,role,phone,date_of_birth,age_verified,consent_accepted_at").eq("id",user.id).single(),
+  sb.from("profiles").select("username,first_name,last_name,role").eq("id",user.id).single(),
   sb.from("reservations").select("id,statut,mode,paiement_statut,paiement_mode,commande_statut,total,expires_at,created_at,paiement_ref,pharmacie_id,pharmacies(nom,ville,quartier,adresse),reservation_items(quantite,prix_unitaire,produits(id,nom,dci,dosage,forme,photo_url))").eq("client_id",user.id).order("created_at",{ascending:false}).limit(200),
   sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").eq("client_id",user.id).order("achat_le",{ascending:false,nullsFirst:false}).limit(500),
   sb.from("home_service_requests").select("id,status,offer_name,category,price_fcfa,service_area_label,preferred_at,created_at").eq("client_id",user.id).order("created_at",{ascending:false}).limit(100),
@@ -57,13 +57,9 @@ function ClientPageContent(){
  ]);
  if(profileError) throw profileError;
  if(reservationError) throw reservationError;
- // L'identité client est indépendante de l'affectation professionnelle :
- // une révocation ou un changement de rôle ERP ne doit pas supprimer l'espace client.
- const hasClientIdentity = Boolean(
-  p?.username && p?.first_name && p?.last_name && p?.phone
-  && p?.date_of_birth && p?.age_verified === true && p?.consent_accepted_at,
- );
- if(!hasClientIdentity){router.replace("/");return}
+ // L'accès client dépend de l'existence du profil, pas de son rôle professionnel.
+ // Ne pas imposer ici des champs d'inscription qui peuvent manquer sur des comptes historiques.
+ if(!p){router.replace("/");return}
  const rows=(r??[]) as unknown as Reservation[];
  if(cancelled) return;
  const isGoogle=user.app_metadata?.provider==="google"||Boolean(user.identities?.some(identity=>identity.provider==="google"));const googleName=String(user.user_metadata?.full_name??user.user_metadata?.name??"").trim();setName(isGoogle&&googleName?googleName:(typeof p?.username==="string"&&p.username.trim()?p.username.trim():[p?.first_name,p?.last_name].filter(Boolean).join(" ")||"Client"));
