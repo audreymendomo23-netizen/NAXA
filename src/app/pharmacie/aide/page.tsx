@@ -10,10 +10,8 @@ export default async function PharmacieAidePage({ searchParams }: { searchParams
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?espace=pharmacie&retour=%2Fpharmacie%2Faide");
   const { data: profile } = await sb.from("profiles").select("id,role,pharmacie_id,actif").eq("id", auth.user.id).maybeSingle();
-  if (!profile || !["pharmacie", "promoteur"].includes(profile.role) || profile.actif === false || (profile.role === "pharmacie" && !profile.pharmacie_id) || (profile.role === "promoteur" && profile.actif !== true)) redirect("/");
-  const pharmacyIds = profile.role === "promoteur"
-    ? (await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id", profile.id).eq("actif", true)).data?.map((row) => row.pharmacie_id) ?? []
-    : [profile.pharmacie_id as string];
+  if (profile?.role !== "pharmacie" || profile.actif === false || !profile.pharmacie_id) redirect("/");
+  const pharmacyIds = [profile.pharmacie_id];
   const { data: tickets } = pharmacyIds.length
     ? await sb.from("tickets_support").select("id,sujet,type,statut,auteur_profile_id,pharmacie_id,created_at,first_response_at").in("pharmacie_id", pharmacyIds).eq("type", "conseil_pharmacien").order("created_at", { ascending: false }).limit(100)
     : { data: [] };
@@ -23,7 +21,7 @@ export default async function PharmacieAidePage({ searchParams }: { searchParams
       .eq("ticket_id", current.id).eq("interne", false).order("created_at", { ascending: true }).limit(100)
     : { data: [] };
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-4xl space-y-5 pt-4">
-    <header className="flex items-center justify-between gap-3"><Link href={profile.role === "promoteur" ? "/pharmacie/promoteur" : "/"} className="font-bold text-[#064B2A]">← NAXA</Link><Link href={profile.role === "promoteur" ? "/pharmacie/promoteur" : "/pharmacie"} className="font-bold text-[#064B2A] underline">{profile.role === "promoteur" ? "Espace Promoteur" : "Espace pharmacie"}</Link></header>
+    <header className="flex items-center justify-between gap-3"><Link href="/" className="font-bold text-[#064B2A]">← NAXA</Link><Link href="/pharmacie" className="font-bold text-[#064B2A] underline">"Espace pharmacie"</Link></header>
     <section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
       <div className="bg-[#064B2A] p-6 text-white"><p className="text-xs font-bold uppercase tracking-widest text-emerald-200">NAXA · Pharmacie</p><h1 className="mt-2 text-3xl font-black">Questions des clients</h1><p className="mt-2 text-sm text-emerald-50">Répondez aux conversations qui concernent votre pharmacie. Les réponses ne constituent pas un diagnostic médical.</p></div>
       {searchParams.erreur && <p role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Le message n’a pas pu être envoyé. Actualisez la page et réessayez.</p>}

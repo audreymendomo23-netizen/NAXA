@@ -51,21 +51,14 @@ export async function ouvrirChatPharmacien(form: FormData) {
 
 export async function envoyerMessageChat(form: FormData) {
   const { sb, profile } = await sessionProfile();
-  if (profile.role !== "client" && profile.role !== "pharmacie" && profile.role !== "promoteur") redirect("/aide?erreur=compte");
+  if (profile.role !== "client" && profile.role !== "pharmacie") redirect("/aide?erreur=compte");
   const ticketId = value(form, "ticket_id", 36);
   const message = value(form, "message", 2000);
-  const returnTo = profile.role === "pharmacie" || profile.role === "promoteur" ? "/pharmacie/aide" : "/aide";
+  const returnTo = profile.role === "pharmacie" ? "/pharmacie/aide" : "/aide";
   if (!/^[0-9a-f-]{36}$/i.test(ticketId) || message.length < 1) {
     redirect(returnTo + "?erreur=message");
   }
 
-  if (profile.role === "promoteur") {
-    if (profile.actif !== true) redirect("/connexion?erreur=profil");
-    const { data: links, error: linksError } = await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id", profile.id).eq("actif", true);
-    if (linksError || !links?.length) redirect(returnTo + "?erreur=compte");
-    const { data: ticket, error: ticketError } = await sb.from("tickets_support").select("pharmacie_id").eq("id", ticketId).maybeSingle();
-    if (ticketError || !ticket || !links.some((link) => link.pharmacie_id === ticket.pharmacie_id)) redirect(returnTo + "?erreur=compte");
-  }
   const { error } = await sb.from("messages_support").insert({
     ticket_id: ticketId,
     auteur_profile_id: profile.id,

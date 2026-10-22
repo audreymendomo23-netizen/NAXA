@@ -528,3 +528,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Non livré** : sous-pages Promoteur, chargeur serveur React `cache()` partagé et onglets. Ils sont exclus plutôt que de créer des pages qui dupliqueraient les requêtes ou contourneraient les conditions d'accès.
 - **Vérification** : revue statique uniquement ; build, TypeScript, ESLint et tests navigateur non exécutés.
 - **Déploiement** : aucun appel Vercel/CircleCI effectué par cette modification ; un push sur `main` peut déclencher automatiquement Vercel.
+
+
+## Promoteur — aide, séparation des modules et colonne logo (22/10/2026)
+- Rétablissement du rôle pharmacie uniquement pour la boite de conversations client et l’action d’envoi de message.
+- Création du Centre d’aide Promoteur avec FAQ et contact NAXA par e-mail/WhatsApp.
+- Mode Marketplace : les blocs de stock et raccourcis ERP ne sont pas rendus ; les blocs de réservation et de garde restent disponibles. Les raccourcis vers PharmacienWorkspace sont masqués pour le Promoteur.
+- Migration additive `20261022130000_add_pharmacies_logo_url` appliquée en Production ; colonne `logo_url` constatée absente avant migration. L’upload et les impressions logo ne sont pas inclus : aucune politique d’écriture Storage pour `pharmacies-photos` n’a été trouvée dans l’état lu.
+- Non livré dans ce lot : découpage intégral en sous-pages avec chargeur React cache partagé, onglets, profil enrichi, supervision dédiée des pharmaciens et formulaire de changement de mot de passe Promoteur.
+- Revue statique seulement ; TypeScript, ESLint, build et tests navigateur non exécutés.

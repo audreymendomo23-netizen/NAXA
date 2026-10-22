@@ -302,3 +302,10 @@ Ces valeurs sont documentées à partir des domaines actuellement connus. Les pa
 - Le Centre d'aide accepte un Promoteur actif et limite les conversations aux pharmacies reliées via `promoteur_pharmacies`. L'envoi de réponse vérifie le périmètre du ticket côté serveur.
 - Pilotage et Rapports adoptent le fond vert NAXA, l'en-tête vert foncé et un lien de retour à l'espace Promoteur.
 - La séparation complète en sous-pages et la barre d'onglets ne sont pas incluses : le chargement monolithique doit être déplacé dans une fonction serveur partagée avant d'extraire les sections sans dupliquer les requêtes.
+
+
+## Promoteur — sécurisation de l’aide et préparation du logo (22 octobre 2026)
+- `/pharmacie/aide` et `envoyerMessageChat` sont réservés au rôle pharmacie pour protéger les conversations client.
+- Le Centre d’aide Promoteur est séparé sur `/pharmacie/promoteur/aide`, avec FAQ et contacts NAXA.
+- La colonne `pharmacies.logo_url` a été ajoutée en Production. L’upload et l’impression restent désactivés tant que les politiques Storage dédiées ne sont pas confirmées.
+- Le mode Marketplace masque les raccourcis ERP et les blocs communs du tableau opérationnel ; le mode sans paramètre conserve son affichage habituel.
