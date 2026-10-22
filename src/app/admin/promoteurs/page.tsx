@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { mettreAJourPiecesRecues, validerDossierPharmacie } from "./actions";
@@ -120,6 +121,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Créée le {new Date(pharmacy.created_at).toLocaleDateString("fr-FR")}</p>
                 <h3 className="mt-1 text-lg font-extrabold">{pharmacy.nom}</h3>
+                <Link href={"/admin/pharmacies/"+pharmacy.id} className="mt-2 inline-flex min-h-10 items-center rounded-full border border-naxa-green-900 px-4 text-sm font-bold text-naxa-green-900 hover:bg-emerald-50">Ouvrir le dossier individuel →</Link>
                 <p className="text-sm text-slate-600">{[pharmacy.quartier, pharmacy.ville].filter(Boolean).join(" · ") || "Localisation non renseignée"}</p>
                 {pharmacy.adresse && <p className="mt-1 text-sm text-slate-500">{pharmacy.adresse}</p>}
               </div>
