@@ -871,3 +871,39 @@ html[data-theme="jour"] .naxa-night-wave {
 @media (prefers-reduced-motion: no-preference) {
   .promoteur-card { box-shadow: none; }
 }
+
+
+/* Animations légères propres à l'espace Promoteur. */
+@keyframes promoteur-card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes promoteur-fill-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .promoteur-bento-grid > * {
+    animation: promoteur-card-enter 360ms ease-out both;
+  }
+  .promoteur-bento-grid > *:nth-child(1) { animation-delay: 0ms; }
+  .promoteur-bento-grid > *:nth-child(2) { animation-delay: 60ms; }
+  .promoteur-bento-grid > *:nth-child(3) { animation-delay: 120ms; }
+  .promoteur-bento-grid > *:nth-child(4) { animation-delay: 180ms; }
+  .promoteur-bento-grid > *:nth-child(5) { animation-delay: 240ms; }
+  .promoteur-bento-grid > *:nth-child(6) { animation-delay: 300ms; }
+  .promoteur-bento-grid > *:nth-child(7) { animation-delay: 360ms; }
+  .promoteur-bento-grid > *:nth-child(8) { animation-delay: 420ms; }
+  .promoteur-bento-grid > *:nth-child(9) { animation-delay: 480ms; }
+  .promoteur-bento-grid > *:nth-child(10) { animation-delay: 540ms; }
+  .promoteur-palette-fill {
+    transform: scaleX(0);
+    transform-origin: left center;
+    animation: promoteur-fill-in 600ms ease-out both;
+  }
+  .promoteur-palette-fill:nth-child(2) { animation-delay: 60ms; }
+  .promoteur-palette-fill:nth-child(3) { animation-delay: 120ms; }
+  .promoteur-palette-fill:nth-child(4) { animation-delay: 180ms; }
+  .promoteur-palette-fill:nth-child(5) { animation-delay: 240ms; }
+  .promoteur-palette-fill:nth-child(6) { animation-delay: 300ms; }
+}

@@ -5,6 +5,7 @@ import { fcfa } from "@/lib/ranking";
 import { CaisseSecurityManager } from "@/components/pharmacie/CaisseSecurityManager";
 import { AvisRappelsLotsPromoteur } from "@/components/pharmacie/AvisRappelsLotsPromoteur";
 import { NavPromoteur } from "@/components/pharmacie/NavPromoteur";
+import { PromoteurKpiValue } from "@/components/pharmacie/PromoteurKpiValue";
 
 type Stats = {
   pharmacies?: { total?: number; actives?: number; inactives?: number };
@@ -360,18 +361,18 @@ export default async function EspacePromoteur() {
           {kpis.map((k, index) => <article key={k.title} className={index === 0 ? "promoteur-card relative rounded-3xl bg-naxa-green-900 p-5 text-white" : "promoteur-card relative rounded-3xl border border-naxa-green-100 bg-white p-5"}>
             {index !== 0 && <span aria-hidden="true" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-naxa-green-50 text-naxa-green-700">{["", "♙", "↗", "◇", "⚑"][index]}</span>}
             <p className={index === 0 ? "pr-3 text-sm font-semibold text-white" : "pr-10 text-sm font-semibold text-naxa-green-700"}>{k.title}</p>
-            <p className="mt-3 text-2xl font-extrabold tabular-nums">{k.value}</p>
+            <PromoteurKpiValue value={k.value} className="mt-3 block text-2xl font-extrabold tabular-nums" />
             <p className={index === 0 ? "mt-2 text-xs leading-5 text-white" : "mt-2 text-xs leading-5 text-naxa-green-700"}>{k.note}</p>
           </article>)}
         </section>
 
-        <div aria-label="Palette Promoteur" className="flex h-2 overflow-hidden rounded-full border border-slate-200" title="Palette visuelle : vert 40 %, jaune canari 25 %, blanc 15 %, orange canari 10 %, bleu canari 5 %, rouge 5 %">
-          <span style={{ width: "40%", backgroundColor: "#0A6B3A" }} />
-          <span style={{ width: "25%", backgroundColor: "#FFE33D" }} />
-          <span style={{ width: "15%", backgroundColor: "#FFFFFF" }} />
-          <span style={{ width: "10%", backgroundColor: "#FFB000" }} />
-          <span style={{ width: "5%", backgroundColor: "#3DBBFF" }} />
-          <span style={{ width: "5%", backgroundColor: "#DC2626" }} />
+        <div aria-label="Palette Promoteur" className="promoteur-palette flex h-2 overflow-hidden rounded-full border border-slate-200" title="Palette visuelle : vert 40 %, jaune canari 25 %, blanc 15 %, orange canari 10 %, bleu canari 5 %, rouge 5 %">
+          <span className="promoteur-palette-fill" style={{ width: "40%", backgroundColor: "#0A6B3A" }} />
+          <span className="promoteur-palette-fill" style={{ width: "25%", backgroundColor: "#FFE33D" }} />
+          <span className="promoteur-palette-fill" style={{ width: "15%", backgroundColor: "#FFFFFF" }} />
+          <span className="promoteur-palette-fill" style={{ width: "10%", backgroundColor: "#FFB000" }} />
+          <span className="promoteur-palette-fill" style={{ width: "5%", backgroundColor: "#3DBBFF" }} />
+          <span className="promoteur-palette-fill" style={{ width: "5%", backgroundColor: "#DC2626" }} />
         </div>
 
         <section id="sessions-personnel" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6">
