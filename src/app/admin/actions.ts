@@ -42,7 +42,7 @@ export async function creerPharmacie(formData: FormData) {
   if (!f("lat") || !Number.isFinite(Number(f("lat"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90) errors.lat = "Latitude obligatoire entre -90 et 90.";
   if (!f("lng") || !Number.isFinite(Number(f("lng"))) || Number(f("lng")) < -180 || Number(f("lng")) > 180) errors.lng = "Longitude obligatoire entre -180 et 180.";
   if (!PROMOTEUR_VALIDATION.username.test(username)) errors.username = "3 à 30 caractères : lettres, chiffres, point, tiret ou underscore.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Adresse e-mail invalide.";
+  if (!PROMOTEUR_VALIDATION.email.test(email)) errors.email = "Adresse e-mail invalide.";
   if (password.length < PROMOTEUR_VALIDATION.passwordMinLength) errors.motdepasse = "6 caractères minimum.";
   if (validatePromoteurPhone(f("phone_number"), phoneCountry)) errors.phone_number = validatePromoteurPhone(f("phone_number"), phoneCountry)!;
   const dob = f("date_of_birth");
