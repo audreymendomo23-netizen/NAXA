@@ -244,7 +244,7 @@ export default async function EspacePromoteur() {
   const stats = (statsData ?? null) as Stats | null;
   const caissesActives = operationalCaisses.filter((x) => x.actif).length;
   const caissesBloquees = operationalCaisses.filter((x) => !x.actif).length;
-  const alert = linksError || caissesError || pharmaciesError || statsError;
+  const alert = linksError || caissesError || pharmaciesError || statsError || ecartsCaisseError;
   const contractAmount = abonnement?.montant_mensuel ?? convention?.montant_mensuel ?? null;
   const contractStatus = abonnement?.statut ?? convention?.statut ?? null;
   const expiry = abonnement?.echeance ?? convention?.date_expiration ?? null;
