@@ -16,6 +16,7 @@ const erreurs: Record<string, string> = {
   architecture: "L’architecture de la pharmacie n’a pas pu être activée.",
   activation: "La pharmacie n’a pas pu être activée. Le système a tenté de remettre les accès en attente.",
   "deja-active": "Ce dossier est déjà actif. Aucune réactivation ni remise à zéro de l’essai n’a été effectuée.",
+  documents: "Les pièces reçues n’ont pas pu être enregistrées. Aucune création partielle ne doit être considérée comme réussie.",
 };
 
 export default async function DossiersPromoteurs({ searchParams }: { searchParams: SearchParams }) {
@@ -34,6 +35,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
     { data: subscriptions, error: subscriptionsError },
     { data: pharmacyArchitectures, error: pharmacyArchitecturesError },
     { data: architectures, error: architecturesError },
+    { data: documentsRecus, error: documentsRecusError },
   ] = await Promise.all([
     db.from("pharmacies").select("id,nom,ville,quartier,adresse,actif,visible_recherche,created_at").order("created_at", { ascending: false }),
     db.from("promoteur_pharmacies").select("promoteur_id,pharmacie_id,actif,created_at"),
@@ -42,10 +44,12 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
     db.from("abonnements_promoteurs").select("id,promoteur_id,convention_id,montant_mensuel,statut,echeance"),
     db.from("pharmacie_architectures").select("pharmacie_id,architecture_code,active"),
     db.from("naxa_architectures").select("code,active"),
+    db.from("pharmacie_documents_recus").select("pharmacie_id,piece_existence_legale,registre_commerce,niu,attestation_non_redevance,plan_localisation,cni_promoteur,mis_a_jour_le"),
   ]);
 
-  const loadError = pharmaciesError || linksError || promotersError || conventionsError || subscriptionsError || pharmacyArchitecturesError || architecturesError;
+  const loadError = pharmaciesError || linksError || promotersError || conventionsError || subscriptionsError || pharmacyArchitecturesError || architecturesError || documentsRecusError;
   const promoterById = new Map((promoters ?? []).map((p) => [p.id, p] as const));
+  const documentsByPharmacy = new Map((documentsRecus ?? []).map((d) => [d.pharmacie_id, d] as const));
   const linksByPharmacy = new Map<string, NonNullable<typeof links>>();
   for (const link of links ?? []) {
     const group = linksByPharmacy.get(link.pharmacie_id) ?? [];
@@ -83,7 +87,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
       link?.actif && promoter?.actif &&
       candidates.length === 1 && architectureIsActive && commercialReady
     );
-    return { pharmacy, link, promoter, ready, linkCount: candidates.length, convention, subscription, architectureIsActive, commercialReady };
+    return { pharmacy, link, promoter, ready, linkCount: candidates.length, convention, subscription, architectureIsActive, commercialReady, documents: documentsByPharmacy.get(pharmacy.id) ?? null };
   });
 
   return (
@@ -109,7 +113,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
           <p className="mt-1 text-sm text-slate-600">Une pharmacie en attente reste désactivée et masquée de la recherche publique.</p>
         </div>
         {!rows.length && !loadError && <div className="rounded-2xl border border-dashed p-8 text-center"><p className="font-bold">Aucun dossier pharmacie</p><p className="mt-1 text-sm text-slate-600">Les nouveaux dossiers créés depuis le formulaire administratif apparaîtront ici.</p></div>}
-        {rows.map(({ pharmacy, link, promoter, ready, linkCount, architectureIsActive, commercialReady }) => (
+        {rows.map(({ pharmacy, link, promoter, ready, linkCount, architectureIsActive, commercialReady, documents }) => (
           <article key={pharmacy.id} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -119,6 +123,29 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
                 {pharmacy.adresse && <p className="mt-1 text-sm text-slate-500">{pharmacy.adresse}</p>}
               </div>
               <span className={ready ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900" : "rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950"}>{ready ? "Active et visible" : "À examiner"}</span>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+              <h4 className="font-bold">Pièces reçues — déclaration administrative</h4>
+              <p className="mt-1 text-xs text-slate-600">Cet état indique uniquement les pièces déclarées comme reçues. Il ne signifie pas qu’elles ont été vérifiées ou authentifiées.</p>
+              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                {([
+                  ["piece_existence_legale", "Pièce d’existence légale"],
+                  ["registre_commerce", "Registre de commerce"],
+                  ["niu", "Numéro d’identifiant unique (NIU)"],
+                  ["attestation_non_redevance", "Attestation de non-redevance"],
+                  ["plan_localisation", "Plan de localisation"],
+                  ["cni_promoteur", "CNI du Promoteur"],
+                ] as const).map(([key, label]) => (
+                  <li key={key} className="flex items-center gap-2">
+                    <span aria-hidden="true">{documents?.[key] ? "✓" : "○"}</span>
+                    <span>{label}</span>
+                    <span className="ml-auto text-xs text-slate-500">{documents?.[key] ? "Reçu" : "Non reçu"}</span>
+                  </li>
+                ))}
+              </ul>
+              {documents?.mis_a_jour_le && <p className="mt-3 text-xs text-slate-500">Dernière déclaration de réception : {new Date(documents.mis_a_jour_le).toLocaleString("fr-FR")}</p>}
+              {!documents && <p className="mt-2 text-xs text-amber-800">Aucune déclaration de réception enregistrée pour ce dossier.</p>}
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
