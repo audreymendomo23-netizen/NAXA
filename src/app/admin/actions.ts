@@ -1,6 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { PROMOTEUR_VALIDATION, normalizePromoteurPhone, validatePromoteurPhone, type PromoteurPhoneCountry } from "@/lib/promoteur-validation";
 
 async function exigerAdmin() {
   const sb = supabaseServer();
@@ -19,7 +20,7 @@ export async function creerPharmacie(formData: FormData) {
   const f = (key: string) => value(formData, key);
   const montant = Number(f("montant_mensuel"));
   const architecture = f("architecture_code");
-  const username = f("username").toLowerCase();
+  const username = f("username").trim().toLowerCase();
   const email = f("email").toLowerCase();
   const password = f("motdepasse");
   const phone = f("phone").replace(/\s+/g, "");
@@ -35,22 +36,15 @@ export async function creerPharmacie(formData: FormData) {
   if (!f("nom")) errors.nom = "Le nom de la pharmacie est obligatoire.";
   if (!f("ville")) errors.ville = "La ville est obligatoire.";
   if (!/^[0-9]{8,15}$/.test(whatsapp)) errors.whatsapp = "Saisissez 8 à 15 chiffres pour WhatsApp.";
-  if (f("first_name").length < 2 || f("first_name").length > 80) errors.first_name = "Le prénom doit contenir 2 à 80 caractères." ;
-  if (f("last_name").length < 2 || f("last_name").length > 80) errors.last_name = "Le nom doit contenir 2 à 80 caractères.";
-  if (!/^[A-Z]{2}$/.test(f("phone_country").toUpperCase())) errors.phone_country = "Code pays attendu sur 2 lettres (ex. CM).";
+  if (!PROMOTEUR_VALIDATION.personName.test(f("first_name").trim())) errors.first_name = "Le prénom doit contenir 2 à 80 caractères.";
+  if (!PROMOTEUR_VALIDATION.personName.test(f("last_name").trim())) errors.last_name = "Le nom doit contenir 2 à 80 caractères.";
+  if (!(phoneCountry in PROMOTEUR_VALIDATION.phone)) errors.phone_number = "Choisissez un indicatif téléphonique valide.";
   if (!f("lat") || !Number.isFinite(Number(f("lat"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90) errors.lat = "Latitude obligatoire entre -90 et 90.";
   if (!f("lng") || !Number.isFinite(Number(f("lng"))) || Number(f("lng")) < -180 || Number(f("lng")) > 180) errors.lng = "Longitude obligatoire entre -180 et 180.";
-  if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) errors.username = "3 à 30 caractères : minuscules, chiffres, point, tiret ou souligné.";
+  if (!PROMOTEUR_VALIDATION.username.test(username)) errors.username = "3 à 30 caractères : lettres, chiffres, point, tiret ou underscore.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Adresse e-mail invalide.";
-  if (password.length < 12) errors.motdepasse = "Au moins 12 caractères requis.";
-  const country = f("phone_country").toUpperCase();
-  const phonePatterns: Record<string, RegExp> = {
-    CM: /^\+237[0-9]{9}$/, CF: /^\+236[0-9]{8}$/, TD: /^\+235[0-9]{8}$/,
-    CG: /^\+242[0-9]{9}$/, CD: /^\+243[0-9]{9}$/, GQ: /^\+240[0-9]{9}$/,
-    GA: /^\+241[0-9]{8}$/, ST: /^\+239[0-9]{7}$/, AO: /^\+244[0-9]{9}$/,
-    BI: /^\+257[0-9]{8}$/, RW: /^\+250[0-9]{9}$/,
-  };
-  if (!phonePatterns[country]?.test(phone)) errors.phone = "Téléphone invalide pour le pays sélectionné : utilisez l’indicatif international et le nombre exact de chiffres.";
+  if (password.length < PROMOTEUR_VALIDATION.passwordMinLength) errors.motdepasse = "6 caractères minimum.";
+  if (validatePromoteurPhone(f("phone_number"), phoneCountry)) errors.phone_number = validatePromoteurPhone(f("phone_number"), phoneCountry)!;
   const dob = f("date_of_birth");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob)) || (Number.isFinite(Date.parse(dob)) && new Date(dob).toISOString().slice(0, 10) !== dob) || new Date(dob).getTime() > Date.now() || age < 18) errors.date_of_birth = "Date valide requise ; âge minimum : 18 ans.";
   if (!Number.isSafeInteger(montant) || montant <= 0) errors.montant_mensuel = "Entier positif requis (FCFA).";
