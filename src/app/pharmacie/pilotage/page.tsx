@@ -79,7 +79,7 @@ export default function PilotagePharmacie() {
 
   if (!d) {
     return (
-      <main className="min-h-screen bg-[#ACDC76] p-3 sm:p-6">
+      <main className="min-h-screen bg-naxa-green-50 p-3 sm:p-6">
         <div className="mx-auto max-w-7xl space-y-4">
           {err ? (
             <div role="alert" className="rounded-3xl bg-white p-4 text-red-700">
@@ -97,16 +97,14 @@ export default function PilotagePharmacie() {
     const caisse = d;
 
     return (
-      <main className="min-h-screen bg-[#ACDC76] p-3 sm:p-6">
+      <main className="min-h-screen bg-naxa-green-50 p-3 sm:p-6">
         <div className="mx-auto max-w-7xl space-y-4">
-          <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-black p-4 text-white">
+          <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-naxa-green-900 p-5 text-white">
             <div>
               <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage</p>
-              <h1 className="text-2xl font-black text-[#D95304] sm:text-3xl">Mon activité</h1>
+              <h1 className="text-2xl font-black text-naxa-canari sm:text-3xl">Mon activité</h1>
             </div>
-            <Link href="/pharmacie" className="rounded-full border border-white px-4 py-2 text-sm">
-              Espace opérationnel
-            </Link>
+            <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link></div>
           </header>
 
           <nav className="flex gap-2 overflow-x-auto">
@@ -114,7 +112,7 @@ export default function PilotagePharmacie() {
               <button
                 key={j}
                 onClick={() => setJours(j)}
-                className={`min-h-11 rounded-full px-5 text-sm font-bold ${jours === j ? "bg-[#0147BB] text-white" : "border-2 border-[#0147BB] text-[#0147BB]"}`}
+                className={`min-h-11 rounded-full px-5 text-sm font-bold ${jours === j ? "bg-naxa-green-900 text-white" : "border border-naxa-green-100 text-naxa-green-900"}`}
               >
                 {j} jours
               </button>
@@ -157,16 +155,14 @@ export default function PilotagePharmacie() {
         : "Pilotage pharmacie";
 
   return (
-    <main className="min-h-screen bg-[#ACDC76] p-3 sm:p-6">
+    <main className="min-h-screen bg-naxa-green-50 p-3 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-black p-4 text-white">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-naxa-green-900 p-5 text-white">
           <div>
             <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage</p>
-            <h1 className="text-2xl font-black text-[#D95304] sm:text-3xl">{titre}</h1>
+            <h1 className="text-2xl font-black text-naxa-canari sm:text-3xl">{titre}</h1>
           </div>
-          <Link href="/pharmacie" className="rounded-full border border-white px-4 py-2 text-sm">
-            Espace opérationnel
-          </Link>
+          <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link></div>
         </header>
 
         <nav className="flex gap-2 overflow-x-auto">
@@ -174,7 +170,7 @@ export default function PilotagePharmacie() {
             <button
               key={j}
               onClick={() => setJours(j)}
-              className={`min-h-11 rounded-full px-5 text-sm font-bold ${jours === j ? "bg-[#0147BB] text-white" : "border-2 border-[#0147BB] text-[#0147BB]"}`}
+              className={`min-h-11 rounded-full px-5 text-sm font-bold ${jours === j ? "bg-naxa-green-900 text-white" : "border border-naxa-green-100 text-naxa-green-900"}`}
             >
               {j} jours
             </button>

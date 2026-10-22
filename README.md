@@ -294,3 +294,11 @@ Ces valeurs sont documentées à partir des domaines actuellement connus. Les pa
 - L'écran d'accès restreint conserve ses textes, conditions et liens ; seul son habillage est harmonisé.
 - Le contenu métier, les requêtes, les calculs, les routes et les composants `AvisRappelsLotsPromoteur` / `CaisseSecurityManager` restent inchangés. Les entrées « Marketplace & réservations » et « ERP & opérations » gardent la même URL existante ; elles ne reçoivent donc pas d'état actif distinct.
 - Changements directs sur `main`, sans branche ni pull request. Aucun déploiement manuel lancé. Le push sur `main` peut toutefois déclencher un pipeline automatique selon la configuration du dépôt.
+
+
+## Promoteur — restructuration ciblée (22 octobre 2026)
+
+- Les entrées Marketplace et ERP transmettent `module=marketplace` et `module=erp` à l'espace opérationnel existant. Le moteur reste `/pharmacie?vue=operation` ; sans `module`, le parcours reste inchangé.
+- Le Centre d'aide accepte un Promoteur actif et limite les conversations aux pharmacies reliées via `promoteur_pharmacies`. L'envoi de réponse vérifie le périmètre du ticket côté serveur.
+- Pilotage et Rapports adoptent le fond vert NAXA, l'en-tête vert foncé et un lien de retour à l'espace Promoteur.
+- La séparation complète en sous-pages et la barre d'onglets ne sont pas incluses : le chargement monolithique doit être déplacé dans une fonction serveur partagée avant d'extraire les sections sans dupliquer les requêtes.

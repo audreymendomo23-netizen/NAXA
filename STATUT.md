@@ -518,3 +518,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Règles métier** : requêtes, calculs, états conditionnels, droits, routes, textes conditionnels et composants d'avis/sécurité conservés. L'action de déconnexion exécute toujours `signOut()` puis redirige vers `/connexion`.
 - **Limites connues** : « Marketplace & réservations » et « ERP & opérations » partagent la même URL existante ; aucun état actif distinct n'est affiché pour ces deux entrées. Aucun nouveau jeu de données, indicateur ou route n'a été ajouté.
 - **Vérification** : modifications statiques uniquement via GitHub. TypeScript, lint, build, tests navigateur et audit contraste instrumenté non exécutés dans cette session ; la révision n'est pas certifiée par CI. Aucun déploiement manuel lancé.
+
+
+## Promoteur — restructuration ciblée (22/10/2026)
+
+- **Fait** : destinations distinctes `?vue=operation&module=marketplace` et `?vue=operation&module=erp`, sections existantes filtrées et états actifs distincts dans la navigation.
+- **Fait** : accès Centre d'aide pour Promoteur actif, tickets bornés au réseau actif et contrôle serveur du périmètre avant réponse.
+- **Fait** : harmonisation visuelle de `/pharmacie/pilotage` et `/pharmacie/pilotage/rapports`, lien de retour Promoteur.
+- **Non livré** : sous-pages Promoteur, chargeur serveur React `cache()` partagé et onglets. Ils sont exclus plutôt que de créer des pages qui dupliqueraient les requêtes ou contourneraient les conditions d'accès.
+- **Vérification** : revue statique uniquement ; build, TypeScript, ESLint et tests navigateur non exécutés.
+- **Déploiement** : aucun appel Vercel/CircleCI effectué par cette modification ; un push sur `main` peut déclencher automatiquement Vercel.

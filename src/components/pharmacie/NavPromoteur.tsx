@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 export type NavPromoteurEntry = { label: string; href: string; icon: string };
@@ -22,6 +22,7 @@ function NavIcon({ symbol }: { symbol: string }) {
 
 export function NavPromoteur({ entries, logoutAction }: Props) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [activeAnchor, setActiveAnchor] = useState("#accueil");
   const primary = entries.slice(0, 9);
@@ -49,9 +50,14 @@ export function NavPromoteur({ entries, logoutAction }: Props) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, close]);
 
-  const isActive = (entry: NavPromoteurEntry) => entry.href.startsWith("#")
-    ? activeAnchor === entry.href
-    : entry.href !== "/pharmacie?vue=operation" && pathname === entry.href.split("?")[0];
+  const isActive = (entry: NavPromoteurEntry) => {
+    if (entry.href.startsWith("#")) return activeAnchor === entry.href;
+    if (entry.href.startsWith("/pharmacie?vue=operation")) {
+      const expected = new URLSearchParams(entry.href.split("?")[1] ?? "").get("module");
+      return pathname === "/pharmacie" && searchParams.get("vue") === "operation" && searchParams.get("module") === expected;
+    }
+    return pathname === entry.href.split("?")[0];
+  };
 
   const renderEntry = (entry: NavPromoteurEntry) => {
     const label = entry.label.replace(/^\d+\.\s*/, "");
