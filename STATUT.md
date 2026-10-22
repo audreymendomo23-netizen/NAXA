@@ -537,3 +537,14 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Migration additive `20261022130000_add_pharmacies_logo_url` appliquée en Production ; colonne `logo_url` constatée absente avant migration. L’upload et les impressions logo ne sont pas inclus : aucune politique d’écriture Storage pour `pharmacies-photos` n’a été trouvée dans l’état lu.
 - Non livré dans ce lot : découpage intégral en sous-pages avec chargeur React cache partagé, onglets, profil enrichi, supervision dédiée des pharmaciens et formulaire de changement de mot de passe Promoteur.
 - Revue statique seulement ; TypeScript, ESLint, build et tests navigateur non exécutés.
+
+
+## Refonte Promoteur — étape architecture
+
+- Chargeur serveur `React cache()` mutualisé pour session, profil, rattachements, pharmacies, convention/abonnement et statut d’accès.
+- Layout partagé, barre d’onglets horizontale et routes dédiées aux sections ; anciennes ancres redirigées vers les sous-pages.
+- Carte Pharmaciens avec compteurs agrégés et historique des sessions, sans données patient.
+- Profil enrichi (identifiant, e-mail, niveau, architecture, pharmacies et dates). Téléphone absent : « Non renseigné ».
+- Formulaire de changement de mot de passe Promoteur avec vérification actuelle, minimum huit caractères et limitation des tentatives. Le code ne conclut pas à une révocation des autres sessions.
+- Logo non livré : pas de politique Storage d’écriture strictement limitée vérifiée ; colonne `logo_url` déjà appliquée et vérifiée dans le lot précédent.
+- Build, TypeScript, ESLint et tests SQL non exécutés.

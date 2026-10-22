@@ -1,0 +1,1 @@
+import {PromoteurDashboard} from "../page";export default function PromoteurPage(){return <PromoteurDashboard section="services"/>;}

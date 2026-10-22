@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { fcfa } from "@/lib/ranking";
 import { CaisseSecurityManager } from "@/components/pharmacie/CaisseSecurityManager";
 import { AvisRappelsLotsPromoteur } from "@/components/pharmacie/AvisRappelsLotsPromoteur";
-import { NavPromoteur } from "@/components/pharmacie/NavPromoteur";
+import { loadPromoteurAccess } from "@/lib/promoteur-access";
+import { PromoteurHashRedirect } from "@/components/pharmacie/PromoteurHashRedirect";
+import { PromoteurPasswordForm } from "@/components/pharmacie/PromoteurPasswordForm";
 import { PromoteurKpiValue } from "@/components/pharmacie/PromoteurKpiValue";
 
 type Stats = {
@@ -20,20 +22,11 @@ type Stats = {
 const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";
 const dateTime = (v: string | null | undefined) => v ? new Date(v).toLocaleString("fr-FR") : "Non renseignée";
 
-export default async function EspacePromoteur() {
+export async function PromoteurDashboard({ section = "overview" }: { section?: string }) {
+  const access = await loadPromoteurAccess();
+  const { auth, profile, links, linksError, pharmacies, pharmaciesError, convention, abonnement, activeLinkIds, expiryDate, isCommerciallyBlocked, contractDataUnavailable, contractIncomplete, shouldShowAccessStatus, hasLoadError } = access;
   const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/pharmacie/promoteur");
-
-  const { data: profile } = await sb.from("profiles")
-    .select("id,role,actif,first_name,last_name,pharmacie_id,architecture_code")
-    .eq("id", auth.user.id).single();
-  if (profile?.role !== "promoteur") redirect("/");
   const adminDb = supabaseAdmin();
-
-  const { data: links, error: linksError } = await adminDb.from("promoteur_pharmacies")
-    .select("pharmacie_id,actif,created_at")
-    .eq("promoteur_id", auth.user.id);
 
   const ids = [...new Set((links ?? []).map((x) => x.pharmacie_id))];
   const { data: caisses, error: caissesError } = ids.length
@@ -42,10 +35,6 @@ export default async function EspacePromoteur() {
         .in("pharmacie_id", ids)
         .eq("role", "caisse")
     : { data: [] as {id:string;username:string|null;first_name:string|null;last_name:string|null;pharmacie_id:string|null;actif:boolean;parent_profile_id:string|null;niveau_interne:number|null;fonction_interne:string|null}[], error: null };
-  const { data: pharmacies, error: pharmaciesError } = ids.length
-    ? await adminDb.from("pharmacies").select("id,nom,ville,quartier,actif,visible_recherche,de_garde,stock_updated_at").in("id", ids).order("nom")
-    : { data: [] as { id: string; nom: string; ville: string | null; quartier: string | null; actif: boolean; visible_recherche: boolean; de_garde: boolean; stock_updated_at: string | null }[], error: null };
-
   const operationalIds = [...new Set((links ?? []).filter((link) => link.actif && (pharmacies ?? []).some((ph) => ph.id === link.pharmacie_id && ph.actif && ph.visible_recherche)).map((link) => link.pharmacie_id))];
   const { data: caisseRows } = operationalIds.length
     ? await adminDb.from("caisses").select("id,nom,pharmacie_id").in("pharmacie_id", operationalIds)
@@ -66,48 +55,6 @@ export default async function EspacePromoteur() {
   // Les tables contractuelles sont administrées par NAXA. La clé service-role
   // est utilisée uniquement après authentification et avec un filtre strict sur
   // l'identifiant du Promoteur courant.
-  const [
-    { data: convention, error: conventionError },
-    { data: abonnement, error: abonnementError },
-  ] = await Promise.all([
-    adminDb.from("conventions_promoteurs")
-      .select("id,architecture_code,montant_mensuel,date_paiement,date_expiration,statut")
-      .eq("promoteur_id", auth.user.id).maybeSingle(),
-    adminDb.from("abonnements_promoteurs")
-      .select("id,convention_id,montant_mensuel,debut,echeance,statut,bloque_le,reactive_le,rappel_5j_envoye_at")
-      .eq("promoteur_id", auth.user.id).maybeSingle(),
-  ]);
-
-  const today = new Date().toISOString().slice(0, 10);
-  const activeLinkIds = new Set((links ?? []).filter((link) => link.actif).map((link) => link.pharmacie_id));
-  const hasOperationalNetwork = (pharmacies ?? []).some(
-    (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
-  );
-  const expiryDate = abonnement?.echeance ?? convention?.date_expiration ?? null;
-  // Avant la première validation, la date technique créée avec le dossier n'est pas
-  // le début de l'essai : l'échéance ne peut donc pas suspendre un dossier encore en attente.
-  const awaitingFirstActivation = profile.actif !== true && activeLinkIds.size === 0 &&
-    !(pharmacies ?? []).some((ph) => ph.actif && ph.visible_recherche);
-  const isCommerciallyBlocked = Boolean(
-    abonnement?.bloque_le ||
-    (abonnement?.statut && !["actif", "active"].includes(abonnement.statut.toLowerCase())) ||
-    (convention?.statut && !["actif", "active"].includes(convention.statut.toLowerCase())) ||
-    (!awaitingFirstActivation && abonnement?.echeance && abonnement.echeance < today) ||
-    (!awaitingFirstActivation && convention?.date_expiration && convention.date_expiration < today)
-  );
-  const contractDataUnavailable = Boolean(conventionError || abonnementError);
-  const contractIncomplete = !contractDataUnavailable && Boolean(
-    !convention ||
-    !abonnement ||
-    abonnement.convention_id !== convention.id ||
-    abonnement.montant_mensuel !== convention.montant_mensuel ||
-    abonnement.echeance !== convention.date_expiration ||
-    convention.architecture_code !== profile.architecture_code
-  );
-  const hasNoOperationalNetwork = !hasOperationalNetwork;
-  const shouldShowAccessStatus = isCommerciallyBlocked || contractDataUnavailable || contractIncomplete || profile.actif !== true || hasNoOperationalNetwork;
-  const hasLoadError = linksError || caissesError || pharmaciesError || contractDataUnavailable;
-
   if (shouldShowAccessStatus) {
     const accessBlocked = isCommerciallyBlocked;
     const contractNeedsReview = !accessBlocked && contractIncomplete;
@@ -317,29 +264,11 @@ export default async function EspacePromoteur() {
     { title: "Alertes", value: statsError || stats?.alertes === undefined ? "Indisponible" : String(stats.alertes), note: "Alertes non lues de la source de pilotage" },
   ];
 
-  const signOutAction = async () => {
-    "use server";
-    const session = supabaseServer();
-    await session.auth.signOut();
-    redirect("/connexion");
-  };
-  const navigationEntries = [
-    { label: "1. Tableau de bord", href: "#accueil", icon: "▦" },
-    { label: "2. Mon réseau", href: "#reseau", icon: "⌘" },
-    { label: "3. Pilotage & performances", href: "/pharmacie/pilotage", icon: "↗" },
-    { label: "4. Marketplace & réservations", href: "/pharmacie?vue=operation&module=marketplace", icon: "◇" },
-    { label: "5. ERP & opérations", href: "/pharmacie?vue=operation&module=erp", icon: "▤" },
-    { label: "6. Administration & personnel", href: "/pharmacie/caisses", icon: "♙" },
-    { label: "7. Convention & abonnement", href: "#convention", icon: "▧" },
-    { label: "8. Rapports & exports", href: "/pharmacie/pilotage/rapports", icon: "▥" },
-    { label: "9. Sécurité & accès", href: "#securite", icon: "◇" },
-    { label: "10. Configuration", href: "#configuration", icon: "⚙" },
-    { label: "11. Mon profil", href: "#profil", icon: "♙" },
-  ];
   return (
-    <main className="min-h-screen overflow-x-clip bg-naxa-green-50 text-naxa-green-900">
-      <NavPromoteur entries={navigationEntries} logoutAction={signOutAction} />
-      <div className="min-h-screen min-w-0 flex-1 pl-14 lg:pl-60">
+    <main data-promoteur-section={section} className="min-h-screen min-w-0 overflow-x-clip bg-naxa-green-50 text-naxa-green-900">
+      <PromoteurHashRedirect />
+
+      <div className="min-h-screen min-w-0">
       <div className="mx-auto max-w-[1600px] space-y-5 px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
         <header id="accueil" className="promoteur-card flex flex-wrap items-center justify-between gap-5 rounded-3xl bg-naxa-green-900 p-6 text-white sm:p-8 lg:p-10">
           <div>
@@ -396,6 +325,7 @@ export default async function EspacePromoteur() {
           <p className="mt-3 text-xs leading-5 text-naxa-green-700">Le suivi est affiché uniquement pour les postes disposant d'une table de session. Les rôles sans journal de service ne sont pas inventés.</p>
         </section>
 
+<section id="pharmaciens" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6"><h2 className="text-lg font-extrabold">Pharmaciens</h2><p className="mt-1 text-sm text-naxa-green-700">Supervision agrégée. Aucun nom de patient, contenu d’ordonnance ni détail de dispensation n’est affiché.</p><p className="mt-3 text-sm">Comptes actifs : <strong>{roleControl.pharmaciens===null?"Indisponible":roleControl.pharmaciens}</strong> · Ordonnances en attente : <strong>{roleControl.prescriptions===null?"Indisponible":roleControl.prescriptions}</strong></p>{serviceSessionsError?<p className="mt-3 text-sm">Historique des services pharmacien indisponible.</p>:<div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead><tr><th className="p-2">Poste / service</th><th className="p-2">Personnel</th><th className="p-2">Prise</th><th className="p-2">Fin</th><th className="p-2">État</th></tr></thead><tbody>{staffSessions.filter(s=>s.role==="Pharmacien").map(s=><tr key={s.id}><td className="p-2">Pharmacien</td><td className="p-2">{staffById.get(s.userId)??"Personnel non identifié"}</td><td className="p-2">{dateTime(s.startedAt)}</td><td className="p-2">{dateTime(s.endedAt)}</td><td className="p-2">{s.endedAt?"Clôturé":"Ouvert"}</td></tr>)}</tbody></table></div>}</section>
         <section id="clotures-caisses" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-lg font-extrabold">Clôtures de caisse et soldes de fin de service</h2><p className="mt-1 text-sm text-naxa-green-700">Inclut les clôtures sans écart : le solde théorique et le montant compté sont visibles même lorsque l'écart est nul.</p></div>
@@ -456,7 +386,7 @@ export default async function EspacePromoteur() {
             {[
               { title: "Responsables", people: roleControl.responsables, metric: "Comptes actifs", detail: "Supervision des Caisses et opérations du périmètre délégué", href: "/pharmacie/pilotage" },
               { title: "Caisses", people: roleControl.caisses, metric: "Comptes actifs", detail: `Ventes, sessions et écarts à vérifier parmi les dernières clôtures chargées : ${ecartsCaisseError ? "indisponible" : (ecartsCaisse ?? []).filter((e) => e.ecart_statut === "a_verifier").length}`, href: "/pharmacie/caisses" },
-              { title: "Pharmaciens", people: roleControl.pharmaciens, metric: "Comptes actifs", detail: roleControl.prescriptions === null ? "Ordonnances en attente : indisponible" : `Ordonnances à contrôler : ${roleControl.prescriptions}`, href: "/pharmacie/pharmacien" },
+              { title: "Pharmaciens", people: roleControl.pharmaciens, metric: "Comptes actifs", detail: roleControl.prescriptions === null ? "Ordonnances en attente : indisponible" : `Ordonnances à contrôler : ${roleControl.prescriptions}`, href: "/pharmacie/promoteur/services#pharmaciens" },
               { title: "Gestionnaires de stock / magasiniers", people: roleControl.stock, metric: "Comptes actifs", detail: roleControl.stocksBas === null ? "Stocks bas : indisponible" : `Références à stock bas : ${roleControl.stocksBas}`, href: "/pharmacie/gestionnaire-stock" },
               { title: "Réservations Marketplace", people: null, metric: "À traiter", detail: roleControl.reservations === null ? "Source réservations indisponible" : `${roleControl.reservations} réservation(s) en attente ou confirmée(s)`, href: "/pharmacie?vue=operation" },
               { title: "Lots & préparations", people: null, metric: "Points de contrôle", detail: roleControl.lotsAControler === null || roleControl.preparations === null ? "Source lots ou préparations indisponible" : `${roleControl.lotsAControler} lot(s) à contrôler · ${roleControl.preparations} préparation(s) en cours`, href: "/pharmacie/gestionnaire-stock/lots-peremptions" },
@@ -472,7 +402,8 @@ export default async function EspacePromoteur() {
           <p className="text-xs leading-5 text-naxa-green-700">Les chiffres de stock bas utilisent le seuil opérationnel déjà utilisé par le poste Gestionnaire de stock (quantité ≤ 5). Ce seuil décrit une alerte de travail, pas une règle réglementaire. Les métriques de marge et de rentabilité ne sont pas affichées tant que le coût historique au moment de la vente n’est pas disponible.</p>
         </section>
 
-        <section className="promoteur-card xl:col-span-6 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6">
+<section id="actions-rapides" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5"><h2 className="text-lg font-extrabold">Actions rapides</h2><div className="mt-3 flex flex-wrap gap-2"><Link className="btn btn-vert" href="/pharmacie/caisses">Gestion des Caisses</Link><Link className="btn btn-clair" href="/pharmacie/pilotage">Pilotage du réseau</Link><Link className="btn btn-clair" href="/pharmacie/pilotage/rapports">Rapports</Link></div></section>
+        <section id="ecarts-caisse" className="promoteur-card xl:col-span-6 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-extrabold">Écarts de caisse à vérifier</h2>
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{(ecartsCaisse ?? []).filter((x) => x.ecart_statut === "a_verifier").length} à vérifier</span>
@@ -553,16 +484,13 @@ export default async function EspacePromoteur() {
             <p className="mt-2 text-sm leading-6 text-naxa-green-700">Architecture attribuée par NAXA : <strong>{convention?.architecture_code ?? profile.architecture_code ?? "Non renseignée"}</strong>. Le Promoteur peut gérer les Caisses et déléguer uniquement les privilèges compatibles, actifs et délégables. Les paramètres de convention et les droits de gouvernance ne sont pas modifiables depuis cet espace.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link className="btn btn-clair" href="/pharmacie/caisses/privileges">Consulter les droits déléguables</Link>
-              <Link className="btn btn-clair" href="/pharmacie/aide">Centre d’aide</Link>
+              <Link className="btn btn-clair" href="/pharmacie/promoteur/aide">Centre d’aide</Link>
             </div>
+            <div className="mt-5"><PromoteurPasswordForm /></div>
           </section>
           <section id="profil" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5">
             <h2 className="text-lg font-extrabold">Mon profil Promoteur</h2>
-            <p className="mt-2 text-sm text-naxa-green-700">Identité de session : {displayName}. Rôle : Promoteur (niveau N1). Les informations ci-dessous proviennent du profil connecté.</p>
-            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-[#F2FAF5] p-3"><dt className="text-xs font-semibold text-naxa-green-700">Nom affiché</dt><dd className="mt-1 font-bold">{displayName}</dd></div>
-              <div className="rounded-xl bg-[#F2FAF5] p-3"><dt className="text-xs font-semibold text-naxa-green-700">État du compte</dt><dd className="mt-1 font-bold">{profile.actif ? "Actif" : "En attente de validation"}</dd></div>
-            </dl>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Nom affiché</dt><dd className="font-bold">{displayName||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Rôle et niveau</dt><dd className="font-bold">Promoteur · N{profile.niveau_interne??1}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>État du compte</dt><dd className="font-bold">{profile.actif?"Actif":"En attente"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Identifiant</dt><dd className="font-bold">{profile.username||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Téléphone</dt><dd className="font-bold">Non renseigné</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>E-mail de connexion</dt><dd className="break-all font-bold">{auth.user.email||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Code d’architecture</dt><dd className="font-bold">{profile.architecture_code||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Pharmacies rattachées</dt><dd className="font-bold">{(links??[]).length}</dd></div></dl><h3 className="mt-4 font-bold">Historique des rattachements</h3>{(links??[]).map(link=><p key={link.pharmacie_id} className="mt-2 rounded-xl border p-3 text-sm">{(pharmacies??[]).find(ph=>ph.id===link.pharmacie_id)?.nom??"Pharmacie non renseignée"} · Rattachée le {date(link.created_at)}</p>)}<div className="mt-4 rounded-xl border border-dashed p-4"><h3 className="font-bold">Logo de la pharmacie</h3><p className="text-sm">Upload et impression suspendus tant qu’une politique Storage limitée au Promoteur lié et actif n’a pas été validée.</p></div>
           </section>
         </div>
 
@@ -572,7 +500,18 @@ export default async function EspacePromoteur() {
         </section>
           </div>
         </div>
-      </div>
+      </div><style jsx global>{`
+main[data-promoteur-section="overview"] #sessions-personnel,main[data-promoteur-section="overview"] #pharmaciens,main[data-promoteur-section="overview"] #clotures-caisses,main[data-promoteur-section="overview"] #comptabilite-reseau,main[data-promoteur-section="overview"] #comparaison-pharmacies,main[data-promoteur-section="overview"] #ecarts-caisse,main[data-promoteur-section="overview"] #reseau,main[data-promoteur-section="overview"] #securite{display:none!important}
+main[data-promoteur-section="services"] .promoteur-bento-grid>*,main[data-promoteur-section="comptabilite"] .promoteur-bento-grid>*,main[data-promoteur-section="reseau"] .promoteur-bento-grid>*,main[data-promoteur-section="convention"] .promoteur-bento-grid>*,main[data-promoteur-section="securite"] .promoteur-bento-grid>*,main[data-promoteur-section="parametres"] .promoteur-bento-grid>*,main[data-promoteur-section="profil"] .promoteur-bento-grid>*{display:none!important}
+main[data-promoteur-section="services"] #sessions-personnel,main[data-promoteur-section="services"] #pharmaciens,main[data-promoteur-section="services"] #clotures-caisses{display:block!important}
+main[data-promoteur-section="comptabilite"] #comptabilite-reseau,main[data-promoteur-section="comptabilite"] #comparaison-pharmacies{display:block!important}
+main[data-promoteur-section="reseau"] #reseau{display:grid!important}main[data-promoteur-section="reseau"] #reseau>aside{display:none!important}
+main[data-promoteur-section="convention"] #reseau{display:grid!important}main[data-promoteur-section="convention"] #reseau>article:first-child{display:none!important}main[data-promoteur-section="convention"] #reseau>aside>article:first-child{display:block!important}
+main[data-promoteur-section="securite"] #securite{display:block!important}main[data-promoteur-section="securite"] #configuration,main[data-promoteur-section="securite"] #profil{display:none!important}
+main[data-promoteur-section="parametres"] #securite{display:block!important}main[data-promoteur-section="parametres"] #securite>:first-child,main[data-promoteur-section="parametres"] #profil{display:none!important}main[data-promoteur-section="parametres"] #configuration{display:block!important}
+main[data-promoteur-section="profil"] #securite{display:block!important}main[data-promoteur-section="profil"] #securite>:first-child,main[data-promoteur-section="profil"] #configuration{display:none!important}main[data-promoteur-section="profil"] #profil{display:block!important}
+`}</style>
     </main>
   );
 }
+export default function EspacePromoteur(){return <PromoteurDashboard/>;}

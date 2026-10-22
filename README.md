@@ -309,3 +309,8 @@ Ces valeurs sont documentées à partir des domaines actuellement connus. Les pa
 - Le Centre d’aide Promoteur est séparé sur `/pharmacie/promoteur/aide`, avec FAQ et contacts NAXA.
 - La colonne `pharmacies.logo_url` a été ajoutée en Production. L’upload et l’impression restent désactivés tant que les politiques Storage dédiées ne sont pas confirmées.
 - Le mode Marketplace masque les raccourcis ERP et les blocs communs du tableau opérationnel ; le mode sans paramètre conserve son affichage habituel.
+
+
+## Espace Promoteur — sous-pages
+
+Chargeur serveur mutualisé avec `React cache()`, layout commun, rail de navigation et huit onglets de sous-pages. La supervision Pharmacien est agrégée et n’expose aucune donnée patient. Le profil affiche les informations disponibles et dates de rattachement. Le formulaire de changement de mot de passe vérifie le mot de passe actuel, impose huit caractères minimum et applique la limitation des tentatives. L’upload et l’impression du logo restent exclus jusqu’à validation d’une politique Storage strictement limitée.
