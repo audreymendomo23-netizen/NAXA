@@ -43,7 +43,7 @@ export default async function EspacePromoteur() {
     ? await adminDb.from("pharmacies").select("id,nom,ville,quartier,actif,visible_recherche,de_garde,stock_updated_at").in("id", ids).order("nom")
     : { data: [] as { id: string; nom: string; ville: string | null; quartier: string | null; actif: boolean; visible_recherche: boolean; de_garde: boolean; stock_updated_at: string | null }[], error: null };
 
-  const operationalIds = [...new Set((links ?? []).filter((link) => link.actif).map((link) => link.pharmacie_id))];
+  const operationalIds = [...new Set((links ?? []).filter((link) => link.actif && (pharmacies ?? []).some((ph) => ph.id === link.pharmacie_id && ph.actif && ph.visible_recherche)).map((link) => link.pharmacie_id))];
   const { data: caisseRows } = operationalIds.length
     ? await adminDb.from("caisses").select("id,nom,pharmacie_id").in("pharmacie_id", operationalIds)
     : { data: [] as { id: string; nom: string; pharmacie_id: string }[] };
