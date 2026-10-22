@@ -45,10 +45,10 @@ export async function creerPharmacie(formData: FormData) {
   if (password.length < 12) errors.motdepasse = "Au moins 12 caractères requis.";
   const country = f("phone_country").toUpperCase();
   const phonePatterns: Record<string, RegExp> = {
-    CM: /^\\+237[0-9]{9}$/, CF: /^\\+236[0-9]{8}$/, TD: /^\\+235[0-9]{8}$/,
-    CG: /^\\+242[0-9]{9}$/, CD: /^\\+243[0-9]{9}$/, GQ: /^\\+240[0-9]{9}$/,
-    GA: /^\\+241[0-9]{8}$/, ST: /^\\+239[0-9]{7}$/, AO: /^\\+244[0-9]{9}$/,
-    BI: /^\\+257[0-9]{8}$/, RW: /^\\+250[0-9]{9}$/,
+    CM: /^\+237[0-9]{9}$/, CF: /^\+236[0-9]{8}$/, TD: /^\+235[0-9]{8}$/,
+    CG: /^\+242[0-9]{9}$/, CD: /^\+243[0-9]{9}$/, GQ: /^\+240[0-9]{9}$/,
+    GA: /^\+241[0-9]{8}$/, ST: /^\+239[0-9]{7}$/, AO: /^\+244[0-9]{9}$/,
+    BI: /^\+257[0-9]{8}$/, RW: /^\+250[0-9]{9}$/,
   };
   if (!phonePatterns[country]?.test(phone)) errors.phone = "Téléphone invalide pour le pays sélectionné : utilisez l’indicatif international et le nombre exact de chiffres.";
   const dob = f("date_of_birth");
