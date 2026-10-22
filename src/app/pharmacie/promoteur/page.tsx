@@ -225,20 +225,52 @@ export default async function EspacePromoteur() {
   return (
     <main className="min-h-screen bg-[#F2FAF5] px-4 pb-16 text-naxa-green-900">
       <div className="mx-auto max-w-7xl space-y-5">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-naxa-green-900 p-5 text-white">
+        <header id="accueil" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-naxa-green-900 p-5 text-white">
           <div>
             <p className="text-xs font-bold uppercase tracking-[.16em] text-white/70">NAXA · Niveau N1</p>
             <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">Espace Promoteur</h1>
             <p className="mt-1 text-sm text-white/80">Bonjour {displayName}. Pilotez le réseau qui vous est attribué.</p>
           </div>
-          <nav className="flex flex-wrap gap-2">
-            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Pharmacie par défaut</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Ouvrir les opérations</Link>
             <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/pharmacie/caisses">Gérer l’équipe</Link>
-            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/pilotage">Pilotage 360°</Link>
-            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/pilotage/rapports">Rapports</Link>
-            <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie/rappels-lots">Rappels de lots</Link>
-          </nav>
+          </div>
         </header>
+        <div className="grid gap-5 lg:grid-cols-[235px_minmax(0,1fr)]">
+          <aside aria-label="Navigation Promoteur" className="h-fit rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm lg:sticky lg:top-4">
+            <p className="px-3 pb-2 pt-1 text-xs font-extrabold uppercase tracking-[.14em] text-slate-500">Espace Promoteur</p>
+            <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                { label: "1. Tableau de bord", href: "#accueil", icon: "▦" },
+                { label: "2. Mon réseau", href: "#reseau", icon: "⌘" },
+                { label: "3. Pilotage & performances", href: "/pharmacie/pilotage", icon: "↗" },
+                { label: "4. Marketplace & réservations", href: "/pharmacie?vue=reservations", icon: "◇" },
+                { label: "5. ERP & opérations", href: "/pharmacie?vue=operation", icon: "▤" },
+                { label: "6. Administration & personnel", href: "/pharmacie/caisses", icon: "♙" },
+                { label: "7. Convention & abonnement", href: "#convention", icon: "▧" },
+                { label: "8. Rapports & exports", href: "/pharmacie/pilotage/rapports", icon: "▥" },
+                { label: "9. Sécurité & accès", href: "#securite", icon: "◇" },
+                { label: "10. Configuration", href: "#configuration", icon: "⚙" },
+                { label: "11. Mon profil", href: "#profil", icon: "♙" },
+              ].map((item) => (
+                <Link key={item.label} href={item.href} className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-[#F2FAF5] hover:text-naxa-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-900">
+                  <span aria-hidden="true" className="w-4 text-center text-naxa-green-700">{item.icon}</span><span>{item.label}</span>
+                </Link>
+              ))}
+              <form action={async () => {
+                "use server";
+                const session = supabaseServer();
+                await session.auth.signOut();
+                redirect("/connexion");
+              }}>
+                <button type="submit" className="flex min-h-10 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
+                  <span aria-hidden="true" className="w-4 text-center">↪</span><span>12. Déconnexion</span>
+                </button>
+              </form>
+            </nav>
+            <p className="mt-3 border-t border-slate-100 px-3 pt-3 text-xs leading-5 text-slate-500">Les données visibles restent limitées au réseau autorisé. Les modules non dédiés réutilisent les écrans existants sans contourner les droits serveur.</p>
+          </aside>
+          <div className="min-w-0 space-y-5">
         <AvisRappelsLotsPromoteur />
 
         {alert && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Certaines données ne sont pas disponibles. Les indicateurs indisponibles sont affichés sans inventer de valeurs.</p>}
@@ -271,7 +303,7 @@ export default async function EspacePromoteur() {
           </ul>}
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
+        <section id="reseau" className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
           <article className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="text-lg font-extrabold">Mon réseau</h2><p className="text-sm text-slate-600">Les pharmacies sont attribuées par NAXA. Chaque pharmacie garde son propre stock et sa propre identité.</p></div>
@@ -300,7 +332,7 @@ export default async function EspacePromoteur() {
           </article>
 
           <aside className="space-y-4">
-            <article className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+            <article id="convention" className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-extrabold">Convention et abonnement</h2>
               {contractStatus ? <>
                 <p className="mt-3 text-sm text-slate-600">État commercial</p>
@@ -325,12 +357,32 @@ export default async function EspacePromoteur() {
           </aside>
         </section>
 
-        <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
+        <div id="securite" className="space-y-4">
+          <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
+          <section id="configuration" className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-extrabold">Configuration et périmètre contractuel</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Architecture attribuée par NAXA : <strong>{convention?.architecture_code ?? profile.architecture_code ?? "Non renseignée"}</strong>. Le Promoteur peut gérer les Caisses et déléguer uniquement les privilèges compatibles, actifs et délégables. Les paramètres de convention et les droits de gouvernance ne sont pas modifiables depuis cet espace.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link className="btn btn-clair" href="/pharmacie/caisses/privileges">Consulter les droits déléguables</Link>
+              <Link className="btn btn-clair" href="/pharmacie/aide">Centre d’aide</Link>
+            </div>
+          </section>
+          <section id="profil" className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-extrabold">Mon profil Promoteur</h2>
+            <p className="mt-2 text-sm text-slate-600">Identité de session : {displayName}. Rôle : Promoteur (niveau N1). Les informations ci-dessous proviennent du profil connecté.</p>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-[#F2FAF5] p-3"><dt className="text-xs font-semibold text-slate-500">Nom affiché</dt><dd className="mt-1 font-bold">{displayName}</dd></div>
+              <div className="rounded-xl bg-[#F2FAF5] p-3"><dt className="text-xs font-semibold text-slate-500">État du compte</dt><dd className="mt-1 font-bold">{profile.actif ? "Actif" : "En attente de validation"}</dd></div>
+            </dl>
+          </section>
+        </div>
 
         <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-extrabold">Ce que le tableau ne modifie pas</h2>
+          <h2 className="text-lg font-extrabold">Limites de gouvernance</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">Le Promoteur ne peut pas créer une nouvelle pharmacie, modifier sa convention, changer le tarif, réactiver commercialement un réseau bloqué ni s’attribuer des privilèges. Ces actions restent sous contrôle de NAXA. Les pharmacies hors réseau ne sont jamais affichées comme administrables.</p>
         </section>
+          </div>
+        </div>
       </div>
     </main>
   );
