@@ -58,10 +58,10 @@ export async function statuerDocumentPharmacie(formData: FormData) {
   const { data: doc } = await db.from("pharmacie_documents").select("id,pharmacie_id,statut_validation").eq("id", documentId).eq("pharmacie_id", pharmacieId).maybeSingle();
   if (!doc) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=document-introuvable");
   if (doc.statut_validation !== "en_attente") redirect("/admin/pharmacies/" + pharmacieId + "?erreur=deja-traite");
-  const { error } = await db.from("pharmacie_documents").update({
+  const { data: decision, error } = await db.from("pharmacie_documents").update({
     statut_validation:statut, note_validation:motif || null, valide_par:user.id, valide_le:new Date().toISOString()
-  }).eq("id", documentId).eq("pharmacie_id", pharmacieId);
-  if (error) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=decision");
+  }).eq("id", documentId).eq("pharmacie_id", pharmacieId).eq("statut_validation", "en_attente").select("id").maybeSingle();
+  if (error || !decision) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=deja-traite");
   revalidatePath("/admin/pharmacies/" + pharmacieId);
   redirect("/admin/pharmacies/" + pharmacieId + "?ok=decision");
 }
