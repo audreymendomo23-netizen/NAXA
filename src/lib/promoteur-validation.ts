@@ -20,12 +20,20 @@ export const PROMOTEUR_VALIDATION = {
 
 export type PromoteurPhoneCountry = keyof typeof PROMOTEUR_VALIDATION.phone;
 export function normalizePromoteurPhone(raw: string, country: PromoteurPhoneCountry): string {
-  const digits = raw.replace(/\D/g, "").replace(/^0+/, "");
-  return PROMOTEUR_VALIDATION.phone[country].dial + digits;
+  const config = PROMOTEUR_VALIDATION.phone[country];
+  if (!config) return "";
+  let digits = raw.replace(/\D/g, "");
+  const dialDigits = config.dial.replace(/\D/g, "");
+  if (digits.startsWith(dialDigits) && digits.length > config.digits) digits = digits.slice(dialDigits.length);
+  digits = digits.replace(/^0+/, "");
+  return config.dial + digits;
 }
 export function validatePromoteurPhone(raw: string, country: PromoteurPhoneCountry): string | undefined {
-  const digits = raw.replace(/\D/g, "").replace(/^0+/, "");
-  return digits.length === PROMOTEUR_VALIDATION.phone[country].digits
-    ? undefined
-    : `${PROMOTEUR_VALIDATION.phone[country].digits} chiffres attendus`;
+  const config = PROMOTEUR_VALIDATION.phone[country];
+  if (!config) return "Choisissez un indicatif téléphonique valide.";
+  let digits = raw.replace(/\D/g, "");
+  const dialDigits = config.dial.replace(/\D/g, "");
+  if (digits.startsWith(dialDigits) && digits.length > config.digits) digits = digits.slice(dialDigits.length);
+  digits = digits.replace(/^0+/, "");
+  return digits.length === config.digits ? undefined : `${config.digits} chiffres attendus`;
 }
