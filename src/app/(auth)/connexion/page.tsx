@@ -311,7 +311,7 @@ function Formulaire() {
       const r = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, remember }),
+        body: JSON.stringify({ username, password, remember, espace: search.get("espace") === "pharmacie" ? "pharmacie" : search.get("espace") === "client" ? "client" : null }),
       });
       const d = await r.json();
 
@@ -329,8 +329,9 @@ function Formulaire() {
 
       let destination = retour;
 
-      // Si aucune destination protégée n’a été demandée, ouvrir l’espace du profil réel.
+      // En l'absence d'une destination explicite, respecter l'espace choisi.
       if (!search.get("retour") || retour === "/") {
+        destination = search.get("espace") === "pharmacie" ? "/pharmacie" : "/client";
         try {
           const sb = supabaseBrowser();
           const { data: auth } = await sb.auth.getUser();
@@ -348,7 +349,11 @@ function Formulaire() {
               caisse: "/pharmacie",
               admin: "/admin",
             };
-            if (profile?.role && espacesParRole[profile.role]) {
+            if (search.get("espace") === "pharmacie" && profile?.role === "promoteur") {
+              destination = "/pharmacie/promoteur";
+            } else if (search.get("espace") === "client") {
+              destination = "/client";
+            } else if (profile?.role && espacesParRole[profile.role]) {
               destination = espacesParRole[profile.role];
             }
           }

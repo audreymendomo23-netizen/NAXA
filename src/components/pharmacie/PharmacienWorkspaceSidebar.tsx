@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 type Section = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil";
 type Leaf = { id: Section; label: string; icon: string; href: string };
@@ -73,6 +74,7 @@ export function PharmacienWorkspaceSidebar({ activeTab, onNavigate }: Props) {
   };
 
   const nav = <><div className="mb-6 flex items-center gap-3 px-3"><span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFE23D] text-lg font-black text-[#0B3D26]">N</span><div><p className="text-lg font-black tracking-wide">NAXA</p><p className="text-xs text-emerald-100">Compte Pharmacien</p></div></div>
+    <div className="mb-4 px-3"><EspaceNaxaSwitcher current="pharmacie" /></div>
     <nav aria-label="Navigation principale Pharmacien" className="space-y-2">
       {itemButton(home)}
       {groups.map(group => {

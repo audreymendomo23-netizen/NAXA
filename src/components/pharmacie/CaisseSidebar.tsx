@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 type CaisseSidebarProps = {
   sessionOpen?: boolean;
@@ -95,6 +96,7 @@ export function CaisseSidebar({ sessionOpen = false, creditsDue, pharmacyName }:
           );
         })}
       </nav>
+      <div className="px-3 pt-4"><EspaceNaxaSwitcher current="pharmacie" /></div>
       <div className="mt-auto pt-6">
         <button type="button" onClick={() => void logout()} disabled={busy}
           className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60">

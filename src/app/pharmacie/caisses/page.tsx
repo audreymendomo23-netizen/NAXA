@@ -64,13 +64,16 @@ export default async function CaissesPage({ searchParams }: Props) {
   const champ = "champ mt-1";
 
   const errors: Record<string, string> = {
-    validation: "Vérifiez les champs : identifiant, e-mail, téléphone, date de naissance et mot de passe de 12 caractères minimum.",
+    validation: "Saisissez un nom d’utilisateur NAXA valide et choisissez une pharmacie de votre réseau.",
     perimetre: "Cette pharmacie ne fait pas partie de votre réseau actif.",
     autorisation: "Action refusée par le moteur d'autorisation ou quota indisponible.",
-    creation: "Le compte n'a pas pu être créé. Vérifiez que l'e-mail et l'identifiant sont disponibles.",
-    profil: "Le profil Caisse n'a pas pu être préparé. Aucun compte enfant n'a été conservé.",
-    provisionnement: "La pharmacie, son architecture ou son quota refuse cette Caisse. Le compte provisoire a été supprimé.",
+    creation: "Le compte professionnel n'a pas pu être attribué.",
+    profil: "Le profil utilisateur n'a pas pu être préparé pour l'attribution professionnelle.",
+    provisionnement: "La pharmacie, son architecture ou son quota refuse cette attribution. Le profil utilisateur initial a été restauré si nécessaire.",
     cible: "Compte Caisse manquant.",
+    lookup: "Impossible de rechercher ce nom d’utilisateur. Réessayez.",
+    compte_introuvable: "Aucun compte NAXA unique ne correspond à ce nom d’utilisateur.",
+    compte_non_eligible: "Ce compte doit être un compte utilisateur NAXA actif, complet et vérifié avant son attribution professionnelle.",
   };
 
   return (
@@ -83,7 +86,7 @@ export default async function CaissesPage({ searchParams }: Props) {
 
       <section className="carte">
         <h1 className="text-xl font-extrabold">Mes Caisses</h1>
-        <p className="mt-1 text-sm text-slate-600">Les Caisses sont rattachées à une seule pharmacie. Leurs droits, leur quota et leur activation sont contrôlés côté serveur.</p>
+        <p className="mt-1 text-sm text-slate-600">Attribuez un accès professionnel à une personne qui possède déjà un compte utilisateur NAXA. Son identité et ses données client sont conservées ; les droits pharmacie restent révocables.</p>
       </section>
 
       {searchParams.ok && <p role="status" className="carte">Opération terminée : {searchParams.ok === "creation" ? "Caisse créée et provisionnée." : searchParams.ok === "blocage" ? "Caisse bloquée." : "Caisse réactivée."}</p>}
@@ -111,7 +114,7 @@ export default async function CaissesPage({ searchParams }: Props) {
       </section>
 
       <section className="carte space-y-3">
-        <h2 className="text-lg font-bold">Créer une Caisse</h2>
+        <h2 className="text-lg font-bold">Attribuer un accès Caissière</h2>
         {!pharmacyIds.length && <p role="alert" className="text-sm text-amber-800">Aucune pharmacie active n'est liée à votre réseau. La création est désactivée jusqu'à ce que NAXA établisse le lien Promoteur/pharmacie.</p>}
         <form action={creerCaisse} className="space-y-3">
           <label className="block text-sm font-semibold">Pharmacie
@@ -126,21 +129,12 @@ export default async function CaissesPage({ searchParams }: Props) {
               })}
             </select>
           </label>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="text-sm font-semibold">Prénom<input name="first_name" required autoComplete="given-name" className={champ} /></label>
-            <label className="text-sm font-semibold">Nom<input name="last_name" required autoComplete="family-name" className={champ} /></label>
-          </div>
-          <label className="block text-sm font-semibold">Nom d'utilisateur<input name="username" required pattern="[a-z0-9][a-z0-9._-]{2,29}" autoComplete="username" className={champ} /></label>
-          <label className="block text-sm font-semibold">E-mail<input name="email" type="email" required autoComplete="email" className={champ} /></label>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="text-sm font-semibold">Téléphone<input name="phone" required inputMode="tel" autoComplete="tel" placeholder="+237 6XXXXXXXX" className={champ} /></label>
-            <label className="text-sm font-semibold">Code pays<input name="phone_country" required defaultValue="CM" pattern="[A-Za-z]{2}" className={champ} /></label>
-          </div>
-          <label className="block text-sm font-semibold">Date de naissance<input name="date_of_birth" type="date" required autoComplete="bday" className={champ} /></label>
-          <label className="block text-sm font-semibold">Mot de passe provisoire<input name="motdepasse" type="password" minLength={12} required autoComplete="new-password" className={champ} /></label>
-          <p className="text-xs text-slate-500">Communiquez ce mot de passe provisoire au nouveau membre de façon sûre, puis faites-le remplacer. Il n'est jamais affiché après la création.</p>
-          <button className="btn btn-vert w-full" disabled={!pharmacyIds.length}>Créer et provisionner la Caisse</button>
-        </form>
+          <label className="block text-sm font-semibold">Nom d’utilisateur NAXA de la personne
+            <input name="username" required minLength={3} maxLength={30} pattern="[a-z0-9][a-z0-9._-]{2,29}" autoComplete="off" className={champ} placeholder="ex. mariam237" />
+          </label>
+          <p className="text-xs leading-5 text-slate-600">La personne doit avoir créé et validé son compte NAXA au préalable. Son nom d’utilisateur est unique : ne demandez ni son mot de passe ni son code OTP. NAXA vérifie le compte côté serveur avant l’attribution.</p>
+          <button className="btn btn-vert w-full" disabled={!pharmacyIds.length}>Attribuer l’accès Caissière</button>
+        </form> </form>
       </section>
     </main>
   );

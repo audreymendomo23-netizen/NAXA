@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
 async function exigerPromoteur() {
   const sb = supabaseServer();
@@ -23,27 +24,11 @@ export async function creerCaisse(formData: FormData) {
   const { userId, sb } = await exigerPromoteur();
   const pharmacieId = value(formData, "pharmacie_id");
   const username = value(formData, "username").toLowerCase();
-  const email = value(formData, "email").toLowerCase();
-  const password = value(formData, "motdepasse");
-  const firstName = value(formData, "first_name");
-  const lastName = value(formData, "last_name");
-  const phone = value(formData, "phone").replace(/\s+/g, "");
-  const country = value(formData, "phone_country").toUpperCase();
-  const dob = value(formData, "date_of_birth");
 
-  if (
-    !pharmacieId ||
-    !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username) ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-    password.length < 12 ||
-    firstName.length < 2 ||
-    lastName.length < 2 ||
-    !/^\+?[0-9]{8,15}$/.test(phone) ||
-    !/^[A-Z]{2}$/.test(country) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(dob)
-  ) redirect("/pharmacie/caisses?erreur=validation");
+  if (!pharmacieId || !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) {
+    redirect("/pharmacie/caisses?erreur=validation");
+  }
 
-  // Le périmètre vient du réseau canonique, jamais de profiles.pharmacie_id.
   const { data: lien, error: lienError } = await sb
     .from("promoteur_pharmacies")
     .select("pharmacie_id")
@@ -53,7 +38,6 @@ export async function creerCaisse(formData: FormData) {
     .maybeSingle();
   if (lienError || !lien) redirect("/pharmacie/caisses?erreur=perimetre");
 
-  // Vérifier les droits et quotas côté serveur avant de créer le compte.
   const { data: autorise, error: authError } = await sb.rpc("naxa_can", {
     p_privilege: "CREATE_CAISSE",
     p_pharmacie: pharmacieId,
@@ -62,50 +46,51 @@ export async function creerCaisse(formData: FormData) {
   if (authError || autorise !== true) redirect("/pharmacie/caisses?erreur=autorisation");
 
   const db = supabaseAdmin();
-  const { data: created, error: createError } = await db.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      username,
-      first_name: firstName,
-      last_name: lastName,
-      phone,
-      phone_country: country,
-      date_of_birth: dob,
-      consent_accepted: true,
-    },
-  });
-  if (createError || !created.user) redirect("/pharmacie/caisses?erreur=creation");
-
-  // Créer d'abord une cible Caisse vierge, puis la provisionner par la RPC
-  // authentifiée qui applique architecture, quota, parent et périmètre.
-  const { error: targetError } = await db
+  const { data: matches, error: lookupError } = await db
     .from("profiles")
-    .update({
-      role: "caisse",
-      fonction_interne: "caisse",
-      niveau_interne: 3,
-      niveau_hierarchique: 3,
-      pharmacie_id: null,
-      parent_profile_id: null,
-      architecture_code: null,
-      actif: false,
-    })
-    .eq("id", created.user.id);
+    .select("id,username,role,actif,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
+    .ilike("username", username)
+    .limit(2);
+  if (lookupError) redirect("/pharmacie/caisses?erreur=lookup");
+  if (!matches || matches.length !== 1) redirect("/pharmacie/caisses?erreur=compte_introuvable");
 
-  if (targetError) {
-    await db.auth.admin.deleteUser(created.user.id);
-    redirect("/pharmacie/caisses?erreur=profil");
+  const target = matches[0];
+  if (target.role !== "client" || target.actif !== true || !target.first_name || !target.last_name
+    || !target.phone || !target.date_of_birth || target.age_verified !== true || !target.consent_accepted_at) {
+    redirect("/pharmacie/caisses?erreur=compte_non_eligible");
   }
 
+  const { data: authData, error: authLookupError } = await db.auth.admin.getUserById(target.id);
+  if (authLookupError || !authData.user
+    || !isFinalizedNaxaProfile({ id: target.id, username: target.username ?? "" }, authData.user)) {
+    redirect("/pharmacie/caisses?erreur=compte_non_eligible");
+  }
+
+  const { data: original, error: originalError } = await db.from("profiles")
+    .select("role,fonction_interne,niveau_interne,niveau_hierarchique,pharmacie_id,parent_profile_id,architecture_code,actif")
+    .eq("id", target.id)
+    .single();
+  if (originalError || !original) redirect("/pharmacie/caisses?erreur=profil");
+
+  const { error: targetError } = await db.from("profiles").update({
+    role: "caisse",
+    fonction_interne: "caisse",
+    niveau_interne: 3,
+    niveau_hierarchique: 3,
+    pharmacie_id: null,
+    parent_profile_id: null,
+    architecture_code: null,
+    actif: false,
+  }).eq("id", target.id).eq("role", "client").eq("actif", true);
+  if (targetError) redirect("/pharmacie/caisses?erreur=profil");
+
   const { error: provisionError } = await sb.rpc("naxa_provision_caisse", {
-    p_target: created.user.id,
+    p_target: target.id,
     p_pharmacie: pharmacieId,
   });
   if (provisionError) {
-    // Aucun compte enfant orphelin si le quota ou l'architecture refuse l'opération.
-    await db.auth.admin.deleteUser(created.user.id);
+    const { error: restoreError } = await db.from("profiles").update(original).eq("id", target.id);
+    if (restoreError) console.error("NAXA_CAISSE_ASSIGNMENT_RESTORE_FAILED", { targetId: target.id, message: restoreError.message });
     redirect("/pharmacie/caisses?erreur=provisionnement");
   }
 

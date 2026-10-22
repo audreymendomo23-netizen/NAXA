@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { useCallback, useEffect, useState } from "react";
 
 export type NavPromoteurEntry = { label: string; href: string; icon: string };
@@ -81,6 +82,7 @@ export function NavPromoteur({ entries, logoutAction }: Props) {
         <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-naxa-green-900 text-xl font-black text-naxa-canari">N</span>
         <div className="nav-promoteur-label min-w-0"><p className="text-sm font-extrabold text-naxa-green-900">Espace Promoteur</p><p className="text-xs font-semibold text-naxa-green-700">Réseau · Niveau N1</p></div>
       </div>
+      <div className="px-3 pb-2"><EspaceNaxaSwitcher current="pharmacie" /></div>
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-4" aria-label="Sections Promoteur">
         {primary.map(renderEntry)}
         <div className="mx-2 my-3 border-t border-naxa-green-100" />
