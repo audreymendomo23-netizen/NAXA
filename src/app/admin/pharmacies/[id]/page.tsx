@@ -14,14 +14,17 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
  if(profile?.role!=="admin"||profile.actif!==true)redirect("/");
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.id))notFound();
  const db=supabaseAdmin();
- const [{data:pharmacy,error},{data:documents},{data:history}]=await Promise.all([
+ const [{data:pharmacy,error},{data:documents}]=await Promise.all([
   db.from("pharmacies").select("id,nom,ville,quartier,adresse,actif,visible_recherche,created_at").eq("id",params.id).maybeSingle(),
-  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false}),
-  db.from("pharmacie_document_historique").select("document_id,action,ancien_statut,nouveau_statut,detail,cree_le").order("cree_le",{ascending:false}).limit(50)
+  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false})
  ]);
  if(error||!pharmacy)notFound();
  const docs=documents??[];
- const docsHistory=(history??[]).filter(h=>docs.some(d=>d.id===h.document_id));
+ const docIds=docs.map(d=>d.id);
+ const {data:history}=docIds.length
+  ? await db.from("pharmacie_document_historique").select("document_id,action,ancien_statut,nouveau_statut,detail,cree_le").in("document_id",docIds).order("cree_le",{ascending:false}).limit(100)
+  : {data:[]};
+ const docsHistory=history??[];
  const status=pharmacy.actif&&pharmacy.visible_recherche?"Active et visible":pharmacy.actif?"Active, masquée":"Inactive";
  return <main className="mx-auto min-h-screen max-w-6xl space-y-5 px-3 py-5 sm:px-6">
   <Link href="/admin/promoteurs" className="inline-flex min-h-10 items-center font-semibold text-naxa-green-900 underline underline-offset-4">← Retour au registre des pharmacies</Link>
