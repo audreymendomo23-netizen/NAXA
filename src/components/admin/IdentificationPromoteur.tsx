@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PROMOTEUR_VALIDATION, type PromoteurPhoneCountry, validatePromoteurPhone } from "@/lib/promoteur-validation";
 import { MotDePasseVisible } from "@/components/admin/MotDePasseVisible";
 
@@ -9,6 +9,7 @@ export function IdentificationPromoteur({className,errors={}}:Props) {
  const [country,setCountry]=useState<PromoteurPhoneCountry>("CM");
  const [values,setValues]=useState<Record<string,string>>({});
  const [touched,setTouched]=useState<Record<string,boolean>>({});
+ useEffect(()=>{const first=Object.keys(errors)[0];if(first){const el=document.querySelector(`[name="${first}"]`);el?.scrollIntoView({behavior:"smooth",block:"center"});(el as HTMLElement|null)?.focus({preventScroll:true});}},[errors]);
  const set=(k:string,v:string)=>setValues(p=>({...p,[k]:v}));
  const validate=(k:string,v=values[k]??"")=>{
   if(k==="first_name"||k==="last_name") return v.trim().length<2||v.trim().length>80?"2 à 80 caractères attendus":undefined;
@@ -26,6 +27,6 @@ export function IdentificationPromoteur({className,errors={}}:Props) {
   <label className="block text-sm font-semibold">Téléphone<div className="mt-1 flex gap-2"><select aria-label="Indicatif téléphonique" value={country} onChange={e=>setCountry(e.target.value as PromoteurPhoneCountry)} className={className+" w-36 shrink-0"}>{countries.map(([code,c])=><option key={code} value={code}>{c.flag} {c.dial}</option>)}</select><input name="phone_number" required type="tel" inputMode="numeric" value={values.phone_number??""} onChange={e=>set("phone_number",e.target.value)} onBlur={()=>setTouched(p=>({...p,phone_number:true}))} placeholder="612345678" aria-invalid={!!((touched.phone_number&&validate("phone_number"))||errors.phone)} className={className+" min-w-0 flex-1 "+(((touched.phone_number&&validate("phone_number"))||errors.phone)?"border-red-600":"")}/><input type="hidden" name="phone_country" value={country}/></div><span className={"mt-1 block text-xs "+(((touched.phone_number&&validate("phone_number"))||errors.phone)?"text-red-600":"text-slate-500")}>{((touched.phone_number&&validate("phone_number"))||errors.phone)||`${PROMOTEUR_VALIDATION.phone[country].digits} chiffres attendus`}</span></label>
   {field("date_of_birth","Date de naissance",undefined,"date","Vous devez avoir au moins 18 ans.")}
   {field("email","E-mail",undefined,"email","Adresse utilisée pour le compte.")}
-  <label className="block text-sm font-semibold">Mot de passe provisoire<MotDePasseVisible className={className}/><span className="mt-1 block text-xs text-slate-500">6 caractères minimum</span></label>
+  <label className="block text-sm font-semibold">Mot de passe provisoire<MotDePasseVisible className={className} error={errors.motdepasse}/><span className={"mt-1 block text-xs "+(errors.motdepasse?"text-red-600":"text-slate-500")}>6 caractères minimum</span></label>
  </div>;
 }
