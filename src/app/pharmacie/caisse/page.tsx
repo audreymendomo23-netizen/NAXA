@@ -6,6 +6,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
+import { TicketPharmacyLogo } from "@/components/pharmacie/TicketPharmacyLogo";
+import { printAfterImagesLoaded } from "@/lib/print-after-images";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 import { CaisseWorkspaceShell } from "@/components/pharmacie/CaisseWorkspaceShell";
@@ -628,6 +630,7 @@ export default function CaissePage() {
       </CaisseWorkspaceShell>
       {ticket && ticket.length > 0 && (
         <section className="ticket-print mx-auto mt-6 w-full max-w-md rounded-xl border bg-white p-5 text-slate-950">
+          <TicketPharmacyLogo pharmacieId={pid} />
           <h2 className="text-center text-xl font-extrabold">NAXA · Ticket de caisse</h2>
           <p className="mt-1 text-center text-sm">{pharmacie}</p>
           <p className="mt-3 text-xs">N° {ticket[0].numero_vente}</p>
@@ -639,7 +642,7 @@ export default function CaissePage() {
           {ticket[0].remise > 0 && <div className="flex justify-between text-sm"><span>Remise</span><span>-{fcfa(ticket[0].remise)}</span></div>}
           <div className="mt-2 flex justify-between text-lg font-extrabold"><span>Total payé</span><span>{fcfa(ticket[0].total_net)}</span></div>
           <div className="mt-3 space-y-1 text-sm"><div className="flex justify-between"><span>Mode de paiement</span><span>{paiementTicket?.mode === "especes" ? "Espèces" : ticket[0].mode_paiement ?? "—"}</span></div>{paiementTicket?.montant_percu != null && <div className="flex justify-between"><span>Montant reçu</span><span>{fcfa(paiementTicket.montant_percu)}</span></div>}{paiementTicket?.monnaie_rendue != null && <div className="flex justify-between font-bold"><span>Monnaie rendue</span><span>{fcfa(paiementTicket.monnaie_rendue)}</span></div>}</div><p className="mt-3 text-center text-xs">Merci de votre confiance.</p>
-          <div className="mt-4 flex justify-center gap-2 print:hidden"><button className="btn btn-vert" onClick={() => window.print()}>Imprimer le ticket</button><button className="btn btn-clair" onClick={() => { setTicket(null); setPaiementTicket(null); }}>Fermer</button></div>
+          <div className="mt-4 flex justify-center gap-2 print:hidden"><button className="btn btn-vert" onClick={() => void printAfterImagesLoaded(document.querySelector(".ticket-print") ?? document)}>Imprimer le ticket</button><button className="btn btn-clair" onClick={() => { setTicket(null); setPaiementTicket(null); }}>Fermer</button></div>
         </section>
       )}
       <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-print, .ticket-print * { visibility: visible !important; } }`}</style>

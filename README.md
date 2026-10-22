@@ -314,3 +314,8 @@ Ces valeurs sont documentées à partir des domaines actuellement connus. Les pa
 ## Espace Promoteur — sous-pages
 
 Chargeur serveur mutualisé avec `React cache()`, layout commun, rail de navigation et huit onglets de sous-pages. La supervision Pharmacien est agrégée et n’expose aucune donnée patient. Le profil affiche les informations disponibles et dates de rattachement. Le formulaire de changement de mot de passe vérifie le mot de passe actuel, impose huit caractères minimum et applique la limitation des tentatives. L’upload et l’impression du logo restent exclus jusqu’à validation d’une politique Storage strictement limitée.
+
+
+### Logo de pharmacie sur les tickets
+
+Les logos sont stockés dans `pharmacies-photos/logos/<pharmacie_id>/`. Les politiques d'écriture Storage sont limitées au Promoteur actif lié à une pharmacie active. L'API serveur vérifie le rôle et le lien avant toute modification de `pharmacies.logo_url`.

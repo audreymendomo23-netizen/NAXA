@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
+import { TicketPharmacyLogo } from "@/components/pharmacie/TicketPharmacyLogo";
+import { printAfterImagesLoaded } from "@/lib/print-after-images";
 
 type ReservationItem = {
   quantite: number;
@@ -366,6 +368,7 @@ export function CaisseRetraitsMarketplace({
       )}
       {receipt && (
         <section id="naxa-marketplace-receipt" className="rounded-xl border border-slate-300 bg-white p-5 text-slate-950">
+          <TicketPharmacyLogo pharmacieId={pharmacieId} />
           <div className="text-center">
             <h2 className="text-xl font-extrabold">NAXA · Reçu de retrait Marketplace</h2>
             <p className="text-sm">Paiement reçu et confirmé par la pharmacie — NAXA ne collecte pas les fonds</p>
@@ -388,7 +391,7 @@ export function CaisseRetraitsMarketplace({
           </div>
           <p className="mt-4 text-xs">Conservez ce reçu. La réservation et son historique sont mis à jour par NAXA après confirmation par la pharmacie.</p>
           <div className="mt-4 flex gap-2 print:hidden">
-            <button type="button" className="btn btn-vert" onClick={() => window.print()}>Imprimer le reçu</button>
+            <button type="button" className="btn btn-vert" onClick={() => void printAfterImagesLoaded(document.getElementById("naxa-marketplace-receipt") ?? document)}>Imprimer le reçu</button>
             <button type="button" className="btn btn-clair" onClick={() => setReceipt(null)}>Fermer</button>
           </div>
         </section>

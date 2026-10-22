@@ -548,3 +548,11 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Formulaire de changement de mot de passe Promoteur avec vérification actuelle, minimum huit caractères et limitation des tentatives. Le code ne conclut pas à une révocation des autres sessions.
 - Logo non livré : pas de politique Storage d’écriture strictement limitée vérifiée ; colonne `logo_url` déjà appliquée et vérifiée dans le lot précédent.
 - Build, TypeScript, ESLint et tests SQL non exécutés.
+
+
+## Logo pharmacie — vérification et intégration
+
+- En production : `pharmacies.logo_url` existe (text), bucket `pharmacies-photos` public avec limite 512 Ko, policies insert/update/delete pour logo vérifiées après application de la migration additive.
+- Interface de logo sur le profil Promoteur : sélection pharmacie, aperçu, choisir/remplacer/supprimer, redimensionnement 400 px de large maximum.
+- Ajout du logo sur ticket de caisse, duplicata historique et reçu Marketplace ; l'impression attend le chargement des images.
+- Aucun build/typecheck/ESLint exécuté à ce stade.

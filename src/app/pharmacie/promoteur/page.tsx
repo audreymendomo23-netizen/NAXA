@@ -7,6 +7,7 @@ import { AvisRappelsLotsPromoteur } from "@/components/pharmacie/AvisRappelsLots
 import { loadPromoteurAccess } from "@/lib/promoteur-access";
 import { PromoteurHashRedirect } from "@/components/pharmacie/PromoteurHashRedirect";
 import { PromoteurPasswordForm } from "@/components/pharmacie/PromoteurPasswordForm";
+import { PromoteurLogoManager } from "@/components/pharmacie/PromoteurLogoManager";
 import { PromoteurKpiValue } from "@/components/pharmacie/PromoteurKpiValue";
 
 type Stats = {
@@ -272,9 +273,9 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
       <div className="mx-auto max-w-[1600px] space-y-5 px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
         <header id="accueil" className="promoteur-card flex flex-wrap items-center justify-between gap-5 rounded-3xl bg-naxa-green-900 p-6 text-white sm:p-8 lg:p-10">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[.16em] text-white/70">NAXA · Niveau N1</p>
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-white/70">{activePharmacies[0]?.nom ?? "Pharmacie non renseignée"} · Niveau N{profile.niveau_interne ?? 1}</p>
             <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">Espace Promoteur</h1>
-            <p className="mt-1 text-sm text-white/80">Bonjour {displayName}. Pilotez le réseau qui vous est attribué.</p>
+            <p className="mt-1 text-sm text-white/80">Bonjour <strong className="text-base font-extrabold">{displayName}</strong>. Ceci est votre espace de pilotage.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Ouvrir les opérations</Link>
@@ -490,7 +491,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
           </section>
           <section id="profil" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5">
             <h2 className="text-lg font-extrabold">Mon profil Promoteur</h2>
-            <dl className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Nom affiché</dt><dd className="font-bold">{displayName||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Rôle et niveau</dt><dd className="font-bold">Promoteur · N{profile.niveau_interne??1}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>État du compte</dt><dd className="font-bold">{profile.actif?"Actif":"En attente"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Identifiant</dt><dd className="font-bold">{profile.username||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Téléphone</dt><dd className="font-bold">Non renseigné</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>E-mail de connexion</dt><dd className="break-all font-bold">{auth.user.email||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Code d’architecture</dt><dd className="font-bold">{profile.architecture_code||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Pharmacies rattachées</dt><dd className="font-bold">{(links??[]).length}</dd></div></dl><h3 className="mt-4 font-bold">Historique des rattachements</h3>{(links??[]).map(link=><p key={link.pharmacie_id} className="mt-2 rounded-xl border p-3 text-sm">{(pharmacies??[]).find(ph=>ph.id===link.pharmacie_id)?.nom??"Pharmacie non renseignée"} · Rattachée le {date(link.created_at)}</p>)}<div className="mt-4 rounded-xl border border-dashed p-4"><h3 className="font-bold">Logo de la pharmacie</h3><p className="text-sm">Upload et impression suspendus tant qu’une politique Storage limitée au Promoteur lié et actif n’a pas été validée.</p></div>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Nom affiché</dt><dd className="font-bold">{displayName||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Rôle et niveau</dt><dd className="font-bold">Promoteur · N{profile.niveau_interne??1}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>État du compte</dt><dd className="font-bold">{profile.actif?"Actif":"En attente"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Identifiant</dt><dd className="font-bold">{profile.username||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Téléphone</dt><dd className="font-bold">Non renseigné</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>E-mail de connexion</dt><dd className="break-all font-bold">{auth.user.email||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Code d’architecture</dt><dd className="font-bold">{profile.architecture_code||"Non renseigné"}</dd></div><div className="rounded-xl bg-[#F2FAF5] p-3"><dt>Pharmacies rattachées</dt><dd className="font-bold">{(links??[]).length}</dd></div></dl><h3 className="mt-4 font-bold">Historique des rattachements</h3>{(links??[]).map(link=><p key={link.pharmacie_id} className="mt-2 rounded-xl border p-3 text-sm">{(pharmacies??[]).find(ph=>ph.id===link.pharmacie_id)?.nom??"Pharmacie non renseignée"} · Rattachée le {date(link.created_at)}</p>)}<div className="mt-4"><PromoteurLogoManager pharmacies={(pharmacies ?? []).filter(ph => activeLinkIds.has(ph.id) && ph.actif).map(ph => ({id: ph.id, nom: ph.nom}))} /></div>
           </section>
         </div>
 
