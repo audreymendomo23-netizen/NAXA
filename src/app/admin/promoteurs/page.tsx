@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
-import { validerDossierPharmacie } from "./actions";
+import { mettreAJourPiecesRecues, validerDossierPharmacie } from "./actions";
 
 type SearchParams = { ok?: string; erreur?: string };
 
@@ -103,6 +103,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
         </div>
       </header>
 
+      {searchParams.ok === "documents" && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">État des pièces reçues enregistré. Aucune vérification documentaire n’a été effectuée par cette action.</p>}
       {searchParams.ok === "validation" && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">Dossier validé. La pharmacie et l’accès Promoteur sont activés ; la période d’essai de 14 jours commence à la validation.</p>}
       {searchParams.erreur && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{erreurs[searchParams.erreur] ?? "L’opération n’a pas abouti. Aucun succès n’est confirmé."}</p>}
       {loadError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Certaines données administratives n’ont pas pu être chargées. Les validations sont désactivées tant que le dossier ne peut pas être contrôlé.</p>}
@@ -144,6 +145,26 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
                   </li>
                 ))}
               </ul>
+              <form action={mettreAJourPiecesRecues} className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+                <input type="hidden" name="pharmacie_id" value={pharmacy.id} />
+                <p className="text-sm font-semibold">Mettre à jour la réception des documents</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    ["piece_existence_legale", "Pièce d’existence légale"],
+                    ["registre_commerce", "Registre de commerce"],
+                    ["niu", "Numéro d’identifiant unique (NIU)"],
+                    ["attestation_non_redevance", "Attestation de non-redevance"],
+                    ["plan_localisation", "Plan de localisation"],
+                    ["cni_promoteur", "CNI du Promoteur"],
+                  ] as const).map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name={key} value="oui" defaultChecked={Boolean(documents?.[key])} className="size-4 accent-emerald-700" />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <button type="submit" className="min-h-10 rounded-full border border-naxa-green-900 px-4 py-2 text-sm font-bold text-naxa-green-900">Enregistrer les pièces reçues</button>
+              </form>
               {documents?.mis_a_jour_le && <p className="mt-3 text-xs text-slate-500">Dernière déclaration de réception : {new Date(documents.mis_a_jour_le).toLocaleString("fr-FR")}</p>}
               {!documents && <p className="mt-2 text-xs text-amber-800">Aucune déclaration de réception enregistrée pour ce dossier.</p>}
             </div>
