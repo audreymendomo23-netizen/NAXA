@@ -26,7 +26,7 @@ export async function creerPharmacie(formData: FormData) {
 
   if (
     !f("nom") || !f("ville") || !f("whatsapp") ||
-    !Number.isFinite(Number(f("lat"))) || !Number.isFinite(Number(f("lng"))) ||
+    !f("lat") || !f("lng") || !Number.isFinite(Number(f("lat"))) || !Number.isFinite(Number(f("lng"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90 || Number(f("lng")) < -180 || Number(f("lng")) > 180 ||
     !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username) ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
     password.length < 12 || !/^\+?[0-9]{8,15}$/.test(phone) ||
@@ -72,7 +72,7 @@ export async function creerPharmacie(formData: FormData) {
   const { error: privateError } = await db.from("pharmacie_privee").insert({
     pharmacie_id: pharmacyId,
     whatsapp: f("whatsapp").replace(/\D/g, ""),
-    code_marchand: f("code_marchand") || null,
+    code_marchand: null,
   });
   const { error: profileError } = await db.from("profiles").update({
     role: "promoteur", fonction_interne: "promoteur",
@@ -93,7 +93,7 @@ export async function creerPharmacie(formData: FormData) {
   const { data: convention, error: conventionError } = await db.from("conventions_promoteurs").insert({
     promoteur_id: userId, montant_mensuel: montant,
     date_paiement: null, date_expiration: expiryDate,
-    statut: "active", architecture_code: architecture,
+    statut: "active",
   }).select("id").single();
 
   if (conventionError || !convention) {
