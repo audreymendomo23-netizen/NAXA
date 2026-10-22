@@ -244,7 +244,7 @@ export default async function EspacePromoteur() {
                 { label: "1. Tableau de bord", href: "#accueil", icon: "▦" },
                 { label: "2. Mon réseau", href: "#reseau", icon: "⌘" },
                 { label: "3. Pilotage & performances", href: "/pharmacie/pilotage", icon: "↗" },
-                { label: "4. Marketplace & réservations", href: "/pharmacie?vue=reservations", icon: "◇" },
+                { label: "4. Marketplace & réservations", href: "/pharmacie?vue=operation", icon: "◇" },
                 { label: "5. ERP & opérations", href: "/pharmacie?vue=operation", icon: "▤" },
                 { label: "6. Administration & personnel", href: "/pharmacie/caisses", icon: "♙" },
                 { label: "7. Convention & abonnement", href: "#convention", icon: "▧" },
