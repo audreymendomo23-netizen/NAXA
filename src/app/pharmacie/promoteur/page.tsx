@@ -48,11 +48,12 @@ export default async function EspacePromoteur() {
     ? await adminDb.from("caisses").select("id,nom,pharmacie_id").in("pharmacie_id", operationalIds)
     : { data: [] as { id: string; nom: string; pharmacie_id: string }[] };
   const caisseIds = (caisseRows ?? []).map((c) => c.id);
-  const { data: ecartsCaisse, error: ecartsCaisseError } = caisseIds.length
+  const { data: caisseSessions, error: ecartsCaisseError } = caisseIds.length
     ? await adminDb.from("caisses_sessions")
-        .select("id,caisse_id,cloture_at,total_theorique,total_compte,ecart,ecart_justification,ecart_statut")
-        .in("caisse_id", caisseIds).neq("ecart", 0).order("cloture_at", { ascending: false }).limit(20)
-    : { data: [] as { id: string; caisse_id: string; cloture_at: string | null; total_theorique: number; total_compte: number | null; ecart: number | null; ecart_justification: string | null; ecart_statut: string }[], error: null };
+        .select("id,caisse_id,ouvert_par,ouvert_at,statut,cloture_at,cloture_par,total_theorique,total_compte,ecart")
+        .in("caisse_id", caisseIds).order("ouvert_at", { ascending: false }).limit(50)
+    : { data: [] as { id: string; caisse_id: string; ouvert_par: string; ouvert_at: string; statut: string; cloture_at: string | null; cloture_par: string | null; total_theorique: number; total_compte: number | null; ecart: number | null }[], error: null };
+  const ecartsCaisse = (caisseSessions ?? []).filter((s) => s.cloture_at && Number(s.ecart ?? 0) !== 0).slice(0, 20);
   const caisseById = new Map((caisseRows ?? []).map((c) => [c.id, c] as const));
 
   const { data: statsData, error: statsError } = profile.actif === true
@@ -204,6 +205,41 @@ export default async function EspacePromoteur() {
   const scopedIds = [...activePharmacyIds];
   const operationalCaisses = (caisses ?? []).filter((c) => c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id));
 
+  // Contrôle Promoteur 360° : sessions de service et indicateurs comptables strictement bornés
+  // aux pharmacies actives, publiées et liées au Promoteur. Aucun détail de santé n'est chargé.
+  const [
+    pharmacistSessionsResult,
+    stockSessionsResult,
+    accountingPeriodsResult,
+    accountingQueueResult,
+    accountingEntriesResult,
+  ] = await Promise.all([
+    scopedIds.length
+      ? adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", scopedIds).order("started_at", { ascending: false }).limit(50)
+      : Promise.resolve({ data: [], error: null }),
+    scopedIds.length
+      ? adminDb.from("gestionnaire_stock_sessions").select("id,pharmacie_id,user_id,started_at,ended_at").in("pharmacie_id", scopedIds).order("started_at", { ascending: false }).limit(50)
+      : Promise.resolve({ data: [], error: null }),
+    scopedIds.length
+      ? adminDb.from("compta_periodes").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).eq("statut", "ouverte")
+      : Promise.resolve({ count: 0, error: null }),
+    scopedIds.length
+      ? adminDb.from("compta_evenement").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).in("statut", ["a_traiter", "erreur"])
+      : Promise.resolve({ count: 0, error: null }),
+    scopedIds.length
+      ? adminDb.from("compta_ecriture").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).gte("date_ecriture", new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
+      : Promise.resolve({ count: 0, error: null }),
+  ]);
+  const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error);
+  const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error);
+  const pharmacistSessions = pharmacistSessionsResult.data ?? [];
+  const stockSessions = stockSessionsResult.data ?? [];
+  const staffSessions = [
+    ...(caisseSessions ?? []).map((s) => ({ id: s.id, pharmacyId: caisseById.get(s.caisse_id)?.pharmacie_id ?? "", userId: s.ouvert_par, startedAt: s.ouvert_at, endedAt: s.cloture_at, role: "Caisse", label: caisseById.get(s.caisse_id)?.nom ?? "Caisse" })),
+    ...pharmacistSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.pharmacien_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Pharmacien", label: "Service pharmacien" })),
+    ...stockSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.user_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Gestionnaire de stock", label: "Service stock" })),
+  ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);
+
   // Consolidation opérationnelle par poste : uniquement des agrégats et des profils
   // du réseau actif du Promoteur. Aucune donnée patient nominative n'est chargée ici.
   const [
@@ -244,7 +280,7 @@ export default async function EspacePromoteur() {
   const stats = (statsData ?? null) as Stats | null;
   const caissesActives = operationalCaisses.filter((x) => x.actif).length;
   const caissesBloquees = operationalCaisses.filter((x) => !x.actif).length;
-  const alert = linksError || caissesError || pharmaciesError || statsError || ecartsCaisseError;
+  const alert = linksError || caissesError || pharmaciesError || statsError || ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || accountingError;
   const contractAmount = abonnement?.montant_mensuel ?? convention?.montant_mensuel ?? null;
   const contractStatus = abonnement?.statut ?? convention?.statut ?? null;
   const expiry = abonnement?.echeance ?? convention?.date_expiration ?? null;
