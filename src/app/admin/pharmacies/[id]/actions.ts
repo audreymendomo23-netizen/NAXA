@@ -65,3 +65,36 @@ export async function statuerDocumentPharmacie(formData: FormData) {
   revalidatePath("/admin/pharmacies/" + pharmacieId);
   redirect("/admin/pharmacies/" + pharmacieId + "?ok=decision");
 }
+
+
+export async function consulterDocumentPharmacie(formData: FormData) {
+  await requireAdmin();
+  const pharmacieId = String(formData.get("pharmacie_id") ?? "");
+  const documentId = String(formData.get("document_id") ?? "");
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(pharmacieId) || !uuid.test(documentId)) {
+    redirect("/admin/promoteurs?erreur=document-invalide");
+  }
+
+  const db = supabaseAdmin();
+  const { data: document, error } = await db
+    .from("pharmacie_documents")
+    .select("id,pharmacie_id,bucket_id,object_path")
+    .eq("id", documentId)
+    .eq("pharmacie_id", pharmacieId)
+    .maybeSingle();
+
+  if (error || !document || document.bucket_id !== "pharmacie-documents") {
+    redirect("/admin/pharmacies/" + pharmacieId + "?erreur=document-introuvable");
+  }
+
+  const { data: signed, error: signedError } = await db.storage
+    .from("pharmacie-documents")
+    .createSignedUrl(document.object_path, 60);
+
+  if (signedError || !signed?.signedUrl) {
+    redirect("/admin/pharmacies/" + pharmacieId + "?erreur=consultation");
+  }
+
+  redirect(signed.signedUrl);
+}
