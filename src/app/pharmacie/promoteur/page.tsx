@@ -36,8 +36,8 @@ export default async function EspacePromoteur() {
       .select("pharmacie_id,actif,created_at")
       .eq("promoteur_id", auth.user.id),
     sb.from("profiles")
-      .select("id,username,first_name,last_name,pharmacie_id,actif")
-      .eq("parent_profile_id", auth.user.id)
+      .select("id,username,first_name,last_name,pharmacie_id,actif,parent_profile_id,niveau_interne,fonction_interne")
+      .in("pharmacie_id", [...new Set((links ?? []).map((link) => link.pharmacie_id))])
       .eq("role", "caisse"),
   ]);
 
@@ -204,7 +204,46 @@ export default async function EspacePromoteur() {
     (ph) => activeLinkIds.has(ph.id) && ph.actif && ph.visible_recherche
   );
   const activePharmacyIds = new Set(activePharmacies.map((ph) => ph.id));
+  const scopedIds = [...activePharmacyIds];
   const operationalCaisses = (caisses ?? []).filter((c) => c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id));
+
+  // Consolidation opérationnelle par poste : uniquement des agrégats et des profils
+  // du réseau actif du Promoteur. Aucune donnée patient nominative n'est chargée ici.
+  const [
+    { data: teamRows, error: teamRowsError },
+    stockLowResult,
+    lotAlertsResult,
+    pendingReservationsResult,
+    pendingPrescriptionsResult,
+    pendingPreparationsResult,
+  ] = await Promise.all([
+    scopedIds.length
+      ? adminDb.from("profiles").select("id,role,fonction_interne,actif,pharmacie_id,niveau_interne,parent_profile_id").in("pharmacie_id", scopedIds)
+      : Promise.resolve({ data: [] as {id:string;role:string;fonction_interne:string|null;actif:boolean;pharmacie_id:string|null;niveau_interne:number|null;parent_profile_id:string|null}[], error: null }),
+    scopedIds.length ? adminDb.from("stocks").select("produit_id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).lte("quantite", 5) : Promise.resolve({count:0,error:null}),
+    scopedIds.length ? adminDb.from("stocks_lots").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).or("bloque.eq.true,date_peremption.lte." + new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10)) : Promise.resolve({count:0,error:null}),
+    scopedIds.length ? adminDb.from("reservations").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).in("statut", ["en_attente", "confirmee"]) : Promise.resolve({count:0,error:null}),
+    scopedIds.length ? adminDb.from("prescriptions").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).eq("source", "client").eq("statut", "en_attente") : Promise.resolve({count:0,error:null}),
+    scopedIds.length ? adminDb.from("prescription_preparations").select("prescription_id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).in("statut", ["a_preparer", "en_cours", "a_completer"]) : Promise.resolve({count:0,error:null}),
+  ]);
+  const team = teamRows ?? [];
+  const roleCounts = {
+    responsables: team.filter((x) => x.actif && x.fonction_interne === "responsable").length,
+    pharmaciens: team.filter((x) => x.actif && ["pharmacien", "pharmacien_assistant"].includes(x.fonction_interne ?? "")).length,
+    stock: team.filter((x) => x.actif && ["gestionnaire_stock", "magasinier"].includes(x.fonction_interne ?? "")).length,
+  };
+  const roleControlError = Boolean(teamRowsError || stockLowResult.error || lotAlertsResult.error || pendingReservationsResult.error || pendingPrescriptionsResult.error || pendingPreparationsResult.error);
+  const roleControl = {
+    responsables: teamRowsError ? null : roleCounts.responsables,
+    pharmaciens: teamRowsError ? null : roleCounts.pharmaciens,
+    stock: teamRowsError ? null : roleCounts.stock,
+    caisses: caissesError ? null : operationalCaisses.filter((x) => x.actif).length,
+    stocksBas: stockLowResult.error ? null : stockLowResult.count ?? 0,
+    lotsAControler: lotAlertsResult.error ? null : lotAlertsResult.count ?? 0,
+    reservations: pendingReservationsResult.error ? null : pendingReservationsResult.count ?? 0,
+    prescriptions: pendingPrescriptionsResult.error ? null : pendingPrescriptionsResult.count ?? 0,
+    preparations: pendingPreparationsResult.error ? null : pendingPreparationsResult.count ?? 0,
+  };
   const stats = (statsData ?? null) as Stats | null;
   const caissesActives = operationalCaisses.filter((x) => x.actif).length;
   const caissesBloquees = operationalCaisses.filter((x) => !x.actif).length;
@@ -216,10 +255,10 @@ export default async function EspacePromoteur() {
 
   const kpis = [
     { title: "Pharmacies opérationnelles", value: String(activePharmacies.length), note: "Rattachement, activation et visibilité confirmés" },
-    { title: "Caisses actives", value: String(caissesActives), note: caissesBloquees + " bloquée(s)" },
-    { title: "Chiffre d’affaires · 30 jours", value: fcfa(stats?.ca ?? 0), note: "Ventes selon la vue canonique disponible" },
-    { title: "Ruptures de stock", value: String(stats?.stock?.ruptures ?? 0), note: "Sur le périmètre autorisé" },
-    { title: "Alertes", value: String(stats?.alertes ?? 0), note: "Alertes remontées par le pilotage" },
+    { title: "Caisses actives", value: caissesError ? "Indisponible" : String(caissesActives), note: caissesError ? "Source comptes Caisses indisponible" : caissesBloquees + " bloquée(s)" },
+    { title: "Chiffre d’affaires · 30 jours", value: statsError || stats?.ca === undefined ? "Indisponible" : fcfa(stats.ca), note: "Vue canonique des réservations payées ou retirées" },
+    { title: "Ruptures de stock", value: statsError || stats?.stock?.ruptures === undefined ? "Indisponible" : String(stats.stock.ruptures), note: "Pilotage agrégé du réseau autorisé" },
+    { title: "Alertes", value: statsError || stats?.alertes === undefined ? "Indisponible" : String(stats.alertes), note: "Alertes non lues de la source de pilotage" },
   ];
 
   return (
@@ -281,6 +320,32 @@ export default async function EspacePromoteur() {
             <p className="mt-2 text-2xl font-extrabold tabular-nums">{k.value}</p>
             <p className="mt-1 text-xs text-slate-500">{k.note}</p>
           </article>)}
+        </section>
+
+        <section id="controle-postes" className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div><h2 className="text-xl font-extrabold">Contrôle opérationnel par poste</h2><p className="mt-1 text-sm text-slate-600">Indicateurs agrégés des comptes rattachés aux pharmacies actives. Les dossiers de santé nominatifs ne sont jamais affichés ici.</p></div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">Périmètre : {activePharmacies.length} pharmacie(s)</span>
+          </div>
+          {roleControlError && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Une ou plusieurs sources de poste sont indisponibles. Les valeurs concernées sont affichées « Indisponible », pas comme des zéros.</p>}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[
+              { title: "Responsables", people: roleControl.responsables, metric: "Comptes actifs", detail: "Supervision des Caisses et opérations du périmètre", href: "/pharmacie/pilotage" },
+              { title: "Caisses", people: roleControl.caisses, metric: "Comptes actifs", detail: "Ventes, sessions et écarts de clôture", href: "/pharmacie/caisses" },
+              { title: "Pharmaciens", people: roleControl.pharmaciens, metric: "Comptes actifs", detail: roleControl.prescriptions === null ? "Ordonnances en attente : indisponible" : `Ordonnances à contrôler : ${roleControl.prescriptions}`, href: "/pharmacie/pharmacien" },
+              { title: "Gestionnaires de stock / magasiniers", people: roleControl.stock, metric: "Comptes actifs", detail: roleControl.stocksBas === null ? "Stocks bas : indisponible" : `Références à stock bas : ${roleControl.stocksBas}`, href: "/pharmacie/gestionnaire-stock" },
+              { title: "Réservations Marketplace", people: null, metric: "À traiter", detail: roleControl.reservations === null ? "Source réservations indisponible" : `${roleControl.reservations} réservation(s) en attente ou confirmée(s)`, href: "/pharmacie?vue=operation" },
+              { title: "Lots & préparations", people: null, metric: "Points de contrôle", detail: roleControl.lotsAControler === null || roleControl.preparations === null ? "Source lots ou préparations indisponible" : `${roleControl.lotsAControler} lot(s) à contrôler · ${roleControl.preparations} préparation(s) en cours`, href: "/pharmacie/gestionnaire-stock/lots-peremptions" },
+            ].map((item) => (
+              <article key={item.title} className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3"><h3 className="font-extrabold">{item.title}</h3><span className="rounded-full bg-[#F2FAF5] px-2 py-1 text-xs font-semibold text-naxa-green-900">{item.metric}</span></div>
+                <p className="mt-3 text-2xl font-black tabular-nums">{item.people === null ? "—" : item.people === undefined ? "Indisponible" : String(item.people)}</p>
+                <p className="mt-1 text-sm leading-5 text-slate-600">{item.detail}</p>
+                <Link className="mt-3 inline-flex min-h-10 items-center rounded-full border border-emerald-200 px-3 py-2 text-sm font-bold text-naxa-green-900 hover:bg-[#F2FAF5]" href={item.href}>Ouvrir le module →</Link>
+              </article>
+            ))}
+          </div>
+          <p className="text-xs leading-5 text-slate-500">Les chiffres de stock bas utilisent le seuil opérationnel déjà utilisé par le poste Gestionnaire de stock (quantité ≤ 5). Ce seuil décrit une alerte de travail, pas une règle réglementaire. Les métriques de marge et de rentabilité ne sont pas affichées tant que le coût historique au moment de la vente n’est pas disponible.</p>
         </section>
 
         <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
