@@ -35,15 +35,22 @@ export async function creerPharmacie(formData: FormData) {
   if (!f("nom")) errors.nom = "Le nom de la pharmacie est obligatoire.";
   if (!f("ville")) errors.ville = "La ville est obligatoire.";
   if (!/^[0-9]{8,15}$/.test(whatsapp)) errors.whatsapp = "Saisissez 8 à 15 chiffres pour WhatsApp.";
-  if (!f("first_name")) errors.first_name = "Le prénom est obligatoire.";
-  if (!f("last_name")) errors.last_name = "Le nom est obligatoire.";
+  if (f("first_name").length < 2 || f("first_name").length > 80) errors.first_name = "Le prénom doit contenir 2 à 80 caractères." ;
+  if (f("last_name").length < 2 || f("last_name").length > 80) errors.last_name = "Le nom doit contenir 2 à 80 caractères.";
   if (!/^[A-Z]{2}$/.test(f("phone_country").toUpperCase())) errors.phone_country = "Code pays attendu sur 2 lettres (ex. CM).";
   if (!f("lat") || !Number.isFinite(Number(f("lat"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90) errors.lat = "Latitude obligatoire entre -90 et 90.";
   if (!f("lng") || !Number.isFinite(Number(f("lng"))) || Number(f("lng")) < -180 || Number(f("lng")) > 180) errors.lng = "Longitude obligatoire entre -180 et 180.";
   if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) errors.username = "3 à 30 caractères : minuscules, chiffres, point, tiret ou souligné.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Adresse e-mail invalide.";
   if (password.length < 12) errors.motdepasse = "Au moins 12 caractères requis.";
-  if (!/^\+?[0-9]{8,15}$/.test(phone)) errors.phone = "Téléphone invalide : 8 à 15 chiffres.";
+  const country = f("phone_country").toUpperCase();
+  const phonePatterns: Record<string, RegExp> = {
+    CM: /^\\+237[0-9]{9}$/, CF: /^\\+236[0-9]{8}$/, TD: /^\\+235[0-9]{8}$/,
+    CG: /^\\+242[0-9]{9}$/, CD: /^\\+243[0-9]{9}$/, GQ: /^\\+240[0-9]{9}$/,
+    GA: /^\\+241[0-9]{8}$/, ST: /^\\+239[0-9]{7}$/, AO: /^\\+244[0-9]{9}$/,
+    BI: /^\\+257[0-9]{8}$/, RW: /^\\+250[0-9]{9}$/,
+  };
+  if (!phonePatterns[country]?.test(phone)) errors.phone = "Téléphone invalide pour le pays sélectionné : utilisez l’indicatif international et le nombre exact de chiffres.";
   const dob = f("date_of_birth");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob)) || (Number.isFinite(Date.parse(dob)) && new Date(dob).toISOString().slice(0, 10) !== dob) || new Date(dob).getTime() > Date.now() || age < 18) errors.date_of_birth = "Date valide requise ; âge minimum : 18 ans.";
   if (!Number.isSafeInteger(montant) || montant <= 0) errors.montant_mensuel = "Entier positif requis (FCFA).";
@@ -87,7 +94,7 @@ export async function creerPharmacie(formData: FormData) {
     const pharmacyDelete = await db.from("pharmacies").delete().eq("id", pharmacyId);
     const authDelete = await db.auth.admin.deleteUser(userId);
     console.error("[admin.creerPharmacie] compensation", {
-      pharmacieId, userId, cleanupSteps: results.map((r) => r.status),
+      pharmacyId, userId, cleanupSteps: results.map((r) => r.status),
       pharmacyDeleteError: pharmacyDelete.error?.message ?? null,
       authDeleteError: authDelete.error?.message ?? null,
     });
