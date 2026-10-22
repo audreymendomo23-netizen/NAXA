@@ -12,6 +12,30 @@ async function exigerAdmin() {
   return db;
 }
 
+export async function mettreAJourPiecesRecues(formData: FormData) {
+  const db = await exigerAdmin();
+  const { data: auth } = await db.auth.getUser();
+  const pharmacyId = String(formData.get("pharmacie_id") ?? "").trim();
+  if (!pharmacyId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pharmacyId)) {
+    redirect("/admin/promoteurs?erreur=documents");
+  }
+
+  const { error } = await db.from("pharmacie_documents_recus").upsert({
+    pharmacie_id: pharmacyId,
+    piece_existence_legale: formData.get("piece_existence_legale") === "oui",
+    registre_commerce: formData.get("registre_commerce") === "oui",
+    niu: formData.get("niu") === "oui",
+    attestation_non_redevance: formData.get("attestation_non_redevance") === "oui",
+    plan_localisation: formData.get("plan_localisation") === "oui",
+    cni_promoteur: formData.get("cni_promoteur") === "oui",
+    mis_a_jour_par: auth.user?.id ?? null,
+    mis_a_jour_le: new Date().toISOString(),
+  }, { onConflict: "pharmacie_id" });
+
+  if (error) redirect("/admin/promoteurs?erreur=documents");
+  redirect("/admin/promoteurs?ok=documents");
+}
+
 export async function validerDossierPharmacie(formData: FormData) {
   const db = await exigerAdmin();
   const pharmacyId = String(formData.get("pharmacie_id") ?? "").trim();
