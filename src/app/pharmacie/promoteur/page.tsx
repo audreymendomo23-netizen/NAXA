@@ -243,14 +243,21 @@ export default async function EspacePromoteur() {
       : Promise.resolve({ data: [], error: null }),
   ]);
   const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error);
-  const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error || accountingPeriodsListResult.error);\n  const networkSalesError = Boolean(networkSalesResult.error);\n  const salesByPharmacy = new Map<string, { ca: number; ventes: number }>();\n  for (const row of networkSalesResult.data ?? []) { const current = salesByPharmacy.get(row.pharmacie_id) ?? { ca: 0, ventes: 0 }; current.ca += Number(row.total ?? 0); current.ventes += Number(row.ventes ?? 0); salesByPharmacy.set(row.pharmacie_id, current); }\n  const staffProfiles = staffProfilesResult.data ?? [];\n  const staffById = new Map(staffProfiles.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"] as const));\n  const periodsByPharmacy = new Map((accountingPeriodsListResult.data ?? []).map((p) => [p.pharmacie_id, p] as const));
+  const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error || accountingPeriodsListResult.error);
+  const networkSalesError = Boolean(networkSalesResult.error);
+  const salesByPharmacy = new Map<string, { ca: number; ventes: number }>();
+  for (const row of networkSalesResult.data ?? []) { const current = salesByPharmacy.get(row.pharmacie_id) ?? { ca: 0, ventes: 0 }; current.ca += Number(row.total ?? 0); current.ventes += Number(row.ventes ?? 0); salesByPharmacy.set(row.pharmacie_id, current); }
+  const staffProfiles = staffProfilesResult.data ?? [];
+  const staffById = new Map(staffProfiles.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"] as const));
+  const periodsByPharmacy = new Map((accountingPeriodsListResult.data ?? []).map((p) => [p.pharmacie_id, p] as const));
   const pharmacistSessions = pharmacistSessionsResult.data ?? [];
   const stockSessions = stockSessionsResult.data ?? [];
   const staffSessions = [
     ...(caisseSessions ?? []).map((s) => ({ id: s.id, pharmacyId: caisseById.get(s.caisse_id)?.pharmacie_id ?? "", userId: s.ouvert_par, startedAt: s.ouvert_at, endedAt: s.cloture_at, role: "Caisse", label: caisseById.get(s.caisse_id)?.nom ?? "Caisse" })),
     ...pharmacistSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.pharmacien_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Pharmacien", label: "Service pharmacien" })),
     ...stockSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.user_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Gestionnaire de stock", label: "Service stock" })),
-  ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);\n  const openServiceCount = staffSessions.filter((s) => !s.endedAt).length;
+  ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);
+  const openServiceCount = staffSessions.filter((s) => !s.endedAt).length;
 
   // Consolidation opérationnelle par poste : uniquement des agrégats et des profils
   // du réseau actif du Promoteur. Aucune donnée patient nominative n'est chargée ici.
