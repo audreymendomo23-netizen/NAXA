@@ -242,7 +242,7 @@ export default async function EspacePromoteur() {
       ? adminDb.from("v_reservations_ca").select("pharmacie_id,jour,ventes,total").in("pharmacie_id", scopedIds).gte("jour", new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10))
       : Promise.resolve({ data: [], error: null }),
   ]);
-  const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error);
+  const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error);
   const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error || accountingPeriodsListResult.error);\n  const networkSalesError = Boolean(networkSalesResult.error);\n  const salesByPharmacy = new Map<string, { ca: number; ventes: number }>();\n  for (const row of networkSalesResult.data ?? []) { const current = salesByPharmacy.get(row.pharmacie_id) ?? { ca: 0, ventes: 0 }; current.ca += Number(row.total ?? 0); current.ventes += Number(row.ventes ?? 0); salesByPharmacy.set(row.pharmacie_id, current); }\n  const staffProfiles = staffProfilesResult.data ?? [];\n  const staffById = new Map(staffProfiles.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"] as const));\n  const periodsByPharmacy = new Map((accountingPeriodsListResult.data ?? []).map((p) => [p.pharmacie_id, p] as const));
   const pharmacistSessions = pharmacistSessionsResult.data ?? [];
   const stockSessions = stockSessionsResult.data ?? [];
@@ -292,7 +292,7 @@ export default async function EspacePromoteur() {
   const stats = (statsData ?? null) as Stats | null;
   const caissesActives = operationalCaisses.filter((x) => x.actif).length;
   const caissesBloquees = operationalCaisses.filter((x) => !x.actif).length;
-  const alert = linksError || caissesError || pharmaciesError || statsError || ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || accountingError;
+  const alert = linksError || caissesError || pharmaciesError || statsError || ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error || accountingError || networkSalesError;
   const contractAmount = abonnement?.montant_mensuel ?? convention?.montant_mensuel ?? null;
   const contractStatus = abonnement?.statut ?? convention?.statut ?? null;
   const expiry = abonnement?.echeance ?? convention?.date_expiration ?? null;
