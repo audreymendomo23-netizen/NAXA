@@ -844,3 +844,30 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole.luciole-fairy-fluttering .luciole-fairy-dust circle { animation: none !important; }
   .naxa-luciole .luciole-fairy-dust { opacity: 0 !important; }
 }
+
+
+/* Promoteur — présentation bento locale à cet espace uniquement. */
+.promoteur-bento-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+.promoteur-bento-grid > * { min-width: 0; }
+.promoteur-card { min-width: 0; }
+.promoteur-bento-grid > [id="comptabilite-reseau"],
+.promoteur-bento-grid > [id="comparaison-pharmacies"],
+.promoteur-bento-grid > [id="reseau"],
+.promoteur-bento-grid > [id="securite"] { grid-column: 1 / -1; }
+.promoteur-bento-grid > [id="sessions-personnel"],
+.promoteur-bento-grid > [id="clotures-caisses"] { grid-column: 1 / -1; }
+.promoteur-bento-grid > [id="controle-postes"] { grid-column: 1 / -1; }
+.promoteur-bento-grid > [id="configuration"],
+.promoteur-bento-grid > [id="profil"] { grid-column: 1 / -1; }
+.promoteur-bento-grid > [id="accueil"] { min-width: 0; }
+@media (min-width: 1280px) {
+  .promoteur-bento-grid > [id="comptabilite-reseau"],
+  .promoteur-bento-grid > [id="comparaison-pharmacies"] { grid-column: span 6; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .promoteur-card { box-shadow: none; }
+}
