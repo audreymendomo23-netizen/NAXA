@@ -190,7 +190,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
             {!ready && (
               <form action={validerDossierPharmacie} className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
                 <input type="hidden" name="pharmacie_id" value={pharmacy.id} />
-                <p className="text-sm font-semibold">Avant validation, vérifiez hors de cet écran les autorisations officielles et l’identité du responsable. Cette version ne stocke pas encore les fichiers justificatifs.</p>
+                <p className="text-sm font-semibold">La réception des pièces est suivie séparément ci-dessus. Pour activer la pharmacie, vérifiez les autorisations officielles et l’identité du responsable ; cette confirmation est indépendante des cases de réception documentaire.</p>
                 <label className="flex items-start gap-3 text-sm">
                   <input type="checkbox" name="autorisations_verifiees" required disabled={Boolean(loadError || linkCount !== 1 || !promoter)} className="mt-1 size-4 accent-emerald-700" />
                   <span>Je confirme avoir vérifié les autorisations et l’identité du responsable, et autorise l’activation de ce dossier.</span>
