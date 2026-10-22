@@ -23,7 +23,8 @@ export async function creerPharmacie(formData: FormData) {
   const username = f("username").trim().toLowerCase();
   const email = f("email").toLowerCase();
   const password = f("motdepasse");
-  const phone = f("phone").replace(/\s+/g, "");
+  const phoneCountry = f("phone_country").toUpperCase() as PromoteurPhoneCountry;
+  const phone = normalizePromoteurPhone(f("phone_number"), phoneCountry);
   const whatsapp = f("whatsapp").replace(/\D/g, "");
   const birthDate = new Date(f("date_of_birth"));
   const age = Date.now() >= birthDate.getTime()
