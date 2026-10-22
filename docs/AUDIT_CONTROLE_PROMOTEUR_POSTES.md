@@ -48,3 +48,18 @@ But : consolider des indicateurs de supervision sans remplacer les postes métie
 - Ajouter un contrôle SQL automatisé qui prouve qu'un Promoteur A ne voit aucun KPI ni compte du réseau B.
 - Compléter l'analyse de performance par pharmacie et par période avec une fonction serveur canonique dédiée, si le RPC actuel ne fournit pas le grain requis. Ne pas faire ces agrégations dans le navigateur.
 - Ne pas déployer sans instruction explicite de l'utilisateur.
+
+## Mise à jour d'implémentation sur main — 22 octobre 2026
+
+Les éléments ci-dessous sont codés dans `src/app/pharmacie/promoteur/page.tsx` :
+
+- Les sessions Caisse, Pharmacien et Gestionnaire de stock sont regroupées en lecture seule, bornées aux pharmacies actives, publiées et liées au Promoteur ; les erreurs de sources sont signalées.
+- Les clôtures de caisse récentes affichent les soldes théorique/compté et les écarts, y compris les clôtures avec écart nul. L'historique affiché est limité aux 30 dernières clôtures présentes parmi les 50 sessions les plus récentes chargées ; il ne constitue donc pas un historique exhaustif.
+- Les indicateurs comptables agrégés couvrent les périodes ouvertes, les événements à traiter/en erreur et les écritures des 30 derniers jours. Une erreur de source produit « Indisponible », pas un zéro.
+- Une comparaison par pharmacie affiche le CA et le nombre de ventes qualifiées des 30 derniers jours depuis `v_reservations_ca`, les caisses actives, les services ouverts et la période comptable la plus récente.
+- Le CA suit la règle canonique `v_reservations_ca` : statuts qualifiants `payee` et `retiree`, sans double comptage de la même réservation. Les marges historiques restent masquées tant que le coût au moment de la vente n'est pas figé.
+- La palette visuelle est codée dans le bandeau de l'espace Promoteur avec les proportions demandées : vert 40 %, jaune canari 25 %, blanc 15 %, orange canari 10 %, bleu canari 5 %, rouge 5 %.
+
+### Limites de preuve
+
+Ces modifications sont enregistrées directement sur `main`. Elles n'ont pas été déployées. Le contrôle structurel existant `supabase/tests/148_promoteur_pilotage_scope_guard.sql` vérifie la garde du périmètre réseau de la RPC de pilotage ; aucun nouveau test SQL d'isolation n'a été exécuté pendant cette modification. La compilation TypeScript, le lint et les tests d'intégration restent à exécuter séparément avant de qualifier la révision de validée.
