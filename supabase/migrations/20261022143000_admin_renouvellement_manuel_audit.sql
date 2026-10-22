@@ -15,18 +15,21 @@ grant select,insert on public.admin_pharmacie_audit to service_role;
 create or replace function public.admin_renouveler_promoteur(p_promoteur uuid,p_nouvelle_echeance date,p_motif text,p_admin uuid)
 returns date language plpgsql security definer set search_path='' as $$
 declare c public.conventions_promoteurs%rowtype; a public.abonnements_promoteurs%rowtype;
- nc int; na int; ph uuid; avant jsonb; apres jsonb;
+ nc int; na int; nl int; ph uuid; v_architecture text; avant jsonb; apres jsonb;
 begin
  if not exists(select 1 from public.profiles where id=p_admin and role='admin' and actif=true) then raise exception 'Accès réservé à un administrateur actif'; end if;
  if p_nouvelle_echeance is null or p_nouvelle_echeance<=current_date or length(trim(coalesce(p_motif,'')))<5 then raise exception 'Échéance future et motif (5 caractères minimum) obligatoires'; end if;
  if not exists(select 1 from public.profiles where id=p_promoteur and role='promoteur') then raise exception 'Promoteur introuvable'; end if;
  select count(*) into nc from public.conventions_promoteurs where promoteur_id=p_promoteur;
  select count(*) into na from public.abonnements_promoteurs where promoteur_id=p_promoteur;
+ select count(*) into nl from public.promoteur_pharmacies where promoteur_id=p_promoteur;
  if nc<>1 or na<>1 then raise exception 'Une convention et un abonnement uniques sont requis'; end if;
+ if nl<>1 then raise exception 'Un lien promoteur-pharmacie unique est requis'; end if;
+ select architecture_code into v_architecture from public.profiles where id=p_promoteur;
  select * into c from public.conventions_promoteurs where promoteur_id=p_promoteur for update;
  select * into a from public.abonnements_promoteurs where promoteur_id=p_promoteur for update;
- if c.architecture_code is null or a.convention_id is distinct from c.id or a.montant_mensuel is distinct from c.montant_mensuel then raise exception 'Convention, abonnement et architecture incohérents'; end if;
- select pharmacie_id into ph from public.promoteur_pharmacies where promoteur_id=p_promoteur order by created_at limit 1 for update;
+ if c.architecture_code is null or c.architecture_code is distinct from v_architecture or a.convention_id is distinct from c.id or a.montant_mensuel is distinct from c.montant_mensuel then raise exception 'Convention, abonnement et architecture incohérents'; end if;
+ select pharmacie_id into ph from public.promoteur_pharmacies where promoteur_id=p_promoteur for update;
  avant:=jsonb_build_object('convention_statut',c.statut,'convention_echeance',c.date_expiration,'abonnement_statut',a.statut,'abonnement_echeance',a.echeance,'profil_actif',(select actif from public.profiles where id=p_promoteur),'pharmacie_id',ph);
  update public.conventions_promoteurs set date_expiration=p_nouvelle_echeance,statut='active' where id=c.id;
  update public.abonnements_promoteurs set echeance=p_nouvelle_echeance,statut='actif',bloque_le=null,reactive_le=now(),reactive_par=p_admin where id=a.id;
