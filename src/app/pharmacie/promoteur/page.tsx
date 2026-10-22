@@ -28,20 +28,17 @@ export default async function EspacePromoteur() {
   if (profile?.role !== "promoteur") redirect("/");
   const adminDb = supabaseAdmin();
 
-  const [
-    { data: links, error: linksError },
-    { data: caisses, error: caissesError },
-  ] = await Promise.all([
-    adminDb.from("promoteur_pharmacies")
-      .select("pharmacie_id,actif,created_at")
-      .eq("promoteur_id", auth.user.id),
-    sb.from("profiles")
-      .select("id,username,first_name,last_name,pharmacie_id,actif,parent_profile_id,niveau_interne,fonction_interne")
-      .in("pharmacie_id", [...new Set((links ?? []).map((link) => link.pharmacie_id))])
-      .eq("role", "caisse"),
-  ]);
+  const { data: links, error: linksError } = await adminDb.from("promoteur_pharmacies")
+    .select("pharmacie_id,actif,created_at")
+    .eq("promoteur_id", auth.user.id);
 
   const ids = [...new Set((links ?? []).map((x) => x.pharmacie_id))];
+  const { data: caisses, error: caissesError } = ids.length
+    ? await adminDb.from("profiles")
+        .select("id,username,first_name,last_name,pharmacie_id,actif,parent_profile_id,niveau_interne,fonction_interne")
+        .in("pharmacie_id", ids)
+        .eq("role", "caisse")
+    : { data: [] as {id:string;username:string|null;first_name:string|null;last_name:string|null;pharmacie_id:string|null;actif:boolean;parent_profile_id:string|null;niveau_interne:number|null;fonction_interne:string|null}[], error: null };
   const { data: pharmacies, error: pharmaciesError } = ids.length
     ? await adminDb.from("pharmacies").select("id,nom,ville,quartier,actif,visible_recherche,de_garde,stock_updated_at").in("id", ids).order("nom")
     : { data: [] as { id: string; nom: string; ville: string | null; quartier: string | null; actif: boolean; visible_recherche: boolean; de_garde: boolean; stock_updated_at: string | null }[], error: null };
