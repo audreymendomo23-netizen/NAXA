@@ -69,7 +69,7 @@ begin
    v_action:='remplacement'; v_ancien:=old.statut_validation; v_nouveau:=new.statut_validation;
  end if;
  insert into public.pharmacie_document_historique(document_id,acteur_id,action,ancien_statut,nouveau_statut,detail)
- values(new.id,auth.uid(),v_action,v_ancien,v_nouveau,new.note_validation);
+ values(new.id,coalesce(auth.uid(),new.valide_par,new.recu_par),v_action,v_ancien,v_nouveau,new.note_validation);
  return new;
 end $$;
 drop trigger if exists trg_journaliser_pharmacie_document on public.pharmacie_documents;
