@@ -25,12 +25,12 @@ export async function creerPharmacie(formData: FormData) {
   const phone = f("phone").replace(/\s+/g, "");
 
   if (
-    !f("nom") || !f("ville") || !f("whatsapp") ||
+    !f("nom") || !f("ville") || !f("whatsapp") || !f("first_name") || !f("last_name") || !/^[A-Z]{2}$/.test(f("phone_country").toUpperCase()) ||
     !f("lat") || !f("lng") || !Number.isFinite(Number(f("lat"))) || !Number.isFinite(Number(f("lng"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90 || Number(f("lng")) < -180 || Number(f("lng")) > 180 ||
     !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username) ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
     password.length < 12 || !/^\+?[0-9]{8,15}$/.test(phone) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(f("date_of_birth")) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(f("date_of_birth")) || Number.isNaN(Date.parse(f("date_of_birth"))) || new Date(f("date_of_birth")).toISOString().slice(0, 10) !== f("date_of_birth") || new Date(f("date_of_birth")).getTime() > Date.now() ||
     !Number.isSafeInteger(montant) || montant <= 0 ||
     !ARCHITECTURES.includes(architecture)
   ) redirect("/admin?erreur=validation");
@@ -74,14 +74,30 @@ export async function creerPharmacie(formData: FormData) {
     whatsapp: f("whatsapp").replace(/\D/g, ""),
     code_marchand: null,
   });
-  const { error: profileError } = await db.from("profiles").update({
+  const { error: documentsError } = await db.from("pharmacie_documents_recus").insert({
+    pharmacie_id: pharmacyId,
+    piece_existence_legale: formData.get("piece_existence_legale") === "oui",
+    registre_commerce: formData.get("registre_commerce") === "oui",
+    niu: formData.get("niu") === "oui",
+    attestation_non_redevance: formData.get("attestation_non_redevance") === "oui",
+    plan_localisation: formData.get("plan_localisation") === "oui",
+    cni_promoteur: formData.get("cni_promoteur") === "oui",
+    mis_a_jour_par: adminId,
+    mis_a_jour_le: new Date().toISOString(),
+  });
+  if (documentsError) {
+    await cleanup();
+    redirect("/admin?erreur=documents");
+  }
+
+  const { data: updatedProfile, error: profileError } = await db.from("profiles").update({
     role: "promoteur", fonction_interne: "promoteur",
     niveau_interne: 1, niveau_hierarchique: 1,
     pharmacie_id: pharmacyId, architecture_code: architecture,
     actif: false, parent_profile_id: null,
-  }).eq("id", userId);
+  }).eq("id", userId).select("id").maybeSingle();
 
-  if (privateError || profileError) {
+  if (privateError || profileError || !updatedProfile) {
     await cleanup();
     redirect("/admin?erreur=profil");
   }
@@ -93,7 +109,7 @@ export async function creerPharmacie(formData: FormData) {
   const { data: convention, error: conventionError } = await db.from("conventions_promoteurs").insert({
     promoteur_id: userId, montant_mensuel: montant,
     date_paiement: null, date_expiration: expiryDate,
-    statut: "active",
+    statut: "active", architecture_code: architecture,
   }).select("id").single();
 
   if (conventionError || !convention) {
