@@ -23,14 +23,21 @@ export async function creerPharmacie(formData: FormData) {
   const email = f("email").toLowerCase();
   const password = f("motdepasse");
   const phone = f("phone").replace(/\s+/g, "");
+  const whatsapp = f("whatsapp").replace(/\D/g, "");
+  const birthDate = new Date(f("date_of_birth"));
+  const age = Date.now() >= birthDate.getTime()
+    ? new Date().getUTCFullYear() - birthDate.getUTCFullYear() -
+      (new Date().getUTCMonth() < birthDate.getUTCMonth() ||
+      (new Date().getUTCMonth() === birthDate.getUTCMonth() && new Date().getUTCDate() < birthDate.getUTCDate()) ? 1 : 0)
+    : -1;
 
   if (
-    !f("nom") || !f("ville") || !f("whatsapp") || !f("first_name") || !f("last_name") || !/^[A-Z]{2}$/.test(f("phone_country").toUpperCase()) ||
+    !f("nom") || !f("ville") || !/^[0-9]{8,15}$/.test(whatsapp) || !f("first_name") || !f("last_name") || !/^[A-Z]{2}$/.test(f("phone_country").toUpperCase()) ||
     !f("lat") || !f("lng") || !Number.isFinite(Number(f("lat"))) || !Number.isFinite(Number(f("lng"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90 || Number(f("lng")) < -180 || Number(f("lng")) > 180 ||
     !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username) ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
     password.length < 12 || !/^\+?[0-9]{8,15}$/.test(phone) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(f("date_of_birth")) || Number.isNaN(Date.parse(f("date_of_birth"))) || new Date(f("date_of_birth")).toISOString().slice(0, 10) !== f("date_of_birth") || new Date(f("date_of_birth")).getTime() > Date.now() ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(f("date_of_birth")) || Number.isNaN(Date.parse(f("date_of_birth"))) || new Date(f("date_of_birth")).toISOString().slice(0, 10) !== f("date_of_birth") || new Date(f("date_of_birth")).getTime() > Date.now() || age < 18 ||
     !Number.isSafeInteger(montant) || montant <= 0 ||
     !ARCHITECTURES.includes(architecture)
   ) redirect("/admin?erreur=validation");
@@ -71,9 +78,14 @@ export async function creerPharmacie(formData: FormData) {
 
   const { error: privateError } = await db.from("pharmacie_privee").insert({
     pharmacie_id: pharmacyId,
-    whatsapp: f("whatsapp").replace(/\D/g, ""),
+    whatsapp,
     code_marchand: null,
   });
+  if (privateError) {
+    await cleanup();
+    redirect("/admin?erreur=profil");
+  }
+
   const { error: documentsError } = await db.from("pharmacie_documents_recus").insert({
     pharmacie_id: pharmacyId,
     piece_existence_legale: formData.get("piece_existence_legale") === "oui",
@@ -97,7 +109,7 @@ export async function creerPharmacie(formData: FormData) {
     actif: false, parent_profile_id: null,
   }).eq("id", userId).select("id").maybeSingle();
 
-  if (privateError || profileError || !updatedProfile) {
+  if (profileError || !updatedProfile) {
     await cleanup();
     redirect("/admin?erreur=profil");
   }
