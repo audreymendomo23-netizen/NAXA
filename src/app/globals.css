@@ -907,3 +907,49 @@ html[data-theme="jour"] .naxa-night-wave {
   .promoteur-palette-fill:nth-child(5) { animation-delay: 240ms; }
   .promoteur-palette-fill:nth-child(6) { animation-delay: 300ms; }
 }
+
+
+/* Rail mobile Promoteur : toujours visible, libellés uniquement dans le panneau ouvert. */
+@keyframes promoteur-drawer-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@media (max-width: 1023px) {
+  .nav-promoteur:not(.nav-promoteur-open) .nav-promoteur-label { display: none; }
+  .nav-promoteur:not(.nav-promoteur-open) > div:first-child {
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem 0;
+  }
+  .nav-promoteur:not(.nav-promoteur-open) nav { padding-left: .25rem; padding-right: .25rem; }
+  .nav-promoteur:not(.nav-promoteur-open) nav a,
+  .nav-promoteur:not(.nav-promoteur-open) nav form button {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .nav-promoteur:not(.nav-promoteur-open) nav > div { margin-left: .25rem; margin-right: .25rem; }
+  .nav-promoteur:not(.nav-promoteur-open) > p { display: none; }
+  .nav-promoteur-open { animation: promoteur-drawer-reveal 180ms ease-out both; }
+  .nav-promoteur-open .nav-promoteur-label { display: block; }
+  .nav-promoteur-open > div:first-child {
+    height: 72px;
+    min-height: 72px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: .5rem;
+    padding: 0 .75rem;
+  }
+  .nav-promoteur-open nav { padding-left: .5rem; padding-right: .5rem; }
+  .nav-promoteur-open nav a,
+  .nav-promoteur-open nav form button { justify-content: flex-start; gap: .75rem; padding-left: .75rem; padding-right: .75rem; }
+  .nav-promoteur-open > p { display: block; }
+}
+@media (min-width: 1024px) {
+  .nav-promoteur-label { display: block; }
+}

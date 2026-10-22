@@ -285,3 +285,12 @@ Dans **Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Cl
 `https://eouwtuusnsuxaejsxknf.supabase.co/auth/v1/callback`
 
 Ces valeurs sont documentées à partir des domaines actuellement connus. Les paramètres Supabase et Google Cloud ne peuvent pas être prouvés par le seul build du dépôt ; aucun secret ni aucune configuration fournisseur n’a été modifié par ce correctif.
+
+
+## Espace Promoteur — refonte visuelle (22 octobre 2026)
+
+- Navigation dédiée dans `src/components/pharmacie/NavPromoteur.tsx` : barre fixe de 240 px sur grand écran, rail persistant de 56 px sur téléphone/tablette, panneau étendu, fermeture par clic extérieur ou Échap, et suivi de la section visible.
+- Tableau de bord Promoteur en cartes bento, KPI, contrastes renforcés et animations CSS sobres respectant `prefers-reduced-motion`. Les compteurs ne s'animent que pour les valeurs constituées d'entiers purs.
+- L'écran d'accès restreint conserve ses textes, conditions et liens ; seul son habillage est harmonisé.
+- Le contenu métier, les requêtes, les calculs, les routes et les composants `AvisRappelsLotsPromoteur` / `CaisseSecurityManager` restent inchangés. Les entrées « Marketplace & réservations » et « ERP & opérations » gardent la même URL existante ; elles ne reçoivent donc pas d'état actif distinct.
+- Changements directs sur `main`, sans branche ni pull request. Aucun déploiement manuel lancé. Le push sur `main` peut toutefois déclencher un pipeline automatique selon la configuration du dépôt.

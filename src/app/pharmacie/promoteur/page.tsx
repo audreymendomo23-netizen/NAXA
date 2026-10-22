@@ -114,7 +114,7 @@ export default async function EspacePromoteur() {
     const statusUnavailable = contractDataUnavailable || hasLoadError;
     const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Promoteur";
     return (
-      <main className="min-h-dvh bg-[#F2FAF5] px-4 py-8 text-naxa-green-900">
+      <main className="min-h-dvh bg-naxa-green-50 px-4 py-8 text-naxa-green-900">
         <div className="mx-auto max-w-3xl space-y-5">
           <header className="rounded-3xl bg-naxa-green-900 p-6 text-white sm:p-8">
             <p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">NAXA · Espace Promoteur</p>

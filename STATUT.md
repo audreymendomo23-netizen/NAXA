@@ -507,3 +507,14 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Rapport détaillé : `docs/compta/RAPPORT_ETAPE_10.md`.
 - Typecheck, lint, build, Vitest et navigateur NON EXÉCUTÉS ; CI NON CONSULTÉE/LANCÉE ; Supabase active NON MODIFIÉE ; aucun déploiement.
 - **État : 🟡 étape 10 partielle, SQL structurel PASS, E2E métier non certifié.**
+
+
+## Espace Promoteur — refonte visuelle (22/10/2026)
+
+- **Étape A — navigation persistante** : composant client `NavPromoteur`, rail mobile 56 px, panneau étendu, sidebar 240 px sur grand écran, groupes 1–9 / Configuration / Profil / Déconnexion, icônes SVG, état d'ancre via `IntersectionObserver`, fermeture clic extérieur/Échap.
+- **Étape B — bento et KPI** : disposition réorganisée, cartes arrondies sans ombre marquée, première carte KPI verte, grille KPI responsive, actions rapides mises en évidence, tableaux conservés dans leurs conteneurs de défilement horizontal internes, bandeau de palette conservé.
+- **Étape C — animations** : entrée en cascade (60 ms), compteur animé seulement pour une valeur entière pure, animation du bandeau, respect de `prefers-reduced-motion`.
+- **Étape D — accès restreint et documentation** : style harmonisé sans navigation pour l'accès restreint ; README et statut actualisés.
+- **Règles métier** : requêtes, calculs, états conditionnels, droits, routes, textes conditionnels et composants d'avis/sécurité conservés. L'action de déconnexion exécute toujours `signOut()` puis redirige vers `/connexion`.
+- **Limites connues** : « Marketplace & réservations » et « ERP & opérations » partagent la même URL existante ; aucun état actif distinct n'est affiché pour ces deux entrées. Aucun nouveau jeu de données, indicateur ou route n'a été ajouté.
+- **Vérification** : modifications statiques uniquement via GitHub. TypeScript, lint, build, tests navigateur et audit contraste instrumenté non exécutés dans cette session ; la révision n'est pas certifiée par CI. Aucun déploiement manuel lancé.
