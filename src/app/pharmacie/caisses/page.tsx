@@ -134,7 +134,7 @@ export default async function CaissesPage({ searchParams }: Props) {
           </label>
           <p className="text-xs leading-5 text-slate-600">La personne doit avoir créé et validé son compte NAXA au préalable. Son nom d’utilisateur est unique : ne demandez ni son mot de passe ni son code OTP. NAXA vérifie le compte côté serveur avant l’attribution.</p>
           <button className="btn btn-vert w-full" disabled={!pharmacyIds.length}>Attribuer l’accès Caissière</button>
-        </form> </form>
+        </form>
       </section>
     </main>
   );
