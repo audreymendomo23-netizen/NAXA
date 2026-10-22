@@ -50,9 +50,9 @@ export default async function EspacePromoteur() {
   const caisseIds = (caisseRows ?? []).map((c) => c.id);
   const { data: caisseSessions, error: ecartsCaisseError } = caisseIds.length
     ? await adminDb.from("caisses_sessions")
-        .select("id,caisse_id,ouvert_par,ouvert_at,statut,cloture_at,cloture_par,total_theorique,total_compte,ecart")
+        .select("id,caisse_id,ouvert_par,ouvert_at,statut,cloture_at,cloture_par,total_theorique,total_compte,ecart,ecart_justification,ecart_statut")
         .in("caisse_id", caisseIds).order("ouvert_at", { ascending: false }).limit(50)
-    : { data: [] as { id: string; caisse_id: string; ouvert_par: string; ouvert_at: string; statut: string; cloture_at: string | null; cloture_par: string | null; total_theorique: number; total_compte: number | null; ecart: number | null }[], error: null };
+    : { data: [] as { id: string; caisse_id: string; ouvert_par: string; ouvert_at: string; statut: string; cloture_at: string | null; cloture_par: string | null; total_theorique: number; total_compte: number | null; ecart: number | null; ecart_justification?: string | null; ecart_statut?: string }[], error: null };
   const ecartsCaisse = (caisseSessions ?? []).filter((s) => s.cloture_at && Number(s.ecart ?? 0) !== 0).slice(0, 20);
   const caisseById = new Map((caisseRows ?? []).map((c) => [c.id, c] as const));
 
@@ -213,6 +213,8 @@ export default async function EspacePromoteur() {
     accountingPeriodsResult,
     accountingQueueResult,
     accountingEntriesResult,
+    accountingPeriodsListResult,
+    staffProfilesResult,
   ] = await Promise.all([
     scopedIds.length
       ? adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", scopedIds).order("started_at", { ascending: false }).limit(50)
@@ -229,16 +231,22 @@ export default async function EspacePromoteur() {
     scopedIds.length
       ? adminDb.from("compta_ecriture").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).gte("date_ecriture", new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
       : Promise.resolve({ count: 0, error: null }),
+    scopedIds.length
+      ? adminDb.from("compta_periodes").select("id,pharmacie_id,date_debut,date_fin,statut").in("pharmacie_id", scopedIds).order("date_debut", { ascending: false }).limit(100)
+      : Promise.resolve({ data: [], error: null }),
+    scopedIds.length
+      ? adminDb.from("profiles").select("id,first_name,last_name,username,pharmacie_id,fonction_interne,role").in("pharmacie_id", scopedIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error);
-  const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error);
+  const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error || accountingPeriodsListResult.error);\n  const staffProfiles = staffProfilesResult.data ?? [];\n  const staffById = new Map(staffProfiles.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"] as const));\n  const periodsByPharmacy = new Map((accountingPeriodsListResult.data ?? []).map((p) => [p.pharmacie_id, p] as const));
   const pharmacistSessions = pharmacistSessionsResult.data ?? [];
   const stockSessions = stockSessionsResult.data ?? [];
   const staffSessions = [
     ...(caisseSessions ?? []).map((s) => ({ id: s.id, pharmacyId: caisseById.get(s.caisse_id)?.pharmacie_id ?? "", userId: s.ouvert_par, startedAt: s.ouvert_at, endedAt: s.cloture_at, role: "Caisse", label: caisseById.get(s.caisse_id)?.nom ?? "Caisse" })),
     ...pharmacistSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.pharmacien_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Pharmacien", label: "Service pharmacien" })),
     ...stockSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.user_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Gestionnaire de stock", label: "Service stock" })),
-  ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);
+  ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);\n  const openServiceCount = staffSessions.filter((s) => !s.endedAt).length;
 
   // Consolidation opérationnelle par poste : uniquement des agrégats et des profils
   // du réseau actif du Promoteur. Aucune donnée patient nominative n'est chargée ici.
@@ -353,6 +361,67 @@ export default async function EspacePromoteur() {
             <p className="mt-2 text-2xl font-extrabold tabular-nums">{k.value}</p>
             <p className="mt-1 text-xs text-slate-500">{k.note}</p>
           </article>)}
+        </section>
+
+        <div aria-label="Palette Promoteur" className="flex h-2 overflow-hidden rounded-full" title="Palette visuelle : vert 40 %, jaune canari 25 %, blanc 15 %, orange canari 10 %, bleu canari 5 %, rouge 5 %">
+          <span style={{ width: "40%", backgroundColor: "#0A6B3A" }} />
+          <span style={{ width: "25%", backgroundColor: "#FFE33D" }} />
+          <span style={{ width: "15%", backgroundColor: "#FFFFFF" }} />
+          <span style={{ width: "10%", backgroundColor: "#FFB000" }} />
+          <span style={{ width: "5%", backgroundColor: "#3DBBFF" }} />
+          <span style={{ width: "5%", backgroundColor: "#DC2626" }} />
+        </div>
+
+        <section id="sessions-personnel" className="rounded-2xl border border-[#FFB000]/50 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-lg font-extrabold">Prise / fin de service — réseau</h2><p className="mt-1 text-sm text-slate-600">Historique récent des sessions Caisse, Pharmacien et Gestionnaire de stock, limité aux pharmacies actives du Promoteur.</p></div>
+            <span className="rounded-full bg-[#FFE33D] px-3 py-1 text-xs font-extrabold text-naxa-green-900">{serviceSessionsError ? "Indisponible" : `${openServiceCount} service(s) ouvert(s)`}</span>
+          </div>
+          {serviceSessionsError ? <p role="status" className="mt-3 rounded-xl bg-orange-50 p-3 text-sm text-orange-950">Les sessions de service ne peuvent pas toutes être chargées. Aucun chiffre incomplet n'est présenté comme un résultat complet.</p> : !staffSessions.length ? <p className="mt-3 rounded-xl bg-[#F2FAF5] p-3 text-sm text-slate-600">Aucune session de service disponible pour les postes dont le suivi est configuré.</p> : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead><tr className="border-b border-slate-200 text-slate-500"><th className="p-2">Poste / service</th><th className="p-2">Personnel</th><th className="p-2">Prise</th><th className="p-2">Fin</th><th className="p-2">État</th></tr></thead>
+                <tbody>{staffSessions.map((s) => <tr key={s.role + s.id} className="border-b border-slate-100">
+                  <td className="p-2"><span className="font-bold">{s.role}</span><span className="block text-xs text-slate-500">{s.label}</span></td>
+                  <td className="p-2">{staffById.get(s.userId) ?? "Personnel non identifié"}</td>
+                  <td className="p-2 tabular-nums">{date(s.startedAt)}</td><td className="p-2 tabular-nums">{date(s.endedAt)}</td>
+                  <td className="p-2"><span className={s.endedAt ? "rounded-full bg-[#F2FAF5] px-2 py-1 text-xs font-bold text-naxa-green-900" : "rounded-full bg-[#FFE33D] px-2 py-1 text-xs font-bold text-naxa-green-900"}>{s.endedAt ? "Clôturé" : "Ouvert"}</span></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-3 text-xs leading-5 text-slate-500">Le suivi est affiché uniquement pour les postes disposant d'une table de session. Les rôles sans journal de service ne sont pas inventés.</p>
+        </section>
+
+        <section id="comptabilite-reseau" className="space-y-3">
+          <div><h2 className="text-lg font-extrabold">Contrôle comptable — réseau</h2><p className="mt-1 text-sm text-slate-600">Indicateurs de traitement et de clôture, en lecture seule. Ils ne remplacent pas les états comptables validés.</p></div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { title: "Périodes comptables ouvertes", value: accountingError ? "Indisponible" : String(accountingPeriodsResult.count ?? 0), color: "border-[#3DBBFF] bg-sky-50" },
+              { title: "Événements à traiter / en erreur", value: accountingError ? "Indisponible" : String(accountingQueueResult.count ?? 0), color: "border-[#FFB000] bg-orange-50" },
+              { title: "Écritures des 30 derniers jours", value: accountingError ? "Indisponible" : String(accountingEntriesResult.count ?? 0), color: "border-emerald-700 bg-[#F2FAF5]" },
+            ].map((item) => <article key={item.title} className={`rounded-2xl border p-4 shadow-sm ${item.color}`}><p className="text-sm font-semibold text-slate-600">{item.title}</p><p className="mt-2 text-2xl font-black tabular-nums">{item.value}</p></article>)}
+          </div>
+          {accountingError && <p role="status" className="rounded-xl bg-orange-50 p-3 text-sm text-orange-950">Une source comptable est indisponible ; les indicateurs comptables sont marqués « Indisponible ».</p>}
+        </section>
+
+        <section id="comparaison-pharmacies" className="rounded-2xl border border-[#3DBBFF]/60 bg-white p-5 shadow-sm">
+          <div><h2 className="text-lg font-extrabold">Comparaison par pharmacie et période</h2><p className="mt-1 text-sm text-slate-600">Lecture comparative du statut de clôture comptable par pharmacie. Les périodes affichées proviennent du socle comptable ; aucune marge historique n'est calculée.</p></div>
+          {!activePharmacies.length ? <p className="mt-3 rounded-xl bg-[#F2FAF5] p-3 text-sm text-slate-600">Aucune pharmacie opérationnelle dans le périmètre.</p> : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activePharmacies.map((ph) => {
+                const period = periodsByPharmacy.get(ph.id);
+                const caisseCount = operationalCaisses.filter((x) => x.pharmacie_id === ph.id && x.actif).length;
+                const sessionCount = staffSessions.filter((s) => s.pharmacyId === ph.id && !s.endedAt).length;
+                return <article key={ph.id} className="rounded-xl border border-slate-200 p-4">
+                  <h3 className="font-extrabold">{ph.nom}</h3>
+                  <p className="mt-2 text-sm text-slate-600">Caisses actives : <strong>{caissesError ? "Indisponible" : caisseCount}</strong></p>
+                  <p className="mt-1 text-sm text-slate-600">Services ouverts : <strong>{serviceSessionsError ? "Indisponible" : sessionCount}</strong></p>
+                  <p className="mt-1 text-sm text-slate-600">Période comptable la plus récente : <strong>{accountingError ? "Indisponible" : period ? `${date(period.date_debut)} – ${date(period.date_fin)} · ${period.statut}` : "Aucune période configurée"}</strong></p>
+                </article>;
+              })}
+            </div>
+          )}
         </section>
 
         <section id="controle-postes" className="space-y-3">
