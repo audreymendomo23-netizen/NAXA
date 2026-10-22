@@ -31,16 +31,24 @@ export async function creerPharmacie(formData: FormData) {
       (new Date().getUTCMonth() === birthDate.getUTCMonth() && new Date().getUTCDate() < birthDate.getUTCDate()) ? 1 : 0)
     : -1;
 
-  if (
-    !f("nom") || !f("ville") || !/^[0-9]{8,15}$/.test(whatsapp) || !f("first_name") || !f("last_name") || !/^[A-Z]{2}$/.test(f("phone_country").toUpperCase()) ||
-    !f("lat") || !f("lng") || !Number.isFinite(Number(f("lat"))) || !Number.isFinite(Number(f("lng"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90 || Number(f("lng")) < -180 || Number(f("lng")) > 180 ||
-    !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username) ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-    password.length < 12 || !/^\+?[0-9]{8,15}$/.test(phone) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(f("date_of_birth")) || Number.isNaN(Date.parse(f("date_of_birth"))) || new Date(f("date_of_birth")).toISOString().slice(0, 10) !== f("date_of_birth") || new Date(f("date_of_birth")).getTime() > Date.now() || age < 18 ||
-    !Number.isSafeInteger(montant) || montant <= 0 ||
-    !ARCHITECTURES.includes(architecture)
-  ) redirect("/admin?erreur=validation");
+  const errors: Record<string, string> = {};
+  if (!f("nom")) errors.nom = "Le nom de la pharmacie est obligatoire.";
+  if (!f("ville")) errors.ville = "La ville est obligatoire.";
+  if (!/^[0-9]{8,15}$/.test(whatsapp)) errors.whatsapp = "Saisissez 8 à 15 chiffres pour WhatsApp.";
+  if (!f("first_name")) errors.first_name = "Le prénom est obligatoire.";
+  if (!f("last_name")) errors.last_name = "Le nom est obligatoire.";
+  if (!/^[A-Z]{2}$/.test(f("phone_country").toUpperCase())) errors.phone_country = "Code pays attendu sur 2 lettres (ex. CM).";
+  if (!f("lat") || !Number.isFinite(Number(f("lat"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90) errors.lat = "Latitude obligatoire entre -90 et 90.";
+  if (!f("lng") || !Number.isFinite(Number(f("lng"))) || Number(f("lng")) < -180 || Number(f("lng")) > 180) errors.lng = "Longitude obligatoire entre -180 et 180.";
+  if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) errors.username = "3 à 30 caractères : minuscules, chiffres, point, tiret ou souligné.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Adresse e-mail invalide.";
+  if (password.length < 12) errors.motdepasse = "Au moins 12 caractères requis.";
+  if (!/^\+?[0-9]{8,15}$/.test(phone)) errors.phone = "Téléphone invalide : 8 à 15 chiffres.";
+  const dob = f("date_of_birth");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob)) || (Number.isFinite(Date.parse(dob)) && new Date(dob).toISOString().slice(0, 10) !== dob) || new Date(dob).getTime() > Date.now() || age < 18) errors.date_of_birth = "Date valide requise ; âge minimum : 18 ans.";
+  if (!Number.isSafeInteger(montant) || montant <= 0) errors.montant_mensuel = "Entier positif requis (FCFA).";
+  if (!ARCHITECTURES.includes(architecture)) errors.architecture_code = "Architecture invalide.";
+  if (Object.keys(errors).length) redirect("/admin?erreur=validation&champs=" + encodeURIComponent(JSON.stringify(errors)));
 
   const db = supabaseAdmin();
   const { data: created, error: userError } = await db.auth.admin.createUser({
@@ -51,7 +59,7 @@ export async function creerPharmacie(formData: FormData) {
       date_of_birth: f("date_of_birth"), consent_accepted: true,
     },
   });
-  if (userError || !created.user) redirect("/admin?erreur=compte");
+  if (userError || !created.user) { console.error("[admin.creerPharmacie] étape=auth.createUser", { code: userError?.code, message: userError?.message }); redirect("/admin?erreur=compte"); }
 
   const userId = created.user.id;
   const { data: pharmacy, error: pharmacyError } = await db.from("pharmacies").insert({
@@ -61,19 +69,28 @@ export async function creerPharmacie(formData: FormData) {
   }).select("id").single();
 
   if (pharmacyError || !pharmacy) {
+    console.error("[admin.creerPharmacie] étape=pharmacies.insert", { code: pharmacyError?.code, message: pharmacyError?.message, details: pharmacyError?.details, hint: pharmacyError?.hint });
     await db.auth.admin.deleteUser(userId);
     redirect("/admin?erreur=pharmacie");
   }
 
   const pharmacyId = pharmacy.id;
   const cleanup = async () => {
-    await db.from("promoteur_pharmacies").delete().eq("promoteur_id", userId);
-    await db.from("abonnements_promoteurs").delete().eq("promoteur_id", userId);
-    await db.from("conventions_promoteurs").delete().eq("promoteur_id", userId);
-    await db.from("pharmacie_architectures").delete().eq("pharmacie_id", pharmacyId);
-    await db.from("pharmacie_privee").delete().eq("pharmacie_id", pharmacyId);
-    await db.from("pharmacies").delete().eq("id", pharmacyId);
-    await db.auth.admin.deleteUser(userId);
+    const results = await Promise.allSettled([
+      db.from("pharmacie_documents_recus").delete().eq("pharmacie_id", pharmacyId),
+      db.from("promoteur_pharmacies").delete().eq("promoteur_id", userId),
+      db.from("abonnements_promoteurs").delete().eq("promoteur_id", userId),
+      db.from("conventions_promoteurs").delete().eq("promoteur_id", userId),
+      db.from("pharmacie_architectures").delete().eq("pharmacie_id", pharmacyId),
+      db.from("pharmacie_privee").delete().eq("pharmacie_id", pharmacyId),
+    ]);
+    const pharmacyDelete = await db.from("pharmacies").delete().eq("id", pharmacyId);
+    const authDelete = await db.auth.admin.deleteUser(userId);
+    console.error("[admin.creerPharmacie] compensation", {
+      pharmacieId, userId, cleanupSteps: results.map((r) => r.status),
+      pharmacyDeleteError: pharmacyDelete.error?.message ?? null,
+      authDeleteError: authDelete.error?.message ?? null,
+    });
   };
 
   const { error: privateError } = await db.from("pharmacie_privee").insert({
@@ -82,6 +99,7 @@ export async function creerPharmacie(formData: FormData) {
     code_marchand: null,
   });
   if (privateError) {
+    console.error("[admin.creerPharmacie] étape=pharmacie_privee.insert", { code: privateError.code, message: privateError.message, details: privateError.details, hint: privateError.hint });
     await cleanup();
     redirect("/admin?erreur=profil");
   }
@@ -98,6 +116,7 @@ export async function creerPharmacie(formData: FormData) {
     mis_a_jour_le: new Date().toISOString(),
   });
   if (documentsError) {
+    console.error("[admin.creerPharmacie] étape=pharmacie_documents_recus.insert", { code: documentsError.code, message: documentsError.message, details: documentsError.details, hint: documentsError.hint });
     await cleanup();
     redirect("/admin?erreur=documents");
   }
@@ -110,6 +129,7 @@ export async function creerPharmacie(formData: FormData) {
   }).eq("id", userId).select("id").maybeSingle();
 
   if (profileError || !updatedProfile) {
+    console.error("[admin.creerPharmacie] étape=profiles.update", { code: profileError?.code, message: profileError?.message, details: profileError?.details, hint: profileError?.hint });
     await cleanup();
     redirect("/admin?erreur=profil");
   }
@@ -125,6 +145,7 @@ export async function creerPharmacie(formData: FormData) {
   }).select("id").single();
 
   if (conventionError || !convention) {
+    console.error("[admin.creerPharmacie] étape=conventions_promoteurs.insert", { code: conventionError?.code, message: conventionError?.message, details: conventionError?.details, hint: conventionError?.hint });
     await cleanup();
     redirect("/admin?erreur=convention");
   }
@@ -134,6 +155,7 @@ export async function creerPharmacie(formData: FormData) {
     .eq("code", architecture).eq("active", true).single();
 
   if (archError || !arch) {
+    console.error("[admin.creerPharmacie] étape=naxa_architectures.select", { code: archError?.code, message: archError?.message, details: archError?.details, hint: archError?.hint });
     await cleanup();
     redirect("/admin?erreur=architecture");
   }
@@ -145,6 +167,7 @@ export async function creerPharmacie(formData: FormData) {
   });
 
   if (abonnementError) {
+    console.error("[admin.creerPharmacie] étape=abonnements_promoteurs.insert", { code: abonnementError.code, message: abonnementError.message, details: abonnementError.details, hint: abonnementError.hint });
     await cleanup();
     redirect("/admin?erreur=abonnement");
   }
@@ -157,6 +180,7 @@ export async function creerPharmacie(formData: FormData) {
   }, { onConflict: "pharmacie_id" });
 
   if (pharmacyArchitectureError) {
+    console.error("[admin.creerPharmacie] étape=pharmacie_architectures.upsert", { code: pharmacyArchitectureError.code, message: pharmacyArchitectureError.message, details: pharmacyArchitectureError.details, hint: pharmacyArchitectureError.hint });
     await cleanup();
     redirect("/admin?erreur=architecture");
   }
@@ -166,6 +190,7 @@ export async function creerPharmacie(formData: FormData) {
   });
 
   if (linkError) {
+    console.error("[admin.creerPharmacie] étape=promoteur_pharmacies.insert", { code: linkError.code, message: linkError.message, details: linkError.details, hint: linkError.hint });
     await cleanup();
     redirect("/admin?erreur=reseau");
   }
