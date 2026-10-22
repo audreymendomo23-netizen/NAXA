@@ -218,10 +218,10 @@ export default async function EspacePromoteur() {
       ? adminDb.from("profiles").select("id,role,fonction_interne,actif,pharmacie_id,niveau_interne,parent_profile_id").in("pharmacie_id", scopedIds)
       : Promise.resolve({ data: [] as {id:string;role:string;fonction_interne:string|null;actif:boolean;pharmacie_id:string|null;niveau_interne:number|null;parent_profile_id:string|null}[], error: null }),
     scopedIds.length ? adminDb.from("stocks").select("produit_id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).lte("quantite", 5) : Promise.resolve({count:0,error:null}),
-    scopedIds.length ? adminDb.from("stocks_lots").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).or("bloque.eq.true,date_peremption.lte." + new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10)) : Promise.resolve({count:0,error:null}),
+    scopedIds.length ? adminDb.from("stocks_lots").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).or("date_peremption.is.null,date_peremption.lte." + new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10) + ",bloque.eq.true") : Promise.resolve({count:0,error:null}),
     scopedIds.length ? adminDb.from("reservations").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).in("statut", ["en_attente", "confirmee"]) : Promise.resolve({count:0,error:null}),
     scopedIds.length ? adminDb.from("prescriptions").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).eq("source", "client").eq("statut", "en_attente") : Promise.resolve({count:0,error:null}),
-    scopedIds.length ? adminDb.from("prescription_preparations").select("prescription_id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).in("statut", ["a_preparer", "en_cours", "a_completer"]) : Promise.resolve({count:0,error:null}),
+    scopedIds.length ? adminDb.from("prescription_preparations").select("prescription_id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).in("statut", ["soumise", "complement_requis"]) : Promise.resolve({count:0,error:null}),
   ]);
   const team = teamRows ?? [];
   const roleCounts = {
@@ -327,8 +327,8 @@ export default async function EspacePromoteur() {
           {roleControlError && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Une ou plusieurs sources de poste sont indisponibles. Les valeurs concernées sont affichées « Indisponible », pas comme des zéros.</p>}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[
-              { title: "Responsables", people: roleControl.responsables, metric: "Comptes actifs", detail: "Supervision des Caisses et opérations du périmètre", href: "/pharmacie/pilotage" },
-              { title: "Caisses", people: roleControl.caisses, metric: "Comptes actifs", detail: "Ventes, sessions et écarts de clôture", href: "/pharmacie/caisses" },
+              { title: "Responsables", people: roleControl.responsables, metric: "Comptes actifs", detail: "Supervision des Caisses et opérations du périmètre délégué", href: "/pharmacie/pilotage" },
+              { title: "Caisses", people: roleControl.caisses, metric: "Comptes actifs", detail: `Ventes, sessions et écarts à vérifier parmi les dernières clôtures chargées : ${ecartsCaisseError ? "indisponible" : (ecartsCaisse ?? []).filter((e) => e.ecart_statut === "a_verifier").length}`, href: "/pharmacie/caisses" },
               { title: "Pharmaciens", people: roleControl.pharmaciens, metric: "Comptes actifs", detail: roleControl.prescriptions === null ? "Ordonnances en attente : indisponible" : `Ordonnances à contrôler : ${roleControl.prescriptions}`, href: "/pharmacie/pharmacien" },
               { title: "Gestionnaires de stock / magasiniers", people: roleControl.stock, metric: "Comptes actifs", detail: roleControl.stocksBas === null ? "Stocks bas : indisponible" : `Références à stock bas : ${roleControl.stocksBas}`, href: "/pharmacie/gestionnaire-stock" },
               { title: "Réservations Marketplace", people: null, metric: "À traiter", detail: roleControl.reservations === null ? "Source réservations indisponible" : `${roleControl.reservations} réservation(s) en attente ou confirmée(s)`, href: "/pharmacie?vue=operation" },
@@ -420,7 +420,7 @@ export default async function EspacePromoteur() {
         </section>
 
         <div id="securite" className="space-y-4">
-          <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
+          <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true && c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id)).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
           <section id="configuration" className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-extrabold">Configuration et périmètre contractuel</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">Architecture attribuée par NAXA : <strong>{convention?.architecture_code ?? profile.architecture_code ?? "Non renseignée"}</strong>. Le Promoteur peut gérer les Caisses et déléguer uniquement les privilèges compatibles, actifs et délégables. Les paramètres de convention et les droits de gouvernance ne sont pas modifiables depuis cet espace.</p>
