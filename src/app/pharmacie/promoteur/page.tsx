@@ -15,7 +15,7 @@ type Stats = {
   serie?: { jour: string; recherches: number; reservations: number; ventes: number }[];
 };
 
-const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";
+const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";\nconst dateTime = (v: string | null | undefined) => v ? new Date(v).toLocaleString("fr-FR") : "Non renseignée";
 
 export default async function EspacePromoteur() {
   const sb = supabaseServer();
@@ -249,7 +249,7 @@ export default async function EspacePromoteur() {
   for (const row of networkSalesResult.data ?? []) { const current = salesByPharmacy.get(row.pharmacie_id) ?? { ca: 0, ventes: 0 }; current.ca += Number(row.total ?? 0); current.ventes += Number(row.ventes ?? 0); salesByPharmacy.set(row.pharmacie_id, current); }
   const staffProfiles = staffProfilesResult.data ?? [];
   const staffById = new Map(staffProfiles.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"] as const));
-  const periodsByPharmacy = new Map((accountingPeriodsListResult.data ?? []).map((p) => [p.pharmacie_id, p] as const));
+  const periodsByPharmacy = new Map<string, { id: string; pharmacie_id: string; date_debut: string; date_fin: string; statut: string }>();\n  for (const period of accountingPeriodsListResult.data ?? []) if (!periodsByPharmacy.has(period.pharmacie_id)) periodsByPharmacy.set(period.pharmacie_id, period);
   const pharmacistSessions = pharmacistSessionsResult.data ?? [];
   const stockSessions = stockSessionsResult.data ?? [];
   const staffSessions = [
@@ -374,7 +374,7 @@ export default async function EspacePromoteur() {
           </article>)}
         </section>
 
-        <div aria-label="Palette Promoteur" className="flex h-2 overflow-hidden rounded-full" title="Palette visuelle : vert 40 %, jaune canari 25 %, blanc 15 %, orange canari 10 %, bleu canari 5 %, rouge 5 %">
+        <div aria-label="Palette Promoteur" className="flex h-2 overflow-hidden rounded-full border border-slate-200" title="Palette visuelle : vert 40 %, jaune canari 25 %, blanc 15 %, orange canari 10 %, bleu canari 5 %, rouge 5 %">
           <span style={{ width: "40%", backgroundColor: "#0A6B3A" }} />
           <span style={{ width: "25%", backgroundColor: "#FFE33D" }} />
           <span style={{ width: "15%", backgroundColor: "#FFFFFF" }} />
@@ -395,7 +395,7 @@ export default async function EspacePromoteur() {
                 <tbody>{staffSessions.map((s) => <tr key={s.role + s.id} className="border-b border-slate-100">
                   <td className="p-2"><span className="font-bold">{s.role}</span><span className="block text-xs text-slate-500">{s.label}</span></td>
                   <td className="p-2">{staffById.get(s.userId) ?? "Personnel non identifié"}</td>
-                  <td className="p-2 tabular-nums">{date(s.startedAt)}</td><td className="p-2 tabular-nums">{date(s.endedAt)}</td>
+                  <td className="p-2 tabular-nums">{dateTime(s.startedAt)}</td><td className="p-2 tabular-nums">{dateTime(s.endedAt)}</td>
                   <td className="p-2"><span className={s.endedAt ? "rounded-full bg-[#F2FAF5] px-2 py-1 text-xs font-bold text-naxa-green-900" : "rounded-full bg-[#FFE33D] px-2 py-1 text-xs font-bold text-naxa-green-900"}>{s.endedAt ? "Clôturé" : "Ouvert"}</span></td>
                 </tr>)}</tbody>
               </table>
@@ -414,7 +414,7 @@ export default async function EspacePromoteur() {
               <table className="w-full min-w-[680px] text-left text-sm">
                 <thead><tr className="border-b border-slate-200 text-slate-500"><th className="p-2">Caisse</th><th className="p-2">Clôture</th><th className="p-2">Théorique</th><th className="p-2">Compté</th><th className="p-2">Écart</th></tr></thead>
                 <tbody>{(caisseSessions ?? []).filter((s) => s.cloture_at).slice(0, 30).map((s) => <tr key={s.id} className="border-b border-slate-100">
-                  <td className="p-2 font-bold">{caisseById.get(s.caisse_id)?.nom ?? "Caisse"}</td><td className="p-2">{date(s.cloture_at)}</td><td className="p-2 tabular-nums">{fcfa(s.total_theorique)}</td><td className="p-2 tabular-nums">{s.total_compte === null ? "Non renseigné" : fcfa(s.total_compte)}</td>
+                  <td className="p-2 font-bold">{caisseById.get(s.caisse_id)?.nom ?? "Caisse"}</td><td className="p-2">{dateTime(s.cloture_at)}</td><td className="p-2 tabular-nums">{fcfa(s.total_theorique)}</td><td className="p-2 tabular-nums">{s.total_compte === null ? "Non renseigné" : fcfa(s.total_compte)}</td>
                   <td className="p-2"><span className={Number(s.ecart ?? 0) === 0 ? "rounded-full bg-[#F2FAF5] px-2 py-1 text-xs font-bold text-naxa-green-900" : Number(s.ecart) < 0 ? "rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-900" : "rounded-full bg-orange-100 px-2 py-1 text-xs font-bold text-orange-900"}>{Number(s.ecart ?? 0) > 0 ? "+" : ""}{fcfa(Number(s.ecart ?? 0))}</span></td>
                 </tr>)}</tbody>
               </table>
