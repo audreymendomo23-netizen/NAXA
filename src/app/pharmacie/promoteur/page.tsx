@@ -48,11 +48,11 @@ export default async function EspacePromoteur() {
     ? await adminDb.from("caisses").select("id,nom,pharmacie_id").in("pharmacie_id", operationalIds)
     : { data: [] as { id: string; nom: string; pharmacie_id: string }[] };
   const caisseIds = (caisseRows ?? []).map((c) => c.id);
-  const { data: ecartsCaisse } = caisseIds.length
+  const { data: ecartsCaisse, error: ecartsCaisseError } = caisseIds.length
     ? await adminDb.from("caisses_sessions")
         .select("id,caisse_id,cloture_at,total_theorique,total_compte,ecart,ecart_justification,ecart_statut")
         .in("caisse_id", caisseIds).neq("ecart", 0).order("cloture_at", { ascending: false }).limit(20)
-    : { data: [] as { id: string; caisse_id: string; cloture_at: string | null; total_theorique: number; total_compte: number | null; ecart: number | null; ecart_justification: string | null; ecart_statut: string }[] };
+    : { data: [] as { id: string; caisse_id: string; cloture_at: string | null; total_theorique: number; total_compte: number | null; ecart: number | null; ecart_justification: string | null; ecart_statut: string }[], error: null };
   const caisseById = new Map((caisseRows ?? []).map((c) => [c.id, c] as const));
 
   const { data: statsData, error: statsError } = profile.actif === true
