@@ -612,3 +612,23 @@ La migration additive `supabase/migration_229_assignment_stock_lot_create.sql` r
 - Aucun build, lint, typecheck, CI ou déploiement n'a été lancé. Supabase Production reste inchangée.
 
 **Prochaine tranche prioritaire :** poursuivre l'inventaire des RPC qui modifient les stocks et les lots, en séparant les opérations du domaine Pharmacie de celles du Marketplace partenaire. Chaque modification doit préserver l'idempotence, la cohérence stock/lot, les limites de pharmacie et les droits EXECUTE.
+
+
+## 12.5 — Raccordement des opérations Stock aux affectations multiples (2026-10-23)
+
+Les migrations 232 et 233 étendent les gardes serveur aux affectations professionnelles actives et limitées à la pharmacie concernée. Elles ne changent pas les RPC du Marketplace partenaire.
+
+Opérations raccordées :
+- Réception fournisseur atomique : `fournisseur_reception_enregistrer` vérifie l’affectation Stock et conserve les contrôles de commande, reliquat, lots bloqués, péremption et cohérence stock/lots.
+- Ajustement contrôlé : `gestionnaire_stock_quantite_ajuster` accepte les affectations Stock tout en conservant le motif, la quantité non négative et la cohérence des lots.
+- Emplacements stock et lot, blocage/déblocage de lot, initialisation de référence, ouverture de service et transfert entre pharmacies.
+- Le transfert exige une autorisation indépendante sur la pharmacie source ET la pharmacie destination : une affectation dans une seule pharmacie ne suffit pas.
+- Les actions serveur et pages Inventaires / Fournisseurs-Réceptions incluent les pharmacies des affectations actives du compte, en complément de `my_pharmacies`.
+
+Sécurité RPC :
+- Exécution des RPC Stock concernées réservée à `authenticated`; `anon` et `public` sont explicitement révoqués.
+- L’affectation reste active seulement dans son intervalle temporel, est liée au compte et à la pharmacie, et ne modifie pas le rôle principal du profil.
+- Les opérations de rappel/retrait réglementaire de lots restent distinctes : elles ne sont pas automatiquement accordées à un Gestionnaire de stock ou Magasinier sans validation métier spécifique.
+- Les changements ont été appliqués uniquement à la base Supabase isolée de test. Le test de contrat SQL a été exécuté sans erreur SQL, mais aucun parcours n’a encore été joué avec un vrai compte affecté.
+- Build, lint, typecheck et CI non lancés. Production inchangée; aucun déploiement.
+
