@@ -33,22 +33,17 @@ begin
     raise exception 'RLS lecture personnelle absente';
   end if;
 
-  if not exists (
+  if exists (
     select 1 from pg_policies
      where schemaname='public'
        and tablename='offline_operations'
-       and policyname='offline_operations_insert_scope'
+       and policyname in ('offline_operations_insert_scope','offline_operations_update_own')
   ) then
-    raise exception 'RLS insertion scope absente';
+    raise exception 'Les écritures directes offline doivent rester désactivées';
   end if;
 
-  if not exists (
-    select 1 from pg_policies
-     where schemaname='public'
-       and tablename='offline_operations'
-       and policyname='offline_operations_update_own'
-  ) then
-    raise exception 'RLS mise à jour personnelle absente';
+  if has_table_privilege('authenticated','public.offline_operations','INSERT') then
+    raise exception 'INSERT direct offline interdit';
   end if;
 
   if has_function_privilege(
@@ -71,7 +66,5 @@ begin
     raise exception 'authenticated doit pouvoir exécuter la RPC offline';
   end if;
 end $$;
-
-select '053_offline_idempotence PASS' as resultat;
 
 select '053_offline_idempotence PASS' as resultat;
