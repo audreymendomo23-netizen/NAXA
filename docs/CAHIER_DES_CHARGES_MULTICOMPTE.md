@@ -487,3 +487,29 @@ Aucune correction applicative n'a été effectuée car le cahier interdit les co
 Créer et revoir une migration additive de réconciliation pour les objets appareils/synchronisation et la RPC serveur, en comparant la définition exacte de la base de test à l'historique du dépôt. Ajouter des tests positifs/négatifs pour activation, jeton d'appareil, idempotence, conflit de stock et refus des opérations non autorisées. La migration restera un fichier versionné non appliqué à Production tant qu'aucune autorisation distincte de migration ne sera donnée.
 
 **Verdict après ce lot :** progrès vérifiés, mais l'étape 1 reste **OUVERTE**. MC-02 et le défaut du test 053 sont corrigés au niveau du code/test ; MC-01 est partiellement corrigé ; MC-03 reste bloqué par la divergence dépôt/base active.
+
+
+## 12. Réconciliation MC-01 / MC-03 — constat contradictoire du 23/10/2026
+
+### Faits vérifiés en lecture seule
+
+- La route `src/app/api/sync/route.ts` appelle `naxa_apply_offline_operation_v1(uuid, uuid, text, jsonb, bigint)` avec un identifiant d’appareil, un identifiant d’opération, un type, un payload et un horodatage client en millisecondes.
+- Sur le projet Supabase de test isolé, les objets `appareils`, `naxa_offline_operations` et `naxa_apply_offline_operation_v1` existent. La définition observée accepte notamment `stock_set_quantity`, mais écrit dans sa propre table d’opérations et autorise dans cette version des quantités négatives avec alerte.
+- Sur Supabase Production, les trois objets précédents sont absents. La RPC disponible est `offline_stock_set_quantity(uuid, uuid, uuid, integer, timestamptz)`, fondée sur `auth.uid()`, un horodatage serveur de référence `base_updated_at`, l’idempotence par utilisateur, le contrôle de conflit et le refus de quantités négatives.
+- Les deux RPC ont donc des contrats et des garanties différents. Remplacer simplement le nom de la RPC dans la route serait incorrect : le payload actuel ne transmet pas explicitement `base_updated_at` au niveau de l’appel, et l’identité appareil n’équivaut pas à `auth.uid()`.
+- Le rôle public `role_type` vérifié sur la base de test comprend `client`, `pharmacie`, `promoteur`, `caisse` et `admin`. Le contrôle d’activation de l’appareil déjà présent dans `main` cible `caisse`, ou `pharmacie` avec une `fonction_interne` non vide, en plus de l’état actif et du périmètre de pharmacie.
+
+### Correction de code ajoutée à main
+
+Commit `35e4941ed8d7673213173242b4f9f150882aa7df` — `fix(sync): distinguish database failures from invalid devices [skip ci]`.
+
+La route de synchronisation distingue maintenant une erreur de lecture de la table des appareils (réponse générique HTTP 503 et journal serveur) d’un appareil absent/inactif (HTTP 401). Cela évite de présenter une panne de schéma ou de base comme un jeton invalide. Le message renvoyé au client ne révèle pas le détail SQL.
+
+### Décision de sécurité et état
+
+- **MC-03 reste bloqué**, pas déclaré vert : le contrat de la file locale (notamment la présence et le format de l’horodatage de base du stock) doit être établi avant de rédiger une migration additive compatible.
+- La migration n’a pas été appliquée sur Production, ni ailleurs pendant cette étape. Aucune écriture SQL distante n’a été exécutée sur Production.
+- Le contrôle ciblé de `supabase/tests/053_offline_idempotence.sql` a précédemment passé sous forme de bloc SQL ciblé sur le projet de test isolé ; cela ne constitue pas une exécution de toute la suite SQL ni une validation de Production.
+- Aucun build, lint, typecheck, pipeline CI ou déploiement n’a été lancé pour ce correctif.
+
+**Prochaine action sûre :** retrouver la source exacte qui crée les opérations locales et confirmer comment elle capture `stocks.updated_at`. Ensuite seulement, définir une migration additive et ses tests de sécurité/idempotence, en les gardant séparés de toute application Production.
