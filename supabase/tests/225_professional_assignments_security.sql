@@ -10,6 +10,7 @@ declare
   v_lot text;
   v_inventory_line text;
   v_inventory_close text;
+  v_offline text;
 begin
   if to_regclass('public.naxa_professional_assignments') is null then
     raise exception 'FAIL: table naxa_professional_assignments absente';
@@ -104,6 +105,16 @@ begin
      or position('quantite_comptee is null' in lower(v_inventory_close))=0
      or position('closed_by=auth.uid()' in lower(v_inventory_close))=0 then
     raise exception 'FAIL: garde affectation ou contrôles de clôture inventaire absents';
+  end if;
+
+  select pg_get_functiondef('public.offline_stock_set_quantity(uuid,uuid,uuid,integer,timestamptz)'::regprocedure)
+    into v_offline;
+  if position('naxa_has_active_professional_assignment' in v_offline)=0
+     or position('v_assigned' in v_offline)=0
+     or position('created_by<>v_uid' in v_offline)=0
+     or position('base_updated_at is distinct from p_base_updated_at' in lower(v_offline))=0
+     or position('lotized_stock_requires_lot_operation' in v_offline)=0 then
+    raise exception 'FAIL: garde affectation ou contrôles de synchronisation offline absents';
   end if;
 
   raise notice '225_professional_assignments_security PASS';
