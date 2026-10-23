@@ -15,8 +15,8 @@ async function authorized(){
  if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)||hasAssignment)) redirect("/");
  const {data:raw,error:e}=await sb.rpc("my_pharmacies");
  const ids=[...new Set([...(Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"),...(hasAssignment?assignments.map(a=>a.pharmacie_id).filter((id):id is string=>typeof id==="string"):[])])];
- if(e||!ids.length) redirect("/pharmacie/gestionnaire-stock/fournisseurs-receptions?erreur=perimetre");
-
+ if((e&&!hasAssignment)||!ids.length) redirect("/pharmacie/gestionnaire-stock/fournisseurs-receptions?erreur=perimetre");
+ return {sb,uid:auth.user.id,ids};
 }
 const uuid=(x:string)=>/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(x);
 const back="/pharmacie/gestionnaire-stock/fournisseurs-receptions";
