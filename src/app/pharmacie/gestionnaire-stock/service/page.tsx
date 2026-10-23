@@ -35,20 +35,25 @@ export default async function ServiceGestionStockPage({
     .select("role,fonction_interne,actif").eq("id", auth.user.id).maybeSingle();
   const role = String(profile?.role ?? "").toLowerCase();
   const fn = String(profile?.fonction_interne ?? "").toLowerCase();
+  const { data: assignmentRows, error: assignmentError } = await sb.from("naxa_professional_assignments")
+    .select("pharmacie_id,fonction,commence_at,expire_at").eq("profile_id", auth.user.id)
+    .eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"]);
+  const now = Date.now();
+  const assignedIds = (assignmentRows ?? []).filter(a => new Date(a.commence_at).getTime() <= now && new Date(a.expire_at).getTime() > now).map(a => a.pharmacie_id);
   if (!profile || profile.actif === false ||
       !(role === "admin" || role === "promoteur" ||
-        ["pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"].includes(fn))) {
+        ["pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"].includes(fn) || assignedIds.length > 0)) {
     redirect("/");
   }
 
   const { data: rawPharmacies, error: scopeError } = await sb.rpc("my_pharmacies");
-  const ids = [...new Set((Array.isArray(rawPharmacies) ? rawPharmacies : [])
-    .filter((id): id is string => typeof id === "string"))];
+  const ids = [...new Set([...(Array.isArray(rawPharmacies) ? rawPharmacies : [])
+    .filter((id): id is string => typeof id === "string"), ...assignedIds])];
   const { data: pharmaciesData } = ids.length
     ? await sb.from("pharmacies").select("id,nom").in("id", ids)
     : { data: [] as Pharmacy[] };
   const pharmacies = (pharmaciesData ?? []) as Pharmacy[];
-  if (scopeError || !ids.length) return <main className="p-5">Périmètre pharmacie indisponible. Aucune donnée n’est affichée.</main>;
+  if ((scopeError && assignedIds.length === 0) || assignmentError || !ids.length) return <main className="p-5">Périmètre pharmacie indisponible. Aucune donnée n’est affichée.</main>;
 
   const { data: sessionsData, error: sessionsError } = await sb.from("stock_service_sessions")
     .select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at,status,opening_note,closing_note")
