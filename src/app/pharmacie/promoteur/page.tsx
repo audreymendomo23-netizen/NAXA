@@ -283,6 +283,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
             <EspaceNaxaSwitcher current="promoteur" />
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Ouvrir les opérations</Link>
             <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/pharmacie/caisses">Gérer l’équipe</Link>
+             <Link className="rounded-full border border-white px-4 py-2 text-sm font-bold text-white" href="/pharmacie/affectations">Affectations multiples</Link>
           </div>
         </header>
         <div className="promoteur-bento-grid min-w-0">
@@ -406,7 +407,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
           <p className="text-xs leading-5 text-naxa-green-700">Les chiffres de stock bas utilisent le seuil opérationnel déjà utilisé par le poste Gestionnaire de stock (quantité ≤ 5). Ce seuil décrit une alerte de travail, pas une règle réglementaire. Les métriques de marge et de rentabilité ne sont pas affichées tant que le coût historique au moment de la vente n’est pas disponible.</p>
         </section>
 
-<section id="actions-rapides" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5"><h2 className="text-lg font-extrabold">Actions rapides</h2><div className="mt-3 flex flex-wrap gap-2"><Link className="btn btn-vert" href="/pharmacie/caisses">Gestion des Caisses</Link><Link className="btn btn-clair" href="/pharmacie/pilotage">Pilotage du réseau</Link><Link className="btn btn-clair" href="/pharmacie/pilotage/rapports">Rapports</Link></div></section>
+<section id="actions-rapides" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5"><h2 className="text-lg font-extrabold">Actions rapides</h2><div className="mt-3 flex flex-wrap gap-2"><Link className="btn btn-vert" href="/pharmacie/caisses">Gestion des Caisses</Link><Link className="btn btn-clair" href="/pharmacie/affectations">Affectations multiples</Link><Link className="btn btn-clair" href="/pharmacie/pilotage">Pilotage du réseau</Link><Link className="btn btn-clair" href="/pharmacie/pilotage/rapports">Rapports</Link></div></section>
         <section id="ecarts-caisse" className="promoteur-card xl:col-span-6 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-extrabold">Écarts de caisse à vérifier</h2>
