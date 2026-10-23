@@ -8,12 +8,17 @@ async function scope() {
  const {data:auth}=await sb.auth.getUser();
  if(!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/inventaires");
  const {data:p,error}=await sb.from("profiles").select("role,fonction_interne,actif").eq("id",auth.user.id).maybeSingle();
- const role=String(p?.role??"").toLowerCase(), fn=String(p?.fonction_interne??"").toLowerCase();
- if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn))) redirect("/");
- const {data:rows,error:e}=await sb.rpc("my_pharmacies");
- const ids=[...new Set((Array.isArray(rows)?rows:[]).filter((id):id is string=>typeof id==="string"))];
+ const role=String(p?.role??"").toLowerCase(),fn=String(p?.fonction_interne??"").toLowerCase();
+ const now=new Date().toISOString();
+ const {data:assignments,error:ae}=await sb.from("naxa_professional_assignments").select("pharmacie_id")
+  .eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"])
+  .lte("commence_at",now).gt("expire_at",now);
+ const hasAssignment=!ae&&Array.isArray(assignments)&&assignments.length>0;
+ if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)||hasAssignment)) redirect("/");
+ const {data:raw,error:e}=await sb.rpc("my_pharmacies");
+ const ids=[...new Set([...(Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"),...(hasAssignment?assignments.map(a=>a.pharmacie_id).filter((id):id is string=>typeof id==="string"):[])])];
  if(e||!ids.length) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=perimetre");
- return {sb,uid:auth.user.id,ids};
+
 }
 export async function creerInventaireStock(formData:FormData) {
  const {sb,ids}=await scope();
