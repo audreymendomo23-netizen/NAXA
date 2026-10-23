@@ -23,7 +23,7 @@ export function GestionnaireStockSidebar({ active }: { active: string }) {
         <span aria-hidden="true" className="w-5 text-center text-base">{entry.icon}</span><span>{entry.label}</span>
       </Link>)}
     </nav>
-    <div className="mt-3"><EspaceNaxaSwitcher current="pharmacie" /></div>
+    <div className="mt-3"><EspaceNaxaSwitcher current="stock" /></div>
     <div className="mt-3 border-t pt-3"><DeconnexionGestionnaireStock /></div>
   </aside>;
 }
