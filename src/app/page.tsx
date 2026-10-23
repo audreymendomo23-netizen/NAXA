@@ -140,9 +140,8 @@ export default function Accueil() {
     const sb = supabaseBrowser();
 
     const redirigerClientConnecte = async (userId: string) => {
-      // L'accueil public reste la page par défaut, mais un client déjà connecté
-      // qui arrive sur "/" doit retrouver son espace personnel.
-      if (window.location.pathname !== "/") return;
+      // Respecter le contrôle d'âge avant toute redirection vers une page protégée.
+      if (ageStatus() !== "adult" || window.location.pathname !== "/") return;
       const { data: profile, error } = await sb
         .from("profiles")
         .select("role")
