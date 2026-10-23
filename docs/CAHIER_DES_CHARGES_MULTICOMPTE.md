@@ -558,7 +558,7 @@ Les éléments suivants sont maintenant enregistrés dans le dépôt :
 ### Limites actuelles — ne pas déclarer le multicompte terminé
 
 - Les affectations supplémentaires ne sont pas encore reconnues par tous les RPC, actions serveur, gardes de routes et politiques RLS des postes Caisse, Pharmacien, Comptable et Stock.
-- Pour Stock, seuls les RPC `stock_service_open` et `gestionnaire_stock_reservation_annuler` ont été raccordés explicitement à l'affectation ; les autres opérations conservent leurs gardes historiques.
+- Pour Stock, les RPC `stock_service_open`, `gestionnaire_stock_reservation_annuler`, `stock_lot_enregistrer`, `inventaire_preparer_ligne` et `inventaire_cloturer` ont été raccordés explicitement aux affectations ; les autres opérations conservent leurs gardes historiques.
 - Les affectations sont créées directement par le Promoteur dans la fonction RPC, avec interdiction de s'affecter soi-même. Il n'existe pas encore de circuit séparé de demande puis approbation.
 - Le journal append-only complet des actes réalisés sous une affectation n'est pas encore branché.
 - La disponibilité de l'écran dans l'application nécessite que la version correspondante soit déployée ; aucun déploiement n'a été demandé ni effectué.
@@ -588,3 +588,15 @@ Le statut est donc **incrément technique partiel**, et non « multicompte compl
 ### 12.3 Creation des lots et affectations Stock
 
 La migration additive `supabase/migration_229_assignment_stock_lot_create.sql` raccorde `stock_lot_enregistrer` aux affectations actives `gestionnaire_stock` et `magasinier` pour la pharmacie concernée. Les gardes métier historiques de cohérence stock/lot, lot source, blocage et péremption sont conservées. Elle a été appliquée uniquement sur la base Supabase isolée. Le test SQL de contrat a été étendu et exécuté sans erreur; il ne constitue pas un test de bout en bout avec un utilisateur réel. Aucun build, lint, typecheck, CI ou déploiement n'a été lancé; production inchangée.
+
+
+### 12.4 Préparation et clôture d'inventaire — 23/10/2026
+
+- L'inspection des définitions exactes dans la base de test a montré que `inventaire_preparer_ligne` et `inventaire_cloturer` ne reconnaissaient que les contrôles historiques `is_admin()` / `can_access_pharmacy()`. Une affectation Stock seule pouvait donc être insuffisante.
+- Migration additive `supabase/migration_230_assignment_inventory_guards.sql`, commit `34d4c94583463290177ace6e993716c87fee18c7` : les deux RPC reconnaissent maintenant une affectation active `gestionnaire_stock` ou `magasinier` limitée à la pharmacie de l'inventaire.
+- La préparation conserve le contrôle de l'état de l'inventaire, la correspondance lot/produit/pharmacie, la quantité théorique et le coût unitaire. La clôture conserve le verrou de ligne, le refus de clôture si une ligne n'a pas été comptée et l'enregistrement de `closed_by` / `closed_at`.
+- Migration 230 appliquée avec succès uniquement au projet Supabase de test isolé `pwfftcsjyeibxxqhwysw`.
+- Le test de contrat `supabase/tests/225_professional_assignments_security.sql` a été étendu aux deux RPC et exécuté sans erreur SQL sur la base de test. Aucun scénario de bout en bout avec un véritable compte affecté n'a été exécuté.
+- Aucun build, lint, typecheck, CI ou déploiement n'a été lancé. Supabase Production reste inchangée.
+
+**Prochaine tranche prioritaire :** examiner `offline_stock_set_quantity` et les autres RPC de modification de stock, puis vérifier les autorisations effectives de leurs signatures avant de les modifier. Ne pas étendre cette correction aux opérations du Marketplace partenaire : elles utilisent un modèle de membre partenaire distinct.
