@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "stock" | "pharmacien" | "admin";
+type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "stock" | "pharmacien" | "comptable" | "admin";
 type Props = { current: Space };
 type Profile = {
   role: string | null;
@@ -16,7 +16,7 @@ type Profile = {
   phone: string | null;
   date_of_birth: string | null;
   age_verified: boolean | null;
-  consent_accepted_at: string | null;
+  consent_accepted_at: string | null;\n  pharmacie_id: string | null;
 };
 
 const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
@@ -26,6 +26,7 @@ const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
   caisse: { label: "Poste Caisse", href: "/pharmacie/caisse" },
   stock: { label: "Poste Gestionnaire de stock", href: "/pharmacie/gestionnaire-stock" },
   pharmacien: { label: "Poste Pharmacien", href: "/pharmacie/pharmacien" },
+  comptable: { label: "Espace Comptable", href: "/pharmacie/comptable" },
   admin: { label: "Espace Admin", href: "/admin" },
 };
 
@@ -42,7 +43,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
         const { data: auth } = await sb.auth.getUser();
         if (!auth.user) return;
         const { data, error } = await sb.from("profiles")
-          .select("role,fonction_interne,actif,username,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
+          .select("role,fonction_interne,actif,username,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at,pharmacie_id")
           .eq("id", auth.user.id)
           .maybeSingle();
         if (!alive || error || !data) return;
