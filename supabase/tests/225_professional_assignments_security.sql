@@ -47,7 +47,7 @@ begin
     into v_grant;
   if position('ASSIGN_USER_TO_PHARMACY' in v_grant)=0
      or position('expire_at' in v_grant)=0
-     or position('p_target = v_actor' in v_grant)=0 then
+     or position('p_target = v_actor' in v_grant)=0\n     or position('for update' in lower(v_grant))=0\n     or position('a.commence_at < p_expire_at' in v_grant)=0 then
     raise exception 'FAIL: garde de grant incomplète';
   end if;
 
