@@ -5,7 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { importerStock } from "@/lib/importStock";
 import { fcfa } from "@/lib/ranking";
 import { Logo } from "@/components/Logo";
-import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
+import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";\nimport { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string|null;updated_at:string;emplacement:string|null;produits:{nom:string;dosage:string}|null};
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
@@ -73,7 +73,7 @@ export default function PanneauPharmacie(){
  const vus=stock.filter(l=>(l.produits?.nom??"").toLowerCase().includes(filtre.toLowerCase()));
  return <main className="mx-auto min-h-dvh max-w-4xl px-4 pb-16">
   {module!=="marketplace"&&<RappelsLotsBanner pharmacieId={pid} />}
-  {module===""&&<header className="-mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white"><Logo taille={32}/><span className="font-semibold">{nom}</span></header>}
+  {module===""&&<header className="-mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white"><Logo taille={32}/><span className="font-semibold">{nom}</span><EspaceNaxaSwitcher current="pharmacie" /></header>}
   {pid&&module===""&&<section aria-label="Vue d’ensemble de la pharmacie" className="mb-5 pt-2">
    <div className="mb-4">
     <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-naxa-green-700">Tableau de bord</p>
