@@ -211,4 +211,19 @@ begin
  return v_transfer;
 end;
 $function$;
+
+-- RPC exposées aux utilisateurs connectés uniquement; pas d'exécution anon/public.
+revoke all on function public.stock_emplacement_modifier(uuid,uuid,text) from public,anon;
+grant execute on function public.stock_emplacement_modifier(uuid,uuid,text) to authenticated;
+revoke all on function public.stock_lot_emplacement_modifier(uuid,text) from public,anon;
+grant execute on function public.stock_lot_emplacement_modifier(uuid,text) to authenticated;
+revoke all on function public.gestionnaire_stock_service_ouvrir(uuid) from public,anon;
+grant execute on function public.gestionnaire_stock_service_ouvrir(uuid) to authenticated;
+revoke all on function public.stock_lot_blocage_modifier(uuid,boolean,text) from public,anon;
+grant execute on function public.stock_lot_blocage_modifier(uuid,boolean,text) to authenticated;
+revoke all on function public.gestionnaire_stock_reference_initialiser(uuid,uuid,integer,text) from public,anon;
+grant execute on function public.gestionnaire_stock_reference_initialiser(uuid,uuid,integer,text) to authenticated;
+revoke all on function public.gestionnaire_stock_transfert_atomique(uuid,uuid,uuid,integer,uuid,text) from public,anon;
+grant execute on function public.gestionnaire_stock_transfert_atomique(uuid,uuid,uuid,integer,uuid,text) to authenticated;
+
 commit;
