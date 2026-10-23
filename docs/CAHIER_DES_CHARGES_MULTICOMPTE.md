@@ -457,3 +457,33 @@ Le Promoteur peut autoriser plusieurs postes simultanément pour une même perso
 **ÉTAPE 1 : NON TERMINÉE — défauts confirmés et validations manquantes.** Les points MC-01, MC-02 et MC-03 présentent des écarts concrets ; MC-04 confirme que le modèle multicompte n'est pas implémenté dans le schéma actif ; MC-05 n'est pas déployé dans la base active examinée. Les contrôles positifs de la base isolée ne rendent pas la base active conforme.
 
 Aucune correction applicative n'a été effectuée car le cahier interdit les commits de code et les migrations Production sans autorisation distincte. Le prochain jalon doit être une autorisation explicite de corriger le code et les tests sur `main`, sans déploiement, après validation de ce bilan.
+
+
+---
+
+## 11. Corrections après autorisation — 23/10/2026
+
+**Autorisation reçue :** corrections applicatives et tests sur `main`, sans déploiement et sans écriture/migration sur Supabase Production. La liaison Git de Vercel consultée pendant cette session ne retourne aucun projet lié ; aucun déploiement n'a été déclenché. Les commits ci-dessous utilisent `[skip ci]` et aucun pipeline n'a été lancé volontairement.
+
+### 11.1 Modifications appliquées
+
+| Élément | Correction | Commit | Niveau de preuve |
+|---|---|---|---|
+| MC-02 — CRON rapports | Le secret devient obligatoire : absent, vide ou différent, la route retourne 401. Le contrôle ne saute plus l'authentification si `CRON_SECRET` n'est pas configuré. | `893a2fceb81e0c7a48b242ccdc635e6815a083cd` | Code relu sur `main` ; test HTTP non exécuté |
+| MC-01 — activation appareil | La route exige maintenant un profil strictement actif, une pharmacie identique au cookie et une fonction professionnelle autorisée par le rôle `caisse` ou par un rôle `pharmacie` avec `fonction_interne` non vide. | `4fbb0240a6c8e9ec1c1f56f99386b81fb436af54` | Code relu sur `main` ; test HTTP non exécuté |
+| MC-03 — erreur de synchronisation | La réponse publique ne révèle plus le message SQL brut de l'échec RPC ; le détail technique reste dans les logs serveur. | `fe33b5576acb72b05118c8b8845bace06bb2d5b2` | Code relu sur `main` |
+| MC-08 — test offline | Le test 053 ne réclame plus les anciennes politiques INSERT/UPDATE directes ; il vérifie qu'elles restent absentes et que l'INSERT direct est interdit, conformément au modèle de mutations contrôlées par RPC. Le doublon du marqueur PASS a été retiré. | `bea188f2abf0a91cadd68bc4a41d80b06ec7231a` | Test SQL exécuté séquentiellement sur la base isolée : **PASS** |
+
+### 11.2 Résultat de la vérification
+
+- **Vert confirmé :** le contrôle statique de refus fermé MC-02 est présent ; le garde professionnel MC-01 est présent ; les erreurs SQL brutes ne sont plus renvoyées au client ; le test 053 retourne `053_offline_idempotence PASS` sur la base isolée.
+- **Non vert — MC-01 :** la table `public.appareils` reste absente de la base NAXA active consultée. Le garde de code est renforcé, mais le parcours ne peut pas être déclaré fonctionnel en Production.
+- **Non vert — MC-03 :** `src/app/api/sync/route.ts` appelle toujours `naxa_apply_offline_operation_v1`, absente de la base active consultée. La RPC existante `offline_stock_set_quantity` a un contrat différent (authentification utilisateur, mise à jour d'une quantité avec horodatage de base) ; la substituer directement à la RPC appareil serait incorrect et pourrait casser l'idempotence, le contrôle de périmètre et le modèle de synchronisation. La table `appareils` et les objets offline attendus sont également absents de la base active. Aucun changement de nom de RPC n'a donc été effectué sans migration de compatibilité vérifiée.
+- **Non vert — validations d'exécution :** lint, typecheck, build, HTTP/E2E et CI n'ont pas été lancés conformément au périmètre actuel. Aucun secret d'environnement n'a été lu.
+- **Supabase Production :** lecture seule maintenue ; aucune écriture ni migration exécutée.
+
+### 11.3 Prochaine correction sûre
+
+Créer et revoir une migration additive de réconciliation pour les objets appareils/synchronisation et la RPC serveur, en comparant la définition exacte de la base de test à l'historique du dépôt. Ajouter des tests positifs/négatifs pour activation, jeton d'appareil, idempotence, conflit de stock et refus des opérations non autorisées. La migration restera un fichier versionné non appliqué à Production tant qu'aucune autorisation distincte de migration ne sera donnée.
+
+**Verdict après ce lot :** progrès vérifiés, mais l'étape 1 reste **OUVERTE**. MC-02 et le défaut du test 053 sont corrigés au niveau du code/test ; MC-01 est partiellement corrigé ; MC-03 reste bloqué par la divergence dépôt/base active.
