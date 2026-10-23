@@ -632,3 +632,19 @@ Sécurité RPC :
 - Les changements ont été appliqués uniquement à la base Supabase isolée de test. Le test de contrat SQL a été exécuté sans erreur SQL, mais aucun parcours n’a encore été joué avec un vrai compte affecté.
 - Build, lint, typecheck et CI non lancés. Production inchangée; aucun déploiement.
 
+
+
+## 12.6 — Clôture des gardes Stock restantes (2026-10-23)
+
+Migrations ajoutées :
+- **234** : inventaires transactionnels — démarrer, ajouter un produit, compter, annuler et clôturer. La clôture conserve le traitement transactionnel des écarts, l’écriture dans inventaire_ajustements, la synchronisation stocks/lots, le verrouillage, et l’obligation de compter toutes les lignes. La politique de lecture des ajustements reconnaît les affectations Stock actives.
+- **235** : comptage des quantités retrouvées/isolées en quarantaine, autorisé aux personnes Stock affectées à la pharmacie. Cela ne donne pas le droit de déclencher un rappel, de lever un rappel ou de traiter sa sortie réglementaire.
+- **236** : le comptage et la clôture d’une session de service revalident l’affectation active. Le contrôle de propriété de session reste en place : une affectation ne permet pas de reprendre la session d’un autre gestionnaire.
+- **237** : confirmation d’une réservation pharmacie par une affectation Stock active, en conservant les vérifications de statut, d’expiration, d’allocation FEFO et de lots bloqués/périmés.
+
+Une régression détectée pendant l’audit a été corrigée : une définition antérieure de inventaire_cloturer avait remplacé la clôture transactionnelle complète par une clôture simplifiée. La migration 234 restaure le traitement complet issu du workflow transactionnel, en y ajoutant la garde d’affectation.
+
+Le test supabase/tests/225_professional_assignments_security.sql vérifie maintenant les gardes des RPC de réception, ajustement, inventaire, service, confirmation de réservation, quarantaine, lots et transfert, ainsi que les ACL authenticated / anon et la séparation du stock Marketplace partenaire. Il a été exécuté sur Supabase isolée de test sans erreur SQL.
+
+**Limites de validation** : aucun parcours n’a été joué avec un véritable compte assigné; aucun build, lint, typecheck ou CI n’a été lancé. La base de test ne reflète pas toutes les migrations de l’application, certaines fonctions ont donc été validées par inspection de leurs définitions du dépôt et par contrat de catalogue après préparation du schéma de test. Ces migrations n’ont pas été appliquées à Production et aucun déploiement n’a été lancé.
+
