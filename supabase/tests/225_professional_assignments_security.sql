@@ -190,6 +190,16 @@ begin
     raise exception 'FAIL: ACL des opérations de service Stock incorrectes';
   end if;
 
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_reservation_confirmer(uuid)'::regprocedure))=0
+     or position('expires_at<=now()' in lower(pg_get_functiondef('public.gestionnaire_stock_reservation_confirmer(uuid)'::regprocedure)))=0
+     or position('reservation_item_lots' in pg_get_functiondef('public.gestionnaire_stock_reservation_confirmer(uuid)'::regprocedure))=0 then
+    raise exception 'FAIL: confirmation de réservation sans affectation, expiration ou contrôle d’allocation des lots';
+  end if;
+  if not has_function_privilege('authenticated','public.gestionnaire_stock_reservation_confirmer(uuid)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_reservation_confirmer(uuid)','EXECUTE') then
+    raise exception 'FAIL: ACL de confirmation de réservation incorrectes';
+  end if;
+
   raise notice '225_professional_assignments_security PASS';
 end
 $test$;
