@@ -33,6 +33,22 @@ Les deux fichiers joints sont ta **source de vérité** :
 15. **Bandeau « Les plus recherchés ».** Il est calculé sur les recherches (sans identité ni position), pas vendu. Pas de sponsoring ni de mise en avant payante. Il doit avoir un bouton Pause, s'arrêter au survol et au clavier, et ne pas défiler si le téléphone réduit les animations. Dis-moi si les compteurs semblent manipulés.
 16. **Ne change aucune décision du cahier des charges sans me demander.** Si tu penses qu'une décision est mauvaise, dis-le, explique pourquoi, propose une alternative, et attends ma réponse.
 
+
+
+## 2 bis. Multicompte, remplacement et cumul de fonctions — règles obligatoires
+
+Pour tout travail touchant l'authentification, les espaces client/professionnel/Admin, les rôles, les fonctions internes, la pharmacie ou les droits métier, lis aussi intégralement `docs/CAHIER_DES_CHARGES_MULTICOMPTE.md`. Ce document est le registre de continuité pour cet aspect de NAXA : respecte ses statuts, ses preuves et ses décisions encore ouvertes.
+
+- Une personne conserve une identité client durable distincte de ses affectations professionnelles et de ses droits Admin. Ne crée pas un deuxième compte Auth simplement pour donner un poste.
+- Ne considère jamais `profiles.role`, `profiles.fonction_interne`, le nom d'utilisateur ou l'affichage d'un bouton comme preuve suffisante d'autorisation. Vérifie les gardes serveur, les RPC, les privilèges EXECUTE, le périmètre et RLS.
+- Les remplacements temporaires (ex. Gestionnaire de stock remplaçant une Caissière) et cumuls de fonctions (ex. Caisse + Stock, Pharmacien + Responsable) doivent être représentés par des affectations explicites, traçables, limitées à un périmètre et une période, avec motif, demandeur, approbateur, état, activation, expiration et révocation. Ne modifie pas le rôle principal comme raccourci.
+- Le Promoteur peut être le demandeur/approbateur uniquement dans les limites d'une règle métier validée. Par défaut, aucun employé ne peut approuver sa propre demande. Les droits ne sont effectifs qu'après approbation explicite et contrôle côté serveur/base.
+- **Décision non encore validée :** la règle autorisant plusieurs fonctions actives simultanément pour une personne dans une pharmacie reste « À DÉCIDER ». Ne la suppose pas et ne code pas de contrainte définitive avant confirmation de l'utilisateur. La règle d'urgence, la durée maximale, la prolongation et la révocation anticipée sont également à confirmer.
+- Le bouton « Espace administrateur » ne doit apparaître que pour une identité disposant d'une autorisation Admin explicite. Le contrôle réel reste obligatoire côté serveur/base pour chaque route et action sensible. Si possible, conserver la même identité Auth lors de la bascule d'espace ; ne jamais conférer des droits Admin implicitement.
+- Journalise les demandes, approbations, refus, activations, expirations, révocations et opérations sensibles avec l'acteur réel, l'affectation, le périmètre, l'heure, le résultat et le minimum de contexte nécessaire. Préserve la séparation des tâches pour la caisse, le stock, les clôtures et les données sensibles.
+- Avant toute évolution de schéma, inventorie tous les consommateurs de `profiles.role`, `fonction_interne`, `pharmacie_id`, des RPC et de RLS. Propose la migration minimale et additive ; n'exécute aucune migration distante sans autorisation explicite.
+- Recette minimale : demande non approuvée = aucun droit ; affectation hors période/révoquée = refus malgré une session ouverte ; pharmacie hors périmètre = refus ; auto-approbation = refus par défaut ; opérations sous remplacement correctement auditées ; client sans autorisation Admin refusé même sur URL/API directe ; révocation Admin effective côté serveur/base.
+
 ## 3. Méthode de travail
 - **Une phase à la fois.** À la fin de chaque phase : résume ce qui est fait, ce qui reste, ce que tu n'as pas pu vérifier, puis **demande ma validation** avant la suivante.
 - Pour chaque fichier modifié ou créé : donne le **chemin complet** et le **contenu complet** (jamais « le reste est inchangé »).
