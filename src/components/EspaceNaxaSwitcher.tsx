@@ -73,7 +73,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           }
           if (profile.role === "pharmacie") allowed.push("pharmacie");
           if (profile.role === "caisse" || profile.fonction_interne === "caisse") allowed.push("caisse");
-          if (["gestionnaire_stock", "magasinier", "responsable"].includes(profile.fonction_interne ?? "")) {
+          if (["gestionnaire_stock", "magasinier", "responsable", "pharmacien", "pharmacien_assistant"].includes(profile.fonction_interne ?? "")) {
             allowed.push("stock");
           }
           if (profile.fonction_interne === "pharmacien") allowed.push("pharmacien");
