@@ -119,8 +119,8 @@ export function BottomNav() {
  const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  const scan=pathname==="/scanner";
  const favorites=pathname==="/client/profil/favoris";
- const profile=(pathname==="/client"&&!achatsTab)||pathname==="/client/posologie"||(pathname.startsWith("/client/profil/")&&!favorites)||pathname.startsWith("/reservation/");
- const shopping=(pathname==="/client"&&achatsTab)||pathname==="/panier";
+ const profile=pathname==="/client/posologie"||(pathname==="/client/profil"||pathname.startsWith("/client/profil/"))&&!favorites||pathname.startsWith("/reservation/");
+ const shopping=pathname==="/client"||pathname==="/panier";
  const labels=[{label:"Achats",icon:"shopping" as const},{label:"Réservations",icon:"calendar" as const},{label:"Commandes",icon:"clipboard" as const}];
  const purchase=labels[rotating];
  const tab=(active:boolean,label:string,icon:IconName,href:string,extra?:React.ReactNode,animated=false)=> <Link href={href} aria-current={active?"page":undefined} className="relative flex h-[54px] min-w-0 items-center justify-center rounded-[20px] transition-transform duration-150 active:scale-[0.96]">
