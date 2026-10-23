@@ -59,11 +59,23 @@ export function EspaceNaxaSwitcher({ current }: Props) {
         if (hasClientIdentity) allowed.push("client");
 
         if (profile.actif === true) {
-          if (profile.role === "admin") allowed.push("admin");
-          if (profile.role === "promoteur") allowed.push("promoteur");
+          if (profile.role === "admin") {
+            allowed.push("admin");
+            // Le garde serveur de l'espace stock autorise également l'équipe Admin.
+            allowed.push("stock");
+          }
+          if (profile.role === "promoteur") {
+            allowed.push("promoteur");
+            // Le tableau opérationnel pharmacie possède un mode Promoteur dédié.
+            allowed.push("pharmacie");
+            // Le garde serveur stock autorise aussi le Promoteur.
+            allowed.push("stock");
+          }
           if (profile.role === "pharmacie") allowed.push("pharmacie");
           if (profile.role === "caisse" || profile.fonction_interne === "caisse") allowed.push("caisse");
-          if (profile.fonction_interne === "gestionnaire_stock") allowed.push("stock");
+          if (["gestionnaire_stock", "magasinier", "responsable"].includes(profile.fonction_interne ?? "")) {
+            allowed.push("stock");
+          }
           if (profile.fonction_interne === "pharmacien") allowed.push("pharmacien");
           if (profile.fonction_interne === "comptable") allowed.push("comptable");
 
@@ -99,10 +111,15 @@ export function EspaceNaxaSwitcher({ current }: Props) {
         <span aria-hidden="true">↔</span> Changer d’espace <span aria-hidden="true">{open ? "▴" : "▾"}</span>
       </button>
       {open && <nav aria-label="Espaces accessibles" role="menu" className="absolute left-0 top-full z-50 mt-2 min-w-60 rounded-xl border border-emerald-900/15 bg-white p-2 text-emerald-950 shadow-xl">
-        {available.map((space) => <Link key={space} role="menuitem" href={SPACE_DETAILS[space].href} onClick={() => setOpen(false)}
-          className="block rounded-lg px-3 py-3 text-sm font-semibold hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800">
-          {SPACE_DETAILS[space].label}
-        </Link>)}
+        {available.map((space) => {
+          const href = space === "pharmacie" && spaces.includes("promoteur")
+            ? "/pharmacie?vue=operation"
+            : SPACE_DETAILS[space].href;
+          return <Link key={space} role="menuitem" href={href} onClick={() => setOpen(false)}
+            className="block rounded-lg px-3 py-3 text-sm font-semibold hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800">
+            {SPACE_DETAILS[space].label}
+          </Link>;
+        })}
       </nav>}
     </div>
   );
