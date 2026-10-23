@@ -91,6 +91,22 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           }
         }
 
+        // Les affectations additionnelles sont distinctes du rôle principal.
+        // Seul l'espace Stock est exposé ici pour les affectations explicitement
+        // reconnues par les gardes serveur déjà raccordés.
+        const { data: assignments, error: assignmentsError } = await sb.from("naxa_professional_assignments")
+          .select("fonction,commence_at,expire_at,statut")
+          .eq("profile_id", auth.user.id)
+          .eq("statut", "active");
+        if (!assignmentsError) {
+          const now = Date.now();
+          if ((assignments ?? []).some((assignment) =>
+            ["gestionnaire_stock", "magasinier"].includes(assignment.fonction)
+            && new Date(assignment.commence_at).getTime() <= now
+            && new Date(assignment.expire_at).getTime() > now
+          )) allowed.push("stock");
+        }
+
         if (alive) setSpaces([...new Set(allowed)]);
       } catch {
         // Le menu est masqué si le profil ou les permissions ne peuvent être lus.
