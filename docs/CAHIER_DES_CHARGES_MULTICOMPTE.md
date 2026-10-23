@@ -115,7 +115,7 @@ Le modèle cible à étudier est celui d'**affectations professionnelles explici
 
 ### Décisions encore ouvertes — ne pas inventer de décision validée
 
-- **Cumul simultané :** l'utilisateur doit confirmer si plusieurs fonctions peuvent être actives simultanément pour la même personne dans la même pharmacie, ou si une seule affectation temporaire peut être active à la fois. Jusqu'à confirmation, traiter cette règle comme **À DÉCIDER** et ne pas coder de contrainte métier définitive.
+- **Cumul simultané — DÉCIDÉ le 23/10/2026 :** le Promoteur peut autoriser plusieurs fonctions actives simultanément pour une même personne, dans une même pharmacie. Chaque fonction reste une affectation explicite, distincte, approuvée, limitée au périmètre et à sa période ; aucun droit implicite ne découle du cumul. Le cumul inter-pharmacies doit être représenté par des affectations séparées pour chaque pharmacie. Cette décision métier ne prouve pas que le code la prend déjà en charge et n'autorise pas à modifier le schéma ou le code sans autorisation distincte.
 - **Urgence :** à confirmer si le Promoteur peut créer directement une affectation d'urgence ou s'il doit toujours créer une demande approuvée par un autre responsable autorisé. Aucun auto-approuvage ne doit être supposé.
 - **Durée et prolongation :** les dates de début/fin, renouvellement et révocation anticipée doivent être définis ; une affectation ne doit jamais rester active indéfiniment par défaut.
 
@@ -135,7 +135,7 @@ Le modèle cible à étudier est celui d'**affectations professionnelles explici
 | Remplacement approuvé, dans sa période et sa pharmacie | Seuls les droits explicitement autorisés sont actifs |
 | Affectation expirée/révoquée avec ancienne session ouverte | Opérations métier refusées côté serveur/base |
 | Employé tentant d'approuver sa propre demande | Refus, sauf règle explicite de séparation des tâches préalablement validée — par défaut refus |
-| Cumul de postes | Comportement conforme à la décision métier écrite ; aucun droit implicite |
+| Cumul de postes | Plusieurs fonctions peuvent être actives simultanément dans une même pharmacie si chacune a été explicitement approuvée ; aucun droit implicite |
 | Opération caisse/stock réalisée sous remplacement | Journal attribuant l'action à l'employé et à l'affectation effective |
 | Client avec autorisation Admin explicite | Bascule vers l'espace Admin possible ; les API Admin restent protégées côté serveur/base |
 | Client sans autorisation Admin tentant une URL/API Admin directe | Refus même si l'interface est manipulée |
@@ -406,6 +406,11 @@ Copier ce prompt pour reprendre le chantier sans perdre le contexte :
 | 22/10/2026 | Avant-projet identité unique et espaces client/pharmacie | Premier incrément consigné ; recette de bout en bout non prouvée dans ce document |
 | 23/10/2026 | Audit statique ciblé et consolidation du chantier | MC-01 à MC-08 inscrits ; état réel Supabase/CI à vérifier séparément |
 | 23/10/2026 | Création du présent cahier des charges | Document de référence ; ne prouve ni correction applicative ni CI verte |
-| 23/10/2026 | Ajout du besoin de remplacement/cumul de postes et bascule Admin | Spécification métier ajoutée ; règles simultanéité/urgence/durée encore à confirmer ; aucune modification applicative |
+| 23/10/2026 | Ajout du besoin de remplacement/cumul de postes et bascule Admin | Spécification métier ajoutée ; simultanéité désormais décidée : cumul autorisé par personne et par pharmacie ; urgence/durée/prolongation/révocation anticipée encore à confirmer ; aucune modification applicative |
 
 **État global à l’ouverture du registre :** chantier multicompte partiellement construit, audit statique initial réalisé, validations automatisées/de base non confirmées. L’étape 1 reste **OUVERTE**. Aucun déploiement n’est autorisé.
+
+
+### Décision métier complémentaire — 23/10/2026
+
+Le Promoteur peut autoriser plusieurs postes simultanément pour une même personne et une même pharmacie. Les autorisations restent séparées par fonction, pharmacie et période ; les contrôles d'approbation, de périmètre, de séparation des tâches et d'audit demeurent obligatoires. Cette décision ne constitue pas une preuve d'implémentation.
