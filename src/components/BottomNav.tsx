@@ -101,8 +101,8 @@ export function BottomNav() {
    const dx=event.changedTouches[0].clientX-startX;
    const dy=event.changedTouches[0].clientY-startY;
    if(Math.abs(dx)<80||Math.abs(dx)<Math.abs(dy)*1.3)return;
-   const tabs=[{id:"home",href:"/"},{id:"favorites",href:"/client/profil/favoris"},{id:"scanner",href:"/scanner"},{id:"shopping",href:"/client?onglet=achats"},{id:"profile",href:"/client/profil"}];
-   const active=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"&&searchParams.get("onglet")==="achats"||pathname==="/panier"?"shopping":pathname==="/client"||pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
+   const tabs=[{id:"home",href:"/client"},{id:"favorites",href:"/client/profil/favoris"},{id:"scanner",href:"/scanner"},{id:"shopping",href:"/client?onglet=achats"},{id:"profile",href:"/client/profil"}];
+   const active=pathname==="/client"?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"&&searchParams.get("onglet")==="achats"||pathname==="/panier"?"shopping":pathname==="/client"||pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
    if(!active)return;
    const index=tabs.findIndex(tab=>tab.id===active);
    const next=index+(dx<0?1:-1);
@@ -114,9 +114,9 @@ export function BottomNav() {
   return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchmove",onMove);document.removeEventListener("touchend",onEnd)};
  },[pathname,searchParams,router]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
- const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
+ const visible=(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
  if(!visible||(pathname==="/scanner"&&!scannerResults))return null;
- const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
+ const home=pathname==="/client";
  const scan=pathname==="/scanner";
  const favorites=pathname==="/client/profil/favoris";
  const profile=(pathname==="/client"&&!achatsTab)||pathname==="/client/posologie"||(pathname.startsWith("/client/profil/")&&!favorites)||pathname.startsWith("/reservation/");
