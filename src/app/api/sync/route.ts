@@ -11,7 +11,11 @@ export async function POST(req: NextRequest) {
       .select([S.deviceIdColumn,S.devicePharmacyIdColumn,S.deviceUserIdColumn,S.deviceActiveColumn,S.deviceLastSyncColumn,S.deviceCreatedColumn].join(","))
       .eq(S.deviceTokenHashColumn, hashDeviceToken(token)).maybeSingle();
     const deviceRecord = device as unknown as Record<string, any> | null;
-    if (error || !deviceRecord || !deviceRecord[S.deviceActiveColumn]) return NextResponse.json({ error: "Appareil désactivé ou inconnu." }, { status: 401 });
+    if (error) {
+      console.error("NAXA_SYNC_DEVICE_LOOKUP_FAILED", { message: error.message });
+      return NextResponse.json({ error: "Service de synchronisation indisponible. Réessayez plus tard." }, { status: 503 });
+    }
+    if (!deviceRecord || !deviceRecord[S.deviceActiveColumn]) return NextResponse.json({ error: "Appareil désactivé ou inconnu." }, { status: 401 });
     if (Date.now() - new Date(deviceRecord[S.deviceLastSyncColumn] || deviceRecord[S.deviceCreatedColumn]).getTime() > 7 * 24 * 60 * 60 * 1000) {
       return NextResponse.json({ error: "Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.", code: "DEVICE_EXPIRED" }, { status: 401 });
     }
