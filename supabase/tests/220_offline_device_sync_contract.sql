@@ -38,6 +38,13 @@ begin
      or v_result->>'reason' is distinct from 'device_inactive' then
     raise exception 'MC-03: un appareil inconnu doit être rejeté, reçu: %', v_result;
   end if;
-end $$;
+  if exists (
+    select 1
+    from public.offline_operations
+    where operation_id = '00000000-0000-4000-8000-000000000002'::uuid
+  ) then
+    raise exception 'MC-03: un appareil inconnu ne doit créer aucune opération métier';
+  end if;
+end $;
 
 select '220_offline_device_sync_contract PASS' as resultat;
