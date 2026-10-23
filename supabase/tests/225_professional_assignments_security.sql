@@ -179,6 +179,17 @@ begin
     raise exception 'FAIL: le stock Marketplace partenaire a été mélangé au périmètre des pharmacies';
   end if;
 
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.stock_service_record_count(uuid,text,jsonb)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.stock_service_close(uuid,text)'::regprocedure))=0 then
+    raise exception 'FAIL: les opérations de service Stock ne revalident pas l’affectation active';
+  end if;
+  if not has_function_privilege('authenticated','public.stock_service_record_count(uuid,text,jsonb)','EXECUTE')
+     or has_function_privilege('anon','public.stock_service_record_count(uuid,text,jsonb)','EXECUTE')
+     or not has_function_privilege('authenticated','public.stock_service_close(uuid,text)','EXECUTE')
+     or has_function_privilege('anon','public.stock_service_close(uuid,text)','EXECUTE') then
+    raise exception 'FAIL: ACL des opérations de service Stock incorrectes';
+  end if;
+
   raise notice '225_professional_assignments_security PASS';
 end
 $test$;
