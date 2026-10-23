@@ -72,17 +72,21 @@ export default async function GestionnaireStockReservationsPage({
 
   const role = String(profile.role ?? "").toLowerCase();
   const fonction = String(profile.fonction_interne ?? "").toLowerCase();
-  const allowedRole =
-    role === "admin" ||
-    role === "promoteur" ||
-    ["pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"].includes(fonction);
+  const { data: assignmentRows, error: assignmentError } = await sb.from("naxa_professional_assignments")
+    .select("pharmacie_id,fonction,commence_at,expire_at").eq("profile_id", auth.user.id)
+    .eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"]);
+  const now = Date.now();
+  const assignedIds = (assignmentRows ?? []).filter(a => new Date(a.commence_at).getTime() <= now && new Date(a.expire_at).getTime() > now).map(a => a.pharmacie_id);
+  const hasStockAssignment = assignedIds.length > 0;
+  const allowedRole = role === "admin" || role === "promoteur" ||
+    ["pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"].includes(fonction) || hasStockAssignment;
   if (!allowedRole) redirect("/");
 
   const { data: pharmacies, error: pharmaciesError } = await sb.rpc("my_pharmacies");
-  if (pharmaciesError) {
+  const pharmacyIds = [...new Set([...(Array.isArray(pharmacies) ? pharmacies : []).filter((id): id is string => typeof id === "string"), ...assignedIds])];
+  if ((pharmaciesError && !hasStockAssignment) || assignmentError) {
     return <main className="mx-auto max-w-5xl p-5"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Impossible de déterminer le périmètre pharmacie du compte.</p></main>;
   }
-  const pharmacyIds = [...new Set((Array.isArray(pharmacies) ? pharmacies : []).filter((id): id is string => typeof id === "string"))];
   const { data: pharmacyRows } = pharmacyIds.length ? await sb.from("pharmacies").select("id,nom").in("id",pharmacyIds) : { data: [] as {id:string;nom:string}[] };
   if (!pharmacyIds.length) redirect("/");
 
