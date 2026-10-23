@@ -139,10 +139,25 @@ export default function Accueil() {
 
     const sb = supabaseBrowser();
 
-    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+    const redirigerClientConnecte = async (userId: string) => {
+      // Un client connecté doit retrouver son accueil client, pas l'accueil public.
+      // Respecter le contrôle d'âge avant toute redirection vers une page protégée.
+      if (ageStatus() !== "adult" || window.location.pathname !== "/") return;
+      const { data: profile, error } = await sb
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (actif && !error && profile?.role === "client" && window.location.pathname === "/") {
+        window.location.replace("/client");
+      }
+    };
+
+    const { data: { subscription } = sb.auth.onAuthStateChange((event, session) => {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
+        void redirigerClientConnecte(session.user.id);
         return;
       }
       if (event === "SIGNED_OUT") {
@@ -172,6 +187,7 @@ export default function Accueil() {
       setAgeGate(null);
       if (session) {
         setIntroVisible(false);
+        void redirigerClientConnecte(session.user.id);
         return;
       }
       try {
