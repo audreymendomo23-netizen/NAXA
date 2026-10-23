@@ -42,8 +42,8 @@ export async function accorderAffectationProfessionnelle(formData: FormData) {
     p_target: matches[0].id,
     p_pharmacie: pharmacie,
     p_fonction: fonction,
-    p_commence_at: new Date(debut).toISOString(),
-    p_expire_at: new Date(fin).toISOString(),
+    p_commence_at: new Date(`${debut}:00+01:00`).toISOString(),
+    p_expire_at: new Date(`${fin}:00+01:00`).toISOString(),
     p_motif: motif,
   });
   if (error) redirect("/pharmacie/affectations?erreur=autorisation");
