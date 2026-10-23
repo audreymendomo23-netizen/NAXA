@@ -534,3 +534,33 @@ Pour chaque parcours, construire d'abord une tranche visible et utilisable, puis
 Chaque bilan doit séparer : (a) statut de construction, (b) vérifications réellement exécutées et leurs résultats, (c) recette utilisateur à faire ou réussie, (d) vérifications non exécutées/bloquées et leur cause, (e) statut de déploiement. Une fonctionnalité non visible, un bouton sans action réelle ou un accès non contrôlé côté serveur ne peut pas être déclaré construction verte.
 
 Ne pas prolonger la phase d'audit pour elle-même : les audits supplémentaires et consolidations globales viennent lorsque le produit est substantiellement construit, sauf risque concret de sécurité, de confidentialité ou d'intégrité des données qui bloque le parcours courant. Aucun déploiement ni écriture Supabase Production sans autorisation explicite.
+## 8. Avancement d'implémentation — 23 octobre 2026
+
+### Affectations professionnelles — premier incrément présent sur main
+
+Les éléments suivants sont maintenant enregistrés dans le dépôt :
+
+- `supabase/migration_225_professional_assignments.sql` : table additive `naxa_professional_assignments`, fonctions autorisées, pharmacie, motif obligatoire, dates de début/expiration, Promoteur accordeur, révocation et contrôle des chevauchements d'une même fonction.
+- `supabase/migration_226_assignment_stock_guards.sql` : prise de service Stock et annulation d'une réservation reconnaissent une affectation Stock active, sans remplacer le rôle principal.
+- `supabase/migration_227_assignment_helper_scope.sql` : le helper d'affectation ne permet de consulter l'état d'un autre profil qu'à Admin.
+- `src/app/pharmacie/affectations/page.tsx` et `actions.ts` : écran Promoteur pour accorder et révoquer une affectation à un compte existant, avec motif et période.
+- `src/app/pharmacie/promoteur/page.tsx` : lien depuis le tableau de bord Promoteur.
+- `src/components/EspaceNaxaSwitcher.tsx` : le poste Stock apparaît si une affectation Stock est active.
+- Les pages Stock principales, réservations et prise/fin de service tiennent compte des pharmacies présentes dans les affectations actives.
+
+### Vérifications effectivement réalisées
+
+- Migrations 225, 226 et 227 **appliquées avec succès au projet Supabase de test isolé** `pwfftcsjyeibxxqhwysw`.
+- Aucune migration ni écriture dans Supabase Production.
+- Aucun build, lint, typecheck, CI ou déploiement exécuté.
+- Aucun scénario utilisateur complet (création/révocation avec un compte Promoteur réel) n'a été exécuté.
+
+### Limites actuelles — ne pas déclarer le multicompte terminé
+
+- Les affectations supplémentaires ne sont pas encore reconnues par tous les RPC, actions serveur, gardes de routes et politiques RLS des postes Caisse, Pharmacien, Comptable et Stock.
+- Pour Stock, seuls les RPC `stock_service_open` et `gestionnaire_stock_reservation_annuler` ont été raccordés explicitement à l'affectation ; les autres opérations conservent leurs gardes historiques.
+- Les affectations sont créées directement par le Promoteur dans la fonction RPC, avec interdiction de s'affecter soi-même. Il n'existe pas encore de circuit séparé de demande puis approbation.
+- Le journal append-only complet des actes réalisés sous une affectation n'est pas encore branché.
+- La disponibilité de l'écran dans l'application nécessite que la version correspondante soit déployée ; aucun déploiement n'a été demandé ni effectué.
+
+Le statut est donc **incrément technique partiel**, et non « multicompte complet » ni « validé en production ».
