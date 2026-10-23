@@ -87,6 +87,60 @@ Le nom d’utilisateur est un identifiant de recherche, **jamais une preuve d’
 
 ---
 
+
+
+## 3 bis. Évolution métier — remplacements, cumul de postes et espaces Admin
+
+### Besoin métier à intégrer
+
+Une même personne peut devoir remplacer temporairement un collègue absent (ex. Gestionnaire de stock remplaçant une Caissière), ou être autorisée à exercer plusieurs fonctions (ex. Caisse + Stock, Pharmacien + Responsable). L'accès à une fonction supplémentaire ne doit jamais être obtenu en modifiant manuellement le rôle principal du profil ni en faisant confiance au seul affichage de l'interface.
+
+Le modèle cible à étudier est celui d'**affectations professionnelles explicites et traçables**, distinctes de l'identité client durable et du rôle public historique :
+- identité Auth et données de l'espace client conservées ;
+- affectation rattachée à une personne, une pharmacie/un périmètre, une fonction, un état et une période ;
+- demande de remplacement/cumul avec fonction source, fonction demandée, motif et période prévue ;
+- approbation du Promoteur avant activation, avec identité de l'approbateur et horodatage ;
+- historique append-only des demandes, approbations, activations, refus, révocations, expirations et opérations sensibles effectuées sous l'affectation ;
+- révocation/expiration qui bloque côté serveur les nouveaux actes de la fonction sans retirer les droits client valides ;
+- vérification du rôle/fonction effective, de l'état actif et du périmètre par chaque API, RPC et règle RLS pertinente. Le sélecteur d'espace est une aide UX, pas une barrière de sécurité.
+
+### Règles de sécurité à concevoir
+
+1. Le remplacement temporaire ne modifie pas l'historique et l'identité du poste permanent de la personne.
+2. Les droits sont minimaux et limités à la fonction, à la pharmacie et à la période approuvées ; aucune permission implicite ne découle du fait d'être Promoteur, Responsable ou administrateur d'interface.
+3. Une demande expirée, révoquée, refusée ou non approuvée ne donne aucun droit métier.
+4. Les opérations effectuées pendant une affectation sont attribuées à l'identité réelle de l'employé et à l'affectation effective, avec date/heure et périmètre.
+5. Les opérations financières, de stock, de clôture et d'accès aux données sensibles conservent leurs contrôles et leur séparation des tâches. Le cumul de postes ne doit pas permettre d'approuver sa propre demande ni de contourner les règles de double contrôle.
+6. Toute évolution de schéma doit être additive, précédée d'un inventaire des lecteurs de `profiles.role`, `fonction_interne`, `pharmacie_id`, des gardes applicatives, RPC, EXECUTE et RLS. Ne pas créer de table ou de migration avant cette analyse et une autorisation explicite.
+
+### Décisions encore ouvertes — ne pas inventer de décision validée
+
+- **Cumul simultané :** l'utilisateur doit confirmer si plusieurs fonctions peuvent être actives simultanément pour la même personne dans la même pharmacie, ou si une seule affectation temporaire peut être active à la fois. Jusqu'à confirmation, traiter cette règle comme **À DÉCIDER** et ne pas coder de contrainte métier définitive.
+- **Urgence :** à confirmer si le Promoteur peut créer directement une affectation d'urgence ou s'il doit toujours créer une demande approuvée par un autre responsable autorisé. Aucun auto-approuvage ne doit être supposé.
+- **Durée et prolongation :** les dates de début/fin, renouvellement et révocation anticipée doivent être définis ; une affectation ne doit jamais rester active indéfiniment par défaut.
+
+### Bascule Espace client ↔ Espace professionnel ↔ Espace administrateur
+
+- L'identité client demeure distincte des autorisations professionnelles et administratives.
+- Le bouton « Espace administrateur » ne s'affiche que si le compte authentifié possède une autorisation Admin valide ; toutefois, masquer le bouton ne suffit pas : chaque route/API/RPC sensible doit revérifier l'autorisation côté serveur/base.
+- Si la personne est connectée dans son espace client et dispose aussi d'une autorisation Admin, privilégier une bascule d'espace sur la même identité Auth si l'architecture existante le permet, sans créer de second compte ni de session privilégiée implicite.
+- Les actions d'administration sensibles doivent être journalisées (acteur, action, cible, horodatage, résultat et contexte minimal nécessaire). Toute élévation de privilège doit être explicite, vérifiable et révocable.
+- Ne jamais accorder les droits Admin parce que le profil est client, Promoteur ou professionnel ; le statut Admin doit être établi par une source d'autorité dédiée et contrôlée côté serveur.
+
+### Critères de recette à ajouter
+
+| Scénario | Résultat attendu |
+|---|---|
+| Remplacement demandé mais non approuvé | Aucun droit supplémentaire |
+| Remplacement approuvé, dans sa période et sa pharmacie | Seuls les droits explicitement autorisés sont actifs |
+| Affectation expirée/révoquée avec ancienne session ouverte | Opérations métier refusées côté serveur/base |
+| Employé tentant d'approuver sa propre demande | Refus, sauf règle explicite de séparation des tâches préalablement validée — par défaut refus |
+| Cumul de postes | Comportement conforme à la décision métier écrite ; aucun droit implicite |
+| Opération caisse/stock réalisée sous remplacement | Journal attribuant l'action à l'employé et à l'affectation effective |
+| Client avec autorisation Admin explicite | Bascule vers l'espace Admin possible ; les API Admin restent protégées côté serveur/base |
+| Client sans autorisation Admin tentant une URL/API Admin directe | Refus même si l'interface est manipulée |
+| Révocation Admin avec session existante | Nouveaux actes Admin refusés côté serveur/base |
+
 ## 4. Registre des incohérences et travaux restants
 
 Les constats ci-dessous proviennent de l’audit statique initial. Ils sont des hypothèses prioritaires à confirmer par lecture précise avant de modifier le code. Le statut « à vérifier » n’affirme pas à lui seul que la vulnérabilité existe en production.
@@ -327,6 +381,7 @@ Copier ce prompt pour reprendre le chantier sans perdre le contexte :
 > 6. Exécuter toutes les vérifications accessibles et rattacher leurs résultats au SHA exact.  
 > 7. Pour une limite d’outil/CI/quota, relever la cause observée, ne pas répéter inutilement la même tentative, utiliser seulement une alternative réellement disponible, et conserver le contrôle bloqué comme non vert.  
 > 8. Maintenir un registre cumulatif : confirmé, réfuté, corrigé, testé/réussi, inspecté seulement, bloqué, reste à faire.
+> 9. Traiter les remplacements/cumuls de postes et la bascule Admin selon la section 3 bis. Le cumul simultané reste à décider : poser cette seule question métier avant de figer les règles ; ne pas l'inférer. Ne jamais muter `profiles.role` comme substitut à une affectation temporaire.
 >
 > **Contraintes absolues actuelles :** aucun déploiement ; aucune écriture/migration Supabase Production ; aucune branche ni PR ; aucun commit de code ou série de commits. Le seul commit autorisé dans ce périmètre est celui qui crée/met à jour le document demandé, sauf autorisation ultérieure explicite. N’effectue pas d’action qui pourrait déclencher un déploiement. Ne contourne aucun refus d’accès ou de sécurité.
 >
@@ -351,5 +406,6 @@ Copier ce prompt pour reprendre le chantier sans perdre le contexte :
 | 22/10/2026 | Avant-projet identité unique et espaces client/pharmacie | Premier incrément consigné ; recette de bout en bout non prouvée dans ce document |
 | 23/10/2026 | Audit statique ciblé et consolidation du chantier | MC-01 à MC-08 inscrits ; état réel Supabase/CI à vérifier séparément |
 | 23/10/2026 | Création du présent cahier des charges | Document de référence ; ne prouve ni correction applicative ni CI verte |
+| 23/10/2026 | Ajout du besoin de remplacement/cumul de postes et bascule Admin | Spécification métier ajoutée ; règles simultanéité/urgence/durée encore à confirmer ; aucune modification applicative |
 
 **État global à l’ouverture du registre :** chantier multicompte partiellement construit, audit statique initial réalisé, validations automatisées/de base non confirmées. L’étape 1 reste **OUVERTE**. Aucun déploiement n’est autorisé.
