@@ -139,10 +139,26 @@ export default function Accueil() {
 
     const sb = supabaseBrowser();
 
+    const redirigerClientConnecte = async (userId: string) => {
+      // L'accueil public reste la page par défaut, mais un client déjà connecté
+      // qui arrive sur "/" doit retrouver son espace personnel.
+      if (window.location.pathname !== "/") return;
+      const { data: profile, error } = await sb
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (actif && !error && profile?.role === "client" && window.location.pathname === "/") {
+        window.location.replace("/client");
+      }
+    };
+
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
+        // Ne pas attendre la requête dans le callback Supabase Auth.
+        void redirigerClientConnecte(session.user.id);
         return;
       }
       if (event === "SIGNED_OUT") {
@@ -172,6 +188,7 @@ export default function Accueil() {
       setAgeGate(null);
       if (session) {
         setIntroVisible(false);
+        await redirigerClientConnecte(session.user.id);
         return;
       }
       try {
