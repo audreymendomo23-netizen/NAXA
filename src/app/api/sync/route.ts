@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       });
       if (applyError) {
         console.error("NAXA_SYNC_OPERATION_FAILED", { operationId: op.id, message: applyError.message });
-        results.push({ id: op.id, status: "retry", detail: applyError.message }); continue;
+        results.push({ id: op.id, status: "retry", detail: "Synchronisation indisponible. Réessayez lorsque la connexion sera rétablie." }); continue;
       }
       results.push({ id: op.id, status: result?.status || "applied", detail: result });
     }
