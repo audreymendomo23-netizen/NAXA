@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 export const dynamic = "force-dynamic";
 
@@ -117,9 +118,9 @@ export default async function ComptableDashboardPage() {
           <h1 className="mt-1 text-xl font-extrabold">{pharmacy?.nom ?? "Ma pharmacie"}</h1>
           <p className="mt-1 text-sm text-emerald-100">Consultation et contrôle — aucune action de caisse</p>
         </div>
-        <Link href="/pharmacie" className="rounded-full border border-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/10">
+        <div className="flex flex-wrap items-center gap-2"><EspaceNaxaSwitcher current="comptable" /><Link href="/pharmacie" className="rounded-full border border-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/10">
           Espace pharmacie
-        </Link>
+        </Link></div>
       </header>
 
       {error ? (
