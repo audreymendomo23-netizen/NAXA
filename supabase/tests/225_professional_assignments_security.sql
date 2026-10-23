@@ -8,6 +8,8 @@ declare
   v_revoke text;
   v_policy_count integer;
   v_lot text;
+  v_inventory_line text;
+  v_inventory_close text;
 begin
   if to_regclass('public.naxa_professional_assignments') is null then
     raise exception 'FAIL: table naxa_professional_assignments absente';
@@ -84,6 +86,24 @@ begin
      or position('v_source.quantite<p_quantite' in v_lot)=0
      or position('v_total_lots<>v_stock.quantite' in v_lot)=0 then
     raise exception 'FAIL: garde affectation ou contrôles métier de création de lot absents';
+  end if;
+
+  select pg_get_functiondef('public.inventaire_preparer_ligne(uuid,uuid,uuid)'::regprocedure)
+    into v_inventory_line;
+  if position('naxa_has_active_professional_assignment' in v_inventory_line)=0
+     or position('v_assigned' in v_inventory_line)=0
+     or position('sl.id=p_lot' in v_inventory_line)=0
+     or position('on conflict(inventaire_id,produit_id,lot_id)' in lower(v_inventory_line))=0 then
+    raise exception 'FAIL: garde affectation ou contrôles de préparation inventaire absents';
+  end if;
+
+  select pg_get_functiondef('public.inventaire_cloturer(uuid)'::regprocedure)
+    into v_inventory_close;
+  if position('naxa_has_active_professional_assignment' in v_inventory_close)=0
+     or position('for update' in lower(v_inventory_close))=0
+     or position('quantite_comptee is null' in lower(v_inventory_close))=0
+     or position('closed_by=auth.uid()' in lower(v_inventory_close))=0 then
+    raise exception 'FAIL: garde affectation ou contrôles de clôture inventaire absents';
   end if;
 
   raise notice '225_professional_assignments_security PASS';
