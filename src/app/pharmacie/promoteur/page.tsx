@@ -10,6 +10,7 @@ import { PromoteurHashRedirect } from "@/components/pharmacie/PromoteurHashRedir
 import { PromoteurPasswordForm } from "@/components/pharmacie/PromoteurPasswordForm";
 import { PromoteurLogoManager } from "@/components/pharmacie/PromoteurLogoManager";
 import { PromoteurKpiValue } from "@/components/pharmacie/PromoteurKpiValue";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 type Stats = {
   pharmacies?: { total?: number; actives?: number; inactives?: number };
@@ -278,7 +279,8 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
             <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">Espace Promoteur</h1>
             <p className="mt-1 text-sm text-white/80">Bonjour <strong className="text-base font-extrabold">{displayName}</strong>. Ceci est votre espace de pilotage.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <EspaceNaxaSwitcher current="promoteur" />
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Ouvrir les opérations</Link>
             <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/pharmacie/caisses">Gérer l’équipe</Link>
           </div>
