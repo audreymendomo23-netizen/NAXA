@@ -37,3 +37,33 @@ Construire, corriger et livrer NAXA jusqu’à ce que toutes les fonctionnalité
 ## Règle de décision
 
 Pour chaque demande, commencer par l’action concrète la plus utile, exécuter tout ce qui est accessible dans le périmètre demandé, prouver le résultat, puis continuer. Une limite réelle d’accès, d’outil ou de sécurité doit être décrite précisément ; elle ne doit jamais servir de prétexte à une réponse théorique ou à une demande de travail manuel évitable.
+
+## Méthode de construction incrémentale et définition de « construction verte »
+
+### Boucle obligatoire pour chaque fonctionnalité
+1. **Construire une tranche utilisable**, et non accumuler des audits ou des plans : interface visible, état vide/chargement/erreur utile, action métier principale et résultat observable.
+2. **Est-ce branché ?** Vérifier que chaque bouton, formulaire, lien et action annoncés appelle bien le bon gestionnaire et produit une réponse visible. Aucun bouton décoratif présenté comme opérationnel.
+3. **Est-ce connecté ?** Vérifier le raccordement réel aux données, à l'identité connectée, au périmètre pharmacie et aux contrôles serveur/RPC/RLS concernés. Ne jamais déduire l'autorisation du seul affichage UI.
+4. **Est-ce testable ?** Ajouter ou adapter les vérifications ciblées faisables avec les outils disponibles, puis rendre le parcours atteignable et visible dans l'application ou dans un environnement de test réellement accessible. Fournir le chemin précis pour l'essayer.
+5. **Vérifier avant de remettre** tout ce qui peut être contrôlé sans intervention utilisateur : inspection ciblée du code, références/imports, cohérence des types et contrats visibles, logique des états, contrôles d'accès pertinents, tests ciblés et exécution locale/outils lorsqu'ils sont disponibles. Lancer les contrôles plus larges lorsque cela est demandé ou lorsqu'ils sont nécessaires pour lever un risque concret ; ne pas retarder chaque fonctionnalité par une campagne générale.
+6. **Passer la main à l'utilisateur pour la recette métier visible.** L'utilisateur teste le parcours réel. S'il remonte un défaut, corriger ce défaut ciblé, refaire les vérifications pertinentes et proposer un nouveau test. Une fois accepté, passer à la fonctionnalité suivante.
+7. **Raisonner par contradiction** : comparer résultat attendu, comportement réellement implémenté et preuves disponibles. Traiter seulement le blocage qui empêche le parcours courant, sauf risque sérieux de sécurité ou d'intégrité des données.
+
+### Définition du statut « construction verte »
+Une fonctionnalité est **🟢 CONSTRUCTION VERTE — TEST UTILISATEUR POSSIBLE** lorsque l'assistant a réalisé tout ce qui est raisonnablement faisable avec les accès, outils et environnements disponibles pour que la fonctionnalité soit implémentée, branchée, connectée et testable de manière visible. Cela inclut les vérifications ciblées que l'assistant peut effectivement exécuter. Le parcours doit être suffisamment accessible pour que l'utilisateur puisse le tester sans devoir terminer lui-même la construction.
+
+Ce statut signifie que la construction est prête pour la recette utilisateur ; **il ne signifie pas que l'utilisateur a déjà validé le comportement métier**, ni que tous les tests, la CI, le build complet ou la Production sont verts. Indiquer séparément, sans les confondre :
+- **Construction** : 🟢 prête à tester / 🟡 partielle ou bloquée / 🔴 non construite.
+- **Vérifications exécutées** : nom et résultat réel de chaque contrôle pertinent.
+- **Recette utilisateur** : à faire / réussie / défaut signalé.
+- **CI/build/lint/typecheck** : exécuté avec résultat / non exécuté / bloqué, avec la raison.
+- **Déploiement/Production** : non effectué sauf ordre explicite ; ne jamais le laisser entendre par le statut de construction.
+
+Si un accès, un secret, un environnement ou un outil indisponible empêche une vérification, terminer les autres travaux indépendants, rendre visible ce qui peut l'être, puis préciser le blocage exact. Ne jamais simuler un test, inventer une URL accessible, appeler « vert » un écran non raccordé ou transférer à l'utilisateur une tâche de construction évitable.
+
+### Priorité de livraison
+- Priorité à une fonctionnalité concrète et essayable plutôt qu'à un audit général répétitif.
+- Ne pas attendre la fin de toutes les fonctionnalités pour remettre une première tranche testable.
+- Ne pas lancer de vérifications CI/build/lint/typecheck ni de déploiement si les consignes courantes les excluent. Un ordre plus récent et explicite de l'utilisateur prévaut sur une consigne ancienne.
+- Aucun déploiement sans autorisation explicite. Aucune écriture dans Supabase Production.
+- Rapport de fin bref : **Fait / Preuve / Statut de construction / Recette utilisateur / Reste / Suite**.
