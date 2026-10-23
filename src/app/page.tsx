@@ -140,6 +140,7 @@ export default function Accueil() {
     const sb = supabaseBrowser();
 
     const redirigerClientConnecte = async (userId: string) => {
+      // Un client connecté doit retrouver son accueil client, pas l'accueil public.
       // Respecter le contrôle d'âge avant toute redirection vers une page protégée.
       if (ageStatus() !== "adult" || window.location.pathname !== "/") return;
       const { data: profile, error } = await sb
@@ -152,11 +153,10 @@ export default function Accueil() {
       }
     };
 
-    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } = sb.auth.onAuthStateChange((event, session) => {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
-        // Ne pas attendre la requête dans le callback Supabase Auth.
         void redirigerClientConnecte(session.user.id);
         return;
       }

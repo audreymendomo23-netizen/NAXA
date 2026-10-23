@@ -23,7 +23,6 @@ export function BottomNav() {
  const pathname=usePathname();
  const router=useRouter();
  const searchParams=useSearchParams();
- const achatsTab=searchParams.get("onglet")==="achats";
  const {nombre}=usePanier();
  const [avatarUrl,setAvatarUrl]=useState<string|null>(null);
  const [profileVerified,setProfileVerified]=useState(false);
@@ -102,7 +101,7 @@ export function BottomNav() {
    const dy=event.changedTouches[0].clientY-startY;
    if(Math.abs(dx)<80||Math.abs(dx)<Math.abs(dy)*1.3)return;
    const tabs=[{id:"home",href:"/"},{id:"favorites",href:"/client/profil/favoris"},{id:"scanner",href:"/scanner"},{id:"shopping",href:"/client?onglet=achats"},{id:"profile",href:"/client/profil"}];
-   const active=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"&&searchParams.get("onglet")==="achats"||pathname==="/panier"?"shopping":pathname==="/client"||pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
+   const active=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"||pathname==="/panier"?"shopping":pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
    if(!active)return;
    const index=tabs.findIndex(tab=>tab.id===active);
    const next=index+(dx<0?1:-1);
@@ -114,13 +113,14 @@ export function BottomNav() {
   return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchmove",onMove);document.removeEventListener("touchend",onEnd)};
  },[pathname,searchParams,router]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
- const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
+ // La barre principale est réservée à l'accueil client (dictionnaire médical, panier, etc.).
+ const visible=pathname==="/client";
  if(!visible||(pathname==="/scanner"&&!scannerResults))return null;
  const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  const scan=pathname==="/scanner";
  const favorites=pathname==="/client/profil/favoris";
- const profile=(pathname==="/client"&&!achatsTab)||pathname==="/client/posologie"||(pathname.startsWith("/client/profil/")&&!favorites)||pathname.startsWith("/reservation/");
- const shopping=(pathname==="/client"&&achatsTab)||pathname==="/panier";
+ const profile=pathname==="/client/posologie"||(pathname==="/client/profil"||pathname.startsWith("/client/profil/"))&&!favorites||pathname.startsWith("/reservation/");
+ const shopping=pathname==="/client"||pathname==="/panier";
  const labels=[{label:"Achats",icon:"shopping" as const},{label:"Réservations",icon:"calendar" as const},{label:"Commandes",icon:"clipboard" as const}];
  const purchase=labels[rotating];
  const tab=(active:boolean,label:string,icon:IconName,href:string,extra?:React.ReactNode,animated=false)=> <Link href={href} aria-current={active?"page":undefined} className="relative flex h-[54px] min-w-0 items-center justify-center rounded-[20px] transition-transform duration-150 active:scale-[0.96]">
