@@ -139,7 +139,10 @@ export async function enregistrerOperation(type: string, payload: unknown): Prom
   await tx(QUEUE, "readwrite", s => s.add(operation)); return id;
 }
 export async function listPendingOperations() {
-  return (await tx<PendingOperation[]>(QUEUE, "readonly", s => s.getAll())).filter(x => x.status === "pending").sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+  // A transient failure must not strand an encrypted operation outside the retry queue.
+  return (await tx<PendingOperation[]>(QUEUE, "readonly", s => s.getAll()))
+    .filter(x => x.status === "pending" || x.status === "failed")
+    .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 }
 export async function markOperationAttempt(id: string, failed: boolean) {
   const d = await openDb();
