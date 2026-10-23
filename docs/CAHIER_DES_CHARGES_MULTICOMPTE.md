@@ -513,3 +513,24 @@ La route de synchronisation distingue maintenant une erreur de lecture de la tab
 - Aucun build, lint, typecheck, pipeline CI ou déploiement n’a été lancé pour ce correctif.
 
 **Prochaine action sûre :** retrouver la source exacte qui crée les opérations locales et confirmer comment elle capture `stocks.updated_at`. Ensuite seulement, définir une migration additive et ses tests de sécurité/idempotence, en les gardant séparés de toute application Production.
+
+---
+
+## Méthode de travail par fonctionnalité — construction verte avant recette utilisateur
+
+Le multicompte suit la méthode générale définie dans `AGENTS.md`. Cette section précise son application à ce chantier.
+
+### Boucle de livraison
+Pour chaque parcours, construire d'abord une tranche visible et utilisable, puis vérifier successivement :
+1. **Branché** : bouton/formulaire/action relié à son gestionnaire, états et retours visibles.
+2. **Connecté** : données et identité réelles, bonne pharmacie, contrôles serveur/RPC/RLS et journalisation nécessaires.
+3. **Testable** : chemin d'accès exact, préconditions explicites et résultat attendu permettant une recette manuelle.
+4. **Vérifié par l'assistant** : effectuer toutes les vérifications ciblées accessibles et pertinentes avant de remettre la fonctionnalité ; ne pas déclencher une campagne globale de CI/build/lint/typecheck si elle n'est pas demandée ou si les consignes en cours l'excluent.
+5. **Recette utilisateur** : l'utilisateur essaie le parcours visible. Corriger uniquement les défauts observés et réitérer sur cette fonctionnalité avant de passer à la suivante.
+
+### Statut « construction verte »
+**🟢 CONSTRUCTION VERTE — TEST UTILISATEUR POSSIBLE** signifie que tout ce qui pouvait raisonnablement être réalisé et vérifié avec les outils et accès disponibles l'a été pour rendre le parcours implémenté, raccordé, visible et essayable. Ce statut ne certifie pas que l'utilisateur a déjà réussi sa recette, que la CI complète est verte, ni qu'une base ou la Production a été mise à jour.
+
+Chaque bilan doit séparer : (a) statut de construction, (b) vérifications réellement exécutées et leurs résultats, (c) recette utilisateur à faire ou réussie, (d) vérifications non exécutées/bloquées et leur cause, (e) statut de déploiement. Une fonctionnalité non visible, un bouton sans action réelle ou un accès non contrôlé côté serveur ne peut pas être déclaré construction verte.
+
+Ne pas prolonger la phase d'audit pour elle-même : les audits supplémentaires et consolidations globales viennent lorsque le produit est substantiellement construit, sauf risque concret de sécurité, de confidentialité ou d'intégrité des données qui bloque le parcours courant. Aucun déploiement ni écriture Supabase Production sans autorisation explicite.
