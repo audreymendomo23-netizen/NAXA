@@ -187,7 +187,7 @@ export default function Accueil() {
       setAgeGate(null);
       if (session) {
         setIntroVisible(false);
-        await redirigerClientConnecte(session.user.id);
+        void redirigerClientConnecte(session.user.id);
         return;
       }
       try {
