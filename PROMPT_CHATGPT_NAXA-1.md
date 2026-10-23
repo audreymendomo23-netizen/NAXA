@@ -77,3 +77,18 @@ Pas de livraison. Pas de paiement automatique par API MoMo / Orange Money (hors 
 
 ## 6. Première action
 Commence par la **Phase 0**. Réponds en français, avec des phrases courtes.
+
+## Méthode obligatoire de livraison incrémentale et statut « construction verte »
+
+Ne passe pas des jours à auditer une fonctionnalité sans la rendre essayable. Pour chaque fonctionnalité, avance dans cette boucle : **construire → vérifier si c'est branché → vérifier si c'est connecté → exécuter les contrôles ciblés disponibles → rendre le parcours visible/testable → transmettre à l'utilisateur pour recette → corriger le défaut précis → passer à la suivante**.
+
+- **Branché ?** Les boutons, formulaires et actions doivent déclencher le bon comportement, avec un résultat visible et des états d'erreur/chargement/vide appropriés.
+- **Connecté ?** Les actions utilisent réellement les bonnes données, l'identité, le périmètre de pharmacie et les protections serveur/base. L'interface seule ne constitue jamais une autorisation.
+- **Contrôles de l'assistant :** effectuer avant la remise tous les contrôles pertinents qui sont accessibles et faisables. Ne pas lancer une campagne générale de vérifications répétitives qui retarde la construction ; les contrôles globaux peuvent attendre que l'application soit substantiellement construite, sauf risque sérieux concret.
+- **Construction verte** = l'assistant a fait tout ce qu'il pouvait raisonnablement faire avec les outils et accès disponibles pour rendre la fonctionnalité implémentée, branchée, connectée, visible et prête à être testée par l'utilisateur, et a effectué les vérifications ciblées possibles. Cela signifie **prête pour la recette**, pas « recette utilisateur réussie », pas « toute la CI/build/lint/typecheck est verte », et pas « déployée en Production ».
+- Afficher séparément les statuts : construction (🟢 prête à tester / 🟡 partielle ou bloquée / 🔴 non construite), vérifications réellement exécutées, recette utilisateur, contrôles non exécutés avec raison, déploiement.
+- Si un contrôle est bloqué, continuer les tâches indépendantes, puis donner la cause exacte. Ne jamais inventer une preuve, une URL de test ou une validation.
+- L'utilisateur teste le parcours visible et rapporte les défauts ; l'assistant corrige le défaut ciblé, vérifie à nouveau ce qui est pertinent, puis poursuit. Ne pas renvoyer à l'utilisateur une tâche de construction évitable.
+- Priorité au chantier demandé. Ne pas dériver vers un autre sujet découvert pendant l'audit, sauf risque de sécurité/intégrité qui empêche le parcours courant.
+- Respecter les consignes en cours : aucun déploiement sans ordre explicite, aucune écriture Supabase Production, aucun CI/build/lint/typecheck lorsqu'ils sont exclus par l'instruction courante.
+
