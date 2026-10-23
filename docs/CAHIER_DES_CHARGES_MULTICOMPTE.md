@@ -583,3 +583,8 @@ Le statut est donc **incrément technique partiel**, et non « multicompte compl
 - Migration 228 appliquée avec succès **uniquement** sur le projet Supabase de test isolé `pwfftcsjyeibxxqhwysw`.
 - Le test de contrat `supabase/tests/225_professional_assignments_security.sql` a été renforcé pour exiger le verrou et la comparaison stricte des périodes ; après correction de sa mise en forme SQL, il s'est exécuté sans erreur sur le projet isolé. Le résultat ne prouve pas encore un test de concurrence multi-session réel ni un parcours Promoteur complet.
 - Aucun build/lint/typecheck/CI et aucun déploiement n'ont été lancés. Supabase Production reste inchangée.
+
+
+### 12.3 Creation des lots et affectations Stock
+
+La migration additive `supabase/migration_229_assignment_stock_lot_create.sql` raccorde `stock_lot_enregistrer` aux affectations actives `gestionnaire_stock` et `magasinier` pour la pharmacie concernée. Les gardes métier historiques de cohérence stock/lot, lot source, blocage et péremption sont conservées. Elle a été appliquée uniquement sur la base Supabase isolée. Le test SQL de contrat a été étendu et exécuté sans erreur; il ne constitue pas un test de bout en bout avec un utilisateur réel. Aucun build, lint, typecheck, CI ou déploiement n'a été lancé; production inchangée.
