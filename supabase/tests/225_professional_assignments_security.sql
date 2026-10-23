@@ -117,6 +117,26 @@ begin
     raise exception 'FAIL: garde affectation ou contrôles de synchronisation offline absents';
   end if;
 
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.naxa_stock_manager_actor(uuid)'::regprocedure))=0 then
+    raise exception 'FAIL: helper Stock ne reconnait pas les affectations actives';
+  end if;
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.fournisseur_reception_enregistrer(uuid,jsonb,text,text)'::regprocedure))=0
+     or position('quantite_recue' in pg_get_functiondef('public.fournisseur_reception_enregistrer(uuid,jsonb,text,text)'::regprocedure))=0
+     or position('v_lot_total<>v_stock.quantite' in pg_get_functiondef('public.fournisseur_reception_enregistrer(uuid,jsonb,text,text)'::regprocedure))=0 then
+    raise exception 'FAIL: réception fournisseur sans garde affectation ou contrôles de cohérence';
+  end if;
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_quantite_ajuster(uuid,uuid,integer,text,text,uuid)'::regprocedure))=0
+     or position('v_motif' in pg_get_functiondef('public.gestionnaire_stock_quantite_ajuster(uuid,uuid,integer,text,text,uuid)'::regprocedure))=0
+     or position('v_lot_total<>v_stock' in pg_get_functiondef('public.gestionnaire_stock_quantite_ajuster(uuid,uuid,integer,text,text,uuid)'::regprocedure))=0 then
+    raise exception 'FAIL: ajustement Stock sans garde affectation ou contrôles de cohérence';
+  end if;
+  if not has_function_privilege('authenticated','public.fournisseur_reception_enregistrer(uuid,jsonb,text,text)','EXECUTE')
+     or has_function_privilege('anon','public.fournisseur_reception_enregistrer(uuid,jsonb,text,text)','EXECUTE')
+     or not has_function_privilege('authenticated','public.gestionnaire_stock_quantite_ajuster(uuid,uuid,integer,text,text,uuid)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_quantite_ajuster(uuid,uuid,integer,text,text,uuid)','EXECUTE') then
+    raise exception 'FAIL: ACL réception/ajustement incorrectes';
+  end if;
+
   raise notice '225_professional_assignments_security PASS';
 end
 $test$;
