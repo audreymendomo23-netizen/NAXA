@@ -112,7 +112,30 @@ export async function readReference() {
   try { return { id: row.id, value: JSON.parse(await decrypt(activeUnlocked.aes, row.value)), savedAt: row.savedAt }; } catch { return undefined; }
 }
 export async function enregistrerOperation(type: string, payload: unknown): Promise<string> {
-  const id = crypto.randomUUID(), operation: PendingOperation = { id, type, payload, createdAt: Date.now(), attempts: 0, status: "pending" };
+  let safePayload = payload;
+  if (type === "stock_set_quantity") {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload) || !activeUnlocked) {
+      throw new Error("Modification hors ligne impossible : référence de stock indisponible.");
+    }
+    const input = payload as Record<string, unknown>;
+    const productId = String(input.produit_id ?? input.produitId ?? input.product_id ?? "");
+    const quantity = Number(input.quantite ?? input.quantity);
+    if (!productId || !Number.isInteger(quantity) || quantity < 0) {
+      throw new Error("Modification hors ligne impossible : produit ou quantité invalide.");
+    }
+    const reference = await readReference();
+    const snapshot = reference?.value as { stock?: Array<Record<string, unknown>> } | undefined;
+    const row = snapshot?.stock?.find((item) => {
+      const nested = item.produits && typeof item.produits === "object" ? item.produits as Record<string, unknown> : {};
+      return String(item.produit_id ?? item.product_id ?? nested.id ?? "") === productId;
+    });
+    const baseUpdatedAt = row?.updated_at ?? row?.updatedAt;
+    if (typeof baseUpdatedAt !== "string" || !Number.isFinite(Date.parse(baseUpdatedAt))) {
+      throw new Error("Modification hors ligne impossible : horodatage du stock de référence absent. Synchronisez d'abord l'appareil.");
+    }
+    safePayload = { ...input, produit_id: productId, quantite: quantity, base_updated_at: baseUpdatedAt };
+  }
+  const id = crypto.randomUUID(), operation: PendingOperation = { id, type, payload: safePayload, createdAt: Date.now(), attempts: 0, status: "pending" };
   await tx(QUEUE, "readwrite", s => s.add(operation)); return id;
 }
 export async function listPendingOperations() {
