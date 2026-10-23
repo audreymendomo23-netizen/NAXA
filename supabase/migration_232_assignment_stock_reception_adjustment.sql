@@ -5,7 +5,9 @@ create or replace function public.naxa_stock_manager_actor(p_pharmacie uuid)
 returns boolean language sql stable security definer set search_path=''
 as $f$
  select auth.uid() is not null
- and public.naxa_scope_allows(auth.uid(),p_pharmacie,'PHARMACIE')
+ and (public.naxa_scope_allows(auth.uid(),p_pharmacie,'PHARMACIE')
+  or public.naxa_has_active_professional_assignment(auth.uid(),p_pharmacie,'gestionnaire_stock')
+  or public.naxa_has_active_professional_assignment(auth.uid(),p_pharmacie,'magasinier'))
  and exists(select 1 from public.profiles p where p.id=auth.uid() and p.actif=true
   and (coalesce(p.role::text,'') in ('admin','promoteur')
    or coalesce(p.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
