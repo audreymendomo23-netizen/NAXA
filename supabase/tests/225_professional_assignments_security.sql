@@ -154,6 +154,31 @@ begin
     raise exception 'FAIL: une RPC Stock/Lots est encore exécutable par anon';
   end if;
 
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_inventaire_demarrer(uuid,public.inventaire_type,text)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_inventaire_ajouter_produit(uuid,uuid)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_inventaire_compter(uuid,integer)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_inventaire_annuler(uuid)'::regprocedure))=0 then
+    raise exception 'FAIL: une opération d’inventaire transactionnel ignore les affectations';
+  end if;
+  if position('inventaire_ajustements' in pg_get_functiondef('public.inventaire_cloturer(uuid)'::regprocedure))=0
+     or position('stocks_lots' in pg_get_functiondef('public.inventaire_cloturer(uuid)'::regprocedure))=0
+     or position('quantite_comptee is null' in pg_get_functiondef('public.inventaire_cloturer(uuid)'::regprocedure))=0 then
+    raise exception 'FAIL: la clôture transactionnelle ne conserve pas les ajustements/contrôles stock-lots';
+  end if;
+  if not has_function_privilege('authenticated','public.gestionnaire_stock_inventaire_demarrer(uuid,public.inventaire_type,text)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_inventaire_demarrer(uuid,public.inventaire_type,text)','EXECUTE')
+     or not has_function_privilege('authenticated','public.gestionnaire_stock_inventaire_compter(uuid,integer)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_inventaire_compter(uuid,integer)','EXECUTE') then
+    raise exception 'FAIL: ACL inventaire transactionnel incorrectes';
+  end if;
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.lot_quarantaine_compter(uuid,integer,integer)'::regprocedure))=0
+     or has_function_privilege('anon','public.lot_quarantaine_compter(uuid,integer,integer)','EXECUTE') then
+    raise exception 'FAIL: comptage de quarantaine sans garde affectation/ACL';
+  end if;
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.partner_adjust_universe_stock(uuid,numeric,text,text)'::regprocedure))>0 then
+    raise exception 'FAIL: le stock Marketplace partenaire a été mélangé au périmètre des pharmacies';
+  end if;
+
   raise notice '225_professional_assignments_security PASS';
 end
 $test$;
