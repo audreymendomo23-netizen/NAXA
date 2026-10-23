@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { PharmacienWorkspaceSidebar } from "@/components/pharmacie/PharmacienWorkspaceSidebar";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 type PharmacienSection = "dashboard" | "consultation" | "prescription" | "ordonnances" | "preparations" | "dispositifs" | "historique" | "rapports" | "profil";
 
@@ -25,7 +26,7 @@ export function PharmacienWorkspaceShell({
     <main className="min-h-screen bg-[#F4F8F5] px-3 pb-10 pt-3 sm:px-4 sm:pt-4 lg:px-6">
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 lg:flex-row lg:items-start lg:gap-5">
         <PharmacienWorkspaceSidebar activeTab={activeTab} onNavigate={onNavigate} />
-        <div className="min-w-0 flex-1 space-y-4">{children}</div>
+        <div className="min-w-0 flex-1 space-y-4"><div className="flex justify-end"><EspaceNaxaSwitcher current="pharmacien" /></div>{children}</div>
       </div>
     </main>
   );
