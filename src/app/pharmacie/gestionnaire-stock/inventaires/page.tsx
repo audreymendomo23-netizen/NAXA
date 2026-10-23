@@ -8,11 +8,16 @@ export default async function InventairesPage({searchParams}:{searchParams?:{ok?
  const {data:auth}=await sb.auth.getUser();
  if(!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/inventaires");
  const {data:profile}=await sb.from("profiles").select("role,fonction_interne,actif").eq("id",auth.user.id).maybeSingle();
- const role=String(profile?.role??"").toLowerCase(),fn=String(profile?.fonction_interne??"").toLowerCase();
- if(!profile||profile.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn))) redirect("/");
- const {data:rawPharmacies,error:pharmacyError}=await sb.rpc("my_pharmacies");
- const ids=[...new Set((Array.isArray(rawPharmacies)?rawPharmacies:[]).filter((id):id is string=>typeof id==="string"))];
- const {data:pharmaciesData,error:pharmaciesQueryError}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
+  const role=String(profile?.role??"").toLowerCase(),fn=String(profile?.fonction_interne??"").toLowerCase();
+  const now=new Date().toISOString();
+  const {data:assignments,error:assignmentError}=await sb.from("naxa_professional_assignments").select("pharmacie_id")
+   .eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier")
+   .lte("commence_at",now).gt("expire_at",now);
+  const hasAssignment=!assignmentError&&Array.isArray(assignments)&&assignments.length>0;
+  if(!profile||profile.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)||hasAssignment)) redirect("/");
+  const {data:rawPharmacies,error:pharmacyError}=await sb.rpc("my_pharmacies");
+  const ids=[...new Set([...(Array.isArray(rawPharmacies)?rawPharmacies:[]).filter((id):id is string=>typeof id==="string"),...(hasAssignment?assignments.map(a=>a.pharmacie_id).filter((id):id is string=>typeof id==="string"):[])])];
+  const {data:pharmaciesData,error:pharmaciesQueryError}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
  const pharmacies=pharmaciesData??[];
  if(pharmacyError||pharmaciesQueryError||!ids.length) return <main className="p-5">Impossible de déterminer le périmètre pharmacie.</main>;
  const {data:stockRows}=await sb.from("stocks").select("pharmacie_id,produit_id,produits(nom,dosage)").in("pharmacie_id",ids).limit(1000);
