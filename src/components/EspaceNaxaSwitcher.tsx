@@ -16,7 +16,8 @@ type Profile = {
   phone: string | null;
   date_of_birth: string | null;
   age_verified: boolean | null;
-  consent_accepted_at: string | null;\n  pharmacie_id: string | null;
+  consent_accepted_at: string | null;
+  pharmacie_id: string | null;
 };
 
 const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
@@ -42,11 +43,13 @@ export function EspaceNaxaSwitcher({ current }: Props) {
         const sb = supabaseBrowser();
         const { data: auth } = await sb.auth.getUser();
         if (!auth.user) return;
+
         const { data, error } = await sb.from("profiles")
           .select("role,fonction_interne,actif,username,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at,pharmacie_id")
           .eq("id", auth.user.id)
           .maybeSingle();
         if (!alive || error || !data) return;
+
         const profile = data as Profile;
         const allowed: Space[] = [];
         const hasClientIdentity = Boolean(
@@ -54,6 +57,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           && profile.date_of_birth && profile.age_verified === true && profile.consent_accepted_at,
         );
         if (hasClientIdentity) allowed.push("client");
+
         if (profile.actif === true) {
           if (profile.role === "admin") allowed.push("admin");
           if (profile.role === "promoteur") allowed.push("promoteur");
@@ -61,9 +65,23 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           if (profile.role === "caisse" || profile.fonction_interne === "caisse") allowed.push("caisse");
           if (profile.fonction_interne === "gestionnaire_stock") allowed.push("stock");
           if (profile.fonction_interne === "pharmacien") allowed.push("pharmacien");
-          if (["responsable", "magasinier", "comptable"].includes(profile.fonction_interne ?? "")) allowed.push("pharmacie");
+          if (profile.fonction_interne === "comptable") allowed.push("comptable");
+
+          // L'espace Comptable est proposé uniquement si le même RPC métier que
+          // la page Comptable confirme réellement MANAGE_ACCOUNTING sur la pharmacie.
+          if (profile.pharmacie_id) {
+            const { data: accountingAccess, error: accountingError } = await sb.rpc("naxa_can", {
+              p_privilege: "MANAGE_ACCOUNTING",
+              p_pharmacie: profile.pharmacie_id,
+              p_target: null,
+            });
+            if (!accountingError && accountingAccess === true) allowed.push("comptable");
+          }
         }
+
         if (alive) setSpaces([...new Set(allowed)]);
+      } catch {
+        // Le menu est masqué si le profil ou les permissions ne peuvent être lus.
       } finally {
         if (alive) setLoading(false);
       }
