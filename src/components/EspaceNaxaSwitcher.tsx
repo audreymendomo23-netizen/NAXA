@@ -75,32 +75,16 @@ export function EspaceNaxaSwitcher({ current }: Props) {
 
   return (
     <div className="relative">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={() => setOpen((value) => !value)}
-        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-emerald-800/20 bg-white px-4 py-2 text-sm font-bold text-emerald-950 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-      >
-        <span aria-hidden="true">↔</span>
-        Changer d’espace
-        <span aria-hidden="true">{open ? "▴" : "▾"}</span>
+      <button type="button" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((value) => !value)}
+        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-emerald-800/20 bg-white px-4 py-2 text-sm font-bold text-emerald-950 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
+        <span aria-hidden="true">↔</span> Changer d’espace <span aria-hidden="true">{open ? "▴" : "▾"}</span>
       </button>
-      {open && (
-        <nav aria-label="Espaces accessibles" role="menu" className="absolute left-0 top-full z-50 mt-2 min-w-60 rounded-xl border border-emerald-900/15 bg-white p-2 text-emerald-950 shadow-xl">
-          {available.map((space) => (
-            <Link
-              key={space}
-              role="menuitem"
-              href={SPACE_DETAILS[space].href}
-              onClick={() => setOpen(false)}
-              className="block rounded-lg px-3 py-3 text-sm font-semibold hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800"
-            >
-              {SPACE_DETAILS[space].label}
-            </Link>
-          ))}
-        </nav>
-      )}
+      {open && <nav aria-label="Espaces accessibles" role="menu" className="absolute left-0 top-full z-50 mt-2 min-w-60 rounded-xl border border-emerald-900/15 bg-white p-2 text-emerald-950 shadow-xl">
+        {available.map((space) => <Link key={space} role="menuitem" href={SPACE_DETAILS[space].href} onClick={() => setOpen(false)}
+          className="block rounded-lg px-3 py-3 text-sm font-semibold hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800">
+          {SPACE_DETAILS[space].label}
+        </Link>)}
+      </nav>}
     </div>
   );
 }
