@@ -564,3 +564,13 @@ Les éléments suivants sont maintenant enregistrés dans le dépôt :
 - La disponibilité de l'écran dans l'application nécessite que la version correspondante soit déployée ; aucun déploiement n'a été demandé ni effectué.
 
 Le statut est donc **incrément technique partiel**, et non « multicompte complet » ni « validé en production ».
+
+
+### 12.1 Test de sécurité des affectations — 23/10/2026
+
+- Ajout de `supabase/tests/225_professional_assignments_security.sql` au commit `361101f04dcd56bfe5c08300c5a94893e07c7f9b`.
+- Le test vérifie dans le catalogue SQL : présence de la table, RLS activé, absence de droits directs INSERT/UPDATE/DELETE pour `authenticated`, lecture via politique dédiée, restriction du helper au profil courant/Admin, contrôle de permission et d'auto-affectation dans le grant, champs d'audit de révocation et privilèges d'exécution des RPC.
+- Exécution du bloc SQL sur le projet Supabase isolé `pwfftcsjyeibxxqhwysw` : exécution sans erreur SQL. L'outil n'a pas renvoyé le message NOTICE du bloc `DO`; on consigne donc **test de contrat exécuté sans erreur**, sans prétendre avoir exercé les scénarios utilisateur ou les cas de refus métier.
+- Production n'a pas été interrogée en écriture ni modifiée. Aucun build, lint, typecheck, CI ou déploiement n'a été lancé.
+
+**Prochaine tranche prioritaire :** raccorder les gardes serveur des opérations Stock restantes à la fonction et à la pharmacie explicitement affectées. Ne pas remplacer les RPC existantes avant d'avoir récupéré leurs définitions complètes et vérifié leur logique métier ; le test ajouté ici est un test de contrat de sécurité, pas une preuve de bout en bout.
