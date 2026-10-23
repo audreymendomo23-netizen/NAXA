@@ -137,6 +137,23 @@ begin
     raise exception 'FAIL: ACL réception/ajustement incorrectes';
   end if;
 
+  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.stock_emplacement_modifier(uuid,uuid,text)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.stock_lot_emplacement_modifier(uuid,text)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.stock_lot_blocage_modifier(uuid,boolean,text)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_reference_initialiser(uuid,uuid,integer,text)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_transfert_atomique(uuid,uuid,uuid,integer,uuid,text)'::regprocedure))=0
+     or position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.gestionnaire_stock_service_ouvrir(uuid)'::regprocedure))=0 then
+    raise exception 'FAIL: une opération emplacement/lot/service/transfert ignore les affectations';
+  end if;
+  if has_function_privilege('anon','public.stock_emplacement_modifier(uuid,uuid,text)','EXECUTE')
+     or has_function_privilege('anon','public.stock_lot_emplacement_modifier(uuid,text)','EXECUTE')
+     or has_function_privilege('anon','public.stock_lot_blocage_modifier(uuid,boolean,text)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_reference_initialiser(uuid,uuid,integer,text)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_transfert_atomique(uuid,uuid,uuid,integer,uuid,text)','EXECUTE')
+     or has_function_privilege('anon','public.gestionnaire_stock_service_ouvrir(uuid)','EXECUTE') then
+    raise exception 'FAIL: une RPC Stock/Lots est encore exécutable par anon';
+  end if;
+
   raise notice '225_professional_assignments_security PASS';
 end
 $test$;
