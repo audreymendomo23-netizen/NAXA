@@ -17,8 +17,8 @@ async function scope() {
  if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)||hasAssignment)) redirect("/");
  const {data:raw,error:e}=await sb.rpc("my_pharmacies");
  const ids=[...new Set([...(Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"),...(hasAssignment?assignments.map(a=>a.pharmacie_id).filter((id):id is string=>typeof id==="string"):[])])];
- if(e||!ids.length) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=perimetre");
-
+ if((e&&!hasAssignment)||!ids.length) redirect("/pharmacie/gestionnaire-stock/inventaires?erreur=perimetre");
+ return {sb,uid:auth.user.id,ids};
 }
 export async function creerInventaireStock(formData:FormData) {
  const {sb,ids}=await scope();
