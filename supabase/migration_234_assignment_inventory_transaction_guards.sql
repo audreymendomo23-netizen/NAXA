@@ -1,5 +1,23 @@
 -- NAXA 234 — compléter les gardes des inventaires transactionnels sans réduire leur logique métier.
 begin;
+create table if not exists public.inventaire_ajustements (
+ id uuid primary key default gen_random_uuid(),
+ inventaire_id uuid not null references public.inventaires(id) on delete restrict,
+ ligne_id uuid not null references public.inventaire_lignes(id) on delete restrict,
+ pharmacie_id uuid not null references public.pharmacies(id) on delete restrict,
+ produit_id uuid not null references public.produits(id) on delete restrict,
+ lot_id uuid references public.stocks_lots(id) on delete restrict,
+ quantite_theorique integer not null,
+ quantite_comptee integer not null,
+ ecart integer generated always as (quantite_comptee-quantite_theorique) stored,
+ acteur_id uuid not null references auth.users(id) on delete restrict,
+ cree_le timestamptz not null default now()
+);
+create index if not exists inventaire_ajustements_scope_idx on public.inventaire_ajustements(pharmacie_id,cree_le desc);
+create index if not exists inventaire_ajustements_inventaire_idx on public.inventaire_ajustements(inventaire_id);
+alter table public.inventaire_ajustements enable row level security;
+revoke all on public.inventaire_ajustements from public,anon,authenticated;
+grant select on public.inventaire_ajustements to authenticated;
 create or replace function public.gestionnaire_stock_inventaire_demarrer(
  p_pharmacie uuid,p_type public.inventaire_type,p_reference text default null
 ) returns uuid language plpgsql security definer set search_path=''
