@@ -7,10 +7,16 @@ async function authorized(){
  if(!auth.user)redirect("/connexion?retour=/pharmacie/gestionnaire-stock/fournisseurs-receptions");
  const {data:p,error}=await sb.from("profiles").select("role,fonction_interne,actif").eq("id",auth.user.id).maybeSingle();
  const role=String(p?.role??"").toLowerCase(),fn=String(p?.fonction_interne??"").toLowerCase();
- if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)))redirect("/");
- const {data:raw,error:e}=await sb.rpc("my_pharmacies");const ids=[...new Set((Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"))];
- if(e||!ids.length)redirect("/pharmacie/gestionnaire-stock/fournisseurs-receptions?erreur=perimetre");
- return {sb,uid:auth.user.id,ids};
+ const now=new Date().toISOString();
+ const {data:assignments,error:ae}=await sb.from("naxa_professional_assignments").select("pharmacie_id")
+  .eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"])
+  .lte("commence_at",now).gt("expire_at",now);
+ const hasAssignment=!ae&&Array.isArray(assignments)&&assignments.length>0;
+ if(error||!p||p.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)||hasAssignment)) redirect("/");
+ const {data:raw,error:e}=await sb.rpc("my_pharmacies");
+ const ids=[...new Set([...(Array.isArray(raw)?raw:[]).filter((id):id is string=>typeof id==="string"),...(hasAssignment?assignments.map(a=>a.pharmacie_id).filter((id):id is string=>typeof id==="string"):[])])];
+ if(e||!ids.length) redirect("/pharmacie/gestionnaire-stock/fournisseurs-receptions?erreur=perimetre");
+
 }
 const uuid=(x:string)=>/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(x);
 const back="/pharmacie/gestionnaire-stock/fournisseurs-receptions";
