@@ -153,7 +153,7 @@ export default function Accueil() {
       }
     };
 
-    const { data: { subscription } = sb.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       if (!actif) return;
       if (session) {
         setIntroVisible(false);
