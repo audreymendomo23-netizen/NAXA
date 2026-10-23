@@ -10,11 +10,13 @@ begin
  if v_user is null then raise exception 'Connexion requise'; end if;
  if p_type is null then raise exception 'Type d’inventaire requis'; end if;
  if p_reference is not null and char_length(trim(p_reference))>80 then raise exception 'Référence limitée à 80 caractères'; end if;
- if not public.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') then raise exception 'Pharmacie hors périmètre'; end if;
+ if not public.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') and not public.naxa_has_active_professional_assignment(v_user,p_pharmacie,'gestionnaire_stock') and not public.naxa_has_active_professional_assignment(v_user,p_pharmacie,'magasinier') then raise exception 'Pharmacie hors périmètre'; end if;
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
-   or public.naxa_has_privilege('MANAGE_LOTS',p_pharmacie,'PHARMACIE')) then
+   or public.naxa_has_privilege('MANAGE_LOTS',p_pharmacie,'PHARMACIE')
+   or public.naxa_has_active_professional_assignment(v_user,p_pharmacie,'gestionnaire_stock')
+   or public.naxa_has_active_professional_assignment(v_user,p_pharmacie,'magasinier')) then
    raise exception 'Démarrage d’inventaire non autorisé';
  end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_pharmacie::text,0));
@@ -57,7 +59,9 @@ begin
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
-   or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')) then raise exception 'Ajout de ligne non autorisé'; end if;
+   or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'gestionnaire_stock')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'magasinier')) then raise exception 'Ajout de ligne non autorisé'; end if;
  if exists(select 1 from public.inventaire_lignes il where il.inventaire_id=p_inventaire and il.produit_id=p_produit) then
   raise exception 'Cette référence est déjà présente dans l’inventaire';
  end if;
@@ -88,7 +92,9 @@ begin
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
-   or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')) then raise exception 'Comptage non autorisé'; end if;
+   or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'gestionnaire_stock')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'magasinier')) then raise exception 'Comptage non autorisé'; end if;
  update public.inventaire_lignes set quantite_comptee=p_quantite where id=p_ligne;
  return found;
 end;
@@ -105,7 +111,9 @@ begin
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
    or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
-   or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')) then raise exception 'Clôture d’inventaire non autorisée'; end if;
+   or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'gestionnaire_stock')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'magasinier')) then raise exception 'Clôture d’inventaire non autorisée'; end if;
  if not exists(select 1 from public.inventaire_lignes where inventaire_id=p_inventaire) then raise exception 'Impossible de clôturer un inventaire vide'; end if;
  if exists(select 1 from public.inventaire_lignes where inventaire_id=p_inventaire and quantite_comptee is null) then raise exception 'Toutes les lignes doivent être comptées avant clôture'; end if;
  -- Contradiction: une ligne agrégée ne peut pas ajuster un stock qui possède des lots,
@@ -156,7 +164,9 @@ begin
  select * into v_profile from public.profiles where id=v_user and actif=true;
  if not found or not (coalesce(v_profile.role::text,'') in ('admin','promoteur')
   or coalesce(v_profile.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')
-  or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')) then raise exception 'Annulation d’inventaire non autorisée'; end if;
+  or public.naxa_has_privilege('MANAGE_LOTS',v_pharmacie,'PHARMACIE')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'gestionnaire_stock')
+   or public.naxa_has_active_professional_assignment(v_user,v_pharmacie,'magasinier')) then raise exception 'Annulation d’inventaire non autorisée'; end if;
  update public.inventaires set statut='annule',closed_at=now(),closed_by=v_user,updated_at=now() where id=p_inventaire;
  return true;
 end;
