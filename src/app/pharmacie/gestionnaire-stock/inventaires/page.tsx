@@ -11,7 +11,7 @@ export default async function InventairesPage({searchParams}:{searchParams?:{ok?
   const role=String(profile?.role??"").toLowerCase(),fn=String(profile?.fonction_interne??"").toLowerCase();
   const now=new Date().toISOString();
   const {data:assignments,error:assignmentError}=await sb.from("naxa_professional_assignments").select("pharmacie_id")
-   .eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier")
+   .eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"])
    .lte("commence_at",now).gt("expire_at",now);
   const hasAssignment=!assignmentError&&Array.isArray(assignments)&&assignments.length>0;
   if(!profile||profile.actif===false||!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fn)||hasAssignment)) redirect("/");
