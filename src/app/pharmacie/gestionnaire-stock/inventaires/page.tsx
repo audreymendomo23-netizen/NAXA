@@ -19,7 +19,7 @@ export default async function InventairesPage({searchParams}:{searchParams?:{ok?
   const ids=[...new Set([...(Array.isArray(rawPharmacies)?rawPharmacies:[]).filter((id):id is string=>typeof id==="string"),...(hasAssignment?assignments.map(a=>a.pharmacie_id).filter((id):id is string=>typeof id==="string"):[])])];
   const {data:pharmaciesData,error:pharmaciesQueryError}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
  const pharmacies=pharmaciesData??[];
- if(pharmacyError||pharmaciesQueryError||!ids.length) return <main className="p-5">Impossible de déterminer le périmètre pharmacie.</main>;
+ if((pharmacyError&&!hasAssignment)||(pharmaciesQueryError&&!hasAssignment)||!ids.length) return <main className="p-5">Impossible de déterminer le périmètre pharmacie.</main>;
  const {data:stockRows}=await sb.from("stocks").select("pharmacie_id,produit_id,produits(nom,dosage)").in("pharmacie_id",ids).limit(1000);
  const productRows=(stockRows??[]) as unknown as {pharmacie_id:string;produit_id:string;produits:{nom:string;dosage:string|null}|null}[];
  const {data:rows,error}=await sb.from("inventaires").select("id,pharmacie_id,type,statut,reference,created_at,closed_at,inventaire_lignes(id,produit_id,lot_id,quantite_theorique,quantite_comptee,ecart,produits(nom,dosage),stocks_lots(numero_lot,date_peremption,bloque,emplacement))").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(50);
