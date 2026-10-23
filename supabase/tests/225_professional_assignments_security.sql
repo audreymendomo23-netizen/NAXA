@@ -7,6 +7,7 @@ declare
   v_grant text;
   v_revoke text;
   v_policy_count integer;
+  v_lot text;
 begin
   if to_regclass('public.naxa_professional_assignments') is null then
     raise exception 'FAIL: table naxa_professional_assignments absente';
@@ -73,6 +74,16 @@ begin
      or has_function_privilege('anon',
       'public.naxa_revoke_professional_assignment(uuid,text)','EXECUTE') then
     raise exception 'FAIL: RPC grant/révocation accessible à anon';
+  end if;
+
+  select pg_get_functiondef('public.stock_lot_enregistrer(uuid,uuid,text,date,integer,uuid)'::regprocedure)
+    into v_lot;
+  if position('naxa_has_active_professional_assignment' in v_lot)=0
+     or position('v_assigned' in v_lot)=0
+     or position('v_source.bloque' in v_lot)=0
+     or position('v_source.quantite<p_quantite' in v_lot)=0
+     or position('v_total_lots<>v_stock.quantite' in v_lot)=0 then
+    raise exception 'FAIL: garde affectation ou contrôles métier de création de lot absents';
   end if;
 
   raise notice '225_professional_assignments_security PASS';
