@@ -5,7 +5,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { importerStock } from "@/lib/importStock";
 import { fcfa } from "@/lib/ranking";
 import { Logo } from "@/components/Logo";
-import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";\nimport { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
+import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 
 type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string|null;updated_at:string;emplacement:string|null;produits:{nom:string;dosage:string}|null};
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
