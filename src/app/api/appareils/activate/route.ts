@@ -7,9 +7,12 @@ export async function POST(req:NextRequest){
  const pharmacyId=readPharmacyCookie(req);if(!pharmacyId)return NextResponse.json({error:"Session pharmacie expirée."},{status:401});
  try{
   const {data:{user},error:userError}=await supabaseServer().auth.getUser();if(userError||!user)return NextResponse.json({error:"Connexion requise."},{status:401});
-  const {data:profile,error:pe}=await supabaseAdmin().from(S.profilesTable).select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileActiveColumn}`).eq(S.profileIdColumn,user.id).maybeSingle();
+  const {data:profile,error:pe}=await supabaseAdmin().from(S.profilesTable).select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileActiveColumn},${S.profileRoleColumn},fonction_interne`).eq(S.profileIdColumn,user.id).maybeSingle();
   const profileRecord = profile as unknown as Record<string, unknown> | null;
-  if(pe||!profileRecord||profileRecord[S.profileActiveColumn]===false||profileRecord[S.profilePharmacyIdColumn]!==pharmacyId)return NextResponse.json({error:"Identifiants non valides pour cette pharmacie"},{status:403});
+  const role=String(profileRecord?.[S.profileRoleColumn]??"");
+  const internalFunction=String(profileRecord?.fonction_interne??"").trim();
+  const authorizedRole=role==="caisse"||(role==="pharmacie"&&internalFunction.length>0);
+  if(pe||!profileRecord||profileRecord[S.profileActiveColumn]!==true||profileRecord[S.profilePharmacyIdColumn]!==pharmacyId||!authorizedRole)return NextResponse.json({error:"Fonction professionnelle active requise pour cette pharmacie."},{status:403});
   const body=await req.json();
   const name=String(body.name||"Appareil pharmacie").trim().slice(0,100)||"Appareil pharmacie";
   const installationId=String(body.installationId||"");
