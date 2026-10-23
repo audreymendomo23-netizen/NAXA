@@ -27,15 +27,19 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
  const {data:profile,error:profileError}=await sb.from("profiles").select("role,fonction_interne,actif,first_name,last_name").eq("id",auth.user.id).maybeSingle();
  if(profileError||!profile||profile.actif===false) redirect("/");
  const role=String(profile.role??"").toLowerCase(), fonction=String(profile.fonction_interne??"").toLowerCase();
- if(!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fonction))) redirect("/");
+ const {data:assignmentRows,error:assignmentError}=await sb.from("naxa_professional_assignments").select("pharmacie_id,fonction,commence_at,expire_at").eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"]);
+ const now=Date.now();
+ const assignedIds=(assignmentRows??[]).filter(a=>new Date(a.commence_at).getTime()<=now&&new Date(a.expire_at).getTime()>now).map(a=>a.pharmacie_id);
+ const hasStockAssignment=assignedIds.length>0;
+ if(!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fonction)||hasStockAssignment)) redirect("/");
  const {data:pharmacies,error:pharmacyError}=await sb.rpc("my_pharmacies");
- const ids=[...new Set((Array.isArray(pharmacies)?pharmacies:[]).filter((id):id is string=>typeof id==="string"))];
+ const ids=[...new Set([...(Array.isArray(pharmacies)?pharmacies:[]).filter((id):id is string=>typeof id==="string"),...assignedIds])];
  const {data:pharmacyRowsRaw}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
  const pharmacyRows = (Array.isArray(pharmacyRowsRaw) ? pharmacyRowsRaw : []).flatMap((entry: unknown): {id:string;nom:string}[] => {
   if (Array.isArray(entry)) return entry.filter((row: unknown): row is {id:string;nom:string} => typeof row === "object" && row !== null && "id" in row && "nom" in row && typeof row.id === "string" && typeof row.nom === "string");
   return typeof entry === "object" && entry !== null && "id" in entry && "nom" in entry && typeof entry.id === "string" && typeof entry.nom === "string" ? [{id:entry.id,nom:entry.nom}] : [];
  });
- if(pharmacyError||!ids.length) return <main className="mx-auto max-w-6xl p-4"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Le périmètre pharmacie n’a pas pu être déterminé. Aucune donnée n’est affichée.</p></main>;
+ if((pharmacyError&&!hasStockAssignment)||assignmentError||!ids.length) return <main className="mx-auto max-w-6xl p-4"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Le périmètre pharmacie n’a pas pu être déterminé. Aucune donnée n’est affichée.</p></main>;
  const pageNumber=Math.max(1,Math.min(10000,Number.isSafeInteger(page)?page:1));
  const pageSize=100;
  const today=new Date().toISOString().slice(0,10);
