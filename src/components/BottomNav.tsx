@@ -113,7 +113,8 @@ export function BottomNav() {
   return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchmove",onMove);document.removeEventListener("touchend",onEnd)};
  },[pathname,searchParams,router]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
- const visible=pathname==="/"||pathname==="/recherche"||(pathname==="/scanner"&&(scannerResults||searchParams.get("view")!=="results"&&searchParams.get("mode")!=="posologie"))||pathname==="/client/posologie"||pathname==="/resultats"||pathname==="/panier"||pathname==="/gardes"||pathname==="/client"||pathname==="/client/profil"||pathname.startsWith("/client/profil/")||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")||pathname.startsWith("/reservation/");
+ // La barre principale est réservée à l'accueil client (dictionnaire médical, panier, etc.).
+ const visible=pathname==="/client";
  if(!visible||(pathname==="/scanner"&&!scannerResults))return null;
  const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  const scan=pathname==="/scanner";
