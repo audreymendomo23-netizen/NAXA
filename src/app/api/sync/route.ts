@@ -36,7 +36,14 @@ export async function POST(req: NextRequest) {
         console.error("NAXA_SYNC_OPERATION_FAILED", { operationId: op.id, message: applyError.message });
         results.push({ id: op.id, status: "retry", detail: "Synchronisation indisponible. Réessayez lorsque la connexion sera rétablie." }); continue;
       }
-      results.push({ id: op.id, status: result?.status || "applied", detail: result });
+      const operationStatus = typeof result?.status === "string" ? result.status : "";
+      if (["applied", "conflict", "failed", "rejected"].includes(operationStatus)) {
+        results.push({ id: op.id, status: operationStatus, detail: result });
+      } else {
+        // Never acknowledge an operation as applied when the RPC response is missing or malformed.
+        console.error("NAXA_SYNC_OPERATION_INVALID_RESULT", { operationId: op.id });
+        results.push({ id: op.id, status: "retry", detail: "Réponse de synchronisation invalide. L'opération est conservée pour une nouvelle tentative." });
+      }
     }
     const now = new Date().toISOString();
     await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: now }).eq(S.deviceIdColumn, deviceRecord[S.deviceIdColumn]);
