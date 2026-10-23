@@ -103,7 +103,7 @@ begin
   if position('naxa_has_active_professional_assignment' in v_inventory_close)=0
      or position('for update' in lower(v_inventory_close))=0
      or position('quantite_comptee is null' in lower(v_inventory_close))=0
-     or position('closed_by=auth.uid()' in lower(v_inventory_close))=0 then
+     or (position('closed_by=auth.uid()' in lower(v_inventory_close))=0 and position('closed_by=v_user' in lower(v_inventory_close))=0) then
     raise exception 'FAIL: garde affectation ou contrôles de clôture inventaire absents';
   end if;
 
