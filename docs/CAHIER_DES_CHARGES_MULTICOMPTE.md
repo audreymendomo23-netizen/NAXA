@@ -574,3 +574,12 @@ Le statut est donc **incrément technique partiel**, et non « multicompte compl
 - Production n'a pas été interrogée en écriture ni modifiée. Aucun build, lint, typecheck, CI ou déploiement n'a été lancé.
 
 **Prochaine tranche prioritaire :** raccorder les gardes serveur des opérations Stock restantes à la fonction et à la pharmacie explicitement affectées. Ne pas remplacer les RPC existantes avant d'avoir récupéré leurs définitions complètes et vérifié leur logique métier ; le test ajouté ici est un test de contrat de sécurité, pas une preuve de bout en bout.
+
+
+### 12.2 Contrôle de concurrence des affectations — 23/10/2026
+
+- Contradiction détectée : le contrôle initial du chevauchement était un `SELECT EXISTS` suivi d'un `INSERT` sans verrou sur la personne cible. Deux attributions simultanées pouvaient théoriquement passer le contrôle avant que l'une soit visible à l'autre.
+- Migration additive `supabase/migration_228_assignment_grant_concurrency.sql` ajoutée au commit `6c31949af3352e516b746fc2f3a0fb0156fdde7e`. La RPC verrouille désormais la ligne du profil cible (`FOR UPDATE`) avant le contrôle du chevauchement et traite les périodes comme semi-ouvertes `[début, expiration)`.
+- Migration 228 appliquée avec succès **uniquement** sur le projet Supabase de test isolé `pwfftcsjyeibxxqhwysw`.
+- Le test de contrat `supabase/tests/225_professional_assignments_security.sql` a été renforcé pour exiger le verrou et la comparaison stricte des périodes ; après correction de sa mise en forme SQL, il s'est exécuté sans erreur sur le projet isolé. Le résultat ne prouve pas encore un test de concurrence multi-session réel ni un parcours Promoteur complet.
+- Aucun build/lint/typecheck/CI et aucun déploiement n'ont été lancés. Supabase Production reste inchangée.
