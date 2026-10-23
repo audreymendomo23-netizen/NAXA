@@ -558,7 +558,7 @@ Les éléments suivants sont maintenant enregistrés dans le dépôt :
 ### Limites actuelles — ne pas déclarer le multicompte terminé
 
 - Les affectations supplémentaires ne sont pas encore reconnues par tous les RPC, actions serveur, gardes de routes et politiques RLS des postes Caisse, Pharmacien, Comptable et Stock.
-- Pour Stock, les RPC `stock_service_open`, `gestionnaire_stock_reservation_annuler`, `stock_lot_enregistrer`, `inventaire_preparer_ligne` et `inventaire_cloturer` ont été raccordés explicitement aux affectations ; les autres opérations conservent leurs gardes historiques.
+- Pour Stock, les RPC `stock_service_open`, `gestionnaire_stock_reservation_annuler`, `stock_lot_enregistrer`, `inventaire_preparer_ligne` et `inventaire_cloturer` ont été raccordés explicitement aux affectations ; la synchronisation hors ligne a également été raccordée par la migration 231 ; les autres opérations conservent leurs gardes historiques.
 - Les affectations sont créées directement par le Promoteur dans la fonction RPC, avec interdiction de s'affecter soi-même. Il n'existe pas encore de circuit séparé de demande puis approbation.
 - Le journal append-only complet des actes réalisés sous une affectation n'est pas encore branché.
 - La disponibilité de l'écran dans l'application nécessite que la version correspondante soit déployée ; aucun déploiement n'a été demandé ni effectué.
@@ -600,3 +600,15 @@ La migration additive `supabase/migration_229_assignment_stock_lot_create.sql` r
 - Aucun build, lint, typecheck, CI ou déploiement n'a été lancé. Supabase Production reste inchangée.
 
 **Prochaine tranche prioritaire :** examiner `offline_stock_set_quantity` et les autres RPC de modification de stock, puis vérifier les autorisations effectives de leurs signatures avant de les modifier. Ne pas étendre cette correction aux opérations du Marketplace partenaire : elles utilisent un modèle de membre partenaire distinct.
+
+
+### 12.5 Synchronisation hors ligne du stock — 23/10/2026
+
+- L'inspection de `offline_stock_set_quantity` a confirmé une garde de périmètre fondée sur `is_admin()` / `can_access_pharmacy()`, sans reconnaissance explicite des affectations Stock.
+- Migration additive `supabase/migration_231_assignment_offline_stock_sync.sql`, commit `a5c546ff4fe91e69adbc8928ea24f5781bde9371` : autorise aussi une affectation active `gestionnaire_stock` ou `magasinier` dans la pharmacie visée.
+- Les contrôles de sécurité fonctionnels sont conservés : unicité et propriété de l'opération, idempotence, rejet de contenu différent sous le même identifiant, comparaison de l'horodatage de base, gestion des conflits et refus de modifier le stock agrégé lorsqu'il est lotisé.
+- Migration 231 appliquée avec succès uniquement sur le projet Supabase de test isolé `pwfftcsjyeibxxqhwysw`.
+- Le test de contrat SQL a été étendu à cette RPC et exécuté sans erreur SQL. Cela reste un test statique de contrat : aucun test utilisateur réel, aucune synchronisation hors ligne bout en bout ni test de concurrence n'ont été effectués.
+- Aucun build, lint, typecheck, CI ou déploiement n'a été lancé. Supabase Production reste inchangée.
+
+**Prochaine tranche prioritaire :** poursuivre l'inventaire des RPC qui modifient les stocks et les lots, en séparant les opérations du domaine Pharmacie de celles du Marketplace partenaire. Chaque modification doit préserver l'idempotence, la cohérence stock/lot, les limites de pharmacie et les droits EXECUTE.
