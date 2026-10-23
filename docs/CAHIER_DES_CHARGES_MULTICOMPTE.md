@@ -414,3 +414,46 @@ Copier ce prompt pour reprendre le chantier sans perdre le contexte :
 ### Décision métier complémentaire — 23/10/2026
 
 Le Promoteur peut autoriser plusieurs postes simultanément pour une même personne et une même pharmacie. Les autorisations restent séparées par fonction, pharmacie et période ; les contrôles d'approbation, de périmètre, de séparation des tâches et d'audit demeurent obligatoires. Cette décision ne constitue pas une preuve d'implémentation.
+
+---
+
+## 10. Exécution de l'étape 1 — bilan contradictoire du 23/10/2026
+
+**Périmètre exécuté :** lecture du dépôt `main`, inspection ciblée des API/RPC/migrations, requêtes SQL strictement en lecture sur la base NAXA active, et exécution de tests SQL transactionnels sur la base isolée `naxa-ci-replay-2`. Aucun code applicatif, test ou schéma n'a été modifié. Aucune migration distante ni aucun déploiement n'a été lancé.
+
+### 10.1 Constats confirmés
+
+| ID | Constat vérifié | Preuve et conséquence | Statut |
+|---|---|---|---|
+| MC-01 | L'API d'activation d'appareil ne sélectionne ni ne vérifie le rôle ou la fonction interne. Elle vérifie la session, l'activité du profil et l'égalité entre pharmacie du profil et cookie. | `src/app/api/appareils/activate/route.ts`, lignes 7–12. En outre, la table `public.appareils` est absente de la base active alors que l'API l'utilise via `PHARMACIE_SCHEMA.devicesTable`. L'activation n'est donc pas démontrée fonctionnelle sur la base active et le garde métier est insuffisant dans le code inspecté. | **DÉFAUT STATIQUE CONFIRMÉ** ; pas de test HTTP |
+| MC-02 | La route CRON n'exige le secret que si `CRON_SECRET` existe. | `src/app/api/cron/rapports/route.ts`, ligne 3 : si la variable est absente, le contrôle d'autorisation est sauté. La valeur et la présence de la variable ne sont pas consultables via l'audit effectué. | **DÉFAUT DE REFUS FERMÉ CONFIRMÉ** ; configuration runtime inconnue |
+| MC-03 | La route de synchronisation appelle une RPC absente de la base active. | `src/app/api/sync/route.ts`, lignes 27–30, appelle `naxa_apply_offline_operation_v1`. L'inspection SQL de `public` trouve `offline_stock_set_quantity(uuid,uuid,uuid,integer,timestamptz)`, mais pas `naxa_apply_offline_operation_v1`. La table `appareils` est également absente. La migration 082 est un brouillon non enregistré dans l'historique actif ; la migration 186 est enregistrée, mais elle ne fournit pas la RPC appelée par la route. | **INCOMPATIBILITÉ DÉPÔT/BASE ACTIVE CONFIRMÉE** |
+| MC-04 | Le modèle de données actif ne représente pas les affectations multi-fonctions temporaires exigées. | `profiles` possède un rôle principal et une fonction interne. `profile_accreditations` conserve un grantor, une cible, une pharmacie, un niveau et une date de création, mais pas une fonction affectée, une période, un état d'approbation, une expiration ni une révocation. Aucun tableau d'affectations correspondant n'a été trouvé dans le schéma public actif. Le sélecteur d'espace dépend également du rôle principal (`src/components/EspaceNaxaSwitcher.tsx`). | **ÉCART D'ARCHITECTURE CONFIRMÉ** |
+| MC-05 | Les pages/API Comptable sont présentes dans le dépôt, mais le socle SQL comptable n'est pas installé sur la base NAXA active examinée. | Les API appellent `compta_ouvrir_periode`, `compta_enregistrer_controle_cloture`, `compta_auditer` et lisent `compta_ecriture`/tables connexes. La lecture de l'historique des migrations et du catalogue SQL actif ne trouve ni les migrations comptables ni les tables/RPC comptables attendues. La base de test, elle, contient le socle comptable. | **DÉPÔT/PRODUCTION DÉSALIGNÉS** ; parcours actif non validé |
+| MC-06 | Un garde d'autorisation commun existe, mais la couverture API/RPC/RLS n'est pas exhaustive. | Sur la base active, `naxa_can` exige un utilisateur authentifié, un périmètre pharmacie et un privilège actif ; `naxa_scope_allows` contrôle le périmètre. Les politiques de `offline_operations` ne donnent qu'une lecture personnelle directe. Cela ne valide pas tous les points d'entrée et ne compense pas les écarts MC-01/MC-03. | **PARTIELLEMENT INSPECTÉ** |
+| MC-07 | Le flux d'authentification conserve encore des branches fondées sur le rôle principal. | `src/app/api/auth/login/route.ts`, `src/app/api/auth/complete-signup/route.ts`, `src/middleware.ts` et `EspaceNaxaSwitcher.tsx` ont été inspectés statiquement. Le flux de bout en bout, la révocation en session ouverte et la bascule Admin n'ont pas été exercés avec des comptes de test. | **INSPECTION STATIQUE PARTIELLE** |
+| MC-08 | Des tests SQL ont été exécutés sur la base isolée ; un test historique hors ligne échoue. | `160_compta_socle.sql`, `170_compta_recette_etape9_security.sql` et `171_compta_recette_etape10_hardening.sql` ont retourné leurs marqueurs PASS lors d'exécutions séquentielles. `053_offline_idempotence.sql` échoue sur « RLS insertion scope absente » : il attend encore les politiques directes `offline_operations_insert_scope` et `offline_operations_update_own`, que la migration 186 retire au profit d'une RPC contrôlée. Le test est donc incompatible avec le modèle de sécurité actuel et doit être réconcilié, pas contourné. | **3 PASS sur la base isolée ; 1 FAIL confirmé** |
+
+### 10.2 État des bases et limites de preuve
+
+- **Base NAXA active** : requêtes catalogue et historique de migrations en lecture seule uniquement. Les migrations comptables et la table `appareils` ne sont pas présentes dans les résultats consultés. Aucun compte utilisateur ni aucune donnée nominative n'a été interrogé.
+- **Base isolée `naxa-ci-replay-2`** : les tables `appareils`, `offline_operations`, `naxa_offline_operations` et les tables du socle comptable existent. Les tests ci-dessus ont été lancés contre cette base ; cela ne prouve pas que le schéma actif est identique.
+- **CI** : le statut GitHub consulté sur le SHA `a75fb6972061c539739244ee46a7a20d4e64dd19` indique `ci/circleci: quality = failure`. Aucun pipeline n'a été lancé. La cause détaillée de cet échec n'a pas été investiguée dans cette étape.
+- **Lint, typecheck, build, tests navigateur/E2E** : non exécutés ; aucun checkout local reproductible n'a été utilisé.
+- **Secrets d'environnement** : aucune valeur de secret n'a été lue ni consignée.
+
+### 10.3 Actions correctives identifiées — non appliquées
+
+1. Ajouter un contrôle serveur explicite de rôle/fonction autorisée et de périmètre pour l'activation d'appareil ; rétablir ensuite une migration compatible pour la table attendue, après comparaison du schéma cible.
+2. Faire échouer la route CRON en mode fermé si `CRON_SECRET` est absent, vide ou incorrect, puis tester les trois cas sans divulguer le secret.
+3. Réconcilier `src/app/api/sync/route.ts`, la RPC canonique `offline_stock_set_quantity`, les tables actives et le modèle de jeton d'appareil. Ne pas simplement remplacer le nom de RPC sans adapter l'identité et le contrat d'opération.
+4. Concevoir le modèle minimal additif d'affectations explicites (fonction, pharmacie, période, état, demandeur, approbateur, activation, expiration, révocation et journal) après inventaire complet des consommateurs. La décision de cumul simultané est validée ; urgence, durée maximale et prolongation restent ouvertes.
+5. Réconcilier l'historique de migrations comptables entre dépôt, base isolée et base active avant toute application. Aucune migration n'est autorisée dans la base active par ce compte rendu.
+6. Aligner le test 053 sur la stratégie RPC de la migration 186 et ajouter des tests négatifs qui prouvent l'impossibilité d'écrire directement dans `offline_operations`.
+7. Compléter l'audit MC-06 à MC-08 et obtenir une exécution vérifiable du lint/typecheck/build et des scénarios E2E dans un environnement autorisé.
+
+### 10.4 Verdict de l'étape 1
+
+**ÉTAPE 1 : NON TERMINÉE — défauts confirmés et validations manquantes.** Les points MC-01, MC-02 et MC-03 présentent des écarts concrets ; MC-04 confirme que le modèle multicompte n'est pas implémenté dans le schéma actif ; MC-05 n'est pas déployé dans la base active examinée. Les contrôles positifs de la base isolée ne rendent pas la base active conforme.
+
+Aucune correction applicative n'a été effectuée car le cahier interdit les commits de code et les migrations Production sans autorisation distincte. Le prochain jalon doit être une autorisation explicite de corriger le code et les tests sur `main`, sans déploiement, après validation de ce bilan.
