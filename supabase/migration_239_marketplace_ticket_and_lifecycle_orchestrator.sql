@@ -8,7 +8,7 @@ begin;
 create or replace function public.get_client_reservation_ticket(p_reservation_id uuid)
 returns jsonb
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $function$
