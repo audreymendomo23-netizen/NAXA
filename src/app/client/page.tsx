@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { EnTeteClient } from "@/components/EnTeteClient";
-import AccueilClient from "@/components/AccueilClient";
+import { AccueilClient } from "@/components/AccueilClient";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { usePanier } from "@/lib/panier";
 import { cancelHomeServiceRequest } from "@/app/prestations/actions";
