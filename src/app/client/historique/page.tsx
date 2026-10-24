@@ -203,11 +203,29 @@ export default function HistoriqueClient() {
       {filteredEntries.length > 0 && <section className="mt-5"><h2 className="mb-3 text-lg font-extrabold text-[#0B3D26]">Commandes et réservations ({filteredEntries.length})</h2><ul className="space-y-3">{filteredEntries.map((entry) => {
         const timeline = events.filter((event) => event.reservation_id === entry.id);
         const status = entry.commande_statut || entry.statut;
+        const hasPurchaseReceipt = receipts.some((receipt) => receipt.reservationId === entry.id);
+        const canDownloadServerTicket = ["payee", "retiree"].includes(entry.statut)
+          && ["effectue", "payee"].includes(entry.paiement_statut)
+          && !hasPurchaseReceipt;
+        const serverTicketFallback: Receipt = {
+          reservationId: entry.id,
+          rows: [],
+          date: entry.created_at,
+          pharmacy: entry.pharmacies?.nom || "Pharmacie",
+          city: entry.pharmacies?.ville || "",
+          address: entry.pharmacies?.adresse || entry.pharmacies?.quartier || "",
+          total: entry.total,
+          reference: entry.paiement_ref || null,
+          status: entry.statut,
+        };
         return <li key={entry.id} className="carte">
           <div className="flex items-start justify-between gap-3"><div><p className="font-extrabold">{entry.mode === "commande" ? "Commande" : "Réservation"} · {entry.pharmacies?.nom || "Pharmacie"}</p><p className="text-xs text-slate-500">{fmt(entry.created_at)} · N° {entry.id.slice(0, 8).toUpperCase()}</p></div><span className="rounded-full bg-naxa-canari px-2 py-1 text-xs font-bold">{STATUS[status] || status || "Statut indisponible"}</span></div>
           <p className="mt-2 text-sm text-slate-600">Montant enregistré : {fcfa(entry.total)} · Paiement : {STATUS[entry.paiement_statut] || entry.paiement_statut || "Non renseigné"}</p>
           {timeline.length > 0 && <ol className="mt-3 space-y-2 border-l-2 border-slate-100 pl-3">{timeline.map((event) => <li key={event.id} className="text-sm"><span className="font-semibold">{labels[event.event_type] || event.event_type}</span><span className="block text-xs text-slate-500">{fmt(event.occurred_at)}{event.to_statut || String(event.detail?.to || "") ? " · " + (event.to_statut || String(event.detail?.to || "")) : ""}</span></li>)}</ol>}
-          <Link href={"/reservation/" + entry.id} className="mt-3 inline-block text-sm font-bold text-[#0F6B3F] underline">Ouvrir le suivi</Link>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Link href={"/reservation/" + entry.id} className="inline-block text-sm font-bold text-[#0F6B3F] underline">Ouvrir le suivi</Link>
+          {canDownloadServerTicket && <button type="button" className="rounded-xl bg-[#0F6B3F] px-3 py-2 text-sm font-bold text-white" onClick={() => void downloadServerTicket(serverTicketFallback)}>Télécharger le ticket de caisse serveur</button>}
+        </div>
         </li>;
       })}</ul></section>}
       {receipts.length > 0 && <section className="mt-6"><h2 className="mb-3 text-lg font-extrabold text-[#0B3D26]">Achats et reçus ({receipts.length})</h2><ul className="space-y-3">{receipts.map((receipt) => <li key={receipt.reservationId} className="carte">
