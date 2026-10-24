@@ -140,7 +140,7 @@ export function BottomNav() {
     <span className={`text-[11px] font-bold leading-none ${scan?"text-[#0F6B3F]":"text-[#667D70]"}`}>Scanner</span>
    </Link>
    {tab(shopping,purchase.label,purchase.icon,"/client?onglet=achats",nombre>0&&<span className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#FFE23D] px-1 text-[10px] font-extrabold text-[#0B3D26]">{nombre>99?"99+":nombre}</span>,true)}
-   {tab(profile || pathname==="/client/profil","Profil","user","/client/profil",undefined,false)}
+   {tab(profile,"Profil","user","/client/profil",undefined,false)}
   </div>
  </nav>;
 }
