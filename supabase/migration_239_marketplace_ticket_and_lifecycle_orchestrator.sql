@@ -17,6 +17,7 @@ declare
   v_sale public.ventes%rowtype;
   v_items jsonb;
   v_payments jsonb;
+  v_last_payment public.vente_paiements%rowtype;
 begin
   if auth.uid() is null then
     raise exception 'Connexion requise';
@@ -78,11 +79,32 @@ begin
   from public.vente_paiements vp
   where vp.vente_id = v_sale.id;
 
+  select vp.* into v_last_payment
+  from public.vente_paiements vp
+  where vp.vente_id = v_sale.id
+  order by vp.created_at desc
+  limit 1;
+
   if jsonb_array_length(v_items) = 0 then
     raise exception 'Le ticket POS ne contient aucune ligne';
   end if;
-  if jsonb_array_length(v_payments) = 0 then
+  if jsonb_array_length(v_payments) = 0 or not found then
     raise exception 'Le ticket POS ne contient aucune écriture de paiement';
+  end if;
+  if v_sale.total_net is distinct from v_res.total then
+    raise exception 'Le total du ticket POS ne correspond pas au total de la réservation';
+  end if;
+  if coalesce((select sum(vl.total_ligne)::integer from public.vente_lignes vl where vl.vente_id = v_sale.id), 0)
+       is distinct from v_sale.total_brut then
+    raise exception 'Les lignes du ticket POS ne correspondent pas au total brut';
+  end if;
+  if v_res.paiement_montant_percu is not null
+     and v_res.paiement_montant_percu is distinct from v_last_payment.montant_percu then
+    raise exception 'Le montant reçu du snapshot ne correspond pas à l’écriture POS';
+  end if;
+  if v_res.paiement_monnaie_rendue is not null
+     and v_res.paiement_monnaie_rendue is distinct from v_last_payment.monnaie_rendue then
+    raise exception 'La monnaie rendue du snapshot ne correspond pas à l’écriture POS';
   end if;
 
   return jsonb_build_object(
