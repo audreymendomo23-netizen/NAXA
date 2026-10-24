@@ -115,10 +115,10 @@ export function BottomNav() {
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
  const home=(pathname==="/client"&&searchParams.get("onglet")!=="achats")||pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  // Garder la navigation client sur toutes les pages du parcours client, sans l'afficher sur l'accueil public.
- const visible=pathname==="/client"||pathname.startsWith("/client/")||pathname==="/scanner"||pathname==="/panier"||pathname==="/resultats"||pathname.startsWith("/reservation/");
+ const visible=pathname==="/client"||pathname.startsWith("/client/")||pathname==="/scanner"||pathname==="/panier"||pathname==="/notifications"||pathname==="/resultats"||pathname.startsWith("/univers-reservation/")||pathname.startsWith("/reservation/");
  const scan=pathname==="/scanner";
  const favorites=pathname==="/client/profil/favoris";
- const profile=pathname==="/client/posologie"||(pathname==="/client/profil"||pathname.startsWith("/client/profil/"))&&!favorites||pathname.startsWith("/reservation/");
+ const profile=pathname==="/client/posologie"||pathname==="/client/historique"||pathname==="/client/messages"||pathname==="/notifications"||(pathname==="/client/profil"||pathname.startsWith("/client/profil/"))&&!favorites||pathname.startsWith("/reservation/")||pathname.startsWith("/univers-reservation/");
  const shopping=(pathname==="/client"&&searchParams.get("onglet")==="achats")||pathname==="/panier";
  const labels=[{label:"Achats",icon:"shopping" as const},{label:"Réservations",icon:"calendar" as const},{label:"Commandes",icon:"clipboard" as const}];
  const purchase=labels[rotating];

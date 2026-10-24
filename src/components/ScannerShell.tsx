@@ -403,9 +403,9 @@ export function ScannerShell() {
     router.replace("/scanner" + (modePosologie ? "?mode=posologie" : ""));
   };
 
-  const fond = "fixed inset-0 z-40 flex min-h-dvh flex-col overflow-hidden bg-[#0B1F15] text-white";
+  const fond = "fixed inset-x-0 bottom-0 top-[104px] z-40 flex min-h-0 flex-col overflow-hidden bg-[#0B1F15] text-white";
   if (ecran === "crop") {
-    return <main className={fond} style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    return <main className={fond} style={{ paddingTop: 0, paddingBottom: "calc(84px + env(safe-area-inset-bottom, 0px))" }}>
       <header className="mx-auto flex w-full max-w-[480px] items-center justify-between px-4 py-3">
         <button type="button" onClick={() => { setFichier(null); setFichiersEnAttente([]); setIndexFichier(0); setLecturesCumulees([]); setEcran("camera"); }} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-2xl" aria-label="Retour">‹</button>
         <h1 className="text-base font-extrabold">Recadrer l’image{fichiersEnAttente.length > 1 ? " · " + (indexFichier + 1) + "/" + fichiersEnAttente.length : ""}</h1>

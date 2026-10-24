@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MAX_QTE, usePanier } from "@/lib/panier";
-import { Logo } from "@/components/Logo";
 
 export default function Panier() {
   const router = useRouter();
@@ -16,11 +15,8 @@ export default function Panier() {
   };
 
   return (
-    <main className="mx-auto max-w-lg px-4 pb-16">
-      <header className="-mx-4 mb-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3">
-        <Link href="/"><Logo taille={32} /></Link>
-        <Link href="/" className="text-sm font-semibold text-white underline">Ajouter</Link>
-      </header>
+    <main className="mx-auto min-h-dvh max-w-lg px-4 pb-[calc(88px+env(safe-area-inset-bottom,0px))]">
+      <div className="mb-4 flex justify-end"><Link href="/client" className="text-sm font-semibold text-naxa-green-900 underline">Continuer mes achats</Link></div>
 
       <h1 className="text-2xl font-extrabold">Mon panier</h1>
       <p className="mt-1 text-sm text-slate-600">Le panier reste sur votre téléphone.</p>

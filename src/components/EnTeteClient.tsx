@@ -7,6 +7,7 @@ import { Logo } from "@/components/Logo";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { BoutonPanierEntete } from "@/components/BoutonPanierEntete";
+import { notifierNAXA } from "@/components/NotificationGlobale";
 
 const actions = [
   { titre: "Accueil", description: "Espace client", href: "/client", mots: "accueil maison espace client" },
@@ -76,11 +77,20 @@ export function EnTeteClient() {
     setQuery("");
   }
 
-  return <header className="naxa-green-header relative z-20 -mx-4 min-h-[88px] px-4 pb-3 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  function ouvrirAction(href: string) {
+    closeSearchAndMenu();
+    const verrouille = ["/parapharmacie", "/bebe-maman", "/examens", "/prestations", "/aide"].some(path => href === path || href.startsWith(path + "?"));
+    const aideVerrouillee = href.startsWith("mailto:") && /subject=(Besoin|Centre|Contact)%20?d/i.test(href);
+    if (verrouille || aideVerrouillee) { notifierNAXA("Cet espace n'est pas disponible actuellement"); return; }
+    if (href.startsWith("mailto:")) { window.location.href = href; return; }
+    router.push(href);
+  }
+
+  return <header className="naxa-green-header sticky top-0 z-50 min-h-[104px] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <Logo clair taille={36}/>
+          <Logo clair taille={38}/>
           <p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
@@ -94,20 +104,27 @@ export function EnTeteClient() {
       </div>
 
       {searchOpen && <div data-naxa-client-search className="relative z-[1002] mt-3">
-        <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) { const action = suggestions[0]; closeSearchAndMenu(); if (action.href.startsWith("mailto:")) window.location.href = action.href; else router.push(action.href); } }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
+        <form onSubmit={e => { e.preventDefault(); if (suggestions[0]) ouvrirAction(suggestions[0].href); }} className="flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-lg">
           <IconeNAXA name="search" size={19} className="ml-2 shrink-0 text-[#0F6B3F]"/>
           <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans NAXA" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
           <button type="button" aria-label="Fermer la zone de recherche" title="Fermer la recherche" onClick={() => { setSearchOpen(false); setQuery(""); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>
         </form>
         {query.trim().length >= 2 && <div className="mt-2 overflow-hidden rounded-2xl border border-white/15 bg-[#0B3D26] p-2 text-white shadow-xl">
           <p className="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/65">Suggestions</p>
-          {suggestions.map(a => <Link key={a.titre} href={a.href} onClick={event => { event.preventDefault(); closeSearchAndMenu(); if (a.href.startsWith("mailto:")) window.location.href = a.href; else router.push(a.href); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span><span className="block">{a.titre}</span><span className="block text-xs font-normal text-white/70">{a.description}</span></span><span aria-hidden="true">›</span></Link>)}
+          {suggestions.map(a => <Link key={a.titre} href={a.href} onClick={event => { event.preventDefault(); ouvrirAction(a.href); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"><span><span className="block">{a.titre}</span><span className="block text-xs font-normal text-white/70">{a.description}</span></span><span aria-hidden="true">›</span></Link>)}
           {suggestions.length === 0 && <p className="px-3 py-3 text-sm text-white/75">Aucune option trouvée. Essayez un autre terme.</p>}
         </div>}
       </div>}
 
       {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0F6B3F] p-2 text-white shadow-2xl">
-        {actions.filter(a => ["Parapharmacie","Bébé & maman","Dispositifs médicaux","Examens médicaux","Soins à domicile","Besoin d’aide ?"].includes(a.titre)).map(a => <Link key={a.titre} href={a.href} onClick={() => closeSearchAndMenu()} className={a.titre==="Besoin d’aide ?" ? "mt-1 flex min-h-11 items-center rounded-xl border-t border-white/20 px-3 py-2 text-sm font-extrabold text-white hover:bg-white/10" : "flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-bold text-white hover:bg-white/10"}>{a.titre}</Link>)}
+        {[
+ { titre: "Parapharmacie", href: "/parapharmacie", locked: true },
+ { titre: "Bébé & maman", href: "/bebe-maman", locked: true },
+ { titre: "Dispositifs médicaux", href: "/suivi", locked: false },
+ { titre: "Examens médicaux", href: "/examens", locked: true },
+ { titre: "Prestations et soins à domicile", href: "/prestations", locked: true },
+].map(item => item.locked ? <button key={item.titre} type="button" onClick={() => { closeSearchAndMenu(); notifierNAXA("Cet espace n'est pas disponible actuellement"); }} className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white/90 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><span>{item.titre}</span><IconeNAXA name="lock" size={16}/></button> : <Link key={item.titre} href={item.href} onClick={closeSearchAndMenu} className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><span>{item.titre}</span><IconeNAXA name="chevron-right" size={17}/></Link>)}
+<button type="button" onClick={() => { closeSearchAndMenu(); notifierNAXA("Cet espace n'est pas disponible actuellement"); }} className="mt-1 flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white hover:bg-white/10"><span>Besoin d’aide ?</span><IconeNAXA name="lock" size={16}/></button>
       </nav>}
     </div>
   </header>;

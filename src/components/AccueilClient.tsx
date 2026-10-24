@@ -6,11 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useRouter } from "next/navigation";
 
 import { IconeNAXA } from "@/components/IconeNAXA";
-import { BoutonNotifications } from "@/components/BoutonNotifications";
-import { Logo } from "@/components/Logo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
-import { BoutonPanierEntete } from "@/components/BoutonPanierEntete";
 import { BoutonTheme } from "@/components/BoutonTheme";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
@@ -46,43 +43,12 @@ type StockRow = {
 };
 const fcfa = (n: number) => new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g, "\u00a0") + " FCFA";
 
-const rechercheNavigation = [
-  { titre: "Accueil", description: "Page d’accueil client", href: "/client", mots: "accueil maison" },
-  { titre: "Favoris", description: "Médicaments enregistrés", href: "/client/profil/favoris", mots: "favoris enregistrés coeur" },
-  { titre: "Scanner une ordonnance", description: "Scanner un document", href: "/scanner", mots: "scanner ordonnance scan" },
-  { titre: "Achats et commandes", description: "Historique et commandes", href: "/client?onglet=achats", mots: "achats commandes historique" },
-  { titre: "Réservations et suivi", description: "État des réservations", href: "/client", mots: "réservations suivi statut" },
-  { titre: "Profil client", description: "Coordonnées et paramètres", href: "/client/profil", mots: "profil compte coordonnées paramètres" },
-  { titre: "Adresse", description: "Adresse et localisation", href: "/client/profil/adresse", mots: "adresse localisation retrait pharmacie" },
-  { titre: "Paiement", description: "Moyens de paiement", href: "/client/profil/paiement", mots: "paiement portefeuille momo" },
-  { titre: "Langue", description: "Préférences linguistiques", href: "/client/profil/langue", mots: "langue français anglais" },
-  { titre: "Factures", description: "Documents d’achat", href: "/client/profil/factures", mots: "facture reçu documents" },
-  { titre: "Notifications", description: "Alertes et messages", href: "/notifications", mots: "notifications alertes cloche" },
-  { titre: "Messages", description: "Conversations sauvegardées et classées par pharmacie", href: "/client/messages", mots: "messages messagerie conversation pharmacie écrire contacter archiver" },
-  { titre: "Centre d’aide", description: "Trouver de l’assistance", href: "mailto:naxa.home@gmail.com?subject=Centre%20d%27aide%20NAXA", mots: "centre aide assistance support" },
-  { titre: "Contacter NAXA", description: "Écrire à l’équipe", href: "mailto:naxa.home@gmail.com?subject=Contact%20NAXA", mots: "contact équipe email écrire" },
-  { titre: "Confidentialité", description: "Gérer vos demandes de confidentialité", href: "/client/profil/confidentialite", mots: "confidentialité données vie privée" },
-  { titre: "Suppression du compte", description: "Options de suppression du compte", href: "/client/profil/suppression", mots: "suppression compte effacer données" },
-  { titre: "Noter l’application", description: "Envoyer votre avis sur NAXA", href: "mailto:naxa.home@gmail.com?subject=Avis%20sur%20NAXA", mots: "noter application avis évaluation" },
-  { titre: "Posologie et rappels", description: "Gérer les rappels prescrits", href: "/client/posologie", mots: "posologie rappels horaires prise" },
-  { titre: "Pharmacies de garde", description: "Pharmacies de garde proches", href: "/gardes", mots: "garde gardes pharmacies nuit" },
-  { titre: "Parapharmacie", description: "Explorer l’univers parapharmacie", href: "/parapharmacie", mots: "parapharmacie soins" },
-  { titre: "Bébé & maman", description: "Explorer l’univers bébé et maman", href: "/bebe-maman", mots: "bébé maman maternité" },
-  { titre: "Dispositifs médicaux", description: "Suivi personnel gratuit et dispositifs", href: "/suivi", mots: "dispositifs médicaux matériel suivi connecté capteur" },
-  { titre: "Examens médicaux", description: "Consulter les examens disponibles", href: "/examens", mots: "examens analyses laboratoire" },
-  { titre: "Soins à domicile", description: "Consulter les prestations disponibles", href: "/prestations", mots: "soins domicile prestations" },
-  { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "mailto:naxa.home@gmail.com?subject=Besoin%20d%27aide%20sur%20NAXA", mots: "aide contact assistance support" },
-];
 const distance = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   const rad = (v: number) => v * Math.PI / 180;
   const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 };
-function LogoNAXA() {
-  return <Logo clair taille={38} />;
-}
-
 function Blister() {
   return <svg viewBox="0 0 180 120" className="h-[88px] w-full" role="img" aria-label="Illustration d'une plaquette de comprimés">
     <g transform="translate(25 13) rotate(-8 65 45)">
@@ -128,12 +94,6 @@ export function AccueilClient() {
   const [error, setError] = useState(false);
   const [added, setAdded] = useState<string|null>(null);
   const [favoris, setFavoris] = useState<string[]>([]);
-  const [menuServicesOuvert, setMenuServicesOuvert] = useState(false);
-  const menuServicesRef = useRef<HTMLDivElement>(null);
-  const [rechercheAppOuverte, setRechercheAppOuverte] = useState(false);
-  const [rechercheAppTerme, setRechercheAppTerme] = useState("");
-  const [rechercheAppVide, setRechercheAppVide] = useState(false);
-  const rechercheAppRef = useRef<HTMLInputElement>(null);
   const [dictionnaireOuvert, setDictionnaireOuvert] = useState(false);
   const [termeMedical, setTermeMedical] = useState("");
   const [rechercheMedicale, setRechercheMedicale] = useState(false);
@@ -268,61 +228,6 @@ export function AccueilClient() {
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [suggestionsOuvertes]);
-
-  useEffect(() => {
-    if (!rechercheAppOuverte) return;
-    const id = window.requestAnimationFrame(() => rechercheAppRef.current?.focus());
-    const fermerAvecEchap = (event: KeyboardEvent) => { if (event.key === "Escape") setRechercheAppOuverte(false); };
-    const fermerAuClicExterieur = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Element && !target.closest("[data-naxa-general-search]")) setRechercheAppOuverte(false);
-    };
-    document.addEventListener("keydown", fermerAvecEchap);
-    document.addEventListener("pointerdown", fermerAuClicExterieur);
-    return () => {
-      window.cancelAnimationFrame(id);
-      document.removeEventListener("keydown", fermerAvecEchap);
-      document.removeEventListener("pointerdown", fermerAuClicExterieur);
-    };
-  }, [rechercheAppOuverte]);
-
-  const suggestionsRechercheApp = useMemo(() => {
-    const terme = normaliserRecherche(rechercheAppTerme);
-    if (terme.length < 2) return [];
-    return rechercheNavigation.filter(item => normaliserRecherche(item.titre + " " + item.description + " " + item.mots).includes(terme)).slice(0, 4);
-  }, [rechercheAppTerme]);
-
-  const ouvrirOptionRecherche = (href: string) => {
-    setRechercheAppOuverte(false);
-    setRechercheAppTerme("");
-    setRechercheAppVide(false);
-    const espaceCommercialIndisponible =
-      href === "/parapharmacie" || href === "/bebe-maman" || href === "/examens" || href === "/prestations" || href === "/aide" ||
-      (href.startsWith("/resultats?q=") && /parapharmacie|b[eé]b[eé]|b%[Cc]3%[Aa]b%[Cc]3%[Aa]|examens|prestations|soins%20[aà]%20domicile/i.test(href));
-    const espaceAideIndisponible = href.startsWith("mailto:") && /subject=(Besoin|Centre|Contact)%20?d/i.test(href);
-    if (espaceCommercialIndisponible || espaceAideIndisponible) {
-      notifierNAXA("Cet espace n'est pas disponible actuellement");
-      return;
-    }
-    if (href.startsWith("mailto:")) window.location.href = href;
-    else router.push(href);
-  };
-
-  useEffect(() => {
-    if (!menuServicesOuvert) return;
-    const fermerSiExterieur = (event: PointerEvent) => {
-      if (!menuServicesRef.current?.contains(event.target as Node)) setMenuServicesOuvert(false);
-    };
-    const fermerAvecEchap = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuServicesOuvert(false);
-    };
-    document.addEventListener("pointerdown", fermerSiExterieur, true);
-    document.addEventListener("keydown", fermerAvecEchap);
-    return () => {
-      document.removeEventListener("pointerdown", fermerSiExterieur, true);
-      document.removeEventListener("keydown", fermerAvecEchap);
-    };
-  }, [menuServicesOuvert]);
 
   useEffect(() => {
     const actualiser = () => setFavoris(lireFavoris().map(f => f.id));
@@ -502,90 +407,6 @@ export function AccueilClient() {
   };
 
   return <div className="naxa-home-shell min-h-dvh pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <header className="naxa-green-header relative z-20 min-h-[104px] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
-      <div className="mx-auto flex max-w-[480px] items-center justify-between gap-3">
-        <div className="min-w-0"><LogoNAXA/><p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p></div>
-        <div className="flex items-center gap-1">
-          <BoutonPanierEntete />
-          <BoutonNotifications />
-          <button type="button" aria-label={rechercheAppOuverte ? "Fermer la recherche générale" : "Rechercher dans NAXA"} title="Rechercher dans NAXA" aria-expanded={rechercheAppOuverte} aria-controls="recherche-generale-naxa" onClick={() => { setRechercheAppOuverte(v => !v); setRechercheAppVide(false); }} data-naxa-general-search className="relative flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">
-            <IconeNAXA name="search" size={23}/>
-          </button>
-          <div ref={menuServicesRef} className="relative">
-            <button
-              type="button"
-              aria-label={menuServicesOuvert ? "Fermer les autres services" : "Autres services"}
-              aria-expanded={menuServicesOuvert}
-              aria-controls="menu-autres-services"
-              onClick={() => setMenuServicesOuvert(value => !value)}
-              className="flex h-11 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
-            >
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
-                <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
-              </svg>
-            </button>
-            {menuServicesOuvert && (
-              <nav id="menu-autres-services" aria-label="Autres services NAXA" className="absolute right-[-1rem] top-full z-[1001] mt-2 w-64 max-w-[100vw] rounded-2xl border border-white/20 bg-[#0F6B3F] p-2 text-white shadow-2xl">
-                {[
-                  { label:"Parapharmacie", href:"/resultats?q=Parapharmacie", available:false },
-                  { label:"Bébé & maman", href:"/resultats?q=B%C3%A9b%C3%A9%20%26%20maman", available:false },
-                  { label:"Dispositifs médicaux", href:"/suivi", available:true },
-                  { label:"Examens médicaux", href:"/resultats?q=Examens%20m%C3%A9dicaux", available:false },
-                  { label:"Prestations et soins à domicile", href:"/resultats?q=Prestations%20et%20soins%20%C3%A0%20domicile", available:false },
-                ].map((categorie) => (
-                  categorie.available ? (
-                    <Link
-                      key={categorie.label}
-                      href={categorie.href}
-                      onClick={() => setMenuServicesOuvert(false)}
-                      className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
-                    >
-                      <span>{categorie.label}</span><IconeNAXA name="chevron-right" size={17}/>
-                    </Link>
-                  ) : (
-                    <button
-                      key={categorie.label}
-                      type="button"
-                      onClick={() => { setMenuServicesOuvert(false); notifierNAXA("Cet espace n'est pas disponible actuellement"); }}
-                      className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white/90 transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
-                    >
-                      <span>{categorie.label}</span><IconeNAXA name="lock" size={16}/>
-                    </button>
-                  )
-                ))}
-                <button
-                  type="button"
-                  onClick={() => { setMenuServicesOuvert(false); notifierNAXA("Cet espace n'est pas disponible actuellement"); }}
-                  className="mt-1 flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"
-                >
-                  <span className="flex items-center gap-2"><IconeNAXA name="bell" size={18}/>Besoin d'aide ?</span>
-                  <IconeNAXA name="lock" size={16}/>
-                </button>
-              </nav>
-            )}
-          </div>
-        </div>
-      </div>
-      {rechercheAppOuverte && <div data-naxa-general-search id="recherche-generale-naxa" className="relative z-[1002] mx-auto mt-3 max-w-[480px] pb-2">
-        <form onSubmit={event => {
-          event.preventDefault();
-          if (rechercheAppTerme.trim().length < 2) return;
-          if (suggestionsRechercheApp[0]) ouvrirOptionRecherche(suggestionsRechercheApp[0].href);
-          else setRechercheAppVide(true);
-        }} className="flex items-center gap-1.5 rounded-2xl border border-white/30 bg-white p-1.5 shadow-lg">
-          <IconeNAXA name="search" size={20} className="ml-2 shrink-0 text-[#0F6B3F]"/>
-          <input ref={rechercheAppRef} value={rechercheAppTerme} onChange={event => { setRechercheAppTerme(event.target.value); setRechercheAppVide(false); }} placeholder="Rechercher une option ou fonction…" aria-label="Recherche générale dans l’application" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-slate-500"/>
-          <button type="button" aria-label="Fermer la zone de recherche" title="Fermer la recherche" onClick={() => { setRechercheAppOuverte(false); setRechercheAppTerme(""); setRechercheAppVide(false); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F5F2] text-[#0B3D26]"><span aria-hidden="true" className="text-xl leading-none">×</span></button>
-        </form>
-        {rechercheAppTerme.trim().length >= 2 && <div className="mt-2 overflow-hidden rounded-2xl border border-white/20 bg-[#0B3D26] p-2 text-white shadow-xl">
-          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">Suggestions</p>
-          {suggestionsRechercheApp.map(item => <Link key={item.titre} href={item.href} onClick={event => { event.preventDefault(); ouvrirOptionRecherche(item.href); }} className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
-            <span className="min-w-0"><span className="block">{item.titre}</span><span className="block text-xs font-normal text-white/70">{item.description}</span></span><span aria-hidden="true" className="text-lg">›</span>
-          </Link>)}
-          {rechercheAppVide && <p role="status" className="px-3 py-3 text-sm text-white/80">Aucune option trouvée. Essayez un autre terme.</p>}
-        </div>}
-      </div>}
-    </header>
     <main className="relative z-10 mx-auto w-full max-w-[480px] rounded-t-[24px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
       <div className="naxa-enter mb-5">
         <div className="flex min-w-0 items-center gap-2.5">

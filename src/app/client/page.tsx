@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
-import { EnTeteClient } from "@/components/EnTeteClient";
 import { AccueilClient } from "@/components/AccueilClient";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { usePanier } from "@/lib/panier";
@@ -95,7 +94,7 @@ function ClientPageContent(){
  const filteredReservations=useMemo(()=>{const query=reservationQuery.trim().toLocaleLowerCase("fr");return reservations.filter(r=>(reservationStatus==="all"||r.statut===reservationStatus||r.commande_statut===reservationStatus)&&(!query||[r.id,r.mode,r.statut,r.commande_statut??"",r.pharmacies?.nom??"",...r.reservation_items.map(i=>i.produits?.nom??"")].join(" ").toLocaleLowerCase("fr").includes(query)))},[reservations,reservationStatus,reservationQuery]);
  const recent=filteredReservations.slice(0,8);const purchaseCount=new Set(achats.map(a=>a.reservation_id)).size,medicineCount=new Set(achats.map(a=>a.produit_id)).size;
  return <main className="min-h-screen bg-slate-50 px-4 pb-28">
-    <div className="mx-auto flex w-full max-w-6xl justify-end px-4 pt-3"><EspaceNaxaSwitcher current="client" /></div><EnTeteClient/><div className="relative z-10 mx-auto max-w-2xl pt-4">
+    <div className="mx-auto flex w-full max-w-6xl justify-end px-4 pt-3"><EspaceNaxaSwitcher current="client" /></div><div className="relative z-10 mx-auto max-w-2xl pt-4">
  <p className="text-sm text-slate-500">Mon espace NAXA</p><h1 className="text-2xl font-black">Achats / Réservations / Commandes</h1><p className="mt-1 text-sm text-slate-600">Un seul espace pour gérer votre panier, suivre vos réservations et retrouver vos achats et commandes.</p><div className="mt-4 overflow-hidden rounded-2xl bg-gradient-to-r from-[#064B2A] via-[#0A6B3A] to-[#064B2A] p-4 text-white shadow-sm"><div className="flex items-center gap-3"><span className="flex h-12 w-12 shrink-0 animate-pulse items-center justify-center rounded-full bg-[#FFE33D] text-2xl text-[#064B2A]" aria-hidden="true">🛍️</span><div><p className="font-extrabold">Votre espace de suivi NAXA</p><p className="text-sm text-white/90">Panier · Réservations · Commandes</p></div></div></div>
  {loading&&<p className="carte">Chargement…</p>}{error&&<p role="alert" className="carte border border-red-200 text-red-800">{error}</p>}
  {!loading&&!error&&<section className="space-y-4"><div className="grid grid-cols-2 gap-3"><article className="carte"><p className="text-xs text-slate-500">Achats</p><p className="text-2xl font-black">{purchaseCount}</p></article><article className="carte"><p className="text-xs text-slate-500">Médicaments distincts</p><p className="text-2xl font-black">{medicineCount}</p></article></div>

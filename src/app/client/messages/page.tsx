@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { FilMessages } from "@/components/FilMessages";
-import { EnTeteClient } from "@/components/EnTeteClient";
 type ThreadRow = { id: string; anonyme: boolean; client_archived_at: string | null; created_at: string; pharmacies: { nom: string; ville: string | null; quartier: string | null } | null; messages_pharmacie: { corps: string; created_at: string; expediteur: string }[] };
 export default function MessagesClientPage() {
   const [threads, setThreads] = useState<ThreadRow[]>([]);
@@ -37,7 +36,7 @@ export default function MessagesClientPage() {
     await load(); setActive(null);
   }
   return <main className="mx-auto min-h-dvh max-w-2xl px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))]">
-    <EnTeteClient/><h1 className="mt-4 text-xl font-extrabold text-[#0B3D26]">Mes messages</h1>
+    <h1 className="mt-4 text-xl font-extrabold text-[#0B3D26]">Mes messages</h1>
     <p className="mt-4 text-sm text-slate-600">Vos conversations sont sauvegardées et classées par pharmacie.</p>
     <label className="mt-4 block"><span className="sr-only">Rechercher une conversation</span><input value={query} onChange={event => setQuery(event.target.value)} className="champ w-full" placeholder="Rechercher une pharmacie ou un message…"/></label>
     <div className="mt-3 flex gap-2"><button className={"rounded-full px-4 py-2 text-sm font-bold " + (!archived ? "bg-naxa-green-900 text-white" : "bg-slate-100")} onClick={() => setArchived(false)}>Conversations</button><button className={"rounded-full px-4 py-2 text-sm font-bold " + (archived ? "bg-naxa-green-900 text-white" : "bg-slate-100")} onClick={() => setArchived(true)}>Archivées</button></div>

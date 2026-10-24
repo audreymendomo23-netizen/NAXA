@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { NAXA_EMAIL, NAXA_WHATSAPP, lienGmail, lienWhatsApp } from "@/lib/contact-naxa";
-import { Logo } from "@/components/Logo";
 import SuppressionCompteClient from "@/components/client/SuppressionCompteClient";
 
 type Prefs = { notif_messages: boolean; notif_reservations: boolean; anonyme_defaut: boolean; note_app: number | null; avis_app: string | null };
@@ -275,11 +274,10 @@ export default function ProfilSectionPage() {
   const validSection = Object.prototype.hasOwnProperty.call(titles, section);
   return <main className="min-h-dvh bg-[#E9F5EC] px-4 pb-10 text-[#111111]">
     <div className="mx-auto w-full max-w-[430px]">
-      <header className="-mx-4 flex items-center gap-3 bg-[#064B2A] px-4 py-3 text-white">
-        {!["confidentialite","suppression"].includes(section) && <Link href="/client/profil" aria-label="Retour au profil" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl">←</Link>}
-        <Link href="/" aria-label="Accueil NAXA"><Logo taille={30}/></Link>
-        <h1 className="min-w-0 flex-1 text-lg font-extrabold">{title}</h1>
-      </header>
+      <div className="mb-4 flex items-center gap-3 pt-4">
+        {!["confidentialite","suppression"].includes(section) && <Link href="/client/profil" aria-label="Retour au profil" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-xl text-[#0B3D26]">←</Link>}
+        <h1 className="min-w-0 flex-1 text-xl font-extrabold text-[#0B3D26]">{title}</h1>
+      </div>
 
       {!validSection ? <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm"><p>Cette option du profil n’existe pas.</p><Link className="mt-3 inline-block font-bold underline" href="/client/profil">Retour au profil</Link></section> : <>
         {section === "factures" && <section className="mt-5 space-y-4">

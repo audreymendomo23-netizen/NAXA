@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { IconeNAXA } from "@/components/IconeNAXA";
-import { EnTeteClient } from "@/components/EnTeteClient";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { ecouterFavoris, ecrireFavoris, lireFavoris, type FavoriNAXA } from "@/lib/favoris-client";
 
@@ -46,7 +45,7 @@ export default function FavorisClientPage() {
   };
 
   return <main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    <EnTeteClient/>
+    
     <section className="relative z-10 mx-auto -mt-4 max-w-[480px]">
       <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#D8E5DC] bg-white px-4 py-3 shadow-sm">
         <h1 className="text-lg font-extrabold">Mes favoris</h1>
