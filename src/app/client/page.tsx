@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { EnTeteClient } from "@/components/EnTeteClient";
+import AccueilClient from "@/components/AccueilClient";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { usePanier } from "@/lib/panier";
 import { cancelHomeServiceRequest } from "@/app/prestations/actions";
@@ -107,4 +108,6 @@ function ClientPageContent(){
  <p className="mt-8 text-center text-xs text-slate-500">Cet espace est un suivi commercial personnel NAXA, pas un dossier médical.</p></div></main>;
 }
 
-export default function ClientPage(){return <Suspense fallback={<main className="mx-auto min-h-screen max-w-2xl px-4 pb-28"><p className="carte mt-6">Chargement de votre espace…</p></main>}><ClientPageContent /></Suspense>}
+function ClientRouteContent(){const searchParams=useSearchParams();return searchParams.get("onglet")==="achats"?<ClientPageContent/>:<AccueilClient />}
+
+export default function ClientPage(){return <Suspense fallback={<main className="mx-auto min-h-screen max-w-2xl px-4 pb-28"><p className="carte mt-6">Chargement de votre espace…</p></main>}><ClientRouteContent /></Suspense>}
