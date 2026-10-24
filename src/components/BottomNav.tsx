@@ -100,8 +100,8 @@ export function BottomNav() {
    const dx=event.changedTouches[0].clientX-startX;
    const dy=event.changedTouches[0].clientY-startY;
    if(Math.abs(dx)<80||Math.abs(dx)<Math.abs(dy)*1.3)return;
-   const tabs=[{id:"home",href:"/"},{id:"favorites",href:"/client/profil/favoris"},{id:"scanner",href:"/scanner"},{id:"shopping",href:"/client?onglet=achats"},{id:"profile",href:"/client/profil"}];
-   const active=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"||pathname==="/panier"?"shopping":pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
+   const tabs=[{id:"home",href:"/client"},{id:"favorites",href:"/client/profil/favoris"},{id:"scanner",href:"/scanner"},{id:"shopping",href:"/client?onglet=achats"},{id:"profile",href:"/client/profil"}];
+   const active=pathname==="/client"||pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/")?"home":pathname==="/client/profil/favoris"?"favorites":pathname==="/scanner"?"scanner":pathname==="/client"||pathname==="/panier"?"shopping":pathname==="/client/posologie"||pathname.startsWith("/client/profil/")||pathname.startsWith("/reservation/")?"profile":null;
    if(!active)return;
    const index=tabs.findIndex(tab=>tab.id===active);
    const next=index+(dx<0?1:-1);
@@ -113,7 +113,7 @@ export function BottomNav() {
   return()=>{document.removeEventListener("touchstart",onStart);document.removeEventListener("touchmove",onMove);document.removeEventListener("touchend",onEnd)};
  },[pathname,searchParams,router]);
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
- const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
+ const home=pathname==="/client"||pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  // La barre principale est réservée à l'accueil client : ne pas l'afficher sur l'accueil public.
  const visible=pathname==="/client";
  const scan=pathname==="/scanner";
@@ -133,7 +133,7 @@ export function BottomNav() {
  if(!visible)return null;
  return <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
   <div className="grid h-full grid-cols-5 items-center gap-0.5">
-   {tab(home,"Accueil","home","/")}
+   {tab(home,"Accueil","home","/client")}
    {tab(favorites,"Favoris","heart","/client/profil/favoris")}
    <Link href="/scanner" aria-current={scan?"page":undefined} className="relative flex h-[54px] min-w-0 flex-col items-center justify-end gap-1 pb-1 transition-transform active:scale-[0.96]">
     <span className="absolute -top-[23px] flex h-[58px] w-[58px] items-center justify-center rounded-full border-[4px] border-white bg-[#FFE23D] text-[#0B3D26] shadow-[0_5px_15px_rgba(11,61,38,0.18)] motion-safe:animate-[naxa-breathe_3s_ease-in-out_infinite]"><NavIcon name="scan" className="h-6 w-6"/></span>
