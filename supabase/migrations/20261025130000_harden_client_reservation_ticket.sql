@@ -50,7 +50,7 @@ begin
     then raise exception 'La monnaie rendue du ticket est incohérente'; end if;
 
   return jsonb_build_object('receipt_type','cashier_ticket',
-    'sale',jsonb_build_object('vente_id',v_sale.id,'numero_vente',v_sale.numero_vente,'pharmacie_id',v_sale.pharmacie_id,'statut',v_sale.statut::text,'created_at',v_sale.created_at,'paid_at',v_sale.paid_at,'total_brut',v_sale.total_brut,'remise',v_sale.remise,'total_net',v_sale.total_net,'mode_paiement',v_sale.mode_paiement::text,'paiement_ref',v_sale.paiement_ref,'caissier_id',v_sale.created_by,'caisse_session_id',v_sale.caisse_session_id),
+    'sale',jsonb_build_object('vente_id',v_sale.id,'numero_vente',v_sale.numero_vente,'pharmacie_id',v_sale.pharmacie_id,'statut',v_sale.statut::text,'created_at',v_sale.created_at,'paid_at',v_sale.paid_at,'total_brut',v_sale.total_brut,'remise',v_sale.remise,'total_net',v_sale.total_net,'mode_paiement',v_sale.mode_paiement::text,'paiement_ref',v_sale.paiement_ref,'caisse_session_id',v_sale.caisse_session_id,'caisse_id',(select cs.caisse_id from public.caisses_sessions cs where cs.id=v_sale.caisse_session_id),'caisse_nom',(select c.nom from public.caisses_sessions cs join public.caisses c on c.id=cs.caisse_id where cs.id=v_sale.caisse_session_id),
     'items',v_items,'payments',v_payments,
     'reservation',jsonb_build_object('reservation_id',v_res.id,'ticket_numero_snapshot',v_res.paiement_ticket_numero,'montant_percu_snapshot',v_res.paiement_montant_percu,'monnaie_rendue_snapshot',v_res.paiement_monnaie_rendue,'paiement_valide_at',v_res.paiement_valide_at));
 end;
