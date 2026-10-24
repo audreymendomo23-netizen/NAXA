@@ -6,6 +6,15 @@ declare
   v_definition text;
   v_jobs integer;
 begin
+  if to_regprocedure('public.naxa_reservation_receipt_snapshot()') is null
+     or not exists (
+       select 1 from pg_trigger
+       where tgname='trg_naxa_reservation_receipt_snapshot'
+         and tgrelid='public.reservations'::regclass
+         and not tgisinternal
+     ) then
+    raise exception 'Le snapshot de reçu au passage à payée est absent';
+  end if;
   if to_regprocedure('public.get_client_reservation_ticket(uuid)') is null then
     raise exception 'RPC ticket client absente';
   end if;
