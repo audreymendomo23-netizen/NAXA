@@ -140,6 +140,128 @@ grant execute on function public.get_client_reservation_ticket(uuid) to authenti
 comment on function public.get_client_reservation_ticket(uuid) is
   'Retourne le ticket POS serveur lié à une réservation payée, uniquement au client propriétaire. Ne reconstruit pas le ticket depuis client_achats.';
 
+-- Préserver la restitution FEFO historique tout en respectant les réservations modernes (holds).
+-- Les anciennes réservations ayant débité un lot doivent restituer le même lot ET le stock agrégé.
+create or replace function public.restore_stock(p_resa uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_res public.reservations%rowtype;
+  v_item record;
+  v_alloc record;
+  v_has_allocation boolean;
+begin
+  select r.* into v_res
+  from public.reservations r
+  where r.id = p_resa
+  for update;
+
+  if not found then
+    raise exception 'Réservation introuvable';
+  end if;
+
+  -- Une vente consommée ne peut jamais être remboursée au stock par l'expiration.
+  if v_res.consumed_at is not null or v_res.consumed_by_vente_id is not null then
+    return;
+  end if;
+  -- Les nouvelles réservations sont des holds virtuels : aucune quantité physique à restituer.
+  if not coalesce(v_res.stock_decremented, false) or coalesce(v_res.stock_restored, false) then
+    return;
+  end if;
+  if not exists (select 1 from public.reservation_items ri where ri.reservation_id = p_resa) then
+    raise exception 'Réservation sans lignes : restitution automatique refusée';
+  end if;
+
+  perform pg_catalog.set_config('naxa.stock_motif', 'Restitution réservation ' || p_resa::text, true);
+
+  for v_item in
+    select ri.produit_id, ri.quantite
+    from public.reservation_items ri
+    where ri.reservation_id = p_resa
+    order by ri.produit_id
+  loop
+    perform 1
+    from public.stocks s
+    where s.pharmacie_id = v_res.pharmacie_id
+      and s.produit_id = v_item.produit_id
+    for update;
+    if not found then
+      raise exception 'Ligne de stock absente pendant la restitution';
+    end if;
+
+    select exists (
+      select 1
+      from public.reservation_item_lots a
+      where a.reservation_id = p_resa
+        and a.produit_id = v_item.produit_id
+        and a.restauree_at is null
+    ) into v_has_allocation;
+
+    if v_has_allocation then
+      for v_alloc in
+        select a.lot_id, a.quantite
+        from public.reservation_item_lots a
+        where a.reservation_id = p_resa
+          and a.produit_id = v_item.produit_id
+          and a.restauree_at is null
+        order by a.lot_id
+        for update
+      loop
+        update public.stocks_lots
+        set quantite = quantite + v_alloc.quantite,
+            updated_at = now()
+        where id = v_alloc.lot_id
+          and pharmacie_id = v_res.pharmacie_id
+          and produit_id = v_item.produit_id;
+        if not found then
+          raise exception 'Lot d’origine indisponible; restitution annulée';
+        end if;
+      end loop;
+
+      update public.reservation_item_lots
+      set restauree_at = now()
+      where reservation_id = p_resa
+        and produit_id = v_item.produit_id
+        and restauree_at is null;
+    elsif exists (
+      select 1 from public.stocks_lots sl
+      where sl.pharmacie_id = v_res.pharmacie_id
+        and sl.produit_id = v_item.produit_id
+    ) then
+      -- Ne pas inventer une allocation de lot pour les anciennes réservations ambiguës.
+      raise exception 'Réservation historique sans allocation de lots : réconciliation requise avant restitution';
+    end if;
+
+    update public.stocks
+    set quantite = quantite + v_item.quantite,
+        updated_at = now()
+    where pharmacie_id = v_res.pharmacie_id
+      and produit_id = v_item.produit_id;
+    if not found then
+      raise exception 'Ligne de stock absente pendant la restitution';
+    end if;
+  end loop;
+
+  update public.reservations
+  set stock_restored = true,
+      stock_decremented = false
+  where id = p_resa
+    and stock_restored = false
+    and consumed_at is null
+    and consumed_by_vente_id is null;
+  if not found then
+    raise exception 'La réservation a changé pendant la restitution';
+  end if;
+end;
+$function$;
+
+revoke all on function public.restore_stock(uuid) from public, anon, authenticated;
+comment on function public.restore_stock(uuid) is
+  'Restitution idempotente des réservations legacy : restaure les lots d’origine et le stock agrégé dans la même transaction; ignore les holds modernes et toute réservation consommée.';
+
 -- Une seule routine orchestre expiration/restauration puis rappel à 30 minutes.
 -- Chaque étape est isolée pour qu'une panne de l'une ne masque pas l'autre.
 create or replace function public.reservation_lifecycle_cron()
