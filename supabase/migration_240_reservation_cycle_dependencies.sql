@@ -1,0 +1,124 @@
+-- NAXA 240 — dépendances explicites du cycle réservation dans le replay versionné.
+-- Répare les écarts où les anciennes migrations 189/200/209/212 existent seulement à la racine.
+-- Additif, idempotent, sans toucher aux quantités ni réconcilier des stocks historiques.
+begin;
+
+alter table public.reservations
+  add column if not exists stock_decremented boolean not null default true,
+  add column if not exists stock_restored boolean not null default false,
+  add column if not exists consumed_by_vente_id uuid,
+  add column if not exists consumed_at timestamptz;
+
+comment on column public.reservations.stock_decremented is
+  'Legacy compatibility: true only for reservations created by the old implementation that physically decremented stocks.';
+comment on column public.reservations.stock_restored is
+  'Idempotency guard for restoring physical stock for a legacy reservation.';
+comment on column public.reservations.consumed_by_vente_id is
+  'Cash-register sale UUID that consumed this reservation; populated by the sale-finalization transaction.';
+comment on column public.reservations.consumed_at is
+  'Timestamp when a cash-register sale consumed this reservation.';
+
+create table if not exists public.reservation_item_lots (
+  reservation_id uuid not null references public.reservations(id) on delete restrict,
+  produit_id uuid not null references public.produits(id) on delete restrict,
+  lot_id uuid not null references public.stocks_lots(id) on delete restrict,
+  quantite integer not null check (quantite > 0),
+  cree_le timestamptz not null default now(),
+  restauree_at timestamptz,
+  primary key (reservation_id, produit_id, lot_id)
+);
+create index if not exists reservation_item_lots_lot_idx on public.reservation_item_lots(lot_id);
+alter table public.reservation_item_lots enable row level security;
+drop policy if exists reservation_item_lots_participant_read on public.reservation_item_lots;
+create policy reservation_item_lots_participant_read on public.reservation_item_lots
+  for select to authenticated using (
+    exists (
+      select 1 from public.reservations r
+      where r.id = reservation_id
+        and (r.client_id = (select auth.uid()) or public.is_admin()
+          or public.naxa_scope_allows((select auth.uid()), r.pharmacie_id, 'PHARMACIE'))
+    )
+  );
+revoke all on public.reservation_item_lots from public, anon, authenticated;
+grant select on public.reservation_item_lots to authenticated;
+
+alter table public.notifications
+  add column if not exists reservation_id uuid references public.reservations(id) on delete cascade;
+create unique index if not exists notifications_reservation_expiry_once_uq
+  on public.notifications(reservation_id, type)
+  where reservation_id is not null and type = 'reservation_expiry_30m';
+
+create or replace function public.expirer_reservations_cron(p_limit integer default 500)
+returns jsonb language plpgsql security definer set search_path=''
+as $function$
+declare
+ v_row record; v_expired integer:=0; v_failed integer:=0; v_errors jsonb:='[]'::jsonb;
+begin
+ if p_limit is null or p_limit<1 or p_limit>5000 then raise exception 'Limite cron invalide'; end if;
+ for v_row in
+  select r.id
+  from public.reservations r
+  where r.mode='reservation' and r.statut in ('en_attente','confirmee') and r.expires_at<=now()
+  order by r.expires_at,r.id
+  limit p_limit
+  for update skip locked
+ loop
+  begin
+   -- Restitution lot/stock et statut sont dans la même transaction.
+   perform public.restore_stock(v_row.id);
+   update public.reservations set statut='expiree' where id=v_row.id and statut in ('en_attente','confirmee');
+   if found then v_expired:=v_expired+1; end if;
+  exception when others then
+   -- Une incohérence sur un dossier ne doit pas annuler tout le lot cron.
+   -- Le dossier reste actif et sera signalé/retry au prochain passage.
+   v_failed:=v_failed+1;
+   v_errors:=v_errors||jsonb_build_array(jsonb_build_object('reservation_id',v_row.id,'erreur',left(sqlerrm,300)));
+  end;
+ end loop;
+ return jsonb_build_object('expirees',v_expired,'en_echec',v_failed,'erreurs',v_errors,'traite_le',now());
+end;
+$function$;
+revoke all on function public.expirer_reservations_cron(integer) from public, anon, authenticated;
+grant execute on function public.expirer_reservations_cron(integer) to service_role;
+comment on function public.expirer_reservations_cron(integer) is
+  'Expire les réservations échues, restitue lots et stock agrégé atomiquement, et signale les incohérences pour réconciliation.';
+
+create or replace function public.notifier_reservations_expirant_30m()
+returns integer language plpgsql security definer set search_path = ''
+as $function$
+declare v_count integer := 0;
+begin
+  with due as (
+    select r.id, r.client_id, r.expires_at
+    from public.reservations r
+    where r.mode = 'reservation'
+      and r.statut in ('en_attente', 'confirmee')
+      and r.expires_at > now() + interval '25 minutes'
+      and r.expires_at <= now() + interval '30 minutes'
+      and not exists (
+        select 1 from public.notifications n
+        where n.user_id = r.client_id
+          and n.type = 'reservation_expiry_30m'
+          and n.corps like '%' || upper(left(replace(r.id::text, '-', ''), 8)) || '%'
+      )
+  ), inserted as (
+    insert into public.notifications(user_id, type, titre, corps, reservation_id)
+    select d.client_id, 'reservation_expiry_30m', 'Votre réservation expire dans 30 minutes',
+      left('Réservation #' || upper(left(replace(d.id::text, '-', ''), 8))
+        || ' : échéance prévue à ' || to_char(d.expires_at, 'DD/MM/YYYY HH24:MI TZH:TZM')
+        || '. Contactez la pharmacie ou retirez vos articles avant cette heure.', 1000),
+      d.id
+    from due d
+    on conflict (reservation_id,type) where reservation_id is not null and type='reservation_expiry_30m' do nothing
+    returning id
+  )
+  select count(*)::integer into v_count from inserted;
+  return v_count;
+end;
+$function$;
+revoke all on function public.notifier_reservations_expirant_30m() from public, anon, authenticated;
+grant execute on function public.notifier_reservations_expirant_30m() to service_role;
+comment on function public.notifier_reservations_expirant_30m() is
+  'Crée une seule notification par réservation dans la fenêtre de 25 à 30 minutes avant échéance.';
+
+commit;
