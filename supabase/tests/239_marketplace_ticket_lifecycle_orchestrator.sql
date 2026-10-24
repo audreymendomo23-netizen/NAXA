@@ -174,6 +174,12 @@ begin
   ) then
     raise exception 'Le trigger de paiement n’a pas figé le ticket POS dans la réservation';
   end if;
+  if not exists (
+    select 1 from public.reservation_events
+    where reservation_id=v_reservation and to_statut='payee'
+  ) then
+    raise exception 'Le passage à payée n’a pas été enregistré dans l’historique métier';
+  end if;
 
   perform set_config('request.jwt.claim.sub',v_client::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
@@ -253,6 +259,12 @@ begin
   end if;
   if not exists(select 1 from public.reservations where id=v_res_expired and statut='expiree') then
     raise exception 'La réservation échue n’a pas été expirée';
+  end if;
+  if not exists (
+    select 1 from public.reservation_events
+    where reservation_id=v_res_expired and to_statut='expiree'
+  ) then
+    raise exception 'L’expiration n’a pas été inscrite dans l’historique métier';
   end if;
   select quantite into v_stock_after from public.stocks
   where pharmacie_id=v_pharmacie and produit_id=v_produit;
