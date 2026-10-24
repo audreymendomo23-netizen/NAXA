@@ -219,15 +219,15 @@ begin
     client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,
     paiement_mode,stock_decremented,stock_restored
   ) values
-    (v_user,v_pharmacie,'confirmee',v_prix,now()-interval '1 minute','reservation','a_verifier','especes_retrait',false,false),
-    (v_user,v_pharmacie,'confirmee',v_prix,now()+interval '27 minutes','reservation','a_verifier','especes_retrait',false,false)
+    (v_user,v_pharmacie,'confirmee',v_prix,now()-interval '1 minute','reservation','a_verifier','especes_retrait',false,false)
   returning id into v_res_expired;
 
-  -- La deuxième réservation est identifiée sans ambiguïté par sa future échéance.
-  select id into v_res_notice
-  from public.reservations
-  where client_id=v_user and expires_at>now()+interval '25 minutes'
-  order by expires_at desc limit 1;
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,
+    paiement_mode,stock_decremented,stock_restored
+  ) values (
+    v_user,v_pharmacie,'confirmee',v_prix,now()+interval '27 minutes','reservation','a_verifier','especes_retrait',false,false
+  ) returning id into v_res_notice;
 
   insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
   values(v_res_expired,v_produit,1,v_prix),(v_res_notice,v_produit,1,v_prix);
