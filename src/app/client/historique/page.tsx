@@ -87,7 +87,7 @@ async function downloadServerTicket(receipt: Receipt) {
   const ticket = data as unknown as ServerTicket | null;
   if (error || !ticket || ticket.receipt_type !== "cashier_ticket" || !ticket.sale?.numero_vente || !Array.isArray(ticket.items) || !Array.isArray(ticket.payments)) {
     popup.close();
-    window.alert("Le ticket de caisse serveur n’est pas accessible pour cette réservation. Aucun récapitulatif n’a été présenté comme ticket. Vérifiez que la migration 239 est appliquée et que la vente est payée.");
+    window.alert("Le ticket de caisse serveur n’est pas accessible pour cette réservation. Aucun récapitulatif n’a été présenté comme ticket. Vérifiez que la migration 243 est appliquée et que la vente POS est payée.");
     return;
   }
 
