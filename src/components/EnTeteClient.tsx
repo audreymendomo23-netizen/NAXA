@@ -9,7 +9,7 @@ import { IconeNAXA } from "@/components/IconeNAXA";
 import { BoutonPanierEntete } from "@/components/BoutonPanierEntete";
 
 const actions = [
-  { titre: "Accueil", description: "Page d’accueil", href: "/", mots: "accueil maison" },
+  { titre: "Accueil", description: "Espace client", href: "/client", mots: "accueil maison espace client" },
   { titre: "Favoris", description: "Éléments enregistrés", href: "/client/profil/favoris", mots: "favoris favoris enregistrés cœur" },
   { titre: "Apparence", description: "Préférences d’affichage", href: "/client/profil/apparence", mots: "apparence mode sombre clair écran" },
   { titre: "Scanner une ordonnance", description: "Scanner un document", href: "/scanner", mots: "scanner ordonnance scan" },
@@ -76,7 +76,7 @@ export function EnTeteClient() {
     setQuery("");
   }
 
-  return <header className="naxa-green-header relative z-20 -mx-4 px-4 pb-4 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  return <header className="naxa-green-header relative z-20 -mx-4 min-h-[88px] px-4 pb-3 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
