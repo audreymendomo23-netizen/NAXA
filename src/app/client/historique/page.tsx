@@ -40,7 +40,7 @@ function escapeHtml(value: unknown) {
 }
 
 function downloadReceipt(receipt: Receipt) {
-  const popup = window.open("", "_blank", "noopener,noreferrer");
+  const popup = window.open("", "_blank");
   if (!popup) {
     window.alert("Autorisez l’ouverture de la fenêtre d’impression pour enregistrer le reçu en PDF.");
     return;
