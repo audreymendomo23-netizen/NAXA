@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 
 type IconName = "home" | "heart" | "scan" | "shopping" | "user";
 
@@ -21,6 +22,13 @@ export function NavigationPrincipale() {
   const pathname = usePathname();
   const favorisActifs = pathname === "/client/profil/favoris";
   const [ongletAchats, setOngletAchats] = useState(false);
+  const [favorisCount, setFavorisCount] = useState(0);
+  useEffect(() => {
+    const actualiserFavoris = () => setFavorisCount(lireFavoris().length);
+    actualiserFavoris();
+    const stop = ecouterFavoris(actualiserFavoris);
+    return stop;
+  }, []);
   useEffect(() => {
     const actualiser = () => setOngletAchats(new URLSearchParams(window.location.search).get("onglet") === "achats");
     actualiser();
@@ -45,7 +53,7 @@ export function NavigationPrincipale() {
     <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
       {items.map((item) => <Link key={item.label} href={item.href} onClick={() => { if (item.label === "Achats") setOngletAchats(true); else if (item.label === "Profil") setOngletAchats(false); }} aria-current={item.active ? "page" : undefined}
         className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[10px] leading-none transition-colors ${item.active ? "bg-[#FFE33D] font-extrabold text-[#064B2A]" : "font-semibold text-[#6B8275] hover:bg-emerald-50"}`}>
-        <Icon name={item.icon} />
+        <span className="relative"><Icon name={item.icon} />{item.label === "Favoris" && favorisCount > 0 && <span aria-label={`${favorisCount} médicaments favoris`} className="absolute -right-3 -top-2 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-extrabold leading-none text-white shadow-sm">{favorisCount > 99 ? "99+" : favorisCount}</span>}</span>
         <span>{item.label}</span>
       </Link>)}
     </div>
