@@ -88,4 +88,83 @@ begin
   end if;
 end;
 $test$;
+
+-- Test comportemental isolé : le propriétaire récupère le ticket POS, un autre client est refusé.
+do $ticket_behavior$
+declare
+  v_client uuid := gen_random_uuid();
+  v_other_client uuid := gen_random_uuid();
+  v_pharmacie uuid;
+  v_produit uuid;
+  v_session uuid := gen_random_uuid();
+  v_reservation uuid := gen_random_uuid();
+  v_vente uuid := gen_random_uuid();
+  v_numero text;
+  v_ticket jsonb;
+  v_rejected boolean := false;
+begin
+  select s.pharmacie_id, s.produit_id
+    into v_pharmacie, v_produit
+  from public.stocks s
+  limit 1;
+  if v_pharmacie is null or v_produit is null then
+    raise exception 'Fixture produit/pharmacie absente pour le test du ticket';
+  end if;
+
+  set local session_replication_role = replica;
+  insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
+  values
+    (v_client,'authenticated','authenticated','naxa239_ticket_'||substr(replace(v_client::text,'-',''),1,12)||'@invalid.local','',now(),now()),
+    (v_other_client,'authenticated','authenticated','naxa239_other_'||substr(replace(v_other_client::text,'-',''),1,12)||'@invalid.local','',now(),now());
+
+  insert into public.reservations(
+    id,client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,paiement_mode,
+    paiement_montant_percu,paiement_monnaie_rendue,paiement_valide_at
+  ) values (
+    v_reservation,v_client,v_pharmacie,'payee',100,now()+interval '1 hour','reservation','effectue','especes_retrait',150,50,now()
+  );
+
+  insert into public.ventes(
+    id,pharmacie_id,caisse_session_id,client_id,statut,remise,total_brut,total_net,
+    mode_paiement,paiement_ref,created_by,paid_at,reservation_id
+  ) values (
+    v_vente,v_pharmacie,v_session,v_client,'payee',0,100,100,'especes','NAXA239-TEST',v_client,now(),v_reservation
+  ) returning numero_vente into v_numero;
+
+  update public.reservations
+  set paiement_ticket_numero=v_numero
+  where id=v_reservation;
+
+  insert into public.vente_lignes(vente_id,produit_id,quantite,prix_unitaire)
+  values(v_vente,v_produit,1,100);
+  insert into public.vente_paiements(vente_id,mode,montant,reference,created_by,montant_percu,monnaie_rendue)
+  values(v_vente,'especes',100,'NAXA239-TEST',v_client,150,50);
+  set local session_replication_role = origin;
+
+  perform set_config('request.jwt.claim.sub',v_client::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  v_ticket := public.get_client_reservation_ticket(v_reservation);
+  if v_ticket->>'receipt_type' <> 'cashier_ticket'
+     or v_ticket#>>'{sale,numero_vente}' is distinct from v_numero
+     or (v_ticket#>>'{sale,total_net}')::integer <> 100
+     or jsonb_array_length(v_ticket->'items') <> 1
+     or jsonb_array_length(v_ticket->'payments') <> 1
+     or (v_ticket#>>'{payments,0,montant_percu}')::integer <> 150
+     or (v_ticket#>>'{payments,0,monnaie_rendue}')::integer <> 50 then
+    raise exception 'Le ticket client ne correspond pas aux enregistrements POS';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',v_other_client::text,true);
+  v_rejected := false;
+  begin
+    perform public.get_client_reservation_ticket(v_reservation);
+  exception when others then
+    v_rejected := true;
+  end;
+  if not v_rejected then
+    raise exception 'Un autre client a pu lire le ticket de cette réservation';
+  end if;
+end;
+$ticket_behavior$;
+
 rollback;
