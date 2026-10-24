@@ -99,7 +99,26 @@ function ClientPageContent(){
    const {data:{user}}=await sb.auth.getUser();
    if(!user||stopped)return;
    const {data,error:refreshError}=await sb.from("reservations").select("id,statut,mode,paiement_statut,paiement_mode,commande_statut,total,expires_at,created_at,paiement_ref,pharmacie_id,pharmacies(nom,ville,quartier,adresse),reservation_items(quantite,prix_unitaire,produits(id,nom,dci,dosage,forme,photo_url))").eq("client_id",user.id).order("created_at",{ascending:false}).limit(200);
-   if(!refreshError&&!stopped)setReservations((data??[]) as unknown as Reservation[]);
+   if(!refreshError&&!stopped){
+    const rows=(data??[]) as unknown as Reservation[];
+    setReservations(rows);
+    const {data:purchaseRows,error:purchaseError}=await sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").eq("client_id",user.id).order("achat_le",{ascending:false,nullsFirst:false}).limit(500);
+    if(stopped)return;
+    if(!purchaseError&&purchaseRows){
+     setAchats((purchaseRows as unknown as Achat[]).filter(a=>a.statut==="payee"||a.statut==="retiree"));
+    }else{
+     setAchats(rows.filter(r=>r.statut==="payee"||r.statut==="retiree").flatMap(r=>r.reservation_items.map(item=>({
+      reservation_id:r.id,produit_id:item.produits?.id??"inconnu",medicament:item.produits?.nom??"Produit",
+      dci:item.produits?.dci??"",dosage:item.produits?.dosage??"",forme:item.produits?.forme??"",
+      photo_url:item.produits?.photo_url??null,quantite:item.quantite,prix_unitaire:item.prix_unitaire,
+      total_ligne:item.quantite*item.prix_unitaire,total_transaction:r.total,reference_paiement:r.paiement_ref??null,
+      reservation_creee_le:r.created_at,pharmacie_id:r.pharmacie_id,pharmacie:r.pharmacies?.nom??"Pharmacie",
+      ville:r.pharmacies?.ville??"Yaoundé",quartier:r.pharmacies?.quartier??null,adresse:r.pharmacies?.adresse??null,
+      confirmee_le:null,paiement_declare_le:null,payee_le:null,retiree_le:null,achat_le:null,
+      horodatage_achat_exact:false,statut:r.statut
+     }))));
+    }
+   }
    if(!channel&&!stopped){
     channel=sb.channel("naxa-client-reservations-"+user.id)
      .on("postgres_changes",{event:"*",schema:"public",table:"reservations",filter:"client_id=eq."+user.id},()=>{void refreshReservations()})
