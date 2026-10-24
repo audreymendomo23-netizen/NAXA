@@ -47,7 +47,7 @@ type StockRow = {
 const fcfa = (n: number) => new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g, "\u00a0") + " FCFA";
 
 const rechercheNavigation = [
-  { titre: "Accueil", description: "Page d’accueil", href: "/", mots: "accueil maison" },
+  { titre: "Accueil", description: "Page d’accueil client", href: "/client", mots: "accueil maison" },
   { titre: "Favoris", description: "Médicaments enregistrés", href: "/client/profil/favoris", mots: "favoris enregistrés coeur" },
   { titre: "Scanner une ordonnance", description: "Scanner un document", href: "/scanner", mots: "scanner ordonnance scan" },
   { titre: "Achats et commandes", description: "Historique et commandes", href: "/client?onglet=achats", mots: "achats commandes historique" },
