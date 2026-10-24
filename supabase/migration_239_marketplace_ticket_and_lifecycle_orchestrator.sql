@@ -152,6 +152,7 @@ declare
   v_res public.reservations%rowtype;
   v_item record;
   v_alloc record;
+  v_allocated integer;
   v_has_allocation boolean;
 begin
   select r.* into v_res
@@ -201,6 +202,16 @@ begin
     ) into v_has_allocation;
 
     if v_has_allocation then
+      select coalesce(sum(a.quantite), 0)::integer
+      into v_allocated
+      from public.reservation_item_lots a
+      where a.reservation_id = p_resa
+        and a.produit_id = v_item.produit_id
+        and a.restauree_at is null;
+      if v_allocated <> v_item.quantite then
+        raise exception 'Allocation de lots incomplète : réconciliation requise avant restitution';
+      end if;
+
       for v_alloc in
         select a.lot_id, a.quantite
         from public.reservation_item_lots a
