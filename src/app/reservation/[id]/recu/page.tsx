@@ -108,7 +108,7 @@ export default function Recu() {
 
       setD({
         ticket,
-        pharmacie: (reservation?.pharmacies as { nom: string } | null)?.nom ?? "Pharmacie partenaire",
+        pharmacie: (Array.isArray(reservation?.pharmacies) ? reservation.pharmacies[0]?.nom : (reservation?.pharmacies as unknown as { nom: string } | null)?.nom) ?? "Pharmacie partenaire",
       });
     } catch (error) {
       setD(null);
