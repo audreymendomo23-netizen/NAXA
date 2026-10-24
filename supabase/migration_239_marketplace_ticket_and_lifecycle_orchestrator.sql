@@ -34,8 +34,8 @@ begin
   if not found then
     raise exception 'Réservation introuvable ou accès refusé';
   end if;
-  if v_res.statut::text not in ('payee', 'retiree')
-     or v_res.paiement_statut::text not in ('effectue', 'payee') then
+  if coalesce(v_res.statut::text, '') not in ('payee', 'retiree')
+     or coalesce(v_res.paiement_statut::text, '') not in ('effectue', 'payee') then
     raise exception 'Le ticket est disponible après confirmation du paiement en caisse';
   end if;
 
