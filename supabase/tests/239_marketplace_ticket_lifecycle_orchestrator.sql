@@ -278,6 +278,89 @@ end;
 $lifecycle_behavior$;
 
 
+
+-- Test comportemental legacy : restitution exacte du lot d’origine et du stock agrégé, sans double retour.
+do $legacy_restore_behavior$
+declare
+  v_user uuid := gen_random_uuid();
+  v_reservation uuid := gen_random_uuid();
+  v_lot uuid := gen_random_uuid();
+  v_pharmacie uuid;
+  v_produit uuid;
+  v_prix integer;
+  v_stock_before integer;
+  v_lot_before integer := 5;
+  v_stock_after integer;
+  v_lot_after integer;
+  v_lifecycle jsonb;
+  v_lot_code text := 'NAXA239-'||left(replace(gen_random_uuid()::text,'-',''),16);
+begin
+  select s.pharmacie_id,s.produit_id,s.prix,s.quantite
+    into v_pharmacie,v_produit,v_prix,v_stock_before
+  from public.stocks s
+  where s.quantite >= 2
+  limit 1;
+  if v_pharmacie is null or v_produit is null then
+    raise exception 'Fixture de stock suffisant absente pour le test de restitution legacy';
+  end if;
+
+  insert into public.stocks_lots(
+    id,pharmacie_id,produit_id,lot,numero_lot,peremption,date_peremption,quantite
+  ) values (
+    v_lot,v_pharmacie,v_produit,v_lot_code,v_lot_code,
+    current_date+interval '365 days',current_date+interval '365 days',v_lot_before
+  );
+  update public.stocks set quantite=quantite-2
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
+  update public.stocks_lots set quantite=quantite-2 where id=v_lot;
+
+  set local session_replication_role = replica;
+  insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
+  values(v_user,'authenticated','authenticated',
+    'naxa239_restore_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now());
+  insert into public.reservations(
+    id,client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,
+    paiement_mode,stock_decremented,stock_restored
+  ) values (
+    v_reservation,v_user,v_pharmacie,'confirmee',v_prix*2,now()-interval '1 minute',
+    'reservation','a_verifier','especes_retrait',true,false
+  );
+  insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
+  values(v_reservation,v_produit,2,v_prix);
+  insert into public.reservation_item_lots(reservation_id,produit_id,lot_id,quantite)
+  values(v_reservation,v_produit,v_lot,2);
+  set local session_replication_role = origin;
+
+  v_lifecycle := public.reservation_lifecycle_cron();
+  if coalesce((v_lifecycle->>'ok')::boolean,false) is not true then
+    raise exception 'Le cycle a échoué sur une réservation legacy correctement allouée : %',v_lifecycle;
+  end if;
+  select quantite into v_stock_after from public.stocks
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
+  select quantite into v_lot_after from public.stocks_lots where id=v_lot;
+  if v_stock_after is distinct from v_stock_before or v_lot_after is distinct from v_lot_before then
+    raise exception 'Restitution legacy incorrecte : stock %, lot %; attendus %, %',
+      v_stock_after,v_lot_after,v_stock_before,v_lot_before;
+  end if;
+  if not exists(select 1 from public.reservations where id=v_reservation and statut='expiree'
+      and stock_restored=true and stock_decremented=false) then
+    raise exception 'Les marqueurs idempotents de restitution legacy ne sont pas écrits';
+  end if;
+  if not exists(select 1 from public.reservation_item_lots where reservation_id=v_reservation
+      and lot_id=v_lot and restauree_at is not null) then
+    raise exception 'La restitution du lot d’origine n’est pas tracée';
+  end if;
+
+  perform public.reservation_lifecycle_cron();
+  select quantite into v_stock_after from public.stocks
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
+  select quantite into v_lot_after from public.stocks_lots where id=v_lot;
+  if v_stock_after is distinct from v_stock_before or v_lot_after is distinct from v_lot_before then
+    raise exception 'Le second passage a restitué le stock une deuxième fois';
+  end if;
+end;
+$legacy_restore_behavior$;
+
 -- Contradiction : une réservation legacy sans allocation de lots doit rendre le cycle non vert.
 do $lifecycle_failure_behavior$
 declare
