@@ -30,6 +30,23 @@ begin
     raise exception 'Le ticket ne contrôle pas les montants de paiement conservés';
   end if;
 
+  if to_regprocedure('public.restore_stock(uuid)') is null then
+    raise exception 'Fonction de restitution du stock absente';
+  end if;
+  select pg_get_functiondef(p.oid) into v_definition
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='restore_stock';
+  if position('reservation_item_lots' in v_definition)=0
+     or position('stocks_lots' in v_definition)=0
+     or position('stock_restored' in v_definition)=0
+     or position('consumed_at' in v_definition)=0 then
+    raise exception 'La restitution ne protège pas les lots, l’idempotence ou les ventes consommées';
+  end if;
+  if has_function_privilege('authenticated','public.restore_stock(uuid)','EXECUTE')
+     or has_function_privilege('anon','public.restore_stock(uuid)','EXECUTE') then
+    raise exception 'La restitution interne est exposée aux rôles applicatifs';
+  end if;
+
   if to_regprocedure('public.reservation_lifecycle_cron()') is null then
     raise exception 'Orchestrateur du cycle de réservation absent';
   end if;
