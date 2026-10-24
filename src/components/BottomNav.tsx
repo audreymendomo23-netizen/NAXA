@@ -116,7 +116,6 @@ export function BottomNav() {
  const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  // La barre principale est réservée à l'accueil client : ne pas l'afficher sur l'accueil public.
  const visible=pathname==="/client";
- if(!visible)return null;
  const scan=pathname==="/scanner";
  const favorites=pathname==="/client/profil/favoris";
  const profile=pathname==="/client/posologie"||(pathname==="/client/profil"||pathname.startsWith("/client/profil/"))&&!favorites||pathname.startsWith("/reservation/");
@@ -131,6 +130,7 @@ export function BottomNav() {
   </span>
   {active&&<span className="absolute top-1 h-1 w-1 rounded-full bg-[#FFE23D]"/>}{extra}
  </Link>;
+ if(!visible)return null;
  return <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
   <div className="grid h-full grid-cols-5 items-center gap-0.5">
    {tab(home,"Accueil","home","/")}
