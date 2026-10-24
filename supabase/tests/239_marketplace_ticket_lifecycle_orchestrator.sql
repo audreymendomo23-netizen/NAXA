@@ -138,10 +138,9 @@ begin
     (v_other_client,'authenticated','authenticated','naxa239_other_'||substr(replace(v_other_client::text,'-',''),1,12)||'@invalid.local','',now(),now());
 
   insert into public.reservations(
-    id,client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,paiement_mode,
-    paiement_montant_percu,paiement_monnaie_rendue,paiement_valide_at
+    id,client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,paiement_mode
   ) values (
-    v_reservation,v_client,v_pharmacie,'payee',100,now()+interval '1 hour','reservation','effectue','especes_retrait',150,50,now()
+    v_reservation,v_client,v_pharmacie,'confirmee',100,now()+interval '1 hour','reservation','a_verifier','especes_retrait'
   );
 
   insert into public.ventes(
@@ -151,15 +150,26 @@ begin
     v_vente,v_pharmacie,v_session,v_client,'payee',0,100,100,'especes','NAXA239-TEST',v_client,now(),v_reservation
   ) returning numero_vente into v_numero;
 
-  update public.reservations
-  set paiement_ticket_numero=v_numero
-  where id=v_reservation;
-
   insert into public.vente_lignes(vente_id,produit_id,quantite,prix_unitaire)
   values(v_vente,v_produit,1,100);
   insert into public.vente_paiements(vente_id,mode,montant,reference,created_by,montant_percu,monnaie_rendue)
   values(v_vente,'especes',100,'NAXA239-TEST',v_client,150,50);
   set local session_replication_role = origin;
+
+  update public.reservations
+  set statut='payee', paiement_statut='effectue'
+  where id=v_reservation;
+
+  if not exists (
+    select 1 from public.reservations
+    where id=v_reservation
+      and paiement_ticket_numero=v_numero
+      and paiement_montant_percu=150
+      and paiement_monnaie_rendue=50
+      and paiement_valide_at is not null
+  ) then
+    raise exception 'Le trigger de paiement n’a pas figé le ticket POS dans la réservation';
+  end if;
 
   perform set_config('request.jwt.claim.sub',v_client::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
