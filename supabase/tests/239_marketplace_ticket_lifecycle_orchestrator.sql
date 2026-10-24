@@ -93,6 +93,10 @@ begin
      or position('notifier_reservations_expirant_30m' in v_definition)=0 then
     raise exception 'L’ordonnanceur ne traite pas les deux étapes métier';
   end if;
+  if position('failedReservations' in v_definition)=0
+     or position('en_echec' in v_definition)=0 then
+    raise exception 'L’ordonnanceur peut déclarer vert un lot contenant des restitutions échouées';
+  end if;
 
   if exists(select 1 from pg_catalog.pg_extension where extname='pg_cron')
      and to_regclass('cron.job') is not null then
@@ -272,5 +276,69 @@ begin
   end if;
 end;
 $lifecycle_behavior$;
+
+
+-- Contradiction : une réservation legacy sans allocation de lots doit rendre le cycle non vert.
+do $lifecycle_failure_behavior$
+declare
+  v_user uuid := gen_random_uuid();
+  v_reservation uuid;
+  v_pharmacie uuid;
+  v_produit uuid;
+  v_prix integer;
+  v_stock_before integer;
+  v_stock_after integer;
+  v_lifecycle jsonb;
+begin
+  select s.pharmacie_id,s.produit_id,s.prix,s.quantite
+    into v_pharmacie,v_produit,v_prix,v_stock_before
+  from public.stocks s
+  join public.stocks_lots sl
+    on sl.pharmacie_id=s.pharmacie_id and sl.produit_id=s.produit_id
+  limit 1;
+  if v_pharmacie is null or v_produit is null then
+    raise exception 'Fixture de lot nécessaire au test d’échec indisponible';
+  end if;
+
+  set local session_replication_role = replica;
+  insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
+  values(v_user,'authenticated','authenticated',
+    'naxa239_fail_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now());
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,
+    paiement_mode,stock_decremented,stock_restored
+  ) values (
+    v_user,v_pharmacie,'confirmee',v_prix,now()-interval '1 minute',
+    'reservation','a_verifier','especes_retrait',true,false
+  ) returning id into v_reservation;
+  insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
+  values(v_reservation,v_produit,1,v_prix);
+  set local session_replication_role = origin;
+
+  v_lifecycle := public.reservation_lifecycle_cron();
+  if coalesce((v_lifecycle->>'ok')::boolean,true) is not false then
+    raise exception 'Le cycle a déclaré ok=true malgré une restitution legacy non réconciliée : %',v_lifecycle;
+  end if;
+  if not exists (
+    select 1 from public.reservations
+    where id=v_reservation and statut='confirmee'
+  ) then
+    raise exception 'Une réservation incohérente a été expirée malgré l’échec de restitution';
+  end if;
+  if not exists (
+    select 1
+    from jsonb_array_elements(coalesce(v_lifecycle->'errors','[]'::jsonb)) e
+    where e->>'step'='expiration_stock_restore'
+      and coalesce((e->>'failedReservations')::integer,0)>0
+  ) then
+    raise exception 'Le cycle ne remonte pas le nombre de restitutions échouées';
+  end if;
+  select quantite into v_stock_after from public.stocks
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
+  if v_stock_after is distinct from v_stock_before then
+    raise exception 'Le stock a été modifié malgré une allocation de lots non réconciliée';
+  end if;
+end;
+$lifecycle_failure_behavior$;
 
 rollback;
