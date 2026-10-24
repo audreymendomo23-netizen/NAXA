@@ -269,6 +269,42 @@ export async function GET(request: Request) {
     }
   }
 
+  const today = now.toISOString().slice(0, 10);
+  const { data: favorisReminders, error: favorisReminderError } = await db
+    .from("naxa_favoris_rappels").select("id,user_id,produit_ref,produit_nom,reminder_date")
+    .eq("actif", true).is("notified_at", null).lte("reminder_date", today).limit(5000);
+  let favorisRappelsDus = 0, favorisRappelsPush = 0, favorisRappelsEchecs = 0;
+  if (favorisReminderError) { failed++; favorisRappelsEchecs++; }
+  else for (const reminder of favorisReminders ?? []) {
+    const { data: claimed, error: claimError } = await db.from("naxa_favoris_rappels")
+      .update({ notified_at: now.toISOString(), updated_at: now.toISOString() })
+      .eq("id", reminder.id).eq("actif", true).is("notified_at", null).select("id").maybeSingle();
+    if (claimError || !claimed) continue;
+    favorisRappelsDus++;
+    const { error: notifError } = await db.from("notifications").insert({
+      user_id: reminder.user_id, type: "favoris_rappel_renouvellement",
+      titre: "Votre rappel NAXA",
+      corps: "Un rappel que vous avez programmé est arrivé à échéance. Ouvrez Mes favoris pour consulter vos options.",
+      related_entity_id: reminder.id,
+    });
+    if (notifError) favorisRappelsEchecs++;
+    const { data: subs, error: subsError } = await db.from("naxa_push_subscriptions")
+      .select("endpoint,subscription").eq("user_id", reminder.user_id);
+    if (subsError) { failed++; favorisRappelsEchecs++; continue; }
+    for (const sub of subs ?? []) try {
+      await webpush.sendNotification(sub.subscription, JSON.stringify({
+        title: "Votre rappel NAXA",
+        body: "Un rappel que vous avez programmé est arrivé à échéance. Ouvrez vos favoris.",
+        url: "/client/profil/favoris", tag: `naxa-favoris-${reminder.id}`,
+      }), { TTL: 300, urgency: "normal" });
+      sent++; favorisRappelsPush++;
+    } catch (error) {
+      const status = (error as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) await db.from("naxa_push_subscriptions").delete().eq("endpoint", sub.endpoint).eq("user_id", reminder.user_id);
+      else { failed++; favorisRappelsEchecs++; }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     checked: data?.length ?? 0,
@@ -279,6 +315,10 @@ export async function GET(request: Request) {
     suiviDue,
     suiviSent,
     suiviFailed,
+    favorisRappelsChecked: favorisReminders?.length ?? 0,
+    favorisRappelsDus,
+    favorisRappelsPush,
+    favorisRappelsEchecs,
     at: now.toISOString(),
   });
 }

@@ -2,80 +2,56 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { notifierNAXA } from "@/components/NotificationGlobale";
-import { ecouterFavoris, ecrireFavoris, lireFavoris, type FavoriNAXA } from "@/lib/favoris-client";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { ecouterFavoris, ecrireFavoris, lireFavoris, synchroniserFavorisCompte, type FavoriNAXA } from "@/lib/favoris-client";
 
-function VisuelProduit({ item }: { item: FavoriNAXA }) {
-  if (item.photo_url) {
-    return <Image src={item.photo_url} alt={item.nom} width={100} height={100} unoptimized className="h-24 w-full object-contain" />;
-  }
-  return <div className="flex h-24 items-center justify-center rounded-2xl bg-[#E6F2EB]" aria-hidden="true">
-    <svg viewBox="0 0 100 82" className="h-20 w-24">
-      <g transform="translate(14 9) rotate(-8 36 30)">
-        <rect x="12" y="4" width="62" height="54" rx="8" fill="#FFE23D" stroke="#D9BE31" />
-        <rect x="4" y="12" width="62" height="54" rx="8" fill="#D8DEE0" stroke="#AAB5B8" strokeWidth="1.5" />
-        {[0,1,2].map(row => [0,1,2].map(col => <ellipse key={row+"-"+col} cx={17+col*18} cy={23+row*14} rx="6" ry="4.5" fill="#FFFFFF" stroke="#AAB5B8" strokeWidth="1"/>))}
-      </g>
-    </svg>
-  </div>;
+type Proposition = { id:string; reservation_id:string; produit_id:string; produit_nom:string; dosage:string|null; prix:number; created_at:string };
+type Rappel = { id:string; produit_ref:string; produit_nom:string; reminder_date:string; source:string; notified_at:string|null };
+function Visuel({item}:{item:FavoriNAXA}) {
+ if(item.photo_url) return <Image src={item.photo_url} alt={item.nom} width={100} height={100} unoptimized className="h-24 w-full object-contain"/>;
+ return <div className="flex h-24 items-center justify-center rounded-2xl bg-[#E6F2EB]" aria-hidden="true"><IconeNAXA name="pill" size={36}/></div>;
 }
+const dateAffichee=(v:string)=>new Intl.DateTimeFormat("fr-FR",{day:"numeric",month:"long",year:"numeric"}).format(new Date(v+"T12:00:00"));
 
-export default function FavorisClientPage() {
-  const [favoris, setFavoris] = useState<FavoriNAXA[]>([]);
-  const notificationInitiale = useRef(false);
-
-  useEffect(() => {
-    const actualiser = () => setFavoris(lireFavoris());
-    actualiser();
-    if (!notificationInitiale.current) {
-      notificationInitiale.current = true;
-      notifierNAXA("Vos favoris réunissent les médicaments que vous avez enregistrés depuis l’accueil. Les prix et les stocks restent à confirmer auprès de la pharmacie.");
-    }
-    return ecouterFavoris(actualiser);
-  }, []);
-
-  const retirer = (id: string) => {
-    const suivants = favoris.filter(item => item.id !== id);
-    ecrireFavoris(suivants);
-    setFavoris(suivants);
-    notifierNAXA("Médicament retiré de vos favoris.");
-  };
-
-  return <main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-    
-    <section className="relative z-10 mx-auto -mt-4 max-w-[480px]">
-      <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#D8E5DC] bg-white px-4 py-3 shadow-sm">
-        <h1 className="text-lg font-extrabold">Mes favoris</h1>
-        <span className="rounded-full bg-[#FFE23D] px-3 py-1 text-sm font-extrabold">{favoris.length}</span>
-      </div>
-
-      {favoris.length === 0 ? <div className="naxa-enter rounded-[24px] border border-dashed border-[#B9D2C2] bg-white px-6 py-10 text-center shadow-sm">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F2EB] text-[#0F6B3F]"><IconeNAXA name="heart" size={28}/></span>
-        <h2 className="mt-4 text-lg font-extrabold">Votre liste est encore vide</h2>
-        <p className="mx-auto mt-2 max-w-xs text-sm leading-5 text-[#64776B]">Touchez le cœur d’un médicament sur l’accueil pour le garder ici et le retrouver plus tard.</p>
-        <Link href="/" className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-5 text-sm font-extrabold text-[#0B3D26] shadow-sm transition-transform active:scale-[0.98]"><IconeNAXA name="search" size={17}/> Découvrir les médicaments</Link>
-      </div> : <div className="grid grid-cols-2 gap-3">
-        {favoris.map((item, index) => <article key={item.id} style={{ animationDelay: `${Math.min(index * 50, 250)}ms` }} className="naxa-enter relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
-          <Link href={item.demo ? "/resultats?q="+encodeURIComponent(item.nom) : "/produit/"+encodeURIComponent(item.id)} aria-label={`Consulter ${item.nom}`} className="flex min-h-24 items-center justify-center rounded-2xl">
-            <VisuelProduit item={item}/>
-          </Link>
-          <button type="button" onClick={() => retirer(item.id)} aria-label={`Retirer ${item.nom} des favoris`} className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border border-[#D8E5DC] bg-white text-[#0F6B3F] shadow-sm transition-transform active:scale-95">
-            <IconeNAXA name="heart" size={19} filled/>
-          </button>
-          {item.demo && <span className="mt-2 w-fit rounded-full bg-[#FFF3B0] px-2 py-1 text-[11px] font-extrabold">Exemple</span>}
-          <h2 className="mt-2 line-clamp-2 min-h-10 text-sm font-extrabold leading-5">{item.nom}</h2>
-          <p className="mt-1 line-clamp-1 text-xs text-[#64776B]">{item.dosage || "Dosage non précisé"}</p>
-          <p className="mt-2 text-base font-extrabold">{item.prix > 0 ? new Intl.NumberFormat("fr-FR").format(item.prix) + " FCFA" : "Prix à confirmer"}</p>
-          <p className="mt-1 line-clamp-2 min-h-8 text-[11px] leading-4 text-[#64776B]">{item.pharmacie}</p>
-          <div className="mt-auto flex items-center gap-2 pt-3">
-            <Link href={item.demo ? "/resultats?q="+encodeURIComponent(item.nom) : "/produit/"+encodeURIComponent(item.id)} className="flex min-h-10 flex-1 items-center justify-center rounded-xl bg-[#FFE23D] px-2 text-xs font-extrabold">Voir le produit</Link>
-            <button type="button" onClick={() => retirer(item.id)} aria-label={`Supprimer ${item.nom}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4F8F5] text-[#0F6B3F]"><IconeNAXA name="trash" size={17}/></button>
-          </div>
-        </article>)}
-      </div>}
-    </section>
-  </main>;
+export default function FavorisClientPage(){
+ const [favoris,setFavoris]=useState<FavoriNAXA[]>([]);
+ const [userId,setUserId]=useState<string|null>(null);
+ const [propositions,setPropositions]=useState<Proposition[]>([]);
+ const [rappels,setRappels]=useState<Rappel[]>([]);
+ const [dates,setDates]=useState<Record<string,string>>({});
+ const [recherche,setRecherche]=useState("");
+ const [filtre,setFiltre]=useState<"tous"|"medicaments">("tous");
+ const [chargement,setChargement]=useState(true);
+ const [erreur,setErreur]=useState("");
+ const [enCours,setEnCours]=useState<string|null>(null);
+ const charger=useCallback(async()=>{
+  const sb=supabaseBrowser(); const {data:{user}}=await sb.auth.getUser(); setUserId(user?.id??null);
+  if(!user){setPropositions([]);setRappels([]);return;}
+  const [p,r]=await Promise.all([
+   sb.from("naxa_achat_suivi_propositions").select("id,reservation_id,produit_id,produit_nom,dosage,prix,created_at").eq("user_id",user.id).eq("statut","en_attente").order("created_at",{ascending:false}).limit(20),
+   sb.from("naxa_favoris_rappels").select("id,produit_ref,produit_nom,reminder_date,source,notified_at").eq("user_id",user.id).eq("actif",true).order("reminder_date",{ascending:true}).limit(50)
+  ]);
+  if(p.error)setErreur("Les propositions liées aux achats ne sont pas disponibles pour le moment."); else setPropositions((p.data??[]) as Proposition[]);
+  if(!r.error)setRappels((r.data??[]) as Rappel[]);
+ },[]);
+ useEffect(()=>{let actif=true;setFavoris(lireFavoris());void(async()=>{try{const result=await synchroniserFavorisCompte();if(actif)setFavoris(result);await charger();}catch{if(actif)setErreur("Synchronisation temporairement indisponible.");}finally{if(actif)setChargement(false);}})();const stop=ecouterFavoris(()=>setFavoris(lireFavoris()));return()=>{actif=false;stop();};},[charger]);
+ const visibles=useMemo(()=>favoris.filter(f=>(f.nom+" "+f.dosage+" "+f.pharmacie).toLocaleLowerCase("fr").includes(recherche.trim().toLocaleLowerCase("fr"))&&(filtre==="tous"||!f.demo)),[favoris,recherche,filtre]);
+ const retirer=(id:string,nom:string)=>{ecrireFavoris(favoris.filter(f=>f.id!==id));setFavoris(lireFavoris());notifierNAXA(nom+" a été retiré de vos favoris.");};
+ const accepter=async(p:Proposition)=>{if(!userId){setErreur("Connectez-vous pour enregistrer ce favori.");return;}setEnCours(p.id);setErreur("");const {error}=await supabaseBrowser().rpc("accepter_proposition_favori",{p_proposition:p.id,p_date_rappel:dates[p.id]||null});if(error){setErreur("Impossible d’enregistrer cette proposition. Réessayez.");setEnCours(null);return;}setFavoris(await synchroniserFavorisCompte());await charger();notifierNAXA(dates[p.id]?"Favori enregistré et rappel programmé.":"Médicament ajouté aux favoris.");setEnCours(null);};
+ const ignorer=async(id:string)=>{const {error}=await supabaseBrowser().from("naxa_achat_suivi_propositions").update({statut:"ignoree",resolved_at:new Date().toISOString()}).eq("id",id);if(error)setErreur("La proposition n’a pas pu être masquée.");else await charger();};
+ const programmer=async(item:FavoriNAXA)=>{if(!userId){setErreur("Connectez-vous pour synchroniser vos rappels entre appareils.");return;}const date=dates[item.id];if(!date||date<new Date().toLocaleDateString("en-CA")){setErreur("Choisissez une date de rappel aujourd’hui ou dans le futur.");return;}setEnCours(item.id);const {error}=await supabaseBrowser().from("naxa_favoris_rappels").insert({user_id:userId,produit_ref:item.id,produit_nom:item.nom,reminder_date:date,mode:"renouvellement",source:"manuel",actif:true,consent_at:new Date().toISOString()});if(error)setErreur("Le rappel n’a pas pu être enregistré.");else{setDates(s=>({...s,[item.id]:""}));await charger();notifierNAXA("Rappel programmé.");}setEnCours(null);};
+ const desactiver=async(id:string)=>{const {error}=await supabaseBrowser().from("naxa_favoris_rappels").update({actif:false,updated_at:new Date().toISOString()}).eq("id",id);if(error)setErreur("Impossible de désactiver ce rappel.");else await charger();};
+ return <main className="min-h-dvh bg-[#F4F8F5] px-4 pt-3 pb-[calc(112px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]"><section className="mx-auto max-w-[480px] space-y-4">
+  <header className="flex items-center justify-between rounded-2xl border border-[#D8E5DC] bg-white px-4 py-3 shadow-sm"><div><h1 className="text-lg font-extrabold">Mes favoris <span className="text-[#DC2626]" aria-hidden="true">♥</span></h1><p className="text-xs text-[#64776B]">Retrouve tes produits et programme tes rappels.</p></div><span className="rounded-full bg-[#FFE23D] px-3 py-1 text-sm font-extrabold">{favoris.length}</span></header>
+  <div className="grid grid-cols-3 gap-2">{[{label:"Favoris",value:favoris.length,icon:"heart"},{label:"Rappels actifs",value:rappels.length,icon:"calendar"},{label:"Achats à suivre",value:propositions.length,icon:"shopping-bag"}].map(x=><div key={x.label} className="rounded-xl border border-[#D8E5DC] bg-white p-3"><IconeNAXA name={x.icon as "heart" | "clock" | "shopping-cart"} size={20}/><p className="mt-1 text-xl font-extrabold">{x.value}</p><p className="text-[11px] text-[#64776B]">{x.label}</p></div>)}</div>
+  {propositions.length>0&&<section className="rounded-2xl bg-[#0B3D26] p-4 text-white shadow-sm"><h2 className="flex items-center gap-2 font-extrabold"><IconeNAXA name="bell" size={21}/> Votre achat est confirmé</h2><p className="mt-2 text-sm text-[#DCE9DF]">Souhaitez-vous garder ce produit dans vos favoris et programmer un rappel de réachat ? Aucun rappel sans votre accord.</p><div className="mt-3 space-y-3">{propositions.map(p=><article key={p.id} className="rounded-xl bg-white p-3 text-[#0B3D26]"><p className="font-bold">{p.produit_nom}</p>{p.dosage&&<p className="text-xs text-[#64776B]">{p.dosage}</p>}<label className="mt-3 block text-xs font-semibold">Date facultative du rappel de réachat<input type="date" min={new Date().toLocaleDateString("en-CA")} value={dates[p.id]??""} onChange={e=>setDates(s=>({...s,[p.id]:e.target.value}))} className="mt-1 min-h-11 w-full rounded-xl border border-[#D8E5DC] px-3 text-sm"/></label><div className="mt-3 flex gap-2"><button type="button" disabled={enCours===p.id} onClick={()=>void accepter(p)} className="min-h-10 flex-1 rounded-xl bg-[#FFE23D] px-3 text-xs font-extrabold">{enCours===p.id?"Enregistrement…":"Ajouter aux favoris"}</button><button type="button" onClick={()=>void ignorer(p.id)} className="min-h-10 rounded-xl border border-[#D8E5DC] px-3 text-xs font-bold">Pas maintenant</button></div></article>)}</div></section>}
+  {rappels.length>0&&<section className="rounded-2xl border border-[#D8E5DC] bg-white p-4"><h2 className="flex items-center gap-2 font-extrabold"><IconeNAXA name="clock" size={20}/> Vos prochains rappels</h2><p className="mt-1 text-xs text-[#64776B]">Un rappel aide à retrouver le produit; il ne recommande pas de prolonger un traitement.</p><ul className="mt-3 space-y-2">{rappels.map(r=><li key={r.id} className="flex items-center gap-2 rounded-xl bg-[#F4F8F5] p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{r.produit_nom}</p><p className="text-xs text-[#64776B]">{dateAffichee(r.reminder_date)} · {r.source==="achat_caisse"?"Achat confirmé en caisse":"Programmé manuellement"}</p></div><button type="button" onClick={()=>void desactiver(r.id)} className="px-2 py-2 text-xs font-bold text-[#B91C1C]">Désactiver</button></li>)}</ul></section>}
+  <section className="rounded-2xl border border-[#D8E5DC] bg-white p-3 shadow-sm"><label className="flex items-center gap-2 rounded-xl border border-[#D8E5DC] px-3"><IconeNAXA name="search" size={19}/><input value={recherche} onChange={e=>setRecherche(e.target.value)} placeholder="Rechercher dans mes favoris…" className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"/></label><div className="mt-3 flex gap-2"><button type="button" onClick={()=>setFiltre("tous")} className={`rounded-full px-4 py-2 text-xs font-extrabold ${filtre==="tous"?"bg-[#0F6B3F] text-white":"bg-[#F4F8F5]"}`}>Tous</button><button type="button" onClick={()=>setFiltre("medicaments")} className={`rounded-full px-4 py-2 text-xs font-extrabold ${filtre==="medicaments"?"bg-[#0F6B3F] text-white":"bg-[#F4F8F5]"}`}>Médicaments</button></div></section>
+  {erreur&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erreur}</p>}
+  {chargement?<div className="rounded-2xl bg-white p-6 text-center text-sm text-[#64776B]">Synchronisation de vos favoris…</div>:visibles.length===0?<div className="rounded-[24px] border border-dashed border-[#B9D2C2] bg-white px-6 py-10 text-center shadow-sm"><span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#FCE7F3] text-[#DC2626]"><IconeNAXA name="heart" size={28}/></span><h2 className="mt-4 text-lg font-extrabold">{favoris.length?"Aucun résultat":"Votre liste est encore vide"}</h2><p className="mx-auto mt-2 max-w-xs text-sm text-[#64776B]">{favoris.length?"Essayez un autre terme.":"Touchez le cœur rouge d’un médicament pour le retrouver ici."}</p><Link href="/" className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#FFE23D] px-5 text-sm font-extrabold"><IconeNAXA name="search" size={17}/> Découvrir les médicaments</Link></div>:<div className="grid grid-cols-2 gap-3">{visibles.map((item,i)=><article key={item.id} style={{animationDelay:`${Math.min(i*50,250)}ms`}} className="relative flex min-w-0 flex-col rounded-[20px] bg-white p-3 shadow-sm"><Link href={item.demo?"/resultats?q="+encodeURIComponent(item.nom):"/produit/"+encodeURIComponent(item.id)} className="flex min-h-24 items-center justify-center rounded-2xl"><Visuel item={item}/></Link><button type="button" onClick={()=>retirer(item.id,item.nom)} aria-label={`Retirer ${item.nom} des favoris`} className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border border-[#F3C2C8] bg-white text-[#DC2626]"><IconeNAXA name="heart" size={19} filled/></button>{item.demo&&<span className="mt-2 text-[11px] font-extrabold text-[#8A6D00]">Exemple local</span>}<h2 className="mt-2 line-clamp-2 min-h-10 text-sm font-extrabold">{item.nom}</h2><p className="mt-1 text-xs text-[#64776B]">{item.dosage||"Dosage non précisé"}</p><p className="mt-2 text-base font-extrabold">{item.prix>0?new Intl.NumberFormat("fr-FR").format(item.prix)+" FCFA":"Prix à confirmer"}</p><p className="mt-1 min-h-8 text-[11px] text-[#64776B]">{item.pharmacie||"Disponibilité à confirmer"}</p><label className="mt-3 block text-[11px] font-bold">Programmer un rappel de réachat<input type="date" min={new Date().toLocaleDateString("en-CA")} value={dates[item.id]??""} onChange={e=>setDates(s=>({...s,[item.id]:e.target.value}))} className="mt-1 min-h-10 w-full rounded-xl border border-[#D8E5DC] px-2 text-xs"/></label><button type="button" disabled={enCours===item.id||item.demo} onClick={()=>void programmer(item)} className="mt-2 flex min-h-10 items-center justify-center gap-1 rounded-xl bg-[#FFF3B0] px-2 text-xs font-extrabold disabled:opacity-50"><IconeNAXA name="clock" size={15}/>{enCours===item.id?"Enregistrement…":"Programmer le rappel"}</button><div className="mt-auto flex gap-2 pt-3"><Link href={item.demo?"/resultats?q="+encodeURIComponent(item.nom):"/produit/"+encodeURIComponent(item.id)} className="flex min-h-10 flex-1 items-center justify-center rounded-xl bg-[#FFE23D] px-2 text-xs font-extrabold">Voir le produit</Link><button type="button" onClick={()=>retirer(item.id,item.nom)} aria-label={`Supprimer ${item.nom}`} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F4F8F5] text-[#B91C1C]"><IconeNAXA name="trash" size={17}/></button></div></article>)}</div>}
+  {!userId?<p className="rounded-xl border border-[#D8E5DC] bg-white p-3 text-xs text-[#64776B]">Vos favoris restent sur cet appareil. Connectez-vous pour synchroniser les favoris et programmer des rappels entre appareils.</p>:<p className="text-center text-[11px] text-[#64776B]">Les prix et stocks sont à confirmer au moment de la réservation.</p>}
+ </section></main>;
 }
