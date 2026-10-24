@@ -5,13 +5,51 @@ import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { EnTeteClient } from "@/components/EnTeteClient";
-import { QRCodePaiement } from "@/components/QRCodePaiement";
 
-type Ligne = { quantite: number; prix_unitaire: number; produits: { nom: string; dosage: string } | null };
-type RecuData = {
-  r: { total: number; statut: string; paiement_ref: string | null; code_paiement: string; paiement_mode: string | null; expires_at: string; created_at: string; paiement_montant_percu: number | null; paiement_monnaie_rendue: number | null; paiement_valide_at: string | null; paiement_ticket_numero: string | null; pharmacies: { nom: string } | null };
-  lignes: Ligne[];
+type TicketItem = {
+  produit_id: string;
+  produit_nom: string | null;
+  produit_dosage: string | null;
+  quantite: number;
+  prix_unitaire: number;
+  total_ligne: number;
 };
+type TicketPayment = {
+  mode: string | null;
+  montant: number;
+  montant_percu: number | null;
+  monnaie_rendue: number | null;
+  created_at: string;
+};
+type Ticket = {
+  receipt_type: string;
+  sale: {
+    vente_id: string;
+    numero_vente: string | null;
+    pharmacie_id: string;
+    statut: string;
+    created_at: string;
+    paid_at: string | null;
+    total_brut: number;
+    remise: number;
+    total_net: number;
+    mode_paiement: string | null;
+    paiement_ref: string | null;
+  };
+  items: TicketItem[];
+  payments: TicketPayment[];
+  reservation: {
+    reservation_id: string;
+    ticket_numero_snapshot: string | null;
+    montant_percu_snapshot: number | null;
+    monnaie_rendue_snapshot: number | null;
+    paiement_valide_at: string | null;
+  };
+};
+type RecuData = { ticket: Ticket; pharmacie: string };
+
+const dateFr = (value: string | null) =>
+  value ? new Date(value).toLocaleString("fr-FR") : "—";
 
 export default function Recu() {
   const { id } = useParams<{ id: string }>();
@@ -24,30 +62,59 @@ export default function Recu() {
     setErreur("");
     try {
       const sb = supabaseBrowser();
-      const { data: r, error: reservationError } = await sb
-        .from("reservations")
-        .select("total,statut,paiement_ref,code_paiement,paiement_mode,expires_at,created_at,paiement_montant_percu,paiement_monnaie_rendue,paiement_valide_at,paiement_ticket_numero,pharmacies(nom)")
-        .eq("id", id)
-        .single();
-      if (reservationError || !r) throw reservationError ?? new Error("Réservation introuvable.");
 
-      if (!["payee", "retiree"].includes(r.statut)) {
-        setD(null);
-        setErreur("Le reçu sera disponible lorsque la réservation sera payée ou retirée.");
-        return;
+      // Source d'autorité : ticket POS vérifié côté serveur pour le client connecté.
+      const { data: rawTicket, error: ticketError } = await sb.rpc(
+        "get_client_reservation_ticket",
+        { p_reservation_id: id }
+      );
+      if (ticketError || !rawTicket) {
+        throw new Error("Aucun ticket de caisse POS validé n’est disponible pour cette réservation.");
+      }
+      const ticket = rawTicket as unknown as Ticket;
+      if (
+        ticket.receipt_type !== "cashier_ticket" ||
+        ticket.sale?.statut !== "payee" ||
+        !ticket.sale?.vente_id ||
+        !Array.isArray(ticket.items) ||
+        ticket.items.length === 0 ||
+        !Array.isArray(ticket.payments) ||
+        ticket.payments.length === 0
+      ) {
+        throw new Error("Le ticket de caisse ne contient pas toutes les preuves de paiement requises.");
       }
 
-      const { data: lignes, error: lignesError } = await sb
-        .from("reservation_items")
-        .select("quantite,prix_unitaire,produits(nom,dosage)")
-        .eq("reservation_id", id);
-      if (lignesError) throw lignesError;
-      if (!lignes?.length) throw new Error("Aucune ligne de réservation n’a été trouvée.");
+      const itemsTotal = ticket.items.reduce((sum, item) => sum + Number(item.total_ligne), 0);
+      const paymentsTotal = ticket.payments.reduce((sum, payment) => sum + Number(payment.montant), 0);
+      const saleTotal = Number(ticket.sale.total_net);
+      if (
+        !Number.isFinite(itemsTotal) ||
+        !Number.isFinite(paymentsTotal) ||
+        !Number.isFinite(saleTotal) ||
+        Math.abs(itemsTotal - saleTotal) > 1 ||
+        Math.abs(paymentsTotal - saleTotal) > 1
+      ) {
+        throw new Error("Les montants du ticket, des lignes et des paiements ne concordent pas. Le reçu est bloqué pour vérification.");
+      }
 
-      setD({ r: r as never, lignes: lignes as never });
-    } catch {
+      // La RPC a déjà validé le propriétaire et le statut payé. Cette lecture ne sert
+      // qu'au libellé de la pharmacie ; elle ne décide jamais si le paiement est validé.
+      const { data: reservation, error: reservationError } = await sb
+        .from("reservations")
+        .select("pharmacies(nom)")
+        .eq("id", id)
+        .maybeSingle();
+      if (reservationError) throw reservationError;
+
+      setD({
+        ticket,
+        pharmacie: (reservation?.pharmacies as { nom: string } | null)?.nom ?? "Pharmacie partenaire",
+      });
+    } catch (error) {
       setD(null);
-      setErreur("Impossible de charger le reçu pour le moment. Vérifiez votre connexion puis réessayez.");
+      setErreur(error instanceof Error
+        ? error.message
+        : "Impossible de vérifier le ticket de caisse. Réessayez plus tard.");
     } finally {
       setChargement(false);
     }
@@ -55,46 +122,64 @@ export default function Recu() {
 
   useEffect(() => { void charger(); }, [charger]);
 
+  const ticket = d?.ticket;
+  const totalPaye = ticket?.payments.reduce((sum, payment) => sum + Number(payment.montant), 0) ?? 0;
+
   return (
     <main className="mx-auto max-w-md space-y-4 px-4 pb-16">
       <EnTeteClient />
-      <h1 className="text-xl font-extrabold">Reçu de réservation</h1>
-      {chargement && <p role="status" className="text-sm text-slate-600">Chargement du reçu…</p>}
+      <h1 className="text-xl font-extrabold">Ticket de caisse pharmacie</h1>
+      {chargement && <p role="status" className="text-sm text-slate-600">Vérification du ticket et du paiement…</p>}
       {!chargement && erreur && (
         <section className="carte space-y-3" role="alert">
           <p className="text-sm">{erreur}</p>
+          <p className="text-xs text-slate-500">Aucun reçu n’est affiché tant que le ticket POS et les montants ne peuvent pas être vérifiés côté serveur.</p>
           <button type="button" className="btn btn-vert w-full" onClick={() => void charger()}>Réessayer</button>
         </section>
       )}
-      {d && !chargement && (
+      {d && ticket && !chargement && (
         <>
           <section className="rounded-xl border p-4 text-sm">
-            <p><strong>Transaction Marketplace :</strong> {id.toUpperCase()}</p>
-            <p><strong>Code de paiement :</strong> <span className="font-mono font-bold">{d.r.code_paiement}</span></p>
-            <p><strong>Ticket de caisse :</strong> {d.r.paiement_ticket_numero ?? "—"}</p>
-            <p><strong>Pharmacie :</strong> {d.r.pharmacies?.nom ?? "—"}</p>
-            <p><strong>Réservation créée :</strong> {new Date(d.r.created_at).toLocaleString("fr-FR")}</p>
-            <p><strong>Réservation valable jusqu’au :</strong> {new Date(d.r.expires_at).toLocaleString("fr-FR")}</p>
-            <p><strong>Statut du paiement :</strong> {d.r.statut === "payee" || d.r.statut === "retiree" ? "PAYÉ" : "NON PAYÉ"}</p>
-            <p><strong>Canal constaté par la pharmacie :</strong> {d.r.paiement_mode ?? "—"}</p>
-            <p><strong>Montant de l’achat :</strong> {fcfa(d.r.total)}</p>
-            <p><strong>Montant perçu :</strong> {d.r.paiement_montant_percu == null ? "—" : fcfa(d.r.paiement_montant_percu)}</p>
-            <p><strong>Monnaie rendue :</strong> {d.r.paiement_monnaie_rendue == null ? "—" : fcfa(d.r.paiement_monnaie_rendue)}</p>
-            <p><strong>Paiement validé le :</strong> {d.r.paiement_valide_at ? new Date(d.r.paiement_valide_at).toLocaleString("fr-FR") : "—"}</p>
-            <p><strong>Référence enregistrée :</strong> {d.r.paiement_ref ?? "—"}</p>
+            <p><strong>Ticket de caisse :</strong> {ticket.sale.numero_vente ?? ticket.reservation.ticket_numero_snapshot ?? "—"}</p>
+            <p><strong>Référence transaction :</strong> {id.toUpperCase()}</p>
+            <p><strong>Pharmacie :</strong> {d.pharmacie}</p>
+            <p><strong>Vente créée :</strong> {dateFr(ticket.sale.created_at)}</p>
+            <p><strong>Paiement validé :</strong> {dateFr(ticket.sale.paid_at ?? ticket.reservation.paiement_valide_at)}</p>
+            <p><strong>Statut de la vente POS :</strong> PAYÉE</p>
+            <p><strong>Mode enregistré :</strong> {ticket.sale.mode_paiement ?? ticket.payments.map(payment => payment.mode).filter(Boolean).join(", ") || "—"}</p>
+            <p><strong>Référence de paiement :</strong> {ticket.sale.paiement_ref ?? "—"}</p>
           </section>
-          <table className="w-full text-sm">
-            <tbody>
-              {d.lignes.map((l, i) => (
-                <tr key={i} className="border-b">
-                  <td className="py-1">{l.quantite} × {l.produits?.nom ?? "Produit"} {l.produits?.dosage ?? ""}</td>
-                  <td className="py-1 text-right">{fcfa(l.prix_unitaire * l.quantite)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="text-right text-lg font-extrabold">Total : {fcfa(d.r.total)}</p>
-          <QRCodePaiement code={d.r.code_paiement} />
+          <section className="rounded-xl border p-4">
+            <h2 className="mb-3 font-bold">Articles vendus</h2>
+            <table className="w-full text-sm">
+              <tbody>
+                {ticket.items.map((item, index) => (
+                  <tr key={item.produit_id + "-" + index} className="border-b">
+                    <td className="py-2 pr-2">{item.quantite} × {item.produit_nom ?? "Produit"} {item.produit_dosage ?? ""}</td>
+                    <td className="py-2 text-right whitespace-nowrap">{fcfa(Number(item.total_ligne))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <dl className="mt-3 space-y-1 text-sm">
+              <div className="flex justify-between gap-3"><dt>Sous-total</dt><dd>{fcfa(Number(ticket.sale.total_brut))}</dd></div>
+              <div className="flex justify-between gap-3"><dt>Remise</dt><dd>{fcfa(Number(ticket.sale.remise))}</dd></div>
+              <div className="flex justify-between gap-3 text-lg font-extrabold"><dt>Total vente</dt><dd>{fcfa(Number(ticket.sale.total_net))}</dd></div>
+              <div className="flex justify-between gap-3 font-bold"><dt>Total paiements enregistrés</dt><dd>{fcfa(totalPaye)}</dd></div>
+            </dl>
+          </section>
+          <section className="rounded-xl border p-4 text-sm">
+            <h2 className="mb-2 font-bold">Détail du paiement enregistré</h2>
+            {ticket.payments.map((payment, index) => (
+              <div key={payment.created_at + "-" + index} className="border-b py-2 last:border-b-0">
+                <p><strong>Mode :</strong> {payment.mode ?? "—"}</p>
+                <p><strong>Montant affecté :</strong> {fcfa(Number(payment.montant))}</p>
+                {payment.montant_percu != null && <p><strong>Montant perçu :</strong> {fcfa(Number(payment.montant_percu))}</p>}
+                {payment.monnaie_rendue != null && <p><strong>Monnaie rendue :</strong> {fcfa(Number(payment.monnaie_rendue))}</p>}
+                <p><strong>Enregistré le :</strong> {dateFr(payment.created_at)}</p>
+              </div>
+            ))}
+          </section>
           <button type="button" className="btn btn-vert no-print w-full" onClick={() => window.print()}>
             Imprimer ou enregistrer en PDF
           </button>
