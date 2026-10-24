@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { EnTeteClient } from "@/components/EnTeteClient";
+import QRCode from "qrcode";
 
 type TicketItem = {
   produit_id: string;
@@ -35,6 +36,8 @@ type Ticket = {
     total_net: number;
     mode_paiement: string | null;
     paiement_ref: string | null;
+    caisse_id: string | null;
+    caisse_nom: string | null;
   };
   items: TicketItem[];
   payments: TicketPayment[];
@@ -46,7 +49,7 @@ type Ticket = {
     paiement_valide_at: string | null;
   };
 };
-type RecuData = { ticket: Ticket; pharmacie: string };
+type RecuData = { ticket: Ticket; pharmacie: string; qrDataUrl: string; codeManuel: string };
 
 const dateFr = (value: string | null) =>
   value ? new Date(value).toLocaleString("fr-FR") : "—";
@@ -106,8 +109,13 @@ export default function Recu() {
         .maybeSingle();
       if (reservationError) throw reservationError;
 
+      const qrPayload = `${window.location.origin}/reservation/${encodeURIComponent(id)}/recu`;
+      const qrDataUrl = await QRCode.toDataURL(qrPayload, { errorCorrectionLevel: "M", margin: 1, width: 220 });
+      const codeManuel = String(parseInt(id.replace(/-/g, "").slice(-8), 16) % 1000000).padStart(6, "0");
       setD({
         ticket,
+        qrDataUrl,
+        codeManuel,
         pharmacie: (Array.isArray(reservation?.pharmacies) ? reservation.pharmacies[0]?.nom : (reservation?.pharmacies as unknown as { nom: string } | null)?.nom) ?? "Pharmacie partenaire",
       });
     } catch (error) {
@@ -142,7 +150,7 @@ export default function Recu() {
           <section className="rounded-xl border p-4 text-sm">
             <p><strong>Ticket de caisse :</strong> {ticket.sale.numero_vente ?? ticket.reservation.ticket_numero_snapshot ?? "—"}</p>
             <p><strong>Référence transaction :</strong> {id.toUpperCase()}</p>
-            <p><strong>Pharmacie :</strong> {d.pharmacie}</p>
+            <p><strong>Pharmacie :</strong> {d.pharmacie}</p>\n            <p><strong>Caisse :</strong> {ticket.sale.caisse_nom || (ticket.sale.caisse_id ? `Caisse ${ticket.sale.caisse_id.slice(0, 8).toUpperCase()}` : ticket.sale.caisse_session_id ? `Session ${ticket.sale.caisse_session_id.slice(0, 8).toUpperCase()}` : "Non renseignée")}</p>\n            <p><strong>Code manuel de réservation :</strong> <span className="font-mono text-lg font-extrabold tracking-widest">{d.codeManuel}</span></p>\n            <div className="mt-3 flex flex-col items-center border-t pt-3"><img src={d.qrDataUrl} alt="QR code de la réservation" width={220} height={220} /><p className="text-xs text-slate-600">Scanner pour ouvrir les détails de la réservation et du reçu.</p></div>
             <p><strong>Vente créée :</strong> {dateFr(ticket.sale.created_at)}</p>
             <p><strong>Paiement validé :</strong> {dateFr(ticket.sale.paid_at ?? ticket.reservation.paiement_valide_at)}</p>
             <p><strong>Statut de la vente POS :</strong> PAYÉE</p>
