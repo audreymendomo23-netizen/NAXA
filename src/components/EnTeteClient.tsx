@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { IconeNAXA } from "@/components/IconeNAXA";
@@ -41,6 +41,16 @@ const cle = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").to
 
 export function EnTeteClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const headerScene = pathname.includes("profil") || pathname.includes("messages") || pathname.includes("posologie")
+    ? { image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1600&q=80", position: "center 42%" }
+    : pathname.includes("reservation") || pathname.includes("univers-reservation")
+      ? { image: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=1600&q=80", position: "center 52%" }
+      : pathname.includes("panier") || pathname.includes("achats") || pathname.includes("historique") || pathname.includes("client")
+        ? { image: "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=1600&q=80", position: "center 48%" }
+        : pathname.includes("scanner")
+          ? { image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1600&q=80", position: "center 45%" }
+          : { image: "https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fit=crop&w=1600&q=80", position: "center 50%" };
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -86,7 +96,12 @@ export function EnTeteClient() {
     router.push(href);
   }
 
-  return <header className="naxa-green-header sticky top-0 z-50 min-h-[104px] px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+  return <header className="naxa-green-header sticky top-0 z-50 isolate min-h-[104px] overflow-visible px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-[#0B3D26]">
+      <div className="absolute inset-0 bg-cover bg-center transition-[background-image] duration-500" style={{ backgroundImage: `url("${headerScene.image}")`, backgroundPosition: headerScene.position }} />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#073820]/95 via-[#0B3D26]/80 to-[#0B3D26]/65" />
+      <div className="absolute inset-0 bg-[#0B3D26]/15" />
+    </div>
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
