@@ -115,7 +115,7 @@ export function BottomNav() {
  const scannerResults=pathname==="/scanner"&&searchParams.get("view")==="results";
  // La barre principale est réservée à l'accueil client (dictionnaire médical, panier, etc.).
  const visible=pathname==="/client";
- if(!visible||(pathname==="/scanner"&&!scannerResults))return null;
+ if(!visible)return null;
  const home=pathname==="/"||pathname==="/recherche"||pathname==="/resultats"||pathname==="/gardes"||pathname.startsWith("/produit/")||pathname.startsWith("/offre/");
  const scan=pathname==="/scanner";
  const favorites=pathname==="/client/profil/favoris";
