@@ -20,6 +20,17 @@ type Purchase = {
   retiree_le: string | null; achat_le: string | null; horodatage_achat_exact: boolean; statut: string;
 };
 type Receipt = { reservationId: string; rows: Purchase[]; date: string; pharmacy: string; city: string; address: string; total: number; reference: string | null; status: string };
+type ServerTicket = {
+  receipt_type: "cashier_ticket";
+  sale: {
+    vente_id: string; numero_vente: string; pharmacie_id: string; statut: string;
+    created_at: string; paid_at: string | null; total_brut: number; remise: number;
+    total_net: number; mode_paiement: string | null; paiement_ref: string | null;
+  };
+  items: Array<{ produit_id: string; produit_nom: string; produit_dosage: string | null; quantite: number; prix_unitaire: number; total_ligne: number }>;
+  payments: Array<{ mode: string; montant: number; montant_percu: number | null; monnaie_rendue: number | null; created_at: string }>;
+  reservation: { reservation_id: string; ticket_numero_snapshot: string | null; montant_percu_snapshot: number | null; monnaie_rendue_snapshot: number | null; paiement_valide_at: string | null };
+};
 
 const fmt = (v: string | null | undefined) => v ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(v)) : "Non renseignée";
 const fcfa = (v: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(v) || 0) + " FCFA";
@@ -57,6 +68,47 @@ function downloadReceipt(receipt: Receipt) {
   <div class="total"><span>Total enregistré</span><span>${fcfa(receipt.total)}</span></div>
   <p class="muted">Montants exprimés en FCFA. Ce duplicata est généré à partir des données d’achat conservées dans NAXA.</p>
   <div class="notice"><b>Important — justificatif :</b> ce document est un duplicata numérique des informations d’achat disponibles. Il ne reproduit pas nécessairement à l’identique le ticket original imprimé à la caisse et ne remplace pas une copie certifiée de ce ticket. Pour un dossier médico-professionnel, conservez aussi le ticket original et demandez à la pharmacie une attestation si nécessaire.</div>
+  <div class="actions"><button onclick="window.print()">Imprimer / Enregistrer en PDF</button><button onclick="window.close()">Fermer</button></div></main><script>window.addEventListener("load",()=>setTimeout(()=>window.print(),250));</script></body></html>`);
+  popup.document.close();
+}
+
+
+async function downloadServerTicket(receipt: Receipt) {
+  // Ouvrir immédiatement la fenêtre depuis le geste utilisateur pour éviter le blocage popup.
+  const popup = window.open("", "_blank");
+  if (!popup) {
+    window.alert("Autorisez l’ouverture de la fenêtre pour consulter le ticket de caisse.");
+    return;
+  }
+  popup.document.write("<!doctype html><html lang='fr'><meta charset='utf-8'><title>Chargement du ticket</title><body style='font:16px Arial;padding:24px'>Récupération du ticket de caisse conservé par NAXA…</body></html>");
+  const { data, error } = await supabaseBrowser().rpc("get_client_reservation_ticket", {
+    p_reservation_id: receipt.reservationId,
+  });
+  const ticket = data as unknown as ServerTicket | null;
+  if (error || !ticket || ticket.receipt_type !== "cashier_ticket" || !ticket.sale?.numero_vente || !Array.isArray(ticket.items) || !Array.isArray(ticket.payments)) {
+    popup.close();
+    window.alert("Le ticket de caisse serveur n’est pas accessible pour cette réservation. Aucun récapitulatif n’a été présenté comme ticket. Vérifiez que la migration 239 est appliquée et que la vente est payée.");
+    return;
+  }
+
+  const sale = ticket.sale;
+  const lines = ticket.items.map((item) => `
+    <tr><td>${escapeHtml(item.produit_nom)}${item.produit_dosage ? " · " + escapeHtml(item.produit_dosage) : ""}</td>
+    <td class="num">${item.quantite}</td><td class="num">${fcfa(item.prix_unitaire)}</td><td class="num">${fcfa(item.total_ligne)}</td></tr>`).join("");
+  const paymentRows = ticket.payments.map((payment) => `
+    <tr><td>${escapeHtml(payment.mode)}</td><td>${escapeHtml(fmt(payment.created_at))}</td><td class="num">${fcfa(payment.montant)}</td>
+    <td class="num">${payment.montant_percu == null ? "—" : fcfa(payment.montant_percu)}</td><td class="num">${payment.monnaie_rendue == null ? "—" : fcfa(payment.monnaie_rendue)}</td></tr>`).join("");
+  popup.document.open();
+  popup.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ticket ${escapeHtml(sale.numero_vente)}</title>
+  <style>*{box-sizing:border-box}body{font:14px/1.45 Arial,sans-serif;color:#111;margin:0;padding:24px}main{max-width:760px;margin:auto}.brand{text-align:center;border-bottom:2px dashed #777;padding-bottom:14px}h1{font-size:20px;margin:0 0 6px}.muted{color:#555;font-size:12px}.meta{margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{padding:8px 4px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.num{text-align:right;white-space:nowrap}.total{display:flex;justify-content:space-between;font-weight:700;font-size:18px;margin-top:16px;border-top:2px dashed #777;padding-top:12px}.notice{margin-top:22px;padding:10px;border:1px solid #999;font-size:11px}.actions{margin:20px 0;text-align:center}.actions button{padding:10px 16px;margin:4px}@media print{body{padding:0}.actions{display:none}main{max-width:none}}@media(max-width:500px){body{padding:12px}.meta{grid-template-columns:1fr}table{font-size:10px}}</style></head><body><main>
+  <header class="brand"><h1>NAXA · Ticket de caisse</h1><div>${escapeHtml(receipt.pharmacy)}</div><div class="muted">Numéro de vente : <b>${escapeHtml(sale.numero_vente)}</b></div></header>
+  <section class="meta"><div><b>Date de vente</b><br>${escapeHtml(fmt(sale.created_at))}</div><div><b>Paiement validé</b><br>${escapeHtml(fmt(sale.paid_at || ticket.reservation.paiement_valide_at))}</div><div><b>Référence de réservation</b><br>${escapeHtml(receipt.reservationId.toUpperCase())}</div><div><b>Mode de paiement</b><br>${escapeHtml(sale.mode_paiement || ticket.payments[0]?.mode || "Non renseigné")}</div><div><b>Référence paiement</b><br>${escapeHtml(sale.paiement_ref || receipt.reference || "Non renseignée")}</div><div><b>État de vente</b><br>${escapeHtml(sale.statut)}</div></section>
+  <table><thead><tr><th>Article</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total ligne</th></tr></thead><tbody>${lines}</tbody></table>
+  <div class="total"><span>Total brut</span><span>${fcfa(sale.total_brut)}</span></div>
+  <div class="total"><span>Remise</span><span>− ${fcfa(sale.remise)}</span></div>
+  <div class="total"><span>Total payé</span><span>${fcfa(sale.total_net)}</span></div>
+  <h2>Écritures de paiement conservées</h2><table><thead><tr><th>Canal</th><th>Date</th><th class="num">Montant</th><th class="num">Reçu</th><th class="num">Monnaie rendue</th></tr></thead><tbody>${paymentRows}</tbody></table>
+  <p class="muted">Source : vente POS ${escapeHtml(sale.vente_id)} et écritures de paiement conservées côté serveur NAXA. Cette impression reprend les données enregistrées du ticket ; elle n’est pas un scan du papier original.</p>
   <div class="actions"><button onclick="window.print()">Imprimer / Enregistrer en PDF</button><button onclick="window.close()">Fermer</button></div></main><script>window.addEventListener("load",()=>setTimeout(()=>window.print(),250));</script></body></html>`);
   popup.document.close();
 }
@@ -163,7 +215,7 @@ export default function HistoriqueClient() {
         <ul className="mt-3 space-y-1 text-sm">{receipt.rows.map((row, index) => <li key={row.produit_id + "-" + index} className="flex justify-between gap-3"><span>{row.medicament}{row.dosage ? " · " + row.dosage : ""} × {row.quantite}</span><span className="whitespace-nowrap">{fcfa(row.total_ligne)}</span></li>)}</ul>
         <div className="mt-3 flex items-center justify-between border-t pt-3 font-extrabold"><span>Total</span><span>{fcfa(receipt.total)}</span></div>
         {receipt.reference && <p className="mt-2 text-xs text-slate-500">Référence paiement : {receipt.reference}</p>}
-        <button type="button" className="btn btn-vert mt-3 w-full" onClick={() => downloadReceipt(receipt)}>Télécharger / imprimer le récapitulatif</button>
+        <div className="mt-3 grid gap-2"><button type="button" className="btn btn-vert w-full" onClick={() => void downloadServerTicket(receipt)}>Télécharger le ticket de caisse conservé côté serveur</button><button type="button" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700" onClick={() => downloadReceipt(receipt)}>Télécharger le récapitulatif numérique</button></div>
       </li>)}</ul></section>}
     </>}
     <p className="mt-5 text-xs text-slate-500">Pour une preuve destinée à un dossier de santé ou de maladie professionnelle, privilégiez les justificatifs originaux et demandez à la pharmacie un duplicata officiel lorsque nécessaire. L’historique NAXA peut aider à retrouver les achats, mais ne constitue pas à lui seul une décision médicale ou juridique.</p>
