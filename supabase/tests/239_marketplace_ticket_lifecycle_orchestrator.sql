@@ -118,6 +118,7 @@ do $ticket_behavior$
 declare
   v_client uuid := gen_random_uuid();
   v_other_client uuid := gen_random_uuid();
+  v_admin uuid := gen_random_uuid();
   v_pharmacie uuid;
   v_produit uuid;
   v_session uuid := gen_random_uuid();
@@ -139,7 +140,8 @@ begin
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
   values
     (v_client,'authenticated','authenticated','naxa239_ticket_'||substr(replace(v_client::text,'-',''),1,12)||'@invalid.local','',now(),now()),
-    (v_other_client,'authenticated','authenticated','naxa239_other_'||substr(replace(v_other_client::text,'-',''),1,12)||'@invalid.local','',now(),now());
+    (v_other_client,'authenticated','authenticated','naxa239_other_'||substr(replace(v_other_client::text,'-',''),1,12)||'@invalid.local','',now(),now()),
+    (v_admin,'authenticated','authenticated','naxa239_admin_'||substr(replace(v_admin::text,'-',''),1,12)||'@invalid.local','',now(),now());
 
   insert into public.reservations(
     id,client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,paiement_mode
@@ -159,6 +161,9 @@ begin
   insert into public.vente_paiements(vente_id,mode,montant,reference,created_by,montant_percu,monnaie_rendue)
   values(v_vente,'especes',100,'NAXA239-TEST',v_client,150,50);
   set local session_replication_role = origin;
+
+  insert into public.profiles(id,role,username,actif)
+  values(v_admin,'admin','naxa239_admin_'||substr(replace(v_admin::text,'-',''),1,12),true);
 
   update public.reservations
   set statut='payee', paiement_statut='effectue'
@@ -192,6 +197,22 @@ begin
      or (v_ticket#>>'{payments,0,montant_percu}')::integer <> 150
      or (v_ticket#>>'{payments,0,monnaie_rendue}')::integer <> 50 then
     raise exception 'Le ticket client ne correspond pas aux enregistrements POS';
+  end if;
+
+  -- Le retrait après paiement doit rester une transition autorisée et apparaître dans l’historique.
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform public.set_reservation_status(v_reservation,'retiree'::public.resa_statut);
+  if not exists(select 1 from public.reservations where id=v_reservation and statut='retiree') then
+    raise exception 'Le retrait n’a pas fait évoluer la réservation payée';
+  end if;
+  if not exists(select 1 from public.reservation_events where reservation_id=v_reservation and to_statut='retiree') then
+    raise exception 'Le retrait n’a pas été inscrit dans l’historique métier';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',v_client::text,true);
+  v_ticket := public.get_client_reservation_ticket(v_reservation);
+  if v_ticket->>'receipt_type' <> 'cashier_ticket' then
+    raise exception 'Le client a perdu l’accès à son ticket après retrait';
   end if;
 
   perform set_config('request.jwt.claim.sub',v_other_client::text,true);
