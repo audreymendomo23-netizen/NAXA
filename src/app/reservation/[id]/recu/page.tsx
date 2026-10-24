@@ -146,7 +146,7 @@ export default function Recu() {
             <p><strong>Vente créée :</strong> {dateFr(ticket.sale.created_at)}</p>
             <p><strong>Paiement validé :</strong> {dateFr(ticket.sale.paid_at ?? ticket.reservation.paiement_valide_at)}</p>
             <p><strong>Statut de la vente POS :</strong> PAYÉE</p>
-            <p><strong>Mode enregistré :</strong> {ticket.sale.mode_paiement ?? ticket.payments.map(payment => payment.mode).filter(Boolean).join(", ") || "—"}</p>
+            <p><strong>Mode enregistré :</strong> {ticket.sale.mode_paiement ?? (ticket.payments.map(payment => payment.mode).filter(Boolean).join(", ") || "—")}</p>
             <p><strong>Référence de paiement :</strong> {ticket.sale.paiement_ref ?? "—"}</p>
           </section>
           <section className="rounded-xl border p-4">
