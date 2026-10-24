@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { FilMessages } from "@/components/FilMessages";
 import { EnTeteClient } from "@/components/EnTeteClient";
-import { Logo } from "@/components/Logo";
-import { BoutonNotifications } from "@/components/BoutonNotifications";
 type ThreadRow = { id: string; anonyme: boolean; client_archived_at: string | null; created_at: string; pharmacies: { nom: string; ville: string | null; quartier: string | null } | null; messages_pharmacie: { corps: string; created_at: string; expediteur: string }[] };
 export default function MessagesClientPage() {
   const [threads, setThreads] = useState<ThreadRow[]>([]);
