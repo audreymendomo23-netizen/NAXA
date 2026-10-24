@@ -285,6 +285,7 @@ declare
   v_reservation uuid;
   v_pharmacie uuid;
   v_produit uuid;
+  v_lot uuid := gen_random_uuid();
   v_prix integer;
   v_stock_before integer;
   v_stock_after integer;
@@ -293,12 +294,18 @@ begin
   select s.pharmacie_id,s.produit_id,s.prix,s.quantite
     into v_pharmacie,v_produit,v_prix,v_stock_before
   from public.stocks s
-  join public.stocks_lots sl
-    on sl.pharmacie_id=s.pharmacie_id and sl.produit_id=s.produit_id
   limit 1;
   if v_pharmacie is null or v_produit is null then
-    raise exception 'Fixture de lot nécessaire au test d’échec indisponible';
+    raise exception 'Fixture de stock nécessaire au test d’échec indisponible';
   end if;
+
+  insert into public.stocks_lots(
+    id,pharmacie_id,produit_id,lot,numero_lot,peremption,date_peremption,quantite
+  ) values (
+    v_lot,v_pharmacie,v_produit,'NAXA239-'||left(replace(v_lot::text,'-',''),16),
+    'NAXA239-'||left(replace(v_lot::text,'-',''),16),
+    current_date+interval '365 days',current_date+interval '365 days',5
+  );
 
   set local session_replication_role = replica;
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
