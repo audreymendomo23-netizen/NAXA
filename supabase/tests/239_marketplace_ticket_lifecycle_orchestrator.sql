@@ -284,37 +284,39 @@ do $legacy_restore_behavior$
 declare
   v_user uuid := gen_random_uuid();
   v_reservation uuid := gen_random_uuid();
-  v_lot uuid := gen_random_uuid();
-  v_pharmacie uuid;
+  v_pharmacie uuid := gen_random_uuid();
   v_produit uuid;
-  v_prix integer;
-  v_stock_before integer;
+  v_lot uuid := gen_random_uuid();
+  v_prix integer := 100;
+  v_stock_before integer := 5;
   v_lot_before integer := 5;
   v_stock_after integer;
   v_lot_after integer;
   v_lifecycle jsonb;
   v_lot_code text := 'NAXA239-'||left(replace(gen_random_uuid()::text,'-',''),16);
 begin
-  select s.pharmacie_id,s.produit_id,s.prix,s.quantite
-    into v_pharmacie,v_produit,v_prix,v_stock_before
-  from public.stocks s
-  where s.quantite >= 2
-  limit 1;
-  if v_pharmacie is null or v_produit is null then
-    raise exception 'Fixture de stock suffisant absente pour le test de restitution legacy';
+  select id into v_produit from public.produits limit 1;
+  if v_produit is null then
+    raise exception 'Fixture produit absente pour le test de restitution legacy';
   end if;
 
+  -- Jeu de données isolé, intégralement annulé par le rollback final du fichier.
+  set local session_replication_role = replica;
+  insert into public.pharmacies(id,nom,lat,lng,actif,visible_recherche)
+  values(v_pharmacie,'NAXA TEST RESTITUTION 239',3.8667,11.5167,true,true);
+  insert into public.stocks(pharmacie_id,produit_id,prix,quantite)
+  values(v_pharmacie,v_produit,v_prix,v_stock_before);
   insert into public.stocks_lots(
     id,pharmacie_id,produit_id,lot,numero_lot,peremption,date_peremption,quantite
   ) values (
     v_lot,v_pharmacie,v_produit,v_lot_code,v_lot_code,
     current_date+interval '365 days',current_date+interval '365 days',v_lot_before
   );
+  -- Simule le débit historique avant l’expiration : stock agrégé et lot diminuent ensemble.
   update public.stocks set quantite=quantite-2
   where pharmacie_id=v_pharmacie and produit_id=v_produit;
   update public.stocks_lots set quantite=quantite-2 where id=v_lot;
 
-  set local session_replication_role = replica;
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
   values(v_user,'authenticated','authenticated',
     'naxa239_restore_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now());
