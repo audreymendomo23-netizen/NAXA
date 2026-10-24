@@ -91,7 +91,7 @@ export default function Recu() {
         !Number.isFinite(itemsTotal) ||
         !Number.isFinite(paymentsTotal) ||
         !Number.isFinite(saleTotal) ||
-        Math.abs(itemsTotal - saleTotal) > 1 ||
+        Math.abs(itemsTotal - Number(ticket.sale.total_brut)) > 1 ||
         Math.abs(paymentsTotal - saleTotal) > 1
       ) {
         throw new Error("Les montants du ticket, des lignes et des paiements ne concordent pas. Le reçu est bloqué pour vérification.");
