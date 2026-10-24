@@ -12,8 +12,7 @@ begin
   if not has_function_privilege('authenticated','public.get_client_reservation_ticket(uuid)','EXECUTE') then
     raise exception 'Le client authentifié ne peut pas lire son ticket';
   end if;
-  if has_function_privilege('anon','public.get_client_reservation_ticket(uuid)','EXECUTE')
-     or has_function_privilege('public','public.get_client_reservation_ticket(uuid)','EXECUTE') then
+  if has_function_privilege('anon','public.get_client_reservation_ticket(uuid)','EXECUTE') then
     raise exception 'La RPC ticket client est exécutable anonymement';
   end if;
   select pg_get_functiondef(p.oid) into v_definition
