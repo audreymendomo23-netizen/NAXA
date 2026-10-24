@@ -56,6 +56,26 @@ begin
     raise exception 'La restitution interne est exposée aux rôles applicatifs';
   end if;
 
+  if to_regprocedure('public.expirer_reservations_cron(integer)') is null then
+    raise exception 'Fonction serveur d’expiration absente';
+  end if;
+  if to_regprocedure('public.notifier_reservations_expirant_30m()') is null then
+    raise exception 'Fonction serveur de notification absente';
+  end if;
+  if not has_function_privilege('service_role','public.expirer_reservations_cron(integer)','EXECUTE')
+     or has_function_privilege('authenticated','public.expirer_reservations_cron(integer)','EXECUTE')
+     or has_function_privilege('anon','public.expirer_reservations_cron(integer)','EXECUTE') then
+    raise exception 'Les droits d’expiration ne sont pas réservés au service serveur';
+  end if;
+  if not has_function_privilege('service_role','public.notifier_reservations_expirant_30m()','EXECUTE')
+     or has_function_privilege('authenticated','public.notifier_reservations_expirant_30m()','EXECUTE')
+     or has_function_privilege('anon','public.notifier_reservations_expirant_30m()','EXECUTE') then
+    raise exception 'Les droits de notification ne sont pas réservés au service serveur';
+  end if;
+  if to_regclass('public.reservation_item_lots') is null
+     or to_regclass('public.notifications_reservation_expiry_once_uq') is null then
+    raise exception 'Les dépendances de restitution ou de notification unique sont absentes';
+  end if;
   if to_regprocedure('public.reservation_lifecycle_cron()') is null then
     raise exception 'Orchestrateur du cycle de réservation absent';
   end if;
@@ -166,5 +186,81 @@ begin
   end if;
 end;
 $ticket_behavior$;
+
+
+-- Test intégré : expiration/restauration idempotente + notification unique au travers de l’ordonnanceur.
+do $lifecycle_behavior$
+declare
+  v_user uuid := gen_random_uuid();
+  v_res_expired uuid;
+  v_res_notice uuid;
+  v_pharmacie uuid;
+  v_produit uuid;
+  v_prix integer;
+  v_stock_before integer;
+  v_stock_after integer;
+  v_lifecycle jsonb;
+  v_notices integer;
+begin
+  select s.pharmacie_id, s.produit_id, s.prix, s.quantite
+    into v_pharmacie, v_produit, v_prix, v_stock_before
+  from public.stocks s
+  limit 1;
+  if v_pharmacie is null or v_produit is null then
+    raise exception 'Fixture stock/pharmacie absente pour le cycle de réservation';
+  end if;
+
+  set local session_replication_role = replica;
+  insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
+  values(v_user,'authenticated','authenticated',
+    'naxa239_cycle_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now());
+
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,
+    paiement_mode,stock_decremented,stock_restored
+  ) values
+    (v_user,v_pharmacie,'confirmee',v_prix,now()-interval '1 minute','reservation','a_verifier','especes_retrait',false,false),
+    (v_user,v_pharmacie,'confirmee',v_prix,now()+interval '27 minutes','reservation','a_verifier','especes_retrait',false,false)
+  returning id into v_res_expired;
+
+  -- La deuxième réservation est identifiée sans ambiguïté par sa future échéance.
+  select id into v_res_notice
+  from public.reservations
+  where client_id=v_user and expires_at>now()+interval '25 minutes'
+  order by expires_at desc limit 1;
+
+  insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
+  values(v_res_expired,v_produit,1,v_prix),(v_res_notice,v_produit,1,v_prix);
+  set local session_replication_role = origin;
+
+  v_lifecycle := public.reservation_lifecycle_cron();
+  if coalesce((v_lifecycle->>'ok')::boolean,false) is not true then
+    raise exception 'Une étape de l’ordonnanceur a échoué : %',v_lifecycle;
+  end if;
+  if not exists(select 1 from public.reservations where id=v_res_expired and statut='expiree') then
+    raise exception 'La réservation échue n’a pas été expirée';
+  end if;
+  select quantite into v_stock_after from public.stocks
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
+  if v_stock_after is distinct from v_stock_before then
+    raise exception 'Un hold moderne a modifié le stock physique à l’expiration';
+  end if;
+
+  v_lifecycle := public.reservation_lifecycle_cron();
+  if coalesce((v_lifecycle->>'ok')::boolean,false) is not true then
+    raise exception 'Le second passage de l’ordonnanceur a échoué : %',v_lifecycle;
+  end if;
+  select count(*) into v_notices from public.notifications
+  where reservation_id=v_res_notice and type='reservation_expiry_30m';
+  if v_notices <> 1 then
+    raise exception 'Le rappel à 30 minutes a été créé % fois au lieu d’une',v_notices;
+  end if;
+  select quantite into v_stock_after from public.stocks
+  where pharmacie_id=v_pharmacie and produit_id=v_produit;
+  if v_stock_after is distinct from v_stock_before then
+    raise exception 'Le second passage a modifié le stock physique';
+  end if;
+end;
+$lifecycle_behavior$;
 
 rollback;
