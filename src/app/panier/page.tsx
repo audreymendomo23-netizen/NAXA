@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { IllustrationPageClient } from "@/components/IllustrationPageClient";
 import { useRouter } from "next/navigation";
 import { MAX_QTE, usePanier } from "@/lib/panier";
 
@@ -16,6 +17,7 @@ export default function Panier() {
 
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-4 pb-[calc(88px+env(safe-area-inset-bottom,0px))]">
+      <IllustrationPageClient src="/couvertures/panier-reservations.webp" alt="Illustration du panier et des réservations" titre="Mon panier" />
       <div className="mb-4 flex justify-end"><Link href="/client" className="text-sm font-semibold text-naxa-green-900 underline">Continuer mes achats</Link></div>
 
       <h1 className="text-2xl font-extrabold">Mon panier</h1>
