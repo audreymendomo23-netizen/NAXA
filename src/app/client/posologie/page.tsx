@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { IllustrationPageClient } from "@/components/IllustrationPageClient";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { IconeNAXA } from "@/components/IconeNAXA";
@@ -333,6 +334,7 @@ export default function ConfigurerPosologiePage() {
   };
 
   return <main className="min-h-dvh bg-[#F4F8F5] px-4 pb-[calc(110px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+      <IllustrationPageClient src="/couvertures/posologie.webp" alt="Illustration des rappels de posologie" titre="Posologie et rappels" />
     <section className="-mx-4 bg-[#0F6B3F] px-4 pb-8 pt-4 text-white">
       <div className="mx-auto flex max-w-[480px] items-center gap-3">
         <Link href="/" aria-label="Retour à l’accueil" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10"><IconeNAXA name="arrow-left" size={21}/></Link>
