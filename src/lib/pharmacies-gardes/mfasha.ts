@@ -44,18 +44,14 @@ function phoneNumbers(value: string): string[] {
 }
 
 function extractPeriod(text: string): string | null {
-  // La page Mfasha place souvent « Garde à venir / N pharmacies de garde »
-  // immédiatement après la période. Arrêter la capture avant ce bloc, sans
-  // dépendre d'un libellé de filtre ou du pied de page.
-  const match = text.match(
-    /Garde\s+du\s+(.{3,80}?)\s+au\s+(.{3,80}?)(?=\s+(?:Garde\s+à\s+venir|\d+\s+pharmacies?\s+de\s+garde|Filtrer\s+par|Zone\s*\d+|Mfasha\s*[·|])|$)/i,
-  );
+  // La page Mfasha place les cartes juste après la période. Capturer jusqu'à
+  // l'heure de fin évite d'englober le nom de la première pharmacie.
+  const match = text.match(/Garde\s+du\s+(.{3,60}?\b\d{1,2}:\d{2})\s+au\s+(.{3,60}?\b\d{1,2}:\d{2})/i);
   if (!match) return null;
   const debut = match[1].trim().replace(/\s+/g, " ");
   const fin = match[2].trim().replace(/\s+/g, " ");
   return debut && fin ? `${debut} au ${fin}` : null;
-}
-/**
+}/**
  * Fetches the currently published public duty list from Mfasha.
  * This is a public web page, not a documented API. If its HTML structure
  * changes, parsing fails closed and callers should use their trusted fallback.
