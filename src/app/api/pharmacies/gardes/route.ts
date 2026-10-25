@@ -83,13 +83,13 @@ function creerIllustrationPharmacie(pharmacie: GardeExterne): string {
 
 async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null> {
   const slug = slugPhoto(pharmacie.nom);
-  const variantes = [...new Set([slug, slug.startsWith("pharmacie-") ? slug : \`pharmacie-\${slug}\`])];
+  const variantes = [...new Set([slug, slug.startsWith("pharmacie-") ? slug : `pharmacie-${slug}`])];
   const nomCle = normaliserNom(pharmacie.nom);
   const tokens = nomCle.split(" ").filter((token) => token.length >= 4);
 
   for (const variante of variantes) {
     try {
-      const pageUrl = \`https://mboapharma.cm/directory/\${variante}/\`;
+      const pageUrl = `https://mboapharma.cm/directory/${variante}/`;
       const page = await fetch(pageUrl, {
         headers: { Accept: "text/html", "User-Agent": "NAXA-pharmacy-directory/1.0" },
         signal: AbortSignal.timeout(3500),
