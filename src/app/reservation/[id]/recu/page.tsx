@@ -38,6 +38,7 @@ type Ticket = {
     paiement_ref: string | null;
     caisse_id: string | null;
     caisse_nom: string | null;
+    caisse_session_id: string | null;
   };
   items: TicketItem[];
   payments: TicketPayment[];
