@@ -85,11 +85,11 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
             onMouseLeave={() => { pauseAutoRef.current = false; }}
           >
             {pharmacies.map((pharmacie) => (
-              <article key={pharmacie.id} className="naxa-garde-card carte min-w-full snap-start overflow-hidden rounded-2xl border border-[#E6C900] bg-[#FFE23D] p-0">
+              <article key={pharmacie.id} className="carte min-w-full snap-start overflow-hidden p-0">
                 <button
                   type="button"
                   onClick={() => setSelection(pharmacie)}
-                  className="block w-full bg-[#FFE23D] p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
+                  className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
                   aria-label={`Voir les coordonnées publiques de ${pharmacie.nom}`}
                 >
                   <PhotoPharmacie nom={pharmacie.nom} src={pharmacie.imageUrl} lieu={pharmacie.quartier} illustration={pharmacie.imageType === "illustration"} />
