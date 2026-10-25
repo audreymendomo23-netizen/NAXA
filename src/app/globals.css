@@ -869,7 +869,11 @@ html[data-theme="jour"] .naxa-night-wave {
 }
 /* Jamais les deux personnages visibles simultanément : switch visuel exclusif. */
 .naxa-luciole.luciole-fairy-entering .luciole-insect,
-.naxa-luciole.luciole-fairy-visible .luciole-insect { opacity: 0; transform: scale(.72); }
+.naxa-luciole.luciole-fairy-visible .luciole-insect {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.72);
+}
 .naxa-luciole.luciole-fairy-entering .luciole-fairy,
 .naxa-luciole.luciole-fairy-visible .luciole-fairy {
   opacity: 1;
@@ -878,6 +882,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-fairy-entering .luciole-fairy { animation: luciole-companion-arrive 900ms cubic-bezier(.2,.8,.25,1) both; }
 .naxa-luciole.luciole-fairy-leaving .luciole-fairy {
   opacity: 0;
+  visibility: hidden;
   transform: translate(24px,-19px) scale(.58) rotate(12deg);
 }
 .naxa-luciole.luciole-fairy-leaving .luciole-insect { opacity: 1; transform: scale(1); }
