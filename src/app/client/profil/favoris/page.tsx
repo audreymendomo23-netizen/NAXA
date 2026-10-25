@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IllustrationPageClient } from "@/components/IllustrationPageClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconeNAXA } from "@/components/IconeNAXA";
@@ -172,6 +173,7 @@ export default function FavorisClientPage() {
 
   return (
     <main className="min-h-dvh bg-[#F4F8F5] px-4 pt-3 pb-[calc(112px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+      <IllustrationPageClient src="/couvertures/favoris.webp" alt="Illustration des favoris" titre="Mes favoris" />
       <section className="mx-auto max-w-[480px] space-y-4">
         <header className="flex items-center justify-between rounded-2xl border border-[#D6A928] bg-[#F4C542] px-4 py-3 shadow-sm">
           <div>
