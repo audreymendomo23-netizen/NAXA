@@ -423,7 +423,19 @@ export async function GET(request: NextRequest) {
       bdpmHolder: item.titulaires,
       bdpmSourceDatasetUpdatedAt: item.source_dataset_updated_at
     }));
-  const combinedResults = [...mergedResults, ...bdpmResults].slice(0, 10);
+  // Les sources externes peuvent décrire plusieurs fois le même médicament et
+  // le rapprochement local peut attribuer un même produit à plusieurs variantes.
+  // Dédupliquer avant la limite et conserver la première fiche, mieux priorisée.
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  const combinedResults = [...mergedResults, ...bdpmResults].filter((item) => {
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const name = normaliserTerme(typeof item.name === "string" ? item.name : "");
+    if ((id && seenIds.has(id)) || (name && seenNames.has(name))) return false;
+    if (id) seenIds.add(id);
+    if (name) seenNames.add(name);
+    return true;
+  }).slice(0, 10);
 
   return NextResponse.json({
     query,
