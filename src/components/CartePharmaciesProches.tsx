@@ -130,8 +130,6 @@ export default function CartePharmaciesProches({
           iconAnchor: [15, 34],
           popupAnchor: [0, -30],
         }),
-        title: p.nom,
-        alt: "Pharmacie " + p.nom,
       }).addTo(map);
       marker.on("click", () => setSelectedId(p.id));
       markersRef.current.set(p.id, marker);
@@ -226,31 +224,6 @@ export default function CartePharmaciesProches({
         {!mapReady && !mapError && <div className="absolute inset-0 flex items-center justify-center bg-[#E2F2EF]/90 p-4 text-center text-sm font-semibold text-[#0B3D26]">Chargement de la carte…</div>}
         {mapError && <div role="status" className="absolute inset-x-3 top-3 rounded-xl bg-white/95 p-3 text-sm text-[#53685C] shadow">{mapError}</div>}
         {pharmaciesAvecGPS.length === 0 && <div className="absolute bottom-3 left-3 right-3 rounded-xl bg-white/95 p-3 text-sm text-[#53685C] shadow">Aucune pharmacie partenaire avec coordonnées GPS disponibles dans les données chargées. Les positions manquantes ne sont pas inventées.</div>}
-      </div>
-      <div className="border-t border-[#E5EEE8] p-3 sm:p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h4 className="font-extrabold text-[#0B3D26]">Repères à proximité</h4>
-          <span className="text-xs text-[#64776B]">Les détails seront communiqués par notification</span>
-        </div>
-        {pharmacies.length === 0 ? <p className="rounded-xl bg-[#F4F8F5] p-3 text-sm text-[#64776B]">Aucun partenaire visible pour le moment.</p> : (
-          <ul className="max-h-[300px] space-y-2 overflow-y-auto">
-            {[...pharmacies].sort((a, b) => (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY)).map(p => (
-              <li key={p.id}>
-                <button type="button" onClick={() => ouvrirPharmacie(p)} className={`flex min-h-[66px] w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${selectedId === p.id ? "border-[#0F6B3F] bg-[#EDF7EF]" : "border-[#E3ECE5] bg-white"}`}>
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black ${p.de_garde ? "bg-[#FFE23D] text-[#0B3D26]" : "bg-[#0F6B3F] text-white"}`} aria-hidden="true">+</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold text-[#0B3D26]">{p.nom}</span>
-                    <span className="block truncate text-xs text-[#64776B]">{[p.quartier, p.ville].filter(Boolean).join(", ") || p.adresse || "Adresse à confirmer"}</span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-sm font-extrabold text-[#0F6B3F]">{p.distanceKm == null ? "— km" : p.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " km"}</span>
-                    <span className="block text-[10px] text-[#64776B]">{p.lat != null && p.lng != null ? (p.de_garde ? "De garde · sur carte" : "Sur carte") : "GPS indisponible"}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
       <p className="border-t border-[#E5EEE8] px-4 py-3 text-[11px] leading-4 text-[#738277]">Carte © OpenStreetMap contributors. Les marqueurs représentent uniquement les pharmacies partenaires NAXA dont les coordonnées sont disponibles. La carte ne confirme pas le stock.</p>
     </section>
