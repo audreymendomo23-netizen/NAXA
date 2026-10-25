@@ -8,3 +8,7 @@ SET allowed_mime_types = ARRAY(
 ),
 updated_at = now()
 WHERE id = 'pharmacies-photos';
+
+-- Distinguish a photo submitted by the pharmacy from a cached/curated photo.
+ALTER TABLE public.pharmacies
+  ADD COLUMN IF NOT EXISTS photo_declaree_par_pharmacie boolean NOT NULL DEFAULT false;
