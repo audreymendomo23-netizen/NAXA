@@ -28,10 +28,12 @@ export function BottomNav() {
  const [avatarUrl,setAvatarUrl]=useState<string|null>(null);
  const [profileVerified,setProfileVerified]=useState(false);
  const [initiales,setInitiales]=useState("C");
- const [favorisCount,setFavorisCount]=useState(0);\n const [battementFavoris,setBattementFavoris]=useState(false);
+ const [favorisCount,setFavorisCount]=useState(0);
+ const [battementFavoris,setBattementFavoris]=useState(false);
  const [rotating,setRotating]=useState(0);
  const [reducedMotion,setReducedMotion]=useState(false);
- useEffect(()=>{const actualiser=()=>setFavorisCount(lireFavoris().length);actualiser();return ecouterFavoris(actualiser)},[]);\n useEffect(()=>{let timer:number|undefined;const battre=()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;setBattementFavoris(true);if(timer)window.clearTimeout(timer);timer=window.setTimeout(()=>setBattementFavoris(false),4000)};window.addEventListener("naxa:favori-ajoute",battre);return()=>{window.removeEventListener("naxa:favori-ajoute",battre);if(timer)window.clearTimeout(timer)}},[]);
+ useEffect(()=>{const actualiser=()=>setFavorisCount(lireFavoris().length);actualiser();return ecouterFavoris(actualiser)},[]);
+ useEffect(()=>{let timer:number|undefined;const battre=()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;setBattementFavoris(true);if(timer)window.clearTimeout(timer);timer=window.setTimeout(()=>setBattementFavoris(false),4000)};window.addEventListener("naxa:favori-ajoute",battre);return()=>{window.removeEventListener("naxa:favori-ajoute",battre);if(timer)window.clearTimeout(timer)}},[]);
  useEffect(()=>{
   let actif=true;
   const sb=supabaseBrowser();
@@ -134,7 +136,9 @@ export function BottomNav() {
   {active&&<span className="absolute top-1 h-1 w-1 rounded-full bg-[#FFE23D]"/>}{extra}
  </Link>;
  if(!visible)return null;
- return <>\n   <style jsx>{`@keyframes naxa-heartbeat-four-seconds { 0%,100% { transform:scale(1); } 8%,20% { transform:scale(1.24); } 14%,28% { transform:scale(1); } 42% { transform:scale(1.12); } 50% { transform:scale(1); } } .naxa-favoris-heartbeat { transform-origin:center; animation:naxa-heartbeat-four-seconds 4s ease-in-out both; } @media (prefers-reduced-motion:reduce) { .naxa-favoris-heartbeat { animation:none !important; } }`}</style>\n  <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
+ return <>
+   <style jsx>{`@keyframes naxa-heartbeat-four-seconds { 0%,100% { transform:scale(1); } 8%,20% { transform:scale(1.24); } 14%,28% { transform:scale(1); } 42% { transform:scale(1.12); } 50% { transform:scale(1); } } .naxa-favoris-heartbeat { transform-origin:center; animation:naxa-heartbeat-four-seconds 4s ease-in-out both; } @media (prefers-reduced-motion:reduce) { .naxa-favoris-heartbeat { animation:none !important; } }`}</style>
+  <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
   <div className="grid h-full grid-cols-5 items-center gap-0.5">
    {tab(home,"Accueil","home","/client")}
    {tab(favorites,"Favoris","heart","/client/profil/favoris",favorisCount>0&&<span aria-label={`${favorisCount} médicaments favoris`} className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-extrabold text-white shadow-sm">{favorisCount>99?"99+":favorisCount}</span>)}
@@ -145,5 +149,6 @@ export function BottomNav() {
    {tab(shopping,purchase.label,purchase.icon,"/client?onglet=achats",nombre>0&&<span className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#FFE23D] px-1 text-[10px] font-extrabold text-[#0B3D26]">{nombre>99?"99+":nombre}</span>,true)}
    {tab(profile,"Profil","user","/client/profil",undefined,false)}
   </div>
- </nav>\n  </>;
+ </nav>
+  </>;
 }
