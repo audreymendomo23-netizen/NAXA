@@ -185,6 +185,7 @@ export function Luciole() {
       firefly.classList.remove("luciole-sitting", "luciole-yawning", "luciole-teleporting");
     };
     let fairyTimer: number | undefined;
+    let fairyReturnTimer: number | undefined;
     let fairyTransitionTimer: number | undefined;
     let fairyFlutterTimer: number | undefined;
     let fairyFlutterEndTimer: number | undefined;
@@ -214,8 +215,10 @@ export function Luciole() {
       if (!fairyVisible) return;
       fairyVisible = false;
       if (fairyTimer) window.clearTimeout(fairyTimer);
+      if (fairyReturnTimer) window.clearTimeout(fairyReturnTimer);
       if (fairyTransitionTimer) window.clearTimeout(fairyTransitionTimer);
       fairyTimer = undefined;
+      fairyReturnTimer = undefined;
       fairyTransitionTimer = undefined;
       stopFairyFlutter();
       firefly.classList.remove("luciole-fairy-transitioning", "luciole-fairy-entering", "luciole-fairy-visible");
@@ -244,7 +247,7 @@ export function Luciole() {
           }
         }, LUCIOLE_TIMING.fairyFade);
       }, 220);
-      fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration + 220);
+      fairyReturnTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration + 220);
     };
     const onFairyTripleTouch = (event: PointerEvent) => {
       if (event.pointerType !== "touch" || sleeping || sleepPending) return;
@@ -556,6 +559,7 @@ export function Luciole() {
       document.removeEventListener("pointerdown", onInteraction);
       document.removeEventListener("pointerdown", onFairyTripleTouch);
       if (fairyTimer) window.clearTimeout(fairyTimer);
+      if (fairyReturnTimer) window.clearTimeout(fairyReturnTimer);
       if (fairyTransitionTimer) window.clearTimeout(fairyTransitionTimer);
       stopFairyFlutter();
       document.removeEventListener("keydown", onInteraction);
