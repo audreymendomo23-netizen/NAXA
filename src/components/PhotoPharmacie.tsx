@@ -8,6 +8,7 @@ type PhotoPharmacieProps = {
   lieu?: string | null;
   className?: string;
   hauteur?: "compacte" | "standard";
+  illustration?: boolean;
 };
 
 /**
@@ -20,6 +21,7 @@ export function PhotoPharmacie({
   lieu,
   className = "",
   hauteur = "standard",
+  illustration = false,
 }: PhotoPharmacieProps) {
   const [sourceEnErreur, setSourceEnErreur] = useState<string | null>(null);
   const afficherPhoto = Boolean(src) && sourceEnErreur !== src;
@@ -34,7 +36,7 @@ export function PhotoPharmacie({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src ?? undefined}
-          alt={`Photo de la pharmacie ${nom}`}
+          alt={`${illustration ? "Illustration" : "Photo"} de la pharmacie ${nom}`}
           loading="lazy"
           onError={() => setSourceEnErreur(src ?? null)}
           className="h-full w-full object-cover"
