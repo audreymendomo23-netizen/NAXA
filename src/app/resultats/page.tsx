@@ -65,7 +65,17 @@ function ResultsContent(){
    setSort(urlSort==="distance"?"distance":"prix");
    setAscending(params.get("asc")!=="0");
   },[params]);
- useEffect(()=>{const timer=window.setTimeout(()=>{const q=query.trim();setDebounced(q);const url=new URL(window.location.href);url.searchParams.delete("q");if(q)url.searchParams.set("q",q);window.history.replaceState(window.history.state,"",url)},300);return()=>window.clearTimeout(timer)},[query]);
+  useEffect(() => {
+   const timer = window.setTimeout(() => {
+    const q = query.trim();
+    setDebounced(q);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("q");
+    if (q) url.searchParams.set("q", q);
+    window.history.replaceState(window.history.state, "", url);
+   }, 300);
+   return () => window.clearTimeout(timer);
+  }, [query]);
  useEffect(()=>{void actualiserPosition()},[actualiserPosition]);
  useEffect(() => {
   let active = true;
@@ -193,14 +203,61 @@ function ResultsContent(){
   return () => { active = false; };
  }, [debounced, coords.lat, coords.lng, basketMode, pValues.join("|"), locationStatus]);
  // Recherche des pharmacies exécutée dans le useEffect ci-dessus.
- const sorted=useMemo(()=>{const list=[...(rows??[])];if(sort==="prix")list.sort((a,b)=>(Number(a.items[0]?.prix??a.total_prix)-Number(b.items[0]?.prix??b.total_prix))*(ascending?1:-1));if(sort==="distance")list.sort((a,b)=>Number(a.distance_km)-Number(b.distance_km));return list},[rows,sort,ascending]);
- const filtered=useMemo(()=>sorted.filter(r=>{if(activeFilters.stock&&r.trouves===0)return false;if(activeFilters.prescription&&!r.items.some(item=>rxIds.has(item.produit_id)))return false;if(activeFilters.price&&Number(r.items[0]?.prix??r.total_prix)>Number(activeFilters.price))return false;if(activeFilters.distance&&Number(r.distance_km)>Number(activeFilters.distance))return false;if(activeFilters.open&&!r.de_garde&&!/24\s*(?:h|\/\s*7)|24\/7/i.test(r.horaires??""))return false;if(assurance&&assuranceIds.size>0&&!assuranceIds.has(r.pharmacie_id))return false;return true}),[sorted,activeFilters,rxIds,assurance,assuranceIds]);
- const activeFilterCount=Number(activeFilters.stock)+Number(activeFilters.open)+Number(activeFilters.prescription)+Number(Boolean(activeFilters.price))+Number(Boolean(activeFilters.distance));
-  useEffect(()=>{const term=query.trim();if(!loading&&term.length>=2&&catalogue.length>0&&filtered.length===0&&notifiedEmptyQuery!==term){notifierNAXA("Aucune pharmacie partenaire ne correspond aux filtres actuels. Les fiches médicaments restent consultables dans le catalogue.");setNotifiedEmptyQuery(term)}},[query,loading,catalogue.length,filtered.length,notifiedEmptyQuery]);
- const toggleQuickFilter=(key:"stock"|"open"|"prescription")=>{const next={...activeFilters,[key]:!activeFilters[key]};setActiveFilters(next);setFilters(v=>({...v,[key]:next[key]}))};
- const cycleDistance=()=>{const next=activeFilters.distance===""?"5":activeFilters.distance==="5"?"10":"";setActiveFilters(v=>({...v,distance:next}));setFilters(v=>({...v,distance:next}))};
- const add=(r:Row)=>{const item=r.items[0];if(!item)return;if(rxIds.has(item.produit_id)){router.push("/scanner");return}ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},1);setAdded(r.pharmacie_id);notifierNAXA(item.nom+" ajouté au panier.");window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)};
- const back=()=>{if(window.history.length>1)router.back();else router.push("/")};
+  const sorted = useMemo(() => {
+   const list = [...(rows ?? [])];
+   if (sort === "prix") {
+    list.sort((a, b) => (Number(a.items[0]?.prix ?? a.total_prix) - Number(b.items[0]?.prix ?? b.total_prix)) * (ascending ? 1 : -1));
+   }
+   if (sort === "distance") list.sort((a, b) => Number(a.distance_km) - Number(b.distance_km));
+   return list;
+  }, [rows, sort, ascending]);
+  const filtered = useMemo(() => sorted.filter((resultat) => {
+   if (activeFilters.stock && resultat.trouves === 0) return false;
+   if (activeFilters.prescription && !resultat.items.some((item) => rxIds.has(item.produit_id))) return false;
+   if (activeFilters.price && Number(resultat.items[0]?.prix ?? resultat.total_prix) > Number(activeFilters.price)) return false;
+   if (activeFilters.distance && Number(resultat.distance_km) > Number(activeFilters.distance)) return false;
+   if (activeFilters.open && !resultat.de_garde && !/24\s*(?:h|\/\s*7)|24\/7/i.test(resultat.horaires ?? "")) return false;
+   if (assurance && assuranceIds.size > 0 && !assuranceIds.has(resultat.pharmacie_id)) return false;
+   return true;
+  }), [sorted, activeFilters, rxIds, assurance, assuranceIds]);
+  const activeFilterCount = Number(activeFilters.stock)
+   + Number(activeFilters.open)
+   + Number(activeFilters.prescription)
+   + Number(Boolean(activeFilters.price))
+   + Number(Boolean(activeFilters.distance));
+  useEffect(() => {
+   const term = query.trim();
+   if (!loading && term.length >= 2 && catalogue.length > 0 && filtered.length === 0 && notifiedEmptyQuery !== term) {
+    notifierNAXA("Aucune pharmacie partenaire ne correspond aux filtres actuels. Les fiches médicaments restent consultables dans le catalogue.");
+    setNotifiedEmptyQuery(term);
+   }
+  }, [query, loading, catalogue.length, filtered.length, notifiedEmptyQuery]);
+  const toggleQuickFilter = (key: "stock" | "open" | "prescription") => {
+   const next = { ...activeFilters, [key]: !activeFilters[key] };
+   setActiveFilters(next);
+   setFilters((current) => ({ ...current, [key]: next[key] }));
+  };
+  const cycleDistance = () => {
+   const next = activeFilters.distance === "" ? "5" : activeFilters.distance === "5" ? "10" : "";
+   setActiveFilters((current) => ({ ...current, distance: next }));
+   setFilters((current) => ({ ...current, distance: next }));
+  };
+  const add = (resultat: Row) => {
+   const item = resultat.items[0];
+   if (!item) return;
+   if (rxIds.has(item.produit_id)) {
+    router.push("/scanner");
+    return;
+   }
+   ajouter({ produit_id: item.produit_id, nom: item.nom, dosage: item.dosage || "" }, 1);
+   setAdded(resultat.pharmacie_id);
+   notifierNAXA(item.nom + " ajouté au panier.");
+   window.setTimeout(() => setAdded((current) => current === resultat.pharmacie_id ? null : current), 1200);
+  };
+  const back = () => {
+   if (window.history.length > 1) router.back();
+   else router.push("/");
+  };
  return (
   <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
   <EnTeteAccueil langue={langue} setLangue={setLangue} compact />
