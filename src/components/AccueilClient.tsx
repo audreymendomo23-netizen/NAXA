@@ -451,7 +451,7 @@ export function AccueilClient() {
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Les plus recherchés</h2>
         {loading ? <div className="grid grid-cols-2 gap-2.5"><Squelette/><Squelette/></div> : produits.length ? <div className="naxa-carousel-viewport overflow-hidden">
           <div className="naxa-carousel-loop flex w-max">{[false,true].map(copy => <div key={copy?"medicaments-copie":"medicaments-originaux"} aria-hidden={copy||undefined} className={`flex w-max shrink-0 ${copy ? "pointer-events-none" : ""}`}>{Array.from({ length: nombreSlidesProduits }, (_, slide) => produits.slice(slide * 2, slide * 2 + 2)).map((groupe, slide) => <div key={(copy?"copie-":"page-")+slide} className="naxa-reveal-list grid w-[calc(min(100vw,480px)-2rem)] shrink-0 grid-cols-2 gap-2.5">
-              {groupe.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-enter relative flex min-w-0 flex-col rounded-[18px] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
+              {groupe.map((p,i)=><article key={p.id} style={{"--reveal-index":i} as React.CSSProperties} className="naxa-product-card naxa-enter relative flex min-w-0 flex-col rounded-[18px] border border-[#E3ECE6] bg-white p-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.07)]">
             <Link href={p.demo?"/resultats?q="+encodeURIComponent(p.nom):"/produit/"+p.id} tabIndex={copy?-1:undefined} aria-label={`Voir ${p.nom}`} className="flex min-h-[88px] items-center justify-center overflow-hidden">
               {p.photo_url ? <Image src={p.photo_url} alt={p.nom} width={160} height={88} className="h-[88px] w-full object-contain" unoptimized/> : <Blister/>}
             </Link>

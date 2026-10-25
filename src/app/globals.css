@@ -160,8 +160,26 @@ body:has(.bandeau) .home-ecran {
   will-change: opacity, transform, filter;
 }
 
-.naxa-immersive-page > * {
-  animation-delay: 0ms;
+/* L'entrée immersive remplace les anciennes cascades d'apparition dans son contenu. */
+.naxa-immersive-page :is(.naxa-enter, .naxa-reveal, .reveal) {
+  animation: none !important;
+  animation-delay: 0ms !important;
+  opacity: 1;
+  filter: none;
+}
+
+/* Les cartes produits gardent des interactions tactiles, sans seconde animation d'entrée. */
+.naxa-immersive-page .naxa-product-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.naxa-immersive-page .naxa-product-card:active {
+  transform: scale(.985);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .naxa-immersive-page .naxa-product-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(5, 74, 41, .12);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
