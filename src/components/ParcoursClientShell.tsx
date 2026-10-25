@@ -21,7 +21,11 @@ export function ParcoursClientShell({ children }: { children: React.ReactNode })
   return (
     <>
       {afficherEntete && <EnTeteClient />}
-      {children}
+      {afficherEntete ? (
+        <div key={pathname} className="naxa-immersive-page">
+          {children}
+        </div>
+      ) : children}
     </>
   );
 }

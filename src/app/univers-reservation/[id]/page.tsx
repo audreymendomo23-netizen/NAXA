@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { Logo } from "@/components/Logo";
 import { annulerReservationUnivers } from "@/app/univers-actions";
 import { ClearReservedGroup } from "@/components/universes/ClearReservedGroup";
 
@@ -38,7 +37,7 @@ export default async function ReservationUniversPage({ params, searchParams }: {
   const canCancel = ["requested", "confirmed"].includes(receipt.status) && new Date(receipt.expires_at).getTime() > Date.now();
   const universe = receipt.universe_slug === "bebe-maman" ? "Bébé & Maman" : "Parapharmacie";
   return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={searchParams.viderPanier} universeSlug={searchParams.univers}/>
-    <header className="-mx-4 mb-5 flex items-center justify-between bg-naxa-green-900 px-4 py-3"><Link href="/"><Logo taille={32}/></Link><Link href={"/" + receipt.universe_slug} className="text-sm font-bold text-white underline">Retour au catalogue</Link></header>
+    <nav className="flex justify-end pt-3"><Link href={"/" + receipt.universe_slug} className="inline-flex min-h-10 items-center rounded-full border border-[#C8DDCF] px-4 text-sm font-bold text-[#0B3D26] underline-offset-2 hover:bg-[#EAF3ED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F6B3F]">Retour au catalogue</Link></nav>
     {searchParams.ok && <p role="status" className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation annulée.</p>}
     {searchParams.erreur && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">L’annulation n’a pas abouti. Actualisez le statut avant de réessayer.</p>}
     <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">{universe} · Retrait</p><h1 className="mt-1 text-2xl font-black">Mon reçu de réservation</h1>
