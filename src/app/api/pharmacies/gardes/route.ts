@@ -35,11 +35,39 @@ function urlPhotoStockee(nom: string, extension: string): string {
   return `${base}/storage/v1/object/public/${BUCKET}/gardes/${slugPhoto(nom)}.${extension}`;
 }
 
-/**
- * Cache uniquement les photos effectivement fournies dans la fiche de la source
- * publique de garde Mfasha. Pas de recherche par nom approximatif et pas de
- * photo générique : si la source ne fournit pas d'image, on n'en invente pas.
- */
+function escapeXml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&apos;",
+    };
+    return entities[character];
+  });
+}
+
+function creerIllustrationPharmacie(nom: string): string {
+  const label = escapeXml(nom.trim().slice(0, 72) || "Pharmacie");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" role="img" aria-label="${label}">
+  <rect width="720" height="480" rx="28" fill="#ffffff"/>
+  <rect x="20" y="20" width="680" height="440" rx="24" fill="#ffffff" stroke="#e5eee8" stroke-width="3"/>
+  <g transform="translate(290 72)">
+    <rect x="0" y="24" width="140" height="112" rx="12" fill="#f4f8f5" stroke="#0f6b3f" stroke-width="7"/>
+    <path d="M-8 24 L70 -10 L148 24" fill="#ffffff" stroke="#0f6b3f" stroke-width="7" stroke-linejoin="round"/>
+    <rect x="52" y="68" width="36" height="68" rx="4" fill="#ffffff" stroke="#0f6b3f" stroke-width="5"/>
+    <rect x="24" y="48" width="25" height="25" rx="3" fill="#ffffff" stroke="#0f6b3f" stroke-width="4"/>
+    <rect x="92" y="48" width="25" height="25" rx="3" fill="#ffffff" stroke="#0f6b3f" stroke-width="4"/>
+    <circle cx="70" cy="80" r="31" fill="#0f6b3f"/>
+    <path d="M65 58 h10 v17 h17 v10 h-17 v17 h-10 v-17 h-17 v-10 h17z" fill="#ffffff"/>
+  </g>
+  <text x="360" y="282" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="700" fill="#0b3d26">PHARMACIE</text>
+  <text x="360" y="328" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${label.length > 34 ? 23 : 29}" font-weight="600" fill="#24352b">${label}</text>
+  <text x="360" y="382" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#63756a">Illustration — photo réelle non identifiée</text>
+</svg>`;
+}
+
 async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne> {
   if (!pharmacie.imageUrl) return pharmacie;
 
@@ -54,7 +82,6 @@ async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne
       "image/webp": "webp",
     };
 
-    // A previously cached image is reused to avoid a download on every request.
     const { data: existing } = await admin.storage.from(BUCKET).list("gardes", {
       search: `${slugPhoto(pharmacie.nom)}.`,
       limit: 100,
@@ -64,7 +91,7 @@ async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne
     );
     if (match) {
       const ext = match.name.split(".").pop() ?? "jpg";
-      return { ...pharmacie, imageUrl: urlPhotoStockee(pharmacie.nom, ext) };
+      return { ...pharmacie, imageUrl: urlPhotoStockee(pharmacie.nom, ext), imageType: "photo-source" };
     }
 
     const response = await fetch(source.toString(), {
@@ -90,19 +117,43 @@ async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne
     });
     if (error) return pharmacie;
 
-    return { ...pharmacie, imageUrl: urlPhotoStockee(pharmacie.nom, extension) };
+    return { ...pharmacie, imageUrl: urlPhotoStockee(pharmacie.nom, extension), imageType: "photo-source" };
   } catch {
-    // Image caching is optional; duty results must still be returned.
+    return pharmacie;
+  }
+}
+
+/** Creates a persistent, clearly labelled fallback; never pretends it is a real photo. */
+async function mettreIllustrationEnCache(pharmacie: GardeExterne): Promise<GardeExterne> {
+  try {
+    const admin = supabaseAdmin();
+    const path = `gardes/illustrations/${slugPhoto(pharmacie.nom)}.svg`;
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!base) return pharmacie;
+    const url = `${base}/storage/v1/object/public/${BUCKET}/${path}`;
+
+    const { data: existing } = await admin.storage.from(BUCKET).list("gardes/illustrations", {
+      search: `${slugPhoto(pharmacie.nom)}.svg`,
+      limit: 20,
+    });
+    if (existing?.some((item) => item.name === `${slugPhoto(pharmacie.nom)}.svg`)) {
+      return { ...pharmacie, imageUrl: url, imageType: "illustration" };
+    }
+
+    const { error } = await admin.storage.from(BUCKET).upload(path, new TextEncoder().encode(creerIllustrationPharmacie(pharmacie.nom)), {
+      contentType: "image/svg+xml",
+      upsert: true,
+      cacheControl: "31536000",
+    });
+    if (error) return pharmacie;
+    return { ...pharmacie, imageUrl: url, imageType: "illustration" };
+  } catch {
     return pharmacie;
   }
 }
 
 async function associerPhotos(pharmacies: GardeExterne[]): Promise<GardeExterne[]> {
-  let enriched = pharmacies;
-
-  // Cache the source photo when Mfasha supplies one. Failures do not block
-  // the list of pharmacies on duty.
-  enriched = await Promise.all(enriched.map((pharmacie) => mettrePhotoEnCache(pharmacie)));
+  let enriched = await Promise.all(pharmacies.map((pharmacie) => mettrePhotoEnCache(pharmacie)));
 
   try {
     const { data, error } = await supabasePublic(300)
@@ -113,32 +164,35 @@ async function associerPhotos(pharmacies: GardeExterne[]): Promise<GardeExterne[
       .is("archivee_le", null)
       .not("photo_url", "is", null);
 
-    if (error || !data?.length) return enriched;
-
-    const photos = new Map<string, PharmaciePhoto>();
-    for (const row of data as PharmaciePhoto[]) {
-      const cle = normaliserNom(row.nom);
-      // A photo from the pharmacy directory takes priority only after
-      // its match has been explicitly verified and it lives in our bucket.
-      if (
-        cle &&
-        row.photo_url &&
-        row.photo_verified_at &&
-        row.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`) &&
-        !photos.has(cle)
-      ) {
-        photos.set(cle, row);
+    if (!error && data?.length) {
+      const photos = new Map<string, PharmaciePhoto>();
+      for (const row of data as PharmaciePhoto[]) {
+        const cle = normaliserNom(row.nom);
+        if (
+          cle &&
+          row.photo_url &&
+          row.photo_verified_at &&
+          row.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`) &&
+          !photos.has(cle)
+        ) {
+          photos.set(cle, row);
+        }
       }
-    }
 
-    return enriched.map((pharmacie) => {
-      const photo = photos.get(normaliserNom(pharmacie.nom));
-      if (photo?.photo_url) return { ...pharmacie, imageUrl: photo.photo_url };
-      return pharmacie;
-    });
+      enriched = enriched.map((pharmacie) => {
+        const photo = photos.get(normaliserNom(pharmacie.nom));
+        if (photo?.photo_url) return { ...pharmacie, imageUrl: photo.photo_url, imageType: "photo-verifiee" };
+        return pharmacie;
+      });
+    }
   } catch {
-    return enriched;
+    // Photo metadata is optional; duty data must remain available.
   }
+
+  return Promise.all(enriched.map(async (pharmacie) => {
+    if (pharmacie.imageUrl) return pharmacie;
+    return mettreIllustrationEnCache(pharmacie);
+  }));
 }
 
 export async function GET() {
