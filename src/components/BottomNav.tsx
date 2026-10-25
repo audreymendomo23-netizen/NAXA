@@ -18,7 +18,20 @@ function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
   clipboard: "/icones-nav/commandes-transparent.png",
  };
  const imageSource = imageSources[name];
- if (imageSource) { const active = className.includes("text-[#FFE23D]"); return <Image src={imageSource} alt="" aria-hidden="true" width={24} height={24} className={`shrink-0 object-contain ${active ? "brightness-0 saturate-100 invert-[89%] sepia-[93%] saturate-[1800%] hue-rotate-[2deg] brightness-[105%] contrast-[103%]" : "brightness-0 saturate-100 invert-[31%] sepia-[21%] saturate-[820%] hue-rotate-[91deg] brightness-[91%] contrast-[91%]"} ${className}`} />; }
+ if (imageSource) {
+  const active = className.includes("text-[#FFE23D]");
+  return <Image
+   src={imageSource}
+   alt=""
+   aria-hidden="true"
+   width={24}
+   height={24}
+   className={`shrink-0 object-contain ${className}`}
+   style={{ filter: active
+    ? "brightness(0) saturate(100%) invert(88%) sepia(97%) saturate(1800%) hue-rotate(2deg) brightness(105%) contrast(103%)"
+    : "brightness(0) saturate(100%) invert(31%) sepia(18%) saturate(900%) hue-rotate(92deg) brightness(91%) contrast(91%)" }}
+  />;
+ }
  const common={fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
  return <svg viewBox="0 0 24 24" className={className} {...common}>
   {name==="home"&&<><path d="m3 10 9-7 9 7"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/></>}
