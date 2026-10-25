@@ -83,13 +83,13 @@ function creerIllustrationPharmacie(pharmacie: GardeExterne): string {
 
 async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null> {
   const slug = slugPhoto(pharmacie.nom);
-  const variantes = [...new Set([slug, slug.startsWith("pharmacie-") ? slug : \`pharmacie-\${slug}\`])];
+  const variantes = [...new Set([slug, slug.startsWith("pharmacie-") ? slug : `pharmacie-${slug}`])];
   const nomCle = normaliserNom(pharmacie.nom);
   const tokens = nomCle.split(" ").filter((token) => token.length >= 4);
 
   for (const variante of variantes) {
     try {
-      const pageUrl = \`https://mboapharma.cm/directory/\${variante}/\`;
+      const pageUrl = `https://mboapharma.cm/directory/${variante}/`;
       const page = await fetch(pageUrl, {
         headers: { Accept: "text/html", "User-Agent": "NAXA-pharmacy-directory/1.0" },
         signal: AbortSignal.timeout(3500),
@@ -97,7 +97,7 @@ async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null>
       });
       if (!page.ok) continue;
       const html = await page.text();
-      const title = html.match(/<h1\b[^>]*>([\s\\S]*?)<\/h1>/i)?.[1] ?? "";
+      const title = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? "";
       const titleCle = normaliserNom(title.replace(/<[^>]+>/g, " "));
       // On ne prend une image qu'à partir d'une fiche Mboa dont le titre correspond au nom recherché.
       if (!titleCle || !(titleCle === nomCle || tokens.every((token) => titleCle.includes(token)))) continue;
@@ -110,7 +110,7 @@ async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null>
         const imageTitle = tag.match(/\btitle\s*=\s*["']([^"']*)["']/i)?.[1] ?? "";
         try {
           const image = new URL(src, pageUrl);
-          if (image.protocol !== "https:" || !/(^|\\.)mboapharma\\.cm$/i.test(image.hostname)) continue;
+          if (image.protocol !== "https:" || !/(^|\.)mboapharma\.cm$/i.test(image.hostname)) continue;
           // Le titre de la fiche Mboa a déjà été rapproché du nom de la pharmacie.
           // Dans ce contexte, MboaPHARMA est la source de vérité demandée pour les images de sa fiche.
           if (/logo|avatar|placeholder|default|banner|banniere/i.test(image.href)) continue;
