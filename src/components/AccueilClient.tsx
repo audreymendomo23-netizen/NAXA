@@ -458,8 +458,8 @@ export function AccueilClient() {
       </div>
       <section className="relative left-1/2 mb-5 w-screen -translate-x-1/2 px-4 sm:px-5 md:px-6" aria-label="Accueil et recherche de médicaments">
         <div className="relative isolate mx-auto w-full max-w-[1200px] overflow-hidden rounded-[32px] border border-white/30 shadow-[0_18px_42px_rgba(6,75,42,0.18)]">
-          <Image src="/couvertures/pharmacies-garde.webp" alt="" fill priority={false} sizes="100vw" className="object-cover object-[72%_center] md:object-[76%_center]" />
-          <div className="absolute inset-0" aria-hidden="true" style={{ background: "linear-gradient(105deg, rgba(6,75,42,0.72) 0%, rgba(6,75,42,0.48) 52%, rgba(6,75,42,0.12) 100%)" }} />
+          <Image src="/couvertures/pharmacies-garde.webp" alt="" fill priority={false} sizes="100vw" className="object-cover object-[82%_center] md:object-[76%_center]" />
+          <div className="absolute inset-0" aria-hidden="true" style={{ background: "linear-gradient(105deg, rgba(6,75,42,0.55) 0%, rgba(6,75,42,0.28) 38%, rgba(6,75,42,0.05) 72%, rgba(6,75,42,0.05) 100%)" }} />
           <div className="relative z-10 grid grid-cols-1 gap-6 p-5 sm:p-6 md:min-h-[320px] md:grid-cols-[minmax(0,60%)_minmax(0,40%)] md:gap-0 md:p-8">
             <div className="min-w-0">
               <p className="mb-1 text-[16px] font-bold leading-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Quel médicament recherchez-vous aujourd'hui ?</p>

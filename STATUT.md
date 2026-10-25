@@ -563,3 +563,11 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Interface de logo sur le profil Promoteur : sélection pharmacie, aperçu, choisir/remplacer/supprimer, redimensionnement 400 px de large maximum.
 - Ajout du logo sur ticket de caisse, duplicata historique et reçu Marketplace ; l'impression attend le chargement des images.
 - Aucun build/typecheck/ESLint exécuté à ce stade.
+
+## Correctif lisibilité de la carte hero et des onglets — 25/10/2026
+- Carte hero de `/client` : voile vert allégé, du vert à 55 % en haut à gauche à 5 % à droite et en bas ; image conservée nette, sans blur, brightness réduit ni grayscale. Point focal mobile décalé vers la droite (`object-position: 82% center`) ; texte blanc et ombres de texte conservés.
+- Navigation basse : libellés des onglets réduits à 9 px avec un léger espacement négatif, sans changer la structure ni les icônes, pour éviter le tronquage de « Réservations » sur les petits écrans.
+- Aucun contenu, fonctionnalité de recherche, bouton Chercher/ambulance, scanner d’ordonnance, pharmacies à proximité ou logique Supabase supprimé/modifié volontairement.
+- Fichiers de ce correctif : `src/components/AccueilClient.tsx`, `src/components/BottomNav.tsx`, `STATUT.md`.
+- Vérification du build : non exécutée depuis cet environnement ; le succès de `npm run build` reste à confirmer par un environnement d’exécution/CI.
+- Aucun déploiement manuel lancé.
