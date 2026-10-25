@@ -1237,9 +1237,9 @@ small,
 }
 
 @supports (animation-timeline: view()) and (animation-range: entry 0% cover 30%) {
-  .naxa-immersive-scroll main section,
-  .naxa-immersive-scroll main article,
-  .naxa-immersive-scroll main [data-naxa-scroll-reveal] {
+  .naxa-immersive-scroll section,
+  .naxa-immersive-scroll article,
+  .naxa-immersive-scroll [data-naxa-scroll-reveal] {
     animation-name: naxa-scroll-reveal;
     animation-duration: 1ms;
     animation-timing-function: linear;
@@ -1250,9 +1250,9 @@ small,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .naxa-immersive-scroll main section,
-  .naxa-immersive-scroll main article,
-  .naxa-immersive-scroll main [data-naxa-scroll-reveal] {
+  .naxa-immersive-scroll section,
+  .naxa-immersive-scroll article,
+  .naxa-immersive-scroll [data-naxa-scroll-reveal] {
     animation: none !important;
     transform: none !important;
     opacity: 1 !important;
