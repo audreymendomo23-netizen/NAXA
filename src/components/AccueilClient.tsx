@@ -384,8 +384,9 @@ export function AccueilClient() {
         const minutes = Math.max(1, Math.round((estimate.duration as number) / 60));
         const routeKm = Number.isFinite(estimate.distance) ? ((estimate.distance as number) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
         const lieu = [nearest.adresse, nearest.quartier, nearest.ville].filter(Boolean).join(", ");
+        const horaires = nearest.horaires?.trim() ? ` Horaires publiés : ${nearest.horaires}.` : "";
         const garde = nearest.de_garde ? " Statut déclaré : pharmacie de garde." : "";
-        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}. Trajet estimé en voiture : environ ${minutes} min (${routeKm} km).${garde} Trafic en temps réel : données non disponibles.`);
+        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}. Trajet estimé en voiture : environ ${minutes} min (${routeKm} km).${horaires}${garde} Consultez sa fiche pour appeler si un numéro public est disponible. Trafic en temps réel : données non disponibles.`);
       } catch {
         if (cancelled) return;
         const lieu = [nearest.adresse, nearest.quartier, nearest.ville].filter(Boolean).join(", ");
@@ -486,7 +487,14 @@ export function AccueilClient() {
       </div>
 
       <div className="naxa-enter mb-6">
-        <CartePharmaciesProches pharmacies={pharmaciesProches} position={coord} onLocaliser={localiser} />
+        <CartePharmaciesProches pharmacies={pharmaciesProches.map(pharmacie => {
+          const contactPublic = gardesAutomatiques.find(garde =>
+            normaliserRecherche(garde.nom) === normaliserRecherche(pharmacie.nom) &&
+            typeof garde.telephone === "string" &&
+            garde.telephone.trim().length > 0
+          );
+          return { ...pharmacie, telephone: contactPublic?.telephone ?? null };
+        })} position={coord} onLocaliser={localiser} />
       </div>
 
       {clientConnecte && <section className="mb-6">
