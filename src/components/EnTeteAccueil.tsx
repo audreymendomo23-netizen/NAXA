@@ -31,9 +31,11 @@ function DrapeauEN() {
 export function EnTeteAccueil({
   langue,
   setLangue,
+  compact = false,
 }: {
   langue: Langue;
   setLangue: (langue: Langue) => void;
+  compact?: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const conteneur = useRef<HTMLDivElement>(null);
@@ -166,6 +168,7 @@ export function EnTeteAccueil({
         </div>
       </div>
 
+      {!compact && <>
       <h1 className="mx-auto mt-4 max-w-xl text-[clamp(1.7rem,5.5dvh,2.5rem)] font-extrabold leading-[1.1]">
         {t.titreLigne1}
         <br />
@@ -183,6 +186,7 @@ export function EnTeteAccueil({
           className="fill-naxa-green-50"
         />
       </svg>
+      </>}
     </header>
   );
 }
