@@ -9,6 +9,7 @@ export type GardeExterne = {
   telephone: string | null;
   autresTelephones: string[];
   imageUrl: string | null;
+  imageType?: "photo-verifiee" | "photo-source" | "illustration";
   periode: string | null;
   source: typeof MFASHA_SOURCE_URL;
 };
