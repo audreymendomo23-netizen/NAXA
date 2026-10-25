@@ -23,6 +23,17 @@ function exactIdentityMatch(query: string, candidate: string): boolean {
   return wanted.length > 0 && wanted.every((token) => available.has(token));
 }
 
+function unrequestedCombination(query: string, productName: string, activeIngredients: string): boolean {
+  if (!/[+/,;]|\\b(?:and|et)\\b/i.test(activeIngredients)) return false;
+  const wanted = new Set(tokens(query));
+  const ingredients = tokens(activeIngredients);
+  const overlapsAnIngredient = ingredients.some((token) => wanted.has(token));
+  // Une recherche par marque (ex. Coartem) peut légitimement viser une association.
+  // Une recherche par molécule seule ne doit pas récupérer la photo d’une association.
+  if (!overlapsAnIngredient) return false;
+  return ingredients.some((token) => !wanted.has(token)) && !exactIdentityMatch(query, productName.replace(/[+/,;].*$/, ""));
+}
+
 type ImageRow = {
   cis: string;
   libelle_presentation: string | null;
@@ -63,6 +74,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       if (seen.has(key)) continue;
       seen.add(key);
       if (!exactIdentityMatch(query, identity)) continue;
+      if (unrequestedCombination(query, product.nom, product.dci ?? "")) continue;
       if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url) continue;
       const url = product.photo_path
         ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
@@ -89,7 +101,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
     const refMap = new Map<string, { cis: string; nom: string; substances_actives: string | null }>();
     for (const row of refs.flatMap((result) => result.data ?? [])) {
       const candidate = [row.nom, row.substances_actives].filter(Boolean).join(" ");
-      if (exactIdentityMatch(query, candidate)) refMap.set(row.cis, row);
+      if (exactIdentityMatch(query, candidate) && !unrequestedCombination(query, row.nom, row.substances_actives ?? "")) refMap.set(row.cis, row);
     }
     const cisList = [...refMap.keys()].slice(0, 30);
     if (!cisList.length) return null;
