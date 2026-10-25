@@ -97,17 +97,17 @@ async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null>
       });
       if (!page.ok) continue;
       const html = await page.text();
-      const title = html.match(/<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/i)?.[1] ?? "";
+      const title = html.match(/<h1\b[^>]*>([\s\\S]*?)<\/h1>/i)?.[1] ?? "";
       const titleCle = normaliserNom(title.replace(/<[^>]+>/g, " "));
       // On ne prend une image qu'à partir d'une fiche Mboa dont le titre correspond au nom recherché.
       if (!titleCle || !(titleCle === nomCle || tokens.every((token) => titleCle.includes(token)))) continue;
 
-      const imageTags = [...html.matchAll(/<img\\b[^>]*>/gi)].map((match) => match[0]);
+      const imageTags = [...html.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
       for (const tag of imageTags) {
-        const src = tag.match(/\\b(?:src|data-src)\\s*=\\s*["']([^"']+)["']/i)?.[1];
+        const src = tag.match(/\b(?:src|data-src)\s*=\s*["']([^"']+)["']/i)?.[1];
         if (!src) continue;
-        const alt = tag.match(/\\balt\\s*=\\s*["']([^"']*)["']/i)?.[1] ?? "";
-        const imageTitle = tag.match(/\\btitle\\s*=\\s*["']([^"']*)["']/i)?.[1] ?? "";
+        const alt = tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] ?? "";
+        const imageTitle = tag.match(/\btitle\s*=\s*["']([^"']*)["']/i)?.[1] ?? "";
         try {
           const image = new URL(src, pageUrl);
           if (image.protocol !== "https:" || !/(^|\\.)mboapharma\\.cm$/i.test(image.hostname)) continue;
