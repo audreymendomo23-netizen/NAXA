@@ -36,7 +36,7 @@ export function ParcoursClientShell({ children }: { children: React.ReactNode })
       {parcoursImmersif ? (
         <div
           key={pathname}
-          className={accueilPublic ? "naxa-immersive-page naxa-immersive-scroll" : "naxa-immersive-page"}
+          className="naxa-immersive-page naxa-immersive-scroll"
           data-naxa-parcours={accueilPublic ? "accueil" : "client"}
         >
           {children}
