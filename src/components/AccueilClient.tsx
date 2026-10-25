@@ -87,6 +87,7 @@ export function AccueilClient() {
   const [clientConnecte, setClientConnecte] = useState(false);
   const [hourLocale, setHourLocale] = useState<number | null>(null);
   const [coord, setCoord] = useState<{lat:number;lng:number}|null>(null);
+  const nearestNotificationKey = useRef<string | null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
   const [gardesAutomatiques, setGardesAutomatiques] = useState<GardeAuto[]>([]);
   const [produits, setProduits] = useState<Produit[]>([]);
@@ -353,6 +354,45 @@ export function AccueilClient() {
     ...p,
     distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
   })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
+
+  // Une notification unique annonce la pharmacie réellement la plus proche dès que
+  // le GPS est autorisé. OSRM fournit un temps routier estimé, pas un trafic en direct.
+  useEffect(() => {
+    if (!coord) return;
+    const candidates = pharmacies
+      .filter((p) => p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng))
+      .map((p) => ({ ...p, distanceKm: distance(coord.lat, coord.lng, p.lat as number, p.lng as number) }))
+      .filter((p) => p.distanceKm <= 30)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+    const nearest = candidates[0];
+    if (!nearest) return;
+    const key = `${coord.lat.toFixed(4)}:${coord.lng.toFixed(4)}:${nearest.id}`;
+    if (nearestNotificationKey.current === key) return;
+    nearestNotificationKey.current = key;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${coord.lng},${coord.lat};${nearest.lng},${nearest.lat}?overview=false&steps=false`,
+          { signal: AbortSignal.timeout(8000), cache: "no-store" },
+        );
+        if (!response.ok) throw new Error("Service de calcul d’itinéraire indisponible");
+        const route = await response.json() as { routes?: Array<{ duration?: number; distance?: number }> };
+        const estimate = route.routes?.[0];
+        if (!estimate || !Number.isFinite(estimate.duration)) throw new Error("Estimation routière indisponible");
+        if (cancelled) return;
+        const minutes = Math.max(1, Math.round((estimate.duration as number) / 60));
+        const routeKm = Number.isFinite(estimate.distance) ? ((estimate.distance as number) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+        const lieu = [nearest.quartier, nearest.ville].filter(Boolean).join(", ");
+        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}. Trajet estimé en voiture : environ ${minutes} min (${routeKm} km). Trafic en temps réel : données non disponibles.`);
+      } catch {
+        if (cancelled) return;
+        const lieu = [nearest.quartier, nearest.ville].filter(Boolean).join(", ");
+        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}, à environ ${nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km à vol d’oiseau. Temps de trajet et trafic indisponibles pour le moment.`);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coord, pharmacies]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardes: GardeAuto[] = gardesAutomatiques.length
     ? gardesAutomatiques.slice(0,4)
