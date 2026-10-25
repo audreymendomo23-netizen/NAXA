@@ -27,7 +27,7 @@ const STOPWORDS = new Set([
   "tablet", "tablets", "capsule", "capsules", "pill", "pills", "comprime",
   "comprimé", "comprimés", "gelule", "gélule", "gélules", "box", "package",
   "packaging", "boite", "boîte", "carton", "image", "photo", "oral", "tablette",
-  "mg", "mcg", "ug", "ml", "g", "iu", "ui", "extra", "forte", "fort"
+  "mg", "mcg", "ug", "ml", "g", "iu", "ui", "forte", "fort"
 ]);
 
 // Substances courantes utilisées pour rejeter les photos de combinaisons
