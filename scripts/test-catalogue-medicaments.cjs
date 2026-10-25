@@ -101,14 +101,16 @@ test("photos : recherche séparée de boîtes et de comprimés avec licence comm
   assert.match(photoRoute, /photos\.boite/);
   assert.match(photoRoute, /photos\.comprime/);
   assert.match(photoResolver, /kind: "boite" \| "comprime"/);
-  assert.match(photoResolver, /item\.coverage === 1/);
+  assert.match(photoResolver, /item\.coverage >= 0\.75/);
+  assert.match(photoResolver, /searchVariants/);
+  assert.match(photoResolver, /likelyCombinationMismatch/);
   assert.match(photoResolver, /allowedCommercialLicense/);
   assert.match(photoResolver, /sourceUrl: info\.descriptionurl/);
 });
 
 test("photos : aucune API RxImage arrêtée ni image non licenciée injectée automatiquement", () => {
   assert.doesNotMatch(photoResolver, /rximage\.nlm\.nih\.gov/);
-  assert.match(photoResolver, /sans preuve explicite de droits commerciaux/);
+  assert.match(photoResolver, /sources d\x27images libres par défaut/);
   assert.match(recherche, /imageVariants\?\.comprime/);
   assert.match(recherche, /imageVariants\?\.boite/);
   assert.match(recherche, /Wikimedia Commons/);
@@ -145,4 +147,21 @@ test("BDPM : référentiel séparé, source publique, RLS et script d’import o
   assert.match(route, /référentiel français importé dans NAXA/);
   assert.match(recherche, /Sources des informations/);
   assert.match(recherche, /Provenance et vérification/);
+});
+
+
+test("photos : les photos locales exigent une correspondance, une licence et une source vérifiées", () => {
+  assert.match(photoRoute, /verifiedLocalPhoto/);
+  assert.match(photoRoute, /from\("medicaments_images"\)/);
+  assert.match(photoRoute, /eq\("statut", "image_stockee"\)/);
+  assert.match(photoRoute, /unrequestedCombination/);
+  assert.match(photoRoute, /photo_licence/);
+  assert.match(photoRoute, /photo_verifiee_le/);
+});
+
+test("interface : source/licence visibles et image cassée remplacée sans garder son URL", () => {
+  assert.match(resultats, /source et licence/);
+  assert.match(resultats, /\/medicaments\/placeholder\.svg/);
+  assert.match(resultats, /imageSourceUrl:null/);
+  assert.match(resultats, /imageLicense:null/);
 });
