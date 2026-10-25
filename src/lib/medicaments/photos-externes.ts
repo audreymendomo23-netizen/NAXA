@@ -96,9 +96,10 @@ function likelyCombinationMismatch(title: string, queryTokens: string[]): boolea
   if (detectedIngredients.length < 2) return false;
   const query = new Set(queryTokens);
   const queryIngredientCount = detectedIngredients.filter((ingredient) => query.has(ingredient)).length;
-  // Si le titre contient plusieurs principes actifs connus, tous doivent être demandés.
-  return detectedIngredients.some((ingredient) => !query.has(ingredient)) ||
-    queryIngredientCount < detectedIngredients.length;
+  // Une recherche par marque peut viser une association; on bloque seulement si
+  // la requête désigne un des principes actifs mais en omet un autre du titre.
+  if (queryIngredientCount === 0) return false;
+  return detectedIngredients.some((ingredient) => !query.has(ingredient));
 }
 
 function searchVariants(query: string, kind: "boite" | "comprime"): string[] {
