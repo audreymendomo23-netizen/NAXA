@@ -1111,7 +1111,10 @@ body {
   overflow-wrap: anywhere;
 }
 
-:where(small, .text-xs, [class~="text-[10px]"], [class~="text-[11px]"]) {
+small,
+.text-xs,
+[class~="text-[10px]"],
+[class~="text-[11px]"] {
   font-size: max(0.75rem, 12px);
   line-height: 1.4;
 }
@@ -1121,22 +1124,28 @@ body {
   line-height: 1.45;
 }
 
-:where(.font-light, .font-thin) {
+.font-light,
+.font-thin {
   font-weight: 400;
 }
 
 @media (max-width: 639px) {
-  :where(h1, .text-4xl, .text-5xl, .text-6xl) {
+  h1,
+.text-4xl,
+.text-5xl,
+.text-6xl {
     font-size: clamp(1.5rem, 6vw, 2.25rem);
     line-height: 1.15;
   }
 
-  :where(h2, .text-3xl) {
+  h2,
+  .text-3xl {
     font-size: clamp(1.25rem, 4.8vw, 1.875rem);
     line-height: 1.2;
   }
 
-  :where(h3, .text-2xl) {
+  h3,
+  .text-2xl {
     font-size: clamp(1.125rem, 4vw, 1.5rem);
     line-height: 1.25;
   }
