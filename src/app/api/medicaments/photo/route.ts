@@ -1,8 +1,127 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rechercherPhotosMedicament } from "@/lib/medicaments/photos-externes";
+import { rechercherPhotosMedicament, type MedicamentPhoto } from "@/lib/medicaments/photos-externes";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function normalize(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function tokens(value: string): string[] {
+  return [...new Set(normalize(value).split(/\s+/).filter((token) =>
+    token.length >= 3 && !/^\d+$/.test(token) &&
+    !/^(?:tablet|tablets|capsule|capsules|pill|pills|comprime|comprim[eé]s?|boite|box|mg|mcg|ug|ml|g|iu|ui)$/.test(token)
+  ))];
+}
+
+function exactIdentityMatch(query: string, candidate: string): boolean {
+  const wanted = tokens(query);
+  const available = new Set(tokens(candidate));
+  return wanted.length > 0 && wanted.every((token) => available.has(token));
+}
+
+type ImageRow = {
+  cis: string;
+  libelle_presentation: string | null;
+  image_path: string | null;
+  image_url: string | null;
+  source_nom: string;
+  source_url: string | null;
+  licence: string | null;
+  statut: string;
+};
+
+async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null> {
+  try {
+    const sb = supabaseServer();
+    const safeQuery = query.replace(/[%_,]/g, " ").replace(/\s+/g, " ").trim();
+    if (safeQuery.length < 3) return null;
+
+    // Première priorité : fiche locale NAXA dont la photo a une licence et une date de vérification.
+    const [byName, byIngredient] = await Promise.all([
+      sb.from("produits")
+        .select("nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le")
+        .ilike("nom", "%" + safeQuery + "%")
+        .limit(12),
+      sb.from("produits")
+        .select("nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le")
+        .ilike("dci", "%" + safeQuery + "%")
+        .limit(12)
+    ]);
+    const localProducts = [...(byName.data ?? []), ...(byIngredient.data ?? [])] as Array<{
+      nom: string; dci: string | null; synonymes: string[] | null;
+      photo_path: string | null; photo_url: string | null; photo_source_url: string | null;
+      photo_licence: string | null; photo_verifiee_le: string | null;
+    }>;
+    const seen = new Set<string>();
+    for (const product of localProducts) {
+      const identity = [product.nom, product.dci, ...(product.synonymes ?? [])].filter(Boolean).join(" ");
+      const key = normalize(identity);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!exactIdentityMatch(query, identity)) continue;
+      if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url) continue;
+      const url = product.photo_path
+        ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
+        : product.photo_url;
+      if (!url?.startsWith("https://")) continue;
+      return {
+        url,
+        sourceUrl: product.photo_source_url,
+        licence: product.photo_licence,
+        attribution: null,
+        title: product.nom,
+        kind: "boite"
+      };
+    }
+
+    // Deuxième priorité : le catalogue d'images par CIS/CIP. Les lignes non validées
+    // ou sans fichier, licence et source ne sont jamais montrées.
+    const refs = await Promise.all([
+      sb.from("medicaments_referentiel_sources").select("cis,nom,substances_actives")
+        .ilike("nom", "%" + safeQuery + "%").limit(20),
+      sb.from("medicaments_referentiel_sources").select("cis,nom,substances_actives")
+        .ilike("substances_actives", "%" + safeQuery + "%").limit(20)
+    ]);
+    const refMap = new Map<string, { cis: string; nom: string; substances_actives: string | null }>();
+    for (const row of refs.flatMap((result) => result.data ?? [])) {
+      const candidate = [row.nom, row.substances_actives].filter(Boolean).join(" ");
+      if (exactIdentityMatch(query, candidate)) refMap.set(row.cis, row);
+    }
+    const cisList = [...refMap.keys()].slice(0, 30);
+    if (!cisList.length) return null;
+    const { data: images } = await sb.from("medicaments_images")
+      .select("cis,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut")
+      .in("cis", cisList)
+      .eq("statut", "image_stockee")
+      .not("licence", "is", null)
+      .not("source_url", "is", null)
+      .limit(30);
+    for (const image of (images ?? []) as ImageRow[]) {
+      if (!image.licence?.trim() || !image.source_url?.startsWith("https://")) continue;
+      const url = image.image_path
+        ? sb.storage.from("medicaments").getPublicUrl(image.image_path).data.publicUrl
+        : image.image_url;
+      if (!url?.startsWith("https://")) continue;
+      const ref = refMap.get(image.cis);
+      if (!ref || !exactIdentityMatch(query, [ref.nom, ref.substances_actives ?? ""].join(" "))) continue;
+      return {
+        url,
+        sourceUrl: image.source_url,
+        licence: image.licence,
+        attribution: image.source_nom || null,
+        title: [ref.nom, image.libelle_presentation].filter(Boolean).join(" — "),
+        kind: "boite"
+      };
+    }
+  } catch {
+    // La source locale est facultative : on poursuit avec la recherche externe.
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   const query = (request.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 80);
@@ -12,8 +131,16 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const localPhoto = await verifiedLocalPhoto(query);
+  if (localPhoto) {
+    const photos = { boite: localPhoto, comprime: null };
+    return NextResponse.json({ photo: localPhoto, photos, source: "catalogue_local_verifie" }, {
+      headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" }
+    });
+  }
+
   const photos = await rechercherPhotosMedicament(query);
-  return NextResponse.json({ photo: photos.boite ?? photos.comprime, photos }, {
+  return NextResponse.json({ photo: photos.boite ?? photos.comprime, photos, source: "wikimedia_commons" }, {
     headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" }
   });
 }
