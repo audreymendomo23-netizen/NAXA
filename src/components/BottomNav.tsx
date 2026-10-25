@@ -151,7 +151,7 @@ export function BottomNav() {
   <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
   <div className="grid h-full grid-cols-5 items-center gap-0.5">
    {tab(home,"Accueil","home","/client")}
-   {tab(favorites,"Favoris","heart","/client/profil/favoris",favorisCount>0&&<span aria-label={`${favorisCount} médicaments favoris`} className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-extrabold text-white shadow-sm">{favorisCount>99?"99+":favorisCount}</span>)}
+   {tab(favorites,"Favoris","heart","/client/profil/favoris",favorisCount>0&&<span aria-label={`${favorisCount} médicaments favoris`} className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#FFE23D] px-1 text-[10px] font-extrabold text-[#0F6B3F] shadow-sm">{favorisCount>99?"99+":favorisCount}</span>)}
    <Link href="/scanner" aria-current={scan?"page":undefined} className="relative flex h-[54px] min-w-0 flex-col items-center justify-end gap-1 pb-1 transition-transform active:scale-[0.96]">
     <span className="absolute -top-[23px] flex h-[58px] w-[58px] items-center justify-center rounded-full border-[4px] border-white bg-[#FFE23D] text-[#0B3D26] shadow-[0_5px_15px_rgba(11,61,38,0.18)] motion-safe:animate-[naxa-breathe_3s_ease-in-out_infinite]"><NavIcon name="scan" className="h-6 w-6"/></span>
     <span className={`text-[11px] font-bold leading-none ${scan?"text-[#0F6B3F]":"text-[#667D70]"}`}>Scanner</span>
