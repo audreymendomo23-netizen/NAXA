@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { IllustrationPageClient } from "@/components/IllustrationPageClient";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -318,6 +319,7 @@ export default function ProfilClientPage() {
   ];
 
   return <main className="naxa-profile min-h-dvh bg-[#E9F5EC] px-4 pb-[calc(88px+env(safe-area-inset-bottom,0px))] text-[#111111]">
+      <IllustrationPageClient src="/couvertures/profil-client.webp" alt="Illustration du compte client" titre="Mon profil" />
     <div className="mx-auto w-full max-w-[430px] pt-4">
       <section className="naxa-profile-card naxa-profile-enter rounded-[24px] bg-white px-5 pb-7 pt-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex items-center gap-4">
