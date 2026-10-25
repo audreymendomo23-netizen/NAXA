@@ -28,10 +28,10 @@ export function BottomNav() {
  const [avatarUrl,setAvatarUrl]=useState<string|null>(null);
  const [profileVerified,setProfileVerified]=useState(false);
  const [initiales,setInitiales]=useState("C");
- const [favorisCount,setFavorisCount]=useState(0);
+ const [favorisCount,setFavorisCount]=useState(0);\n const [battementFavoris,setBattementFavoris]=useState(false);
  const [rotating,setRotating]=useState(0);
  const [reducedMotion,setReducedMotion]=useState(false);
- useEffect(()=>{const actualiser=()=>setFavorisCount(lireFavoris().length);actualiser();return ecouterFavoris(actualiser)},[]);
+ useEffect(()=>{const actualiser=()=>setFavorisCount(lireFavoris().length);actualiser();return ecouterFavoris(actualiser)},[]);\n useEffect(()=>{let timer:number|undefined;const battre=()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;setBattementFavoris(true);if(timer)window.clearTimeout(timer);timer=window.setTimeout(()=>setBattementFavoris(false),4000)};window.addEventListener("naxa:favori-ajoute",battre);return()=>{window.removeEventListener("naxa:favori-ajoute",battre);if(timer)window.clearTimeout(timer)}},[]);
  useEffect(()=>{
   let actif=true;
   const sb=supabaseBrowser();
@@ -128,13 +128,13 @@ export function BottomNav() {
  const tab=(active:boolean,label:string,icon:IconName,href:string,extra?:React.ReactNode,animated=false)=> <Link href={href} aria-current={active?"page":undefined} className="relative flex h-[54px] min-w-0 items-center justify-center rounded-[20px] transition-transform duration-150 active:scale-[0.96]">
   {active&&<span className="absolute inset-0 rounded-[20px] bg-[#0B3D26] transition-opacity duration-200"/>}
   <span className={`relative flex min-w-0 flex-col items-center justify-center gap-1 px-1 ${active?"text-white":"text-[#667D70]"}`}>
-   {label==="Profil" ? <span className={`relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border text-[12px] font-extrabold shadow-sm ${active?"border-[#FFE23D] bg-[#FFE23D] text-[#0B3D26]":"border-[#B8CDBF] bg-[#E7F1EA] text-[#0B3D26]"}`} aria-label="Photo de profil">{avatarUrl ? <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover"/> : initiales}{profileVerified&&<span className="absolute bottom-0 right-0 flex h-3 w-3 items-center justify-center rounded-full bg-[#1D9BF0] text-white"><svg viewBox="0 0 24 24" className="h-2 w-2" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg></span>}</span> : <span key={animated?icon:"static-icon"} className={animated&&!reducedMotion?"animate-[naxa-nav-icon-bounce_420ms_ease-out]":""}><NavIcon name={icon} className={`h-5 w-5 ${active?"text-[#FFE23D]":""}`}/></span>}
+   {label==="Profil" ? <span className={`relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border text-[12px] font-extrabold shadow-sm ${active?"border-[#FFE23D] bg-[#FFE23D] text-[#0B3D26]":"border-[#B8CDBF] bg-[#E7F1EA] text-[#0B3D26]"}`} aria-label="Photo de profil">{avatarUrl ? <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover"/> : initiales}{profileVerified&&<span className="absolute bottom-0 right-0 flex h-3 w-3 items-center justify-center rounded-full bg-[#1D9BF0] text-white"><svg viewBox="0 0 24 24" className="h-2 w-2" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg></span>}</span> : <span key={animated?icon:"static-icon"} className={`${animated&&!reducedMotion?"animate-[naxa-nav-icon-bounce_420ms_ease-out]":""} ${label==="Favoris"&&battementFavoris&&!reducedMotion?"naxa-favoris-heartbeat":""}`}><NavIcon name={icon} className={`h-5 w-5 ${active?"text-[#FFE23D]":""}`}/></span>}
    <span className="relative h-3.5 max-w-full overflow-hidden text-[10px] font-semibold leading-none"><span key={animated?label:"static-label"} className={`block max-w-full truncate ${animated&&!reducedMotion?"animate-[naxa-nav-label-in_260ms_ease-out]":""}`}>{label}</span></span>
   </span>
   {active&&<span className="absolute top-1 h-1 w-1 rounded-full bg-[#FFE23D]"/>}{extra}
  </Link>;
  if(!visible)return null;
- return <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
+ return <>\n   <style jsx>{`@keyframes naxa-heartbeat-four-seconds { 0%,100% { transform:scale(1); } 8%,20% { transform:scale(1.24); } 14%,28% { transform:scale(1); } 42% { transform:scale(1.12); } 50% { transform:scale(1); } } .naxa-favoris-heartbeat { transform-origin:center; animation:naxa-heartbeat-four-seconds 4s ease-in-out both; } @media (prefers-reduced-motion:reduce) { .naxa-favoris-heartbeat { animation:none !important; } }`}</style>\n  <nav aria-label="Navigation principale" className="fixed inset-x-3 z-50 mx-auto h-16 max-w-[456px] rounded-[28px] border border-[#DCEAE0] bg-white/90 px-2 shadow-[0_-6px_22px_rgba(6,75,42,0.12)] backdrop-blur-xl" style={{bottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)"}}>
   <div className="grid h-full grid-cols-5 items-center gap-0.5">
    {tab(home,"Accueil","home","/client")}
    {tab(favorites,"Favoris","heart","/client/profil/favoris",favorisCount>0&&<span aria-label={`${favorisCount} médicaments favoris`} className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-extrabold text-white shadow-sm">{favorisCount>99?"99+":favorisCount}</span>)}
@@ -145,5 +145,5 @@ export function BottomNav() {
    {tab(shopping,purchase.label,purchase.icon,"/client?onglet=achats",nombre>0&&<span className="absolute right-1 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#FFE23D] px-1 text-[10px] font-extrabold text-[#0B3D26]">{nombre>99?"99+":nombre}</span>,true)}
    {tab(profile,"Profil","user","/client/profil",undefined,false)}
   </div>
- </nav>;
+ </nav>\n  </>;
 }
