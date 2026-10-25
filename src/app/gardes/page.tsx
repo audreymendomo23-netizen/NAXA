@@ -38,6 +38,8 @@ async function chargerGardesLocales(): Promise<PharmacieGarde[] | null> {
       .eq("visible_recherche", true)
       .is("archivee_le", null)
       .eq("de_garde", true)
+      .not("nom", "ilike", "%démo%")
+      .not("nom", "ilike", "%test%")
       .order("nom");
     if (error) return null;
     return (data ?? []) as PharmacieGarde[];
