@@ -89,9 +89,9 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   try {
     const fields = "id,nom,dci,forme,synonymes,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee";
     const [byName, byDci, bySynonym] = await Promise.all([
-      sb.from("produits").select(fields).ilike("nom", "%" + needle + "%").limit(12),
-      sb.from("produits").select(fields).ilike("dci", "%" + needle + "%").limit(12),
-      sb.from("produits").select(fields).contains("synonymes", [needle]).limit(12)
+      sb.from("produits").select(fields).eq("fiche_validee", true).ilike("nom", "%" + needle + "%").limit(12),
+      sb.from("produits").select(fields).eq("fiche_validee", true).ilike("dci", "%" + needle + "%").limit(12),
+      sb.from("produits").select(fields).eq("fiche_validee", true).contains("synonymes", [needle]).limit(12)
     ]);
     if (byName.error && byDci.error && bySynonym.error) return [];
     const unique = new Map<string, LocalProduct>();
@@ -134,6 +134,10 @@ async function realPartnerAvailability(productIds: string[]): Promise<{ verified
       .in("produit_id", productIds)
       .gt("quantite", 0)
       .eq("pharmacies.actif", true)
+      .eq("pharmacies.visible_recherche", true)
+      .is("pharmacies.archivee_le", null)
+      .not("pharmacies.nom", "ilike", "%démo%")
+      .not("pharmacies.nom", "ilike", "%test%")
       .or("date_peremption.is.null,date_peremption.gte." + today);
     if (error || !data) return { verified: false, byProduct: result };
     const grouped = new Map<string, { pharmacies: Set<string>; quantity: number; lowestPrice: number | null }>();
