@@ -15,6 +15,7 @@ type PharmacieCarte = {
   photo_verified_at: string | null;
   distanceKm: number | null;
   horaires: string | null;
+  telephone?: string | null;
   stock_updated_at: string | null;
 };
 type Point = { lat: number; lng: number };
@@ -81,6 +82,11 @@ export default function CartePharmaciesProches({
     () => pharmacies.filter(p => p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)),
     [pharmacies],
   );
+  const pharmaciesAvecContact = useMemo(() => pharmacies
+    .filter(p => p.nom.trim())
+    .slice()
+    .sort((a, b) => (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY))
+    .slice(0, 5), [pharmacies]);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +157,7 @@ export default function CartePharmaciesProches({
       <div className="flex items-start justify-between gap-3 p-4 sm:p-5">
         <div className="min-w-0">
           <h3 id="naxa-map-title" className="text-lg font-extrabold text-[#0B3D26]">Pharmacies à proximité</h3>
-          <p className="mt-1 text-sm text-[#64776B]">{pharmaciesAvecGPS.length} pharmacie{pharmaciesAvecGPS.length === 1 ? "" : "s"} localisable{pharmaciesAvecGPS.length === 1 ? "" : "s"} sur la carte. Les informations détaillées sont envoyées par notification après localisation.</p>
+          <p className="mt-1 text-sm text-[#64776B]">Localisation et coordonnées publiques des pharmacies proches. Les stocks ne sont pas affichés ici.</p>
         </div>
         <button type="button" onClick={onLocaliser} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26]" aria-label="Activer le GPS pour trouver la pharmacie la plus proche">
           <span aria-hidden="true">⌖</span> Ma position
@@ -163,7 +169,27 @@ export default function CartePharmaciesProches({
         {mapError && <div role="status" className="absolute inset-x-3 top-3 rounded-xl bg-white/95 p-3 text-sm text-[#53685C] shadow">{mapError}</div>}
         {pharmaciesAvecGPS.length === 0 && <div className="absolute bottom-3 left-3 right-3 rounded-xl bg-white/95 p-3 text-sm text-[#53685C] shadow">Aucune pharmacie partenaire avec coordonnées GPS disponibles. Les positions manquantes ne sont pas inventées.</div>}
       </div>
-      <p className="border-t border-[#E5EEE8] px-4 py-3 text-[11px] leading-4 text-[#738277]">Carte © OpenStreetMap contributors. Les marqueurs indiquent uniquement les positions enregistrées; la carte ne confirme ni le stock ni le trafic.</p>
+      <div className="space-y-2 border-t border-[#E5EEE8] p-3 sm:p-4" aria-label="Coordonnées publiques des pharmacies proches">
+        {pharmaciesAvecContact.map(p => {
+          const telephone = typeof p.telephone === "string" ? p.telephone.replace(/[^+\\d]/g, "") : "";
+          const lieu = [p.adresse, p.quartier, p.ville].filter((value): value is string => Boolean(value?.trim())).join(", ");
+          return <article key={p.id} className="rounded-2xl border border-[#DCE9DF] bg-[#F8FBF8] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h4 className="font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h4>
+                {lieu && <p className="mt-1 text-sm leading-5 text-[#53685C]">{lieu}</p>}
+                {p.horaires?.trim() && <p className="mt-1 text-xs leading-5 text-[#64776B]">Horaires publiés : {p.horaires}</p>}
+                {!telephone && <p className="mt-1 text-xs leading-5 text-[#64776B]">Téléphone public non renseigné.</p>}
+              </div>
+              {telephone && <a href={"tel:" + telephone} aria-label={"Appeler " + p.nom + " au " + p.telephone} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#0F6B3F] px-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#0B3D26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F6B3F]">
+                <span aria-hidden="true">☎</span> Appeler
+              </a>}
+            </div>
+          </article>;
+        })}
+        {pharmaciesAvecContact.length === 0 && <p className="rounded-xl bg-[#F8FBF8] p-3 text-sm text-[#53685C]">Aucune coordonnée publique de pharmacie n’est disponible pour le moment.</p>}
+      </div>
+      <p className="border-t border-[#E5EEE8] px-4 py-3 text-[11px] leading-4 text-[#738277]">Carte © OpenStreetMap contributors. Les coordonnées, horaires et téléphones ne sont affichés que s’ils sont renseignés dans les données publiques; aucun stock n’est présenté.</p>
     </section>
   );
 }
