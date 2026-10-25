@@ -11,14 +11,14 @@ import { ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 type IconName = "home" | "heart" | "scan" | "shopping" | "calendar" | "clipboard" | "user";
 function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
  const imageSources: Partial<Record<IconName, string>> = {
-  home: "/icones-nav/accueil.png",
-  heart: "/icones-nav/favori-coeur.webp",
-  shopping: "/icones-nav/achats.webp",
-  calendar: "/icones-nav/reservations.webp",
-  clipboard: "/icones-nav/commandes.webp",
+  home: "/icones-nav/accueil-transparent.png",
+  heart: "/icones-nav/favoris-transparent.png",
+  shopping: "/icones-nav/achats-transparent.png",
+  calendar: "/icones-nav/reservations-transparent.png",
+  clipboard: "/icones-nav/commandes-transparent.png",
  };
  const imageSource = imageSources[name];
- if (imageSource) return <Image src={imageSource} alt="" aria-hidden="true" width={24} height={24} className={`shrink-0 object-contain ${className}`} />;
+ if (imageSource) { const active = className.includes("text-[#FFE23D]"); return <Image src={imageSource} alt="" aria-hidden="true" width={24} height={24} className={`shrink-0 object-contain ${active ? "brightness-0 saturate-100 invert-[89%] sepia-[93%] saturate-[1800%] hue-rotate-[2deg] brightness-[105%] contrast-[103%]" : "brightness-0 saturate-100 invert-[31%] sepia-[21%] saturate-[820%] hue-rotate-[91deg] brightness-[91%] contrast-[91%]"} ${className}`} />; }
  const common={fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
  return <svg viewBox="0 0 24 24" className={className} {...common}>
   {name==="home"&&<><path d="m3 10 9-7 9 7"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/></>}
