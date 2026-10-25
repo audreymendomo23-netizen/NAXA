@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { EnTeteClient } from "@/components/EnTeteClient";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 function appartientAuParcoursClient(pathname: string) {
   return pathname === "/client"
@@ -24,20 +26,45 @@ function appartientAuParcoursClient(pathname: string) {
 
 export function ParcoursClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const afficherEntete = appartientAuParcoursClient(pathname);
-  // L'accueil public possède déjà son propre header ; on lui applique
-  // l'expérience immersive sans superposer l'en-tête de l'espace client.
-  const accueilPublic = pathname === "/";
-  const parcoursImmersif = afficherEntete || accueilPublic;
+  const [sessionReady, setSessionReady] = useState(false);
+  const [clientConnecte, setClientConnecte] = useState(false);
+
+  useEffect(() => {
+    const supabase = supabaseBrowser();
+    let actif = true;
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!actif) return;
+      setClientConnecte(!error && Boolean(data.session?.user));
+      setSessionReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!actif) return;
+      setClientConnecte(Boolean(session?.user));
+      setSessionReady(true);
+    });
+
+    return () => {
+      actif = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // L'accueil public et les routes d'authentification restent hors du parcours immersif.
+  // L'effet ne s'active que sur les routes client listées et après confirmation d'une session.
+  const parcoursClientAuthentifie = sessionReady
+    && clientConnecte
+    && appartientAuParcoursClient(pathname);
 
   return (
     <>
-      {afficherEntete && <EnTeteClient />}
-      {parcoursImmersif ? (
+      {parcoursClientAuthentifie && <EnTeteClient />}
+      {parcoursClientAuthentifie ? (
         <div
           key={pathname}
           className="naxa-immersive-page naxa-immersive-scroll"
-          data-naxa-parcours={accueilPublic ? "accueil" : "client"}
+          data-naxa-parcours="client-authentifie"
         >
           {children}
         </div>
