@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { IllustrationPageClient } from "@/components/IllustrationPageClient";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
@@ -62,7 +63,8 @@ function downloadReceipt(receipt: Receipt) {
   popup.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Récapitulatif achat ${escapeHtml(receipt.reservationId.slice(0, 8).toUpperCase())}</title>
   <style>
   *{box-sizing:border-box}body{font:14px/1.45 Arial,sans-serif;color:#111;margin:0;padding:24px}main{max-width:720px;margin:auto}.brand{text-align:center;border-bottom:2px dashed #777;padding-bottom:14px}h1{font-size:20px;margin:0 0 6px}.muted{color:#555;font-size:12px}.meta{margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 4px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.num{text-align:right;white-space:nowrap}small{display:block;color:#555}.total{display:flex;justify-content:space-between;font-weight:700;font-size:18px;margin-top:16px;border-top:2px dashed #777;padding-top:12px}.notice{margin-top:22px;padding:10px;border:1px solid #999;font-size:11px}.actions{margin:20px 0;text-align:center}.actions button{padding:10px 16px;margin:4px}@media print{body{padding:0}.actions{display:none}main{max-width:none}}@media(max-width:500px){body{padding:12px}.meta{grid-template-columns:1fr}table{font-size:10px}}
-  </style></head><body><main><header class="brand"><h1>NAXA · Récapitulatif numérique d’achat</h1><div>${escapeHtml(receipt.pharmacy)}</div><div class="muted">${escapeHtml(receipt.address)} ${receipt.city ? "· " + escapeHtml(receipt.city) : ""}</div></header>
+  </style></head><body><main>
+      <IllustrationPageClient src="/couvertures/historique-factures.webp" alt="Illustration de l’historique et des factures" titre="Historique et factures" /><header class="brand"><h1>NAXA · Récapitulatif numérique d’achat</h1><div>${escapeHtml(receipt.pharmacy)}</div><div class="muted">${escapeHtml(receipt.address)} ${receipt.city ? "· " + escapeHtml(receipt.city) : ""}</div></header>
   <section class="meta"><div><b>Référence achat</b><br>${escapeHtml(receipt.reservationId.toUpperCase())}</div><div><b>Date d’achat</b><br>${escapeHtml(fmt(receipt.date))}</div><div><b>Référence de paiement</b><br>${escapeHtml(receipt.reference || "Non disponible dans l’historique")}</div><div><b>État enregistré</b><br>${escapeHtml(STATUS[receipt.status] || receipt.status)}</div></section>
   <table><thead><tr><th>Article</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total</th></tr></thead><tbody>${lines}</tbody></table>
   <div class="total"><span>Total enregistré</span><span>${fcfa(receipt.total)}</span></div>
