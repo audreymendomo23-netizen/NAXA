@@ -74,7 +74,11 @@ async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne
 
   try {
     const source = new URL(pharmacie.imageUrl);
-    if (source.protocol !== "https:" || !/(^|\.)mfasha\.com$/i.test(source.hostname)) return pharmacie;
+    if (
+      source.protocol !== "https:" ||
+      (!/(^|\.)mfasha\.com$/i.test(source.hostname) &&
+        !/(^|\.)mboapharma\.cm$/i.test(source.hostname))
+    ) return pharmacie;
 
     const admin = supabaseAdmin();
     const extensions: Record<string, string> = {
