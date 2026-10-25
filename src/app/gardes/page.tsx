@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { chargerGardesMfasha, MFASHA_SOURCE_URL } from "@/lib/pharmacies-gardes/mfasha";
-import { PhotoPharmacie } from "@/components/PhotoPharmacie";
 import { PharmaciesGardeListe } from "@/components/gardes/PharmaciesGardeListe";
 
 export const dynamic = "force-dynamic";
@@ -125,7 +124,7 @@ export default async function PharmaciesDeGarde() {
         {externe && externe.pharmacies.length > 0 && (
           <PharmaciesGardeListe
             pharmacies={externe.pharmacies}
-            sourceAnnuaireUrl="https://mboapharma.cm/annuaire-des-pharmacies/"
+            sourceAnnuaireUrl="https://mboapharma.cm/single-location-3/yaounde/?directory_type=pharmacie&view=list"
           />
         )}
 
