@@ -5,12 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import type { ResultatPharmacie } from "@/lib/types";
-import { EnTeteAccueil } from "@/components/EnTeteAccueil";
-import type { Langue } from "@/lib/accueil-textes";
-import { Logo } from "@/components/Logo";
+import { EnTeteClient } from "@/components/EnTeteClient";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
-import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { CENTRES_VILLES, obtenirPositionGPS, villeDepuisPosition } from "@/lib/geolocation";
 
@@ -44,14 +41,12 @@ function ResultsContent(){
  const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Yaoundé"),[coords,setCoords]=useState<{lat:number;lng:number}>(YAOUNDE),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"fallback">("pending");
  const [filters,setFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""}),[activeFilters,setActiveFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""});
  const {ajouter,nombre}=usePanier();
- const [avatarUrl,setAvatarUrl]=useState<string|null>(null),[initiales,setInitiales]=useState("C");
+ const 
  const [catalogue,setCatalogue]=useState<CatalogItem[]>([]),[catalogueLoading,setCatalogueLoading]=useState(false);
-  const [langue,setLangue]=useState<Langue>("fr");
  const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set());
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
  const toggleFavori=(item:{id:string;nom:string;dosage?:string|null;photo_url?:string|null;prix?:number|null;pharmacie?:string;demo:boolean})=>{const suivants=basculerFavori({id:item.id,nom:item.nom,dosage:item.dosage??"",photo_url:item.photo_url??null,prix:typeof item.prix==="number"?item.prix:0,pharmacie:item.pharmacie??"Prix et pharmacie à confirmer",demo:item.demo});setFavoriIds(new Set(suivants.map(f=>f.id)));notifierNAXA(suivants.some(f=>f.id===item.id)?item.nom+" ajouté aux favoris.":item.nom+" retiré des favoris.")};
  const actualiserPosition=useCallback(async()=>{setLocationStatus("pending");try{const position=await obtenirPositionGPS();setCoords({lat:position.lat,lng:position.lng});setCity(villeDepuisPosition(position.lat,position.lng));setLocationStatus("gps")}catch{setLocationStatus("fallback")}},[]);
- useEffect(()=>{let active=true;const sb=supabaseBrowser();void(async()=>{try{const {data:{user}}=await sb.auth.getUser();if(!active||!user)return;const meta=user.user_metadata??{};const {data:profile}=await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",user.id).maybeSingle();if(!active)return;const first=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():"";const last=typeof profile?.last_name==="string"&&profile.last_name.trim()?profile.last_name.trim():typeof meta.last_name==="string"?meta.last_name.trim():"";const emailName=typeof user.email==="string"?user.email.split("@")[0].replace(/[._-]+/g," ").trim():"";const name=[first,last].filter(Boolean).join(" ")||emailName;const letters=name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toLocaleUpperCase("fr")).join("");setInitiales(letters||"C");const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;if(typeof photo==="string"&&photo.startsWith("https://"))setAvatarUrl(photo)}catch{/* Le résultat reste utilisable même si le profil est indisponible. */}})();return()=>{active=false}},[]);
  useEffect(()=>{
    const q=params.getAll("q").join(" ").trim();
    setQuery(q);setDebounced(q);
@@ -82,7 +77,7 @@ function ResultsContent(){
  const add=(r:Row)=>{const item=r.items[0];if(!item)return;if(rxIds.has(item.produit_id)){router.push("/scanner");return}ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},1);setAdded(r.pharmacie_id);notifierNAXA(item.nom+" ajouté au panier.");window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)};
  const back=()=>{if(window.history.length>1)router.back();else router.push("/")};
  return <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-  <EnTeteAccueil langue={langue} setLangue={setLangue} compact />
+  <EnTeteClient />
   <section className="relative z-20 mx-auto mt-2 max-w-[480px] rounded-[28px] bg-[#F4F8F5] px-3 pb-8 pt-5 sm:px-4">
    <form className="flex items-center gap-2" onSubmit={e=>{e.preventDefault();setDebounced(query.trim())}}>
     <div className="flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D7E5DC] bg-white px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10"><span className="text-[#0F6B3F]"><I name="search" size={20}/></span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher un médicament" aria-label="Médicament recherché" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-normal placeholder:text-slate-400"/>{query&&<button type="button" aria-label="Effacer la recherche" onClick={()=>{setQuery("");setDebounced("")}} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 transition-transform active:rotate-90"><I name="x" size={18}/></button>}</div>
