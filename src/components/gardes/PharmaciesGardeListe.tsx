@@ -44,7 +44,7 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
             Pharmacie {indexVisible + 1} sur {pharmacies.length} · changement automatique toutes les 3 secondes
           </p>
           <ul className="grid grid-cols-1 gap-3">
-            <li key={pharmacieVisible.id} className="carte animate-[pharmacieFadeIn_300ms_ease-in-out] overflow-hidden space-y-0">
+            <li key={pharmacieVisible.id} className="carte pharmacie-garde-switch overflow-hidden space-y-0">
               <button
                 type="button"
                 onClick={() => setSelection(pharmacieVisible)}
