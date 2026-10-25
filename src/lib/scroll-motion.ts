@@ -103,7 +103,7 @@ function createEngine(): Engine {
         el, top: r.top, height: r.height, kind,
         start: Number.isFinite(startValue) ? startValue : 0,
         end: Number.isFinite(endValue) && endValue !== startValue ? endValue : 1,
-        visible: existing?.visible ?? false,
+        visible: existing?.visible ?? !io,
       });
       const speed = Number.parseFloat(el.dataset.speed || "1");
       el.style.setProperty("--scroll-speed", String(Math.min(2, Math.max(0, Number.isFinite(speed) ? speed : 1)) * 18) + "px");
