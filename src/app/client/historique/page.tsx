@@ -181,7 +181,7 @@ export default function HistoriqueClient() {
   const isEmpty = filteredEntries.length === 0 && receipts.length === 0;
 
   return <main className="mx-auto min-h-dvh max-w-3xl px-4 pb-[calc(100px+env(safe-area-inset-bottom,0px))]">
-    <h1 className="mt-4 text-xl font-extrabold text-[#0B3D26]">Historique et justificatifs</h1>
+    <h1 className="mt-4 text-xl font-extrabold text-[#0B3D26]">Historique</h1>
     <p className="mt-2 text-sm text-slate-600">Retrouvez vos commandes, réservations et achats, avec leur chronologie et les justificatifs disponibles.</p>
     <section className="carte mt-4 space-y-3">
       <label className="block text-sm font-bold" htmlFor="history-period">Période</label>
