@@ -148,16 +148,12 @@ async function localPopularity() {
   return (products ?? []).map((p) => ({ ...p, searches: counts.get(p.id) ?? 0 })).sort((a, b) => b.searches - a.searches);
 }
 
-function scoreRow(row) {
+function priorityIndex(row) {
   const identity = normalize([row.nom, row.substances_actives, row.forme].filter(Boolean).join(" "));
-  let score = 0;
   for (let i = 0; i < PRIORITY.length; i++) {
-    const terms = PRIORITY[i][1];
-    if (terms.some((term) => identity.includes(normalize(term)))) {
-      score = Math.max(score, 1000 - i * 10);
-    }
+    if (PRIORITY[i][1].some((term) => identity.includes(normalize(term)))) return i;
   }
-  return score;
+  return -1;
 }
 
 async function savePhoto(row, photo, dryRun) {
@@ -212,9 +208,15 @@ async function main() {
     const match = catalog.find((r) => normalize(r.nom) === normalize(p.nom) || normalize(r.substances_actives).includes(normalize(p.dci)));
     if (match && !seen.has(match.cis)) { candidates.push({ ...match, priorityScore: 2000 + p.searches }); seen.add(match.cis); }
   }
-  for (const row of catalog.map((r) => ({ ...r, priorityScore: scoreRow(r) }))
-    .filter((r) => r.priorityScore > 0).sort((a, b) => b.priorityScore - a.priorityScore || a.nom.localeCompare(b.nom, "fr"))) {
-    if (!seen.has(row.cis)) { candidates.push(row); seen.add(row.cis); }
+  const perPriority = new Map();
+  for (const row of catalog.map((r) => ({ ...r, priorityIndex: priorityIndex(r) }))
+    .filter((r) => r.priorityIndex >= 0).sort((a, b) => a.priorityIndex - b.priorityIndex || a.nom.localeCompare(b.nom, "fr"))) {
+    const used = perPriority.get(row.priorityIndex) ?? 0;
+    // Évite de consommer tout le lot avec des milliers de présentations d’une seule DCI.
+    if (used >= 2 || seen.has(row.cis)) continue;
+    candidates.push(row);
+    seen.add(row.cis);
+    perPriority.set(row.priorityIndex, used + 1);
   }
   const report = { catalogue: catalog.length, candidates: candidates.length, attempted: 0, stored: 0, missing: 0, errors: 0, items: [] };
   for (const row of candidates.slice(0, LIMIT)) {
