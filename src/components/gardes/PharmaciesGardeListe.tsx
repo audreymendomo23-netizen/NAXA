@@ -12,10 +12,15 @@ export type PharmacieGardeCard = {
   imageUrl: string | null;
   imageType?: "photo-verifiee" | "photo-source" | "illustration";
   periode: string | null;
+  horaires?: string | null;
   source: string;
 };
 
 type Props = { pharmacies: PharmacieGardeCard[]; sourceAnnuaireUrl: string };
+
+function nettoyerTelephone(value: string): string {
+  return value.replace(/[^+\d]/g, "");
+}
 
 export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
   const [selection, setSelection] = useState<PharmacieGardeCard | null>(null);
@@ -29,13 +34,13 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
               type="button"
               onClick={() => setSelection(p)}
               className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
-              aria-label={`Voir les informations de ${p.nom}`}
+              aria-label={`Voir les coordonnées publiques de ${p.nom}`}
             >
               <PhotoPharmacie nom={p.nom} src={p.imageUrl} lieu={p.quartier} />
               <span className="block font-bold text-naxa-green-900">{p.nom}</span>
               {p.quartier && <span className="mt-1 block text-sm text-slate-600">{p.quartier}</span>}
-              {p.telephone && <span className="mt-1 block text-sm text-naxa-green-700">Appuyer pour voir les coordonnées et détails</span>}
-              <span className="mt-2 block text-[10px] text-slate-400">Source des gardes : Mfasha</span>
+              <span className="mt-1 block text-sm font-semibold text-naxa-green-700">Ouvrir la fiche · contact et localisation</span>
+              <span className="mt-2 block text-[10px] text-slate-400">Source du planning de garde : Mfasha</span>
             </button>
           </li>
         ))}
@@ -57,24 +62,62 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
               <h2 id="pharmacie-garde-titre" className="text-xl font-extrabold text-naxa-green-900">{selection.nom}</h2>
               <button type="button" onClick={() => setSelection(null)} className="min-h-10 min-w-10 rounded-full border text-xl" aria-label="Fermer les informations">×</button>
             </div>
+
             <PhotoPharmacie nom={selection.nom} src={selection.imageUrl} lieu={selection.quartier} />
-            {selection.quartier && <p className="text-sm text-slate-700">Zone / localisation publiée : {selection.quartier}</p>}
-            {selection.periode && <p className="mt-2 text-sm text-slate-700">Période de garde : {selection.periode}</p>}
-            {selection.telephone && (
-              <p className="mt-3 text-sm text-slate-700">
-                Téléphone : <a className="font-semibold text-naxa-green-700 underline" href={`tel:${selection.telephone.replace(/[^+\d]/g, "")}`}>{selection.telephone}</a>
+
+            <section className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4" aria-label="Coordonnées publiques">
+              <h3 className="font-bold text-naxa-green-900">Coordonnées publiques</h3>
+              {selection.quartier
+                ? <p className="mt-2 text-sm leading-5 text-slate-700">Localisation / quartier publié : {selection.quartier}</p>
+                : <p className="mt-2 text-sm text-slate-600">Aucun quartier précis n’est renseigné dans la liste publique.</p>}
+              {selection.horaires?.trim() && <p className="mt-2 text-sm text-slate-700">Horaires publiés : {selection.horaires}</p>}
+              {selection.telephone ? (
+                <a
+                  className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-naxa-green-700 px-4 font-extrabold text-white hover:bg-naxa-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
+                  href={`tel:${nettoyerTelephone(selection.telephone)}`}
+                  aria-label={`Appeler ${selection.nom} au ${selection.telephone}`}
+                >
+                  <span aria-hidden="true">☎</span> Appeler la pharmacie
+                </a>
+              ) : <p className="mt-3 text-sm text-slate-600">Aucun numéro public n’est disponible dans la source de garde.</p>}
+              {selection.autresTelephones.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-sm font-semibold text-slate-700">Autres numéros publics</p>
+                  <ul className="mt-1 space-y-1">
+                    {selection.autresTelephones.map((telephone) => (
+                      <li key={telephone}>
+                        <a className="text-sm font-semibold text-naxa-green-700 underline underline-offset-2" href={`tel:${nettoyerTelephone(telephone)}`}>{telephone} · Appeler</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {selection.quartier && (
+                <a
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-naxa-green-700 bg-white px-4 text-sm font-bold text-naxa-green-800 underline-offset-2 hover:underline"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([selection.nom, selection.quartier].filter(Boolean).join(" "))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Voir la localisation sur la carte
+                </a>
+              )}
+            </section>
+
+            {selection.periode && (
+              <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                <strong>Période de garde publiée :</strong> {selection.periode}
               </p>
             )}
-            {selection.autresTelephones.length > 0 && (
-              <p className="mt-2 text-sm text-slate-600">Autres numéros : {selection.autresTelephones.join(" · ")}</p>
-            )}
+
             <div className="mt-4 border-t border-slate-100 pt-3">
               <p className="text-[10px] leading-relaxed text-slate-400">
-                Données de garde : <a href={selection.source} target="_blank" rel="noreferrer" className="underline">Mfasha</a>.
-                {selection.imageType === "photo-source" && <> Image archivée depuis une fiche d’annuaire externe ; <a href={sourceAnnuaireUrl} target="_blank" rel="noreferrer" className="underline">MboaPHARMA</a> peut être consulté pour la provenance.</>}
+                Planning de garde : <a href={selection.source} target="_blank" rel="noreferrer" className="underline">Mfasha</a>.
+                {selection.imageType === "photo-source" && <> Image archivée depuis une fiche d’annuaire externe ; <a href={sourceAnnuaireUrl} target="_blank" rel="noreferrer" className="underline">consulter l’annuaire MboaPHARMA</a> pour la provenance.</>}
                 {selection.imageType === "photo-verifiee" && " Image vérifiée et hébergée par NAXA."}
                 {selection.imageType === "illustration" && " Illustration NAXA, pas une photographie réelle."}
                 {!selection.imageType && " L’image peut être une illustration de remplacement."}
+                {" "}Les coordonnées et horaires ne sont affichés que lorsqu’ils sont présents dans les données publiques; NAXA ne les invente pas. Appelez avant de vous déplacer, car le planning peut changer.
               </p>
             </div>
           </section>
