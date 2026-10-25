@@ -38,6 +38,10 @@ export function ecrireFavoris(favoris: FavoriNAXA[]): void {
   try {
     window.localStorage.setItem(CLE, JSON.stringify(favoris));
     window.dispatchEvent(new CustomEvent(EVENEMENT));
+    const ajoutes = favoris.filter(item => !anciens.some(old => old.id === item.id));
+    if (ajoutes.length) {
+      window.dispatchEvent(new CustomEvent("naxa:favori-ajoute", { detail: { ids: ajoutes.map(item => item.id), noms: ajoutes.map(item => item.nom) } }));
+    }
   } catch {
     // Le cache local reste un secours si le stockage est indisponible.
   }
