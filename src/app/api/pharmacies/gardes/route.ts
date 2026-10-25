@@ -13,6 +13,7 @@ type PharmaciePhoto = {
   photo_url: string | null;
   photo_source_url: string | null;
   photo_verified_at: string | null;
+  photo_declaree_par_pharmacie: boolean;
 };
 
 function normaliserNom(nom: string): string {
@@ -158,7 +159,7 @@ async function associerPhotos(pharmacies: GardeExterne[]): Promise<GardeExterne[
   try {
     const { data, error } = await supabasePublic(300)
       .from("pharmacies")
-      .select("nom,photo_url,photo_source_url,photo_verified_at")
+      .select("nom,photo_url,photo_source_url,photo_verified_at,photo_declaree_par_pharmacie")
       .eq("actif", true)
       .eq("visible_recherche", true)
       .is("archivee_le", null)
@@ -166,7 +167,10 @@ async function associerPhotos(pharmacies: GardeExterne[]): Promise<GardeExterne[
 
     if (!error && data?.length) {
       const photos = new Map<string, PharmaciePhoto>();
-      for (const row of data as PharmaciePhoto[]) {
+      const candidats = [...(data as PharmaciePhoto[])].sort(
+        (a, b) => Number(b.photo_declaree_par_pharmacie) - Number(a.photo_declaree_par_pharmacie),
+      );
+      for (const row of candidats) {
         const cle = normaliserNom(row.nom);
         if (
           cle &&
