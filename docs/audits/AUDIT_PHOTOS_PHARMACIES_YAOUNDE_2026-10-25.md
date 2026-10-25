@@ -57,7 +57,7 @@ L'API n'accepte plus les images de la page Mfasha par simple proximité HTML : l
 - Les lignes de pharmacies de démonstration sont inactives et masquées des résultats.
 - Le registre contient une pharmacie active non-démo (MAYAKA) et n'est pas un inventaire complet de Yaoundé.
 - **Le bucket était vide au dernier contrôle : 0 objet.** Aucune photo réelle ni illustration de garde n'a donc été confirmée comme déjà stockée au moment de cet audit.
-- Le code de l'API téléverse les images source autorisées et crée les illustrations au fil des requêtes. Ces téléversements ne peuvent commencer que lorsque le code modifié est exécuté. Aucun déploiement Vercel n'a été déclenché dans le cadre de cet audit.
+- Le code de l'API téléverse les images source autorisées et crée les illustrations au fil des requêtes. Si le stockage échoue, il renvoie aussi l'illustration intégrée pour éviter une carte sans image ; cette solution de secours n'est pas un objet Supabase persistant. Les téléversements ne peuvent commencer que lorsque le code modifié est exécuté. Aucun déploiement Vercel n'a été déclenché dans le cadre de cet audit.
 
 ## Points à ne pas déclarer clos sans preuve
 
