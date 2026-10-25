@@ -95,14 +95,29 @@ export const chargerGardesMfasha = cache(async (): Promise<{
       const section = plainText(html.slice(start, end));
       const phones = phoneNumbers(section);
       const sectionHtml = html.slice(start, end);
-      const imageMatch = sectionHtml.match(/<img\b[^>]*?src=["']([^"']+)["'][^>]*>/i);
+      // Éviter d’associer une bannière ou une image générique à une pharmacie par simple proximité HTML.
+      // Une image source n’est acceptée que si son nom de fichier, son alt ou son title mentionne la pharmacie.
+      const imageTags = [...sectionHtml.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
       let imageUrl: string | null = null;
-      if (imageMatch?.[1]) {
+      const nomNormalise = nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        .replace(/\b(pharmacie|pharmacy|sarl|sa)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+      const tokensNom = nomNormalise.split(/\s+/).filter((token) => token.length >= 4);
+      for (const imageTag of imageTags) {
+        const srcMatch = imageTag.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+        if (!srcMatch?.[1]) continue;
+        const alt = imageTag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] ?? "";
+        const title = imageTag.match(/\btitle\s*=\s*["']([^"']*)["']/i)?.[1] ?? "";
         try {
-          const candidate = new URL(decodeHtml(imageMatch[1]), MFASHA_SOURCE_URL);
-          if (candidate.protocol === "https:" && /mfasha\.com$/i.test(candidate.hostname)) imageUrl = candidate.toString();
+          const candidate = new URL(decodeHtml(srcMatch[1]), MFASHA_SOURCE_URL);
+          if (candidate.protocol !== "https:" || !/(^|\.)mfasha\.com$/i.test(candidate.hostname)) continue;
+          const evidence = (candidate.pathname + " " + alt + " " + title).normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ");
+          if (tokensNom.length && tokensNom.some((token) => evidence.includes(token))) {
+            imageUrl = candidate.toString();
+            break;
+          }
         } catch {
-          imageUrl = null;
+          // Ignorer les URL invalides et examiner la candidate suivante.
         }
       }
       const quartier = section
