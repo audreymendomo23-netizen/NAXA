@@ -50,12 +50,12 @@ function ResultsContent(){
    const q=params.getAll("q").join(" ").trim();
    setQuery(q);setDebounced(q);
    const fromUrl:Filters={
-    stock:params.get("stock")==null?true:params.get("stock")!=="0",
-    open:params.get("open")==="1",
+    stock:false,
+    open:false,
     delivery:false,
-    prescription:params.get("prescription")==="1",
-    price:params.get("price")??"",
-    distance:params.get("distance")??"",
+    prescription:false,
+    price:"",
+    distance:"",
     rating:""
    };
    setFilters(fromUrl);setActiveFilters(fromUrl);
@@ -90,7 +90,7 @@ function ResultsContent(){
    </div>
    <div className="mt-4 -mx-1 flex flex-wrap gap-2 px-1 pb-1" aria-label="Filtres de recherche">
     <button type="button" onClick={()=>{setSort("distance");setAscending(true);setActiveFilters(v=>({...v,distance:""}));setFilters(v=>({...v,distance:""}))}} aria-pressed={sort==="distance"} className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[#B8F536] px-4 text-xs font-extrabold shadow-sm "+(sort==="distance"?"bg-[#B8F536] text-[#0B3D26]":"bg-white text-[#0B3D26]")}><I name="pin" size={15}/>Par distance</button>
-    <button type="button" onClick={()=>{setSort("prix");setAscending(v=>sort==="prix"?!v:true)}} aria-pressed={sort==="prix"} className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[#B18AFF] px-4 text-xs font-extrabold shadow-sm "+(sort==="prix"?"bg-[#B18AFF] text-[#241044]":"bg-white text-[#40216F")}>Par Prix <I name="sort" size={14}/>{sort==="prix"?(ascending?"↑":"↓"):""}</button>
+    <button type="button" onClick={()=>{setSort("prix");setAscending(v=>sort==="prix"?!v:true)}} aria-pressed={sort==="prix"} className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[#B18AFF] px-4 text-xs font-extrabold shadow-sm "+(sort==="prix"?"bg-[#B18AFF] text-[#241044]":"bg-white text-[#40216F]")}>Par Prix <I name="sort" size={14}/>{sort==="prix"?(ascending?"↑":"↓"):""}</button>
     <button type="button" onClick={()=>setFilterOpen(v=>!v)} aria-expanded={filterOpen} aria-controls="assurance-options" className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[#67B8FF] px-4 text-xs font-extrabold shadow-sm "+(filterOpen?"bg-[#DDF0FF] text-[#16446A]":"bg-white text-[#16446A]")}>Par assurance <span aria-hidden="true">{filterOpen?"⌃":"⌄"}</span></button>
    </div>
    {filterOpen&&<section id="assurance-options" aria-label="Choisir une assurance (aperçu visuel)" className="mt-2 rounded-2xl border border-[#67B8FF]/60 bg-white p-3 shadow-sm"><p className="text-xs leading-5 text-[#53685C]">Sélection visuelle uniquement : les résultats commerciaux ne sont pas encore filtrés par assurance.</p><div className="mt-3 grid grid-cols-2 gap-2">{["CNPS","Activa","Chanas Assurances","Allianz","SAAR Assurances"].map(assurance=><button key={assurance} type="button" aria-pressed={assurancesVisuelles.includes(assurance)} onClick={()=>setAssurancesVisuelles(current=>current.includes(assurance)?current.filter(value=>value!==assurance):[...current,assurance])} className={"min-h-11 rounded-xl border px-3 text-left text-sm font-semibold "+(assurancesVisuelles.includes(assurance)?"border-[#67B8FF] bg-[#DDF0FF] text-[#16446A]":"border-[#D7E5DC] bg-[#F8FBF9] text-[#344B3D]")}>{assurancesVisuelles.includes(assurance)?"✓ ":""}{assurance}</button>)}</div></section>}
