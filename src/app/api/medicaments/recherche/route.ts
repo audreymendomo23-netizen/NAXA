@@ -316,11 +316,7 @@ export async function GET(request: NextRequest) {
         .filter((value): value is string => Boolean(value))
         .map((value) => normaliserTerme(cleanName(value)));
       return productNames.some((productName) => productName === candidateNorm || productName === normalizedDisplayName);
-    }) ?? localProducts.find((product) =>
-      [product.nom, product.dci]
-        .filter(Boolean)
-        .some((value) => normaliserTerme(cleanName(value as string)) === normaliserTerme(cleanName(query)))
-    );
+    });
     const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
     // Une lecture réussie sans ligne de stock signifie zéro pharmacie partenaire pour ce produit.
     // Une erreur de lecture ne doit jamais être présentée comme une indisponibilité confirmée.
