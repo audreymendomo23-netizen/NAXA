@@ -143,7 +143,7 @@ async function localPopularity() {
   const ids = [...counts.keys()];
   if (!ids.length) return [];
   const { data: products, error: productError } = await supabase.from("produits")
-    .select("nom,dci,forme").in("id", ids);
+    .select("id,nom,dci,forme").in("id", ids);
   if (productError) throw productError;
   return (products ?? []).map((p) => ({ ...p, searches: counts.get(p.id) ?? 0 })).sort((a, b) => b.searches - a.searches);
 }
@@ -161,6 +161,12 @@ function scoreRow(row) {
 }
 
 async function savePhoto(row, photo, dryRun) {
+  const { data: prior, error: priorError } = await supabase.from("medicaments_images")
+    .select("image_path,statut").eq("cis", row.cis).limit(1);
+  if (priorError) throw priorError;
+  if (prior?.some((item) => item.image_path && item.statut === "image_stockee")) {
+    return { skipped: true, reason: "photo_deja_stockee" };
+  }
   const { buffer, mime, ext } = await downloadImage(photo.imageUrl);
   const safeCis = String(row.cis).replace(/[^a-zA-Z0-9_-]/g, "_");
   const path = `cameroun/${safeCis}/illustration.${ext}`;
@@ -229,6 +235,11 @@ async function main() {
         continue;
       }
       const saved = await savePhoto(row, photo, DRY_RUN);
+      if (saved.skipped) {
+        report.items.push({ cis: row.cis, nom: row.nom, result: "deja_stockee" });
+        console.log("DÉJÀ STOCKÉE", row.nom);
+        continue;
+      }
       report.stored++;
       report.items.push({ cis: row.cis, nom: row.nom, result: DRY_RUN ? "simulation" : "stockee", source: photo.sourceUrl, licence: photo.licence, ...saved });
       console.log(DRY_RUN ? "SIMULATION" : "STOCKÉE", row.nom, "=>", saved.path);
