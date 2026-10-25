@@ -69,11 +69,55 @@ function creerIllustrationPharmacie(nom: string): string {
 </svg>`;
 }
 
-async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne> {
-  if (!pharmacie.imageUrl) return pharmacie;
+async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null> {
+  const slug = slugPhoto(pharmacie.nom);
+  const variantes = [...new Set([slug, slug.startsWith("pharmacie-") ? slug : \`pharmacie-\${slug}\`])];
+  const nomCle = normaliserNom(pharmacie.nom);
+  const tokens = nomCle.split(" ").filter((token) => token.length >= 4);
 
+  for (const variante of variantes) {
+    try {
+      const pageUrl = \`https://mboapharma.cm/directory/\${variante}/\`;
+      const page = await fetch(pageUrl, {
+        headers: { Accept: "text/html", "User-Agent": "NAXA-pharmacy-directory/1.0" },
+        signal: AbortSignal.timeout(3500),
+        cache: "no-store",
+      });
+      if (!page.ok) continue;
+      const html = await page.text();
+      const title = html.match(/<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/i)?.[1] ?? "";
+      const titleCle = normaliserNom(title.replace(/<[^>]+>/g, " "));
+      // On ne prend une image qu'à partir d'une fiche Mboa dont le titre correspond au nom recherché.
+      if (!titleCle || !(titleCle === nomCle || tokens.every((token) => titleCle.includes(token)))) continue;
+
+      const imageTags = [...html.matchAll(/<img\\b[^>]*>/gi)].map((match) => match[0]);
+      for (const tag of imageTags) {
+        const src = tag.match(/\\b(?:src|data-src)\\s*=\\s*["']([^"']+)["']/i)?.[1];
+        if (!src) continue;
+        const alt = tag.match(/\\balt\\s*=\\s*["']([^"']*)["']/i)?.[1] ?? "";
+        const imageTitle = tag.match(/\\btitle\\s*=\\s*["']([^"']*)["']/i)?.[1] ?? "";
+        try {
+          const image = new URL(src, pageUrl);
+          if (image.protocol !== "https:" || !/(^|\\.)mboapharma\\.cm$/i.test(image.hostname)) continue;
+          const evidence = normaliserNom(\`\${image.pathname} \${alt} \${imageTitle}\`);
+          if (/logo|avatar|placeholder|default|banner|banniere/i.test(image.href)) continue;
+          if (tokens.length && tokens.some((token) => evidence.includes(token))) return image.toString();
+        } catch {
+          // Image invalide : essayer la suivante.
+        }
+      }
+    } catch {
+      // La fiche peut refuser les robots ou être momentanément indisponible.
+    }
+  }
+  return null;
+}
+
+async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne> {
   try {
-    const source = new URL(pharmacie.imageUrl);
+    const sourceUrl = pharmacie.imageUrl ?? await trouverPhotoMboa(pharmacie);
+    if (!sourceUrl) return pharmacie;
+    const source = new URL(sourceUrl);
     if (
       source.protocol !== "https:" ||
       (!/(^|\.)mfasha\.com$/i.test(source.hostname) &&
