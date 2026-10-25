@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
-import { isScrollMotionAuthPath } from "@/lib/scroll-motion";
 
 type RevealProps = {
   children: ReactNode;
@@ -12,7 +10,6 @@ type RevealProps = {
 };
 
 export function Reveal({ children, className = "", delay = 0, as = "div" }: RevealProps) {
-  const pathname = usePathname();
   const elementRef = useRef<HTMLElement | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -41,7 +38,6 @@ export function Reveal({ children, className = "", delay = 0, as = "div" }: Reve
     <Tag
       ref={elementRef as never}
       className={`naxa-reveal ${className}`.trim()}
-      data-scroll={isScrollMotionAuthPath(pathname || "") ? undefined : "rise"}
       data-visible={visible ? "true" : "false"}
       style={{ "--reveal-delay": `${Math.max(0, Math.min(delay, 600))}ms` } as CSSProperties}
     >

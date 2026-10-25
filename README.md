@@ -319,13 +319,3 @@ Chargeur serveur mutualisé avec `React cache()`, layout commun, rail de navigat
 ### Logo de pharmacie sur les tickets
 
 Les logos sont stockés dans `pharmacies-photos/logos/<pharmacie_id>/`. Les politiques d'écriture Storage sont limitées au Promoteur actif lié à une pharmacie active. L'API serveur vérifie le rôle et le lien avant toute modification de `pharmacies.logo_url`.
-
-
-## Système d'animation scroll (octobre 2026)
-
-- Le moteur maison est centralisé dans \`src/lib/scroll-motion.ts\` et monté une seule fois via \`ScrollMotionProvider\` depuis \`src/app/layout.tsx\`. Aucune dépendance d'animation supplémentaire.
-- Le provider classe les routes en intensité cinématique, allégée ou authentification. Les pages bénéficient automatiquement de reveals pilotés par le défilement, parallaxe subtile des grandes images, compactage visuel du header et transition de route.
-- API disponible : \`ScrollScene\`, \`ScrollItem\`, \`ScrollStagger\` depuis \`src/components/ScrollMotion.tsx\`; les attributs \`data-scene\`, \`data-scroll\`, \`data-speed\`, \`data-from\`, \`data-to\`, \`data-start\` et \`data-end\` peuvent renforcer une section. \`Reveal\` conserve son API historique et reste exclu de la cascade automatique d'authentification.
-- Safari iOS : pas de CSS ScrollTimeline, scroll natif conservé, unités \`svh\` avec repli \`vh\`, progression clampée, redimensionnement par variation de largeur ou changement de hauteur d'au moins 120 px, et désactivation de l'épinglage en paysage court.
-- \`prefers-reduced-motion\`, \`saveData\` et les appareils à deux cœurs ou moins activent une version sans flou/parallaxe ou sans mouvement. Les données métier, la navigation, la caisse, l'authentification et les providers globaux ne sont pas modifiés.
-- Les scènes épinglées sont disponibles explicitement via \`ScrollScene\`; le moteur automatique ne fabrique pas de contenu de scène ni d'images absentes du catalogue d'assets.
