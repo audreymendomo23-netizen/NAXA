@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PhotoPharmacie } from "@/components/PhotoPharmacie";
 
 export type PharmacieGardeCard = {
@@ -24,27 +24,43 @@ function nettoyerTelephone(value: string): string {
 
 export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
   const [selection, setSelection] = useState<PharmacieGardeCard | null>(null);
+  const [indexVisible, setIndexVisible] = useState(0);
+
+  useEffect(() => {
+    if (pharmacies.length < 2 || selection) return;
+    const interval = window.setInterval(() => {
+      setIndexVisible((index) => (index + 1) % pharmacies.length);
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [pharmacies.length, selection]);
+
+  const pharmacieVisible = pharmacies.length ? pharmacies[indexVisible % pharmacies.length] : null;
 
   return (
     <>
-      <ul className="space-y-3">
-        {pharmacies.map((p) => (
-          <li key={p.id} className="carte overflow-hidden space-y-0">
-            <button
-              type="button"
-              onClick={() => setSelection(p)}
-              className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
-              aria-label={`Voir les coordonnées publiques de ${p.nom}`}
-            >
-              <PhotoPharmacie nom={p.nom} src={p.imageUrl} lieu={p.quartier} illustration={p.imageType === "illustration"} />
-              <span className="block font-bold text-naxa-green-900">{p.nom}</span>
-              {p.quartier && <span className="mt-1 block text-sm text-slate-600">{p.quartier}</span>}
-              <span className="mt-1 block text-sm font-semibold text-naxa-green-700">Ouvrir la fiche · contact et localisation</span>
-              <span className="mt-2 block text-[10px] text-slate-400">Source du planning de garde : Mfasha</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {pharmacieVisible && (
+        <section aria-live="polite" aria-atomic="true" className="space-y-2">
+          <p className="text-center text-xs text-slate-500">
+            Pharmacie {indexVisible + 1} sur {pharmacies.length} · changement automatique toutes les 3 secondes
+          </p>
+          <ul className="grid grid-cols-1 gap-3">
+            <li key={pharmacieVisible.id} className="carte animate-[pharmacieFadeIn_300ms_ease-in-out] overflow-hidden space-y-0">
+              <button
+                type="button"
+                onClick={() => setSelection(pharmacieVisible)}
+                className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
+                aria-label={`Voir les coordonnées publiques de ${pharmacieVisible.nom}`}
+              >
+                <PhotoPharmacie nom={pharmacieVisible.nom} src={pharmacieVisible.imageUrl} lieu={pharmacieVisible.quartier} illustration={pharmacieVisible.imageType === "illustration"} />
+                <span className="block font-bold text-naxa-green-900">{pharmacieVisible.nom}</span>
+                {pharmacieVisible.quartier && <span className="mt-1 block text-sm text-slate-600">{pharmacieVisible.quartier}</span>}
+                <span className="mt-1 block text-sm font-semibold text-naxa-green-700">Ouvrir la fiche · contact et localisation</span>
+                <span className="mt-2 block text-[10px] text-slate-400">Source du planning de garde : Mfasha</span>
+              </button>
+            </li>
+          </ul>
+        </section>
+      )}
 
       {selection && (
         <div
