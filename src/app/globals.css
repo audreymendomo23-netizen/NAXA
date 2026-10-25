@@ -501,9 +501,6 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-client-tabs { display:flex; flex-wrap:wrap; overflow-x:visible; scroll-snap-type:none; scrollbar-width:none; touch-action:pan-y; }
 .naxa-client-tabs::-webkit-scrollbar { display:none; }
 .naxa-client-tabs > button { flex:0 0 auto; scroll-snap-align:none; }
-.naxa-garde-card, .naxa-garde-card button { background-color:#FFE23D !important; }
-.naxa-garde-card button { color:#0B3D26; }
-.naxa-garde-card button :is(.text-slate-600,.text-slate-400) { color:#53685C; }
 html.naxa-dark { color-scheme:dark; background:#07120C; }
 html.naxa-dark body { background:#07120C !important; color:#E7F3EA; }
 html.naxa-dark .naxa-home-shell { background:#07120C !important; color:#E7F3EA !important; }
