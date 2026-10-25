@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { chargerGardesMfasha, MFASHA_SOURCE_URL } from "@/lib/pharmacies-gardes/mfasha";
 import { PharmaciesGardeListe } from "@/components/gardes/PharmaciesGardeListe";
+import { PhotoPharmacie } from "@/components/PhotoPharmacie";
 
 export const dynamic = "force-dynamic";
 
