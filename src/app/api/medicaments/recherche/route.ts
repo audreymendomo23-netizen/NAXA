@@ -31,6 +31,8 @@ function cleanPublicText(value: unknown, max = 520): string | null {
   const withoutMarkup = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   const safeSentences = withoutMarkup
     .split(/(?<=[.!?])\s+/)
+    // Masquer les URL malformées issues d'anciennes données importées.
+    .filter((sentence) => !/https?:\s*(?:\+\s*)+/i.test(sentence))
     .filter((sentence) => !/\b(dosage|dose|mg|mcg|µg|milligram|milliliter|take\b|administer|daily|every\b|once\b|twice\b|posologie)\b/i.test(sentence))
     .map((sentence) => cleanName(sentence))
     .filter(Boolean);
@@ -298,7 +300,7 @@ export async function GET(request: NextRequest) {
   for (const candidate of uniqueCandidates.values()) {
     if (!candidates.some((existing) => normaliserTerme(existing.rawName) === normaliserTerme(candidate.rawName))) candidates.push(candidate);
   }
-  const results = candidates.slice(0, 10).map((candidate, index) => {
+  const results = candidates.map((candidate, index) => {
     const raw = candidate.rawName;
     const localizedGeneric = Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
     const formInName = formFromText(raw);
@@ -309,7 +311,13 @@ export async function GET(request: NextRequest) {
       return productNames.some((productName) => productName === candidateNorm || productName === normaliserTerme(name) || productName.includes(candidateNorm) || candidateNorm.includes(productName));
     }) ?? localProducts.find((product) => [product.nom, product.dci].filter(Boolean).some((value) => normaliserTerme(value as string) === normaliserTerme(query)));
     const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
-    const availability = !localProduct || !localStocks.verified ? "non_verifiee" : stock?.pharmacies ? "disponible" : "indisponible";
+    // Une lecture réussie sans ligne de stock signifie zéro pharmacie partenaire pour ce produit.
+    // Une erreur de lecture ne doit jamais être présentée comme une indisponibilité confirmée.
+    const availability = !localProduct || !localStocks.verified
+      ? "non_verifiee"
+      : stock !== undefined && stock.pharmacies > 0
+        ? "disponible"
+        : "indisponible";
     const brand = fdaField(preferredFda, "brand_name").find((value) => candidateNorm.includes(normaliserTerme(value))) ?? null;
     const activeIngredient = pilot?.substanceFr ?? cleanName(genericName) ?? null;
     const formValue = formFromText(form) || formInName || (form ? cleanName(form) : null);
@@ -359,7 +367,7 @@ export async function GET(request: NextRequest) {
           ? "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + matchedDaily.setid
           : "https://open.fda.gov/apis/drug/label/",
       availability,
-      partnerPharmacyCount: stock?.pharmacies ?? null,
+      partnerPharmacyCount: localProduct && localStocks.verified ? (stock?.pharmacies ?? 0) : null,
       lowestPartnerPrice: stock?.lowestPrice ?? null,
       localProductId: localProduct?.id ?? null,
       localInformationValidated: localProduct?.fiche_validee === true,
