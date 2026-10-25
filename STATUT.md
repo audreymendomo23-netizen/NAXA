@@ -1,3 +1,10 @@
+## Correctif visuel accueil client et BottomNav — 25/10/2026
+- Ajout d'une carte photo plein cadre autour du bloc de bienvenue, recherche et filtres de l'accueil client ; le contenu et ses interactions sont conservés, avec une composition responsive et un voile vert léger.
+- Photo choisie dans les ressources déjà présentes : `/couvertures/pharmacies-garde.webp` ; aucun fichier externe ajouté. La carte photo déjà présente sous les filtres et la page Achats ne sont pas modifiées.
+- Réservation d'un espace bas sur les pages du parcours client : hauteur BottomNav + `env(safe-area-inset-bottom)` + 24 px, sans supprimer de contenu.
+- Aucun changement Supabase, middleware, PWA, Luciole, IntroNaxa, AmbulanceGlobale ou AnimationPanierGlobale.
+- Build local : non exécuté à ce stade ; validation à effectuer après le commit.
+
 # NAXA — Statut opérationnel consolidé
 
 ## ERP-008 — Socle assurances / tiers payant

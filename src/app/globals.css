@@ -1264,3 +1264,14 @@ small,
   transition: none !important;
   scroll-behavior: auto !important;
 }
+
+
+/* Réserve l'espace complet de la BottomNav et de la zone de sécurité sur les pages du parcours client. */
+.naxa-immersive-page {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+/* L'accueil gère déjà sa propre réserve sous la navigation fixe. */
+.naxa-immersive-page:has(.naxa-home-shell) {
+  padding-bottom: 0;
+}

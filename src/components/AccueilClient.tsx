@@ -452,18 +452,24 @@ export function AccueilClient() {
 
   return <div className="naxa-home-shell min-h-dvh pb-[calc(92px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
     <main className="relative z-10 mx-auto w-full max-w-[480px] rounded-t-[24px] border-t border-white/80 bg-[#F4F8F5] px-4 pt-6 shadow-[0_-8px_24px_rgba(5,74,41,0.06)]">
-      <div className="naxa-enter mb-5">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <section className="relative left-1/2 mb-5 w-screen -translate-x-1/2 px-4 sm:px-5 md:px-6" aria-label="Accueil et recherche de médicaments">
+        <div className="relative isolate mx-auto w-full max-w-[1200px] overflow-hidden rounded-[32px] border border-white/30 shadow-[0_18px_42px_rgba(6,75,42,0.18)]">
+          <Image src="/couvertures/pharmacies-garde.webp" alt="" fill priority={false} sizes="100vw" className="object-cover object-[72%_center] md:object-[76%_center]" />
+          <div className="absolute inset-0" aria-hidden="true" style={{ background: "linear-gradient(105deg, rgba(6,75,42,0.72) 0%, rgba(6,75,42,0.48) 52%, rgba(6,75,42,0.12) 100%)" }} />
+          <div className="relative z-10 grid grid-cols-1 gap-6 p-5 sm:p-6 md:min-h-[320px] md:grid-cols-[minmax(0,60%)_minmax(0,40%)] md:gap-0 md:p-8">
+            <div className="min-w-0">
+              <div className="naxa-enter mb-5">
+                <div className="flex min-w-0 items-center gap-2.5">
           <BoutonTheme className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF3B0] text-[#0F6B3F] shadow-sm" />
-          <h1 className="min-w-0 text-[clamp(20px,5.7vw,26px)] font-extrabold leading-tight tracking-[-0.035em] text-[#0B3D26]">{hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? "Bonsoir" : "Bonjour"}, <span className="text-[#B18A00]">{firstName}</span> !</h1>
+          <h1 className="min-w-0 text-[clamp(20px,5.7vw,26px)] font-extrabold leading-tight tracking-[-0.035em] text-white drop-shadow-[0_1px_5px_rgba(0,0,0,0.24)]">{hourLocale !== null && (hourLocale >= 18 || hourLocale < 5) ? "Bonsoir" : "Bonjour"}, <span className="text-[#FFE33D]">{firstName}</span> !</h1>
         </div>
-        <p className="mt-2 text-[16px] font-bold leading-6 text-[#0F6B3F]">Quel médicament recherchez-vous aujourd'hui ?</p>
-        <p className="mt-1 text-[13px] leading-5 text-[#53685C]">Livraison rapide par les pharmacies vérifiées</p>
+        <p className="mt-2 text-[16px] font-bold leading-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Quel médicament recherchez-vous aujourd'hui ?</p>
+        <p className="mt-1 text-[13px] leading-5 text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Livraison rapide par les pharmacies vérifiées</p>
       </div>
 
       <div ref={searchWrapRef} className="naxa-enter relative z-30 mb-3">
         <form onSubmit={soumettre} className="flex gap-2">
-          <label className="group flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D8E5DC] bg-[#FBFDFC] px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10">
+          <label className="group flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-white bg-white px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10">
             <IconeNAXA name="search" size={21} className="shrink-0 text-[#0B3D26] transition-transform group-focus-within:scale-110"/>
             <input value={query} onFocus={()=>setSuggestionsOuvertes(true)} onChange={e=>{setQuery(e.target.value);setSuggestionsOuvertes(true)}} placeholder="Ex. Paracétamol, Coartem..." aria-label="Rechercher un médicament" aria-autocomplete="list" aria-expanded={suggestionsOuvertes&&query.trim().length>=2&&suggestions.length>0} className="min-w-0 flex-1 bg-transparent text-sm text-[#0B3D26] outline-none placeholder:text-[#7D8E84]"/>
           </label>
@@ -475,7 +481,12 @@ export function AccueilClient() {
       </div>
       <div className="naxa-enter mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
         <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
-      </div>
+              </div>
+            </div>
+            <div className="hidden min-h-[280px] md:block" aria-hidden="true" />
+          </div>
+        </div>
+      </section>
 
       <div className="naxa-enter mb-5">
         <div className="relative isolate h-[148px] overflow-hidden rounded-[24px] border border-[#D7E7DC] bg-[#0B3D26] shadow-[0_10px_26px_rgba(5,74,41,0.16)] sm:h-[172px]" aria-label="Photographie d’illustration de l’accueil NAXA">
