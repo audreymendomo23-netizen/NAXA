@@ -857,17 +857,28 @@ html[data-theme="jour"] .naxa-night-wave {
 }
 
 
-/* Switch exclusif : la luciole principale cède la place à sa compagne pendant la transformation. */
+/* Switch exclusif animé : sortie de la luciole, puis entrée de sa compagne. */
 .naxa-luciole { --luciole-fairy-scale: .78; }
-.naxa-luciole .luciole-anatomy { transition: opacity 900ms ease, transform 900ms cubic-bezier(.2,.8,.25,1); }
-.naxa-luciole .luciole-insect { opacity: 1; transform: scale(1); }
+.naxa-luciole .luciole-anatomy { transition: opacity 220ms ease, transform 900ms cubic-bezier(.2,.8,.25,1); }
+.naxa-luciole .luciole-insect { opacity: 1; visibility: visible; transform: scale(1); }
 .naxa-luciole .luciole-fairy {
   opacity: 0;
+  visibility: hidden;
   transform: translate(15px,-13px) scale(.35) rotate(-8deg);
   transform-origin: 24px 24px;
   filter: drop-shadow(0 0 5px rgba(69,245,140,.55));
 }
-/* Jamais les deux personnages visibles simultanément : switch visuel exclusif. */
+/* Première phase : seule la luciole principale est visible pendant son fondu. */
+.naxa-luciole.luciole-fairy-transitioning .luciole-insect {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.72);
+}
+.naxa-luciole.luciole-fairy-transitioning .luciole-fairy {
+  opacity: 0;
+  visibility: hidden;
+}
+/* Deuxième phase : la compagne entre après la disparition de la principale. */
 .naxa-luciole.luciole-fairy-entering .luciole-insect,
 .naxa-luciole.luciole-fairy-visible .luciole-insect {
   opacity: 0;
@@ -877,6 +888,7 @@ html[data-theme="jour"] .naxa-night-wave {
 .naxa-luciole.luciole-fairy-entering .luciole-fairy,
 .naxa-luciole.luciole-fairy-visible .luciole-fairy {
   opacity: 1;
+  visibility: visible;
   transform: translate(15px,-13px) scale(var(--luciole-fairy-scale)) rotate(0deg);
 }
 .naxa-luciole.luciole-fairy-entering .luciole-fairy { animation: luciole-companion-arrive 900ms cubic-bezier(.2,.8,.25,1) both; }
@@ -885,7 +897,7 @@ html[data-theme="jour"] .naxa-night-wave {
   visibility: hidden;
   transform: translate(24px,-19px) scale(.58) rotate(12deg);
 }
-.naxa-luciole.luciole-fairy-leaving .luciole-insect { opacity: 1; transform: scale(1); }
+.naxa-luciole.luciole-fairy-leaving .luciole-insect { opacity: 1; visibility: visible; transform: scale(1); }
 .naxa-luciole .luciole-fairy-wings {
   transform-origin: 24px 22px;
   animation: luciole-companion-wing-shimmer 1.8s ease-in-out infinite alternate;
@@ -910,10 +922,11 @@ html[data-theme="jour"] .naxa-night-wave {
   .naxa-luciole .luciole-anatomy,
   .naxa-luciole.luciole-fairy-entering .luciole-fairy,
   .naxa-luciole .luciole-fairy-wings { animation: none !important; transition: none !important; }
-  .naxa-luciole.luciole-fairy-entering .luciole-fairy,
-  .naxa-luciole.luciole-fairy-visible .luciole-fairy { opacity: 1; transform: translate(15px,-13px) scale(var(--luciole-fairy-scale)); }
+  .naxa-luciole.luciole-fairy-transitioning .luciole-insect,
   .naxa-luciole.luciole-fairy-entering .luciole-insect,
-  .naxa-luciole.luciole-fairy-visible .luciole-insect { opacity: 0; }
+  .naxa-luciole.luciole-fairy-visible .luciole-insect { opacity: 0; visibility: hidden; }
+  .naxa-luciole.luciole-fairy-entering .luciole-fairy,
+  .naxa-luciole.luciole-fairy-visible .luciole-fairy { opacity: 1; visibility: visible; transform: translate(15px,-13px) scale(var(--luciole-fairy-scale)); }
 }
 
 /* Battements d'ailes et poussière lumineuse discrète de la deuxième luciole. */
