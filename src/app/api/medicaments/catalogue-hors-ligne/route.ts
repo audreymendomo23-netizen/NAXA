@@ -27,6 +27,7 @@ export async function GET() {
     const { data, error } = await sb
       .from("produits")
       .select("id,nom,dci,forme,synonymes,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,source_fiche,fiche_validee")
+      .eq("fiche_validee", true)
       .order("nom", { ascending: true })
       .limit(500);
 
