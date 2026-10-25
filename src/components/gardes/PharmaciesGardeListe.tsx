@@ -31,7 +31,8 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
   const afficherPharmacie = (index: number, behavior: ScrollBehavior = "smooth") => {
     if (!pharmacies.length || !railRef.current) return;
     const nextIndex = (index + pharmacies.length) % pharmacies.length;
-    railRef.current.scrollTo({ left: nextIndex * railRef.current.clientWidth, behavior });
+    const slide = railRef.current.children.item(nextIndex) as HTMLElement | null;
+    railRef.current.scrollTo({ left: slide?.offsetLeft ?? nextIndex * railRef.current.clientWidth, behavior });
     setIndexVisible(nextIndex);
   };
 
