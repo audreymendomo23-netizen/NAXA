@@ -13,6 +13,7 @@ import { notifierNAXA } from "@/components/NotificationGlobale";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 import { normaliserRecherche, suggestionsMedicaments } from "@/lib/accueil-textes";
 import CartePharmaciesProches from "@/components/CartePharmaciesProches";
+import { PharmaciesGardeListe } from "@/components/gardes/PharmaciesGardeListe";
 
 type Produit = {
   id: string;
@@ -35,7 +36,7 @@ type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
   adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null; horaires: string | null; stock_updated_at: string | null;
 };
-type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; periode: string | null; source: string };
+type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; imageType?: "photo-verifiee" | "photo-source" | "illustration"; periode: string | null; horaires?: string | null; source: string };
 type StockRow = {
   produit_id: string; pharmacie_id: string; prix: number; quantite: number;
   date_peremption: string | null;
@@ -526,29 +527,31 @@ export function AccueilClient() {
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
       </section>}
 
-      <section className="mb-6">
+            <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
         <div className="overflow-hidden rounded-[22px] border border-[#D7E7DC] bg-gradient-to-br from-white to-[#EDF7F0] shadow-[0_12px_28px_rgba(5,74,41,0.12)]">
           <div className="border-b border-[#E0EAE3] px-4 py-3">
-            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proche de vous</h3>
-            <p className="mt-1 text-xs font-medium text-[#64776B]">Liste externe actualisée automatiquement · période et numéros à confirmer par téléphone.</p>
+            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proches de vous</h3>
+            <p className="mt-1 text-xs font-medium text-[#64776B]">Une pharmacie à la fois · passage automatique toutes les 3 secondes · glissez horizontalement pour parcourir la liste.</p>
           </div>
-          {gardes.length ? <div className="naxa-carousel-viewport overflow-hidden">
-            <div className="naxa-carousel-loop naxa-gardes-loop flex w-max">{[false,true].map(copy => <div key={copy?"gardes-copie":"gardes-originales"} aria-hidden={copy||undefined} className="flex w-[calc(min(100vw,480px)-2rem)] shrink-0 flex-col">
-              {gardes.map((p) => copy ? <div key={p.id} className="pointer-events-none mx-3 my-2 flex min-h-[112px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-[18px] border border-[#DDE3DE] bg-white px-3 py-3 shadow-[0_3px_12px_rgba(60,64,67,0.16)]">
-                <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]"><span className="text-2xl text-[#0F6B3F]" aria-label="Photo non disponible">✚</span></span>
-                <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{p.quartier || "Yaoundé"}</span></span>
-                <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-              </div> : <Link key={p.id} href="/gardes" className="mx-3 my-2 flex min-h-[112px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-[18px] border border-[#DDE3DE] bg-white px-3 py-3 shadow-[0_3px_12px_rgba(60,64,67,0.16)]">
-                <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]">{p.imageUrl ? <img src={p.imageUrl} alt={`Pharmacie ${p.nom}`} loading="lazy" className="h-full w-full object-cover" /> : <span className="text-2xl text-[#0F6B3F]" aria-label="Photo non disponible">✚</span>}</span>
-                <span className="min-w-0 flex-1"><strong className="block text-[16px] leading-5 text-[#0B3D26]">{p.nom}</strong><span className="mt-1 block text-[13px] text-[#64776B]">{p.quartier || "Yaoundé"}{p.telephone ? ` · ${p.telephone}` : ""}</span></span>
-                <span className="shrink-0 rounded-xl bg-[#FFE23D] px-2 py-2 text-xs font-extrabold text-[#0B3D26]">De garde</span>
-              </Link>)}
-            </div>)}</div>
-          </div> : <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
-            <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]"><span className="text-2xl text-[#0F6B3F]" aria-label="Photo non disponible">✚</span></span>
-            <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
-          </div>}
+          {gardes.length ? (
+            <div className="p-3">
+              <PharmaciesGardeListe
+                pharmacies={gardes.map((pharmacie) => ({
+                  ...pharmacie,
+                  source: pharmacie.source.startsWith("http") ? pharmacie.source : "https://mfasha.com/",
+                }))}
+                sourceAnnuaireUrl="https://mboapharma.cm/single-location-3/yaounde/?directory_type=pharmacie&view=list"
+              />
+            </div>
+          ) : (
+            <div className="flex min-h-[104px] items-center gap-3 px-4 py-3">
+              <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]">
+                <span className="text-2xl text-[#0F6B3F]" aria-hidden="true">✚</span>
+              </span>
+              <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
+            </div>
+          )}
         </div>
         <Link href="/gardes" aria-label="Consulter la liste complète des pharmacies de garde" className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-[#0F6B3F] underline underline-offset-2">Consulter la liste complète</Link>
       </section>
