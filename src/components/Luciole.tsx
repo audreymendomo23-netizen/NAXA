@@ -185,6 +185,7 @@ export function Luciole() {
       firefly.classList.remove("luciole-sitting", "luciole-yawning", "luciole-teleporting");
     };
     let fairyTimer: number | undefined;
+    let fairyTransitionTimer: number | undefined;
     let fairyFlutterTimer: number | undefined;
     let fairyFlutterEndTimer: number | undefined;
     let fairyVisible = false;
@@ -213,9 +214,11 @@ export function Luciole() {
       if (!fairyVisible) return;
       fairyVisible = false;
       if (fairyTimer) window.clearTimeout(fairyTimer);
+      if (fairyTransitionTimer) window.clearTimeout(fairyTransitionTimer);
       fairyTimer = undefined;
+      fairyTransitionTimer = undefined;
       stopFairyFlutter();
-      firefly.classList.remove("luciole-fairy-entering", "luciole-fairy-visible");
+      firefly.classList.remove("luciole-fairy-transitioning", "luciole-fairy-entering", "luciole-fairy-visible");
       firefly.classList.add("luciole-fairy-leaving");
       window.setTimeout(() => firefly.classList.remove("luciole-fairy-leaving"), LUCIOLE_TIMING.fairyFade);
     };
@@ -223,12 +226,25 @@ export function Luciole() {
       if (sleeping || sleepPending || guidedTarget || businessGesture || fairyVisible || !motionAllowed) return;
       clearRandomSpecial();
       fairyVisible = true;
-      firefly.classList.remove("luciole-fairy-leaving");
-      firefly.classList.add("luciole-fairy-entering");
+      firefly.classList.remove("luciole-fairy-leaving", "luciole-fairy-entering", "luciole-fairy-visible");
+      // Étape 1 : la luciole principale s'efface seule.
+      // Étape 2 : la compagne entre avec l'animation d'origine, sans chevauchement visuel.
+      firefly.classList.add("luciole-fairy-transitioning");
       burst();
-      scheduleFairyFlutter();
-      window.setTimeout(() => { if (fairyVisible) { firefly.classList.remove("luciole-fairy-entering"); firefly.classList.add("luciole-fairy-visible"); } }, LUCIOLE_TIMING.fairyFade);
-      fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration);
+      fairyTransitionTimer = window.setTimeout(() => {
+        fairyTransitionTimer = undefined;
+        if (!fairyVisible) return;
+        firefly.classList.remove("luciole-fairy-transitioning");
+        firefly.classList.add("luciole-fairy-entering");
+        scheduleFairyFlutter();
+        fairyTimer = window.setTimeout(() => {
+          if (fairyVisible) {
+            firefly.classList.remove("luciole-fairy-entering");
+            firefly.classList.add("luciole-fairy-visible");
+          }
+        }, LUCIOLE_TIMING.fairyFade);
+      }, 220);
+      fairyTimer = window.setTimeout(returnToFirefly, LUCIOLE_TIMING.fairyDuration + 220);
     };
     const onFairyTripleTouch = (event: PointerEvent) => {
       if (event.pointerType !== "touch" || sleeping || sleepPending) return;
@@ -540,6 +556,7 @@ export function Luciole() {
       document.removeEventListener("pointerdown", onInteraction);
       document.removeEventListener("pointerdown", onFairyTripleTouch);
       if (fairyTimer) window.clearTimeout(fairyTimer);
+      if (fairyTransitionTimer) window.clearTimeout(fairyTransitionTimer);
       stopFairyFlutter();
       document.removeEventListener("keydown", onInteraction);
       document.removeEventListener("focusin", onInteraction);
