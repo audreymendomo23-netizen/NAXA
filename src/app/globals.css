@@ -1059,3 +1059,131 @@ html[data-theme="jour"] .naxa-night-wave {
 @media (min-width: 1024px) {
   .nav-promoteur-label { display: block; }
 }
+
+
+/* Accessibilité typographique responsive globale — conserve strictement les couleurs existantes. */
+html {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  overflow-wrap: break-word;
+}
+
+body {
+  font-size: 16px;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+:where(p, li, dd, dt, label, legend, figcaption, blockquote, summary) {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.2;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+:where(button, input, textarea, select, option) {
+  font: inherit;
+  line-height: 1.35;
+}
+
+:where(input, textarea, select) {
+  max-width: 100%;
+}
+
+:where(img, video, canvas, svg) {
+  max-width: 100%;
+}
+
+:where(pre, code) {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+:where(table) {
+  max-width: 100%;
+}
+
+:where(th, td) {
+  overflow-wrap: anywhere;
+}
+
+:where(small, .text-xs, [class~="text-[10px]"], [class~="text-[11px]"]) {
+  font-size: max(0.75rem, 12px);
+  line-height: 1.4;
+}
+
+.text-sm {
+  font-size: max(0.875rem, 14px);
+  line-height: 1.45;
+}
+
+:where(.font-light, .font-thin) {
+  font-weight: 400;
+}
+
+@media (max-width: 639px) {
+  :where(h1, .text-4xl, .text-5xl, .text-6xl) {
+    font-size: clamp(1.5rem, 6vw, 2.25rem);
+    line-height: 1.15;
+  }
+
+  :where(h2, .text-3xl) {
+    font-size: clamp(1.25rem, 4.8vw, 1.875rem);
+    line-height: 1.2;
+  }
+
+  :where(h3, .text-2xl) {
+    font-size: clamp(1.125rem, 4vw, 1.5rem);
+    line-height: 1.25;
+  }
+
+  :where(button, [role="button"], a) {
+    overflow-wrap: anywhere;
+  }
+
+  :where(input, textarea, select) {
+    min-width: 0;
+    font-size: max(1rem, 16px);
+  }
+
+  :where(table) {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :where(.grid) {
+    min-width: 0;
+  }
+
+  :where(.grid > *, .flex > *) {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  :where(h1) {
+    line-height: 1.18;
+  }
+
+  :where(.grid > *, .flex > *) {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  :where(p, li, dd, dt) {
+    text-wrap: pretty;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :where(button, a, input, textarea, select, summary, [role="button"]) {
+    text-decoration-thickness: max(1px, 0.08em);
+  }
+}
