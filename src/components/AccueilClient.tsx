@@ -383,12 +383,14 @@ export function AccueilClient() {
         if (cancelled) return;
         const minutes = Math.max(1, Math.round((estimate.duration as number) / 60));
         const routeKm = Number.isFinite(estimate.distance) ? ((estimate.distance as number) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-        const lieu = [nearest.quartier, nearest.ville].filter(Boolean).join(", ");
-        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}. Trajet estimé en voiture : environ ${minutes} min (${routeKm} km). Trafic en temps réel : données non disponibles.`);
+        const lieu = [nearest.adresse, nearest.quartier, nearest.ville].filter(Boolean).join(", ");
+        const garde = nearest.de_garde ? " Statut déclaré : pharmacie de garde." : "";
+        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}. Trajet estimé en voiture : environ ${minutes} min (${routeKm} km).${garde} Trafic en temps réel : données non disponibles.`);
       } catch {
         if (cancelled) return;
-        const lieu = [nearest.quartier, nearest.ville].filter(Boolean).join(", ");
-        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}, à environ ${nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km à vol d’oiseau. Temps de trajet et trafic indisponibles pour le moment.`);
+        const lieu = [nearest.adresse, nearest.quartier, nearest.ville].filter(Boolean).join(", ");
+        const garde = nearest.de_garde ? " Statut déclaré : pharmacie de garde." : "";
+        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}, à environ ${nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km à vol d’oiseau.${garde} Temps de trajet et trafic indisponibles pour le moment.`);
       }
     })();
     return () => { cancelled = true; };
