@@ -871,7 +871,7 @@ html[data-theme="jour"] .naxa-night-wave {
 /* Première phase : seule la luciole principale est visible pendant son fondu. */
 .naxa-luciole.luciole-fairy-transitioning .luciole-insect {
   opacity: 0;
-  visibility: hidden;
+  visibility: visible;
   transform: scale(.72);
 }
 .naxa-luciole.luciole-fairy-transitioning .luciole-fairy {
