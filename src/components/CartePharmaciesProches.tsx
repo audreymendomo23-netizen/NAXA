@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
 
 type PharmacieCarte = {
   id: string;
@@ -22,7 +21,6 @@ type PharmacieCarte = {
 type Point = { lat: number; lng: number };
 
 type LeafletLayer = { addTo(map: LeafletMap): LeafletLayer; bindPopup(html: string): LeafletLayer; openPopup(): LeafletLayer; on(event: string, handler: () => void): LeafletLayer; remove(): LeafletLayer };
-type Disponibilite = { id: string; nom: string; dosage: string | null; forme: string | null; prix: number; quantite: number };
 type LeafletMap = {
   setView(point: [number, number], zoom: number): LeafletMap;
   fitBounds(bounds: [[number, number], [number, number]], options?: { padding?: [number, number]; maxZoom?: number }): LeafletMap;
@@ -69,14 +67,6 @@ function chargerLeaflet(): Promise<LeafletApi> {
   });
 }
 
-function popupHtml(p: PharmacieCarte) {
-  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-  const safe = (value: string) => value.replace(/[&<>"']/g, char => replacements[char] ?? char);
-  const location = [p.quartier, p.ville].filter(Boolean).join(", ");
-  const distanceText = p.distanceKm == null ? "Distance indisponible" : p.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " km";
-  return '<div style="min-width:160px"><strong>' + safe(p.nom) + '</strong><div>' + safe(location || p.adresse || "Adresse à confirmer") + '</div><div>' + safe(distanceText) + '</div>' + (p.de_garde ? '<div style="color:#0F6B3F;font-weight:700">Pharmacie de garde</div>' : "") + '</div>';
-}
-
 export default function CartePharmaciesProches({
   pharmacies,
   position,
@@ -91,9 +81,6 @@ export default function CartePharmaciesProches({
   const markersRef = useRef<Map<string, LeafletLayer>>(new Map());
   const userMarkerRef = useRef<LeafletLayer | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedPharmacy, setSelectedPharmacy] = useState<PharmacieCarte | null>(null);
-  const [disponibilites, setDisponibilites] = useState<Disponibilite[]>([]);
-  const [disponibilitesState, setDisponibilitesState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [mapError, setMapError] = useState("");
   const [mapReady, setMapReady] = useState(false);
   const pharmaciesAvecGPS = useMemo(
@@ -145,11 +132,8 @@ export default function CartePharmaciesProches({
         }),
         title: p.nom,
         alt: "Pharmacie " + p.nom,
-      }).addTo(map).bindPopup(popupHtml(p));
-      marker.on("click", () => {
-        setSelectedId(p.id);
-        setSelectedPharmacy(p);
-      });
+      }).addTo(map);
+      marker.on("click", () => setSelectedId(p.id));
       markersRef.current.set(p.id, marker);
       bounds.push(point);
     });
@@ -162,7 +146,7 @@ export default function CartePharmaciesProches({
           iconAnchor: [12, 12],
         }),
         title: "Votre position",
-      }).addTo(map).bindPopup("Votre position (visible uniquement sur votre appareil)");
+      }).addTo(map);
       userMarkerRef.current = you;
       bounds.push([position.lat, position.lng]);
     }
@@ -174,23 +158,15 @@ export default function CartePharmaciesProches({
 
   const ouvrirPharmacie = useCallback((p: PharmacieCarte) => {
     setSelectedId(p.id);
-    setSelectedPharmacy(p);
     const map = mapRef.current;
     const marker = markersRef.current.get(p.id);
     if (map && p.lat != null && p.lng != null) {
       map.setView([p.lat, p.lng], 16);
-      marker?.openPopup();
+
     }
   }, []);
 
-  const selectedPharmacyId = selectedPharmacy?.id;
-
-  useEffect(() => {
-    let active = true;
-    if (!selectedPharmacyId) {
-      setDisponibilites([]);
-      setDisponibilitesState("idle");
-      return () => { active = false; };
+  return () => { active = false; };
     }
     setDisponibilites([]);
     setDisponibilitesState("loading");
@@ -253,8 +229,8 @@ export default function CartePharmaciesProches({
       </div>
       <div className="border-t border-[#E5EEE8] p-3 sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h4 className="font-extrabold text-[#0B3D26]">Liste synchronisée</h4>
-          <span className="text-xs text-[#64776B]">Touchez une pharmacie pour la repérer</span>
+          <h4 className="font-extrabold text-[#0B3D26]">Repères à proximité</h4>
+          <span className="text-xs text-[#64776B]">Les détails seront communiqués par notification</span>
         </div>
         {pharmacies.length === 0 ? <p className="rounded-xl bg-[#F4F8F5] p-3 text-sm text-[#64776B]">Aucun partenaire visible pour le moment.</p> : (
           <ul className="max-h-[300px] space-y-2 overflow-y-auto">
@@ -276,40 +252,6 @@ export default function CartePharmaciesProches({
           </ul>
         )}
       </div>
-      {selectedPharmacy && <div className="border-t border-[#D7E7DC] bg-[#F7FAF7] p-4 sm:p-5" aria-live="polite">
-        <div className="flex items-start gap-3">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-black ${selectedPharmacy.de_garde ? "bg-[#FFE23D] text-[#0B3D26]" : "bg-[#0F6B3F] text-white"}`} aria-hidden="true">+</div>
-          <div className="min-w-0 flex-1">
-            <h4 className="text-base font-extrabold text-[#0B3D26]">{selectedPharmacy.nom}</h4>
-            <p className="mt-1 text-sm text-[#53685C]">{[selectedPharmacy.adresse, selectedPharmacy.quartier, selectedPharmacy.ville].filter(Boolean).join(" · ") || "Adresse à confirmer"}</p>
-            <p className="mt-1 text-sm font-bold text-[#0F6B3F]">{selectedPharmacy.distanceKm == null ? "Distance indisponible : activez votre position GPS" : `${selectedPharmacy.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km de votre position`}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {selectedPharmacy.de_garde && <span className="rounded-full bg-[#FFF3AE] px-2.5 py-1 text-xs font-bold text-[#594900]">Indiquée de garde</span>}
-              {selectedPharmacy.horaires && <span className="rounded-full bg-white px-2.5 py-1 text-xs text-[#53685C]">Horaires : {selectedPharmacy.horaires}</span>}
-            </div>
-          </div>
-          <button type="button" onClick={() => setSelectedPharmacy(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#D7E7DC] bg-white text-lg" aria-label="Fermer la fiche pharmacie">×</button>
-        </div>
-        <div className="mt-4 rounded-2xl border border-[#DFEAE1] bg-white p-3">
-          <div className="flex items-center justify-between gap-2">
-            <h5 className="font-extrabold text-[#0B3D26]">Disponibilités connues</h5>
-            {selectedPharmacy.stock_updated_at && <span className="text-right text-[10px] text-[#64776B]">Mise à jour : {new Date(selectedPharmacy.stock_updated_at).toLocaleString("fr-FR")}</span>}
-          </div>
-          {disponibilitesState === "loading" ? <p className="mt-2 text-sm text-[#64776B]">Consultation des stocks déclarés…</p>
-            : disponibilitesState === "error" ? <p className="mt-2 text-sm text-[#8A4A16]">Les stocks ne sont pas consultables actuellement. Leur indisponibilité ne signifie pas que la pharmacie n’a aucun médicament.</p>
-            : disponibilitesState === "ready" && disponibilites.length === 0 ? <p className="mt-2 text-sm text-[#64776B]">Aucun stock disponible n’est confirmé dans les données accessibles. Vérifiez directement auprès de la pharmacie.</p>
-            : disponibilitesState === "ready" ? <>
-              <p className="mt-1 text-xs text-[#64776B]">Produits déclarés en stock : {disponibilites.length}. La disponibilité réelle doit être confirmée par la pharmacie.</p>
-              <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">
-                {disponibilites.map(item => <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#F5F8F5] px-3 py-2">
-                  <span className="min-w-0"><span className="block truncate text-sm font-bold text-[#183B28]">{item.nom}</span><span className="block text-xs text-[#64776B]">{[item.dosage, item.forme].filter(Boolean).join(" · ") || "Présentation non précisée"} · Qté déclarée : {item.quantite}</span></span>
-                  <span className="shrink-0 text-right text-sm font-extrabold text-[#0F6B3F]">{new Intl.NumberFormat("fr-FR").format(item.prix)} FCFA</span>
-                </li>)}
-              </ul>
-            </> : <p className="mt-2 text-sm text-[#64776B]">Sélectionnez cette pharmacie pour consulter les stocks déclarés.</p>}
-          <p className="mt-3 text-[11px] leading-4 text-[#738277]">Une pharmacie affichée sur la carte n’est pas une garantie de stock. Les quantités et prix sont des déclarations enregistrées, pas une confirmation en temps réel.</p>
-        </div>
-      </div>}
       <p className="border-t border-[#E5EEE8] px-4 py-3 text-[11px] leading-4 text-[#738277]">Carte © OpenStreetMap contributors. Les marqueurs représentent uniquement les pharmacies partenaires NAXA dont les coordonnées sont disponibles. La carte ne confirme pas le stock.</p>
     </section>
   );
