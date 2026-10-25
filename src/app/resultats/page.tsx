@@ -110,7 +110,88 @@ function ResultsContent(){
   })();
   return () => { active = false; };
  }, [debounced, basketMode]);
- useEffect(()=>{let active=true;if(!debounced&&!basketMode){setRows([]);setLoading(false);setError("");return()=>{active=false}}if(locationStatus==="pending"){setLoading(true);return()=>{active=false}}setLoading(true);setError("");
+ useEffect(() => {
+  let active = true;
+  if (!debounced && !basketMode) {
+   setRows([]);
+   setLoading(false);
+   setError("");
+   return () => { active = false; };
+  }
+  if (locationStatus === "pending") {
+   setLoading(true);
+   return () => { active = false; };
+  }
+  setLoading(true);
+  setError("");
+  void (async () => {
+   try {
+    const sb = supabaseBrowser();
+    const items = pValues.map((value) => ({
+     produit_id: value.split(":")[0],
+     quantite: Math.max(1, Math.min(10, Number(value.split(":")[1]) || 1)),
+    }));
+    const response = basketMode
+     ? await sb.rpc("search_pharmacies_panier", { p_items: items, p_lat: coords.lat, p_lng: coords.lng })
+     : await sb.rpc("search_pharmacies", { p_terms: [debounced], p_lat: coords.lat, p_lng: coords.lng });
+    if (response.error) throw response.error;
+    const data = (response.data ?? []) as ResultatPharmacie[];
+    const ids = data.map((resultat) => resultat.pharmacie_id);
+    let meta = new Map<string, Meta>();
+    if (ids.length > 0) {
+     const resultMeta = await sb.from("pharmacies")
+      .select("id,nom,ville,horaires,photo_url,photo_verified_at,slug,est_demo,visible_recherche,archivee_le")
+      .in("id", ids);
+     if (!resultMeta.error) {
+      meta = new Map(((resultMeta.data ?? []) as Meta[]).map((pharmacie) => [pharmacie.id, pharmacie]));
+     }
+    }
+    const productIds = [...new Set(data.flatMap((resultat) => resultat.items.map((item) => item.produit_id)))];
+    let rx = new Set<string>();
+    if (productIds.length > 0) {
+     const resultProducts = await sb.from("produits").select("id,categorie,precautions").in("id", productIds);
+     rx = resultProducts.error
+      ? new Set<string>()
+      : new Set(((resultProducts.data ?? []) as Array<{ id: string; categorie: string | null; precautions: string | null }>)
+       .filter((product) => /\\b(ordonnance|prescription)\\b/i.test([product.categorie, product.precautions].filter(Boolean).join(" ")))
+       .map((product) => product.id));
+    }
+    const mapped = data.filter((resultat) => {
+     const pharmacy = meta.get(resultat.pharmacie_id);
+     return Boolean(pharmacy)
+      && pharmacy!.est_demo !== true
+      && pharmacy!.visible_recherche === true
+      && !pharmacy!.archivee_le
+      && !/\\b(demo|démo|test|mock|exemple|fictif)\\b/i.test(pharmacy!.nom);
+    }).map((resultat) => {
+     const pharmacy = meta.get(resultat.pharmacie_id);
+     const photoVerified = pharmacy?.photo_url
+      && pharmacy.photo_verified_at
+      && pharmacy.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`);
+     return {
+      ...resultat,
+      ville: pharmacy?.ville || "Douala",
+      horaires: pharmacy?.horaires ?? null,
+      photo_path: photoVerified ? pharmacy!.photo_url : resultat.photo_path ?? null,
+     };
+    });
+    if (!active) return;
+    setRxIds(rx);
+    setRows(mapped);
+    setCheapest(mapped.length > 0
+     ? [...mapped].sort((a, b) => Number(a.items[0]?.prix ?? a.total_prix) - Number(b.items[0]?.prix ?? b.total_prix))[0].pharmacie_id
+     : null);
+   } catch {
+    if (active) {
+     setRows([]);
+     setError("La recherche est momentanément indisponible. Réessayez.");
+    }
+   } finally {
+    if (active) setLoading(false);
+   }
+  })();
+  return () => { active = false; };
+ }, [debounced, coords.lat, coords.lng, basketMode, pValues.join("|"), locationStatus]);
  void(async()=>{try{const sb=supabaseBrowser();const items=pValues.map(v=>({produit_id:v.split(":")[0],quantite:Math.max(1,Math.min(10,Number(v.split(":")[1])||1))}));const response=basketMode?await sb.rpc("search_pharmacies_panier",{p_items:items,p_lat:coords.lat,p_lng:coords.lng}):await sb.rpc("search_pharmacies",{p_terms:[debounced],p_lat:coords.lat,p_lng:coords.lng});if(response.error)throw response.error;const data=(response.data??[]) as ResultatPharmacie[];const ids=data.map(r=>r.pharmacie_id);let meta=new Map<string,Meta>();if(ids.length){const m=await sb.from("pharmacies").select("id,nom,ville,horaires,photo_url,photo_verified_at,slug,est_demo,visible_recherche,archivee_le").in("id",ids);if(!m.error)meta=new Map(((m.data??[]) as Meta[]).map(x=>[x.id,x]))}const productIds=[...new Set(data.flatMap(r=>r.items.map(i=>i.produit_id)))];let rx=new Set<string>();if(productIds.length){const q=await sb.from("produits").select("id,categorie,precautions").in("id",productIds);rx=q.error?new Set<string>():new Set(((q.data??[]) as Array<{id:string;categorie:string|null;precautions:string|null}>).filter(x=>/\b(ordonnance|prescription)\b/i.test([x.categorie,x.precautions].filter(Boolean).join(" "))).map(x=>x.id))}const mapped=data.filter(r=>{const pharmacy=meta.get(r.pharmacie_id);return Boolean(pharmacy)&&pharmacy!.est_demo!==true&&pharmacy!.visible_recherche===true&&!pharmacy!.archivee_le&&!/\b(demo|démo|test|mock|exemple|fictif)\b/i.test(pharmacy!.nom)}).map(r=>({...r,ville:meta.get(r.pharmacie_id)?.ville||"Douala",horaires:meta.get(r.pharmacie_id)?.horaires??null,photo_path:(meta.get(r.pharmacie_id)?.photo_url && meta.get(r.pharmacie_id)?.photo_verified_at && meta.get(r.pharmacie_id)!.photo_url!.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) ? meta.get(r.pharmacie_id)!.photo_url : r.photo_path ?? null)}));if(!active)return;setRxIds(rx);setRows(mapped);setCheapest(mapped.length?[...mapped].sort((a,b)=>Number(a.items[0]?.prix??a.total_prix)-Number(b.items[0]?.prix??b.total_prix))[0].pharmacie_id:null)}catch{if(active){setRows([]);setError("La recherche est momentanément indisponible. Réessayez.")}}finally{if(active)setLoading(false)}})();return()=>{active=false}},[debounced,coords.lat,coords.lng,basketMode,pValues.join("|"),locationStatus]);
  const sorted=useMemo(()=>{const list=[...(rows??[])];if(sort==="prix")list.sort((a,b)=>(Number(a.items[0]?.prix??a.total_prix)-Number(b.items[0]?.prix??b.total_prix))*(ascending?1:-1));if(sort==="distance")list.sort((a,b)=>Number(a.distance_km)-Number(b.distance_km));return list},[rows,sort,ascending]);
  const filtered=useMemo(()=>sorted.filter(r=>{if(activeFilters.stock&&r.trouves===0)return false;if(activeFilters.prescription&&!r.items.some(item=>rxIds.has(item.produit_id)))return false;if(activeFilters.price&&Number(r.items[0]?.prix??r.total_prix)>Number(activeFilters.price))return false;if(activeFilters.distance&&Number(r.distance_km)>Number(activeFilters.distance))return false;if(activeFilters.open&&!r.de_garde&&!/24\s*(?:h|\/\s*7)|24\/7/i.test(r.horaires??""))return false;if(assurance&&assuranceIds.size>0&&!assuranceIds.has(r.pharmacie_id))return false;return true}),[sorted,activeFilters,rxIds,assurance,assuranceIds]);
