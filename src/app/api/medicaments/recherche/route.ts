@@ -29,6 +29,8 @@ function cleanPublicText(value: unknown, max = 520): string | null {
   const raw = strings(value)[0];
   if (!raw) return null;
   const withoutMarkup = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  // Une URL malformée rend toute la description peu fiable : masquer la description entière.
+  if (/https?:\s*(?:\+\s*)+/i.test(withoutMarkup)) return null;
   const safeSentences = withoutMarkup
     .split(/(?<=[.!?])\s+/)
     // Masquer les URL malformées issues d'anciennes données importées.
