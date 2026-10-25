@@ -1196,3 +1196,19 @@ small,
     text-decoration-thickness: max(1px, 0.08em);
   }
 }
+
+
+@keyframes pharmacieFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pharmacie-garde-switch {
+  animation: pharmacieFadeIn 300ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pharmacie-garde-switch {
+    animation: none;
+  }
+}
