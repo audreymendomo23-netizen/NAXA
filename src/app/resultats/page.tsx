@@ -78,7 +78,8 @@ function ResultsContent(){
  const cycleDistance=()=>{const next=activeFilters.distance===""?"5":activeFilters.distance==="5"?"10":"";setActiveFilters(v=>({...v,distance:next}));setFilters(v=>({...v,distance:next}))};
  const add=(r:Row)=>{const item=r.items[0];if(!item)return;if(rxIds.has(item.produit_id)){router.push("/scanner");return}ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},1);setAdded(r.pharmacie_id);notifierNAXA(item.nom+" ajouté au panier.");window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)};
  const back=()=>{if(window.history.length>1)router.back();else router.push("/")};
- return <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+ return (
+  <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
   <EnTeteAccueil langue={langue} setLangue={setLangue} compact />
 
   <section className="relative z-20 mx-auto mt-2 max-w-[480px] rounded-[28px] bg-[#F4F8F5] px-3 pb-8 pt-5 sm:px-4">
@@ -121,6 +122,7 @@ function ResultsContent(){
    <div className="mt-4 rounded-xl border border-dashed border-[#BFD4C6] bg-white/70 p-3 text-xs leading-5 text-[#64776B]">Les filtres de forme, de laboratoire, de livraison et de note seront proposés lorsque ces informations seront disponibles et vérifiables dans le catalogue NAXA.</div>
    <button type="button" onClick={()=>{setActiveFilters(filters);setFilterOpen(false)}} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] active:scale-[0.98]">Appliquer</button>
   </section></div>}
- </main>;
+ </main>
+  );
 }
 export default function Page(){return <Suspense fallback={<main className="min-h-dvh bg-[#F4F8F5] p-6">Chargement…</main>}><ResultsContent/></Suspense>}
