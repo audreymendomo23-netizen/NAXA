@@ -99,9 +99,10 @@ async function trouverPhotoMboa(pharmacie: GardeExterne): Promise<string | null>
         try {
           const image = new URL(src, pageUrl);
           if (image.protocol !== "https:" || !/(^|\\.)mboapharma\\.cm$/i.test(image.hostname)) continue;
-          const evidence = normaliserNom(\`\${image.pathname} \${alt} \${imageTitle}\`);
+          // Le titre de la fiche Mboa a déjà été rapproché du nom de la pharmacie.
+          // Dans ce contexte, MboaPHARMA est la source de vérité demandée pour les images de sa fiche.
           if (/logo|avatar|placeholder|default|banner|banniere/i.test(image.href)) continue;
-          if (tokens.length && tokens.some((token) => evidence.includes(token))) return image.toString();
+          if (tokens.length) return image.toString();
         } catch {
           // Image invalide : essayer la suivante.
         }
