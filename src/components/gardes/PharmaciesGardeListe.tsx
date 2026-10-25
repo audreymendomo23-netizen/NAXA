@@ -36,7 +36,7 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
               className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
               aria-label={`Voir les coordonnées publiques de ${p.nom}`}
             >
-              <PhotoPharmacie nom={p.nom} src={p.imageUrl} lieu={p.quartier} />
+              <PhotoPharmacie nom={p.nom} src={p.imageUrl} lieu={p.quartier} illustration={p.imageType === "illustration"} />
               <span className="block font-bold text-naxa-green-900">{p.nom}</span>
               {p.quartier && <span className="mt-1 block text-sm text-slate-600">{p.quartier}</span>}
               <span className="mt-1 block text-sm font-semibold text-naxa-green-700">Ouvrir la fiche · contact et localisation</span>
@@ -63,7 +63,7 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
               <button type="button" onClick={() => setSelection(null)} className="min-h-10 min-w-10 rounded-full border text-xl" aria-label="Fermer les informations">×</button>
             </div>
 
-            <PhotoPharmacie nom={selection.nom} src={selection.imageUrl} lieu={selection.quartier} />
+            <PhotoPharmacie nom={selection.nom} src={selection.imageUrl} lieu={selection.quartier} illustration={selection.imageType === "illustration"} />
 
             <section className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4" aria-label="Coordonnées publiques">
               <h3 className="font-bold text-naxa-green-900">Coordonnées publiques</h3>
