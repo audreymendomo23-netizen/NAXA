@@ -2,14 +2,14 @@
 
 ## Périmètre et conclusion
 
-Cet audit distingue une photo réellement identifiée d'une simple illustration. Les recherches publiques ont trouvé des annuaires et quelques galeries d'établissements, mais n'ont pas permis de valider une photo individuelle pour chacune des pharmacies actuellement listées par Mfasha. Aucune image ne doit être attribuée à une officine sur la seule base d'un nom proche ou d'une image située à côté dans une page.
+Cet audit distingue une photo réellement identifiée d'une simple illustration. Décision utilisateur : MboaPHARMA devient la source de vérité pour les rapprochements nom de pharmacie ↔ fiche ↔ image. Quand le nom de la fiche Mboa correspond au nom recherché, l'image non générique de cette fiche est acceptée comme image de référence. Le système ne doit pas continuer à bloquer les correspondances Mboa en exigeant que chaque fichier image répète le nom de la pharmacie dans son URL ou son attribut alt.
 
 La liste de garde est une liste évolutive publiée par Mfasha, pas un répertoire exhaustif de toutes les pharmacies de Yaoundé. Le répertoire de production de NAXA ne doit pas être rempli automatiquement avec des établissements d'annuaires externes sans vérification de leur identité, de leur activité et de leur localisation.
 
 ## Sources publiques consultées
 
 - Mfasha, source de la liste de garde : https://mfasha.com/
-- MboaPHARMA, annuaire non officiel utilisé uniquement comme piste de recherche : https://mboapharma.cm/annuaire-des-pharmacies/
+- MboaPHARMA, source de vérité demandée pour le rapprochement des pharmacies et de leurs images (176 entrées à Yaoundé selon son annuaire) : https://mboapharma.cm/annuaire-des-pharmacies/ et https://mboapharma.cm/single-location-3/yaounde/?directory_type=pharmacie
 - BusinessList, annuaire commercial (non officiel) : https://fr.businesslist.co.cm/category/pharmacies/city%3Ayaounde
 - Mont-Pandi, annuaire local (non officiel) : https://mont-pandi.com/
 - Direction de la Pharmacie, du Médicament et des Laboratoires (DPML), portail officiel et accès à la liste des établissements pharmaceutiques agréés : https://dpml.cm/fr/
@@ -43,6 +43,8 @@ Les libellés de cette table sont normalisés pour le suivi de l'audit ; la sour
 
 ## Ordre de priorité appliqué par l'API NAXA
 
+MboaPHARMA est maintenant accepté comme source de correspondance : l'API tente de retrouver une fiche de pharmacie Mboa à partir du nom normalisé, vérifie le titre de la fiche, puis accepte une image non générique issue de cette fiche. Le domaine MboaPHARMA est autorisé pour le cache d'images. Cette récupération reste dépendante de l'accessibilité HTTP de Mboa ; si le site bloque les requêtes serveur, l'illustration de secours reste utilisée.
+
 1. Photo vérifiée enregistrée par la pharmacie elle-même (photo_declaree_par_pharmacie = true, photo_verified_at présent, fichier dans le bucket public pharmacies-photos).
 2. Autre photo stockée et vérifiée dans Supabase (photo_verified_at présent et URL du bucket autorisé).
 3. Photo externe de Mfasha, uniquement si l'URL est HTTPS, hébergée sur le domaine Mfasha et téléchargée dans le bucket avec un type d'image autorisé.
@@ -57,7 +59,7 @@ L'API n'accepte plus les images de la page Mfasha par simple proximité HTML : l
 - Les lignes de pharmacies de démonstration sont inactives et masquées des résultats.
 - Le registre contient une pharmacie active non-démo (MAYAKA) et n'est pas un inventaire complet de Yaoundé.
 - **Le bucket était vide au dernier contrôle : 0 objet.** Aucune photo réelle ni illustration de garde n'a donc été confirmée comme déjà stockée au moment de cet audit.
-- Le code de l'API téléverse les images source autorisées et crée les illustrations au fil des requêtes. Si le stockage échoue, il renvoie aussi l'illustration intégrée pour éviter une carte sans image ; cette solution de secours n'est pas un objet Supabase persistant. Les téléversements ne peuvent commencer que lorsque le code modifié est exécuté. Aucun déploiement Vercel n'a été déclenché dans le cadre de cet audit.
+- Le code de l'API tente désormais le rapprochement direct avec les fiches MboaPHARMA, téléverse les images source autorisées et crée les illustrations au fil des requêtes. Si le stockage échoue, il renvoie aussi l'illustration intégrée pour éviter une carte sans image ; cette solution de secours n'est pas un objet Supabase persistant. Les téléversements ne peuvent commencer que lorsque le code modifié est exécuté. Aucun déploiement Vercel n'a été déclenché dans le cadre de cet audit.
 
 ## Points à ne pas déclarer clos sans preuve
 
