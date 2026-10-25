@@ -53,10 +53,16 @@ export default function OffrePage() {
         sb.from("produits")
           .select("id,nom,dci,dosage,forme,description,photo_url,fabricant,sur_ordonnance")
           .eq("id", produitId)
+          .eq("fiche_validee", true)
           .maybeSingle(),
         sb.from("pharmacies")
           .select("id,nom,quartier,adresse,garde_debut,garde_fin")
           .eq("id", pharmacieId)
+          .eq("actif", true)
+          .eq("visible_recherche", true)
+          .is("archivee_le", null)
+          .not("nom", "ilike", "%démo%")
+          .not("nom", "ilike", "%test%")
           .maybeSingle(),
         sb.rpc("marketplace_offre_stock_disponible", {
           p_pharmacie: pharmacieId,
