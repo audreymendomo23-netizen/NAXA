@@ -5,18 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import type { ResultatPharmacie } from "@/lib/types";
+import { Logo } from "@/components/Logo";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
+import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { notifierNAXA } from "@/components/NotificationGlobale";
-import { EnTeteAccueil } from "@/components/EnTeteAccueil";
-import type { Langue } from "@/lib/accueil-textes";
 import { CENTRES_VILLES, obtenirPositionGPS, villeDepuisPosition } from "@/lib/geolocation";
 
 const DOUALA=CENTRES_VILLES.Douala;
 const YAOUNDE=CENTRES_VILLES.Yaoundé;
-type Meta={id:string;nom:string;ville:string|null;horaires:string|null;photo_url:string|null;photo_verified_at:string|null;slug:string|null;est_demo:boolean;visible_recherche:boolean;archivee_le:string|null};
+type Meta={id:string;ville:string|null;horaires:string|null;photo_url:string|null;photo_verified_at:string|null;slug:string|null;est_demo:boolean;visible_recherche:boolean;archivee_le:string|null};
 type Row=ResultatPharmacie&{ville:string;horaires:string|null;demo?:boolean};
-type CatalogItem={id:string;name:string;brand:string|null;activeIngredient:string|null;form:string|null;definition:string|null;indications:string|null;imageUrl:string|null;imageSource:string|null;imageSourceUrl?:string|null;imageLicense?:string|null;imageAttribution?:string|null;availability:"disponible"|"indisponible"|"non_verifiee";partnerPharmacyCount:number|null;lowestPartnerPrice:number|null;cameroonRegulatoryReference?:string};
+type CatalogItem={id:string;name:string;brand:string|null;activeIngredient:string|null;form:string|null;definition:string|null;indications:string|null;imageUrl:string|null;imageSource:string|null;availability:"disponible"|"indisponible"|"non_verifiee";partnerPharmacyCount:number|null;lowestPartnerPrice:number|null;cameroonRegulatoryReference?:string};
 type Filters={stock:boolean;open:boolean;delivery:boolean;prescription:boolean;price:string;distance:string;rating:string};
 const fcfa=(n:number)=>new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g,"\u00a0")+" FCFA";
 function I({name,size=20}:{name:"back"|"search"|"x"|"filter"|"check"|"sort"|"pin"|"cart"|"pill"|"building"|"clock"|"user"|"star";size?:number}){
@@ -42,12 +42,13 @@ function ResultsContent(){
  const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Yaoundé"),[coords,setCoords]=useState<{lat:number;lng:number}>(YAOUNDE),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"fallback">("pending");
  const [filters,setFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""}),[activeFilters,setActiveFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""});
  const {ajouter,nombre}=usePanier();
- const [langue,setLangue]=useState<Langue>("fr");
+ const [avatarUrl,setAvatarUrl]=useState<string|null>(null),[initiales,setInitiales]=useState("C");
  const [catalogue,setCatalogue]=useState<CatalogItem[]>([]),[catalogueLoading,setCatalogueLoading]=useState(false);
- const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set()),[assuranceOpen,setAssuranceOpen]=useState(false),[assurance,setAssurance]=useState(""),[assuranceIds,setAssuranceIds]=useState<Set<string>>(new Set()),[notifiedEmptyQuery,setNotifiedEmptyQuery]=useState("");
+ const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set());
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
  const toggleFavori=(item:{id:string;nom:string;dosage?:string|null;photo_url?:string|null;prix?:number|null;pharmacie?:string;demo:boolean})=>{const suivants=basculerFavori({id:item.id,nom:item.nom,dosage:item.dosage??"",photo_url:item.photo_url??null,prix:typeof item.prix==="number"?item.prix:0,pharmacie:item.pharmacie??"Prix et pharmacie à confirmer",demo:item.demo});setFavoriIds(new Set(suivants.map(f=>f.id)));notifierNAXA(suivants.some(f=>f.id===item.id)?item.nom+" ajouté aux favoris.":item.nom+" retiré des favoris.")};
  const actualiserPosition=useCallback(async()=>{setLocationStatus("pending");try{const position=await obtenirPositionGPS();setCoords({lat:position.lat,lng:position.lng});setCity(villeDepuisPosition(position.lat,position.lng));setLocationStatus("gps")}catch{setLocationStatus("fallback")}},[]);
+ useEffect(()=>{let active=true;const sb=supabaseBrowser();void(async()=>{try{const {data:{user}}=await sb.auth.getUser();if(!active||!user)return;const meta=user.user_metadata??{};const {data:profile}=await sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",user.id).maybeSingle();if(!active)return;const first=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():"";const last=typeof profile?.last_name==="string"&&profile.last_name.trim()?profile.last_name.trim():typeof meta.last_name==="string"?meta.last_name.trim():"";const emailName=typeof user.email==="string"?user.email.split("@")[0].replace(/[._-]+/g," ").trim():"";const name=[first,last].filter(Boolean).join(" ")||emailName;const letters=name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toLocaleUpperCase("fr")).join("");setInitiales(letters||"C");const photo=profile?.avatar_url||meta.avatar_url||meta.picture||meta.photo_url||null;if(typeof photo==="string"&&photo.startsWith("https://"))setAvatarUrl(photo)}catch{/* Le résultat reste utilisable même si le profil est indisponible. */}})();return()=>{active=false}},[]);
  useEffect(()=>{
    const q=params.getAll("q").join(" ").trim();
    setQuery(q);setDebounced(q);
@@ -65,237 +66,52 @@ function ResultsContent(){
    setSort(urlSort==="distance"?"distance":"prix");
    setAscending(params.get("asc")!=="0");
   },[params]);
-  useEffect(() => {
-   const timer = window.setTimeout(() => {
-    const q = query.trim();
-    setDebounced(q);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("q");
-    if (q) url.searchParams.set("q", q);
-    window.history.replaceState(window.history.state, "", url);
-   }, 300);
-   return () => window.clearTimeout(timer);
-  }, [query]);
+ useEffect(()=>{const timer=window.setTimeout(()=>{const q=query.trim();setDebounced(q);const url=new URL(window.location.href);url.searchParams.delete("q");if(q)url.searchParams.set("q",q);window.history.replaceState(window.history.state,"",url)},300);return()=>window.clearTimeout(timer)},[query]);
  useEffect(()=>{void actualiserPosition()},[actualiserPosition]);
- useEffect(() => {
-  let active = true;
-  const term = debounced.trim();
-  if (term.length < 2 || basketMode) {
-   setCatalogue([]);
-   setCatalogueLoading(false);
-   return () => { active = false; };
-  }
-  setCatalogueLoading(true);
-  void (async () => {
-   try {
-    const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(term));
-    if (!response.ok) throw new Error("catalogue");
-    const payload = await response.json() as { results?: CatalogItem[] };
-    const results = Array.isArray(payload.results) ? payload.results : [];
-    if (active) setCatalogue(results);
-    void Promise.all(results.filter((item) => !item.imageUrl).slice(0, 10).map(async (item) => {
-     const identities = [item.name, item.brand, item.activeIngredient].filter((value): value is string => Boolean(value && value.trim().length >= 3));
-     for (const identity of identities) {
-      try {
-       const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity));
-       if (!photoResponse.ok) continue;
-       const photoPayload = await photoResponse.json() as { photo?: { url: string; licence: string; sourceUrl: string; attribution?: string | null; title?: string } | null; photos?: { boite?: { url: string; licence: string; sourceUrl: string; attribution?: string | null; title?: string } | null; comprime?: { url: string; licence: string; sourceUrl: string; attribution?: string | null; title?: string } | null }; source?: string };
-       const photo = photoPayload.photo ?? photoPayload.photos?.boite ?? photoPayload.photos?.comprime;
-       if (photo?.url && photo.sourceUrl && photo.licence) return { id: item.id, imageUrl: photo.url, imageSource: photoPayload.source === "catalogue_local_verifie" ? "Catalogue local NAXA vérifié" : "Wikimedia Commons", imageSourceUrl: photo.sourceUrl, imageLicense: photo.licence, imageAttribution: photo.attribution ?? null };
-      } catch {
-       // Une photo indisponible ne bloque pas la fiche médicament.
-      }
-     }
-     return null;
-    })).then((updates) => {
-     if (!active) return;
-     const byId = new Map(updates.filter((item) => item !== null).map((item) => [item.id, item] as const));
-     if (byId.size) setCatalogue((current) => current.map((item) => { const update = byId.get(item.id); return update ? { ...item, ...update } : item; }));
-    }).catch(() => undefined);
-   } catch {
-    if (active) setCatalogue([]);
-   } finally {
-    if (active) setCatalogueLoading(false);
-   }
-  })();
-  return () => { active = false; };
- }, [debounced, basketMode]);
- useEffect(() => {
-  let active = true;
-  if (!debounced && !basketMode) {
-   setRows([]);
-   setLoading(false);
-   setError("");
-   return () => { active = false; };
-  }
-  if (locationStatus === "pending") {
-   setLoading(true);
-   return () => { active = false; };
-  }
-  setLoading(true);
-  setError("");
-  void (async () => {
-   try {
-    const sb = supabaseBrowser();
-    const items = pValues.map((value) => ({
-     produit_id: value.split(":")[0],
-     quantite: Math.max(1, Math.min(10, Number(value.split(":")[1]) || 1)),
-    }));
-    const response = basketMode
-     ? await sb.rpc("search_pharmacies_panier", { p_items: items, p_lat: coords.lat, p_lng: coords.lng })
-     : await sb.rpc("search_pharmacies", { p_terms: [debounced], p_lat: coords.lat, p_lng: coords.lng });
-    if (response.error) throw response.error;
-    const data = (response.data ?? []) as ResultatPharmacie[];
-    const ids = data.map((resultat) => resultat.pharmacie_id);
-    let meta = new Map<string, Meta>();
-    if (ids.length > 0) {
-     const resultMeta = await sb.from("pharmacies")
-      .select("id,nom,ville,horaires,photo_url,photo_verified_at,slug,est_demo,visible_recherche,archivee_le")
-      .in("id", ids);
-     if (!resultMeta.error) {
-      meta = new Map(((resultMeta.data ?? []) as Meta[]).map((pharmacie) => [pharmacie.id, pharmacie]));
-     }
-    }
-    const productIds = [...new Set(data.flatMap((resultat) => resultat.items.map((item) => item.produit_id)))];
-    let rx = new Set<string>();
-    if (productIds.length > 0) {
-     const resultProducts = await sb.from("produits").select("id,categorie,precautions").in("id", productIds);
-     rx = resultProducts.error
-      ? new Set<string>()
-      : new Set(((resultProducts.data ?? []) as Array<{ id: string; categorie: string | null; precautions: string | null }>)
-       .filter((product) => /\\b(ordonnance|prescription)\\b/i.test([product.categorie, product.precautions].filter(Boolean).join(" ")))
-       .map((product) => product.id));
-    }
-    const mapped = data.filter((resultat) => {
-     const pharmacy = meta.get(resultat.pharmacie_id);
-     return Boolean(pharmacy)
-      && pharmacy!.est_demo !== true
-      && pharmacy!.visible_recherche === true
-      && !pharmacy!.archivee_le
-      && !/\\b(demo|démo|test|mock|exemple|fictif)\\b/i.test(pharmacy!.nom);
-    }).map((resultat) => {
-     const pharmacy = meta.get(resultat.pharmacie_id);
-     const photoVerified = pharmacy?.photo_url
-      && pharmacy.photo_verified_at
-      && pharmacy.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`);
-     return {
-      ...resultat,
-      ville: pharmacy?.ville || "Douala",
-      horaires: pharmacy?.horaires ?? null,
-      photo_path: photoVerified ? pharmacy!.photo_url : resultat.photo_path ?? null,
-     };
-    });
-    if (!active) return;
-    setRxIds(rx);
-    setRows(mapped);
-    setCheapest(mapped.length > 0
-     ? [...mapped].sort((a, b) => Number(a.items[0]?.prix ?? a.total_prix) - Number(b.items[0]?.prix ?? b.total_prix))[0].pharmacie_id
-     : null);
-   } catch {
-    if (active) {
-     setRows([]);
-     setError("La recherche est momentanément indisponible. Réessayez.");
-    }
-   } finally {
-    if (active) setLoading(false);
-   }
-  })();
-  return () => { active = false; };
- }, [debounced, coords.lat, coords.lng, basketMode, pValues.join("|"), locationStatus]);
- // Recherche des pharmacies exécutée dans le useEffect ci-dessus.
-  const sorted = useMemo(() => {
-   const list = [...(rows ?? [])];
-   if (sort === "prix") {
-    list.sort((a, b) => (Number(a.items[0]?.prix ?? a.total_prix) - Number(b.items[0]?.prix ?? b.total_prix)) * (ascending ? 1 : -1));
-   }
-   if (sort === "distance") list.sort((a, b) => Number(a.distance_km) - Number(b.distance_km));
-   return list;
-  }, [rows, sort, ascending]);
-  const filtered = useMemo(() => sorted.filter((resultat) => {
-   if (activeFilters.stock && resultat.trouves === 0) return false;
-   if (activeFilters.prescription && !resultat.items.some((item) => rxIds.has(item.produit_id))) return false;
-   if (activeFilters.price && Number(resultat.items[0]?.prix ?? resultat.total_prix) > Number(activeFilters.price)) return false;
-   if (activeFilters.distance && Number(resultat.distance_km) > Number(activeFilters.distance)) return false;
-   if (activeFilters.open && !resultat.de_garde && !/24\s*(?:h|\/\s*7)|24\/7/i.test(resultat.horaires ?? "")) return false;
-   if (assurance && assuranceIds.size > 0 && !assuranceIds.has(resultat.pharmacie_id)) return false;
-   return true;
-  }), [sorted, activeFilters, rxIds, assurance, assuranceIds]);
-  const activeFilterCount = Number(activeFilters.stock)
-   + Number(activeFilters.open)
-   + Number(activeFilters.prescription)
-   + Number(Boolean(activeFilters.price))
-   + Number(Boolean(activeFilters.distance));
-  useEffect(() => {
-   const term = query.trim();
-   if (!loading && term.length >= 2 && catalogue.length > 0 && filtered.length === 0 && notifiedEmptyQuery !== term) {
-    notifierNAXA("Aucune pharmacie partenaire ne correspond aux filtres actuels. Les fiches médicaments restent consultables dans le catalogue.");
-    setNotifiedEmptyQuery(term);
-   }
-  }, [query, loading, catalogue.length, filtered.length, notifiedEmptyQuery]);
-  const toggleQuickFilter = (key: "stock" | "open" | "prescription") => {
-   const next = { ...activeFilters, [key]: !activeFilters[key] };
-   setActiveFilters(next);
-   setFilters((current) => ({ ...current, [key]: next[key] }));
-  };
-  const cycleDistance = () => {
-   const next = activeFilters.distance === "" ? "5" : activeFilters.distance === "5" ? "10" : "";
-   setActiveFilters((current) => ({ ...current, distance: next }));
-   setFilters((current) => ({ ...current, distance: next }));
-  };
-  const add = (resultat: Row) => {
-   const item = resultat.items[0];
-   if (!item) return;
-   if (rxIds.has(item.produit_id)) {
-    router.push("/scanner");
-    return;
-   }
-   ajouter({ produit_id: item.produit_id, nom: item.nom, dosage: item.dosage || "" }, 1);
-   setAdded(resultat.pharmacie_id);
-   notifierNAXA(item.nom + " ajouté au panier.");
-   window.setTimeout(() => setAdded((current) => current === resultat.pharmacie_id ? null : current), 1200);
-  };
-  const back = () => {
-   if (window.history.length > 1) {
-    router.back();
-   } else {
-    router.push("/");
-   }
-  };
- return (
-  <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
-  <EnTeteAccueil langue={langue} setLangue={setLangue} compact />
-
-  <section className="relative z-20 mx-auto mt-2 max-w-[480px] rounded-[28px] bg-[#F4F8F5] px-3 pb-8 pt-5 sm:px-4">
+ useEffect(()=>{let active=true;const term=debounced.trim();if(term.length<2||basketMode){setCatalogue([]);setCatalogueLoading(false);return()=>{active=false}}setCatalogueLoading(true);void(async()=>{try{const response=await fetch("/api/medicaments/recherche?q="+encodeURIComponent(term));if(!response.ok)throw new Error("catalogue");const payload=await response.json() as {results?:CatalogItem[]};const results=Array.isArray(payload.results)?payload.results:[];if(active)setCatalogue(results);void Promise.all(results.filter((item)=>!item.imageUrl).slice(0,10).map(async(item)=>{for(const identity of [item.brand,item.name,item.activeIngredient].filter((v):v is string=>Boolean(v&&v.trim().length>=3))){try{const photoResponse=await fetch("/api/medicaments/photo?q="+encodeURIComponent(identity));if(!photoResponse.ok)continue;const photoPayload=await photoResponse.json() as {photos?:{boite?:{url:string;licence:string;sourceUrl:string}|null;comprime?:{url:string;licence:string;sourceUrl:string}|null}};const photo=photoPayload.photos?.boite??photoPayload.photos?.comprime;if(photo?.url)return {id:item.id,imageUrl:photo.url,imageSource:"Wikimedia Commons · "+photo.licence};}catch{/* Une photo indisponible ne bloque pas la fiche médicament. */}}return null})).then((updates)=>{if(!active)return;const byId=new Map(updates.filter((item)=>item!==null).map((item)=>[item.id,item] as const));if(byId.size)setCatalogue((current)=>current.map((item)=>{const update=byId.get(item.id);return update?{...item,...update}:item}))}).catch(()=>undefined)}catch{if(active)setCatalogue([])}finally{if(active)setCatalogueLoading(false)}})();return()=>{active=false}},[debounced,basketMode]);
+ useEffect(()=>{let active=true;if(!debounced&&!basketMode){setRows([]);setLoading(false);setError("");return()=>{active=false}}if(locationStatus==="pending"){setLoading(true);return()=>{active=false}}setLoading(true);setError("");
+ void(async()=>{try{const sb=supabaseBrowser();const items=pValues.map(v=>({produit_id:v.split(":")[0],quantite:Math.max(1,Math.min(10,Number(v.split(":")[1])||1))}));const response=basketMode?await sb.rpc("search_pharmacies_panier",{p_items:items,p_lat:coords.lat,p_lng:coords.lng}):await sb.rpc("search_pharmacies",{p_terms:[debounced],p_lat:coords.lat,p_lng:coords.lng});if(response.error)throw response.error;const data=(response.data??[]) as ResultatPharmacie[];const ids=data.map(r=>r.pharmacie_id);let meta=new Map<string,Meta>();if(ids.length){const m=await sb.from("pharmacies").select("id,ville,horaires,photo_url,photo_verified_at,slug,est_demo,visible_recherche,archivee_le").in("id",ids);if(!m.error)meta=new Map(((m.data??[]) as Meta[]).map(x=>[x.id,x]))}const productIds=[...new Set(data.flatMap(r=>r.items.map(i=>i.produit_id)))];let rx=new Set<string>();if(productIds.length){const q=await sb.from("produits").select("id,categorie,precautions").in("id",productIds);rx=q.error?new Set<string>():new Set(((q.data??[]) as Array<{id:string;categorie:string|null;precautions:string|null}>).filter(x=>/\b(ordonnance|prescription)\b/i.test([x.categorie,x.precautions].filter(Boolean).join(" "))).map(x=>x.id))}const mapped=data.filter(r=>{const pharmacy=meta.get(r.pharmacie_id);return Boolean(pharmacy)&&pharmacy!.est_demo!==true&&pharmacy!.visible_recherche===true&&!pharmacy!.archivee_le}).map(r=>({...r,ville:meta.get(r.pharmacie_id)?.ville||"Douala",horaires:meta.get(r.pharmacie_id)?.horaires??null,photo_path:(meta.get(r.pharmacie_id)?.photo_url && meta.get(r.pharmacie_id)?.photo_verified_at && meta.get(r.pharmacie_id)!.photo_url!.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) ? meta.get(r.pharmacie_id)!.photo_url : r.photo_path ?? null)}));if(!active)return;setRxIds(rx);setRows(mapped);setCheapest(mapped.length?[...mapped].sort((a,b)=>Number(a.items[0]?.prix??a.total_prix)-Number(b.items[0]?.prix??b.total_prix))[0].pharmacie_id:null)}catch{if(active){setRows([]);setError("La recherche est momentanément indisponible. Réessayez.")}}finally{if(active)setLoading(false)}})();return()=>{active=false}},[debounced,coords.lat,coords.lng,basketMode,pValues.join("|"),locationStatus]);
+ const sorted=useMemo(()=>{const list=[...(rows??[])];if(sort==="prix")list.sort((a,b)=>(Number(a.items[0]?.prix??a.total_prix)-Number(b.items[0]?.prix??b.total_prix))*(ascending?1:-1));if(sort==="distance")list.sort((a,b)=>Number(a.distance_km)-Number(b.distance_km));return list},[rows,sort,ascending]);
+ const filtered=useMemo(()=>sorted.filter(r=>{if(activeFilters.stock&&r.trouves===0)return false;if(activeFilters.prescription&&!r.items.some(item=>rxIds.has(item.produit_id)))return false;if(activeFilters.price&&Number(r.items[0]?.prix??r.total_prix)>Number(activeFilters.price))return false;if(activeFilters.distance&&Number(r.distance_km)>Number(activeFilters.distance))return false;if(activeFilters.open&&!r.de_garde&&!/24\s*(?:h|\/\s*7)|24\/7/i.test(r.horaires??""))return false;return true}),[sorted,activeFilters,rxIds]);
+ const activeFilterCount=Number(activeFilters.stock)+Number(activeFilters.open)+Number(activeFilters.prescription)+Number(Boolean(activeFilters.price))+Number(Boolean(activeFilters.distance));
+ const toggleQuickFilter=(key:"stock"|"open"|"prescription")=>{const next={...activeFilters,[key]:!activeFilters[key]};setActiveFilters(next);setFilters(v=>({...v,[key]:next[key]}))};
+ const cycleDistance=()=>{const next=activeFilters.distance===""?"5":activeFilters.distance==="5"?"10":"";setActiveFilters(v=>({...v,distance:next}));setFilters(v=>({...v,distance:next}))};
+ const add=(r:Row)=>{const item=r.items[0];if(!item)return;if(rxIds.has(item.produit_id)){router.push("/scanner");return}ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},1);setAdded(r.pharmacie_id);notifierNAXA(item.nom+" ajouté au panier.");window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)};
+ const back=()=>{if(window.history.length>1)router.back();else router.push("/")};
+ return <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
+  <header className="relative z-10 bg-[#0F6B3F] px-4 pb-8 pt-[max(16px,env(safe-area-inset-top,0px))] text-white"><div className="mx-auto flex max-w-[480px] items-center gap-3">
+   <button type="button" onClick={back} aria-label="Retour" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10"><I name="back" size={22}/></button><Link href="/" className="min-w-0 flex-1"><Logo clair taille={30}/></Link><Link href="/client" aria-label="Ouvrir mon profil" className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#FFE23D]/70 bg-[#0B3D26] text-sm font-extrabold text-[#FFE23D] shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]">{avatarUrl?<img src={avatarUrl} alt="Photo de profil" className="h-full w-full object-cover" referrerPolicy="no-referrer"/>:<span aria-hidden="true">{initiales}</span>}</Link><Link href="/recherche" aria-label="Rechercher un médicament" title="Rechercher un médicament" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFE23D]"><I name="search" size={22}/></Link>
+  </div></header>
+  <section className="relative z-20 mx-auto -mt-4 max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] px-3 pb-8 pt-5 sm:px-4">
    <form className="flex items-center gap-2" onSubmit={e=>{e.preventDefault();setDebounced(query.trim())}}>
     <div className="flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D7E5DC] bg-white px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10"><span className="text-[#0F6B3F]"><I name="search" size={20}/></span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher un médicament" aria-label="Médicament recherché" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-normal placeholder:text-slate-400"/>{query&&<button type="button" aria-label="Effacer la recherche" onClick={()=>{setQuery("");setDebounced("")}} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 transition-transform active:rotate-90"><I name="x" size={18}/></button>}</div>
-<button type="submit" className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm active:scale-[0.97]"><I name="search" size={18}/>Rechercher</button>
+    <button type="button" onClick={()=>setFilterOpen(true)} className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26] shadow-sm active:scale-[0.97]"><I name="filter" size={18}/>Filtrer</button>
    </form>
-<p className="mt-5 text-sm font-semibold text-[#0F6B3F]" aria-live="polite">{loading?"Recherche…":<><span className="font-extrabold text-[#FF9F1C]">{filtered.length}</span> résultat{filtered.length===1?"":"s"} pour « {query.trim()} » à <span className="font-extrabold text-[#FF9F1C]">{city}</span></>}</p>
+   <div className="mt-5 flex items-center gap-3 text-sm font-semibold text-[#0F6B3F]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0F6B3F] text-lg font-black text-white">$</span><p aria-live="polite">{loading?"Recherche…":`${filtered.length} résultat${filtered.length===1?"":"s"} pour "${query.trim()}" à ${city}`}</p></div>
    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-[#D7E5DC] bg-white px-3 py-2.5 text-xs text-[#53685C]">
     <span aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2">{locationStatus==="gps"?<><span className="h-2 w-2 rounded-full bg-emerald-500"/>Position GPS utilisée</>:locationStatus==="pending"?<><span className="h-2 w-2 rounded-full bg-amber-400 motion-safe:animate-pulse"/>Recherche de votre position…</>:<><span className="h-2 w-2 rounded-full bg-amber-500"/>Position approximative : {city}</>}</span>
     <label className="sr-only" htmlFor="naxa-ville">Ville de recherche</label><select id="naxa-ville" value={locationStatus==="gps"&&city==="À proximité"?"GPS":city==="Douala"?"Douala":"Yaoundé"} onChange={e=>{const next=e.target.value==="Douala"?"Douala":"Yaoundé";setCity(next);setCoords(next==="Douala"?DOUALA:YAOUNDE);setLocationStatus("fallback")}} className="max-w-[125px] rounded-lg border border-[#D7E5DC] bg-white px-2 py-2 font-semibold text-[#0B3D26]"><option value="GPS" disabled>Position GPS</option><option value="Yaoundé">Yaoundé</option><option value="Douala">Douala</option></select>
     <button type="button" onClick={()=>void actualiserPosition()} className="min-h-9 rounded-lg bg-[#0F6B3F] px-3 font-bold text-white disabled:opacity-60" disabled={locationStatus==="pending"}>Actualiser GPS</button>
    </div>
-    <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
-     <button type="button" onClick={()=>{setSort("distance");setAscending(true);setActiveFilters(v=>({...v,distance:""}));setFilters(v=>({...v,distance:""}))}} aria-pressed={sort==="distance"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold transition active:scale-[0.97] ${sort==="distance"?"bg-[#0F6B3F] text-white":"border border-[#0F6B3F] bg-[#E7F5EC] text-[#0F6B3F]"}`}><I name="pin" size={14}/>Par distance</button>
-     <button type="button" onClick={()=>{setSort("prix");setAscending(v=>sort==="prix"?!v:true)}} aria-pressed={sort==="prix"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold transition active:scale-[0.97] ${sort==="prix"?"bg-[#7C3AED] text-white":"border border-[#7C3AED] bg-[#F3E8FF] text-[#6D28D9]"}`}>Par Prix <I name="sort" size={13}/>{sort==="prix"?(ascending?"↑":"↓"):""}</button>
-     <button type="button" onClick={()=>setAssuranceOpen(true)} aria-pressed={Boolean(assurance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold transition active:scale-[0.97] ${assurance?"bg-[#2563EB] text-white":"border border-[#2563EB] bg-[#DBEAFE] text-[#1D4ED8]"}`}>Par assurance{assurance?` · ${assurance}`:""}</button>
-     <button type="button" onClick={()=>router.push("/panier")} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#BFD4C6] bg-white px-3 text-xs font-extrabold text-[#0F6B3F] active:scale-[0.97]"><I name="cart" size={14}/>Panier{nombre>0&&<span className="rounded-full bg-[#FFE23D] px-1.5 py-0.5 text-[10px]">{nombre}</span>}</button>
-    </div>
+   <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filtres rapides">
+    <button type="button" onClick={()=>toggleQuickFilter("stock")} aria-pressed={activeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold transition active:scale-[0.97] ${activeFilters.stock?"bg-[#0F6B3F] text-white":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}><I name="check" size={14}/>Disponibilité</button>
+    <button type="button" onClick={cycleDistance} aria-pressed={Boolean(activeFilters.distance)} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold transition active:scale-[0.97] ${activeFilters.distance?"bg-[#0F6B3F] text-white":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}><I name="pin" size={14}/>{activeFilters.distance?`Distance · ${activeFilters.distance} km`:"Distance"}</button>
+    <button type="button" onClick={()=>{setSort("prix");setAscending(v=>sort==="prix"?!v:true)}} aria-pressed={sort==="prix"} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold transition active:scale-[0.97] ${sort==="prix"?"bg-[#FFE23D] text-[#0B3D26]":"border border-[#BFD4C6] bg-white text-[#0F6B3F]"}`}>Prix <I name="sort" size={13}/>{sort==="prix"?(ascending?"↑":"↓"):""}</button>
+    <button type="button" onClick={()=>setFilterOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#BFD4C6] bg-white px-3 text-xs font-extrabold text-[#0F6B3F] transition active:scale-[0.97]"><I name="filter" size={14}/>Filtres +{activeFilterCount>0&&<span className="rounded-full bg-[#FFE23D] px-1.5 py-0.5 text-[10px] text-[#0B3D26]">{activeFilterCount}</span>}</button>
+    <button type="button" onClick={()=>router.push("/panier")} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#BFD4C6] bg-white px-3 text-xs font-extrabold text-[#0F6B3F] active:scale-[0.97]"><I name="cart" size={14}/>Panier{nombre>0&&<span className="rounded-full bg-[#FFE23D] px-1.5 py-0.5 text-[10px]">{nombre}</span>}</button>
    </div>
    {error&&<div role="alert" className="mt-4 rounded-2xl border border-red-200 bg-white p-4 text-sm text-red-800"><p>{error}</p><button type="button" onClick={()=>setDebounced(query.trim())} className="mt-2 font-bold underline">Réessayer</button></div>}
    {loading&&<div className="mt-5 space-y-4" aria-label="Chargement des pharmacies">{[0,1,2].map(n=><div key={n} className="animate-pulse rounded-[20px] bg-white p-4 shadow-sm"><div className="h-5 w-2/3 rounded bg-[#E5EEE8]"/><div className="mt-3 h-4 w-1/2 rounded bg-[#E5EEE8]"/><div className="mt-5 h-9 w-1/3 rounded bg-[#E5EEE8]"/></div>)}</div>}
-   {!loading&&!error&&query.trim()&&<section className="mt-5 space-y-3" aria-live="polite"><div className="rounded-[20px] bg-white p-5 shadow-sm"><h2 className="font-extrabold">Médicaments correspondants</h2></div>{catalogueLoading&&<p className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Recherche dans le catalogue…</p>}{!catalogueLoading&&catalogue.length===0&&<div className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Aucune fiche correspondante n’a été trouvée dans les sources interrogées. Essayez le nom de la substance active.</div>}{catalogue.map((m)=> <article key={m.id} className="relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 pr-14 shadow-sm"><button type="button" onClick={()=>toggleFavori({id:m.id,nom:m.name,dosage:m.form,photo_url:m.imageUrl,prix:null,pharmacie:"Prix et pharmacie à confirmer",demo:true})} aria-label={favoriIds.has(m.id)?`Retirer ${m.name} des favoris`:`Ajouter ${m.name} aux favoris`} aria-pressed={favoriIds.has(m.id)} className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 ${favoriIds.has(m.id)?"border-red-600 bg-red-50 text-red-600":"border-red-200 bg-white text-red-500"}`}><IconeNAXA name="heart" size={20} filled={favoriIds.has(m.id)}/></button><div className="flex items-start gap-3"><img src={m.imageUrl||"/medicaments/placeholder.svg"} onError={(e)=>{e.currentTarget.onerror=null;e.currentTarget.src="/medicaments/placeholder.svg";if(m.imageUrl)setCatalogue((current)=>current.map((item)=>item.id===m.id?{...item,imageUrl:null,imageSource:null,imageSourceUrl:null,imageLicense:null,imageAttribution:null}:item))}} alt={m.imageUrl?`Image de référence — ${m.name}`:"Illustration neutre : photo non disponible"} title={m.imageSource?`${m.imageSource}${m.imageLicense?" · "+m.imageLicense:""}`:"Photo non disponible"} className="h-24 w-24 shrink-0 rounded-xl border border-[#E4ECE6] bg-slate-50 object-contain" loading="lazy"/><div className="min-w-0"><h3 className="font-extrabold text-[#0B3D26]">{m.name}</h3>{m.brand&&<p className="text-sm text-[#53685C]">{m.brand}</p>}{m.activeIngredient&&<p className="mt-1 text-sm"><strong>Substance active :</strong> {m.activeIngredient}</p>}{m.form&&<p className="text-sm"><strong>Forme :</strong> {m.form}</p>}</div></div>{m.definition&&<p className="mt-3 text-sm text-[#53685C]"><strong>Description :</strong> {m.definition}</p>}{m.indications&&<p className="mt-2 text-sm text-[#53685C]"><strong>Indications générales :</strong> {m.indications}</p>}{m.imageSourceUrl&&m.imageLicense&&<p className="mt-2 text-xs text-[#53685C]">Image : {m.imageAttribution&&<span>{m.imageAttribution} · </span>}<a href={m.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">source et licence</a> — {m.imageLicense}</p>}{filtered.length===0&&<p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Aucune offre partenaire confirmée dans les résultats actuels. Quantité, prix et localisation non affichés.</p>}{m.cameroonRegulatoryReference&&<a href={m.cameroonRegulatoryReference} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold underline">Vérifier l’autorisation au Cameroun (DPML)</a>}</article>)}</section>}
+   {!loading&&!error&&query.trim()&&filtered.length===0&&<section className="mt-5 space-y-3" aria-live="polite"><div className="rounded-[20px] bg-white p-5 shadow-sm"><h2 className="font-extrabold">Catalogue des médicaments</h2><p className="mt-2 text-sm text-[#53685C]">Les fiches restent visibles même lorsqu’aucune pharmacie partenaire ne propose une offre confirmée. Le stock, le prix et la localisation ne sont affichés que pour des offres partenaires vérifiées.</p></div>{catalogueLoading&&<p className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Recherche dans le catalogue…</p>}{!catalogueLoading&&catalogue.length===0&&<div className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Aucune fiche correspondante n’a été trouvée dans les sources interrogées. Essayez le nom de la substance active.</div>}{catalogue.map((m)=> <article key={m.id} className="relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 pr-14 shadow-sm"><button type="button" onClick={()=>toggleFavori({id:m.id,nom:m.name,dosage:m.form,photo_url:m.imageUrl,prix:null,pharmacie:"Prix et pharmacie à confirmer",demo:true})} aria-label={favoriIds.has(m.id)?`Retirer ${m.name} des favoris`:`Ajouter ${m.name} aux favoris`} aria-pressed={favoriIds.has(m.id)} className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 ${favoriIds.has(m.id)?"border-[#0F6B3F] bg-[#E6F2EB] text-[#0F6B3F]":"border-[#D8E5DC] bg-white text-[#64776B]"}`}><IconeNAXA name="heart" size={20} filled={favoriIds.has(m.id)}/></button><div className="flex items-start gap-3"><img src={m.imageUrl||"/medicaments/placeholder.svg"} onError={(e)=>{e.currentTarget.onerror=null;e.currentTarget.src="/medicaments/placeholder.svg"}} alt={m.imageUrl?"Photo de référence du médicament":"Photo non disponible"} className="h-24 w-24 shrink-0 rounded-xl border border-[#E4ECE6] bg-slate-50 object-contain" loading="lazy"/><div className="min-w-0"><h3 className="font-extrabold text-[#0B3D26]">{m.name}</h3>{m.brand&&<p className="text-sm text-[#53685C]">{m.brand}</p>}{m.activeIngredient&&<p className="mt-1 text-sm"><strong>Substance active :</strong> {m.activeIngredient}</p>}{m.form&&<p className="text-sm"><strong>Forme :</strong> {m.form}</p>}</div></div>{m.definition&&<p className="mt-3 text-sm text-[#53685C]"><strong>Description :</strong> {m.definition}</p>}{m.indications&&<p className="mt-2 text-sm text-[#53685C]"><strong>Indications générales :</strong> {m.indications}</p>}<p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Aucune offre partenaire confirmée dans les résultats actuels. Quantité, prix et localisation non affichés.</p>{m.cameroonRegulatoryReference&&<a href={m.cameroonRegulatoryReference} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold underline">Vérifier l’autorisation au Cameroun (DPML)</a>}</article>)}</section>}
    {!loading&&!query.trim()&&!basketMode&&<div className="mt-5 rounded-[20px] bg-white p-5 text-sm text-[#53685C]">Saisissez un médicament pour voir les pharmacies partenaires qui l&apos;ont en stock.</div>}
    <div className="mt-5 space-y-4">{filtered.map((r,index)=>{const item=r.items[0],price=Number(item?.prix??r.total_prix),isCheapest=r.pharmacie_id===cheapest,href=item?`/offre/${r.pharmacie_id}/${item.produit_id}`:"/client",photo=r.photo_path&&(r.photo_path.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`)||/^\/pharmacies\/[a-zA-Z0-9._-]+$/.test(r.photo_path))?r.photo_path:null;
-    return <article key={r.pharmacie_id} style={{animationDelay:`${Math.min(index*80,400)}ms`}} className="naxa-enter relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 shadow-[0_6px_18px_rgba(0,0,0,0.08)] transition-transform active:scale-[0.99]"><button type="button" onClick={()=>item&&toggleFavori({id:item.produit_id,nom:item.nom,dosage:item.dosage,photo_url:null,prix:Number(item.prix)||0,pharmacie:r.nom,demo:false})} disabled={!item} aria-label={item?(favoriIds.has(item.produit_id)?`Retirer ${item.nom} des favoris`:`Ajouter ${item.nom} aux favoris`):"Favori indisponible"} aria-pressed={item?favoriIds.has(item.produit_id):false} className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 disabled:opacity-40 ${item&&favoriIds.has(item.produit_id)?"border-red-600 bg-red-50 text-red-600":"border-red-200 bg-white text-red-500"}`}><IconeNAXA name="heart" size={20} filled={Boolean(item&&favoriIds.has(item.produit_id))}/></button>
+    return <article key={r.pharmacie_id} style={{animationDelay:`${Math.min(index*80,400)}ms`}} className="naxa-enter relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 shadow-[0_6px_18px_rgba(0,0,0,0.08)] transition-transform active:scale-[0.99]"><button type="button" onClick={()=>item&&toggleFavori({id:item.produit_id,nom:item.nom,dosage:item.dosage,photo_url:null,prix:Number(item.prix)||0,pharmacie:r.nom,demo:false})} disabled={!item} aria-label={item?(favoriIds.has(item.produit_id)?`Retirer ${item.nom} des favoris`:`Ajouter ${item.nom} aux favoris`):"Favori indisponible"} aria-pressed={item?favoriIds.has(item.produit_id):false} className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 disabled:opacity-40 ${item&&favoriIds.has(item.produit_id)?"border-[#0F6B3F] bg-[#E6F2EB] text-[#0F6B3F]":"border-[#D8E5DC] bg-white text-[#64776B]"}`}><IconeNAXA name="heart" size={20} filled={Boolean(item&&favoriIds.has(item.produit_id))}/></button>
      <div className="flex items-start gap-3"><Link href={href} aria-label={`Ouvrir la fiche de ${r.nom}`} className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] border ${r.de_garde ? "border-[#0F6B3F] ring-2 ring-[#DFF0E3]" : "border-[#E0EAE3]"} bg-white text-[#0F6B3F]`}>{photo?<img src={photo} alt={`Logo de ${r.nom}`} className="h-full w-full rounded-[14px] object-contain"/>:<span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0F6B3F] text-white"><I name={index===0?"pill":"building"} size={23}/></span>}</Link><div className="min-w-0 flex-1"><Link href={href} className="block text-[19px] font-extrabold leading-6 text-[#0B3D26]">{r.nom}</Link><p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-[#0F6B3F]"><span className="h-2 w-2 rounded-full bg-emerald-500 motion-safe:animate-pulse"/>{r.trouves>0?`En stock • ${item?.quantite??r.trouves} boîtes disponibles`:"Disponibilité à confirmer"}</p></div></div>
      <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><p className="text-[30px] font-black leading-tight tracking-tight text-[#0B3D26]">{fcfa(price)}</p>{isCheapest&&<span className="inline-flex items-center gap-1 rounded-xl bg-[#FFF3B0] px-2 py-1.5 text-xs font-extrabold text-[#0B3D26]"><I name="star" size={14}/>Le moins cher</span>}</div>
      <div className="mt-3 flex items-start justify-between gap-3"><div className="min-w-0 flex-1 text-sm text-[#64776B]"><p className="flex items-start gap-1.5"><span className="mt-0.5"><I name="pin" size={15}/></span><span>{Number(r.distance_km).toFixed(1)} km • {[r.quartier,r.ville||"Douala"].filter(Boolean).join(", ")}</span></p>{r.de_garde&&<p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#DFF0E3] px-2.5 py-1 text-xs font-bold text-[#0F6B3F]"><I name="clock" size={14}/>Ouvert / pharmacie de garde</p>}{item&&<p className="mt-2 text-xs text-[#53685C]">{item.nom}{item.dosage?" · "+item.dosage:""}</p>}</div><button type="button" onClick={()=>add(r)} disabled={!item||r.trouves===0||added===r.pharmacie_id} className="flex min-h-[50px] min-w-[106px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26] shadow-sm transition-transform active:scale-[0.96] disabled:opacity-70">{added===r.pharmacie_id?"Ajouté ✓":<><I name="cart" size={17}/>Ajouter</>}</button></div>
      {basketMode && r.trouves===r.demandes && <Link href={`/commande/nouvelle?pharmacie=${r.pharmacie_id}`} className="btn btn-vert mt-4 w-full">Continuer avec cette pharmacie</Link>}
     </article>})}</div>
   </section>
-  {assuranceOpen&&<div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" role="presentation" onClick={()=>setAssuranceOpen(false)}><section role="dialog" aria-modal="true" aria-labelledby="assurance-title" className="max-h-[82dvh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] bg-[#F4F8F5] p-5 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#C7D7CC]"/><h2 id="assurance-title" className="text-xl font-extrabold text-[#0B3D26]">Choisir une assurance</h2><p className="mt-2 text-sm text-[#53685C]">Sélectionnez l’assurance à laquelle vous avez souscrit.</p><div className="mt-4 space-y-2">{["CNPS","Activa","Chanas Assurances","Allianz","SAAR Assurances"].map(name=><button key={name} type="button" onClick={()=>{setAssurance(name);setAssuranceIds(new Set());setAssuranceOpen(false);notifierNAXA("Aperçu visuel : assurance "+name+" sélectionnée. Le filtrage réel des pharmacies sera connecté ultérieurement.");}} className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-4 text-left text-sm font-bold ${assurance===name?"border-[#2563EB] bg-[#DBEAFE] text-[#1D4ED8]":"border-[#D7E5DC] bg-white text-[#0B3D26]"}`}>{name}{assurance===name&&<I name="check" size={16}/>}</button>)}</div><button type="button" onClick={()=>{setAssurance("");setAssuranceIds(new Set());setAssuranceOpen(false)}} className="mt-4 min-h-11 w-full rounded-xl border border-[#BFD4C6] bg-white font-bold text-[#0B3D26]">Effacer le filtre d’assurance</button></section></div>}
   {filterOpen&&<div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40" role="presentation" onClick={()=>setFilterOpen(false)}><section role="dialog" aria-modal="true" aria-labelledby="filter-title" className="max-h-[82dvh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] bg-[#F4F8F5] p-5 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#C7D7CC]"/><h2 id="filter-title" className="text-xl font-extrabold text-[#0B3D26]">Filtrer les résultats</h2>
    <label className="mt-4 flex min-h-11 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>En stock uniquement</span><input type="checkbox" checked={filters.stock} onChange={e=>setFilters(v=>({...v,stock:e.target.checked}))}/></label>
    <label className="mt-2 flex min-h-11 items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-semibold"><span>Ouvert maintenant / de garde</span><input type="checkbox" checked={filters.open} onChange={e=>setFilters(v=>({...v,open:e.target.checked}))}/></label>
@@ -305,7 +121,6 @@ function ResultsContent(){
    <div className="mt-4 rounded-xl border border-dashed border-[#BFD4C6] bg-white/70 p-3 text-xs leading-5 text-[#64776B]">Les filtres de forme, de laboratoire, de livraison et de note seront proposés lorsque ces informations seront disponibles et vérifiables dans le catalogue NAXA.</div>
    <button type="button" onClick={()=>{setActiveFilters(filters);setFilterOpen(false)}} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#FFE23D] px-4 font-extrabold text-[#0B3D26] active:scale-[0.98]">Appliquer</button>
   </section></div>}
- </main>
-  );
+ </main>;
 }
 export default function Page(){return <Suspense fallback={<main className="min-h-dvh bg-[#F4F8F5] p-6">Chargement…</main>}><ResultsContent/></Suspense>}
