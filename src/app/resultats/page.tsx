@@ -255,8 +255,11 @@ function ResultsContent(){
    window.setTimeout(() => setAdded((current) => current === resultat.pharmacie_id ? null : current), 1200);
   };
   const back = () => {
-   if (window.history.length > 1) router.back();
-   else router.push("/");
+   if (window.history.length > 1) {
+    router.back();
+   } else {
+    router.push("/");
+   }
   };
  return (
   <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
