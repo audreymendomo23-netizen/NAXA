@@ -139,18 +139,38 @@ body:has(.bandeau) .home-ecran {
 }
 
 
-/* Les changements de route sont immédiats : pas de balayage ni d'apparition différée. */
-.naxa-page-sweep,
-.naxa-page-sweep-active,
-.naxa-page-content-active,
-.naxa-page-content-active main > :is(header, nav, h1, h2, p, section, article, form, ul, ol, footer, button, div),
-.naxa-page-content-active main > :is(header, nav, h1, h2, p, section, article, form, ul, ol, footer, button, div) > :is(h1, h2, h3, p, section, article, form, ul, ol, footer, button, label, input, a),
-.naxa-page-content-active main li {
-  animation: none !important;
-  transition: none !important;
-  opacity: 1;
-  transform: none;
-  filter: none;
+/* Parcours client immersif : priorité à l'entrée de page, sans animer les providers globaux. */
+@keyframes naxa-immersive-page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(.992);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.naxa-immersive-page {
+  min-width: 0;
+  transform-origin: top center;
+  animation: naxa-immersive-page-enter 620ms cubic-bezier(.2, .72, .2, 1) both !important;
+  will-change: opacity, transform, filter;
+}
+
+.naxa-immersive-page > * {
+  animation-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .naxa-immersive-page {
+    animation: none !important;
+    transform: none;
+    filter: none;
+    will-change: auto;
+  }
 }
 
 /* Squelettes légers : la bande brillante se déplace par transform. */
