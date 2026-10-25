@@ -41,7 +41,6 @@ function ResultsContent(){
  const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Yaoundé"),[coords,setCoords]=useState<{lat:number;lng:number}>(YAOUNDE),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"fallback">("pending");
  const [filters,setFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""}),[activeFilters,setActiveFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""});
  const {ajouter,nombre}=usePanier();
- const 
  const [catalogue,setCatalogue]=useState<CatalogItem[]>([]),[catalogueLoading,setCatalogueLoading]=useState(false);
  const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set());
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
