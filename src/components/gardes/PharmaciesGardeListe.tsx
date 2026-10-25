@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PhotoPharmacie } from "@/components/PhotoPharmacie";
 
 export type PharmacieGardeCard = {
@@ -25,40 +25,67 @@ function nettoyerTelephone(value: string): string {
 export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
   const [selection, setSelection] = useState<PharmacieGardeCard | null>(null);
   const [indexVisible, setIndexVisible] = useState(0);
+  const railRef = useRef<HTMLDivElement>(null);
+  const pauseAutoRef = useRef(false);
+
+  const afficherPharmacie = (index: number, behavior: ScrollBehavior = "smooth") => {
+    if (!pharmacies.length || !railRef.current) return;
+    const nextIndex = (index + pharmacies.length) % pharmacies.length;
+    railRef.current.scrollTo({ left: nextIndex * railRef.current.clientWidth, behavior });
+    setIndexVisible(nextIndex);
+  };
 
   useEffect(() => {
     if (pharmacies.length < 2 || selection) return;
     const interval = window.setInterval(() => {
-      setIndexVisible((index) => (index + 1) % pharmacies.length);
+      if (!pauseAutoRef.current) afficherPharmacie(indexVisible + 1);
     }, 3000);
     return () => window.clearInterval(interval);
-  }, [pharmacies.length, selection]);
-
-  const pharmacieVisible = pharmacies.length ? pharmacies[indexVisible % pharmacies.length] : null;
+  }, [pharmacies.length, selection, indexVisible]);
 
   return (
     <>
-      {pharmacieVisible && (
-        <section aria-live="polite" aria-atomic="true" className="space-y-2">
-          <p className="text-center text-xs text-slate-500">
-            Pharmacie {indexVisible + 1} sur {pharmacies.length} · changement automatique toutes les 3 secondes
-          </p>
-          <ul className="grid grid-cols-1 gap-3">
-            <li key={pharmacieVisible.id} className="carte pharmacie-garde-switch overflow-hidden space-y-0">
-              <button
-                type="button"
-                onClick={() => setSelection(pharmacieVisible)}
-                className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
-                aria-label={`Voir les coordonnées publiques de ${pharmacieVisible.nom}`}
-              >
-                <PhotoPharmacie nom={pharmacieVisible.nom} src={pharmacieVisible.imageUrl} lieu={pharmacieVisible.quartier} illustration={pharmacieVisible.imageType === "illustration"} />
-                <span className="block font-bold text-naxa-green-900">{pharmacieVisible.nom}</span>
-                {pharmacieVisible.quartier && <span className="mt-1 block text-sm text-slate-600">{pharmacieVisible.quartier}</span>}
-                <span className="mt-1 block text-sm font-semibold text-naxa-green-700">Ouvrir la fiche · contact et localisation</span>
-                <span className="mt-2 block text-[10px] text-slate-400">Source du planning de garde : Mfasha</span>
-              </button>
-            </li>
-          </ul>
+      {pharmacies.length > 0 && (
+        <section aria-label="Pharmacies de garde" className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" onClick={() => afficherPharmacie(indexVisible - 1)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-naxa-green-200 bg-white text-lg font-bold text-naxa-green-800 shadow-sm" aria-label="Pharmacie précédente">‹</button>
+            <p className="text-center text-xs text-slate-500" aria-live="polite" aria-atomic="true">
+              Pharmacie {indexVisible + 1} sur {pharmacies.length} · défilement automatique toutes les 3 secondes
+            </p>
+            <button type="button" onClick={() => afficherPharmacie(indexVisible + 1)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-naxa-green-200 bg-white text-lg font-bold text-naxa-green-800 shadow-sm" aria-label="Pharmacie suivante">›</button>
+          </div>
+          <div
+            ref={railRef}
+            className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+            onScroll={(event) => {
+              const rail = event.currentTarget;
+              if (!rail.clientWidth) return;
+              const nextIndex = Math.round(rail.scrollLeft / rail.clientWidth);
+              setIndexVisible(Math.min(pharmacies.length - 1, Math.max(0, nextIndex)));
+            }}
+            onTouchStart={() => { pauseAutoRef.current = true; }}
+            onTouchEnd={() => { window.setTimeout(() => { pauseAutoRef.current = false; }, 1200); }}
+            onMouseEnter={() => { pauseAutoRef.current = true; }}
+            onMouseLeave={() => { pauseAutoRef.current = false; }}
+          >
+            {pharmacies.map((pharmacie) => (
+              <article key={pharmacie.id} className="carte min-w-full snap-start overflow-hidden p-0">
+                <button
+                  type="button"
+                  onClick={() => setSelection(pharmacie)}
+                  className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
+                  aria-label={`Voir les coordonnées publiques de ${pharmacie.nom}`}
+                >
+                  <PhotoPharmacie nom={pharmacie.nom} src={pharmacie.imageUrl} lieu={pharmacie.quartier} illustration={pharmacie.imageType === "illustration"} />
+                  <span className="block font-bold text-naxa-green-900">{pharmacie.nom}</span>
+                  {pharmacie.quartier && <span className="mt-1 block text-sm text-slate-600">{pharmacie.quartier}</span>}
+                  <span className="mt-1 block text-sm font-semibold text-naxa-green-700">Ouvrir la fiche · contact et localisation</span>
+                  <span className="mt-2 block text-[10px] text-slate-400">Source du planning de garde : Mfasha</span>
+                </button>
+              </article>
+            ))}
+          </div>
         </section>
       )}
 
