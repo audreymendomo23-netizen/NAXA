@@ -155,6 +155,8 @@ test("photos : les photos locales exigent une correspondance, une licence et une
   assert.match(photoRoute, /from\("medicaments_images"\)/);
   assert.match(photoRoute, /eq\("statut", "image_stockee"\)/);
   assert.match(photoRoute, /unrequestedCombination/);
+  assert.match(photoRoute, /exactIdentityMatch\(query, identity\)/);
+  assert.match(photoRoute, /exactIdentityMatch\(query, row\.nom\)/);
   assert.match(photoRoute, /photo_licence/);
   assert.match(photoRoute, /photo_verifiee_le/);
 });
