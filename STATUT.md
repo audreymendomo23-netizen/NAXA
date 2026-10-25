@@ -556,3 +556,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Interface de logo sur le profil Promoteur : sélection pharmacie, aperçu, choisir/remplacer/supprimer, redimensionnement 400 px de large maximum.
 - Ajout du logo sur ticket de caisse, duplicata historique et reçu Marketplace ; l'impression attend le chargement des images.
 - Aucun build/typecheck/ESLint exécuté à ce stade.
+
+
+## UX-Scroll — moteur d'animation au défilement (25/10/2026)
+- Ajout du moteur client \`src/lib/scroll-motion.ts\` et du \`ScrollMotionProvider\` monté une seule fois dans le layout racine.
+- API React ajoutée : \`ScrollScene\`, \`ScrollItem\`, \`ScrollStagger\`; \`Reveal\` reste compatible et n'ajoute pas de mouvement à l'authentification.
+- Couverture automatique des éléments de contenu dans \`main\` sur les routes cinématiques et allégées ; les routes d'authentification conservent leur design et ne reçoivent que la transition de page.
+- Optimisations : écouteur scroll passif unique, RAF à la demande, IntersectionObserver, mesures groupées/cache, route-aware, reduced-motion, saveData/CPU réduit, prise en charge du thème nuit, support Safari iOS sans ScrollTimeline et sans scroll-jacking.
+- CSS responsive mobile-first ajouté avec paliers 640/768/1024/1440 px, safe area, unités svh/vh et désactivation de l'épinglage en paysage court.
+- **État : 🟡 moteur et couverture automatique ajoutés ; build Next.js, TypeScript et vérification visuelle des largeurs 360–1440 px non confirmés.** Les scènes en cinq actes doivent être explicitement structurées avec \`ScrollScene\` et les composants de contenu appropriés ; le moteur ne génère pas artificiellement de texte ou d'images.

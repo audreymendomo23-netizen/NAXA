@@ -1258,3 +1258,42 @@ small,
     opacity: 1 !important;
   }
 }
+
+
+/* NAXA Scroll Motion — moteur maison, progressif, sans dépendance. */
+:root { --naxa-scroll-ease: cubic-bezier(.22, 1, .36, 1); --naxa-scroll-content-max: 1200px; --naxa-scroll-hero-max: 1440px; --naxa-bottom-nav-height: 4.5rem; }
+html, body { min-width: 0; max-width: 100%; overflow-x: clip; }
+@supports not (overflow: clip) { html, body { overflow-x: hidden; } }
+.naxa-scroll-motion-enabled [data-scroll] { --p: 1; --scroll-blur: 0px; --scroll-from: 18px; --scroll-to: 0px; --scroll-speed: 18px; opacity: 1; transform: none; filter: none; will-change: auto; }
+.naxa-scroll-motion-enabled [data-scroll][data-scroll-motion-visible="true"] { will-change: transform, opacity, filter; }
+.naxa-scroll-motion-enabled [data-scroll="rise"] { opacity: clamp(0, var(--p, 1), 1); transform: translate3d(0, calc(var(--scroll-from, 18px) * (1 - var(--p, 1)) + var(--scroll-to, 0px) * var(--p, 1)), 0); }
+.naxa-scroll-motion-enabled [data-scroll="fade"] { opacity: clamp(0, var(--p, 1), 1); }
+.naxa-scroll-motion-enabled [data-scroll="zoom"] { opacity: clamp(0, var(--p, 1), 1); transform: translate3d(0, 0, 0) scale(calc(.94 + .06 * var(--p, 1))); }
+.naxa-scroll-motion-enabled [data-scroll="parallax"] { transform: translate3d(0, calc((.5 - var(--p, 1)) * var(--scroll-speed, 18px)), 0); filter: blur(var(--scroll-blur, 0px)); }
+.naxa-scroll-motion-enabled [data-scroll="stagger"] { --scroll-stagger-p: clamp(0, calc(var(--p, 1) - var(--i, 0) * .075), 1); opacity: var(--scroll-stagger-p); transform: translate3d(0, calc((1 - var(--scroll-stagger-p)) * 24px), 0); }
+.naxa-scroll-motion-enabled [data-scroll-motion-visible="false"] { will-change: auto; }
+.naxa-scroll-motion-enabled [data-scroll-scene-sticky] { position: sticky; top: 0; height: 100vh; height: 100svh; min-height: 0; padding-bottom: env(safe-area-inset-bottom, 0px); overflow: clip; }
+.naxa-scroll-scene { position: relative; height: calc(var(--scroll-scene-length, 5) * 100vh); height: calc(var(--scroll-scene-length, 5) * 100svh); min-width: 0; }
+.naxa-scroll-motion-enabled [data-scene] { --p: 0; }
+html[data-naxa-header-compact="true"] header[data-scroll-header="true"] { box-shadow: 0 5px 20px rgb(6 75 42 / 8%); transform: scale(.99); transform-origin: top center; transition: transform 180ms var(--naxa-scroll-ease), box-shadow 180ms ease; }
+html.naxa-dark[data-naxa-header-compact="true"] header[data-scroll-header="true"] { box-shadow: 0 5px 20px rgb(0 0 0 / 22%); }
+html[data-naxa-scroll-mode="light"] .naxa-scroll-motion-enabled [data-scroll="rise"] { --scroll-from: 10px; }
+html[data-naxa-scroll-mode="light"] .naxa-scroll-motion-enabled [data-scroll-scene-sticky], html[data-naxa-scroll-mode="auth"] .naxa-scroll-motion-enabled [data-scroll-scene-sticky] { position: static; height: auto; overflow: visible; }
+html[data-naxa-scroll-mode="auth"] .naxa-scroll-motion-enabled [data-scroll] { opacity: 1 !important; transform: none !important; filter: none !important; will-change: auto !important; }
+html[data-naxa-scroll-mode="auth"] header[data-scroll-header="true"] { box-shadow: none; transform: none; }
+main[data-scroll-route-enter="true"] { animation: naxa-scroll-route-enter 240ms var(--naxa-scroll-ease) both; }
+@keyframes naxa-scroll-route-enter { from { opacity: .82; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+html[data-naxa-scroll-lightweight="true"] .naxa-scroll-motion-enabled [data-scroll="parallax"] { transform: none !important; filter: none !important; }
+html[data-naxa-scroll-lightweight="true"] .naxa-scroll-motion-enabled [data-scroll="rise"], html[data-naxa-scroll-lightweight="true"] .naxa-scroll-motion-enabled [data-scroll="stagger"] { transform: translate3d(0, calc((1 - var(--p, 1)) * 8px), 0); filter: none !important; }
+html[data-naxa-scroll-reduced="true"] .naxa-scroll-motion-enabled [data-scroll], html[data-naxa-scroll-reduced="true"] .naxa-scroll-motion-enabled [data-scene], html[data-naxa-scroll-reduced="true"] main[data-scroll-route-enter="true"] { opacity: 1 !important; transform: none !important; filter: none !important; animation: none !important; will-change: auto !important; }
+html[data-naxa-scroll-reduced="true"] .naxa-scroll-scene, html[data-naxa-scroll-reduced="true"] .naxa-scroll-motion-enabled [data-scene] { height: auto !important; }
+html[data-naxa-scroll-reduced="true"] .naxa-scroll-motion-enabled [data-scroll-scene-sticky] { position: static; height: auto; overflow: visible; }
+html[data-naxa-scroll-lightweight="true"] .naxa-scroll-motion-enabled [data-scroll="parallax"] { --scroll-blur: 0px; }
+html.naxa-dark .naxa-scroll-motion-enabled [data-scroll] { color-scheme: dark; }
+@media (min-width: 640px) { :root { --naxa-scroll-content-max: 1200px; } .naxa-scroll-scene { padding-inline: max(1rem, calc((100vw - var(--naxa-scroll-content-max)) / 2)); } }
+@media (min-width: 768px) { .naxa-scroll-motion-enabled [data-scroll="rise"] { --scroll-from: 22px; } }
+@media (min-width: 1024px) { :root { --naxa-scroll-content-max: 1200px; --naxa-scroll-hero-max: 1440px; } .naxa-scroll-motion-enabled [data-scene] [data-scroll-scene-sticky] { display: grid; place-items: center; } }
+@media (min-width: 1440px) { .naxa-scroll-scene { padding-inline: max(2rem, calc((100vw - var(--naxa-scroll-hero-max)) / 2)); } }
+@media (max-height: 499px) { .naxa-scroll-scene { height: auto !important; } .naxa-scroll-motion-enabled [data-scroll-scene-sticky] { position: static !important; height: auto !important; min-height: 0 !important; overflow: visible !important; } }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) { .naxa-scroll-motion-enabled main .carte, .naxa-scroll-motion-enabled main .naxa-product-card { transition: box-shadow 180ms ease, border-color 180ms ease; } .naxa-scroll-motion-enabled main .carte:hover, .naxa-scroll-motion-enabled main .naxa-product-card:hover { box-shadow: 0 10px 26px rgb(6 75 42 / 10%); } }
+@media (prefers-reduced-motion: reduce) { .naxa-scroll-motion-enabled [data-scroll], .naxa-scroll-motion-enabled [data-scene], .naxa-scroll-motion-enabled [data-scroll-scene-sticky], main[data-scroll-route-enter="true"] { opacity: 1 !important; transform: none !important; filter: none !important; animation: none !important; will-change: auto !important; } .naxa-scroll-scene { height: auto !important; } .naxa-scroll-motion-enabled [data-scroll-scene-sticky] { position: static; height: auto; overflow: visible; } }
