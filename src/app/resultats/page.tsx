@@ -81,7 +81,7 @@ function ResultsContent(){
  return <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
   <EnTeteAccueil langue={langue} setLangue={setLangue} compact />
 
-  <section className="relative z-20 mx-auto -mt-4 max-w-[480px] rounded-t-[28px] bg-[#F4F8F5] px-3 pb-8 pt-5 sm:px-4">
+  <section className="relative z-20 mx-auto mt-2 max-w-[480px] rounded-[28px] bg-[#F4F8F5] px-3 pb-8 pt-5 sm:px-4">
    <form className="flex items-center gap-2" onSubmit={e=>{e.preventDefault();setDebounced(query.trim())}}>
     <div className="flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-[#D7E5DC] bg-white px-4 shadow-sm transition focus-within:border-[#0F6B3F] focus-within:ring-4 focus-within:ring-[#0F6B3F]/10"><span className="text-[#0F6B3F]"><I name="search" size={20}/></span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher un médicament" aria-label="Médicament recherché" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-normal placeholder:text-slate-400"/>{query&&<button type="button" aria-label="Effacer la recherche" onClick={()=>{setQuery("");setDebounced("")}} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 transition-transform active:rotate-90"><I name="x" size={18}/></button>}</div>
 <button type="submit" className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FFE23D] px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm active:scale-[0.97]"><I name="search" size={18}/>Rechercher</button>
