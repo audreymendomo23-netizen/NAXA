@@ -28,7 +28,7 @@ La page source a été consultée le 25 octobre 2026 et affichait une période d
 | EMMANUEL | 2 | Non identifiée | Illustration blanche avec icône et nom |
 | MVOG-ADA | 3 | Non identifiée | Illustration blanche avec icône et nom |
 | Le Crystallis | 4 | Non identifiée | Illustration blanche avec icône et nom |
-| Sainte Anne | 4 | Non identifiée | Illustration blanche avec icône et nom |
+| Sainte Anne | 4 | Candidate visuelle concordante trouvée sur Ayila'a ; droits/réutilisation non vérifiés et pas encore importée dans Supabase | Illustration blanche tant que la photo candidate n'est pas importée et validée |
 | Nsam Efoulan | 5 | Non identifiée | Illustration blanche avec icône et nom |
 | Marijova | 6 | Non identifiée | Illustration blanche avec icône et nom |
 | Messa | 7 | Non identifiée | Illustration blanche avec icône et nom |
@@ -39,7 +39,7 @@ La page source a été consultée le 25 octobre 2026 et affichait une période d
 | God's Glory Pharmacy | 13 | Non identifiée | Illustration blanche avec icône et nom |
 | Pharmacie de Minkan | 13 | Non identifiée | Illustration blanche avec icône et nom |
 
-Les libellés de cette table sont normalisés pour le suivi de l'audit ; la source de garde demeure la référence pour le nom exact, la zone, les contacts et la période du jour.
+Les libellés de cette table sont normalisés pour le suivi de l'audit ; la source de garde demeure la référence pour le nom exact, la zone, les contacts et la période du jour. Une image de façade portant le nom « Pharmacie Sainte Anne » a été repérée sur https://ayilaa.com/fr/secours/11406-pharmacie-sainte-anne-yaounde ; l'image est un candidat concordant, mais sa provenance/droit de réutilisation et son téléversement dans Supabase restent à valider. La fiche publique de la Pharmacie Le Crystallis sur https://mboapharma.cm/directory/pharmacie-le-crystallis/ affiche des images étiquetées au nom de l'établissement, mais la page refuse l'accès automatisé (403), donc aucun fichier image n'a pu être récupéré et vérifié.
 
 ## Ordre de priorité appliqué par l'API NAXA
 
