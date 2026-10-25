@@ -157,24 +157,25 @@ function priorityIndex(row) {
 }
 
 async function savePhoto(row, photo, dryRun) {
-  const { data: prior, error: priorError } = await supabase.from("medicaments_images")
-    .select("image_path,statut").eq("cis", row.cis).limit(1);
-  if (priorError) throw priorError;
-  if (prior?.some((item) => item.image_path && item.statut === "image_stockee")) {
-    return { skipped: true, reason: "photo_deja_stockee" };
-  }
+  // La table historique exige un vrai CIP (clé primaire CIS + CIP). Le référentiel
+  // public ne fournit pas ce CIP : ne jamais inventer de code ni créer de ligne orpheline.
+  const { data: existing, error: lookupError } = await supabase.from("medicaments_images")
+    .select("cis,cip_code,image_path,statut").eq("cis", row.cis).order("cip_code").limit(10);
+  if (lookupError) throw lookupError;
+  if (!existing?.length) return { skipped: true, reason: "aucune_presentation_CIP_existante" };
+  const target = existing.find((item) => item.image_path && item.statut === "image_stockee");
+  if (target) return { skipped: true, reason: "photo_deja_stockee" };
+  const presentation = existing[0];
   const { buffer, mime, ext } = await downloadImage(photo.imageUrl);
   const safeCis = String(row.cis).replace(/[^a-zA-Z0-9_-]/g, "_");
   const path = `cameroun/${safeCis}/illustration.${ext}`;
-  if (dryRun) return { path, bytes: buffer.length, mime };
+  if (dryRun) return { path, bytes: buffer.length, mime, cip_code: presentation.cip_code };
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, buffer, {
     contentType: mime, upsert: true, cacheControl: "31536000",
   });
   if (uploadError) throw uploadError;
 
   const record = {
-    cis: row.cis,
-    cip_code: null,
     libelle_presentation: row.nom + (row.forme ? " — " + row.forme : ""),
     image_path: path,
     image_url: null,
@@ -185,17 +186,10 @@ async function savePhoto(row, photo, dryRun) {
     methode_correspondance: "priorite_cameroun_commons_verification_automatique",
     updated_at: new Date().toISOString(),
   };
-  const { data: existing, error: lookupError } = await supabase.from("medicaments_images")
-    .select("cis,cip_code").eq("cis", row.cis).limit(1);
-  if (lookupError) throw lookupError;
-  if (existing?.length) {
-    const { error } = await supabase.from("medicaments_images").update(record).eq("cis", row.cis);
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from("medicaments_images").insert(record);
-    if (error) throw error;
-  }
-  return { path, bytes: buffer.length, mime };
+  const { error } = await supabase.from("medicaments_images").update(record)
+    .eq("cis", row.cis).eq("cip_code", presentation.cip_code);
+  if (error) throw error;
+  return { path, bytes: buffer.length, mime, cip_code: presentation.cip_code };
 }
 
 async function main() {
