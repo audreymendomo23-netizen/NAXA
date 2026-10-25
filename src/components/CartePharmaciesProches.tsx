@@ -171,7 +171,7 @@ export default function CartePharmaciesProches({
       </div>
       <div className="space-y-2 border-t border-[#E5EEE8] p-3 sm:p-4" aria-label="Coordonnées publiques des pharmacies proches">
         {pharmaciesAvecContact.map(p => {
-          const telephone = typeof p.telephone === "string" ? p.telephone.replace(/[^+\\d]/g, "") : "";
+          const telephone = typeof p.telephone === "string" ? p.telephone.replace(/[^+\d]/g, "") : "";
           const lieu = [p.adresse, p.quartier, p.ville].filter((value): value is string => Boolean(value?.trim())).join(", ");
           return <article key={p.id} className="rounded-2xl border border-[#DCE9DF] bg-[#F8FBF8] p-3">
             <div className="flex items-start justify-between gap-3">
