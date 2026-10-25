@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePanier } from "@/lib/panier";
@@ -9,6 +10,15 @@ import { ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 
 type IconName = "home" | "heart" | "scan" | "shopping" | "calendar" | "clipboard" | "user";
 function NavIcon({name,className="h-5 w-5"}:{name:IconName;className?:string}) {
+ const imageSources: Partial<Record<IconName, string>> = {
+  home: "/icones-nav/accueil.png",
+  heart: "/icones-nav/favori-coeur.webp",
+  shopping: "/icones-nav/achats.webp",
+  calendar: "/icones-nav/reservations.webp",
+  clipboard: "/icones-nav/commandes.webp",
+ };
+ const imageSource = imageSources[name];
+ if (imageSource) return <Image src={imageSource} alt="" aria-hidden="true" width={24} height={24} className={`shrink-0 object-contain ${className}`} />;
  const common={fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
  return <svg viewBox="0 0 24 24" className={className} {...common}>
   {name==="home"&&<><path d="m3 10 9-7 9 7"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/></>}
