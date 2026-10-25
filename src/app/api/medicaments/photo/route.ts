@@ -71,10 +71,11 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
     }>;
     const seen = new Set<string>();
     for (const product of localProducts) {
-      const identity = [product.nom, product.dci, ...(product.synonymes ?? [])].filter(Boolean).join(" ");
+      const identity = product.nom;
       const key = normalize(identity);
       if (seen.has(key)) continue;
       seen.add(key);
+      // Ne pas montrer la photo d'une marque lorsque la requête ne nomme que sa DCI.
       if (!exactIdentityMatch(query, identity)) continue;
       if (unrequestedCombination(query, product.dci ?? "")) continue;
       if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url) continue;
@@ -102,8 +103,9 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
     ]);
     const refMap = new Map<string, { cis: string; nom: string; substances_actives: string | null }>();
     for (const row of refs.flatMap((result) => result.data ?? [])) {
-      const candidate = [row.nom, row.substances_actives].filter(Boolean).join(" ");
-      if (exactIdentityMatch(query, candidate) && !unrequestedCombination(query, row.substances_actives ?? "")) refMap.set(row.cis, row);
+      // Le nom du médicament doit correspondre; la seule DCI ne suffit pas à
+      // justifier la photo d'une présentation commerciale différente.
+      if (exactIdentityMatch(query, row.nom) && !unrequestedCombination(query, row.substances_actives ?? "")) refMap.set(row.cis, row);
     }
     const cisList = [...refMap.keys()].slice(0, 30);
     if (!cisList.length) return null;
