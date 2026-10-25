@@ -373,13 +373,13 @@ export function AccueilClient() {
     void (async () => {
       try {
         const response = await fetch(
-          `https://router.project-osrm.org/route/v1/driving/${coord.lng},${coord.lat};${nearest.lng},${nearest.lat}?overview=false&steps=false`,
+          `${(process.env.NEXT_PUBLIC_NAXA_ROUTING_URL || "https://router.project-osrm.org").replace(/\/+$/, "")}/route/v1/driving/${coord.lng},${coord.lat};${nearest.lng},${nearest.lat}?overview=false&steps=false`,
           { signal: AbortSignal.timeout(8000), cache: "no-store" },
         );
         if (!response.ok) throw new Error("Service de calcul d’itinéraire indisponible");
-        const route = await response.json() as { routes?: Array<{ duration?: number; distance?: number }> };
-        const estimate = route.routes?.[0];
-        if (!estimate || !Number.isFinite(estimate.duration)) throw new Error("Estimation routière indisponible");
+        const route = await response.json() as { code?: string; routes?: Array<{ duration?: number; distance?: number }> };
+        const estimate = route.code === "Ok" ? route.routes?.[0] : undefined;
+        if (!response.ok || !estimate || !Number.isFinite(estimate.duration)) throw new Error("Estimation routière indisponible");
         if (cancelled) return;
         const minutes = Math.max(1, Math.round((estimate.duration as number) / 60));
         const routeKm = Number.isFinite(estimate.distance) ? ((estimate.distance as number) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
