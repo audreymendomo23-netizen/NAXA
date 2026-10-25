@@ -10,6 +10,7 @@ import { AccueilClient } from "@/components/AccueilClient";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { usePanier } from "@/lib/panier";
 import { cancelHomeServiceRequest } from "@/app/prestations/actions";
+import { ClientOperations } from "@/components/client/ClientOperations";
 
 type Achat={reservation_id:string;produit_id:string;medicament:string;dci:string;dosage:string;forme:string;photo_url:string|null;quantite:number;prix_unitaire:number;total_ligne:number;total_transaction:number;reference_paiement:string|null;reservation_creee_le:string;pharmacie_id:string;pharmacie:string;ville:string;quartier:string|null;adresse:string|null;confirmee_le:string|null; paiement_declare_le:string|null;payee_le:string|null;retiree_le:string|null;achat_le:string|null;horodatage_achat_exact:boolean;statut:string};
 type Reservation={id:string;statut:string;mode:string;paiement_statut:string;paiement_mode:string|null;commande_statut:string|null;total:number;expires_at:string;created_at:string;paiement_ref:string|null;pharmacie_id:string;pharmacies:{nom:string;ville:string;quartier:string|null;adresse:string|null}|null;reservation_items:{quantite:number;prix_unitaire:number;produits:{id:string;nom:string;dci:string;dosage:string;forme:string;photo_url:string|null}|null}[]};
@@ -150,6 +151,6 @@ function ClientPageContent(){
  <p className="mt-8 text-center text-xs text-slate-500">NAXA facilite vos opérations d\’achats en pharmacie, Aucune transaction financière n\’est effectuée depuis cet espace.</p></div></main>;
 }
 
-function ClientRouteContent(){const searchParams=useSearchParams();return searchParams.get("onglet")==="achats"?<ClientPageContent/>:<AccueilClient />}
+function ClientRouteContent(){const searchParams=useSearchParams();return searchParams.get("onglet")==="achats"?<ClientOperations/>:<AccueilClient />}
 
 export default function ClientPage(){return <Suspense fallback={<main className="mx-auto min-h-screen max-w-2xl px-4 pb-28"><p className="carte mt-6">Chargement de votre espace…</p></main>}><ClientRouteContent /></Suspense>}
