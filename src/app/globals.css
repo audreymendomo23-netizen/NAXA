@@ -161,11 +161,27 @@ body:has(.bandeau) .home-ecran {
 }
 
 /* L'entrée immersive remplace les anciennes cascades d'apparition dans son contenu. */
-.naxa-immersive-page :is(.naxa-enter, .naxa-reveal, .reveal) {
+.naxa-immersive-page :is(.naxa-enter, .naxa-reveal, .reveal, .naxa-profile-enter) {
   animation: none !important;
   animation-delay: 0ms !important;
   opacity: 1;
   filter: none;
+}
+
+/* Les surfaces du parcours partagent une finition tactile, sans toucher aux dialogues ni aux carrousels. */
+.naxa-immersive-page :is(.carte, .naxa-profile-card, .naxa-profile-menu) {
+  border-color: #E1EBE4;
+  box-shadow: 0 5px 18px rgba(11, 61, 38, .055);
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .naxa-immersive-page :is(.carte, .naxa-profile-card, .naxa-profile-menu):hover {
+    border-color: #C8DDCF;
+    box-shadow: 0 9px 24px rgba(11, 61, 38, .085);
+  }
+}
+html.naxa-dark .naxa-immersive-page :is(.carte, .naxa-profile-card, .naxa-profile-menu) {
+  border-color: #274A35;
 }
 
 /* Les cartes produits gardent des interactions tactiles, sans seconde animation d'entrée. */
