@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { chargerGardesMfasha, MFASHA_SOURCE_URL } from "@/lib/pharmacies-gardes/mfasha";
 import { PhotoPharmacie } from "@/components/PhotoPharmacie";
+import { PharmaciesGardeListe } from "@/components/gardes/PharmaciesGardeListe";
 
 export const dynamic = "force-dynamic";
 
@@ -122,35 +123,10 @@ export default async function PharmaciesDeGarde() {
         )}
 
         {externe && externe.pharmacies.length > 0 && (
-          <ul className="space-y-3">
-            {externe.pharmacies.map((p) => (
-              <li key={p.id} className="carte overflow-hidden space-y-0">
-                <PhotoPharmacie nom={p.nom} src={p.imageUrl} lieu={p.quartier} />
-                <div className="space-y-1">
-                <h2 className="font-bold text-naxa-green-900">{p.nom}</h2>
-                {p.quartier && <p className="text-sm text-slate-600">{p.quartier}</p>}
-                {p.telephone && (
-                  <p className="text-sm">
-                    Téléphone :{" "}
-                    <a className="font-semibold text-naxa-green-700 underline" href={`tel:${p.telephone.replace(/[^+\d]/g, "")}`}>
-                      {p.telephone}
-                    </a>
-                  </p>
-                )}
-                {p.autresTelephones.length > 0 && (
-                  <p className="text-sm text-slate-600">
-                    Autres numéros : {p.autresTelephones.join(" · ")}
-                  </p>
-                )}
-                <p className="text-xs text-slate-500">
-                  <a href={p.source} target="_blank" rel="noreferrer" className="underline">
-                    Source et vérification
-                  </a>
-                </p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <PharmaciesGardeListe
+            pharmacies={externe.pharmacies}
+            sourceAnnuaireUrl="https://mboapharma.cm/annuaire-des-pharmacies/"
+          />
         )}
 
         {!externe && pharmaciesLocales && pharmaciesLocales.length > 0 && (
