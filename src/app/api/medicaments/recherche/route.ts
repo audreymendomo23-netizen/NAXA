@@ -308,10 +308,19 @@ export async function GET(request: NextRequest) {
     const formInName = formFromText(raw);
     const name = localizedGeneric ? pilot!.nomFr + (formInName ? " — " + formInName.toLowerCase() : "") : raw;
     const candidateNorm = normaliserTerme(raw);
+    const normalizedDisplayName = normaliserTerme(name);
     const localProduct = localProducts.find((product) => {
-      const productNames = [product.nom, product.dci].filter((value): value is string => Boolean(value)).map(normaliserTerme);
-      return productNames.some((productName) => productName === candidateNorm || productName === normaliserTerme(name) || productName.includes(candidateNorm) || candidateNorm.includes(productName));
-    }) ?? localProducts.find((product) => [product.nom, product.dci].filter(Boolean).some((value) => normaliserTerme(value as string) === normaliserTerme(query)));
+      // N'associer un stock local qu'à un nom/DCI correspondant après retrait des dosages.
+      // Les correspondances par simple sous-chaîne peuvent attribuer le stock d'un autre médicament.
+      const productNames = [product.nom, product.dci]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => normaliserTerme(cleanName(value)));
+      return productNames.some((productName) => productName === candidateNorm || productName === normalizedDisplayName);
+    }) ?? localProducts.find((product) =>
+      [product.nom, product.dci]
+        .filter(Boolean)
+        .some((value) => normaliserTerme(cleanName(value as string)) === normaliserTerme(cleanName(query)))
+    );
     const stock = localProduct ? localStocks.byProduct.get(localProduct.id) : undefined;
     // Une lecture réussie sans ligne de stock signifie zéro pharmacie partenaire pour ce produit.
     // Une erreur de lecture ne doit jamais être présentée comme une indisponibilité confirmée.
