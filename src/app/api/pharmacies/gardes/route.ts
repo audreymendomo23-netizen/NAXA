@@ -127,10 +127,15 @@ async function mettrePhotoEnCache(pharmacie: GardeExterne): Promise<GardeExterne
 /** Creates a persistent, clearly labelled fallback; never pretends it is a real photo. */
 async function mettreIllustrationEnCache(pharmacie: GardeExterne): Promise<GardeExterne> {
   try {
+    const svg = creerIllustrationPharmacie(pharmacie.nom);
+    // Le stockage Supabase reste prioritaire. En cas de panne/configuration absente,
+    // l'illustration intégrée évite une carte sans image, sans la présenter comme une photo réelle.
+    const dataUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!base) return { ...pharmacie, imageUrl: dataUrl, imageType: "illustration" };
+
     const admin = supabaseAdmin();
     const path = `gardes/illustrations/${slugPhoto(pharmacie.nom)}.svg`;
-    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!base) return pharmacie;
     const url = `${base}/storage/v1/object/public/${BUCKET}/${path}`;
 
     const { data: existing } = await admin.storage.from(BUCKET).list("gardes/illustrations", {
@@ -141,12 +146,12 @@ async function mettreIllustrationEnCache(pharmacie: GardeExterne): Promise<Garde
       return { ...pharmacie, imageUrl: url, imageType: "illustration" };
     }
 
-    const { error } = await admin.storage.from(BUCKET).upload(path, new TextEncoder().encode(creerIllustrationPharmacie(pharmacie.nom)), {
+    const { error } = await admin.storage.from(BUCKET).upload(path, new TextEncoder().encode(svg), {
       contentType: "image/svg+xml",
       upsert: true,
       cacheControl: "31536000",
     });
-    if (error) return pharmacie;
+    if (error) return { ...pharmacie, imageUrl: dataUrl, imageType: "illustration" };
     return { ...pharmacie, imageUrl: url, imageType: "illustration" };
   } catch {
     return pharmacie;
