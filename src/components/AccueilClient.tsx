@@ -477,6 +477,14 @@ export function AccueilClient() {
         <button type="button" onClick={()=>setHomeFilters(v=>({...v,stock:!v.stock}))} aria-pressed={homeFilters.stock} className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#E6C900] px-3 text-xs font-extrabold ${homeFilters.stock?"bg-[#FFE23D] text-[#0B3D26]":"bg-[#FFF9C7] text-[#0B3D26]"}`}><IconeNAXA name="check-circle" size={14}/>Disponibilité</button>
       </div>
 
+      <div className="naxa-enter mb-5">
+        <div className="relative isolate h-[148px] overflow-hidden rounded-[24px] border border-[#D7E7DC] bg-[#0B3D26] shadow-[0_10px_26px_rgba(5,74,41,0.16)] sm:h-[172px]" aria-label="Photographie d’illustration de l’accueil NAXA">
+          <Image src="/couvertures/accueil-client.webp" alt="Univers santé et pharmacies partenaires NAXA" fill priority={false} sizes="(max-width: 480px) 100vw, 480px" className="object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0B3D26]/75 via-[#0B3D26]/30 to-transparent" aria-hidden="true" />
+          <div className="absolute inset-x-4 bottom-3 text-sm font-extrabold text-white drop-shadow sm:text-base">NAXA, votre santé à portée de main</div>
+        </div>
+      </div>
+
       <div className="naxa-enter mb-4">
         <Link href="/scanner" className="flex min-h-[76px] items-center gap-3 rounded-[24px] border-2 border-[#0F6B3F] px-4 py-3 transition active:scale-[0.99]">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/60"><IconeNAXA name="lock" size={24}/></span>
