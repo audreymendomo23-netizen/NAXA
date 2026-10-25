@@ -67,7 +67,7 @@ function rechercherDansCache(query: string): MedicamentRecherche[] {
       .filter((value): value is string => Boolean(value))
       .some((value) => { const normalized = normaliserCache(value); return normalized.length >= 2 && (normalized.includes(needle) || needle.includes(normalized)); })
   );
-  return matches.slice(0, 10).map((item) => ({
+  return matches.filter((item) => !/^mock[-_]/i.test(item.id) && !/\b(demo|démo|test)\b/i.test(item.name)).slice(0, 10).map((item) => ({
     ...item,
     availability: "non_verifiee" as const,
     partnerPharmacyCount: null,
