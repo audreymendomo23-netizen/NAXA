@@ -31,8 +31,13 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
   const afficherPharmacie = (index: number, behavior: ScrollBehavior = "smooth") => {
     if (!pharmacies.length || !railRef.current) return;
     const nextIndex = (index + pharmacies.length) % pharmacies.length;
-    const slide = railRef.current.children.item(nextIndex) as HTMLElement | null;
-    railRef.current.scrollTo({ left: slide?.offsetLeft ?? nextIndex * railRef.current.clientWidth, behavior });
+    const rail = railRef.current;
+    const slide = rail.children.item(nextIndex) as HTMLElement | null;
+    const targetLeft = slide
+      ? rail.scrollLeft + slide.getBoundingClientRect().left - rail.getBoundingClientRect().left
+      : nextIndex * rail.clientWidth;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    rail.scrollTo({ left: targetLeft, behavior: reducedMotion ? "auto" : behavior });
     setIndexVisible(nextIndex);
   };
 
@@ -62,8 +67,17 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
             onScroll={(event) => {
               const rail = event.currentTarget;
               if (!rail.clientWidth) return;
-              const nextIndex = Math.round(rail.scrollLeft / rail.clientWidth);
-              setIndexVisible(Math.min(pharmacies.length - 1, Math.max(0, nextIndex)));
+              const railLeft = rail.getBoundingClientRect().left;
+              let nearestIndex = 0;
+              let nearestDistance = Number.POSITIVE_INFINITY;
+              Array.from(rail.children).forEach((child, index) => {
+                const distance = Math.abs((child as HTMLElement).getBoundingClientRect().left - railLeft);
+                if (distance < nearestDistance) {
+                  nearestDistance = distance;
+                  nearestIndex = index;
+                }
+              });
+              setIndexVisible(Math.min(pharmacies.length - 1, Math.max(0, nearestIndex)));
             }}
             onTouchStart={() => { pauseAutoRef.current = true; }}
             onTouchEnd={() => { window.setTimeout(() => { pauseAutoRef.current = false; }, 1200); }}
