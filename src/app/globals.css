@@ -498,11 +498,12 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 .naxa-home-shell > main { z-index:10; }
 .naxa-map-tile { position:relative; flex:0 0 76px; }
 .naxa-map-tile svg { display:block; }
-.naxa-client-tabs { scroll-snap-type:x proximity; scrollbar-color:#0F6B3F #E5EEE8; scrollbar-width:thin; touch-action:pan-x pan-y; }
-.naxa-client-tabs::-webkit-scrollbar { height:4px; }
-.naxa-client-tabs::-webkit-scrollbar-track { background:#E5EEE8; border-radius:99px; }
-.naxa-client-tabs::-webkit-scrollbar-thumb { background:#0F6B3F; border-radius:99px; }
-.naxa-client-tabs > button { scroll-snap-align:start; }
+.naxa-client-tabs { display:flex; flex-wrap:wrap; overflow-x:visible; scroll-snap-type:none; scrollbar-width:none; touch-action:pan-y; }
+.naxa-client-tabs::-webkit-scrollbar { display:none; }
+.naxa-client-tabs > button { flex:0 0 auto; scroll-snap-align:none; }
+.naxa-garde-card, .naxa-garde-card button { background-color:#FFE23D !important; }
+.naxa-garde-card button { color:#0B3D26; }
+.naxa-garde-card button :is(.text-slate-600,.text-slate-400) { color:#53685C; }
 html.naxa-dark { color-scheme:dark; background:#07120C; }
 html.naxa-dark body { background:#07120C !important; color:#E7F3EA; }
 html.naxa-dark .naxa-home-shell { background:#07120C !important; color:#E7F3EA !important; }
