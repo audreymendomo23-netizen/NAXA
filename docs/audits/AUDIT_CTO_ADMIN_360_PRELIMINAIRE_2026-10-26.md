@@ -471,3 +471,17 @@ L'étape préliminaire ne sera déclarée terminée que lorsque le rapport compr
 - les limites non levables clairement listées.
 
 L'audit page par page demandé constitue l'étape suivante distincte; il ne doit pas être commencé comme chantier de correction avant présentation du présent état préliminaire et autorisation de l'utilisateur.
+
+
+## 24. Clôture de livraison du document préliminaire
+
+- Branche de travail : `audit/admin-360-20261026`.
+- HEAD de cette branche après les mises à jour documentaires : `4bf2bb69d5fec582f3dc81a2b1a1b1cd0bb654d5`.
+- HEAD de `main) inchangé : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`.
+- Comparaison GitHub : branche d'audit en avance de 6 commits documentaires, en retard de 0 commit; **un seul fichier ajouté/modifié par le lot** : ce rapport.
+- Aucun code applicatif modifié; aucune migration appliquée; aucun secret modifié; aucun déploiement déclenché.
+- Aucune CI, compilation ou suite de tests n'a été relancée manuellement.
+- L'analyse de toutes les lignes de tous les fichiers du dépôt n'est pas certifiée : le dépôt contient 1 228 entrées, 336 fichiers TS/TSX et 503 fichiers SQL. Le présent document est un rapport préliminaire fondé sur inventaire, lectures ciblées, documents prioritaires et preuves directes des outils. Le véritable audit détaillé des pages et de leurs dépendances devra compléter cette couverture, avec une matrice explicite des fichiers effectivement lus.
+- L'archive brute de toutes les conversations n'est pas accessible dans son intégralité; les décisions historiques reprises ici viennent des synthèses et documents de continuité disponibles.
+
+**Conclusion de la phase 0 :** le dossier préliminaire est créé, les sources principales sont identifiées et plusieurs contradictions prioritaires sont prouvées. Le niveau de confiance est suffisant pour lancer l'audit page par page, mais ne doit pas être présenté comme une certification ligne par ligne de l'intégralité du dépôt.
