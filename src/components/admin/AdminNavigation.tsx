@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const sections = [
-  { href: "/admin", label: "Vue générale", note: "Indicateurs et activité" },
+  { href: "/admin", label: "Tableau de bord", note: "Indicateurs et activité" },
   { href: "/admin/alertes", label: "Alertes réseau", note: "Stock et validité" },
   { href: "/admin/promoteurs", label: "Dossiers Promoteurs", note: "Tous les univers" },
   { href: "/admin/pilotage", label: "Pilotage réseau", note: "Indicateurs" },
