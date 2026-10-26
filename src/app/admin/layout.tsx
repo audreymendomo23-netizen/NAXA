@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import "./admin-bento.css";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
+import { BoutonNotifications } from "@/components/BoutonNotifications";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
