@@ -9,6 +9,20 @@ export async function GET(req:Request){
  if(error)return NextResponse.json({error:error.message},{status:500});
  const key=process.env.RESEND_API_KEY,from=process.env.REPORT_FROM_EMAIL;
  if(!rows?.length)return NextResponse.json({blocked:"ok",reminders:0});
+ const { data: admins } = await sb.from("profiles").select("id").eq("role","admin").eq("actif",true);
+ for (const r of rows) {
+   const promoterBody = `Votre abonnement mensuel arrive à échéance le ${r.echeance}. Montant à régler : ${Number(r.montant_mensuel).toLocaleString("fr-FR")} FCFA. Soumettez vos références et votre preuve dans « Mes paiements » après avoir effectué le paiement.`;
+   const { data: existingPromoterNotice } = await sb.from("notifications").select("id").eq("user_id",r.promoteur_id).eq("type","abonnement_echeance_5j").gte("created_at",new Date().toISOString().slice(0,10)).limit(1);
+   if (!existingPromoterNotice?.length) {
+     await sb.from("notifications").insert({user_id:r.promoteur_id,type:"abonnement_echeance_5j",titre:"Votre abonnement expire dans 5 jours",corps:promoterBody});
+   }
+   for (const admin of admins ?? []) {
+     const { data: existingAdminNotice } = await sb.from("notifications").select("id").eq("user_id",admin.id).eq("type","abonnement_echeance_5j_admin").gte("created_at",new Date().toISOString().slice(0,10)).limit(1);
+     if (!existingAdminNotice?.length) {
+       await sb.from("notifications").insert({user_id:admin.id,type:"abonnement_echeance_5j_admin",titre:"Échéance Promoteur dans 5 jours",corps:`L’abonnement du Promoteur ${r.promoteur_prenom||r.promoteur_id} arrive à échéance le ${r.echeance}. Tarif mensuel : ${Number(r.montant_mensuel).toLocaleString("fr-FR")} FCFA.`});
+     }
+   }
+ }
  if(!key||!from)return NextResponse.json({error:"RESEND_API_KEY et REPORT_FROM_EMAIL requis",reminders:0},{status:503});
  let sent=0;
  for(const r of rows){
