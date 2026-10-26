@@ -105,6 +105,7 @@ export async function creerPharmacie(formData: FormData) {
 
   const { error: documentsError } = await db.from("pharmacie_documents_recus").insert({
     pharmacie_id: pharmacyId,
+    kyc: formData.get("kyc") === "oui",
     piece_existence_legale: formData.get("piece_existence_legale") === "oui",
     registre_commerce: formData.get("registre_commerce") === "oui",
     niu: formData.get("niu") === "oui",
