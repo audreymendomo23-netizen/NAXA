@@ -143,7 +143,7 @@ export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, err
         <label className="block text-sm font-semibold">Nom<input name="nom" required maxLength={160} className={field}/></label>
         <label className="block text-sm font-semibold">Ville<input name="ville" required defaultValue="Yaoundé" className={field}/></label>
         <label className="block text-sm font-semibold">Quartier<input name="quartier" className={field}/></label>
-        <label className="block text-sm font-semibold">Adresse<input name="adresse" className={field}/></label>
+        <label className="block text-sm font-semibold">Adresse<input name="adresse" required minLength={2} className={field}/></label>
       </div>
       <GeolocalisationChamps className={field}/>
       <label className="block text-sm font-semibold">WhatsApp<input name="whatsapp" required inputMode="numeric" className={field}/></label>
