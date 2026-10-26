@@ -1092,3 +1092,38 @@ L'action applicative `mettreAJourPiecesRecues` écrit ces six indicateurs sépar
 La validation est protégée par une RPC transactionnelle et une garde Admin interne. Le point métier le plus important n'est pas l'accès à la RPC, mais la **définition de ce qui constitue un dossier administrativement complet** : six pièces déclarées reçues, vérification humaine globale, ou pièces réellement téléversées. Ces trois notions sont distinctes dans le modèle actuel et ne doivent pas être confondues.
 
 Aucune RPC n'a été exécutée. Aucune ligne, pièce, échéance, visibilité, permission ou migration n'a été modifiée. Aucun test automatisé ou navigateur n'a été lancé.
+
+
+## 50. Comparaison des parcours pharmacie et partenaire — création, validation, privilèges
+
+### 50.1 Parcours partenaire unifié : source Git et définition live concordantes
+
+Le dépôt contient `supabase/migrations/20261026100000_admin_unified_universe_dossiers.sql` et la migration complémentaire `20261026143000_admin_partner_dossier_optional_coordinates.sql`. L'historique Supabase live contient les deux sous des noms horodatés distincts (`20261026142636` et `20261026142649`), ce qui confirme que ces migrations de dossiers partenaires ont une trace live, contrairement à certains objets du parcours de pièces pharmacie décrits aux sections 46–48.
+
+La définition live de `admin_create_partner_dossier` correspond au modèle unifié : elle exige un Admin, vérifie le compte Promoteur, laisse le compte inactif en attente, crée le partenaire avec statut `pending`, l'association à l'univers désactivée, le membre propriétaire, le dossier administratif et, pour l'univers Examens, un centre en brouillon. Elle enregistre un événement `partner.dossier_created` dans `audit_log`. La version live accepte des coordonnées toutes deux absentes ou toutes deux renseignées; la migration optionnelle explique cet assouplissement. Les tables `partners` et `admin_partner_dossiers` contiennent actuellement zéro ligne : cela ne prouve pas que le parcours n'a jamais été utilisé, seulement qu'il n'y a pas de dossier/partenaire enregistré dans ces deux tables au moment du contrôle.
+
+### 50.2 Validation partenaire : transaction et conditions
+
+La fonction live `admin_valider_dossier_partenaire(uuid)` est `SECURITY DEFINER`, utilise un `search_path` vide et exige `public.is_admin()`. Elle verrouille le dossier et le partenaire en attente, vérifie que l'univers est activé (avec exception pour `aide`), puis active le partenaire, l'association à l'univers, le dossier et le compte Promoteur, avant d'inscrire `partner.dossier_validated` dans `audit_log`. Ces écritures sont dans une seule fonction transactionnelle : une erreur d'audit doit donc annuler la validation. `anon` n'a pas EXECUTE; `authenticated` a EXECUTE mais reste soumis au contrôle interne Admin.
+
+La page partenaire indique explicitement que les cases documentaires déclarent une réception et ne remplacent pas les fichiers justificatifs authentifiés. Cependant, la fonction de validation ne contrôle ni la présence des clés requises dans `documents_received`, ni leur valeur, ni l'existence d'un dépôt de fichiers. Ce constat n'est pas automatiquement une faille : il devient une contradiction métier si les pièces sont censées être bloquantes avant validation. La règle doit être définie de manière explicite, univers par univers.
+
+### 50.3 Contradictions transversales observées
+
+1. **Deux modèles de dossier parallèles.** Le parcours pharmacie s'appuie sur `profiles`, `pharmacies`, `promoteur_pharmacies`, conventions et abonnements; le parcours partenaire s'appuie sur `profiles`, `partners`, `partner_members`, `partner_universes` et `admin_partner_dossiers`. Ils partagent le vocabulaire Promoteur/dossier/pièces, mais pas les mêmes états ni les mêmes préconditions.
+2. **Pièces déclaratives non bloquantes dans les deux RPC.** Le parcours pharmacie ne lit pas les six indicateurs de `pharmacie_documents_recus`; le parcours partenaire ne valide pas `documents_received`. La page partenaire précise que les cases ne prouvent pas l'authenticité, mais aucun contrôle de fichiers ne se trouve dans cette fonction de validation.
+3. **Audit transactionnel présent dans le parcours partenaire, absent du RPC pharmacie.** Les RPC partenaires insèrent dans `audit_log` dans la transaction. Le RPC pharmacie met à jour plusieurs objets et provisionne des privilèges, mais son corps n'insère pas d'événement explicite de validation dans `audit_log`; des triggers d'historique couvrent plusieurs tables métier, ce qui n'est pas équivalent à un événement de décision administrative synthétique.
+4. **Règle d'activation distincte.** La validation pharmacie réactive le profil, le rattachement, la pharmacie et la visibilité publique, avec une période de 14 jours; la validation partenaire réactive le compte Promoteur et l'association univers, sans mécanisme d'abonnement pharmacie équivalent. Ces différences peuvent être intentionnelles, mais doivent rester explicites afin d'éviter de transposer une règle commerciale à un univers qui ne la porte pas.
+5. **Renouvellement manuel à sécuriser par son point d'entrée.** Le RPC de renouvellement manuel reste réservé à `service_role`, tandis que les RPC de validation initiale sont exécutables par `authenticated` avec garde Admin interne. Le renouvellement ne doit être appelé que par un serveur qui authentifie l'Admin réel et ne fait pas confiance à un identifiant `p_admin` fourni librement par le client. Aucun appel applicatif à ce RPC de renouvellement n'a été trouvé dans les actions examinées.
+
+### 50.4 Priorités et décision à demander avant correction
+
+- **P1 — Règle de complétude documentaire :** confirmer si les indicateurs de pièces sont seulement un suivi de réception ou une condition bloquante de validation; préciser les pièces et preuves exigées par univers.
+- **P1 — Réactivation contrôlée :** distinguer activation initiale, renouvellement contractuel et levée d'une suspension pour un autre motif; la validation initiale ne doit pas implicitement lever une suspension indépendante sans règle approuvée.
+- **P1 — Traçabilité de la décision pharmacie :** décider si l'historique de ligne existant suffit ou si un événement métier explicite de validation doit être enregistré dans la même transaction.
+- **P2 — Parcours unifié :** documenter la matrice des états et préconditions par univers, sans fusionner artificiellement les modèles pharmacie et partenaire.
+- **P2 — Point d'entrée du renouvellement :** si une interface est prévue, vérifier qu'elle passe par un serveur de confiance et derive l'acteur de la session Admin.
+
+### 50.5 Limites de preuve
+
+Les fonctions live ont été lues via le catalogue PostgreSQL et comparées aux migrations Git; aucune fonction n'a été exécutée. Les valeurs des tables métier n'ont pas été modifiées. Aucun dépôt de fichier, décision, activation, renouvellement, envoi de message, test SQL ou test navigateur n'a été lancé. Les constats de cohérence métier restent à faire valider avant toute correction.
