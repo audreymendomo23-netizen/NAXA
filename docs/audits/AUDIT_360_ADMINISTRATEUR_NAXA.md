@@ -1161,3 +1161,44 @@ Le journal de lignes `pharmacie_donnees_historique` et les triggers `naxa_captur
 - **Traçabilité métier inégale :** événements explicites dans le parcours partenaire, historique de lignes dans le parcours pharmacie; l'exigence de journal métier doit être tranchée.
 
 Aucune fonction n'a été exécutée, aucun privilège n'a été modifié, aucune donnée n'a été écrite, aucun test n'a été lancé et aucun déploiement n'a eu lieu.
+
+
+## 52. États de suspension, expiration et réactivation — garde-fous live
+
+### 52.1 Modèle de statut constaté
+
+Le catalogue live distingue plusieurs axes indépendants :
+- `profiles.actif` : activation du compte Promoteur;
+- `pharmacies.actif` et `pharmacies.visible_recherche` : activation opérationnelle et publication;
+- `promoteur_pharmacies.actif` : activation du rattachement;
+- `conventions_promoteurs.statut/date_expiration` : validité conventionnelle;
+- `abonnements_promoteurs.statut/echeance/bloque_le` : état d'abonnement.
+
+Les contraintes live limitent les statuts de convention à `active`, `expiree`, `resiliee`, et ceux de l'abonnement à `actif`, `impaye`, `resilie`. Les statuts et les booléens ne forment donc pas un seul état canonique; ils doivent être lus ensemble. Le catalogue comporte aussi des triggers d'historique sur ces tables et un contrôle de cohérence sur l'abonnement.
+
+### 52.2 Garde de création/activation des Caisses
+
+Le trigger `naxa_guard_promoteur_caisse_activation` sur `profiles` autorise la désactivation d'une Caisse, mais encadre l'activation d'une Caisse par un Promoteur authentifié : le Promoteur doit être actif, la Caisse doit être un enfant direct, la pharmacie doit être active et publiée, le rattachement doit être actif et `naxa_promoteur_valide` doit réussir. Un Admin passe par une voie distincte; les opérations sans `auth.uid()` sont traitées comme opérations de maintenance de confiance. Cette garde protège la création/activation des Caisses, mais ne remplace pas une règle globale de transition pour le dossier pharmacie.
+
+### 52.3 Contradiction de transition dans la validation initiale pharmacie
+
+La fonction `admin_valider_dossier_pharmacie` ne vérifie pas que la pharmacie, la convention et l'abonnement sont dans un état initial « en attente » avant de réécrire leurs états. Son unique garde « déjà actif » exige simultanément quatre conditions : pharmacie active, pharmacie visible, lien actif et Promoteur actif. Si l'une de ces conditions est fausse, la fonction peut continuer et réinitialiser la convention en `active`, l'abonnement en `actif`, effacer `bloque_le`, fixer un nouvel essai de 14 jours, réactiver le profil et le rattachement, puis republier la pharmacie. Elle ne vérifie pas que l'inactivité provenait d'un dossier initial non validé plutôt que d'une suspension, d'un impayé ou d'une décision opérationnelle distincte.
+
+C'est une **faiblesse de machine à états confirmée par lecture statique**, mais l'impact opérationnel n'a pas été reproduit. La fonction exige toujours un Admin, un rattachement unique, un Promoteur cohérent, une convention et un abonnement uniques, une architecture active et un WhatsApp renseigné. Ces contrôles ne remplacent toutefois pas une précondition de transition autorisée.
+
+### 52.4 Expiration et renouvellement : cohérence partielle
+
+Le trigger `verifier_abonnement_promoteur_coherence` refuse un abonnement marqué `actif` lorsque son échéance est passée et vérifie que sa convention appartient au même Promoteur. Cela empêche une incohérence simple à l'écriture, mais ne suffit pas à garantir que toute réactivation soit légitime : la validation initiale réécrit simultanément l'échéance dans le futur avant de finaliser l'état. La fonction de renouvellement manuel, décrite en section 48, a des contrôles plus ciblés de cohérence et une trace métier, mais elle reste liée à une migration/table d'audit non retrouvée dans le catalogue live sous les noms attendus.
+
+Le contrôle de cohérence abonnement ne garantit pas non plus à lui seul la cohérence entre la date d'expiration de convention, la date d'échéance d'abonnement, le motif de blocage et les états d'activation du profil, de la pharmacie et du rattachement. La fonction de validation initiale synchronise les dates; d'autres chemins de mutation doivent être évalués séparément avant de conclure à une invariance globale.
+
+### 52.5 État de la preuve et proposition de correction (non appliquée)
+
+**Proposition minimale à soumettre à validation :**
+1. Introduire des transitions autorisées explicites : dossier initial en attente → validation initiale; abonnement échu/impayé → procédure de renouvellement ou régularisation; suspension administrative/opérationnelle → levée de suspension dédiée.
+2. Pour la validation initiale, verrouiller et vérifier les états attendus avant toute mutation, plutôt que d'accepter toute combinaison qui n'est pas déjà entièrement active.
+3. Réserver la réinitialisation des dates et l'effacement de `bloque_le` au parcours de renouvellement/régularisation autorisé, avec motif et acteur vérifiés.
+4. Définir les invariants attendus entre statut de convention, échéance, statut d'abonnement, `bloque_le`, profil actif, pharmacie active/publiée et lien actif; couvrir chaque transition par des tests SQL négatifs et positifs.
+5. Vérifier les chemins de désactivation et de blocage existants avant de modifier les RPC, afin de ne pas casser une suspension légitime ou une opération de maintenance.
+
+Cette proposition est documentaire : aucun code SQL n'a été changé et aucun RPC n'a été exécuté. Les comptes de statuts observés n'ont pas été modifiés; ils ne suffisent pas à prouver les transitions possibles pour chaque cas historique.
