@@ -312,3 +312,22 @@ Le lien CircleCI de ce dépôt n'est pas accessible via les intégrations dispon
 
 ### Critère de clôture
 Le contrôle CircleCI quality demeure en échec sur le dernier commit consulté et ses logs d'étape ne sont pas accessibles dans cette session. Aucun build, lint, test TypeScript ou test navigateur n'est déclaré réussi. Les points de renouvellement Promoteur/preuve de paiement et les alertes restantes de sécurité/RLS doivent toujours être qualifiés avant de certifier la clôture générale. Aucun déploiement n'a été lancé.
+
+
+## 18. Durcissement complémentaire du trigger documentaire — 2026-10-26
+
+Le Security Advisor post-migration a détecté que public.journaliser_pharmacie_document(), fonction SECURITY DEFINER destinée au trigger, était encore exécutable directement via l'API par anon et authenticated. Bien que la fonction soit conçue pour être invoquée par le trigger, elle n'a pas vocation à être exposée comme RPC.
+
+### Correction appliquée et vérifiée
+- Migration appliquée à Supabase : version **20261026212540**, nom **revoke_execute_pharmacie_document_trigger**.
+- SQL : REVOKE ALL ON FUNCTION public.journaliser_pharmacie_document() FROM public, anon, authenticated.
+- Vérification post-correction via has_function_privilege : anon_can_execute=false, authenticated_can_execute=false, owner_can_execute=true.
+- Le fichier de migration correspondant a été ajouté à main : supabase/migrations/20261026212540_revoke_execute_pharmacie_document_trigger.sql.
+- Nouveau passage Security Advisor : les alertes de fonctions SECURITY DEFINER exécutables par anon sont passées de 6 à 5, celles pour authenticated de 121 à 120. Les alertes restantes concernent d'autres fonctions et ne doivent pas être corrigées par une révocation globale sans examen de leurs contrats d'accès.
+
+### État de sécurité restant
+- 5 tables avec RLS activé sans politique : caisse_audit_chain_heads, caisse_decaissement_auth_grants, caisse_security_challenges, caisse_security_credentials et pharmacie_donnees_historique. Pour les tables internes de caisse, le défaut de politique peut être intentionnel (deny-by-default) ; il faut confirmer que les RPC autorisées fournissent les opérations nécessaires. Pour pharmacie_donnees_historique, l'append-only doit être validé en tenant compte des fonctions propriétaires et des politiques d'accès historique.
+- L'alerte Auth « protection contre les mots de passe compromis désactivée » demeure. Elle nécessite un changement de configuration Auth explicite ; elle n'est pas modifiée automatiquement pendant cette passe.
+
+### Limites
+Le catalogue et les privilèges sont vérifiés, mais aucun test d'insertion de document réel, de trigger sur un document métier, ni de lien signé n'a été exécuté. CircleCI quality reste en échec sur le dernier commit vérifié ; aucun déploiement n'a été lancé.
