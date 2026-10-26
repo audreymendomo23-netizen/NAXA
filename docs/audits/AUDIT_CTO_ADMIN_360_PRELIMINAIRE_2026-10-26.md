@@ -371,3 +371,46 @@ La navigation admin expose 12 entrées : Tableau de bord, Alertes réseau, Journ
 - Ce nombre ne doit pas être comparé naïvement aux 290 fichiers racine ou aux 25 fichiers `supabase/migrations/` : le dépôt contient des noms historiques, des migrations timestampées et potentiellement des versions réconciliées/renommées. Il faut produire un diff exact version ↔ nom ↔ contenu avant de déclarer une migration absente.
 - La première tentative d'agrégation des logs par `log_level` a échoué car ce champ n'existe pas à la racine. La découverte des clés de `log_attributes` a révélé des clés variables selon le type de log, notamment `level`, `status`, `response.status_code`, `parsed.error_severity` et `parsed.sql_state_code`.
 - Une première agrégation avec les clés génériques `level`/`status` a donné zéro erreur, mais ce résultat est **non probant** car ces champs ne sont pas présents ou renseignés de manière uniforme selon la source. Il ne sera pas interprété comme l'absence d'erreurs. Une agrégation par source spécifique et par clés réellement présentes est nécessaire avant toute conclusion.
+
+
+## 19. Contrôle croisé dépôt ↔ Supabase : migrations admin du 26 octobre
+
+### 19.1 Historique réellement appliqué
+La base principale `Naxa` rapporte 235 migrations appliquées, avec dernière version `20261025121150`. Le dépôt `main` contient en plus les migrations suivantes, postérieures à cette version :
+- `20261026100000_admin_unified_universe_dossiers.sql`;
+- `20261026113000_harden_unified_dossier_relations.sql`;
+- `20261026140000_bebe_maman_catalogue_pharmacie.sql`;
+- `20261026143000_admin_partner_dossier_optional_coordinates.sql`.
+
+Aucune de ces quatre versions n'apparaît dans l'historique Supabase consulté. Cette constatation ne signifie pas qu'elles sont inutiles; elle indique qu'elles sont dans le dépôt mais pas appliquées sur la base interrogée. Aucune migration n'a été exécutée.
+
+### 19.2 Vérification des objets nécessaires au parcours Promoteur
+Une requête en lecture seule a confirmé l'existence de `partners`, `partner_universes`, `pharmacies`, `audit_log`, `tickets_support`, `messages_support` et `pharmacie_documents_recus`. En revanche, elle n'a pas trouvé `admin_partner_dossiers`, `pharmacie_document_historique` ni `pharmacie_documents` dans `public` au moment du contrôle.
+Une autre requête sur `pg_proc` a confirmé les routines `stats_pilotage_scope`, `validites_promoteurs_admin`, `naxa_promoteur_valide` et `admin_valider_dossier_pharmacie`, mais n'a pas trouvé `admin_create_partner_dossier`.
+
+### 19.3 Impact fonctionnel probable et preuve
+Le code de `src/app/admin/promoteurs/page.tsx` interroge `admin_partner_dossiers` pour afficher les dossiers des partenaires indépendants et affiche explicitement un état d'erreur si cette lecture échoue. Le code de `src/app/admin/creation-univers-actions.ts` dépend de la RPC `admin_create_partner_dossier`. Comme la table et la RPC n'ont pas été trouvées dans la base consultée, **la création et l'affichage des dossiers transversaux des autres univers ne peuvent pas être considérés comme opérationnels sur cet environnement**. La UI peut s'afficher, mais la boucle de données échoue probablement jusqu'à ce que le schéma correspondant soit disponible.
+Ce point est prioritaire et classé 🔴 côté cohérence dépôt/base, mais la correction (application de migrations) est hors de cette étape et ne sera pas exécutée sans autorisation explicite de l'environnement et de l'opération.
+
+### 19.4 Contradiction métier
+Les écrans et documents annoncent un dossier Promoteur transversal couvrant les pharmacies et partenaires d'autres univers. L'état actuel du dépôt contient la logique correspondante, mais la base interrogée n'a pas encore les objets nécessaires. Le statut doit donc être présenté comme « implémenté dans le code, non opérationnel sur la base vérifiée » plutôt que « terminé ».
+
+## 20. Synthèse documentaire des sources prioritaires lues
+
+Les documents suivants ont été relus en plus du cahier des charges principal, du registre de gouvernance et de `docs/BI.md` :
+- `docs/ARCHITECTURE.md` : décrit le flux client → réservation → pharmacie → retrait/paiement → indicateurs et les scopes N1/N2/N3.
+- `docs/AUDIT_CONTROLE_PROMOTEUR_POSTES.md` : confirme que le scope Promoteur est issu des liens actifs et que les indicateurs doivent rester agrégés sans données patient nominatives; comporte des vérifications restantes.
+- `docs/AUDIT_PARCOURS_CAISSE_ONGLETS.md` : formalise les sept entrées principales de Caisse et les risques/contrôles d'interactions; sert de modèle méthodologique, sans être une preuve de couverture équivalente du parcours Admin.
+- `docs/AUDIT_CYCLE_RESERVATION_TICKET_CAISSE.md` : qualifie le cycle de réservation/ticket comme non validé de bout en bout faute de preuve suffisante d'atomicité, d'idempotence et de persistance du ticket.
+- `docs/CAHIER_DES_CHARGES_MULTICOMPTE.md` : rappelle la nécessité de préserver l'identité commune, les rôles et les scopes autorisés.
+- `docs/CONCEPTION_DASHBOARDS.md` : définit la palette Bento (vert profond, vert d'action, fond vert pâle, jaune canari pour actions principales) et la grammaire commune; le pilotage actuel contient encore des écrans utilisant fond `#ACDC76` et titres orange, ce qui semble diverger du système de design canonique.
+- `docs/DICTIONNAIRE_DONNEES.md` et `docs/MATRICE_DONNEES.md` : fixent les sources canoniques de recherche, CA et stock ainsi que les périmètres de données par rôle.
+- `docs/SECURITE_PROMOTEUR.md` : fixe les invariants de convention, abonnement, architecture, privilèges et scope réseau.
+- `docs/REPRISE.md` et `docs/CONTINUITE_IA_NAXA.md` : conservent des états historiques, parfois avec d'anciennes branches/SHA et règles de workflow; les appliquer seulement après réconciliation avec `AGENTS.md` et l'ordre utilisateur actuel.
+- `docs/ETAT-CHANTIER-UNIVERS.md` : trace l'évolution des univers et la nécessité de garder les nouveaux produits en brouillon jusqu'à ce que les règles de publication soient remplies.
+
+### Conséquences pour le futur audit
+1. Chaque affirmation « terminé » sera confrontée au code, aux objets Supabase et à une preuve de boucle fonctionnelle.
+2. Les écrans admin des univers doivent être testés contre l'environnement réel de base, pas uniquement par présence de composants.
+3. Les KPI doivent être comparés aux sources canoniques et à plusieurs scopes (NAXA, Promoteur, pharmacie, caisse), sans additionner des sources redondantes.
+4. Le design sera évalué comme contrat fonctionnel (visibilité des états, erreurs, focus, feedback et absence de blocage), pas seulement comme couleur ou animation.
