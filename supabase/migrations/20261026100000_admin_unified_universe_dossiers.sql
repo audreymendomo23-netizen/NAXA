@@ -42,7 +42,7 @@ grant select, insert, update, delete on public.admin_partner_dossiers to authent
 create table if not exists public.pharmacie_services (
   id uuid primary key default gen_random_uuid(),
   pharmacie_id uuid not null references public.pharmacies(id) on delete cascade,
-  service_slug text not null check (service_slug = 'bebe-maman'),
+  service_slug text not null references public.universes(slug) on delete restrict check (service_slug = 'bebe-maman'),
   status text not null default 'active' check (status in ('active','inactive')),
   enabled_by uuid references auth.users(id) on delete set null,
   updated_by uuid references auth.users(id) on delete set null,
@@ -86,8 +86,11 @@ declare
 begin
   if not public.is_admin() then raise exception 'Accès administrateur requis' using errcode = '42501'; end if;
   if p_owner_user_id is null or not exists (
-    select 1 from public.profiles where id=p_owner_user_id
-  ) then raise exception 'Compte Promoteur introuvable' using errcode = '23503'; end if;
+    select 1 from public.profiles where id=p_owner_user_id and role::text='client'
+  ) then raise exception 'Compte Promoteur introuvable ou rôle non autorisé' using errcode = '23503'; end if;
+  if exists(select 1 from public.partner_members where user_id=p_owner_user_id) then
+    raise exception 'Ce compte est déjà rattaché à un partenaire' using errcode = '23505';
+  end if;
   -- Le compte propriétaire reste suspendu tant que le dossier est en attente.
   update public.profiles set actif=false where id=p_owner_user_id;
   if length(trim(coalesce(p_name,''))) < 2 or length(trim(coalesce(p_city,''))) < 2
