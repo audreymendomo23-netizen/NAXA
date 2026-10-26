@@ -125,9 +125,8 @@ export async function POST(request: Request) {
   };
   const au = new Date();
   const du = new Date(au.getTime() - jours * 24 * 60 * 60 * 1000);
-  const instantane = Object.fromEntries(keys.map((key) => [key, Number((row as Record<string, unknown>)[key] ?? 0)]));
   const contenu = { titre: "Rapport de pilotage NAXA", jours, genere_le: au.toISOString(), indicateurs: instantane };
-  const texte = Object.entries(instantane).map(([key, value]) => key + " : " + String(value)).join("\\n");
+  const texte = Object.entries(instantane).map(([key, value]) => key + " : " + String(value)).join("\n");
   const db = supabaseAdmin();
   const { data: saved, error: saveError } = await db.from("rapports").insert({
     portee: "admin",
