@@ -7,7 +7,7 @@
 - Commit de référence `main` à l'ouverture : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`
 - Objet : établir les preuves de l'étape préliminaire avant tout audit page par page et avant toute correction fonctionnelle.
 - Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Huit migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
-- État : **préliminaire en cours — constats initiaux consignés; les inventaires approfondis et la lecture exhaustive du code restent à compléter dans cette même branche.**
+- État : **audit de sécurité ciblé en cours sur la même branche; les quatre contrôles séquentiels demandés (garde admin, RPC ciblées, catalogue Bébé & Maman, prédicat interne `private.is_admin`) sont clôturés sur leurs périmètres documentés. L'audit global admin 360° et la revue exhaustive du dépôt restent ouverts.**
 
 ## 1. Périmètre et limites de preuve
 
@@ -908,3 +908,45 @@ Les cinq tables RLS sans politique remontées par l'advisor ont également été
 - Aucun merge dans `main`, aucun déploiement et aucune modification métier Supabase effectués pendant cette vérification.
 
 **Périmètre respecté :** seul le point n°1 « Garde administrateur unifiée » a été vérifié et corrigé. Le point n°2 « RPC Supabase sécurisées » n'est pas encore réaudité dans cette étape.
+
+
+## 22. Clôture validée des quatre contrôles de sécurité ciblés — 26 octobre 2026
+
+L'utilisateur a validé la clôture des quatre contrôles séquentiels. Cette clôture concerne les périmètres explicitement examinés ci-dessous; elle ne constitue pas une certification globale de toutes les pages, RPC, fonctions `SECURITY DEFINER` ou parcours de production.
+
+### 22.1 Garde administrateur unifiée
+
+- Le helper serveur `src/lib/admin/require-admin-active.ts` appelle `supabase.auth.getUser()`, puis vérifie le profil `role = 'admin'` et `actif = true`; les erreurs et valeurs nulles échouent en refus.
+- Le layout admin et l'action `src/app/admin/pilotage/validite/actions.ts` utilisent cette garde.
+- Commit de correction déjà documenté : `6207585531a8a2abbdcc3f74360a1277848648c8`.
+- Limite : pas de tests de redirection avec sessions réelles, lint, typecheck, build ni test navigateur dans cette passe.
+
+### 22.2 RPC Supabase ciblées
+
+- Les 12 RPC du périmètre documenté ont été contrôlées pour leur usage du prédicat central `public.is_admin()`, leur `search_path` vide et les privilèges d'exécution : `anon` n'a pas EXECUTE; `authenticated` conserve EXECUTE afin que chaque fonction applique son autorisation interne.
+- Huit fonctions additionnelles du même périmètre ont reçu un durcissement du `search_path` vide via la migration `20261026190000_admin_rpc_empty_search_path_hardening`, enregistrée en base sous la version `20261026150907`.
+- Rapport de vérification : `docs/audits/VERIFICATION_RPC_SUPABASE_2026-10-26.md`, commit `f047bbf7d35792cc196ec7e0628d6e73f44c82d8`.
+- Limite : cette conclusion s'applique aux RPC ciblées, pas à l'ensemble des fonctions SECURITY DEFINER de la base.
+
+### 22.3 Catalogue Bébé & Maman
+
+- Migration initiale présente dans l'historique Supabase : `bebe_maman_catalogue_pharmacie_20261026140000`, version `20261026143135`.
+- Les trois RPC `get_universe_catalog`, `reserve_universe_products` et `get_universe_reservation_receipt` ont des chemins de résolution restreints; la consultation a confirmé l'absence d'EXECUTE pour `anon` sur les deux RPC privées de réservation/reçu, tandis que le catalogue reste consultable.
+- Les politiques RLS ciblées ont été réalignées : administration via `public.is_admin()`; lecture publique des produits conditionnée à l'état actif/non expiré et, pour Bébé & Maman, à une pharmacie active, visible et au service activé.
+- Vérifications de données : aucun produit, service actif ou réservation Bébé & Maman n'a été trouvé au moment du contrôle; la RPC catalogue renvoyait zéro résultat. Aucun jeu de données fictif n'a été créé.
+- Limite : pas de parcours réel produit → réservation → reçu dans l'interface, faute de données réelles disponibles.
+
+### 22.4 Prédicat interne `private.is_admin()`
+
+- Définition vérifiée en base : fonction SQL `STABLE SECURITY DEFINER`, `search_path = ''`, accès à `public.profiles` qualifié explicitement, identité liée à `auth.uid()`, rôle `admin` et `actif IS TRUE`.
+- Correctif de permissions appliqué directement en base et enregistré dans l'historique sous `revoke_public_execute_private_is_admin_20261026200000`, version `20261026152116`.
+- Après correction : `anon EXECUTE = false`, `authenticated EXECUTE = true`, `service_role EXECUTE = true`; `anon USAGE` sur le schéma `private` est faux.
+- Commit de la migration correspondante dans la branche : `236b007cf8bcece393029e9f9574f897440899f5`.
+
+### 22.5 Environnement et limites communes
+
+- Branche de travail : `audit/admin-360-20261026`; aucun merge vers `main`, aucun déploiement.
+- Les changements SQL exécutés ont été limités aux migrations/permissions documentées; aucune donnée métier de test n'a été ajoutée.
+- Les validations statiques et SQL ci-dessus ne remplacent pas lint, TypeScript, build, tests navigateur ou essais avec sessions réelles. Aucun de ces tests n'est déclaré exécuté dans cette passe.
+- Le chantier général d'audit admin 360° reste ouvert. En particulier, l'inventaire live a fait apparaître d'autres fonctions `private` `SECURITY DEFINER` dont le `search_path` ou l'exposition à `anon` diffère; elles constituent le lot suivant d'analyse, sans présumer qu'elles sont vulnérables avant lecture de leur définition et de leurs appelants.
+
