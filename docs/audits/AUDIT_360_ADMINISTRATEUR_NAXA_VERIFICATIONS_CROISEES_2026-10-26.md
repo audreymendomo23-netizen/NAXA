@@ -110,3 +110,45 @@ La page Univers lit les métadonnées des 20 événements récents; la page Jour
 Cette lecture statique supplémentaire couvre les actions clés d’Univers, Produits, Prestations et Examens, les vues principales du tableau de bord, Alertes, Validité, Journal, Profil, les dossiers Promoteurs/pharmacies et la route API OSM. Elle n’équivaut pas encore à une validation exhaustive de toutes les 18 pages, des politiques RLS et de tous les corps SQL live. Les accès au catalogue Supabase qui avaient échoué ne sont pas requalifiés en preuves d’absence.
 
 Aucune correction fonctionnelle, mutation de données, migration ou opération de déploiement n’a été réalisée. Le prochain lot doit fermer ensemble les quatre contrôles prioritaires, puis statuer sur les corrections à autoriser, sans bloquer l’audit sur une vérification runtime indisponible.
+
+
+## 10. Vérification du catalogue Supabase en lecture seule — RPC, droits et RLS
+
+**Périmètre réellement interrogé :** définitions de fonctions et privilèges effectifs du catalogue PostgreSQL, puis politiques RLS actuellement présentes sur `profiles` et `audit_log`. Ces résultats décrivent la base interrogée au moment de la vérification ; ils ne prouvent pas le comportement de chaque écran dans un navigateur.
+
+### 10.1 Fonctions sensibles confirmées dans le catalogue
+
+- `private.is_admin()` est `SECURITY DEFINER`, avec `search_path` vide, et vérifie explicitement `auth.uid()`, `role='admin'` et `actif=true`. Le wrapper `public.is_admin()` appelle cette fonction privée.
+- Les fonctions privées `naxa_set_caisse_status` et `naxa_revoke_privilege` sont `SECURITY DEFINER` avec `search_path` vide. Les façades publiques sont des fonctions SQL `SECURITY INVOKER`; l'autorisation métier est vérifiée dans la fonction privée.
+- `admin_valider_dossier_pharmacie` est bien présent dans le catalogue interrogé. La définition lue verrouille les lignes concernées, vérifie le rattachement Promoteur/pharmacie, l'unicité convention/abonnement, la cohérence d'architecture et la vérification explicite des autorisations. La validation s'exécute dans une fonction transactionnelle : une erreur annule les écritures. La visibilité publique est activée à la fin, après provisionnement des privilèges. Cela corrige l'incertitude précédente sur une éventuelle publication intermédiaire ; aucun scénario de concurrence n'a été exécuté.
+- `admin_set_home_service_offer_status` vérifie l'administrateur via `public.is_admin()`, limite les statuts acceptés, contrôle l'activation du partenaire et de l'univers, puis écrit dans `audit_log` dans la même fonction.
+- La fonction de renouvellement présente dans le catalogue est `public.reactiver_promoteur(uuid,text)`. Elle est `SECURITY DEFINER`, vérifie `public.is_admin()`, met à jour la date de paiement, prolonge la convention jusqu'à la fin du mois courant et insère un enregistrement de paiement avec référence éventuellement vide. **Cet acte administratif peut donc produire une trace de paiement sans référence ; il ne prouve pas à lui seul qu'un paiement a été encaissé.** Elle réactive aussi des profils liés selon les relations de pharmacie. La portée exacte de cette réactivation doit rester une priorité de revue métier.
+- `public.admin_renouveler_promoteur(uuid,date,text,uuid)` et la table `admin_pharmacie_audit` n'ont pas été retournées par cette interrogation ciblée, alors que leur migration existe dans le dépôt. Ce constat établit une différence entre source Git et catalogue interrogé, pas sa cause : migration non appliquée, autre environnement ou dérive restent possibles.
+
+### 10.2 Droits effectifs observés
+
+Pour les fonctions ciblées, les wrappers publics de révocation et de statut Caisse sont exécutables par `authenticated`, pas par `anon`. Les fonctions privées correspondantes sont également exécutables par `authenticated`, mais elles contrôlent l'acteur et son périmètre dans leur corps. Le wrapper `public.is_admin()` a un droit EXECUTE accordé à `anon`, mais il ne retourne le statut d'administrateur actif que par l'intermédiaire de `private.is_admin()` et de `auth.uid()`. Ce droit seul ne donne donc pas le pouvoir d'administration. À conserver comme surface d'exposition à surveiller, sans le qualifier de contournement démontré.
+
+### 10.3 Politiques RLS — constat important sur l'inactivation
+
+Les politiques actuellement lues pour `audit_log` (`audit_log_admin_read` et `audit_log_admin_insert`) testent `profiles.role='admin'`, mais ne testent pas explicitement `profiles.actif=true`. En conséquence, **la politique RLS seule ne révoque pas l'accès au journal d'un compte qui reste rôle admin mais devient inactif**. Le comportement réel dépend aussi des gardes applicatives et de l'éventuelle révocation de session ; aucune session d'un administrateur inactif n'a été testée. Recommandation prioritaire : aligner les politiques RLS du journal sur le prédicat administrateur actif ou documenter et tester un contrôle équivalent obligatoire côté base.
+
+Pour `profiles`, la politique SELECT autorise la lecture de son profil, des enfants hiérarchiques ou par l'administrateur privé. La politique UPDATE permet l'administrateur privé ou le parent Promoteur sous conditions sur la cible (rôle Caisse et pharmacie). L'INSERT/DELETE admin utilise également `private.is_admin()`. L'évaluation complète exige toutefois de lire toutes les politiques applicables et les éventuelles fonctions/triggers complémentaires ; cette passe ne certifie pas l'ensemble des opérations de chaque rôle.
+
+### 10.4 Écran Validité Promoteurs
+
+La page `src/app/admin/pilotage/validite/page.tsx` affiche bien le message de l'erreur retournée par `validites_promoteurs_admin`, mais construit malgré tout les indicateurs et la liste à partir de `data || []`. En cas d'échec RPC, un écran d'erreur peut donc être accompagné d'indicateurs à zéro ou d'une liste vide, ambiguïté de lecture pour l'opérateur. Il faut distinguer explicitement « données indisponibles » de « aucun promoteur à suivre ». Le garde local vérifie le rôle et l'activité, mais la page ne centralise pas ici la garde partagée.
+
+### 10.5 Documents de pharmacie — historique automatique et réserve
+
+La migration présente dans Git crée le bucket privé `pharmacie-documents`, limite les types MIME et la taille à 10 Mio, restreint les opérations Storage aux administrateurs via `public.is_admin()`, et crée un trigger qui inscrit automatiquement les changements de document dans `pharmacie_document_historique`. La table d'historique n'accorde aux utilisateurs authentifiés que SELECT ; l'écriture vient du trigger `SECURITY DEFINER`. Le catalogue de la base interrogée n'a pas confirmé la présence de ces objets dans cette passe ciblée : leur fonctionnement en environnement actif reste **à confirmer** avant de déclarer le parcours documentaire opérationnel.
+
+### 10.6 Décisions de priorité mises à jour
+
+1. **P1 — accès au journal :** RLS de `audit_log` basée sur le rôle sans vérification explicite d'activité ; vérifier le parcours de révocation et tester un compte inactif.
+2. **P1 — renouvellement Promoteur :** distinguer renouvellement administratif, date de paiement et preuve de règlement ; auditer la portée des réactivations de profils/pharmacies et les références de paiement vides.
+3. **P1 — divergence migration/catalogue :** établir l'environnement Supabase cible et la correspondance des migrations/objets de documents et de renouvellement manuel, sans supposer que l'absence dans cette interrogation prouve une migration non appliquée.
+4. **P2 — qualité opérateur :** afficher un état indisponible dédié sur Validité Promoteurs lorsque le RPC échoue, au lieu de présenter simultanément des compteurs calculés sur un tableau vide.
+5. **P2 — audit des mutations :** poursuivre la couverture des actions qui écrivent directement dans `audit_log` sans contrôler l'erreur d'insertion, et confirmer les triggers existants.
+
+**Limites de cette passe :** lecture statique du dépôt et interrogations SQL en lecture seule ; pas de modification fonctionnelle, pas de migration appliquée, pas de test de session réel, pas de test navigateur, pas de build ni de déploiement.
