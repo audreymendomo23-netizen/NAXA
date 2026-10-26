@@ -34,6 +34,7 @@ export async function creerDossierUnivers(form: FormData) {
   if (!(allowed as readonly string[]).includes(universe)) errors.universe_slug = "Univers indépendant invalide.";
   if (get(form, "nom").length < 2 || get(form, "nom").length > 160) errors.nom = "2 à 160 caractères attendus.";
   if (get(form, "ville").length < 2) errors.ville = "Ville obligatoire.";
+  if (get(form, "adresse").length < 2) errors.adresse = "Adresse obligatoire.";
   if (!/^[0-9]{8,15}$/.test(whatsapp)) errors.whatsapp = "8 à 15 chiffres attendus.";
   if (latText || lngText) {
     if (!latText || !lngText || !Number.isFinite(lat) || lat! < -90 || lat! > 90) errors.lat = "Latitude invalide.";
