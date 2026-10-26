@@ -75,21 +75,46 @@ export async function creerPharmacie(formData: FormData) {
 
   const pharmacyId = pharmacy.id;
   const cleanup = async () => {
-    const results = await Promise.allSettled([
-      db.from("pharmacie_documents_recus").delete().eq("pharmacie_id", pharmacyId),
-      db.from("promoteur_pharmacies").delete().eq("promoteur_id", userId),
-      db.from("abonnements_promoteurs").delete().eq("promoteur_id", userId),
-      db.from("conventions_promoteurs").delete().eq("promoteur_id", userId),
-      db.from("pharmacie_architectures").delete().eq("pharmacie_id", pharmacyId),
-      db.from("pharmacie_privee").delete().eq("pharmacie_id", pharmacyId),
-    ]);
-    const pharmacyDelete = await db.from("pharmacies").delete().eq("id", pharmacyId);
-    const authDelete = await db.auth.admin.deleteUser(userId);
-    console.error("[admin.creerPharmacie] compensation", {
-      pharmacyId, userId, cleanupSteps: results.map((r) => r.status),
-      pharmacyDeleteError: pharmacyDelete.error?.message ?? null,
-      authDeleteError: authDelete.error?.message ?? null,
-    });
+    const cleanupSteps = [
+      ["pharmacie_documents_recus", () => db.from("pharmacie_documents_recus").delete().eq("pharmacie_id", pharmacyId)],
+      ["promoteur_pharmacies", () => db.from("promoteur_pharmacies").delete().eq("promoteur_id", userId)],
+      ["abonnements_promoteurs", () => db.from("abonnements_promoteurs").delete().eq("promoteur_id", userId)],
+      ["conventions_promoteurs", () => db.from("conventions_promoteurs").delete().eq("promoteur_id", userId)],
+      ["pharmacie_architectures", () => db.from("pharmacie_architectures").delete().eq("pharmacie_id", pharmacyId)],
+      ["pharmacie_privee", () => db.from("pharmacie_privee").delete().eq("pharmacie_id", pharmacyId)],
+    ] as const;
+    const cleanupResults = await Promise.all(cleanupSteps.map(async ([table, run]) => {
+      try {
+        const { error } = await run();
+        return { table, error: error?.message ?? null };
+      } catch (error) {
+        return { table, error: error instanceof Error ? error.message : String(error) };
+      }
+    }));
+    const failedSteps = cleanupResults.filter((result) => result.error !== null);
+    if (failedSteps.length > 0) {
+      console.error("[admin.creerPharmacie] compensation_incomplete", {
+        pharmacyId, userId, failedSteps,
+      });
+      return;
+    }
+
+    const { error: pharmacyDeleteError } = await db.from("pharmacies").delete().eq("id", pharmacyId);
+    if (pharmacyDeleteError) {
+      console.error("[admin.creerPharmacie] compensation_incomplete", {
+        pharmacyId, userId, failedSteps: [{ table: "pharmacies", error: pharmacyDeleteError.message }],
+      });
+      return;
+    }
+
+    const { error: authDeleteError } = await db.auth.admin.deleteUser(userId);
+    if (authDeleteError) {
+      console.error("[admin.creerPharmacie] compensation_incomplete", {
+        pharmacyId, userId, failedSteps: [{ table: "auth.users", error: authDeleteError.message }],
+      });
+      return;
+    }
+    console.info("[admin.creerPharmacie] compensation_complete", { pharmacyId, userId });
   };
 
   const { error: privateError } = await db.from("pharmacie_privee").insert({
