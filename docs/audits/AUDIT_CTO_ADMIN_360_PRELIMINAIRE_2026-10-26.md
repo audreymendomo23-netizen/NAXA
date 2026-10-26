@@ -274,3 +274,63 @@ Les avis actuellement retournés sont :
 - Code : lecture ciblée des fichiers de rapports/catalogue et inventaire de 18 pages admin / 42 routes API; revue ligne par ligne de l'intégralité du dépôt non encore terminée.
 
 **Statut de la phase préliminaire : 🟠 avancée, mais pas encore close.** Il reste à compléter l'inventaire documentaire systématique, la comparaison migrations dépôt/base, les logs Supabase correctement filtrés, et la lecture de code et des ressources restantes. Le rapport sera encore enrichi sur cette même branche avant de demander l'autorisation de commencer le chantier d'audit page par page et d'implémentation.
+
+
+## 15. Inventaire technique élargi du dépôt
+
+### 15.1 Répartition des fichiers (arbre Git de référence)
+- TypeScript React `.tsx` : **222** fichiers;
+- TypeScript `.ts` : **114**;
+- SQL `.sql` : **503**;
+- Markdown `.md` : **78** dans tout le dépôt;
+- JavaScript `.js` : **3**;
+- `.mjs` : **3**;
+- `.cjs` : **7**;
+- fichiers image WebP : **19**, PNG : **15**, SVG : **3**, JPG : **4**;
+- autres types : configurations, fichiers PWA, scripts Python, CSV, archives et ressources.
+
+L'arbre comporte des archives ZIP et des ressources médias au niveau racine. Il faudra distinguer les documents de référence actifs des copies d'archives afin de ne pas les traiter comme des instructions équivalentes.
+
+### 15.2 Première métrique statique des pages admin
+Un comptage lexical initial des 18 fichiers `page.tsx` a relevé les lignes et marqueurs JSX/HTML suivants. **Ce n'est pas encore le décompte final des éléments visibles** : les composants importés, les layouts, les composants clients, les formulaires server actions et les états conditionnels doivent être inclus avant de publier le bilan définitif.
+
+| Page | Lignes | `button` statiques | `onClick` | liens/`href` | formulaires | champs input/select/textarea | alertes/aria-live |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `/admin/alertes` | 33 | 0 | 0 | 6 | 0 | 0 | 1 |
+| `/admin/configuration` | 55 | 0 | 0 | 2 | 0 | 2 | 0 |
+| `/admin/examens` | 26 | 5 | 0 | 2 | 5 | 10 | 1 |
+| `/admin/geolocalisation` | 145 | 2 | 2 | 2 | 0 | 0 | 2 |
+| `/admin/journal` | 24 | 0 | 0 | 2 | 0 | 0 | 1 |
+| `/admin/messagerie` | 25 | 0 | 0 | 2 | 0 | 0 | 1 |
+| `/admin` | 2 | 0 | 0 | 8 | 0 | 0 | 1 |
+| `/admin/pharmacies/[id]` | 84 | 6 | 0 | 2 | 4 | 11 | 2 |
+| `/admin/pilotage` | 182 | 2 | 2 | 6 | 0 | 0 | 1 |
+| `/admin/pilotage/rapports` | 179 | 4 | 4 | 3 | 0 | 2 | 1 |
+| `/admin/pilotage/validite` | 31 | 1 | 0 | 0 | 1 | 3 | 1 |
+| `/admin/prestations` | 50 | 4 | 0 | 4 | 4 | 8 | 1 |
+| `/admin/produits` | 123 | 3 | 0 | 4 | 2 | 10 | 2 |
+| `/admin/profil` | 68 | 1 | 0 | 2 | 1 | 5 | 1 |
+| `/admin/promoteurs` | 129 | 0 | 0 | 4 | 0 | 0 | 3 |
+| `/admin/promoteurs/partenaires/[id]` | 54 | 1 | 0 | 2 | 1 | 1 | 1 |
+| `/admin/rappels-lots` | 6 | 0 | 0 | 0 | 0 | 0 | 0 |
+| `/admin/univers` | 82 | 15 | 0 | 28 | 15 | 40 | 1 |
+
+**Attention à l'interprétation :** le zéro dans un fichier de page ne signifie pas nécessairement l'absence d'interaction; certaines pages délèguent à des composants importés ou utilisent les actions natives de formulaire. Inversement, un nombre de liens ou boutons ne garantit pas que la cible existe ou que l'action fonctionne.
+
+### 15.3 Hypothèses d'audit immédiates
+- `/admin` fait seulement 2 lignes : c'est probablement un point d'entrée qui délègue à un composant; il faudra suivre l'import réel avant de conclure à une page vide.
+- `/admin/rappels-lots` fait 6 lignes et ne contient aucun marqueur de contrôle dans ce fichier : il faut vérifier s'il délègue à un composant ou constitue une page morte.
+- `/admin/univers` concentre le plus grand nombre de formulaires/champs/liens dans le fichier de page; il est prioritaire pour l'inventaire élément par élément.
+- `/admin/journal`, `/admin/messagerie`, `/admin/configuration` et `/admin/profil` sont présents, mais leur accès, leurs dépendances et leurs états d'erreur doivent être contrôlés avec le layout/navigation.
+- Ces hypothèses restent ⚪/🟠 jusqu'à l'inspection des imports, actions et conditions d'affichage.
+
+## 16. État révisé de la preuve
+
+La phase préliminaire a maintenant des preuves plus concrètes :
+1. cause CI statique identifiée (compteur de migrations);
+2. cause exacte d'un build Vercel ancien identifiée (clé objet dupliquée), avec constat que le correctif existe dans un commit GitHub plus récent mais sans déploiement correspondant au HEAD courant;
+3. inventaire chiffré du dépôt et métriques statiques initiales des 18 pages;
+4. compteurs Supabase et avis classés par catégories;
+5. contraintes de sécurité et limites d'accès consignées.
+
+Cela ne signifie pas encore que l'étape préliminaire est close : le parcours demandé exige aussi la lecture et la synthèse des documents métier pertinents restants, la comparaison de l'historique de migrations, l'examen ciblé des logs Supabase avec les champs disponibles et la lecture détaillée des dépendances de code. Le statut reste 🟠 tant que ces preuves ne sont pas complétées.
