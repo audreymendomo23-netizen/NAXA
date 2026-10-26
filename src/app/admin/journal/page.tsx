@@ -1,13 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 export default async function JournalAdministration() {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/journal");
-  const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin" || profile.actif === false) redirect("/");
+  const { sb } = await requireAdminActive("/admin/journal");
   const { data: events, error } = await sb.from("audit_log")
     .select("id,actor_id,action,entity_type,entity_id,metadata,created_at")
     .order("created_at", { ascending: false })
