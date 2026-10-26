@@ -10,7 +10,6 @@ const spaces = [
   ["examens", "Examens médicaux", "universe.examens"],
   ["suivi", "Dispositifs médicaux", "universe.suivi"],
   ["prestations", "Prestations à domicile", "universe.prestations"],
-  ["aide", "Aide NAXA", ""],
 ] as const;
 
 export default async function AdminUnivers({ searchParams }: { searchParams: { ok?: string; erreur?: string; partenaire_q?: string; partenaire_statut?: string; produit_q?: string; produit_univers?: string; produit_statut?: string; univers?: string } }) {
