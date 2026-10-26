@@ -33,6 +33,52 @@ $$;
 revoke all on function public.bebe_maman_pharmacie_pour_partenaire(uuid) from public, anon, authenticated;
 grant execute on function public.bebe_maman_pharmacie_pour_partenaire(uuid) to service_role;
 
+-- Persist the pharmacy ownership on each Baby & Maman product, not only at display time.
+alter table public.partner_products
+  add column if not exists pharmacie_id uuid references public.pharmacies(id) on delete restrict;
+
+update public.partner_products pp
+set pharmacie_id = public.bebe_maman_pharmacie_pour_partenaire(pp.partner_id),
+    status = case
+      when public.bebe_maman_pharmacie_pour_partenaire(pp.partner_id) is null then 'inactive'
+      else pp.status
+    end
+where pp.universe_slug = 'bebe-maman';
+
+create index if not exists partner_products_pharmacie_universe_status_idx
+  on public.partner_products(pharmacie_id, universe_slug, status)
+  where pharmacie_id is not null;
+
+alter table public.partner_products
+  drop constraint if exists partner_products_bebe_maman_pharmacie_required;
+alter table public.partner_products
+  add constraint partner_products_bebe_maman_pharmacie_required
+  check (universe_slug <> 'bebe-maman' or status <> 'active' or pharmacie_id is not null);
+
+create or replace function public.sync_bebe_maman_product_pharmacy()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if new.universe_slug = 'bebe-maman' then
+    new.pharmacie_id := public.bebe_maman_pharmacie_pour_partenaire(new.partner_id);
+    if new.pharmacie_id is null then
+      raise exception 'Un produit Bébé & Maman doit appartenir à une pharmacie unique ayant activé le service';
+    end if;
+  else
+    new.pharmacie_id := null;
+  end if;
+  return new;
+end;
+$;
+revoke all on function public.sync_bebe_maman_product_pharmacy() from public, anon, authenticated;
+drop trigger if exists sync_bebe_maman_product_pharmacy on public.partner_products;
+create trigger sync_bebe_maman_product_pharmacy
+before insert or update of partner_id, universe_slug on public.partner_products
+for each row execute function public.sync_bebe_maman_product_pharmacy();
+
 alter table public.universe_reservations
   add column if not exists pharmacie_id uuid references public.pharmacies(id) on delete restrict;
 create index if not exists universe_reservations_pharmacie_status_idx
@@ -73,7 +119,7 @@ as $function$
   ) reserved on true
   left join public.pharmacies ph
     on pp.universe_slug = 'bebe-maman'
-   and ph.id = public.bebe_maman_pharmacie_pour_partenaire(pa.id)
+   and ph.id = pp.pharmacie_id
   where pp.universe_slug = p_universe_slug
     and p_universe_slug in ('parapharmacie','bebe-maman')
     and pp.status = 'active'
