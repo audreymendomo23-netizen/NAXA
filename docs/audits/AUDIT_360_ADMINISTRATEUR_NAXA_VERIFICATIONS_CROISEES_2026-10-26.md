@@ -285,3 +285,12 @@ La migration documentaire n'a pas été appliquée à Supabase dans cette passe 
 
 ### Validation
 La présence/absence des tables a été contrôlée via l'inventaire du schéma ; la correction a été écrite sur main. Aucun fichier n'a été déposé, aucun document métier modifié, aucune migration documentaire appliquée, aucun test navigateur/build/lint lancé, aucun déploiement lancé.
+
+
+## 16. Statut CI avant clôture — vérification des commits précédents
+
+Le statut GitHub rapporte toujours le contrôle CircleCI « ci/circleci: quality » en échec. Ce résultat est également présent sur les commits antérieurs aux dernières corrections (fb59e0b0715ac3c1dd8981175941c0c6127e7af1 et e2b0492f69b864d273e442ec3cfcf649a6ff6d4f), puis sur le commit de correction de la page documentaire (41f5ff8234006a09917ba7f0fe9ddafc1779667e) et le commit documentaire (aa60abcda9a8fae3f7dd8fdaab8ceae89756a231). Il ne s'agit donc pas d'une régression démontrée par la seule dernière modification, mais le contrôle n'est pas vert.
+
+Le lien CircleCI de ce dépôt n'est pas accessible via les intégrations disponibles dans cette session ; le statut ne révèle pas l'étape fautive (TypeScript, tests ciblés, ESLint ou build). Sans le journal du job, il serait incorrect d'inventer la cause ou de déclarer le contrôle corrigé. Les tests automatisés, le lint, TypeScript et le build ne sont pas revendiqués comme exécutés avec succès.
+
+**Critère de clôture non satisfait :** la migration RLS du journal est appliquée et vérifiée, mais le chantier Administrateur ne peut pas être certifié complètement clos tant que le parcours de fichiers documentaires n'est pas rétabli par une migration autorisée, le renouvellement/paiement n'est pas validé, et le job CircleCI quality n'est pas diagnostiqué puis passé.
