@@ -60,7 +60,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   if new.universe_slug = 'bebe-maman' then
     new.pharmacie_id := public.bebe_maman_pharmacie_pour_partenaire(new.partner_id);
@@ -72,7 +72,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 revoke all on function public.sync_bebe_maman_product_pharmacy() from public, anon, authenticated;
 drop trigger if exists sync_bebe_maman_product_pharmacy on public.partner_products;
 create trigger sync_bebe_maman_product_pharmacy
