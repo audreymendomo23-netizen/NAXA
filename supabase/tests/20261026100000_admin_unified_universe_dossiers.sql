@@ -16,7 +16,8 @@ begin
   end if;
   if not exists(select 1 from pg_indexes where schemaname='public' and indexname='admin_partner_dossiers_created_by_idx')
      or not exists(select 1 from pg_indexes where schemaname='public' and indexname='pharmacie_services_enabled_by_idx')
-     or not exists(select 1 from pg_indexes where schemaname='public' and indexname='pharmacie_services_updated_by_idx') then
+     or not exists(select 1 from pg_indexes where schemaname='public' and indexname='pharmacie_services_updated_by_idx')
+     or not exists(select 1 from pg_indexes where schemaname='public' and indexname='pharmacie_services_service_slug_idx') then
     raise exception 'Index de clés étrangères manquant sur les nouveaux registres';
   end if;
   if not exists(select 1 from pg_class where oid='public.admin_partner_dossiers'::regclass and relrowsecurity)
