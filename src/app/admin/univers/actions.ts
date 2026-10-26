@@ -2,16 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { isMedicationProduct } from "@/lib/universe-product-rules";
 
 async function admin() {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/univers");
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin") redirect("/");
-  return { sb, actor: auth.user.id };
+  const { sb, user } = await requireAdminActive("/admin/univers");
+  return { sb, actor: user.id };
 }
 
 const field = (form: FormData, key: string, max = 160) => String(form.get(key) ?? "").trim().slice(0, max);
