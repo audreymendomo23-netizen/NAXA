@@ -331,3 +331,27 @@ Le Security Advisor post-migration a détecté que public.journaliser_pharmacie_
 
 ### Limites
 Le catalogue et les privilèges sont vérifiés, mais aucun test d'insertion de document réel, de trigger sur un document métier, ni de lien signé n'a été exécuté. CircleCI quality reste en échec sur le dernier commit vérifié ; aucun déploiement n'a été lancé.
+
+
+## 19. Consolidation finale de cette passe — 2026-10-26
+
+Cette section fait foi sur l'état actuel et prévaut sur les statuts historiques des sections 1 à 16 lorsqu'ils se contredisent.
+
+### Corrections cumulées confirmées dans main et Supabase
+- Journal Admin : politiques SELECT/INSERT resserrées sur `public.is_admin()` ; migration distante version `20261026211221`, contrôlée dans le catalogue.
+- Registre documentaire : migration distante `20261026212315`, tables `pharmacie_documents` et `pharmacie_document_historique), bucket privé `pharmacie-documents` (10 MiB, PDF/JPEG/PNG/WebP) et politiques contrôlées.
+- Fonction de trigger documentaire : migration `20261026212540` ; EXECUTE révoqué pour `PUBLIC`, `anon` et `authenticated`, confirmé par `has_function_privilege`.
+- Page détail pharmacie : une erreur de lecture du registre n'est plus présentée comme « aucun fichier » ; le dépôt est désactivé tant que le registre est indisponible.
+- Journal Admin : le rendu brut de `metadata` a été retiré pour éviter l'affichage non filtré de données personnelles ou de secrets éventuellement inscrits par les producteurs. L'écran indique désormais que les métadonnées sont masquées.
+- Les corrections de contrôle d'erreurs sur les actions Admin/Univers, la page Validité et la synchronisation OSM sont conservées dans les commits précédents.
+
+### Vérification des contrôles au dernier état consulté
+- Le statut GitHub du commit `289d189a924e87a00394600f63d079ac4c7a03a1` indique encore `ci/circleci: quality = failure`. Le fichier de configuration CircleCI a été consulté ; le statut seul ne donne pas l'étape fautive. Aucun résultat de TypeScript, lint, build ou tests ne peut donc être présenté comme réussi. La modification du journal Admin a été commise après ce statut ; son résultat CI doit être vérifié séparément.
+- Le Security Advisor indique encore 5 tables RLS sans politique, 5 fonctions SECURITY DEFINER exécutables par `anon`, 120 exécutables par `authenticated`, et l'alerte Auth de protection contre les mots de passe compromis désactivée. Ces constats nécessitent une qualification fonction par fonction : aucune révocation générale ni politique RLS improvisée n'a été appliquée.
+- Les règles métier de renouvellement Promoteur et de preuve de paiement ne sont pas changées sans contrat métier et tests de non-régression, car une modification hasardeuse pourrait réactiver à tort un compte suspendu ou enregistrer un paiement sans justificatif.
+- Le parcours de dépôt/consultation signée/validation documentaire est installé côté base et contrôlé statiquement, mais aucun fichier administratif réel n'a été téléversé, consulté ou validé. Ce test métier doit être réalisé avec un compte Admin autorisé ; aucune donnée réelle n'a été altérée.
+- Les noms de tables/bucket documentaires attendus par le code sont désormais créés par la migration vérifiée. L'ancien registre déclaratif `pharmacie_documents_recus` reste distinct du registre de fichiers ; ce sont deux concepts différents et ils ne sont pas fusionnés implicitement.
+- Aucun déploiement applicatif n'a été lancé.
+
+### Décision de clôture honnête
+La passe de corrections autorisées et de réconciliation documentaire est terminée et consignée sur `main`. Cela ne constitue pas une certification technique complète « vert » : il reste une preuve CI verte, le test fonctionnel documentaire par un Admin et la qualification ciblée des alertes de sécurité/RLS ainsi que du contrat de renouvellement/paiement. Ces limites sont explicites, localisées et ne bloquent pas le démarrage d'un chantier distinct si celui-ci est suivi comme non certifié ; elles ne doivent pas être transformées en validations supposées.
