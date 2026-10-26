@@ -86,11 +86,8 @@ declare
 begin
   if not public.is_admin() then raise exception 'Accès administrateur requis' using errcode = '42501'; end if;
   if p_owner_user_id is null or not exists (
-    select 1 from public.profiles where id=p_owner_user_id and role::text='client'
-  ) then raise exception 'Compte Promoteur introuvable ou rôle non autorisé' using errcode = '23503'; end if;
-  if exists(select 1 from public.partner_members where user_id=p_owner_user_id) then
-    raise exception 'Ce compte est déjà rattaché à un partenaire' using errcode = '23505';
-  end if;
+    select 1 from public.profiles where id=p_owner_user_id
+  ) then raise exception 'Compte Promoteur introuvable' using errcode = '23503'; end if;
   -- Le compte propriétaire reste suspendu tant que le dossier est en attente.
   update public.profiles set actif=false where id=p_owner_user_id;
   if length(trim(coalesce(p_name,''))) < 2 or length(trim(coalesce(p_city,''))) < 2
