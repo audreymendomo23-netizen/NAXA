@@ -774,3 +774,38 @@ Les contrôles d'identité/activité des fonctions examinées sont confirmés pa
 Le préliminaire a atteint son objectif : établir une base documentaire, un inventaire de surface et un registre explicite des preuves et incertitudes avant l’audit détaillé. Les incertitudes listées restent ouvertes comme points de contrôle, mais ne bloquent pas la clôture de cette phase préparatoire. Le jalon suivant est **l’audit détaillé de l’Administrateur NAXA**, à commencer uniquement après autorisation explicite de l’utilisateur.
 
 **Traçabilité d’exécution :** documentation seulement, directement sur `main`; aucune branche créée, aucun déploiement déclenché, aucun code applicatif/SQL/configuration/donnée modifié, aucune RPC métier ni opération d’écriture exécutée.
+
+
+## 42. Audit détaillé — Lot 1 : navigation Admin, layout partagé et tableau de bord
+
+**Périmètre examiné :** `src/components/admin/AdminNavigation.tsx`, `src/app/admin/layout.tsx`, `src/app/admin/page.tsx`, `src/app/admin/admin-bento.css`, `src/lib/admin/require-admin-active.ts`. Lecture statique de la version `main`; aucune interaction authentifiée ni mutation n’a été exécutée.
+
+### Constat A — Garde d’accès partagée
+
+Le layout et la page d’accueil utilisent `requireAdminActive`, qui exige un utilisateur authentifié, un profil présent, `role='admin'` et `actif=true`; une erreur de lecture du profil entraîne le refus. **Résultat : conforme sur le code examiné.** Cette conclusion porte sur le garde serveur, pas sur des essais de session navigateur.
+
+### Constat B — Navigation et routes imbriquées
+
+La navigation comporte 12 entrées, avec libellés et notes explicites, et compare le `pathname` à chaque `href` à l’identique pour `aria-current="page"`. Les pages imbriquées non déclarées dans la liste (par exemple une fiche pharmacie `/admin/pharmacies/[id]` ou le détail partenaire `/admin/promoteurs/partenaires/[id]`) ne correspondent à aucune entrée et ne mettent donc en évidence aucun parent actif. C’est un défaut UX/accessibilité probable, sans impact d’autorisation établi. Les pages Prestations et Examens sont accessibles via Univers & catalogue, pas directement depuis la navigation principale; à valider contre le plan de navigation attendu.
+
+### Constat C — Cohérence du compteur d’alertes
+
+Le layout calcule le badge en additionnant les dates de stock manquantes, les pharmacies inactives/masquées et les conventions impayées/en retard. Une même pharmacie peut compter dans plusieurs catégories; le badge représente donc des signaux cumulés et non nécessairement des dossiers distincts. Le libellé accessible « signaux à examiner » est compatible avec cette méthode, mais la page d’accueil reprend la somme dans un compteur « Alertes réseau » sans expliciter la règle. Recommandation d’audit : décider si le produit attend un nombre de signaux ou un nombre de dossiers uniques, puis harmoniser les libellés et calculs.
+
+### Constat D — Pharmacies de démonstration incluses dans les compteurs
+
+La page d’accueil et le layout chargent les pharmacies sans filtrer `est_demo`. Les indicateurs « Pharmacies du réseau », « Stocks horodatés », « À actualiser », quartiers, progression et alertes peuvent donc inclure des données de démonstration. Le pilotage SQL examiné précédemment exclut explicitement les pharmacies démo de sa portée Admin. Il existe ainsi une divergence de périmètre entre l’accueil Admin et le Pilotage. Le snapshot live antérieur indiquait 4 pharmacies, dont 3 démo inactives; il ne faut donc pas interpréter les KPI d’accueil comme des métriques du réseau opérationnel sans clarification. Constat confirmé dans le code; la règle métier d’inclusion reste à confirmer.
+
+### Constat E — Horodatage de stock utilisé comme proxy
+
+La page indique clairement qu’elle compte les pharmacies ayant `stock_updated_at` et précise qu’une date manquante ne prouve pas une rupture. La progression reste toutefois une mesure de fraîcheur de la donnée, pas un taux de stock réel ou de disponibilité produit. Le libellé secondaire doit rester explicite si ces chiffres sont réutilisés ailleurs.
+
+### Constat F — État partiel des données
+
+La page d’accueil détecte les erreurs des trois sources (pharmacies, validités, journal) et signale des indicateurs partiels. Le layout détecte aussi les erreurs de ses trois sources et affiche un avertissement global. C’est un garde-fou utile. Le tableau d’accueil remplace les jeux en erreur par des tableaux vides via `data ?? []`, avec avertissement visible, ce qui évite de présenter silencieusement un résultat complet mais peut faire apparaître des zéros; à surveiller en test d’interface.
+
+### Décision du lot 1
+
+- **Conforme dans le code :** garde serveur partagé Admin actif; états d’erreur partielle explicitement signalés; indication que l’horodatage ne prouve pas une rupture.
+- **Écarts/points à arbitrer :** (1) parent de navigation actif sur les routes imbriquées; (2) périmètre des pharmacies démo sur les KPI/alertes; (3) définition du compteur d’alertes comme signaux ou dossiers; (4) accès direct aux sous-sections Prestations/Examens.
+- **Suite méthodologique :** poursuivre l’audit détaillé page par page et rapprocher chaque constat des règles métier avant de proposer une correction. Aucune correction n’a été appliquée dans ce lot; aucune validation navigateur, compilation ou test automatisé n’est revendiqué.
