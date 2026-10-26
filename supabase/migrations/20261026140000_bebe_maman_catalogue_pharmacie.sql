@@ -120,12 +120,15 @@ as $function$
   left join public.pharmacies ph
     on pp.universe_slug = 'bebe-maman'
    and ph.id = pp.pharmacie_id
+   and ph.actif = true and ph.visible_recherche = true
+  left join public.pharmacie_services ps
+    on ps.pharmacie_id = ph.id and ps.service_slug = 'bebe-maman' and ps.status = 'active'
   where pp.universe_slug = p_universe_slug
     and p_universe_slug in ('parapharmacie','bebe-maman')
     and pp.status = 'active'
     and (pp.expires_at is null or pp.expires_at >= current_date)
     and pp.stock_quantity - coalesce(reserved.quantity_reserved, 0) > 0
-    and (pp.universe_slug <> 'bebe-maman' or ph.id is not null)
+    and (pp.universe_slug <> 'bebe-maman' or (ph.id is not null and ps.pharmacie_id is not null))
   order by pp.category, pp.name, pa.name;
 $function$;
 
