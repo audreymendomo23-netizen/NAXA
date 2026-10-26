@@ -334,3 +334,40 @@ La phase préliminaire a maintenant des preuves plus concrètes :
 5. contraintes de sécurité et limites d'accès consignées.
 
 Cela ne signifie pas encore que l'étape préliminaire est close : le parcours demandé exige aussi la lecture et la synthèse des documents métier pertinents restants, la comparaison de l'historique de migrations, l'examen ciblé des logs Supabase avec les champs disponibles et la lecture détaillée des dépendances de code. Le statut reste 🟠 tant que ces preuves ne sont pas complétées.
+
+
+## 17. Contradictions additionnelles repérées dans le code admin
+
+### 17.1 Garde d'accès non homogène
+La lecture ciblée de `src/app/admin/layout.tsx`, `src/app/admin/page.tsx`, `src/app/admin/promoteurs/page.tsx`, `src/app/admin/journal/page.tsx` et `src/app/admin/messagerie/page.tsx` montre des règles différentes :
+- layout : `afficherAlertes = profile?.role === "admin" && profile.actif !== false`, donc une valeur `actif = null` n'est pas explicitement refusée;
+- tableau de bord `/admin` : vérifie le rôle mais ne sélectionne ni ne vérifie `actif`;
+- liste Promoteurs : vérifie le rôle mais pas explicitement l'état actif;
+- journal et messagerie : vérifient le rôle et refusent `actif === false`, ce qui autorise également `null` si la colonne le permet;
+- API de création des rapports : exige explicitement `profile.actif === true`.
+
+**Contradiction métier/sécurité à vérifier :** le même compte peut rencontrer des décisions d'accès différentes selon la page/API et les valeurs nulles de la colonne `actif`. Le contrôle canonique devrait être établi, puis appliqué côté serveur à toutes les pages/actions/routes API pertinentes. Aucune correction n'a été faite durant l'étape préliminaire.
+
+### 17.2 Contradiction entre navigation et pages
+La navigation admin expose 12 entrées : Tableau de bord, Alertes réseau, Journal d’administration, Messagerie, Dossiers Promoteurs, Pilotage réseau, Validité, Rapports, Configuration, Profil, Produits, Univers & catalogue. Le routage recense 18 pages admin, dont Géolocalisation, Examens, Prestations, Rappels de lots, fiche pharmacie et fiche partenaire, qui ne sont pas des entrées directes dans la barre latérale. Cela peut être intentionnel si elles sont atteignables par des liens contextuels; il faut donc contrôler les chemins entrants avant de les qualifier de pages mortes.
+
+### 17.3 Journal d’administration
+`/admin/journal` lit les 200 événements les plus récents dans `audit_log` et affiche action, entité, identifiant, acteur et métadonnées. Limites à vérifier dans l'audit complet :
+- la limite à 200 ne permet pas une recherche/pagination historique;
+- l'erreur de lecture est affichée comme un message général d'autorisation, même si une autre cause DB est possible;
+- le JSON de `metadata` est affiché tel quel : il faudra vérifier qu'aucune donnée personnelle, donnée de santé, secret ou contenu sensible ne soit journalisé puis exposé;
+- l'existence d'une entrée dans `audit_log` ne prouve pas que toutes les mutations de tous les univers écrivent systématiquement une entrée.
+
+### 17.4 Messagerie
+`/admin/messagerie` charge jusqu'à 100 tickets et les messages associés, puis délègue l'interface à `AdminInbox`. Le layout compte les tickets dont le statut est exactement `ouvert`. À vérifier : pagination, nouveaux statuts, ticket sans message, réponses concurrentes, clôture/réouverture, notifications Promoteur/Client, politiques RLS et gestion des erreurs de réponse.
+
+### 17.5 Configuration et profil
+- La configuration langue/nuit est conservée dans `localStorage`; le libellé précise que les écrans sans traduction restent dans leur langue d'origine. Le changement de langue ne constitue donc pas une traduction complète de l'interface.
+- Le profil met à jour directement les champs de `profiles` via le client Supabase. Il faut vérifier les contraintes RLS et l'unicité/validation du nom d'utilisateur, ainsi que la gestion de collision de valeur et la cohérence avec les autres interfaces de profil.
+- Le sélecteur de navigation utilise `usePathname` et compare exactement le chemin avec le `href`; les pages imbriquées peuvent ne pas afficher la section parent comme active si la logique exacte n'est pas adaptée.
+
+## 18. Historique Supabase et logs — précisions
+- La table d'historique Supabase rapporte **235 migrations appliquées**, de la version `20261004030744` à `20261025121150`.
+- Ce nombre ne doit pas être comparé naïvement aux 290 fichiers racine ou aux 25 fichiers `supabase/migrations/` : le dépôt contient des noms historiques, des migrations timestampées et potentiellement des versions réconciliées/renommées. Il faut produire un diff exact version ↔ nom ↔ contenu avant de déclarer une migration absente.
+- La première tentative d'agrégation des logs par `log_level` a échoué car ce champ n'existe pas à la racine. La découverte des clés de `log_attributes` a révélé des clés variables selon le type de log, notamment `level`, `status`, `response.status_code`, `parsed.error_severity` et `parsed.sql_state_code`.
+- Une première agrégation avec les clés génériques `level`/`status` a donné zéro erreur, mais ce résultat est **non probant** car ces champs ne sont pas présents ou renseignés de manière uniforme selon la source. Il ne sera pas interprété comme l'absence d'erreurs. Une agrégation par source spécifique et par clés réellement présentes est nécessaire avant toute conclusion.
