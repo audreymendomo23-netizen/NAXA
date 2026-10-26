@@ -1,0 +1,2 @@
+"use client";
+export function ReceiptPrintButton(){return <button type="button" onClick={()=>window.print()} className="rounded-full bg-[#0F6B3F] px-5 py-3 text-sm font-bold text-white">Imprimer / Enregistrer en PDF</button>}
