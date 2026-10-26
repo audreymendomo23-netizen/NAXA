@@ -729,3 +729,26 @@ Le parcours de création Promoteur crée un utilisateur Auth avant l'appel RPC `
 2. `src/app/admin/creation-univers-actions.ts` — commit `7bd02f1cdba184dbe6367069e8f545b899072e5f`: ajout de journaux serveur pour échec Auth/RPC et vérification/journalisation de la suppression compensatoire.
 
 Relecture statique de ces deux fichiers confirmée après écriture. Aucun test automatisé, lint, typecheck, build ou test navigateur exécuté. Aucune écriture Supabase, migration, fusion dans `main` ou mise en production.
+
+
+### 16.5 Contrôle SQL d'autorisation — anomalie confirmée et migration préparée
+
+Une lecture SQL strictement en lecture seule de la base Supabase a confirmé :
+- `public.admin_valider_dossier_pharmacie` est une fonction `SECURITY DEFINER` qui appelle `public.is_admin()`.
+- `public.is_admin()` délègue à `private.is_admin()`.
+- La définition live de `private.is_admin()` vérifie uniquement `profiles.id = auth.uid()` et `role = 'admin'`; elle ne vérifie pas `actif`.
+
+**Contradiction confirmée :** la garde TypeScript partagée exige un administrateur actif, mais plusieurs RPC/politiques qui s'appuient sur `public.is_admin()` peuvent encore considérer comme administrateur un profil inactif. Le contrôle côté base n'est donc pas aligné avec la règle métier.
+
+**Correction préparée sur la branche :** migration additive `supabase/migrations/20261026150000_require_active_admin_for_is_admin.sql`, commit `c3ed68a69891254bcb8bc17ae344d20ac9f121c2`. Elle remplace `private.is_admin()` pour exiger également `actif IS TRUE`. Cela durcit tous les usages qui délèguent à cette fonction, pas seulement la RPC pharmacie; cette portée est intentionnelle mais nécessite une revue des flux administratifs avant application.
+
+**Limite critique :** migration ajoutée au dépôt uniquement; elle n'a pas été appliquée à Supabase. Aucune donnée ni fonction live n'a été modifiée. Il reste à vérifier l'impact sur les usages RLS/RPC, écrire des tests SQL (admin actif/inactif/non-admin/non-authentifié), puis exécuter la suite automatisée lorsque l'environnement le permet.
+
+### 16.6 Résumé de cette progression
+
+- Garde active des actions Promoteurs : 🟢 code corrigé, commit `85451fccfd0432bf2dedcf3edfc0e88705071444`.
+- Journalisation et vérification de la compensation Auth/RPC : 🟢 code corrigé, commit `7bd02f1cdba184dbe6367069e8f545b899072e5f`.
+- Garde SQL `private.is_admin()` : 🟠 migration préparée, commit `c3ed68a69891254bcb8bc17ae344d20ac9f121c2`; non appliquée.
+- Rapport mis à jour dans ce commit.
+- Tests, lint, typecheck, build et tests navigateur : non exécutés.
+- Aucun merge dans `main`, aucun déploiement, aucune migration appliquée à la base.
