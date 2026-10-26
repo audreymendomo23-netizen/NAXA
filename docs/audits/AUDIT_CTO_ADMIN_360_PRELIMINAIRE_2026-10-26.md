@@ -1134,3 +1134,30 @@ Le code confirme par ailleurs l'utilisation des variables suivantes déjà prés
 ### 26.3 Action d'audit suivante
 
 Confirmer uniquement la présence et les cibles Production/Preview/Development de `RESEND_API_KEY` et `REPORT_FROM_EMAIL` dans Vercel, sans déchiffrement. Ensuite, poursuivre la revue du helper `private.produits_populaires` et des appelants SQL/API sur l'arbre Git de la branche existante. Le rapport reste préliminaire : pas de merge, pas de déploiement, pas de changement live.
+
+
+## 27. Vérification affinée des cibles Vercel et du cloisonnement Preview — 26 octobre 2026
+
+### 27.1 Absence des variables Resend confirmée dans l'inventaire retourné
+
+Nouvelle lecture de l'inventaire Vercel avec déchiffrement désactivé : `RESEND_API_KEY` et `REPORT_FROM_EMAIL` restent absentes des variables retournées. Les routes `/api/cron/rapports` et `/api/cron/validite` vérifient explicitement ces deux variables et répondent `503` lorsqu'elles manquent au moment du traitement. C'est un **blocage de configuration fortement étayé par le code et l'inventaire**, même si aucun appel réel de ces routes n'a été exécuté.
+
+### 27.2 Cloisonnement des variables Supabase Preview : point de vigilance majeur
+
+- L'inventaire présente une variable `SUPABASE_SERVICE_ROLE_KEY` ciblant Production, Preview et Development.
+- Il existe aussi une entrée Preview spécifique à la branche `fix/login-page-layout-20261012`, avec un commentaire indiquant une clé de test dédiée, ainsi que des variables Supabase Preview ciblées sur cette même branche.
+- La recherche ciblée sur la branche `audit/admin-360-20261026` n'a retourné aucune variable branch-specific.
+- Les valeurs n'ont pas été déchiffrées pour l'audit; il est donc **impossible de prouver** que la variable Preview générique est une clé de production, ou qu'elle est sûre. Cependant, la présence d'une entrée générique couvrant Preview, combinée à l'isolation explicite limitée à une autre branche, crée un risque de mauvaise configuration qui doit être levé avant tout test authentifié ou écriture depuis une Preview.
+
+**Recommandation documentaire :** vérifier dans les paramètres Vercel que chaque Preview utilise un projet Supabase de test et une clé dédiée, et qu'aucune Preview ne peut recevoir la clé `service_role` Production. Ne pas lire les valeurs secrètes; utiliser les commentaires, cibles, identifiants de projet non sensibles et un test de configuration contrôlé. Aucune variable n'a été changée.
+
+### 27.3 URL canonique et cohérence des liens
+
+L'entrée `NEXT_PUBLIC_SITE_URL` retournée par Vercel paraît contenir une différence de nom par rapport au domaine canonique NAXA attendu dans le contexte du projet. Le code de bienvenue utilise cette valeur pour construire les liens Conditions/Confidentialité; une valeur erronée produirait des liens incorrects même si l'envoi aboutit. Le fallback dans `src/app/api/auth/welcome-email/route.ts` pointe lui-même vers un ancien domaine. Le domaine canonique exact doit être confirmé avec le propriétaire avant toute modification de configuration; aucune URL ni variable n'a été corrigée durant cet audit.
+
+### 27.4 Portée de la vérification
+
+- Les vérifications Vercel ont utilisé `decrypt=false`; aucun secret n'a été demandé en clair ni recopié dans le rapport.
+- Les cibles observées décrivent la configuration enregistrée, pas la preuve que les fonctions serveur ont été exécutées avec ces valeurs.
+- Aucun déploiement, test d'envoi, appel cron, changement de variable, fusion ou modification de la base n'a été effectué.
+- Le prochain contrôle prioritaire est la résolution du couple Resend manquant et la confirmation du cloisonnement Supabase Preview, puis la poursuite de la revue SQL et la consolidation de la phase préliminaire.
