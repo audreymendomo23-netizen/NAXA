@@ -27,6 +27,14 @@ export async function changerStatutPartenaire(form: FormData) {
   const id = field(form, "id", 40);
   const status = field(form, "status", 20);
   if (!/^[0-9a-f-]{36}$/i.test(id) || !["active", "suspended", "pending"].includes(status)) redirect("/admin/univers?erreur=parametres");
+  if (status === "active") {
+    const { data: dossier } = await sb.from("admin_partner_dossiers").select("partner_id").eq("partner_id", id).maybeSingle();
+    if (dossier) redirect("/admin/promoteurs/partenaires/" + id + "?erreur=validation-requise");
+    const { data: babyAssociation, error: babyAssociationError } = await sb.from("partner_universes")
+      .select("enabled").eq("partner_id", id).eq("universe_slug", "bebe-maman").maybeSingle();
+    if (babyAssociationError) redirect("/admin/univers?erreur=schema");
+    if (babyAssociation?.enabled) redirect("/admin/univers?erreur=service_pharmacie");
+  }
   const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (status === "active") { patch.verified_at = new Date().toISOString(); patch.verified_by = actor; }
   const { error } = await sb.from("partners").update(patch).eq("id", id);
