@@ -418,3 +418,42 @@ La phase préliminaire avance mais n'est pas achevée. Restent notamment la comp
 
 ## 23. Comparaison migrations
 Le détail du rapprochement est consigné dans [AUDIT_360_ADMINISTRATEUR_NAXA_MIGRATIONS.md](./AUDIT_360_ADMINISTRATEUR_NAXA_MIGRATIONS.md). Les versions de migration live ne correspondent pas toujours aux préfixes des fichiers sources; cela doit être rapproché par nom et contenu. Aucun SQL n'a été modifié.
+
+
+## 24. Contrôles Supabase actualisés et journaux — 26 octobre 2026
+
+Lecture seule du projet Supabase principal, relevé vers 19:39 UTC. Ces avertissements sont des signaux du linter et doivent être examinés au niveau des objets et des règles métier; ils ne prouvent pas tous, isolément, une vulnérabilité exploitable.
+
+### Sécurité — constats du linter
+
+- **PRE-030 — Signal à examiner :** 5 tables ont RLS activé sans politique déclarée : `caisse_audit_chain_heads`, `caisse_decaissement_auth_grants`, `caisse_security_challenges`, `caisse_security_credentials`, `pharmacie_donnees_historique`. L'absence de politique peut signifier refus d'accès voulu; confirmer l'intention et les usages applicatifs.
+- **PRE-031 — Signal à examiner :** 5 fonctions `SECURITY DEFINER` exécutables par `anon` sont signalées par le linter. Revue requise fonction par fonction : exposition voulue, vérification des paramètres, privilèges minimaux, `search_path` et données retournées.
+- **PRE-032 — Signal à examiner :** 120 fonctions `SECURITY DEFINER` exécutables par `authenticated` sont signalées. Ce nombre ne signifie pas 120 failles; il impose une classification par rôle, contrat d'appel et contrôles internes.
+- **PRE-033 — Configuration Auth :** la protection contre les mots de passe compromis est désactivée selon l'advisor Supabase. Aucun réglage n'a été changé.
+- Références de remédiation du linter : [RLS activé sans politique](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy), [SECURITY DEFINER accessible à anon](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable), [SECURITY DEFINER accessible à authenticated](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable), [protection des mots de passe](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+### Performance — constats du linter
+
+- **PRE-034 — Signal :** 113 clés étrangères sans index couvrant signalées.
+- **PRE-035 — Signal :** 92 index signalés comme inutilisés; l'absence d'utilisation observée ne suffit pas à justifier leur suppression.
+- **PRE-036 — Signal :** 59 groupes de politiques permissives multiples signalés; vérifier si le chevauchement est intentionnel et si les prédicats cumulés respectent le cloisonnement pharmacie/rôle.
+- **PRE-037 — Signal concret :** index identiques `stocks_lots_id_uidx` et `stocks_lots_id_uq` signalés sur `public.stocks_lots`. Ne pas supprimer sans vérifier contraintes, dépendances et plan de migration.
+- Références : [clés étrangères non indexées](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys), [index dupliqué](https://supabase.com/docs/guides/database/database-linter?lint=0009_duplicate_index).
+
+### Journaux — observation bornée
+
+- Les sources présentes dans le flux de journaux sur la fenêtre par défaut (24 heures) incluent `pgbouncer_logs`, `postgres_logs`, `edge_logs`, `auth_logs`, `postgrest_logs`, `storage_logs`, `realtime_logs` et `auth_audit_logs`.
+- Une recherche large par mots-clés `error/failed/exception/timeout` a trouvé 21 événements `pgbouncer_logs`, 8 `postgres_logs` et 6 `realtime_logs`. **Ce décompte n'est pas un décompte confirmé d'incidents** : le filtrage textuel attrape aussi des fragments de requêtes SQL contenant le mot `exception` et des fermetures TLS. Un tri par format de niveau/erreur doit précéder toute conclusion.
+- Exemples visibles : messages de fermeture TLS inattendue côté PgBouncer; tâches cron de réservation et d'expiration indiquées comme démarrant/terminant. Aucun incident applicatif n'est déclaré confirmé sur la seule base de ces extraits.
+- Les fonctions Edge déployées retournées par l'API Supabase : 0. À rapprocher des répertoires du dépôt et des autres mécanismes d'exécution; cela ne signifie pas qu'aucun cron ou endpoint applicatif n'existe.
+- Le statut combiné GitHub du commit documentaire `5eca09f4601383b12e67e90d1d46da7628b65298` rapporte `ci/circleci: quality` en échec. Aucun workflow n'a été relancé; conformément au mandat, ce relevé n'est pas une investigation du déploiement en échec.
+
+### Suites de la phase préliminaire
+
+1. Examiner les définitions complètes des fonctions sensibles et les politiques associées, sans exécuter de mutation.
+2. Refaire une recherche des erreurs de journaux avec les champs de niveau appropriés et des messages d'erreur explicites; séparer requêtes SQL journalisées des erreurs réelles.
+3. Comparer les objets SQL live avec les fichiers sources et la documentation de migration, sans conclure à une absence de migration par simple différence de version.
+4. Compléter l'inventaire traçable des fichiers et le rapprochement des spécifications avec les routes, API, RPC, politiques et tests présents.
+5. Maintenir l'audit détaillé Admin en attente d'une autorisation explicite après clôture documentée du préliminaire.
+
+Aucune donnée Supabase, politique, fonction, variable, configuration ni workflow n'a été modifié pendant ces vérifications.
