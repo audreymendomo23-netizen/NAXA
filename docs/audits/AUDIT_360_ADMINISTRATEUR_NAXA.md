@@ -653,3 +653,16 @@ Les constats documentés se répartissent en trois niveaux :
 3. **Non démontré faute de test contrôlé** : contournement d'accès effectif, fuite de données, impact réel sur une pharmacie, échec métier reproductible ou exposition d'un contenu de stockage non prévu.
 
 Le préliminaire reste ouvert. Toute vérification impliquant des comptes désactivés, des mutations de Storage, des appels externes ou des changements de données doit être conçue comme un test contrôlé et autorisée séparément; aucun de ces tests n'a été exécuté.
+
+
+## 36. Rapprochement d'une migration de durcissement RPC avec l'état live
+
+Le contrôle croisé du fichier source, de l'historique de migration Supabase et du catalogue PostgreSQL permet de préciser un point qui restait ambigu :
+
+- Le fichier `supabase/migrations/20261026190000_admin_rpc_empty_search_path_hardening.sql` est présent sur `main`.
+- La table live `supabase_migrations.schema_migrations` contient la version `20261026150907`, nommée `admin_rpc_empty_search_path_hardening_20261026190000`. Le décalage entre le préfixe du fichier et la version enregistrée est donc réel, mais la migration n'est pas absente de l'historique live.
+- Les huit fonctions ciblées par ce fichier ont été relues directement dans `pg_proc`. Pour chacune, le catalogue montre `search_path=""`, exécution refusée à `anon` et autorisée à `authenticated`. Cela corrobore l'état de durcissement déclaré pour ces huit fonctions.
+- Le document historique `docs/audits/VERIFICATION_RPC_SUPABASE_2026-10-26.md` décrit également des tests transactionnels avec annulation, exécutés pendant un chantier antérieur sur la branche `audit/admin-360-20261026`. Cette preuve historique est consignée comme telle; elle n'a pas été rejouée dans la présente phase, conformément à l'absence de mutations et de relance de tests.
+- Le même document mentionne douze RPC ciblées dans son contrôle antérieur. Le présent contrôle live a confirmé les huit fonctions de la migration nommée ci-dessus; il ne prétend pas avoir relu de nouveau les douze fonctions ni répété les tests transactionnels historiques.
+
+**Conclusion de rapprochement :** ce point précis est corroboré par le code de `main`, l'historique live et les réglages SQL actuels. Il ne doit pas être traité comme une migration manquante sur la seule base de son numéro différent. Aucune migration n'a été appliquée et aucun privilège n'a été changé pendant cette vérification.
