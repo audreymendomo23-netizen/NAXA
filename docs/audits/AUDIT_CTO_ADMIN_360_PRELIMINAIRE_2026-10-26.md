@@ -982,3 +982,19 @@ Les fonctions `log_evenement`, `log_recherche`, `produits_populaires` et `search
 ### 23.3 Étape suivante
 
 Lire les corps SQL, les fonctions publiques appelantes et les migrations sources pour chaque fonction restante; qualifier explicitement les relations et opérateurs/extensions, puis réduire le `search_path` au minimum compatible. Ajouter une migration versionnée sur la même branche, l'appliquer au projet Supabase déjà utilisé, puis vérifier les définitions et droits effectifs après application. Aucun merge vers `main`, aucun déploiement et aucun jeu de données métier fictif.
+
+
+### 23.4 Deuxième lot de durcissement appliqué
+
+Migration : `harden_payment_reactivation_reservation_search_paths_20261026210000`.
+
+- Commit de branche : `20569210711fe32878a8962744781698d7dbcdf7`.
+- `private.declare_payment(uuid, text)` : table de réservation explicitement qualifiée; chemin vide.
+- `private.reactiver_pharmacie(uuid, text)` : relations abonnements, paiements, pharmacies et profils explicitement qualifiées; le contrôle `public.is_admin()` et l'écriture de l'acteur `auth.uid()` sont conservés; chemin vide.
+- `private.reserve_stock(uuid, jsonb)` : tables de stock, réservation et lignes explicitement qualifiées; contrôles de connexion, quantité, péremption et réservations concurrentes conservés; chemin vide.
+- `private.search_pharmacies_panier(...)` : toutes les relations étaient déjà qualifiées et les fonctions utilisées sont natives; chemin vide.
+- Contrôle SQL après application : les quatre fonctions ont `search_path = ''`; `anon EXECUTE = false` et les droits `authenticated` restent tels qu'attendus d'après les ACL lues.
+
+### 23.5 Résidu immédiat
+
+La revue des chemins non vides se concentre désormais sur `private.log_evenement`, `private.log_recherche` et `private.produits_populaires`, qui dépendent de fonctions/opérateurs de l'extension `extensions` (`unaccent`, `pg_trgm`) et de tables de catalogue. Il faut qualifier ces références sans modifier le comportement de recherche ni la collecte d'événements. La revue plus large des autres schémas/fonctions et des façades publiques reste ouverte.
