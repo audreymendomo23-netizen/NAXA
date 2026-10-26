@@ -1065,3 +1065,44 @@ Elle n'est **pas encore clôturée**. Il reste à :
 4. vérifier le périmètre et les preuves GitHub, puis consigner clairement les points non vérifiables sans test local/navigateur ou session réelle.
 
 Après clôture documentée de cette phase préliminaire, le rapport sera présenté pour validation et autorisation avant de commencer l'audit détaillé page par page de l'Admin. D'ici là : pas de nouvelle branche, pas de correction métier supplémentaire, pas de fusion dans `main`, pas de déploiement.
+
+
+## 25. Revue individuelle initiale des cinq fonctions publiques exécutables par `anon` — 26 octobre 2026
+
+### 25.1 Méthode et limites
+
+Les définitions ont été lues directement dans le schéma live Supabase NAXA, avec une requête en lecture seule à `pg_get_functiondef`, puis les droits ont été vérifiés pour `anon`, `authenticated`, `service_role` et le propriétaire `postgres`. Les cinq fonctions appartiennent à `postgres`, sont `STABLE SECURITY DEFINER`, et sont exécutables par les rôles ci-dessus. Cette lecture des définitions ne constitue ni un test d'exploitation ni une validation de leurs résultats via l'API PostgREST. Aucune permission ni fonction n'a été modifiée.
+
+### 25.2 Résultats par fonction
+
+1. **`public.get_home_service_catalog()`**
+   - Renvoie une liste de prestations actives de partenaires actifs, en exigeant l'activation de l'univers, du partenariat d'univers et du feature flag.
+   - Les tables sont référencées avec leur schéma (`public.*`), mais le `search_path` fixé est `public, pg_temp`. Pour une fonction `SECURITY DEFINER`, la présence de `public` et surtout de `pg_temp` dans ce chemin est moins robuste que `search_path = ''` avec qualification explicite.
+   - **Avis préliminaire :** exposition publique cohérente avec un catalogue de prestations, sous réserve de confirmer que les colonnes retournées sont toutes destinées à être publiques. Durcir le `search_path` est une correction candidate à vérifier avec les usages et tests avant changement.
+
+2. **`public.get_universe_catalog(text)`**
+   - Le corps limite explicitement les slugs à `parapharmacie` et `bebe-maman`, filtre les produits actifs, la péremption, le stock disponible, et exige pour Bébé & Maman une pharmacie visible/active et un service actif.
+   - Le `search_path` est vide et les objets SQL sont qualifiés. Le droit `anon EXECUTE` est donc un contrat d'accès public potentiel, pas en soi une preuve de faille.
+   - **Avis préliminaire :** garde métier visible dans le SQL; vérifier le contrat d'accès côté interface/API et l'absence de données de test avant de considérer le flux prêt. Le résultat live antérieur signalait zéro produit réel dans le catalogue Bébé & Maman au moment du contrôle.
+
+3. **`public.marketplace_offre_stock_disponible(uuid, uuid)`**
+   - Retourne prix et quantité estimée après déduction de réservations actives, pour une pharmacie active et visible; tient compte des lots non périmés lorsqu'ils existent et retombe sur le stock global autrement.
+   - Le `search_path` est vide et les objets sont qualifiés. La fonction ne vérifie pas l'identité de l'appelant, mais sa sortie est vraisemblablement destinée à l'affichage public du marketplace. Le SQL ne permet pas, à lui seul, de confirmer que les prix/quantités ne sont jamais sensibles ni que tous les appelants doivent les voir.
+   - **Avis préliminaire :** confirmer que la divulgation du prix et de la quantité disponible est volontaire pour tout appelant anonyme; vérifier aussi l'alignement du calcul avec les règles actuelles de réservation et de décrémentation. Aucune modification de logique de stock proposée sans tests de non-régression.
+
+4. **`public.produits_populaires(integer, integer)`**
+   - Encadre la limite demandée entre 1 et 20, impose une fenêtre d'au moins un jour et délègue le calcul à `private.produits_populaires`.
+   - Le `search_path` est vide; l'appel au helper est qualifié par le schéma `private`. La fonction publique elle-même est accessible à `anon`, mais l'autorisation et le comportement effectifs dépendent aussi du corps, des grants et de la sécurité du helper privé.
+   - **Avis préliminaire :** contrôler le helper privé, ses sources et le traitement des valeurs extrêmes de `p_jours`; confirmer que les produits et prix retournés sont des informations publiables. Le plafonnement de `p_limit` est présent, tandis que `p_jours` n'a pas de plafond supérieur visible dans ce wrapper.
+
+5. **`public.universe_partner_is_public(uuid, text)`**
+   - Retourne vrai seulement si le partenaire est actif, le partenariat est activé, l'univers est activé et son feature flag est activé.
+   - Les tables sont qualifiées, mais le `search_path` est défini à `public` plutôt qu'à vide. Les données exposées sont un booléen d'éligibilité publique.
+   - **Avis préliminaire :** logique d'admissibilité apparemment alignée avec le nom de la fonction. Le `search_path` peut être resserré après vérification des dépendances et tests.
+
+### 25.3 Décision provisoire
+
+- **Aucune vulnérabilité exploitable n'est confirmée par la seule lecture de ces cinq corps.** Le constat établi est une surface publique `SECURITY DEFINER` qui mérite une validation du contrat métier, ainsi que deux configurations de `search_path` à durcir (`get_home_service_catalog` et `universe_partner_is_public`).
+- La priorité de revue fonctionnelle est `marketplace_offre_stock_disponible` (cohérence stock/réservation et publication des quantités), puis `produits_populaires` et son helper privé, puis la validation des catalogues publics.
+- Les recherches GitHub par nom de fonction n'ont pas retourné de résultats dans l'index utilisé. Cela **ne prouve pas l'absence d'appelants** : l'index peut ne pas couvrir la branche d'audit. Les appelants doivent être retrouvés par lecture de l'arbre de la branche et des migrations avant tout changement.
+- La suite reste documentaire et en lecture seule : analyser les appelants dans la branche existante, inspecter le helper privé `private.produits_populaires`, puis poursuivre la file des 45 fonctions à `search_path` à qualifier. Aucun changement live Supabase, aucun déploiement, aucune fusion.
