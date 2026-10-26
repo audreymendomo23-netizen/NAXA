@@ -217,3 +217,60 @@ Un simple fichier présent, un test non lancé, un résultat supposé ou un cont
 - enrichir ce document avec les décomptes et constats détaillés avant de demander l'autorisation pour le chantier de correction suivant.
 
 **Décision : aucune correction fonctionnelle ni fusion n'est commencée tant que cette étape préliminaire n'est pas terminée et présentée.**
+
+
+## 13. Complément après extraction des journaux disponibles
+
+### 13.1 Logs de build Vercel — erreur exacte obtenue
+L'extraction des événements du déploiement `dpl_DbAaBdHoEYrSoiu1J1BnKndn5CSQ` a finalement révélé :
+- `npm run build` a échoué pendant la vérification TypeScript;
+- fichier rapporté : `src/components/admin/CatalogueCreation.tsx`, ligne 53;
+- erreur : **`Type error: An object literal cannot have multiple properties with the same name.`**;
+- propriété en cause : `canal_unique` dupliquée dans l'objet d'erreurs;
+- commande terminée par `BUILD_UTILS_SPAWN_1` / code 1.
+
+Le code de la référence `main` actuelle `cfca684...` a déjà retiré la clé `canal_unique` en double dans un commit plus récent. Le log Vercel consulté correspond toutefois au commit `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`, qui **ne correspond pas au HEAD actuel de GitHub main**. En outre, la recherche Vercel par SHA `cfca684...` ne retourne aucun déploiement. Conclusion : la cause du build échoué consulté est certaine et la correction existe dans le code courant, mais il n'y a pas encore de preuve que le HEAD actuel a été compilé par Vercel. Aucun nouveau déploiement n'a été lancé.
+
+Le build de l'ancien commit avait déjà atteint « Compiled successfully » avant de s'arrêter sur la vérification des types. Plusieurs avertissements React/ESLint apparaissent aussi (usage de `<img>`, dépendances de `useEffect`, attribut ARIA sur rôle textbox), mais le log disponible ne les identifie pas comme cause de l'échec TypeScript.
+
+### 13.2 Journaux runtime Vercel
+L'agrégat des erreurs runtime sur les dernières 24 heures retourne **aucune erreur runtime regroupée**. Cela ne contredit pas les échecs de build : les builds rejetés n'ont pas nécessairement de runtime associé, et la fenêtre de l'outil ne couvre pas toute l'historique.
+
+### 13.3 Journaux Supabase
+La source de logs en lecture seule retourne les volumes suivants pour la fenêtre fournie par l'outil :
+- `pgbouncer_logs` : 13 424 événements;
+- `edge_logs` : 6 136;
+- `postgres_logs` : 3 603;
+- `storage_logs` : 1 923;
+- `auth_logs` : 1 544;
+- `postgrest_logs` : 273;
+- `realtime_logs` : 150;
+- `auth_audit_logs` : 26.
+
+La première requête visant à agréger les erreurs utilisait un champ `log_level` absent du schéma exposé et a été rejetée sans effet sur la base. La requête suivante n'a lu que la source et le volume; **aucune conclusion sur le taux d'erreur n'est tirée de ces volumes**. Une requête d'erreurs devra d'abord découvrir les champs réels du flux avant d'extraire les événements pertinents.
+
+### 13.4 Conseillers Supabase — compteurs consolidés
+Les avis actuellement retournés sont :
+- Sécurité :
+  - 5 tables avec RLS activé sans politique (niveau INFO);
+  - 5 fonctions `SECURITY DEFINER` exécutables par `anon` (WARN);
+  - 117 fonctions `SECURITY DEFINER` exécutables par `authenticated` (WARN);
+  - protection contre les mots de passe compromis désactivée (1 avis WARN).
+- Performance :
+  - 113 clés étrangères sans index couvrant (INFO);
+  - 86 index marqués inutilisés (INFO);
+  - 59 cas de politiques permissives multiples (WARN);
+  - 1 index dupliqué (WARN).
+
+**Interprétation CTO :** ces résultats constituent une liste de contrôle, pas une instruction de suppression automatique. Pour les fonctions SECURITY DEFINER, il faut vérifier l'intention, les GRANT EXECUTE, les vérifications internes et les scopes; certaines fonctions sont destinées au public ou à l'administration. Pour les index inutilisés, la fenêtre d'observation et les workloads réels doivent être connus avant suppression. Les migrations de correction éventuelles devront être additives, testées hors Production et regroupées par risque.
+
+## 14. État de complétude de l'étape préliminaire — révisé
+
+- GitHub : inventaire d'arbre, branche de référence et documents principaux inspectés.
+- Vercel : projet, domaines, variables (noms/cibles sans valeurs secrètes), dix derniers déploiements et erreur de build détaillée inspectés.
+- Supabase : projet principal et projets de replay identifiés; schéma compté en lecture seule; historique de migrations, avis de sécurité/performance et sources de logs consultés.
+- CI : contradiction de compte des migrations démontrée par le code de configuration et le nombre de fichiers.
+- Conversations : décisions antérieures récupérées via les synthèses disponibles; pas d'archive exhaustive des transcriptions garantie.
+- Code : lecture ciblée des fichiers de rapports/catalogue et inventaire de 18 pages admin / 42 routes API; revue ligne par ligne de l'intégralité du dépôt non encore terminée.
+
+**Statut de la phase préliminaire : 🟠 avancée, mais pas encore close.** Il reste à compléter l'inventaire documentaire systématique, la comparaison migrations dépôt/base, les logs Supabase correctement filtrés, et la lecture de code et des ressources restantes. Le rapport sera encore enrichi sur cette même branche avant de demander l'autorisation de commencer le chantier d'audit page par page et d'implémentation.
