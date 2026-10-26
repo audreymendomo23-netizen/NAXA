@@ -69,6 +69,7 @@ export async function creerDossierUnivers(form: FormData) {
   if (created.error || !created.data.user) redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
   const ownerId = created.data.user.id;
   const docs = {
+    kyc: form.get("kyc") === "oui",
     piece_existence_legale: form.get("piece_existence_legale") === "oui",
     registre_commerce: form.get("registre_commerce") === "oui",
     niu: form.get("niu") === "oui",
