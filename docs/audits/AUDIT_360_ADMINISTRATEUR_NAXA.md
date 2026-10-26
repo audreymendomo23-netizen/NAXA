@@ -1202,3 +1202,39 @@ Le contrôle de cohérence abonnement ne garantit pas non plus à lui seul la co
 5. Vérifier les chemins de désactivation et de blocage existants avant de modifier les RPC, afin de ne pas casser une suspension légitime ou une opération de maintenance.
 
 Cette proposition est documentaire : aucun code SQL n'a été changé et aucun RPC n'a été exécuté. Les comptes de statuts observés n'ont pas été modifiés; ils ne suffisent pas à prouver les transitions possibles pour chaque cas historique.
+
+
+## 53. Réactivation Promoteur : portée réelle de la RPC et écart entre code et environnement
+
+### 53.1 RPC live `reactiver_promoteur`
+
+La fonction live `public.reactiver_promoteur(uuid,text)` est `SECURITY DEFINER`, avec `search_path` vide, et vérifie `public.is_admin()`. Les privilèges live confirment `EXECUTE` pour `authenticated`, mais pas pour `anon`; l'autorisation métier dépend donc du garde-fou interne Admin, et non de la seule permission SQL. La migration Git `supabase/migration_153_promoteur_admin_rpc_hardening.sql` contient cette même intention de sécurité.
+
+La portée de cette RPC dépasse néanmoins le simple renouvellement d'un abonnement :
+- elle met la convention à `active`, enregistre la date de paiement du jour et calcule une nouvelle échéance;
+- elle crée ou met à jour l'abonnement en `actif`, efface `bloque_le` et inscrit l'acteur de réactivation;
+- elle ajoute une ligne au registre de paiements Promoteur, même si la référence fournie est vide (dans ce cas, la référence devient `NULL`);
+- elle réactive toutes les pharmacies rattachées au Promoteur et tous les profils correspondant aux critères de rattachement, sans distinguer leur motif de désactivation;
+- elle ne vérifie pas, dans son corps, un état source précis (impayé/échu/suspendu) ni une raison de suspension compatible avec la réactivation.
+
+**Risque fonctionnel confirmé par lecture du corps SQL :** une action nommée « réactiver » peut rétablir des accès désactivés pour une autre raison et crée une trace de paiement sans vérification du paiement dans cette fonction. Le rôle Admin est requis, mais le contrôle d'accès n'est pas une preuve que la transition métier est appropriée. Aucun appel de la RPC n'a été exécuté et aucun paiement n'a été enregistré pendant l'audit.
+
+### 53.2 Contradiction avec le renouvellement manuel documenté
+
+La migration Git `supabase/migrations/20261022143000_admin_renouvellement_manuel_audit.sql` définit un chemin différent : échéance future obligatoire, motif de longueur minimale, vérification de cohérence convention/abonnement/architecture et insertion d'un audit `avant/après`. Elle précise que le renouvellement administratif ne vaut pas preuve de règlement et n'ajoute pas de paiement.
+
+En revanche, les catalogues live consultés ne montrent pas la table `public.admin_pharmacie_audit` ni la fonction `public.admin_renouveler_promoteur` sous ces noms, alors que `public.reactiver_promoteur` est présente et exécutable par les rôles authentifiés sous réserve du garde-fou interne Admin. C'est un écart entre artefact Git et catalogue live à réconcilier; l'audit ne peut pas conclure si la migration est absente, renommée ou remplacée par un autre chemin sans une comparaison plus exhaustive de l'historique de migration.
+
+### 53.3 Automatisation de l'expiration
+
+La lecture du catalogue `cron.job` n'a retourné aucun job dont le nom ou la commande mentionne Promoteur, abonnement ou convention. Cela ne prouve pas l'absence de toute automatisation (un job peut appeler une fonction indirectement ou être orchestré hors de `pg_cron`), mais aucune tâche pg_cron directe d'expiration/régularisation n'a été identifiée par cette recherche. La validité commerciale est également calculée à la demande par `private.naxa_promoteur_valide`, qui vérifie le profil actif, les statuts et les échéances convention/abonnement, ainsi que les rattachements actifs et l'état des pharmacies.
+
+### 53.4 Écarts d'architecture et propositions non appliquées
+
+1. Séparer strictement `renouveler_sans_paiement` (motif, échéance, audit, aucune écriture dans le registre de paiements) de `enregistrer_paiement_confirme` (preuve/référence, acteur, période et unicité anti-doublon).
+2. Faire de la réactivation une transition dédiée qui exige un motif d'origine compatible; ne pas réactiver en bloc les profils de Caisses/autres rôles à partir du seul `pharmacie_id`.
+3. Contrôler explicitement les effets sur `pharmacies.visible_recherche` : la RPC live réactive `pharmacies.actif` mais ne force pas `visible_recherche`; l'état final peut donc rester actif mais non publié.
+4. Vérifier et réconcilier la migration de renouvellement manuel et son audit avec l'environnement live avant d'en faire le chemin d'administration de référence.
+5. Ajouter des tests SQL de refus pour une suspension administrative, une résiliation, une cible avec plusieurs pharmacies ou profils, une référence de paiement vide et une tentative de réactivation sans état commercial compatible.
+
+Aucune correction de code, modification de schéma, opération commerciale ou migration n'a été exécutée. Les conclusions ci-dessus sont issues de la définition SQL live, des privilèges catalogués et des fichiers Git consultés.
