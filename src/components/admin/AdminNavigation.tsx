@@ -11,6 +11,8 @@ const sections = [
   { href: "/admin/pilotage", label: "Pilotage réseau", note: "Indicateurs" },
   { href: "/admin/pilotage/validite", label: "Validité", note: "Conventions" },
   { href: "/admin/pilotage/rapports", label: "Rapports", note: "Exports" },
+  { href: "/admin/configuration", label: "Configuration", note: "Langue et apparence" },
+  { href: "/admin/profil", label: "Profil", note: "Données du compte" },
   { href: "/admin/produits", label: "Produits", note: "Fiches santé" },
   { href: "/admin/univers", label: "Univers & catalogue", note: "Partenaires, prestations, examens" },
 ];
