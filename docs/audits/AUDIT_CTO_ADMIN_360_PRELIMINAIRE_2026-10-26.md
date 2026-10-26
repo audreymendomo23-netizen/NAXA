@@ -966,22 +966,25 @@ Migration : `harden_remaining_private_security_definer_paths_20261026203000`, en
 - Les droits EXECUTE `PUBLIC/anon` ont été révoqués pour six helpers privés qui avaient un grant `anon` superflu : `is_promoteur`, `log_evenement`, `log_recherche`, `my_pharmacie`, `produits_populaires` et `search_pharmacies_panier`.
 - Vérification SQL après application : les fonctions modifiées ont les chemins attendus; `anon EXECUTE = false` pour les six fonctions ciblées; les droits `authenticated`/absence de droit de `set_reservation_status` ont été préservés selon l'ACL existante. Le schéma `private` ne donne pas USAGE à `anon`, et la révocation ajoute une défense en profondeur.
 
-### 23.2 Résultats restants — ne pas déclarer tout le schéma vert
+### 23.2 État après le premier lot
 
-Après cette correction, les fonctions suivantes conservent un `search_path` non vide et doivent être relues avant toute migration supplémentaire :
+Le premier lot a supprimé les grants `anon` inutiles sur les helpers privés identifiés et restreint les chemins des fonctions dont le corps était déjà qualifié. Une seconde migration a ensuite durci les chemins des fonctions de paiement, de réactivation, de réservation de stock et de recherche panier. Une troisième migration a qualifié les références aux extensions et les relations du journal de recherche et du catalogue populaire.
 
-- `private.declare_payment(uuid, text)` — `search_path = public`;
-- `private.log_evenement(...)` et `private.log_recherche(text[])` — `search_path = public, extensions`;
-- `private.produits_populaires(integer, integer)` — `search_path = public`;
-- `private.reactiver_pharmacie(uuid, text)` — `search_path = public`;
-- `private.reserve_stock(uuid, jsonb)` — `search_path = public`;
-- `private.search_pharmacies_panier(jsonb, double precision, double precision, double precision)` — `search_path = public, extensions`.
+### 23.3 Résultat consolidé de l'inventaire du schéma `private`
 
-Les fonctions `log_evenement`, `log_recherche`, `produits_populaires` et `search_pharmacies_panier` ne sont désormais plus exécutables par `anon` au niveau de leur ACL privée; cela ne suffit pas à valider leur corps SQL ou les éventuelles façades publiques. Les chemins non vides restants sont un point de revue technique, pas la preuve automatique d'une vulnérabilité exploitable : les extensions `pg_trgm` et `unaccent` résident dans le schéma `extensions`, et certaines fonctions utilisent des relations non qualifiées qui doivent être corrigées sans casser la recherche ou le stock.
+Après les trois lots, la requête live sur Supabase retourne :
 
-### 23.3 Étape suivante
+- **36 fonctions `SECURITY DEFINER`** dans `private`;
+- **0 fonction de ce périmètre exécutable par `anon`**;
+- **0 fonction avec un `search_path` autre que vide ou limité à `auth`**;
+- les six helpers utilisant `search_path = auth` sont ceux qui ont besoin de résoudre `auth.uid()` non qualifié; les références aux objets applicatifs sont qualifiées par `public` ou `private`;
+- les autres fonctions utilisent `search_path = ''`, avec les objets applicatifs et les fonctions/extensions qualifiés explicitement.
 
-Lire les corps SQL, les fonctions publiques appelantes et les migrations sources pour chaque fonction restante; qualifier explicitement les relations et opérateurs/extensions, puis réduire le `search_path` au minimum compatible. Ajouter une migration versionnée sur la même branche, l'appliquer au projet Supabase déjà utilisé, puis vérifier les définitions et droits effectifs après application. Aucun merge vers `main`, aucun déploiement et aucun jeu de données métier fictif.
+Les permissions `authenticated` ne sont pas uniformisées en bloc : elles sont conservées selon les ACL existantes et les besoins des appelants; `private.set_reservation_status` demeure non exécutable directement par `authenticated`, comme avant. La présence d'une fonction dans ce comptage ne prouve pas à elle seule que tous ses contrôles métier sont parfaits.
+
+### 23.4 Limites et suite du chantier
+
+Ce résultat clôt le lot de durcissement des chemins de résolution et des droits `anon` pour les fonctions `SECURITY DEFINER` du schéma `private`. Il ne clôt pas l'audit global : il reste à inspecter les façades publiques qui appellent ces helpers, les permissions et définitions des fonctions `SECURITY DEFINER` dans `public`, les contrôles métier et les parcours réels, puis exécuter les tests disponibles. Aucun merge vers `main`, aucun déploiement et aucun jeu de données métier fictif.
 
 
 ### 23.4 Deuxième lot de durcissement appliqué
@@ -998,3 +1001,14 @@ Migration : `harden_payment_reactivation_reservation_search_paths_20261026210000
 ### 23.5 Résidu immédiat
 
 La revue des chemins non vides se concentre désormais sur `private.log_evenement`, `private.log_recherche` et `private.produits_populaires`, qui dépendent de fonctions/opérateurs de l'extension `extensions` (`unaccent`, `pg_trgm`) et de tables de catalogue. Il faut qualifier ces références sans modifier le comportement de recherche ni la collecte d'événements. La revue plus large des autres schémas/fonctions et des façades publiques reste ouverte.
+
+
+### 23.6 Troisième lot de durcissement appliqué
+
+Migration : `harden_search_logging_popular_products_paths_20261026220000`.
+
+- Commit de branche : `ce7c8004178d4daf36296ca7b6be1462d3742b7e`.
+- `private.log_evenement` et `private.log_recherche` utilisent maintenant `search_path = ''`, les fonctions `extensions.unaccent` / `extensions.similarity` et l'opérateur `OPERATOR(extensions.%)` sont explicitement qualifiés.
+- `private.produits_populaires` qualifie les tables catalogue/stock/événements et utilise `search_path = ''`.
+- Contrôle SQL après application : ces trois fonctions ont un chemin vide, `anon EXECUTE = false`; les droits `authenticated` sont conservés.
+
