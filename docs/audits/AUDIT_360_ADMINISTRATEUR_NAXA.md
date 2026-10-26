@@ -994,3 +994,52 @@ La revue du contrat SQL `supabase/tests/155_pharmacie_documents_and_manual_renew
 - **Non exécuté :** le contrat SQL 155 n'a pas été lancé; aucun upload, validation/rejet, suppression Storage, écriture SQL, migration, branche ou déploiement n'a été réalisé.
 
 La suite de l'audit doit examiner le SQL complet des deux migrations et les autres dépendances de `admin_pharmacie_audit`, puis vérifier les gardes, contraintes, politiques et parcours de renouvellement manuel sans effectuer de mutation.
+
+
+## 48. Revue statique complète des migrations de renouvellement manuel et de pièces documentaires
+
+### 48.1 Renouvellement manuel — garanties et écarts
+
+La migration `20261022143000_admin_renouvellement_manuel_audit.sql` définit `public.admin_renouveler_promoteur(uuid,date,text,uuid)` en `SECURITY DEFINER`, avec `search_path=''`, et retire EXECUTE à `PUBLIC`, `anon` et `authenticated` pour ne l'accorder qu'à `service_role`. Le corps de la fonction :
+- exige un profil Admin actif correspondant à `p_admin`, une échéance future et un motif d'au moins cinq caractères;
+- exige un profil Promoteur, une seule convention, un seul abonnement et un seul rattachement pharmacie;
+- verrouille convention, abonnement et rattachement par `FOR UPDATE`, puis vérifie l'alignement de l'architecture et du montant convention/abonnement;
+- synchronise les échéances et statuts, réactive le profil Promoteur, le rattachement et la pharmacie;
+- ne modifie pas la date de paiement et écrit un événement `renouvellement_manuel` dans `admin_pharmacie_audit`.
+
+**Contradiction métier à valider :** la fonction réactive systématiquement le profil Promoteur et la pharmacie, même si leur inactivation avait une autre cause qu'une échéance dépassée. Elle ne vérifie pas explicitement que l'inactivation est imputable au blocage contractuel, ni que la pharmacie était active avant l'incident. Cela peut convertir un renouvellement administratif en réactivation générale. Aucune exécution n'a été effectuée; c'est une conséquence du SQL statique.
+
+**Traçabilité de l'acteur :** la fonction accepte `p_admin` comme argument et vérifie qu'il s'agit d'un Admin actif, mais n'en dérive pas l'identité depuis une session utilisateur. Cette fonction est réservée à `service_role`, ce qui réduit l'exposition directe; néanmoins, tout futur endpoint serveur devra impérativement dériver l'acteur de la session Admin authentifiée et ne jamais accepter un identifiant d'acteur libre depuis le formulaire. Le dépôt consulté ne contient pas de référence applicative trouvée à `admin_renouveler_promoteur` : le flux semble actuellement être une capacité SQL préparée, sans parcours UI relié dans les fichiers recherchés.
+
+**Audit et atomicité :** la mutation métier et l'insertion dans `admin_pharmacie_audit` sont dans la même fonction PostgreSQL; si l'insertion échoue, la transaction de la fonction échoue également. La table d'audit a RLS activée, aucun accès `anon/authenticated`, et des droits `service_role` SELECT/INSERT. Aucune politique de lecture Admin directe n'est définie dans cette migration; un écran d'audit ne pourra donc pas se contenter d'une lecture client standard. Les colonnes `avant` et `apres` sont JSONB libres sans contrainte de validation de schéma, ce qui rend la qualité de la piste dépendante du code de la fonction.
+
+### 48.2 Documents pharmacie — modèle et garanties
+
+La migration `20261022150000_pharmacie_documents_fichiers_validation_historique.sql` sépare correctement :
+1. `pharmacie_documents_recus`, registre de réception déclarée;
+2. `pharmacie_documents`, registre des fichiers réellement téléversés;
+3. `pharmacie_document_historique`, journal des actions documentaires.
+
+Le bucket `pharmacie-documents` est conçu privé, limité à 10 MiB et aux types PDF/JPEG/PNG/WebP. Les politiques Storage limitent les opérations aux utilisateurs pour lesquels `public.is_admin()` est vraie. La table documentaire possède une contrainte de type, de statut, de taille non négative et d'unicité du couple bucket/chemin.
+
+**Points restant à corriger ou à trancher après autorisation :**
+- Le déclencheur journalise toute mise à jour, y compris une mise à jour sans changement de statut, comme `remplacement`. Une modification de note ou de métadonnées peut donc produire un événement sémantiquement trompeur.
+- La table d'historique ne dispose que d'une politique SELECT Admin; les écritures doivent passer par le trigger SECURITY DEFINER. La migration ne révoque pas explicitement les privilèges d'exécution du trigger-function `journaliser_pharmacie_document()` aux rôles applicatifs, même si une fonction trigger n'est pas normalement appelée comme une fonction ordinaire. Vérifier les ACL effectives lors du rapprochement, sans supposer que RLS seule rend l'historique immuable.
+- Le trigger journalise `new.note_validation` comme détail pour chaque insertion/mise à jour; ce champ doit rester une note administrative non sensible, sans copie de pièces ou données personnelles inutiles.
+- La compensation après échec d'insertion ignore l'erreur de suppression Storage; l'interface indique que le fichier temporaire a été supprimé sans preuve que cette suppression a réussi. Le message doit être rendu conditionnel à la réussite de la compensation ou prévoir une alerte de nettoyage.
+- Les suppressions en cascade de la ligne documentaire suppriment aussi l'historique SQL, mais ne suppriment pas automatiquement l'objet Storage. Aucun parcours de suppression n'a été trouvé dans l'interface examinée; la politique de rétention et de remplacement doit être documentée avant d'ajouter ce parcours.
+
+### 48.3 Résultat des vérifications ciblées
+
+- Les deux migrations sont présentes dans le dépôt `main`.
+- L'historique live interrogé ne retourne aucune entrée dont le nom corresponde aux deux migrations, et les tables attendues `admin_pharmacie_audit`, `pharmacie_documents`, `pharmacie_document_historique` ne sont pas présentes dans le catalogue live interrogé.
+- La fonction de renouvellement manuel n'a pas été retrouvée dans les fichiers d'actions UI recherchés; les actions Promoteur existantes appellent plutôt `admin_valider_dossier_pharmacie` et mettent à jour séparément le registre `pharmacie_documents_recus`.
+- Le contrat SQL `155_pharmacie_documents_and_manual_renewal_contract.sql` attend explicitement l'application des deux migrations. Il n'a pas été exécuté.
+- Les contrôles restent des lectures de dépôt et de catalogue. Aucun appel RPC, changement de statut, renouvellement, envoi de document, écriture SQL, migration, création de branche ou déploiement n'a eu lieu.
+
+### 48.4 Ordre recommandé pour la suite de l'audit
+
+1. Cartographier les migrations et dépendances qui créent `admin_valider_dossier_pharmacie`, les tables de convention/abonnement et les objets documentaires; comparer leurs versions live sans déduire l'absence d'une migration de son seul nom.
+2. Examiner la fonction `admin_valider_dossier_pharmacie` et ses droits, notamment l'acteur réel, les contraintes du dossier, les effets sur les profils/pharmacies et la piste d'audit.
+3. Comparer les préconditions de validation initiale et de renouvellement manuel afin d'éviter qu'un parcours ne contourne l'autre.
+4. Après autorisation distincte seulement, proposer un lot de correction minimal; ne pas appliquer les migrations pendant l'audit.
