@@ -68,3 +68,47 @@ Commit de référence : `7ed220f7f1e98009a32ef1bcd506ea5e100064c6`
 - Les migrations n’ont pas été appliquées à Supabase Production ; aucune requête n’a été exécutée sur la base de production.
 - Aucun build, lint, typecheck ou test SQL n’a été exécuté pendant cet audit.
 - Le schéma de production effectif et les données réelles de rattachement ne sont donc pas déclarés vérifiés.
+
+
+## Étapes exécutées sur `main` après l’audit
+
+### Étape 3 — Schéma additif
+- `supabase/migrations/20261026100000_admin_unified_universe_dossiers.sql` ajoute le registre transversal `admin_partner_dossiers`, les coordonnées/WhatsApp partenaires, la relation `pharmacie_services` pour Bébé & Maman et trois RPC protégées : création transactionnelle d’un dossier indépendant, activation/désactivation du service pharmacie, validation atomique d’un dossier partenaire.
+- `supabase/migrations/20261026113000_harden_unified_dossier_relations.sql` ajoute la FK vers l’univers Bébé & Maman et les index de clés étrangères.
+- Les dossiers indépendants sont créés en attente ; le compte propriétaire est désactivé jusqu’à validation. La validation active ensemble le partenaire, son association et le compte. Les dossiers pharmacie continuent d’utiliser le flux et la RPC existants.
+- Aucune migration n’a été appliquée à la production. Les deux migrations ont été appliquées au projet de test `naxa-ci-replay-2` pour vérifier la syntaxe et le contrat SQL.
+
+### Étape 4 — Formulaire unique
+- `src/components/admin/CatalogueCreation.tsx` remplace le sélecteur « Continuer » par « VALIDER » jaune canari. La fiche apparaît seulement après le clic.
+- Sélecteur : Pharmacie, Parapharmacie, Bébé & Maman, Examens médicaux, Prestations à domicile et Aide NAXA. « Dispositifs médicaux » n’est pas une option de création.
+- Pharmacie et Parapharmacie gardent le choix d’architecture. Les autres formulaires indépendants n’affichent pas ce champ.
+- Bébé & Maman n’affiche que la recherche de pharmacie de parrainage et le bouton de rattachement ; l’autocomplétion ferme la liste au clic extérieur.
+- Les créations pharmacie continuent d’utiliser `creerPharmacie`; les créations indépendantes passent par `creerDossierUnivers` et la RPC transactionnelle.
+
+### Étape 5 — Service Bébé & Maman et cohérence des activations
+- `src/app/admin/pharmacies/[id]/page.tsx` affiche le bloc « Services rattachés » et le badge « SERVICE ACTIF » dans le dossier pharmacie ; l’activation/désactivation est auditée par la RPC.
+- `src/app/admin/rattacher-service-bebe-maman.ts` rattache le service depuis le Catalogue en utilisant uniquement l’ID d’une pharmacie active et visible.
+- L’activation d’une association autonome Bébé & Maman est bloquée côté serveur et l’ancienne interface d’association n’offre plus l’ouverture d’une association inactive. La désactivation d’une association legacy reste possible.
+- La création partenaire legacy depuis `/admin/univers` est bloquée ; cette page renvoie vers le formulaire unique.
+- `src/app/api/auth/login/route.ts` et `src/app/(auth)/connexion/page.tsx` conservent le compte propriétaire en attente tant que le dossier n’est pas validé, puis orientent un propriétaire de partenaire actif vers l’espace partenaire.
+
+### Étape 6 — Dossier Promoteur transversal
+- `src/app/admin/promoteurs/page.tsx` liste les dossiers pharmacie existants et les dossiers indépendants des autres univers dans le même registre.
+- `src/app/admin/promoteurs/partenaires/[id]/page.tsx` affiche l’identité du Promoteur, le partenaire, le tarif, l’architecture déclarée, les pièces reçues et le statut.
+- `src/app/admin/promoteurs/partenaires/actions.ts` appelle une RPC qui valide le dossier et active le partenaire/association dans une seule transaction.
+- `src/app/admin/univers/page.tsx` ne propose plus de création partenaire concurrente et redirige vers le canal unique ; l’activation générique ne peut pas contourner la validation du dossier.
+
+### Étape 7 — Contrôles réalisés
+- Test SQL `supabase/tests/20261026100000_admin_unified_universe_dossiers.sql` exécuté sur `naxa-ci-replay-2` : **PASS structurel** (présence des tables, RLS, privilèges anon, RPC protégées, service lié à la pharmacie et index/FK).
+- Les migrations de test sont enregistrées dans l’historique du projet CI replay. Aucun test n’a écrit de dossier métier ni créé de compte utilisateur.
+- Les avis Supabase Performance ne signalent plus de clé étrangère non indexée sur les nouvelles tables ; les index sont signalés « inutilisés » dans ce projet de test car aucune donnée métier n’y a été créée.
+- Le lint sécurité signale les RPC `SECURITY DEFINER` exécutables par les utilisateurs authentifiés, comme attendu pour des RPC appelées par le serveur ; chacune vérifie `public.is_admin()`, et les tests confirment que le rôle `anon` ne peut pas les exécuter.
+- Pas de build, lint TypeScript, tests applicatifs, parcours navigateur ni CI CircleCI exécutés dans ce chantier.
+
+## Résultat de l’audit de contradiction après construction
+
+- **Cohérent** : un seul canal d’entrée ; choix confirmé par « VALIDER » ; architecture seulement Pharmacie/Parapharmacie ; création indépendante en attente ; validation transactionnelle ; registre Promoteur transversal ; Bébé & Maman attaché à une pharmacie existante.
+- **Cohérent** : la production auditée en lecture seule n’a pas encore les tables `admin_partner_dossiers` et `pharmacie_services`. La migration est donc indispensable avant que les nouvelles actions fonctionnent en production. Aucun changement de schéma ni donnée n’a été écrit sur la production.
+- **Point de périmètre conservé** : le catalogue public `/bebe-maman` utilise encore la RPC historique `get_universe_catalog`, basée sur `partner_products` et `partners`. Le présent chantier interdit les nouvelles créations et associations autonomes Bébé & Maman et ajoute le service au dossier pharmacie, mais ne migre pas le modèle public des produits/réservations vers un catalogue pharmacie. Cette migration du catalogue public nécessiterait un modèle de produits et de réservations lié à `pharmacies`, et ne doit pas être prétendue réalisée par le seul rattachement administratif.
+- **Point métier enregistré** : l’architecture Parapharmacie est enregistrée dans le dossier administratif. Le système d’habilitations opérationnelles existant reste celui des `partner_members` ; aucune hiérarchie de caisses pharmacie n’est provisionnée pour un partenaire par cette seule valeur.
+- **Production et déploiement** : aucun SQL n’a été exécuté sur le projet Supabase de production et aucun déploiement n’a été déclenché manuellement.
