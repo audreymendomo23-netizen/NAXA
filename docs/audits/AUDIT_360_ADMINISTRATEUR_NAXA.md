@@ -530,3 +530,43 @@ Ces paramètres sont ceux de la base live. La limite particulièrement faible du
 - La lecture publique est explicitement autorisée sur les buckets `medicaments` et `produits-photos`; les buckets `pharmacies-photos` et `dispositifs` sont aussi configurés publics. Le contenu réel et les autres chemins de lecture restent à inventorier.
 
 Aucune policy Storage, aucun bucket et aucun objet n'a été modifié.
+
+
+## 29. Contrôle des politiques Admin par comparaison avec le garde actif
+
+Requête de lecture seule sur `pg_policies`, ciblant les politiques qui testent directement `profiles.role = 'admin'` sans tester explicitement `profiles.actif`. Ce contrôle est un tri statique, pas une preuve d'accès exploitable; les policies peuvent coexister avec d'autres restrictions, les droits de table et les contrôles RPC.
+
+### Écarts potentiels à prioriser
+
+Les politiques suivantes ne contrôlent que le rôle Admin dans leur expression, sans vérifier directement `actif` :
+
+- `audit_log_admin_insert` et `audit_log_admin_read` — journal d'audit.
+- `exam_appointments_admin_read` — rendez-vous.
+- `feature_flag_test_accounts_admin_all` et `feature_flags_admin_all` — comptes de test et indicateurs de fonctionnalité.
+- `home_service_offers_admin_manage` et `home_service_requests_admin_read` — offres et demandes de services à domicile.
+- `partner_members_admin_all`, `partner_universes_admin_all`, `partners_admin_all` — membres, univers et partenaires.
+- `stock_movements_admin_all` — mouvements de stock.
+- `suivi_professionals_admin_manage` — professionnels de l'espace de suivi.
+
+**Qualification : PRE-044, cohérence de révocation Admin.** Ces politiques directes diffèrent du garde applicatif `requireAdminActive` et de `private.is_admin()`, qui vérifient aussi le statut actif. Si le contrat voulu est la révocation globale immédiate d'un compte Admin désactivé, ces expressions sont à harmoniser. Les profils actuellement observés dans la base ne comprennent qu'un compte admin actif; aucun compte Admin désactivé n'a été utilisé pour un test. Aucun test d'accès n'a été exécuté et aucune politique n'a été modifiée.
+
+### État opérationnel observé (comptages, sans données nominatives)
+
+- `public.pharmacies` : 4 enregistrements, dont 1 actif et 3 marqués `est_demo`.
+- `public.tickets_support` : 0 ticket au moment du relevé.
+- `public.admin_partner_dossiers` : 0 dossier au moment du relevé.
+- `public.profiles` : 1 profil admin actif, 1 promoteur actif et 8 clients actifs dans le regroupement effectué.
+
+Ces valeurs sont un instantané de la base live, pas une validation métier de l'interface. Les trois pharmacies marquées démo sont un point à comparer aux exigences NAXA sur l'interdiction d'afficher des données de test; leur présence en base ne démontre pas qu'elles sont visibles sur l'application.
+
+## 30. Concordance des indicateurs de la page d'accueil Admin
+
+Lecture du code actuel sur `main` : `src/app/admin/page.tsx` et `src/app/admin/layout.tsx`.
+
+- La page d'accueil charge la liste des pharmacies, la RPC `validites_promoteurs_admin` et les huit entrées les plus récentes de `audit_log`. Elle calcule ses indicateurs à partir de ces résultats et signale explicitement les données partielles lorsqu'une requête échoue.
+- La mise en page compte les tickets de support au statut `ouvert`, et additionne les pharmacies sans date de stock, les pharmacies inactives/masquées et les conventions impayées ou en retard. Le compteur est donc un **nombre de signaux calculés par règles spécifiques**, pas un total de dossiers distincts; un même dossier peut contribuer à plusieurs catégories.
+- Les métriques de stock utilisent `stock_updated_at` comme proxy de fraîcheur. Une date présente ne prouve pas que le stock réel est exact, et une date absente ne prouve pas une rupture. Le code le précise déjà dans l'interface.
+- Les comptes de démonstration doivent être vérifiés dans les filtres de toutes les vues Admin et pas uniquement sur le tableau de bord. Cette inspection statique n'a pas établi leur visibilité dans chaque écran.
+- Les scripts de tests présents dans le dépôt n'ont pas été exécutés; les résultats ci-dessus restent un contrôle statique du code et un instantané SQL en lecture seule.
+
+Aucune donnée de pharmacie, aucun ticket, profil, dossier partenaire ni indicateur n'a été modifié.
