@@ -29,12 +29,12 @@ const universes: { value: Universe; label: string; description: string }[] = [
 const field = "champ mt-1 w-full";
 const documents = [
   ["kyc", "Know Your Customer (KYC)"],
-  ["piece_existence_legale", "Pièce d’existence légale"],
   ["registre_commerce", "Registre de commerce"],
   ["niu", "Numéro d’identifiant unique (NIU)"],
   ["attestation_non_redevance", "Attestation de non-redevance"],
   ["plan_localisation", "Plan de localisation"],
   ["cni_promoteur", "CNI du Promoteur"],
+  ["piece_existence_legale", "Pièce d’existence légale"],
 ] as const;
 
 const errorText: Record<string, string> = {
@@ -50,7 +50,6 @@ const errorText: Record<string, string> = {
   canal_unique: "La création initiale est centralisée dans le Catalogue NAXA. Utilisez le formulaire unique ci-dessous.",
   pharmacie_parrainage: "Choisissez une pharmacie partenaire active et visible dans la recherche.",
   service_bebe_maman: "Le service n’a pas pu être rattaché. Vérifiez que la migration de gestion des services est disponible.",
-  canal_unique: "La création initiale est centralisée dans le Catalogue NAXA. Utilisez le formulaire unique ci-dessous.",
 };
 
 export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, erreursChamps = {} }: Props) {
