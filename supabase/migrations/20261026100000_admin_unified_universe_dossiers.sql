@@ -87,6 +87,8 @@ begin
   -- Le compte propriétaire reste suspendu tant que le dossier est en attente.
   update public.profiles set actif=false where id=p_owner_user_id;
   if length(trim(coalesce(p_name,''))) < 2 or length(trim(coalesce(p_city,''))) < 2
+     or length(trim(coalesce(p_address,''))) < 2
+     or p_latitude is null or p_longitude is null
      or p_monthly_fee_fcfa is null or p_monthly_fee_fcfa <= 0
      or p_universe_slug not in ('parapharmacie','examens','prestations','aide')
      or p_partner_type is distinct from case p_universe_slug when 'parapharmacie' then 'parapharmacie' when 'examens' then 'centre_examen' when 'prestations' then 'professionnel_domicile' else 'autre' end
