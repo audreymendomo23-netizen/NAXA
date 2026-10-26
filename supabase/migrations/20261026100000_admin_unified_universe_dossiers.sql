@@ -155,7 +155,7 @@ declare v_actor uuid := auth.uid();
 begin
   if not public.is_admin() then raise exception 'Accès administrateur requis' using errcode='42501'; end if;
   if p_pharmacie_id is null or p_enabled is null then raise exception 'Pharmacie et état requis' using errcode='22023'; end if;
-  if not exists(select 1 from public.pharmacies where id=p_pharmacie_id and actif=true and visible_recherche=true) then
+  if p_enabled and not exists(select 1 from public.pharmacies where id=p_pharmacie_id and actif=true and visible_recherche=true) then
     raise exception 'Pharmacie partenaire active introuvable' using errcode='P0002';
   end if;
   insert into public.pharmacie_services(pharmacie_id,service_slug,status,enabled_by,updated_by)
