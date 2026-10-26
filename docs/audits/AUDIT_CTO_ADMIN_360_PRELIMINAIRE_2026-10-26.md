@@ -950,3 +950,35 @@ L'utilisateur a validé la clôture des quatre contrôles séquentiels. Cette cl
 - Les validations statiques et SQL ci-dessus ne remplacent pas lint, TypeScript, build, tests navigateur ou essais avec sessions réelles. Aucun de ces tests n'est déclaré exécuté dans cette passe.
 - Le chantier général d'audit admin 360° reste ouvert. En particulier, l'inventaire live a fait apparaître d'autres fonctions `private` `SECURITY DEFINER` dont le `search_path` ou l'exposition à `anon` diffère; elles constituent le lot suivant d'analyse, sans présumer qu'elles sont vulnérables avant lecture de leur définition et de leurs appelants.
 
+
+
+## 23. Suite de l'audit — autres fonctions SECURITY DEFINER internes (26 octobre 2026)
+
+Après la clôture validée des quatre contrôles ciblés, l'inventaire des fonctions du schéma `private` a révélé d'autres cas où les chemins de résolution ou les privilèges n'étaient pas alignés. Ils sont traités séparément afin de ne pas confondre la clôture du contrôle `private.is_admin()` avec une certification globale de toutes les fonctions internes.
+
+### 23.1 Correction additive appliquée et vérifiée
+
+Migration : `harden_remaining_private_security_definer_paths_20261026203000`, enregistrée dans Supabase et versionnée dans la branche.
+
+- Commit GitHub : `f4bcd7c9cf40edfe9b627c01fa8c484ff283c72a`.
+- Fonctions dont le chemin a été restreint : `private.is_promoteur()`, `private.my_pharmacie()`, `private.stats_admin(integer)`, `private.stats_pharmacie(uuid, integer)`, `private.set_reservation_status(uuid, resa_statut)`, `private.validites_pharmacies_admin()`.
+- `private.set_garde(boolean)` a été réécrite pour appeler explicitement `private.my_pharmacie()`, avec `search_path = 'auth'`.
+- Les droits EXECUTE `PUBLIC/anon` ont été révoqués pour six helpers privés qui avaient un grant `anon` superflu : `is_promoteur`, `log_evenement`, `log_recherche`, `my_pharmacie`, `produits_populaires` et `search_pharmacies_panier`.
+- Vérification SQL après application : les fonctions modifiées ont les chemins attendus; `anon EXECUTE = false` pour les six fonctions ciblées; les droits `authenticated`/absence de droit de `set_reservation_status` ont été préservés selon l'ACL existante. Le schéma `private` ne donne pas USAGE à `anon`, et la révocation ajoute une défense en profondeur.
+
+### 23.2 Résultats restants — ne pas déclarer tout le schéma vert
+
+Après cette correction, les fonctions suivantes conservent un `search_path` non vide et doivent être relues avant toute migration supplémentaire :
+
+- `private.declare_payment(uuid, text)` — `search_path = public`;
+- `private.log_evenement(...)` et `private.log_recherche(text[])` — `search_path = public, extensions`;
+- `private.produits_populaires(integer, integer)` — `search_path = public`;
+- `private.reactiver_pharmacie(uuid, text)` — `search_path = public`;
+- `private.reserve_stock(uuid, jsonb)` — `search_path = public`;
+- `private.search_pharmacies_panier(jsonb, double precision, double precision, double precision)` — `search_path = public, extensions`.
+
+Les fonctions `log_evenement`, `log_recherche`, `produits_populaires` et `search_pharmacies_panier` ne sont désormais plus exécutables par `anon` au niveau de leur ACL privée; cela ne suffit pas à valider leur corps SQL ou les éventuelles façades publiques. Les chemins non vides restants sont un point de revue technique, pas la preuve automatique d'une vulnérabilité exploitable : les extensions `pg_trgm` et `unaccent` résident dans le schéma `extensions`, et certaines fonctions utilisent des relations non qualifiées qui doivent être corrigées sans casser la recherche ou le stock.
+
+### 23.3 Étape suivante
+
+Lire les corps SQL, les fonctions publiques appelantes et les migrations sources pour chaque fonction restante; qualifier explicitement les relations et opérateurs/extensions, puis réduire le `search_path` au minimum compatible. Ajouter une migration versionnée sur la même branche, l'appliquer au projet Supabase déjà utilisé, puis vérifier les définitions et droits effectifs après application. Aucun merge vers `main`, aucun déploiement et aucun jeu de données métier fictif.
