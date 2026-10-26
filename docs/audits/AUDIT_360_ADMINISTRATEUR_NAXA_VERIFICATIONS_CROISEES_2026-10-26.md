@@ -250,3 +250,20 @@ Une migration additive a été ajoutée dans le dépôt pour remplacer les polit
 ### Validation réellement effectuée
 
 Vérification statique des substitutions et des contenus avant création du commit uniquement. Aucun build, lint, test automatisé, scénario navigateur ou appel de RPC métier n'est revendiqué. Aucune écriture de données, aucune migration Supabase appliquée, aucun déploiement lancé.
+
+
+## 14. Migration RLS du journal appliquée et vérification post-application — 2026-10-26
+
+### Résultat vérifié
+- La migration a été appliquée au projet Supabase **Naxa** (eouwtuusnsuxaejsxknf) ; l'outil de migration a retourné success: true.
+- La relecture immédiate du catalogue pg_policies confirme que audit_log_admin_read utilise désormais is_admin() comme USING, et que audit_log_admin_insert utilise is_admin() comme WITH CHECK. Les deux politiques ciblent le rôle authenticated.
+- L'historique Supabase a enregistré la migration sous la version **20261026211221**, nom **admin_audit_log_active_admin_rls_20261026220000**. La version numérique réellement enregistrée ne correspond pas au préfixe 20261026220000 du fichier actuellement présent dans Git. Il faut réconcilier ce nom de fichier avec l'historique distant avant la prochaine commande de synchronisation des migrations ; ne pas réappliquer manuellement cette migration.
+- Le contrôle Security Advisor post-application conserve des alertes indépendantes : 5 tables RLS sans politique et des fonctions SECURITY DEFINER exécutables par anon ou authenticated. Ces alertes ne sont pas automatiquement des vulnérabilités exploitables : chaque fonction doit être évaluée selon sa finalité, ses contrôles internes et ses privilèges. Aucune révocation globale ne doit être faite sans analyse des contrats RPC.
+
+### Limites restantes
+- La vérification confirme les définitions de politiques, pas un test de connexion réel avec un compte Admin inactif. Aucun changement de données métier n'a été exécuté.
+- La migration ne règle pas à elle seule la cohérence atomique entre une mutation métier et son entrée de journal. Les actions Univers vérifient maintenant l'erreur d'insertion mais peuvent déjà avoir effectué la mutation lorsque le journal échoue.
+- Le renouvellement Promoteur, la preuve de paiement, la divergence des modèles documentaires, l'inventaire des fonctions privilégiées et la couverture des tests de rôle restent à résoudre ou à qualifier. Ils ne sont pas déclarés clos par cette migration.
+
+### Statut de cette passe
+La correction RLS du journal est **appliquée et vérifiée dans le catalogue Supabase**. La clôture complète du chantier Administrateur n'est pas encore justifiée tant que les contrôles ci-dessus et les validations automatisées n'ont pas été menés. Aucun déploiement applicatif n'a été lancé.
