@@ -349,7 +349,17 @@ function Formulaire() {
               caisse: "/pharmacie",
               admin: "/admin",
             };
-            if (search.get("espace") === "pharmacie" && profile?.role === "promoteur") {
+            let partenaireActif = false;
+            if (profile?.role === "client" && search.get("espace") !== "client") {
+              const { data: memberships } = await sb.from("partner_members")
+                .select("partner_id,partners!inner(status)")
+                .eq("user_id", auth.user.id)
+                .in("member_role", ["owner", "manager"]);
+              partenaireActif = (memberships ?? []).some((membership: any) => membership.partners?.status === "active");
+            }
+            if (partenaireActif) {
+              destination = "/partenaire/catalogue";
+            } else if (search.get("espace") === "pharmacie" && profile?.role === "promoteur") {
               destination = "/pharmacie/promoteur";
             } else if (search.get("espace") === "client") {
               destination = "/client";
