@@ -897,3 +897,42 @@ La page d’accueil détecte les erreurs des trois sources (pharmacies, validit�
 - **Écarts confirmés :** succès de fiche produit potentiellement affiché malgré l’absence de confirmation de persistance; erreurs de journal ignorées après certaines mutations.
 - **Points techniques à valider :** garde métier des RPC Examens et Bébé & Maman; atomicité du quota OSM; confidentialité du bucket documents; limites des listes chargées; uniformité UUID.
 - **Aucune correction appliquée et aucun test de mutation effectué.**
+
+
+## 45. Audit détaillé — Lot 4 : Promoteurs, dossiers pharmacie, rappels de lots et concordance du schéma live
+
+**Périmètre examiné :** registre Promoteurs, fiche partenaire, fiche pharmacie, actions de gestion des documents, composant des rappels de lots et métadonnées Supabase live. Les fichiers justificatifs n’ont pas été chargés et aucune action de validation/diffusion n’a été déclenchée.
+
+### Dossiers Promoteurs et fiche partenaire
+
+- Les pages et actions concernées contrôlent l’authentification et le rôle Admin actif. La fiche partenaire valide strictement l’UUID avant la lecture privilégiée; la validation est présentée comme une transaction qui active ensemble le compte Promoteur, le partenaire et son association, tandis que la publication catalogue reste distincte.
+- Le registre affiche des informations d’identité et de contact issues des profils/partenaires et les liens vers les dossiers; l’accès privilégié est placé après le garde Admin. La revue des politiques et du périmètre de données reste nécessaire pour s’assurer que le rôle Admin est le seul à pouvoir lire ces données privées.
+- La liste des pharmacies du registre est sans filtre explicite `est_demo`; les dossiers de démonstration peuvent apparaître dans le registre. Ce n’est pas nécessairement incorrect pour une vue de conformité, mais l’interface doit clairement distinguer dossier de test et dossier réel.
+- Les indicateurs et listes des partenaires indépendants sont limités à 500 dossiers; la page ne présente pas de pagination dans le code examiné. Au-delà du plafond, les résultats affichés ne représentent pas tout le registre.
+
+### Fiche pharmacie — blocage de cohérence confirmé dans l’environnement live
+
+Le code de la fiche pharmacie et ses actions utilise les objets `public.pharmacie_documents`, `public.pharmacie_document_historique` et le bucket Storage `pharmacie-documents` pour lister, déposer, statuer et consulter des justificatifs. Une requête catalogue en lecture seule sur Supabase live a renvoyé :
+
+- `public.pharmacie_documents` : absent du catalogue live;
+- `public.pharmacie_document_historique` : absent du catalogue live;
+- bucket Storage `pharmacie-documents` : absent des buckets live;
+- `public.pharmacie_documents_recus` et `public.pharmacie_donnees_historique` : présents.
+
+Les buckets live recensés sont `dispositifs`, `medicaments`, `pharmacies-photos` et `produits-photos`; aucun ne porte le nom `pharmacie-documents`. **Écart de concordance code–environnement confirmé** : les opérations de justificatifs de la fiche pharmacie ne peuvent pas fonctionner correctement dans cet environnement tant que les objets attendus ne sont pas créés ou que le code n’est pas aligné sur le schéma cible. Le point ne doit pas être corrigé à l’aveugle : comparer les migrations historiques, l’intention de stockage privé et les objets réellement attendus avant de choisir une correction. Aucune création de table/bucket ni migration n’a été effectuée.
+
+La fiche pharmacie charge également `pharmacie_document_historique`; son absence signifie que cette partie de la lecture peut échouer ou être incomplète. L’écran exécute plusieurs lectures parallèles et ne présente pas un traitement uniforme des erreurs de chaque source : l’expérience réelle doit être vérifiée après rétablissement du schéma.
+
+### Rappels de lots — interface et volume
+
+- Le composant vérifie dans le navigateur la session, le rôle Admin et `actif=true`, et la RPC de diffusion possède également son propre contrôle Admin actif. Le contrôle navigateur ne constitue donc pas l’unique barrière.
+- Le bouton exige un nom de produit, un lot, un motif et une consigne de longueur minimale; les champs sont bornés. La confirmation indique explicitement que l’avis est envoyé aux pharmacies actives.
+- La page charge jusqu’à 100 avis, mais récupère les destinataires sans limite ni pagination, puis regroupe les accusés en mémoire. À mesure que l’historique augmente, le chargement peut devenir coûteux ou incomplet selon les limites API; prévoir pagination/filtrage et index adaptés après analyse des volumes.
+- La fonction live inclut toutes les pharmacies actives comme destinataires. Le choix de ne pas exclure les démos doit être explicité dans la règle métier de rappel national; aucune diffusion n’a été lancée.
+
+### Décision du lot 4
+
+- **Garde-fous confirmés :** contrôle Admin actif sur les pages/actions; validation stricte d’UUID sur la fiche partenaire; RPC de rappel protégée en interne; pièces déclarées reçues distinctes de la preuve que les documents ont été authentifiés.
+- **Blocage confirmé :** absence dans Supabase live de la table `pharmacie_documents`, de l’historique associé et du bucket privé attendu `pharmacie-documents`, alors que le code les référence.
+- **Autres points à arbitrer :** exposition des dossiers de démo dans le registre, pagination au-delà de 500 dossiers/100 avis, volume non borné des destinataires, périmètre des destinataires de rappel.
+- **Aucune correction appliquée.** Les résultats catalogue sont des constats de métadonnées; aucune écriture SQL, migration ou opération Storage n’a été exécutée.
