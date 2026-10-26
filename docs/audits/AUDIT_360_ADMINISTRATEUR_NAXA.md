@@ -507,3 +507,26 @@ Le comptage direct des fonctions PostgreSQL du schéma `public` et `private` don
 - Les fonctions `get_home_service_catalog` et `universe_partner_is_public` utilisent respectivement `search_path=public, pg_temp` et `search_path=public`; les objets de leurs corps doivent être qualifiés et le risque lié à `pg_temp` revu. Aucune modification n'a été appliquée.
 
 Ce relevé provient du catalogue SQL live, en lecture seule. Il n'inclut pas une revue manuelle exhaustive des 225 corps de fonctions ni un test d'exploitation.
+
+
+## 28. Storage Supabase — buckets et politiques observées
+
+### Buckets live
+
+| Bucket | Public | Limite fichier | MIME autorisés |
+|---|---|---:|---|
+| `dispositifs` | Oui | 30 000 octets | `image/webp` |
+| `medicaments` | Oui | 5 242 880 octets | JPEG, PNG, WebP |
+| `pharmacies-photos` | Oui | 524 288 octets | JPEG, PNG, SVG, WebP |
+| `produits-photos` | Oui | 524 288 octets | WebP, JPEG, PNG |
+
+Ces paramètres sont ceux de la base live. La limite particulièrement faible du bucket `dispositifs` est un point de compatibilité fonctionnelle à vérifier, pas une faille établie. Les buckets publics rendent les objets lisibles publiquement par conception; il faut confirmer que seules des images destinées à être publiques y sont stockées.
+
+### Politiques Storage — écarts à examiner
+
+- **PRE-043 — Divergence de garde potentielle :** les politiques `medicaments_admin_insert/update/delete` vérifient le bucket et `profiles.role = 'admin'`, mais ne vérifient pas `profiles.actif = true`. Le garde canonique des pages Admin et le RPC `private.is_admin()` exigent au contraire le compte actif. Une session admin dont le profil a été désactivé pourrait donc conserver des droits Storage sur le bucket `medicaments`, selon les politiques et les privilèges effectifs. À confirmer avec un test d'autorisation contrôlé avant toute correction; aucun test d'écriture n'a été tenté.
+- Les politiques `photos_admin_ajout/maj/suppr` sur `produits-photos` appellent `private.is_admin()`, dont le corps live vérifie rôle admin **et** compte actif. Elles sont déclarées pour le rôle `public`, mais la fonction privée n'accorde pas `USAGE` à `anon`; l'accès effectif doit être validé sans supposer qu'une policy permissive autorise à elle seule l'opération.
+- Les politiques de logos pharmacie contrôlent le rôle promoteur, le compte actif, l'affectation active à la pharmacie et un préfixe de chemin `logos/{pharmacie_id}/...`. Les expressions sont cohérentes avec le cloisonnement attendu sur les opérations listées; les cas de renommage/déplacement et les politiques non couvertes restent à vérifier.
+- La lecture publique est explicitement autorisée sur les buckets `medicaments` et `produits-photos`; les buckets `pharmacies-photos` et `dispositifs` sont aussi configurés publics. Le contenu réel et les autres chemins de lecture restent à inventorier.
+
+Aucune policy Storage, aucun bucket et aucun objet n'a été modifié.
