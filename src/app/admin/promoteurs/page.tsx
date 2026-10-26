@@ -40,7 +40,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
         <p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">Administration · conformité</p>
         <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">Dossiers Promoteurs & pharmacies</h1>
         <p className="mt-2 max-w-3xl text-sm text-white/80">
-          Sélectionnez un dossier pour consulter les informations détaillées de la pharmacie et du Promoteur rattaché.
+          Consultez les dossiers des pharmacies et des partenaires indépendants. Bébé &amp; Maman reste un service rattaché au dossier de sa pharmacie partenaire.
         </p>
       </header>
 
