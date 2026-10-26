@@ -116,7 +116,7 @@ export async function POST(request: Request) {
   const { data: saved, error: saveError } = await db.from("rapports").insert({
     portee: "admin",
     pharmacie_id: null,
-    periode: jours + " derniers jours",
+    periode: jours === 7 ? "hebdo" : "mensuel",
     du: du.toISOString().slice(0, 10),
     au: au.toISOString().slice(0, 10),
     texte,
