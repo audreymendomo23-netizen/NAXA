@@ -570,3 +570,28 @@ Lecture du code actuel sur `main` : `src/app/admin/page.tsx` et `src/app/admin/l
 - Les scripts de tests présents dans le dépôt n'ont pas été exécutés; les résultats ci-dessus restent un contrôle statique du code et un instantané SQL en lecture seule.
 
 Aucune donnée de pharmacie, aucun ticket, profil, dossier partenaire ni indicateur n'a été modifié.
+
+
+## 31. Inventaire de surface Admin sur l'arbre GitHub main
+
+L'arbre GitHub récursif a été relu après les derniers commits documentaires : 1 247 entrées, `truncated=false`. Ce nombre représente les entrées de l'arbre Git et non 1 247 fichiers source.
+
+### Routes de page Admin identifiées
+
+18 fichiers `page.tsx` :
+- `/admin`, `/admin/alertes`, `/admin/configuration`, `/admin/examens`, `/admin/geolocalisation`, `/admin/journal`, `/admin/messagerie`, `/admin/pharmacies/[id]`, `/admin/pilotage`, `/admin/pilotage/rapports`, `/admin/pilotage/validite`, `/admin/prestations`, `/admin/produits`, `/admin/profil`, `/admin/promoteurs`, `/admin/promoteurs/partenaires/[id]`, `/admin/rappels-lots`, `/admin/univers`.
+
+### Actions serveur et API
+
+- Dix modules d'actions Admin identifiés dans l'arbre : actions générales, création d'univers, examens, documents/pharmacies, validité, prestations, produits, promoteurs, partenaires et univers.
+- Deux routes API Admin identifiées : `/api/admin/geolocalisation-osm` et `/api/admin/messagerie`.
+- La vérification statique des actions lues a retrouvé le contrôle `requireAdminActive` dans la majorité des modules inspectés. Le module `src/app/admin/pharmacies/[id]/actions.ts` applique son propre garde : session, rôle admin et `actif === true`, avant les opérations utilisant le client privilégié. La route OSM utilise `is_admin`; la route messagerie emploie un contrôle distinct qui accepte toute valeur `actif` autre que `false`, divergence documentée en PRE-039.
+- Le module `supabaseAdmin()` utilise la clé de service, mais cette observation ne signifie pas que les valeurs de secrets ont été lues : elles ne l'ont pas été. Toute action utilisant ce client exige un contrôle serveur robuste avant chaque mutation.
+
+### Couverture des tests et limites
+
+- L'arbre ne contient aucun fichier reconnu par le motif strict `*.test.ts(x)` / `*.spec.ts(x)` dans les dossiers conventionnels `tests` ou `__tests__`. Des scripts ciblés, tests SQL ou tests avec d'autres conventions existent dans le dépôt; ils ne sont pas couverts par ce seul motif.
+- Les tests n'ont pas été lancés et aucun test utilisateur de l'interface n'a été effectué. La revue reste statique et n'établit ni l'accessibilité réelle de chaque écran, ni le comportement en session, ni la correction de chaque transition métier.
+- Les tentatives d'inspection massive simultanée ont dépassé la limite d'appels disponible dans une seule exécution d'outils; elles n'ont apporté aucun résultat de test et n'ont provoqué aucune mutation. Les constats sont donc explicitement limités aux fichiers effectivement lus.
+
+Aucune route, action serveur, règle SQL, branche, workflow ou donnée n'a été modifié par cet inventaire.
