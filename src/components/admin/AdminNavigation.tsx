@@ -10,9 +10,7 @@ const sections = [
   { href: "/admin/pilotage/validite", label: "Validité", note: "Conventions" },
   { href: "/admin/pilotage/rapports", label: "Rapports", note: "Exports" },
   { href: "/admin/produits", label: "Produits", note: "Fiches santé" },
-  { href: "/admin/univers", label: "Univers & partenaires", note: "Catalogue" },
-  { href: "/admin/prestations", label: "Prestations", note: "À domicile" },
-  { href: "/admin/examens", label: "Examens", note: "Centres & packs" },
+  { href: "/admin/univers", label: "Univers & catalogue", note: "Partenaires, prestations, examens" },
 ];
 
 export function AdminNavigation() {
