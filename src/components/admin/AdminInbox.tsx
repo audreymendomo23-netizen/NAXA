@@ -54,7 +54,7 @@ export function AdminInbox({ tickets, messages }: { tickets: Ticket[]; messages:
           {!thread.length && <p className="text-sm text-slate-500">Aucun message dans ce ticket.</p>}
           {thread.map((message) => <article key={message.id} className="rounded-xl border bg-white p-3"><div className="flex flex-wrap justify-between gap-2"><strong className="text-xs">{message.auteur_profile_id===current.auteur_profile_id?"Demandeur":"Équipe NAXA"}{message.interne?" · Note interne":""}</strong><time className="text-xs text-slate-500">{new Date(message.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.contenu}</p></article>)}
         </div>
-        <form onSubmit={send} className="space-y-3"><label className="block text-sm font-semibold">Répondre au ticket<textarea value={reply} onChange={(event)=>setReply(event.target.value)} required maxLength={5000} rows={4} className="champ mt-1 rounded-xl py-3" placeholder="Écrire une réponse utile…"/></label>
+        <form onSubmit={send} className="space-y-3"><label className="block text-sm font-semibold">Répondre au ticket<textarea value={reply} onChange={(event)=>setReply(event.target.value)} required maxLength={2000} rows={4} className="champ mt-1 rounded-xl py-3" placeholder="Écrire une réponse utile…"/></label>
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}{success && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{success}</p>}
           <button disabled={sending||!reply.trim()} className="min-h-11 rounded-xl bg-[#0B3D26] px-5 py-3 font-bold text-white disabled:opacity-50">{sending?"Envoi…":"Envoyer la réponse"}</button>
         </form>
