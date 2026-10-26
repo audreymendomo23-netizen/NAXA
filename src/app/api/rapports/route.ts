@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
   const { data: profile, error: profileError } = await sb.from("profiles")
     .select("role,actif").eq("id", auth.user.id).single();
-  if (profileError || profile?.role !== "admin" || profile.actif === false) {
+  if (profileError || profile?.role !== "admin" || profile.actif !== true) {
     return NextResponse.json({ error: "Seul un compte administrateur actif peut enregistrer un rapport réseau." }, { status: 403 });
   }
 
@@ -125,15 +125,20 @@ export async function POST(request: Request) {
   };
   const au = new Date();
   const du = new Date(au.getTime() - jours * 24 * 60 * 60 * 1000);
-  const contenu = { titre: "Rapport de pilotage NAXA", jours, genere_le: au.toISOString(), indicateurs: instantane };
-  const texte = Object.entries(instantane).map(([key, value]) => key + " : " + String(value)).join("\n");
+  const duJour = du.toISOString().slice(0, 10);
+  const auJour = au.toISOString().slice(0, 10);
+  const contenu = { titre: "Rapport de pilotage NAXA", jours, du: duJour, au: auJour, genere_le: au.toISOString(), indicateurs: instantane };
+  const texte = [
+    `Période couverte : ${jours} jours (${duJour} → ${auJour})`,
+    ...Object.entries(instantane).map(([key, value]) => key + " : " + String(value)),
+  ].join("\n");
   const db = supabaseAdmin();
   const { data: saved, error: saveError } = await db.from("rapports").insert({
     portee: "admin",
     pharmacie_id: null,
     periode: jours === 7 ? "hebdo" : "mensuel",
-    du: du.toISOString().slice(0, 10),
-    au: au.toISOString().slice(0, 10),
+    du: duJour,
+    au: auJour,
     texte,
     contenu,
   }).select("id,periode,du,au,texte,contenu,created_at").single();
