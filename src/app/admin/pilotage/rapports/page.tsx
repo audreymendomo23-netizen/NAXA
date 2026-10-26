@@ -16,6 +16,7 @@ export default function Reports() {
   const [instantane, setInstantane] = useState<Instantane | null>(null);
   const [dateGeneration, setDateGeneration] = useState("");
   const [generation, setGeneration] = useState(false);
+  const [format, setFormat] = useState<"csv" | "json" | "pdf">("csv");
 
   useEffect(() => {
     let actif = true;
@@ -66,9 +67,9 @@ export default function Reports() {
     }
   }
 
-  function exporterInstantane() {
-    if (!instantane) return;
-    exporterCsv(`rapport-pilotage-${jours}-jours`, [
+  function lignesInstantane() {
+    if (!instantane) return [];
+    return [
       { indicateur: "Période", valeur: `${jours} derniers jours` },
       { indicateur: "Généré le", valeur: dateGeneration },
       { indicateur: "Pharmacies", valeur: instantane.pharmacies },
@@ -78,7 +79,41 @@ export default function Reports() {
       { indicateur: "Ventes", valeur: instantane.ventes },
       { indicateur: "Demandes", valeur: instantane.demandes },
       { indicateur: "Revenus (FCFA)", valeur: instantane.revenus },
-    ]);
+    ];
+  }
+
+  function exporterInstantane() {
+    if (!instantane) return;
+    const rows = lignesInstantane();
+    if (format === "csv") {
+      exporterCsv(`rapport-pilotage-${jours}-jours`, rows);
+      return;
+    }
+    if (format === "json") {
+      const blob = new Blob([JSON.stringify({ titre: "Rapport de pilotage NAXA", periode_jours: jours, genere_le: dateGeneration, indicateurs: rows }, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `rapport-pilotage-${jours}-jours.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    window.print();
+  }
+
+  async function partagerInstantane() {
+    if (!instantane) return;
+    const texte = ["Rapport de pilotage NAXA", `Période : ${jours} derniers jours`, `Généré le : ${dateGeneration}`, ...lignesInstantane().slice(2).map((row) => `${row.indicateur} : ${row.valeur}`)].join("\n");
+    try {
+      if (navigator.share) await navigator.share({ title: "Rapport de pilotage NAXA", text: texte });
+      else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(texte);
+        setErr("Rapport copié dans le presse-papiers : vous pouvez maintenant le partager.");
+      } else setErr("Le partage n’est pas disponible sur cet appareil.");
+    } catch (cause) {
+      if (!(cause instanceof Error && cause.name === "AbortError")) setErr("Le partage du rapport a échoué. Réessayez.");
+    }
   }
 
   return <main className="admin-analytics-page admin-reports-page min-h-screen bg-[#ACDC76] p-3 sm:p-6">
@@ -99,11 +134,19 @@ export default function Reports() {
             </select>
           </label>
           <button type="button" onClick={() => void genererInstantane()} disabled={generation} className="min-h-11 rounded-xl bg-[#0147BB] px-5 font-bold text-white disabled:opacity-60">{generation ? "Génération en cours…" : "Générer le rapport"}</button>
-          {instantane && <button type="button" onClick={exporterInstantane} className="min-h-11 rounded-xl border border-slate-300 px-5 font-bold text-slate-800">Exporter en CSV</button>}
+          {instantane && <>
+            <label className="text-sm font-semibold">Format du rapport
+              <select value={format} onChange={(event) => setFormat(event.target.value as "csv" | "json" | "pdf")} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">
+                <option value="csv">CSV (tableur)</option><option value="json">JSON (données)</option><option value="pdf">PDF (impression)</option>
+              </select>
+            </label>
+            <button type="button" onClick={exporterInstantane} className="min-h-11 rounded-xl border border-slate-300 px-5 font-bold text-slate-800">{format === "pdf" ? "Télécharger / imprimer PDF" : `Télécharger ${format.toUpperCase()}`}</button>
+            <button type="button" onClick={() => void partagerInstantane()} className="min-h-11 rounded-xl border border-slate-300 px-5 font-bold text-slate-800">Partager</button>
+          </>}
         </div>
         {err && <p role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{err}</p>}
         {instantane && <div className="mt-5 space-y-4">
-          <p role="status" className="text-xs text-slate-500">Instantané généré le {dateGeneration} · période de {jours} jours · non enregistré</p>
+          <p role="status" className="text-xs text-slate-500">Rapport généré le {dateGeneration} · période de {jours} jours</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               ["Pharmacies", instantane.pharmacies],
