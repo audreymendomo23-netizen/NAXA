@@ -1,0 +1,40 @@
+import Link from "next/link";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { enregistrerReglementPromoteur, confirmerReglementPromoteur } from "./actions";
+type SearchParams={ok?:string;erreur?:string};
+const CANAUX:Record<string,string>={especes:"Espèces",orange_money:"Orange Money",mtn_momo:"MTN Mobile Money",virement:"Virement bancaire",depot_bancaire:"Dépôt bancaire",autre:"Autre"};
+const money=(n:number)=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA";
+const date=(s:string|null)=>s?new Intl.DateTimeFormat("fr-FR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(s)):"—";
+export default async function ReglementsAdminPage({searchParams}:{searchParams?:SearchParams}){
+ await requireAdminActive("/admin/pilotage/reglements");
+ const db=supabaseAdmin();
+ const [{data:promoters},{data:pending},{data:recent}]=await Promise.all([
+  db.from("profiles").select("id,first_name,last_name,username,actif").eq("role","promoteur").order("last_name").limit(500),
+  db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,reference,paye_le,preuve_path,created_at").eq("statut","en_attente").order("created_at",{ascending:true}).limit(100),
+  db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,reference,paye_le,statut,numero_recu,periode_au,created_at").neq("statut","en_attente").order("created_at",{ascending:false}).limit(50)
+ ]);
+ const people=new Map((promoters??[]).map(p=>[p.id,[p.first_name,p.last_name].filter(Boolean).join(" ")||p.username||p.id]));
+ const proofLinks=new Map<string,string>();
+ await Promise.all((pending??[]).map(async r=>{const {data}=await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path,600);if(data?.signedUrl)proofLinks.set(r.id,data.signedUrl)}));
+ const errors:Record<string,string>={champs:"Vérifiez le Promoteur, le montant et le canal.",canal:"Précisez le canal de paiement.",preuve:"Une preuve photo/PDF de 8 Mo maximum est obligatoire.",format:"Formats acceptés : PDF, JPEG, PNG ou WebP.",date:"La date de paiement est invalide ou future.",upload:"La preuve n’a pas pu être stockée. Aucun règlement n’a été enregistré.",promoteur:"Le profil Promoteur est introuvable.",deja_attente:"Un règlement est déjà en attente pour ce Promoteur.",enregistrement:"L’enregistrement a échoué. Vérifiez le tarif et la configuration de l’abonnement.",confirmation:"La confirmation a échoué. Le règlement n’a pas été confirmé."};
+ return <main className="min-h-screen bg-[#ACDC76] p-3 sm:p-6"><div className="mx-auto max-w-6xl space-y-4">
+  <header className="rounded-3xl bg-black p-5 text-white"><p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage réseau</p><h1 className="mt-1 text-2xl font-black text-[#D95304]">Règlements manuels des Promoteurs</h1><p className="mt-2 text-sm text-white/80">L’enregistrement ne réactive rien. La confirmation est réservée à l’administrateur après vérification effective de l’encaissement.</p><Link href="/admin/pilotage/validite" className="mt-3 inline-block text-sm font-bold underline">Retour à la validité</Link></header>
+  {searchParams?.ok&&<p role="status" className="rounded-2xl bg-white p-4 text-green-800">{searchParams.ok==="confirme"?"Paiement confirmé ; abonnement réactivé et reçu généré.":"Règlement enregistré. Le Promoteur a été notifié ; aucune réactivation n’a été effectuée."}</p>}
+  {searchParams?.erreur&&<p role="alert" className="break-words rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur]??"Une erreur est survenue."}</p>}
+  <section className="rounded-3xl bg-white p-4 sm:p-5"><h2 className="text-lg font-extrabold">Enregistrer un paiement reçu manuellement</h2><p className="mt-1 text-sm text-slate-600">Joignez une preuve du règlement. Cette opération crée uniquement un dossier en attente.</p>
+   <form action={enregistrerReglementPromoteur} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
+    <label className="grid gap-1 text-sm font-semibold">Promoteur<select required name="promoteur_id" className="min-h-11 rounded-xl border border-slate-300 px-3"><option value="">Choisir…</option>{(promoters??[]).map(p=><option key={p.id} value={p.id}>{[p.first_name,p.last_name].filter(Boolean).join(" ")||p.username||p.id}{p.actif?"":" · inactif"}</option>)}</select></label>
+    <label className="grid gap-1 text-sm font-semibold">Montant encaissé (FCFA)<input required type="number" name="montant" min="1" step="1" inputMode="numeric" className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
+    <label className="grid gap-1 text-sm font-semibold">Canal de paiement<select required name="canal" className="min-h-11 rounded-xl border border-slate-300 px-3">{Object.entries(CANAUX).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+    <label className="grid gap-1 text-sm font-semibold">Précision si « Autre »<input name="canal_autre" maxLength={80} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="Ex. chèque"/></label>
+    <label className="grid gap-1 text-sm font-semibold">Référence éventuelle<input name="reference" maxLength={160} className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
+    <label className="grid gap-1 text-sm font-semibold">Date/heure du paiement<input type="datetime-local" name="paye_le" className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
+    <label className="grid gap-1 text-sm font-semibold sm:col-span-2">Preuve (photo ou PDF, 8 Mo maximum)<input required type="file" name="preuve" accept="image/jpeg,image/png,image/webp,application/pdf" className="min-h-11 rounded-xl border border-slate-300 p-2"/></label>
+    <button className="min-h-11 rounded-full bg-[#0147BB] px-5 font-bold text-white sm:col-span-2">Enregistrer en attente de confirmation</button>
+   </form>
+  </section>
+  <section className="space-y-3"><h2 className="text-xl font-black">À confirmer après vérification</h2>{!pending?.length?<p className="rounded-2xl bg-white p-4 text-sm text-slate-600">Aucun règlement en attente.</p>:pending.map(r=><article key={r.id} className="rounded-3xl bg-white p-4 sm:p-5"><div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-extrabold">{people.get(r.promoteur_id)??r.promoteur_id}</h3><p className="text-xs text-slate-500">Enregistré le {date(r.created_at)}</p></div><strong>{money(r.montant)}</strong></div><p className="mt-2 text-sm">Canal : {CANAUX[r.canal]??r.canal}{r.canal_autre?" · "+r.canal_autre:""} · Référence : {r.reference||"—"} · Paiement déclaré : {date(r.paye_le)}</p>{proofLinks.get(r.id)&&<a className="mt-3 inline-block font-bold text-[#0147BB] underline" href={proofLinks.get(r.id)} target="_blank" rel="noreferrer">Consulter la preuve privée (lien temporaire)</a>}<form action={confirmerReglementPromoteur} className="mt-4"><input type="hidden" name="reglement_id" value={r.id}/><button className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white">Confirmer l’encaissement et réactiver</button><p className="mt-2 text-xs text-slate-500">À utiliser uniquement après vérification de l’encaissement réel. L’action est journalisée.</p></form></article>)}</section>
+  <section className="space-y-3"><h2 className="text-xl font-black">Historique des règlements traités</h2>{!recent?.length?<p className="rounded-2xl bg-white p-4 text-sm text-slate-600">Aucun règlement traité.</p>:recent.map(r=><article key={r.id} className="rounded-2xl bg-white p-4"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-bold">{people.get(r.promoteur_id)??r.promoteur_id}</p><p className="text-xs text-slate-500">{date(r.created_at)} · {r.numero_recu??"Aucun reçu"}</p></div><strong>{money(r.montant)}</strong></div><p className="mt-2 text-sm">{CANAUX[r.canal]??r.canal} · {r.statut==="confirme"?"Confirmé":"Contesté"}{r.periode_au?" · Échéance "+r.periode_au:""}</p></article>)}</section>
+ </div></main>;
+}
