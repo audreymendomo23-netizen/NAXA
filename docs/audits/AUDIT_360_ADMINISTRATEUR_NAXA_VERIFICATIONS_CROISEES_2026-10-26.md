@@ -294,3 +294,21 @@ Le statut GitHub rapporte toujours le contrôle CircleCI « ci/circleci: quality
 Le lien CircleCI de ce dépôt n'est pas accessible via les intégrations disponibles dans cette session ; le statut ne révèle pas l'étape fautive (TypeScript, tests ciblés, ESLint ou build). Sans le journal du job, il serait incorrect d'inventer la cause ou de déclarer le contrôle corrigé. Les tests automatisés, le lint, TypeScript et le build ne sont pas revendiqués comme exécutés avec succès.
 
 **Critère de clôture non satisfait :** la migration RLS du journal est appliquée et vérifiée, mais le chantier Administrateur ne peut pas être certifié complètement clos tant que le parcours de fichiers documentaires n'est pas rétabli par une migration autorisée, le renouvellement/paiement n'est pas validé, et le job CircleCI quality n'est pas diagnostiqué puis passé.
+
+
+## 17. Migration documentaire appliquée et vérifiée — 2026-10-26
+
+### Application autorisée et résultat
+- À la suite de l'autorisation explicite de l'utilisateur, la migration de registre documentaire a été appliquée au projet Supabase Naxa. L'outil a retourné success: true.
+- L'historique distant enregistre la version **20261026212315**, nom **pharmacie_documents_fichiers_validation_historique_20261022150000**.
+- Contrôle post-application : les tables public.pharmacie_documents et public.pharmacie_document_historique existent ; le bucket pharmacie-documents existe et est privé, limité à 10 MiB et aux types PDF/JPEG/PNG/WebP ; les trois politiques RLS de pharmacie_documents, la politique de lecture d'historique et les quatre politiques de stockage sont visibles dans pg_policies et appellent is_admin() (avec restriction du bucket pour storage.objects).
+- Le fichier SQL a été réaligné dans main sur le préfixe distant 20261026212315 et l'ancien fichier au préfixe 20261022150000 a été supprimé, afin d'éviter un décalage de version de migration.
+
+### Parcours applicatif — limites et contrôle supplémentaire
+- Le garde-fou UI ajouté précédemment empêche de présenter une erreur de lecture comme un dossier documentaire vide. Maintenant que la migration est appliquée, ce garde-fou doit se lever lorsque la page peut réellement lire les tables.
+- L'examen statique de src/app/admin/pharmacies/[id]/actions.ts confirme l'authentification et le contrôle du profil Admin actif avant dépôt, validation/rejet et génération d'un lien signé de 60 secondes. Le dépôt vérifie les types MIME autorisés et la taille maximale de 10 MiB, puis supprime l'objet si l'insertion dans le registre échoue.
+- Aucune pièce réelle n'a été téléversée ni validée pour éviter toute mutation de données administratives réelles. La réussite d'un upload et d'une consultation signée reste à tester avec un compte Admin autorisé.
+- Le parcours documentaire est désormais **installé côté base**, mais son test fonctionnel complet n'est pas encore certifié.
+
+### Critère de clôture
+Le contrôle CircleCI quality demeure en échec sur le dernier commit consulté et ses logs d'étape ne sont pas accessibles dans cette session. Aucun build, lint, test TypeScript ou test navigateur n'est déclaré réussi. Les points de renouvellement Promoteur/preuve de paiement et les alertes restantes de sécurité/RLS doivent toujours être qualifiés avant de certifier la clôture générale. Aucun déploiement n'a été lancé.
