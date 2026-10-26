@@ -634,7 +634,7 @@ Requête SQL en lecture seule sur Supabase NAXA : 1 profil `role='admin'` avec `
 - `src/app/admin/layout.tsx` utilise le garde partagé; les compteurs montrent un avertissement si une source échoue.
 - `src/app/admin/page.tsx` utilise le garde, détecte les erreurs pharmacies/validités/journal, signale les indicateurs partiels et ne sélectionne plus `metadata` pour le journal aperçu.
 - Le garde est également utilisé par `src/app/admin/promoteurs/page.tsx`, `src/app/admin/journal/page.tsx`, `src/app/admin/creation-univers-actions.ts` et `src/app/admin/promoteurs/partenaires/actions.ts`.
-- **Limite non corrigée :** `src/app/admin/actions.ts` (`creerPharmacie`) vérifie toujours le rôle mais pas explicitement `actif`. La modification n'a pas abouti via l'outil GitHub disponible; ce point reste rouge. La protection du layout ne remplace pas la garde de chaque action serveur.
+- **Correction appliquée après approbation utilisateur :** `src/app/admin/actions.ts` (`creerPharmacie`) appelle désormais `requireAdminActive("/admin")`. Le fichier a été relu sur la branche et l'ancien contrôle isolé du rôle a disparu. Commit `14d9ed1b96f3f0b9cd0629ad50a5e6e216cb1b99`.
 
 **Statut A/B :** 🟢 corrections statiques consignées et revues; 🟡 build, lint, tests et test navigateur non exécutés. Les KPI peuvent encore afficher leurs valeurs de repli, mais la bannière signale maintenant qu'ils sont incomplets.
 
@@ -644,8 +644,8 @@ La page `/admin/promoteurs` et la fiche `/admin/promoteurs/partenaires/[id]` dé
 Solution : examiner l'ordre et le contenu des migrations, comparer au schéma/historique de l'environnement approuvé, puis n'appliquer que sur autorisation explicite. Vérifier ensuite RLS, grants, RPC et cas d'échec/compensation.
 
 ### Contradictions UI / métier
-- **KYC omis dans la fiche détaillée :** le formulaire enregistre sept indicateurs dont `kyc`, mais la fiche détail n'affiche que six pièces et ne liste pas KYC. 🔴 Correction requise.
-- **Erreur transformée en 404 :** la fiche détail fait `notFound()` pour toute erreur SQL ou absence de dossier. Une table absente ou une erreur de permission peut être confondue avec un dossier inexistant. 🟠 Améliorer la distinction sans exposer les messages SQL.
+- **KYC :** corrigé après approbation. La fiche détail affiche maintenant `Know Your Customer (KYC)` en première position. Commit `b21c76dbbdbdeb5fec391eae9349ea654b90043f`.
+- **Erreur transformée en 404 :** corrigé statiquement après approbation. Une erreur de lecture est journalisée (code/message) puis déclenche une erreur technique générique; seul un résultat sans dossier déclenche `notFound()`. Commit `b21c76dbbdbdeb5fec391eae9349ea654b90043f`. Le rendu de la page d'erreur et les logs n'ont pas été testés en runtime.
 - **« Aide NAXA » :** absente du sélecteur courant, mais encore dans les dictionnaires de libellés Promoteurs et dans le SQL qui accepte le slug `aide`. 🟠 Vérifier le référentiel et les dossiers existants avant toute suppression.
 - **Justificatifs :** la fiche précise que les cases ne remplacent pas des fichiers authentifiés. Conserver cette distinction; l'upload et l'accès aux pièces restent à auditer. 🟡
 - **Bébé & Maman :** l'action valide UUID et pharmacie active/visible, puis appelle une RPC qui recontrôle l'autorisation et l'éligibilité; cohérent statiquement, mais runtime bloqué par la migration absente. 🟡
@@ -654,10 +654,32 @@ Solution : examiner l'ordre et le contenu des migrations, comparer au schéma/hi
 |---|---|
 | Garde Admin commun sur layout et pages ciblées | 🟢 statique; tests non exécutés |
 | Erreurs de données du dashboard | 🟢 statique; test de panne non exécuté |
-| Garde `actif` de création pharmacie | 🔴 ouvert |
+| Garde `actif` de création pharmacie | 🟢 code corrigé; tests non exécutés |
 | Migrations dossiers partenaires / RPC | 🔴 absentes de la base vérifiée; aucune migration appliquée |
-| Affichage KYC en fiche partenaire | 🔴 ouvert |
-| 404 indistinguable d'une erreur technique | 🟠 ouvert |
+| Affichage KYC en fiche partenaire | 🟢 code corrigé; tests non exécutés |
+| 404 indistinguable d'une erreur technique | 🟢 distinction statique corrigée; runtime non testé |
 | Référentiel « Aide NAXA » | 🟠 à arbitrer |
 
 Aucune modification de données, migration, fusion ou mise en production n'a été exécutée.
+
+
+## 16. Lot 3 — suite de l'audit des actions serveur Promoteurs
+
+### Périmètre examiné
+Lecture statique de `src/app/admin/creation-univers-actions.ts`, `src/app/admin/promoteurs/partenaires/actions.ts` et des dépendances SQL de création/validation des dossiers. Aucun test runtime ni écriture de données n'a été effectué.
+
+### Contradictions et risques à confirmer
+- **Création d'un compte Auth avant la RPC métier :** `creerDossierUnivers` crée l'utilisateur via `supabaseAdmin().auth.admin.createUser`, puis appelle `admin_create_partner_dossier` via le client de session. Si la RPC échoue, le code supprime l'utilisateur, mais ne vérifie pas le résultat de la compensation. Il faut contrôler les effets éventuels de trigger (profil, audit ou lignes liées) et la cohérence avec le contrat SQL.
+- **Échec de création peu observable :** les erreurs de création Auth et RPC redirigent vers un message générique sans journalisation structurée de l'étape/code; les détails ne doivent pas être exposés à l'utilisateur, mais doivent permettre le diagnostic serveur.
+- **Contrôle de rôle :** les actions nouvellement examinées doivent toutes utiliser le garde actif partagé, et les RPC doivent également faire leur propre contrôle de rôle et d'autorisation. Une garde TypeScript ne remplace pas une vérification SQL.
+- **Dépendance non déployée :** `admin_create_partner_dossier` et la table `admin_partner_dossiers` demeurent absentes de l'environnement Supabase vérifié. En conséquence, le parcours de création/consultation n'est pas déclaré opérationnel, même si le code client est cohérent statiquement.
+- **Données KYC :** le formulaire envoie `kyc` dans `documents_received`; la persistance effective dépend du schéma/RPC non présent dans la base vérifiée. La correction d'affichage n'atteste donc pas que le KYC est réellement persisté en production.
+
+### État du lot
+- Garde d'accès dans `creerPharmacie`, affichage KYC et distinction erreur/404 : 🟢 corrections statiques revues.
+- Cohérence des actions serveur, compensation Auth et garanties SQL : 🟠 audit statique en cours.
+- Parcours transversal dossiers partenaires en base : 🔴 bloqué par la divergence schéma/migrations; aucune migration appliquée.
+- Build, lint, tests automatisés et test navigateur : non exécutés.
+
+### Prochaine décision
+Avant toute nouvelle correction métier, terminer l'inspection des fonctions SQL et du cycle de compensation, documenter chaque anomalie avec preuve et correction proposée, puis demander validation de l'utilisateur. Aucune migration, fusion dans `main` ou mise en production n'est autorisée par ce lot.
