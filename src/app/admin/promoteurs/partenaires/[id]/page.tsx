@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { validerDossierPartenaire } from "../actions";
 
 type Props = { params: { id: string }; searchParams?: { ok?: string; erreur?: string } };
@@ -10,24 +11,28 @@ const universes: Record<string, string> = {
 };
 const statuses: Record<string, string> = { pending: "À vérifier", validated: "Validé", rejected: "Rejeté" };
 const docs: [string, string][] = [
+  ["kyc", "Know Your Customer (KYC)"],
   ["piece_existence_legale", "Pièce d’existence légale"], ["registre_commerce", "Registre de commerce"],
   ["niu", "Numéro d’identifiant unique (NIU)"], ["attestation_non_redevance", "Attestation de non-redevance"],
   ["plan_localisation", "Plan de localisation"], ["cni_promoteur", "CNI du Promoteur"],
 ];
 
 export default async function DossierPartenaire({ params, searchParams }: Props) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/promoteurs");
-  const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin" || profile.actif !== true) redirect("/");
+  await requireAdminActive("/admin/promoteurs");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.id)) notFound();
 
   const db = supabaseAdmin();
   const { data: dossier, error } = await db.from("admin_partner_dossiers")
     .select("partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,architecture_code,documents_received,dossier_status,created_at,partners!inner(id,name,partner_type,city,neighborhood,address_private,phone_private,whatsapp,latitude,longitude,status),profiles!inner(username,first_name,last_name,phone,phone_country,date_of_birth)")
     .eq("partner_id", params.id).maybeSingle();
-  if (error || !dossier) notFound();
+  if (error) {
+    console.error("[admin.promoteurs.dossier] lecture impossible", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new Error("Impossible de charger le dossier Promoteur. Réessayez plus tard ou consultez les journaux techniques.");
+  }
+  if (!dossier) notFound();
   const partner = (dossier as any).partners;
   const owner = (dossier as any).profiles;
   const authOwner = await db.auth.admin.getUserById(dossier.promoteur_id);

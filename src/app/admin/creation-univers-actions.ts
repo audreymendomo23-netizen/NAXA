@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { PROMOTEUR_VALIDATION, normalizePromoteurPhone, validatePromoteurPhone, type PromoteurPhoneCountry } from "@/lib/promoteur-validation";
 
 const allowed = ["parapharmacie", "examens", "prestations"] as const;
@@ -10,11 +11,7 @@ const architectures = ["ORPHELIN", "PARENTS_ENFANTS", "PARENTS_AINES_CADETS", "H
 const get = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
 export async function creerDossierUnivers(form: FormData) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin");
-  const { data: admin } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (admin?.role !== "admin" || admin.actif !== true) redirect("/");
+  const { sb } = await requireAdminActive("/admin");
 
   const universe = get(form, "universe_slug");
   const country = get(form, "phone_country").toUpperCase() as PromoteurPhoneCountry;
@@ -66,7 +63,13 @@ export async function creerDossierUnivers(form: FormData) {
       date_of_birth: dob, consent_accepted: true,
     },
   });
-  if (created.error || !created.data.user) redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
+  if (created.error || !created.data.user) {
+    console.error("[admin][creerDossierUnivers] Auth user creation failed", {
+      code: created.error?.code ?? "missing_user",
+      message: created.error?.message ?? "Auth returned no user",
+    });
+    redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
+  }
   const ownerId = created.data.user.id;
   const docs = {
     kyc: form.get("kyc") === "oui",
@@ -87,7 +90,21 @@ export async function creerDossierUnivers(form: FormData) {
     p_documents_received: docs,
   });
   if (error || !partnerId) {
-    await db.auth.admin.deleteUser(ownerId);
+    console.error("[admin][creerDossierUnivers] Partner dossier RPC failed", {
+      code: error?.code ?? "missing_partner_id",
+      message: error?.message ?? "RPC returned no partner ID",
+    });
+
+    // Compensation best-effort: record its outcome for operational follow-up.
+    // Never expose backend details or the Auth user ID in the redirect.
+    const compensation = await db.auth.admin.deleteUser(ownerId);
+    if (compensation.error) {
+      console.error("[admin][creerDossierUnivers] Auth compensation failed; manual review required", {
+        code: compensation.error.code ?? "unknown",
+        message: compensation.error.message,
+      });
+    }
+
     redirect("/admin?erreur=dossier&univers=" + encodeURIComponent(universe));
   }
   revalidatePath("/admin");

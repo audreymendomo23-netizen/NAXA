@@ -232,7 +232,7 @@ begin
   if not found then raise exception 'Réservation introuvable'; end if;
   select (r.client_id=uid)
     or exists(select 1 from public.partner_members pm where pm.partner_id=r.partner_id and pm.user_id=uid)
-    or exists(select 1 from public.profiles p where p.id=uid and p.role='admin')
+    or public.is_admin()
     or exists(select 1 from public.promoteur_pharmacies pp where pp.pharmacie_id=r.pharmacie_id and pp.promoteur_id=uid and pp.actif=true)
     into allowed;
   if not allowed then raise exception 'Accès refusé'; end if;

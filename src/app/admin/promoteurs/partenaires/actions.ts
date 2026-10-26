@@ -2,14 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 async function requireAdmin() {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/promoteurs");
-  const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin" || profile.actif !== true) redirect("/");
+  const { sb } = await requireAdminActive("/admin/promoteurs");
   return sb;
 }
 

@@ -1,15 +1,11 @@
 "use server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { genererFiche } from "@/lib/ia";
 
 async function exigerAdmin() {
-  const sb = supabaseServer();
-  const { data: u } = await sb.auth.getUser();
-  if (!u.user) redirect("/connexion?retour=/admin/produits");
-  const { data: p } = await sb.from("profiles").select("role").eq("id", u.user.id).single();
-  if (p?.role !== "admin") redirect("/");
+  const { sb } = await requireAdminActive("/admin/produits");
   return sb;
 }
 const texte = (f: FormData, k: string, max: number) => String(f.get(k) ?? "").trim().slice(0, max) || null;

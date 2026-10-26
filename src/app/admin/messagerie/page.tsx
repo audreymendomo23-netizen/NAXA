@@ -1,14 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { AdminInbox } from "@/components/admin/AdminInbox";
 
 export default async function AdminMessagerie() {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/messagerie");
-  const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin" || profile.actif === false) redirect("/");
+  const { sb } = await requireAdminActive("/admin/messagerie");
   const { data: tickets, error: ticketError } = await sb.from("tickets_support")
     .select("id,auteur_profile_id,pharmacie_id,sujet,type,statut,created_at")
     .order("created_at", { ascending: false }).limit(100);

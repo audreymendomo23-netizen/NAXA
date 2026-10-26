@@ -1,17 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { setHomeServiceOfferStatus } from "./actions";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 
 const statusLabel: Record<string, string> = { draft: "Brouillon", active: "Publié", archived: "Archivé" };
 
 export default async function AdminHomeServices({ searchParams }: { searchParams: { ok?: string; erreur?: string; q?: string; statut?: string } }) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/prestations");
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin") redirect("/");
+  const { sb } = await requireAdminActive("/admin/prestations");
 
   const { data: offers, error } = await sb.from("home_service_offers")
     .select("id,partner_id,name,category,description,service_area_label,price_fcfa,status,created_at,partners!inner(name,city,neighborhood,status,partner_type)")

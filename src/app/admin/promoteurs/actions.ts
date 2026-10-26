@@ -1,15 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 async function exigerAdmin() {
-  const db = supabaseServer();
-  const { data: auth } = await db.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/promoteurs");
-  const { data: profile, error } = await db.from("profiles").select("role").eq("id", auth.user.id).single();
-  if (error || profile?.role !== "admin") redirect("/");
-  return db;
+  const { sb } = await requireAdminActive("/admin/promoteurs");
+  return sb;
 }
 
 export async function mettreAJourPiecesRecues(formData: FormData) {

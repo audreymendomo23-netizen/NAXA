@@ -1,15 +1,12 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseAdmin,supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 async function exigerAdmin(){
- const sb=supabaseServer();
- const{data:u}=await sb.auth.getUser();
- if(!u.user)redirect("/connexion?retour=/admin/pilotage/validite");
- const{data:p}=await sb.from("profiles").select("role,actif").eq("id",u.user.id).single();
- if(p?.role!=="admin" || p.actif!==true)redirect("/");
- return u.user.id;
+ const { user } = await requireAdminActive("/admin/pilotage/validite");
+ return user.id;
 }
 export async function reactiverPromoteur(formData:FormData){
  const adminId=await exigerAdmin();
