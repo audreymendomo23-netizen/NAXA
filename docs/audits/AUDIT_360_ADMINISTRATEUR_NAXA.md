@@ -471,3 +471,22 @@ Contrôle limité aux fichiers suivants sur `main` : `src/lib/admin/require-admi
 - **Limite de couverture :** seuls deux fichiers de route `src/app/api/admin/` ont été confirmés dans l'inventaire initial; cela n'établit pas que les contrôles sont uniformes dans les autres API, Server Actions, RPC SQL, politiques RLS ou tâches planifiées. La revue complète reste ouverte.
 
 Aucune route, règle d'accès, fonction SQL ou configuration n'a été modifiée.
+
+
+## 26. Corroboration SQL en lecture seule — politiques et privilèges
+
+Une requête directe au catalogue PostgreSQL confirme les cinq tables signalées par l'advisor : RLS activé, zéro politique déclarée et `FORCE ROW LEVEL SECURITY = false`. Les cinq objets restent à qualifier selon leur mode d'accès prévu et leurs privilèges de table; l'absence de politique RLS ne signifie pas à elle seule qu'un utilisateur authentifié peut les lire.
+
+La même vérification confirme que `profiles.actif` et `profiles.role` sont `NOT NULL`, avec `actif` par défaut à `true`. **Précision sur PRE-039 :** la différence de condition entre le helper Admin et la route messagerie ne crée pas de voie d'accès via une valeur NULL dans le schéma live actuel; l'écart est une incohérence de contrat/code à traiter lors de l'audit détaillé, pas une vulnérabilité démontrée.
+
+### Fonctions exposées — échantillon du catalogue PostgreSQL
+
+- `public.get_home_service_catalog()` : `SECURITY DEFINER`, exécution accordée à `anon` et `authenticated`, paramètre `search_path=public, pg_temp`.
+- `public.get_universe_catalog(text)` : `SECURITY DEFINER`, exécution accordée à `anon` et `authenticated`, `search_path` vide.
+- `public.marketplace_offre_stock_disponible(uuid, uuid)` : `SECURITY DEFINER`, exécution accordée à `anon` et `authenticated`, `search_path` vide.
+- `public.produits_populaires(integer, integer)` : `SECURITY DEFINER`, exécution accordée à `anon` et `authenticated`, `search_path` vide.
+- `public.universe_partner_is_public(uuid, text)` : `SECURITY DEFINER`, exécution accordée à `anon` et `authenticated`, `search_path=public`.
+- `private.is_admin()` : `SECURITY DEFINER`, exécution refusée à `anon`, accordée à `authenticated`, `search_path` vide.
+- `public.validites_promoteurs_admin()` : `SECURITY DEFINER`, exécution refusée à `anon`, accordée à `authenticated`, `search_path` vide.
+
+Ces résultats sont des privilèges effectifs et réglages observés dans le catalogue au moment de la requête. Ils ne prouvent pas à eux seuls qu'une donnée privée est divulguée : il faut examiner le corps complet, les filtres, les rôles propriétaires, les droits sur les tables sous-jacentes et les règles d'exposition API. Le `search_path` explicite `public` (ou `public, pg_temp`) sur deux fonctions exposées mérite une revue prioritaire et une comparaison avec les migrations versionnées. **Aucun privilège ni réglage n'a été changé.**
