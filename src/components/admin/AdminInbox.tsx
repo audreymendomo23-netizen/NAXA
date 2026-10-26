@@ -24,13 +24,13 @@ export function AdminInbox({ tickets, messages }: { tickets: Ticket[]; messages:
       const sb = supabaseBrowser();
       const { data: auth } = await sb.auth.getUser();
       if (!auth.user) { setError("La session administrateur a expiré."); return; }
-      const { error: insertError } = await sb.from("messages_support").insert({
-        ticket_id: current.id,
-        auteur_profile_id: auth.user.id,
-        contenu: reply.trim(),
-        interne: false,
+      const response = await fetch("/api/admin/messagerie", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_id: current.id, contenu: reply.trim() }),
       });
-      if (insertError) { setError("La réponse n’a pas été envoyée. Vérifiez les autorisations de messagerie puis réessayez."); return; }
+      const result = await response.json();
+      if (!response.ok) { setError(result.error || "La réponse n’a pas été envoyée. Réessayez."); return; }
       setReply("");
       setSuccess("Réponse envoyée.");
       router.refresh();
