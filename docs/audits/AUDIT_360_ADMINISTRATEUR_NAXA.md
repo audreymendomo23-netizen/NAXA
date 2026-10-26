@@ -490,3 +490,20 @@ La même vérification confirme que `profiles.actif` et `profiles.role` sont `NO
 - `public.validites_promoteurs_admin()` : `SECURITY DEFINER`, exécution refusée à `anon`, accordée à `authenticated`, `search_path` vide.
 
 Ces résultats sont des privilèges effectifs et réglages observés dans le catalogue au moment de la requête. Ils ne prouvent pas à eux seuls qu'une donnée privée est divulguée : il faut examiner le corps complet, les filtres, les rôles propriétaires, les droits sur les tables sous-jacentes et les règles d'exposition API. Le `search_path` explicite `public` (ou `public, pg_temp`) sur deux fonctions exposées mérite une revue prioritaire et une comparaison avec les migrations versionnées. **Aucun privilège ni réglage n'a été changé.**
+
+
+## 27. Couverture globale des fonctions SECURITY DEFINER — catalogue live
+
+Le comptage direct des fonctions PostgreSQL du schéma `public` et `private` donne :
+
+| Schéma | Fonctions SECURITY DEFINER | Exécutables par anon | Exécutables par authenticated | Sans réglage explicite de search_path |
+|---|---:|---:|---:|---:|
+| `public` | 189 | 5 | 120 | 0 |
+| `private` | 36 | 0 | 27 | 0 |
+
+- **Précision importante :** aucune fonction de ces deux schémas n'est ressortie sans réglage explicite `search_path` dans cette requête. Cela nuance le signal historique « search_path à revoir » : la revue porte maintenant sur la sûreté du chemin défini et les objets réellement appelés, pas sur une absence générale de réglage.
+- Le schéma `public` ne permet pas `CREATE` aux rôles `anon` ni `authenticated` selon `has_schema_privilege`. Le schéma `private` refuse `USAGE` à `anon`, mais l'accorde à `authenticated`. Ces droits doivent être considérés avec les privilèges d'exécution des fonctions, les propriétaires et les politiques sous-jacentes.
+- Le fait qu'une fonction `SECURITY DEFINER` soit exécutable par un rôle n'établit pas à lui seul une faille. Pour chaque fonction exposée, l'audit détaillé devra confirmer l'intention d'exposition, l'authentification métier interne, la validation des paramètres, les données renvoyées et le moindre privilège.
+- Les fonctions `get_home_service_catalog` et `universe_partner_is_public` utilisent respectivement `search_path=public, pg_temp` et `search_path=public`; les objets de leurs corps doivent être qualifiés et le risque lié à `pg_temp` revu. Aucune modification n'a été appliquée.
+
+Ce relevé provient du catalogue SQL live, en lecture seule. Il n'inclut pas une revue manuelle exhaustive des 225 corps de fonctions ni un test d'exploitation.
