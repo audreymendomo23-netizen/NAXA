@@ -809,3 +809,41 @@ La page d’accueil détecte les erreurs des trois sources (pharmacies, validit�
 - **Conforme dans le code :** garde serveur partagé Admin actif; états d’erreur partielle explicitement signalés; indication que l’horodatage ne prouve pas une rupture.
 - **Écarts/points à arbitrer :** (1) parent de navigation actif sur les routes imbriquées; (2) périmètre des pharmacies démo sur les KPI/alertes; (3) définition du compteur d’alertes comme signaux ou dossiers; (4) accès direct aux sous-sections Prestations/Examens.
 - **Suite méthodologique :** poursuivre l’audit détaillé page par page et rapprocher chaque constat des règles métier avant de proposer une correction. Aucune correction n’a été appliquée dans ce lot; aucune validation navigateur, compilation ou test automatisé n’est revendiqué.
+
+
+## 43. Audit détaillé — Lot 2 : Alertes, Journal, Configuration et Messagerie
+
+**Périmètre examiné :** pages `/admin/alertes`, `/admin/journal`, `/admin/configuration`, `/admin/messagerie`, composant `AdminInbox` et route `POST /api/admin/messagerie`. Lecture statique uniquement; aucune réponse n’a été envoyée, aucune préférence locale n’a été modifiée et aucun test d’écriture n’a été effectué.
+
+### Alertes réseau
+
+- Le garde serveur `requireAdminActive` est présent.
+- Les alertes de stock manquant, pharmacie inactive/masquée et convention en retard sont affichées séparément; le texte précise correctement qu’une date de stock manquante ne prouve pas une rupture.
+- Comme sur le tableau de bord, la requête des pharmacies ne filtre pas `est_demo`. Les pharmacies de démonstration peuvent donc apparaître dans les alertes et gonfler les nombres; à harmoniser avec le périmètre du Pilotage qui exclut les démos.
+- En cas d’erreur de source, un avertissement visible est rendu. Les valeurs de la source défaillante sont néanmoins traitées comme des listes vides; l’avertissement atténue le risque d’interprétation, mais les KPI partiels restent visibles.
+
+### Journal d’administration
+
+- Le garde serveur Admin actif est présent; lecture limitée aux 200 événements les plus récents.
+- L’écran affiche acteur, identifiant d’entité et `metadata` JSON intégral. C’est utile pour l’investigation, mais la sûreté dépend de ce qui est inscrit dans `audit_log` : il faudra vérifier le contrat de rédaction des métadonnées afin de ne pas exposer de secrets, tokens ou données personnelles superflues dans la console. Aucun élément observé ici ne prouve qu’un secret est effectivement présent.
+- Le tri et le rendu du JSON sont statiques; aucun filtre ni pagination n’est visible dans le fichier examiné. À arbitrer selon le volume et le besoin d’investigation.
+
+### Configuration
+
+- Les préférences sont stockées dans `localStorage` sur l’appareil, pas dans le profil serveur. Le mode nuit met à jour les attributs/classes du document et la couleur de thème; la langue met à jour `document.documentElement.lang` et émet `naxa-language-updated`.
+- L’écran annonce explicitement que les écrans non traduits restent dans leur langue d’origine. Le choix anglais n’est donc pas une traduction complète de l’interface. Le `try/finally` de l’initialisation rétablit `ready` même si la lecture locale échoue; les écritures sont silencieusement ignorées si le stockage est inaccessible.
+- L’écran est protégé par le layout Admin partagé. Aucune modification de préférence n’a été exécutée pendant l’audit.
+
+### Messagerie — décalage de validation de longueur
+
+- Le composant `AdminInbox` autorise une réponse jusqu’à **5 000 caractères** (`maxLength={5000}`), mais l’API refuse tout message de plus de **2 000 caractères**. Pour les réponses de 2 001 à 5 000 caractères, l’interface laisse saisir un contenu que le serveur rejettera. **Écart fonctionnel confirmé dans le code**; aligner la limite affichée sur la règle serveur ou décider explicitement d’augmenter la limite côté serveur après validation du schéma et des règles métier.
+- Le garde de la route API vérifie `role='admin'`, mais utilise `profile.actif === false` plutôt que `profile.actif !== true`. Le schéma live examiné précédemment rend `profiles.actif` NOT NULL avec valeur par défaut true : un `NULL` ne peut donc pas contourner le garde dans l’état actuel du schéma. La différence reste une incohérence de défense en profondeur à harmoniser avec `requireAdminActive`.
+- La route valide la présence et la longueur du ticket/message, vérifie que le ticket existe et qu’il est ouvert, puis insère avec le client privilégié en fixant `interne=false`. Le contrôle de statut et l’insertion sont deux opérations distinctes : une fermeture concurrente entre ces opérations pourrait laisser passer une réponse sur un ticket devenu fermé. C’est un risque de concurrence à vérifier, pas un scénario reproduit.
+- Le contrôle actuel ne valide pas explicitement le format UUID du ticket, mais l’absence d’un UUID valide doit encore être confrontée au comportement PostgREST et à la gestion d’erreur; aucune conclusion d’exploitation n’est tirée.
+- L’interface confirme l’envoi après réponse HTTP réussie puis appelle `router.refresh()`. Elle n’affiche pas de note interne dans l’action d’envoi; les messages internes existants sont étiquetés à l’affichage.
+
+### Décision du lot 2
+
+- **Conforme dans le code examiné :** garde Admin actif sur les pages, limite de 200 événements dans le journal, avertissements en cas de sources indisponibles, validation serveur de l’état ouvert avant réponse, insertion des réponses publiques avec `interne=false`.
+- **Écarts confirmés ou à clarifier :** (1) limites UI/API de messagerie incompatibles (5 000 contre 2 000); (2) divergence de formulation du contrôle `actif` dans l’API; (3) inclusion des pharmacies démo dans les alertes; (4) contrat de sensibilité des métadonnées du journal; (5) atomicité entre vérification du ticket ouvert et insertion.
+- **Aucune correction appliquée** : les constats seront rapprochés des règles métier avant le lot de solution/validation. Compilation, tests automatisés et tests navigateur non exécutés dans cette étape.
