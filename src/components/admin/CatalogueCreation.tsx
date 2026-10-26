@@ -49,6 +49,7 @@ const errorText: Record<string, string> = {
   canal_unique: "La création initiale est centralisée dans le Catalogue NAXA. Utilisez le formulaire unique ci-dessous.",
   pharmacie_parrainage: "Choisissez une pharmacie partenaire active et visible dans la recherche.",
   service_bebe_maman: "Le service n’a pas pu être rattaché. Vérifiez que la migration de gestion des services est disponible.",
+  canal_unique: "La création initiale est centralisée dans le Catalogue NAXA. Utilisez le formulaire unique ci-dessous.",
 };
 
 export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, erreursChamps = {} }: Props) {
