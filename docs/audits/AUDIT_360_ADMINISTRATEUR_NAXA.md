@@ -969,3 +969,28 @@ Le parcours d'envoi, de liste et de validation de fichiers qui dépend de ces ob
 - **Distinction confirmée :** le registre de réception déclarative `pharmacie_documents_recus` existe et est distinct du stockage de fichiers et de l'historique de validation.
 - **À instruire ensuite :** retrouver tous les appels applicatifs aux tables/bucket, vérifier le flux d'upload/compensation, les privilèges et le statut exact des migrations historiques avant de proposer une correction.
 - **Aucune correction appliquée :** aucune migration, requête d'écriture, opération Storage, test d'envoi, branche ni déploiement n'a été lancé.
+
+
+## 47. Flux documentaire — erreurs de lecture, compensation et dépendances de migration
+
+### 47.1 Contrôle des dépendances amont
+
+La revue du contrat SQL `supabase/tests/155_pharmacie_documents_and_manual_renewal_contract.sql` indique qu'il attend aussi la table `public.admin_pharmacie_audit` et la migration `20261022143000_admin_renouvellement_manuel_audit.sql`. Le fichier de migration existe dans `main`, mais la requête en lecture seule de l'historique live ne retourne aucune entrée correspondante et le catalogue ne retourne pas `public.admin_pharmacie_audit`. Cela élargit le constat : le problème n'est pas limité à la migration documentaire de 15:00; le lot de renouvellement manuel/audit associé semble lui aussi présent dans Git sans ses objets attendus en live. Cette requête est un contrôle ciblé, pas une preuve exhaustive de toutes les migrations non appliquées.
+
+### 47.2 Contradictions observées dans le code applicatif
+
+- Dans `src/app/admin/pharmacies/[id]/page.tsx`, la lecture de `pharmacie_documents` récupère `data` mais ne conserve pas `error`. Si la table est absente ou la lecture échoue, `documents` peut être nul et le rendu affiche le même état que lorsqu'il n'existe réellement aucun fichier (« Aucun fichier documentaire enregistré »). L'interface ne distingue donc pas absence de documents et indisponibilité du registre.
+- La lecture de `pharmacie_document_historique` ne conserve pas non plus l'erreur. Un registre d'historique indisponible peut être présenté comme « Aucun événement d’historique disponible », ce qui est trompeur en situation de dérive du schéma.
+- L'action `deposerDocumentPharmacie` contrôle l'utilisateur et le rôle Admin actif, valide le type MIME déclaré, la taille (1 octet à 10 Mio) et l'UUID de pharmacie, puis téléverse avant d'insérer la ligne en base. Si l'insertion échoue, elle tente de supprimer le fichier Storage, ce qui est une compensation utile. Toutefois, l'erreur de suppression est ignorée : une suppression échouée peut laisser un objet orphelin sans signal visible.
+- La décision de validation/rejet utilise un UPDATE conditionnel sur l'identifiant, la pharmacie et le statut `en_attente`, puis vérifie qu'une ligne a été retournée. Cela protège raisonnablement contre une double décision concurrente; aucune décision réelle n'a été déclenchée.
+- Le contrôle de consultation vérifie le rattachement du document à la pharmacie et impose le bucket attendu avant de produire une URL signée valable 60 secondes. Le contrôle applicatif est présent, mais le parcours ne peut pas fonctionner tant que les objets et le bucket n'existent pas en live.
+- La migration documentaire journalise chaque INSERT et UPDATE, même si le statut ne change pas. Elle n'a pas de chemin explicite de suppression de fichier documentaire ni de suppression de ligne documentée dans l'interface examinée. Le cycle de vie des pièces remplacées et la politique de conservation doivent être définis avant correction.
+
+### 47.3 Classement et prochaine vérification
+
+- **Priorité haute — cohérence d'environnement :** deux migrations sources liées au dossier Promoteur/pharmacie et leurs objets attendus ne sont pas retrouvés dans l'historique/catalogue live. Ne pas appliquer automatiquement ces migrations pendant l'audit; comparer d'abord leur intégralité, leurs prérequis, leurs politiques et l'état de la base.
+- **Priorité haute — exactitude du diagnostic UI :** les erreurs de lecture du registre documentaire et de son historique sont absorbées comme listes vides, ce qui peut masquer la panne réelle.
+- **Priorité moyenne — compensation :** la suppression compensatoire après échec d'insertion n'est pas vérifiée ni journalisée; risque d'objet Storage orphelin.
+- **Non exécuté :** le contrat SQL 155 n'a pas été lancé; aucun upload, validation/rejet, suppression Storage, écriture SQL, migration, branche ou déploiement n'a été réalisé.
+
+La suite de l'audit doit examiner le SQL complet des deux migrations et les autres dépendances de `admin_pharmacie_audit`, puis vérifier les gardes, contraintes, politiques et parcours de renouvellement manuel sans effectuer de mutation.
