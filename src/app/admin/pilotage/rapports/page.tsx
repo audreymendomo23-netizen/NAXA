@@ -7,7 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 
 type RapportEnregistre = { id: string; periode: string; du: string; au: string; texte: string; pharmacie_nom?: string | null };
-type Instantane = { pharmacies: number; promoteurs: number; produits: number; reservations: number; ventes: number; demandes: number; revenus: number };
+type Instantane = { pharmacies: number; pharmacies_actives: number; promoteurs: number; produits_en_stock: number; recherches: number; recherches_sans_resultat: number; reservations: number; ventes: number; revenus_fcfa: number; ruptures: number; alertes: number; taux_conversion_vente: number };
 
 export default function Reports() {
   const [data, setData] = useState<RapportEnregistre[]>([]);
@@ -49,7 +49,7 @@ export default function Reports() {
         return;
       }
       const row = json.instantane as Instantane | undefined;
-      if (!row || !["pharmacies", "promoteurs", "produits", "reservations", "ventes", "demandes", "revenus"].every((key) => typeof row[key as keyof Instantane] === "number")) {
+      if (!row || !["pharmacies", "pharmacies_actives", "promoteurs", "produits_en_stock", "recherches", "recherches_sans_resultat", "reservations", "ventes", "revenus_fcfa", "ruptures", "alertes", "taux_conversion_vente"].every((key) => typeof row[key as keyof Instantane] === "number")) {
         setErr("Le serveur n’a pas renvoyé un rapport exploitable.");
         return;
       }
@@ -72,12 +72,17 @@ export default function Reports() {
       { indicateur: "Période", valeur: `${jours} derniers jours` },
       { indicateur: "Généré le", valeur: dateGeneration },
       { indicateur: "Pharmacies", valeur: instantane.pharmacies },
-      { indicateur: "Promoteurs", valeur: instantane.promoteurs },
-      { indicateur: "Produits", valeur: instantane.produits },
+      { indicateur: "Pharmacies actives", valeur: instantane.pharmacies_actives },
+      { indicateur: "Promoteurs actifs", valeur: instantane.promoteurs },
+      { indicateur: "Produits en stock", valeur: instantane.produits_en_stock },
+      { indicateur: "Recherches", valeur: instantane.recherches },
+      { indicateur: "Recherches sans résultat", valeur: instantane.recherches_sans_resultat },
       { indicateur: "Réservations", valeur: instantane.reservations },
       { indicateur: "Ventes", valeur: instantane.ventes },
-      { indicateur: "Demandes", valeur: instantane.demandes },
-      { indicateur: "Revenus (FCFA)", valeur: instantane.revenus },
+      { indicateur: "Revenus (FCFA)", valeur: instantane.revenus_fcfa },
+      { indicateur: "Ruptures de stock", valeur: instantane.ruptures },
+      { indicateur: "Alertes non lues", valeur: instantane.alertes },
+      { indicateur: "Taux de conversion vente (%)", valeur: instantane.taux_conversion_vente },
     ];
   }
 
