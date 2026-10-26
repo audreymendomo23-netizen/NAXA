@@ -717,7 +717,15 @@ Le parcours de création Promoteur crée un utilisateur Auth avant l'appel RPC `
 
 ### État de progression actualisé
 - Garde active dans les actions Promoteurs : 🟢 correction statique appliquée et relue; tests non exécutés.
-- Compensation Auth/RPC : 🟠 anomalie statique documentée, correction non appliquée.
+- Compensation Auth/RPC : 🟢 journalisation serveur et vérification de la compensation ajoutées, relecture statique effectuée; tests runtime non exécutés.
 - Divergence schéma/migrations Supabase : 🔴 bloquante; aucune migration appliquée.
 - Aucun merge dans `main`, aucun déploiement.
 - Build, lint, typecheck, tests et navigateur : non exécutés.
+
+
+### 16.4 Journal des corrections appliquées dans cette progression
+
+1. `src/app/admin/promoteurs/actions.ts` — commit `85451fccfd0432bf2dedcf3edfc0e88705071444`: garde locale remplacée par `requireAdminActive("/admin/promoteurs")`.
+2. `src/app/admin/creation-univers-actions.ts` — commit `7bd02f1cdba184dbe6367069e8f545b899072e5f`: ajout de journaux serveur pour échec Auth/RPC et vérification/journalisation de la suppression compensatoire.
+
+Relecture statique de ces deux fichiers confirmée après écriture. Aucun test automatisé, lint, typecheck, build ou test navigateur exécuté. Aucune écriture Supabase, migration, fusion dans `main` ou mise en production.
