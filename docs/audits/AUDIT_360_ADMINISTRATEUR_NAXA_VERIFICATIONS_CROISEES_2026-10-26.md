@@ -267,3 +267,21 @@ Vérification statique des substitutions et des contenus avant création du comm
 
 ### Statut de cette passe
 La correction RLS du journal est **appliquée et vérifiée dans le catalogue Supabase**. La clôture complète du chantier Administrateur n'est pas encore justifiée tant que les contrôles ci-dessus et les validations automatisées n'ont pas été menés. Aucun déploiement applicatif n'a été lancé.
+
+
+## 15. Écart bloquant du registre de fichiers documentaires — correction de l'écran et décision de base
+
+### Fait établi
+- Le catalogue Supabase du projet Naxa liste la table pharmacie_documents_recus, mais ne liste ni pharmacie_documents ni pharmacie_document_historique. L'historique de migrations live ne contient pas la migration Git 20261022150000_pharmacie_documents_fichiers_validation_historique.sql.
+- L'écran src/app/admin/pharmacies/[id]/page.tsx et ses actions de serveur dépendent pourtant de ces deux tables ainsi que du bucket privé pharmacie-documents. Avant correction, l'échec de lecture du registre des fichiers était ignoré et l'écran pouvait afficher un compteur zéro / « aucun fichier » à tort.
+
+### Correction de code appliquée sur main
+- La page récupère désormais explicitement l'erreur de lecture de pharmacie_documents et affiche un avertissement « registre documentaire indisponible » au lieu d'affirmer que le dossier est vide.
+- Le compteur du dossier indique « Indisponible » et le formulaire de dépôt est masqué lorsque la table ne peut pas être lue ; le panneau d'historique documentaire signale lui aussi l'indisponibilité. Cela empêche de présenter une panne de schéma comme une absence de pièces.
+- Cette correction est une protection d'interface et non le rétablissement du service documentaire.
+
+### Point restant pour la clôture réelle
+La migration documentaire n'a pas été appliquée à Supabase dans cette passe : l'autorisation d'application reçue portait sur la migration du journal Admin. Le dépôt contient le SQL de cette migration, mais l'application du parcours de dépôt de fichiers demeure bloquée tant que le schéma/bucket n'est pas réconcilié et installé de manière autorisée. Ne pas déclarer le dépôt, la consultation ou la validation des fichiers opérationnels avant cette étape et un test de bout en bout.
+
+### Validation
+La présence/absence des tables a été contrôlée via l'inventaire du schéma ; la correction a été écrite sur main. Aucun fichier n'a été déposé, aucun document métier modifié, aucune migration documentaire appliquée, aucun test navigateur/build/lint lancé, aucun déploiement lancé.
