@@ -1,11 +1,10 @@
 import Link from "next/link";
-import {redirect} from "next/navigation";
-import {supabaseServer} from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import {statutCentreExamen,statutPackExamen,statutServiceExamen} from "./actions";
 const centerLabels:Record<string,string>={draft:"Brouillon",active:"Publié",suspended:"Suspendu"};
 const itemLabels:Record<string,string>={draft:"Brouillon",active:"Publié",archived:"Archivé"};
 export default async function AdminExamens({searchParams}:{searchParams:{ok?:string;erreur?:string}}){
- const sb=supabaseServer();const {data:a}=await sb.auth.getUser();if(!a.user)redirect("/connexion?retour=/admin/examens");const {data:p}=await sb.from("profiles").select("role").eq("id",a.user.id).maybeSingle();if(p?.role!=="admin")redirect("/");
+ const { sb } = await requireAdminActive("/admin/examens");
  const [{data:centers,error:ce},{data:services,error:se},{data:packs,error:pe},{data:appointments,error:ae}]=await Promise.all([
   sb.from("exam_centers").select("id,partner_id,display_name,address_label,status,created_at").order("created_at",{ascending:false}).limit(200),
   sb.from("exam_services").select("id,center_id,name,category,price_fcfa,status").order("created_at",{ascending:false}).limit(300),
