@@ -173,4 +173,44 @@ $fn$;
 revoke all on function public.admin_set_pharmacie_bebe_maman_service(uuid,boolean) from public, anon;
 grant execute on function public.admin_set_pharmacie_bebe_maman_service(uuid,boolean) to authenticated;
 
+
+create or replace function public.admin_valider_dossier_partenaire(p_partner_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $fn$
+declare
+  v_actor uuid := auth.uid();
+  v_universe text;
+begin
+  if not public.is_admin() then raise exception 'Accès administrateur requis' using errcode='42501'; end if;
+  if p_partner_id is null then raise exception 'Dossier partenaire requis' using errcode='22023'; end if;
+  select d.universe_slug into v_universe
+  from public.admin_partner_dossiers d
+  join public.partners p on p.id=d.partner_id
+  where d.partner_id=p_partner_id and d.dossier_status='pending' and p.status='pending'
+  for update of d,p;
+  if not found then raise exception 'Dossier partenaire introuvable ou déjà traité' using errcode='P0002'; end if;
+  if v_universe <> 'aide' and not exists(
+    select 1 from public.universes u
+    join public.feature_flags f on f.flag_key='universe.'||u.slug
+    where u.slug=v_universe and u.enabled=true and f.enabled=true
+  ) then raise exception 'Univers inactif' using errcode='23514'; end if;
+
+  update public.partners set status='active',verified_at=now(),verified_by=v_actor,updated_at=now()
+  where id=p_partner_id;
+  update public.partner_universes set enabled=true
+  where partner_id=p_partner_id and universe_slug=v_universe;
+  update public.admin_partner_dossiers set dossier_status='validated',updated_at=now()
+  where partner_id=p_partner_id;
+  insert into public.audit_log(actor_id,action,entity_type,entity_id,metadata)
+  values(v_actor,'partner.dossier_validated','admin_partner_dossier',p_partner_id::text,
+    jsonb_build_object('universe_slug',v_universe,'status','active'));
+end;
+$fn$;
+revoke all on function public.admin_valider_dossier_partenaire(uuid) from public, anon;
+grant execute on function public.admin_valider_dossier_partenaire(uuid) to authenticated;
+
+
 commit;
