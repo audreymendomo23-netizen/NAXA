@@ -42,6 +42,20 @@ begin
   if has_function_privilege('anon','public.admin_set_pharmacie_bebe_maman_service(uuid,boolean)','EXECUTE') then
     raise exception 'Le rôle anon ne doit pas activer les services pharmacie';
   end if;
+  if position('public.partners' in v_def) > 0 or position('public.partner_universes' in v_def) > 0 then
+    raise exception 'Bébé & Maman doit être un service de pharmacie, jamais un partenaire autonome';
+  end if;
+  select pg_get_functiondef(p.oid),p.prosecdef into v_def,v_secdef
+    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='admin_valider_dossier_partenaire';
+  if v_def is null or v_secdef is distinct from true
+     or position('public.is_admin()' in v_def)=0
+     or position('public.admin_partner_dossiers' in v_def)=0 then
+    raise exception 'Validation du dossier partenaire absente ou insuffisamment protégée';
+  end if;
+  if has_function_privilege('anon','public.admin_valider_dossier_partenaire(uuid)','EXECUTE') then
+    raise exception 'Le rôle anon ne doit pas valider les dossiers partenaires';
+  end if;
 end
 $test$;
 
