@@ -28,6 +28,7 @@ const universes: { value: Universe; label: string; description: string }[] = [
 
 const field = "champ mt-1 w-full";
 const documents = [
+  ["kyc", "Know Your Customer (KYC)"],
   ["piece_existence_legale", "Pièce d’existence légale"],
   ["registre_commerce", "Registre de commerce"],
   ["niu", "Numéro d’identifiant unique (NIU)"],
