@@ -1224,3 +1224,35 @@ Définitions live lues avec `pg_get_functiondef`, sans appel d'exécution ni cha
 - Le point le plus concret de ce lot est `caisse_ouvrir` : références non qualifiées dans une fonction `SECURITY DEFINER` et dépendance à `search_path=public`. **Il s'agit d'un risque de résolution de noms à corriger après validation, pas de la preuve qu'un attaquant peut actuellement injecter un objet dans `public`.**
 - Pour les quatre autres fonctions, le corps consulté montre des objets qualifiés et/ou des contrôles d'identité utiles; le chemin peut néanmoins être resserré pour réduire la surface de risque.
 - Aucune migration corrective n'a été créée ni appliquée dans cette étape, car cette partie reste documentaire et doit conserver l'approche de revue séquentielle avant les changements.
+
+
+## 30. Contrôle chronologique des migrations Marketplace, ticket POS et tests de sécurité — 26 octobre 2026
+
+### 30.1 Régression intermédiaire du ticket, puis correction versionnée
+
+La lecture croisée de trois migrations met en évidence un point important de traçabilité :
+
+- `20261024180000_marketplace_ticket_lifecycle_orchestrator.sql` crée une version de `public.get_client_reservation_ticket(uuid)` avec contrôles de propriété, paiement, cohérence du total et écritures.
+- `20261024210000_reservation_ticket_rpc_unified_cron.sql` remplace ensuite cette fonction par une version plus courte qui vérifie le propriétaire de la réservation et l'existence d'une vente payée, mais ne reprend pas plusieurs contrôles de cohérence du ticket (comparaison des montants, validation explicite du statut de paiement de la réservation, contrôles des lignes et paiements).
+- `20261025130000_harden_client_reservation_ticket.sql` documente explicitement la perte de ces contrôles et les rétablit : statut de réservation et de paiement, propriétaire client, pharmacie, vente payée avec `paid_at`, numéro de ticket, totaux des lignes et paiements, existence de lignes/paiements et cohérence des snapshots.
+
+**Conclusion :** la régression intermédiaire est réelle dans l'historique des migrations, mais une migration corrective ultérieure est présente dans la branche d'audit. La définition finale live n'a pas pu être relue dans cette étape : je ne conclus donc pas que le correctif est effectivement appliqué à la base actuellement connectée. Vérifier la version réellement déployée et exécuter le test de non-régression dédié reste obligatoire avant de déclarer le parcours de ticket vert.
+
+### 30.2 Bonnes protections constatées dans le cycle de réservation
+
+La migration `20261024203000_marketplace_hold_reservation_alignment.sql` montre des protections positives dans `private.reserve_stock` : validation du tableau panier (1 à 10 articles), rejet des produits dupliqués, quantité unitaire bornée, verrouillage des lignes de stock dans un ordre déterministe, calcul des réservations encore actives et refus si le stock disponible après holds est insuffisant. Le commentaire précise que la réservation crée un hold temporaire et ne débite pas le stock physique; la consommation doit se faire en caisse.
+
+La migration `20261024200000_lifecycle_failure_propagation.sql` fait remonter les erreurs de l'expiration/restitution et de la notification dans un résultat `ok=false`, et limite l'exécution de `public.reservation_lifecycle_cron()` à `service_role`. Cela améliore la visibilité des échecs, sous réserve de vérifier les fonctions appelées et l'ordonnanceur effectif.
+
+### 30.3 Écart entre tests structurels et couverture comportementale
+
+Le fichier `supabase/tests/113_117_home_services_security_notifications.sql` est un test structurel avec rollback : il contrôle la présence de RLS, des politiques, des fonctions `SECURITY DEFINER`, des `search_path`, des déclencheurs et des grants. Le fichier `supabase/tests/120_universe_reservation_search_path.sql` contrôle principalement la configuration de `search_path` de deux fonctions.
+
+Ces tests sont utiles mais ne prouvent pas, à eux seuls, les scénarios métier de bout en bout : deux réservations concurrentes, réservation puis expiration avec restitution exacte, paiement POS puis accès au ticket, accès au ticket d'un autre client, transitions en cas d'échec partiel, ni notifications réellement envoyées. Les tests de sécurité et d'intégration comportementale doivent être distingués dans le rapport final.
+
+### 30.4 Suite immédiate
+
+1. Comparer la définition live de `get_client_reservation_ticket(uuid)` à la migration corrective du 25 octobre et confirmer l'état d'application de cette migration.
+2. Examiner les fonctions de lecture de pharmacie et les RPC de cycle de réservation en priorité, sans changement live.
+3. Vérifier les tests disponibles et leur couverture réelle avant de classer les flux « validés ».
+4. Continuer à actualiser ce document après chaque lot. Toujours aucun merge vers `main`, aucun déploiement et aucune modification de la base durant cette revue.
