@@ -476,7 +476,7 @@ L'audit page par page demandé constitue l'étape suivante distincte; il ne doit
 ## 24. Clôture de livraison du document préliminaire
 
 - Branche de travail : `audit/admin-360-20261026`.
-- HEAD de cette branche après les mises à jour documentaires : `4bf2bb69d5fec582f3dc81a2b1a1b1cd0bb654d5`.
+- HEAD de la branche avant ce dernier commit de clôture documentaire : `4bf2bb69d5fec582f3dc81a2b1a1b1cd0bb654d5`. Le SHA final est celui du commit qui ajoute cette section.
 - HEAD de `main) inchangé : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`.
 - Comparaison GitHub : branche d'audit en avance de 6 commits documentaires, en retard de 0 commit; **un seul fichier ajouté/modifié par le lot** : ce rapport.
 - Aucun code applicatif modifié; aucune migration appliquée; aucun secret modifié; aucun déploiement déclenché.
