@@ -87,6 +87,7 @@ begin
   if length(trim(coalesce(p_name,''))) < 2 or length(trim(coalesce(p_city,''))) < 2
      or p_monthly_fee_fcfa is null or p_monthly_fee_fcfa <= 0
      or p_universe_slug not in ('parapharmacie','examens','prestations','aide')
+     or p_partner_type is distinct from case p_universe_slug when 'parapharmacie' then 'parapharmacie' when 'examens' then 'centre_examen' when 'prestations' then 'professionnel_domicile' else 'autre' end
      or (p_universe_slug='parapharmacie' and p_architecture_code not in ('ORPHELIN','PARENTS_ENFANTS','PARENTS_AINES_CADETS','HYBRIDE'))
      or (p_universe_slug<>'parapharmacie' and p_architecture_code is not null)
      or jsonb_typeof(coalesce(p_documents_received,'{}'::jsonb)) <> 'object'
@@ -154,8 +155,8 @@ declare v_actor uuid := auth.uid();
 begin
   if not public.is_admin() then raise exception 'Accès administrateur requis' using errcode='42501'; end if;
   if p_pharmacie_id is null or p_enabled is null then raise exception 'Pharmacie et état requis' using errcode='22023'; end if;
-  if not exists(select 1 from public.pharmacies where id=p_pharmacie_id) then
-    raise exception 'Pharmacie introuvable' using errcode='P0002';
+  if not exists(select 1 from public.pharmacies where id=p_pharmacie_id and actif=true and visible_recherche=true) then
+    raise exception 'Pharmacie partenaire active introuvable' using errcode='P0002';
   end if;
   insert into public.pharmacie_services(pharmacie_id,service_slug,status,enabled_by,updated_by)
   values(p_pharmacie_id,'bebe-maman',case when p_enabled then 'active' else 'inactive' end,
