@@ -1,36 +1,34 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import "./admin-bento.css";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { Logo } from "@/components/Logo";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
-import { supabaseServer } from "@/lib/supabase/server";
+
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
+  const { sb } = await requireAdminActive("/admin");
   let alertes = 0;
-  let afficherAlertes = false;
+  let afficherAlertes = true;
   let requetesOuvertes = 0;
-
-  if (auth.user) {
-    const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-    afficherAlertes = profile?.role === "admin" && profile.actif !== false;
-    if (afficherAlertes) {
+  let compteursPartiels = false;
+  {
+    {
       const [{ data: pharmacies, error: pharmaciesError }, { data: validites, error: validitesError }, { count: ticketsCount, error: ticketsError }] = await Promise.all([
         sb.from("pharmacies").select("id,stock_updated_at,actif,visible_recherche"),
         sb.rpc("validites_promoteurs_admin"),
         sb.from("tickets_support").select("id", { count: "exact", head: true }).eq("statut", "ouvert"),
       ]);
-      if (!ticketsError) requetesOuvertes = ticketsCount ?? 0;
+      if (!ticketsError) requetesOuvertes = ticketsCount ?? 0; else compteursPartiels = true;
       if (!pharmaciesError) {
         alertes += (pharmacies ?? []).filter((p) => !p.stock_updated_at).length;
         alertes += (pharmacies ?? []).filter((p) => p.actif === false || p.visible_recherche === false).length;
-      }
+      } else compteursPartiels = true;
       if (!validitesError) {
         alertes += ((validites ?? []) as { statut?: string; jours_restants?: number | string | null }[])
           .filter((v) => v.statut === "impaye" || Number(v.jours_restants) < 0).length;
-      }
+      } else compteursPartiels = true;
     }
   }
 
@@ -62,7 +60,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <EspaceNaxaSwitcher current="admin" />
           </div>
         </header>
-        <div className="admin-bento-content">{children}</div>
+        <div className="admin-bento-content">{compteursPartiels && <p role="status" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Certains compteurs administratifs sont indisponibles. Les badges affichés peuvent être incomplets ; réessayez plus tard.</p>}{children}</div>
       </div>
     </div>
   );
