@@ -100,7 +100,7 @@ export async function consulterDocumentPharmacie(formData: FormData) {
 }
 
 export async function changerStatutServiceBebeMaman(formData: FormData) {
-  const user = await requireAdmin();
+  await requireAdmin();
   const pharmacieId = String(formData.get("pharmacie_id") ?? "").trim();
   const enabled = String(formData.get("enabled") ?? "") === "true";
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(pharmacieId)) {
@@ -116,11 +116,7 @@ export async function changerStatutServiceBebeMaman(formData: FormData) {
     p_pharmacie_id: pharmacieId, p_enabled: enabled,
   });
   if (error) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=service");
-  await db.from("audit_log").insert({
-    actor_id: user.id, action: "pharmacy.bebe_maman_service_changed",
-    entity_type: "pharmacie", entity_id: pharmacieId,
-    metadata: { service_slug: "bebe-maman", status: enabled ? "active" : "inactive" },
-  });
+
   revalidatePath("/admin");
   revalidatePath("/admin/promoteurs");
   revalidatePath("/admin/pharmacies/" + pharmacieId);
