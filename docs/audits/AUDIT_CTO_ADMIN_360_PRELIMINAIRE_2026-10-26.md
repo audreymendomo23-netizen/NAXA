@@ -1,0 +1,219 @@
+# NAXA — Audit CTO 360° du parcours Administrateur
+**Document de travail unique — étape préliminaire obligatoire**
+
+- Date d'ouverture : 26 octobre 2026
+- Branche de travail unique : `audit/admin-360-20261026`
+- Branche de référence : `main`
+- Commit de référence `main` à l'ouverture : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`
+- Objet : établir les preuves de l'étape préliminaire avant tout audit page par page et avant toute correction fonctionnelle.
+- Règle d'environnement : aucune migration appliquée à Supabase Production, aucune modification de variables secrètes, aucun déploiement demandé ou lancé dans cette étape.
+- État : **préliminaire en cours — constats initiaux consignés; les inventaires approfondis et la lecture exhaustive du code restent à compléter dans cette même branche.**
+
+## 1. Périmètre et limites de preuve
+
+Ce rapport rassemble les éléments issus :
+1. des consignes et décisions antérieures disponibles dans le contexte de conversation et les synthèses récupérables;
+2. de l'arbre GitHub et des fichiers de référence de `main`;
+3. des documents de gouvernance, cahiers des charges et audits existants;
+4. des métadonnées Vercel, des noms/cibles des variables (sans lecture ni publication des secrets);
+5. de requêtes SQL strictement en lecture seule sur le projet Supabase Naxa et des outils de conseil Supabase;
+6. de la configuration CircleCI présente dans le dépôt.
+
+**Limites explicites :** je n'ai pas accès à une archive brute garantie de toutes les conversations depuis la création du compte, ni à toutes les données de tous les services externes. Les synthèses antérieures sont utiles mais ne valent pas transcription complète. L'API Vercel n'autorise pas la lecture des secrets en clair dans le cadre de ce rapport; aucune valeur secrète ne sera copiée ici. Les journaux de CircleCI n'ont pas été récupérés par les outils accessibles. L'étape « ligne 1 à la dernière ligne de tout le code » ne peut pas être déclarée accomplie à partir d'un inventaire d'arbre : elle sera menée par lots traçables, fichier par fichier, dans les phases d'audit suivantes. Aucun résultat non vérifié ne sera qualifié de vert.
+
+## 2. Création de branche et gouvernance
+
+- Branche créée depuis le `main` connu : `audit/admin-360-20261026`.
+- Aucune deuxième branche ne sera créée pour ce chantier.
+- Aucun fichier de ce chantier n'est écrit sur `main`.
+- Les changements de ce chantier resteront sur cette branche jusqu'à l'autorisation de fusion.
+- Contradiction de gouvernance détectée : `AGENTS.md` prescrit de travailler sur `main` et interdit les branches de travail, alors que l'ordre explicite du présent chantier exige une branche unique et interdit d'en créer une seconde. Pour ce chantier, l'instruction actuelle de l'utilisateur prime sur cette ancienne règle locale; aucune fusion n'est implicite.
+
+## 3. État GitHub au point de départ
+
+### 3.1 Dépôt et structure
+- Dépôt privé : `audreymendomo23-netizen/NAXA`.
+- Branche par défaut : `main`.
+- Stack déclarée : Next.js 14 App Router, React 18, TypeScript, Tailwind, Supabase/PostgreSQL, PWA.
+- Arbre Git à la référence de départ : **1 228 entrées**.
+- Pages sous `src/app/admin` identifiées par l'arbre : **18 fichiers page** :
+  1. `/admin`
+  2. `/admin/alertes`
+  3. `/admin/configuration`
+  4. `/admin/examens`
+  5. `/admin/geolocalisation`
+  6. `/admin/journal`
+  7. `/admin/messagerie`
+  8. `/admin/pharmacies/[id]`
+  9. `/admin/pilotage`
+  10. `/admin/pilotage/rapports`
+  11. `/admin/pilotage/validite`
+  12. `/admin/prestations`
+  13. `/admin/produits`
+  14. `/admin/profil`
+  15. `/admin/promoteurs`
+  16. `/admin/promoteurs/partenaires/[id]`
+  17. `/admin/rappels-lots`
+  18. `/admin/univers`
+- Routes API identifiées : **42 fichiers `route.*`**.
+- Documents Markdown/MDX/TXT sous `docs/` : **69**.
+- Migrations SQL historiques à la racine de `supabase/` correspondant à `migration_*.sql` : **290**.
+- Migrations versionnées sous `supabase/migrations/` : **25**.
+- Tests SQL sous `supabase/tests/` : **186**.
+
+Ces chiffres sont un inventaire de l'arbre Git à la référence de départ, pas encore le décompte d'éléments UI ni une certification de complétude fonctionnelle.
+
+### 3.2 Contradiction CI importante — cause statique identifiée
+Le fichier `.circleci/config.yml` contient un préflight qui :
+- collecte les fichiers avec `Path("supabase").glob("migration_*.sql")`;
+- impose exactement **96** migrations sources;
+- interrompt le job si le nombre diffère de 96.
+
+Or l'arbre actuel de `main` contient **290** fichiers correspondant à ce motif. Le contrôle attend 96 mais en trouve 290 : **la condition de sortie en échec est déterministement satisfaite**, avant le rejeu des migrations SQL. C'est une cause statique démontrée qui peut expliquer le rouge de CircleCI, sans nécessiter d'accéder aux logs. Elle ne prouve pas qu'il n'existe pas d'autres erreurs après ce contrôle.
+
+**Solution proposée pour une étape de correction ultérieure :** réconcilier le contrat CI avec l'architecture de migration réellement utilisée. Avant toute modification, comparer la liste exacte des 290 fichiers, les préfixes historiques, le schéma de base et les consignes de rejeu; ne pas simplement remplacer 96 par 290 sans confirmer l'ordre, la compatibilité et l'intention du script. Les fichiers historiques racine et le répertoire versionné ne doivent pas être confondus.
+
+### 3.3 Derniers commits
+Le HEAD de `main` au début de ce chantier est `cfca68442c4f7475451bcfcd70048b3ad56ffec4` (`fix(admin): remove unused report page import`). Les commits précédents du lot admin portent notamment sur les pièces KYC, le rapport de pilotage, le journal, le profil et la configuration. Les commits historiques récents ne prouvent pas à eux seuls que la version visible en production les contient.
+
+## 4. Décisions et contraintes de conversations antérieures récupérées
+
+Les thèmes récurrents disponibles dans le contexte sont :
+- le projet doit rester une extension de l'ERP existant; pas de reconstruction globale ni de régression des rôles déjà opérationnels;
+- les parcours Marketplace et ERP pharmacie doivent partager une source de vérité cohérente pour stock, réservations, ventes et états;
+- les rôles métier incluent notamment Promoteur, Caisse/Caissière, Pharmacien, Gestionnaire de stock, Comptable, Responsable, Administrateur NAXA et Client; l'ancien rôle Assistant pharmacien a été supprimé au profit d'un parcours Pharmacien unifié;
+- les dashboards et rapports doivent respecter le rôle, les privilèges, l'architecture et le périmètre autorisé côté serveur, sans filtrage de sécurité uniquement côté client;
+- la logique BI documentée utilise `stats_pilotage_scope` comme moteur canonique; recherches via `public.evenements`; CA à grain réservation avec statuts qualifiants `payee` ou `retiree`; pas de marge historique tant que le coût n'est pas figé à la transaction;
+- le périmètre Promoteur doit être basé sur ses liens de pharmacies actifs et autorisés, pas sur une seule pharmacie choisie comme substitut;
+- le compte administrateur doit donner une visibilité transversale mais sans contourner les règles RLS ni créer une voie d'accès parallèle aux données sensibles;
+- pour le chantier courant, le travail doit se faire sur une branche unique, étape par étape, avec raisonnement par contradiction, résultats chiffrés, proposition ponctuelle et validation avant les corrections fonctionnelles suivantes;
+- aucune fusion vers `main` n'est autorisée avant la fin de ce chantier et l'ordre explicite de fusion; aucun déploiement n'est demandé dans cette étape.
+
+Les synthèses antérieures montrent des travaux BI non complètement certifiés (objectifs/historique, rétention/capillarité, projections/diagnostics, drill-down et exports filtrés, couverture de tests multi-rôles) et un risque historique de divergences entre anciennes fonctions de pilotage et moteur canonique. Ces points sont à retester contre le code courant; ils ne sont pas déclarés défaillances actuelles sans preuve actualisée.
+
+## 5. Documentation du dépôt — premières lectures
+
+### 5.1 `AGENTS.md`
+Le protocole local impose historiquement main direct, pas de branche, pas de PR, ne pas attendre CircleCI, ne jamais écrire en Production sans autorisation, et ne jamais déclarer un résultat sans preuve. Il entre en contradiction avec l'ordre actuel sur la branche : la présente mission suit la demande actuelle de branche unique. Les garde-fous de non-exposition des secrets, d'absence d'écritures Production et de transparence restent cohérents.
+
+### 5.2 Cahier des charges principal
+`docs/CAHIER_DES_CHARGES.md` est un document v3.7 très volumineux (ERP pharmacie comme produit principal, Marketplace comme module; stock ERP comme source de vérité; rôles et scopes; pilotage 360°). Il indique lui-même que les exigences sont classées EXISTANT, NOUVEAU ou À ARBITRER. Chaque écran/fonction audité devra être confronté à cette classification, plutôt que d'assimiler une exigence décrite à une fonctionnalité réellement opérationnelle.
+
+### 5.3 BI
+`docs/BI.md` documente les règles de grain, scope, CA, recherche, coûts et export. Risque de contradiction à examiner : les cartes de rapports du code courant lisent une structure `stats_pilotage_scope` et des champs `obj.ca` / `obj.alertes`, tandis que le modèle documenté exige des KPI canoniques et des scopes explicites. Le code actuel de `src/app/api/rapports/route.ts` n'est pas encore démontré aligné sur tous les champs et scopes documentés; ce point est à traiter dans l'audit technique de rapports.
+
+### 5.4 Gouvernance et audits existants
+`docs/REGISTRE_GOUVERNANCE.md` protège les documents maîtres et exige un intégrateur unique pour les modifier. Les audits préexistants incluent notamment `docs/AUDIT_FUSION_CATALOGUE_DOSSIER_PROMOTEUR_2026-10-26.md`, `docs/AUDIT_PARCOURS_CAISSE_ONGLETS.md`, `docs/AUDIT_CYCLE_RESERVATION_TICKET_CAISSE.md`, `docs/AUDIT_SYNCHRONISATION_STOCK_CAISSE_MARKETPLACE_2026-10-21.md`, `docs/SECURITE_PROMOTEUR.md`, `docs/ETAT_GESTIONNAIRE_STOCK_2026-10-20.md` et `docs/ETAT_PARCOURS_PHARMACIEN_UNIFIE_2026-10-20.md`. Ils seront lus et confrontés au code lorsqu'on passera à l'audit fonctionnel par domaine.
+
+## 6. État Supabase — lecture seule
+
+### 6.1 Projets visibles dans la connexion NAXA
+- `Naxa`, ref `eouwtuusnsuxaejsxknf`, région `eu-west-1`, PostgreSQL 17, statut **ACTIVE_HEALTHY**.
+- `naxa-ci-replay`, ref `fnlyjlvflgiewrkmnisi`, statut **INACTIVE**.
+- `naxa-ci-replay-2`, ref `pwfftcsjyeibxxqhwysw`, statut **ACTIVE_HEALTHY**.
+
+Le projet `Naxa` est traité comme l'environnement principal d'après son nom et le contexte, mais l'identité Production doit toujours être confirmée par les métadonnées d'environnement avant une action d'écriture. Aucune écriture n'a été exécutée.
+
+### 6.2 Compteurs de schéma observés par SQL en lecture seule
+Sur le projet `Naxa` :
+- tables de base `public` : **133**;
+- vues recensées dans les schémas `public` et `bi` : **5**;
+- routines/fonctions `public` : **222**;
+- politiques RLS recensées sur `public` : **212**;
+- tables `public` avec RLS activé : **133**.
+
+Ces compteurs sont des instantanés techniques; ils ne prouvent pas que chaque politique est correcte, ni que chaque route utilise le bon scope.
+
+### 6.3 Migrations appliquées
+L'outil Supabase retourne une longue liste de migrations réellement enregistrées dans l'historique de la base. Les versions incluent notamment les fondations de sécurité, le pilotage, les univers partenaires, les dispositifs, les rôles Caisse/Pharmacien/Gestionnaire de stock, les lots, les réservations, la provenance des photos et les dernières migrations d'illustration pharmacie. Il existe une différence d'organisation entre les historiques SQL à la racine du dépôt et les migrations timestampées. Une comparaison précise dépôt ↔ historique de base sera nécessaire avant de qualifier une migration manquante ou en dérive.
+
+### 6.4 Avis de sécurité/performance
+L'outil d'avis Supabase signale des catégories à examiner, dont :
+- tables avec RLS activé mais aucune politique (niveau INFO);
+- plusieurs politiques permissives pour un même rôle/action sur diverses tables;
+- un index dupliqué sur `public.stocks_lots` (`stocks_lots_id_uidx` et `stocks_lots_id_uq`).
+
+Ces avis ne sont pas tous automatiquement des vulnérabilités : une politique permissive peut être voulue si les expressions se combinent correctement, mais la multiplicité augmente le risque d'erreur de portée et de performance. L'index dupliqué est un signal de maintenance/performance. Les détails par table, expression et privilège devront être triés dans l'audit de sécurité; aucune modification SQL n'a été faite.
+
+## 7. État Vercel — lecture seule
+
+- Équipe visible : `NAXA`, slug `naxa3`, plan **Hobby**.
+- Projet : `naxa`, framework Next.js, Node configuré `24.x`.
+- Domaines associés : `naxa-naxa3.vercel.app` et `naxa-git-main-naxa3.vercel.app`.
+- SSO activé pour tous les déploiements; protection par mot de passe désactivée; restriction IP désactivée.
+- Le projet rapporte `live: false` et le dernier déploiement connu en cible production a l'état **ERROR** : `dpl_DbAaBdHoEYrSoiu1J1BnKndn5CSQ`, commit `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`. Les 10 déploiements les plus récents renvoyés par l'API sont en état **ERROR**; ils sont liés à des commits de main du lot de refonte admin. Aucun nouveau déploiement n'a été déclenché par ce chantier.
+- Les domaines d'alias indiquent un projet configuré, mais ne suffisent pas à conclure que la version attendue est actuellement servie en Production.
+
+### 7.1 Variables Vercel
+Les variables ont été listées sans déchiffrement intentionnel. Les clés visibles couvrent notamment :
+- configuration publique de routage OSRM et URL canonique du site;
+- configuration Supabase (URL, clé publique et service role, dont certaines entrées sont scindées par environnement/branche);
+- Web Push VAPID (clé publique/privée), secret de cron;
+- e-mails SMTP;
+- intégration Google Apps Script;
+- secrets de limitation de débit et de session;
+- plusieurs entrées Preview limitées à une branche de test.
+
+**Aucune valeur secrète n'est consignée ici.** Les points à vérifier sont la cohérence de l'URL canonique avec les domaines Vercel réellement associés, la séparation Production/Preview, les clés Supabase de test dédiées aux previews et les doublons d'entrées par environnement. Les variables présentes ne prouvent pas que les intégrations correspondantes fonctionnent.
+
+## 8. État des journaux et erreurs
+
+- CircleCI : les outils disponibles n'ont pas livré le détail de l'exécution échouée. La configuration statique révèle toutefois la contradiction de comptage des migrations (290 trouvées contre 96 attendues).
+- Vercel : le statut des déploiements est observable et montre des erreurs récentes; les logs détaillés de build n'ont pas encore été extraits.
+- Supabase : compteurs de schéma et avis de lint accessibles en lecture seule; les logs runtime/Postgres et les détails complets de chaque avis restent à corréler aux parcours admin.
+- Aucun journal de données sensibles ni aucune valeur secrète n'est reproduit dans ce document.
+
+## 9. Contradictions préliminaires à traiter
+
+| ID | Contradiction / risque | Preuve initiale | Statut |
+|---|---|---|---|
+| P-01 | CI attend 96 migrations racine, dépôt en trouve 290 | `.circleci/config.yml` + arbre Git | **Rouge confirmé statiquement** |
+| P-02 | Déploiements Vercel récents en ERROR malgré les changements de code admin | API Vercel, 10 dernières entrées | **Rouge observé; cause de build à extraire** |
+| P-03 | `AGENTS.md` interdit les branches, instruction actuelle en exige une | `AGENTS.md` + ordre utilisateur | **Arbitrage appliqué : branche unique du chantier** |
+| P-04 | BI documentée avec scopes canoniques vs champs de rapport actuels à confirmer | `docs/BI.md` et route API | **À auditer** |
+| P-05 | Avis Supabase de politiques multiples et tables RLS sans politique | Advisor Supabase | **À classifier table par table** |
+| P-06 | Index dupliqué sur `stocks_lots` | Advisor Supabase | **Signal de maintenance confirmé** |
+| P-07 | La présence d'une route/page ne prouve pas son accessibilité ni le fonctionnement de bout en bout | 18 pages admin recensées | **Audit de navigation à faire** |
+| P-08 | L'inventaire des fichiers n'est pas une revue ligne par ligne du code | Arbre Git uniquement à ce stade | **Travail restant explicitement ouvert** |
+
+## 10. Plan des phases suivantes (même branche)
+
+1. **Audit documentaire complet** : lire les documents de référence admin, Promoteur, BI, sécurité, états de parcours et audits déjà réalisés; extraire exigences, décisions, conflits et critères d'acceptation.
+2. **Inventaire de routes/navigation** : dresser une matrice de chaque page admin, accès entrant, liens sortants, contrôles d'accès, composants, actions serveur/API/RPC/tables, états vides et erreurs.
+3. **Audit page par page et éléments UI** : compter onglets, titres, sous-titres, textes, badges, boutons, champs, menus, messages, états de chargement/erreur/vide; les décomptes seront basés sur le code inspecté et étiquetés comme statiques si non confirmés par rendu réel.
+4. **Audit des boucles d'interaction** : pour chaque action, suivre UI → handler → serveur → autorisation/scope → DB/RPC → retour UI/notification → rechargement/état final; relever chemins morts, effets non connectés, doubles actions et états impossibles.
+5. **Audit Promoteur et communication** : contrôler toutes les interactions et les boucles métier de bout en bout, incluant les liens pharmacie, messagerie, tickets, réservations et notifications.
+6. **Analyse contradictoire cross-rôles** : Admin vs Promoteur vs Responsable vs Caisse vs Pharmacien vs Gestionnaire de stock vs autres partenaires/univers vs Client; vérifier que les agrégats réseau concordent avec les périmètres autorisés et les rapports.
+7. **1000 cas d'usage synthétiques** : générer en interne 1000 cas répartis entre marketplace, pharmacie, parapharmacie, examens, prestations, bébé-maman, dispositifs, comptes, stock, réservation, paiement, support, incidents et sécurité; ne pas les afficher individuellement, mais publier la couverture, les familles, les taux de cohérence et les cas bloquants réellement vérifiables.
+8. **Code mort/design/animation** : repérer imports et composants inutilisés, liens/handlers inertes, textes de démonstration, états inaccessibles, animations masquant/dégradant l'action, contrastes et accessibilité.
+9. **Bilan chiffré** : nombre de pages découvertes/auditées, onglets découverts/audités, éléments par page, fonctionnalités, parcours testés, boucles complètes/incomplètes, pages mortes, défauts classés par gravité et preuves.
+
+## 11. Barème de statut
+
+- 🟢 **Vert** : problème résolu et vérifications disponibles exécutées avec preuves; limites externes éventuelles clairement séparées.
+- 🟠 **Orange** : code/document inspecté, mais validation bout en bout incomplète.
+- 🔴 **Rouge** : défaut ou contradiction démontrée.
+- ⚪ **Non audité** : pas encore de preuve suffisante.
+
+Un simple fichier présent, un test non lancé, un résultat supposé ou un contrôle indisponible ne justifie jamais le vert.
+
+## 12. État actuel de l'étape préliminaire
+
+**Déjà effectué :**
+- branche unique créée;
+- arbre Git et nombres initiaux établis;
+- 18 pages admin et 42 routes API recensées;
+- principaux documents de gouvernance et BI lus;
+- connexion Supabase Naxa identifiée, compteurs en lecture seule obtenus;
+- environnement Vercel identifié, statut de projet, domaines, dernières erreurs et noms de variables examinés sans déchiffrer les secrets;
+- cause statique très probable du préflight CI isolée : compte de migrations obsolète dans la configuration.
+
+**Encore nécessaire avant de déclarer l'étape préliminaire achevée :**
+- inventorier toutes les ressources et documents pertinents de façon systématique;
+- comparer les migrations dépôt/base et lire les détails des avis Supabase;
+- extraire les logs de build Vercel disponibles;
+- analyser les documents d'état et les historiques de conversations récupérables supplémentaires;
+- lire le code des pages, composants, actions, API, règles RLS et fonctions liées à l'admin, par lots avec preuve de couverture;
+- enrichir ce document avec les décomptes et constats détaillés avant de demander l'autorisation pour le chantier de correction suivant.
+
+**Décision : aucune correction fonctionnelle ni fusion n'est commencée tant que cette étape préliminaire n'est pas terminée et présentée.**
