@@ -38,30 +38,29 @@ export default function Reports() {
     setGeneration(true);
     setErr("");
     try {
-      const sb = supabaseBrowser();
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      const result = await Promise.race([
-        sb.rpc("stats_pilotage_scope", { p_jours: jours }),
-        new Promise<never>((_, reject) => { timeoutId = setTimeout(() => reject(new Error("timeout")), 12000); }),
-      ]).finally(() => { if (timeoutId) clearTimeout(timeoutId); });
-      if (result.error) {
-        setErr(result.error.code === "PGRST202" || result.error.code === "42883"
-          ? "La fonction de statistiques n’est pas disponible dans Supabase. Le rapport instantané ne peut pas être produit."
-          : "Les statistiques ne sont pas accessibles avec ce compte. Vérifiez les droits administrateur puis réessayez.");
+      const response = await fetch("/api/rapports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jours }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        setErr(json.error || "Le rapport n’a pas pu être généré et enregistré.");
         return;
       }
-      const row = Array.isArray(result.data) ? result.data[0] : result.data;
-      const champs = ["pharmacies", "promoteurs", "produits", "reservations", "ventes", "demandes", "revenus"] as const;
-      if (!row || typeof row !== "object" || !champs.every((key) => key in row)) {
-        setErr("Le service a répondu sans les indicateurs de pilotage attendus. Aucun rapport n’a été fabriqué.");
+      const row = json.instantane as Instantane | undefined;
+      if (!row || !["pharmacies", "promoteurs", "produits", "reservations", "ventes", "demandes", "revenus"].every((key) => typeof row[key as keyof Instantane] === "number")) {
+        setErr("Le serveur n’a pas renvoyé un rapport exploitable.");
         return;
       }
-      setInstantane(Object.fromEntries(champs.map((key) => [key, Number((row as Record<string, unknown>)[key] ?? 0)])) as Instantane);
-      setDateGeneration(new Date().toLocaleString("fr-FR"));
-    } catch (cause) {
-      setErr(cause instanceof Error && cause.message === "timeout"
-        ? "Le service de statistiques n’a pas répondu en 12 secondes. Réessayez plus tard."
-        : "La génération du rapport a échoué. Vérifiez la connexion puis réessayez.");
+      setInstantane(row);
+      setDateGeneration(new Date(json.genere_le || Date.now()).toLocaleString("fr-FR"));
+      const historyResponse = await fetch("/api/rapports");
+      const historyJson = await historyResponse.json();
+      if (historyResponse.ok) setData(historyJson.rapports || []);
+      setErr("");
+    } catch {
+      setErr("La génération ou l’enregistrement du rapport a échoué. Vérifiez la connexion puis réessayez.");
     } finally {
       setGeneration(false);
     }
