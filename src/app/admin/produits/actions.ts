@@ -24,12 +24,13 @@ export async function enregistrerFiche(formData: FormData) {
     source_fiche: validee ? "pharmacien" : "admin", fiche_maj: new Date().toISOString(),
   }).eq("id", id);
   revalidatePath("/admin/produits");
-  redirect(`/admin/produits?q=${encodeURIComponent(String(formData.get("q") ?? ""))}${error ? "&erreur=enregistrement" : "&ok=1"}`);
+  const statut = String(formData.get("statut") ?? "toutes");
+  redirect(`/admin/produits?q=${encodeURIComponent(String(formData.get("q") ?? ""))}&statut=${encodeURIComponent(statut)}${error ? "&erreur=enregistrement" : "&ok=1"}`);
 }
 export async function brouillonIA(formData: FormData) {
   const sb = await exigerAdmin();
   const id = String(formData.get("id"));
-  const retour = `/admin/produits?q=${encodeURIComponent(String(formData.get("q") ?? ""))}`;
+  const retour = `/admin/produits?q=${encodeURIComponent(String(formData.get("q") ?? ""))}&statut=${encodeURIComponent(String(formData.get("statut") ?? "toutes"))}`;
   const { data: p } = await sb.from("produits").select("nom,dci,dosage,forme").eq("id", id).single();
   if (!p) redirect(`${retour}&erreur=produit`);
   try {
