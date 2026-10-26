@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { Logo } from "@/components/Logo";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { brouillonIA, enregistrerFiche } from "./actions";
@@ -12,11 +11,7 @@ export default async function AdminProduits({
 }: {
   searchParams: { q?: string; statut?: string; ok?: string; erreur?: string };
 }) {
-  const sb = supabaseServer();
-  const { data: u } = await sb.auth.getUser();
-  if (!u.user) redirect("/connexion?retour=/admin/produits");
-  const { data: prof } = await sb.from("profiles").select("role").eq("id", u.user.id).single();
-  if (prof?.role !== "admin") redirect("/");
+  const { sb } = await requireAdminActive("/admin/produits");
 
   const q = (searchParams.q ?? "").trim();
   const statut = (["toutes", "a-completer", "a-relire", "validees"].includes(searchParams.statut ?? "")
