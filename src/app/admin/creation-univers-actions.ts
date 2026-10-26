@@ -63,7 +63,13 @@ export async function creerDossierUnivers(form: FormData) {
       date_of_birth: dob, consent_accepted: true,
     },
   });
-  if (created.error || !created.data.user) redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
+  if (created.error || !created.data.user) {
+    console.error("[admin][creerDossierUnivers] Auth user creation failed", {
+      code: created.error?.code ?? "missing_user",
+      message: created.error?.message ?? "Auth returned no user",
+    });
+    redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
+  }
   const ownerId = created.data.user.id;
   const docs = {
     kyc: form.get("kyc") === "oui",
@@ -84,7 +90,21 @@ export async function creerDossierUnivers(form: FormData) {
     p_documents_received: docs,
   });
   if (error || !partnerId) {
-    await db.auth.admin.deleteUser(ownerId);
+    console.error("[admin][creerDossierUnivers] Partner dossier RPC failed", {
+      code: error?.code ?? "missing_partner_id",
+      message: error?.message ?? "RPC returned no partner ID",
+    });
+
+    // Compensation best-effort: record its outcome for operational follow-up.
+    // Never expose backend details or the Auth user ID in the redirect.
+    const compensation = await db.auth.admin.deleteUser(ownerId);
+    if (compensation.error) {
+      console.error("[admin][creerDossierUnivers] Auth compensation failed; manual review required", {
+        code: compensation.error.code ?? "unknown",
+        message: compensation.error.message,
+      });
+    }
+
     redirect("/admin?erreur=dossier&univers=" + encodeURIComponent(universe));
   }
   revalidatePath("/admin");
