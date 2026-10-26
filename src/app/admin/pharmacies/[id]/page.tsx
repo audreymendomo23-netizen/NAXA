@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
-import { consulterDocumentPharmacie, deposerDocumentPharmacie, statuerDocumentPharmacie } from "./actions";
+import { changerStatutServiceBebeMaman, consulterDocumentPharmacie, deposerDocumentPharmacie, statuerDocumentPharmacie } from "./actions";
 
 type Props={params:{id:string};searchParams?:{ok?:string;erreur?:string}};
-const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée."};
+const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré."};
 const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.",stockage:"Le stockage privé a refusé le fichier.",registre:"Inscription impossible ; le fichier temporaire a été supprimé.",pharmacie:"Pharmacie introuvable.",decision:"Décision impossible à enregistrer.",document:"Fichier invalide : vérifiez le type et la taille (10 Mo maximum)." };
 export default async function PharmacieIndividuelle({params,searchParams}:Props){
  const sb=supabaseServer();
@@ -14,9 +14,10 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
  if(profile?.role!=="admin"||profile.actif!==true)redirect("/");
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.id))notFound();
  const db=supabaseAdmin();
- const [{data:pharmacy,error},{data:documents}]=await Promise.all([
+ const [{data:pharmacy,error},{data:documents},{data:bebeService,error:bebeServiceError}]=await Promise.all([
   db.from("pharmacies").select("id,nom,ville,quartier,adresse,actif,visible_recherche,created_at,est_demo,de_garde,horaires").eq("id",params.id).maybeSingle(),
-  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false})
+  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false}),
+  db.from("pharmacie_services").select("id,status,updated_at").eq("pharmacie_id",params.id).eq("service_slug","bebe-maman").maybeSingle()
  ]);
  if(error||!pharmacy)notFound();
  const [{data:links,error:linksError},{data:privateInfo,error:privateError},{data:received,error:receivedError},{data:allHistory,error:allHistoryError}]=await Promise.all([
@@ -43,6 +44,16 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
  return <main className="mx-auto min-h-screen max-w-6xl space-y-5 px-3 py-5 sm:px-6">
   <Link href="/admin/promoteurs" className="inline-flex min-h-10 items-center font-semibold text-naxa-green-900 underline underline-offset-4">← Retour au registre des pharmacies</Link>
   <header className="rounded-3xl bg-naxa-green-900 p-5 text-white sm:p-7"><p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">Espace administratif individuel</p><h1 className="mt-2 break-words text-2xl font-black sm:text-3xl">{pharmacy.nom}</h1><p className="mt-2 text-sm text-white/80">{[pharmacy.quartier,pharmacy.ville].filter(Boolean).join(" · ")||"Localisation non renseignée"}</p>{pharmacy.est_demo&&<p className="mt-3 inline-flex rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-amber-950">PHARMACIE DE TEST</p>}<div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{status}</span><span className="rounded-full bg-white/15 px-3 py-1 text-xs">Dossier isolé · accès administrateur</span></div></header>
+  <section className="rounded-2xl border border-[#FFE23D] bg-white p-4 sm:p-5">
+   <div className="flex flex-wrap items-start justify-between gap-3">
+    <div><p className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Services rattachés</p><h2 className="mt-1 text-lg font-extrabold">Bébé &amp; Maman</h2><p className="mt-1 text-sm text-slate-600">Ce service appartient à cette pharmacie. Il ne constitue pas un établissement autonome et reprend l’identité et les coordonnées de la pharmacie.</p></div>
+    {bebeServiceError ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">Registre de services indisponible</span> : bebeService?.status === "active" ? <span className="rounded-full bg-[#FFE23D] px-3 py-1 text-xs font-extrabold text-[#0B3D26]">SERVICE ACTIF</span> : <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">Service non activé</span>}
+   </div>
+   {!bebeServiceError && <form action={changerStatutServiceBebeMaman} className="mt-4 flex flex-wrap gap-2">
+    <input type="hidden" name="pharmacie_id" value={pharmacy.id}/>
+    {bebeService?.status === "active" ? <><input type="hidden" name="enabled" value="false"/><button className="min-h-10 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700">Désactiver le service</button></> : <><input type="hidden" name="enabled" value="true"/><button disabled={!pharmacy.actif || !pharmacy.visible_recherche} className="min-h-10 rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-4 py-2 text-sm font-extrabold text-[#0B3D26] disabled:opacity-50">Activer Bébé &amp; Maman dans ce dossier</button>{(!pharmacy.actif || !pharmacy.visible_recherche) && <p className="w-full text-xs text-amber-800">La pharmacie doit être active et visible pour recevoir ce service.</p>}</>}
+   </form>}
+  </section>
   {searchParams?.ok&&<p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-900">{OK_MESSAGES[searchParams.ok]||"Opération terminée."}</p>}{searchParams?.erreur&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-900">{ERROR_MESSAGES[searchParams.erreur]||"Opération impossible. Vérifiez les informations puis réessayez."}</p>}
   <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
    <article className="rounded-2xl border bg-white p-4"><p className="text-xs text-slate-500">Identité et localisation</p><h2 className="mt-1 font-bold">{pharmacy.nom}</h2><p className="mt-1 break-words text-sm text-slate-600">{pharmacy.adresse||"Adresse non renseignée"}</p><p className="text-sm text-slate-600">{[pharmacy.quartier,pharmacy.ville].filter(Boolean).join(" · ")}</p><p className="mt-2 text-sm text-slate-600">WhatsApp : {privateError?"Impossible à charger":privateInfo?.whatsapp||"Non renseigné"}</p><p className="text-sm text-slate-600">Téléphone Promoteur : {promoterError?"Impossible à charger":promoter?.phone||"Non renseigné"}</p><p className="text-sm text-slate-600">Garde : {pharmacy.de_garde?"Oui":"Non"}</p><p className="text-sm text-slate-600">Horaires : {pharmacy.horaires||"Non renseignés"}</p><p className="mt-2 text-xs text-slate-500">Créée le {new Date(pharmacy.created_at).toLocaleDateString("fr-FR")}</p></article>
