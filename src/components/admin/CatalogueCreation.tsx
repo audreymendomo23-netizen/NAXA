@@ -8,7 +8,7 @@ import { creerDossierUnivers } from "@/app/admin/creation-univers-actions";
 import { GeolocalisationChamps } from "@/components/admin/GeolocalisationChamps";
 import { IdentificationPromoteur } from "@/components/admin/IdentificationPromoteur";
 
-type Universe = "pharmacie" | "parapharmacie" | "bebe-maman" | "examens" | "prestations" | "aide";
+type Universe = "pharmacie" | "parapharmacie" | "bebe-maman" | "examens" | "prestations";
 type PharmacyOption = { id: string; nom: string; ville: string | null; quartier: string | null };
 type Props = {
   pharmacies: PharmacyOption[];
@@ -24,7 +24,6 @@ const universes: { value: Universe; label: string; description: string }[] = [
   { value: "bebe-maman", label: "Bébé & Maman", description: "le service Bébé & Maman dans une pharmacie partenaire" },
   { value: "examens", label: "Examens médicaux", description: "un centre d’examens médicaux" },
   { value: "prestations", label: "Prestations à domicile", description: "un partenaire de prestations à domicile" },
-  { value: "aide", label: "Aide NAXA", description: "un partenaire Aide NAXA" },
 ];
 
 const field = "champ mt-1 w-full";
