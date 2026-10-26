@@ -627,3 +627,29 @@ Avant de déclarer la phase préliminaire terminée, il reste à :
 5. relire le rapport complet et vérifier le commit sur `main`.
 
 La phase reste préliminaire. Aucun audit détaillé Admin n'est lancé et aucune correction de code ou de base n'est autorisée par cette étape.
+
+
+## 34. Revue ciblée des deux routes API Admin
+
+### `POST /api/admin/messagerie`
+
+- Contrôle d'authentification via `auth.getUser()`, puis lecture du profil. Le garde rejette les erreurs de lecture et les rôles différents d'Admin, mais utilise `profile.actif === false` plutôt que `profile.actif !== true`. Le schéma live indique que `actif` est `NOT NULL`; l'écart ne constitue donc pas une voie de contournement par valeur NULL dans le schéma observé, mais reste une divergence à harmoniser.
+- Le contenu est borné à 2 000 caractères et le ticket est relu via le client privilégié. La route refuse les tickets absents et les tickets dont le statut n'est pas `ouvert`, puis insère le message en précisant le profil auteur et `interne: false`.
+- Points à vérifier ensuite : format UUID de `ticket_id`, contrôle explicite de la portée du ticket et de l'auteur dans la même opération, protection contre les envois répétés, cohérence transactionnelle entre la vérification du statut et l'insertion, et audit de l'action. Le contrôle « ticket ouvert » suivi d'une insertion séparée peut présenter une course concurrente si deux opérations changent le statut simultanément; aucune concurrence n'a été testée.
+- **Qualification : PRE-045 — durcissement et cohérence de contrat à vérifier**, pas une faille démontrée.
+
+### `/api/admin/geolocalisation-osm`
+
+- Les méthodes `POST` et `GET` existent. La fonction de garde vérifie une session et appelle la RPC `is_admin`, qui doit renvoyer exactement `true`, avant l'utilisation du client privilégié.
+- La synchronisation POST contacte le service externe Overpass d'OpenStreetMap, plafonne le lot initial à 500 candidats, compare les pharmacies existantes et met à jour des coordonnées et les traces de synchronisation. Une erreur de service externe est renvoyée comme échec explicite; une réservation de créneau de synchronisation est aussi contrôlée.
+- Points à confirmer par tests non destructifs : idempotence lors de répétitions, limite de débit et délai maximal du service externe, contrôle des coordonnées et du périmètre géographique, prévention de mises à jour ambiguës lorsque plusieurs pharmacies ont des noms proches, et comportement en cas d'échec partiel. Le code contient une limite de résultats de lecture à 5 000; vérifier qu'elle ne tronque pas silencieusement le rapprochement.
+- Aucun appel à Overpass, aucune synchronisation OSM et aucune mutation de pharmacie n'a été déclenché pendant l'audit.
+
+## 35. État des preuves à ce stade
+
+Les constats documentés se répartissent en trois niveaux :
+1. **Confirmé par lecture de code ou catalogue** : garde utilisé dans les fichiers examinés, méthodes HTTP déclarées, réglages SQL et politiques exposées, comptages de tables et de profils.
+2. **Écart de contrat / risque plausible** : garde d'activité non uniforme, politiques Admin sans test direct du statut actif, course potentielle sur la messagerie, risque de rapprochement ambigu OSM.
+3. **Non démontré faute de test contrôlé** : contournement d'accès effectif, fuite de données, impact réel sur une pharmacie, échec métier reproductible ou exposition d'un contenu de stockage non prévu.
+
+Le préliminaire reste ouvert. Toute vérification impliquant des comptes désactivés, des mutations de Storage, des appels externes ou des changements de données doit être conçue comme un test contrôlé et autorisée séparément; aucun de ces tests n'a été exécuté.
