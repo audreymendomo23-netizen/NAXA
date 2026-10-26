@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { PROMOTEUR_VALIDATION, normalizePromoteurPhone, validatePromoteurPhone, type PromoteurPhoneCountry } from "@/lib/promoteur-validation";
 
-const allowed = ["parapharmacie", "examens", "prestations", "aide"] as const;
+const allowed = ["parapharmacie", "examens", "prestations"] as const;
 const architectures = ["ORPHELIN", "PARENTS_ENFANTS", "PARENTS_AINES_CADETS", "HYBRIDE"];
 const get = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
