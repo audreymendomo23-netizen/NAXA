@@ -1161,3 +1161,25 @@ L'entrée `NEXT_PUBLIC_SITE_URL` retournée par Vercel paraît contenir une diff
 - Les cibles observées décrivent la configuration enregistrée, pas la preuve que les fonctions serveur ont été exécutées avec ces valeurs.
 - Aucun déploiement, test d'envoi, appel cron, changement de variable, fusion ou modification de la base n'a été effectué.
 - Le prochain contrôle prioritaire est la résolution du couple Resend manquant et la confirmation du cloisonnement Supabase Preview, puis la poursuite de la revue SQL et la consolidation de la phase préliminaire.
+
+
+## 28. Échantillon initial de la file `search_path` des fonctions `public.SECURITY DEFINER` — 26 octobre 2026
+
+Une requête en lecture seule a extrait les 20 premières fonctions selon l'ordre alphabétique parmi les fonctions `public SECURITY DEFINER` dont le chemin n'est pas vide ou exactement `auth`. Ce lot est un échantillon ordonné pour la revue, pas une liste de failles confirmées.
+
+### 28.1 Fonctions du lot et droits observés
+
+- Fonctions observées avec `search_path=public` : `_stats_admin(integer)`, `_stats_pharmacie(uuid,integer)`, `caisse_ouvrir(uuid,integer)`, `can_access_pharmacy(uuid)`, `claim_validite_promoteurs_5j()`, `claim_validite_rappels_5j()`, `expire_reservations()`, `generer_alertes()`, `generer_rapports(text)`, `initialiser_abonnement_pharmacie()`, `marquer_rappel_promoteur(uuid)`, `marquer_rappel_validite(uuid)`, `marquer_rapport_envoye(bigint)` et `my_pharmacies()`.
+- Fonctions avec un chemin comprenant `pg_temp` : `capture_pharmacie_row_history()` utilise `pg_catalog, public`; `evaluate_suivi_user_alert_rules()`, `expire_universe_reservations_cron(integer)`, `get_partner_catalogue_alerts()` et `mark_user_notification_read(uuid)` utilisent `public, pg_temp`.
+- Dans ce lot, `anon` n'a pas `EXECUTE` sur les fonctions autres que la façade publique `get_home_service_catalog()` déjà détaillée en section 25. Plusieurs fonctions sont accessibles à `authenticated` (dont `caisse_ouvrir`, `can_access_pharmacy`, `get_partner_catalogue_alerts`, `mark_user_notification_read` et `my_pharmacies`); d'autres sont non exécutables par `anon` et `authenticated`, ce qui suggère un usage serveur/trigger à confirmer.
+
+### 28.2 Interprétation et risques à qualifier
+
+- Un `search_path=public` n'est pas à lui seul la preuve d'une vulnérabilité. La qualification exige la lecture du corps : références non qualifiées, opérations dynamiques, contrôle du rôle appelant, validation des identifiants et éventuels effets de bord.
+- Les chemins `public, pg_temp` restent prioritaires à inspecter dans les fonctions `SECURITY DEFINER`, car un objet temporaire peut être prioritaire selon la résolution des noms. Les fonctions déjà présentes dans le lot doivent être comparées aux migrations qui les définissent et aux grants explicites.
+- Les fonctions de caisse, d'accès pharmacie, de notification et d'expiration sont sensibles du point de vue métier; leur priorité d'audit découle de leurs responsabilités et non d'une vulnérabilité déjà démontrée.
+- La façade `get_home_service_catalog()` conserve le seul `anon EXECUTE` du lot; elle a été évaluée en section 25. Les quatre autres fonctions publiques exécutables par `anon` sont également détaillées dans cette section.
+
+### 28.3 Prochaine étape
+
+Lire les corps des fonctions de ce lot avec `pg_get_functiondef`, en priorité `caisse_ouvrir`, `can_access_pharmacy`, `mark_user_notification_read`, `evaluate_suivi_user_alert_rules` et `expire_universe_reservations_cron`, puis comparer les définitions aux migrations et aux appels de l'application. Aucun droit n'a été modifié. Les résultats et les incertitudes restent consignés dans le présent document; pas de déploiement, pas de merge.
