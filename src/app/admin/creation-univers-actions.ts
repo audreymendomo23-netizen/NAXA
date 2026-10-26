@@ -51,7 +51,7 @@ export async function creerDossierUnivers(form: FormData) {
   const age = Number.isNaN(birth.getTime()) ? -1 : today.getUTCFullYear() - birth.getUTCFullYear() -
     (today.getUTCMonth() < birth.getUTCMonth() ||
     (today.getUTCMonth() === birth.getUTCMonth() && today.getUTCDate() < birth.getUTCDate()) ? 1 : 0);
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dob) || Number.isNaN(birth.getTime()) || birth.toISOString().slice(0,10) !== dob || birth.getTime() > Date.now() || age < 18) errors.date_of_birth = "Âge minimum : 18 ans.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(birth.getTime()) || birth.toISOString().slice(0,10) !== dob || birth.getTime() > Date.now() || age < 18) errors.date_of_birth = "Âge minimum : 18 ans.";
   if (!Number.isSafeInteger(amount) || amount <= 0) errors.montant_mensuel = "Montant FCFA invalide.";
   if (universe === "parapharmacie" && !architectures.includes(architecture)) errors.architecture_code = "Architecture requise.";
   if (universe !== "parapharmacie" && architecture) errors.architecture_code = "Architecture interdite pour cet univers.";
