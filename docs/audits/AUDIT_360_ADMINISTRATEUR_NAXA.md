@@ -936,3 +936,36 @@ La fiche pharmacie charge également `pharmacie_document_historique`; son absenc
 - **Blocage confirmé :** absence dans Supabase live de la table `pharmacie_documents`, de l’historique associé et du bucket privé attendu `pharmacie-documents`, alors que le code les référence.
 - **Autres points à arbitrer :** exposition des dossiers de démo dans le registre, pagination au-delà de 500 dossiers/100 avis, volume non borné des destinataires, périmètre des destinataires de rappel.
 - **Aucune correction appliquée.** Les résultats catalogue sont des constats de métadonnées; aucune écriture SQL, migration ou opération Storage n’a été exécutée.
+
+
+## 46. Rapprochement contradictoire — migration des pièces jointes de dossiers pharmacie
+
+### 46.1 Sources comparées en lecture seule
+
+- Dépôt `main` : `supabase/migrations/20261022150000_pharmacie_documents_fichiers_validation_historique.sql` existe (blob `91f1d82a07c31cda6e6fcd91b77e26211e04c998`).
+- Cette migration crée `public.pharmacie_documents`, `public.pharmacie_document_historique`, le bucket Storage `pharmacie-documents` en privé (10 MiB, PDF/JPEG/PNG/WebP), quatre politiques Storage Admin et un trigger de journalisation.
+- L'historique live `supabase_migrations.schema_migrations`, filtré sur les noms liés aux documents/dossiers pharmacie, renvoie les entrées `pharmacie_donnees_historique_append_only`, `pharmacie_historique_append_only_privileges`, `pharmacie_historique_couverture_tables_enfants` et `pharmacie_documents_recus`; aucune entrée correspondant à `pharmacie_documents_fichiers_validation_historique` n'a été retournée.
+- Le catalogue live confirme que `pharmacie_documents`, `pharmacie_document_historique` et le bucket `pharmacie-documents` sont absents. En revanche, `pharmacie_documents_recus` et `pharmacie_donnees_historique` existent.
+- La migration antérieure `20261022120000_pharmacie_documents_recus.sql` existe dans le dépôt et la table `pharmacie_documents_recus` existe en live sous une entrée d'historique nommée `pharmacie_documents_recus`, version `20261022073904`. Le préfixe du fichier et la version live diffèrent; cela ne prouve pas, à lui seul, une dérive du contenu.
+- La migration de fichiers contient des politiques fondées sur `public.is_admin()`; la fonction `public.is_admin()` applique le rôle Admin et l'état actif via sa logique sous-jacente examinée précédemment. Le bucket est explicitement privé dans le SQL source, contrairement aux quatre buckets d'images actuellement observés en public.
+
+### 46.2 Contradiction et conclusion corrigée
+
+Le constat d'absence des tables et du bucket live est confirmé, mais il faut distinguer **objet absent en production** et **migration absente du dépôt** : la migration source est bien présente dans `main`. Le signal le plus précis est donc : **migration présente dans Git, sans entrée correspondante retrouvée dans l'historique live, et objets qu'elle doit créer absents du catalogue live**. La cause exacte (migration non appliquée, entrée historique renommée/non standard, ou autre écart de synchronisation) n'est pas démontrée par ces seuls éléments.
+
+Le parcours d'envoi, de liste et de validation de fichiers qui dépend de ces objets est donc susceptible d'échouer dans l'environnement live actuel. Ce constat ne doit pas être confondu avec le parcours séparé de cases de réception déclarée, qui repose sur `pharmacie_documents_recus` et existe bien en live. Une case cochée signifie réception déclarée, pas preuve documentaire ni authentification.
+
+### 46.3 Revue SQL statique — points à vérifier avant toute correction
+
+- La migration de fichiers ne contient pas de bloc explicite `begin/commit`; son atomicité doit être appréciée selon le mécanisme d'exécution réel, sans supposer qu'un échec partiel est impossible.
+- Les politiques de table permettent à un Admin d'insérer et de modifier les lignes documentaires; l'historique est alimenté par un trigger `AFTER INSERT OR UPDATE`. Il faut vérifier le parcours applicatif de remplacement/suppression pour garantir cohérence du fichier Storage, de la ligne documentaire et du journal.
+- Le trigger journalise également les mises à jour où le statut ne change pas comme `remplacement`; cette sémantique peut produire des entrées d'historique pour des changements de métadonnées et doit être confirmée comme intentionnelle.
+- La table d'historique n'expose dans cette migration qu'une politique de lecture Admin et un privilège SQL `SELECT`; les écritures sont attendues via le trigger SECURITY DEFINER. Le propriétaire effectif, les privilèges d'exécution de la fonction trigger et les protections contre les modifications directes doivent être vérifiés avant de conclure à une garantie append-only.
+- Le nom du bucket et les contrôles de format/taille sont cohérents entre la migration source et les constats précédents du code, mais les droits de lecture sont limités à Admin. Toute URL signée doit être produite côté serveur après contrôle d'accès, et sa durée de vie doit rester courte.
+
+### Décision du lot 5
+
+- **Confirmé :** le fichier de migration est présent dans `main`; les deux tables documentaires et le bucket privé qu'il prévoit sont absents du catalogue live; aucune entrée live portant le nom de cette migration n'a été trouvée dans le filtre d'historique exécuté.
+- **Distinction confirmée :** le registre de réception déclarative `pharmacie_documents_recus` existe et est distinct du stockage de fichiers et de l'historique de validation.
+- **À instruire ensuite :** retrouver tous les appels applicatifs aux tables/bucket, vérifier le flux d'upload/compensation, les privilèges et le statut exact des migrations historiques avant de proposer une correction.
+- **Aucune correction appliquée :** aucune migration, requête d'écriture, opération Storage, test d'envoi, branche ni déploiement n'a été lancé.
