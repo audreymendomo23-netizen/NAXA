@@ -1,13 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 export default async function AdminAlertes() {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/alertes");
-  const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin" || profile.actif === false) redirect("/");
+  const { sb } = await requireAdminActive("/admin/alertes");
   const [{ data: pharmacies, error: pharmaciesError }, { data: validites, error: validitesError }] = await Promise.all([
     sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche").order("nom"),
     sb.rpc("validites_promoteurs_admin"),
