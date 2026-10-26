@@ -1012,3 +1012,56 @@ Migration : `harden_search_logging_popular_products_paths_20261026220000`.
 - `private.produits_populaires` qualifie les tables catalogue/stock/événements et utilise `search_path = ''`.
 - Contrôle SQL après application : ces trois fonctions ont un chemin vide, `anon EXECUTE = false`; les droits `authenticated` sont conservés.
 
+
+
+## 24. Reprise de l'audit existant — contrôle live Supabase, Vercel et configuration — 26 octobre 2026
+
+Cette section prolonge le présent dossier et la branche existante `audit/admin-360-20261026`. Elle ne recrée ni chantier ni branche. Les vérifications sont en lecture seule; aucune correction applicative, migration SQL, fusion ou relance de déploiement n'a été effectuée pendant cette passe.
+
+### 24.1 État exact de la branche de travail
+
+- Comparaison GitHub live : `audit/admin-360-20261026` est à **65 commits en avance** sur `main`, **0 en retard**.
+- Référence `main) au moment de la comparaison : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`.
+- La branche existe déjà et contient le rapport présent, les corrections ciblées précédentes et leurs migrations. Le différentiel n'est pas assimilé à 65 corrections validées : il contient des travaux antérieurs qui doivent être relus et testés.
+- Aucun changement de branche ni aucune fusion n'ont été réalisés.
+
+### 24.2 État Vercel : cause de build établie sur le déploiement le plus récent
+
+Inspection des dix derniers déploiements retournés pour le projet `naxa` :
+
+- **10/10 sont en état `ERROR`**, ciblant Production et liés à `main`; ils correspondent à une série de commits rapprochés, pas à des déploiements de cette branche d'audit.
+- Déploiement le plus récent inspecté : `dpl_DbAaBdHoEYrSoiu1J1BnKndn5CSQ`, commit `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`, message « Ajouter la consultation et mise à jour du profil admin ».
+- Cause de build observée dans les logs : TypeScript échoue dans `src/components/admin/CatalogueCreation.tsx:53:3` avec **« An object literal cannot have multiple properties with the same name. »** Le log montre la propriété `canal_unique` à la ligne 53 comme clé dupliquée; la compilation s'arrête avant la fin du build.
+- Les avertissements React/Next concernant certains `<img>` et dépendances de hooks ne sont pas la cause fatale indiquée par ce log.
+- **Aucune correction ni relance** n'a été faite, conformément à la règle d'absence de déploiement non autorisé. Ce défaut de `main` est une preuve importante à intégrer au diagnostic global, sans le corriger dans cette phase documentaire.
+
+### 24.3 Inventaire live des fonctions `SECURITY DEFINER` du schéma `public`
+
+Requête SQL en lecture seule sur Supabase NAXA, le 26 octobre 2026 :
+
+- **189** fonctions `SECURITY DEFINER` dans `public`.
+- **5** fonctions du périmètre sont exécutables par le rôle `anon` selon `has_function_privilege`.
+- **45** fonctions ont un `search_path` différent des deux formes restrictives utilisées dans le filtre initial (`search_path = ''` ou `search_path = auth`). Ce chiffre est une file de revue, **pas** un décompte de vulnérabilités confirmées : les chemins `public`, `pg_catalog` ou `pg_temp` nécessitent une analyse individuelle du corps, des objets qualifiés, des grants et des appelants.
+- Les cinq fonctions identifiées avec `anon EXECUTE = true` sont : `public.get_home_service_catalog()`, `public.get_universe_catalog(text)`, `public.marketplace_offre_stock_disponible(uuid, uuid)`, `public.produits_populaires(integer, integer)` et `public.universe_partner_is_public(uuid, text)`.
+- Ces permissions peuvent être intentionnelles pour certaines lectures publiques. Il faut lire les définitions et les contrats fonctionnels avant toute révocation; aucune permission n'a été modifiée dans cette passe.
+- La liste complète issue de la requête doit être analysée fonction par fonction : vérification d'autorisation métier, qualification des objets, risque d'injection par `search_path`, droits des appelants et effets de bord. Le durcissement du schéma `private` documenté à la section 23 ne clôt donc pas l'audit des façades publiques.
+
+### 24.4 Variables d'environnement Vercel — inventaire des noms, sans valeurs
+
+- Inventaire consulté sans déchiffrement : **27 entrées** retournées, réparties sur plusieurs cibles; **18 noms de variables distincts**.
+- Noms observés : `CRON_SECRET`, `GOOGLE_APPS_SCRIPT_SECRET`, `GOOGLE_APPS_SCRIPT_URL`, `NAXA_PHARMACY_COOKIE_SECRET`, `NAXA_RATE_LIMIT_SECRET`, `NAXA_VAPID_PRIVATE_KEY`, `NAXA_VAPID_PUBLIC_KEY`, `NAXA_VAPID_SUBJECT`, `NEXT_PUBLIC_NAXA_ROUTING_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `SMTP_FROM`, `SMTP_HOST`, `SMTP_PASSWORD`, `SMTP_PORT`, `SMTP_USER`, `SUPABASE_SERVICE_ROLE_KEY`.
+- Les valeurs secrètes n'ont pas été demandées, reproduites ni ajoutées au rapport.
+- Le relevé indique des entrées Production, Preview et Development; certaines sont liées à une branche Preview de test. La présence d'un nom dans la liste ne prouve pas à elle seule que sa valeur est correcte, que la variable est consommée par le code courant, ou que les cibles sont isolées comme prévu.
+- Suite documentaire nécessaire : croiser les noms avec les usages dans le code, les environnements attendus, les erreurs de build et la séparation Production/Preview, sans divulguer de secret ni changer de configuration pendant l'audit préliminaire.
+
+### 24.5 État et prochaine séquence de travail
+
+La phase préliminaire a progressé avec des preuves live supplémentaires : la cause fatale d'un build Vercel est maintenant identifiée, les déploiements récents ont été recensés, les noms de variables ont été inventoriés sans valeurs, et le périmètre de revue des fonctions `public.SECURITY DEFINER` est quantifié.
+
+Elle n'est **pas encore clôturée**. Il reste à :
+1. analyser les définitions et appelants des fonctions `public.SECURITY DEFINER`, en commençant par les cinq fonctions exécutables par `anon` puis les 45 cas de `search_path` à qualifier;
+2. rapprocher les variables Vercel des références de code et des cibles d'environnement, sans révéler les valeurs;
+3. consolider l'état des migrations Supabase et la documentation existante avec les commits exacts de la branche;
+4. vérifier le périmètre et les preuves GitHub, puis consigner clairement les points non vérifiables sans test local/navigateur ou session réelle.
+
+Après clôture documentée de cette phase préliminaire, le rapport sera présenté pour validation et autorisation avant de commencer l'audit détaillé page par page de l'Admin. D'ici là : pas de nouvelle branche, pas de correction métier supplémentaire, pas de fusion dans `main`, pas de déploiement.
