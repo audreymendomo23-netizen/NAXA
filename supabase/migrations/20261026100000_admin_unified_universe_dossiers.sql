@@ -84,6 +84,8 @@ begin
   if p_owner_user_id is null or not exists (
     select 1 from public.profiles where id=p_owner_user_id
   ) then raise exception 'Compte Promoteur introuvable' using errcode = '23503'; end if;
+  -- Le compte propriétaire reste suspendu tant que le dossier est en attente.
+  update public.profiles set actif=false where id=p_owner_user_id;
   if length(trim(coalesce(p_name,''))) < 2 or length(trim(coalesce(p_city,''))) < 2
      or p_monthly_fee_fcfa is null or p_monthly_fee_fcfa <= 0
      or p_universe_slug not in ('parapharmacie','examens','prestations','aide')
@@ -183,10 +185,11 @@ as $fn$
 declare
   v_actor uuid := auth.uid();
   v_universe text;
+  v_owner uuid;
 begin
   if not public.is_admin() then raise exception 'Accès administrateur requis' using errcode='42501'; end if;
   if p_partner_id is null then raise exception 'Dossier partenaire requis' using errcode='22023'; end if;
-  select d.universe_slug into v_universe
+  select d.universe_slug,d.promoteur_id into v_universe,v_owner
   from public.admin_partner_dossiers d
   join public.partners p on p.id=d.partner_id
   where d.partner_id=p_partner_id and d.dossier_status='pending' and p.status='pending'
@@ -204,6 +207,7 @@ begin
   where partner_id=p_partner_id and universe_slug=v_universe;
   update public.admin_partner_dossiers set dossier_status='validated',updated_at=now()
   where partner_id=p_partner_id;
+  update public.profiles set actif=true where id=v_owner;
   insert into public.audit_log(actor_id,action,entity_type,entity_id,metadata)
   values(v_actor,'partner.dossier_validated','admin_partner_dossier',p_partner_id::text,
     jsonb_build_object('universe_slug',v_universe,'status','active'));
