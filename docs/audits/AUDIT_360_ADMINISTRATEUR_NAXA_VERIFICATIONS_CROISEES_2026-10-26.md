@@ -189,3 +189,41 @@ Pages/actions revues dans cette passe : alertes, configuration, géolocalisation
 - Priorités à garder en tête : RLS du journal pour compte admin inactif ; sémantique renouvellement/paiement ; correspondance migrations/catalogue des documents ; contrôle des erreurs de synchronisation OSM ; cohérence des deux registres documentaires ; réconciliation des créations multi-étapes.
 
 **Limites :** lecture Git et catalogue SQL uniquement. Pas de test navigateur, pas de requête destructive, pas d'exécution des actions métier, pas de build, pas de migration appliquée et pas de déploiement.
+
+
+## 12. Passe consolidée finale — routes restantes, politiques RLS et audit SQL
+
+### 12.1 Routes Admin restantes : protections et retours d'erreur
+
+Lecture statique complémentaire des actions/pages Examens, Prestations, Produits, Univers, Promoteurs et du tableau de bord :
+
+- **Examens — cohérence correcte à confirmer en test :** les trois actions passent par `requireAdminActive`, valident l'UUID et la liste des statuts avant d'appeler les RPC. Les erreurs RPC conduisent à un retour explicite. La page signale un catalogue indisponible et précise qu'aucune action n'a été faite. Cela ne prouve pas que les RPC et migrations sont présents dans tous les environnements.
+- **Prestations — garde-fous explicites :** la page et l'action utilisent `requireAdminActive`; l'action contrôle l'erreur RPC et le statut relu après mutation. La page différencie le catalogue indisponible. La validation réelle des justificatifs du professionnel reste une vérification humaine distincte.
+- **Produits — risque de succès trompeur (P1/P2 à confirmer) :** l'action de mise à jour de la fiche vérifie et affiche l'erreur d'écriture, mais la génération de brouillon IA appelle ensuite `update` sans contrôler le résultat Supabase avant de rediriger avec `ok=ia`. Le message de succès peut donc être affiché alors que l'enregistrement du brouillon a échoué. Aucun échec n'a été reproduit.
+- **Univers — audit secondaire non bloquant (P2) :** après la mise à jour d'un partenaire, l'action insère une entrée dans `audit_log` mais n'examine pas le résultat de cet insert dans le code lu. Une mutation peut donc réussir sans que cette trace applicative soit confirmée. Vérifier si un autre mécanisme DB couvre ce cas avant correction.
+- **Promoteurs / pièces reçues :** la validation passe par la RPC `admin_valider_dossier_pharmacie`; les pièces reçues utilisent `pharmacie_documents_recus`. Les erreurs de validation sont traduites en retours explicites. Ce parcours ne résout pas l'écart de catalogue signalé plus haut pour `pharmacie_documents` et son historique.
+- **Tableau de bord Admin :** la page affiche explicitement des indicateurs partiels si les pharmacies, validités ou le journal sont indisponibles ; elle évite donc de présenter ces totaux comme complets. Les métriques restent des indicateurs de suivi, pas une preuve de disponibilité réelle des stocks.
+
+### 12.2 Contrôle RLS et déclencheurs en lecture seule
+
+Le catalogue SQL courant confirme RLS activé sur les tables examinées : `profiles`, `audit_log`, `abonnements`, `abonnements_promoteurs`, `abonnement_paiements`, `abonnement_promoteur_paiements`, `conventions_promoteurs`, `promoteur_pharmacies`, `pharmacie_documents_recus`, `naxa_custom_roles`, `naxa_custom_role_privileges`, `naxa_profile_privileges` et les tables d'audit de caisse. Cela ne signifie pas que chaque politique est parfaite ; les expressions et rôles doivent être examinés table par table.
+
+- **Point P1 maintenu — `audit_log` :** les politiques de lecture/insertion examinées testent `profiles.role = 'admin'` sans exiger explicitement `profiles.actif = true`. Le prédicat central `private.is_admin()` vérifie au contraire le rôle et l'activité. La divergence peut laisser un compte portant encore le rôle admin mais désactivé accéder au journal directement par RLS. Vérifier les autres couches et aligner les politiques avec le prédicat admin actif.
+- **Table d'en-tête de chaîne d'audit de caisse :** `caisse_audit_chain_heads` a RLS activé mais aucune politique n'est exposée dans le catalogue interrogé. L'accès direct des rôles applicatifs devrait donc être refusé par défaut ; confirmer que les écritures/lectures nécessaires passent uniquement par des fonctions privilégiées prévues, et que le fonctionnement n'en dépend pas côté client.
+- **Privilèges :** les catalogues de rôles et privilèges possèdent des politiques de lecture, dont certaines exposent les référentiels à tout utilisateur authentifié. Les affectations personnalisées ont une politique de lecture limitée au profil lui-même, à l'admin ou au gestionnaire autorisé. La lecture seule ne permet pas de conclure sur chaque voie d'écriture ni sur les privilèges effectifs de toutes les RPC.
+- **Déclencheurs :** le catalogue courant montre des déclencheurs actifs de capture d'historique sur de nombreuses tables métier, notamment profils, relations promoteur-pharmacie, conventions, abonnements et affectations de privilèges ; il montre aussi des garde-fous de cohérence sur l'activation des caisses et abonnements. Cette présence ne prouve pas à elle seule la complétude, l'immutabilité ni l'absence de contournement de chaque journal.
+- **Documents :** `pharmacie_documents_recus` est présent avec quatre politiques admin dans le catalogue courant. En revanche, la requête ciblée n'a pas retourné `pharmacie_documents` ni les tables d'historique évoquées par la migration versionnée dans Git. Il s'agit d'un **écart dépôt/catalogue à résoudre**, pas d'une preuve suffisante que la migration n'a jamais été appliquée : environnement, schéma ou dérive restent possibles.
+
+### 12.3 Décision de clôture de cette passe
+
+**Passe de vérifications statiques et SQL en lecture seule terminée pour le périmètre consultable dans cette session.** Le rapport distingue les faits observés, les risques à confirmer et les limites. Cela ne constitue pas une certification fonctionnelle de tout le parcours Administrateur.
+
+Priorités avant de déclarer le chantier Admin complètement clos :
+1. Aligner les politiques RLS de `audit_log` avec le contrôle admin actif et vérifier les voies d'accès au journal.
+2. Réconcilier le catalogue réel avec les migrations des documents et historiques.
+3. Corriger/valider le retour de succès du brouillon IA et la confirmation d'écriture de l'audit Univers.
+4. Revoir la sémantique de renouvellement et la preuve de paiement déjà signalées en section 10.
+5. Tester, avec comptes de rôles autorisés et refusés, les parcours critiques en environnement de test : validation dossier, activation/suspension partenaire, publication examens/prestations, renouvellement, révocation de privilèges et lecture du journal.
+6. Exécuter les tests automatisés ciblés et les contrôles de build dans une passe autorisée ; ils ne sont pas exécutés ni revendiqués ici.
+
+**Limites confirmées :** aucun changement de logique métier, SQL, configuration ou données ; aucune migration appliquée ; aucun test navigateur ou scénario métier exécuté ; aucun build revendiqué ; aucun déploiement. Le rapport documentaire seul est modifié sur `main`.
