@@ -6,7 +6,7 @@
 - Branche de référence : `main`
 - Commit de référence `main` à l'ouverture : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`
 - Objet : établir les preuves de l'étape préliminaire avant tout audit page par page et avant toute correction fonctionnelle.
-- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Sept migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
+- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Huit migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
 - État : **préliminaire en cours — constats initiaux consignés; les inventaires approfondis et la lecture exhaustive du code restent à compléter dans cette même branche.**
 
 ## 1. Périmètre et limites de preuve
@@ -866,3 +866,24 @@ La base ne contient actuellement aucun produit partenaire, aucune demande de pre
 ## 18. Prochaine étape — lot 5 : permissions des RPC et validation applicative
 
 Le contrôle du garde administrateur actif est maintenant cohérent entre les pages/Server Actions corrigées et les RPC ciblées. La prochaine passe doit vérifier les contrats et permissions des RPC SECURITY DEFINER restantes par famille métier, puis exécuter lint, typecheck, build et tests navigateur depuis un environnement de développement. Les connecteurs utilisés ici ne permettent pas d'affirmer que ces commandes ont réussi. Aucun déploiement ne sera lancé pour les exécuter.
+
+
+## 18.1 Lot 5 — garde SQL interne et premiers contrôles des RPC exposées
+
+La relecture a identifié que private.is_admin() utilisait encore search_path = public malgré la qualification explicite de ses objets. Une migration additive a fixé search_path à la chaîne vide afin de réduire le risque de résolution d'objets dans cette fonction SECURITY DEFINER :
+
+- Migration : 20261026180000_harden_private_is_admin_search_path.sql.
+- Version Supabase confirmée : 20261026144414.
+- Contrôle après application : la définition live confirme search_path vide; tests transactionnels confirment administrateur actif = true et administrateur temporairement désactivé = false. Les transactions ont été annulées.
+
+Un scan SQL des fonctions SECURITY DEFINER avec comparaison directe role='admin' ne trouve plus de raccourci de ce type dans les fonctions RPC métier accessibles à anon/authenticated. Les fonctions restantes identifiées par le scan sont non exécutables par ces rôles : generate_exam_slots, naxa_bootstrap_first_admin, notify_home_service_offer_created et rapports_non_envoyes. Les deux fonctions de génération/bootstrap et les chemins trigger/service restent dans le lot de revue de leur famille respective.
+
+Les cinq tables RLS sans politique remontées par l'advisor ont également été contrôlées : anon et authenticated ne disposent d'aucun privilège SELECT, INSERT, UPDATE ou DELETE sur ces tables. Aucune modification de politique n'a donc été appliquée sans preuve d'un besoin métier.
+
+### État du lot 5
+
+- Garde SQL active sur les RPC ciblées et helper sécurisé par search_path vide : 🟢.
+- Accès direct aux cinq tables RLS sans politique : 🟢 refusé par les privilèges, confirmation SQL.
+- Audit exhaustif des 120 avertissements SECURITY DEFINER : 🟠 encore nécessaire par familles; l'advisor seul ne suffit pas à déclarer une vulnérabilité ni à justifier un retrait global de droits.
+- Protection Supabase contre les mots de passe compromis : 🟠 réglage de sécurité non activé; non modifié dans ce lot.
+- Tests de bout en bout UI, lint, typecheck et build : 🟠 non exécutés faute d'environnement d'exécution connecté au dépôt. Aucun déploiement n'a été créé pour lancer ces tests.
