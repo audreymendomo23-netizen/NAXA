@@ -21,7 +21,7 @@ export async function enregistrerReglementPromoteur(formData: FormData) {
  const extension=extensions[preuve.type];
  if(!extension) redirect("/admin/pilotage/reglements?erreur=format");
  let payeLe:string|null=null;
- if(payeLeRaw){const d=new Date(payeLeRaw);if(!Number.isFinite(d.getTime())||d.getTime()>Date.now()+5*60_000)redirect("/admin/pilotage/reglements?erreur=date");payeLe=d.toISOString();}
+ if(payeLeRaw){const d=new Date(payeLeRaw+":00+01:00");if(!Number.isFinite(d.getTime())||d.getTime()>Date.now()+5*60_000)redirect("/admin/pilotage/reglements?erreur=date");payeLe=d.toISOString();}
  const db=supabaseAdmin();
  const {data:profile,error:profileError}=await db.from("profiles").select("id,role").eq("id",promoteurId).maybeSingle();
  if(profileError||!profile||profile.role!=="promoteur")redirect("/admin/pilotage/reglements?erreur=promoteur");
