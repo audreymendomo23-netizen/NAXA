@@ -1183,3 +1183,44 @@ Une requête en lecture seule a extrait les 20 premières fonctions selon l'ordr
 ### 28.3 Prochaine étape
 
 Lire les corps des fonctions de ce lot avec `pg_get_functiondef`, en priorité `caisse_ouvrir`, `can_access_pharmacy`, `mark_user_notification_read`, `evaluate_suivi_user_alert_rules` et `expire_universe_reservations_cron`, puis comparer les définitions aux migrations et aux appels de l'application. Aucun droit n'a été modifié. Les résultats et les incertitudes restent consignés dans le présent document; pas de déploiement, pas de merge.
+
+
+## 29. Lecture des corps de cinq fonctions sensibles — 26 octobre 2026
+
+Définitions live lues avec `pg_get_functiondef`, sans appel d'exécution ni changement de droits.
+
+### 29.1 `public.caisse_ouvrir(uuid, integer)` — priorité élevée
+
+- Le corps vérifie `auth.uid()`, refuse un fond initial négatif, vérifie que la caisse est active et que l'appelant est administrateur ou peut accéder à la pharmacie, refuse une session déjà ouverte, puis insère une session avec `auth.uid()` comme auteur.
+- **Point technique à corriger après validation :** `search_path=public` et références non qualifiées à `caisses`, `caisses_sessions`, `is_admin()` et `can_access_pharmacy()`. Cela rend la fonction dépendante de la résolution des noms dans un chemin modifiable. Les tables et fonctions devraient être qualifiées explicitement et le chemin réduit à vide, avec une migration testée.
+- **Point métier à tester :** la fonction vérifie l'absence d'une session ouverte, mais le SQL visible ne démontre pas à lui seul une garantie de concurrence. Une contrainte/index unique ou une stratégie de verrouillage doit empêcher deux ouvertures concurrentes de la même caisse.
+
+### 29.2 `public.can_access_pharmacy(uuid)`
+
+- Vérifie un identifiant non nul et recherche l'identifiant parmi les résultats de `public.my_pharmacies()`.
+- Les objets sont qualifiés, mais le `search_path` est `public`. Le corps est bref et le contrôle métier passe par le helper `my_pharmacies`.
+- **Avis provisoire :** faible complexité, mais dépendance à auditer sur la fonction `my_pharmacies()` (identité, rôles, promoteur, accès multi-pharmacie). Réduire le `search_path` après vérification du helper.
+
+### 29.3 `public.evaluate_suivi_user_alert_rules()`
+
+- Fonction trigger; ignore les mesures sans valeur numérique, ne sélectionne que les règles actives du même utilisateur et type de mesure, puis exige le consentement correspondant avant de créer une alerte.
+- Les références de tables et appels de fonctions sont qualifiés par `public`, mais `search_path=public, pg_temp` est conservé inutilement au vu du corps observé.
+- **Avis provisoire :** les garde-fous de propriétaire de règle et de consentement sont visibles dans la définition. Il reste à vérifier les politiques RLS, le trigger qui l'appelle, et les tests de non-fuite entre utilisateurs. Recommandation candidate : `search_path = ''`.
+
+### 29.4 `public.expire_universe_reservations_cron(integer)`
+
+- Valide `p_limit` entre 1 et 5000, sélectionne les réservations échues dans des statuts éligibles avec `FOR UPDATE SKIP LOCKED`, les marque expirées, et journalise le nombre traité.
+- Les tables et colonnes sont qualifiées; `search_path=public, pg_temp` n'apparaît pas nécessaire au corps lu.
+- **Avis provisoire :** le lotage et le verrouillage sont des protections positives. Il reste à confirmer que la fonction n'est exécutable que par le rôle/ordonnanceur prévu, et que la transition `expired` déclenche bien les restitutions/notifications prévues par le cycle métier. Cette fonction, seule, ne décrémente ni ne restaure explicitement le stock.
+
+### 29.5 `public.mark_user_notification_read(uuid)`
+
+- Refuse les utilisateurs non authentifiés et les identifiants nuls; met à jour uniquement une notification dont `user_id = auth.uid()`. Le résultat indique aussi vrai si cette notification appartenant à l'utilisateur était déjà marquée lue.
+- Les tables sont qualifiées; `search_path=public, pg_temp` peut être réduit.
+- **Avis provisoire :** le filtre par propriétaire est bien présent dans la lecture du corps. À confirmer : grants exacts, appelants de l'application et comportement des notifications inexistantes ou appartenant à un tiers.
+
+### 29.6 Synthèse du lot
+
+- Le point le plus concret de ce lot est `caisse_ouvrir` : références non qualifiées dans une fonction `SECURITY DEFINER` et dépendance à `search_path=public`. **Il s'agit d'un risque de résolution de noms à corriger après validation, pas de la preuve qu'un attaquant peut actuellement injecter un objet dans `public`.**
+- Pour les quatre autres fonctions, le corps consulté montre des objets qualifiés et/ou des contrôles d'identité utiles; le chemin peut néanmoins être resserré pour réduire la surface de risque.
+- Aucune migration corrective n'a été créée ni appliquée dans cette étape, car cette partie reste documentaire et doit conserver l'approche de revue séquentielle avant les changements.
