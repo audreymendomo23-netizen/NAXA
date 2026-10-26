@@ -687,3 +687,17 @@ Cela réduit le risque immédiat de présentation dans la recherche publique sel
 L'historique Supabase live contient également `120_harden_universe_reservation_search_paths` sous la version `20261018220811`. Le décalage entre le numéro historique du fichier et la version live doit être interprété avec les conventions de versionnement existantes, pas comme une absence de migration. Le test SQL associé demeure non exécuté selon le registre; la présence d'une entrée d'historique ne remplace pas un résultat de test.
 
 Aucune donnée n'a été modifiée et aucun test ni build n'a été lancé dans ce rapprochement.
+
+
+## 38. Complément de revue des écrans et rapports
+
+Une revue supplémentaire des pages Admin sur `main` a couvert Alertes, Configuration, Examens, Géolocalisation, Journal, Messagerie, Pilotage, Rapports, Validité, Prestations, Produits, Promoteurs, détail partenaire, Rappels lots et Univers.
+
+- Les pages serveur relues utilisent majoritairement `requireAdminActive`; la page Validité contrôle directement session, rôle Admin et compte actif.
+- Configuration ne manipule que les préférences locales de thème et de langue dans le fichier examiné.
+- La page Rappels lots délègue au composant client `AdminRappelLotNotice`. Ce composant vérifie le rôle et le statut actif côté navigateur avant de charger les avis et d'appeler `admin_avis_rappel_lot_diffuser`. Cette vérification côté navigateur n'est pas, à elle seule, une preuve d'autorisation serveur; la RPC et les politiques des tables doivent assurer le contrôle effectif.
+- `/api/rapports` applique des contrôles distincts : GET autorise plusieurs rôles actifs avec périmètre adapté au compte; POST exige un Admin actif et n'accepte que 7, 30 ou 90 jours avant d'enregistrer un rapport.
+- Le tableau de bord Pilotage appelle directement `stats_pilotage_scope` depuis le navigateur. L'autorisation effective de cette RPC reste à corroborer à partir de sa définition et de ses privilèges live; elle n'est pas déduite du seul écran Admin.
+- Le compteur « Promoteurs actifs » du rapport POST utilise `role='promoteur'` et `actif=true`. Il reste à rapprocher de la validité contractuelle pour confirmer la définition exacte de cet indicateur.
+
+Ces constats sont issus d'une lecture statique. Aucun test de rôle, appel de diffusion de rappel, calcul de rapport ni mutation n'a été lancé.
