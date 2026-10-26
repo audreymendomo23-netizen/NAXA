@@ -1,15 +1,12 @@
 "use server";
 import { redirect } from "next/navigation";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { PROMOTEUR_VALIDATION, normalizePromoteurPhone, validatePromoteurPhone, type PromoteurPhoneCountry } from "@/lib/promoteur-validation";
 
 async function exigerAdmin() {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin");
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).single();
-  if (profile?.role !== "admin") redirect("/");
-  return auth.user.id;
+  const { user } = await requireAdminActive("/admin");
+  return user.id;
 }
 
 const value = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
