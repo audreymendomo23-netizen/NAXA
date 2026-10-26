@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
-type Props = { searchParams?: { ok?: string; erreur?: string } };
-export default async function ValiditePage({searchParams}:Props){
+export default async function ValiditePage(){
  const { sb } = await requireAdminActive("/admin/pilotage/validite");
  const{data,error}=await sb.rpc("validites_promoteurs_admin");
  const rows=(error ? [] : data ?? []) as any[];
