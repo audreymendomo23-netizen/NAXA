@@ -6,7 +6,7 @@
 - Branche de référence : `main`
 - Commit de référence `main` à l'ouverture : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`
 - Objet : établir les preuves de l'étape préliminaire avant tout audit page par page et avant toute correction fonctionnelle.
-- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Six migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
+- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Cinq migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
 - État : **préliminaire en cours — constats initiaux consignés; les inventaires approfondis et la lecture exhaustive du code restent à compléter dans cette même branche.**
 
 ## 1. Périmètre et limites de preuve
