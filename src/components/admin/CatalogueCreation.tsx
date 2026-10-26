@@ -84,7 +84,6 @@ export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, err
   }, [pharmacies, pharmacyQuery]);
 
   const current = universes.find((u) => u.value === confirmed);
-  const generic = confirmed !== "" && confirmed !== "pharmacie" && confirmed !== "bebe-maman";
   const submitAction = confirmed === "pharmacie" ? creerPharmacie : creerDossierUnivers;
 
   return <section className="carte space-y-4" aria-labelledby="creation-univers-title">
@@ -113,7 +112,7 @@ export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, err
     {!confirmed && <p className="text-xs text-slate-500">La fiche ne s’affiche qu’après avoir cliqué sur VALIDER. Dispositifs médicaux reste un service NAXA et n’est pas une création d’établissement.</p>}
 
     {current && confirmed === "bebe-maman" && <div className="space-y-4 rounded-2xl border border-[#FFE23D] bg-white p-4">
-      <h3 className="text-lg font-extrabold">Activer le service <span className="text-[#D5AD00]">Bébé &amp; Maman</span></h3>
+      <h3 className="text-lg font-extrabold">Activer le service <span className="rounded bg-[#0B3D26] px-1 text-[#FFE23D]">Bébé &amp; Maman</span></h3>
       <p className="text-sm text-slate-600">Le service sera ajouté au dossier de la pharmacie choisie. Aucune pharmacie ni aucun dossier Promoteur autonome ne sera créé.</p>
       <form action={rattacherServiceBebeMaman} className="space-y-3">
         <div ref={suggestionsRef} className="relative">
@@ -137,7 +136,7 @@ export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, err
 
     {current && confirmed !== "bebe-maman" && <form action={submitAction} className="space-y-4 rounded-2xl border bg-white p-4 sm:p-5">
       <input type="hidden" name="universe_slug" value={confirmed}/>
-      <h3 className="text-xl font-extrabold">Créer <span className="text-[#D5AD00]">{current.description}</span></h3>
+      <h3 className="text-xl font-extrabold">Créer <span className="rounded bg-[#0B3D26] px-1 text-[#FFE23D]">{current.description}</span></h3>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold">Nom<input name="nom" required maxLength={160} className={field}/></label>
         <label className="block text-sm font-semibold">Ville<input name="ville" required defaultValue="Yaoundé" className={field}/></label>
