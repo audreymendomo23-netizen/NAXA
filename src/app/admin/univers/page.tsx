@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { Logo } from "@/components/Logo";
 import { ajouterCompteTestSuivi, ajouterProfessionnelSuivi, retirerProfessionnelSuivi, changerActivationUnivers, changerAssociationPartenaire, changerStatutPartenaire, changerStatutProduitPartenaire, creerProduitPartenaire, retirerCompteTestSuivi } from "./actions";
 
@@ -13,11 +12,7 @@ const spaces = [
 ] as const;
 
 export default async function AdminUnivers({ searchParams }: { searchParams: { ok?: string; erreur?: string; partenaire_q?: string; partenaire_statut?: string; produit_q?: string; produit_univers?: string; produit_statut?: string; univers?: string } }) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/univers");
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "admin") redirect("/");
+  const { sb } = await requireAdminActive("/admin/univers");
   const [u, f, p, a, t, logs, productsResult, suiviPros, partnerDossiersResult] = await Promise.all([
     sb.from("universes").select("slug,name,enabled,display_order").order("display_order"),
     sb.from("feature_flags").select("flag_key,enabled,description").order("flag_key"),
