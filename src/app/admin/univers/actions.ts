@@ -18,32 +18,8 @@ const field = (form: FormData, key: string, max = 160) => String(form.get(key) ?
 const slugs = ["parapharmacie", "bebe-maman", "examens", "suivi", "prestations", "aide"];
 const types = ["parapharmacie", "maternite", "centre_examen", "professionnel_domicile", "autre"];
 
-export async function creerPartenaire(form: FormData) {
-  const { sb, actor } = await admin();
-  const name = field(form, "name");
-  const type = field(form, "partner_type", 40);
-  const universe = field(form, "universe_slug", 40);
-  if (name.length < 2 || !types.includes(type) || !slugs.includes(universe) || universe === "suivi") redirect("/admin/univers?erreur=parametres");
-  const { data: partner, error } = await sb.from("partners").insert({
-    name, partner_type: type, city: field(form, "city", 100) || "Yaoundé",
-    neighborhood: field(form, "neighborhood", 120) || null,
-    phone_private: field(form, "phone_private", 40) || null,
-    status: "pending", created_by: actor,
-  }).select("id").single();
-  if (error || !partner) redirect("/admin/univers?erreur=schema");
-  const { error: linkError } = await sb.from("partner_universes").insert({
-    partner_id: partner.id, universe_slug: universe, enabled: false,
-  });
-  if (linkError) {
-    await sb.from("partners").update({ status: "suspended" }).eq("id", partner.id);
-    redirect("/admin/univers?erreur=association");
-  }
-  await sb.from("audit_log").insert({
-    actor_id: actor, action: "partner.created", entity_type: "partner",
-    entity_id: partner.id, metadata: { partner_type: type, universe_slug: universe, status: "pending" },
-  });
-  revalidatePath("/admin/univers");
-  redirect("/admin/univers?ok=partenaire");
+export async function creerPartenaire(_form: FormData) {
+  redirect("/admin?erreur=canal_unique");
 }
 
 export async function changerStatutPartenaire(form: FormData) {
