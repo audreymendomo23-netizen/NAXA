@@ -666,3 +666,24 @@ Le contrôle croisé du fichier source, de l'historique de migration Supabase et
 - Le même document mentionne douze RPC ciblées dans son contrôle antérieur. Le présent contrôle live a confirmé les huit fonctions de la migration nommée ci-dessus; il ne prétend pas avoir relu de nouveau les douze fonctions ni répété les tests transactionnels historiques.
 
 **Conclusion de rapprochement :** ce point précis est corroboré par le code de `main`, l'historique live et les réglages SQL actuels. Il ne doit pas être traité comme une migration manquante sur la seule base de son numéro différent. Aucune migration n'a été appliquée et aucun privilège n'a été changé pendant cette vérification.
+
+
+## 37. Rapprochement avec le registre de fonctionnalités NAXA
+
+Le registre `FONCTIONNALITES_VALIDEES.md` distingue le périmètre historique Admin, marqué « VALIDÉ — MAIN », des preuves récentes encore manquantes. Le périmètre historique F050 décrit le dashboard, les produits, le pilotage, les rapports, la validité et la gestion Promoteur; cette mention ne doit pas être interprétée comme une preuve actuelle de validation de tous les écrans, permissions, métriques et parcours couverts par le présent audit 360°.
+
+Le même registre indique explicitement que plusieurs travaux récents restent au niveau statique : build Next.js non exécuté, tests SQL ajoutés mais non exécutés, tests navigateur/E2E non réalisés, et preuves de Production non revendiquées. Le chantier Promoteur N1 est notamment marqué « CONSTRUIT — PREUVE MANQUANTE ». L'audit préliminaire doit donc conserver la distinction entre fonctionnalité historiquement intégrée et preuve technique/fonctionnelle actuelle.
+
+### Vérification complémentaire des données de démonstration
+
+Le regroupement live par `est_demo`, `actif`, `visible_recherche` et `de_garde` confirme :
+- 1 pharmacie non-démo, active et visible dans la recherche;
+- 3 pharmacies marquées démo, inactives, invisibles dans la recherche et non de garde.
+
+Cela réduit le risque immédiat de présentation dans la recherche publique selon ces indicateurs de base, mais ne prouve pas que tous les écrans Admin, rapports, suggestions ou API excluent systématiquement les données démo. Aucun nom de pharmacie ni aucune donnée individuelle n'est reproduit dans ce rapport.
+
+### Migration 120 — rapprochement live
+
+L'historique Supabase live contient également `120_harden_universe_reservation_search_paths` sous la version `20261018220811`. Le décalage entre le numéro historique du fichier et la version live doit être interprété avec les conventions de versionnement existantes, pas comme une absence de migration. Le test SQL associé demeure non exécuté selon le registre; la présence d'une entrée d'historique ne remplace pas un résultat de test.
+
+Aucune donnée n'a été modifiée et aucun test ni build n'a été lancé dans ce rapprochement.
