@@ -478,7 +478,7 @@ L'audit page par page demandé constitue l'étape suivante distincte; il ne doit
 - Branche de travail : `audit/admin-360-20261026`.
 - HEAD de la branche avant ce dernier commit de clôture documentaire : `4bf2bb69d5fec582f3dc81a2b1a1b1cd0bb654d5`. Le SHA final est celui du commit qui ajoute cette section.
 - HEAD de `main) inchangé : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`.
-- Comparaison GitHub : branche d'audit en avance de 6 commits documentaires, en retard de 0 commit; **un seul fichier ajouté/modifié par le lot** : ce rapport.
+- Comparaison GitHub : branche d'audit en avance de 9 commits documentaires, en retard de 0 commit; **un seul fichier ajouté/modifié par le lot** : ce rapport.
 - Aucun code applicatif modifié; aucune migration appliquée; aucun secret modifié; aucun déploiement déclenché.
 - Aucune CI, compilation ou suite de tests n'a été relancée manuellement.
 - L'analyse de toutes les lignes de tous les fichiers du dépôt n'est pas certifiée : le dépôt contient 1 228 entrées, 336 fichiers TS/TSX et 503 fichiers SQL. Le présent document est un rapport préliminaire fondé sur inventaire, lectures ciblées, documents prioritaires et preuves directes des outils. Le véritable audit détaillé des pages et de leurs dépendances devra compléter cette couverture, avec une matrice explicite des fichiers effectivement lus.
