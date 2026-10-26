@@ -50,7 +50,7 @@ export async function creerPharmacie(formData: FormData) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob)) || (Number.isFinite(Date.parse(dob)) && new Date(dob).toISOString().slice(0, 10) !== dob) || new Date(dob).getTime() > Date.now() || age < 18) errors.date_of_birth = "Date valide requise ; âge minimum : 18 ans.";
   if (!Number.isSafeInteger(montant) || montant <= 0) errors.montant_mensuel = "Entier positif requis (FCFA).";
   if (!ARCHITECTURES.includes(architecture)) errors.architecture_code = "Architecture invalide.";
-  if (Object.keys(errors).length) redirect("/admin?erreur=validation&champs=" + encodeURIComponent(JSON.stringify(errors)));
+  if (Object.keys(errors).length) redirect("/admin?erreur=validation&univers=pharmacie&champs=" + encodeURIComponent(JSON.stringify(errors)));
 
   const db = supabaseAdmin();
   const { data: created, error: userError } = await db.auth.admin.createUser({
@@ -61,7 +61,7 @@ export async function creerPharmacie(formData: FormData) {
       date_of_birth: f("date_of_birth"), consent_accepted: true,
     },
   });
-  if (userError || !created.user) { console.error("[admin.creerPharmacie] étape=auth.createUser", { code: userError?.code, message: userError?.message }); redirect("/admin?erreur=compte"); }
+  if (userError || !created.user) { console.error("[admin.creerPharmacie] étape=auth.createUser", { code: userError?.code, message: userError?.message }); redirect("/admin?erreur=compte&univers=pharmacie"); }
 
   const userId = created.user.id;
   const { data: pharmacy, error: pharmacyError } = await db.from("pharmacies").insert({
@@ -73,7 +73,7 @@ export async function creerPharmacie(formData: FormData) {
   if (pharmacyError || !pharmacy) {
     console.error("[admin.creerPharmacie] étape=pharmacies.insert", { code: pharmacyError?.code, message: pharmacyError?.message, details: pharmacyError?.details, hint: pharmacyError?.hint });
     await db.auth.admin.deleteUser(userId);
-    redirect("/admin?erreur=pharmacie");
+    redirect("/admin?erreur=pharmacie&univers=pharmacie");
   }
 
   const pharmacyId = pharmacy.id;
@@ -103,7 +103,7 @@ export async function creerPharmacie(formData: FormData) {
   if (privateError) {
     console.error("[admin.creerPharmacie] étape=pharmacie_privee.insert", { code: privateError.code, message: privateError.message, details: privateError.details, hint: privateError.hint });
     await cleanup();
-    redirect("/admin?erreur=profil");
+    redirect("/admin?erreur=profil&univers=pharmacie");
   }
 
   const { error: documentsError } = await db.from("pharmacie_documents_recus").insert({
@@ -120,7 +120,7 @@ export async function creerPharmacie(formData: FormData) {
   if (documentsError) {
     console.error("[admin.creerPharmacie] étape=pharmacie_documents_recus.insert", { code: documentsError.code, message: documentsError.message, details: documentsError.details, hint: documentsError.hint });
     await cleanup();
-    redirect("/admin?erreur=documents");
+    redirect("/admin?erreur=documents&univers=pharmacie");
   }
 
   const { data: updatedProfile, error: profileError } = await db.from("profiles").update({
@@ -133,7 +133,7 @@ export async function creerPharmacie(formData: FormData) {
   if (profileError || !updatedProfile) {
     console.error("[admin.creerPharmacie] étape=profiles.update", { code: profileError?.code, message: profileError?.message, details: profileError?.details, hint: profileError?.hint });
     await cleanup();
-    redirect("/admin?erreur=profil");
+    redirect("/admin?erreur=profil&univers=pharmacie");
   }
 
   const expiry = new Date();
@@ -149,7 +149,7 @@ export async function creerPharmacie(formData: FormData) {
   if (conventionError || !convention) {
     console.error("[admin.creerPharmacie] étape=conventions_promoteurs.insert", { code: conventionError?.code, message: conventionError?.message, details: conventionError?.details, hint: conventionError?.hint });
     await cleanup();
-    redirect("/admin?erreur=convention");
+    redirect("/admin?erreur=convention&univers=pharmacie");
   }
 
   const { data: arch, error: archError } = await db.from("naxa_architectures")
@@ -159,7 +159,7 @@ export async function creerPharmacie(formData: FormData) {
   if (archError || !arch) {
     console.error("[admin.creerPharmacie] étape=naxa_architectures.select", { code: archError?.code, message: archError?.message, details: archError?.details, hint: archError?.hint });
     await cleanup();
-    redirect("/admin?erreur=architecture");
+    redirect("/admin?erreur=architecture&univers=pharmacie");
   }
 
   const { error: abonnementError } = await db.from("abonnements_promoteurs").insert({
@@ -171,7 +171,7 @@ export async function creerPharmacie(formData: FormData) {
   if (abonnementError) {
     console.error("[admin.creerPharmacie] étape=abonnements_promoteurs.insert", { code: abonnementError.code, message: abonnementError.message, details: abonnementError.details, hint: abonnementError.hint });
     await cleanup();
-    redirect("/admin?erreur=abonnement");
+    redirect("/admin?erreur=abonnement&univers=pharmacie");
   }
 
   const { error: pharmacyArchitectureError } = await db.from("pharmacie_architectures").upsert({
@@ -184,7 +184,7 @@ export async function creerPharmacie(formData: FormData) {
   if (pharmacyArchitectureError) {
     console.error("[admin.creerPharmacie] étape=pharmacie_architectures.upsert", { code: pharmacyArchitectureError.code, message: pharmacyArchitectureError.message, details: pharmacyArchitectureError.details, hint: pharmacyArchitectureError.hint });
     await cleanup();
-    redirect("/admin?erreur=architecture");
+    redirect("/admin?erreur=architecture&univers=pharmacie");
   }
 
   const { error: linkError } = await db.from("promoteur_pharmacies").insert({
@@ -194,8 +194,8 @@ export async function creerPharmacie(formData: FormData) {
   if (linkError) {
     console.error("[admin.creerPharmacie] étape=promoteur_pharmacies.insert", { code: linkError.code, message: linkError.message, details: linkError.details, hint: linkError.hint });
     await cleanup();
-    redirect("/admin?erreur=reseau");
+    redirect("/admin?erreur=reseau&univers=pharmacie");
   }
 
-  redirect("/admin?ok=1");
+  redirect("/admin?ok=1&univers=pharmacie");
 }
