@@ -752,3 +752,30 @@ Une lecture SQL strictement en lecture seule de la base Supabase a confirmé :
 - Rapport mis à jour dans ce commit.
 - Tests, lint, typecheck, build et tests navigateur : non exécutés.
 - Aucun merge dans `main`, aucun déploiement, aucune migration appliquée à la base.
+
+
+### 16.7 Migrations Supabase appliquées — 2026-10-26
+
+Suite à l'autorisation explicite de l'utilisateur d'écrire dans Supabase lorsque nécessaire, quatre migrations ont été appliquées avec succès au projet NAXA `eouwtuusnsuxaejsxknf` via l'outil de migration, dans l'ordre suivant :
+
+1. `admin_unified_universe_dossiers_20261026100000` — version enregistrée `20261026142636`.
+2. `harden_unified_dossier_relations_20261026113000` — version enregistrée `20261026142640`.
+3. `admin_partner_dossier_optional_coordinates_20261026143000` — version enregistrée `20261026142649`.
+4. `require_active_admin_for_is_admin_20261026150000` — version enregistrée `20261026142652`.
+
+**Vérifications après application (lecture seule) :**
+- Les tables `public.admin_partner_dossiers` et `public.pharmacie_services` existent désormais et ont RLS activé.
+- `public.admin_create_partner_dossier`, `public.admin_valider_dossier_partenaire` et `public.admin_set_pharmacie_bebe_maman_service` existent avec leurs définitions attendues.
+- `private.is_admin()` exige désormais `role = 'admin'` et `actif IS TRUE`.
+- Le décompte confirme 1 profil administrateur actif, 0 profil administrateur inactif ou avec état actif NULL, 0 dossier partenaire et 0 service pharmacie. Aucune donnée métier existante n'a été créée ou modifiée par ces vérifications.
+- Le suivi des migrations Supabase confirme les quatre migrations comme appliquées.
+
+**Limites restantes :** aucun test de parcours applicatif n'a été exécuté avec une session réelle. Les scénarios de création/compensation Auth-RPC, validation métier, RLS et refus d'un administrateur inactif restent à couvrir par tests. La migration `20261026140000_bebe_maman_catalogue_pharmacie.sql` n'a pas été appliquée dans ce lot; elle modifie le catalogue et les réservations et nécessite une revue distincte, notamment parce qu'une branche de sa fonction de reçu vérifie encore le rôle admin directement au lieu de réutiliser `public.is_admin()`.
+
+### État actualisé
+- Garde applicative Promoteurs : 🟢 code corrigé, tests runtime non exécutés.
+- Compensation Auth/RPC : 🟢 journalisation et contrôle du résultat ajoutés, scénarios d'échec non testés.
+- Schéma dossiers partenaires/services et garde SQL administrateur actif : 🟢 migrations appliquées et objets vérifiés.
+- Parcours métier complet : 🟠 à tester en session réelle et à contrôler contre le schéma live.
+- Migrations de catalogue Bébé & Maman : 🟠 non appliquée, revue distincte requise.
+- Aucun merge dans `main`, aucun déploiement. Aucun lint, typecheck, build ou test automatisé exécuté.
