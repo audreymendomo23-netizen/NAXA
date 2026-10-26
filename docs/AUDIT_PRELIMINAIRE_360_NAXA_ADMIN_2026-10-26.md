@@ -213,3 +213,93 @@ Le conseiller Supabase a remonté, au relevé du 26 octobre 2026 :
 
 ## 11. Décision de clôture de l’étape préliminaire
 Le relevé des ressources et des constats techniques majeurs est consigné. **La couverture exhaustive ligne par ligne n’est pas certifiée** : les limites et travaux non encore vérifiés sont explicitement listés à la section 9. Aucun correctif métier, changement de variable, changement de schéma ou déploiement manuel n’a été exécuté pendant cette étape.
+
+
+---
+
+# 12. Audit fonctionnel détaillé — lot 1 : page `/admin` (Tableau de bord)
+Date : 26 octobre 2026. Source relue sur `main` : `src/app/admin/page.tsx` (2 lignes physiques, 7 905 caractères; JSX compacté sur une seule ligne), `src/app/admin/layout.tsx`, `src/components/admin/AdminNavigation.tsx`, `src/components/admin/CatalogueCreation.tsx`, `src/components/admin/GeolocalisationChamps.tsx`, `src/components/admin/IdentificationPromoteur.tsx` et `src/components/EspaceNaxaSwitcher.tsx`.
+
+## 12.1 Couverture de la page
+- Pages Admin inventoriées : 18.
+- Pages Admin auditées en détail dans ce lot : **1/18** (`/admin`).
+- Onglets propres à la page Tableau de bord : **0**.
+- Liens de navigation partagés dans la barre latérale : **12**, tous recensés dans `AdminNavigation.tsx`.
+- Blocs principaux de la page : **6** (en-tête local; indicateurs/KPI; actualisation des stocks; alertes réseau; création/configuration du catalogue; journal d’administration).
+- Cartes KPI : **4**.
+- États de retour d’opération du composant de création : succès, erreur générale, erreur de validation avec liste de champs; affichage conditionnel selon univers.
+- Activités affichées : jusqu’à **8** événements récents.
+- Le composant partagé du menu d’espace ajoute un bouton de bascule conditionnel et un menu de destinations conditionnelles; il ne s’affiche pas pendant le chargement ou lorsqu’aucun autre espace n’est disponible.
+
+## 12.2 Inventaire des éléments visibles et interactifs
+
+| Zone | Éléments recensés | Quantification observée dans le code |
+|---|---|---:|
+| Navigation Admin partagée | Liens de page, index numérotés, libellés, sous-libellés, flèches décoratives | 12 liens; 12 index; 12 libellés; 12 sous-libellés; 12 flèches décoratives |
+| En-tête de page | Logo/lien de retour, bascule d’espace | 1 lien logo; 1 composant bascule, affichage conditionnel |
+| Intro du tableau de bord | Kicker, titre H1, description | 3 éléments textuels |
+| KPI | Pharmacies réseau, stocks horodatés, à actualiser, quartiers renseignés; chacun a libellé, valeur, sous-libellé | 4 cartes; 12 éléments textuels |
+| Progression des stocks | Titre, explication, pourcentage, barre ARIA, pied de carte avec compte et date | 5 éléments fonctionnels/textuels |
+| Rappel de stock | Icône d’état, titre, texte de statut | 3 éléments |
+| Alertes réseau | Kicker, titre, compteur, état d’alerte ou état vide, liens d’accès aux alertes/validité | 3 éléments d’en-tête; 1 branche de contenu parmi plusieurs; 1 lien Validité toujours présent; liens supplémentaires conditionnels |
+| Création/configuration | Kicker, titre, texte explicatif, consigne de cycle, lien Dossiers Promoteurs, sélection d’univers, bouton VALIDER, texte d’aide conditionnel | 7 éléments de base recensés, plus états conditionnels |
+| Choix d’univers | 1 option vide + 5 univers | 1 sélecteur, 6 options; la liste ne propose pas « Dispositifs médicaux » comme création d’établissement, conformément au texte métier |
+| Formulaire univers indépendant | Nom, ville, quartier, adresse, latitude, longitude, WhatsApp, tarif mensuel | 8 champs métier; 2 champs GPS gérés par composant enfant |
+| Géolocalisation | Bouton de géolocalisation, message de statut conditionnel | 1 bouton; plusieurs états d’erreur/succès explicitement gérés |
+| Pièces du dossier | KYC, registre de commerce, NIU, attestation de non-redevance, plan de localisation, CNI Promoteur, pièce d’existence légale | 7 cases à cocher |
+| Identification Promoteur | Nom, prénom, nom d’utilisateur, indicatif, téléphone, date de naissance, e-mail, mot de passe provisoire | 8 champs de saisie logique; indicatif séparé; bascule d’affichage du mot de passe déléguée au composant enfant |
+| Architecture | Sélecteur conditionnel pour Pharmacie ou Parapharmacie | 1 sélecteur, 4 options, seulement pour ces 2 univers |
+| Branche Bébé & Maman | Champ de recherche, liste de suggestions, sélection de pharmacie, champ caché ID, bouton de rattachement | 1 champ de recherche; jusqu’à 8 suggestions; 1 champ caché; 1 bouton désactivé tant qu’aucune pharmacie n’est sélectionnée |
+| Soumission du dossier | Bouton final | 1 bouton; libellé distinct pour Pharmacie et autres univers |
+| Journal récent | Kicker, titre, lien Journal, jusqu’à 8 lignes avec action/entité/ID/date, ou état vide | 1 lien; jusqu’à 8 lignes; 2 champs textuels principaux par ligne + métadonnées |
+| Messages | Succès, erreur, erreurs de champs, état vide, états GPS | Présents en branches conditionnelles; les comptes exacts varient selon l’univers, les erreurs et les données reçues |
+
+**Note de comptage :** les totaux des éléments conditionnels ne doivent pas être additionnés comme s’ils étaient visibles simultanément. La page change selon `searchParams`, les données Supabase, l’univers choisi, la sélection d’une pharmacie et les retours de formulaire. Les couleurs exactes, styles de focus, animations et chaque message possible doivent être inventoriés par état dans les lots d’interaction; ils ne sont pas tous simultanément visibles sur le rendu initial.
+
+## 12.3 Parcours et boucles d’interaction examinés
+
+1. **Navigation partagée** : 12 destinations dans la barre latérale; l’état actif est calculé par égalité stricte du pathname. Les routes dynamiques ou sous-routes peuvent donc ne pas mettre en évidence le parent dans certains cas.
+2. **Bascule d’espace** : chargement du profil courant, vérification `actif === true` pour les espaces métier, récupération d’affectations additionnelles, puis menu filtré. Si la lecture échoue, le menu est masqué sans message explicite.
+3. **Choix d’univers** : choisir une option efface la confirmation; VALIDER copie le choix et réinitialise la pharmacie de parrainage. Le formulaire ne s’affiche qu’après validation.
+4. **Bébé & Maman** : recherche locale sur les pharmacies fournies, maximum 8 suggestions; la soumission est bloquée côté interface tant qu’une pharmacie n’est pas choisie. Le serveur doit encore être vérifié pour garantir que l’ID transmis est bien actif, visible et autorisé.
+5. **Création indépendante** : formulaire de dossier avec pièces déclarées reçues, géolocalisation manuelle ou navigateur, identification du Promoteur et tarif. La page redirige après retour d’action; l’intégrité de la séquence multi-écritures et de sa compensation doit être vérifiée dans les actions serveur.
+6. **Retour de formulaire** : messages `ok`, `erreur`, `champs` passés dans l’URL; `champs` est analysé avec `JSON.parse` dans un `try/catch`. La page affiche le statut transmis sans prouver, à elle seule, que toutes les écritures liées sont atomiques.
+7. **Journal récent** : lecture des 8 derniers événements et lien vers le journal complet.
+
+## 12.4 Défaut prioritaire constaté — identifiant `ADM-DASH-001`
+**Sévérité proposée : élevée (P1, intégrité de pilotage).**
+
+### Preuve
+Dans `src/app/admin/page.tsx`, trois lectures Supabase alimentent les KPI et alertes :
+- lecture de `pharmacies` sans examiner `error`;
+- RPC `validites_promoteurs_admin` sans examiner `error`;
+- lecture de `audit_log` sans examiner `error`.
+
+Lorsque la requête `pharmacies` échoue, `data` peut être nulle et `listePharmacies` devient `[]`. La page transforme alors l’échec en valeurs numériques nulles/vides et peut afficher « Aucune pharmacie enregistrée pour le moment » et une progression à 0 %. Si la lecture des validités échoue, les échéances en alerte deviennent zéro. La branche vide des alertes peut ainsi afficher « Aucune alerte … détectée » alors qu’une source critique n’a pas pu être interrogée. Aucun état d’erreur de chargement n’est rendu pour ces trois lectures.
+
+### Contradiction métier
+Un échec technique de lecture n’est pas équivalent à une table vide ni à l’absence d’anomalies. Le tableau de bord Admin est une surface de décision et de support; afficher un état rassurant sur une donnée inconnue risque de masquer des dossiers, des pharmacies inactives ou des échéances.
+
+### Correction ponctuelle proposée — en attente de validation
+- Conserver séparément `data` et `error` pour les trois sources.
+- Ne calculer/afficher un KPI comme zéro que lorsque la lecture correspondante a réussi et que la source est réellement vide.
+- Ajouter un état explicite « Donnée indisponible — lecture non confirmée » par source affectée; ne pas présenter la branche « aucune alerte » si la vérification des validités a échoué.
+- Garder disponibles les sections dont les sources ont réussi, afin qu’une panne isolée n’efface pas les données valides.
+- Vérifier par tests que succès avec tableau vide, erreur Supabase, erreur RPC et succès avec données non vides produisent quatre rendus distincts appropriés.
+
+### Tests à exécuter après approbation
+- Cas A : trois sources lisibles et vides → état vide légitime.
+- Cas B : erreur lecture pharmacies → KPI pharmacies/stock en indisponible, pas « aucune pharmacie ».
+- Cas C : erreur RPC validités → alerte validités indéterminée, pas « aucune alerte » globale.
+- Cas D : erreur audit_log seule → tableau de bord/KPI disponibles, message de journal indisponible.
+- Cas E : données réelles non vides → les valeurs et alertes correspondent aux lignes reçues.
+- Contrôler les erreurs TypeScript/lint ciblées sans déploiement.
+
+### État
+**ROUGE / en attente de validation de la correction.** Aucun changement applicatif n’a été effectué pour ce constat.
+
+## 12.5 Autres points détectés, à traiter dans leurs lots dédiés
+- Le contrôle d’accès de `/admin` et des actions de création vérifie le rôle `admin`, mais ne vérifie pas explicitement `profiles.actif`; le layout partagé, lui, utilise `actif` pour décider d’afficher les alertes. La portée réelle de ce contrôle et la politique attendue pour un administrateur désactivé doivent être examinées contradictoirement avec les gardes serveur et la base.
+- La navigation partagée expose 12 destinations alors que 18 modèles de pages Admin ont été inventoriés. Les 6 routes non présentes dans cette navigation ne sont pas automatiquement des pages mortes; il faut chercher leurs liens d’entrée dans les pages et sous-composants avant de conclure.
+- Les erreurs des lectures de la page ne sont pas affichées comme telles; le défaut ADM-DASH-001 couvre les sources qui influencent le tableau de bord, pas encore les autres pages.
+- La page racine et plusieurs pages Admin ont du JSX fortement compacté sur une seule ligne, ce qui augmente le coût de revue et le risque de manquer une régression. C’est un problème de maintenabilité, pas à lui seul un défaut fonctionnel.
