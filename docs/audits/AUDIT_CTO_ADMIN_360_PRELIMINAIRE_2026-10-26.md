@@ -6,7 +6,7 @@
 - Branche de référence : `main`
 - Commit de référence `main` à l'ouverture : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`
 - Objet : établir les preuves de l'étape préliminaire avant tout audit page par page et avant toute correction fonctionnelle.
-- Règle d'environnement : aucune migration appliquée à Supabase Production, aucune modification de variables secrètes, aucun déploiement demandé ou lancé dans cette étape.
+- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Six migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
 - État : **préliminaire en cours — constats initiaux consignés; les inventaires approfondis et la lecture exhaustive du code restent à compléter dans cette même branche.**
 
 ## 1. Périmètre et limites de preuve
@@ -779,3 +779,56 @@ Suite à l'autorisation explicite de l'utilisateur d'écrire dans Supabase lorsq
 - Parcours métier complet : 🟠 à tester en session réelle et à contrôler contre le schéma live.
 - Migrations de catalogue Bébé & Maman : 🟠 non appliquée, revue distincte requise.
 - Aucun merge dans `main`, aucun déploiement. Aucun lint, typecheck, build ou test automatisé exécuté.
+
+
+## 16.8 Vérification SQL après durcissement — résultats reproductibles
+
+Les vérifications ont été exécutées après application des migrations, dans des transactions annulées (ROLLBACK) pour les scénarios qui modifient temporairement le profil. Aucun dossier, produit ou réservation métier n'a été créé.
+
+| Scénario SQL | Résultat observé | Verdict |
+|---|---|---|
+| Administrateur actif | private.is_admin() = true | 🟢 |
+| Administrateur temporairement désactivé dans une transaction puis rollback | private.is_admin() = false | 🟢 |
+| Profil non administrateur | false | 🟢 |
+| UUID inconnu | false | 🟢 |
+| Identité non authentifiée | false | 🟢 |
+| Reçu de réservation | la fonction utilise public.is_admin(); l'ancien contrôle direct role='admin' a disparu | 🟢 |
+| Tables concernées | RLS activé sur admin_partner_dossiers, pharmacie_services, partner_products, universe_reservations; politiques présentes | 🟢 |
+| Données Bébé & Maman | 0 produit, 0 réservation; 0 produit actif sans pharmacie et 0 réservation sans pharmacie | 🟢 |
+
+La migration 20261026140000_bebe_maman_catalogue_pharmacie.sql a été corrigée avant application : le reçu de réservation réutilise désormais le garde partagé public.is_admin(), qui exige un profil administrateur actif. Elle a ensuite été appliquée avec succès; version enregistrée par Supabase : 20261026143135, nom bebe_maman_catalogue_pharmacie_20261026140000. Le code du catalogue, des réservations et des reçus a été relu côté base après application.
+
+## 17. Lot 4 — harmonisation des gardes de l'espace Administrateur
+
+### Anomalie confirmée par contradiction
+
+Plusieurs pages et Server Actions vérifiaient seulement role = 'admin', ou rejetaient uniquement actif = false. Cette dernière condition laissait passer un profil dont actif est NULL, contrairement à la règle métier canonique (actif === true) et à la garde SQL durcie. Le contrôle de page ne suffisait pas : les Server Actions doivent répéter le contrôle côté serveur.
+
+### Corrections appliquées sur la branche de travail
+
+Les pages et actions suivantes passent désormais par requireAdminActive :
+
+- src/app/admin/univers/page.tsx et src/app/admin/univers/actions.ts;
+- src/app/admin/examens/page.tsx et src/app/admin/examens/actions.ts;
+- src/app/admin/prestations/page.tsx et src/app/admin/prestations/actions.ts;
+- src/app/admin/produits/page.tsx et src/app/admin/produits/actions.ts;
+- src/app/admin/alertes/page.tsx;
+- src/app/admin/messagerie/page.tsx.
+
+Chaque fichier modifié a été relu après écriture sur audit/admin-360-20261026. Le contrôle statique post-écriture confirme la présence de la garde partagée et l'absence des anciens contrôles de rôle dans ces dix fichiers. Ces corrections ne sont pas fusionnées dans main.
+
+### Vérifications globales encore nécessaires
+
+- Le lint, le typecheck, le build Next.js, les tests automatisés et le navigateur n'ont pas pu être exécutés via les connecteurs disponibles; ils ne sont donc pas déclarés verts.
+- Les fonctions SQL SECURITY DEFINER doivent continuer à être examinées par groupes métier. L'advisor Supabase signale des droits EXECUTE sur 5 fonctions exposées à anon et 120 à authenticated; cet avertissement est générique et ne prouve pas à lui seul une faille, car certaines fonctions appliquent des contrôles internes. Aucun retrait global de droits n'a été fait sans examen des contrats applicatifs.
+- L'advisor signale aussi 5 tables RLS sans politique (caisse_audit_chain_heads, caisse_decaissement_auth_grants, caisse_security_challenges, caisse_security_credentials, pharmacie_donnees_historique) et la protection des mots de passe compromis désactivée. Ces constats restent ouverts; ils ne sont pas masqués par les corrections du parcours Administrateur.
+- Le parcours de création Auth/RPC nécessite toujours un test runtime des scénarios d'échec Auth, RPC et suppression compensatoire avec un compte de test isolé.
+
+### État courant au 26 octobre 2026
+
+- Garde SQL administrateur actif et tests SQL actif/inactif/non-admin/inconnu/non-authentifié : 🟢.
+- Migrations dossiers, services et catalogue Bébé & Maman : 🟢 appliquées et objets vérifiés.
+- Gardes de 10 fichiers Administrateur : 🟢 correction statique appliquée et relue.
+- Suite automatisée et test navigateur : 🟠 non exécutés, aucune affirmation de succès.
+- Advisor sécurité Supabase global : 🟠 plusieurs constats existants restent à traiter par lots métier.
+- Merge main : non effectué. Déploiement : non effectué.
