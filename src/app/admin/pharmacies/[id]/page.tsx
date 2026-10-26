@@ -5,7 +5,7 @@ import { changerStatutServiceBebeMaman, consulterDocumentPharmacie, deposerDocum
 
 type Props={params:{id:string};searchParams?:{ok?:string;erreur?:string}};
 const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré."};
-const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.",stockage:"Le stockage privé a refusé le fichier.",registre:"Inscription impossible ; le fichier temporaire a été supprimé.",pharmacie:"Pharmacie introuvable.",decision:"Décision impossible à enregistrer.",document:"Fichier invalide : vérifiez le type et la taille (10 Mo maximum)." };
+const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.",stockage:"Le stockage privé a refusé le fichier.",registre:"Inscription impossible ; le fichier temporaire a été supprimé.",pharmacie:"Pharmacie introuvable.",decision:"Décision impossible à enregistrer.",document:"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible." };
 export default async function PharmacieIndividuelle({params,searchParams}:Props){
  const sb=supabaseServer();
  const{data:auth}=await sb.auth.getUser();
