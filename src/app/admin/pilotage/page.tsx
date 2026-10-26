@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { Barres, Liste, Section, Tuile, useTempsReel } from "@/components/Pilotage";
@@ -71,6 +71,15 @@ export default function Page() {
       setChargement(false);
     }
   }, [jours]);
+
+  const premierePeriode = useRef(true);
+  useEffect(() => {
+    if (premierePeriode.current) {
+      premierePeriode.current = false;
+      return;
+    }
+    void load();
+  }, [jours, load]);
 
   useTempsReel(load, (cb) => {
     const sb = supabaseBrowser();
