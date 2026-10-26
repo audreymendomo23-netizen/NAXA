@@ -93,6 +93,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
                   <li>Faites confirmer le règlement par le canal autorisé.</li>
                   <li>NAXA vérifie la convention et rétablit les accès selon la procédure en vigueur.</li>
                 </ol>
+                <Link href="/promoteur/paiements" className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[#0F6B3F] px-5 font-bold text-white">Suivre mes règlements et mes reçus</Link>
               </div>
             ) : statusUnavailable ? (
               <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
@@ -281,6 +282,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <EspaceNaxaSwitcher current="promoteur" />
+            <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/promoteur/paiements">Mes règlements</Link>
             <Link className="rounded-full border border-white/50 px-4 py-2 text-sm font-bold" href="/pharmacie?vue=operation">Ouvrir les opérations</Link>
             <Link className="rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-bold text-naxa-green-900" href="/pharmacie/caisses">Gérer l’équipe</Link>
              <Link className="rounded-full border border-white px-4 py-2 text-sm font-bold text-white" href="/pharmacie/affectations">Affectations multiples</Link>
