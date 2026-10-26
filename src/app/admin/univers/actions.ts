@@ -68,10 +68,39 @@ export async function changerActivationUnivers(form: FormData) {
   const slug = field(form, "slug", 40);
   const flag = field(form, "flag_key", 100);
   const enabled = field(form, "enabled", 5) === "true";
-  if (!slugs.includes(slug) || flag !== "universe." + slug || slug === "aide" || (slug === "suivi" && enabled)) redirect("/admin/univers?erreur=parametres");
-  const { error } = await sb.rpc("admin_set_universe_enabled", { p_slug: slug, p_enabled: enabled });
-  if (error) redirect("/admin/univers?erreur=schema");
+  if (!slugs.includes(slug) || flag !== "universe." + slug || slug === "aide" || (slug === "suivi" && enabled)) {
+    redirect("/admin/univers?erreur=parametres");
+  }
+
+  const { error: rpcError } = await sb.rpc("admin_set_universe_enabled", {
+    p_slug: slug,
+    p_enabled: enabled,
+  });
+  if (rpcError) redirect("/admin/univers?erreur=schema");
+
+  // Vérifier l’état réellement persisté : un retour RPC sans erreur ne suffit
+  // pas à annoncer une activation effective dans l’interface.
+  const [{ data: universe, error: universeError }, { data: feature, error: featureError }] = await Promise.all([
+    sb.from("universes").select("enabled").eq("slug", slug).maybeSingle(),
+    sb.from("feature_flags").select("enabled").eq("flag_key", flag).maybeSingle(),
+  ]);
+  if (universeError || featureError || !universe || !feature ||
+      universe.enabled !== enabled || feature.enabled !== enabled) {
+    redirect("/admin/univers?erreur=activation_verification");
+  }
+
+  await sb.from("audit_log").insert({
+    actor_id: actor,
+    action: "universe.status_changed",
+    entity_type: "universe",
+    entity_id: slug,
+    metadata: { enabled, verified: true },
+  });
+
+  revalidatePath("/admin");
   revalidatePath("/admin/univers");
+  revalidatePath("/admin/prestations");
+  revalidatePath("/admin/examens");
   revalidatePath("/" + slug);
   redirect("/admin/univers?ok=activation");
 }
