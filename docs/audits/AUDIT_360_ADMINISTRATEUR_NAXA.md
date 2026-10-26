@@ -595,3 +595,35 @@ L'arbre GitHub récursif a été relu après les derniers commits documentaires 
 - Les tentatives d'inspection massive simultanée ont dépassé la limite d'appels disponible dans une seule exécution d'outils; elles n'ont apporté aucun résultat de test et n'ont provoqué aucune mutation. Les constats sont donc explicitement limités aux fichiers effectivement lus.
 
 Aucune route, action serveur, règle SQL, branche, workflow ou donnée n'a été modifié par cet inventaire.
+
+
+## 32. Vérification ciblée des actions serveur Admin
+
+Relecture individuelle de dix modules d'actions serveur sur `main`, en contrôlant les gardes visibles et les opérations sensibles. Il s'agit d'une revue statique; aucune action n'a été exécutée dans l'application.
+
+### Résultat de l'échantillon
+
+- `src/app/admin/actions.ts` : utilise `requireAdminActive` avant la création et la gestion d'objets administratifs; plusieurs écritures utilisent ensuite `supabaseAdmin()`. Le contrôle doit être conservé avant chaque chemin de mutation et les validations d'entrées restent à examiner action par action.
+- `src/app/admin/creation-univers-actions.ts` : utilise `requireAdminActive` et appelle une RPC pour la création d'univers; la sécurité effective dépend aussi des droits et contrôles internes de la RPC.
+- `src/app/admin/examens/actions.ts` : les trois actions de statut passent par un wrapper qui appelle `requireAdminActive`; les identifiants UUID et valeurs de statut sont validés avant RPC. Les garanties transactionnelles et les règles d'état sont à contrôler dans le SQL.
+- `src/app/admin/pilotage/validite/actions.ts` : utilise `requireAdminActive` avant l'appel RPC avec le client privilégié.
+- `src/app/admin/prestations/actions.ts`, `src/app/admin/promoteurs/partenaires/actions.ts`, `src/app/admin/produits/actions.ts`, `src/app/admin/promoteurs/actions.ts` et `src/app/admin/univers/actions.ts` : les extraits examinés montrent l'utilisation du garde actif canonique ou d'un wrapper qui l'appelle. Les actions de modification passent ensuite par Supabase/RPC; cela ne prouve pas que tous les cas métier ou toutes les autorisations objet sont correctement contrôlés.
+- `src/app/admin/pharmacies/[id]/actions.ts` : implémente un garde local distinct qui vérifie l'utilisateur, puis `profiles.role === 'admin'` et `profiles.actif === true`, avant les opérations avec le client de service.
+
+### Limites et points de contrôle restants
+
+- Les gardes sont observés dans les dix fichiers examinés; cela ne couvre pas toutes les Server Actions du dépôt, les routes non Admin, les RPC, ni les politiques RLS.
+- La validation syntaxique d'un UUID ou d'une valeur d'énumération n'assure pas à elle seule que la transition métier est permise. Pour chaque RPC, vérifier l'état courant, la portée de l'objet, l'idempotence, les effets secondaires et les traces d'audit.
+- La duplication du garde local dans `pharmacies/[id]/actions.ts` est une divergence de maintenance, pas une vulnérabilité démontrée : le contrôle actif est bien présent dans le code lu.
+- Aucun test de rôle, de compte désactivé, de requête forgée, d'accès inter-pharmacie ou de rejeu n'a été réalisé. Aucun fichier applicatif n'a été modifié.
+
+## 33. Plan de clôture du préliminaire
+
+Avant de déclarer la phase préliminaire terminée, il reste à :
+1. contrôler les modules de page et les Server Actions restantes, ainsi que les routes API hors du dossier Admin qui touchent aux données administratives;
+2. rapprocher les RPC critiques de leurs migrations sources et examiner les permissions réelles sur leurs tables dépendantes;
+3. vérifier les conventions de tests, les scripts de validation disponibles et les éléments réellement exécutables sans toucher aux données de production;
+4. finaliser la liste des risques par preuve, impact possible, niveau de confiance et action proposée;
+5. relire le rapport complet et vérifier le commit sur `main`.
+
+La phase reste préliminaire. Aucun audit détaillé Admin n'est lancé et aucune correction de code ou de base n'est autorisée par cette étape.
