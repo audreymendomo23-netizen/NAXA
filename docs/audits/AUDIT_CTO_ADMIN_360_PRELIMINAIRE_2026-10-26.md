@@ -1106,3 +1106,31 @@ Les définitions ont été lues directement dans le schéma live Supabase NAXA, 
 - La priorité de revue fonctionnelle est `marketplace_offre_stock_disponible` (cohérence stock/réservation et publication des quantités), puis `produits_populaires` et son helper privé, puis la validation des catalogues publics.
 - Les recherches GitHub par nom de fonction n'ont pas retourné de résultats dans l'index utilisé. Cela **ne prouve pas l'absence d'appelants** : l'index peut ne pas couvrir la branche d'audit. Les appelants doivent être retrouvés par lecture de l'arbre de la branche et des migrations avant tout changement.
 - La suite reste documentaire et en lecture seule : analyser les appelants dans la branche existante, inspecter le helper privé `private.produits_populaires`, puis poursuivre la file des 45 fonctions à `search_path` à qualifier. Aucun changement live Supabase, aucun déploiement, aucune fusion.
+
+
+## 26. Croisement initial Vercel ↔ code : variables attendues absentes de l'inventaire — 26 octobre 2026
+
+### 26.1 Références vérifiées dans la branche d'audit
+
+Lecture des routes de la branche `audit/admin-360-20261026` et comparaison avec l'inventaire des noms de variables Vercel de la section 24.4 (inventaire sans déchiffrement, 18 noms distincts) :
+
+| Variable | Usage observé dans le code | Présence dans l'inventaire Vercel consulté | Impact si absente |
+|---|---|---|---|
+| `RESEND_API_KEY` | Appels Resend dans `src/app/api/cron/rapports/route.ts` et `src/app/api/cron/validite/route.ts` | **Non** | Les deux routes répondent `503` lorsqu'un envoi est nécessaire. |
+| `REPORT_FROM_EMAIL` | Adresse expéditeur des mêmes deux routes | **Non** | Même garde `503`, aucun envoi de rapport/rappel. |
+| `NEXT_PUBLIC_APP_URL` | URL de base du logo dans le HTML du rapport; fallback à chaîne vide | **Non** | Le logo du rapport peut avoir une URL invalide/relative; pas un blocage d'envoi. |
+| `NAXA_PRIVACY_CONTACT_EMAIL` | Contact de confidentialité dans `src/app/api/auth/welcome-email/route.ts`; fallback `naxa.home@gmail.com` | **Non** | Le fallback s'applique; pas de blocage d'envoi. |
+
+Le code confirme par ailleurs l'utilisation des variables suivantes déjà présentes dans l'inventaire : `CRON_SECRET`, `GOOGLE_APPS_SCRIPT_URL`, `GOOGLE_APPS_SCRIPT_SECRET`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NAXA_RATE_LIMIT_SECRET`, `NAXA_VAPID_PUBLIC_KEY`, `NAXA_VAPID_PRIVATE_KEY` et `NAXA_VAPID_SUBJECT`.
+
+### 26.2 Qualification et limites
+
+- **Point de risque prioritaire à confirmer dans Vercel :** les deux variables requises par les routes Resend ne figuraient pas dans les 18 noms de l'inventaire retourné. Si l'inventaire était exhaustif pour l'environnement Production, les routes d'envoi de rapports et de rappels de validité ne peuvent pas envoyer et retournent `503` lorsque le traitement arrive au contrôle de configuration.
+- L'inventaire Vercel comptait 27 entrées distribuées entre plusieurs cibles. Le relevé disponible ne permet pas de prouver que les 18 noms sont tous configurés en Production, ni de confirmer la portée exacte des absences par cible. Il faut donc **reconfirmer ces deux noms et leurs cibles dans Vercel**, sans lire ni copier de valeur secrète, avant de conclure à une panne effective.
+- Le fichier `.env.example` de la branche ne documente que les variables Supabase et des variables IA, pas les variables SMTP/Resend, Google Apps Script, cron, limitation de débit et Push. Cet exemple est incomplet au regard des usages observés; il ne permet pas de conclure que la configuration Vercel est incorrecte.
+- La recherche de `vercel.json` à la racine sur cette branche a renvoyé `404`. Cela ne prouve pas l'absence de configuration Cron ailleurs (par exemple dans les paramètres Vercel ou dans un autre mécanisme); l'ordonnanceur et les cibles doivent être vérifiés séparément.
+- Aucun secret n'a été consulté en clair, aucune variable n'a été créée/modifiée et aucun déploiement n'a été déclenché.
+
+### 26.3 Action d'audit suivante
+
+Confirmer uniquement la présence et les cibles Production/Preview/Development de `RESEND_API_KEY` et `REPORT_FROM_EMAIL` dans Vercel, sans déchiffrement. Ensuite, poursuivre la revue du helper `private.produits_populaires` et des appelants SQL/API sur l'arbre Git de la branche existante. Le rapport reste préliminaire : pas de merge, pas de déploiement, pas de changement live.
