@@ -54,6 +54,7 @@ create index if not exists pharmacie_services_status_idx
   on public.pharmacie_services(status, pharmacie_id);
 create index if not exists pharmacie_services_enabled_by_idx on public.pharmacie_services(enabled_by);
 create index if not exists pharmacie_services_updated_by_idx on public.pharmacie_services(updated_by);
+create index if not exists pharmacie_services_service_slug_idx on public.pharmacie_services(service_slug);
 alter table public.pharmacie_services enable row level security;
 drop policy if exists pharmacie_services_admin_all on public.pharmacie_services;
 create policy pharmacie_services_admin_all on public.pharmacie_services
