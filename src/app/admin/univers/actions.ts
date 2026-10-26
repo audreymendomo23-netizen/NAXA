@@ -35,10 +35,11 @@ export async function changerStatutPartenaire(form: FormData) {
   if (status === "active") { patch.verified_at = new Date().toISOString(); patch.verified_by = actor; }
   const { error } = await sb.from("partners").update(patch).eq("id", id);
   if (error) redirect("/admin/univers?erreur=schema");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "partner.status_changed", entity_type: "partner",
     entity_id: id, metadata: { status },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=statut");
 }
@@ -69,13 +70,14 @@ export async function changerActivationUnivers(form: FormData) {
     redirect("/admin/univers?erreur=activation_verification");
   }
 
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor,
     action: "universe.status_changed",
     entity_type: "universe",
     entity_id: slug,
     metadata: { enabled, verified: true },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
 
   revalidatePath("/admin");
   revalidatePath("/admin/univers");
@@ -127,13 +129,14 @@ export async function changerAssociationPartenaire(form: FormData) {
     redirect("/admin/univers?erreur=association_verification");
   }
 
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor,
     action: "partner.universe_association_changed",
     entity_type: "partner",
     entity_id: partnerId,
     metadata: { universe_slug: universe, enabled, verified: true },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   revalidatePath("/" + universe);
   redirect("/admin/univers?ok=association");
@@ -149,10 +152,11 @@ export async function ajouterCompteTestSuivi(form: FormData) {
     user_id: userId, reason, added_by: actor,
   }, { onConflict: "user_id" });
   if (error) redirect("/admin/univers?erreur=compte_test");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "tracking.test_account_added", entity_type: "test_account",
     entity_id: userId, metadata: { reason },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=compte_test");
 }
@@ -163,10 +167,11 @@ export async function retirerCompteTestSuivi(form: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=compte_test");
   const { error } = await sb.from("feature_flag_test_accounts").delete().eq("user_id", userId);
   if (error) redirect("/admin/univers?erreur=compte_test");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "tracking.test_account_removed", entity_type: "test_account",
     entity_id: userId, metadata: {},
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=compte_test");
 }
@@ -198,10 +203,11 @@ export async function creerProduitPartenaire(form: FormData) {
     unit_label: field(form, "unit_label", 30) || "unité", status: "draft", created_by: actor,
   });
   if (error) redirect("/admin/univers?erreur=produit");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "partner_product.created", entity_type: "partner_product",
     entity_id: name, metadata: { partner_id: partnerId, universe_slug: universe, status: "draft" },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=produit");
 }
@@ -227,10 +233,11 @@ export async function changerStatutProduitPartenaire(form: FormData) {
   }
   const { error } = await sb.from("partner_products").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) redirect("/admin/univers?erreur=produit");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "partner_product.status_changed", entity_type: "partner_product",
     entity_id: id, metadata: { status },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   revalidatePath("/parapharmacie");
   revalidatePath("/bebe-maman");
@@ -251,10 +258,11 @@ export async function ajouterProfessionnelSuivi(form: FormData) {
     verified: true, verified_by: actor,
   }, { onConflict: "user_id" });
   if (error) redirect("/admin/univers?erreur=professionnel_suivi");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "tracking.professional_verified", entity_type: "tracking_professional",
     entity_id: userId, metadata: { professional_role: role },
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=professionnel_suivi");
 }
@@ -265,10 +273,11 @@ export async function retirerProfessionnelSuivi(form: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=professionnel_suivi");
   const { error } = await sb.from("suivi_professionals").update({ verified: false }).eq("user_id", userId);
   if (error) redirect("/admin/univers?erreur=professionnel_suivi");
-  await sb.from("audit_log").insert({
+  const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "tracking.professional_unverified", entity_type: "tracking_professional",
     entity_id: userId, metadata: {},
   });
+  if (journalError) redirect("/admin/univers?erreur=journal");
   revalidatePath("/admin/univers");
   redirect("/admin/univers?ok=professionnel_suivi");
 }

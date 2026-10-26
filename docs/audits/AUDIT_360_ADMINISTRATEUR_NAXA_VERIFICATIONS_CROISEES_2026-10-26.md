@@ -227,3 +227,26 @@ Priorités avant de déclarer le chantier Admin complètement clos :
 6. Exécuter les tests automatisés ciblés et les contrôles de build dans une passe autorisée ; ils ne sont pas exécutés ni revendiqués ici.
 
 **Limites confirmées :** aucun changement de logique métier, SQL, configuration ou données ; aucune migration appliquée ; aucun test navigateur ou scénario métier exécuté ; aucun build revendiqué ; aucun déploiement. Le rapport documentaire seul est modifié sur `main`.
+
+
+## 13. Corrections ciblées préparées sur `main` après la passe consolidée
+
+Corrections de code appliquées dans ce commit :
+
+1. **Brouillon IA des produits :** l'échec de la requête Supabase d'enregistrement est maintenant vérifié séparément de la génération IA. L'interface ne doit plus annoncer un brouillon enregistré si l'UPDATE a renvoyé une erreur.
+2. **Journalisation des actions Univers :** les neuf insertions applicatives vers `audit_log` vérifient maintenant l'erreur retournée et affichent une erreur dédiée au lieu de poursuivre silencieusement comme si la trace était confirmée. Une défaillance de journalisation après mutation peut toujours laisser une opération métier déjà effectuée ; une transaction SQL atomique reste la solution robuste à examiner.
+3. **Validité des Promoteurs :** la page utilise désormais le garde partagé `requireAdminActive`. Si la RPC de validité échoue, elle n'utilise plus une liste vide pour calculer des compteurs apparemment réels ; l'écran indique explicitement que les données et les indicateurs sont indisponibles. Le champ d'échéance ne propose plus la date du jour alors que la validation serveur exige une date future.
+4. **Synchronisation OSM :** la route vérifie maintenant l'écriture de l'état final. Elle ne renvoie plus un succès complet si la synchronisation a traité les données mais que l'enregistrement de son statut échoue ; l'échec de persistance du statut d'erreur est également signalé.
+
+Une migration additive a été ajoutée dans le dépôt pour remplacer les politiques `audit_log_admin_read` et `audit_log_admin_insert` par le prédicat `public.is_admin()`, qui dans le catalogue contrôlé exige un rôle admin et un compte actif. **Cette migration est uniquement versionnée dans Git : elle n'a pas été appliquée à Supabase.** Le résultat effectif en base reste donc à confirmer après procédure autorisée.
+
+### Éléments encore non corrigés faute de preuve suffisante ou de modification de base autorisée
+
+- Écart entre migrations du dépôt et catalogue live pour `pharmacie_documents`, son historique et `admin_pharmacie_audit` / `admin_renouveler_promoteur`. Il faut rapprocher les versions et contenus de migration avant de choisir une réparation, plutôt que créer des objets potentiellement dupliqués.
+- Les risques de transition sur `admin_valider_dossier_pharmacie` et `reactiver_promoteur` sont documentés mais ne sont pas réécrits sans contrat métier validé et tests SQL de non-régression : une modification hasardeuse pourrait réactiver une suspension légitime ou confondre renouvellement et preuve de paiement.
+- Les politiques RLS sans politique identifiées dans le premier inventaire doivent être qualifiées table par table (refus par défaut vs voie d'accès attendue) ; aucune politique ne doit être ajoutée par supposition.
+- Le rapport préliminaire signalait aussi le rapprochement des migrations, les buckets publics et les fonctions privilégiées. Ces points nécessitent une vérification dédiée avant de déclarer la sécurité globale close.
+
+### Validation réellement effectuée
+
+Vérification statique des substitutions et des contenus avant création du commit uniquement. Aucun build, lint, test automatisé, scénario navigateur ou appel de RPC métier n'est revendiqué. Aucune écriture de données, aucune migration Supabase appliquée, aucun déploiement lancé.

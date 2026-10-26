@@ -167,12 +167,15 @@ export async function POST() {
     }
 
     const finishedAt = new Date().toISOString();
-    await db.from("pharmacies_geo_osm_sync").update({
+    const { error: finishError } = await db.from("pharmacies_geo_osm_sync").update({
       last_finished_at: finishedAt,
       candidats_importes: candidates.length,
       pharmacies_rapprochees: matched,
       erreur: null,
     }).eq("id", true);
+    if (finishError) {
+      return jsonError("La synchronisation des données a abouti, mais son état final n’a pas pu être enregistré. Vérifiez le journal technique avant de relancer.", 503);
+    }
 
     return NextResponse.json({
       ok: true,
@@ -188,11 +191,13 @@ export async function POST() {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue pendant la synchronisation OSM.";
-    await db.from("pharmacies_geo_osm_sync").update({
+    const { error: statusError } = await db.from("pharmacies_geo_osm_sync").update({
       last_finished_at: new Date().toISOString(),
       erreur: message.slice(0, 1000),
     }).eq("id", true);
-    return jsonError(message, 502);
+    return jsonError(statusError
+      ? `${message} L’état d’échec n’a pas non plus pu être enregistré : ${statusError.message}`
+      : message, 502);
   }
 }
 
