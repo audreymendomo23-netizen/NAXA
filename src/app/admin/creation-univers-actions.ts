@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { PROMOTEUR_VALIDATION, normalizePromoteurPhone, validatePromoteurPhone, type PromoteurPhoneCountry } from "@/lib/promoteur-validation";
 
 const allowed = ["parapharmacie", "examens", "prestations"] as const;
@@ -10,11 +11,7 @@ const architectures = ["ORPHELIN", "PARENTS_ENFANTS", "PARENTS_AINES_CADETS", "H
 const get = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
 export async function creerDossierUnivers(form: FormData) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin");
-  const { data: admin } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (admin?.role !== "admin" || admin.actif !== true) redirect("/");
+  const { sb } = await requireAdminActive("/admin");
 
   const universe = get(form, "universe_slug");
   const country = get(form, "phone_country").toUpperCase() as PromoteurPhoneCountry;
