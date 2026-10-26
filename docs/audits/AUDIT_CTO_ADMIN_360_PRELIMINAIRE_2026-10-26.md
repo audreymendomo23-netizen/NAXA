@@ -6,7 +6,7 @@
 - Branche de référence : `main`
 - Commit de référence `main` à l'ouverture : `cfca68442c4f7475451bcfcd70048b3ad56ffec4`
 - Objet : établir les preuves de l'étape préliminaire avant tout audit page par page et avant toute correction fonctionnelle.
-- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Cinq migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
+- Règle d'environnement actualisée au 26 octobre 2026 : l'utilisateur a explicitement autorisé les migrations Supabase nécessaires. Sept migrations de ce chantier sont désormais appliquées au projet NAXA; aucun secret n'a été lu/modifié, aucun merge dans main et aucun déploiement n'ont été effectués.
 - État : **préliminaire en cours — constats initiaux consignés; les inventaires approfondis et la lecture exhaustive du code restent à compléter dans cette même branche.**
 
 ## 1. Périmètre et limites de preuve
@@ -832,3 +832,37 @@ Chaque fichier modifié a été relu après écriture sur audit/admin-360-202610
 - Suite automatisée et test navigateur : 🟠 non exécutés, aucune affirmation de succès.
 - Advisor sécurité Supabase global : 🟠 plusieurs constats existants restent à traiter par lots métier.
 - Merge main : non effectué. Déploiement : non effectué.
+
+
+## 17.1 Durcissement SQL complémentaire — RPC exposées
+
+L'inspection des définitions live a révélé une deuxième classe de contournement : certaines fonctions SECURITY DEFINER contrôlaient encore directement profiles.role = 'admin'. Une action directe via RPC pouvait donc contourner le garde des pages, et certains contrôles acceptaient les administrateurs désactivés.
+
+### Corrections appliquées
+
+Deux migrations additives supplémentaires sont appliquées et présentes dans le dépôt :
+
+- 20261026160000_admin_rpc_active_guard.sql — remplace les gardes rôle-seul dans les RPC de statut des centres/examens, prestations, associations partenaire-univers et activation d'univers.
+- 20261026170000_harden_remaining_admin_rpc_guards.sql — harmonise aussi l'expiration des réservations, la génération des créneaux pour un centre, le reçu de prestation à domicile, le contrôle des comptes de test Suivi, l'ajustement du stock partenaire et l'import CSV catalogue.
+
+Les contrôles de périmètre partenaire (owner/manager/operator) sont conservés; seul le chemin de privilège administrateur passe par public.is_admin(). Pour le traitement des réservations expirées, l'accès service_role reste autorisé; la branche administrateur exige désormais un administrateur actif.
+
+Versions Supabase confirmées :
+- 20261026143839 — admin_rpc_active_guard_20261026160000.
+- 20261026144128 — harden_remaining_admin_rpc_guards_20261026170000.
+
+### Tests SQL après application
+
+- Les six RPC d'administration modifiées dans la première migration refusent un administrateur temporairement désactivé : test transactionnel avec SQLSTATE 42501.
+- Expiration des réservations, génération de créneaux et import catalogue refusent également le profil admin temporairement désactivé; le contrôle Suivi refuse la consultation du compte de test d'un autre utilisateur. Toutes les modifications de test ont été annulées.
+- Une relecture SQL des 12 fonctions ciblées confirme qu'elles appellent public.is_admin() et qu'aucune ne conserve de contrôle direct role='admin'.
+- Le scan des fonctions SECURITY DEFINER restantes qui contiennent une comparaison directe role='admin' ne trouve plus que des fonctions non exécutables par anon/authenticated : generate_exam_slots, naxa_bootstrap_first_admin, notify_home_service_offer_created et rapports_non_envoyes. Elles restent à examiner dans leur contexte de tâche/trigger, mais ne sont pas appelables directement par les deux rôles.
+- Les cinq tables signalées par l'advisor RLS sans politique ne donnent aucun privilège SELECT/INSERT/UPDATE/DELETE à anon ou authenticated. La politique « aucune » est donc un refus d'accès effectif pour ces rôles, pas une exposition directe de table.
+
+### Limites de test à conserver visibles
+
+La base ne contient actuellement aucun produit partenaire, aucune demande de prestation à domicile, aucune réservation universelle et aucun centre d'examen. Il n'était donc pas possible de tester les branches de reçu ou d'ajustement stock avec un enregistrement métier réel sans créer des données de test dépendantes. Ces branches ont été vérifiées statiquement dans leurs définitions; les tests runtime négatifs exécutés ont ciblé les chemins de garde qui précèdent toute mutation.
+
+## 18. Prochaine étape — lot 5 : permissions des RPC et validation applicative
+
+Le contrôle du garde administrateur actif est maintenant cohérent entre les pages/Server Actions corrigées et les RPC ciblées. La prochaine passe doit vérifier les contrats et permissions des RPC SECURITY DEFINER restantes par famille métier, puis exécuter lint, typecheck, build et tests navigateur depuis un environnement de développement. Les connecteurs utilisés ici ne permettent pas d'affirmer que ces commandes ont réussi. Aucun déploiement ne sera lancé pour les exécuter.
