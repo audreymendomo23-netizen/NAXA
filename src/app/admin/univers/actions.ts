@@ -88,6 +88,7 @@ export async function changerAssociationPartenaire(form: FormData) {
   const universe = field(form, "universe_slug", 40);
   const enabled = field(form, "enabled", 5) === "true";
   if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !slugs.includes(universe) || (universe === "suivi" && enabled)) redirect("/admin/univers?erreur=parametres");
+  if (universe === "bebe-maman" && enabled) redirect("/admin/univers?erreur=service_pharmacie");
   const { data: partner, error: partnerError } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
   if (partnerError || !partner) redirect("/admin/univers?erreur=schema");
   if (enabled && partner.status !== "active") redirect("/admin/univers?erreur=partenaire_inactif");
