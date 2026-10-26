@@ -1238,3 +1238,40 @@ La lecture du catalogue `cron.job` n'a retourné aucun job dont le nom ou la com
 5. Ajouter des tests SQL de refus pour une suspension administrative, une résiliation, une cible avec plusieurs pharmacies ou profils, une référence de paiement vide et une tentative de réactivation sans état commercial compatible.
 
 Aucune correction de code, modification de schéma, opération commerciale ou migration n'a été exécutée. Les conclusions ci-dessus sont issues de la définition SQL live, des privilèges catalogués et des fichiers Git consultés.
+
+
+## 54. Inventaire des autres voies de statut et privilèges — périmètre de l'examen complémentaire
+
+### 54.1 Résultat de l'inventaire du catalogue live
+
+Un inventaire en lecture seule de `pg_proc` a identifié plusieurs fonctions distinctes de `reactiver_promoteur` susceptibles d'influer sur les accès, le statut ou la validité du réseau :
+
+- fonctions du schéma privé : `private.naxa_set_caisse_status`, `private.reactiver_pharmacie`, `private.accrediter_profile`, `private.naxa_grant_privilege` et `private.naxa_revoke_privilege`;
+- fonctions publiques : `public.synchroniser_validite_pharmacies`, `public.validites_pharmacies_admin`, `public.validites_promoteurs_admin`, `public.set_garde_for_pharmacy` et `public.reactiver_promoteur`;
+- fonctions de validation du dossier : `public.admin_valider_dossier_pharmacie` et `public.admin_valider_dossier_partenaire`.
+
+Le catalogue indique que les fonctions privées listées sont `SECURITY DEFINER`, sans exécution accordée à `anon`, et avec un droit `EXECUTE` observé pour `authenticated` sur plusieurs d'entre elles. Cette observation de privilège SQL ne suffit pas à conclure qu'un utilisateur peut les appeler via l'API PostgREST : l'exposition du schéma privé, les appels indirects et les contrôles internes doivent être vérifiés avant toute conclusion d'exploitabilité.
+
+### 54.2 Garde d'activation des Caisses : portée explicitement documentée
+
+La migration Git `supabase/migration_156_promoteur_caisse_activation_guard.sql` confirme que le trigger `naxa_guard_promoteur_caisse_activation` vise les insertions/mises à jour de profils dont le rôle est `caisse` et dont le statut demandé est actif. Il autorise les désactivations, distingue les opérations sans `auth.uid()` des mutations utilisateur, laisse passer le chemin Admin, puis contrôle pour un Promoteur : statut actif, relation parent-enfant directe, pharmacie active et publiée, lien Promoteur/pharmacie actif et validité commerciale.
+
+Cette garde protège une transition précise — l'activation d'une Caisse — et ne prouve pas à elle seule que toutes les autres transitions de statut, les réactivations de pharmacie ou les révocations de privilèges appliquent les mêmes invariants.
+
+### 54.3 Renouvellement initial et publication : précision apportée par la migration 154
+
+La migration `supabase/migration_154_admin_validate_pharmacy_dossier.sql` montre que la validation initiale du dossier suit une séquence explicite : elle active d'abord la pharmacie tout en gardant `visible_recherche=false`, réactive le lien Promoteur/pharmacie, exécute le provisionnement des privilèges dans la même transaction, puis publie la pharmacie à la dernière étape.
+
+La même fonction refuse seulement le cas où les quatre indicateurs sont déjà simultanément actifs (pharmacie active, visible, lien actif et Promoteur actif). Le message applicatif « dossier déjà actif » ne doit donc pas être interprété comme la preuve qu'aucune autre forme de dossier partiellement désactivé ne peut passer par cette validation. Ce constat complète la section 52 ; il ne constitue pas une reproduction en environnement de la transition.
+
+### 54.4 Limite de vérification et prochaines cibles
+
+Les définitions de plusieurs fonctions privées candidates n'ont pas pu être obtenues dans cette passe par la requête de catalogue utilisée. Aucune fonction métier n'a été appelée. Le présent inventaire sert à définir la suite de l'examen, pas à attribuer un défaut à ces fonctions sans leur corps SQL.
+
+Prochaine vérification ciblée :
+1. rapprocher `private.naxa_set_caisse_status` de ses appelants applicatifs et des politiques de mise à jour de `profiles` ;
+2. lire le corps et les permissions de `private.reactiver_pharmacie` et `public.synchroniser_validite_pharmacies`, puis vérifier leurs effets sur `actif`, `visible_recherche`, les liens et les privilèges ;
+3. déterminer si les tâches d'expiration sont déclenchées par `pg_cron`, un appel externe ou un orchestrateur applicatif ;
+4. vérifier les journaux/audits écrits par chaque transition et l'existence d'une trace de motif, d'acteur et d'état avant/après.
+
+Aucune modification fonctionnelle, migration, écriture métier, exécution de test ou opération de déploiement n'a été effectuée.
