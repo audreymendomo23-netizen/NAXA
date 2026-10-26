@@ -26,10 +26,13 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
   const { data: current, error: roleError } = await sb.from("profiles").select("role").eq("id", auth.user.id).single();
   if (roleError || current?.role !== "admin") redirect("/");
 
-  const { data: pharmacies, error } = await supabaseAdmin()
-    .from("pharmacies")
-    .select("id,nom,ville,quartier,created_at")
-    .order("created_at", { ascending: false });
+  const db = supabaseAdmin();
+  const [{ data: pharmacies, error }, { data: partnerDossiers, error: partnerDossiersError }] = await Promise.all([
+    db.from("pharmacies").select("id,nom,ville,quartier,created_at").order("created_at", { ascending: false }),
+    db.from("admin_partner_dossiers")
+      .select("partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,architecture_code,dossier_status,created_at,partners!inner(name,city,neighborhood,status),profiles!inner(username,first_name,last_name)")
+      .order("created_at", { ascending: false }).limit(500),
+  ]);
 
   return (
     <main className="space-y-6">
@@ -61,6 +64,31 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
           La liste des dossiers pharmacies n’a pas pu être chargée. Actualisez la page ou réessayez plus tard.
         </p>
       )}
+
+      {partnerDossiersError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Les dossiers des autres univers sont indisponibles. Vérifiez que la migration additive du registre transversal est appliquée dans l’environnement concerné.</p>}
+
+      <section className="space-y-3" aria-labelledby="liste-dossiers-partenaires">
+        <div>
+          <h2 id="liste-dossiers-partenaires" className="text-xl font-extrabold">Dossiers Promoteurs — autres univers</h2>
+          <p className="mt-1 text-sm text-slate-600">{partnerDossiers?.length ?? 0} dossier(s) partenaire(s)</p>
+        </div>
+        {!partnerDossiersError && !partnerDossiers?.length && <div className="rounded-2xl border border-dashed p-6 text-sm text-slate-600">Aucun dossier partenaire indépendant enregistré. Bébé &amp; Maman ne figure pas ici comme établissement : son statut est géré dans le dossier de sa pharmacie de parrainage.</div>}
+        {(partnerDossiers ?? []).map((item: any) => {
+          const partner = item.partners;
+          const owner = item.profiles;
+          const universeName: Record<string,string> = { parapharmacie:"Parapharmacie", examens:"Examens médicaux", prestations:"Prestations à domicile", aide:"Aide NAXA" };
+          const dossierStatus: Record<string,string> = { pending:"À vérifier", validated:"Validé", rejected:"Rejeté" };
+          return <article key={item.partner_id} className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="min-w-0">
+              <h3 className="break-words text-lg font-extrabold text-slate-900">{partner.name}</h3>
+              <p className="mt-1 text-sm text-slate-600">{universeName[item.universe_slug] ?? item.universe_slug} · {[partner.neighborhood, partner.city].filter(Boolean).join(" · ")}</p>
+              <p className="mt-1 text-sm text-slate-600">Promoteur : {[owner.first_name, owner.last_name].filter(Boolean).join(" ") || owner.username || "Non renseigné"}</p>
+              <p className="mt-1 text-xs text-slate-500">Statut du dossier : {dossierStatus[item.dossier_status] ?? item.dossier_status} · Partenaire : {partner.status}</p>
+            </div>
+            <Link href={"/admin/promoteurs/partenaires/" + item.partner_id} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-5 py-3 text-sm font-extrabold text-[#0B3D26] shadow-sm">Ouvrir le dossier →</Link>
+          </article>;
+        })}
+      </section>
 
       <section className="space-y-3" aria-labelledby="liste-dossiers">
         <div>
