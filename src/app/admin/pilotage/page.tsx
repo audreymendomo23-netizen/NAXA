@@ -32,7 +32,16 @@ export default function Page() {
     setChargement(true);
     try {
       const sb = supabaseBrowser();
-      const { data, error } = await sb.rpc("stats_pilotage_scope", { p_jours: jours });
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const result = await Promise.race([
+        sb.rpc("stats_pilotage_scope", { p_jours: jours }),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("PILOTAGE_TIMEOUT")), 12000);
+        }),
+      ]).finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+      const { data, error } = result;
 
       if (error) {
         setErr(
@@ -52,8 +61,12 @@ export default function Page() {
 
       setD(data as PilotageData);
       setErr("");
-    } catch {
-      setErr("La connexion au service de statistiques a échoué. Vérifie ta connexion puis réessaie.");
+    } catch (cause) {
+      setErr(
+        cause instanceof Error && cause.message === "PILOTAGE_TIMEOUT"
+          ? "Le service de statistiques ne répond pas après 12 secondes. Vérifie la fonction Supabase stats_pilotage_scope et réessaie."
+          : "La connexion au service de statistiques a échoué. Vérifie ta connexion puis réessaie."
+      );
     } finally {
       setChargement(false);
     }
