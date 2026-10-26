@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { creerPharmacie } from "@/app/admin/actions";
 import { rattacherServiceBebeMaman } from "@/app/admin/rattacher-service-bebe-maman";
 import { creerDossierUnivers } from "@/app/admin/creation-univers-actions";
@@ -92,7 +93,7 @@ export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, err
     <div>
       <p className="text-xs font-extrabold uppercase tracking-widest text-teal-700">Catalogue NAXA</p>
       <h2 id="creation-univers-title" className="text-xl font-extrabold">Créer / configurer un univers</h2>
-      <p className="mt-1 text-sm text-slate-600">Choisissez l’écosystème concerné, puis validez votre choix pour afficher la fiche adaptée.</p>
+      <p className="mt-1 text-sm text-slate-600">Choisissez l’écosystème concerné, puis validez votre choix pour afficher la fiche adaptée. Une création indépendante ouvre un dossier en attente : elle ne publie pas automatiquement le catalogue.</p><div className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"><p><strong>Parcours unifié :</strong> ouvrir le dossier ici, le contrôler et le valider dans Dossier Promoteur, puis gérer la publication dans Univers &amp; catalogue.</p><Link href="/admin/promoteurs" className="shrink-0 font-extrabold text-naxa-green-900 underline">Dossiers à examiner →</Link></div>
     </div>
 
     {ok && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{ok === "dossier" ? "Dossier partenaire créé et placé en attente de vérification." : "Dossier créé. Les pièces cochées correspondent uniquement aux pièces reçues."}</p>}
