@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 export async function GET() {
   const sb = supabaseServer();
@@ -59,7 +59,7 @@ export async function GET() {
 
   let query = sb
     .from("rapports")
-    .select("id,portee,pharmacie_id,scope_type,scope_profile_id,scope_pharmacie_id,periode,du,au,texte,contenu,created_at,pharmacies(nom)")
+    .select("id,portee,pharmacie_id,periode,du,au,texte,contenu,created_at,pharmacies(nom)")
     .order("created_at", { ascending: false })
     .limit(30);
 
@@ -112,12 +112,10 @@ export async function POST(request: Request) {
   const instantane = Object.fromEntries(keys.map((key) => [key, Number((row as Record<string, unknown>)[key] ?? 0)]));
   const contenu = { titre: "Rapport de pilotage NAXA", jours, genere_le: au.toISOString(), indicateurs: instantane };
   const texte = keys.map((key) => key + " : " + String(instantane[key as keyof typeof instantane])).join("\\n");
-  const { data: saved, error: saveError } = await sb.from("rapports").insert({
+  const db = supabaseAdmin();
+  const { data: saved, error: saveError } = await db.from("rapports").insert({
     portee: "admin",
     pharmacie_id: null,
-    scope_type: "profile",
-    scope_profile_id: auth.user.id,
-    scope_pharmacie_id: null,
     periode: jours + " derniers jours",
     du: du.toISOString().slice(0, 10),
     au: au.toISOString().slice(0, 10),
