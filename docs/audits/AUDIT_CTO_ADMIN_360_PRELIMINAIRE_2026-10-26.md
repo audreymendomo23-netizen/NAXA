@@ -620,3 +620,44 @@ Les pièces sont ordonnées ainsi dans le code : KYC, Registre de commerce, NIU,
 4. revenir ensuite à la priorité du Journal dans la navigation et au comportement des routes imbriquées.
 
 Aucune correction applicative, écriture Supabase, migration ou déploiement n'a été exécuté. Les constats rouges sont des défauts statiques identifiés; ils ne sont pas déclarés corrigés.
+
+
+---
+
+## 15. Lot 2 — corrections A/B et audit Promoteurs
+
+### Vérification avant durcissement
+Requête SQL en lecture seule sur Supabase NAXA : 1 profil `role='admin'` avec `actif=true`; aucune ligne admin avec `actif=NULL` ou `actif=false` dans le résultat groupé.
+
+### Corrections de code consignées
+- Ajout de `src/lib/admin/require-admin-active.ts`, garde serveur commun : utilisateur authentifié, profil lisible, rôle admin et `actif===true`; refus par défaut en cas d'erreur.
+- `src/app/admin/layout.tsx` utilise le garde partagé; les compteurs montrent un avertissement si une source échoue.
+- `src/app/admin/page.tsx` utilise le garde, détecte les erreurs pharmacies/validités/journal, signale les indicateurs partiels et ne sélectionne plus `metadata` pour le journal aperçu.
+- Le garde est également utilisé par `src/app/admin/promoteurs/page.tsx`, `src/app/admin/journal/page.tsx`, `src/app/admin/creation-univers-actions.ts` et `src/app/admin/promoteurs/partenaires/actions.ts`.
+- **Limite non corrigée :** `src/app/admin/actions.ts` (`creerPharmacie`) vérifie toujours le rôle mais pas explicitement `actif`. La modification n'a pas abouti via l'outil GitHub disponible; ce point reste rouge. La protection du layout ne remplace pas la garde de chaque action serveur.
+
+**Statut A/B :** 🟢 corrections statiques consignées et revues; 🟡 build, lint, tests et test navigateur non exécutés. Les KPI peuvent encore afficher leurs valeurs de repli, mais la bannière signale maintenant qu'ils sont incomplets.
+
+### Divergence du parcours Dossiers Promoteurs
+La page `/admin/promoteurs` et la fiche `/admin/promoteurs/partenaires/[id]` dépendent de `admin_partner_dossiers`; la création dépend de `admin_create_partner_dossier`; Bébé & Maman dépend de `pharmacie_services` et `admin_set_pharmacie_bebe_maman_service`. Le code SQL existe dans les migrations de la branche, mais ces objets étaient absents de la base Supabase NAXA examinée et les migrations correspondantes n'étaient pas dans l'historique appliqué. Aucune migration n'a été appliquée. **Le parcours transversal reste rouge jusqu'à validation explicite et traitement du décalage code/base.**
+
+Solution : examiner l'ordre et le contenu des migrations, comparer au schéma/historique de l'environnement approuvé, puis n'appliquer que sur autorisation explicite. Vérifier ensuite RLS, grants, RPC et cas d'échec/compensation.
+
+### Contradictions UI / métier
+- **KYC omis dans la fiche détaillée :** le formulaire enregistre sept indicateurs dont `kyc`, mais la fiche détail n'affiche que six pièces et ne liste pas KYC. 🔴 Correction requise.
+- **Erreur transformée en 404 :** la fiche détail fait `notFound()` pour toute erreur SQL ou absence de dossier. Une table absente ou une erreur de permission peut être confondue avec un dossier inexistant. 🟠 Améliorer la distinction sans exposer les messages SQL.
+- **« Aide NAXA » :** absente du sélecteur courant, mais encore dans les dictionnaires de libellés Promoteurs et dans le SQL qui accepte le slug `aide`. 🟠 Vérifier le référentiel et les dossiers existants avant toute suppression.
+- **Justificatifs :** la fiche précise que les cases ne remplacent pas des fichiers authentifiés. Conserver cette distinction; l'upload et l'accès aux pièces restent à auditer. 🟡
+- **Bébé & Maman :** l'action valide UUID et pharmacie active/visible, puis appelle une RPC qui recontrôle l'autorisation et l'éligibilité; cohérent statiquement, mais runtime bloqué par la migration absente. 🟡
+
+| Sujet | Statut |
+|---|---|
+| Garde Admin commun sur layout et pages ciblées | 🟢 statique; tests non exécutés |
+| Erreurs de données du dashboard | 🟢 statique; test de panne non exécuté |
+| Garde `actif` de création pharmacie | 🔴 ouvert |
+| Migrations dossiers partenaires / RPC | 🔴 absentes de la base vérifiée; aucune migration appliquée |
+| Affichage KYC en fiche partenaire | 🔴 ouvert |
+| 404 indistinguable d'une erreur technique | 🟠 ouvert |
+| Référentiel « Aide NAXA » | 🟠 à arbitrer |
+
+Aucune modification de données, migration, fusion ou mise en production n'a été exécutée.
