@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import "./admin-bento.css";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
+import { Logo } from "@/components/Logo";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -33,8 +34,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <div className="admin-bento-shell">
       <aside className="admin-bento-sidebar" aria-label="Navigation de l’administration">
         <Link href="/admin" className="admin-bento-brand" aria-label="NAXA administration, accueil">
-          <span className="admin-bento-brand-mark" aria-hidden="true">N</span>
-          <span className="admin-bento-brand-copy"><strong>NAXA</strong><small>ESPACE ADMIN</small></span>
+          <Logo taille={32} />
         </Link>
         <div className="admin-bento-nav-caption">ESPACE DE TRAVAIL</div>
         <AdminNavigation />
