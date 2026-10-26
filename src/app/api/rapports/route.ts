@@ -102,16 +102,32 @@ export async function POST(request: Request) {
   const { data: stats, error: statsError } = await sb.rpc("stats_pilotage_scope", { p_jours: jours });
   if (statsError) return NextResponse.json({ error: "Les indicateurs du réseau n’ont pas pu être calculés. Aucun rapport n’a été enregistré." }, { status: 503 });
   const row = Array.isArray(stats) ? stats[0] : stats;
-  const keys = ["pharmacies", "promoteurs", "produits", "reservations", "ventes", "demandes", "revenus"];
-  if (!row || typeof row !== "object" || !keys.every((key) => key in row)) {
+  const obj = row && typeof row === "object" ? row as Record<string, any> : null;
+  if (!obj || !obj.pharmacies || !obj.recherches || !obj.entonnoir || !obj.stock || !obj.performance) {
     return NextResponse.json({ error: "Les indicateurs renvoyés sont incomplets. Aucun rapport n’a été enregistré." }, { status: 502 });
   }
-
+  const { count: promoteurs, error: promoteursError } = await sb.from("profiles")
+    .select("id", { count: "exact", head: true }).eq("role", "promoteur").eq("actif", true);
+  if (promoteursError) return NextResponse.json({ error: "Le nombre de Promoteurs n’a pas pu être calculé." }, { status: 503 });
+  const instantane = {
+    pharmacies: Number(obj.pharmacies.total ?? 0),
+    pharmacies_actives: Number(obj.pharmacies.actives ?? 0),
+    promoteurs: Number(promoteurs ?? 0),
+    produits_en_stock: Number(obj.stock.produits_en_stock ?? 0),
+    recherches: Number(obj.recherches.total ?? 0),
+    recherches_sans_resultat: Number(obj.recherches.sans_resultat ?? 0),
+    reservations: Number(obj.entonnoir.reservations ?? 0),
+    ventes: Number(obj.entonnoir.ventes ?? 0),
+    revenus_fcfa: Number(obj.ca ?? 0),
+    ruptures: Number(obj.stock.ruptures ?? 0),
+    alertes: Number(obj.alertes ?? 0),
+    taux_conversion_vente: Number(obj.performance.taux_conversion_vente ?? 0),
+  };
   const au = new Date();
   const du = new Date(au.getTime() - jours * 24 * 60 * 60 * 1000);
   const instantane = Object.fromEntries(keys.map((key) => [key, Number((row as Record<string, unknown>)[key] ?? 0)]));
   const contenu = { titre: "Rapport de pilotage NAXA", jours, genere_le: au.toISOString(), indicateurs: instantane };
-  const texte = keys.map((key) => key + " : " + String(instantane[key as keyof typeof instantane])).join("\\n");
+  const texte = Object.entries(instantane).map(([key, value]) => key + " : " + String(value)).join("\\n");
   const db = supabaseAdmin();
   const { data: saved, error: saveError } = await db.from("rapports").insert({
     portee: "admin",
