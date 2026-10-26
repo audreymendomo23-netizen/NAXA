@@ -152,3 +152,40 @@ La migration présente dans Git crée le bucket privé `pharmacie-documents`, li
 5. **P2 — audit des mutations :** poursuivre la couverture des actions qui écrivent directement dans `audit_log` sans contrôler l'erreur d'insertion, et confirmer les triggers existants.
 
 **Limites de cette passe :** lecture statique du dépôt et interrogations SQL en lecture seule ; pas de modification fonctionnelle, pas de migration appliquée, pas de test de session réel, pas de test navigateur, pas de build ni de déploiement.
+
+
+## 11. Inventaire des routes et actions Admin — deuxième passe groupée
+
+### 11.1 Périmètre effectivement inventorié
+
+L'arbre Git de `main` contient **28 fichiers d'écran/action** sous `src/app/admin/` correspondant aux motifs `page.tsx` / `actions.ts` consultés, et **2 routes API Admin** sous `src/app/api/admin/`. Ce décompte est limité à ces types de fichiers ; il ne représente pas le nombre total de routes Next.js, car les layouts, composants, autres route handlers et pages non inclus par ce filtre ne sont pas comptés comme des entrées distinctes.
+
+Pages/actions revues dans cette passe : alertes, configuration, géolocalisation, messagerie, pilotage, rapports, promoteurs, dossiers partenaires, rappels de lots, fiche pharmacie et ses actions, création d'univers et création de pharmacie. Les autres fichiers de l'inventaire sont conservés dans le périmètre de l'audit, mais ne sont pas déclarés individuellement validés par cette passe.
+
+### 11.2 Contrôles d'accès et gestion d'erreurs
+
+- Les pages Alertes, Messagerie, Pilotage, Promoteurs, Dossiers partenaires, Journal et les actions de création consultées appellent le garde partagé `requireAdminActive`.
+- La route API `/api/admin/messagerie` vérifie la session, le rôle admin et l'activité avant de lire le ticket ou d'écrire un message ; elle refuse les tickets absents/inaccessibles et les tickets fermés, puis contrôle l'erreur d'insertion avant de retourner succès.
+- La route OSM appelle `is_admin()` avant toute opération privilégiée. La définition actuellement observée dans le catalogue contrôle aussi l'activité du compte administrateur. Les erreurs de lecture d'état sont remontées par l'interface.
+- La page Alertes signale les sources d'alerte indisponibles. La page détail pharmacie affiche un avertissement si certaines données liées échouent, au lieu de les présenter toutes comme absentes.
+- Le garde local de la fiche pharmacie répète le contrôle rôle + actif au lieu de réutiliser le garde partagé : duplication à réduire pour éviter une divergence future, mais aucune faille exploitable n'est démontrée par cette seule duplication.
+
+### 11.3 Nouveaux risques ou réserves confirmés dans le code
+
+**P1 — synchronisation OSM, persistance de l'état de synchronisation.** Dans `src/app/api/admin/geolocalisation-osm/route.ts`, l'erreur de mise à jour du registre `pharmacies_geo_osm_sync` à la fin du parcours de succès (vers la ligne 170) n'est pas contrôlée avant de retourner le résultat. Le chemin de gestion d'erreur tente lui aussi d'écrire le statut d'échec sans vérifier le résultat de cette écriture. Il est donc possible que l'interface annonce une synchronisation terminée alors que l'état de suivi n'a pas été enregistré ; l'impact sur les coordonnées déjà écrites dépend du point d'échec. Aucun scénario n'a été exécuté.
+
+**P1 — fiche pharmacie, deux registres documentaires.** La page lit à la fois `pharmacie_documents` / `pharmacie_document_historique` et `pharmacie_documents_recus` / `pharmacie_donnees_historique`. Ce peut être intentionnel (documents téléchargés vs pièces déclaratives), mais la page et les actions utilisent deux modèles distincts. Il faut expliciter la différence métier et l'état attendu de chaque source ; en cas de dérive de migration, l'écran peut présenter un dossier partiellement renseigné. La page affiche un avertissement pour certaines lectures liées, mais la lecture initiale de `documents` n'expose pas explicitement son erreur dans le tableau des erreurs affichées.
+
+**P2 — création pharmacie et création dossier d'univers.** Les deux parcours sont multi-écritures avec compensations en cas d'échec, non une transaction unique visible côté application. Les échecs de compensation sont consignés dans les logs serveur, ce qui est préférable au silence, mais ne garantit pas le nettoyage complet. Prévoir une file de réconciliation/état d'échec réconciliable et une clé d'idempotence serait plus robuste pour les dossiers partiellement créés. Aucun dossier orphelin réel n'a été recherché dans les données.
+
+**P2 — journal d'audit.** La page affiche le contenu brut de `metadata` sous forme JSON. Cela permet l'inspection mais rend le contenu dépendant de la discipline des producteurs : éviter d'y écrire secrets, jetons, pièces d'identité complètes ou données personnelles inutiles. Le risque est préventif ; aucun secret exposé n'a été identifié par cette lecture.
+
+**P2 — rappels de lots.** Le fichier `src/app/admin/rappels-lots/page.tsx` est un wrapper de six lignes. Cette inspection ne suffit pas à valider le chargement, les permissions ou les calculs de péremption du composant qu'il délègue ; la validation métier de cet écran reste ouverte.
+
+### 11.4 État consolidé après cette passe
+
+- Inventaire du dépôt obtenu sans troncature : 1 248 chemins ; 28 fichiers Admin page/actions correspondant au filtre et 2 routes API Admin.
+- Plusieurs parcours et routes ont été lus statiquement, mais **il ne faut pas interpréter cet inventaire comme 100 % des routes fonctionnellement testées**.
+- Priorités à garder en tête : RLS du journal pour compte admin inactif ; sémantique renouvellement/paiement ; correspondance migrations/catalogue des documents ; contrôle des erreurs de synchronisation OSM ; cohérence des deux registres documentaires ; réconciliation des créations multi-étapes.
+
+**Limites :** lecture Git et catalogue SQL uniquement. Pas de test navigateur, pas de requête destructive, pas d'exécution des actions métier, pas de build, pas de migration appliquée et pas de déploiement.
