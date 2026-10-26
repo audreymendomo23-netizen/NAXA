@@ -1127,3 +1127,37 @@ La page partenaire indique explicitement que les cases documentaires déclarent 
 ### 50.5 Limites de preuve
 
 Les fonctions live ont été lues via le catalogue PostgreSQL et comparées aux migrations Git; aucune fonction n'a été exécutée. Les valeurs des tables métier n'ont pas été modifiées. Aucun dépôt de fichier, décision, activation, renouvellement, envoi de message, test SQL ou test navigateur n'a été lancé. Les constats de cohérence métier restent à faire valider avant toute correction.
+
+
+## 51. Privilèges Promoteur, triggers de provisionnement et audit transactionnel
+
+### 51.1 Frontière d'exécution observée dans le catalogue live
+
+Le catalogue PostgreSQL confirme les paramètres de sécurité attendus pour les fonctions examinées :
+- `admin_valider_dossier_pharmacie`, `admin_create_partner_dossier` et `admin_valider_dossier_partenaire` sont `SECURITY DEFINER`, ont un `search_path` vide, refusent EXECUTE à `anon` et accordent EXECUTE à `authenticated`. Leurs corps vérifient eux-mêmes le rôle Admin via `public.is_admin()`.
+- `naxa_provision_promoteur_pharmacie` est `SECURITY DEFINER`, avec `search_path` vide, sans EXECUTE pour `anon` ni `authenticated`. Cela empêche l'appel direct par un utilisateur de l'application; le RPC de validation peut l'appeler dans son contexte privilégié.
+- La fonction privée `naxa_promoteur_valide` existe sous deux signatures/catalogues résolus lors du contrôle : la version privée n'est pas exécutable par `authenticated`, tandis qu'une façade publique de même nom reste exécutable par `authenticated`. La façade est donc la frontière de consultation; les appels internes privilégiés utilisent la fonction privée selon la migration de séparation.
+- Les traces de migrations live identifient `promoteur_provisioning_validity_guard_146` et `naxa_admin_validate_pharmacy_154`. Les noms live diffèrent des noms de fichiers Git, mais les définitions et les gardes de sécurité observées sont cohérentes avec ces migrations.
+
+### 51.2 Provisionnement et effets en chaîne
+
+Le RPC de validation pharmacie active la convention et l'abonnement, active l'architecture pharmacie, réactive le profil Promoteur, active le lien Promoteur/pharmacie, puis appelle `naxa_provision_promoteur_pharmacie` avant de rendre la pharmacie visible. Les contrôles de cohérence commerciale sont effectués dans la même transaction. La fonction de provisionnement exige notamment un profil Promoteur actif, une validité commerciale positive, un lien actif et une architecture active; elle n'accorde que les privilèges configurés comme actifs, non-gouvernance et délégables, avec une liste restreinte de privilèges réseau.
+
+Le catalogue live expose également un trigger `trg_naxa_provision_on_architecture` sur insertion/mise à jour de `pharmacie_architectures`. La validation explicite et le trigger peuvent donc tous deux participer au provisionnement pendant le même parcours. L'opération est idempotente sur la clé de conflit des privilèges (réactivation/mise à jour plutôt que doublon), mais le nombre et l'origine exacte des écritures d'historique peuvent être plus complexes qu'un seul appel. Il faut conserver ce point dans la revue du flux et éviter de retirer l'un des deux mécanismes sans confirmer les autres chemins d'activation.
+
+### 51.3 Audit administratif : différence confirmée et lacune de disponibilité
+
+Le catalogue live montre que `audit_log` existe avec RLS activée et un droit INSERT pour `authenticated`; le parcours partenaire ajoute explicitement les événements `partner.dossier_created` et `partner.dossier_validated` dans les transactions de création/validation.
+
+En revanche, la table `admin_pharmacie_audit` attendue par la migration `20261022143000_admin_renouvellement_manuel_audit.sql` n'apparaît pas dans le catalogue live interrogé, et l'historique de migrations ciblé ne contient pas de nom correspondant à cette migration. La fonction de renouvellement manuel n'a pas été trouvée parmi les fonctions live de ce contrôle ciblé. Cette convergence renforce le constat d'écart d'environnement déjà noté aux sections 46–48; elle ne permet pas, à elle seule, d'établir la cause (migration non appliquée, renommage historique ou divergence de synchronisation). Aucun renouvellement n'a été tenté.
+
+Le journal de lignes `pharmacie_donnees_historique` et les triggers `naxa_capture_pharmacie_history` existent sur les profils, pharmacies, conventions, abonnements, architectures et privilèges. Ils constituent une trace de changements de lignes, mais pas nécessairement un événement métier qui exprime explicitement « dossier validé par tel Admin pour tel motif ». La migration de renouvellement manuel, si elle est retenue, doit être alignée avec l'état live avant d'être utilisée.
+
+### 51.4 Conclusion provisoire
+
+- **Pas de contournement direct confirmé** des fonctions de provisionnement par `anon` ou `authenticated` dans le catalogue observé.
+- **Point d'attention de conception :** provisionnement potentiellement appelé par la fonction de validation et par trigger, à documenter et couvrir par tests de non-régression avant une modification.
+- **Écart d'environnement confirmé à investiguer :** migration/table/fonction de renouvellement manuel présentes dans Git mais non retrouvées sous leurs noms attendus dans le catalogue et l'historique live ciblés.
+- **Traçabilité métier inégale :** événements explicites dans le parcours partenaire, historique de lignes dans le parcours pharmacie; l'exigence de journal métier doit être tranchée.
+
+Aucune fonction n'a été exécutée, aucun privilège n'a été modifié, aucune donnée n'a été écrite, aucun test n'a été lancé et aucun déploiement n'a eu lieu.
