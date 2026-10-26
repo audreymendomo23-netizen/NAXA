@@ -1043,3 +1043,52 @@ Le bucket `pharmacie-documents` est conçu privé, limité à 10 MiB et aux type
 2. Examiner la fonction `admin_valider_dossier_pharmacie` et ses droits, notamment l'acteur réel, les contraintes du dossier, les effets sur les profils/pharmacies et la piste d'audit.
 3. Comparer les préconditions de validation initiale et de renouvellement manuel afin d'éviter qu'un parcours ne contourne l'autre.
 4. Après autorisation distincte seulement, proposer un lot de correction minimal; ne pas appliquer les migrations pendant l'audit.
+
+
+## 49. Validation initiale du dossier pharmacie — contrôle du SQL live et rapprochement métier
+
+### 49.1 Fonction live et permissions effectives
+
+La définition PostgreSQL live de `public.admin_valider_dossier_pharmacie(uuid,boolean)` a été lue en mode catalogue, sans exécution. Elle est `SECURITY DEFINER`, fixe `search_path=''`, dérive l'acteur de `auth.uid()` et refuse l'appel si `public.is_admin()` est faux. Le contrôle `public.is_admin()` délègue à `private.is_admin()`, dont les vérifications Admin actif ont été examinées dans les lots précédents.
+
+ACL live ciblées :
+- `anon` : pas d'EXECUTE sur `admin_valider_dossier_pharmacie`;
+- `authenticated` : EXECUTE accordé, mais le corps de la fonction impose l'identité authentifiée et le contrôle Admin;
+- `authenticated` : pas d'EXECUTE sur `naxa_provision_promoteur_pharmacie`, appelée depuis la fonction de validation;
+- `service_role` : EXECUTE sur les deux fonctions.
+Cette configuration ne constitue pas à elle seule une faille d'autorisation : la RPC de validation porte un contrôle Admin interne. Il reste néanmoins nécessaire de maintenir la garde interne même si l'interface et les Server Actions contrôlent déjà le rôle.
+
+### 49.2 Préconditions vérifiées par la validation initiale
+
+Le SQL live impose les contrôles suivants avant publication :
+- confirmation explicite `p_autorisations_verifiees=true`;
+- existence de la pharmacie et verrouillage de sa ligne;
+- exactement un rattachement Promoteur/pharmacie;
+- compte Promoteur, architecture non nulle et cohérence du champ `profiles.pharmacie_id`;
+- présence d'un WhatsApp non vide dans `pharmacie_privee`;
+- exactement une convention et un abonnement, avec cohérence architecture, convention liée et montant;
+- architecture existante et active;
+- refus du dossier déjà actif dans les quatre dimensions examinées;
+- mise à jour transactionnelle de convention, abonnement, architecture affectée, profil et rattachement, provisionnement des privilèges, puis activation de la visibilité publique à la fin.
+
+Les mises à jour et le provisionnement sont dans la même fonction PostgreSQL; une exception annule la transaction. La date de fin initiale est calculée à `current_date + 14` au moment de la validation, et non au moment de la création.
+
+### 49.3 Contradiction entre registre de réception et validation
+
+La fonction live ne lit pas `pharmacie_documents_recus` et ne vérifie pas les six indicateurs de pièces (existence légale, registre de commerce, NIU, attestation de non-redevance, plan de localisation, CNI Promoteur). Elle vérifie à la place la présence d'un WhatsApp dans `pharmacie_privee` et reçoit un booléen global `p_autorisations_verifiees`.
+
+L'action applicative `mettreAJourPiecesRecues` écrit ces six indicateurs séparément; l'action `validerDossierPharmacie` ne transmet au RPC que l'identifiant pharmacie et le booléen global de vérification. **Il n'est donc pas démontré que les six pièces déclarées reçues soient une précondition technique de la validation.** Cela peut être une séparation intentionnelle entre checklist de réception et décision administrative, mais la règle métier doit être explicite : soit les indicateurs sont informatifs, soit le SQL doit contrôler les pièces requises. Le booléen global ne constitue pas à lui seul une preuve documentaire.
+
+### 49.4 Écarts et risques à classer
+
+- **Priorité haute — preuve documentaire :** le workflow permet potentiellement la validation sans contrôler les six indicateurs du registre déclaratif. Il faut confirmer si la validation exige leur présence; aucune validation n'a été lancée.
+- **Priorité haute — réactivation et visibilité :** le RPC active le profil Promoteur, le rattachement et la pharmacie, puis rend la pharmacie visible à la fin. La condition « déjà actif » empêche seulement le cas où les quatre états examinés sont déjà vrais ensemble. Si la pharmacie était désactivée pour un motif indépendant du dossier initial, la validation pourrait la réactiver. Il faut distinguer création/activation initiale, réactivation contractuelle et levée d'une suspension pour un autre motif.
+- **Priorité moyenne — visibilité métier :** la fonction rend `visible_recherche=true` après provisionnement, sans contrôle documentaire explicite dans son corps. Si la politique exige des pièces administratives vérifiées avant la publication publique, le garde-fou est incomplet; si la vérification humaine globale est la règle, il faut l'énoncer et la tracer clairement.
+- **Priorité moyenne — cohérence des sources :** `promoteur_pharmacies` est une table de rattachement à plusieurs Promoteurs/pharmacies avec clé primaire composée; le RPC impose exactement un rattachement pour la pharmacie lors de sa validation. Cette contrainte métier est plus stricte que la seule forme du schéma et doit rester appliquée dans tout autre chemin de création/rattachement.
+- **Migration d'origine non attribuée :** la définition live et ses ACL sont confirmées, mais le filtrage de l'historique de migration par nom ne retrouve pas d'entrée explicite pour cette RPC. Les recherches de fichiers du dépôt n'ont pas permis d'attribuer avec certitude sa définition à un fichier source précis. Ne pas conclure que le SQL n'existe pas dans Git ou qu'il est non versionné avant un rapprochement exhaustif du corpus historique.
+
+### 49.5 Conclusion de l'étape
+
+La validation est protégée par une RPC transactionnelle et une garde Admin interne. Le point métier le plus important n'est pas l'accès à la RPC, mais la **définition de ce qui constitue un dossier administrativement complet** : six pièces déclarées reçues, vérification humaine globale, ou pièces réellement téléversées. Ces trois notions sont distinctes dans le modèle actuel et ne doivent pas être confondues.
+
+Aucune RPC n'a été exécutée. Aucune ligne, pièce, échéance, visibilité, permission ou migration n'a été modifiée. Aucun test automatisé ou navigateur n'a été lancé.
