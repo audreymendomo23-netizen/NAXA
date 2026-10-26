@@ -701,3 +701,18 @@ Une revue supplémentaire des pages Admin sur `main` a couvert Alertes, Configur
 - Le compteur « Promoteurs actifs » du rapport POST utilise `role='promoteur'` et `actif=true`. Il reste à rapprocher de la validité contractuelle pour confirmer la définition exacte de cet indicateur.
 
 Ces constats sont issus d'une lecture statique. Aucun test de rôle, appel de diffusion de rappel, calcul de rapport ni mutation n'a été lancé.
+
+
+## 39. Métadonnées live — Pilotage et rappels de lots
+
+Le catalogue PostgreSQL live a été consulté en lecture seule pour trois fonctions utilisées par l'administration :
+
+- `stats_pilotage_scope` : fonction invoker, exécution accordée à `authenticated`, refusée à `anon`, `search_path` vide.
+- `admin_avis_rappel_lot_diffuser` : fonction definer, exécution accordée à `authenticated`, refusée à `anon`, `search_path` vide.
+- `validites_promoteurs_admin` : fonction definer, exécution accordée à `authenticated`, refusée à `anon`, `search_path` vide.
+
+L'exécution accordée à un rôle SQL authentifié ne prouve pas à elle seule que le rôle métier est autorisé : les contrôles internes des fonctions doivent être relus.
+
+Les politiques de lecture live des deux tables de rappels de lots bornent la lecture aux comptes Admin actifs, ou aux Promoteurs actifs pour les pharmacies effectivement liées à leur réseau. Cette preuve concerne les politiques SELECT observées; elle ne confirme pas tous les contrôles internes de diffusion ni les droits d'écriture.
+
+Le `search_path` vide est un réglage de sécurité, mais ne remplace pas la revue du corps SQL. Les définitions complètes et le périmètre des indicateurs de pilotage restent à rapprocher des migrations sources. Aucun rappel n'a été diffusé et aucune donnée n'a été modifiée.
