@@ -485,3 +485,138 @@ L'audit page par page demandé constitue l'étape suivante distincte; il ne doit
 - L'archive brute de toutes les conversations n'est pas accessible dans son intégralité; les décisions historiques reprises ici viennent des synthèses et documents de continuité disponibles.
 
 **Conclusion de la phase 0 :** le dossier préliminaire est créé, les sources principales sont identifiées et plusieurs contradictions prioritaires sont prouvées. Le niveau de confiance est suffisant pour lancer l'audit page par page, mais ne doit pas être présenté comme une certification ligne par ligne de l'intégralité du dépôt.
+
+
+---
+
+## 14. Audit détaillé — lot 1 : navigation, layout et tableau de bord
+
+**Référence analysée :** branche `audit/admin-360-20261026`, code lu dans `src/app/admin/layout.tsx`, `src/components/admin/AdminNavigation.tsx`, `src/app/admin/page.tsx`, `src/components/admin/CatalogueCreation.tsx` et `src/app/admin/admin-bento.css`. Les constats ci-dessous sont une revue statique du code source, pas une validation visuelle en navigateur ni un test d'intégration. Aucun code applicatif n'a été modifié dans ce lot.
+
+### 14.1 Navigation latérale — inventaire et comportements
+
+**12 entrées de navigation** détectées, dans l'ordre du code :
+
+1. Tableau de bord — `/admin`
+2. Alertes réseau — `/admin/alertes`
+3. Journal d’administration — `/admin/journal`
+4. Messagerie — `/admin/messagerie`
+5. Dossiers Promoteurs — `/admin/promoteurs`
+6. Pilotage réseau — `/admin/pilotage`
+7. Validité — `/admin/pilotage/validite`
+8. Rapports — `/admin/pilotage/rapports`
+9. Configuration — `/admin/configuration`
+10. Profil — `/admin/profil`
+11. Produits — `/admin/produits`
+12. Univers & catalogue — `/admin/univers`
+
+Chaque entrée comporte un index numéroté, un libellé, une note descriptive et une flèche décorative. Le conteneur expose `aria-label="Pages d’administration"`; l'élément actif utilise `aria-current="page"`. Le layout ajoute un lien-logo vers `/admin`, la légende « ESPACE DE TRAVAIL », puis le pied « Console NAXA / Interface d’administration ».
+
+**Constat N1 — navigation active sur les routes imbriquées (à confirmer visuellement).** Le calcul est strictement `pathname === section.href`. Sur `/admin/pilotage/rapports`, l'entrée « Rapports » est active, mais sur `/admin/promoteurs/partenaires/[id]`, aucune entrée ne correspond exactement; « Dossiers Promoteurs » n'est donc pas marquée active. Même risque pour `/admin/pharmacies/[id]`, `/admin/examens`, `/admin/prestations`, `/admin/geolocalisation` et `/admin/rappels-lots`, dont les routes ne sont pas directement dans la liste. Ces routes peuvent rester accessibles par liens contextuels, mais la navigation perd le repère de section.
+
+- **Solution proposée :** définir une règle de parent actif explicite pour les routes filles, sans faire correspondre abusivement `/admin` à toutes les routes; décider aussi si les pages métier contextuelles doivent apparaître dans le menu ou uniquement sous leurs pages parentes.
+- **État :** 🔴 incohérence statique confirmée pour les routes imbriquées; correction non appliquée, validation utilisateur requise.
+
+**Constat N2 — l'entrée « Journal d’administration » n'est pas prioritaire.** Elle occupe la 3e position de la navigation. Le tableau de bord affiche aussi les « Activités récentes » avec un lien vers le journal. Si la priorité demandée est de mettre le journal en première position du parcours, l'ordre actuel ne la respecte pas.
+
+- **Solution proposée :** placer « Journal d’administration » immédiatement après « Tableau de bord » (ou en première position si l'instruction désigne littéralement la première entrée); à arbitrer avant correction.
+- **État :** 🟠 décision d'ordre à confirmer avant toute modification.
+
+**Constat N3 — accessibilité clavier et mobile non prouvée.** Le CSS utilise une barre latérale sticky de 272 px, hauteur `100dvh`, défilement interne et transitions. Le code CSS contient des adaptations responsive, mais aucun parcours clavier, lecteur d'écran ou petit écran n'a été exécuté dans ce lot.
+
+- **Solution proposée :** contrôler focus visible, ordre de tabulation, débordement de la barre latérale et atteignabilité des liens à 320–390 px dans un test navigateur.
+- **État :** 🟡 non vérifié, pas qualifié de défaut fonctionnel sans test.
+
+### 14.2 Layout partagé et contrôle d'accès
+
+Le layout lit l'utilisateur via `auth.getUser()`, puis le profil `role,actif`. Les compteurs de badges sont calculés uniquement si `profile?.role === "admin" && profile.actif !== false`. Il interroge en parallèle les pharmacies, `validites_promoteurs_admin()` et le nombre de tickets `statut = "ouvert"`. Le layout affiche le badge d'alertes et celui de messagerie, puis le sélecteur d'espace.
+
+**Constat L1 — les règles « compte actif » divergent entre pages.** Le layout et plusieurs pages acceptent `actif = null` car ils ne rejettent que `actif === false`; la page d'accueil `/admin` vérifie seulement `role === "admin"`; l'API POST des rapports exige `actif === true`. Un même compte peut donc voir certaines pages mais se voir refuser une action de rapport, selon la valeur exacte de `profiles.actif`.
+
+- **Solution proposée :** définir une fonction/garde serveur canonique et appliquer la même politique à toutes les pages et routes API; avant d'imposer `actif === true`, vérifier les données historiques où `actif` est NULL.
+- **État :** 🔴 contradiction de contrôle d'accès confirmée dans le code; correction non appliquée.
+
+**Constat L2 — les erreurs de lecture des badges sont partiellement silencieuses.** Le code évite d'ajouter les badges si une requête retourne une erreur, mais ne rend aucun indicateur signalant que le total est incomplet. Le zéro visuel peut ainsi signifier « aucun élément » ou « source indisponible ».
+
+- **Solution proposée :** distinguer « zéro » de « compteur indisponible » (journalisation serveur et/ou état discret), sans bloquer l'accès à la page.
+- **État :** 🟠 amélioration proposée; impact exact à confirmer par logs source-spécifiques.
+
+### 14.3 Tableau de bord `/admin` — inventaire fonctionnel
+
+Le fichier de page contient 2 lignes physiques, dont la seconde porte presque toute la logique et le JSX. Il faut donc éviter d'utiliser le nombre de lignes comme indicateur de simplicité ou de complétude.
+
+Éléments statiques repérés :
+
+- 1 en-tête supérieur avec logo et sélecteur d'espace;
+- 1 titre « Tableau de bord », 1 surtitre « CENTRE DE CONTRÔLE » et 1 sous-titre;
+- 4 cartes KPI : « Pharmacies du réseau », « Stocks horodatés », « À actualiser », « Quartiers renseignés »;
+- 1 panneau de progression « Actualisation des stocks » avec barre ARIA de 0 à 100 et date de dernière mise à jour;
+- 1 panneau d'état conditionnel (« Stocks à contrôler » / « État des stocks »);
+- 1 section « Alertes réseau », compteur agrégé, messages conditionnels sur dates de stock manquantes, pharmacies inactives/masquées et conventions/échéances;
+- liens vers Dossiers Promoteurs, Alertes réseau et Validité;
+- 1 composant de création/configuration de catalogue;
+- 1 section « Journal d’administration / Activités récentes » listant au plus 8 événements et un lien vers le journal complet.
+
+Les valeurs des KPI sont dérivées des lignes de `pharmacies`; le compteur « quartiers » est le nombre de valeurs de quartier distinctes non vides, pas un indicateur de couverture géographique validée. Le taux de stock horodaté est `stocksHorodates / pharmacies.length`, arrondi à l'entier. Quand il n'y a aucune pharmacie, la progression vaut 0 et le texte de rappel indique qu'aucune pharmacie n'est enregistrée.
+
+**Constat D1 — erreurs de données non remontées au tableau de bord.** Les lectures `pharmacies`, `validites_promoteurs_admin()` et `audit_log` n'exposent pas leur champ `error` à l'interface. Si une source échoue, le tableau de bord peut afficher des KPI à zéro, masquer des alertes ou présenter un journal vide comme s'il n'y avait aucune donnée.
+
+- **Solution proposée :** récupérer et traiter chaque erreur explicitement; afficher un état « données indisponibles / indicateurs partiels » et éviter les messages d'absence de données lorsque la requête a échoué.
+- **État :** 🔴 défaut de robustesse statique confirmé.
+
+**Constat D2 — compteur agrégé potentiellement double.** Le total du bloc « Alertes réseau » additionne séparément les pharmacies sans date de stock, les pharmacies inactives/masquées et les échéances en alerte. Une même pharmacie peut contribuer à plusieurs catégories; le nombre présenté est donc un nombre de signaux/catégories, pas nécessairement un nombre de dossiers uniques. Le libellé actuel « alertes » n'explicite pas ce grain.
+
+- **Solution proposée :** soit libeller le total « signaux à examiner », soit compter les entités uniques et garder séparément le nombre de signaux par catégorie.
+- **État :** 🟠 incohérence sémantique confirmée; choix métier à valider.
+
+**Constat D3 — indicateur de date non équivalent à la santé du stock.** Le code et le texte avertissent correctement qu'une date manquante ne prouve pas une rupture. Cependant, le KPI « Stocks horodatés » mesure la présence de `stock_updated_at`, pas la fraîcheur réelle, la disponibilité des quantités, ni la cohérence stock physique/Marketplace.
+
+- **Solution proposée :** conserver ce KPI avec un nom explicitement temporel et, dans un lot ultérieur, auditer les indicateurs réels de quantité et de fraîcheur par rapport à la source de vérité ERP.
+- **État :** 🟡 limite de portée documentée, pas un bug démontré.
+
+**Constat D4 — données récentes potentiellement sensibles dans le journal.** Le dashboard lit `metadata` depuis `audit_log` même si l'aperçu actuel n'affiche que l'action, l'entité, un fragment d'identifiant et la date. La sélection récupère donc plus de données que nécessaire.
+
+- **Solution proposée :** retirer `metadata` de la requête de l'aperçu si elle n'est pas utilisée, puis examiner la minimisation des données et les permissions dans la page Journal.
+- **État :** 🟠 minimisation à améliorer; aucun secret n'a été exposé dans le rapport.
+
+**Constat D5 — autorisation moins stricte sur la page racine.** `/admin` vérifie le rôle mais ne vérifie pas explicitement `actif`; il charge ensuite des données de réseau. La règle diffère du POST de rapport et peut diverger de l'intention d'un compte désactivé.
+
+- **Solution proposée :** appliquer la garde d'accès canonique après vérification des valeurs historiques `actif`.
+- **État :** 🔴 contradiction de contrôle d'accès confirmée.
+
+### 14.4 Création/configuration d'univers — composant visible sur le tableau de bord
+
+Le composant `CatalogueCreation` expose cinq univers dans le sélecteur : Pharmacie, Parapharmacie, Bébé & Maman, Examens médicaux, Prestations à domicile. Le parcours « Dispositifs médicaux » est explicitement exclu de la création d'établissement. L'utilisateur choisit un univers puis doit cliquer sur « VALIDER » pour afficher le formulaire. Le formulaire d'établissement indépendant comprend notamment nom, ville, quartier, adresse, champs de géolocalisation, WhatsApp, sept cases de pièces documentaires, tarif mensuel, architecture lorsque applicable et identification du Promoteur. Bébé & Maman suit un parcours séparé de rattachement à une pharmacie de parrainage.
+
+Les pièces sont ordonnées ainsi dans le code : KYC, Registre de commerce, NIU, Attestation de non-redevance, Plan de localisation, CNI du Promoteur, Pièce d’existence légale. **La demande de placer KYC et Registre de commerce en tête est respectée dans cette liste.** L'entrée « Aide NAXA » n'est pas présente dans le sélecteur actuel; elle apparaît toutefois dans un dictionnaire de libellés des univers sur la page Dossiers Promoteurs, à confronter au modèle réel des univers lors de l'audit de cette page.
+
+**Constat C1 — l'autocomplete de parrainage n'établit pas à lui seul l'éligibilité.** Le texte indique « pharmacie partenaire active et visible », et les suggestions transmises par la page sont filtrées sur `actif === true && visible_recherche === true`. Le composant de formulaire transmet l'ID sélectionné; la sécurité finale dépend donc de la validation côté serveur de `rattacherServiceBebeMaman`, à auditer avant de déclarer le parcours sûr.
+
+- **Solution proposée :** vérifier l'action serveur et la contrainte DB; ne pas se fier à la seule liste client.
+- **État :** 🟡 validation serveur en attente.
+
+**Constat C2 — le formulaire ne rend pas tous les champs de géolocalisation visibles dans ce composant.** `GeolocalisationChamps` est encapsulé dans un composant séparé; le nombre exact de champs, leur validation, leur accessibilité et leur gestion d'erreur doivent être comptés dans son propre audit.
+
+- **Solution proposée :** auditer le composant et l'action serveur ensemble.
+- **État :** 🟡 en attente de la fiche de dépendance.
+
+### 14.5 Premier bilan chiffré et décision de suite
+
+| Périmètre du lot 1 | Inventaire statique | Audité dans ce lot |
+|---|---:|---:|
+| Entrées de navigation latérale | 12 | 12 |
+| Pages examinées en détail | 1 page racine + layout partagé | 1 page racine + layout partagé |
+| Composants applicatifs de dépendance examinés | 1 composant principal (`CatalogueCreation`) | 1, lecture statique |
+| Pages d'administration couvertes dans l'audit approfondi | 18 au total dans le périmètre | 1/18 page en profondeur |
+| Tests navigateur / interactions réelles | non comptabilisés comme exécutés | 0 |
+| Tests SQL / migrations appliquées | aucun dans ce lot | 0 |
+
+**Limite de décompte :** les « éléments UI » ne sont pas encore un total global exact : des contrôles et textes sont conditionnels selon les données, le rôle et l'univers sélectionné; `GeolocalisationChamps`, `IdentificationPromoteur`, les actions serveur et le sélecteur d'espace ajoutent des éléments dépendants. Les nombres ci-dessus sont des comptes de structure statique, pas une mesure de tout ce qui serait visible dans un état runtime donné.
+
+**Ordre de traitement proposé pour le prochain lot :**
+1. valider les problèmes de garde d'accès et d'erreurs silencieuses (D1/D5/L1);
+2. examiner les actions serveur de création/rattachement et leurs contraintes SQL (C1/C2);
+3. poursuivre la page « Dossiers Promoteurs » et le journal de bout en bout;
+4. revenir ensuite à la priorité du Journal dans la navigation et au comportement des routes imbriquées.
+
+Aucune correction applicative, écriture Supabase, migration ou déploiement n'a été exécuté. Les constats rouges sont des défauts statiques identifiés; ils ne sont pas déclarés corrigés.
