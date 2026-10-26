@@ -85,7 +85,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
               <p className="mt-1 text-sm text-slate-600">Promoteur : {[owner.first_name, owner.last_name].filter(Boolean).join(" ") || owner.username || "Non renseigné"}</p>
               <p className="mt-1 text-xs text-slate-500">Statut du dossier : {dossierStatus[item.dossier_status] ?? item.dossier_status} · Partenaire : {partner.status}</p>
             </div>
-            <Link href={"/admin/promoteurs/partenaires/" + item.partner_id} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-5 py-3 text-sm font-extrabold text-[#0B3D26] shadow-sm">Ouvrir le dossier →</Link>
+            <Link href={"/admin/promoteurs/partenaires/" + item.partner_id} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-5 py-3 text-sm font-extrabold text-[#0B3D26] shadow-sm">Examiner / valider →</Link>
           </article>;
         })}
       </section>
