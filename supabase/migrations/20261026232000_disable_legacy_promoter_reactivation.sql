@@ -1,0 +1,2 @@
+-- L’ancienne RPC réactivait sans vérification du règlement. Le nouveau flux est l’unique chemin autorisé.
+revoke all on function public.reactiver_promoteur(uuid,text) from public, anon, authenticated, service_role;
