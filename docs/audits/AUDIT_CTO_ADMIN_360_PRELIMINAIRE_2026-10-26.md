@@ -887,3 +887,24 @@ Les cinq tables RLS sans politique remontées par l'advisor ont également été
 - Audit exhaustif des 120 avertissements SECURITY DEFINER : 🟠 encore nécessaire par familles; l'advisor seul ne suffit pas à déclarer une vulnérabilité ni à justifier un retrait global de droits.
 - Protection Supabase contre les mots de passe compromis : 🟠 réglage de sécurité non activé; non modifié dans ce lot.
 - Tests de bout en bout UI, lint, typecheck et build : 🟠 non exécutés faute d'environnement d'exécution connecté au dépôt. Aucun déploiement n'a été créé pour lancer ces tests.
+
+
+## 19. Vérification ciblée n°1 — garde administrateur unifiée (26/10/2026)
+
+### Contrôles réalisés
+
+- Relecture du helper `src/lib/admin/require-admin-active.ts` : il appelle `auth.getUser()`, lit `profiles.role, actif`, refuse toute erreur de lecture, exige `role === "admin"` et `actif === true`. Une valeur `NULL` n'est donc pas considérée active. Le helper redirige une session absente vers la connexion avec un paramètre de retour, et un profil non autorisé vers l'accueil.
+- Relecture du layout `src/app/admin/layout.tsx` : le garde s'exécute avant le rendu des pages de l'espace Admin, ce qui couvre aussi les pages Pilotage et Rapports côté navigation serveur.
+- Relecture des pages et actions touchées : les pages Admin modifiées et les actions métier utilisent le helper partagé, dont le dossier Promoteur/partenaire, Univers, Examens, Prestations, Produits, Alertes, Messagerie, Journal et la création de dossier.
+- Contradiction détectée : `src/app/admin/pilotage/validite/actions.ts` conservait sa propre implémentation de contrôle, au lieu du helper partagé. Elle a été corrigée dans le commit `6207585531a8a2abbdcc3f74360a1277848648c8`; la relecture post-écriture confirme désormais l'appel à `requireAdminActive("/admin/pilotage/validite")`.
+- `src/app/api/rapports/route.ts` reste une frontière HTTP distincte : son POST vérifie aussi explicitement rôle administrateur et `actif === true`, mais renvoie des statuts JSON 401/403 plutôt que d'utiliser la redirection d'une page. Le GET conserve le périmètre multi-rôle et ses contrôles de portée; il n'est pas une action d'administration réservée exclusivement à l'admin.
+
+### Verdict de cette vérification
+
+- Cohérence statique du garde pour les pages et Server Actions examinées : 🟢.
+- Réutilisation du helper après correction de l'action Validité : 🟢.
+- Test runtime des redirections avec sessions authentifiées/non authentifiées : 🟠 non exécuté.
+- Typecheck/build et test navigateur : 🟠 non exécutés.
+- Aucun merge dans `main`, aucun déploiement et aucune modification métier Supabase effectués pendant cette vérification.
+
+**Périmètre respecté :** seul le point n°1 « Garde administrateur unifiée » a été vérifié et corrigé. Le point n°2 « RPC Supabase sécurisées » n'est pas encore réaudité dans cette étape.
