@@ -4,7 +4,7 @@ import { ReceiptPrintButton } from "./ReceiptPrintButton";
 const money=(n:number)=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA";
 const dt=(s:string|null)=>s?new Intl.DateTimeFormat("fr-FR",{dateStyle:"long"}).format(new Date(s)):"—";
 export default async function RecuReglementPage({params}:{params:{id:string}}){
- const sb=supabaseServer();const {data:{user}}=await sb.auth.getUser();if(!user)redirect("/(auth)/connexion");
+ const sb=supabaseServer();const {data:{user}}=await sb.auth.getUser();if(!user)redirect("/connexion");
  const {data:profile}=await sb.from("profiles").select("role,first_name,last_name,username").eq("id",user.id).maybeSingle();
  if(profile?.role!=="promoteur")notFound();
  const db=supabaseAdmin();const {data:r,error}=await db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,reference,numero_recu,periode_du,periode_au,confirme_le,statut").eq("id",params.id).eq("promoteur_id",user.id).maybeSingle();
