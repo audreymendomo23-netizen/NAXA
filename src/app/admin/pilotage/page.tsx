@@ -101,11 +101,12 @@ export default function Page() {
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-black p-4 text-white">
           <div>
             <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage réseau</p>
-            <h1 className="text-2xl font-black text-[#D95304] sm:text-3xl">Aujourd’hui</h1>
+            <h1 className="text-2xl font-black text-[#D95304] sm:text-3xl">Pilotage décisionnel</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link className="rounded-full border border-white px-4 py-2 text-sm" href="/admin">Espace NAXA</Link>
             <Link className="rounded-full bg-[#FAD405] px-4 py-2 text-sm font-bold text-black" href="/admin/pilotage/validite">Validité pharmacies</Link>
+            <Link className="rounded-full border border-white px-4 py-2 text-sm" href="/admin/pilotage/rapports">Rapports &amp; exports</Link>
           </div>
         </header>
 
@@ -161,6 +162,16 @@ export default function Page() {
             </div>
             <Section titre="Activité quotidienne">
               <Barres points={d.serie.map((x) => ({ jour: x.jour, n: x.reservations }))} etiquette="Réservations quotidiennes" />
+            </Section>
+            <Section titre="Signaux à examiner">
+              <p className="mb-3 text-sm text-slate-600">Pistes de vérification calculées à partir des indicateurs disponibles pour la période sélectionnée. Elles signalent des points à examiner, pas des causes établies.</p>
+              <Liste vide="Aucun signal positif à examiner selon les indicateurs actuellement disponibles." lignes={[
+                ...(d.recherches.sans_resultat > 0 ? [{ cle: "recherche", texte: "Recherches sans résultat", valeur: String(d.recherches.sans_resultat) + " · vérifier la couverture du catalogue et les synonymes" }] : []),
+                ...(d.stock.ruptures > 0 ? [{ cle: "stock", texte: "Produits en rupture", valeur: String(d.stock.ruptures) + " · vérifier les mises à jour de stock et les réapprovisionnements" }] : []),
+                ...(d.alertes > 0 ? [{ cle: "alertes", texte: "Alertes non lues", valeur: String(d.alertes) + " · prioriser leur qualification et leur traitement" }] : []),
+                ...(d.pharmacies.inactives > 0 ? [{ cle: "pharmacies", texte: "Pharmacies inactives", valeur: String(d.pharmacies.inactives) + " · vérifier le statut et la dernière activité" }] : []),
+                ...(e.recherches > 0 && e.reservations === 0 ? [{ cle: "conversion", texte: "Aucune réservation sur la période", valeur: "Examiner le parcours recherche → fiche → panier → réservation avant de conclure à un problème de conversion" }] : []),
+              ]} />
             </Section>
           </>
         )}
