@@ -747,3 +747,30 @@ La définition SQL live a été lue directement depuis le catalogue PostgreSQL, 
 ### Qualification
 
 Les contrôles d'identité/activité des fonctions examinées sont confirmés par le corps SQL live. Les divergences de métriques et le périmètre de diffusion des rappels sont des questions de définition métier à clarifier, pas des vulnérabilités confirmées. Aucun appel métier, test de rôle ou changement SQL n'a été exécuté.
+
+
+## 41. Clôture formelle de l’étape préliminaire obligatoire
+
+**Statut : ÉTAPE PRÉLIMINAIRE CLÔTURÉE — 26 octobre 2026.** Cette clôture autorise le passage au jalon suivant du canevas; elle ne vaut ni validation fonctionnelle globale, ni certification de sécurité, ni clôture des risques individuels consignés dans ce rapport.
+
+### Périmètre préliminaire accompli
+
+- Les exigences de travail et les contraintes d’exécution issues du contexte NAXA ont été consolidées : intervention documentaire directement sur `main`, aucune branche créée, aucun déploiement, aucune modification fonctionnelle sans autorisation.
+- Le dépôt et les documents d’audit ont été inventoriés; les pages Admin, plusieurs modules d’actions serveur, routes API et appels RPC ont fait l’objet d’une lecture statique ciblée.
+- Le schéma Supabase live, les métadonnées de fonctions et privilèges, les politiques RLS/Storage, l’historique de migrations, les volumes agrégés non identifiants et les extraits de journaux disponibles ont été examinés en lecture seule.
+- Les constats ont été consignés avec distinction entre faits confirmés, signaux à investiguer et questions métier; les éléments de preuve manquants et les limites des vérifications sont explicités.
+- Les définitions live des RPC de pilotage, de validité Promoteurs et de diffusion des rappels de lots ont été lues sans les exécuter. Leurs contrôles internes d’accès ont été documentés, avec les points métier à clarifier.
+
+### Limites conservées au registre
+
+1. Le rapprochement exhaustif et sémantique des 251 migrations live avec les fichiers modernes et historiques n’est pas démontré comme achevé; les écarts de nommage ne sont pas assimilés à des migrations manquantes.
+2. Les constats de linter, de politiques, de privilèges et d’index sont des signaux d’audit; aucune exploitation ni test négatif authentifié n’a été tenté.
+3. Les parcours UI, les tests navigateur par rôle, les tests SQL automatisés, les calculs de KPI et les comportements d’écriture n’ont pas été validés de bout en bout dans cette étape.
+4. Les données d’environnement n’ont pas été exposées; la présence et la validité des secrets distants n’ont pas été établies.
+5. Le statut CI observé sur le commit documentaire est en échec (`ci/circleci: quality`). Il est consigné comme état observé, sans relance de workflow ni déploiement; il ne constitue pas une preuve de défaut fonctionnel de l’application.
+
+### Décision de passage
+
+Le préliminaire a atteint son objectif : établir une base documentaire, un inventaire de surface et un registre explicite des preuves et incertitudes avant l’audit détaillé. Les incertitudes listées restent ouvertes comme points de contrôle, mais ne bloquent pas la clôture de cette phase préparatoire. Le jalon suivant est **l’audit détaillé de l’Administrateur NAXA**, à commencer uniquement après autorisation explicite de l’utilisateur.
+
+**Traçabilité d’exécution :** documentation seulement, directement sur `main`; aucune branche créée, aucun déploiement déclenché, aucun code applicatif/SQL/configuration/donnée modifié, aucune RPC métier ni opération d’écriture exécutée.
