@@ -36,7 +36,7 @@ export async function brouillonIA(formData: FormData) {
   try {
     const fiche = await genererFiche(p);
     await sb.from("produits").update({ ...fiche, source_fiche: "ia", fiche_validee: false, fiche_maj: new Date().toISOString() }).eq("id", id);
-  } catch (e) { redirect(`${retour}&erreur=${encodeURIComponent(e instanceof Error ? e.message : "ia")}`); }
+  } catch { redirect(`${retour}&erreur=ia`); }
   revalidatePath("/admin/produits");
   redirect(`${retour}&ok=ia`);
 }
