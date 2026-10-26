@@ -14,7 +14,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let requetesOuvertes = 0;
   let compteursPartiels = false;
   {
-    {
       const [{ data: pharmacies, error: pharmaciesError }, { data: validites, error: validitesError }, { count: ticketsCount, error: ticketsError }] = await Promise.all([
         sb.from("pharmacies").select("id,stock_updated_at,actif,visible_recherche"),
         sb.rpc("validites_promoteurs_admin"),
@@ -29,7 +28,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         alertes += ((validites ?? []) as { statut?: string; jours_restants?: number | string | null }[])
           .filter((v) => v.statut === "impaye" || Number(v.jours_restants) < 0).length;
       } else compteursPartiels = true;
-    }
   }
 
   return (
