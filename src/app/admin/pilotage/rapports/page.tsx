@@ -154,12 +154,13 @@ export default function Reports() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               ["Pharmacies", instantane.pharmacies],
-              ["Promoteurs", instantane.promoteurs],
-              ["Produits", instantane.produits],
+              ["Pharmacies actives", instantane.pharmacies_actives],
+              ["Promoteurs actifs", instantane.promoteurs],
+              ["Produits en stock", instantane.produits_en_stock],
+              ["Recherches", instantane.recherches],
               ["Réservations", instantane.reservations],
               ["Ventes", instantane.ventes],
-              ["Demandes", instantane.demandes],
-              ["Revenus", fcfa(instantane.revenus)],
+              ["Revenus", fcfa(instantane.revenus_fcfa)],
             ].map(([label, value]) => <article key={label} className="rounded-2xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 break-words text-xl font-black">{value}</p></article>)}
           </div>
         </div>}
@@ -167,7 +168,7 @@ export default function Reports() {
 
       <section className="space-y-3">
         <h2 className="px-1 text-lg font-black text-slate-950">Historique des rapports enregistrés</h2>
-        {!err && data.length === 0 && <div className="rounded-3xl bg-white p-5"><p className="font-extrabold">Aucun rapport enregistré</p><p className="mt-2 text-sm leading-6 text-slate-600">L’historique reste vide tant qu’un processus d’enregistrement en base n’a pas été configuré. Vous pouvez créer un instantané et le télécharger sans modifier les données de production.</p></div>}
+        {!err && data.length === 0 && <div className="rounded-3xl bg-white p-5"><p className="font-extrabold">Aucun rapport enregistré</p><p className="mt-2 text-sm leading-6 text-slate-600">Les rapports générés sont enregistrés ici. Créez un instantané avec le bouton ci-dessus pour alimenter cet historique.</p></div>}
         {data.map((report) => <article key={report.id} className="admin-report-card rounded-3xl bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-extrabold">{report.periode} · {report.pharmacie_nom || "NAXA"}</h3><p className="text-xs text-slate-500">{report.du} → {report.au}</p></div><button type="button" className="rounded-full border px-4 py-2 text-sm font-bold" onClick={() => exporterCsv("rapport-" + report.id, [{ periode: report.periode, du: report.du, au: report.au, texte: report.texte }])}>CSV</button></div>
           <p className="mt-3 text-sm leading-6">{report.texte}</p>
