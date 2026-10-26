@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { Logo } from "@/components/Logo";
-import { ajouterCompteTestSuivi, ajouterProfessionnelSuivi, retirerProfessionnelSuivi, changerActivationUnivers, changerAssociationPartenaire, changerStatutPartenaire, changerStatutProduitPartenaire, creerPartenaire, creerProduitPartenaire, retirerCompteTestSuivi } from "./actions";
+import { ajouterCompteTestSuivi, ajouterProfessionnelSuivi, retirerProfessionnelSuivi, changerActivationUnivers, changerAssociationPartenaire, changerStatutPartenaire, changerStatutProduitPartenaire, creerProduitPartenaire, retirerCompteTestSuivi } from "./actions";
 
 const spaces = [
   ["parapharmacie", "Parapharmacie", "universe.parapharmacie"],
