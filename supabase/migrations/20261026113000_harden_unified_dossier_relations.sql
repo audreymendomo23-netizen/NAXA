@@ -8,6 +8,8 @@ create index if not exists pharmacie_services_enabled_by_idx
   on public.pharmacie_services(enabled_by);
 create index if not exists pharmacie_services_updated_by_idx
   on public.pharmacie_services(updated_by);
+create index if not exists pharmacie_services_service_slug_idx
+  on public.pharmacie_services(service_slug);
 
 do $migration$
 begin
