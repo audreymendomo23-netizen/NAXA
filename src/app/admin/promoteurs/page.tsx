@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 type SearchParams = { ok?: string; erreur?: string };
 
@@ -20,12 +20,7 @@ const erreurs: Record<string, string> = {
 };
 
 export default async function DossiersPromoteurs({ searchParams }: { searchParams: SearchParams }) {
-  const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/admin/promoteurs");
-  const { data: current, error: roleError } = await sb.from("profiles").select("role").eq("id", auth.user.id).single();
-  if (roleError || current?.role !== "admin") redirect("/");
-
+  await requireAdminActive("/admin/promoteurs");
   const db = supabaseAdmin();
   const [{ data: pharmacies, error }, { data: partnerDossiers, error: partnerDossiersError }] = await Promise.all([
     db.from("pharmacies").select("id,nom,ville,quartier,created_at").order("created_at", { ascending: false }),
