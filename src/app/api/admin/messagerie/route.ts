@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!auth.user) return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
   const { data: profile, error: profileError } = await sb.from("profiles")
     .select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profileError || profile?.role !== "admin" || profile.actif === false) {
+  if (profileError || profile?.role !== "admin" || profile.actif !== true) {
     return NextResponse.json({ error: "Accès administrateur requis." }, { status: 403 });
   }
   let body: { ticket_id?: string; contenu?: string };
