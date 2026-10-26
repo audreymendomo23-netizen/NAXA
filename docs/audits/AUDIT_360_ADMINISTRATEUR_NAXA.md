@@ -716,3 +716,34 @@ L'exécution accordée à un rôle SQL authentifié ne prouve pas à elle seule 
 Les politiques de lecture live des deux tables de rappels de lots bornent la lecture aux comptes Admin actifs, ou aux Promoteurs actifs pour les pharmacies effectivement liées à leur réseau. Cette preuve concerne les politiques SELECT observées; elle ne confirme pas tous les contrôles internes de diffusion ni les droits d'écriture.
 
 Le `search_path` vide est un réglage de sécurité, mais ne remplace pas la revue du corps SQL. Les définitions complètes et le périmètre des indicateurs de pilotage restent à rapprocher des migrations sources. Aucun rappel n'a été diffusé et aucune donnée n'a été modifiée.
+
+
+## 40. Revue du corps des RPC Pilotage, Validité et diffusion des rappels
+
+La définition SQL live a été lue directement depuis le catalogue PostgreSQL, sans appel de fonction ni mutation.
+
+### `private.stats_pilotage_scope(integer)`
+
+- Fonction `SECURITY DEFINER`, `STABLE`, `search_path` vide; exécution refusée à `anon`, accordée à `authenticated`. Le wrapper public délègue à cette fonction privée.
+- La fonction exige `auth.uid()`, puis charge le rôle et la fonction interne depuis `profiles` avec `actif=true`; si aucun profil actif n'est trouvé, elle refuse l'accès.
+- Les portées observées sont différenciées : Admin = pharmacies non démo; Promoteur = pharmacies actives liées à son réseau et non démo, avec privilège `VIEW_NETWORK_PILOTAGE`; Responsable et Caisse = pharmacie du profil avec leurs privilèges respectifs; les autres rôles sont refusés.
+- Les requêtes des indicateurs filtrent les pharmacies par l'ensemble calculé. Les recherches de l'Admin incluent aussi les événements sans `pharmacie_id`, tandis que les fiches vues et ajouts panier utilisent uniquement `pharmacie_id = ANY(v_pharmacies)`. Cette différence de périmètre peut créer un entonnoir dont les étapes ne sont pas strictement comparables; à confirmer avec la définition métier attendue.
+- Le taux nommé `taux_conversion_vente` divise `v_ventes` par le nombre de réservations. La vue source définit `v_ventes`; il reste à vérifier que son unité correspond bien à une conversion de réservation, plutôt qu'à un nombre de lignes/ventes. Le KPI ne doit pas être considéré comme validé fonctionnellement sur la seule base du SQL.
+- Le calcul des séries journalières est borné à 30 jours même lorsque la période demandée peut atteindre 365 jours; ce choix paraît cohérent pour une série graphique compacte, mais doit être confronté au contrat d'affichage.
+
+### `public.admin_avis_rappel_lot_diffuser(...)`
+
+- La fonction vérifie en interne `auth.uid()` et exige un profil `admin` avec `actif=true` avant toute insertion. Elle valide les longueurs du nom du produit, du lot, du motif et de la consigne.
+- Elle insère un avis de rappel, puis crée les destinataires pour toutes les pharmacies `actif=true`; elle annule l'opération si aucun destinataire n'est créé.
+- Point métier à confirmer : la diffusion inclut toutes les pharmacies actives, sans filtrer explicitement `est_demo` ni vérifier l'état d'une relation promoteur-pharmacie. Ce comportement peut être intentionnel pour un rappel national, mais doit être explicité; aucun rappel n'a été diffusé.
+- Le contrôle Admin actif est réalisé dans la fonction elle-même. L'exécution SQL accordée à `authenticated` ne suffit donc pas, isolément, à permettre à un utilisateur non Admin d'insérer un rappel via cette RPC.
+
+### `public.validites_promoteurs_admin()` et `is_admin()`
+
+- `validites_promoteurs_admin()` utilise `public.is_admin()` dans son filtre et retourne les Promoteurs, leurs liens pharmacies et les données d'abonnement/convention associées.
+- `public.is_admin()` délègue à `private.is_admin()`, qui exige `auth.uid()`, `role='admin'` et `actif=true`. Le garde de la RPC de validité est donc présent dans la définition live.
+- Les métadonnées de privilèges confirment que `anon` peut exécuter le wrapper booléen `public.is_admin()`, mais pas `private.is_admin()`. La fonction publique ne retourne qu'un booléen et ne divulgue pas les données de validité; l'exposition est néanmoins à garder en cohérence avec la politique de moindre privilège.
+
+### Qualification
+
+Les contrôles d'identité/activité des fonctions examinées sont confirmés par le corps SQL live. Les divergences de métriques et le périmètre de diffusion des rappels sont des questions de définition métier à clarifier, pas des vulnérabilités confirmées. Aucun appel métier, test de rôle ou changement SQL n'a été exécuté.
