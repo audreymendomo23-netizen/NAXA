@@ -414,3 +414,60 @@ Les documents suivants ont été relus en plus du cahier des charges principal, 
 2. Les écrans admin des univers doivent être testés contre l'environnement réel de base, pas uniquement par présence de composants.
 3. Les KPI doivent être comparés aux sources canoniques et à plusieurs scopes (NAXA, Promoteur, pharmacie, caisse), sans additionner des sources redondantes.
 4. Le design sera évalué comme contrat fonctionnel (visibilité des états, erreurs, focus, feedback et absence de blocage), pas seulement comme couleur ou animation.
+
+
+## 21. Variables et workflows — inventaire sans secrets
+
+### 21.1 Vercel — inventaire des 27 entrées visibles
+Les valeurs sensibles n'ont pas été déchiffrées. Les clés et cibles retournées sont :
+- `NEXT_PUBLIC_NAXA_ROUTING_URL` — Production/Preview/Development;
+- `NEXT_PUBLIC_SITE_URL` — Production/Preview/Development;
+- `NAXA_VAPID_SUBJECT` — Production/Preview/Development;
+- `NAXA_VAPID_PUBLIC_KEY` — Production/Preview/Development;
+- `NAXA_VAPID_PRIVATE_KEY` — Production/Preview/Development (sensitive);
+- `CRON_SECRET` — Production;
+- `GOOGLE_APPS_SCRIPT_SECRET` — une entrée par environnement;
+- `GOOGLE_APPS_SCRIPT_URL` — Production;
+- `SMTP_PASSWORD` — une entrée par environnement;
+- `SMTP_USER`, `SMTP_FROM`, `SMTP_HOST`, `SMTP_PORT` — Production/Preview/Development;
+- `SUPABASE_SERVICE_ROLE_KEY` — Production, Preview, Development et une entrée Preview dédiée à la branche `fix/login-page-layout-20261012`;
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Production/Preview/Development et une entrée Preview dédiée à cette branche;
+- `NEXT_PUBLIC_SUPABASE_URL` — Production/Preview/Development et une entrée Preview dédiée à cette branche;
+- `NAXA_RATE_LIMIT_SECRET` et `NAXA_PHARMACY_COOKIE_SECRET` — Preview sur la branche de test.
+
+Les entrées par environnement expliquent certains noms répétés; la répétition n'est pas, à elle seule, une erreur. Risques à confirmer :
+1. la valeur de `NEXT_PUBLIC_SITE_URL` est documentée dans Vercel comme URL canonique, tandis que les domaines associés au projet sont `naxa-naxa3.vercel.app` et `naxa-git-main-naxa3.vercel.app`; cette différence doit être vérifiée dans les redirections OAuth et les e-mails;
+2. une clé `SUPABASE_SERVICE_ROLE_KEY` est définie globalement sur Preview en plus d'une clé Preview spécifique à une branche. Sans lire/déchiffrer les valeurs, il est impossible de prouver que toutes les Preview utilisent un projet de test plutôt que la base Production. Il faut vérifier la cible de chaque environnement dans l'interface de configuration, sans révéler la valeur des clés;
+3. le routage OSRM est explicitement documenté comme service public de démonstration sans trafic temps réel : ne pas présenter les ETA comme trafic réel.
+
+### 21.2 GitHub Actions — variables et secrets référencés par le code
+Les workflows actifs sous `.github/workflows/` référencent les noms suivants :
+- import BDPM : `vars.SUPABASE_URL`, `secrets.SUPABASE_SERVICE_ROLE_KEY`;
+- import d'images médicaments : `secrets.NEXT_PUBLIC_SUPABASE_URL`, `secrets.SUPABASE_SERVICE_ROLE_KEY`;
+- sauvegarde indépendante : `secrets.NAXA_BACKUP_S3_BUCKET`, `secrets.NAXA_DATABASE_URL`, `secrets.NAXA_BACKUP_ENCRYPTION_KEY`, `secrets.NAXA_BACKUP_AWS_ACCESS_KEY_ID`, `secrets.NAXA_BACKUP_AWS_SECRET_ACCESS_KEY`, `secrets.NAXA_BACKUP_AWS_REGION`, `secrets.NAXA_BACKUP_S3_ENDPOINT_URL`, `vars.NAXA_BACKUP_S3_PREFIX`.
+
+Les workflows `naxa-quality.yml.disabled` et `naxa-registry-guard.yml.disabled` sont explicitement désactivés par leur extension. L'outil GitHub disponible ne permet pas de lire la présence/valeur des secrets d'Actions; leur présence n'est donc pas certifiée. Les workflows actifs utilisent des contrôles `test -n` pour les secrets de leurs propres jobs, mais cela ne prouve pas que les workflows ont été exécutés avec succès.
+
+### 21.3 Secrets Supabase
+Les outils connectés exposent les projets, migrations, tables, routines, avis et logs, mais aucun inventaire de secrets de projet Supabase n'est disponible dans les outils accessibles pour ce chantier. Aucun secret Supabase n'a été lu ni modifié. Les valeurs de clés API, service role, JWT, SMTP et backup ne doivent pas être copiées dans le rapport.
+
+## 22. Résumé de risques documentaires et opérationnels consolidés
+
+Les constats les plus importants à porter dans la suite :
+1. **CI rouge probable et cause déterministe dans le script** : le contrôle exige 96 migrations racine alors que le dépôt en contient 290.
+2. **Vercel non synchronisé avec le HEAD GitHub actuel** : l'ancien déploiement analysé a échoué sur une clé d'objet dupliquée qui a été supprimée ensuite; aucun déploiement n'est enregistré pour le SHA actuel `cfca684...`.
+3. **Dossiers partenaires non fonctionnels sur la base inspectée** : quatre migrations du 26 octobre sont dans le dépôt mais absentes de l'historique DB; table `admin_partner_dossiers` et RPC `admin_create_partner_dossier` non trouvées.
+4. **Contrôles admin incohérents** : certaines pages vérifient seulement le rôle; d'autres vérifient aussi `actif`, avec des sémantiques différentes pour `false` et `null`.
+5. **Sécurité et performance Supabase** : 5 tables RLS sans policy, 5 fonctions SECURITY DEFINER exécutables par anon, 117 exécutables par authenticated, 59 cas de politiques permissives multiples, 113 FK sans index couvrant, 86 index signalés inutilisés, 1 index dupliqué et protection des mots de passe compromis désactivée. Les avis nécessitent un tri métier, pas une suppression aveugle.
+6. **BI et design** : documents canoniques plus stricts que certaines pages actuellement visibles; scopes, source de CA, états d'erreur et palette doivent être vérifiés dans le code et la base.
+7. **Historique et secrets** : anciens documents comportent des branches/SHA/consignes dépassés; les secrets GitHub et Supabase ne peuvent pas être vérifiés par les connecteurs accessibles.
+
+## 23. Critère de clôture de l'étape préliminaire
+L'étape préliminaire ne sera déclarée terminée que lorsque le rapport comprendra :
+- les documents métier critiques et leurs contradictions réconciliées;
+- les preuves techniques de base/dépôt et le statut des migrations;
+- l'état des logs Vercel/Supabase exploitable sans secrets;
+- l'inventaire du code admin et de ses dépendances;
+- les limites non levables clairement listées.
+
+L'audit page par page demandé constitue l'étape suivante distincte; il ne doit pas être commencé comme chantier de correction avant présentation du présent état préliminaire et autorisation de l'utilisateur.
