@@ -98,3 +98,31 @@ export async function consulterDocumentPharmacie(formData: FormData) {
 
   redirect(signed.signedUrl);
 }
+
+export async function changerStatutServiceBebeMaman(formData: FormData) {
+  const user = await requireAdmin();
+  const pharmacieId = String(formData.get("pharmacie_id") ?? "").trim();
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(pharmacieId)) {
+    redirect("/admin/promoteurs?erreur=pharmacie");
+  }
+  const db = supabaseAdmin();
+  const { data: pharmacy } = await db.from("pharmacies")
+    .select("id,actif,visible_recherche").eq("id", pharmacieId).maybeSingle();
+  if (!pharmacy || (enabled && (!pharmacy.actif || !pharmacy.visible_recherche))) {
+    redirect("/admin/pharmacies/" + pharmacieId + "?erreur=service");
+  }
+  const { error } = await supabaseServer().rpc("admin_set_pharmacie_bebe_maman_service", {
+    p_pharmacie_id: pharmacieId, p_enabled: enabled,
+  });
+  if (error) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=service");
+  await db.from("audit_log").insert({
+    actor_id: user.id, action: "pharmacy.bebe_maman_service_changed",
+    entity_type: "pharmacie", entity_id: pharmacieId,
+    metadata: { service_slug: "bebe-maman", status: enabled ? "active" : "inactive" },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/promoteurs");
+  revalidatePath("/admin/pharmacies/" + pharmacieId);
+  redirect("/admin/pharmacies/" + pharmacieId + "?ok=service");
+}
