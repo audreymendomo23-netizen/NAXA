@@ -117,7 +117,7 @@ export default function Reports() {
 
   return <main className="admin-analytics-page admin-reports-page min-h-screen bg-[#ACDC76] p-3 sm:p-6">
     <div className="mx-auto max-w-5xl space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-black p-4 text-white">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-black p-4 text-white print:bg-white print:text-black">
         <div><p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Rapports réseau</p><h1 className="text-2xl font-black text-[#D95304]">Rapports & Analytics</h1></div>
         <Link href="/admin/pilotage" className="rounded-full border border-white px-4 py-2">Retour au pilotage</Link>
       </header>
@@ -125,7 +125,7 @@ export default function Reports() {
       <section className="rounded-3xl bg-white p-5 shadow-sm">
         <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">Rapport à la demande</p>
         <h2 className="mt-1 text-xl font-black">Créer un instantané du réseau</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Produit un instantané à partir des indicateurs exposés par le pilotage : pharmacies, promoteurs, produits, réservations, ventes, demandes et revenus. L’instantané peut être exporté en CSV, mais n’est pas enregistré dans l’historique de la base.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Calcule et enregistre un rapport réseau sur la période choisie. Consultez ensuite l’historique ci-dessous ; le rapport courant peut être téléchargé en CSV ou JSON, ou imprimé pour l’enregistrer en PDF.</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="text-sm font-semibold">Période
             <select value={jours} onChange={(event) => setJours(Number(event.target.value))} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 sm:w-52">
