@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { exporterCsv } from "@/components/Pilotage";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 
 type RapportEnregistre = { id: string; periode: string; du: string; au: string; texte: string; pharmacie_nom?: string | null };
