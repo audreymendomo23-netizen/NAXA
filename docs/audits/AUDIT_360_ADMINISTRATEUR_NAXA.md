@@ -1275,3 +1275,16 @@ Prochaine vérification ciblée :
 4. vérifier les journaux/audits écrits par chaque transition et l'existence d'une trace de motif, d'acteur et d'état avant/après.
 
 Aucune modification fonctionnelle, migration, écriture métier, exécution de test ou opération de déploiement n'a été effectuée.
+
+
+## 55. Étape suivante — cartographie des pages Administrateur (26 octobre 2026)
+
+Après la consolidation de la passe de corrections, l'étape de cartographie statique a été exécutée directement sur `main`. L'arbre GitHub récursif a retourné `truncated=false` et 18 fichiers `page.tsx` sous `src/app/admin/`. Le composant `src/components/admin/AdminNavigation.tsx` déclare 12 entrées latérales.
+
+Le détail est consigné dans [`docs/audits/CARTOGRAPHIE_PAGES_ADMIN_NAXA_2026-10-26.md`](CARTOGRAPHIE_PAGES_ADMIN_NAXA_2026-10-26.md). Le document cartographie les routes, les accès aux données repérés, la navigation, le layout partagé et les dépendances déléguées. Il met notamment en évidence six pages qui ne sont pas des entrées de premier niveau de la navigation, les pages client-side protégées via le layout parent, la délégation de la page Rappels lots et la coexistence de deux familles de tables documentaires pharmacie.
+
+### Statut
+- **Cartographie statique : terminée.**
+- **Audit fonctionnel détaillé page par page : étape suivante, non encore terminé.**
+- **Tests navigateur, accès direct, autorisations et parcours métier : non exécutés dans cette étape.**
+- Aucune branche, PR, migration Supabase, écriture métier ou déploiement n'a été réalisé pendant la cartographie.
