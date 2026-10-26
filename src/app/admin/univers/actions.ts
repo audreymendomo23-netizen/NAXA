@@ -115,10 +115,44 @@ export async function changerAssociationPartenaire(form: FormData) {
   const { data: partner, error: partnerError } = await sb.from("partners").select("status").eq("id", partnerId).maybeSingle();
   if (partnerError || !partner) redirect("/admin/univers?erreur=schema");
   if (enabled && partner.status !== "active") redirect("/admin/univers?erreur=partenaire_inactif");
+
+  // Contrôle de cohérence : une association ne doit pas être ouverte si
+  // l'univers lui-même ou son drapeau fonctionnel est désactivé.
+  if (enabled) {
+    const [{ data: universeRow, error: universeError }, { data: feature, error: featureError }] = await Promise.all([
+      sb.from("universes").select("enabled").eq("slug", universe).maybeSingle(),
+      universe === "aide"
+        ? Promise.resolve({ data: null, error: null })
+        : sb.from("feature_flags").select("enabled").eq("flag_key", "universe." + universe).maybeSingle(),
+    ]);
+    if (universeError || featureError || !universeRow) redirect("/admin/univers?erreur=schema");
+    if (!universeRow.enabled || (universe !== "aide" && !feature?.enabled)) {
+      redirect("/admin/univers?erreur=univers_inactif");
+    }
+  }
+
   const { error } = await sb.rpc("admin_set_partner_universe", {
     p_partner_id: partnerId, p_universe_slug: universe, p_enabled: enabled,
   });
   if (error) redirect("/admin/univers?erreur=association");
+
+  const { data: association, error: associationError } = await sb
+    .from("partner_universes")
+    .select("enabled")
+    .eq("partner_id", partnerId)
+    .eq("universe_slug", universe)
+    .maybeSingle();
+  if (associationError || !association || association.enabled !== enabled) {
+    redirect("/admin/univers?erreur=association_verification");
+  }
+
+  await sb.from("audit_log").insert({
+    actor_id: actor,
+    action: "partner.universe_association_changed",
+    entity_type: "partner",
+    entity_id: partnerId,
+    metadata: { universe_slug: universe, enabled, verified: true },
+  });
   revalidatePath("/admin/univers");
   revalidatePath("/" + universe);
   redirect("/admin/univers?ok=association");
