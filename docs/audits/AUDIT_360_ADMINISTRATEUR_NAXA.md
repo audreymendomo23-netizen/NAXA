@@ -847,3 +847,53 @@ La page d’accueil détecte les erreurs des trois sources (pharmacies, validit�
 - **Conforme dans le code examiné :** garde Admin actif sur les pages, limite de 200 événements dans le journal, avertissements en cas de sources indisponibles, validation serveur de l’état ouvert avant réponse, insertion des réponses publiques avec `interne=false`.
 - **Écarts confirmés ou à clarifier :** (1) limites UI/API de messagerie incompatibles (5 000 contre 2 000); (2) divergence de formulation du contrôle `actif` dans l’API; (3) inclusion des pharmacies démo dans les alertes; (4) contrat de sensibilité des métadonnées du journal; (5) atomicité entre vérification du ticket ouvert et insertion.
 - **Aucune correction appliquée** : les constats seront rapprochés des règles métier avant le lot de solution/validation. Compilation, tests automatisés et tests navigateur non exécutés dans cette étape.
+
+
+## 44. Audit détaillé — Lot 3 : Examens, Prestations, Produits, Univers et Géolocalisation
+
+**Périmètre examiné :** pages et actions Admin pour examens, prestations, produits, univers/partenaires, géolocalisation OSM et rappels de lots. Les actions d’écriture et l’appel externe OSM n’ont pas été exécutés.
+
+### Examens — publication via RPC
+
+- La page utilise `requireAdminActive`; les actions valident les UUID et les états autorisés puis délèguent les transitions à `admin_set_exam_center_status`, `admin_set_exam_service_status` et `admin_set_exam_pack_status`.
+- La publication des services/packs est désactivée dans l’interface si le centre n’est pas actif. Le garde d’interface n’est pas la seule barrière : les RPC SQL doivent conserver les vérifications d’état du partenaire, de son association, de l’univers et des feature flags, comme le contrat affiché le promet. Les définitions SQL de ces trois RPC restent un point de rapprochement avant validation complète.
+- La page charge jusqu’à 300 réservations et groupe les dates selon `Africa/Douala`; le nombre affiché correspond au jeu chargé, pas nécessairement à l’ensemble historique si le volume dépasse la limite.
+
+### Prestations — confirmation après RPC
+
+- L’action vérifie l’UUID et le statut, appelle `admin_set_home_service_offer_status`, relit le statut persistant et ne confirme l’action que si la valeur correspond à la demande. C’est une vérification après écriture utile.
+- La page décrit correctement la validation administrative comme distincte de la vérification réelle des justificatifs. La validation de publication doit rester conditionnée côté SQL aux règles partenaire/association/univers/feature flags.
+
+### Produits — succès d’interface potentiellement trompeur
+
+- `enregistrerFiche` effectue l’UPDATE puis redirige vers `ok=1` dès que la requête ne renvoie pas d’erreur, sans relire les valeurs ni vérifier qu’une ligne a effectivement été modifiée. Un identifiant inexistant ou une mise à jour sans ligne correspondante pourrait donc être présenté comme un succès si PostgREST ne renvoie pas d’erreur.
+- `brouillonIA` vérifie que le produit existe, génère une fiche puis exécute un UPDATE dont le résultat (`error` et nombre de lignes) est ignoré; l’action peut rediriger avec `ok=ia` alors que la persistance a échoué. **Écart de fiabilité confirmé par le code** : vérifier le résultat de l’UPDATE et confirmer la persistance avant le message de succès.
+- Le chemin de fiche générée par IA fixe `source_fiche='ia'` et `fiche_validee=false`, ce qui empêche de présenter le brouillon comme validé. Les champs textuels sont bornés côté serveur; le format/validité de l’identifiant produit mérite une validation explicite et cohérente avec le type SQL.
+
+### Univers et partenaires — cohérence et traçabilité
+
+- Les actions utilisent le garde Admin actif. La création directe d’un partenaire est explicitement refusée et renvoyée vers le canal unique du dossier Promoteur.
+- L’activation d’un partenaire ayant un dossier administratif est redirigée vers la validation du dossier; l’association Bébé & Maman est également empêchée dans le catalogue, conformément à la règle de rattachement à la pharmacie.
+- L’activation d’univers et l’association partenaire/univers vérifient l’état persistant après RPC avant d’afficher un succès. En revanche, plusieurs insertions `audit_log` sont attendues après la mutation, mais leurs erreurs sont ignorées. L’état métier peut donc être modifié sans que l’événement de journal soit garanti; il faut décider si la traçabilité est best-effort ou obligatoire/transactionnelle.
+- Certaines validations de forme utilisent une regex UUID permissive (`[0-9a-f-]{36}`) plutôt que le validateur strict. Cela ne suffit pas à prouver une faille, car la base conserve ses contraintes, mais une validation stricte uniforme est préférable.
+
+### Dossier pharmacie — garde et documents
+
+- La page détail possède son propre garde : authentification, rôle `admin` et `actif === true`. Les actions serveur répètent le contrôle. Les UUID de la fiche et des documents sont validés avant les opérations sensibles.
+- L’envoi de justificatif est limité à 10 Mo et aux types PDF/JPEG/PNG/WebP; le fichier est stocké dans le bucket `pharmacie-documents` et la ligne de registre créée ensuite. En cas d’échec du registre, le code tente de supprimer le fichier temporaire. L’accès au fichier est signé pour 60 secondes.
+- La décision de document utilise une mise à jour conditionnelle sur `statut_validation='en_attente'`, ce qui protège contre une seconde décision concurrente mieux qu’un simple contrôle préalable.
+- Point à vérifier côté stockage : l’audit doit confirmer que le bucket `pharmacie-documents` est privé et que les permissions de service/accès correspondent à la confidentialité des justificatifs. Aucun fichier réel n’a été ouvert ni téléchargé.
+- Le changement de statut Bébé & Maman relit l’état actif/visible de la pharmacie avant la RPC; la fonction SQL doit aussi vérifier les mêmes invariants, pour éviter de reposer uniquement sur la vérification applicative.
+
+### Géolocalisation OSM — risque de concurrence à valider
+
+- La route authentifie l’utilisateur et appelle `is_admin()` avant d’utiliser le client privilégié. Elle borne les coordonnées géographiques, exclut les entrées vétérinaires, conserve l’attribution OSM, ne crée pas de partenaire et évite d’écraser les coordonnées déjà présentes grâce à un filtre d’UPDATE conditionnel.
+- Le quota de 24 heures est géré par une lecture du dernier démarrage, suivie d’un UPSERT séparé. Deux requêtes concurrentes peuvent théoriquement lire le même ancien état avant que l’une ou l’autre réserve le créneau; l’atomicité du verrou n’est donc pas garantie par ce seul enchaînement. Risque de concurrence à confirmer et à corriger au besoin par une opération SQL atomique, sans tester l’endpoint en production.
+- Le bouton lance une vraie synchronisation externe et des écritures. Elle n’a pas été utilisée pendant l’audit.
+
+### Décision du lot 3
+
+- **Garde-fous présents :** gardes Admin actifs, transitions de statut encadrées, confirmation après persistance pour prestations et associations d’univers, validation conditionnelle des documents, conservation des coordonnées déjà renseignées.
+- **Écarts confirmés :** succès de fiche produit potentiellement affiché malgré l’absence de confirmation de persistance; erreurs de journal ignorées après certaines mutations.
+- **Points techniques à valider :** garde métier des RPC Examens et Bébé & Maman; atomicité du quota OSM; confidentialité du bucket documents; limites des listes chargées; uniformité UUID.
+- **Aucune correction appliquée et aucun test de mutation effectué.**
