@@ -7,15 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 
 type RapportEnregistre = { id: string; periode: string; du: string; au: string; texte: string; pharmacie_nom?: string | null };
-type Instantane = {
-  pharmacies: { actives: number; inactives: number; total?: number };
-  recherches: { total: number; sans_resultat: number };
-  entonnoir: { recherches: number; fiches_vues: number; paniers: number; reservations: number; ventes: number };
-  ca: number;
-  alertes: number;
-  stock: { produits_en_stock: number; ruptures: number };
-  serie: { jour: string; reservations: number }[];
-};
+type Instantane = { pharmacies: number; promoteurs: number; produits: number; reservations: number; ventes: number; demandes: number; revenus: number };
 
 export default function Reports() {
   const [data, setData] = useState<RapportEnregistre[]>([]);
@@ -32,10 +24,7 @@ export default function Reports() {
         const response = await fetch("/api/rapports");
         const json = await response.json();
         if (!actif) return;
-        if (!response.ok) {
-          setErr(json.error || "Impossible de charger les rapports enregistrés.");
-          return;
-        }
+        if (!response.ok) { setErr(json.error || "Impossible de charger les rapports enregistrés."); return; }
         setData(json.rapports || []);
       } catch {
         if (actif) setErr("Impossible de joindre le service des rapports. Vérifiez la connexion puis réessayez.");
@@ -61,11 +50,12 @@ export default function Reports() {
         return;
       }
       const row = Array.isArray(result.data) ? result.data[0] : result.data;
-      if (!row || typeof row !== "object" || !("entonnoir" in row) || !("pharmacies" in row)) {
-        setErr("Le service a répondu sans les indicateurs attendus. Aucun rapport n’a été fabriqué.");
+      const champs = ["pharmacies", "promoteurs", "produits", "reservations", "ventes", "demandes", "revenus"] as const;
+      if (!row || typeof row !== "object" || !champs.every((key) => key in row)) {
+        setErr("Le service a répondu sans les indicateurs de pilotage attendus. Aucun rapport n’a été fabriqué.");
         return;
       }
-      setInstantane(row as Instantane);
+      setInstantane(Object.fromEntries(champs.map((key) => [key, Number((row as Record<string, unknown>)[key] ?? 0)])) as Instantane);
       setDateGeneration(new Date().toLocaleString("fr-FR"));
     } catch (cause) {
       setErr(cause instanceof Error && cause.message === "timeout"
@@ -78,23 +68,16 @@ export default function Reports() {
 
   function exporterInstantane() {
     if (!instantane) return;
-    const e = instantane.entonnoir;
     exporterCsv(`rapport-pilotage-${jours}-jours`, [
       { indicateur: "Période", valeur: `${jours} derniers jours` },
       { indicateur: "Généré le", valeur: dateGeneration },
-      { indicateur: "Pharmacies actives", valeur: instantane.pharmacies.actives },
-      { indicateur: "Pharmacies inactives", valeur: instantane.pharmacies.inactives },
-      { indicateur: "Recherches", valeur: instantane.recherches.total },
-      { indicateur: "Recherches sans résultat", valeur: instantane.recherches.sans_resultat },
-      { indicateur: "Fiches vues", valeur: e.fiches_vues },
-      { indicateur: "Ajouts au panier", valeur: e.paniers },
-      { indicateur: "Réservations", valeur: e.reservations },
-      { indicateur: "Ventes", valeur: e.ventes },
-      { indicateur: "Chiffre d’affaires (FCFA)", valeur: instantane.ca },
-      { indicateur: "Alertes non lues", valeur: instantane.alertes },
-      { indicateur: "Produits en stock", valeur: instantane.stock.produits_en_stock },
-      { indicateur: "Ruptures", valeur: instantane.stock.ruptures },
-      ...instantane.serie.map((point) => ({ indicateur: `Réservations — ${point.jour}`, valeur: point.reservations })),
+      { indicateur: "Pharmacies", valeur: instantane.pharmacies },
+      { indicateur: "Promoteurs", valeur: instantane.promoteurs },
+      { indicateur: "Produits", valeur: instantane.produits },
+      { indicateur: "Réservations", valeur: instantane.reservations },
+      { indicateur: "Ventes", valeur: instantane.ventes },
+      { indicateur: "Demandes", valeur: instantane.demandes },
+      { indicateur: "Revenus (FCFA)", valeur: instantane.revenus },
     ]);
   }
 
@@ -108,7 +91,7 @@ export default function Reports() {
       <section className="rounded-3xl bg-white p-5 shadow-sm">
         <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">Rapport à la demande</p>
         <h2 className="mt-1 text-xl font-black">Créer un instantané du réseau</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Produit un rapport à partir des statistiques actuellement accessibles, puis permet de l’exporter en CSV. Cet instantané n’est pas enregistré dans l’historique de la base.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Produit un instantané à partir des indicateurs exposés par le pilotage : pharmacies, promoteurs, produits, réservations, ventes, demandes et revenus. L’instantané peut être exporté en CSV, mais n’est pas enregistré dans l’historique de la base.</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="text-sm font-semibold">Période
             <select value={jours} onChange={(event) => setJours(Number(event.target.value))} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 sm:w-52">
@@ -123,22 +106,21 @@ export default function Reports() {
           <p role="status" className="text-xs text-slate-500">Instantané généré le {dateGeneration} · période de {jours} jours · non enregistré</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Pharmacies actives", instantane.pharmacies.actives],
-              ["Recherches", instantane.recherches.total],
-              ["Réservations", instantane.entonnoir.reservations],
-              ["Ventes", instantane.entonnoir.ventes],
-            ].map(([label, value]) => <article key={label} className="rounded-2xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></article>)}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <article className="rounded-2xl bg-slate-50 p-4"><h3 className="font-bold">Conversion</h3><p className="mt-2 text-sm">Fiches vues : {instantane.entonnoir.fiches_vues}</p><p className="text-sm">Ajouts au panier : {instantane.entonnoir.paniers}</p><p className="text-sm">Réservations : {instantane.entonnoir.reservations}</p></article>
-            <article className="rounded-2xl bg-slate-50 p-4"><h3 className="font-bold">Santé du réseau</h3><p className="mt-2 text-sm">Pharmacies inactives : {instantane.pharmacies.inactives}</p><p className="text-sm">Produits en stock : {instantane.stock.produits_en_stock}</p><p className="text-sm">Ruptures : {instantane.stock.ruptures}</p><p className="text-sm">Chiffre d’affaires : {fcfa(instantane.ca)}</p><p className="text-sm">Alertes non lues : {instantane.alertes}</p></article>
+              ["Pharmacies", instantane.pharmacies],
+              ["Promoteurs", instantane.promoteurs],
+              ["Produits", instantane.produits],
+              ["Réservations", instantane.reservations],
+              ["Ventes", instantane.ventes],
+              ["Demandes", instantane.demandes],
+              ["Revenus", fcfa(instantane.revenus)],
+            ].map(([label, value]) => <article key={label} className="rounded-2xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 break-words text-xl font-black">{value}</p></article>)}
           </div>
         </div>}
       </section>
 
       <section className="space-y-3">
         <h2 className="px-1 text-lg font-black text-slate-950">Historique des rapports enregistrés</h2>
-        {!err && data.length === 0 && <div className="rounded-3xl bg-white p-5"><p className="font-extrabold">Aucun rapport enregistré</p><p className="mt-2 text-sm leading-6 text-slate-600">L’historique reste vide tant qu’un processus d’enregistrement en base n’a pas été configuré. Vous pouvez créer un instantané ci-dessus et le télécharger sans modifier les données de production.</p></div>}
+        {!err && data.length === 0 && <div className="rounded-3xl bg-white p-5"><p className="font-extrabold">Aucun rapport enregistré</p><p className="mt-2 text-sm leading-6 text-slate-600">L’historique reste vide tant qu’un processus d’enregistrement en base n’a pas été configuré. Vous pouvez créer un instantané et le télécharger sans modifier les données de production.</p></div>}
         {data.map((report) => <article key={report.id} className="admin-report-card rounded-3xl bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-extrabold">{report.periode} · {report.pharmacie_nom || "NAXA"}</h3><p className="text-xs text-slate-500">{report.du} → {report.au}</p></div><button type="button" className="rounded-full border px-4 py-2 text-sm font-bold" onClick={() => exporterCsv("rapport-" + report.id, [{ periode: report.periode, du: report.du, au: report.au, texte: report.texte }])}>CSV</button></div>
           <p className="mt-3 text-sm leading-6">{report.texte}</p>
