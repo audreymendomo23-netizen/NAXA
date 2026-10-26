@@ -65,7 +65,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
       <section className="space-y-3" aria-labelledby="liste-dossiers-partenaires">
         <div>
           <h2 id="liste-dossiers-partenaires" className="text-xl font-extrabold">Dossiers Promoteurs — autres univers</h2>
-          <p className="mt-1 text-sm text-slate-600">{partnerDossiers?.length ?? 0} dossier(s) partenaire(s)</p>
+          <p className="mt-1 text-sm text-slate-600">{partnerDossiersError ? "—" : partnerDossiers?.length ?? 0} dossier(s) partenaire(s)</p>
         </div>
         {!partnerDossiersError && !partnerDossiers?.length && <div className="rounded-2xl border border-dashed p-6 text-sm text-slate-600">Aucun dossier partenaire indépendant enregistré. Bébé &amp; Maman ne figure pas ici comme établissement : son statut est géré dans le dossier de sa pharmacie de parrainage.</div>}
         {(partnerDossiers ?? []).map((item: any) => {
@@ -88,7 +88,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
       <section className="space-y-3" aria-labelledby="liste-dossiers">
         <div>
           <h2 id="liste-dossiers" className="text-xl font-extrabold">Liste des dossiers pharmacies</h2>
-          <p className="mt-1 text-sm text-slate-600">{pharmacies?.length ?? 0} dossier(s)</p>
+          <p className="mt-1 text-sm text-slate-600">{error ? "—" : pharmacies?.length ?? 0} dossier(s)</p>
         </div>
 
         {!error && !pharmacies?.length && (
