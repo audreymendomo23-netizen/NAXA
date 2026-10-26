@@ -699,3 +699,25 @@ La fonction locale `exigerAdmin()` vérifie l'authentification et `profiles.role
 
 ### Mise à jour de la décision
 Le lot suivant proposé porte uniquement sur cette garde dans `src/app/admin/promoteurs/actions.ts`. Après validation, le code sera modifié sur cette même branche et le présent document sera mis à jour immédiatement avec le commit, la relecture et les tests réellement exécutés. Aucune fusion ni aucun déploiement.
+
+
+### 16.2 Correction appliquée — garde active des actions Promoteurs
+
+- Commit : `85451fccfd0432bf2dedcf3edfc0e88705071444`
+- Fichier : `src/app/admin/promoteurs/actions.ts`
+- Changement : remplacement de la garde locale qui vérifiait seulement le rôle par l'appel au garde partagé `requireAdminActive("/admin/promoteurs")`.
+- Contradiction vérifiée : les deux actions `mettreAJourPiecesRecues` et `validerDossierPharmacie` passent désormais par la garde commune. L'identifiant authentifié reste utilisé pour renseigner `mis_a_jour_par`.
+- Limite : correction relue statiquement, non exécutée en test; le refus côté SQL doit être confirmé indépendamment. Aucune mutation Supabase.
+
+### 16.3 Anomalie suivante — compensation Auth/RPC
+
+Le parcours de création Promoteur crée un utilisateur Auth avant l'appel RPC `admin_create_partner_dossier`. En cas d'échec de RPC, le code tente de supprimer l'utilisateur mais ne vérifie pas explicitement le résultat de cette suppression. Le schéma/RPC attendu étant absent de la base Supabase inspectée, les effets éventuels de triggers ne peuvent pas être confirmés.
+
+**Correction proposée pour la suite :** rendre l'échec traçable côté serveur (étape et code, sans divulguer les détails au navigateur), vérifier la réponse de la suppression compensatoire, et éviter toute suppression aveugle en cas d'incertitude sur la création du compte. Couvrir les scénarios succès RPC, échec RPC, échec suppression et effets de triggers. Cette anomalie n'est pas corrigée dans ce commit.
+
+### État de progression actualisé
+- Garde active dans les actions Promoteurs : 🟢 correction statique appliquée et relue; tests non exécutés.
+- Compensation Auth/RPC : 🟠 anomalie statique documentée, correction non appliquée.
+- Divergence schéma/migrations Supabase : 🔴 bloquante; aucune migration appliquée.
+- Aucun merge dans `main`, aucun déploiement.
+- Build, lint, typecheck, tests et navigateur : non exécutés.
