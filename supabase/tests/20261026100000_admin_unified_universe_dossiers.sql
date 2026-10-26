@@ -25,7 +25,8 @@ begin
   if v_def is null or v_secdef is distinct from true
      or position('public.is_admin()' in v_def)=0
      or position('public.admin_partner_dossiers' in v_def)=0
-     or position('public.partner_members' in v_def)=0 then
+     or position('public.partner_members' in v_def)=0
+     or position('update public.profiles set actif=false' in v_def)=0 then
     raise exception 'RPC de création atomique du dossier partenaire absente ou insuffisamment protégée';
   end if;
   if has_function_privilege('anon','public.admin_create_partner_dossier(uuid,text,text,text,text,text,text,numeric,numeric,text,bigint,text,jsonb)','EXECUTE') then
@@ -50,7 +51,8 @@ begin
     where n.nspname='public' and p.proname='admin_valider_dossier_partenaire';
   if v_def is null or v_secdef is distinct from true
      or position('public.is_admin()' in v_def)=0
-     or position('public.admin_partner_dossiers' in v_def)=0 then
+     or position('public.admin_partner_dossiers' in v_def)=0
+     or position('update public.profiles set actif=true' in v_def)=0 then
     raise exception 'Validation du dossier partenaire absente ou insuffisamment protégée';
   end if;
   if has_function_privilege('anon','public.admin_valider_dossier_partenaire(uuid)','EXECUTE') then
