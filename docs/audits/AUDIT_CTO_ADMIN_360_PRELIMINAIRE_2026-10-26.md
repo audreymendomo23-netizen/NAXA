@@ -683,3 +683,19 @@ Lecture statique de `src/app/admin/creation-univers-actions.ts`, `src/app/admin/
 
 ### Prochaine décision
 Avant toute nouvelle correction métier, terminer l'inspection des fonctions SQL et du cycle de compensation, documenter chaque anomalie avec preuve et correction proposée, puis demander validation de l'utilisateur. Aucune migration, fusion dans `main` ou mise en production n'est autorisée par ce lot.
+
+
+### 16.1 Anomalie confirmée — anciennes gardes dans les actions du dossier pharmacie
+
+Fichier : `src/app/admin/promoteurs/actions.ts`.
+
+La fonction locale `exigerAdmin()` vérifie l'authentification et `profiles.role === 'admin'`, mais ne demande pas `profiles.actif === true`. Elle est appelée par `mettreAJourPiecesRecues` et `validerDossierPharmacie`. Cela crée une incohérence avec le garde partagé `requireAdminActive` adopté dans le layout, la création de pharmacie et les actions de dossier partenaire.
+
+**Contradiction métier/sécurité :** un profil dont le rôle reste `admin` mais dont le compte est désactivé peut passer ce contrôle de code pour modifier les pièces reçues ou appeler la RPC de validation. L'effet final dépend aussi de la politique/RPC SQL; il n'est pas déclaré exploitable sans test runtime. La garde côté serveur doit être cohérente partout, et la RPC doit conserver son contrôle d'autorisation autonome.
+
+**Correction proposée :** remplacer le contrôle local par `requireAdminActive("/admin/promoteurs")`, conserver la récupération de l'identité authentifiée pour `mis_a_jour_par`, puis auditer la fonction SQL `admin_valider_dossier_pharmacie` et `public.is_admin()` afin de confirmer que le refus d'un administrateur inactif est appliqué côté base. Aucun changement SQL n'est inclus dans cette proposition.
+
+**État :** 🔴 anomalie statique confirmée; correction en attente d'approbation. Pas de test ni de mutation Supabase.
+
+### Mise à jour de la décision
+Le lot suivant proposé porte uniquement sur cette garde dans `src/app/admin/promoteurs/actions.ts`. Après validation, le code sera modifié sur cette même branche et le présent document sera mis à jour immédiatement avec le commit, la relecture et les tests réellement exécutés. Aucune fusion ni aucun déploiement.
