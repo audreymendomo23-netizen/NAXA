@@ -457,3 +457,17 @@ Lecture seule du projet Supabase principal, relevé vers 19:39 UTC. Ces avertiss
 5. Maintenir l'audit détaillé Admin en attente d'une autorisation explicite après clôture documentée du préliminaire.
 
 Aucune donnée Supabase, politique, fonction, variable, configuration ni workflow n'a été modifié pendant ces vérifications.
+
+
+## 25. Échantillon statique des gardes d'accès Admin — 26 octobre 2026
+
+Contrôle limité aux fichiers suivants sur `main` : `src/lib/admin/require-admin-active.ts`, `src/app/admin/layout.tsx`, `src/app/admin/page.tsx`, `src/app/api/admin/geolocalisation-osm/route.ts`, `src/app/api/admin/messagerie/route.ts`, `src/middleware.ts` et `package.json`. Il ne remplace pas la revue de toutes les routes et actions.
+
+- **PRE-038 — Garde des pages Admin observée :** `requireAdminActive` exige une session valide, `profiles.role === "admin"` et `profiles.actif === true`; une erreur de lecture ou une valeur active absente entraîne le refus d'accès. Cette conclusion concerne les appels qui utilisent effectivement ce helper.
+- **PRE-039 — Divergence potentielle à vérifier :** la route `POST /api/admin/messagerie` contrôle `role === "admin"` mais ne refuse que `profiles.actif === false`; contrairement au garde canonique, elle ne requiert pas explicitement `actif === true`. Si `actif` peut être nul ou absent, le comportement diffère. Vérifier le schéma réel, les contraintes et le contrat attendu avant de qualifier l'impact. **Aucune correction n'a été appliquée.**
+- **PRE-040 — Contrôle de la route OSM observé :** `POST /api/admin/geolocalisation-osm` vérifie l'identité, puis appelle le RPC `is_admin` et exige le résultat booléen `true` avant d'utiliser le client privilégié. Les protections internes du RPC et les droits effectifs restent à examiner.
+- **PRE-041 — Indicateurs Admin :** la mise en page charge les pharmacies, le RPC `validites_promoteurs_admin` et le nombre de tickets ouverts. Le code prévoit un état d'indicateurs partiels si certaines requêtes échouent; le tableau de bord affiche donc des compteurs qui peuvent être incomplets, plutôt que de garantir une vue exhaustive.
+- **PRE-042 — Scripts de tests déclarés :** `package.json` expose des scripts ciblés (géolocalisation, catalogue médicaments, calculs caisse, moteur comptable, interopérabilité suivi, etc.), mais aucun script générique `test` n'est défini dans le manifeste observé. La présence des scripts ne prouve pas leur exécution ni leur réussite. Aucun test n'a été lancé dans cette étape.
+- **Limite de couverture :** seuls deux fichiers de route `src/app/api/admin/` ont été confirmés dans l'inventaire initial; cela n'établit pas que les contrôles sont uniformes dans les autres API, Server Actions, RPC SQL, politiques RLS ou tâches planifiées. La revue complète reste ouverte.
+
+Aucune route, règle d'accès, fonction SQL ou configuration n'a été modifiée.
