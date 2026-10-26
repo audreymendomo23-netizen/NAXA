@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./admin-bento.css";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { Logo } from "@/components/Logo";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -51,7 +52,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
               {alertes > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-[#FFE23D] px-1 text-center text-[10px] font-extrabold leading-5 text-[#0B3D26]">{alertes > 99 ? "99+" : alertes}</span>}
             </Link>}
-            <Link href="/" className="admin-bento-exit">Retour à NAXA <span aria-hidden="true">↗</span></Link>
+            <EspaceNaxaSwitcher current="admin" />
           </div>
         </header>
         <div className="admin-bento-content">{children}</div>
