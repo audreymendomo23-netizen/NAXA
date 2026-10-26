@@ -43,3 +43,14 @@ export async function confirmerReglementPromoteur(formData:FormData){
  revalidatePath("/admin/pilotage/reglements");revalidatePath("/promoteur/paiements");revalidatePath("/notifications");
  redirect("/admin/pilotage/reglements?ok=confirme");
 }
+export async function contesterReglementPromoteur(formData:FormData){
+ const {user}=await requireAdminActive("/admin/pilotage/reglements");
+ const id=String(formData.get("reglement_id")??"");
+ const motif=String(formData.get("motif")??"").trim();
+ if(!UUID.test(id)||motif.length<5||motif.length>500)redirect("/admin/pilotage/reglements?erreur=motif");
+ const db=supabaseAdmin();
+ const {error}=await db.rpc("admin_refuser_reglement_promoteur",{p_reglement:id,p_admin:user.id,p_motif:motif});
+ if(error)redirect("/admin/pilotage/reglements?erreur=contestation");
+ revalidatePath("/admin/pilotage/reglements");revalidatePath("/promoteur/paiements");revalidatePath("/notifications");
+ redirect("/admin/pilotage/reglements?ok=conteste");
+}
