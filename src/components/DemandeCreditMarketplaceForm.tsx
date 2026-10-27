@@ -59,7 +59,7 @@ export function DemandeCreditMarketplaceForm({ pharmacies }: { pharmacies: Pharm
   if (demandeId) return <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5" role="status">
     <h2 className="text-xl font-extrabold text-emerald-950">Demande transmise</h2>
     <p className="mt-2 text-sm text-emerald-900">Votre demande est en attente de décision. Aucun crédit n’est activé et aucun retrait n’est encore autorisé.</p>
-    <p className="mt-3 break-all text-xs text-emerald-900">Référence : {demandeId}</p>
+    <p className="mt-3 break-all text-xs text-emerald-900">Référence : {demandeId}</p><a href="/achats/credit/suivi" className="mt-4 inline-block font-bold text-emerald-950 underline">Suivre mes demandes de crédit</a>
   </section>;
 
   return <form onSubmit={submit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" noValidate>
