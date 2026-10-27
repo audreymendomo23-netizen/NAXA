@@ -1833,3 +1833,39 @@ Le test vérifie structurellement :
 ### Critère de clôture du point 1
 
 **Code et interface préparés sur `main`; clôture fonctionnelle préparée, mais pas clôture de sécurité runtime.** Le point ne peut être déclaré entièrement validé tant que la migration et les tests ne sont pas exécutés dans un environnement de test autorisé. Le déploiement reste hors périmètre et non autorisé.
+
+## 60.18 — SM-01 / point 2 : annulation des réservations lors d’une suspension disciplinaire
+
+**État : cartographie du cycle terminée; automatisation de l’annulation non engagée, car le schéma versionné ne permet pas encore de distinguer sûrement tous les états métier demandés.** Aucun statut n’a été inventé et aucune réservation n’a été modifiée.
+
+### Parcours confirmé dans les migrations versionnées
+
+- Les réservations modernes sont des holds : `stock_decremented=false` et `stock_restored=false`. Leur annulation ne doit donc pas incrémenter le stock physique.
+- Pour les réservations historiques ayant réellement débité le stock, `public.restore_stock(uuid)` est la routine de restitution. Elle verrouille la réservation, refuse les dossiers consommés, restaure les lots d’origine et le stock agrégé dans la même transaction, et lève une erreur si les allocations sont incohérentes ou manquantes.
+- Le cycle d’expiration actuel traite `mode='reservation'` et les statuts `en_attente` / `confirmee`, puis passe le dossier à `expiree`. Ce traitement est un mécanisme d’expiration, pas une annulation disciplinaire, et ne doit pas être détourné pour simuler celle-ci.
+- Les états `payee` et `retiree` sont protégés par le parcours ticket/caisse : paiement enregistré et retrait confirmé doivent rester conservés; une vente consommée ne doit jamais être restituée au stock par une annulation automatique.
+- Le code versionné ne fournit pas de preuve qu’un statut autonome `en_preparation` existe, ni que `confirmee` signifie que la préparation physique a commencé. Les recherches statiques dans les migrations Marketplace/réservation n’ont pas trouvé de transition qui établisse cette équivalence.
+
+### Décision de sécurité appliquée
+
+La suspension disciplinaire bloque déjà la visibilité Marketplace et les nouvelles réservations via le point 1. En revanche, il serait incorrect de coder maintenant une annulation automatique en traitant toutes les réservations `confirmee` comme « en préparation », ou en réutilisant `expiree` pour signifier « annulée pour motif disciplinaire ». Cela pourrait annuler une commande déjà préparée ou effacer la distinction entre expiration et sanction.
+
+Aucune annulation automatique n’est donc ajoutée tant que le modèle ne porte pas une distinction fiable entre :
+1. `en_attente` (annulable);
+2. préparation physique commencée (à annuler selon la règle SM-01, mais état actuel non démontré);
+3. prête au retrait (à préserver);
+4. paiement caisse validé / `payee` (à préserver);
+5. retrait confirmé / `retiree` (état terminal à préserver).
+
+### Ce qui reste requis pour fermer le point 2 de bout en bout
+
+- Identifier dans le schéma réel le type et les contraintes de `reservations.statut`, ainsi que tous les producteurs de transitions, afin de confirmer si un état « préparation » existe hors des migrations consultées.
+- Introduire un statut de sanction distinct et auditable si le modèle actuel n’en possède pas; ne pas détourner `expiree`.
+- Orchestrer la suspension et l’annulation dans une transaction serveur idempotente, en appelant `restore_stock` uniquement pour les réservations historiques dont le débit physique est prouvé; un échec de restitution doit être journalisé et réconciliable, jamais ignoré.
+- Journaliser avant/après par réservation, notifier le client affecté et le Promoteur, couvrir les accès concurrents et tester les cas `en_attente`, préparation réelle, prête au retrait, `payee`, `retiree`, hold moderne et réservation historique avec lots.
+- Exécuter les tests uniquement dans un environnement hors production autorisé.
+
+**Vérifications réalisées pour cette étape :** lecture des migrations versionnées `20261024180000_marketplace_ticket_lifecycle_orchestrator.sql`, `20261024193000_reservation_cycle_dependencies.sql`, `20261024203000_marketplace_hold_reservation_alignment.sql`, `20261024210000_reservation_ticket_rpc_unified_cron.sql` et de la migration de suspension disciplinaire du point 1. Il s’agit d’une revue statique; aucune requête PostgreSQL, aucun test SQL, build ou test navigateur n’a été exécuté.
+
+**Production et déploiement :** aucune base de production modifiée, aucune migration exécutée, aucun déploiement déclenché. Le point 2 est **cartographié mais non clos fonctionnellement**; le déclarer clos maintenant reviendrait à prétendre que l’annulation automatique protège des états que le schéma actuel ne distingue pas.
+
