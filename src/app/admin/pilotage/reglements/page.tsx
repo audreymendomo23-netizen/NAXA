@@ -29,6 +29,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
     champs: "Le règlement sélectionné est invalide.",
     preuve: "La preuve privée est inaccessible. Le paiement ne peut pas être confirmé sans vérification.",
     confirmation: "La confirmation a échoué. Aucun renouvellement n’a été confirmé.",
+    verification: "Cochez la confirmation après avoir consulté la preuve et vérifié l’encaissement réel.",
     motif: "Un motif de contestation de 5 à 500 caractères est requis.",
     contestation: "La contestation n’a pas pu être enregistrée.",
   };
@@ -63,7 +64,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
             <p className="mt-2 text-xs text-slate-500">Lien privé temporaire, valable 10 minutes. Renouvelez la page si nécessaire.</p>
           </div>}
           {!proof && <p className="mt-3 text-sm text-red-700">La preuve n’a pas pu être chargée. Ne confirmez pas le paiement sans l’avoir vérifiée.</p>}
-          <form action={confirmerReglementPromoteur} className="mt-4"><input type="hidden" name="reglement_id" value={r.id}/><button disabled={!proof} className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white disabled:opacity-40">Confirmer l’encaissement réel et renouveler 31 jours</button><p className="mt-2 text-xs text-slate-500">Cette action est définitive et journalisée. Elle met à jour l’échéance à partir de la date de validation.</p></form>
+          <form action={confirmerReglementPromoteur} className="mt-4"><input type="hidden" name="reglement_id" value={r.id}/><label className="mb-3 flex items-start gap-2 text-sm"><input required type="checkbox" name="preuve_verifiee" className="mt-1 h-4 w-4 accent-[#0F6B3F]"/><span>J’ai consulté la preuve et vérifié les références ainsi que la réalité de l’encaissement auprès du canal concerné.</span></label><button disabled={!proof} className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white disabled:opacity-40">Confirmer l’encaissement réel et renouveler 31 jours</button><p className="mt-2 text-xs text-slate-500">Cette action est définitive et journalisée. Elle met à jour l’échéance à partir de la date de validation.</p></form>
           <form action={contesterReglementPromoteur} className="mt-4 grid gap-2 rounded-2xl border border-red-100 bg-red-50 p-3"><input type="hidden" name="reglement_id" value={r.id}/><label className="grid gap-1 text-sm font-semibold text-red-900">Contester / demander une correction<textarea required minLength={5} maxLength={500} name="motif" className="min-h-20 rounded-xl border border-red-200 bg-white p-3 font-normal" placeholder="Précisez la référence ou l’élément à corriger."/></label><button className="min-h-10 w-fit rounded-full border border-red-300 px-4 font-bold text-red-800">Contester le paiement</button></form>
         </article>;
       })}
