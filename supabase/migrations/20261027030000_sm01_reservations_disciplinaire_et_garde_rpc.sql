@@ -159,6 +159,7 @@ begin
     from public.reservations r
     where r.mode='reservation'
       and r.statut in ('en_attente','confirmee')
+      and r.statut not in ('payee','retiree')
       and r.preparation_statut in ('non_commencee','en_preparation')
       and r.consumed_at is null
       and r.consumed_by_vente_id is null
