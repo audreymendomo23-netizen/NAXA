@@ -70,19 +70,9 @@ as $fn$
   select exists (
     select 1
     from public.promoteur_suspensions_disciplinaires s
+    cross join lateral jsonb_array_elements(coalesce(s.perimetre_apres->'pharmacies', '[]'::jsonb)) ph
     where s.statut = 'active'
-      and (
-        exists (
-          select 1 from public.promoteur_pharmacies pp
-          where pp.promoteur_id = s.promoteur_id
-            and pp.pharmacie_id = p_pharmacie
-        )
-        or exists (
-          select 1 from public.profiles pr
-          where pr.id = s.promoteur_id
-            and pr.pharmacie_id = p_pharmacie
-        )
-      )
+      and ph->>'id' = p_pharmacie::text
   );
 $fn$;
 
@@ -141,14 +131,23 @@ begin
 
   select jsonb_build_object(
     'profile', jsonb_build_object('id', p.id, 'actif', p.actif, 'role', p.role::text),
+    'rattachements', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'pharmacie_id', pp.pharmacie_id, 'actif', pp.actif
+      ) order by pp.pharmacie_id)
+      from public.promoteur_pharmacies pp
+      where pp.promoteur_id = p.id
+    ), '[]'::jsonb),
     'pharmacies', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', ph.id, 'nom', ph.nom, 'actif', ph.actif,
         'visible_recherche', ph.visible_recherche, 'archivee_le', ph.archivee_le
       ) order by ph.nom)
-      from public.promoteur_pharmacies pp
-      join public.pharmacies ph on ph.id = pp.pharmacie_id
-      where pp.promoteur_id = p.id
+      from public.pharmacies ph
+      where exists (
+        select 1 from public.promoteur_pharmacies pp
+        where pp.promoteur_id = p.id and pp.pharmacie_id = ph.id
+      ) or p.pharmacie_id = ph.id
     ), '[]'::jsonb)
   ), coalesce(nullif(trim(concat_ws(' ', p.first_name, p.last_name)), ''), p.username, p.id::text)
   into v_before, v_nom
@@ -156,11 +155,16 @@ begin
   where p.id = p_promoteur
   for update;
 
-  select coalesce(jsonb_agg(jsonb_build_object('id', ph.id, 'nom', ph.nom)), '[]'::jsonb)
+  select coalesce(jsonb_agg(jsonb_build_object('id', ph.id, 'nom', ph.nom) order by ph.nom), '[]'::jsonb)
     into v_pharmacies
-  from public.promoteur_pharmacies pp
-  join public.pharmacies ph on ph.id = pp.pharmacie_id
-  where pp.promoteur_id = p_promoteur;
+  from public.pharmacies ph
+  where exists (
+    select 1 from public.promoteur_pharmacies pp
+    where pp.promoteur_id = p_promoteur and pp.pharmacie_id = ph.id
+  ) or exists (
+    select 1 from public.profiles pr
+    where pr.id = p_promoteur and pr.pharmacie_id = ph.id
+  );
 
   insert into public.promoteur_suspensions_disciplinaires(
     promoteur_id, motif, observations, suspendu_par, perimetre_avant, perimetre_apres
