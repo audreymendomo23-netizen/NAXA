@@ -1869,3 +1869,56 @@ Aucune annulation automatique n’est donc ajoutée tant que le modèle ne porte
 
 **Production et déploiement :** aucune base de production modifiée, aucune migration exécutée, aucun déploiement déclenché. Le point 2 est **cartographié mais non clos fonctionnellement**; le déclarer clos maintenant reviendrait à prétendre que l’annulation automatique protège des états que le schéma actuel ne distingue pas.
 
+## 60.19 — SM-01 / point 2 : implémentation de l’annulation disciplinaire des réservations
+
+**État : code et parcours de préparation ajoutés sur `main`; tests PostgreSQL et validation runtime non exécutés.** Cette section remplace le constat « automatisation non engagée » de 60.18 pour l’état actuel du dépôt.
+
+### Implémentation versionnée
+
+- Migration : `supabase/migrations/20261027030000_sm01_reservations_disciplinaire_et_garde_rpc.sql`.
+- État physique explicite ajouté à `public.reservations.preparation_statut`, avec horodatages de démarrage et de disponibilité au retrait.
+- RPC `gestionnaire_stock_reservation_preparation(uuid,text)`, limitée à un utilisateur authentifié, actif, autorisé dans le périmètre pharmacie et à un rôle pharmacie admissible. Elle permet le parcours `non_commencee → en_preparation → prete_au_retrait`; la transition inverse depuis « prête » est interdite.
+- Interface `src/app/pharmacie/gestionnaire-stock/reservations/page.tsx) mise à jour avec les actions « Démarrer la préparation » et « Marquer prête au retrait », et affichage de la phase réelle.
+- Lors de la création d’une suspension active, le déclencheur transactionnel `naxa_suspension_disciplinaire_annuler_reservations` traite les réservations du périmètre figé :
+  - `en_attente) : annulée;
+  - `confirmee) dont la phase persistée est `non_commencee) ou `en_preparation) : annulée;
+  - `prete_au_retrait), `payee) et `retiree) : préservées;
+  - phase historique inconnue : aucune annulation automatique; événement `echec_annulation` journalisé pour réconciliation.
+- Les annulations utilisent `public.restore_stock(uuid)` dans la même sous-transaction que la transition vers `annulee). Les holds modernes ne recréent pas de stock; les réservations historiques ne sont restituées que si les garde-fous d’allocation et de consommation l’autorisent.
+- Chaque réservation traitée reçoit un journal avant/après; le client est notifié après annulation et le Promoteur reçoit un résumé des succès/échecs. Une erreur de restitution annule les mutations de cette réservation et produit un événement d’échec, sans être ignorée.
+- Le chemin manuel `gestionnaire_stock_reservation_annuler(uuid)` refuse désormais l’annulation d’une réservation prête au retrait et refuse de trancher automatiquement les phases historiques inconnues.
+
+### Préservation des dossiers historiques
+
+La migration **ne remplit pas arbitrairement** la phase de préparation des réservations déjà confirmées. Les réservations historiques `confirmee) sans preuve de phase sont auditées comme nécessitant une réconciliation et restent intactes. Cela évite d’annuler silencieusement une commande qui pourrait déjà être prête au retrait. Les réservations `en_attente) peuvent être classées comme non commencées, et les nouvelles réservations reçoivent ce défaut.
+
+### Test ajouté et limites
+
+- Test structurel : `supabase/tests/20261027030000_sm01_reservations_disciplinaire_et_garde_rpc.sql`.
+- Le test vérifie l’existence de la phase de préparation, du déclencheur, de l’audit, des contrôles d’accès et de l’appel à la restitution.
+- **Non exécuté** : la migration, le test SQL, les tests de concurrence, le build et le test navigateur restent à exécuter dans un environnement hors production. La clôture de l’implémentation dans le dépôt ne doit pas être confondue avec une validation runtime.
+- Aucun changement de données de production, aucune migration de production et aucun déploiement.
+
+## 60.20 — SM-01 / point 3 : inventaire des RPC sensibles et lancement des gardes serveur
+
+**État : point 3 lancé; inventaire initial consigné et premières protections RPC ajoutées avec le point 2. L’inventaire exhaustif et la validation adversariale restent ouverts.**
+
+| Surface sensible | Garde constatée ou ajoutée | Contrôle restant |
+|---|---|---|
+| Suspension / levée disciplinaire | RPC d’administration basées sur `auth.uid()`, profil admin actif, verrouillage de la suspension, audit et notification | Tester les privilèges réels PostgreSQL, les rôles inactifs et les appels directs |
+| Recherche et création de réservations Marketplace | Filtre disciplinaire sur la recherche et la disponibilité; contrôle de suspension dans `private.reserve_stock` | Recenser toutes les autres routes API, vues, fonctions SQL et chemins de panier |
+| Annulation / préparation réservation | Garde serveur de rôle et périmètre; protection du statut prêt au retrait; phase physique persistée | Tester les appels RPC directs, la concurrence avec suspension, les erreurs de restitution et les dossiers historiques |
+| Règlement d’abonnement Promoteur | Fonctions de règlement réservées à `service_role`; réactivation commerciale séparée du registre disciplinaire | Vérifier toutes les actions serveur appelantes et prouver qu’aucun identifiant admin client ne peut être usurpé dans un chemin accessible |
+| POS / vente | RPC de caisse avec authentification et contrôle du périmètre pharmacie; le POS interne n’est pas masqué par le filtre Marketplace | Vérifier l’ensemble des RPC de vente, de validation de paiement, de consommation et de retrait; ne pas confondre suspension Marketplace et arrêt du POS |
+| Validation de dossier et activation pharmacie | Actions d’administration protégées côté serveur; contrôles métier délégués aux RPC transactionnelles | Auditer chaque RPC d’activation/rattachement, les paramètres d’acteur et les effets sur les pharmacies historiques/inactives |
+
+### Méthode de poursuite du point 3
+
+1. Recenser chaque appel `supabase.rpc(...)` et chaque fonction `SECURITY DEFINER) dans le code et les migrations.
+2. Pour chaque opération, noter l’identité attendue, le rôle, le périmètre pharmacie, les privilèges EXECUTE, les écritures sensibles et l’idempotence.
+3. Corriger côté SQL toute confiance excessive dans un identifiant ou un rôle fourni par le client; conserver les contrôles d’interface uniquement comme ergonomie.
+4. Ajouter des tests de contournement direct, utilisateur hors périmètre, acteur inactif, requêtes concurrentes et absence de privilèges `anon`.
+5. Exécuter les tests sur une base hors production; ne pas déduire la sécurité effective de la seule présence du code.
+
+**État des vérifications :** lecture statique des sources versionnées et contrôles de présence de contenu uniquement. Aucun test SQL, build, test navigateur ou appel à une base de données n’a été exécuté. Aucune modification de production ni aucun déploiement.
+
