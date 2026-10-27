@@ -1446,3 +1446,15 @@ L'identifiant de paiement et le reçu sont générés à partir de la date de va
 ### Point restant avant de déclarer le flux vert
 
 Définir et tester un mécanisme explicite de provenance de blocage si NAXA doit réactiver automatiquement certains profils/pharmacies à l'expiration. Jusqu'à cette preuve, le choix conservateur est de ne pas réactiver leur état par effet de bord. Le renouvellement administratif manuel reste à traiter séparément; sa migration source existante n'est pas présente dans l'historique distant des migrations et la fonction correspondante n'a pas été trouvée dans le catalogue live.
+
+
+## 59. Renouvellement administratif : même séparation des responsabilités
+
+La migration source `supabase/migrations/20261022143000_admin_renouvellement_manuel_audit.sql` a également été corrigée sur `main` :
+- le renouvellement administratif refuse désormais un abonnement `resilie` ou une convention `resiliee`;
+- il met à jour uniquement l'échéance et le statut de l'abonnement/convention, sans toucher au registre des paiements ni à `date_paiement`;
+- il ne réactive plus le profil Promoteur, les liens Promoteur-pharmacie ou les pharmacies; l'audit conserve l'état réel du profil avant/après.
+
+La page Validité a aussi reçu une correction de synthèse : elle affiche séparément les dossiers valides et actifs, les dossiers non configurés et les profils inactifs/résiliés.
+
+**Important :** cette fonction de renouvellement administratif reste une migration source non constatée dans le registre de migrations live, et aucune interface de renouvellement manuel n'a été ajoutée dans cette étape. Ni cette migration ni celle de confirmation de paiement n'ont été appliquées à Supabase Production. La correction du code source est commise sur `main`, mais le comportement de production reste non vérifié et ne peut pas être déclaré vert avant application contrôlée et tests.
