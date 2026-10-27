@@ -1698,3 +1698,74 @@ Cette migration documente explicitement que le service Pharmacien interne dépen
 5. Maintenir les règles réservation déjà établies : ne pas annuler `payee` ni `retiree`; toute annulation autorisée doit passer par les transitions/RPC existantes avec traitement atomique, stock et audit.
 
 **Statut :** analyse statique uniquement. Aucun code métier ou SQL applicatif modifié; aucune migration exécutée, aucune requête de production, aucun test/build ni déploiement effectué.
+
+
+## 60.16 — Synthèse de clôture de l’audit SM-01 : couverture 360° et décision de sortie
+
+Cette section clôt la **phase d’audit statique et de cadrage technique** SM-01. Elle ne signifie pas que la suspension disciplinaire est implémentée ou prête à être déclarée « verte ».
+
+### 1. Chaîne d’accès couverte
+
+| Couche | Preuve versionnée examinée | Conclusion pour SM-01 |
+|---|---|---|
+| Middleware Next.js | `src/middleware.ts` | Authentifie les routes protégées mais n’applique pas de garde disciplinaire commune. |
+| Espace Promoteur | `src/lib/promoteur-access.ts`, `src/app/pharmacie/promoteur/layout.tsx` | L’état exposé est fondé sur le contrat, l’abonnement, le profil et le réseau opérationnel; aucun état disciplinaire indépendant n’est consulté. |
+| Opérations pharmacie | `src/app/pharmacie/page.tsx` | Vérifications de profil/rattachement/activité-publication côté client; elles ne suffisent pas comme barrière serveur. |
+| Recherche publique | `src/app/api/medicaments/recherche/route.ts` | Disponibilités filtrées par activité, visibilité, archivage, stock et péremption; pas de garde disciplinaire explicite dans la requête examinée. |
+| Disponibilité SQL | `supabase/migration_210_marketplace_sellable_stock.sql` | La fonction publique `marketplace_offre_stock_disponible` vérifie activité et visibilité Marketplace, mais aucun état disciplinaire Promoteur n’est évalué. |
+| Création de réservation | `supabase/migrations/20261024203000_marketplace_hold_reservation_alignment.sql`, `supabase/migrations/20261026210000_harden_payment_reactivation_reservation_search_paths.sql` | Le contrôle observé vérifie notamment que la pharmacie est active; l’extrait n’intègre pas de sanction disciplinaire distincte. |
+| Transition réservation | `supabase/migration_160_reservation_transition_guard.sql` | Transitions métier explicites, verrouillage de réservation, contrôle de périmètre et restitution pour annulation/expiration. Pas de contrôle disciplinaire dédié dans cette fonction. |
+| Annulation par le gestionnaire | `supabase/migration_203_stock_reservation_cancel_role_guard.sql` | Autorise seulement `en_attente` ou `confirmee`, puis délègue à la transition métier; préserve les états payés/retirés. |
+| Consommation et lots | `supabase/migration_211_pos_marketplace_sellable_stock.sql`, migrations de cycle Marketplace 239/242/243 | Les mouvements de stock et le cycle de réservation disposent de gardes spécialisées; ils ne constituent pas, en eux-mêmes, une barrière disciplinaire générale. |
+| Paiement abonnement Promoteur | `supabase/migrations/20261026224500_promoteur_reglement_manuel_confirmation_reactivation.sql`, `supabase/migrations/20261027010000_promoteur_soumet_paiement_manuel.sql` | La confirmation du paiement réactive l’abonnement/la convention et met des profils/pharmacies à l’état actif. Cette réactivation doit être rendue orthogonale à la sanction disciplinaire avant de mettre SM-01 en production. |
+| Données et audit | Tables de réservation, tickets, journaux et notifications visibles dans les migrations examinées | Les données métier doivent être conservées. L’audit commercial existant n’est pas équivalent au journal disciplinaire avant/après requis par SM-01. |
+
+### 2. Règles de réservation retenues
+
+- `en_attente` : annulation automatique prévue par la règle SM-01, par le chemin serveur sécurisé.
+- `confirmee` : le code actuel ne prouve pas qu’une préparation physique a commencé. L’interface Gestionnaire stock l’affiche « Confirmée · à préparer » et la RPC de confirmation ne crée pas d’état de préparation distinct. **Le métier doit donc décider explicitement si `confirmee` correspond au statut à annuler**, ou définir ultérieurement un état persistant distinct. Ne pas inventer cette équivalence.
+- `payee` : préserver, car le paiement POS a été enregistré; aucune annulation disciplinaire automatique.
+- `retiree` : préserver comme retrait confirmé et état terminal.
+- Holds modernes : `stock_decremented=false` et `stock_restored=false`; ne pas restituer une quantité physique qui n’a pas été débitée. Pour les réservations historiques, passer par la restitution existante, ses allocations de lots et ses verrous; toute allocation incohérente doit conduire à une erreur de réconciliation, pas à une correction improvisée.
+- Une exécution partielle ne doit pas laisser des réservations incohérentes : verrouillage, idempotence, gestion des erreurs, journalisation et notifications doivent être traités dans une même orchestration serveur transactionnelle ou avec un mécanisme de reprise durable.
+
+### 3. Architecture cible à considérer avant tout changement applicatif
+
+1. **État disciplinaire indépendant** du statut du profil, du contrat, de l’abonnement et de la publication Marketplace. Enregistrer l’identité du Promoteur sanctionné, le périmètre des pharmacies rattachées, motif « faute », durée indéterminée, acteur administratif, horodatages, état actif/levé et référence de levée.
+2. **Action d’administration autorisée côté serveur**, qui vérifie rôle et habilitation dans la base; ne pas faire confiance à un identifiant d’administrateur envoyé par le client sans vérifier qu’il correspond à `auth.uid()` et à un administrateur actif autorisé.
+3. **Journal disciplinaire append-only** contenant les valeurs avant/après, acteur, horodatage, cible et décision; la levée exige une décision explicite d’un Administrateur habilité. Les journaux administratifs existants peuvent être complémentaires mais ne doivent pas remplacer un événement disciplinaire structuré.
+4. **Prédicat serveur partagé** appliqué à la visibilité des offres et à la création de nouvelles réservations, y compris les fonctions SQL `marketplace_offre_stock_disponible` et `private.reserve_stock`, plus tout chemin de recherche/offre trouvé lors de l’inventaire final. Une garde d’interface ou de middleware seule est insuffisante.
+5. **Réactivation orthogonale** : la confirmation d’un paiement peut mettre à jour le volet commercial, mais ne peut ni supprimer ni lever la sanction. À l’inverse, la levée disciplinaire ne doit pas contourner un abonnement expiré ou un contrat incohérent.
+6. **Orchestration des réservations** par transitions/RPC autorisées, avec conservation des paiements et retraits confirmés, restauration de stock idempotente, notification obligatoire au Promoteur, suivi des échecs et possibilité de reprise.
+7. **RLS et privilèges minimaux** : vérifier lecture/écriture directe des tables et exécution des fonctions SECURITY DEFINER; révoquer les accès non nécessaires et utiliser un `search_path` sécurisé. Une fonction exposée à `anon`/ `authenticated` doit être évaluée selon son effet réel, pas seulement son nom.
+8. **Tests hors production obligatoires** : Promoteur sanctionné/non sanctionné; plusieurs pharmacies rattachées; paiement confirmé pendant sanction; levée avec abonnement expiré; rôle admin inactif/non habilité; accès direct RPC/API; recherches et offres; deux requêtes concurrentes; erreurs au milieu de la liste; holds sans débit; réservations historiques avec lots; réservations `payee` et `retiree`; doublons de notification et reprise après échec.
+
+### 4. Risques résiduels identifiés
+
+- **Bloquant critique — contournement possible par indicateurs commerciaux :** le code actuel de confirmation de paiement réactive des profils et pharmacies; tant que les gardes disciplinaires ne sont pas indépendantes et appliquées dans les fonctions serveur, la règle « payer ne lève pas la sanction » n’est pas démontrée.
+- **Bloquant critique — couverture incomplète des accès directs :** l’audit a identifié des points précis de contrôle, mais l’inventaire exhaustif de toutes les politiques RLS, fonctions RPC, vues, requêtes de recherche/offres et jobs planifiés reste à exécuter dans un environnement de code/test.
+- **Bloquant métier — sémantique de `confirmee` :** l’application ne prouve pas qu’il s’agit d’une réservation « en préparation »; la règle d’annulation doit être explicitement décidée avant implémentation.
+- **Bloquant de validation — absence de preuve d’exécution :** aucun test automatisé, build, test de concurrence, migration locale/hors production ni vérification de comportement runtime n’a été exécuté pendant cet audit.
+- **Risque de données — réactivation trop large :** la procédure de paiement active toutes les pharmacies rattachées trouvées et certains profils liés. L’effet sur les liens inactifs, archives et rattachements historiques doit être couvert par des tests ciblés pour éviter de réactiver des entités qui ne devraient pas l’être.
+
+### 5. Critères objectifs de clôture
+
+| Critère | État |
+|---|---|
+| Règles métier SM-01 recueillies et consignées | **Fait** |
+| Parcours réservation/caisse/stock cartographié statiquement | **Fait, limites documentées** |
+| Dépendance avec le renouvellement commercial identifiée | **Fait** |
+| Points d’entrée d’accès et visibilité Marketplace examinés | **Fait, cartographie initiale; couverture RLS/RPC exhaustive à confirmer** |
+| Décision métier sur `confirmee` vs « en préparation » | **Bloqué — décision explicite nécessaire** |
+| Implémentation de la sanction et des gardes serveur | **Non réalisée — autorisation distincte requise** |
+| Tests automatisés et tests adversariaux hors production | **Non exécutés** |
+| Validation finale de bout en bout sur environnement de test | **Non exécutée** |
+| Déploiement / modification de production | **Non autorisé et non effectué** |
+
+### Conclusion de clôture
+
+**L’audit statique SM-01 et son cadrage technique sont documentés sur `main`. Le chantier fonctionnel SM-01 n’est pas clos au sens « implémenté et validé de bout en bout »** : le contrôle disciplinaire n’existe pas encore dans le code examiné, la couverture RLS/RPC doit être testée exhaustivement et l’équivalence métier `confirmee`/« en préparation » n’est pas établie.
+
+Cette distinction est impérative pour ne pas annoncer une sécurité qui n’a pas été construite ni testée. Aucune règle métier n’est déduite par défaut et aucune modification applicative n’est engagée sans instruction distincte.
+
+**État d’exécution de cette clôture :** lecture statique de sources versionnées et mise à jour documentaire uniquement. Aucune base Supabase interrogée ou modifiée, aucune migration exécutée, aucun test/build exécuté, aucun déploiement déclenché.
