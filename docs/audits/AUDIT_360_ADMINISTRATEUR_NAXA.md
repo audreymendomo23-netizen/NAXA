@@ -1288,3 +1288,72 @@ Le détail est consigné dans [`docs/audits/CARTOGRAPHIE_PAGES_ADMIN_NAXA_2026-1
 - **Audit fonctionnel détaillé page par page : étape suivante, non encore terminé.**
 - **Tests navigateur, accès direct, autorisations et parcours métier : non exécutés dans cette étape.**
 - Aucune branche, PR, migration Supabase, écriture métier ou déploiement n'a été réalisé pendant la cartographie.
+
+
+## 56. Reprise de l'audit — réconciliation du parcours de paiement Promoteur (27 octobre 2026)
+
+### 56.1 Référence Git vérifiée avant cette mise à jour
+
+- Dépôt : `audreymendomo23-netizen/NAXA`.
+- Branche consultée : `main`.
+- HEAD observé avant la mise à jour documentaire : `8bf52cd7480662304a67e4021d7092336fc4d043`.
+- Arbre GitHub récursif : réponse non tronquée, 1 278 entrées, dont 1 043 blobs; 52 fichiers de migration sous `supabase/migrations/`; 19 fichiers `page.tsx` sous `src/app/admin/` (le relevé précédent de 18 pages est donc à réconcilier avec l'arbre courant).
+- État des modifications locales non commitées : non observable par l'API GitHub utilisée.
+- Aucune branche, PR, fusion, écriture métier Supabase, exécution de migration ou opération de déploiement n'a été effectuée pendant cette passe.
+
+### 56.2 Changements récents du parcours financier observés dans l'historique
+
+Les commits ci-dessous sont présents dans l'historique consulté de `main`; leur présence confirme l'enregistrement du code, mais ne prouve pas que les migrations correspondantes sont appliquées à Supabase ni que le parcours a été testé de bout en bout.
+
+| Commit | Périmètre constaté |
+|---|---|
+| `e899c578a98da89323949a36fb69c36c696e3cab` | Soumission d'un règlement par le Promoteur, notifications aux administrateurs et rappels d'échéance J−5 dans une migration. |
+| `2aa445cd6e7442bf073c34ffbd7650f63e5c87fe` | Ajout du contrôle serveur exigeant l'attestation de vérification avant confirmation. |
+| `d81233ed98efb66258d7a6aa06539c411763a51e` | Ajout de l'attestation visible dans l'interface de confirmation. |
+| `1c22c4ca7db307115a7303544d6ff1abea799bd2` | Affichage du nom du Promoteur et des noms des pharmacies rattachées sur le reçu. |
+| `8bf52cd7480662304a67e4021d7092336fc4d043` | Révocation des privilèges de l'ancienne RPC de saisie de paiement par l'Administrateur. |
+
+### 56.3 Preuves statiques confirmées dans le code versionné
+
+**Déclaration par le Promoteur.** `src/app/promoteur/paiements/actions.ts` vérifie la session et le rôle Promoteur, le montant entier positif, le canal, le compte payeur, la date non future, le fichier et sa taille maximale de 25 Mio. Les formats codés acceptent PDF, JPEG, PNG, WebP, MP4, WebM et QuickTime/MOV. Le fichier est envoyé dans le bucket privé `preuves-reglements-promoteurs`, puis la RPC `promoteur_soumettre_reglement` est appelée via le client serveur privilégié. En cas d'échec RPC, le code tente de supprimer le fichier envoyé et renvoie une erreur à l'interface.
+
+**Acceptation vidéo.** Les migrations `20261027003000_promoteur_echeance_reminders.sql`, `20261027010000_promoteur_soumet_paiement_manuel.sql` et `20261027012000_include_promoter_in_payment_notifications.sql` contiennent des validations de chemin autorisant explicitement les extensions `mp4`, `webm` et `mov`. La migration `20261027010000_promoteur_soumet_paiement_manuel.sql` configure également des types MIME vidéo autorisés pour le bucket. Le code Admin `src/app/admin/pilotage/reglements/page.tsx` détecte ces extensions et rend une balise vidéo contrôlable ainsi qu'un lien privé temporaire. **Conclusion corrigée :** le code versionné contient une prise en charge explicite des vidéos; le défaut de format SQL évoqué dans les notes précédentes n'est pas confirmé par ces migrations récentes. L'application effective de ces migrations et un test réel d'affichage restent non vérifiés.
+
+**Confirmation administrative.** `src/app/admin/pilotage/reglements/actions.ts` exige un identifiant UUID valide, l'attestation `preuve_verifiee`, un règlement existant au statut `en_attente` et une URL signée de preuve accessible avant d'appeler `admin_confirmer_reglement_promoteur`. L'action de contestation exige un motif de 5 à 500 caractères. Les erreurs sont renvoyées vers des états d'interface dédiés. Ces contrôles statiques ne remplacent pas la vérification de la transaction SQL ni un test des courses concurrentes/doubles soumissions.
+
+**Reçu.** Le commit `1c22c4ca7db307115a7303544d6ff1abea799bd2` ajoute les noms des pharmacies liées au Promoteur dans le reçu, avec un libellé explicite si aucun lien n'est trouvé. La page du reçu n'a pas été retrouvée sous le chemin présumé `src/app/promoteur/paiements/recu/[id]/page.tsx`; son emplacement réel et son comportement complet restent à localiser dans l'inventaire de routes.
+
+**Saisie de paiement par l'Administrateur.** La migration `20261027080000_disable_admin_manual_promoter_payment_entry.sql` révoque les privilèges de `public.admin_enregistrer_reglement_promoteur(...)` pour `public`, `anon`, `authenticated` et `service_role`. C'est une mesure de code versionnée; l'état effectif des privilèges dans la base distante n'a pas été vérifié pendant cette passe.
+
+### 56.4 Rappels à J−5 : code prévu, exécution non démontrée
+
+La migration `20261027003000_promoteur_echeance_reminders.sql` définit `public.generer_rappels_echeance_promoteurs()`, qui cible les abonnements actifs dont l'échéance tombe dans cinq jours et pour lesquels `rappel_5j_envoye_at` est nul. Elle crée une notification pour le Promoteur et une pour chaque Administrateur actif, puis renseigne l'horodatage d'envoi. Elle programme le job `naxa-promoteur-echeance-5j` avec `cron.schedule` à `0 6 * * *`.
+
+- **Preuve directe :** fonction et programmation déclarées dans une migration Git.
+- **Non vérifié :** application de la migration en base distante, existence et dernier résultat du job dans `cron.job`, envoi réel des notifications, unicité en cas de concurrence, et affichage sur les deux comptes.
+- Le job calcule la date cible à partir de `Africa/Douala`; le calendrier effectif dépend néanmoins de la configuration et de l'état de `pg_cron` dans la base concernée.
+
+### 56.5 Contradiction à préserver : renouvellement administratif vs confirmation d'un paiement
+
+La migration `20261022143000_admin_renouvellement_manuel_audit.sql` définit un renouvellement manuel distinct, qui met à jour convention/abonnement et écrit une trace avant/après sans enregistrer de règlement. Les migrations plus récentes définissent un autre parcours, dans lequel le Promoteur déclare un règlement, puis l'Administrateur confirme après vérification. Il faut conserver cette séparation métier : ne pas substituer `reactiver_promoteur` au renouvellement manuel et ne pas traiter une simple déclaration comme un encaissement vérifié.
+
+Le code applicatif de la page `/admin/pilotage/validite` et l'état live de `admin_renouveler_promoteur` n'ont pas été réconciliés dans cette passe. Une tentative de lecture de `src/app/admin/pilotage/validite/actions.ts` retourne 404 dans le dépôt courant; le chemin réel de l'action reste à retrouver. L'absence de ce chemin exact ne prouve pas que l'action n'existe pas ailleurs.
+
+### 56.6 Registre des points ouverts mis à jour
+
+| ID | Constat / question | Statut | Vérification suivante |
+|---|---|---|---|
+| PRE-PAY-01 | Application réelle des migrations de soumission, confirmation, vidéo et notifications | Non vérifié côté Supabase | Lire le catalogue distant et comparer signatures, définitions, privilèges et stockage, sans écriture métier. |
+| PRE-PAY-02 | Rappels J−5 vers Promoteur et Administrateur | Code prévu; fonctionnement bout en bout non vérifié | Contrôler `cron.job`, exécution et types de notification en lecture seule si l'accès autorisé le permet. |
+| PRE-PAY-03 | Confirmation : atomicité, anti-double validation, échéance et reçu | Partiellement vérifié par lecture statique | Lire intégralement la RPC de confirmation et les contraintes/index, puis construire des tests sans données de production. |
+| PRE-PAY-04 | Localisation et cohérence de l'action de renouvellement manuel | Ouvert | Rechercher les appelants, routes et RPC réellement référencés dans `main`; comparer avec les migrations et le catalogue live. |
+| PRE-PAY-05 | Reçu avec nom du Promoteur et de ses pharmacies | Modification versionnée; test visuel et données non vérifiés | Retrouver la route réelle du reçu et vérifier les états avec et sans pharmacies liées. |
+| PRE-PAY-06 | Révocation de l'ancienne RPC de saisie de paiement Admin | Migration versionnée; privilèges live non vérifiés | Inspecter les privilèges effectifs et les appelants restants sans invoquer la RPC. |
+| PRE-PAY-07 | Rapport d'audit périmé sur le nombre de pages Admin | Écart d'inventaire à réconcilier | Recalculer le nombre de routes à partir de l'arbre complet et examiner la différence par rapport à la cartographie datée du 26 octobre. |
+
+### 56.7 Limites de cette passe
+
+- Les constats de cette section proviennent du code et des migrations Git consultés; aucune fonction SQL métier n'a été exécutée.
+- L'accès au connecteur Supabase n'a pas été disponible dans cette session : la tentative de lister les projets a échoué faute de compte lié admissible. Aucun accès live n'est donc revendiqué.
+- Aucun test unitaire, compilation, test navigateur, test de notification ou test de stockage n'a été exécuté.
+- Le rapport préliminaire reste ouvert. L'audit détaillé Administrateur n'est pas déclaré commencé sur la seule base de cette réconciliation.
