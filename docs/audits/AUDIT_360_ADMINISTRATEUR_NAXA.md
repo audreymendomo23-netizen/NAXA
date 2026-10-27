@@ -2050,3 +2050,23 @@ Le rapprochement des migrations 164/165/167/169 et du composant src/components/p
 **Limite :** le test corrigé n’a pas été exécuté sur PostgreSQL. Cette modification corrige l’assertion de test d’après les sources lues; elle ne prouve pas que l’ensemble des migrations s’applique sans erreur ni que les ACL de la base distante correspondent au dépôt.
 
 **Exécution :** un fichier de test et le présent rapport ont été modifiés sur main. Aucune migration appliquée, aucune base modifiée et aucun déploiement déclenché.
+
+
+## 60.26 — SM-01 / point 3 : contrôle d’enrôlement biométrique et libellé de l’autorisation PIN
+
+**État : divergence fonctionnelle relevée entre le libellé UI et le contrôle serveur; correction différée car le contrat d’autorisation Promoteur doit être explicite.**
+
+### Constat de source
+- Dans src/components/pharmacie/CaisseDecaissements.tsx, le champ d’enrôlement est libellé « PIN Promoteur requis pour enregistrer la biométrie ».
+- Dans src/app/api/caisse/security/route.ts, l’action registration-options authentifie l’utilisateur courant comme titulaire de la session Caisse, puis lit caisse_security_credentials avec user_id = user.id et vérifie le PIN enregistré pour ce même utilisateur.
+- La route configure-pin enregistre justement le hash sous l’identifiant du compte Caisse cible. Le code de registration-options ne vérifie donc pas un secret distinct appartenant au Promoteur; il vérifie le PIN de la Caisse configuré par le Promoteur.
+- Le mécanisme peut être techniquement cohérent si le PIN Caisse sert aussi à autoriser l’enrôlement, mais il ne correspond pas au libellé ni à l’intention explicite « autorisation du Promoteur ». Il ne faut pas présenter cette vérification comme une approbation directe du Promoteur.
+
+### Décision d’audit
+Ne pas modifier seulement le texte pour masquer la différence, et ne pas ajouter une validation ad hoc. Il faut choisir et implémenter un contrat sûr : soit assumer explicitement que le PIN Caisse autorise son propre enrôlement, soit exiger une approbation Promoteur distincte, liée au compte Promoteur, à la Caisse cible et à une session courte/à usage unique. Pour la seconde option, prévoir la preuve d’approbation, son expiration, son usage unique, les contrôles de périmètre actif et les tests d’accès croisé entre Promoteurs/pharmacies.
+
+### Vérifications complémentaires nécessaires
+- Aligner sessionOK() et la RPC caisse_decaisser sur la même définition du rôle Caisse : la route API vérifie profiles.role='caisse', tandis que la RPC accepte aussi fonction_interne='caisse'. Confirmer si cette divergence est voulue ou si elle peut bloquer un compte légitime.
+- Vérifier la gestion du compteur WebAuthn et les scénarios concurrents/rejeu sur une base isolée; aucune validation runtime n’a été exécutée dans cette étape.
+
+**Exécution :** constat statique ajouté au rapport. Aucune modification du comportement d’authentification, aucune migration appliquée, aucune donnée modifiée et aucun déploiement déclenché.
