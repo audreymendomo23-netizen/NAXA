@@ -165,7 +165,7 @@ begin
   insert into public.promoteur_suspensions_disciplinaires(
     promoteur_id, motif, observations, suspendu_par, perimetre_avant, perimetre_apres
   ) values (
-    p_promoteur, 'faute', nullif(trim(coalesce(p_observations, '')), ''),
+    p_promoteur, 'faute', null,
     v_admin, v_before,
     jsonb_build_object('marketplace_bloquee', true, 'promoteur_id', p_promoteur, 'pharmacies', v_pharmacies)
   ) returning id into v_suspension;
@@ -179,7 +179,7 @@ begin
     suspension_id, promoteur_id, action, acteur_id, avant, apres, detail
   ) values (
     v_suspension, p_promoteur, 'suspension_creee', v_admin, v_before, v_after,
-    jsonb_build_object('observations', nullif(trim(coalesce(p_observations, '')), ''))
+    jsonb_build_object('observations', null)
   );
 
   insert into public.notifications(user_id, type, titre, corps)
