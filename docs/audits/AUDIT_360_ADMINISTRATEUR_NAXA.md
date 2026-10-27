@@ -1977,3 +1977,32 @@ La suite vérifie statiquement en base de test :
 Ces points sont des constats de lecture du code source versionné, pas des preuves des droits effectifs d’une base distante. La nouvelle suite doit être exécutée hors production après application des migrations dans leur ordre réel. Il reste à couvrir dynamiquement les tentatives d’appel direct par un utilisateur non autorisé, une affectation expirée/révoquée, un profil inactif, une pharmacie hors périmètre, les collisions d’identifiants offline et les appels concurrents. La clôture de service et l’enregistrement du comptage sont aujourd’hui deux appels distincts côté action serveur; il faut vérifier si le comportement métier attendu exige une RPC unique atomique ou si l’enregistrement intermédiaire est volontaire et récupérable.
 
 **Exécution :** aucune migration appliquée, aucun test SQL exécuté, aucune base de production modifiée et aucun déploiement.
+
+
+## 60.23 — SM-01 / point 3 : POS, paiements, annulations et clôture de caisse
+
+**État : inventaire statique poursuivi; nouvelle suite structurelle ajoutée, non exécutée.**
+
+Fichier ajouté : `supabase/tests/20261027050000_sm01_pos_caisse_guard_inventory.sql`.
+
+### Contrôles vérifiés dans le code versionné
+
+- **Encaissement d’une réservation au comptoir** (`vente_reservation_encaisser`) : verrouillage de la réservation, état confirmé/non expiré, acteur Caisse autorisé pour la pharmacie, session ouverte détenue par l’utilisateur, contrôle du total des articles, prévention du double encaissement et finalisation dans la transaction.
+- **Panier POS** (`vente_ajouter_produit`, `vente_produit_retirer`, `vente_brouillon_abandonner`) : contrôle d’identité, du périmètre Caisse, du statut brouillon, du propriétaire du panier et de la session ouverte.
+- **Débit de stock à la finalisation** : la primitive interne vérifie la session et le rôle Caisse, verrouille le stock et les lots, prend en compte les réservations/paniers concurrents, puis débite les lots FEFO et le stock agrégé dans la transaction. Les migrations 216/218/219 traitent la réentrance du trigger et préservent le coût unitaire figé.
+- **Décaissements et clôture Z** : le décaissement exige une session ouverte détenue par le compte, un profil Caisse actif dans la pharmacie, un montant positif et un motif; le mouvement est historisé dans la chaîne d’audit. La clôture verrouille la session, vérifie le titulaire actif (hors administration), refuse les brouillons ouverts et calcule le solde théorique en intégrant les décaissements.
+- **Annulation de vente payée** : séparation demande/décision/exécution, interdiction au demandeur d’approuver sa propre demande, vérification du rôle Promoteur ou Admin et du périmètre, puis restitution du stock sous transaction après approbation.
+- **Tests existants repérés** : `supabase/tests/164_caisse_decaissements.sql`, `166_caisse_cloture_owner_guard.sql`, `161_caisse_reservation_atomic_payment.sql`, `215_pos_debit_at_finalization.sql` et `219_pos_fefo_lot_stock_sync.sql`. Ils fournissent des scénarios structurels et/ou comportementaux à exécuter en environnement de test.
+
+### Vérifications ajoutées
+
+La nouvelle suite `supabase/tests/20261027050000_sm01_pos_caisse_guard_inventory.sql` vérifie l’existence des RPC sensibles et la présence des garde-fous dans leur définition, notamment l’identité, le périmètre, le propriétaire de session, la séparation des tâches pour les annulations et l’absence d’exécution par `anon`.
+
+### Réserves non clôturées
+
+1. Les tests SQL existants et les deux nouvelles suites SM-01 n’ont pas été exécutés dans cette étape; leur présence dans Git ne vaut pas preuve de réussite.
+2. Les contrôles de source ne prouvent pas les ACL effectives d’une base distante, l’ordre d’application réel des migrations ni le comportement sous concurrence.
+3. Le chemin d’annulation d’une vente restaure les quantités et passe la vente à `annulee`; la revue suivante doit confirmer que les écritures de remboursement/avoir, le traitement des paiements non espèces et les conséquences comptables sont complets et cohérents avec les règles SYSCOHADA, sans modifier le code avant vérification de l’ensemble du flux.
+4. Il faut confronter les contrats des actions serveur aux signatures finales des RPC après toutes les migrations, en particulier les opérations de décaissement autorisées et les flux PIN, pour éviter qu’un ancien appelant ou une surcharge obsolète ne demeure utilisable.
+
+**Exécution :** aucun test SQL exécuté, aucune migration appliquée, aucune base de production modifiée et aucun déploiement.
