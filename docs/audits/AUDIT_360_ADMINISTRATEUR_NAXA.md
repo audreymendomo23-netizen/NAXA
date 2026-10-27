@@ -2101,3 +2101,24 @@ Le verrouillage empêche notamment deux opérations concurrentes de consommer le
 4. Ajouter des tests transactionnels sur appel direct hors session, profil inactif/hors pharmacie, solde concurrent, répétition de référence, paiements espèces et Mobile Money, annulation/échec partiel et rapprochement comptable.
 
 **Exécution :** inspection des sources versionnées uniquement. Aucun code métier modifié, aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
+
+
+## 60.29 — SM-01 / point 3 : qualification comptable des ventes à crédit client
+
+**État : incohérence de qualification identifiée entre la finalisation d’une vente à crédit et l’outbox comptable; correction différée jusqu’à définition des écritures de créances.**
+
+### Preuves statiques croisées
+1. Dans `supabase/migration_054_client_credit.sql`, `client_credit_enregistrer_vente` finalise la vente en mettant `ventes.statut='payee'` et `ventes.mode_paiement='credit'`, puis augmente le solde de la créance client et crée une opération `client_credit_operations.nature='credit'`.
+2. Dans `supabase/migration_20261021_compta_outbox.sql`, le trigger `compta_emettre_evenement_metier` émet un événement `vente_encaissee` à chaque transition vers `payee`; le chemin consulté ne distingue pas `mode_paiement='credit'` des encaissements effectivement reçus et ne transmet pas le mode de paiement dans `donnees`.
+3. Dans `supabase/migration_20261022_compta_worker.sql`, le worker accepte `vente_encaissee` et produit l’écriture à partir des mappings génériques de ce type. Il n’a pas de traitement dédié au mouvement de créance client dans le chemin inspecté.
+
+### Risque
+La vente à crédit est finalisée opérationnellement et le solde client augmente, mais l’événement comptable créé est qualifié d’« encaissée ». Selon les mappings configurés pour `vente_encaissee`, cela peut comptabiliser à tort une entrée de trésorerie au lieu de constater une créance client, ou créer une divergence entre la comptabilité et le sous-grand-livre `client_credits`. Le risque dépend des mappings réellement validés par pharmacie; aucune écriture réelle ni configuration distante n’a été vérifiée ici.
+
+### Contrat correctif requis
+- Distinguer au niveau métier la vente payée immédiatement de la vente finalisée à crédit : événement et clé d’idempotence dédiés, sans réutiliser `vente_encaissee` pour une créance non recouvrée.
+- Définir les écritures validées par la comptabilité : constatation de la créance client à la finalisation, puis diminution de la créance et débit du compte de trésorerie approprié lors de chaque recouvrement.
+- Rendre les événements de constatation et de recouvrement idempotents, rattachés à la pharmacie, à la vente/créance et à la source de paiement; empêcher le double comptage entre vente, recouvrement et clôture Z.
+- Ajouter des tests transactionnels démontrant que la vente à crédit n’augmente pas la trésorerie, que le recouvrement la rapproche par moyen de paiement, que le solde auxiliaire rejoint les écritures comptables et que les reprises concurrentes/doublons ne génèrent pas d’écritures supplémentaires.
+
+**Exécution :** revue statique des migrations versionnées uniquement. Aucun code métier modifié, aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
