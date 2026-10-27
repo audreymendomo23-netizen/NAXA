@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { MAX_QTE, usePanier } from "@/lib/panier";
 
@@ -19,7 +20,7 @@ export function DemandeCreditMarketplaceForm({ pharmacies }: { pharmacies: Pharm
   const [demandeId, setDemandeId] = useState("");
   const quantitesValides = lignes.length > 0 && lignes.length <= 10 && lignes.every(l => Number.isSafeInteger(l.quantite) && l.quantite >= 1 && l.quantite <= MAX_QTE);
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setErreur("");
     if (!quantitesValides) return setErreur("Le panier doit contenir de 1 à 10 produits avec des quantités valides.");
     if (!pharmacie) return setErreur("Choisissez la pharmacie de retrait.");

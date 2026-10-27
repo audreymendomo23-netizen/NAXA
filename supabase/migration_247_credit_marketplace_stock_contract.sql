@@ -105,7 +105,7 @@ begin
   select o.metadata->>'mimetype' into v_mime
   from storage.objects o
   where o.bucket_id='credit-marketplace-justificatifs' and o.name=p_justificatif_path;
-  if not found or v_mime not in ('application/pdf','image/jpeg','image/png','image/webp') then
+  if not found or v_mime is null or v_mime not in ('application/pdf','image/jpeg','image/png','image/webp') then
     raise exception 'Justificatif absent ou format non autorisé';
   end if;
   if p_items is null or jsonb_typeof(p_items) is distinct from 'array'
@@ -119,15 +119,19 @@ begin
     ) d where d.n>1
   ) then raise exception 'Produit dupliqué dans le panier'; end if;
 
-  -- Le verrou du crédit sérialise les soumissions concurrentes d'un même client/pharmacie.
+  -- Verrou global client : empêche deux demandes concurrentes vers deux pharmacies.
+  perform 1 from public.profiles where id=v_user for update;
+  if not found then raise exception 'Profil client introuvable'; end if;
   select * into v_credit from public.client_credits
   where client_id=v_user and pharmacie_id=p_pharmacie and actif=true
   for update;
   if not found then raise exception 'Crédit client non activé pour cette pharmacie'; end if;
-  if v_credit.solde>0 then raise exception 'Un crédit est déjà actif : remboursement requis avant une nouvelle demande'; end if;
+  if exists (select 1 from public.client_credits active_credit where active_credit.client_id=v_user and active_credit.actif and active_credit.solde>0) then
+    raise exception 'Un crédit est déjà actif : remboursement requis avant une nouvelle demande';
+  end if;
   if exists (
     select 1 from public.client_credit_requests q
-    where q.client_id=v_user and q.pharmacie_id=p_pharmacie
+    where q.client_id=v_user
       and q.statut in ('en_attente','approuvee')
       and q.consumed_at is null
   ) then raise exception 'Une demande de crédit est déjà en cours'; end if;
