@@ -250,3 +250,30 @@ export async function transfererStockEntrePharmacies(formData: FormData) {
   revalidatePath("/pharmacie/gestionnaire-stock/historique-rapports");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=transfert");
 }
+
+export async function marquerPreparationReservationGestionStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/reservations");
+
+  const id = String(formData.get("reservation_id") ?? "");
+  const etat = String(formData.get("etat") ?? "");
+  if (!safeUuid(id) || !["en_preparation", "prete_au_retrait"].includes(etat)) {
+    redirect("/pharmacie/gestionnaire-stock/reservations?erreur=preparation");
+  }
+
+  const { data, error } = await sb.rpc("gestionnaire_stock_reservation_preparation", {
+    p_reservation: id,
+    p_etat: etat,
+  });
+  if (error || data !== true) {
+    redirect("/pharmacie/gestionnaire-stock/reservations?erreur=preparation");
+  }
+
+  revalidatePath("/pharmacie/gestionnaire-stock");
+  revalidatePath("/pharmacie/gestionnaire-stock/reservations");
+  revalidatePath("/pharmacie/caisse");
+  revalidatePath("/pharmacie/caisse/retraits-marketplace");
+  redirect("/pharmacie/gestionnaire-stock/reservations?ok=" + etat);
+}
+
