@@ -128,8 +128,11 @@ begin
   if v_r.statut not in ('en_attente','confirmee') then
     raise exception 'Seule une réservation active peut être annulée';
   end if;
-  perform private.set_reservation_status(p_reservation,'annulee'::public.resa_statut);
-  update public.reservations set preparation_statut='annulee' where id=p_reservation;
+  perform public.restore_stock(p_reservation);
+  update public.reservations
+  set statut='annulee'::public.resa_statut, preparation_statut='annulee'
+  where id=p_reservation and statut in ('en_attente','confirmee');
+  if not found then raise exception 'La réservation a changé pendant l’annulation'; end if;
   return true;
 end;
 $fn$;
@@ -176,8 +179,11 @@ begin
       'consumed_by_vente_id',v_r.consumed_by_vente_id
     );
     begin
-      perform private.set_reservation_status(v_r.id,'annulee'::public.resa_statut);
-      update public.reservations set preparation_statut='annulee' where id=v_r.id;
+      perform public.restore_stock(v_r.id);
+      update public.reservations
+      set statut='annulee'::public.resa_statut, preparation_statut='annulee'
+      where id=v_r.id and statut in ('en_attente','confirmee');
+      if not found then raise exception 'La réservation a changé pendant l’annulation'; end if;
       select jsonb_build_object(
         'reservation_id',r.id,'statut',r.statut::text,
         'preparation_statut',r.preparation_statut,
