@@ -2079,3 +2079,25 @@ La migration 168 définit la RPC à trois paramètres comme chemin principal : e
 Le test structurel a été corrigé pour vérifier séparément : (1) la définition à trois paramètres et ses gardes, (2) la délégation de l’ancienne surcharge, et (3) l’absence de privilège EXECUTE pour anon sur les deux signatures. Il reste à exécuter cette suite sur une base isolée; la correction est fondée sur la lecture des migrations et du contrat client.
 
 **Exécution :** test structurel et rapport mis à jour sur main. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
+
+
+## 60.28 — SM-01 / point 3 : encaissement d’une créance client et traçabilité de caisse
+
+**État : revue statique du contrat client/RPC effectuée; risque de rapprochement financier documenté, non corrigé sans contrat métier complet.**
+
+### Contrat observé
+- L’interface de caisse dans `src/app/pharmacie/caisse/[section]/page.tsx` appelle `client_credit_rembourser(p_credit,p_montant,p_reference,p_motif)` depuis l’action `collectCredit`. Le libellé UI indique qu’il s’agit d’un **encaissement du crédit client** (remboursement de la dette par le client), et non d’un remboursement d’une vente annulée.
+- La migration `supabase/migration_054_client_credit.sql` définit cette RPC avec verrouillage `FOR UPDATE`, vérification de connexion, contrôle de périmètre via `is_admin()` ou `can_operate_pharmacy(pharmacie_id)`, montant strictement positif et plafond limité au solde dû. Elle diminue le solde puis insère une opération `nature='remboursement'` dans `client_credit_operations`.
+- La RPC est accordée à `authenticated`; les écritures directes dans les tables sont révoquées pour ce rôle. La fonction ne vérifie cependant pas explicitement un profil Caisse actif, une session de caisse ouverte et détenue par l’appelant, ni un paiement enregistré dans le journal d’encaissements POS.
+- L’interface accepte une référence facultative et un motif/mode de règlement libre, puis annonce que le règlement est enregistré après le seul succès de la RPC. Dans la définition examinée, aucune ligne correspondante n’est créée dans `vente_paiements`, aucun mouvement de caisse/session n’est enregistré et aucun événement comptable/outbox dédié à ce recouvrement n’est émis.
+
+### Risque et limites
+Le verrouillage empêche notamment deux opérations concurrentes de consommer le même solde au-delà du montant restant; il ne prouve pas que l’argent a été reçu, ni que l’encaissement rejoint le total espèces/les autres moyens de paiement de la clôture Z. Un utilisateur authentifié disposant du périmètre métier peut donc appeler directement cette RPC et réduire la créance sans que ce chemin versionné exige une session de caisse ouverte ou une preuve de paiement structurée. C’est un **risque de traçabilité et de rapprochement**, pas la preuve qu’une opération frauduleuse ou un écart réel s’est produit.
+
+### Correction à spécifier avant modification
+1. Décider si le recouvrement d’une créance doit obligatoirement passer par la session POS active du caissier ou s’il existe des modes de recouvrement hors caisse autorisés.
+2. Pour le chemin POS, enregistrer atomiquement le paiement et le mouvement de créance avec moyen de paiement normalisé, session, acteur, date, référence externe idempotente si disponible et audit trail; empêcher le double emploi d’une référence/opération.
+3. Inclure le recouvrement dans le calcul de clôture Z par moyen de paiement, sans le compter deux fois avec une vente POS; émettre l’événement comptable idempotent correspondant et définir le traitement des périodes clôturées.
+4. Ajouter des tests transactionnels sur appel direct hors session, profil inactif/hors pharmacie, solde concurrent, répétition de référence, paiements espèces et Mobile Money, annulation/échec partiel et rapprochement comptable.
+
+**Exécution :** inspection des sources versionnées uniquement. Aucun code métier modifié, aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
