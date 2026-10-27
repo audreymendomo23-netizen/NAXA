@@ -2070,3 +2070,12 @@ Ne pas modifier seulement le texte pour masquer la différence, et ne pas ajoute
 - Vérifier la gestion du compteur WebAuthn et les scénarios concurrents/rejeu sur une base isolée; aucune validation runtime n’a été exécutée dans cette étape.
 
 **Exécution :** constat statique ajouté au rapport. Aucune modification du comportement d’authentification, aucune migration appliquée, aucune donnée modifiée et aucun déploiement déclenché.
+
+
+## 60.27 — SM-01 / point 3 : contrat final de clôture Z et correction du test structurel
+
+Le rapprochement de src/app/pharmacie/caisse/page.tsx avec les migrations 166/168/169 a révélé une seconde divergence dans le test structurel POS/caisse : l’application appelle caisse_cloturer(p_session,p_total_compte,p_ecart_justification), tandis que le test n’inspectait que la surcharge de compatibilité à deux paramètres.
+La migration 168 définit la RPC à trois paramètres comme chemin principal : elle vérifie le titulaire de session, le verrouillage, les décaissements et exige une justification de 5 à 500 caractères lorsque l’écart n’est pas nul. La surcharge à deux paramètres délègue à cette RPC avec une justification nulle; elle ne doit donc pas être considérée comme le chemin UI normal et un écart non nul y est refusé.
+Le test structurel a été corrigé pour vérifier séparément : (1) la définition à trois paramètres et ses gardes, (2) la délégation de l’ancienne surcharge, et (3) l’absence de privilège EXECUTE pour anon sur les deux signatures. Il reste à exécuter cette suite sur une base isolée; la correction est fondée sur la lecture des migrations et du contrat client.
+
+**Exécution :** test structurel et rapport mis à jour sur main. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
