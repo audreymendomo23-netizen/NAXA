@@ -412,4 +412,114 @@ as $fn$ select private.reserve_stock($1, $2) $fn$;
 revoke all on function public.reserve_stock(uuid,jsonb) from public, anon;
 grant execute on function public.reserve_stock(uuid,jsonb) to authenticated;
 
+
+
+-- La suspension est limitée à la Marketplace : le POS interne conserve sa recherche
+-- de stock vendable, sans réutiliser la fonction publique filtrée par sanction.
+create or replace function private.stock_vendable_interne(
+  p_pharmacie uuid,
+  p_produit uuid
+)
+returns table(prix integer, quantite integer)
+language plpgsql stable security definer set search_path = ''
+as $fn$
+declare
+  v_stock public.stocks%rowtype;
+  v_has_lots boolean;
+  v_disponible integer;
+begin
+  select s.* into v_stock
+  from public.stocks s
+  where s.pharmacie_id = p_pharmacie and s.produit_id = p_produit;
+  if not found then return; end if;
+
+  select exists (
+    select 1 from public.stocks_lots l
+    where l.pharmacie_id = p_pharmacie and l.produit_id = p_produit
+  ) into v_has_lots;
+
+  if v_has_lots then
+    select coalesce(sum(l.quantite), 0)::integer into v_disponible
+    from public.stocks_lots l
+    where l.pharmacie_id = p_pharmacie and l.produit_id = p_produit
+      and coalesce(l.bloque, false) = false
+      and (l.date_peremption is null or l.date_peremption >= current_date);
+  else
+    v_disponible := case
+      when v_stock.date_peremption is null or v_stock.date_peremption >= current_date
+        then greatest(coalesce(v_stock.quantite, 0), 0)
+      else 0
+    end;
+  end if;
+  return query select v_stock.prix, greatest(coalesce(v_disponible, 0), 0);
+end;
+$fn$;
+revoke all on function private.stock_vendable_interne(uuid,uuid) from public, anon, authenticated;
+
+create or replace function public.caisse_rechercher_produit(
+  p_pharmacie uuid,
+  p_code_barre text default null,
+  p_recherche text default null
+)
+returns table(
+  produit_id uuid, nom text, dosage text, conditionnement text,
+  code_barre text, prix integer, quantite integer, emplacement text
+)
+language plpgsql security definer set search_path = ''
+as $fn$
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  if not (public.is_admin() or public.can_operate_pharmacy(p_pharmacie)) then
+    raise exception 'Pharmacie hors périmètre';
+  end if;
+  return query
+  select p.id, p.nom, p.dosage, p.conditionnement, p.code_barre,
+         avail.prix, avail.quantite, s.emplacement
+  from public.produits p
+  join public.stocks s on s.produit_id = p.id and s.pharmacie_id = p_pharmacie
+  cross join lateral private.stock_vendable_interne(p_pharmacie, p.id) avail
+  where
+    (nullif(trim(coalesce(p_code_barre, '')), '') is not null and p.code_barre = trim(p_code_barre))
+    or
+    (nullif(trim(coalesce(p_recherche, '')), '') is not null and (
+      lower(p.nom) like '%' || lower(trim(p_recherche)) || '%'
+      or lower(coalesce(p.reference_catalogue, '')) like '%' || lower(trim(p_recherche)) || '%'
+      or lower(coalesce(p.code_barre, '')) like '%' || lower(trim(p_recherche)) || '%'
+    ))
+  order by p.nom
+  limit 50;
+end;
+$fn$;
+
+create or replace function public.caisse_rechercher_codes(
+  p_pharmacie uuid,
+  p_codes text[]
+)
+returns table(
+  code_barre text, produit_id uuid, nom text, dosage text,
+  prix integer, quantite integer, emplacement text
+)
+language plpgsql security definer set search_path = ''
+as $fn$
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  if not (public.is_admin() or public.can_operate_pharmacy(p_pharmacie)) then
+    raise exception 'Pharmacie hors périmètre';
+  end if;
+  return query
+  select p.code_barre, p.id, p.nom, p.dosage,
+         avail.prix, avail.quantite, s.emplacement
+  from public.produits p
+  join public.stocks s on s.produit_id = p.id and s.pharmacie_id = p_pharmacie
+  cross join lateral private.stock_vendable_interne(p_pharmacie, p.id) avail
+  where p.code_barre = any(coalesce(p_codes, array[]::text[]))
+  order by array_position(p_codes, p.code_barre);
+end;
+$fn$;
+
+revoke all on function public.caisse_rechercher_produit(uuid,text,text) from public, anon, authenticated;
+revoke all on function public.caisse_rechercher_codes(uuid,text[]) from public, anon, authenticated;
+grant execute on function public.caisse_rechercher_produit(uuid,text,text) to authenticated;
+grant execute on function public.caisse_rechercher_codes(uuid,text[]) to authenticated;
+
 commit;
