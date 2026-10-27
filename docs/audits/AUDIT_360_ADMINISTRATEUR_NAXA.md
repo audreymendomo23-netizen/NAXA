@@ -1559,3 +1559,33 @@ Les définitions SQL source suivantes ont été relues sur `main` : `supabase/mi
 - **Toujours bloquant :** correspondance métier/technique de « en préparation » et « prête au retrait » dans le cycle pharmacie. Aucune décision de mapping n'a été inventée.
 - **Modifications de ce passage :** documentation seulement, si ce complément est commité. Aucun code applicatif, migration SQL ni donnée de production n'est modifié par cet audit.
 - **Vérifications non effectuées :** aucun SQL exécuté contre Supabase, aucune migration appliquée, aucun test automatisé, build, navigateur ou appel RPC métier; l'analyse porte sur les définitions source lues.
+
+
+### 60.10 Parcours de caisse Marketplace vérifié — état du paiement et du retrait
+
+Lecture complémentaire de `src/components/pharmacie/CaisseRetraitsMarketplace.tsx` et de `src/app/pharmacie/caisse/page.tsx` sur `main`.
+
+Le parcours de caisse donne une preuve plus précise du sens des statuts que le seul libellé de la page de réservation :
+
+- La liste de caisse charge les réservations Marketplace pharmacie aux statuts `en_attente`, `confirmee` et `payee`.
+- L'encaissement Marketplace n'accepte que `confirmee` avec paiement non encore effectué, réservation non expirée et code de paiement vérifié. L'opération appelle la RPC `vente_reservation_encaisser`; la caisse saisit un paiement effectivement reçu par la pharmacie.
+- Après paiement, le parcours affiche `payee` comme « Payée · retrait à confirmer ». La confirmation du retrait n'accepte que `payee` avec `paiement_statut='effectue'` et effectue la transition serveur vers `retiree`.
+- Le ticket client et le parcours POS relient donc `payee` à une vente/payement enregistré; `retiree` représente le retrait confirmé.
+
+**Correspondance opérationnelle démontrée par le code consulté :**
+- `en_attente` : en attente de confirmation par la pharmacie.
+- `confirmee` : réservation confirmée, admissible à l'encaissement; la caisse ne la considère pas encore payée.
+- `payee` : paiement POS enregistré, retrait physique pas encore confirmé.
+- `retiree` : retrait confirmé.
+
+Le code ne démontre toujours pas un sous-état serveur autonome « en préparation » ni un sous-état « prête au retrait » distinct de `payee`. La règle SM-01 parle de l'état de préparation opérationnelle, mais le système actuel expose principalement l'étape de paiement puis la confirmation du retrait. Il ne faut pas prétendre que `confirmee` signifie littéralement « préparation commencée » : le libellé indique « paiement à constater » dans la caisse.
+
+**Conséquence de sécurité pour SM-01 :** les réservations `payee` doivent être préservées par défaut, puisqu'un paiement POS est enregistré et que le parcours attend ensuite la confirmation du retrait. Les `retiree` sont terminales et doivent également être préservées. `en_attente` est clairement annulable selon la règle SM-01. `confirmee` reste le cas à arbitrer avant l'automatisation : c'est l'état confirmé et non encore encaissé, mais aucune trace examinée ne prouve qu'il correspond à une préparation déjà commencée plutôt qu'à une réservation simplement confirmée et en attente de paiement.
+
+Le chemin sûr à implémenter ensuite est de conserver les statuts POS actuels, de cibler avec certitude `en_attente`, et de ne pas inclure `confirmee` dans l'annulation automatique tant que son équivalence avec « en préparation » n'est pas explicitement établie. Si la règle métier exige d'annuler aussi les réservations en préparation, il faudra définir une condition serveur observable (état, horodatage ou événement de préparation) plutôt que de déduire cet état d'un statut ambigu.
+
+### 60.11 État d'avancement après lecture de la caisse
+
+- La signification de `payee` et `retiree` est désormais appuyée par le parcours de caisse réel dans le code source.
+- Le blocage est réduit à une question précise : le système dispose-t-il d'un signal fiable indiquant qu'une réservation `confirmee` est effectivement « en préparation », ou ce statut signifie-t-il seulement confirmée/en attente de paiement ?
+- Aucune règle de suspension, annulation, notification ni restauration du stock n'a été implémentée dans cette passe. Aucun test, build, appel RPC ou requête SQL en production n'a été exécuté.
