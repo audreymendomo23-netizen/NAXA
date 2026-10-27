@@ -171,7 +171,11 @@ begin
     where r.mode='reservation'
       and r.statut in ('en_attente','confirmee')
       and r.statut not in ('payee','retiree')
-      and r.preparation_statut in ('non_commencee','en_preparation')
+      and (
+        r.statut='en_attente'
+        or r.preparation_statut in ('non_commencee','en_preparation')
+        or (r.statut='confirmee' and r.preparation_statut is null)
+      )
       and r.consumed_at is null
       and r.consumed_by_vente_id is null
       and exists (
@@ -191,6 +195,9 @@ begin
       'consumed_by_vente_id',v_r.consumed_by_vente_id
     );
     begin
+      if v_r.statut='confirmee' and v_r.preparation_statut is null then
+        raise exception 'Phase physique historique inconnue : réconciliation requise avant décision d’annulation';
+      end if;
       perform public.restore_stock(v_r.id);
       update public.reservations
       set statut='annulee'::public.resa_statut, preparation_statut='annulee'
