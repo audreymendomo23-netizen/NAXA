@@ -20,6 +20,12 @@ export default async function RecuReglementPage({ params }: { params: { id: stri
   if (error || !r || r.statut !== "confirme" || !r.numero_recu || !r.identifiant_paiement) notFound();
 
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || "Promoteur";
+  const { data: pharmacyLinks } = await db.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id", user.id);
+  const pharmacyIds = [...new Set((pharmacyLinks ?? []).map((link) => link.pharmacie_id).filter(Boolean))];
+  const { data: pharmacies } = pharmacyIds.length
+    ? await db.from("pharmacies").select("id,nom").in("id", pharmacyIds)
+    : { data: [] as { id: string; nom: string }[] };
+  const pharmacyNames = (pharmacies ?? []).map((pharmacy) => pharmacy.nom).filter(Boolean);
   const canal = ({
     especes: "Espèces", orange_money: "Orange Money", mtn_momo: "MTN Mobile Money",
     virement: "Virement bancaire", depot_bancaire: "Dépôt bancaire", autre: "Autre",
@@ -37,6 +43,7 @@ export default async function RecuReglementPage({ params }: { params: { id: stri
 
       <dl className="mt-6 grid gap-4 sm:grid-cols-2">
         <div><dt className="text-sm text-slate-500">Promoteur / Payeur</dt><dd className="font-bold">{name}</dd></div>
+        <div className="sm:col-span-2"><dt className="text-sm text-slate-500">Pharmacie(s) rattachée(s) au Promoteur</dt><dd className="font-bold">{pharmacyNames.length ? pharmacyNames.join(", ") : "Aucune pharmacie rattachée dans le dossier"}</dd></div>
         <div><dt className="text-sm text-slate-500">Canal de paiement</dt><dd className="font-semibold">{canal}{r.canal_autre ? " · " + r.canal_autre : ""}</dd></div>
         <div><dt className="text-sm text-slate-500">Compte / numéro ayant effectué le paiement</dt><dd className="font-semibold">{r.compte_payeur || "Non renseigné"}</dd></div>
         <div><dt className="text-sm text-slate-500">Référence de transaction</dt><dd className="font-semibold">{r.reference || "Non renseignée"}</dd></div>
