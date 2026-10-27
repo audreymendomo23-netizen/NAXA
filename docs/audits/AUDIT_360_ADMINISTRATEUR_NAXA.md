@@ -1589,3 +1589,24 @@ Le chemin sûr à implémenter ensuite est de conserver les statuts POS actuels,
 - La signification de `payee` et `retiree` est désormais appuyée par le parcours de caisse réel dans le code source.
 - Le blocage est réduit à une question précise : le système dispose-t-il d'un signal fiable indiquant qu'une réservation `confirmee` est effectivement « en préparation », ou ce statut signifie-t-il seulement confirmée/en attente de paiement ?
 - Aucune règle de suspension, annulation, notification ni restauration du stock n'a été implémentée dans cette passe. Aucun test, build, appel RPC ou requête SQL en production n'a été exécuté.
+
+
+### 60.12 Signal de préparation : contrôle du poste Gestionnaire de stock — 27 octobre 2026
+
+Fichiers relus sur `main` : `src/app/pharmacie/gestionnaire-stock/reservations/page.tsx`, `src/app/pharmacie/gestionnaire-stock/actions.ts`, `supabase/migration_195_gestionnaire_stock_reservation_confirmer.sql`, `supabase/migration_201_stock_reservation_confirmation_allocation.sql` et `supabase/migration_203_stock_reservation_cancel_role_guard.sql`.
+
+**Nouveau constat : le bouton métier ne constitue pas un état de préparation persistant.**
+- Le poste Gestionnaire de stock affiche `en_attente` comme « À confirmer » et `confirmee` comme « Confirmée · à préparer ».
+- Le bouton affiché pour `en_attente` est « Confirmer disponibilité et préparer ». Son action appelle `gestionnaire_stock_reservation_confirmer`.
+- Cette RPC contrôle le périmètre, les droits, l'expiration, les lignes et les allocations de stock/lots, puis effectue uniquement la transition `en_attente → confirmee` via `private.set_reservation_status`.
+- La RPC ne crée pas de statut de préparation, d'horodatage de début de préparation, ni d'événement spécifique permettant de prouver qu'une préparation physique a effectivement commencé.
+- Le libellé de succès « le dossier est transmis au parcours de préparation et de retrait » confirme un passage de workflow, mais pas l'existence d'une étape métier distincte et persistée « en préparation ».
+
+**Conséquence pour le mapping SM-01 :**
+1. Le système a bien une action utilisateur orientée vers la préparation, mais le modèle persistant fusionne confirmation de disponibilité et étape « à préparer » dans `confirmee`.
+2. Il n'est donc pas prouvé qu'une réservation `confirmee` ait commencé à être préparée. La traiter comme « en préparation » serait une hypothèse, pas un fait démontré par le modèle.
+3. Aucune preuve d'un état serveur explicite « prête au retrait » n'a été trouvée dans le cycle pharmacie. `payee` signifie paiement POS enregistré et retrait encore à confirmer; il doit rester protégé. `retiree` est terminal et protégé.
+4. Pour appliquer la règle validée sans ambiguïté, il faudra soit une décision métier explicite sur la correspondance de `confirmee`, soit introduire une étape persistée et auditée de préparation (avec une transition serveur autorisée, un horodatage/événement fiable et une distinction nette avec « prête au retrait »). Ce choix relève du modèle métier et ne doit pas être improvisé pendant l'automatisation disciplinaire.
+5. L'action SM-01 devra s'appuyer sur une RPC serveur sécurisée, avec verrouillage, idempotence, contrôle du périmètre Promoteur/pharmacies, restitution de stock via le mécanisme existant, journal avant/après et suivi des notifications. Pas d'UPDATE direct en masse.
+
+**État de vérification :** lecture statique des fichiers source uniquement. Aucun test, build, appel RPC, SQL de production, migration ou déploiement n'a été lancé. Aucun code métier n'a été modifié dans cette étape.
