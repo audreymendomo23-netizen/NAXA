@@ -87,6 +87,9 @@ declare
   v_mime text;
 begin
   if v_user is null then raise exception 'Connexion requise'; end if;
+  if not exists(select 1 from public.profiles p where p.id=v_user and p.actif=true and p.role::text='client') then
+    raise exception 'Cette opération est réservée à un compte client actif';
+  end if;
   if p_pharmacie is null or not exists (
     select 1 from public.pharmacies p where p.id=p_pharmacie and p.actif=true
   ) then raise exception 'Pharmacie indisponible'; end if;
@@ -193,6 +196,7 @@ declare
   v_need integer;
   v_take integer;
   v_allocated integer;
+  v_unallocated integer;
 begin
   if auth.uid() is null then raise exception 'Connexion requise'; end if;
   select * into r from public.client_credit_requests where id=p_demande for update;
@@ -240,6 +244,26 @@ begin
       order by ri.produit_id
     loop
       if exists(select 1 from public.stocks_lots sl where sl.pharmacie_id=r.pharmacie_id and sl.produit_id=v_item.produit_id) then
+        -- Les anciens holds sans affectation de lot sont réservés en premier dans l'ordre FEFO.
+        -- Cela évite de surallouer les mêmes lots à plusieurs demandes concurrentes.
+        select greatest(
+          coalesce(sum(ri.quantite),0) - coalesce((
+            select sum(a.quantite)
+            from public.reservation_item_lots a
+            join public.reservations ar on ar.id=a.reservation_id
+            where ar.pharmacie_id=r.pharmacie_id and ar.id<>v_reservation
+              and a.produit_id=v_item.produit_id and a.restauree_at is null
+              and ar.statut in ('en_attente','confirmee') and ar.expires_at>now()
+              and ar.consumed_at is null and ar.stock_restored=false and ar.stock_decremented=false
+          ),0),0)::integer
+        into v_unallocated
+        from public.reservation_items ri
+        join public.reservations ar on ar.id=ri.reservation_id
+        where ar.pharmacie_id=r.pharmacie_id and ar.id<>v_reservation
+          and ri.produit_id=v_item.produit_id
+          and ar.statut in ('en_attente','confirmee') and ar.expires_at>now()
+          and ar.consumed_at is null and ar.stock_restored=false and ar.stock_decremented=false;
+
         v_need:=v_item.quantite;
         for v_lot in
           select sl.id,
@@ -248,6 +272,7 @@ begin
               from public.reservation_item_lots a
               join public.reservations active_r on active_r.id=a.reservation_id
               where a.lot_id=sl.id and a.restauree_at is null
+                and active_r.id<>v_reservation
                 and active_r.statut in ('en_attente','confirmee')
                 and active_r.expires_at>now()
                 and active_r.consumed_at is null
@@ -262,7 +287,8 @@ begin
           for update
         loop
           exit when v_need=0;
-          v_take:=least(v_need,v_lot.disponible);
+          v_take:=least(v_need,greatest(v_lot.disponible-v_unallocated,0));
+          v_unallocated:=greatest(v_unallocated-v_lot.disponible,0);
           if v_take>0 then
             insert into public.reservation_item_lots(reservation_id,produit_id,lot_id,quantite)
             values(v_reservation,v_item.produit_id,v_lot.id,v_take);
