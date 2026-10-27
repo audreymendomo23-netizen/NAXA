@@ -27,6 +27,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
   }));
   const errors: Record<string, string> = {
     champs: "Le règlement sélectionné est invalide.",
+    preuve: "La preuve privée est inaccessible. Le paiement ne peut pas être confirmé sans vérification.",
     confirmation: "La confirmation a échoué. Aucun renouvellement n’a été confirmé.",
     motif: "Un motif de contestation de 5 à 500 caractères est requis.",
     contestation: "La contestation n’a pas pu être enregistrée.",
