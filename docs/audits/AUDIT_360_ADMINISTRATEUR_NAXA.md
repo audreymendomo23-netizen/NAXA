@@ -1647,3 +1647,54 @@ Fichiers relus sur `main` :
 **Conséquence sur l'ordre d'implémentation :** avant de coder l'action disciplinaire, cartographier chaque point de contrôle d'accès qui autorise Promoteur, pharmacie et visibilité marketplace, puis définir le prédicat commun qui combine validité commerciale et suspension disciplinaire. Ajouter ensuite le chemin d'administration et le journal d'audit. Enfin, traiter les réservations par transitions atomiques et notifications idempotentes. Ne pas utiliser la réactivation commerciale comme procédure de levée disciplinaire.
 
 **État de vérification :** lecture statique des fichiers source et migrations du dépôt. Aucun code métier ou SQL n'a été modifié; aucune migration, requête de production, test automatisé, build ou déploiement n'a été exécuté. Cette conclusion est une analyse de risque du code versionné, pas une validation d'environnement déployé.
+
+
+## 60.15 — Cartographie initiale des contrôles d’accès et de visibilité Marketplace
+
+**Référence examinée :** commit `cb7f0fbe8a9c1b602bbbba7171c550e17597b2e5` sur `main`. Lecture statique des fichiers versionnés; aucune donnée de production interrogée.
+
+### A. Middleware Next.js — authentification, mais pas de suspension disciplinaire
+Fichier : `src/middleware.ts`.
+
+Le middleware protège les préfixes applicatifs, vérifie la session Supabase, puis lit le rôle et quelques attributs de profil. La requête du profil ne sélectionne pas `actif`, `pharmacie_id`, ni un éventuel état disciplinaire. Après les vérifications de profil incomplet et d’âge, il retourne la réponse sans garde générale sur l’état actif du compte.
+
+**Constat borné :** le middleware n’applique pas, à lui seul, de garde disciplinaire commune. Cela ne prouve pas qu’aucune page ou RPC ne fait une vérification complémentaire; celles-ci doivent être cartographiées séparément.
+
+### B. Accès Promoteur — contrôles commerciaux et état opérationnel
+Fichier : `src/lib/promoteur-access.ts`.
+
+Le chargeur vérifie le rôle Promoteur, récupère le profil avec `actif`, les rattachements `promoteur_pharmacies.actif`, les pharmacies avec `actif` et `visible_recherche`, ainsi que convention et abonnement. Il calcule notamment le blocage commercial, la cohérence contractuelle et l’existence d’un réseau opérationnel. Aucun champ de suspension disciplinaire n’est lu dans cette fonction.
+
+Le layout `src/app/pharmacie/promoteur/layout.tsx` masque la navigation standard lorsque `shouldShowAccessStatus` est vrai. Cette porte d’entrée est donc principalement fondée sur l’état commercial/opérationnel existant; elle ne démontre pas un verrou disciplinaire indépendant.
+
+**Risque à vérifier avant implémentation :** si une suspension disciplinaire est ajoutée uniquement au profil ou aux indicateurs actifs existants, le renouvellement commercial déjà observé peut rétablir ces indicateurs sans décision disciplinaire de levée.
+
+### C. Espace opérationnel pharmacie — vérifications côté client
+Fichier : `src/app/pharmacie/page.tsx`.
+
+Le composant charge le profil courant et contrôle `profiles.actif) et le rôle. Pour un Promoteur, il vérifie aussi le rattachement actif à la pharmacie demandée, puis `pharmacies.actif` et `pharmacies.visible_recherche`. Il ne consulte pas d’état disciplinaire distinct dans ce parcours.
+
+**Limite de sécurité :** ces contrôles sont exécutés dans le client et ne remplacent pas une autorisation côté serveur. Les appels RPC et politiques RLS qui protègent les mutations doivent porter les gardes autoritatives; une simple redirection ou désactivation d’interface ne suffit pas.
+
+### D. Recherche publique et disponibilité partenaires
+Fichiers : `src/app/recherche/page.tsx`, `src/components/Recherche.tsx`, `src/app/api/medicaments/recherche/route.ts`.
+
+La page de recherche appelle une API de catalogue. Dans `realPartnerAvailability`, la disponibilité agrégée est filtrée sur `pharmacies.actif = true`, `pharmacies.visible_recherche = true`, absence d’archivage, quantité positive et péremption admissible. Les conditions explicites visibles dans cette requête n’incluent pas de suspension disciplinaire Promoteur ni d’état disciplinaire de la pharmacie.
+
+**Constat borné :** le filtre de disponibilité montré dans cette fonction s’appuie sur les indicateurs de publication et de stock. Il reste à examiner les autres sources de données et les politiques SQL/RLS pour déterminer si une autre garde s’applique en amont.
+
+### E. SQL — distinguer accès opérationnel et publication Marketplace
+Migration : `supabase/migration_193_pharmacien_operational_access_independent_marketplace.sql`.
+
+Cette migration documente explicitement que le service Pharmacien interne dépend du profil actif et de la pharmacie active, mais pas de `visible_recherche`. C’est une séparation fonctionnelle voulue : masquer une pharmacie de la Marketplace ne doit pas automatiquement supprimer son accès interne aux opérations autorisées.
+
+**Conséquence métier :** une sanction SM-01 ne doit pas être assimilée à un simple retrait de publication Marketplace ni à une désactivation générale indifférenciée. Il faut traduire précisément le périmètre validé : Promoteur et pharmacies rattachées bloqués sur la Marketplace, tout en préservant les données, historiques et preuves. Les accès internes qui ne sont pas inclus dans le périmètre de la sanction ne doivent pas être coupés par effet de bord sans décision métier explicite.
+
+### F. Points à poursuivre dans la cartographie
+1. Examiner les fonctions SQL/RPC qui listent ou servent les offres Marketplace et les policies RLS de `pharmacies`, `stocks`, `promoteur_pharmacies` et réservations.
+2. Examiner les procédures de règlement/réactivation et confirmer toutes les tables et champs qu’elles modifient.
+3. Inventorier les opérations sensibles accessibles directement par RPC afin qu’une garde serveur soit appliquée même en contournant l’interface.
+4. Concevoir ultérieurement un prédicat disciplinaire indépendant et partagé par les contrôles pertinents; ne pas l’implémenter avant instruction distincte.
+5. Maintenir les règles réservation déjà établies : ne pas annuler `payee` ni `retiree`; toute annulation autorisée doit passer par les transitions/RPC existantes avec traitement atomique, stock et audit.
+
+**Statut :** analyse statique uniquement. Aucun code métier ou SQL applicatif modifié; aucune migration exécutée, aucune requête de production, aucun test/build ni déploiement effectué.
