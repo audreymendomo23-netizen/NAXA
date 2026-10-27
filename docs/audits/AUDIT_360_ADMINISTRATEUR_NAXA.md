@@ -1415,3 +1415,34 @@ L'identifiant de paiement et le reçu sont générés à partir de la date de va
 - Aucune migration n'a été appliquée, aucune fonction métier n'a été invoquée et aucune notification n'a été forcée.
 - Aucun déploiement Vercel n'a été lancé. L'inspection de configuration Vercel ne remplace pas une recette applicative.
 - Le préliminaire reste ouvert. Avant l'audit Administrateur page par page, il faut résoudre les décisions PRE-PAY-03, PRE-PAY-04 et PRE-PAY-07, puis publier un bilan de phase préliminaire vérifiable.
+
+
+## 58. Règle validée et corrections ciblées — confirmation des règlements Promoteur
+
+**Validation métier reçue le 27 octobre 2026 :**
+1. Le Promoteur déclare son paiement avec le canal, les références et une preuve.
+2. L'Administrateur vérifie l'encaissement réel auprès du canal concerné avant confirmation.
+3. La confirmation renouvelle l'abonnement/la convention, mais ne réactive jamais automatiquement une suspension indépendante.
+4. Un renouvellement administratif sans paiement vérifié reste une opération distincte et ne doit jamais créer une ligne de paiement ni simuler une date d'encaissement.
+
+### Modifications enregistrées sur `main`
+
+- Migration ajoutée : `supabase/migrations/20261027090000_safe_promoter_payment_reactivation_scope.sql`.
+  - Garde les contrôles de rôle administrateur actif, règlement en attente, montant conforme, références de paiement et preuve.
+  - Refuse de traiter un abonnement résilié ou une convention résiliée par le flux de confirmation d'un paiement.
+  - Renouvelle l'abonnement et la convention, et conserve la trace du paiement vérifié.
+  - **Ne réactive plus** `profiles`, `promoteur_pharmacies`, `pharmacies` ni les profils enfants : le schéma observé ne fournit pas de provenance fiable prouvant que leur inactivation résulte exclusivement de l'échéance.
+  - Cette migration est une modification versionnée dans Git uniquement. Elle **n'a pas été appliquée** à Supabase Production.
+- `src/app/admin/pilotage/validite/page.tsx` : les cartes distinguent désormais « VALIDE », « À RÉGULARISER », « NON CONFIGURÉ », « SUSPENDU / INACTIF » et « À VÉRIFIER ». Un dossier n'est plus affiché comme valide si son abonnement, sa convention, son tarif ou son échéance manque, si le Promoteur est inactif, ou si le statut/échéance ne le justifie pas.
+
+### Preuves et limites
+
+- La définition de la fonction live `admin_confirmer_reglement_promoteur(uuid,uuid)` a été lue en lecture seule. Elle contenait des mises à jour globales d'activité sur le Promoteur, ses liens, les pharmacies liées et les profils enfants. C'est le risque que corrige la migration source.
+- Les statuts et contraintes de base consultés autorisent `actif/impaye/resilie` pour l'abonnement et `active/expiree/resiliee` pour la convention. Aucune colonne de provenance d'une suspension administrative indépendante n'a été trouvée sur les profils, pharmacies ou liens Promoteur-pharmacie.
+- L'état des données observé par agrégats au moment du contrôle était : 1 abonnement `actif`, 1 convention `active`, 1 profil Promoteur `actif=true`. Aucun dossier métier individuel n'a été modifié.
+- Aucun paiement, profil, lien, pharmacie, notification ou abonnement n'a été modifié en production. Aucune migration n'a été appliquée, aucun test navigateur/build/E2E n'a été exécuté et aucun déploiement n'a été déclenché volontairement.
+- La confirmation de paiement dans le runtime de production n'est donc **pas encore corrigée** tant que la migration n'est pas appliquée après validation technique et opérationnelle. Les commits sur `main` peuvent déclencher les automatisations configurées par le dépôt; aucune action Vercel n'a été lancée manuellement.
+
+### Point restant avant de déclarer le flux vert
+
+Définir et tester un mécanisme explicite de provenance de blocage si NAXA doit réactiver automatiquement certains profils/pharmacies à l'expiration. Jusqu'à cette preuve, le choix conservateur est de ne pas réactiver leur état par effet de bord. Le renouvellement administratif manuel reste à traiter séparément; sa migration source existante n'est pas présente dans l'historique distant des migrations et la fonction correspondante n'a pas été trouvée dans le catalogue live.
