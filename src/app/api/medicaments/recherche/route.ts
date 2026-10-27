@@ -144,8 +144,19 @@ async function realPartnerAvailability(productIds: string[]): Promise<{ verified
       .not("pharmacies.nom", "ilike", "%test%")
       .or("date_peremption.is.null,date_peremption.gte." + today);
     if (error || !data) return { verified: false, byProduct: result };
+    // Garde disciplinaire serveur : si la RPC de filtrage est indisponible,
+    // ne pas présenter la disponibilité comme vérifiée.
+    const pharmacyIds = [...new Set((data as unknown as LocalStock[]).map((row) => row.pharmacie_id))];
+    if (!pharmacyIds.length) return { verified: true, byProduct: result };
+    const { data: allowedIds, error: disciplineError } = await sb.rpc(
+      "marketplace_pharmacies_disciplinairement_autorisees",
+      { p_pharmacies: pharmacyIds }
+    );
+    if (disciplineError || !Array.isArray(allowedIds)) return { verified: false, byProduct: result };
+    const allowedPharmacies = new Set(allowedIds as string[]);
+    const eligibleRows = (data as unknown as LocalStock[]).filter((row) => allowedPharmacies.has(row.pharmacie_id));
     const grouped = new Map<string, { pharmacies: Set<string>; quantity: number; lowestPrice: number | null }>();
-    for (const row of data as unknown as LocalStock[]) {
+    for (const row of eligibleRows) {
       const current = grouped.get(row.produit_id) ?? { pharmacies: new Set<string>(), quantity: 0, lowestPrice: null };
       current.pharmacies.add(row.pharmacie_id);
       current.quantity += Math.max(0, Number(row.quantite) || 0);
