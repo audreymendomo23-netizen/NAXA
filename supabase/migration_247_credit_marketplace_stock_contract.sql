@@ -270,7 +270,7 @@ begin
     end loop;
 
     update public.reservations
-      set client_id=r.client_id,credit_request_id=r.id,statut='confirmee'::public.resa_statut
+      set client_id=r.client_id,credit_request_id=r.id,mode='reservation',statut='confirmee'::public.resa_statut,preparation_statut='non_commencee'
       where id=v_reservation;
     update public.client_credit_requests
       set statut='approuvee',decided_by=auth.uid(),decided_at=now(),reservation_id=v_reservation

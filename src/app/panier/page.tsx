@@ -69,6 +69,9 @@ export default function Panier() {
           <button className="btn btn-vert mt-6 w-full" onClick={chercher}>
             Trouver les pharmacies qui ont tout
           </button>
+          <Link href="/achats/credit" className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-xl border-2 border-[#0B3D26] bg-[#FFF3A6] px-4 py-3 text-center font-extrabold text-[#0B3D26]">
+            Demander un achat à crédit
+          </Link>
           <button className="mt-3 min-h-[48px] w-full underline" onClick={vider}>
             Vider le panier
           </button>
