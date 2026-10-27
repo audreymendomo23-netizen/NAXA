@@ -9,7 +9,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 export async function confirmerReglementPromoteur(formData: FormData) {
   const { user } = await requireAdminActive("/admin/pilotage/reglements");
   const id = String(formData.get("reglement_id") ?? "");
+  const preuveVerifiee = formData.get("preuve_verifiee") === "on";
   if (!UUID.test(id)) redirect("/admin/pilotage/reglements?erreur=champs");
+  if (!preuveVerifiee) redirect("/admin/pilotage/reglements?erreur=verification");
   const db = supabaseAdmin();
   const { data: reglement, error: readError } = await db.from("abonnement_promoteur_reglements")
     .select("id,statut,preuve_path").eq("id", id).maybeSingle();
