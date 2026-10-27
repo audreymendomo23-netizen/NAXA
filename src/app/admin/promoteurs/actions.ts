@@ -62,3 +62,34 @@ export async function validerDossierPharmacie(formData: FormData) {
 
   redirect("/admin/promoteurs?ok=validation");
 }
+
+
+export async function suspendrePromoteurDisciplinaire(formData: FormData) {
+  const db = await exigerAdmin();
+  const promoteurId = String(formData.get("promoteur_id") ?? "").trim();
+  const observations = String(formData.get("observations") ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(promoteurId)) {
+    redirect("/admin/promoteurs?erreur=suspension");
+  }
+  const { error } = await db.rpc("admin_suspendre_promoteur_disciplinaire", {
+    p_promoteur: promoteurId,
+    p_observations: observations || null,
+  });
+  if (error) redirect("/admin/promoteurs?erreur=suspension");
+  redirect("/admin/promoteurs?ok=suspension");
+}
+
+export async function leverSuspensionPromoteur(formData: FormData) {
+  const db = await exigerAdmin();
+  const suspensionId = String(formData.get("suspension_id") ?? "").trim();
+  const motif = String(formData.get("motif_levee") ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(suspensionId)) {
+    redirect("/admin/promoteurs?erreur=levee-suspension");
+  }
+  const { error } = await db.rpc("admin_lever_suspension_promoteur", {
+    p_suspension: suspensionId,
+    p_motif: motif || null,
+  });
+  if (error) redirect("/admin/promoteurs?erreur=levee-suspension");
+  redirect("/admin/promoteurs?ok=levee-suspension");
+}
