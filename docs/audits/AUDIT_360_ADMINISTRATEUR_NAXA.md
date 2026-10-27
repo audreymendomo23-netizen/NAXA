@@ -1769,3 +1769,67 @@ Cette section clôt la **phase d’audit statique et de cadrage technique** SM-0
 Cette distinction est impérative pour ne pas annoncer une sécurité qui n’a pas été construite ni testée. Aucune règle métier n’est déduite par défaut et aucune modification applicative n’est engagée sans instruction distincte.
 
 **État d’exécution de cette clôture :** lecture statique de sources versionnées et mise à jour documentaire uniquement. Aucune base Supabase interrogée ou modifiée, aucune migration exécutée, aucun test/build exécuté, aucun déploiement déclenché.
+
+
+## 60.17 — Implémentation SM-01 / point 1 : état disciplinaire indépendant et garde Marketplace
+
+**État :** implémentation versionnée directement sur `main`; migration non exécutée et validation runtime non effectuée.
+
+### Éléments implémentés dans le dépôt
+
+1. **État disciplinaire autonome** — migration `supabase/migrations/20261027020000_promoteur_suspension_disciplinaire.sql` :
+   - tables `promoteur_suspensions_disciplinaires` et `promoteur_suspensions_disciplinaires_audit`;
+   - motif imposé à `faute`, durée indéterminée tant que le statut reste `active`, observations non renseignées;
+   - photographie du Promoteur, des rattachements et des pharmacies au moment de la sanction;
+   - index unique empêchant deux suspensions actives pour un même Promoteur;
+   - historique des événements de suspension et de levée avec acteur, date, avant/après.
+2. **Action administrative serveur** — RPC `admin_suspendre_promoteur_disciplinaire` et `admin_lever_suspension_promoteur` :
+   - l’acteur est dérivé de `auth.uid()`, et non d’un identifiant transmis par le client;
+   - les deux actions exigent un profil administrateur actif;
+   - la levée exige une suspension active et une décision explicite; la mise à jour est verrouillée;
+   - notification au Promoteur et entrée dans `journal_admin` lors de chaque décision.
+3. **Périmètre figé** — la garde utilise la liste des pharmacies enregistrée dans la photographie disciplinaire, y compris les liens historiques connus au moment de la sanction. Une modification ultérieure des rattachements ne doit pas retirer silencieusement une pharmacie du périmètre de la sanction.
+4. **Blocage Marketplace côté serveur** :
+   - `marketplace_offre_stock_disponible` ne retourne pas d’offre pour une pharmacie couverte par une suspension active;
+   - `private.reserve_stock` refuse les nouvelles réservations, y compris par appel direct à la RPC;
+   - `marketplace_pharmacies_disciplinairement_autorisees` expose à la recherche publique uniquement les identifiants autorisés, sans divulguer l’identité du Promoteur sanctionné;
+   - `src/app/api/medicaments/recherche/route.ts` applique ce filtre. Si la RPC de filtrage échoue, la disponibilité n’est pas annoncée comme vérifiée.
+5. **Séparation Marketplace / opérations internes** :
+   - le point de vente utilise désormais `private.stock_vendable_interne` pour la recherche caisse, afin que le filtre disciplinaire Marketplace ne masque pas les produits du POS interne;
+   - aucune désactivation générale du profil, de la pharmacie ou des rattachements n’est utilisée pour matérialiser la sanction;
+   - les données, le stock, les ventes, les tickets et l’historique restent conservés.
+6. **Interface d’administration** — `src/app/admin/promoteurs/page.tsx` et `src/app/admin/promoteurs/actions.ts` :
+   - affichage des Promoteurs et de leur suspension active;
+   - action de suspension pour faute;
+   - action explicite de levée;
+   - retours d’erreur sans afficher de succès si la RPC échoue.
+
+### Règle paiement / renouvellement
+
+Les RPC commerciales de confirmation et de réactivation n’écrivent pas dans le registre disciplinaire. Un renouvellement peut remettre les indicateurs commerciaux à l’état actif, mais le prédicat disciplinaire reste indépendant et continue de bloquer la visibilité et la création de réservations Marketplace. La levée disciplinaire ne modifie pas l’abonnement : un compte commercialement expiré reste soumis aux gardes commerciales existantes.
+
+### Test ajouté
+
+Fichier : `supabase/tests/20261027020000_promoteur_suspension_disciplinaire.sql`.
+
+Le test vérifie structurellement :
+- existence des deux tables et des RPC administratives;
+- contrôles d’administrateur actif, audit et notification;
+- filtrage de disponibilité et blocage de création de réservation;
+- stabilité du périmètre disciplinaire figé;
+- absence d’exécution des RPC de suspension/levée par `anon`;
+- séparation de la recherche caisse interne par rapport à la fonction Marketplace.
+
+**Ce test n’a pas été exécuté** : il doit être lancé dans une base de test après application de la migration dans cet environnement.
+
+### Limites restantes avant une clôture de sécurité validée
+
+- La migration n’a été appliquée à aucune base dans ce travail; l’interface de gestion ne pourra fonctionner qu’après son application dans l’environnement autorisé.
+- Aucun test SQL, test de concurrence, build TypeScript ou test navigateur n’a été exécuté. Les fonctions SECURITY DEFINER et leurs signatures doivent être validées par PostgreSQL dans l’environnement de test.
+- La recherche publique identifiée dans `src/app/api/medicaments/recherche/route.ts`, la fonction de disponibilité et la création de réservation sont couvertes par le code modifié. Un test d’intégration doit encore confirmer les autres parcours Marketplace/ panier et l’absence de voie alternative de réservation non couverte.
+- Les réservations existantes et leur éventuelle annulation disciplinaire relèvent du point suivant du chantier SM-01; aucune annulation, restitution de stock ni changement de statut de réservation n’est inclus dans cette implémentation du point 1.
+- Aucun changement de données de production et aucun déploiement ne sont effectués.
+
+### Critère de clôture du point 1
+
+**Code et interface préparés sur `main`; clôture fonctionnelle préparée, mais pas clôture de sécurité runtime.** Le point ne peut être déclaré entièrement validé tant que la migration et les tests ne sont pas exécutés dans un environnement de test autorisé. Le déploiement reste hors périmètre et non autorisé.
