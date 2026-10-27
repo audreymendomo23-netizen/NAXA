@@ -19,6 +19,8 @@ export async function confirmerReglementPromoteur(formData: FormData) {
   const { error } = await db.rpc("admin_confirmer_reglement_promoteur", { p_reglement: id, p_admin: user.id });
   if (error) redirect("/admin/pilotage/reglements?erreur=confirmation");
   revalidatePath("/admin/pilotage/reglements");
+  revalidatePath("/admin/pilotage/validite");
+  revalidatePath("/pharmacie/promoteur");
   revalidatePath("/promoteur/paiements");
   revalidatePath("/notifications");
   redirect("/admin/pilotage/reglements?ok=confirme");
