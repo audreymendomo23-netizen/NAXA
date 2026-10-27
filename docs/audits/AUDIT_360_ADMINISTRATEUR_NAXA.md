@@ -1529,3 +1529,33 @@ Deux cycles distincts existent dans le code et ne doivent pas être confondus :
 - Aucune migration n'a été appliquée et aucune donnée de production n'a été modifiée.
 - Aucun déploiement n'a été lancé volontairement. Les commits documentaires sur `main` peuvent toutefois être soumis aux automatisations déjà configurées dans le dépôt.
 - **Conclusion : SM-01 est validée métier, mais non implémentée et non testée.** Le blocage technique prioritaire est la correspondance des états du cycle de réservation pharmacie avant de traduire la règle en opérations automatiques.
+
+
+### 60.8 Vérification complémentaire des gardes SQL et du stock — 27 octobre 2026
+
+Les définitions SQL source suivantes ont été relues sur `main` : `supabase/migration_160_reservation_transition_guard.sql`, `supabase/migration_195_gestionnaire_stock_reservation_confirmer.sql`, `supabase/migration_201_stock_reservation_confirmation_allocation.sql`, `supabase/migration_203_stock_reservation_cancel_role_guard.sql`, `supabase/migration_209_reservation_expiry_stock_restore.sql`, `supabase/migrations/20261024203000_marketplace_hold_reservation_alignment.sql`, `supabase/migrations/20261024210000_reservation_ticket_rpc_unified_cron.sql` et `supabase/migrations/20261024180000_marketplace_ticket_lifecycle_orchestrator.sql`.
+
+**Transition réelle et risque métier**
+- `private.set_reservation_status` autorise actuellement `en_attente → confirmee/payee/annulee/expiree`, `confirmee → payee/annulee/expiree`, puis `payee → retiree`. Il n'existe pas de transition dédiée « en préparation » ou « prête au retrait » dans cette garde.
+- La RPC `gestionnaire_stock_reservation_annuler` verrouille la réservation (`FOR UPDATE`), vérifie le mode `reservation`, le périmètre pharmacie et le rôle autorisé, puis n'accepte que `en_attente` ou `confirmee`. C'est une garde individuelle, pas un mécanisme SM-01 de suspension/annulation en lot.
+- La RPC de confirmation stock n'accepte que `en_attente`; elle ne crée donc pas, à elle seule, un état supplémentaire de préparation.
+- Le cycle standard marque `payee` avant `retiree`. Les contrôles du ticket POS vérifient notamment le lien à une vente payée. **Il serait dangereux de traiter automatiquement tout statut `payee` comme une réservation à annuler**, car ce statut correspond au paiement enregistré et le parcours prévoit ensuite le retrait.
+
+**Stock : nuance importante entre holds récents et anciennes réservations**
+- La migration de hold récente crée des réservations sans débit physique immédiat (`stock_decremented=false`, `stock_restored=false`) et réserve virtuellement les quantités pour le contrôle de disponibilité.
+- La fonction `restore_stock` vérifiée dans la migration d'orchestration retourne sans mouvement si la réservation a déjà été consommée par une vente, si le stock n'a pas été décrémenté, ou si la restitution a déjà été effectuée. Pour les réservations historiques ayant réellement décrémenté le stock, elle vérifie les lignes, verrouille le stock et restitue les allocations de lots avant de marquer le stock restauré.
+- La restitution est appelée depuis la transition vers `annulee`/`expiree`; la migration d'expiration encadre aussi chaque réservation dans un bloc d'exception afin qu'un dossier incohérent n'annule pas tout le lot cron et soit signalé pour reprise.
+- Il ne faut donc ni faire un `UPDATE statut='annulee'` en masse ni ajouter une seconde restauration manuelle du stock. Le futur traitement SM-01 devra réutiliser une opération serveur transactionnelle compatible avec ces gardes, et journaliser explicitement les dossiers réussis/échoués.
+
+**Décision technique tirée de ces preuves**
+1. Le cycle standard ne contient pas de statut explicite « en préparation » ni « prête au retrait »; l'interface appelle `confirmee` « Confirmée · à préparer » et `payee` « Payée · retrait à confirmer ». Ce libellé ne prouve pas une correspondance métier plus précise.
+2. La règle métier validée (« annuler en attente/en préparation, préserver prêt au retrait/exécuté ») ne peut pas encore être traduite sans risque en simple liste de statuts existants. Le point à résoudre n'est plus seulement une absence de libellé UI : la garde SQL et le parcours POS doivent être cohérents avec la définition de ces états.
+3. Avant d'implémenter SM-01, il faut définir explicitement si `confirmee` est l'état qui doit être annulé (ou s'il existe une sous-étape réelle de préparation ailleurs dans le parcours pharmacie), et identifier l'état serveur exact qui signifie « prêt au retrait ». Il faut préserver `payee` et `retiree` jusqu'à décision documentée contraire, car les éléments consultés lient `payee` à une vente/ticket POS payé.
+4. L'opération en lot doit être conçue transactionnellement/idempotemment, avec verrouillage par réservation, filtre de périmètre Promoteur-pharmacies, décompte des statuts ciblés, journal des états avant/après et erreurs, notifications séparées avec reprise, et aucune modification de réservation déjà consommée.
+
+### 60.9 Statut après vérification complémentaire
+
+- **Avancée obtenue :** les gardes SQL et les règles de restitution stock du cycle pharmacie ont été vérifiées dans les fichiers source de `main`; les risques d'une annulation massive naïve sont maintenant explicités.
+- **Toujours bloquant :** correspondance métier/technique de « en préparation » et « prête au retrait » dans le cycle pharmacie. Aucune décision de mapping n'a été inventée.
+- **Modifications de ce passage :** documentation seulement, si ce complément est commité. Aucun code applicatif, migration SQL ni donnée de production n'est modifié par cet audit.
+- **Vérifications non effectuées :** aucun SQL exécuté contre Supabase, aucune migration appliquée, aucun test automatisé, build, navigateur ou appel RPC métier; l'analyse porte sur les définitions source lues.
