@@ -95,7 +95,6 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
                 {sanction ? (
                   <p className="mt-2 text-sm font-bold text-red-800">Suspension active · motif : faute · depuis {new Date(sanction.suspendu_le).toLocaleString("fr-FR")}</p>
                 ) : <p className="mt-2 text-sm font-semibold text-emerald-800">Aucune suspension disciplinaire active</p>}
-                {sanction?.observations && <p className="mt-1 text-sm text-slate-700">Observations : {sanction.observations}</p>}
               </div>
               {sanction ? (
                 <form action={leverSuspensionPromoteur} className="flex w-full flex-col gap-2 sm:max-w-sm">
@@ -107,8 +106,6 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
               ) : (
                 <form action={suspendrePromoteurDisciplinaire} className="flex w-full flex-col gap-2 sm:max-w-sm">
                   <input type="hidden" name="promoteur_id" value={promoteur.id} />
-                  <label className="text-sm font-semibold text-slate-800" htmlFor={"observations-" + promoteur.id}>Observations (facultatif)</label>
-                  <textarea id={"observations-" + promoteur.id} name="observations" maxLength={1000} rows={2} placeholder="Observations de l’administrateur" className="rounded-xl border border-slate-300 p-3 text-sm" />
                   <button type="submit" className="min-h-11 rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">Suspendre pour faute</button>
                 </form>
               )}
