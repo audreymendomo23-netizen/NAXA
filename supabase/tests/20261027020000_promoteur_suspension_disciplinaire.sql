@@ -53,6 +53,13 @@ begin
     raise exception 'SM-01.8 : anon ne doit pas suspendre ni lever une sanction';
   end if;
 
+  select pg_get_functiondef('public.caisse_rechercher_produit(uuid,text,text)'::regprocedure)
+    into v_definition;
+  if position('stock_vendable_interne' in v_definition) = 0
+     or position('marketplace_offre_stock_disponible' in v_definition) > 0 then
+    raise exception 'SM-01.8b : la sanction Marketplace ne doit pas bloquer la recherche POS interne';
+  end if;
+
   select pg_get_functiondef('public.admin_confirmer_reglement_promoteur(uuid,uuid)'::regprocedure)
     into v_definition;
   if position('promoteur_suspensions_disciplinaires' in v_definition) > 0 then
