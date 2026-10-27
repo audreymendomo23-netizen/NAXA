@@ -3,9 +3,17 @@
 begin;
 
 alter table public.reservations
-  add column if not exists preparation_statut text not null default 'non_commencee',
+  add column if not exists preparation_statut text,
   add column if not exists preparation_demarre_le timestamptz,
   add column if not exists prete_au_retrait_le timestamptz;
+
+-- Les anciennes réservations confirmées n'ont pas de preuve persistante de leur phase physique.
+-- Ne pas les classifier arbitrairement comme « non commencées » : elles resteront à vérifier.
+update public.reservations
+set preparation_statut='non_commencee'
+where statut='en_attente' and preparation_statut is null;
+alter table public.reservations
+  alter column preparation_statut set default 'non_commencee';
 
 alter table public.reservations
   drop constraint if exists reservations_preparation_statut_check;
@@ -88,7 +96,7 @@ begin
   if p_etat = 'en_preparation' and v_r.preparation_statut = 'en_preparation' then
     return true;
   end if;
-  if p_etat = 'prete_au_retrait' and v_r.preparation_statut <> 'en_preparation' then
+  if p_etat = 'prete_au_retrait' and v_r.preparation_statut is distinct from 'en_preparation' then
     raise exception 'Démarrez la préparation avant de marquer la réservation prête';
   end if;
 
@@ -124,6 +132,9 @@ begin
   ) then raise exception 'Annulation réservée à un rôle pharmacie autorisé'; end if;
   if v_r.preparation_statut='prete_au_retrait' then
     raise exception 'Une réservation prête au retrait est protégée contre l’annulation';
+  end if;
+  if v_r.statut='confirmee' and v_r.preparation_statut is null then
+    raise exception 'Phase physique historique inconnue : vérifier la réservation avant annulation';
   end if;
   if v_r.statut not in ('en_attente','confirmee') then
     raise exception 'Seule une réservation active peut être annulée';
