@@ -1610,3 +1610,16 @@ Fichiers relus sur `main` : `src/app/pharmacie/gestionnaire-stock/reservations/p
 5. L'action SM-01 devra s'appuyer sur une RPC serveur sécurisée, avec verrouillage, idempotence, contrôle du périmètre Promoteur/pharmacies, restitution de stock via le mécanisme existant, journal avant/après et suivi des notifications. Pas d'UPDATE direct en masse.
 
 **État de vérification :** lecture statique des fichiers source uniquement. Aucun test, build, appel RPC, SQL de production, migration ou déploiement n'a été lancé. Aucun code métier n'a été modifié dans cette étape.
+
+
+### 60.13 Historique des statuts et distinction avec le cycle de livraison
+
+La lecture de `supabase/migration_189_reservation_history_expiry_alert.sql` et de `src/app/reservation/[id]/page.tsx` apporte deux précisions :
+
+- La table `reservation_statut_historique` conserve `ancien_statut`, `nouveau_statut`, `acteur_id` et `cree_le`. Le trigger journalise la création et chaque changement de `reservations.statut`; il ne journalise pas à lui seul le motif disciplinaire, le périmètre de suspension, les décisions SM-01 ou la liste des résultats d'une opération de suspension.
+- Le journal existant peut aider à reconstituer la chronologie d'une réservation, mais il ne prouve pas qu'une préparation physique ait commencé : il journalise le changement de statut global, pas une action dédiée « début de préparation ».
+- La page de détail contient aussi un dictionnaire `DELIVERY` avec un statut `preparation`, mais celui-ci est associé au cycle de commande/livraison (`commande_statut`), distinct de `reservations.statut` pour les réservations avec retrait. Il serait incorrect d'utiliser ce libellé de livraison comme preuve que le cycle Marketplace avec retrait dispose d'un état « en préparation ».
+
+**Conclusion consolidée :** aucun signal fiable et dédié de préparation physique n'a été établi dans le cycle de réservation pharmacie avec retrait. Le bouton « Confirmer disponibilité et préparer » fait passer `en_attente` à `confirmee`; le journal général trace cette transition, mais pas le début effectif d'une préparation. Les états de livraison ne peuvent pas être transposés au cycle retrait. Le mapping SM-01 reste bloqué jusqu'à une décision métier explicite ou à l'ajout ultérieur d'un état de préparation persistant, sans implémenter ce changement dans le cadre de cet audit.
+
+**Limites :** analyse statique de fichiers source. Aucun SQL, RPC, test automatisé, build, déploiement ou accès aux données de production n'a été exécuté.
