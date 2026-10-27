@@ -2038,3 +2038,15 @@ La nouvelle suite `supabase/tests/20261027050000_sm01_pos_caisse_guard_inventory
 - Compléter, si le besoin métier est confirmé, la notification de paiement Promoteur afin d’y inclure le nom de chaque pharmacie liée sans exposer d’informations inutiles.
 
 **Exécution :** revue de code uniquement. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée de base modifiée et aucun déploiement déclenché. Aucune correction métier n’a été introduite sans définir le contrat complet de remboursement et de contrepassation.
+
+
+## 60.25 — SM-01 / point 3 : correction du contrôle structurel de décaissement
+
+Le rapprochement des migrations 164/165/167/169 et du composant src/components/pharmacie/CaisseDecaissements.tsx précise le contrat réel :
+- La surcharge à cinq paramètres de caisse_decaisser est volontairement remplacée par une fonction qui lève l’exception « Autorisation PIN ou biométrique obligatoire ».
+- Le composant client appelle la surcharge à six paramètres, en transmettant p_auth_grant. La migration 167 vérifie que le grant est lié au même utilisateur et à la même session, non consommé et non expiré; elle le consomme avant l’insertion du décaissement.
+- Le test structurel précédent examinait à tort le corps de l’ancienne surcharge à cinq paramètres comme s’il s’agissait du chemin valide. Il aurait donc signalé à tort l’absence des contrôles d’identité/session. Le test a été corrigé pour exiger le rejet de la surcharge legacy, contrôler explicitement la signature à six paramètres et vérifier les contrôles du grant. Le contrôle des privilèges anon couvre désormais les deux signatures.
+
+**Limite :** le test corrigé n’a pas été exécuté sur PostgreSQL. Cette modification corrige l’assertion de test d’après les sources lues; elle ne prouve pas que l’ensemble des migrations s’applique sans erreur ni que les ACL de la base distante correspondent au dépôt.
+
+**Exécution :** un fichier de test et le présent rapport ont été modifiés sur main. Aucune migration appliquée, aucune base modifiée et aucun déploiement déclenché.
