@@ -1357,3 +1357,61 @@ Le code applicatif de la page `/admin/pilotage/validite` et l'état live de `adm
 - L'accès au connecteur Supabase n'a pas été disponible dans cette session : la tentative de lister les projets a échoué faute de compte lié admissible. Aucun accès live n'est donc revendiqué.
 - Aucun test unitaire, compilation, test navigateur, test de notification ou test de stockage n'a été exécuté.
 - Le rapport préliminaire reste ouvert. L'audit détaillé Administrateur n'est pas déclaré commencé sur la seule base de cette réconciliation.
+
+
+## 57. Réconciliation Supabase distante en lecture seule — 27 octobre 2026
+
+Cette section complète et remplace les limites d'accès Supabase décrites en 56.7 : le connecteur est maintenant accessible en lecture seule. Aucune migration n'a été appliquée et aucune donnée métier n'a été modifiée. Projet consulté : Naxa (eouwtuusnsuxaejsxknf, région eu-west-1, état ACTIVE_HEALTHY). Les projets naxa-ci-replay ne sont pas utilisés pour cette vérification.
+
+### 57.1 Migrations, stockage et privilèges effectifs
+
+- Le registre distant contient 267 migrations. Les dernières migrations recensées incluent promoteur_soumet_paiement_manuel (20261026235235), include_promoter_in_payment_notifications (20261026235759), disable_legacy_admin_payment_entry (20261026235944), promoteur_echeance_reminders (20261027013703) et disable_admin_manual_promoter_payment_entry (20261027063825).
+- Le bucket preuves-reglements-promoteurs existe, est privé, limité à 26 214 400 octets et autorise PDF, JPEG, PNG, WebP, MP4, WebM et QuickTime. La configuration distante confirme donc les formats vidéo/image.
+- La RPC historique admin_enregistrer_reglement_promoteur(...) existe encore dans le catalogue, mais son exécution est révoquée pour anon, authenticated et service_role.
+- La RPC reactiver_promoteur(uuid,text) existe aussi, mais son exécution est révoquée pour anon, authenticated et service_role. La définition live historique reste dangereuse : elle prend la date du jour comme date de paiement, crée une ligne de paiement et réactive le Promoteur ainsi que les pharmacies/profils associés sans exiger de preuve d'encaissement. Ne pas rétablir ses privilèges.
+
+### 57.2 Rappels J−5 : job actif et exécution observée
+
+- Le job naxa-promoteur-echeance-5j existe, est actif et planifié à 0 6 * * *.
+- Sa dernière exécution consultée est réussie, le 27 octobre 2026 à 06:00:00 UTC (07:00 à Douala), pour environ 70 ms; le retour indique « 1 row ».
+- Cela prouve que le job cron a terminé sans erreur signalée, mais ne prouve pas qu'une notification a été créée pour un Promoteur donné ni qu'elle s'est affichée dans l'interface : la fonction peut avoir traité zéro échéance éligible. Aucun compte ni contenu de notification n'a été modifié pour provoquer un test.
+
+### 57.3 Renouvellement manuel : fonction absente de la base distante
+
+- La fonction public.admin_renouveler_promoteur(uuid,date,text,uuid) est absente du catalogue distant.
+- La page src/app/admin/pilotage/validite/page.tsx appelle validites_promoteurs_admin et propose le suivi des règlements, mais ne contient pas de formulaire de renouvellement manuel.
+- Le fichier Git supabase/migrations/20261022143000_admin_renouvellement_manuel_audit.sql définit pourtant cette fonction. La migration correspondante n'apparaît pas dans le registre distant consulté : le fichier présent dans Git ne rend donc pas la RPC disponible en base.
+- Décision nécessaire avant correction : définir si le renouvellement administratif distinct doit être restauré comme action explicitement auditée, ou si tous les renouvellements doivent exclusivement passer par une déclaration Promoteur puis une confirmation de règlement. Aucune RPC n'a été rétablie.
+
+### 57.4 Risque de périmètre dans la confirmation de paiement
+
+La définition live de admin_confirmer_reglement_promoteur(uuid,uuid) est présente, SECURITY DEFINER, avec search_path vide et exécution accordée à service_role seulement. Elle verrouille le règlement et refuse les statuts autres que en_attente, protégeant contre une double confirmation concurrente sur la même ligne.
+
+Après confirmation, elle met cependant actif=true sur le profil Promoteur, tous ses liens promoteur_pharmacies, toutes les pharmacies liées et les profils rattachés à ces pharmacies. Elle ne distingue pas une désactivation due à l'échéance d'une suspension administrative indépendante. Risque confirmé dans le code live. Correction recommandée : réactiver uniquement les entités explicitement bloquées pour échéance, sans lever une suspension indépendante ni réactiver tous les comptes d'une pharmacie par effet de bord. La portée métier doit être validée avant modification.
+
+L'identifiant de paiement et le reçu sont générés à partir de la date de validation, tandis que date_paiement de la convention est calculée depuis r.paye_le. Le reçu conserve la date déclarée, mais la nouvelle période démarre à la validation. Ce choix doit rester explicite dans le contrat métier.
+
+### 57.5 Reçu et validité : chemins retrouvés, tests absents
+
+- La route réelle du reçu est src/app/promoteur/paiements/[id]/recu/page.tsx. Elle vérifie la session, le rôle Promoteur, l'appartenance du règlement à l'utilisateur et le statut confirmé; elle affiche le nom du Promoteur et les noms des pharmacies rattachées. Le chemin présumé cité en 56.3 était erroné.
+- La page de validité marque comme « VALIDE » toute ligne qui n'est pas considérée « à régulariser », ce qui peut inclure une échéance absente ou un statut non actif. Les compteurs distinguent partiellement les échéances configurées, mais le badge de dossier peut être trompeur. Correction UI recommandée : séparer au minimum VALIDE, À RÉGULARISER, NON CONFIGURÉ et SUSPENDU / INACTIF selon les statuts réellement renvoyés par la RPC.
+- Le reçu et la page de validité n'ont pas été exécutés dans un navigateur; aucune recette visuelle n'est revendiquée.
+
+### 57.6 Registre actualisé des actions
+
+| ID | Constat | Suite recommandée | Autorisation |
+|---|---|---|---|
+| PRE-PAY-01 | Migrations de paiement/rappels présentes; bucket privé et types confirmés | Compléter le rapprochement des signatures, contraintes et privilèges sans rejouer les migrations | Lecture seule |
+| PRE-PAY-02 | Cron J−5 actif et dernière exécution réussie | Vérifier types de notifications et affichage sans déclencher d'envoi | Lecture seule |
+| PRE-PAY-03 | Confirmation de paiement réactive un périmètre trop large | Préparer une migration corrective et des tests SQL qui préservent les suspensions indépendantes | Validation explicite du comportement métier |
+| PRE-PAY-04 | RPC de renouvellement manuel absente live et sans formulaire sur la page | Décider entre renouvellement administratif audité et paiement exclusivement vérifié | Validation explicite |
+| PRE-PAY-05 | Route du reçu retrouvée, noms Promoteur/pharmacies inclus dans le code | Ajouter/compléter tests de route et cas sans pharmacie | Pas de changement métier |
+| PRE-PAY-06 | RPC historique de saisie Admin non exécutable; reactiver_promoteur également non exécutable | Maintenir les privilèges révoqués; inventorier les appelants avant retrait de code mort | Ne pas réactiver |
+| PRE-PAY-07 | Badge de validité potentiellement trompeur | Corriger le mapping UI après confirmation des valeurs de statut de la RPC | Validation du mapping métier |
+
+### 57.7 Limites
+
+- Requêtes Supabase limitées à la lecture du catalogue, du registre des migrations, du bucket, des privilèges et des exécutions cron. Aucun paiement, abonnement, profil, lien pharmacie ou notification n'a été créé ou modifié.
+- Aucune migration n'a été appliquée, aucune fonction métier n'a été invoquée et aucune notification n'a été forcée.
+- Aucun déploiement Vercel n'a été lancé. L'inspection de configuration Vercel ne remplace pas une recette applicative.
+- Le préliminaire reste ouvert. Avant l'audit Administrateur page par page, il faut résoudre les décisions PRE-PAY-03, PRE-PAY-04 et PRE-PAY-07, puis publier un bilan de phase préliminaire vérifiable.
