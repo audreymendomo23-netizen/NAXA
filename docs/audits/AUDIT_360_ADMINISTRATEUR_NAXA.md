@@ -1950,3 +1950,30 @@ Le test structurel `supabase/tests/20261027030000_sm01_reservations_disciplinair
 Aucune preuve ne justifie de modifier maintenant les RPC de paiement pour les rendre directement accessibles à `authenticated` : leur contrat actuel est service-role-only et les actions serveur contrôlent la session/role avant l’appel. Il faut conserver cette séparation. La suite prioritaire est l’inventaire complet des appels RPC et des fonctions `SECURITY DEFINER`, notamment validation/activation de dossier, stock/lots, ventes POS, clôture de caisse, retraits et synchronisation hors ligne. Chaque correction doit s’appuyer sur la signature réelle et ses ACL, pas sur une supposition.
 
 **Périmètre d’exécution :** modifications de code et de documentation sur `main) uniquement. Aucun branchement, aucune migration exécutée, aucune écriture en base de production et aucun déploiement.
+
+
+## 60.22 — SM-01 / point 3 : couverture structurelle stock et synchronisation hors ligne
+
+**État : nouvelle suite structurelle versionnée; elle n’a pas été exécutée.**
+
+Fichier ajouté : `supabase/tests/20261027040000_sm01_stock_rpc_guard_inventory.sql`.
+
+La suite vérifie statiquement en base de test :
+- l’existence et la garde identité/périmètre/compte actif de `gestionnaire_stock_quantite_ajuster`;
+- l’autorisation sur les deux pharmacies, l’état actif et les privilèges d’exécution de `gestionnaire_stock_transfert_atomique`;
+- l’identité, l’appartenance de l’opération, l’affectation professionnelle et la détection de conflit de `offline_stock_set_quantity`;
+- l’exposition exclusivement `service_role` de l’ancienne API `naxa_apply_offline_operation_v1`;
+- la garde identité/profil actif/périmètre de `stock_service_open`.
+
+### Constats de la revue statique
+
+- Les fonctions d’ajustement et de transfert du stock ont des contrôles SQL explicites de rôle actif et de périmètre; leurs opérations sont transactionnelles dans la fonction PostgreSQL.
+- Le chemin offline récent `offline_stock_set_quantity` vérifie l’identité appelante, l’autorisation sur la pharmacie ou une affectation professionnelle active, l’identité du propriétaire de l’opération et la cohérence du contenu réutilisant un identifiant. Il compare aussi l’horodatage de base avant la mutation et refuse le stock lotisé.
+- L’ancienne API `naxa_apply_offline_operation_v1` reçoit un identifiant d’appareil et ne doit pas être exposée directement aux utilisateurs : la migration versionnée la réserve à `service_role`.
+- L’ouverture du service de stock vérifie le profil actif, le rôle admis et le périmètre pharmacie.
+
+### Limites et prochaine vérification
+
+Ces points sont des constats de lecture du code source versionné, pas des preuves des droits effectifs d’une base distante. La nouvelle suite doit être exécutée hors production après application des migrations dans leur ordre réel. Il reste à couvrir dynamiquement les tentatives d’appel direct par un utilisateur non autorisé, une affectation expirée/révoquée, un profil inactif, une pharmacie hors périmètre, les collisions d’identifiants offline et les appels concurrents. La clôture de service et l’enregistrement du comptage sont aujourd’hui deux appels distincts côté action serveur; il faut vérifier si le comportement métier attendu exige une RPC unique atomique ou si l’enregistrement intermédiaire est volontaire et récupérable.
+
+**Exécution :** aucune migration appliquée, aucun test SQL exécuté, aucune base de production modifiée et aucun déploiement.
