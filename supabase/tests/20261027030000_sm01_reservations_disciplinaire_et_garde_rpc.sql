@@ -59,6 +59,35 @@ begin
      or has_function_privilege('anon','public.gestionnaire_stock_reservation_annuler(uuid)','EXECUTE') then
     raise exception 'SM-01.3.3 : anon ne doit pas exécuter les RPC de préparation/annulation';
   end if;
+
+  -- Inventaire SM-01.3 : les RPC qui acceptent un acteur en paramètre doivent
+  -- rester réservées au service_role et être appelées par des Server Actions protégées.
+  if to_regprocedure('public.promoteur_soumettre_reglement(uuid,integer,text,text,text,text,timestamptz,text)') is null then
+    raise exception 'SM-01.3.4 : RPC de soumission de règlement absente';
+  end if;
+  if has_function_privilege('anon','public.promoteur_soumettre_reglement(uuid,integer,text,text,text,text,timestamptz,text)','EXECUTE')
+     or has_function_privilege('authenticated','public.promoteur_soumettre_reglement(uuid,integer,text,text,text,text,timestamptz,text)','EXECUTE')
+     or not has_function_privilege('service_role','public.promoteur_soumettre_reglement(uuid,integer,text,text,text,text,timestamptz,text)','EXECUTE') then
+    raise exception 'SM-01.3.5 : la soumission de règlement doit être exécutable uniquement via service_role';
+  end if;
+
+  if to_regprocedure('public.admin_confirmer_reglement_promoteur(uuid,uuid)') is null then
+    raise exception 'SM-01.3.6 : RPC de confirmation de règlement absente';
+  end if;
+  if has_function_privilege('anon','public.admin_confirmer_reglement_promoteur(uuid,uuid)','EXECUTE')
+     or has_function_privilege('authenticated','public.admin_confirmer_reglement_promoteur(uuid,uuid)','EXECUTE')
+     or not has_function_privilege('service_role','public.admin_confirmer_reglement_promoteur(uuid,uuid)','EXECUTE') then
+    raise exception 'SM-01.3.7 : confirmation de règlement accessible hors service_role';
+  end if;
+
+  select pg_get_functiondef('public.admin_suspendre_promoteur_disciplinaire(uuid,text)'::regprocedure)
+    into v_definition;
+  if position('auth.uid()' in v_definition)=0
+     or position('actif' in v_definition)=0
+     or position('role' in v_definition)=0 then
+    raise exception 'SM-01.3.8 : suspension disciplinaire sans garde d’identité/admin actif';
+  end if;
+
 end
 $test$;
 rollback;
