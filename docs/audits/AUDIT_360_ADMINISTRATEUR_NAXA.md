@@ -1458,3 +1458,74 @@ La migration source `supabase/migrations/20261022143000_admin_renouvellement_man
 La page Validité a aussi reçu une correction de synthèse : elle affiche séparément les dossiers valides et actifs, les dossiers non configurés et les profils inactifs/résiliés.
 
 **Important :** cette fonction de renouvellement administratif reste une migration source non constatée dans le registre de migrations live, et aucune interface de renouvellement manuel n'a été ajoutée dans cette étape. Ni cette migration ni celle de confirmation de paiement n'ont été appliquées à Supabase Production. La correction du code source est commise sur `main`, mais le comportement de production reste non vérifié et ne peut pas être déclaré vert avant application contrôlée et tests.
+
+## 60. Audit statique de la règle métier SM-01 — suspension disciplinaire Promoteur (27 octobre 2026)
+
+**Périmètre autorisé :** lecture du code source de `main` et documentation des écarts. Aucun code applicatif, aucune migration SQL et aucune donnée métier n'ont été modifiés. Aucun test, build, appel RPC métier ou déploiement n'a été lancé dans cette passe.
+
+### 60.1 Conclusion exécutive
+
+La règle métier SM-01 est validée par l'utilisateur : motif « faute », périmètre Promoteur et pharmacies rattachées, durée indéterminée, observations non renseignées, blocage des pharmacies sur la marketplace, notification au Promoteur, journal d'audit avant/après, annulation automatique des réservations en attente ou en préparation, exclusion des réservations déjà prêtes au retrait, et levée uniquement sur décision explicite d'un Administrateur habilité.
+
+**État technique constaté : la règle SM-01 n'est pas implémentée dans les surfaces Administrateur examinées.** Aucun bouton/action dédié de suspension disciplinaire du Promoteur n'a été trouvé dans les pages et actions Admin parcourues. Les statuts commerciaux et les booléens d'activité existants ne suffisent pas à distinguer une suspension pour faute d'un blocage dû à l'échéance.
+
+### 60.2 Surfaces Administrateur examinées
+
+- `src/app/admin/promoteurs/actions.ts` : expose `mettreAJourPiecesRecues` et `validerDossierPharmacie`. Ces actions gèrent les pièces et la validation de dossier; aucune action de suspension ou de levée disciplinaire n'y apparaît.
+- `src/app/admin/promoteurs/page.tsx` : liste les dossiers de pharmacies et de partenaires, affiche des statuts de dossier et permet d'ouvrir les dossiers; aucun contrôle SM-01 n'y a été trouvé.
+- `src/app/admin/actions.ts` : l'action de création de pharmacie a été recensée, sans action de suspension du Promoteur identifiée.
+- `src/app/admin/pharmacies/[id]/actions.ts` et `src/app/admin/pharmacies/[id]/page.tsx` : gèrent le dépôt/la consultation/la décision documentaire et l'activation du service Bébé & Maman. La fiche lit `profiles.actif`, `promoteur_pharmacies.actif`, `pharmacies.actif` et `pharmacies.visible_recherche`, mais ne présente pas de décision disciplinaire Promoteur.
+- `src/app/admin/page.tsx` : lit les pharmacies, les indicateurs de validité et les dernières entrées de `audit_log`; aucun parcours de suspension SM-01 n'y apparaît.
+
+Cette conclusion porte sur les surfaces lues et les chemins retrouvés, pas sur une preuve absolue concernant chaque ligne de l'ensemble du dépôt ou le schéma distant complet.
+
+### 60.3 États existants et séparation manquante
+
+- Le code Promoteur consulte `profiles.actif`, l'état des rattachements `promoteur_pharmacies.actif`, l'état et la visibilité marketplace de `pharmacies`, ainsi que les états commerciaux de `abonnements_promoteurs` et `conventions_promoteurs`.
+- `src/lib/promoteur-access.ts` calcule notamment un blocage commercial à partir de `abonnements_promoteurs.bloque_le`, des statuts d'abonnement/convention et des échéances. Le contrôle d'accès ne constitue pas à lui seul un état disciplinaire séparé.
+- La migration source `supabase/migrations/20261027090000_safe_promoter_payment_reactivation_scope.sql` conserve la mise à jour de l'abonnement et de la convention et les traces de paiement/notification/audit, mais ne réactive pas les profils, liens Promoteur-pharmacie ni pharmacies. Cela limite un effet de bord de réactivation commerciale, sans fournir encore un workflow de suspension pour faute.
+- Les fonctions de paiement et de renouvellement auditées précédemment utilisent `notifications` et/ou `journal_admin`; le tableau de bord Admin lit `audit_log`. Ces mécanismes génériques existants ne prouvent pas qu'un événement SM-01 spécifique, son périmètre et ses conséquences sont enregistrés.
+
+**Écart SM01-01 — critique :** aucun statut disciplinaire autonome, aucune action Admin dédiée et aucune levée explicite SM-01 n'ont été identifiés dans les surfaces examinées. Réutiliser uniquement `profiles.actif=false` ou `pharmacies.actif=false` risquerait de confondre discipline, validité commerciale et état propre de la pharmacie.
+
+### 60.4 États réels des réservations et ambiguïté de correspondance
+
+Deux cycles distincts existent dans le code et ne doivent pas être confondus :
+
+1. **Réservations de pharmacies — table `reservations`** :
+   - `src/app/reservation/[id]/page.tsx` affiche les statuts `en_attente`, `confirmee`, `payee`, `retiree`, `expiree` et `annulee`.
+   - `src/app/pharmacie/gestionnaire-stock/reservations/page.tsx` traduit `en_attente` en « À confirmer », `confirmee` en « Confirmée · à préparer », `payee` en « Payée · retrait à confirmer », et `retiree` en « Retirée ».
+   - Les migrations `supabase/migration_160_reservation_transition_guard.sql` et `supabase/migrations/20261024203000_marketplace_hold_reservation_alignment.sql` encadrent les transitions et la réservation du stock. Le cycle de réservation standard n'expose pas, dans les mappings lus, un statut explicite `en_preparation` ou `prete_au_retrait`.
+
+2. **Réservations d'autres univers — table `universe_reservations`** :
+   - `src/app/partenaire/reservations/actions.ts` utilise les statuts `requested`, `confirmed`, `ready` et `picked_up`.
+   - Le statut `ready` existe dans ce cycle partenaire distinct. Il ne doit pas être appliqué par analogie aux réservations de pharmacies sans vérification du périmètre fonctionnel.
+
+**Écart SM01-02 — bloquant avant implémentation :** la règle validée demande d'annuler les réservations « en attente ou en préparation » et d'exclure celles « prêtes au retrait », mais le cycle standard des pharmacies n'a pas de correspondance explicite pour ces deux derniers états dans les mappings examinés. `confirmee` est libellé « à préparer » (pas « en préparation »), et `payee` est libellé « retrait à confirmer » (pas explicitement « prête au retrait »). Il ne faut donc pas assimiler automatiquement ces états sans décision métier complémentaire fondée sur les transitions et le fonctionnement de la caisse.
+
+### 60.5 Annulation, stock, notification et audit
+
+- `src/app/pharmacie/gestionnaire-stock/actions.ts` appelle la RPC `gestionnaire_stock_reservation_annuler` et vérifie le résultat serveur avant d'afficher le succès. Le commentaire indique que la RPC vérifie le périmètre pharmacie, verrouille la réservation, contrôle la transition et restaure le stock selon les règles existantes.
+- `supabase/migration_160_reservation_transition_guard.sql` prévoit une restitution du stock lors d'une annulation/expiration et interdit notamment le retrait avant paiement. Les migrations de cycle `20261024193000_reservation_cycle_dependencies.sql` et `20261024201000_reservation_cycle_dependencies_240.sql` gèrent l'expiration et les rappels d'expiration à 30 minutes; ce ne sont pas des notifications de suspension disciplinaire.
+- `src/app/reservation/[id]/page.tsx` lit `reservation_statut_historique` pour la chronologie client, tandis que `src/app/admin/page.tsx` lit `audit_log` pour les dernières activités. Leur lecture ne prouve pas qu'une annulation massive déclenchée par SM-01 serait journalisée avec l'identité de l'administrateur, le motif disciplinaire, les états avant/après et la liste des réservations touchées.
+- Aucun flux de notification de suspension du Promoteur ni de notification client spécifique à l'annulation en cascade SM-01 n'a été trouvé dans les actions Admin examinées.
+
+### 60.6 Points à résoudre avant toute implémentation
+
+| ID | Point | État | Critère avant développement |
+|---|---|---|---|
+| SM01-01 | Suspension disciplinaire indépendante de l'état commercial | Écart confirmé dans les surfaces examinées | Définir un état/action disciplinaire explicite et sa séparation des statuts compte, pharmacie, abonnement et convention. |
+| SM01-02 | Correspondance des statuts de réservation | Bloquant | Confirmer comment le cycle pharmacie représente « en préparation » et « prête au retrait »; ne pas confondre avec `universe_reservations.ready`. |
+| SM01-03 | Blocage marketplace des pharmacies liées | Non implémenté dans les actions Admin examinées | Définir comment bloquer la visibilité sans écraser l'état antérieur ni compromettre une réactivation commerciale future. |
+| SM01-04 | Annulation automatique en lot et stock | Non implémenté pour SM-01 | Définir l'atomicité, l'idempotence, la restitution exacte du stock, le traitement des erreurs partielles et la reprise. |
+| SM01-05 | Notification Promoteur et information des clients | Non implémenté pour SM-01 dans les surfaces examinées | Définir les destinataires, le contenu, l'état d'envoi et le comportement en cas d'échec. |
+| SM01-06 | Audit avant/après | Non démontré pour SM-01 | Tracer l'admin auteur, le motif « faute », le périmètre, la durée indéterminée, les états avant/après, les réservations annulées, les erreurs et la levée. |
+| SM01-07 | Réactivation explicite et sans réactivation en bloc | Règle métier validée, action non identifiée | Réactiver uniquement après décision habilitée, sans restaurer les pharmacies bloquées pour un autre motif ni créer de réservation annulée. |
+
+### 60.7 Limites et état de la vérification
+
+- Audit statique du code source de `main` sur les fichiers indiqués; les contenus et mappings ci-dessus ont été lus directement.
+- Aucun test unitaire/SQL, build, test navigateur, appel RPC métier ou test de notification n'a été exécuté.
+- Aucune migration n'a été appliquée et aucune donnée de production n'a été modifiée.
+- Aucun déploiement n'a été lancé volontairement. Les commits documentaires sur `main` peuvent toutefois être soumis aux automatisations déjà configurées dans le dépôt.
+- **Conclusion : SM-01 est validée métier, mais non implémentée et non testée.** Le blocage technique prioritaire est la correspondance des états du cycle de réservation pharmacie avant de traduire la règle en opérations automatiques.
