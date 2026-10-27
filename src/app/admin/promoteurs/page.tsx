@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
+import { suspendrePromoteurDisciplinaire, leverSuspensionPromoteur } from "./actions";
 
 type SearchParams = { ok?: string; erreur?: string };
 
@@ -17,16 +18,20 @@ const erreurs: Record<string, string> = {
   activation: "La pharmacie n’a pas pu être activée. Le système a tenté de remettre les accès en attente.",
   "deja-active": "Ce dossier est déjà actif. Aucune réactivation ni remise à zéro de l’essai n’a été effectuée.",
   documents: "Les pièces reçues n’ont pas pu être enregistrées. Aucune création partielle ne doit être considérée comme réussie.",
+  suspension: "La suspension disciplinaire n’a pas été enregistrée. Vérifiez la migration SM-01 et les droits de l’administrateur.",
+  "levee-suspension": "La levée disciplinaire n’a pas été enregistrée. La suspension reste active.",
 };
 
 export default async function DossiersPromoteurs({ searchParams }: { searchParams: SearchParams }) {
   await requireAdminActive("/admin/promoteurs");
   const db = supabaseAdmin();
-  const [{ data: pharmacies, error }, { data: partnerDossiers, error: partnerDossiersError }] = await Promise.all([
+  const [{ data: pharmacies, error }, { data: partnerDossiers, error: partnerDossiersError }, { data: promoteurs, error: promoteursError }, { data: suspensions, error: suspensionsError }] = await Promise.all([
     db.from("pharmacies").select("id,nom,ville,quartier,created_at").order("created_at", { ascending: false }),
     db.from("admin_partner_dossiers")
       .select("partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,architecture_code,dossier_status,created_at,partners!inner(name,city,neighborhood,status),profiles!inner(username,first_name,last_name)")
       .order("created_at", { ascending: false }).limit(500),
+    db.from("profiles").select("id,username,first_name,last_name,actif").eq("role", "promoteur").order("created_at", { ascending: false }).limit(500),
+    db.from("promoteur_suspensions_disciplinaires").select("id,promoteur_id,motif,observations,statut,suspendu_le").eq("statut", "active").order("suspendu_le", { ascending: false }).limit(500),
   ]);
 
   return (
@@ -39,6 +44,16 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
         </p>
       </header>
 
+      {searchParams.ok === "suspension" && (
+        <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Suspension disciplinaire enregistrée. Le renouvellement commercial ne la lèvera pas.
+        </p>
+      )}
+      {searchParams.ok === "levee-suspension" && (
+        <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Décision de levée enregistrée. L’accès reste soumis aux conditions commerciales et opérationnelles.
+        </p>
+      )}
       {searchParams.ok === "documents" && (
         <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
           État des pièces reçues enregistré.
@@ -59,6 +74,49 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
           La liste des dossiers pharmacies n’a pas pu être chargée. Actualisez la page ou réessayez plus tard.
         </p>
       )}
+
+      <section className="space-y-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 sm:p-6" aria-labelledby="sm01-suspensions">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-amber-900">Contrôle disciplinaire · SM-01</p>
+          <h2 id="sm01-suspensions" className="mt-1 text-xl font-extrabold text-slate-950">Suspensions disciplinaires Promoteurs</h2>
+          <p className="mt-2 text-sm text-slate-700">Une suspension pour faute est à durée indéterminée. Elle bloque la publication Marketplace du Promoteur et de ses pharmacies rattachées. Un paiement ou renouvellement ne la lève jamais : seule une décision explicite d’un administrateur actif peut le faire.</p>
+        </div>
+        {(promoteursError || suspensionsError) && (
+          <p role="alert" className="rounded-2xl border border-red-300 bg-white p-4 text-sm text-red-900">Le registre disciplinaire est indisponible. Vérifiez que la migration SM-01 a été appliquée à cet environnement; aucune action ne doit être considérée comme enregistrée.</p>
+        )}
+        {!promoteursError && (promoteurs ?? []).map((promoteur: any) => {
+          const sanction = (suspensions ?? []).find((item: any) => item.promoteur_id === promoteur.id);
+          const nom = [promoteur.first_name, promoteur.last_name].filter(Boolean).join(" ") || promoteur.username || promoteur.id;
+          return <article key={promoteur.id} className="rounded-2xl border border-amber-200 bg-white p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="break-words font-extrabold text-slate-900">{nom}</h3>
+                <p className="mt-1 break-all text-xs text-slate-500">Promoteur · {promoteur.id}</p>
+                {sanction ? (
+                  <p className="mt-2 text-sm font-bold text-red-800">Suspension active · motif : faute · depuis {new Date(sanction.suspendu_le).toLocaleString("fr-FR")}</p>
+                ) : <p className="mt-2 text-sm font-semibold text-emerald-800">Aucune suspension disciplinaire active</p>}
+                {sanction?.observations && <p className="mt-1 text-sm text-slate-700">Observations : {sanction.observations}</p>}
+              </div>
+              {sanction ? (
+                <form action={leverSuspensionPromoteur} className="flex w-full flex-col gap-2 sm:max-w-sm">
+                  <input type="hidden" name="suspension_id" value={sanction.id} />
+                  <label className="text-sm font-semibold text-slate-800" htmlFor={"motif-levee-" + sanction.id}>Motif de la décision de levée</label>
+                  <input id={"motif-levee-" + sanction.id} name="motif_levee" maxLength={500} placeholder="Décision explicite (facultatif)" className="min-h-11 rounded-xl border border-slate-300 px-3 text-sm" />
+                  <button type="submit" className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white">Lever la suspension</button>
+                </form>
+              ) : (
+                <form action={suspendrePromoteurDisciplinaire} className="flex w-full flex-col gap-2 sm:max-w-sm">
+                  <input type="hidden" name="promoteur_id" value={promoteur.id} />
+                  <label className="text-sm font-semibold text-slate-800" htmlFor={"observations-" + promoteur.id}>Observations (facultatif)</label>
+                  <textarea id={"observations-" + promoteur.id} name="observations" maxLength={1000} rows={2} placeholder="Observations de l’administrateur" className="rounded-xl border border-slate-300 p-3 text-sm" />
+                  <button type="submit" className="min-h-11 rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">Suspendre pour faute</button>
+                </form>
+              )}
+            </div>
+          </article>;
+        })}
+        {!promoteursError && !promoteurs?.length && <p className="rounded-xl border border-dashed border-amber-300 bg-white p-4 text-sm text-slate-600">Aucun compte Promoteur trouvé.</p>}
+      </section>
 
       {partnerDossiersError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Les dossiers des autres univers sont indisponibles. Vérifiez que la migration additive du registre transversal est appliquée dans l’environnement concerné.</p>}
 
