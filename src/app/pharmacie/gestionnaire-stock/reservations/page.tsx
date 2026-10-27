@@ -41,6 +41,7 @@ type ReservationRow = {
   created_at: string;
   expires_at: string;
   mode: string;
+  credit_request_id: string | null;
   reservation_items: ItemRow[] | null;
 };
 
@@ -97,7 +98,7 @@ export default async function GestionnaireStockReservationsPage({
   const pageSize = 50;
   let reservationQuery = sb
     .from("reservations")
-    .select("id,pharmacie_id,client_id,statut,preparation_statut,preparation_demarre_le,prete_au_retrait_le,total,created_at,expires_at,mode,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))", { count: "exact" })
+    .select("id,pharmacie_id,client_id,statut,preparation_statut,preparation_demarre_le,prete_au_retrait_le,total,created_at,expires_at,mode,credit_request_id,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))", { count: "exact" })
     .in("pharmacie_id", pharmacyIds)
     .eq("mode", "reservation")
     .order("created_at", { ascending: true });
@@ -161,7 +162,7 @@ export default async function GestionnaireStockReservationsPage({
             return (
               <article key={reservation.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{pharmacyName ?? "Pharmacie autorisée"} · Client #{shortId(reservation.client_id)}</p><h2 className="mt-1 text-xl font-black">Réservation #{shortId(reservation.id)}</h2><p className="mt-1 text-sm text-slate-600">Reçue le {new Date(reservation.created_at).toLocaleString("fr-FR")}</p></div>
+                  <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{pharmacyName ?? "Pharmacie autorisée"} · Client #{shortId(reservation.client_id)}</p><h2 className="mt-1 text-xl font-black">{reservation.credit_request_id ? "Commande à crédit" : "Réservation"} #{shortId(reservation.id)}</h2>{reservation.credit_request_id && <p className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">Crédit approuvé · stock réservé</p>}<p className="mt-1 text-sm text-slate-600">Reçue le {new Date(reservation.created_at).toLocaleString("fr-FR")}</p></div>
                   <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${remaining <= 30 * 60 * 1000 ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`}>{reservation.preparation_statut === "prete_au_retrait" ? "Prête au retrait" : reservation.preparation_statut === "en_preparation" ? "En préparation" : reservation.statut === "confirmee" && reservation.preparation_statut === null ? "Phase historique à vérifier" : statusLabels[reservation.statut] ?? reservation.statut}</span>
                 </div>
                 <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><strong>Expiration :</strong> {new Date(reservation.expires_at).toLocaleString("fr-FR")} · {remaining <= 0 ? "Délai dépassé — vérification requise" : remaining <= 30 * 60 * 1000 ? "Moins de 30 minutes restantes" : "Délai restant : " + Math.floor(remaining / 60000) + " min"}</div>
