@@ -1623,3 +1623,27 @@ La lecture de `supabase/migration_189_reservation_history_expiry_alert.sql` et d
 **Conclusion consolidée :** aucun signal fiable et dédié de préparation physique n'a été établi dans le cycle de réservation pharmacie avec retrait. Le bouton « Confirmer disponibilité et préparer » fait passer `en_attente` à `confirmee`; le journal général trace cette transition, mais pas le début effectif d'une préparation. Les états de livraison ne peuvent pas être transposés au cycle retrait. Le mapping SM-01 reste bloqué jusqu'à une décision métier explicite ou à l'ajout ultérieur d'un état de préparation persistant, sans implémenter ce changement dans le cadre de cet audit.
 
 **Limites :** analyse statique de fichiers source. Aucun SQL, RPC, test automatisé, build, déploiement ou accès aux données de production n'a été exécuté.
+
+
+### 60.14 Séparation obligatoire entre suspension disciplinaire et blocage commercial de l’abonnement — 27 octobre 2026
+
+Fichiers relus sur `main` :
+- `src/lib/promoteur-access.ts`
+- `src/app/pharmacie/suspendue/page.tsx`
+- `supabase/migration_133_promoteur_validite_canonique.sql`
+- `supabase/migration_144_promoteur_subscription_coherence.sql`
+- `supabase/migrations/20261026224500_promoteur_reglement_manuel_confirmation_reactivation.sql`
+- `supabase/migrations/20261027010000_promoteur_soumet_paiement_manuel.sql`
+
+**Constat de sécurité important : le mécanisme commercial existant n'est pas un mécanisme de suspension disciplinaire réutilisable tel quel.**
+
+1. L'accès Promoteur distingue déjà la validité de l'abonnement, la cohérence convention/abonnement, l'état actif du profil et l'existence d'un réseau de pharmacies opérationnel. La page « Pharmacie temporairement suspendue » explique actuellement un blocage lié à la validité mensuelle.
+2. La confirmation d'un règlement commercial remet l'abonnement et la convention à l'état actif, efface `bloque_le`, renseigne `reactive_le`/`reactive_par`, réactive le profil Promoteur et peut réactiver les rattachements et pharmacies associés.
+3. Si une suspension disciplinaire SM-01 était encodée uniquement au moyen de `profiles.actif`, `pharmacies.actif`, `promoteur_pharmacies.actif` ou du blocage commercial de l'abonnement, le chemin de renouvellement pourrait la lever involontairement lors d'une confirmation de paiement. Cela contredirait la règle validée selon laquelle paiement/renouvellement ne lève jamais une sanction disciplinaire.
+4. Il faut donc modéliser et vérifier un état disciplinaire distinct du cycle commercial, avec motif, périmètre, acteur, date, journal avant/après et décision explicite de levée par un Administrateur habilité. Les contrôles d'accès et la visibilité marketplace doivent appliquer les deux dimensions de façon cumulative : l'abonnement valide ne doit pas neutraliser une sanction disciplinaire.
+5. La réactivation commerciale devra préserver toute suspension disciplinaire encore active. Inversement, la levée disciplinaire ne devra pas rendre opérationnel un Promoteur dont l'abonnement reste bloqué ou expiré.
+6. La portée disciplinaire confirmée inclut le Promoteur et toutes ses pharmacies rattachées; elle bloque l'accès marketplace de ces pharmacies. Les réservations doivent être traitées via le workflow serveur audité défini dans les sections précédentes, sans supprimer données, stocks, historiques ni preuves financières.
+
+**Conséquence sur l'ordre d'implémentation :** avant de coder l'action disciplinaire, cartographier chaque point de contrôle d'accès qui autorise Promoteur, pharmacie et visibilité marketplace, puis définir le prédicat commun qui combine validité commerciale et suspension disciplinaire. Ajouter ensuite le chemin d'administration et le journal d'audit. Enfin, traiter les réservations par transitions atomiques et notifications idempotentes. Ne pas utiliser la réactivation commerciale comme procédure de levée disciplinaire.
+
+**État de vérification :** lecture statique des fichiers source et migrations du dépôt. Aucun code métier ou SQL n'a été modifié; aucune migration, requête de production, test automatisé, build ou déploiement n'a été exécuté. Cette conclusion est une analyse de risque du code versionné, pas une validation d'environnement déployé.
