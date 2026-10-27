@@ -1922,3 +1922,31 @@ La migration **ne remplit pas arbitrairement** la phase de préparation des rés
 
 **État des vérifications :** lecture statique des sources versionnées et contrôles de présence de contenu uniquement. Aucun test SQL, build, test navigateur ou appel à une base de données n’a été exécuté. Aucune modification de production ni aucun déploiement.
 
+
+## 60.21 — SM-01 / point 3 : revue statique ciblée des RPC et des appelants
+
+**État : revue ciblée ajoutée; inventaire global encore ouvert. Aucun test SQL n’a été exécuté.**
+
+### Fonctions et protections confirmées dans le code versionné
+
+| RPC / surface | Exposition SQL observée | Garde ou appelant vérifié statiquement | Risque résiduel / preuve manquante |
+|---|---|---|---|
+| `public.gestionnaire_stock_reservation_preparation(uuid,text)` | `authenticated`; `anon` et `public` révoqués | `auth.uid()`, profil actif, `naxa_scope_allows(..., 'PHARMACIE')`, rôle/fonction interne ou privilège; transition physique monotone | Vérifier en base les ACL effectives, les privilèges hérités et les cas adversariaux |
+| `public.gestionnaire_stock_reservation_annuler(uuid)` | `authenticated`; `anon` et `public` révoqués | Identité, portée pharmacie, rôle autorisé, phase historique inconnue refusée, état prêt protégé, restitution de stock | Tester concurrence annulation/suspension et toutes les formes de stock historique |
+| `public.admin_suspendre_promoteur_disciplinaire(uuid,text)` et `public.admin_lever_suspension_promoteur(uuid,text)` | `authenticated`; `anon` et `public` révoqués | Les deux fonctions utilisent `auth.uid()` et exigent un profil `admin` actif; audit et journal administratif | Tester les privilèges effectifs, la course entre deux suspensions et les comptes inactifs |
+| `public.promoteur_soumettre_reglement(...)` | Exécution réservée à `service_role` par la migration de flux de paiement | L’action `src/app/promoteur/paiements/actions.ts` récupère la session via `supabaseServer().auth.getUser()`, vérifie le rôle Promoteur, puis transmet `user.id` comme `p_promoteur` via `supabaseAdmin()` | Le garde d’identité dépend du maintien strict de cette frontière serveur; vérifier les autres appelants et l’absence de nouvelles attributions EXECUTE |
+| `public.admin_confirmer_reglement_promoteur(uuid,uuid)` | Exécution réservée à `service_role` | L’action `src/app/admin/pilotage/reglements/actions.ts` appelle `requireAdminActive()`, contrôle l’ID et l’état du règlement, exige l’action explicite de vérification de preuve, puis transmet l’ID authentifié comme `p_admin` | La fonction SQL fait confiance à `p_admin`; cela reste acceptable uniquement tant que l’EXECUTE est réellement limité à `service_role` et que tous les appelants vérifient l’admin côté serveur |
+| `public.admin_valider_dossier_pharmacie(...)` | À confirmer à partir de l’état effectif des ACL et de la définition SQL déployée | L’action `src/app/admin/promoteurs/actions.ts` utilise `requireAdminActive()`; validation métier transactionnelle déléguée à la RPC | Poursuivre l’inspection de la définition complète, des grants et des paramètres d’acteur; ne pas déclarer la garde SQL validée sur la seule protection de l’action |
+| POS : `public.caisse_rechercher_produit` et `public.caisse_rechercher_codes` | `authenticated`; accès `anon`/public révoqué dans la migration disciplinaire | Authentification et contrôle `is_admin()` ou `can_operate_pharmacy(p_pharmacie)`; stock interne séparé du filtre Marketplace | Inventorier les RPC de finalisation, paiement, consommation, retrait et synchronisation hors ligne, puis vérifier leur périmètre de façon uniforme |
+
+### Corrections apportées à la couverture de test
+
+Le test structurel `supabase/tests/20261027030000_sm01_reservations_disciplinaire_et_garde_rpc.sql` inclut désormais des assertions sur l’existence des RPC de règlement, les privilèges `EXECUTE` attendus pour `service_role`, l’absence d’accès `anon/authenticated` à ces deux fonctions, et les gardes d’identité/admin actif de la RPC de suspension disciplinaire.
+
+**Limite importante :** ces assertions sont du code de test ajouté, pas un résultat de test. Elles doivent être exécutées après application des migrations dans un environnement de test non-production. Les ACL effectives de la base ne sont pas connues tant que le test n’a pas été exécuté.
+
+### Décision de sécurité à ce stade
+
+Aucune preuve ne justifie de modifier maintenant les RPC de paiement pour les rendre directement accessibles à `authenticated` : leur contrat actuel est service-role-only et les actions serveur contrôlent la session/role avant l’appel. Il faut conserver cette séparation. La suite prioritaire est l’inventaire complet des appels RPC et des fonctions `SECURITY DEFINER`, notamment validation/activation de dossier, stock/lots, ventes POS, clôture de caisse, retraits et synchronisation hors ligne. Chaque correction doit s’appuyer sur la signature réelle et ses ACL, pas sur une supposition.
+
+**Périmètre d’exécution :** modifications de code et de documentation sur `main) uniquement. Aucun branchement, aucune migration exécutée, aucune écriture en base de production et aucun déploiement.
