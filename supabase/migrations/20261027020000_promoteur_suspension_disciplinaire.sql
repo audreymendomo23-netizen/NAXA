@@ -70,9 +70,9 @@ as $fn$
   select exists (
     select 1
     from public.promoteur_suspensions_disciplinaires s
-    cross join lateral jsonb_array_elements(coalesce(s.perimetre_apres->'pharmacies', '[]'::jsonb)) ph
+    cross join lateral jsonb_array_elements(coalesce(s.perimetre_apres->'pharmacies', '[]'::jsonb)) as pharmacy(item)
     where s.statut = 'active'
-      and ph->>'id' = p_pharmacie::text
+      and pharmacy.item->>'id' = p_pharmacie::text
   );
 $fn$;
 
