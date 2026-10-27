@@ -29,15 +29,20 @@ begin
  select * into c from public.conventions_promoteurs where promoteur_id=p_promoteur for update;
  select * into a from public.abonnements_promoteurs where promoteur_id=p_promoteur for update;
  if c.architecture_code is null or c.architecture_code is distinct from v_architecture or a.convention_id is distinct from c.id or a.montant_mensuel is distinct from c.montant_mensuel then raise exception 'Convention, abonnement et architecture incohérents'; end if;
+ if a.statut='resilie' or c.statut='resiliee' then raise exception 'Abonnement ou convention résilié : examen administratif distinct requis'; end if;
  select pharmacie_id into ph from public.promoteur_pharmacies where promoteur_id=p_promoteur for update;
  avant:=jsonb_build_object('convention_statut',c.statut,'convention_echeance',c.date_expiration,'abonnement_statut',a.statut,'abonnement_echeance',a.echeance,'profil_actif',(select actif from public.profiles where id=p_promoteur),'pharmacie_id',ph);
  update public.conventions_promoteurs set date_expiration=p_nouvelle_echeance,statut='active' where id=c.id;
  update public.abonnements_promoteurs set echeance=p_nouvelle_echeance,statut='actif',bloque_le=null,reactive_le=now(),reactive_par=p_admin where id=a.id;
  -- Ne touche ni date_paiement ni au registre de paiements : renouvellement administratif ≠ preuve de règlement.
- update public.profiles set actif=true where id=p_promoteur;
- update public.promoteur_pharmacies set actif=true where promoteur_id=p_promoteur;
- update public.pharmacies p set actif=true where exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=p_promoteur and pp.pharmacie_id=p.id);
- apres:=jsonb_build_object('convention_statut','active','convention_echeance',p_nouvelle_echeance,'abonnement_statut','actif','abonnement_echeance',p_nouvelle_echeance,'profil_actif',true,'pharmacie_id',ph);
+ -- Le renouvellement administratif ne vaut ni preuve de paiement ni levée
+ -- d'une suspension indépendante sur le profil, le lien ou la pharmacie.
+ apres:=jsonb_build_object(
+  'convention_statut','active','convention_echeance',p_nouvelle_echeance,
+  'abonnement_statut','actif','abonnement_echeance',p_nouvelle_echeance,
+  'profil_actif',(select actif from public.profiles where id=p_promoteur),
+  'pharmacie_id',ph
+ );
  insert into public.admin_pharmacie_audit(pharmacie_id,promoteur_id,acteur_id,action,motif,avant,apres) values(ph,p_promoteur,p_admin,'renouvellement_manuel',trim(p_motif),avant,apres);
  return p_nouvelle_echeance;
 end $$;
