@@ -42,6 +42,13 @@ begin
     raise exception 'SM-01.6 : disponibilité Marketplace non protégée';
   end if;
 
+  select pg_get_functiondef('private.naxa_pharmacie_sous_suspension(uuid)'::regprocedure)
+    into v_definition;
+  if position('perimetre_apres' in v_definition) = 0
+     or position('jsonb_array_elements' in v_definition) = 0 then
+    raise exception 'SM-01.6b : le périmètre disciplinaire doit rester stable malgré une modification ultérieure des rattachements';
+  end if;
+
   select pg_get_functiondef('private.reserve_stock(uuid,jsonb)'::regprocedure)
     into v_definition;
   if position('naxa_pharmacie_sous_suspension' in v_definition) = 0 then
