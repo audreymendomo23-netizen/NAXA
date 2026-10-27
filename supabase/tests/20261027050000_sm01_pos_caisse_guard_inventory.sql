@@ -69,14 +69,25 @@ begin
     raise exception 'SM-01.3.CASH.4 : décaissement sans contrôle complet de grant/session/montant/motif/profil';
   end if;
 
-  v_proc := to_regprocedure('public.caisse_cloturer(uuid,integer)');
-  if v_proc is null then raise exception 'SM-01.3.CASH.3 : clôture de caisse absente'; end if;
+  -- La page Caisse appelle la signature à trois paramètres, qui impose la
+  -- justification d'un écart; la surcharge à deux paramètres est legacy.
+  v_proc := to_regprocedure('public.caisse_cloturer(uuid,integer,text)');
+  if v_proc is null then raise exception 'SM-01.3.CASH.6 : clôture avec justification absente'; end if;
   select pg_get_functiondef(v_proc) into v_definition;
   if position('auth.uid()' in v_definition)=0
      or position('v_session.ouvert_par is distinct from auth.uid()' in lower(v_definition))=0
      or position('v_decaissements' in lower(v_definition))=0
+     or position('ecart_justification' in lower(v_definition))=0
      or position('for update' in lower(v_definition))=0 then
-    raise exception 'SM-01.3.CASH.4 : clôture sans garde titulaire, verrouillage ou rapprochement décaissements';
+    raise exception 'SM-01.3.CASH.7 : clôture sans garde titulaire, verrouillage, justification ou rapprochement décaissements';
+  end if;
+
+  v_proc := to_regprocedure('public.caisse_cloturer(uuid,integer)');
+  if v_proc is null then raise exception 'SM-01.3.CASH.8 : surcharge de compatibilité clôture absente'; end if;
+  select pg_get_functiondef(v_proc) into v_definition;
+  if position('caisse_cloturer' in lower(v_definition))=0
+     or position('null::text' in lower(v_definition))=0 then
+    raise exception 'SM-01.3.CASH.9 : surcharge de compatibilité ne délègue pas à la clôture justifiée';
   end if;
 
   v_proc := to_regprocedure('public.vente_annulation_decider(uuid,boolean)');
@@ -101,7 +112,8 @@ begin
   if has_function_privilege('anon','public.vente_reservation_encaisser(uuid,uuid,integer)','EXECUTE')
      or has_function_privilege('anon','public.caisse_decaisser(uuid,integer,text,text,text)','EXECUTE')
      or has_function_privilege('anon','public.caisse_decaisser(uuid,integer,text,text,text,uuid)','EXECUTE')
-     or has_function_privilege('anon','public.caisse_cloturer(uuid,integer)','EXECUTE') then
+     or has_function_privilege('anon','public.caisse_cloturer(uuid,integer)','EXECUTE')
+     or has_function_privilege('anon','public.caisse_cloturer(uuid,integer,text)','EXECUTE') then
     raise exception 'SM-01.3.CASH.5 : RPC POS/caisse accessible au rôle anon';
   end if;
 end
