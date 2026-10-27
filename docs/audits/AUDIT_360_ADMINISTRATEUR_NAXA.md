@@ -2006,3 +2006,35 @@ La nouvelle suite `supabase/tests/20261027050000_sm01_pos_caisse_guard_inventory
 4. Il faut confronter les contrats des actions serveur aux signatures finales des RPC après toutes les migrations, en particulier les opérations de décaissement autorisées et les flux PIN, pour éviter qu’un ancien appelant ou une surcharge obsolète ne demeure utilisable.
 
 **Exécution :** aucun test SQL exécuté, aucune migration appliquée, aucune base de production modifiée et aucun déploiement.
+
+
+## 60.24 — SM-01 / point 3 : rapprochement actions serveur/RPC et événement comptable d’annulation
+
+**État : rapprochement statique effectué sur les sources versionnées; anomalie fonctionnelle comptable identifiée, non corrigée à ce stade.**
+
+### Contrats d’actions serveur et RPC examinés
+
+- L’action Promoteur src/app/promoteur/paiements/actions.ts appelle promoteur_soumettre_reglement avec les huit paramètres nommés attendus par la migration finale : p_promoteur, p_montant, p_canal, p_canal_autre, p_compte_payeur, p_reference, p_paye_le, p_preuve_path. Les formats, la date déclarée, le canal, la preuve et le montant sont validés côté action puis à nouveau côté RPC.
+- L’action Admin src/app/admin/pilotage/reglements/actions.ts appelle admin_confirmer_reglement_promoteur(p_reglement,p_admin) et admin_refuser_reglement_promoteur(p_reglement,p_admin,p_motif), signatures conformes aux définitions retrouvées dans les migrations finales consultées. Le contrôle de rôle actif est effectué par requireAdminActive et répété dans les RPC.
+- La RPC de soumission du paiement manuel est révoquée à public, anon et authenticated, puis accordée à service_role; le chemin d’action utilise le client administrateur après authentification et contrôle du rôle Promoteur. Ce contrôle est une lecture du code, pas une preuve des privilèges effectifs dans la base distante.
+- La migration 20261027012000_include_promoter_in_payment_notifications.sql ajoute le libellé du Promoteur aux notifications Admin. Dans cette définition, les pharmacies liées ne sont pas ajoutées au corps de notification : si le besoin opérationnel exige le nom du Promoteur et celui de sa/ses pharmacie(s) dans l’alerte, ce dernier élément reste à vérifier/corriger dans le périmètre du parcours de paiement.
+
+### Anomalie comptable prioritaire — vente annulée sans événement compensatoire visible
+
+**Preuves statiques croisées :**
+1. migration_20261021_compta_outbox.sql ne crée un événement que lorsqu’une vente entre dans l’état payee; le type émis est vente_encaissee.
+2. migration_20261022_compta_worker.sql n’accepte que les types vente_encaissee et depense_validee pour la génération des écritures.
+3. migration_060_pos_annulation_z.sql réalise l’annulation approuvée en restituant le stock, puis en faisant passer la vente à annulee. Le chemin lu ne crée ni paiement inverse, ni avoir, ni événement comptable de contrepassation.
+4. La table compta_ecriture possède une colonne contrepassation_de, mais la présence de cette colonne ne prouve pas qu’une écriture de contrepassation est générée pour une vente annulée.
+
+**Conclusion :** dans les migrations consultées, une vente initialement comptabilisée peut être annulée opérationnellement et son stock restitué sans chemin de compensation comptable visible. Les paiements espèces, Mobile Money et paiements mixtes sont enregistrés dans vente_paiements, mais aucun remboursement correspondant n’a été trouvé dans le chemin d’annulation examiné. Il s’agit d’un **risque de cohérence comptable et de trésorerie à traiter avant de déclarer le flux d’annulation complet**, pas d’une preuve de déséquilibre dans une base réelle.
+
+### Suite de travail requise dans le périmètre
+
+- Concevoir un événement d’annulation/avoir idempotent, lié à la vente d’origine, avec une écriture de contrepassation dans la même pharmacie et une période comptable ouverte ou un mécanisme d’ajustement explicitement approuvé.
+- Définir le remboursement par mode de paiement d’origine, avec référence/preuve lorsque nécessaire; ne pas assimiler une restitution de stock à un remboursement financier.
+- Protéger la séquence contre double exécution, annulation répétée, concurrence et clôture comptable, puis ajouter des tests SQL transactionnels couvrant paiements espèces, Mobile Money, mixtes, refus de remboursement et contrepassation équilibrée.
+- Vérifier les contrats finaux des RPC de décaissement et des flux PIN à partir de toutes les migrations ultérieures avant de déclarer ces sous-points clos.
+- Compléter, si le besoin métier est confirmé, la notification de paiement Promoteur afin d’y inclure le nom de chaque pharmacie liée sans exposer d’informations inutiles.
+
+**Exécution :** revue de code uniquement. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée de base modifiée et aucun déploiement déclenché. Aucune correction métier n’a été introduite sans définir le contrat complet de remboursement et de contrepassation.
