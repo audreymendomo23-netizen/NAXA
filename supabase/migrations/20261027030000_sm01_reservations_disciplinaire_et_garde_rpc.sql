@@ -63,7 +63,7 @@ declare
   v_profile public.profiles%rowtype;
 begin
   if v_user is null then raise exception 'Connexion requise'; end if;
-  if p_etat not in ('en_preparation','prete_au_retrait') then
+  if p_etat is null or p_etat not in ('en_preparation','prete_au_retrait') then
     raise exception 'État de préparation invalide';
   end if;
 
