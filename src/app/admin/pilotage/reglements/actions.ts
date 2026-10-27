@@ -11,6 +11,11 @@ export async function confirmerReglementPromoteur(formData: FormData) {
   const id = String(formData.get("reglement_id") ?? "");
   if (!UUID.test(id)) redirect("/admin/pilotage/reglements?erreur=champs");
   const db = supabaseAdmin();
+  const { data: reglement, error: readError } = await db.from("abonnement_promoteur_reglements")
+    .select("id,statut,preuve_path").eq("id", id).maybeSingle();
+  if (readError || !reglement || reglement.statut !== "en_attente") redirect("/admin/pilotage/reglements?erreur=confirmation");
+  const { data: preuve } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(reglement.preuve_path, 600);
+  if (!preuve?.signedUrl) redirect("/admin/pilotage/reglements?erreur=preuve");
   const { error } = await db.rpc("admin_confirmer_reglement_promoteur", { p_reglement: id, p_admin: user.id });
   if (error) redirect("/admin/pilotage/reglements?erreur=confirmation");
   revalidatePath("/admin/pilotage/reglements");
