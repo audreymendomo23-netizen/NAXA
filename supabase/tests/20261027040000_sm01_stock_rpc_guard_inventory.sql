@@ -15,8 +15,7 @@ begin
      or position('actif=true' in v_definition)=0 then
     raise exception 'SM-01.3.STOCK.2 : garde identité/périmètre/compte actif absente de l’ajustement';
   end if;
-  if has_function_privilege('anon',v_proc,'EXECUTE')
-     or has_function_privilege('public',v_proc,'EXECUTE') then
+  if has_function_privilege('anon',v_proc,'EXECUTE') then
     raise exception 'SM-01.3.STOCK.3 : ajustement stock exécutable par anon/public';
   end if;
 
@@ -30,8 +29,7 @@ begin
      or position('actif=true' in v_definition)=0 then
     raise exception 'SM-01.3.STOCK.5 : contrôle des deux périmètres absent du transfert';
   end if;
-  if has_function_privilege('anon',v_proc,'EXECUTE')
-     or has_function_privilege('public',v_proc,'EXECUTE') then
+  if has_function_privilege('anon',v_proc,'EXECUTE') then
     raise exception 'SM-01.3.STOCK.6 : transfert stock exécutable par anon/public';
   end if;
 
@@ -45,8 +43,7 @@ begin
      or position('base_updated_at' in v_definition)=0 then
     raise exception 'SM-01.3.STOCK.8 : identité, idempotence, affectation ou contrôle de conflit absent';
   end if;
-  if has_function_privilege('anon',v_proc,'EXECUTE')
-     or has_function_privilege('public',v_proc,'EXECUTE') then
+  if has_function_privilege('anon',v_proc,'EXECUTE') then
     raise exception 'SM-01.3.STOCK.9 : synchronisation offline exécutable par anon/public';
   end if;
 
