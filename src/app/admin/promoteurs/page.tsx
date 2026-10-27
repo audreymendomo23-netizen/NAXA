@@ -84,7 +84,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
         {(promoteursError || suspensionsError) && (
           <p role="alert" className="rounded-2xl border border-red-300 bg-white p-4 text-sm text-red-900">Le registre disciplinaire est indisponible. Vérifiez que la migration SM-01 a été appliquée à cet environnement; aucune action ne doit être considérée comme enregistrée.</p>
         )}
-        {!promoteursError && (promoteurs ?? []).map((promoteur: any) => {
+        {!promoteursError && !suspensionsError && (promoteurs ?? []).map((promoteur: any) => {
           const sanction = (suspensions ?? []).find((item: any) => item.promoteur_id === promoteur.id);
           const nom = [promoteur.first_name, promoteur.last_name].filter(Boolean).join(" ") || promoteur.username || promoteur.id;
           return <article key={promoteur.id} className="rounded-2xl border border-amber-200 bg-white p-4">
@@ -112,7 +112,7 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
             </div>
           </article>;
         })}
-        {!promoteursError && !promoteurs?.length && <p className="rounded-xl border border-dashed border-amber-300 bg-white p-4 text-sm text-slate-600">Aucun compte Promoteur trouvé.</p>}
+        {!promoteursError && !suspensionsError && !promoteurs?.length && <p className="rounded-xl border border-dashed border-amber-300 bg-white p-4 text-sm text-slate-600">Aucun compte Promoteur trouvé.</p>}
       </section>
 
       {partnerDossiersError && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Les dossiers des autres univers sont indisponibles. Vérifiez que la migration additive du registre transversal est appliquée dans l’environnement concerné.</p>}
