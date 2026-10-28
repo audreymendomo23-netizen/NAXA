@@ -124,7 +124,7 @@ begin
           and l.quantite>0 and coalesce(l.bloque,false)=false
           and (l.date_peremption is null or l.date_peremption>=current_date)
         order by l.date_peremption asc nulls last,l.created_at asc,l.id asc
-        for update of l
+        for update of l,a
       loop
         exit when v_remaining=0;
         v_take:=least(v_remaining,v_lot.reserve_qty);
