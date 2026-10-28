@@ -9,13 +9,8 @@ alter table public.client_credit_operations
 comment on column public.client_credit_operations.mode_paiement is
   'Moyen d’encaissement structuré du remboursement. NULL signifie historique ou mode non établi; seuls les remboursements espèces alimentent le tiroir de caisse.';
 
--- Reprise limitée aux libellés explicites et exacts laissés par l’ancienne interface.
--- Les autres anciennes opérations restent NULL : leur moyen de paiement ne doit pas être deviné.
-update public.client_credit_operations
-set mode_paiement='especes'::public.mode_paiement_caisse
-where nature='remboursement'
-  and mode_paiement is null
-  and lower(trim(coalesce(motif,''))) in ('espèces','especes');
+-- Aucun backfill historique depuis motif : ce champ libre ne prouve pas le moyen de paiement.
+-- Les remboursements historiques restent NULL jusqu’à réconciliation sur une preuve fiable.
 
 create index if not exists client_credit_repayment_mode_session_idx
   on public.client_credit_operations(caisse_session_id,mode_paiement,created_at desc)
