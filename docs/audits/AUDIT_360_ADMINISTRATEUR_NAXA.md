@@ -2356,3 +2356,15 @@ Le test `supabase/tests/257_credit_withdrawal_five_scenarios.sql` regroupe :
 **Limite importante : le test intégré complet n'est pas encore PASS.** La vérification préalable en lecture seule a montré que le schéma de ce replay ne contient pas encore `public.vente_reservation_credit_finaliser(uuid,uuid,text)`. Le script complet s'arrêterait donc au contrôle du contrat avant les fixtures. Le projet Naxa principal ne contient pas non plus cette fonction ; aucune migration n'y a été appliquée. Il n'est pas acceptable de présenter le succès des fixtures isolées comme une validation d'exécution du retrait réel.
 
 Le contrat de statut a été corrigé dans le script pour référencer `private.set_reservation_status(uuid,public.resa_statut)`. Pour fermer la validation intégrée, il faut un environnement de test reconstruit avec les migrations 247, 252 et 256 et leurs prérequis, puis exécuter le script complet. Aucun déploiement ni changement de schéma distant n'a été effectué.
+
+## 60.40 — Résultats des contrôles structurels 247/256 sur le replay CI
+
+**Exécution réelle en lecture seule sur le replay CI `naxa-ci-replay-2` :**
+
+- `supabase/tests/247_credit_marketplace_stock_contract.sql` : **ÉCHEC** — PostgreSQL retourne `P0001: Champs du contrat Marketplace incomplets`.
+- `supabase/tests/256_credit_withdrawal_reserved_lots.sql` : **ÉCHEC** — PostgreSQL retourne `P0001: RPC retrait crédit absente`.
+- Les contrôles de schéma avaient également établi que `public.vente_reservation_credit_finaliser(uuid,uuid,text)` est absente du replay CI et du projet NAXA principal.
+
+**Interprétation :** ces échecs indiquent que le schéma interrogé ne correspond pas à l'état attendu après application des migrations versionnées. Ils ne prouvent pas à eux seuls que les migrations 247/256 sont défectueuses. Le test 257 intégré ne peut pas être déclaré PASS tant que le contrat réel n'est pas présent dans un environnement reconstruit.
+
+**Suite retenue :** reconstruire un PostgreSQL local/éphémère avec les migrations et prérequis du dépôt, puis exécuter les tests 247, 256 et 257 dans cet ordre. À défaut d'un moteur local disponible, rechercher un runner isolé sans écrire dans les projets Supabase distants. Les projets distants restent en lecture seule : aucune migration appliquée, aucun dossier métier créé, aucune donnée persistante modifiée, aucun déploiement.
