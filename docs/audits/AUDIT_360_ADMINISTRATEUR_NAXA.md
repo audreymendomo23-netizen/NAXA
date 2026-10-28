@@ -2368,3 +2368,44 @@ Le contrat de statut a été corrigé dans le script pour référencer `private.
 **Interprétation :** ces échecs indiquent que le schéma interrogé ne correspond pas à l'état attendu après application des migrations versionnées. Ils ne prouvent pas à eux seuls que les migrations 247/256 sont défectueuses. Le test 257 intégré ne peut pas être déclaré PASS tant que le contrat réel n'est pas présent dans un environnement reconstruit.
 
 **Suite retenue :** reconstruire un PostgreSQL local/éphémère avec les migrations et prérequis du dépôt, puis exécuter les tests 247, 256 et 257 dans cet ordre. À défaut d'un moteur local disponible, rechercher un runner isolé sans écrire dans les projets Supabase distants. Les projets distants restent en lecture seule : aucune migration appliquée, aucun dossier métier créé, aucune donnée persistante modifiée, aucun déploiement.
+
+
+## 60.41 — Bilan de clôture du sous-chantier crédit Marketplace / stock / retrait caisse
+
+**Décision d’audit au 28 octobre 2026 : implémentation versionnée et revue statiquement ; clôture technique complète non démontrée, car le test intégré du chemin réel ne peut pas être exécuté avec les environnements accessibles sans écrire dans une base distante.** Ce bilan clôt la passe de travail et évite de relancer les mêmes vérifications sans nouvel environnement ou nouvelle preuve.
+
+### Périmètre couvert dans cette passe
+
+- Soumission d’une demande de crédit Marketplace et champs du contrat : migration 247 et test structurel 247.
+- Approbation/refus et hold logique du stock, allocation des lots sans débit physique à l’approbation.
+- Retrait en caisse par la RPC `vente_reservation_credit_finaliser(uuid,uuid,text)`, avec contrôle de session/pharmacie, lien à la demande approuvée, création atomique de la vente et de l’opération de crédit.
+- Correctif migration 256 : consommation des lots affectés à la réservation et au produit concernés, verrouillage des lignes, vérification de quantité, exclusion des lots bloqués/périmés et débit agrégé cohérent selon le modèle de hold.
+- Remboursement de crédit et garde-fous des migrations 248–255 examinés dans les entrées d’audit précédentes ; leurs parcours d’intégration ne sont pas réputés validés en exécution ici.
+- Annulation/expiration/restauration, rollback, idempotence et retrait dans l’ordre inverse couverts par revue statique et par les fixtures temporaires du test 257.
+
+### Résultats d’exécution observés
+
+| Contrôle | Résultat |
+|---|---|
+| Fixtures temporaires des cinq scénarios 257 | **PASS**, tables temporaires uniquement, transaction annulée |
+| Test structurel 247 sur le replay CI | **ÉCHEC** : champs du contrat Marketplace absents du schéma interrogé |
+| Test structurel 256 sur le replay CI | **ÉCHEC** : RPC de retrait absente du schéma interrogé |
+| Contrôle préalable de la RPC sur le projet NAXA principal | **ABSENTE** ; vérification en lecture seule |
+| Test intégré complet 257 | **BLOQUÉ** : contrat RPC requis absent dans le replay |
+| Reconstruction PostgreSQL locale isolée | **INDISPONIBLE** : aucun binaire `psql`, `postgres`, `docker`, `podman` ou `supabase` accessible dans l’environnement de travail inspecté |
+
+Les échecs 247/256 démontrent un écart entre le schéma des bases interrogées et les migrations attendues ; ils ne démontrent pas, à eux seuls, que les migrations versionnées sont incorrectes. Les fixtures PASS ne constituent pas une preuve de fonctionnement de la RPC réelle.
+
+### Sécurité et périmètre respectés
+
+- Travail limité au dépôt et à la lecture des schémas distants.
+- Aucune branche créée, aucune pull request ouverte.
+- Aucune migration appliquée au projet NAXA principal ni au replay CI.
+- Aucune donnée métier persistante modifiée.
+- Aucun déploiement ni relance de déploiement déclenché.
+
+### Décision de passage
+
+Le code versionné a reçu une revue statique ciblée et les scénarios de fixture isolés passent. **Le critère strict « chantier validé / vert » n’est pas atteint** tant que les migrations 247, 252 et 256 avec leurs prérequis ne sont pas rejouées dans un PostgreSQL de test isolé, puis que les tests 247, 256 et 257 ne passent pas ensemble. Cette étape est une validation bloquée par l’environnement, pas une invitation à modifier les bases distantes ni à répéter les mêmes essais.
+
+Pour reprendre ultérieurement, la seule action utile est de fournir/ouvrir un runner PostgreSQL isolé avec les migrations et prérequis du dépôt. À ce moment-là, exécuter les tests dans l’ordre 247 → 256 → 257, puis ajouter la preuve de résultat à cet audit. Aucun autre correctif de code n’est justifié par les éléments observés dans cette passe.
