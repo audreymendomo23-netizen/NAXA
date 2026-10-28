@@ -2262,3 +2262,14 @@ La migration 254 conserve la signature historique `client_credit_rembourser(uuid
 5. Réconcilier les remboursements historiques à mode `NULL` avec les tickets avant toute clôture de session concernée.
 
 **Exécution :** lecture statique des migrations 249, 253 et du socle/worker comptables versionnés. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée, aucune branche créée et aucun déploiement déclenché.
+
+
+## 60.35 — Correction du backfill historique du mode de remboursement
+
+**Constat corrigé sur `main` :** la migration 254 ne doit jamais inférer un paiement espèces à partir de `motif`, champ libre historiquement saisi par l’utilisateur. Même un libellé exact « Espèces » ne constitue pas une preuve du paiement réellement encaissé.
+
+**Modification appliquée :** suppression du bloc `UPDATE` qui affectait `mode_paiement='especes'` aux remboursements historiques en fonction de `motif`. La migration précise désormais que les opérations historiques restent à `NULL` jusqu’à une réconciliation fondée sur une preuve fiable. La clôture de caisse et sa garde continuent à ne comptabiliser que les remboursements dont le mode structuré est explicitement `especes`.
+
+**Vérification statique après écriture :** relecture de la migration 254 depuis `main`; le prédicat d’inférence par `motif` et l’affectation historique correspondante sont absents. Le test SQL 254 existant contrôle la présence du champ typé, le contrat de la RPC, et le filtrage espèces de la clôture et de sa garde; il ne prouve pas à lui seul le comportement d’une migration rejouée sur des données historiques.
+
+**État de validation :** aucun test SQL exécuté, aucune migration appliquée sur une base distante, aucune donnée distante modifiée et aucun déploiement déclenché. La correction du fichier versionné est confirmée; le comportement sur une base reconstruite et la réconciliation des remboursements historiques restent à tester.
