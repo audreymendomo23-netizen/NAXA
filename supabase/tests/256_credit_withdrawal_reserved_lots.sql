@@ -21,7 +21,7 @@ begin
      or position('allocation de lots absente ou incohérente' in lower(v_fn))=0 then
     raise exception 'Le retrait ne bloque pas une allocation de lots absente ou incohérente';
   end if;
-  if position('forupdateofl' in v_compact)=0
+  if position('forupdateofl,a' in v_compact)=0
      or position('a.quantiteasreserve_qty' in v_compact)=0 then
     raise exception 'Les lots réservés ne sont pas verrouillés et consommés selon les quantités allouées';
   end if;
