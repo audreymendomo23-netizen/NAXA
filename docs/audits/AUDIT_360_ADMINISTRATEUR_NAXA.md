@@ -2273,3 +2273,26 @@ La migration 254 conserve la signature historique `client_credit_rembourser(uuid
 **Vérification statique après écriture :** relecture de la migration 254 depuis `main`; le prédicat d’inférence par `motif` et l’affectation historique correspondante sont absents. Le test SQL 254 existant contrôle la présence du champ typé, le contrat de la RPC, et le filtrage espèces de la clôture et de sa garde; il ne prouve pas à lui seul le comportement d’une migration rejouée sur des données historiques.
 
 **État de validation :** aucun test SQL exécuté, aucune migration appliquée sur une base distante, aucune donnée distante modifiée et aucun déploiement déclenché. La correction du fichier versionné est confirmée; le comportement sur une base reconstruite et la réconciliation des remboursements historiques restent à tester.
+
+
+## 60.36 — SM-01 / point 60.28 : rejet complet du contrat legacy de remboursement
+
+**État : durcissement versionné sur `main`; exécution SQL et compatibilité applicative non vérifiées.**
+
+### Constat statique
+
+La migration 255 précédente refusait les motifs ambigus, mais acceptait encore un motif libre égal à « Espèces » et le transformait en mode structuré `especes`. Cela supprimait les valeurs manifestement non espèces, mais ne prouvait toujours pas qu’un encaissement physique avait eu lieu. Le champ historique reste une donnée fournie par l’appelant, pas une preuve de caisse.
+
+### Correction versionnée
+
+1. `supabase/migration_255_credit_repayment_legacy_guard.sql` remplace désormais le wrapper historique par un rejet systématique. La signature legacy ne peut plus créer de remboursement ni déduire un moyen de paiement à partir de `p_motif`.
+2. Les appels doivent utiliser la signature typée de la migration 254, qui reçoit `p_mode` séparément et n’autorise actuellement que `especes`.
+3. `supabase/tests/255_credit_repayment_legacy_guard.sql` vérifie structurellement que le wrapper legacy lève une exception et ne lit plus `v_motif), tout en conservant l’assertion sur la contrainte espèces de la RPC typée.
+
+### Compatibilité et limites
+
+- Tout client encore lié à la signature historique recevra une erreur et devra migrer vers la signature typée. Le callsite de caisse actuellement observé utilise déjà `p_mode: "especes"`, mais l’ensemble des consommateurs n’a pas été recherché exhaustivement.
+- Le test 255 n’a pas été exécuté. Il ne s’agit donc pas d’une validation SQL runtime ni d’une preuve de compatibilité de tous les consommateurs.
+- La migration 254 reste versionnée uniquement : aucun test SQL exécuté, aucune migration appliquée à une base distante, aucune donnée distante modifiée et aucun déploiement déclenché.
+
+**Suite immédiate :** inventorier les callsites SQL/RPC de l’ancienne signature, vérifier les migrations 249/253/254/255 ensemble sur une base de test reconstruite, puis exécuter le parcours de remboursement et clôture avec tickets de caisse de test. Les opérations historiques à mode `NULL` doivent être réconciliées sur preuves, jamais reclassées à partir de leur motif.
