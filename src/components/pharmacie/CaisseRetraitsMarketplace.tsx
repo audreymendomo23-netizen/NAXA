@@ -21,6 +21,7 @@ type Reservation = {
   paiement_statut: string | null;
   paiement_mode: string | null;
   paiement_ref: string | null;
+  credit_request_id: string | null;
   reservation_items: ReservationItem[] | null;
 };
 type QRDetector = { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
@@ -83,7 +84,7 @@ export function CaisseRetraitsMarketplace({
     setError("");
     const { data, error: queryError } = await supabaseBrowser()
       .from("reservations")
-      .select("id,code_paiement,statut,total,created_at,expires_at,paiement_statut,paiement_mode,paiement_ref,reservation_items(quantite,prix_unitaire,produits(nom,dosage))")
+      .select("id,code_paiement,statut,total,created_at,expires_at,paiement_statut,paiement_mode,paiement_ref,credit_request_id,reservation_items(quantite,prix_unitaire,produits(nom,dosage))")
       .eq("pharmacie_id", pharmacieId)
       .eq("mode", "reservation")
       .in("statut", ["en_attente", "confirmee", "payee"])
@@ -162,7 +163,7 @@ export function CaisseRetraitsMarketplace({
     setMessage("");
     setReceipt(null);
     const sb = supabaseBrowser();
-    const columns = "id,code_paiement,statut,total,created_at,expires_at,paiement_statut,paiement_mode,paiement_ref,reservation_items(quantite,prix_unitaire,produits(nom,dosage))";
+    const columns = "id,code_paiement,statut,total,created_at,expires_at,paiement_statut,paiement_mode,paiement_ref,credit_request_id,reservation_items(quantite,prix_unitaire,produits(nom,dosage))";
     const byCode = await sb.from("reservations").select(columns).eq("pharmacie_id", pharmacieId).eq("mode", "reservation").eq("code_paiement", normalizedCode).maybeSingle();
     let found = byCode.data as unknown as Reservation | null;
     let lookupError = byCode.error;
@@ -263,6 +264,47 @@ export function CaisseRetraitsMarketplace({
     setBusyId(null);
   }
 
+  async function validerRetraitCredit(row: Reservation) {
+    if (!sessionId) {
+      setError("Ouvrez une session de caisse avant de valider le retrait à crédit.");
+      return;
+    }
+    if (busyId) return;
+    if (!row.credit_request_id || row.statut !== "confirmee" || row.paiement_statut === "effectue") {
+      setError("Cette réservation n’est pas liée à une demande de crédit approuvée et retirable.");
+      return;
+    }
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      setError("Cette réservation a expiré. Aucun retrait à crédit ne peut être validé.");
+      return;
+    }
+    if (!normalizedCode || normalizedCode !== row.code_paiement.toUpperCase()) {
+      setError("Scannez le QR code ou saisissez le code de paiement exact de cette réservation.");
+      return;
+    }
+    if (!window.confirm("Confirmer le retrait des produits sur le crédit client déjà approuvé pour " + fcfa(row.total) + " ? Aucun paiement espèces ou Mobile Money ne sera déclaré.")) return;
+
+    setBusyId(row.id);
+    setError("");
+    setMessage("");
+    setReceipt(null);
+    const { data, error: creditError } = await supabaseBrowser().rpc("vente_reservation_credit_finaliser", {
+      p_reservation: row.id,
+      p_session: sessionId,
+      p_reference: normalizedCode,
+    });
+    if (creditError) {
+      setError(creditError.message || "Retrait à crédit non confirmé. Actualisez la réservation avant de réessayer.");
+    } else {
+      const result = Array.isArray(data) ? data[0] : data;
+      setReceived((current) => ({ ...current, [row.id]: "" }));
+      setMessage("Retrait à crédit enregistré. Ticket " + String(result?.numero_vente ?? "créé") + " ; dette client et journal de crédit mis à jour. Aucun encaissement comptant n’a été enregistré.");
+      setCodeInput("");
+      await load();
+    }
+    setBusyId(null);
+  }
+
   async function confirmerRetrait(row: Reservation) {
     if (!sessionId) {
       setError("Ouvrez une session de caisse avant de confirmer le retrait.");
@@ -318,13 +360,15 @@ export function CaisseRetraitsMarketplace({
           {rows.map((row) => {
             const expired = new Date(row.expires_at).getTime() <= Date.now() && row.statut !== "payee";
             const isSelected = selected?.id === row.id;
-            const canPay = row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
+            const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
+            const canCredit = Boolean(row.credit_request_id) && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
             const paid = row.statut === "payee" && row.paiement_statut === "effectue";
             return (
               <li key={row.id} className={`rounded-xl border p-3 ${isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : ""}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="font-bold">Transaction {row.code_paiement}</p>
+                    {row.credit_request_id && <p className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-900">Crédit Marketplace approuvé · aucun paiement comptant</p>}
                     <p className="text-xs text-slate-500">Créée le {new Date(row.created_at).toLocaleString("fr-FR")} · expire le {new Date(row.expires_at).toLocaleString("fr-FR")}</p>
                   </div>
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold">{expired ? "Expirée" : statusLabel[row.statut] ?? row.statut}</span>
@@ -336,9 +380,10 @@ export function CaisseRetraitsMarketplace({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-extrabold">Total dû : {fcfa(row.total)}</p>
+                    <p className="font-extrabold">{row.credit_request_id ? "Montant du crédit approuvé : " : "Total dû : "}{fcfa(row.total)}</p>
                     <p className="text-xs text-slate-600">Canal enregistré : {row.paiement_mode ?? "à sélectionner au retrait"}</p>
                   </div>
+                  {canCredit && isSelected && <button type="button" className="btn btn-vert" disabled={!sessionId || !!busyId || !normalizedCode} onClick={() => void validerRetraitCredit(row)}>{busyId === row.id ? "Enregistrement…" : "Valider le retrait à crédit"}</button>}
                   {paid && <button type="button" className="btn btn-vert" disabled={!!busyId || !sessionId} onClick={() => void confirmerRetrait(row)}>{busyId === row.id ? "Confirmation…" : "Confirmer la remise des produits"}</button>}
                 </div>
                 {canPay && isSelected && (
