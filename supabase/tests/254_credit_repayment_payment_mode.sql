@@ -23,6 +23,7 @@ begin
   select pg_get_functiondef('public.client_credit_rembourser(uuid,integer,public.mode_paiement_caisse,text,text)'::regprocedure)
     into v_rpc;
   if position('p_mode' in v_rpc)=0
+    or position('is distinct from' in v_rpc)=0
     or position('especes' in v_rpc)=0
     or position('mode_paiement' in v_rpc)=0
     or position('client_credit_operations' in v_rpc)=0 then
