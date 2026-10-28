@@ -10,7 +10,7 @@ begin
   if to_regprocedure('public.vente_reservation_credit_finaliser(uuid,uuid,text)') is null
      or to_regprocedure('public.client_credit_demande_decider(uuid,boolean)') is null
      or to_regprocedure('public.restore_stock(uuid)') is null
-     or to_regprocedure('public.set_reservation_status(uuid,public.resa_statut)') is null
+     or to_regprocedure('private.set_reservation_status(uuid,public.resa_statut)') is null
      or to_regprocedure('public.expirer_reservations_cron(integer)') is null
      or to_regprocedure('public.marketplace_offre_stock_disponible(uuid,uuid)') is null then
     raise exception 'Contrat incomplet : RPC retrait/allocation/restauration/annulation/expiration absente';
@@ -18,7 +18,7 @@ begin
   select pg_get_functiondef('public.vente_reservation_credit_finaliser(uuid,uuid,text)'::regprocedure) into w;
   select pg_get_functiondef('public.client_credit_demande_decider(uuid,boolean)'::regprocedure) into a;
   select pg_get_functiondef('public.restore_stock(uuid)'::regprocedure) into rs;
-  select pg_get_functiondef('public.set_reservation_status(uuid,public.resa_statut)'::regprocedure) into c;
+  select pg_get_functiondef('private.set_reservation_status(uuid,public.resa_statut)'::regprocedure) into c;
   select pg_get_functiondef('public.expirer_reservations_cron(integer)'::regprocedure) into e;
   select pg_get_functiondef('public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure) into o;
   compact:=lower(regexp_replace(w,'\s+','','g'));
