@@ -1,5 +1,5 @@
--- NAXA 255 — empêcher l'ancien contrat libre de qualifier silencieusement un moyen non espèces.
--- Les nouveaux appels doivent utiliser la signature typée de migration 254.
+-- NAXA 255 — imposer le contrat typé pour éviter toute inférence depuis le motif libre.
+-- La signature historique ne permet pas de prouver le moyen réellement encaissé.
 begin;
 
 create or replace function public.client_credit_rembourser(
@@ -13,17 +13,8 @@ language plpgsql
 security definer
 set search_path=''
 as $legacy$
-declare
-  v_motif text := lower(trim(coalesce(p_motif,'')));
 begin
-  if v_motif !~ '^(esp[eè]ces|especes)?$' then
-    raise exception 'Contrat de remboursement obsolète : utilisez le moyen de paiement structuré; seuls les remboursements espèces sont disponibles';
-  end if;
-
-  return public.client_credit_rembourser(
-    p_credit,p_montant,'especes'::public.mode_paiement_caisse,p_reference,
-    case when v_motif='' then null else 'Espèces' end
-  );
+  raise exception 'Contrat de remboursement obsolète : utilisez le moyen de paiement structuré; aucun mode ne peut être déduit du motif libre';
 end;
 $legacy$;
 
