@@ -2321,3 +2321,22 @@ La migration 247 affecte logiquement des lots FEFO à une réservation Marketpla
 - Aucune migration n'a été appliquée à une base distante, aucune donnée distante n'a été modifiée et aucun déploiement n'a été déclenché.
 
 **Suite immédiate :** vérifier les migrations 247, 251, 252 et 256 ensemble sur une base reconstruite; tester concurrence, lots périmés/bloqués, annulation/expiration et rollback avant de considérer le parcours validé.
+
+
+## 60.38 — Vérification croisée simultanée des cinq scénarios de retrait crédit Marketplace
+
+**État : 5/5 contrats cohérents à la lecture statique; aucune validation transactionnelle exécutée.** Revue croisée des migrations 247, 203, 209, 212 et 256, sans changement de données ni appel de RPC sur une base distante.
+
+| Scénario | Résultat statique | Justification / limite |
+|---|---|---|
+| 1. Retraits dans l'ordre inverse | Cohérent | La migration 256 ne parcourt plus les lots FEFO globaux : elle cible `reservation_item_lots` par réservation et produit, puis verrouille `l` et `a`. L'allocation faite à l'approbation 247 permet d'isoler les quantités. Le scénario à deux réservations n'a pas été exécuté. |
+| 2. Stock agrégé et lots | Cohérent sous le contrat des garde-fous | Le retrait diminue les lots affectés et le stock agrégé dans la même fonction/transaction; la mise à jour agrégée est conditionnée par `quantite >= quantité demandée`. La garde de cohérence lot/agrégé doit rester active. Aucun jeu de données n'a été rapproché en exécution. |
+| 3. Lot périmé, bloqué ou insuffisant | Refus prévu | La sélection du retrait exclut les lots bloqués/périmés et lève une exception si la quantité restante ne peut pas être servie par les allocations valides. L'exception doit faire annuler l'opération entière; pas de test d'injection exécuté. |
+| 4. Rollback intégral | Garanti par la frontière transactionnelle SQL, à confirmer en test | La fonction ne capture pas ses erreurs métier et propage les exceptions. PostgreSQL annule alors les écritures de l'appel; le cron d'expiration capture séparément les erreurs par dossier. Aucun échec provoqué après création de vente n'a été injecté. |
+| 5. Annulation et expiration | Cohérent pour les holds modernes | Les réservations crédit modernes sont créées avec `stock_decremented=false`. `restore_stock` ne réajoute donc pas artificiellement du stock physique; l'annulation passe par `set_reservation_status` et l'expiration appelle `restore_stock` avant de marquer `expiree`. Les allocations restent en historique, mais cessent d'être actives car les requêtes de réservation filtrent sur les statuts actifs. Pas de test chronologique exécuté. |
+
+### Conclusion opérationnelle
+
+Aucun défaut statique supplémentaire n'a été démontré dans ces cinq points; ajouter une migration sans preuve créerait du bruit. La suite pertinente est un test d'intégration transactionnel unique qui exécute les cinq scénarios dans une base de test reconstruite, avec assertions sur les quantités avant/après et sur l'absence de vente/crédit/consommation résiduelle après échec.
+
+**Limite explicite :** ce contrôle est une revue de code, pas une preuve d'exécution SQL. Les tests structurels 247, 252 et 256 et les tests d'expiration/restauration ne sont pas déclarés réussis tant qu'ils n'ont pas été exécutés. Aucune migration distante, donnée distante ou déploiement n'a été touché.
