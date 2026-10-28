@@ -31,7 +31,7 @@ begin
   if position('updatepublic.stocks_lotssetquantite=quantite-v_take' in v_compact)=0 then
     raise exception 'Le débit physique des lots affectés a disparu';
   end if;
-end
+end;
 $test$;
 
 rollback;
