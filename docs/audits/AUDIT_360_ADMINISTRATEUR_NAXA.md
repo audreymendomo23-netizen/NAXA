@@ -2122,3 +2122,36 @@ La vente à crédit est finalisée opérationnellement et le solde client augmen
 - Ajouter des tests transactionnels démontrant que la vente à crédit n’augmente pas la trésorerie, que le recouvrement la rapproche par moyen de paiement, que le solde auxiliaire rejoint les écritures comptables et que les reprises concurrentes/doublons ne génèrent pas d’écritures supplémentaires.
 
 **Exécution :** revue statique des migrations versionnées uniquement. Aucun code métier modifié, aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
+
+
+## 60.30 — SM-01 / point 3 : correction versionnée de l’outbox pour l’octroi de crédit
+
+**État : correctif ajouté sur `main`; validation transactionnelle et qualification comptable par pharmacie encore ouvertes.** Cette section actualise le constat historique de 60.29 : l’incohérence statique identifiée a reçu une correction dans le code versionné, mais ne doit pas être déclarée validée en base ni en comptabilité réelle.
+
+### Preuves statiques croisées sur le HEAD de référence
+
+HEAD vérifié avant mise à jour documentaire : `0e3fbeff0aa83c21584babb9726d519cab4a5ce6` — `fix(compta): distinguer octroi de crédit et encaissement`.
+
+1. `supabase/migration_253_marketplace_credit_accounting.sql` remplace `compta_emettre_evenement_metier()` et ignore explicitement la transition vers `payee` lorsque `mode_paiement='credit'`. Les événements `vente_encaissee` ne sont donc plus émis par ce chemin pour les ventes identifiées comme crédit.
+2. La migration ajoute le trigger `compta_outbox_credit_octroi` sur insertion de `client_credit_operations` de nature `credit`. Il émet `credit_octroi`, source `credit_operation`, avec montant FCFA, date comptable Africa/Douala, référence source et clé d’idempotence dédiée.
+3. La migration remplace `compta_traiter_evenement(uuid,uuid)` à partir du worker déjà présent dans la migration 249 et ajoute `credit_octroi` à la liste des types acceptés. Les contrôles existants de période ouverte, de mappings débit/crédit, de journal, de rôle `service_role` et de finalisation de l’événement sont conservés dans le texte examiné.
+4. `supabase/tests/253_marketplace_credit_accounting.sql` définit des assertions structurelles sur le filtre de vente à crédit, le trigger d’octroi et l’acceptation par le worker. Le fichier termine par `rollback` et un résultat de contrat attendu; cela décrit le test, pas une exécution observée.
+5. Le retrait Marketplace à crédit décrit dans `supabase/migration_252_marketplace_credit_withdrawal.sql` lie l’opération d’octroi à la session de caisse et finalise vente, stock et crédit dans une transaction. La migration 253 ne remplace pas ce parcours opérationnel.
+
+### Résultat et limites
+
+- **Correction présente dans le code versionné :** le chemin d’octroi de crédit est séparé de l’événement d’encaissement et possède une clé d’idempotence distincte.
+- **Non démontré :** aucune preuve d’exécution de la migration 253 ni du test 253 n’a été obtenue dans cette étape. Aucun rejeu SQL, aucune migration distante, aucune écriture de données et aucun déploiement n’ont été effectués.
+- **Configuration comptable encore requise :** chaque pharmacie doit disposer d’un mapping débit/crédit valide pour `credit_octroi`, d’une période ouverte et d’un paramètre de journal `journal_code.credit_octroi`. Le code refuse de traiter l’événement si ces éléments sont absents ou ambigus. La pertinence des comptes retenus doit être validée par la comptabilité; le code générique ne prouve pas à lui seul que les comptes représentent correctement la créance client.
+- **Risque restant à tester :** démontrer sur une base de test que l’octroi ne produit aucune entrée de trésorerie, que l’écriture représente bien la créance, qu’un retrait ne crée qu’une seule opération de crédit et qu’une reprise/rejouabilité ne génère pas de doublon comptable.
+- **Périmètre distinct :** le rapprochement des remboursements, des sessions de caisse et de la clôture reste à examiner au point 60.28; cette correction ne le clôt pas.
+
+### Conditions de clôture de SM-01 / point 3
+
+1. Exécuter le test 253 sur une base de test reconstruite avec les migrations prérequises et conserver la sortie réelle.
+2. Ajouter ou confirmer des assertions transactionnelles : aucun `vente_encaissee` pour une vente à crédit; un seul `credit_octroi`; rollback atomique si l’octroi échoue; absence de double écriture après rejeu.
+3. Vérifier les comptes et journaux `credit_octroi` pour chaque pharmacie concernée, sans présumer de mappings existants.
+4. Réconcilier la vente, `client_credit_operations`, le solde `client_credits`, l’événement outbox et l’écriture comptable dans les tests.
+5. Puis reprendre séparément le point 60.28 sur les remboursements, la caisse et le rapprochement de clôture.
+
+**Exécution de cette étape :** lecture statique des fichiers versionnés et mise à jour documentaire uniquement. Aucun test exécuté, aucune migration appliquée, aucune base distante modifiée et aucun déploiement déclenché.
