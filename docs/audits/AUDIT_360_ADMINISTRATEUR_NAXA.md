@@ -2340,3 +2340,17 @@ La migration 247 affecte logiquement des lots FEFO à une réservation Marketpla
 Aucun défaut statique supplémentaire n'a été démontré dans ces cinq points; ajouter une migration sans preuve créerait du bruit. La suite pertinente est un test d'intégration transactionnel unique qui exécute les cinq scénarios dans une base de test reconstruite, avec assertions sur les quantités avant/après et sur l'absence de vente/crédit/consommation résiduelle après échec.
 
 **Limite explicite :** ce contrôle est une revue de code, pas une preuve d'exécution SQL. Les tests structurels 247, 252 et 256 et les tests d'expiration/restauration ne sont pas déclarés réussis tant qu'ils n'ont pas été exécutés. Aucune migration distante, donnée distante ou déploiement n'a été touché.
+
+
+## 60.39 — Test regroupé des cinq scénarios crédit Marketplace
+
+Le test `supabase/tests/257_credit_withdrawal_five_scenarios.sql` regroupe dans un seul script :
+1. vérification de la fonction de retrait réelle pour l'allocation et le verrouillage par réservation ;
+2. contrat de décrément conjoint des lots et du stock agrégé ;
+3. rejet des lots bloqués/périmés et des allocations insuffisantes ;
+4. propagation d'une erreur et rollback démontré sur une fixture SQL temporaire ;
+5. contrat de restauration idempotente, d'annulation et d'expiration.
+
+**Portée exacte :** le script vérifie le code des fonctions réellement installées dans le schéma de test et exécute des scénarios isolés sur des tables temporaires. Les fixtures démontrent les invariants d'allocation et de rollback SQL, mais ne constituent pas encore un test end-to-end de la fonction de retrait avec de véritables ventes, sessions de caisse, crédits et réservations. Elles ne touchent aucune donnée métier persistante grâce à la transaction annulée en fin de test.
+
+**État d'exécution :** test ajouté à `main`, mais non exécuté dans cette session faute de connexion à une base PostgreSQL de test disponible. Ne pas interpréter la présence du script comme un résultat PASS. L'exécution sur une base de test reconstruite est le seul contrôle restant avant de fermer définitivement la validation runtime. Aucune migration distante ni aucun déploiement n'a été déclenché.
