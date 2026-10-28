@@ -53,7 +53,7 @@ begin
      or position('stock_decremented=false' in lower(regexp_replace(o,'\s+','','g')))=0 then
     raise exception 'Scénario 5 : libération/expiration ou protection double-restauration incomplète';
   end if;
-end
+end;
 $contract$;
 
 create temporary table _naxa257_lots(id text primary key, qty int not null check(qty>=0), blocked bool not null default false) on commit drop;
@@ -108,7 +108,7 @@ begin
   update _naxa257_alloc set restored=true where reservation='R1' and not restored;
   update _naxa257_alloc set restored=true where reservation='R1' and not restored;
   if (select sum(qty) from _naxa257_lots)<>lots_before then raise exception 'Scénario 5 : libération a touché le stock'; end if;
-end
+end;
 $fixtures$;
 
 rollback;
