@@ -269,13 +269,13 @@ export default function CaisseParcoursPage() {
     const amount = Number(raw);
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > credit.solde) { setError("Montant invalide : saisissez un entier positif inférieur ou égal au solde dû."); return; }
     const reference = window.prompt("Référence de paiement (facultative) :", "") ?? "";
-    const method = window.prompt("Motif / mode de règlement :", "Espèces") ?? "";
+    const motif = window.prompt("Motif du remboursement (facultatif ; encaissement en espèces uniquement) :", "") ?? "";
     setBusy(true); setError(""); setNotice("");
-    const { data: operationId, error: rpcError } = await sb.rpc("client_credit_rembourser", { p_credit: credit.id, p_montant: amount, p_reference: reference.trim() || null, p_motif: method.trim() || null });
+    const { data: operationId, error: rpcError } = await sb.rpc("client_credit_rembourser", { p_credit: credit.id, p_montant: amount, p_mode: "especes", p_reference: reference.trim() || null, p_motif: motif.trim() || null });
     if (rpcError || !operationId) setError(rpcError?.message || "Le remboursement n’a pas retourné de référence fiable.");
     else {
       const { data: refreshedCredit, error: balanceError } = await sb.from("client_credits").select("solde").eq("id", credit.id).maybeSingle();
-      setCreditReceipt({ operationId: String(operationId), creditId: credit.id, clientId: credit.client_id, amount, reference: reference.trim() || null, method: method.trim() || "Mode non précisé", remainingBalance: balanceError || refreshedCredit?.solde == null ? null : Number(refreshedCredit.solde), issuedAt: new Date().toISOString(), cashierName: displayName(account), pharmacyName });
+      setCreditReceipt({ operationId: String(operationId), creditId: credit.id, clientId: credit.client_id, amount, reference: reference.trim() || null, method: motif.trim() || "Remboursement en espèces", remainingBalance: balanceError || refreshedCredit?.solde == null ? null : Number(refreshedCredit.solde), issuedAt: new Date().toISOString(), cashierName: displayName(account), pharmacyName });
       setNotice("Remboursement enregistré. Le reçu est disponible ci-dessous ; le solde affiché est recalculé après rechargement.");
       await loadSection(pharmacyId, uid);
     }
@@ -324,7 +324,7 @@ export default function CaisseParcoursPage() {
           <div><dt className="text-slate-500">Client</dt><dd className="font-semibold">{clientName(creditReceipt.clientId, clientIdentities)}</dd></div>
           <div><dt className="text-slate-500">Crédit concerné</dt><dd className="break-all font-mono">{creditReceipt.creditId}</dd></div>
           <div><dt className="text-slate-500">Caissier / caissière</dt><dd className="font-semibold">{creditReceipt.cashierName}</dd></div>
-          <div><dt className="text-slate-500">Mode / motif enregistré</dt><dd className="font-semibold">{creditReceipt.method}</dd></div>
+          <div><dt className="text-slate-500">Motif enregistré</dt><dd className="font-semibold">{creditReceipt.method}</dd></div>
           <div><dt className="text-slate-500">Référence de paiement</dt><dd className="break-all font-semibold">{creditReceipt.reference || "Non fournie"}</dd></div>
         </dl>
         <div className="border-t border-dashed border-slate-300 pt-3"><div className="flex justify-between gap-3"><span>Montant reçu</span><strong>{fcfa(creditReceipt.amount)}</strong></div><div className="mt-1 flex justify-between gap-3"><span>Solde après opération</span><strong>{creditReceipt.remainingBalance == null ? "À actualiser depuis le journal de crédit" : fcfa(creditReceipt.remainingBalance)}</strong></div></div>
