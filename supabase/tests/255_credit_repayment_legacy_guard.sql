@@ -1,4 +1,4 @@
--- NAXA 255 — contrat structurel de protection du wrapper historique.
+-- NAXA 255 — contrat structurel de rejet de l'ancienne signature.
 begin;
 
 do $test$
@@ -13,11 +13,11 @@ begin
 
   select pg_get_functiondef('public.client_credit_rembourser(uuid,integer,text,text)'::regprocedure)
     into v_legacy;
-  if position('v_motif' in v_legacy)=0
-    or position('esp[eè]ces' in v_legacy)=0
+  if position('raise exception' in lower(v_legacy))=0
     or position('contrat de remboursement obsolète' in lower(v_legacy))=0
-    or position('public.mode_paiement_caisse' in v_legacy)=0 then
-    raise exception 'Le wrapper legacy ne refuse pas les motifs ambigus/non espèces';
+    or position('v_motif' in v_legacy)>0
+    or position('return public.client_credit_rembourser' in lower(v_legacy))>0 then
+    raise exception 'Le wrapper legacy doit rejeter tout appel sans déduire un mode du motif';
   end if;
 
   select pg_get_functiondef('public.client_credit_rembourser(uuid,integer,public.mode_paiement_caisse,text,text)'::regprocedure)
