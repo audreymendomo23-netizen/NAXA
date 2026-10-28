@@ -21,7 +21,7 @@ type SessionRow = { id: string; caisse_id: string; ouvert_at: string; cloture_at
 type TicketRow = { vente_id: string; numero_vente: string; statut: string; created_at: string; paid_at: string | null; total_brut: number; remise: number; total_net: number; mode_paiement: string | null; produit_id: string | null; produit_nom: string | null; produit_dosage: string | null; quantite: number | null; total_ligne: number | null };
 type Account = { id: string; role: string | null; fonction_interne: string | null; pharmacie_id: string | null; actif: boolean | null; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
 type ClientIdentity = { id: string; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
-type CreditRepaymentReceipt = { operationId: string; creditId: string; clientId: string; amount: number; reference: string | null; method: string; remainingBalance: number; issuedAt: string; cashierName: string; pharmacyName: string };
+type CreditRepaymentReceipt = { operationId: string; creditId: string; clientId: string; amount: number; reference: string | null; method: string; remainingBalance: number | null; issuedAt: string; cashierName: string; pharmacyName: string };
 
 const menu: { id: Section; label: string; description: string }[] = [
   { id: "clients", label: "Clients & crédits", description: "Références clients et encours commerciaux enregistrés pour la pharmacie." },
@@ -274,7 +274,8 @@ export default function CaisseParcoursPage() {
     const { data: operationId, error: rpcError } = await sb.rpc("client_credit_rembourser", { p_credit: credit.id, p_montant: amount, p_reference: reference.trim() || null, p_motif: method.trim() || null });
     if (rpcError || !operationId) setError(rpcError?.message || "Le remboursement n’a pas retourné de référence fiable.");
     else {
-      setCreditReceipt({ operationId: String(operationId), creditId: credit.id, clientId: credit.client_id, amount, reference: reference.trim() || null, method: method.trim() || "Mode non précisé", remainingBalance: Math.max(0, credit.solde - amount), issuedAt: new Date().toISOString(), cashierName: displayName(account), pharmacyName });
+      const { data: refreshedCredit, error: balanceError } = await sb.from("client_credits").select("solde").eq("id", credit.id).maybeSingle();
+      setCreditReceipt({ operationId: String(operationId), creditId: credit.id, clientId: credit.client_id, amount, reference: reference.trim() || null, method: method.trim() || "Mode non précisé", remainingBalance: balanceError || refreshedCredit?.solde == null ? null : Number(refreshedCredit.solde), issuedAt: new Date().toISOString(), cashierName: displayName(account), pharmacyName });
       setNotice("Remboursement enregistré. Le reçu est disponible ci-dessous ; le solde affiché est recalculé après rechargement.");
       await loadSection(pharmacyId, uid);
     }
@@ -326,7 +327,7 @@ export default function CaisseParcoursPage() {
           <div><dt className="text-slate-500">Mode / motif enregistré</dt><dd className="font-semibold">{creditReceipt.method}</dd></div>
           <div><dt className="text-slate-500">Référence de paiement</dt><dd className="break-all font-semibold">{creditReceipt.reference || "Non fournie"}</dd></div>
         </dl>
-        <div className="border-t border-dashed border-slate-300 pt-3"><div className="flex justify-between gap-3"><span>Montant reçu</span><strong>{fcfa(creditReceipt.amount)}</strong></div><div className="mt-1 flex justify-between gap-3"><span>Solde estimé après opération</span><strong>{fcfa(creditReceipt.remainingBalance)}</strong></div></div>
+        <div className="border-t border-dashed border-slate-300 pt-3"><div className="flex justify-between gap-3"><span>Montant reçu</span><strong>{fcfa(creditReceipt.amount)}</strong></div><div className="mt-1 flex justify-between gap-3"><span>Solde après opération</span><strong>{creditReceipt.remainingBalance == null ? "À actualiser depuis le journal de crédit" : fcfa(creditReceipt.remainingBalance)}</strong></div></div>
         <p className="text-xs text-slate-500">Reçu interne lié à l’opération de crédit enregistrée. Il ne remplace pas un ticket de vente POS. La date et la référence de l’opération font foi dans le journal de crédit.</p>
       </section>}
       {section === "clients" && <div className="grid gap-4 lg:grid-cols-2">
