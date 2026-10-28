@@ -2208,3 +2208,26 @@ L’interface de caisse utilisait un champ libre « Motif / mode de règlement �
 - Le test 254 est une assertion structurelle versionnée; il n’a pas été exécuté. La migration n’a pas été appliquée à une base distante et aucun test de clôture réel n’a été mené.
 
 **Exécution :** lecture statique, migration 254 ajoutée, appel UI mis à jour, test structurel ajouté et document central actualisé. Aucun test exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
+
+
+## 60.33 — SM-01 / point 60.28 : sécurisation du contrat historique de remboursement
+
+**État : durcissement ajouté sur `main`; validation SQL non exécutée.**
+
+### Constat
+
+La migration 254 conserve la signature historique `client_credit_rembourser(uuid,integer,text,text)` pour compatibilité et la fait déléguer à la nouvelle RPC typée en lui attribuant le mode espèces. Or l’ancien écran utilisait le champ libre « Motif / mode de règlement ». Une application ancienne pouvait donc envoyer un libellé tel que « Orange Money » via cette signature, qui aurait été enregistré à tort comme espèces malgré la nouvelle colonne structurée.
+
+### Correctif
+
+- `supabase/migration_255_credit_repayment_legacy_guard.sql` remplace le wrapper historique : il n’accepte que le motif vide ou une mention explicite d’espèces. Tout autre texte est rejeté avec une instruction d’utiliser le contrat typé.
+- Le parcours actuel reste sur la signature structurée `p_mode='especes'` et ne change pas.
+- `supabase/tests/255_credit_repayment_legacy_guard.sql` ajoute des assertions structurelles sur les deux signatures et sur le rejet du contrat historique ambigu.
+
+### Limites et suites
+
+- Le test 255 n’a pas été exécuté et la migration n’a pas été appliquée à une base. Le rejet en production n’est donc pas encore vérifié.
+- Les intégrations qui appelleraient encore la signature historique avec un motif libre non vide devront migrer vers la signature typée; cette rupture ciblée est intentionnelle pour éviter une qualification financière implicite.
+- Le prochain contrôle doit confirmer que le trigger comptable `credit_remboursement` reste attaché après insertion et qu’une opération ne crée qu’un seul événement outbox avec sa clé d’idempotence. Il faut également vérifier le contrat du worker et l’écriture comptable sur une base de test, sans inférer la validité des comptes à partir du seul code.
+
+**Exécution :** revue statique des migrations 249/254, sécurisation du wrapper historique, ajout d’un test structurel et mise à jour documentaire. Aucun test exécuté, aucune migration appliquée, aucune base distante modifiée et aucun déploiement déclenché.
