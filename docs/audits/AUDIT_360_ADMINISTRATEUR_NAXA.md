@@ -2287,7 +2287,7 @@ La migration 255 précédente refusait les motifs ambigus, mais acceptait encore
 
 1. `supabase/migration_255_credit_repayment_legacy_guard.sql` remplace désormais le wrapper historique par un rejet systématique. La signature legacy ne peut plus créer de remboursement ni déduire un moyen de paiement à partir de `p_motif`.
 2. Les appels doivent utiliser la signature typée de la migration 254, qui reçoit `p_mode` séparément et n’autorise actuellement que `especes`.
-3. `supabase/tests/255_credit_repayment_legacy_guard.sql` vérifie structurellement que le wrapper legacy lève une exception et ne lit plus `v_motif), tout en conservant l’assertion sur la contrainte espèces de la RPC typée.
+3. `supabase/tests/255_credit_repayment_legacy_guard.sql` vérifie structurellement que le wrapper legacy lève une exception et ne lit plus `v_motif`, tout en conservant l’assertion sur la contrainte espèces de la RPC typée.
 
 ### Compatibilité et limites
 
