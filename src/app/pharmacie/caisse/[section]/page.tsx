@@ -21,6 +21,7 @@ type SessionRow = { id: string; caisse_id: string; ouvert_at: string; cloture_at
 type TicketRow = { vente_id: string; numero_vente: string; statut: string; created_at: string; paid_at: string | null; total_brut: number; remise: number; total_net: number; mode_paiement: string | null; produit_id: string | null; produit_nom: string | null; produit_dosage: string | null; quantite: number | null; total_ligne: number | null };
 type Account = { id: string; role: string | null; fonction_interne: string | null; pharmacie_id: string | null; actif: boolean | null; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
 type ClientIdentity = { id: string; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
+type CreditRepaymentReceipt = { operationId: string; creditId: string; clientId: string; amount: number; reference: string | null; method: string; remainingBalance: number; issuedAt: string; cashierName: string; pharmacyName: string };
 
 const menu: { id: Section; label: string; description: string }[] = [
   { id: "clients", label: "Clients & crédits", description: "Références clients et encours commerciaux enregistrés pour la pharmacie." },
@@ -79,6 +80,7 @@ export default function CaisseParcoursPage() {
   const [sessionId, setSessionId] = useState("");
   const [pin, setPin] = useState("");
   const [ticketRows, setTicketRows] = useState<TicketRow[]>([]);
+  const [creditReceipt, setCreditReceipt] = useState<CreditRepaymentReceipt | null>(null);
   const [profileTab, setProfileTab] = useState<"compte" | "securite" | "preferences" | "activite">("compte");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -261,6 +263,7 @@ export default function CaisseParcoursPage() {
   }
 
   async function collectCredit(credit: CreditRow) {
+    setCreditReceipt(null);
     const raw = window.prompt("Montant encaissé pour cette créance, en FCFA (entier) :", "");
     if (raw === null) return;
     const amount = Number(raw);
@@ -268,9 +271,13 @@ export default function CaisseParcoursPage() {
     const reference = window.prompt("Référence de paiement (facultative) :", "") ?? "";
     const method = window.prompt("Motif / mode de règlement :", "Espèces") ?? "";
     setBusy(true); setError(""); setNotice("");
-    const { error: rpcError } = await sb.rpc("client_credit_rembourser", { p_credit: credit.id, p_montant: amount, p_reference: reference.trim() || null, p_motif: method.trim() || null });
-    if (rpcError) setError(rpcError.message || "Encaissement du crédit refusé.");
-    else { setNotice("Règlement enregistré. Le solde est rechargé depuis la base."); await loadSection(pharmacyId, uid); }
+    const { data: operationId, error: rpcError } = await sb.rpc("client_credit_rembourser", { p_credit: credit.id, p_montant: amount, p_reference: reference.trim() || null, p_motif: method.trim() || null });
+    if (rpcError || !operationId) setError(rpcError?.message || "Le remboursement n’a pas retourné de référence fiable.");
+    else {
+      setCreditReceipt({ operationId: String(operationId), creditId: credit.id, clientId: credit.client_id, amount, reference: reference.trim() || null, method: method.trim() || "Mode non précisé", remainingBalance: Math.max(0, credit.solde - amount), issuedAt: new Date().toISOString(), cashierName: displayName(account), pharmacyName });
+      setNotice("Remboursement enregistré. Le reçu est disponible ci-dessous ; le solde affiché est recalculé après rechargement.");
+      await loadSection(pharmacyId, uid);
+    }
     setBusy(false);
   }
 
@@ -307,6 +314,21 @@ export default function CaisseParcoursPage() {
     {!loading && notice && <p role="status" aria-live="polite" className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
     {!loading && !error && <>
       <p className="mb-4 text-sm text-slate-600">{menu.find((item) => item.id === section)?.description}</p>
+      {section === "clients" && creditReceipt && <section className="carte credit-repayment-receipt mb-4 space-y-3 border-2 border-dashed border-[#0B3D26] bg-white text-[#0B3D26]">
+        <TicketPharmacyLogo pharmacieId={pharmacyId} />
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-widest">Reçu de remboursement de crédit</p><h2 className="text-xl font-black">Remboursement confirmé</h2><p className="text-sm">{creditReceipt.pharmacyName}</p></div><button type="button" className="btn btn-vert print:hidden" onClick={() => void printAfterImagesLoaded(document.querySelector(".credit-repayment-receipt") ?? document)}>Imprimer le reçu</button></div>
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div><dt className="text-slate-500">Référence du reçu</dt><dd className="break-all font-mono font-bold">{creditReceipt.operationId}</dd></div>
+          <div><dt className="text-slate-500">Date et heure</dt><dd className="font-semibold">{dateLabel(creditReceipt.issuedAt)}</dd></div>
+          <div><dt className="text-slate-500">Client</dt><dd className="font-semibold">{clientName(creditReceipt.clientId, clientIdentities)}</dd></div>
+          <div><dt className="text-slate-500">Crédit concerné</dt><dd className="break-all font-mono">{creditReceipt.creditId}</dd></div>
+          <div><dt className="text-slate-500">Caissier / caissière</dt><dd className="font-semibold">{creditReceipt.cashierName}</dd></div>
+          <div><dt className="text-slate-500">Mode / motif enregistré</dt><dd className="font-semibold">{creditReceipt.method}</dd></div>
+          <div><dt className="text-slate-500">Référence de paiement</dt><dd className="break-all font-semibold">{creditReceipt.reference || "Non fournie"}</dd></div>
+        </dl>
+        <div className="border-t border-dashed border-slate-300 pt-3"><div className="flex justify-between gap-3"><span>Montant reçu</span><strong>{fcfa(creditReceipt.amount)}</strong></div><div className="mt-1 flex justify-between gap-3"><span>Solde estimé après opération</span><strong>{fcfa(creditReceipt.remainingBalance)}</strong></div></div>
+        <p className="text-xs text-slate-500">Reçu interne lié à l’opération de crédit enregistrée. Il ne remplace pas un ticket de vente POS. La date et la référence de l’opération font foi dans le journal de crédit.</p>
+      </section>}
       {section === "clients" && <div className="grid gap-4 lg:grid-cols-2">
         <Panel title={"Clients connus · " + filteredClients.length}><p className="text-sm text-slate-600">Références déjà enregistrées. La caisse ne crée pas de compte d’authentification à la place du client.</p><input className="champ w-full" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Rechercher par nom, téléphone, identifiant ou référence" aria-label="Rechercher un client" />{filteredClients.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Référence</th><th className="p-2 text-left">Client</th><th className="p-2">État</th></tr></thead><tbody>{filteredClients.map((c) => <tr key={c.id} className="border-t"><td className="p-2">{c.reference_client || "—"}</td><td className="p-2">{clientName(c.client_id, clientIdentities)}</td><td className="p-2">{c.actif ? "Actif" : "Inactif"}</td></tr>)}</tbody></table></div> : <Empty>Aucune fiche client ne correspond à la recherche. Aucune donnée fictive n’est affichée.</Empty>}</Panel>
         <Panel title={"Crédits à recouvrer · " + openCredits.length}><input className="champ w-full" value={creditSearch} onChange={(e) => setCreditSearch(e.target.value)} placeholder="Rechercher un débiteur" aria-label="Rechercher un crédit client" />{filteredCredits.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Client</th><th className="p-2 text-right">Solde</th><th className="p-2 text-right">Plafond</th><th className="p-2">Action</th></tr></thead><tbody>{filteredCredits.map((c) => <tr key={c.id} className="border-t"><td className="p-2">{clientName(c.client_id, clientIdentities)}</td><td className="p-2 text-right font-semibold">{fcfa(c.solde)}</td><td className="p-2 text-right">{fcfa(c.plafond)}</td><td className="p-2 text-center"><button className="btn btn-clair" disabled={busy} onClick={() => void collectCredit(c)}>Encaisser</button></td></tr>)}</tbody></table></div> : <Empty>{openCredits.length ? "Aucun crédit ne correspond à la recherche." : "Aucune créance ouverte accessible. Aucun montant fictif n’est affiché."}</Empty>}</Panel>
@@ -347,6 +369,6 @@ export default function CaisseParcoursPage() {
       {section === "service" && <Panel title="Prise / fin de service"><p className="text-sm text-slate-600">L’ouverture et la clôture restent pilotées par le moteur de caisse existant.</p>{sessions.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Ouverture</th><th className="p-2">État</th><th className="p-2 text-right">Fond initial</th><th className="p-2 text-left">Clôture</th></tr></thead><tbody>{sessions.map((s) => <tr key={s.id} className="border-t"><td className="p-2">{dateLabel(s.ouvert_at)}</td><td className="p-2">{s.statut}</td><td className="p-2 text-right">{fcfa(s.fond_initial)}</td><td className="p-2">{dateLabel(s.cloture_at)}</td></tr>)}</tbody></table></div> : <Empty>Aucune session enregistrée pour ce compte.</Empty>}<a className="btn btn-vert inline-block" href="/pharmacie/caisse">Ouvrir le poste de caisse</a></Panel>}
     </>}
     </CaisseWorkspaceShell>
-    <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-detail-print, .ticket-detail-print * { visibility: visible !important; } .ticket-detail-print { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
+    <style jsx global>{`@media print { body * { visibility: hidden !important; } .ticket-detail-print, .ticket-detail-print *, .credit-repayment-receipt, .credit-repayment-receipt * { visibility: visible !important; } .ticket-detail-print, .credit-repayment-receipt { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
   </>;
 }
