@@ -6,8 +6,8 @@ export async function GET(_request:Request,{params}:{params:{id:string}}){
  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
  if(!auth.user)return NextResponse.json({error:"Connexion requise"},{status:401});
  if(!valid(params.id))return NextResponse.json({error:"Référence invalide"},{status:400});
- const {data:profile}=await sb.from("profiles").select("role,actif").eq("id",auth.user.id).maybeSingle();
- if(!profile||profile.role!=="promoteur"||profile.actif===false)return NextResponse.json({error:"Accès refusé"},{status:403});
+ const {data:profile}=await sb.from("profiles").select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
+ if(!profile||profile.role!=="promoteur"||profile.actif===false||profile.niveau_interne!==1)return NextResponse.json({error:"Accès refusé"},{status:403});
  const {data:ids,error:scopeError}=await sb.rpc("my_pharmacies");
  if(scopeError||!Array.isArray(ids))return NextResponse.json({error:"Périmètre indisponible"},{status:403});
  const {data:row,error}=await sb.from("client_credit_requests").select("pharmacie_id,origine,justificatif_path").eq("id",params.id).maybeSingle();

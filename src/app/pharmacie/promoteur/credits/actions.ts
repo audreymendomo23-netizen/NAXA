@@ -7,8 +7,8 @@ async function decide(formData:FormData,approve:boolean){
  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
  if(!auth.user)redirect("/connexion?retour=/pharmacie/promoteur/credits");
  const id=String(formData.get("demande_id")??"");if(!valid(id))redirect("/pharmacie/promoteur/credits?erreur=reference");
- const {data:p}=await sb.from("profiles").select("role,actif").eq("id",auth.user.id).maybeSingle();
- if(!p||p.role!=="promoteur"||p.actif===false)redirect("/");
+ const {data:p}=await sb.from("profiles").select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
+ if(!p||p.role!=="promoteur"||p.actif===false||p.niveau_interne!==1)redirect("/");
  const {error}=await sb.rpc("client_credit_demande_decider",{p_demande:id,p_approuver:approve});
  if(error)redirect("/pharmacie/promoteur/credits?erreur=decision");
  revalidatePath("/pharmacie/promoteur/credits");revalidatePath("/pharmacie/gestionnaire-stock/reservations");

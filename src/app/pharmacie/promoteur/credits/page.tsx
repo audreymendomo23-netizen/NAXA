@@ -9,8 +9,8 @@ const ref=(v:string)=>v.replace(/-/g,"").slice(0,8).toUpperCase();
 export default async function CreditsMarketplacePage({searchParams}:{searchParams:{ok?:string;erreur?:string}}){
  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
  if(!auth.user)redirect("/connexion?retour=/pharmacie/promoteur/credits");
- const {data:profile}=await sb.from("profiles").select("role,actif").eq("id",auth.user.id).maybeSingle();
- if(!profile||profile.role!=="promoteur"||profile.actif===false)redirect("/");
+ const {data:profile}=await sb.from("profiles").select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
+ if(!profile||profile.role!=="promoteur"||profile.actif===false||profile.niveau_interne!==1)redirect("/");
  const {data:scope,error:scopeError}=await sb.rpc("my_pharmacies");
  const ids=Array.isArray(scope)?scope.filter((v):v is string=>typeof v==="string"):[];
  if(scopeError||!ids.length)return <main className="p-5"><h1 className="text-2xl font-black">Crédits Marketplace</h1><p role="alert">Périmètre pharmacie indisponible. Aucune demande n’a été modifiée.</p></main>;
