@@ -2344,13 +2344,15 @@ Aucun défaut statique supplémentaire n'a été démontré dans ces cinq points
 
 ## 60.39 — Test regroupé des cinq scénarios crédit Marketplace
 
-Le test `supabase/tests/257_credit_withdrawal_five_scenarios.sql` regroupe dans un seul script :
-1. vérification de la fonction de retrait réelle pour l'allocation et le verrouillage par réservation ;
+Le test `supabase/tests/257_credit_withdrawal_five_scenarios.sql` regroupe :
+1. retrait selon l'allocation propre à chaque réservation et verrouillage lot/allocation ;
 2. contrat de décrément conjoint des lots et du stock agrégé ;
-3. rejet des lots bloqués/périmés et des allocations insuffisantes ;
-4. propagation d'une erreur et rollback démontré sur une fixture SQL temporaire ;
-5. contrat de restauration idempotente, d'annulation et d'expiration.
+3. refus des lots bloqués/périmés et des allocations insuffisantes ;
+4. propagation d'erreur et rollback ;
+5. restauration idempotente, annulation et expiration.
 
-**Portée exacte :** le script vérifie le code des fonctions réellement installées dans le schéma de test et exécute des scénarios isolés sur des tables temporaires. Les fixtures démontrent les invariants d'allocation et de rollback SQL, mais ne constituent pas encore un test end-to-end de la fonction de retrait avec de véritables ventes, sessions de caisse, crédits et réservations. Elles ne touchent aucune donnée métier persistante grâce à la transaction annulée en fin de test.
+**Exécution réelle effectuée :** les cinq fixtures SQL temporaires ont été exécutées sur le projet Supabase de replay CI `naxa-ci-replay-2`. Résultat retourné par PostgreSQL : `257 fixture scenarios 1-5 PASS (temporary tables only; transaction rolled back)`. Les tables de test étaient temporaires et la transaction a été annulée ; aucune donnée métier persistante n'a été modifiée.
 
-**État d'exécution :** test ajouté à `main`, mais non exécuté dans cette session faute de connexion à une base PostgreSQL de test disponible. Ne pas interpréter la présence du script comme un résultat PASS. L'exécution sur une base de test reconstruite est le seul contrôle restant avant de fermer définitivement la validation runtime. Aucune migration distante ni aucun déploiement n'a été déclenché.
+**Limite importante : le test intégré complet n'est pas encore PASS.** La vérification préalable en lecture seule a montré que le schéma de ce replay ne contient pas encore `public.vente_reservation_credit_finaliser(uuid,uuid,text)`. Le script complet s'arrêterait donc au contrôle du contrat avant les fixtures. Le projet Naxa principal ne contient pas non plus cette fonction ; aucune migration n'y a été appliquée. Il n'est pas acceptable de présenter le succès des fixtures isolées comme une validation d'exécution du retrait réel.
+
+Le contrat de statut a été corrigé dans le script pour référencer `private.set_reservation_status(uuid,public.resa_statut)`. Pour fermer la validation intégrée, il faut un environnement de test reconstruit avec les migrations 247, 252 et 256 et leurs prérequis, puis exécuter le script complet. Aucun déploiement ni changement de schéma distant n'a été effectué.
