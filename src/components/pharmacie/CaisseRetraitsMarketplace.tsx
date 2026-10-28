@@ -311,7 +311,7 @@ export function CaisseRetraitsMarketplace({
       return;
     }
     if (busyId) return;
-    if (row.statut !== "payee" || row.paiement_statut !== "effectue") {
+    if (row.statut !== "payee" || (!row.credit_request_id && row.paiement_statut !== "effectue")) {
       setError("Le retrait ne peut être confirmé qu’après validation du paiement par la pharmacie.");
       return;
     }
@@ -362,7 +362,7 @@ export function CaisseRetraitsMarketplace({
             const isSelected = selected?.id === row.id;
             const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
             const canCredit = Boolean(row.credit_request_id) && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
-            const paid = row.statut === "payee" && row.paiement_statut === "effectue";
+            const paid = row.statut === "payee" && (row.paiement_statut === "effectue" || Boolean(row.credit_request_id));
             return (
               <li key={row.id} className={`rounded-xl border p-3 ${isSelected ? "border-emerald-600 ring-1 ring-emerald-600" : ""}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -371,7 +371,7 @@ export function CaisseRetraitsMarketplace({
                     {row.credit_request_id && <p className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-900">Crédit Marketplace approuvé · aucun paiement comptant</p>}
                     <p className="text-xs text-slate-500">Créée le {new Date(row.created_at).toLocaleString("fr-FR")} · expire le {new Date(row.expires_at).toLocaleString("fr-FR")}</p>
                   </div>
-                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold">{expired ? "Expirée" : statusLabel[row.statut] ?? row.statut}</span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold">{expired ? "Expirée" : row.credit_request_id && row.statut === "payee" ? "Crédit enregistré · retrait à confirmer" : statusLabel[row.statut] ?? row.statut}</span>
                 </div>
                 <div className="mt-2 space-y-1 text-sm">
                   {(row.reservation_items ?? []).map((item, index) => (
