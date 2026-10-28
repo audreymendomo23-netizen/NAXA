@@ -2296,3 +2296,28 @@ La migration 255 précédente refusait les motifs ambigus, mais acceptait encore
 - La migration 254 reste versionnée uniquement : aucun test SQL exécuté, aucune migration appliquée à une base distante, aucune donnée distante modifiée et aucun déploiement déclenché.
 
 **Suite immédiate :** inventorier les callsites SQL/RPC de l’ancienne signature, vérifier les migrations 249/253/254/255 ensemble sur une base de test reconstruite, puis exécuter le parcours de remboursement et clôture avec tickets de caisse de test. Les opérations historiques à mode `NULL` doivent être réconciliées sur preuves, jamais reclassées à partir de leur motif.
+
+
+## 60.37 — SM-01 / points 60.29–60.30 : cohérence entre lots affectés et retrait Marketplace à crédit
+
+**État : correctif versionné sur `main`; validation SQL et transactionnelle non exécutée.**
+
+### Constat statique
+
+La migration 247 affecte logiquement des lots FEFO à une réservation Marketplace via `reservation_item_lots`, sans débit physique à l'approbation. En revanche, la fonction de retrait `vente_reservation_credit_finaliser` (migration 252) parcourait les lots vendables du produit dans l'ordre FEFO global, sans cibler les affectations de la réservation courante. Le retrait pouvait donc consommer un lot affecté à un autre hold et ne pas respecter l'allocation préparée.
+
+### Correctif ajouté
+
+1. Nouvelle migration `supabase/migration_256_credit_withdrawal_reserved_lots.sql` : le retrait exige que la somme des affectations non restaurées de chaque produit corresponde exactement à la quantité de la réservation.
+2. Le retrait verrouille les lignes des lots et leurs affectations, consomme uniquement les lots liés à la réservation et au produit courants, puis crée les lignes de vente avec les identifiants des lots réellement débités.
+3. Si l'affectation est absente, incohérente, restaurée, expirée, bloquée ou insuffisante, la transaction échoue au lieu de consommer silencieusement un autre lot.
+4. Le débit physique demeure au retrait : la migration 251 continue à créer le hold sans décrémenter le stock. La fonction de retrait conserve le contrôle de session de caisse, la liaison à la demande approuvée et la consommation atomique de la demande.
+5. Nouveau test structurel `supabase/tests/256_credit_withdrawal_reserved_lots.sql` : vérifie le ciblage de l'affectation par réservation/produit, l'égalité des quantités, le verrouillage des lots et affectations, et l'absence de l'ancien parcours FEFO global.
+
+### Limites de validation
+
+- Le test 256 n'a pas été exécuté; il vérifie le contrat statique de la fonction après application des migrations sur une base de test.
+- Il reste à exécuter un scénario transactionnel avec deux réservations partageant plusieurs lots, à retirer la seconde avant la première et à vérifier que chaque vente consomme ses lots affectés, que les quantités de lots et de stock agrégé concordent et qu'un échec restaure toute la transaction.
+- Aucune migration n'a été appliquée à une base distante, aucune donnée distante n'a été modifiée et aucun déploiement n'a été déclenché.
+
+**Suite immédiate :** vérifier les migrations 247, 251, 252 et 256 ensemble sur une base reconstruite; tester concurrence, lots périmés/bloqués, annulation/expiration et rollback avant de considérer le parcours validé.
