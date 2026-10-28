@@ -2155,3 +2155,29 @@ HEAD vérifié avant mise à jour documentaire : `0e3fbeff0aa83c21584babb9726d51
 5. Puis reprendre séparément le point 60.28 sur les remboursements, la caisse et le rapprochement de clôture.
 
 **Exécution de cette étape :** lecture statique des fichiers versionnés et mise à jour documentaire uniquement. Aucun test exécuté, aucune migration appliquée, aucune base distante modifiée et aucun déploiement déclenché.
+
+
+## 60.31 — SM-01 / point 60.28 : cohérence entre clôture de caisse et garde de session
+
+**État : défaut de cohérence identifié puis corrigé dans les fichiers versionnés; test structurel ajouté, exécution toujours non démontrée.**
+
+### Défaut établi par comparaison des fonctions
+
+1. `supabase/migration_250_caisse_credit_repayment_reconciliation.sql` calcule le solde théorique de clôture en ajoutant les remboursements de crédit rattachés à la session : fond initial + espèces des ventes + remboursements crédit − décaissements.
+2. La garde `public.naxa_guard_caisse_session_write()` définie par `supabase/migration_169_caisse_guard_decaissements.sql` recalcule le même solde lors de la mise à jour de `caisses_sessions`, mais sa formule d’origine n’incluait pas les remboursements de crédit.
+3. Conséquence : lors d’une clôture comportant un remboursement, la RPC pouvait calculer le nouveau total théorique, puis la garde déclencher une exception car elle recalculait un total différent. La transaction de clôture pouvait donc être rejetée malgré une formule correcte dans la RPC.
+
+### Correction versionnée
+
+- La migration 250 redéfinit maintenant aussi `naxa_guard_caisse_session_write()`, en conservant ses contrôles d’ouverture/clôture, d’identité du titulaire, d’immutabilité des paramètres d’ouverture et de cohérence du rapprochement.
+- La garde inclut les opérations `client_credit_operations` de nature `remboursement` rattachées à `caisse_session_id` dans le même calcul que `caisse_cloturer`.
+- Le test `supabase/tests/250_caisse_credit_repayment_reconciliation.sql` vérifie désormais structurellement la formule de la RPC **et** celle de la garde.
+
+### Limites et suite
+
+- Le test est ajouté au dépôt, mais **n’a pas été exécuté**. Aucune migration n’a été appliquée à une base distante et aucun parcours réel de clôture n’a été testé.
+- La vérification de clôture doit couvrir une session sans remboursement, une session avec un remboursement, un écart justifié et non justifié, ainsi que la concurrence entre clôture et remboursement.
+- Le contrat actuel traite les remboursements enregistrés par la RPC comme des entrées d’espèces de la session de caisse. Toute extension future à un remboursement par virement ou portefeuille mobile devra distinguer le moyen d’encaissement afin de ne pas l’ajouter au tiroir espèces.
+- Le rapprochement comptable de l’événement `credit_remboursement` reste distinct du comptage physique : l’écriture comptable et le sous-grand-livre doivent être rapprochés séparément.
+
+**Exécution :** comparaison statique des migrations 169 et 250, correction du code versionné et extension du test structurel. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
