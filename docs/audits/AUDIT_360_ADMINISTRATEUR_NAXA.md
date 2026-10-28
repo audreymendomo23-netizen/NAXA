@@ -2231,3 +2231,34 @@ La migration 254 conserve la signature historique `client_credit_rembourser(uuid
 - Le prochain contrôle doit confirmer que le trigger comptable `credit_remboursement` reste attaché après insertion et qu’une opération ne crée qu’un seul événement outbox avec sa clé d’idempotence. Il faut également vérifier le contrat du worker et l’écriture comptable sur une base de test, sans inférer la validité des comptes à partir du seul code.
 
 **Exécution :** revue statique des migrations 249/254, sécurisation du wrapper historique, ajout d’un test structurel et mise à jour documentaire. Aucun test exécuté, aucune migration appliquée, aucune base distante modifiée et aucun déploiement déclenché.
+
+## 60.34 — SM-01 / point 60.28 : contrôle statique de l’idempotence outbox → écriture comptable
+
+**État : invariants d’idempotence présents dans le code versionné; preuve d’exécution et rapprochement transactionnel encore ouverts.**
+
+### Éléments vérifiés sur `main`
+
+1. **Émission d’un remboursement.** `migration_249_credit_repayment_accounting.sql` crée l’événement après insertion d’une opération de nature `remboursement`. La clé est déterministe (`credit_operation:<id>:credit_remboursement`) et l’insertion utilise `ON CONFLICT (pharmacie_id,cle_idempotence) DO NOTHING`.
+2. **Émission de l’octroi.** `migration_253_marketplace_credit_accounting.sql` applique le même principe à `credit_octroi`, avec une clé distincte (`credit_operation:<id>:credit_octroi`). Le filtre de l’événement de vente ignore explicitement les ventes dont `mode_paiement='credit'`; les deux événements ne partagent donc pas la même clé ni le même type métier.
+3. **Contrainte de l’outbox.** Le socle `migration_20261020_compta_socle.sql` définit une unicité sur `(pharmacie_id, cle_idempotence)` pour `compta_evenement`. L’outbox et les écritures ont chacune leur propre contrainte d’unicité par pharmacie et clé d’idempotence.
+4. **Réclamation concurrente.** `migration_20261021_compta_outbox.sql` réclame les événements avec `FOR UPDATE SKIP LOCKED`, augmente le compteur de tentatives et attribue un `claim_token`. Le worker exige l’événement `en_cours` avec le jeton correspondant.
+5. **Rejeu de l’écriture.** `compta_poster_ecriture` recherche une écriture existante pour la même pharmacie et la même clé. Si elle existe, il compare période, date, journal, source, référence, libellé et lignes; un contenu différent est rejeté au lieu d’être silencieusement accepté.
+6. **Finalisation.** `compta_evenement_terminer` ne permet le succès que si une écriture correspondante existe avec la même pharmacie, source et clé. Le worker appelle cette finalisation après le postage. Le bloc de gestion d’erreur du worker remet l’événement en attente (ou en erreur après le seuil de tentatives) si le traitement échoue.
+
+### Conclusion limitée
+
+- **Présence statique confirmée :** les protections de base contre la duplication sont conçues à plusieurs niveaux — clé d’événement unique, réclamation avec verrou, jeton de traitement, clé d’écriture unique, comparaison du contenu lors d’un rejeu et contrôle de l’écriture avant finalisation.
+- **Non démontré :** cette lecture ne prouve pas le comportement sous concurrence réelle, ni l’atomicité effective sur le schéma reconstruit, ni l’absence de doublons dans des données existantes. Les tests 249, 253, 254 et 255 sont présents dans le dépôt mais n’ont pas été exécutés ici.
+- **Rapprochement encore nécessaire :** pour chaque opération testée, vérifier exactement une opération source, un événement outbox par type attendu, au plus une écriture comptable par clé, deux lignes équilibrées, et l’absence d’un événement `vente_encaissee` pour l’octroi crédit. Le total du solde client, l’écriture de créance, les remboursements et le tiroir espèces doivent être rapprochés séparément.
+- **Configuration comptable :** aucun compte ni journal n’est présumé correct. Les mappings de `credit_octroi` et `credit_remboursement` restent à valider par pharmacie et par un responsable comptable; la validation de présence/unicité du mapping par le worker n’en certifie pas la pertinence SYSCOHADA.
+- **Limite de test :** les fichiers 249 et 253 vérifient principalement la structure des fonctions et triggers; ils ne constituent pas à eux seuls une preuve transactionnelle de rejeu ou de concurrence.
+
+### Suite immédiate
+
+1. Exécuter les tests 249, 250, 253, 254 et 255 sur une base de test reconstruite avec toutes les migrations prérequises et conserver les sorties réelles.
+2. Ajouter/compléter un scénario transactionnel de remboursement : insertion unique, émission outbox unique, traitement du même événement rejoué, puis vérification de l’unicité de l’écriture et de l’équilibre débit/crédit.
+3. Tester un échec de mapping ou de période, puis corriger la configuration de test et rejouer : l’événement doit rester retraitable sans générer une seconde écriture.
+4. Tester deux workers concurrents et la perte/expiration d’un `claim_token`; un worker périmé ne doit pas finaliser l’événement.
+5. Réconcilier les remboursements historiques à mode `NULL` avec les tickets avant toute clôture de session concernée.
+
+**Exécution :** lecture statique des migrations 249, 253 et du socle/worker comptables versionnés. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée, aucune branche créée et aucun déploiement déclenché.
