@@ -2181,3 +2181,30 @@ HEAD vérifié avant mise à jour documentaire : `0e3fbeff0aa83c21584babb9726d51
 - Le rapprochement comptable de l’événement `credit_remboursement` reste distinct du comptage physique : l’écriture comptable et le sous-grand-livre doivent être rapprochés séparément.
 
 **Exécution :** comparaison statique des migrations 169 et 250, correction du code versionné et extension du test structurel. Aucun test SQL exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
+
+
+## 60.32 — SM-01 / point 60.28 : moyen de paiement structuré pour les remboursements
+
+**État : correctif versionné ajouté; contrat de test présent; exécution SQL et parcours de caisse non validés.**
+
+### Constat statique
+
+L’interface de caisse utilisait un champ libre « Motif / mode de règlement » pour appeler `client_credit_rembourser`, alors que la clôture ajoutait chaque remboursement lié à la session au tiroir espèces. Le texte libre n’était pas un moyen de paiement fiable et pouvait faire compter un remboursement non liquide comme des espèces. En parallèle, les RPC de vente interdisent actuellement les paiements électroniques faute de confirmation opérateur officielle.
+
+### Correctif versionné
+
+1. `supabase/migration_254_credit_repayment_payment_mode.sql` ajoute `client_credit_operations.mode_paiement` avec le type existant `public.mode_paiement_caisse`.
+2. La nouvelle signature de `client_credit_rembourser` reçoit un mode explicite et refuse tout mode autre que `especes` tant que les paiements électroniques ne sont pas confirmés par un opérateur. L’ancienne signature est conservée comme wrapper de compatibilité et transmet explicitement `especes`.
+3. Les nouvelles opérations stockent le mode structuré. La clôture et la garde de session ne comptent désormais que les remboursements dont `mode_paiement='especes'`.
+4. La reprise des opérations historiques est volontairement limitée aux libellés explicites exacts `Espèces`/`especes`. Les autres anciennes opérations conservent un mode NULL plutôt que de supposer leur moyen de paiement.
+5. `src/app/pharmacie/caisse/[section]/page.tsx` envoie maintenant `p_mode: "especes"` et demande un motif facultatif, en précisant que seul l’encaissement espèces est disponible.
+6. `supabase/tests/254_credit_repayment_payment_mode.sql` vérifie structurellement la colonne, la signature typée et le filtre espèces de la clôture et de sa garde.
+
+### Points de contrôle encore ouverts
+
+- Les opérations historiques dont le mode reste NULL ne sont pas ajoutées au tiroir espèces. Toute session encore ouverte qui contient de telles opérations doit être réconciliée sur preuves de caisse avant clôture; ne pas convertir automatiquement ces lignes en espèces.
+- Le mode espèces est le seul mode pris en charge par ce parcours. Orange Money, MTN MoMo et les autres moyens électroniques ne doivent pas être déclarés encaissés avant intégration d’une confirmation opérateur officielle.
+- Les événements comptables `credit_remboursement` doivent continuer à être rapprochés du sous-grand-livre et des écritures; le total espèces de caisse n’est pas, à lui seul, une preuve de bonne qualification comptable.
+- Le test 254 est une assertion structurelle versionnée; il n’a pas été exécuté. La migration n’a pas été appliquée à une base distante et aucun test de clôture réel n’a été mené.
+
+**Exécution :** lecture statique, migration 254 ajoutée, appel UI mis à jour, test structurel ajouté et document central actualisé. Aucun test exécuté, aucune migration appliquée, aucune donnée distante modifiée et aucun déploiement déclenché.
