@@ -151,6 +151,12 @@ begin
   );
   if v_op is null then raise exception 'Échec de création de l’opération de crédit'; end if;
 
+  -- L’opération d’octroi est aussi rattachée à la session qui a remis les produits.
+  update public.client_credit_operations
+  set caisse_session_id=p_session
+  where id=v_op and vente_id=v_vente and nature='credit';
+  if not found then raise exception 'Opération de crédit non rattachée à la session de caisse'; end if;
+
   update public.reservations
   set paiement_mode='credit',
       paiement_ref=nullif(trim(p_reference),''),
