@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
+import RapportsALaDemande from "@/components/RapportsALaDemande";
 import { TicketPharmacyLogo } from "@/components/pharmacie/TicketPharmacyLogo";
 import { printAfterImagesLoaded } from "@/lib/print-after-images";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
@@ -571,6 +572,7 @@ export default function CaissePage() {
                 </div>
               )}
             </section>
+            <RapportsALaDemande variant="comptable" />
             <nav aria-label="Onglets du tableau de bord caisse" className="mb-4 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3">
               <button type="button" className={onglet === "caisse" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("caisse"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Encaissement</button>
               <button type="button" className={onglet === "recherche" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("recherche"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Recherche prix</button>
