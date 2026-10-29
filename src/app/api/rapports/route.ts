@@ -156,7 +156,55 @@ export async function POST(request: Request) {
   if (!config) return NextResponse.json({ error: "Période non prise en charge." }, { status: 400 });
 
   let stats: Record<string, any>;
-  if (profile.role === "caisse") {
+  const fonction = String(profile.fonction_interne ?? "").toLowerCase();
+
+  if (fonction === "pharmacien") {
+    if (!profile.pharmacie_id) return NextResponse.json({ error: "Pharmacie de rattachement introuvable." }, { status: 403 });
+    const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies").select("id,actif").eq("id", profile.pharmacie_id).maybeSingle();
+    if (pharmacyError || !pharmacy?.actif) return NextResponse.json({ error: "Pharmacie inactive ou indisponible." }, { status: 403 });
+    const since = new Date(Date.now() - config.days * 86400000).toISOString();
+    const [consultations, prescriptions, preparations, audit] = await Promise.all([
+      sb.from("consultations_pharmaceutiques").select("id", { count: "exact", head: true }).eq("pharmacie_id", profile.pharmacie_id).gte("created_at", since),
+      sb.from("prescriptions").select("id,statut", { count: "exact" }).eq("pharmacie_id", profile.pharmacie_id).gte("created_at", since).limit(5000),
+      sb.from("prescription_preparations").select("prescription_id", { count: "exact", head: true }).eq("pharmacie_id", profile.pharmacie_id).gte("updated_at", since),
+      sb.from("pharmacien_audit_events").select("id", { count: "exact", head: true }).eq("pharmacie_id", profile.pharmacie_id).gte("occurred_at", since),
+    ]);
+    if ([consultations.error, prescriptions.error, preparations.error, audit.error].some(Boolean)) return NextResponse.json({ error: "Une source du rapport Pharmacien est indisponible. Aucun rapport partiel n'est présenté comme complet." }, { status: 503 });
+    const prescriptionRows = prescriptions.data ?? [];
+    stats = { role: "pharmacien", consultations: consultations.count ?? 0, prescriptions: prescriptions.count ?? prescriptionRows.length, prescriptions_en_attente: prescriptionRows.filter(x => x.statut === "en_attente").length, preparations: preparations.count ?? 0, evenements_audit: audit.count ?? 0 };
+  } else if (fonction === "comptable") {
+    if (!profile.pharmacie_id) return NextResponse.json({ error: "Pharmacie de rattachement introuvable." }, { status: 403 });
+    const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", { p_privilege: "MANAGE_ACCOUNTING", p_pharmacie: profile.pharmacie_id, p_target: null });
+    if (permissionError || allowed !== true) return NextResponse.json({ error: "Privilège comptable requis." }, { status: 403 });
+    const since = new Date(Date.now() - config.days * 86400000).toISOString();
+    const [sales, expenses, cash, claims, controls] = await Promise.all([
+      sb.from("ventes").select("id,total_net,statut").eq("pharmacie_id", profile.pharmacie_id).gte("created_at", since).limit(5000),
+      sb.from("depenses").select("id,montant,statut").eq("pharmacie_id", profile.pharmacie_id).gte("date_depense", since.slice(0,10)).limit(5000),
+      sb.from("tresorerie_mouvements").select("id,montant,nature").eq("pharmacie_id", profile.pharmacie_id).gte("date_operation", since).limit(5000),
+      sb.from("dossiers_assurance").select("id,statut,montant_prise_en_charge").eq("pharmacie_id", profile.pharmacie_id).gte("created_at", since).limit(5000),
+      sb.from("compta_controles_cloture").select("id,statut").eq("pharmacie_id", profile.pharmacie_id).limit(5000),
+    ]);
+    if ([sales.error, expenses.error, cash.error, claims.error, controls.error].some(Boolean)) return NextResponse.json({ error: "Une source comptable est indisponible. Aucun rapport partiel n'est présenté comme complet." }, { status: 503 });
+    const paid = (sales.data ?? []).filter(x => x.statut === "payee");
+    const total = (items: any[], key: string) => items.reduce((sum, item) => sum + Number(item[key] ?? 0), 0);
+    stats = { role: "comptable", ventes_payees: paid.length, chiffre_affaires: total(paid, "total_net"), depenses: (expenses.data ?? []).length, montant_depenses: total(expenses.data ?? [], "montant"), mouvements_tresorerie: (cash.data ?? []).length, montant_tresorerie_brut: total(cash.data ?? [], "montant"), dossiers_assurance: (claims.data ?? []).length, controles_a_traiter: (controls.data ?? []).filter(x => x.statut === "a_controler").length };
+  } else if (["gestionnaire_stock", "magasinier"].includes(fonction)) {
+    const { data: assignments, error: assignmentError } = await sb.from("naxa_professional_assignments").select("pharmacie_id,commence_at,expire_at").eq("profile_id", auth.user.id).eq("statut", "active").in("fonction", ["gestionnaire_stock", "magasinier"]);
+    if (assignmentError) return NextResponse.json({ error: "Affectations de stock indisponibles." }, { status: 503 });
+    const nowMs = Date.now();
+    const ids = [...new Set((assignments ?? []).filter(x => new Date(x.commence_at).getTime() <= nowMs && new Date(x.expire_at).getTime() > nowMs).map(x => x.pharmacie_id))];
+    if (!ids.length) return NextResponse.json({ error: "Aucune affectation de stock active." }, { status: 403 });
+    const cutoff = new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10);
+    const [stocks, low, lots, reservations, inventories] = await Promise.all([
+      sb.from("stocks").select("produit_id", { count: "exact", head: true }).in("pharmacie_id", ids),
+      sb.from("stocks").select("produit_id", { count: "exact", head: true }).in("pharmacie_id", ids).lte("quantite", 5),
+      sb.from("stocks_lots").select("id", { count: "exact", head: true }).in("pharmacie_id", ids).or("date_peremption.is.null,date_peremption.lte." + cutoff + ",bloque.eq.true"),
+      sb.from("reservations").select("id", { count: "exact", head: true }).in("pharmacie_id", ids).eq("mode", "reservation").in("statut", ["en_attente", "confirmee"]),
+      sb.from("inventaires").select("id", { count: "exact", head: true }).in("pharmacie_id", ids).in("statut", ["brouillon", "en_cours"]),
+    ]);
+    if ([stocks.error, low.error, lots.error, reservations.error, inventories.error].some(Boolean)) return NextResponse.json({ error: "Une source de stock est indisponible. Aucun rapport partiel n'est présenté comme complet." }, { status: 503 });
+    stats = { role: "gestionnaire_stock", pharmacies: ids.length, references_stock: stocks.count ?? 0, stocks_bas: low.count ?? 0, lots_a_controler: lots.count ?? 0, reservations_a_traiter: reservations.count ?? 0, inventaires_ouverts: inventories.count ?? 0 };
+  } else if (profile.role === "caisse") {
     const { data, error } = await sb.rpc("stats_caisse_scope", { p_jours: config.days });
     if (error) return NextResponse.json({ error: "Les statistiques de caisse ne sont pas accessibles pour ce poste." }, { status: 403 });
     stats = (Array.isArray(data) ? data[0] : data) as Record<string, any>;
