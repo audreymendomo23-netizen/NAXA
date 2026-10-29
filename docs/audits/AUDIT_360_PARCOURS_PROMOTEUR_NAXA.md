@@ -177,3 +177,28 @@ Les migrations 149, 151, 152 et 153 inspectées ne redéfinissent pas directemen
 
 ### Prochaine action unique
 Identifier ou obtenir un environnement Supabase non-Production réellement accessible, exécuter le test ciblé et le scénario comportemental 028/147, corriger les échecs puis fermer la partie 3 sur preuves. Ne pas recommencer l'audit des routes de règlement ni le contrôle ACL déjà clos.
+
+
+## 12. Reprise comportementale partie 3 — environnement isolé trouvé (29/10/2026)
+
+### Environnement et opérations réalisées
+Le projet Supabase `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) est accessible, actif et distinct de Production (`eouwtuusnsuxaejsxknf`). Il sert désormais d'environnement de test non-Production pour cette tranche.
+
+Sur cet environnement de test uniquement, les migrations sources `supabase/migration_147_promoteur_validity_internal_facade_split.sql` et `supabase/migration_20261029_promoteur_validity_helper_reconciliation.sql` ont été appliquées sous des noms de replay de test. **Aucune de ces opérations n'a été appliquée à Production.**
+
+### Résultats exécutés
+- `supabase/tests/028_promoteur_responsable_accreditation_behavior.sql` : **PASS**, fixture transactionnelle terminée par `ROLLBACK`; aucun profil/pharmacie de test ne persiste.
+- Test ciblé du helper privé après application de la réconciliation en test : **PASS** sur les gardes architecture obligatoire, réseau actif, cohérence pharmacie/architecture et absence d'EXECUTE pour `anon`, `authenticated`, `service_role`.
+- Test complet `supabase/tests/147_promoteur_validity_internal_facade_split.sql` : **ÉCHEC** sur assertion 147.3, car la façade publique de l'environnement de test est encore l'ancien wrapper `select private.naxa_promoteur_valide($1)`, sans garde d'identité/Admin. Le test de réconciliation complet échoue de même sur PVH.4 pour cette même raison. Ce résultat indique un **environnement de replay incomplet/désaligné**, pas un échec des gardes du helper privé après correction.
+- Tentative d'appliquer la migration 040 de sécurisation de la façade au projet de test : bloquée par le contrôle de sécurité de l'outil; pas de nouvelle tentative équivalente. La limite est circonscrite à l'alignement de la façade de ce replay.
+
+### Comparaison Production / dépôt / replay
+- Production : `public.naxa_promoteur_valide(uuid)` contient bien les gardes `auth.uid()` et `public.is_admin()`; `private.naxa_promoteur_valide(uuid)` omet toutefois les gardes architecture/réseau/cohérence attendues par la migration 147.
+- Dépôt : migration 147 et migration additive de réconciliation présentes; le helper cible contient les gardes attendues.
+- Replay : après application de la migration 147 et de la réconciliation, le helper privé est conforme, mais la façade publique reste obsolète et empêche le test 147 complet de passer.
+
+### Statut exact de la partie 3
+**🟡 PARTIELLE — pas verte.** Le scénario métier 028 passe dans l'environnement de test et le helper corrigé passe son test ciblé. La recette complète 147 reste bloquée par la façade obsolète du replay. Le défaut Production du helper privé reste corrigé dans le dépôt mais **non appliqué en Production**. Aucune migration Production, aucun déploiement, aucune relance CI et aucune modification des données Production n'ont été effectués.
+
+### Prochaine action unique
+Rétablir un replay non-Production cohérent pour la façade publique à partir des migrations canoniques déjà présentes, puis relancer sans modification les tests 147 et PVH complets. Une fois ces tests verts, exécuter le scénario comportemental élargi des cas valides, architecture absente, réseau absent et pharmacie/architecture incohérente. Ne pas reprendre les routes de règlement ni les ACL déjà clôturées.
