@@ -10,7 +10,7 @@ begin
   select pg_get_functiondef(
     'public.vente_reservation_credit_finaliser(uuid,uuid,text)'::regprocedure
   ) into v_fn;
-  v_compact := lower(regexp_replace(v_fn, '\s+', '', 'g'));
+  v_compact := lower(regexp_replace(v_fn, '[[:space:]]+', '', 'g'));
 
   if position('public.reservation_item_lots' in lower(v_fn))=0
      or position('a.reservation_id=r.id' in v_compact)=0
