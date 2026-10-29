@@ -1,10 +1,17 @@
 ## Dernière passe — Promoteur 028 et revue statique des parties 5–6 (29/10/2026)
 
 - 028 comportemental : **PASS en environnement isolé** `naxa-ci-replay-2`; transaction annulée par ROLLBACK.
-- Partie 5 (scope réseau/pilotage) : revue statique faite; comportement non certifié. ACL Production : `authenticated` a USAGE sur `private` et EXECUTE sur trois helpers privés; configuration « Exposed schemas » PostgREST non vérifiable par les outils disponibles.
+- Partie 5 (scope réseau/pilotage) : revue statique faite; comportement non certifié. ACL Production : `authenticated` a USAGE sur `private` et EXECUTE sur trois helpers privés. La configuration visuelle « Exposed schemas » a depuis été confirmée par l’utilisateur : `private` et `bi` non cochés; le contrôle visuel est clos, mais la sécurité globale reste JAUNE jusqu’à vérification des privilèges SQL et des autres voies d’accès.
 - Partie 6 (pilotage hors périmètre) : revue statique faite; test 033 non exécuté, garde-fou SQL a bloqué le script qui manipule `session_replication_role`; aucun contournement.
 - Tests 029–031 : réserve technique, non exécutés et non déclarés réussis.
 - Aucun changement Production ni déploiement. Parties 3 à 6 restent ouvertes jusqu'aux preuves manquantes.
+
+## Audit sécurité Data API — point 3 (29/10/2026)
+
+- **Sous-contrôle « Exposed schemas » : CLOS / CONFORME visuellement**, selon confirmation visuelle fournie par l’utilisateur : `graphql_public` et `public` cochés; `private` et `bi` non cochés.
+- **Point sécurité global : JAUNE / réserve restante.** Le contrôle visuel ne certifie pas les privilèges SQL, les droits EXECUTE sur les fonctions ni les autres voies d’accès. Les vérifications SQL antérieures indiquaient notamment `USAGE` sur `private` et des droits `EXECUTE` pour `authenticated` sur certains helpers privés.
+- **Aucune action de configuration :** aucun réglage Supabase modifié, aucune écriture Production, aucune migration ni aucun déploiement.
+- **Décision de clôture :** clore la vérification visuelle comme terminée et tracée; ne pas présenter la sécurité complète du schéma `private` comme validée ou verte.
 
 # STATUT NAXA — documents de référence actifs
 
