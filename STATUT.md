@@ -1,3 +1,11 @@
+## Dernière passe — Promoteur 028 et revue statique des parties 5–6 (29/10/2026)
+
+- 028 comportemental : **PASS en environnement isolé** `naxa-ci-replay-2`; transaction annulée par ROLLBACK.
+- Partie 5 (scope réseau/pilotage) : revue statique faite; comportement non certifié. ACL Production : `authenticated` a USAGE sur `private` et EXECUTE sur trois helpers privés; configuration « Exposed schemas » PostgREST non vérifiable par les outils disponibles.
+- Partie 6 (pilotage hors périmètre) : revue statique faite; test 033 non exécuté, garde-fou SQL a bloqué le script qui manipule `session_replication_role`; aucun contournement.
+- Tests 029–031 : réserve technique, non exécutés et non déclarés réussis.
+- Aucun changement Production ni déploiement. Parties 3 à 6 restent ouvertes jusqu'aux preuves manquantes.
+
 # STATUT NAXA — documents de référence actifs
 
 > Autorités uniques du chantier : **MANDAT CTO NAXA** et **cahier des charges Audit 360 du parcours Administrateur** ([document d'audit](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier V3.7 et le Prompt maître ont été supprimés. Toute mention historique éventuelle ci-dessous n'a aucune autorité de décision.

@@ -32,6 +32,33 @@ Le texte ci-dessus est la transcription opérationnelle des règles explicites d
 - **Tests 029–031 : réserve technique** — non exécutés dans cette passe; ils ne sont pas déclarés réussis sans preuve. Leurs scripts modifient `session_replication_role`; ils devront être exécutés seulement dans un environnement isolé dont le statut est confirmé.
 - **Progression** — l'absence de données de recette ne bloque pas les contrôles indépendants ni la revue du code. La partie 3 n'est pas globalement close tant que l'exposition API n'est pas vérifiée et les réserves pertinentes traitées. Continuer la revue des parties 5 puis 6 sans présenter les parties 3–6 comme intégralement validées.
 
+## Parties 5 et 6 Promoteur — revue statique initiale (29/10/2026)
+
+### Partie 5 — scope réseau et pilotage (migration 032 / test 032)
+
+**Revue du code : vérifiée statiquement; test comportemental non exécuté.**
+- `private.stats_pilotage_scope(integer)` vérifie l'identité authentifiée et le profil actif; le Promoteur doit avoir `VIEW_NETWORK_PILOTAGE`, et son scope provient exclusivement des liens actifs `promoteur_pharmacies` associés à des pharmacies non démo.
+- La façade `public.stats_pilotage_scope(integer)` est invoker et son EXECUTE est accordé à `authenticated`; l'interface Promoteur appelle cette façade et rend les KPI « Indisponible » quand la RPC échoue.
+- Le script `supabase/tests/032_promoteur_scope_reseau_7.sql` couvre le scope A+B, l'exclusion de C/non attribué, la révocation du privilège réseau et les KPI attendus.
+- **Réserve sécurité à résoudre :** en Production, les ACL observées accordent actuellement EXECUTE à `authenticated` sur `private.stats_pilotage_scope`, `private.naxa_has_privilege` et `private.naxa_scope_allows`. Le rôle `authenticated` a également USAGE sur `private`. La configuration effective « Exposed schemas » de PostgREST n'a pas pu être lue avec les outils disponibles. Ne pas déclarer le contrôle d'exposition vert tant que cette configuration et l'exposition réelle ne sont pas vérifiées. Aucune modification Production effectuée.
+
+### Partie 6 — pilotage hors périmètre (test 033)
+
+**Revue du code : vérifiée statiquement; test comportemental non exécuté.**
+- `supabase/tests/033_promoteur_pilotage_hors_scope_8.sql` attend uniquement les pharmacies A+B, et exclut la pharmacie C et les événements non attribués; il vérifie recherches, fiches vues et ajouts panier.
+- Le test crée des fixtures en transaction, modifie localement `session_replication_role`, puis exécute `ROLLBACK`. L'exécution via l'outil SQL a été bloquée par un garde-fou; aucun contournement n'a été tenté.
+- Les tests 029–031 restent une réserve technique non certifiée. Aucun de ces tests n'est déclaré réussi sans résultat observé.
+
+### Statuts de sortie de cette passe
+
+- **028 comportemental : VERT / PASS**, preuve d'exécution sur l'environnement isolé `naxa-ci-replay-2`.
+- **Partie 5 — revue statique : VERT pour l'inspection du code seulement; comportement : JAUNE** (test 032 non exécuté; ACL/exposition API à vérifier).
+- **Partie 6 — revue statique : VERT pour l'inspection du script/code seulement; comportement : JAUNE** (test 033 non exécuté).
+- **Tests 029–031 : JAUNE / réserve technique**, non exécutés.
+- L'absence de données de recette ne bloque pas les vérifications indépendantes ni la poursuite de l'audit. Les parties 3 à 6 ne sont pas globalement closes.
+
+---
+
 ## 1. Résumé exécutif
 
 - **Dépôt confirmé :** `audreymendomo23-netizen/NAXA` (privé).
