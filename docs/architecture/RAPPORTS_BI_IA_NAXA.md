@@ -60,3 +60,15 @@ Aucun secret n'est ajouté par ce changement. Ne jamais utiliser une variable `N
 - Ne pas transmettre d'identifiants patients, données nominatives ou données médicales à l'IA.
 - Ajouter des tests d'accès croisés Admin/Promoteur/Responsable/Caisse avant toute certification.
 - Aucune migration ni écriture Supabase Production n'est exécutée par la livraison applicative.
+
+
+## Intégration UI par poste — 30/10/2026
+Le composant `RapportsALaDemande` est monté directement sur les dashboards Admin (accueil et pilotage), Promoteur, Responsable, Caisse, Comptable, Gestionnaire de stock et Pharmacien. Chaque intégration conserve le layout et les couleurs de l'espace existant; le composant applique une variante de surface et d'accent adaptée.
+
+L'API serveur expose des indicateurs propres aux postes internes :
+- Pharmacien : volumes de consultations, prescriptions, prescriptions en attente, préparations et événements d'audit. Aucune identité ni donnée clinique patient n'est incluse.
+- Comptable : ventes payées, chiffre d'affaires, dépenses, mouvements de trésorerie, dossiers assurance et contrôles à traiter; accès conditionné au privilège `MANAGE_ACCOUNTING` sur la pharmacie du profil.
+- Gestionnaire de stock / Magasinier : références en stock, stocks bas, lots à contrôler, réservations à traiter et inventaires ouverts; périmètre issu de `my_pharmacies` et des affectations actives du compte.
+- Admin / Promoteur / Responsable / Caisse : RPC de pilotage déjà en place, avec contrôles d'accès existants.
+
+**État de validation :** revue statique des fichiers et branchements UI/API effectuée. Les tests d'exécution avec comptes de recette pour chacun des postes, le build TypeScript et la recette visuelle navigateur restent à réaliser. Ne pas déclarer la fonctionnalité certifiée en production sur la seule base de cette intégration source.
