@@ -720,3 +720,11 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 **Séparation impérative des environnements :** aucune migration 258/259 appliquée à Supabase Production, aucune donnée métier Production modifiée, aucun déploiement déclenché, aucun workflow CI relancé. Les migrations de test ont été appliquées uniquement au projet `naxa-ci-replay-2`; les fixtures des tests transactionnels ont été annulées. Une livraison Production nécessite toujours l'autorisation explicite « OUI, DÉPLOIE ».
 
 Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md), § 60.44.
+
+
+### Point 4 — notifications J−5 et règlement : tests runtime ajoutés (29/10/2026)
+- Test structurel `20261029120000_promoteur_notifications_include_pharmacies.sql` : **PASS** sur replay non-Production.
+- Test runtime `supabase/tests/260_promoteur_j5_notification_runtime.sql` : **PASS**; noms Promoteur/pharmacie présents dans les notifications Promoteur et Admin, seconde exécution sans doublon; rollback confirmé.
+- Test runtime `supabase/tests/261_promoteur_payment_submission_notification_runtime.sql` : **PASS**; soumission, notification Admin avec Promoteur/pharmacie et confirmation Promoteur; rollback confirmé.
+- **Point 4 toujours ouvert uniquement** pour la recette UI, la vérification du téléversement/accès à la preuve et la preuve d'envoi externe. Les tests vérifient les notifications en base, pas un e-mail/SMS réellement délivré.
+- Replay seulement : migrations de prérequis appliquées à `naxa-ci-replay-2`; Production inchangée, aucun déploiement et aucun workflow CI relancé.
