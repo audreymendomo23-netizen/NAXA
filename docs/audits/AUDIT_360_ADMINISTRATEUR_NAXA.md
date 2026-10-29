@@ -19,9 +19,13 @@ Ce guide opérationnel consigne les consignes explicites du **NAXA-MANDAT CTO** 
 >
 > Le chantier Promoteur reste ouvert tant que les parties 3 à 6 ne sont pas validées. Les tests 029–031 demeurent une réserve technique tant qu'aucune preuve d'exécution fiable n'est disponible.
 
-### Statut d'application du guide
+### Statut de la source normative — mise à jour du 29/10/2026
 
-Le texte ci-dessus est la transcription opérationnelle des règles explicites disponibles dans l'historique de travail. Le fichier source intégral intitulé « NAXA-MANDAT CTO » n'a pas été retrouvé dans le dépôt au moment de cette mise à jour; le présent passage ne prétend donc pas être une copie verbatim d'un fichier absent.
+Le texte intégral intitulé **« NAXA — MANDAT CTO »** a été fourni explicitement par l'utilisateur dans la conversation le 29 octobre 2026. Il devient la source normative complète pour construire et maintenir ce cahier des charges. La transcription opérationnelle ci-dessus reste un aide-mémoire et **ne remplace pas le texte intégral fourni**. L'ancienne mention selon laquelle le mandat source n'avait pas été retrouvé est désormais obsolète.
+
+Les obligations à appliquer sont celles du texte intégral fourni : gouvernance exclusive de `main`, aucune branche, zéro déploiement intentionnel, aucun changement de Production sans autorisation explicite, étapes préliminaires dans l'ordre, audit détaillé uniquement après autorisation, preuves et analyse contradictoire, critères de statut vert, inventaires quantitatifs traçables, simulation de 1 000 cas et mise à jour continue du registre.
+
+**Limite documentaire à ne pas masquer :** le texte intégral est disponible dans la conversation source; ce commit met à jour le registre pour reconnaître cette source comme reçue et normative. Il ne prétend pas que le contenu complet des 12 sections a été recopié mot pour mot dans ce fichier par cette modification.
 
 ---
 
