@@ -9,6 +9,8 @@
 
 > **Administration — validation initiale d’un dossier pharmacie (29 octobre 2026) :** le formulaire est relié à la fiche `/admin/pharmacies/[id]` et limité aux ouvertures encore en attente. Une garde applicative et une migration SQL additive empêchent la réinitialisation de la période d’essai d’un Promoteur déjà exploité. La validation initiale exige aussi les sept déclarations reçues et la dernière version validée de chacun des six fichiers requis. Le code et les assertions sont sur `main`; la migration `admin_validate_dossier_pending_only` a été appliquée et vérifiée dans l’historique Supabase le 29 octobre. Le build et la recette visuelle restent non exécutés ; aucun déploiement n’a été lancé.
 
+> **Audit Promoteur — cohérence de la confirmation de règlement (29 octobre 2026) :** les écrans Admin annonçaient à tort un renouvellement de « 31 jours », alors que la RPC calcule une période mensuelle calendaire. Libellés corrigés sur `main`; parcours UI/API et parties 3–6 toujours en cours d’audit. Aucun déploiement ni changement Supabase dans cette passe.
+
 > **Validité Promoteur — noms et pharmacies dans les alertes (29 octobre 2026) :** les rappels J-5, alertes de paiement et écrans Admin affichent désormais le nom complet du Promoteur et ses pharmacies rattachées. Le code est sur `main`; la migration `promoteur_notifications_include_pharmacies` a été appliquée et vérifiée dans l’historique Supabase le 29 octobre. La recette métier et le déploiement restent non effectués.
 
 # NAXA : base de l'application

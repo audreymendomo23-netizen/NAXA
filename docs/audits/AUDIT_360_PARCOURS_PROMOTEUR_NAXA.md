@@ -274,3 +274,22 @@ Vérifier la nécessité des grants `service_role` sur les façades de la gestio
 - Test sans fixtures ni modification métier ajouté : `supabase/tests/157_promoteur_caisse_service_role_acl.sql` (commit `d38a26d27ad7376243e5944bc65323d13d17c565`). Migration de diagnostic appliquée uniquement sur le replay non-Production `naxa-ci-replay-2`; test 157 : **PASS**.
 - Recontrôle Production après l'essai : les droits `service_role` sont toujours présents, preuve que le correctif n'a pas été appliqué à Production. Aucun déploiement, aucune CI relancée.
 - Clôture : sous-chantier ACL service_role **clos côté source et replay de test**. Partie 4 reste non certifiée tant que les scénarios comportementaux 029/030/031 ne sont pas validés dans un environnement sûr; aucun test ne doit désactiver les triggers ou changer `session_replication_role`.
+
+
+## Passe UI/API — soumission et confirmation du règlement (29/10/2026)
+
+### Contrôles du code sur `main`
+- `src/app/promoteur/paiements/actions.ts` : identité obtenue via `supabaseServer().auth.getUser()`, rôle `promoteur` contrôlé, montant/canal/compte payeur/date/preuve validés; preuve envoyée dans le bucket privé avant l'appel de `promoteur_soumettre_reglement` via le client serveur privilégié. Si la RPC échoue, le fichier de preuve nouvellement téléversé est supprimé; les chemins Promoteur/Admin/notifications sont revalidés après succès.
+- `src/app/admin/pilotage/reglements/actions.ts` : `requireAdminActive`, identifiant UUID, case de vérification obligatoire, règlement relu et limité à l'état `en_attente`, URL signée de preuve exigée avant appel de `admin_confirmer_reglement_promoteur` avec l'identifiant de l'Admin authentifié. L'écran Admin affiche les noms de pharmacies liées et bloque la confirmation UI si la preuve ne peut être chargée.
+- `src/app/admin/pilotage/validite/page.tsx` utilise `validites_promoteurs_admin()` et distingue l'erreur de lecture d'une liste réellement vide; le parcours visuel/runtime n'a pas été exécuté.
+- `promoteur_soumettre_reglement` est accordée directement à `service_role`, pas à `authenticated`/ `anon`; l'appel observé est donc derrière l'action serveur qui vérifie le rôle. Cette séparation dépend de la bonne conservation de la garde serveur.
+
+### Contradiction corrigée
+- L'écran Admin indiquait « renouveler 31 jours », alors que `admin_confirmer_reglement_promoteur` calcule `v_fin = v_debut + interval '1 month' - interval '1 day'`. Les deux libellés ont été corrigés pour annoncer un renouvellement mensuel, sans modifier la règle métier SQL.
+- La migration `20261026232000_disable_legacy_promoter_reactivation.sql` révoque EXECUTE sur l'ancienne RPC `reactiver_promoteur(uuid,text)` pour `public`, `anon`, `authenticated` et `service_role`. Dans les fichiers UI/API examinés pendant cette passe, aucun appel direct à cette ancienne RPC n'a été repéré; cela ne remplace pas encore la vérification exhaustive des références dans le dépôt et des ACL effectives du runtime.
+
+### Statut et suite
+- Soumission et confirmation : **revue statique ciblée effectuée**, pas de recette UI/runtime.
+- Partie 3 du Pilotage Promoteur : **non certifiée** tant que les preuves comportementales de la migration 028 et l'intégration du parcours ne sont pas revalidées.
+- Parties 4–6 : **ouvertes**; aucune clôture globale déclarée.
+- Suite immédiate : rechercher les références restantes à `reactiver_promoteur` dans le dépôt et contrôler ses ACL effectives, puis reprendre la validation ciblée de la partie 3. Aucun déploiement ni écriture Supabase dans cette passe.

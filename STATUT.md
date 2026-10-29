@@ -4,6 +4,7 @@
 - Lecture SQL de `promoteur_soumettre_reglement` : validations métier et prévention des règlements simultanément en attente; les noms Promoteur/pharmacies sont inclus dans les notifications. Comme EXECUTE direct n'est pas accordé à `authenticated`/ `anon`, la garde de la route serveur appelante doit être vérifiée.
 - Point à investiguer avant toute modification : `reactiver_promoteur` réactive abonnement, convention, pharmacies et profils liés après garde Admin. Vérifier EXECUTE effectif et tous les appelants pour déterminer si une ancienne voie manuelle reste accessible.
 - `validites_promoteurs_admin()` filtre les résultats via `is_admin()`; `naxa_promoteur_valide(uuid)` limite l'identité à l'utilisateur connecté ou Admin. Les contrôles applicatifs restent à auditer.
+- Revue UI/API du 29/10 : le serveur Promoteur vérifie l’identité et le rôle, valide les champs, téléverse la preuve privée puis appelle la RPC; la route Admin exige un Admin actif, vérifie l’état en attente et la disponibilité de la preuve avant confirmation. Correction effectuée : le libellé Admin ne promet plus « 31 jours », car la RPC applique une période mensuelle calendaire. La recherche d’appelants de `reactiver_promoteur` et les parties 3–6 restent à poursuivre; aucun déploiement ni changement Supabase dans cette passe.
 - Rapport vivant : `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`. Le parcours UI/API, la partie 3 et les parties 4–6 restent non certifiés.
 
 ---
