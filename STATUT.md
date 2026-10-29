@@ -702,3 +702,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Point à contrôler : plusieurs façades Caisse sont également exécutables par `service_role`; les contrôles métier sont présents et aucun exploit n'a été démontré. Justifier/réconcilier les grants canoniques avant toute modification.
 - Tests comportementaux 029/030/031 non exécutés car leurs fixtures changent `session_replication_role`; aucun contournement de trigger. Test 156 non concluant sur replay incomplet (garde absente du replay, présente en Production).
 - Passe de revue statique clôturée; partie 4 globale reste non certifiée. Production inchangée, aucun déploiement/workflow relancé. Détails dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
+
+
+## Partie 4 Promoteur — ACL RPC Caisse service_role (29/10/2026)
+- Constat Production : les façades provisionnement/statut/attribution/révocation Caisse sont exécutables par `authenticated` et `service_role`, mais pas `anon`. Les parcours applicatifs les appellent via `supabaseServer()`; aucun appel de ces RPC via client Admin n'a été trouvé.
+- Correctif additif ajouté sur `main` : `supabase/migrations/20261029160000_restrict_promoteur_caisse_rpc_service_role.sql`; test ACL `supabase/tests/157_promoteur_caisse_service_role_acl.sql`.
+- Sur replay non-Production uniquement, migration de test appliquée et test 157 **PASS**. Production vérifiée après coup : grants service_role toujours présents, aucune migration Production appliquée.
+- Sous-chantier ACL clos; partie 4 globale reste non certifiée car les tests comportementaux 029/030/031 restent à exécuter sans contournement de triggers. Aucun déploiement ni workflow relancé.
