@@ -328,3 +328,7 @@ Chargeur serveur mutualisé avec `React cache()`, layout commun, rail de navigat
 ### Logo de pharmacie sur les tickets
 
 Les logos sont stockés dans `pharmacies-photos/logos/<pharmacie_id>/`. Les politiques d'écriture Storage sont limitées au Promoteur actif lié à une pharmacie active. L'API serveur vérifie le rôle et le lien avant toute modification de `pharmacies.logo_url`.
+
+
+### Audit 360° du parcours Promoteur — mise à jour ciblée (29/10/2026)
+Le contrôle SQL direct ferme le point d'accès applicatif de `reactiver_promoteur(uuid,text)` : EXECUTE est refusé à `anon`, `authenticated` et `service_role`. Les deux RPC de règlement sont, elles, réservées à `service_role`; la vérification suivante porte donc sur leurs routes appelantes et l'identité qu'elles transmettent. Le suivi de reprise et les preuves sont consignés dans [le rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md). Aucun déploiement ni aucune écriture métier n'ont été réalisés.
