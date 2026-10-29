@@ -6,6 +6,8 @@
 
 > **Administration — validation initiale d’un dossier pharmacie (29 octobre 2026) :** le formulaire est relié à la fiche `/admin/pharmacies/[id]` et limité aux ouvertures encore en attente. Une garde applicative et une migration SQL additive empêchent la réinitialisation de la période d’essai d’un Promoteur déjà exploité. Le code et le test sont ajoutés sur `main`, mais la migration, le build et la recette visuelle restent non exécutés ; aucun déploiement n’a été lancé.
 
+> **Validité Promoteur — noms et pharmacies dans les alertes (29 octobre 2026) :** les rappels J-5, alertes de paiement et écrans Admin affichent désormais le nom complet du Promoteur et ses pharmacies rattachées. Un test structurel et une migration additive sont présents sur `main`; ils ne sont pas exécutés ni déployés.
+
 # NAXA : base de l'application
 
 ## Authentification et introduction (état du 14 octobre 2026)

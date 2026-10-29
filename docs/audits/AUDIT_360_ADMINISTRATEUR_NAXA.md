@@ -2439,3 +2439,24 @@ Pour éviter toute boucle de travail, aucune nouvelle analyse ni correction n'es
 - Aucun succès de test intégré ou de validation production revendiqué.
 
 **Sortie de passe :** le dossier d'audit contient désormais la décision finale, les limites probatoires et le déclencheur précis d'une éventuelle réouverture. Le chantier principal peut continuer sur un autre sous-chantier sans réitérer les mêmes tentatives.
+
+
+## 60.43 — Identité complète dans les notifications J-5 et règlements Promoteur (29 octobre 2026)
+
+### Constat croisé
+- Le job Supabase actif `naxa-promoteur-echeance-5j` exécute `public.generer_rappels_echeance_promoteurs()` chaque jour à 06:00 UTC. Le corps du rappel J-5 comportait le nom du Promoteur côté administration mais pas ses pharmacies rattachées; le rappel envoyé au Promoteur ne donnait ni son nom complet ni son réseau de pharmacies.
+- La RPC `public.promoteur_soumettre_reglement` envoyait à l’administrateur le nom du Promoteur, le montant, le canal, le compte payeur, la référence et la date, mais pas les pharmacies concernées.
+- La page `/admin/pilotage/reglements` montrait le Promoteur et la preuve de paiement, sans nommer sa ou ses pharmacies. Une autre route `/api/cron/validite` existe dans le code mais aucun `vercel.json` ne la planifie; le seul ordonnanceur explicite dans le dépôt et le schéma lu est le job Supabase. Aucun second schedule n’a été ajouté.
+
+### Correctifs versionnés
+- Le rappel J-5 indique maintenant le nom complet du Promoteur et les noms de toutes ses pharmacies liées, pour les notifications Promoteur et Admin.
+- L’alerte de déclaration de paiement contient le nom du Promoteur et les noms de ses pharmacies; le message de confirmation interne au Promoteur contient aussi ce contexte.
+- La file d’approbation Admin affiche la liste de pharmacies pour les règlements en attente et dans l’historique. Si le chargement des liaisons échoue, la page l’indique explicitement au lieu d’afficher une liste vide trompeuse.
+- La route protégée `/api/cron/validite` utilise le même contexte de réseau et échappe les noms avant insertion dans le HTML e-mail. Elle reste non planifiée par Vercel dans le dépôt afin de conserver une seule source de planification, le cron Supabase existant.
+- Le générateur J-5 respecte désormais aussi le marqueur de rappel « en cours » pour éviter de concurrencer une exécution revendiquant déjà le même rappel.
+
+### Preuves et limites
+- En lecture seule, la base NAXA a confirmé un seul job actif `naxa-promoteur-echeance-5j` à `0 6 * * *`, et les colonnes relationnelles `promoteur_pharmacies.promoteur_id/pharmacie_id` ainsi que `pharmacies.id/nom`.
+- Test structurel ajouté : `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql`. Il vérifie le texte des fonctions, leur sécurité et leurs droits, mais n’a pas été exécuté.
+- Migration additive préparée : `supabase/migrations/20261029120000_promoteur_notifications_include_pharmacies.sql`.
+- Aucun test runtime, build/typecheck/lint ou envoi de notification réelle exécuté. Aucune migration appliquée, aucune donnée métier modifiée et aucun déploiement déclenché.

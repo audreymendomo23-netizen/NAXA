@@ -14,12 +14,45 @@ const date = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateSt
 export default async function ReglementsAdminPage({ searchParams }: { searchParams?: SearchParams }) {
   await requireAdminActive("/admin/pilotage/reglements");
   const db = supabaseAdmin();
-  const [{ data: promoters }, { data: pending, error: pendingError }, { data: recent }] = await Promise.all([
+  const [{ data: promoters }, { data: pending, error: pendingError }, { data: recent, error: recentError }] = await Promise.all([
     db.from("profiles").select("id,first_name,last_name,username").eq("role", "promoteur").order("last_name").limit(500),
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,created_at").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_au,created_at,motif_contestation").neq("statut", "en_attente").order("created_at", { ascending: false }).limit(50),
   ]);
   const people = new Map((promoters ?? []).map(p => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || p.id]));
+  const paymentRows = [...(pending ?? []), ...(recent ?? [])];
+  const promoterIds = [...new Set(paymentRows.map(r => r.promoteur_id).filter((id): id is string => typeof id === "string" && id.length > 0))];
+  let links: { promoteur_id: string; pharmacie_id: string }[] = [];
+  let linksError: unknown = null;
+  if (promoterIds.length) {
+    const linkResult = await db.from("promoteur_pharmacies").select("promoteur_id,pharmacie_id").in("promoteur_id", promoterIds);
+    links = linkResult.data ?? [];
+    linksError = linkResult.error;
+  }
+  const pharmacyIds = [...new Set(links.map(l => l.pharmacie_id).filter(Boolean))];
+  let pharmacyRows: { id: string; nom: string }[] = [];
+  let pharmacyRowsError: unknown = null;
+  if (pharmacyIds.length) {
+    const pharmacyResult = await db.from("pharmacies").select("id,nom").in("id", pharmacyIds);
+    pharmacyRows = pharmacyResult.data ?? [];
+    pharmacyRowsError = pharmacyResult.error;
+  }
+  const pharmaciesUnavailable = Boolean(linksError || pharmacyRowsError);
+  const pharmacyNamesById = new Map(pharmacyRows.map(p => [p.id, p.nom]));
+  const pharmaciesByPromoter = new Map<string, string[]>();
+  for (const link of links) {
+    const name = pharmacyNamesById.get(link.pharmacie_id);
+    if (!name) continue;
+    const names = pharmaciesByPromoter.get(link.promoteur_id) ?? [];
+    if (!names.includes(name)) names.push(name);
+    pharmaciesByPromoter.set(link.promoteur_id, names);
+  }
+  for (const names of pharmaciesByPromoter.values()) names.sort((a, b) => a.localeCompare(b, "fr"));
+  const pharmacyLabel = (promoteurId: string) => {
+    if (pharmaciesUnavailable) return "Indisponible — vérifier le dossier pharmacie";
+    const names = pharmaciesByPromoter.get(promoteurId) ?? [];
+    return names.length ? names.join(", ") : "Aucune pharmacie rattachée";
+  };
   const proofLinks = new Map<string, string>();
   await Promise.all((pending ?? []).map(async r => {
     const { data } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path, 600);
@@ -42,6 +75,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
     </header>
     {searchParams?.ok && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">{searchParams.ok === "confirme" ? "Paiement confirmé, abonnement renouvelé et reçu disponible dans l’espace Promoteur." : "Règlement mis à jour."}</p>}
     {searchParams?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur] ?? "Une erreur est survenue."}</p>}
+    {pharmaciesUnavailable && <p role="alert" className="rounded-2xl border border-amber-300 bg-white p-4 text-sm text-amber-900">Les règlements sont visibles, mais les pharmacies rattachées n’ont pas pu être chargées. Vérifiez le dossier Promoteur avant de confirmer.</p>}
     <section className="space-y-3">
       <h2 className="text-xl font-black">Paiements à vérifier ({pending?.length ?? 0})</h2>
       {pendingError && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Impossible de charger les paiements à vérifier.</p>}
@@ -50,7 +84,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
         const proof = proofLinks.get(r.id);
         const isVideo = /\.(mp4|webm|mov)$/i.test(r.preuve_path);
         return <article key={r.id} className="rounded-3xl bg-white p-4 sm:p-5">
-          <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-extrabold">{people.get(r.promoteur_id) ?? r.promoteur_id}</h3><p className="text-xs text-slate-500">Soumis le {date(r.created_at)}</p></div><strong className="text-lg">{money(r.montant)}</strong></div>
+          <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-extrabold">{people.get(r.promoteur_id) ?? r.promoteur_id}</h3><p className="mt-1 break-words text-sm text-slate-700">Pharmacie(s) : <span className="font-semibold">{pharmacyLabel(r.promoteur_id)}</span></p><p className="text-xs text-slate-500">Soumis le {date(r.created_at)}</p></div><strong className="text-lg">{money(r.montant)}</strong></div>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div><dt className="text-slate-500">Canal de paiement</dt><dd className="font-semibold">{CANAUX[r.canal] ?? r.canal}{r.canal_autre ? " · " + r.canal_autre : ""}</dd></div>
             <div><dt className="text-slate-500">Compte / numéro payeur</dt><dd className="font-semibold">{r.compte_payeur || "—"}</dd></div>
@@ -70,8 +104,9 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
       })}
     </section>
     <section className="space-y-3"><h2 className="text-xl font-black">Historique des paiements traités</h2>
-      {!recent?.length ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-600">Aucun paiement traité.</p> : recent.map(r => <article key={r.id} className="rounded-2xl bg-white p-4">
-        <div className="flex flex-wrap justify-between gap-2"><div><p className="font-bold">{people.get(r.promoteur_id) ?? r.promoteur_id}</p><p className="text-xs text-slate-500">{date(r.created_at)} · {r.identifiant_paiement ?? r.numero_recu ?? "—"}</p></div><strong>{money(r.montant)}</strong></div>
+      {recentError && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Impossible de charger l’historique des paiements traités.</p>}
+      {!recentError && !recent?.length ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-600">Aucun paiement traité.</p> : !recentError && recent?.map(r => <article key={r.id} className="rounded-2xl bg-white p-4">
+        <div className="flex flex-wrap justify-between gap-2"><div><p className="font-bold">{people.get(r.promoteur_id) ?? r.promoteur_id}</p><p className="mt-1 break-words text-sm text-slate-700">Pharmacie(s) : <span className="font-semibold">{pharmacyLabel(r.promoteur_id)}</span></p><p className="text-xs text-slate-500">{date(r.created_at)} · {r.identifiant_paiement ?? r.numero_recu ?? "—"}</p></div><strong>{money(r.montant)}</strong></div>
         <p className="mt-2 text-sm">{CANAUX[r.canal] ?? r.canal} · {r.statut === "confirme" ? "Confirmé" : "Contesté"} · Compte : {r.compte_payeur || "—"} · Paiement déclaré : {date(r.paye_le)}{r.periode_au ? " · Prochaine échéance " + r.periode_au : ""}{r.motif_contestation ? " · Motif : " + r.motif_contestation : ""}</p>
       </article>)}
     </section>

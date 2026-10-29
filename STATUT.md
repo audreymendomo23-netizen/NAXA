@@ -17,6 +17,14 @@
 - **Condition unique de réouverture :** résultat de CI existant consultable sans relance, ou runner PostgreSQL isolé et autorisé réellement disponible ; exécuter alors les migrations/prérequis puis les tests 247, 256 et 257 ensemble. Ne pas répéter l'audit statique ni ajouter des corrections spéculatives avant cette preuve.
 - **Garde-fous :** aucune branche ni PR créée, aucune migration appliquée, aucune donnée Supabase distante modifiée, aucun déploiement ni relance CI déclenché.
 
+## Validité Promoteur — notifications avec réseau de pharmacies (29/10/2026)
+
+- Les rappels J-5 et alertes de déclaration de paiement doivent comporter le nom complet du Promoteur et les noms de toutes les pharmacies rattachées.
+- `/admin/pilotage/reglements` affiche désormais ces pharmacies dans la file de confirmation et l’historique. La route de rappel sécurisée ajoute le même contexte dans les notifications et le courriel.
+- Migration additive : `supabase/migrations/20261029120000_promoteur_notifications_include_pharmacies.sql`. Test structurel : `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql`.
+- Le seul ordonnanceur explicitement constaté reste le job Supabase `naxa-promoteur-echeance-5j` à 06:00 UTC ; aucun cron Vercel parallèle n’est ajouté.
+- **Construction 🟡 versionnée, runtime non certifié.** Test SQL, build, lint, envoi de notification et email non exécutés. Aucune migration appliquée et aucun déploiement lancé.
+
 ## Administration — validation initiale des dossiers pharmacie (29/10/2026)
 
 - La fiche `/admin/pharmacies/[id]` comporte le formulaire de validation globale, relié à l’action serveur et à la RPC transactionnelle existante.
