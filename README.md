@@ -2,6 +2,8 @@
 >
 > La branche GitHub `main` est la seule source de vérité du code NAXA. Le protocole d'exécution canonique est défini dans `AGENTS.md` : corrections ciblées sur `main`, vérifications et déploiement Vercel lorsque les preuves sont suffisantes. Ne pas reprendre les anciennes branches ni les anciennes consignes de workflow de cet historique. Supabase Production reste en lecture seule pour les interventions de code ; aucune migration ni écriture directe n'est effectuée sans périmètre explicite.
 
+> **Crédit Marketplace / stock — état au 29 octobre 2026 :** la passe d'implémentation est documentée comme clôturée **avec réserve de validation runtime** ; le sous-chantier n'est pas certifié vert. L'audit détaillé et la condition précise de réouverture figurent dans [docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md, § 60.42](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md). Les contrôles Supabase en lecture seule confirment que le contrat de migration 247 et la RPC de retrait 252/256 ne sont pas présents dans les schémas inspectés. La validation conjointe des tests 247, 256 et 257 nécessite un runner PostgreSQL isolé. **Aucune migration, modification de données ni déploiement n'a été réalisé dans cette passe.**
+
 # NAXA : base de l'application
 
 ## Authentification et introduction (état du 14 octobre 2026)

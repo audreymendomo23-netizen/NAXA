@@ -7,6 +7,16 @@
 
 # NAXA — Statut opérationnel consolidé
 
+## Sous-chantier Crédit Marketplace / stock / retrait caisse — clôture de passe avec réserve (29/10/2026)
+
+- **Référence d'audit :** `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` § 60.42, décision finale versionnée sur `main`.
+- **Périmètre relu statiquement :** demande de crédit Marketplace, décision Promoteur/NAXA, hold logique du stock à l'approbation, retrait en caisse avec session, affectation et consommation des lots réservés, registre de crédit/comptabilité, remboursements et protections rollback/idempotence. Sources principales : migrations `247`–`256` et tests `247`–`257`.
+- **Contrôle Supabase en lecture seule du 29/10/2026 :** sur `Naxa` (`eouwtuusnsuxaejsxknf`) et `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`), `public.client_credit_requests` existe mais les colonnes contractuelles `telephone_demande`, `date_remboursement`, `justificatif_path` et `panier_items` sont absentes ; la RPC `vente_reservation_credit_finaliser(uuid,uuid,text)` est absente des deux schémas. La RPC `client_credit_demande_decider(uuid,boolean)` est présente. Les historiques de migrations consultés ne montrent pas le déploiement des migrations Marketplace `247/252/256`.
+- **Preuves de tests disponibles :** l'audit § 60.42 consigne les cinq fixtures temporaires du test 257 comme réussies, mais les contrats 247 et 256 échouent sur le schéma interrogé et le test intégré 257 reste bloqué avant ses assertions sur la RPC réelle. Aucun rejeu intégral de PostgreSQL n'a été exécuté dans cette passe.
+- **Décision :** **passe d'implémentation et revue statique clôturée avec réserve runtime explicite ; validation intégrée NON VALIDÉE / BLOQUÉE, jamais « verte ».** Cette clôture n'affirme pas que le parcours fonctionne en Production.
+- **Condition unique de réouverture :** résultat de CI existant consultable sans relance, ou runner PostgreSQL isolé et autorisé réellement disponible ; exécuter alors les migrations/prérequis puis les tests 247, 256 et 257 ensemble. Ne pas répéter l'audit statique ni ajouter des corrections spéculatives avant cette preuve.
+- **Garde-fous :** aucune branche ni PR créée, aucune migration appliquée, aucune donnée Supabase distante modifiée, aucun déploiement ni relance CI déclenché.
+
 ## ERP-008 — Socle assurances / tiers payant
 - Audit sans doublon : aucun socle assurance détecté.
 - Construction : assureurs, couvertures client, dossiers de prise en charge liés à la pharmacie et optionnellement à une vente.
