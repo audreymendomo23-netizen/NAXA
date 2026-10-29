@@ -208,10 +208,14 @@ export async function POST(request: Request) {
     const total = (items: any[], key: string) => items.reduce((sum, item) => sum + Number(item[key] ?? 0), 0);
     stats = { role: "comptable", ventes_payees: paid.length, chiffre_affaires: total(paid, "total_net"), depenses: (expenses.data ?? []).length, montant_depenses: total(expenses.data ?? [], "montant"), mouvements_tresorerie: (cash.data ?? []).length, montant_tresorerie_brut: total(cash.data ?? [], "montant"), dossiers_assurance: (claims.data ?? []).length, controles_a_traiter: (controls.data ?? []).filter(x => x.statut === "a_controler").length };
   } else if (["gestionnaire_stock", "magasinier"].includes(fonction)) {
-    const { data: assignments, error: assignmentError } = await sb.from("naxa_professional_assignments").select("pharmacie_id,commence_at,expire_at").eq("profile_id", auth.user.id).eq("statut", "active").in("fonction", ["gestionnaire_stock", "magasinier"]);
-    if (assignmentError) return NextResponse.json({ error: "Affectations de stock indisponibles." }, { status: 503 });
+    const [{ data: assignments, error: assignmentError }, { data: myPharmacies, error: pharmaciesError }] = await Promise.all([
+      sb.from("naxa_professional_assignments").select("pharmacie_id,commence_at,expire_at").eq("profile_id", auth.user.id).eq("statut", "active").in("fonction", ["gestionnaire_stock", "magasinier"]),
+      sb.rpc("my_pharmacies"),
+    ]);
+    if (assignmentError || pharmaciesError) return NextResponse.json({ error: "Le périmètre des pharmacies affectées est indisponible." }, { status: 503 });
     const nowMs = Date.now();
-    const ids = [...new Set((assignments ?? []).filter(x => new Date(x.commence_at).getTime() <= nowMs && new Date(x.expire_at).getTime() > nowMs).map(x => x.pharmacie_id))];
+    const activeAssignments = (assignments ?? []).filter(x => new Date(x.commence_at).getTime() <= nowMs && new Date(x.expire_at).getTime() > nowMs).map(x => x.pharmacie_id);
+    const ids = [...new Set([...(Array.isArray(myPharmacies) ? myPharmacies.filter((id): id is string => typeof id === "string") : []), ...activeAssignments])];
     if (!ids.length) return NextResponse.json({ error: "Aucune affectation de stock active." }, { status: 403 });
     const cutoff = new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10);
     const [stocks, low, lots, reservations, inventories] = await Promise.all([
