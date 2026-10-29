@@ -687,3 +687,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Avancement :** début de la partie 4 (gestion Caisse, quotas, périmètres et délégation). Revue statique des migrations 029/030, tests 029/030/031, réconciliation 141, garde 156 et page/actions de délégation. Contrôles positifs documentés dans le rapport d'audit.
 - **Point ouvert de partie 4 :** la fonction `naxa_can_manage_team_member` n'impose pas elle-même `target.actif=true`; examiner la fonction complète `naxa_set_caisse_status` et ses tests avant toute conclusion. Les tests transactionnels 029–031 n'ont pas été exécutés dans cette passe.
 - Aucune migration Production, aucun déploiement et aucun workflow relancé. Travail effectué sur `main` uniquement.
+
+
+### Partie 4 Promoteur — résultats complémentaires (29/10/2026)
+- Tests SQL du dépôt exécutés sur replay : 147 **PASS**, PVH **PASS**, 141 **PASS**.
+- Test 156 **bloqué/FAIL sur le replay incomplet** : garde `naxa_guard_promoteur_caisse_activation` et trigger absents du replay mais présents en Production. Ce n'est pas classé comme défaut Production.
+- Le point `target.actif` du helper de management est expliqué par le flux de réactivation dédié, qui exige `REACTIVATE_CAISSE`, une architecture compatible et le quota; aucun défaut confirmé.
+- Partie 4 toujours non certifiée : tests comportementaux 029/030/031 non exécutés; pas de contournement de trigger/role, pas de migration Production, pas de déploiement.
