@@ -345,3 +345,7 @@ La revue des fonctions de validité a révélé une différence entre la défini
 
 ### Audit 360° Promoteur — correction préparée, non appliquée (29/10/2026)
 Le helper privé de validité active en Production ne correspond pas au contrat de la migration 147. Une migration additive et un test ciblé sont préparés sur `main`, mais ils ne sont ni appliqués ni exécutés. La partie 3 reste non certifiée jusqu'à une validation dans un environnement Supabase non-Production. Détails et preuves : [rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md).
+
+
+### Audit Promoteur — validation test-only actualisée (29/10/2026)
+La façade publique de validité a été réalignée sur l'environnement Supabase non-Production `naxa-ci-replay-2`. Les tests SQL statiques 147 et PVH sont PASS, ainsi que le test comportemental 028 avec rollback confirmé. Les scénarios comportementaux d'architecture absente, réseau inactif et incohérence pharmacie/architecture restent à certifier. Le helper privé de Production n'a pas été corrigé; aucune migration Production, aucun déploiement et aucun workflow relancé. La partie 3 demeure partielle. Voir [rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md).
