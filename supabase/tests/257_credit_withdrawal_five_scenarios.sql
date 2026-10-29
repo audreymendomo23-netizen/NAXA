@@ -50,7 +50,12 @@ begin
      or position('consumed_atisnull' in lower(regexp_replace(rs,'\s+','','g')))=0
      or position('restore_stock' in lower(e))=0 or position('expiree' in lower(e))=0
      or position('set_reservation_status' in lower(c))=0
-     or position('stock_decremented=false' in lower(regexp_replace(o,'\s+','','g')))=0 then
+     or position('reservation_items' in lower(o))=0
+     or position('coalesce(r.stock_decremented,false)=false' in lower(regexp_replace(o,'\\s+','','g')))=0
+     or position('coalesce(r.stock_restored,false)=false' in lower(regexp_replace(o,'\\s+','','g')))=0
+     or position('r.expires_at>now()' in lower(regexp_replace(o,'\\s+','','g')))=0
+     or position('r.consumed_atisnull' in lower(regexp_replace(o,'\\s+','','g')))=0
+     or position('greatest(coalesce(v_disponible,0)-coalesce(v_reserve,0),0)' in lower(regexp_replace(o,'\\s+','','g')))=0 then
     raise exception 'Scénario 5 : libération/expiration ou protection double-restauration incomplète';
   end if;
 end;
