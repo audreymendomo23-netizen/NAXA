@@ -12,16 +12,13 @@ begin
     into v_submit, v_submit_secdef
   from pg_proc p
   join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public'
-    and p.proname='promoteur_soumettre_reglement'
-    and pg_get_function_identity_arguments(p.oid)='p_promoteur uuid, p_montant integer, p_canal text, p_canal_autre text, p_compte_payeur text, p_reference text, p_paye_le timestamp with time zone, p_preuve_path text';
+  where p.oid=to_regprocedure('public.promoteur_soumettre_reglement(uuid,integer,text,text,text,text,timestamptz,text)');
 
   select pg_get_functiondef(p.oid), p.prosecdef
     into v_reminder, v_reminder_secdef
   from pg_proc p
   join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='generer_rappels_echeance_promoteurs'
-    and pg_get_function_identity_arguments(p.oid)='';
+  where p.oid=to_regprocedure('public.generer_rappels_echeance_promoteurs()');
 
   if v_submit is null or v_reminder is null then
     raise exception 'RPC de déclaration ou de rappel absente';
