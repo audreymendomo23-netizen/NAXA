@@ -126,16 +126,16 @@ export async function GET() {
   if (!profile?.actif || !["admin", "promoteur", "pharmacie", "caisse"].includes(profile.role)) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
-  const { data, error } = await sb.from("rapports")
+  if (profile.role === "promoteur") return NextResponse.json({ rapports: [] });
+  let query = sb.from("rapports")
     .select("id,portee,pharmacie_id,periode,du,au,texte,contenu,created_at,pharmacies(nom)")
     .order("created_at", { ascending: false }).limit(30);
+  if (profile.role === "admin") query = query.eq("portee", "admin");
+  else if (profile.pharmacie_id) query = query.eq("pharmacie_id", profile.pharmacie_id);
+  else return NextResponse.json({ rapports: [] });
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: "Historique des rapports indisponible." }, { status: 500 });
-  const scoped = (data ?? []).filter((report: any) => {
-    if (profile.role === "admin") return report.portee === "admin";
-    if (profile.role === "promoteur") return false;
-    return Boolean(profile.pharmacie_id) && report.pharmacie_id === profile.pharmacie_id;
-  });
-  return NextResponse.json({ rapports: scoped.map((r: any) => ({ ...r, pharmacie_nom: r.pharmacies?.nom ?? null })) });
+  return NextResponse.json({ rapports: (data ?? []).map((r: any) => ({ ...r, pharmacie_nom: r.pharmacies?.nom ?? null })) });
 }
 
 export async function POST(request: Request) {
