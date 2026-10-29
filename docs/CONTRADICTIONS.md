@@ -18,6 +18,7 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 | `safe_promoter_payment_reactivation_scope` | `20261029052116` | Appliquée et retrouvée dans l'historique. |
 | `admin_validate_dossier_pending_only` | `20261029052125` | Appliquée et retrouvée dans l'historique. |
 | `promoteur_notifications_include_pharmacies` | `20261029052131` | Appliquée et retrouvée dans l'historique. |
+| `remove_duplicate_stocks_lots_id_index` | `20261029052838` | Appliquée; index strictement dupliqué retiré, index unique référencé par les contraintes conservé. |
 
 ### Contrôles après application
 - `admin_confirmer_reglement_promoteur(uuid,uuid)` : exécution limitée à `service_role`; logique de non-réactivation en bloc présente.
@@ -40,7 +41,9 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 - `src/lib/admin/require-admin-active.ts` vérifie l'identité authentifiée, le rôle `admin` et `profiles.actif === true`. Les anciennes observations disant qu'il ne vérifiait que le rôle sont obsolètes.
 - L'inventaire antérieur compte 19 fichiers `page.tsx` sous l'administration; ce nombre n'est pas une preuve de fonctionnement de chaque écran.
 - Les journaux Supabase consultés sur la fenêtre des dernières 24 heures n'ont pas renvoyé de lignes `ERROR`, `FATAL` ou `PANIC` dans la requête ciblée. Un événement SQLSTATE `08006` reste à qualifier par corrélation temporelle.
-- Les conseillers Supabase signalent des constats de sécurité/performance préexistants, notamment des politiques RLS multiples permissives, des tables RLS sans politique et des clés étrangères sans index. Ils ne sont pas supprimés en masse : une correction aveugle pourrait changer les accès métier.
+- **Contrôle performance après correction :** l'alerte `duplicate_index` a disparu après retrait de `stocks_lots_id_uidx`; `stocks_lots_id_uq` demeure et reste utilisé par les contraintes. Le linter signale encore 120 clés étrangères sans index couvrant, 95 index déclarés inutilisés et 59 groupes de politiques permissives.
+- **Contrôle sécurité :** 6 tables avec RLS activée sans politique, 5 fonctions `SECURITY DEFINER` exécutables par `anon`, 119 exécutables par `authenticated`, et la protection des mots de passe compromis désactivée. Ces nombres sont des alertes de linter, pas la preuve que chaque occurrence est exploitable. Un échantillon de fonctions `admin_*` vérifié contient un contrôle interne de rôle administrateur actif; il faut poursuivre par famille de fonctions avant de changer les privilèges.
+- Les constats ne sont pas supprimés en masse : une correction aveugle pourrait changer les accès métier.
 - Le build, les tests complets, la recette visuelle et l'état Production n'ont pas été validés par cette passe. Aucun déploiement manuel ni relance de workflow n'a été déclenché.
 
 ## 6. Statut honnête des étapes 0–7
@@ -50,7 +53,7 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 | 0 — Référence Git et périmètre | 🟢 | Travail direct sur `main`; aucune branche créée. |
 | 1 — Historique de conversations | 🟡 | Contexte/synthèses disponibles consultés; pas d'archive exhaustive de toutes les conversations. |
 | 2 — Inventaire du dépôt | 🟢 inventaire | Comptage de l'arbre disponible; pas une lecture ligne par ligne de tous les fichiers. |
-| 3 — Supabase/migrations | 🟢 pour les 3 migrations ciblées | Versions présentes après écriture et vérification; autres migrations/contrats métier non certifiés par ce contrôle. |
+| 3 — Supabase/migrations | 🟢 pour les 4 migrations ciblées | Quatre versions présentes après écriture et vérification; autres migrations/contrats métier non certifiés par ce contrôle. |
 | 4 — Documentation | 🟢 contradictions ciblées | Registre rétabli et rapport historique clarifié; l'ensemble des documents n'est pas intégralement réécrit. |
 | 5 — Audit du code | 🟡 ciblé | Garde admin et fonctions concernées contrôlées; audit ligne par ligne complet non réalisé. |
 | 6 — Logs | 🟡 ciblé | Pas d'ERROR/FATAL/PANIC dans la requête ciblée; SQLSTATE 08006 reste à qualifier. |
