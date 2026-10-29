@@ -379,3 +379,7 @@ Complément Audit Administrateur — point 4 (29/10/2026) : le rappel J−5 et l
 
 ### Audit 360° Administrateur — point 4, revue complémentaire (29 octobre 2026)
 Une revue statique des pages Promoteur/Admin et du flux de notifications a corrigé sur main un faux état « Aucun paiement déclaré » en cas d'erreur de lecture, ainsi que l'absence de garde UI lorsque le tarif d'abonnement n'est pas disponible (commit 37b46503e2eceae21ce3ddba653d2bb52099459b). Le bucket de preuves est privé et sa configuration effective vérifiée en lecture seule est de 25 MiB, conforme au formulaire. Le point 4 reste ouvert : le job pg_cron actif insère des notifications en base mais n'appelle pas la route Resend; aucun trigger d'envoi externe n'a été observé et les événements de règlement n'ont pas de chemin e-mail/SMS dédié identifié. Les tests 260/261 valident uniquement les insertions en base. Recette navigateur, accès effectif aux preuves et délivrance externe restent à démontrer. Aucun changement Production ni déploiement.
+
+
+### Notifications Promoteur — file e-mail (29 octobre 2026)
+Une file privée idempotente et un worker Resend ont été ajoutés sur main pour les rappels J−5 et les événements de règlement. Le test structurel 262 passe sur l'environnement isolé. L'ordonnanceur externe, la configuration des secrets et la délivrance réelle restent à valider; aucune migration Production ni aucun déploiement n'ont été effectués. Voir §60.47 du cahier Audit 360 Administrateur.
