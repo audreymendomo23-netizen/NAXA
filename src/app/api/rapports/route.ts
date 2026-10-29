@@ -126,6 +126,9 @@ export async function GET() {
   if (!profile?.actif || !["admin", "promoteur", "pharmacie", "caisse"].includes(profile.role)) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
+  if (profile.role === "pharmacie" && profile.fonction_interne !== "responsable") {
+    return NextResponse.json({ error: "Historique réservé au Responsable habilité." }, { status: 403 });
+  }
   if (profile.role === "promoteur") return NextResponse.json({ rapports: [] });
   let query = sb.from("rapports")
     .select("id,portee,pharmacie_id,periode,du,au,texte,contenu,created_at,pharmacies(nom)")
