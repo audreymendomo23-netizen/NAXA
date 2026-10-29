@@ -777,3 +777,8 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - À faire avant validation opérationnelle : configurer/vérifier l'ordonnanceur externe et les secrets sans les exposer, puis test de délivrance avec adresse de recette. Aucun changement Production, aucune donnée métier, aucun déploiement ni workflow relancé. Point 4 reste ouvert.
 
 - Contrôle configuration complémentaire : variables Vercel Production `CRON_SECRET` présente; `RESEND_API_KEY` et `REPORT_FROM_EMAIL` absentes. Plan Vercel retourné : Hobby; aucun cron Vercel ni `vercel.json` observé. Supabase Production possède `pg_cron`, `pg_net`, Vault et le secret ciblé `naxa_posology_cron_secret` (non réutilisé). Secrets et ordonnanceur non modifiés. La délivrance réelle reste bloquée jusqu'à la validation du fournisseur et à l'autorisation de configurer un déclencheur.
+
+### Audit 360° Administrateur — canal Google Mail (29/10/2026)
+- Resend abandonné. Worker Next.js raccordé à Google Apps Script via variables `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET`; secret Google distinct `NAXA_MAIL_SECRET`, protection route par `CRON_SECRET`.
+- Code Apps Script `Code.gs`, manifeste à scope mail minimal et guide de déploiement ajoutés dans `google-apps-script/naxa-mail-gateway/`. Verrou, anti-doublon 30 jours, contrôle du quota et fonction de test vers `NAXA_TEST_EMAIL` inclus.
+- Projet Google non créé/déployé; propriétés et variables Vercel non configurées; aucun envoi réel. Test de réception et ordonnanceur restent à réaliser. Point 4 ouvert. Aucun changement Production ni déploiement Vercel.
