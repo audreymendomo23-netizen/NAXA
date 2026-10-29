@@ -2583,3 +2583,30 @@ Le point 3 n'est pas à reprendre. Le prochain contrôle ouvert de l'audit Admin
 - L'exécution SQL confirme les insertions de notifications en base, pas l'envoi d'un e-mail ou d'un SMS externe. Aucun message réel n'a été expédié.
 - Les tests transactionnels ne remplacent pas la recette UI des états loading/empty/error, l'accès à la preuve téléversée ni une vérification de livraison du fournisseur de notification.
 - Point 4 : **validation SQL structurelle et métier des deux déclencheurs PASS; recette applicative/UI et livraison externe encore ouvertes.** Aucun déploiement, aucun workflow CI relancé et aucune migration appliquée à Supabase Production.
+
+## 60.46 — Point 4 : revue UI, stockage des preuves et chaîne de notification externe (29 octobre 2026)
+
+### Revue statique du parcours Promoteur/Admin
+- Fichiers examinés sur main : src/app/promoteur/paiements/page.tsx, src/app/promoteur/paiements/actions.ts, src/app/admin/pilotage/reglements/page.tsx, src/app/admin/pilotage/reglements/actions.ts, src/app/notifications/page.tsx, src/app/api/cron/validite/route.ts et les migrations de règlement/notification.
+- Défaut UI confirmé côté Promoteur : une erreur de lecture des règlements pouvait être rendue comme « Aucun paiement déclaré »; l'erreur de lecture de l'abonnement n'était pas affichée et n'empêchait pas la soumission.
+- Correction additive de la page Promoteur enregistrée sur main, commit 37b46503e2eceae21ce3ddba653d2bb52099459b : erreurs de lecture explicites, pas de faux état vide, formulaire désactivé si les données de paiement sont indisponibles ou si le tarif n'est pas configuré, signalement d'un lien de preuve non généré.
+- La page Admin interdit déjà la confirmation lorsque le lien signé de la preuve est indisponible; l'action serveur revalide le statut « en_attente », vérifie l'existence d'un lien signé et exige la confirmation explicite de l'encaissement réel.
+
+### Vérification Storage en lecture seule
+- Bucket preuves-reglements-promoteurs observé privé sur Production et replay.
+- Limite effective observée : 25 165 824 octets (25 MiB), avec PDF, JPEG, PNG, WebP, MP4, WebM et QuickTime autorisés.
+- Cette configuration effective correspond à la limite annoncée par le formulaire et à la validation serveur (25 MiB). La migration historique initiale à 8 MiB ne correspond donc pas à l'état courant du bucket; aucune modification Storage n'a été faite.
+
+### Découverte bloquante — délivrance externe non démontrée
+- Production : le seul job pg_cron pertinent observé est naxa-promoteur-echeance-5j, actif à 0 6 * * *, dont la commande appelle uniquement public.generer_rappels_echeance_promoteurs().
+- La fonction SQL insère les notifications en base. La table public.notifications ne présente aucun trigger d'envoi externe; le seul trigger non interne observé est le trigger d'historisation pharmacie.
+- Une route Next.js /api/cron/validite contient un appel Resend, mais aucun déclencheur planifié observé ne l'appelle. Le job pg_cron actif n'invoque pas cette route. L'existence de cette route ne prouve donc pas l'envoi des rappels J−5 par e-mail.
+- Pour la soumission et la confirmation des règlements, les fonctions SQL créent des notifications en base; aucun appel e-mail/SMS/push spécifique à ces événements n'a été trouvé dans les chemins applicatifs examinés. Les notifications in-app sont établies par les tests 260/261; la délivrance externe ne l'est pas.
+- La présence/validité des secrets fournisseur et les journaux d'une délivrance réelle n'ont pas été vérifiés. Aucun e-mail/SMS réel n'a été envoyé.
+
+### État et critères restant à satisfaire
+- Tests SQL 260/261 : PASS sur replay non-Production, rollback confirmé (voir § 60.45).
+- Revue UI : source examinée et correction d'états d'erreur Promoteur enregistrée; aucune exécution navigateur, aucun build et aucun test E2E UI n'ont été exécutés dans cette passe. La recette UI reste ouverte.
+- Preuve : configuration Storage conforme observée en lecture seule; accès effectif par navigateur et téléchargement de fichiers réels non certifiés.
+- Livraison externe : non démontrée; le planificateur actif ne déclenche que la fonction SQL d'insertion en base. Il faut définir et tester un chemin d'envoi idempotent pour J−5 et les événements de règlement, sans double planification ni exposition des secrets.
+- Point 4 reste OUVERT. Aucune migration, écriture ou modification de configuration Supabase Production; aucun déploiement Vercel; aucun workflow CI relancé. Le commit source est documentaire/UI sur main uniquement.
