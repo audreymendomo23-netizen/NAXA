@@ -2460,3 +2460,39 @@ Pour éviter toute boucle de travail, aucune nouvelle analyse ni correction n'es
 - Test structurel ajouté : `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql`. Il vérifie le texte des fonctions, leur sécurité et leurs droits, mais n’a pas été exécuté.
 - Migration additive préparée : `supabase/migrations/20261029120000_promoteur_notifications_include_pharmacies.sql`.
 - Aucun test runtime, build/typecheck/lint ou envoi de notification réelle exécuté. Aucune migration appliquée, aucune donnée métier modifiée et aucun déploiement déclenché.
+
+
+## 60.44 — Clôture du point 3 : retrait crédit Marketplace, lots et cohérence du stock (29 octobre 2026)
+
+### Décision de clôture
+**Point 3 clos côté code et validation technique isolée.** La clôture porte sur le contrat du retrait crédit Marketplace, les allocations de lots, le stock physique/agrégé, la traçabilité vente-crédit et la disponibilité Marketplace. Elle ne signifie ni application en Production ni autorisation de déploiement.
+
+### Contradictions résolues par preuve
+1. **Tests 247/251 : faux négatifs de test.** Des assertions supprimaient les espaces de la fonction contrôlée mais recherchaient encore des chaînes avec espaces; une autre assertion 251 attendait que l'ancienne RPC générique d'encaissement consomme le hold alors que cette voie est volontairement rejetée. Les assertions ont été corrigées pour tester le contrat canonique réel.
+2. **Disponibilité Marketplace : défaut fonctionnel confirmé.** La fonction `marketplace_offre_stock_disponible` comptait les lots vendables/le stock agrégé sans retrancher les holds modernes encore actifs. Or la réservation moderne ne débite pas physiquement le stock. La migration additive `supabase/migration_258_marketplace_availability_subtract_holds.sql` retranche désormais les réservations actives non expirées, non consommées, non restaurées et non déjà débitées; le stock physique reste inchangé lors du hold.
+3. **Retrait crédit réel : défauts révélés par E2E.** Le premier parcours réel a révélé des références ambiguës à `vente_id` dans la fonction qui retourne elle-même une colonne `vente_id`, un CHECK qui refusait `paiement_mode='credit'`, une vente restée en brouillon avant la transition de réservation à `payee`, et un reçu POS incomplet faute de `montant_percu`/`monnaie_rendue`. La migration additive `supabase/migration_259_credit_withdrawal_qualify_request_columns.sql` qualifie les mises à jour, autorise le mode crédit, finalise la vente POS après création de l'opération de crédit et renseigne les champs requis par le snapshot du reçu.
+4. **Pas de contournement de la preuve.** Les défauts ont été reproduits dans le replay non-Production, corrigés dans des migrations additives versionnées sur `main`, puis retestés. Les essais E2E sont des transactions annulées; aucune fixture métier ne persiste.
+
+### Preuves d'exécution — replay non-Production `naxa-ci-replay-2`
+Les migrations nécessaires au schéma de test ont été rejouées dans ce projet isolé uniquement. Résultats confirmés au 29 octobre 2026 :
+
+| Test | Résultat | Portée |
+|---|---|---|
+| `247_credit_marketplace_stock_contract.sql` | **PASS** | Contrat demande, hold et allocation |
+| `251_credit_hold_no_physical_decrement.sql` | **PASS** | Hold sans débit physique; retrait canonique traçable |
+| `252_marketplace_credit_withdrawal.sql` | **PASS** | Contrat de la RPC de retrait |
+| `255_credit_repayment_legacy_guard.sql` | **PASS** | Refus de la signature legacy et garde du mode typé |
+| `256_credit_withdrawal_reserved_lots.sql` | **PASS** | Allocation propre à la réservation, verrous et quantités |
+| `257_credit_withdrawal_five_scenarios.sql` | **PASS** | Contrats des cinq scénarios et fixtures rollback |
+| `258_marketplace_availability_subtract_holds.sql` | **PASS** | Test comportemental : un hold de 4 sur 10 rend 6 disponibles, stock physique inchangé; consommation et legacy sans double-déduction |
+| `259_credit_withdrawal_inverse_order_e2e.sql` | **PASS** | E2E de la RPC réelle : deux réservations partageant le produit, retrait de la seconde avant la première, bons lots, quantités de stock, deux ventes et deux opérations de crédit; rollback confirmé |
+
+### État exact de clôture
+- Implémentation additive et tests sources : présents sur `main`.
+- Tests SQL structurels et comportementaux ci-dessus : exécutés et PASS dans le replay non-Production.
+- Les tests E2E confirment la consommation des allocations propres aux réservations dans l'ordre inverse, la concordance stock-lots/agrégé et la création cohérente vente/crédit.
+- **Production NAXA (`eouwtuusnsuxaejsxknf`) : non modifiée par cette passe.** Aucune migration 258/259 appliquée à Production, aucune donnée métier Production modifiée, aucun déploiement Preview/Production déclenché, aucun workflow CI relancé.
+- Le déploiement et l'application Production restent soumis au point d'arrêt explicite « OUI, DÉPLOIE » du mandat; ce point d'arrêt de livraison n'est pas une tâche de test laissée ouverte dans le point 3.
+
+### Enchaînement direct — point 4 ouvert
+Le point 3 n'est pas à reprendre. Le prochain contrôle ouvert de l'audit Administrateur est la validation du parcours de notification de validité/règlement J−5 et de la présence du réseau de pharmacies dans les messages et la file Admin. Le test structurel `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql` a été exécuté sur le même replay après application de la migration de test correspondante : **PASS (structurel)**. Le point 4 reste actif pour la preuve runtime de notification délivrée, les états d'erreur UI et la non-régression applicative; aucun message réel n'a été envoyé.
