@@ -17,6 +17,14 @@
 - **Condition unique de réouverture :** résultat de CI existant consultable sans relance, ou runner PostgreSQL isolé et autorisé réellement disponible ; exécuter alors les migrations/prérequis puis les tests 247, 256 et 257 ensemble. Ne pas répéter l'audit statique ni ajouter des corrections spéculatives avant cette preuve.
 - **Garde-fous :** aucune branche ni PR créée, aucune migration appliquée, aucune donnée Supabase distante modifiée, aucun déploiement ni relance CI déclenché.
 
+## Administration — validation initiale des dossiers pharmacie (29/10/2026)
+
+- La fiche `/admin/pharmacies/[id]` comporte le formulaire de validation globale, relié à l’action serveur et à la RPC transactionnelle existante.
+- Le formulaire apparaît seulement pour une création encore en attente : pharmacie inactive et masquée, lien Promoteur inactif et profil Promoteur inactif. L’action serveur et la RPC revérifient ces états.
+- Migration additive : `supabase/migrations/20261029110000_admin_validate_dossier_pending_only.sql`. Test structurel ajouté : `supabase/tests/20261029110000_admin_validate_dossier_pending_only.sql`.
+- **Construction : 🟡 code versionné, validation runtime non certifiée.** Le contrôle Supabase effectué ici était en lecture seule ; test SQL, build, typecheck, lint et navigateur non exécutés.
+- Aucune migration appliquée, aucune donnée métier modifiée, aucun déploiement lancé. La recette visuelle attend un déploiement autorisé distinct.
+
 ## ERP-008 — Socle assurances / tiers payant
 - Audit sans doublon : aucun socle assurance détecté.
 - Construction : assureurs, couvertures client, dossiers de prise en charge liés à la pharmacie et optionnellement à une vente.

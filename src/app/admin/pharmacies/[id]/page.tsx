@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { changerStatutServiceBebeMaman, consulterDocumentPharmacie, deposerDocumentPharmacie, statuerDocumentPharmacie } from "./actions";
+import { validerDossierPharmacie } from "@/app/admin/promoteurs/actions";
 
 type Props={params:{id:string};searchParams?:{ok?:string;erreur?:string}};
-const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré."};
-const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.",stockage:"Le stockage privé a refusé le fichier.",registre:"Inscription impossible ; le fichier temporaire a été supprimé.",pharmacie:"Pharmacie introuvable.",decision:"Décision impossible à enregistrer.",document:"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible." };
+const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré.",validation:"Dossier validé. Le Promoteur, son rattachement et la pharmacie sont activés après les contrôles transactionnels."};
+const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.","stockage":"Le stockage privé a refusé le fichier.","registre":"Inscription impossible ; le fichier temporaire a été supprimé.","pharmacie":"Pharmacie introuvable.","decision":"Décision impossible à enregistrer.","document":"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible.","verification":"Confirmez la vérification effective des autorisations avant de valider.","rattachement":"Le rattachement Promoteur–pharmacie est absent ou ambigu.","promoteur":"Le compte Promoteur ne correspond pas à cette pharmacie ou son architecture est invalide.","dossier-incomplet":"Dossier administratif incomplet : vérifiez les coordonnées privées requises.","contrat":"Convention, abonnement et architecture ne sont pas cohérents.","deja-active":"Ce dossier est déjà actif. Aucune réinitialisation de la période d’essai n’a été faite.","validation-etat":"Cette pharmacie n’est pas dans l’état d’une ouverture en attente. Utilisez le parcours de validité commerciale pour un dossier déjà activé.","validation-impossible":"La validation transactionnelle n’a pas abouti. Aucun succès n’est confirmé : vérifiez les prérequis puis réessayez."};
 export default async function PharmacieIndividuelle({params,searchParams}:Props){
  const sb=supabaseServer();
  const{data:auth}=await sb.auth.getUser();
@@ -42,6 +43,7 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
   : {data:[]};
  const docsHistory=history??[];
  const status=pharmacy.actif&&pharmacy.visible_recherche?"Active et visible":pharmacy.actif?"Active, masquée":"Inactive";
+ const dossierValidationEnAttente=pharmacy.actif===false&&pharmacy.visible_recherche===false&&link?.actif===false&&promoter?.actif===false;
  return <main className="mx-auto min-h-screen max-w-6xl space-y-5 px-3 py-5 sm:px-6">
   <Link href="/admin/promoteurs" className="inline-flex min-h-10 items-center font-semibold text-naxa-green-900 underline underline-offset-4">← Retour au registre des pharmacies</Link>
   <header className="rounded-3xl bg-naxa-green-900 p-5 text-white sm:p-7"><p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">Espace administratif individuel</p><h1 className="mt-2 break-words text-2xl font-black sm:text-3xl">{pharmacy.nom}</h1><p className="mt-2 text-sm text-white/80">{[pharmacy.quartier,pharmacy.ville].filter(Boolean).join(" · ")||"Localisation non renseignée"}</p>{pharmacy.est_demo&&<p className="mt-3 inline-flex rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-amber-950">PHARMACIE DE TEST</p>}<div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{status}</span><span className="rounded-full bg-white/15 px-3 py-1 text-xs">Dossier isolé · accès administrateur</span></div></header>
@@ -56,6 +58,26 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
    </form>}
   </section>
   {searchParams?.ok&&<p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-900">{OK_MESSAGES[searchParams.ok]||"Opération terminée."}</p>}{searchParams?.erreur&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-900">{ERROR_MESSAGES[searchParams.erreur]||"Opération impossible. Vérifiez les informations puis réessayez."}</p>}
+  {dossierValidationEnAttente&&<section className="rounded-2xl border-2 border-[#FFE23D] bg-white p-4 sm:p-5" aria-labelledby="validation-dossier-pharmacie">
+   <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">Étape 2 · Décision administrative</p>
+   <h2 id="validation-dossier-pharmacie" className="mt-1 text-xl font-extrabold">Valider le dossier pharmacie</h2>
+   <p className="mt-2 text-sm text-slate-600">L’ouverture du dossier ne l’active pas. Après contrôle réel des autorisations et des pièces justificatives, cette action vérifie les prérequis et active de façon transactionnelle le Promoteur, son rattachement et la pharmacie. La période d’essai de 14 jours commence à la validation, jamais à la création. Cette action ne sert pas au renouvellement d’un abonnement déjà exploité.</p>
+   <form action={validerDossierPharmacie} className="mt-4 space-y-4">
+    <input type="hidden" name="pharmacie_id" value={pharmacy.id}/>
+    <input type="hidden" name="retour" value="fiche"/>
+    <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm font-semibold">
+     <input type="checkbox" name="autorisations_verifiees" required className="mt-1 h-4 w-4"/>
+     <span>Je confirme avoir vérifié les autorisations administratives et les pièces justificatives nécessaires à l’ouverture de cette pharmacie.</span>
+    </label>
+    <button type="submit" className="min-h-11 w-full rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-5 py-3 font-extrabold text-[#0B3D26] sm:w-auto">VALIDER LE DOSSIER ET ACTIVER LA PHARMACIE</button>
+   </form>
+  </section>}
+  {!pharmacy.actif&&!dossierValidationEnAttente&&<section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+   <h2 className="font-extrabold">Validation initiale indisponible</h2>
+   <p className="mt-1">{linksError||promoterError?"L’état du rattachement ou du compte Promoteur n’a pas pu être confirmé. La validation reste masquée tant que le dossier n’est pas lisible.":"Cette pharmacie est inactive, mais son état ne correspond pas à une création en attente (pharmacie masquée/inactive, rattachement inactif et compte Promoteur inactif). Pour éviter de réinitialiser une période d’essai, la validation initiale n’est pas proposée ici."}</p>
+   <Link href="/admin/pilotage/validite" className="mt-2 inline-flex font-bold underline">Consulter la validité commerciale →</Link>
+  </section>}
+
   {documentsError&&<p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Le registre des fichiers documentaires est indisponible dans cet environnement. Les fichiers ne sont pas considérés comme absents et le dépôt/traitement est désactivé ici. Vérifiez la migration du registre documentaire Supabase avant de réactiver ce parcours.</p>}
   <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
    <article className="rounded-2xl border bg-white p-4"><p className="text-xs text-slate-500">Identité et localisation</p><h2 className="mt-1 font-bold">{pharmacy.nom}</h2><p className="mt-1 break-words text-sm text-slate-600">{pharmacy.adresse||"Adresse non renseignée"}</p><p className="text-sm text-slate-600">{[pharmacy.quartier,pharmacy.ville].filter(Boolean).join(" · ")}</p><p className="mt-2 text-sm text-slate-600">WhatsApp : {privateError?"Impossible à charger":privateInfo?.whatsapp||"Non renseigné"}</p><p className="text-sm text-slate-600">Téléphone Promoteur : {promoterError?"Impossible à charger":promoter?.phone||"Non renseigné"}</p><p className="text-sm text-slate-600">Garde : {pharmacy.de_garde?"Oui":"Non"}</p><p className="text-sm text-slate-600">Horaires : {pharmacy.horaires||"Non renseignés"}</p><p className="mt-2 text-xs text-slate-500">Créée le {new Date(pharmacy.created_at).toLocaleDateString("fr-FR")}</p></article>

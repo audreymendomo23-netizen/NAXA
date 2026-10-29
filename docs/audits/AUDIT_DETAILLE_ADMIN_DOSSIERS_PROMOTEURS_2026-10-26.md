@@ -52,3 +52,24 @@ La création pharmacie, contrairement à `creerDossierUnivers`, n’inclut pas l
 
 ## Suite
 Continuer par les pages de pilotage, validité et rapports, puis auditer les définitions SQL live des RPC de création/validation avant toute modification. Aucun code, schéma, statut ou dossier métier n’a été modifié dans cette passe.
+
+
+## Suivi d’exécution — 29 octobre 2026 : validation initiale du dossier pharmacie
+
+### Constat revalidé sur `main`
+- `src/app/admin/promoteurs/actions.ts` contenait déjà `validerDossierPharmacie` et l’appel à la RPC transactionnelle `admin_valider_dossier_pharmacie`, mais aucun formulaire ne déclenchait cette action depuis la fiche individuelle `/admin/pharmacies/[id]`. Le parcours d’ouverture était donc visible, tandis que la validation administrative globale manquait dans l’interface.
+- La définition de la RPC en Supabase, consultée en lecture seule, est `SECURITY DEFINER`, avec `search_path` vide, contrôle interne `is_admin()`, attestation explicite, verrous et contrôles du rattachement, de la convention, de l’abonnement et de l’architecture. Le rôle `anon` n’a pas EXECUTE ; `authenticated` l’a sous le contrôle interne de la RPC.
+- La fonction de synchronisation de validité bloque les pharmacies et profils impayés mais conserve actif le lien Promoteur–pharmacie. Les états pharmacie, visibilité, rattachement et profil permettent de distinguer une création encore en attente d’un dossier déjà exploité.
+
+### Correctifs préparés sur `main`
+- La fiche pharmacie présente un formulaire global de validation avec attestation obligatoire que l’administrateur a vérifié les autorisations et pièces.
+- L’action serveur vérifie avant l’appel RPC que la pharmacie est inactive et masquée, qu’elle possède un unique lien Promoteur inactif et que le profil correspondant est inactif et correctement rattaché.
+- Migration additive `supabase/migrations/20261029110000_admin_validate_dossier_pending_only.sql` : les mêmes gardes sont ajoutées dans la RPC verrouillée avant toute réinitialisation des dates d’abonnement. Un appel direct à la RPC ne peut donc pas réinitialiser l’essai d’une pharmacie déjà exploitée.
+- Test structurel ajouté : `supabase/tests/20261029110000_admin_validate_dossier_pending_only.sql`, couvrant les gardes d’état, leur ordre, SECURITY DEFINER et les privilèges.
+- Le constat historique CAT-01 concernant KYC est supersédé : le code courant de création pharmacie transmet `kyc` et le schéma lu confirme que la colonne existe. Aucune colonne concurrente n’a été créée.
+
+### État des preuves
+- Contrôle Supabase exécuté en lecture seule : définition de la RPC, droits EXECUTE et fonction de synchronisation de validité consultés.
+- **Le nouveau contrat SQL n’a pas été exécuté** : la migration n’a pas été appliquée à une base de test dans cette passe. Build, typecheck, lint et navigateur non exécutés.
+- Aucune migration appliquée à Supabase, aucune donnée métier modifiée, aucun déploiement déclenché.
+- Suite : rejouer la migration et le contrat sur un PostgreSQL de test isolé, puis demander séparément l’autorisation de déployer avant recette visuelle.

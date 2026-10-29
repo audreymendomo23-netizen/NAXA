@@ -1,7 +1,18 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
+
+const PHARMACY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function redirectValidationPharmacie(pharmacyId: string, retourFiche: boolean, query: string): never {
+  const destination = retourFiche && PHARMACY_UUID.test(pharmacyId)
+    ? `/admin/pharmacies/${pharmacyId}`
+    : "/admin/promoteurs";
+  redirect(`${destination}?${query}`);
+}
 
 async function exigerAdmin() {
   const { sb } = await requireAdminActive("/admin/promoteurs");
@@ -33,34 +44,81 @@ export async function mettreAJourPiecesRecues(formData: FormData) {
 }
 
 export async function validerDossierPharmacie(formData: FormData) {
-  const db = await exigerAdmin();
   const pharmacyId = String(formData.get("pharmacie_id") ?? "").trim();
+  const retourFiche = formData.get("retour") === "fiche" && PHARMACY_UUID.test(pharmacyId);
+  const { sb } = await requireAdminActive(
+    retourFiche ? `/admin/pharmacies/${pharmacyId}` : "/admin/promoteurs",
+  );
   const attestation = formData.get("autorisations_verifiees") === "on";
-  if (!pharmacyId || !attestation) redirect("/admin/promoteurs?erreur=verification");
+  if (!PHARMACY_UUID.test(pharmacyId)) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=pharmacie");
+  }
+  if (!attestation) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=verification");
+  }
 
-  // Une RPC PostgreSQL unique exécute les contrôles et toutes les écritures dans une transaction.
-  // En cas d'erreur, PostgreSQL annule toute l'opération : aucun rollback applicatif partiel.
-  const { error } = await db.rpc("admin_valider_dossier_pharmacie", {
+  // La validation initiale ne doit pas servir à réinitialiser l'essai d'un Promoteur déjà exploité.
+  const adminDb = supabaseAdmin();
+  const [{ data: pharmacy, error: pharmacyReadError }, { data: links, error: linksReadError }] = await Promise.all([
+    adminDb.from("pharmacies").select("id,actif,visible_recherche").eq("id", pharmacyId).maybeSingle(),
+    adminDb.from("promoteur_pharmacies").select("promoteur_id,actif").eq("pharmacie_id", pharmacyId),
+  ]);
+  if (pharmacyReadError || linksReadError) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-impossible");
+  }
+  if (!pharmacy) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=pharmacie");
+  }
+  if (pharmacy.actif !== false || pharmacy.visible_recherche !== false) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-etat");
+  }
+  if (!links || links.length !== 1) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=rattachement");
+  }
+  if (links[0].actif !== false) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-etat");
+  }
+  const { data: promoteur, error: promoteurError } = await adminDb
+    .from("profiles")
+    .select("role,actif,pharmacie_id")
+    .eq("id", links[0].promoteur_id)
+    .maybeSingle();
+  if (promoteurError) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-impossible");
+  }
+  if (!promoteur || promoteur.role !== "promoteur" || promoteur.pharmacie_id !== pharmacyId) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=promoteur");
+  }
+  if (promoteur.actif !== false) {
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-etat");
+  }
+
+  // La RPC recontrôle les états sous verrou avant toute écriture.
+  const { error } = await sb.rpc("admin_valider_dossier_pharmacie", {
     p_pharmacie: pharmacyId,
     p_autorisations_verifiees: attestation,
   });
-
   if (error) {
     const message = (error.message ?? "").toLocaleLowerCase("fr");
-    if (message.includes("autorisation")) redirect("/admin/promoteurs?erreur=verification");
-    if (message.includes("pharmacie introuvable")) redirect("/admin/promoteurs?erreur=pharmacie");
-    if (message.includes("rattachement")) redirect("/admin/promoteurs?erreur=rattachement");
-    if (message.includes("promoteur")) redirect("/admin/promoteurs?erreur=promoteur");
-    if (message.includes("dossier administratif")) redirect("/admin/promoteurs?erreur=dossier-incomplet");
+    if (message.includes("autorisation")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=verification");
+    if (message.includes("pharmacie introuvable")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=pharmacie");
+    if (message.includes("rattachement")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=rattachement");
+    if (message.includes("promoteur")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=promoteur");
+    if (message.includes("dossier administratif")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=dossier-incomplet");
+    if (message.includes("non en attente")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-etat");
     if (message.includes("convention") || message.includes("abonnement") || message.includes("architecture")) {
-      redirect("/admin/promoteurs?erreur=contrat");
+      return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=contrat");
     }
-    if (message.includes("déjà actif")) redirect("/admin/promoteurs?erreur=deja-active");
+    if (message.includes("déjà actif")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=deja-active");
     if (message.includes("accès réservé")) redirect("/");
-    redirect("/admin/promoteurs?erreur=validation-impossible");
+    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-impossible");
   }
 
-  redirect("/admin/promoteurs?ok=validation");
+  revalidatePath("/admin");
+  revalidatePath("/admin/promoteurs");
+  revalidatePath(`/admin/pharmacies/${pharmacyId}`);
+  revalidatePath("/admin/pilotage/validite");
+  return redirectValidationPharmacie(pharmacyId, retourFiche, "ok=validation");
 }
 
 
