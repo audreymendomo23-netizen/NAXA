@@ -137,3 +137,9 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Les façades de gestion Caisse disposent de droits EXECUTE pour `authenticated` et `service_role`, sans EXECUTE `anon`. Le code interne vérifie l'identité et les autorisations métier; l'utilité du grant `service_role` reste à justifier dans les migrations canoniques. Ce point est à examiner, pas à qualifier de vulnérabilité démontrée.
 - Les tests 029/030/031 n'ont pas été exécutés parce qu'ils utilisent un contournement de triggers par `session_replication_role`; aucun contournement n'a été fait. Le replay ne contient pas la garde 156 pourtant présente en Production.
 - Revue statique du statut Caisse clôturée; partie 4 non certifiée avant tests comportementaux sûrs et réconciliation ACL ciblée. Aucune modification Production.
+
+
+## Partie 4 — écart ACL service_role Caisse (29/10/2026)
+- Les migrations source accordent EXECUTE aux RPC Caisse pour `authenticated` mais ne retirent pas explicitement `service_role`; Production montre donc les quatre façades accessibles aux deux rôles (et refusées à `anon`). Les appels UI recensés passent par `supabaseServer()`, pas par `supabaseAdmin()`.
+- Migration additive `20261029160000_restrict_promoteur_caisse_rpc_service_role.sql` et test `157_promoteur_caisse_service_role_acl.sql` ajoutés sur `main`. Test 157 PASS sur `naxa-ci-replay-2` après migration de test. Production recontrôlée : non modifiée, grants service_role encore présents.
+- Sous-chantier ACL clos en source/test. Partie 4 reste ouverte jusqu'aux scénarios comportementaux 029/030/031 en environnement sûr; aucun contournement de trigger.
