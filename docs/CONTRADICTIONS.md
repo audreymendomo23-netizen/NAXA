@@ -94,3 +94,9 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 
 ## Audit 360° Promoteur — contradiction SQL à résoudre
 La définition active de `private.naxa_promoteur_valide(uuid)` en Production est plus permissive que la définition du dépôt `migration_147` et le contrat du test 147 : elle ne vérifie ni architecture de convention, ni réseau actif, ni cohérence pharmacie/architecture. Le Promoteur actuellement présent en base passe les deux critères, mais cela ne supprime pas le risque de dérive. Localiser d'abord la redéfinition postérieure; aucun changement SQL n'est appliqué dans cette passe.
+
+
+## Audit 360° Promoteur — réconciliation préparée, sans exécution Production (29/10/2026)
+- Le helper `private.naxa_promoteur_valide(uuid)` actif en Production reste plus permissif que le contrat de la migration 147. Les migrations 149, 151, 152 et 153 consultées ne le redéfinissent pas directement; l'origine exacte de la dérive demeure inconnue.
+- Une migration additive de réconciliation et un test ciblé sont désormais présents sur `main` : `supabase/migration_20261029_promoteur_validity_helper_reconciliation.sql` et `supabase/tests/promoteur_validity_helper_reconciliation.sql`. Ils ne sont **pas appliqués ni exécutés**.
+- Le test ne sera pas lancé sur Production. La partie 3 reste non close jusqu'à validation sur un environnement non-Production accessible et exécution des cas comportementaux 028/147.
