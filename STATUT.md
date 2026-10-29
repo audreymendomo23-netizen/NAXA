@@ -678,3 +678,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - ACL après correction : `anon` n'exécute pas la façade; `authenticated` et `service_role` l'exécutent mais restent soumis aux gardes identité/Admin internes. Le helper privé n'est exécutable par aucun de ces rôles.
 - Les scénarios comportementaux d'architecture absente/réseau inactif/incohérence pharmacie-architecture restent non certifiés. La correction du helper privé n'a pas été appliquée à Production; aucune écriture Production, aucun déploiement ni workflow relancé.
 - Partie 3 du Pilotage Promoteur : **partielle**, non clôturée. Référence détaillée : `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
+
+
+## Clôture ciblée et progression Promoteur — 29/10/2026
+
+- **Clos :** sous-chantier de réalignement de la façade publique dans le replay Supabase non-Production `naxa-ci-replay-2`. Assertions statiques ciblées 147/PVH PASS; test comportemental 028 PASS après nouvelle exécution, rollback confirmé, zéro profil Promoteur persistant.
+- **Non clos :** partie 3 globale du Pilotage Promoteur. Les scénarios comportementaux limites restent à certifier et le helper privé divergent de Production n'a pas été corrigé en Production.
+- **Avancement :** début de la partie 4 (gestion Caisse, quotas, périmètres et délégation). Revue statique des migrations 029/030, tests 029/030/031, réconciliation 141, garde 156 et page/actions de délégation. Contrôles positifs documentés dans le rapport d'audit.
+- **Point ouvert de partie 4 :** la fonction `naxa_can_manage_team_member` n'impose pas elle-même `target.actif=true`; examiner la fonction complète `naxa_set_caisse_status` et ses tests avant toute conclusion. Les tests transactionnels 029–031 n'ont pas été exécutés dans cette passe.
+- Aucune migration Production, aucun déploiement et aucun workflow relancé. Travail effectué sur `main` uniquement.
