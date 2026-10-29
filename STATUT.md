@@ -631,3 +631,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Fichiers de ce correctif : `src/components/AccueilClient.tsx`, `src/components/BottomNav.tsx`, `STATUT.md`.
 - Vérification du build : non exécutée depuis cet environnement ; le succès de `npm run build` reste à confirmer par un environnement d’exécution/CI.
 - Aucun déploiement manuel lancé.
+
+
+## Audit 360° Promoteur — clôture ciblée des ACL de réactivation (29/10/2026)
+- **Clos sur preuve Supabase :** `public.reactiver_promoteur(uuid,text)` n'est exécutable ni par `anon`, ni par `authenticated`, ni par `service_role`; seul le propriétaire `postgres` dispose d'EXECUTE. Ne pas réouvrir ce point sans changement constaté des ACL/propriétaire.
+- **ACL confirmées :** `promoteur_soumettre_reglement(...)` et `admin_confirmer_reglement_promoteur(uuid,uuid)` sont exécutables par `service_role` seulement. Cela ne valide pas la route : le contrôle identité↔`p_promoteur` et l'origine de `p_admin` restent à inspecter dans le code appelant.
+- **Étape exacte :** inspection des appelants serveur des deux RPC de règlement. La recherche GitHub par symbole n'a pas fourni de résultats exploitables; aucun appelant n'est déclaré vérifié. Ne pas refaire l'audit général ni le contrôle ACL déjà clos.
+- **Non effectué :** aucun changement de logique, aucune écriture métier Supabase, aucun déploiement et aucune relance CI.
