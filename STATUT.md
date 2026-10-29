@@ -797,3 +797,13 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Réserves explicites : pas encore de comparaison N/N-1 (RPC actuelle limitée à `p_jours`), périodes glissantes et non calendaires, PDF texte multipage (pas encore la maquette BI graphique), historique Promoteur non persisté, automatisation six périodes et transport Google non alignés.
 - Tests de build, tests comportementaux des scopes et recette navigateur non exécutés via les outils disponibles. Aucun SQL/migration appliqué, aucune donnée Production modifiée, aucun secret Vercel modifié, aucun déploiement.
 - Référence : [docs/architecture/RAPPORTS_BI_IA_NAXA.md](docs/architecture/RAPPORTS_BI_IA_NAXA.md).
+
+
+## Rapports BI — intégration UI multi-postes (30/10/2026)
+- **Intégration source sur main :** générateur à la demande affiché directement sur les dashboards Admin (accueil + pilotage), Promoteur, Responsable, Caisse, Comptable, Gestionnaire de stock et Pharmacien.
+- **Cohérence UI :** composant partagé avec variantes de surface, accent et bouton adaptées aux styles Admin, pharmacie/stock et postes Comptable/Pharmacien; aucun dashboard n'est remplacé ni restructuré.
+- **API / périmètres :** ajout de branches serveur dédiées Pharmacien (comptages de consultations, prescriptions, préparations et audit, sans données nominatives), Comptable (privilège `MANAGE_ACCOUNTING`, pharmacie rattachée), Gestionnaire de stock (union des pharmacies de `my_pharmacies` et affectations actives); les branches Admin/Promoteur/Responsable/Caisse préexistantes sont conservées.
+- **Exports :** aperçu JSON puis téléchargement PDF/CSV via appels serveur frais, avec six fenêtres glissantes proposées (1/7/30/90/180/365 jours). Les exports ne dépendent pas des tâches automatiques.
+- **Limites non masquées :** comparaison N/N-1 absente; périodes glissantes et non calendaires; PDF actuel encore textuel; IA dépendante de la configuration serveur `AI_GATEWAY_API_KEY`; génération/exports multi-postes non encore validés par tests runtime et recette navigateur.
+- **Vérification :** présence des imports et composants UI contrôlée dans les 10 fichiers dashboards/composants concernés; cohérence de l'API relue statiquement. Aucun build TypeScript, test API avec comptes de chaque rôle, ni test visuel navigateur exécuté.
+- **Gouvernance :** changements effectués sur `main` uniquement. Aucun push sur une autre branche, aucune écriture Supabase Production, aucun secret modifié, aucun déploiement.
