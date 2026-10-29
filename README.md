@@ -349,3 +349,7 @@ Le helper privé de validité active en Production ne correspond pas au contrat 
 
 ### Audit Promoteur — validation test-only actualisée (29/10/2026)
 La façade publique de validité a été réalignée sur l'environnement Supabase non-Production `naxa-ci-replay-2`. Les tests SQL statiques 147 et PVH sont PASS, ainsi que le test comportemental 028 avec rollback confirmé. Les scénarios comportementaux d'architecture absente, réseau inactif et incohérence pharmacie/architecture restent à certifier. Le helper privé de Production n'a pas été corrigé; aucune migration Production, aucun déploiement et aucun workflow relancé. La partie 3 demeure partielle. Voir [rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md).
+
+
+### Audit Promoteur — progression contrôlée (29/10/2026)
+Le sous-chantier de réconciliation de la façade dans l'environnement de test non-Production est clos. Les assertions SQL ciblées 147/PVH et le test comportemental 028 sont PASS, avec rollback confirmé. La partie 3 globale reste partielle : scénarios limites à certifier et helper privé Production non corrigé. L'audit statique de la partie 4 (gestion Caisse, quotas et délégation) a commencé; un point relatif aux transitions de statut des Caisses reste à qualifier. Aucun déploiement ni changement Production. Détails : [rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md).
