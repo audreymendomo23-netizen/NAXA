@@ -130,3 +130,10 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Le test 156 échoue uniquement parce que le replay ne contient ni la fonction de garde ni son trigger. Une vérification directe confirme que les deux existent en Production. Il faut aligner le replay par la migration canonique avant de conclure sur le test 156; aucune migration Production n'est requise pour cette vérification.
 - Le point `target.actif` de `naxa_can_manage_team_member` ne constitue pas, à lui seul, un défaut : la réactivation passe par un privilège spécifique, puis par les gardes d'architecture et de quota; la suspension passe par son propre privilège.
 - Les tests transactionnels 029–031 restent non exécutés; aucun contournement ni écriture Production.
+
+
+## Partie 4 — statut Caisse et permissions de service (29/10/2026)
+- La revue live de `private.naxa_set_caisse_status` confirme que la réactivation passe par `REACTIVATE_CAISSE`, vérification d'architecture niveau 3 et quota; la suspension passe par `SUSPEND_CAISSE`. Le helper de management accepte les cibles inactives pour permettre leur réactivation, mais exige acteur actif, descendant direct, fonction/niveau cohérents, pharmacie identique et lien réseau actif pour le Promoteur. Pas de défaut confirmé sur `target.actif`.
+- Les façades de gestion Caisse disposent de droits EXECUTE pour `authenticated` et `service_role`, sans EXECUTE `anon`. Le code interne vérifie l'identité et les autorisations métier; l'utilité du grant `service_role` reste à justifier dans les migrations canoniques. Ce point est à examiner, pas à qualifier de vulnérabilité démontrée.
+- Les tests 029/030/031 n'ont pas été exécutés parce qu'ils utilisent un contournement de triggers par `session_replication_role`; aucun contournement n'a été fait. Le replay ne contient pas la garde 156 pourtant présente en Production.
+- Revue statique du statut Caisse clôturée; partie 4 non certifiée avant tests comportementaux sûrs et réconciliation ACL ciblée. Aucune modification Production.
