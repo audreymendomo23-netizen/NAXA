@@ -1,3 +1,5 @@
+> **ARCHIVE HISTORIQUE — NON AUTORITATIVE.** Ce rapport concerne le parcours Promoteur et n'est pas le cahier des charges actif. Le chantier en cours porte exclusivement sur l'Audit 360 du parcours Administrateur, selon le MANDAT CTO NAXA et [le cahier des charges Audit 360 Administrateur](AUDIT_360_ADMINISTRATEUR_NAXA.md). Les références historiques au cahier V3.7 et au Prompt maître sont obsolètes.
+
 # NAXA — Audit 360° du parcours Promoteur
 
 > Document de travail vivant. Référence active : `main`. Mise à jour : 29 octobre 2026.

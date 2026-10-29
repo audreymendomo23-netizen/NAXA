@@ -1,4 +1,7 @@
-# Audit 360° du parcours Administrateur NAXA
+# Cahier des charges — Audit 360° du parcours Administrateur NAXA
+
+> **Document de vérité fonctionnelle du chantier actif.** À appliquer conjointement avec le MANDAT CTO NAXA, seule autorité de gouvernance technique. Le ancien cahier V3.7 supprimé et le ancienne référence supprimée (historique uniquement) ont été supprimés; ils ne constituent plus des références.
+
 
 > **Document de référence vivant** — audit préliminaire en cours. Ce document sépare les preuves directes, les déclarations historiques, les déductions et les vérifications encore indisponibles. Aucun déploiement n'est autorisé dans ce chantier.
 
@@ -373,7 +376,7 @@ Aucun pourcentage global de couverture n'est calculé : les dénominateurs de l'
 ## 21. Spécifications, garde Admin et configurations — complément
 
 ### Documents de référence
-Les fichiers `naxa_cahier_des_charges_v3_7.md` (environ 204 272 caractères) et `naxa_prompt_maitre_fusion_v2.md` (environ 13 570 caractères) sont présents sur `main`. Le cahier des charges distingue EXISTANT, NOUVEAU et À ARBITRER et décrit l'ERP pharmaceutique comme cœur du produit, la marketplace comme module alimenté par le stock réel. Le prompt maître demande de distinguer état réel, main, branches, spécifications et documentation. Pour le présent chantier, le mandat utilisateur prévaut sur toute instruction historique de déploiement.
+Les fichiers `naxa_cahier_des_charges_v3_7.md` (environ 204 272 caractères) et `naxa_prompt_maitre_fusion_v2.md` (environ 13 570 caractères) sont présents sur `main`. Le cahier des charges distingue EXISTANT, NOUVEAU et À ARBITRER et décrit l'ERP pharmaceutique comme cœur du produit, la marketplace comme module alimenté par le stock réel. Le ancienne référence supprimée (historique uniquement) demande de distinguer état réel, main, branches, spécifications et documentation. Pour le présent chantier, le mandat utilisateur prévaut sur toute instruction historique de déploiement.
 
 ### Contradiction documentaire
 `docs/audits/VERIFICATION_RPC_SUPABASE_2026-10-26.md` mentionne la branche historique `audit/admin-360-20261026` et déclare des contrôles RPC « validés », ainsi qu'une migration appliquée à Supabase. Un fichier de migration correspondant existe dans le répertoire courant `supabase/migrations/`. Ces déclarations sont historiques et ne prouvent pas qu'une opération a été faite dans le cadre du présent mandat. Elles devront être rapprochées de l'historique Git et de l'état live; aucune migration n'a été réappliquée.

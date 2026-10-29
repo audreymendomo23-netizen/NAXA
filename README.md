@@ -1,9 +1,9 @@
-> **ÉTAT OPÉRATIONNEL — actualisé le 29 octobre 2026**
-
-> **Audit 360° du parcours Promoteur — 29/10/2026 :** reprise active conformément au prompt maître. Le contrôle Supabase confirme la présence du socle convention/abonnement/règlement/réseau avec RLS; le parcours métier, les routes UI/API et les parties 3–6 du Pilotage Promoteur ne sont pas encore certifiés. Rapport et preuves : [Audit 360° du parcours Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md). Aucun déploiement manuel n'a été lancé.
-
+> **DOCUMENTS DE RÉFÉRENCE — NAXA**
 >
-> La branche GitHub `main` est la seule source de vérité du code NAXA. Le protocole canonique est défini dans `AGENTS.md` : corrections ciblées sur `main`, sans nouvelle branche. Aucun déploiement manuel n'est lancé sans autorisation explicite. Les écritures Supabase Production restent interdites sans autorisation et périmètre explicites; pour la présente passe, l'utilisateur a explicitement autorisé six migrations additives ciblées, appliquées et vérifiées le 29 octobre. Voir `docs/CONTRADICTIONS.md` pour les preuves, les statuts et les limites restantes. Les derniers correctifs vérifiés concernent la suppression d'un index strictement dupliqué sur `stocks_lots` et le durcissement du `search_path` de quatre fonctions SECURITY DEFINER (deux fonctions de catalogue et deux helpers RLS); aucun déploiement manuel n'a été lancé.
+> Les deux seules références faisant autorité pour le chantier en cours sont le **MANDAT CTO NAXA** et le **cahier des charges Audit 360 du parcours Administrateur** ([audit de référence](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier des charges V3.7 et le ancienne référence supprimée (historique uniquement) sont supprimés et ne doivent plus être utilisés ni cités comme sources de décision.
+>
+> **Périmètre actif :** Audit 360 du parcours Administrateur uniquement. Ne pas reprendre l'audit du parcours Promoteur comme chantier courant. Branche de travail : `main`; aucune nouvelle branche et aucun déploiement sans autorisation explicite.
+
 
 > **Crédit Marketplace / stock — état au 29 octobre 2026 :** la passe d'implémentation est documentée comme clôturée **avec réserve de validation runtime** ; le sous-chantier n'est pas certifié vert. L'audit détaillé et la condition précise de réouverture figurent dans [docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md, § 60.42](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md). Les contrôles Supabase en lecture seule confirment que le contrat de migration 247 et la RPC de retrait 252/256 ne sont pas présents dans les schémas inspectés. La validation conjointe des tests 247, 256 et 257 nécessite un runner PostgreSQL isolé. **Aucune migration, modification de données ni déploiement n'a été réalisé dans cette passe.**
 
@@ -41,7 +41,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 ## État
 
 ### Phase 0 — terminée et validée
-- Cahier des charges et prompt maître lus et pris comme sources de vérité.
+- Cahier des charges et ancienne référence supprimée (historique uniquement) lus et pris comme sources de vérité.
 - Code existant conservé ; aucune réécriture de l'application.
 
 ### Phase 1 — fondations — consolidée
@@ -101,7 +101,7 @@ Aucune photo de médicament n'est fournie : à ajouter par l'équipe NAXA (droit
 - Aucun déploiement Preview volontaire.
 - Production uniquement après évaluation complète et autorisation explicite.
 - Aucune suppression ou réécriture destructive.
-- Le prompt maître et le cahier des charges restent prioritaires.
+- Le ancienne référence supprimée (historique uniquement) et le cahier des charges restent prioritaires.
 
 ## Production
 - Projet Vercel existant : `naxa`.

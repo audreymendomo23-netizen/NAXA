@@ -1,3 +1,9 @@
+# STATUT NAXA — documents de référence actifs
+
+> Autorités uniques du chantier : **MANDAT CTO NAXA** et **cahier des charges Audit 360 du parcours Administrateur** ([document d'audit](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier V3.7 et le Prompt maître ont été supprimés. Toute mention historique éventuelle ci-dessous n'a aucune autorité de décision.
+>
+> Périmètre actif : Audit 360 Administrateur uniquement. Aucun déploiement sans autorisation explicite.
+
 - Contrôle Supabase Production en lecture seule (29/10) : `reactiver_promoteur(uuid,text)` reste dans le catalogue mais EXECUTE est refusé à `anon`, `authenticated` et `service_role`; soumission et confirmation de règlement restent service-role-only derrière les gardes des Server Actions. `accrediter_profile` est exposée via une façade publique invoker et un helper privé SECURITY DEFINER avec `search_path=''`; l'exposition API effective du schéma `private` doit encore être vérifiée. Test comportemental 028 non lancé car il manipule `session_replication_role`; partie 3 reste non certifiée.
 ## Audit Promoteur — approfondissement des RPC (29/10/2026)
 
@@ -12,7 +18,7 @@
 
 ## Audit 360° du parcours Promoteur — reprise active (29/10/2026)
 
-- Le périmètre actif est désormais explicitement documenté dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`, conformément au prompt maître NAXA. Les dernières corrections Supabase de sécurité/performance ne sont pas une certification du parcours métier.
+- Le périmètre actif est désormais explicitement documenté dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`, conformément au ancienne référence supprimée (historique uniquement) NAXA. Les dernières corrections Supabase de sécurité/performance ne sont pas une certification du parcours métier.
 - Contrôle Supabase en lecture seule : les tables convention, abonnement Promoteur, paiements, règlements et réseau multi-pharmacie existent; RLS est activée sur les cinq tables; aucun privilège SELECT direct n'est accordé à `anon`.
 - Les RPC de soumission de règlement et de confirmation/refus Admin ont des privilèges directs restreints selon le contrôle `has_function_privilege`. Les définitions complètes, routes UI/API et scénarios métier restent à examiner.
 - Point à approfondir : politiques RLS SELECT qui se recouvrent sur `promoteur_pharmacies`; aucune policy n'a été supprimée sans preuve d'équivalence.
