@@ -115,3 +115,11 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Production conserve sa façade publique avec garde identité/Admin, mais le helper privé actif ne satisfait pas encore le contrat de garde architecture/réseau/cohérence de la migration 147. Correction helper non appliquée en Production.
 - ACL test vérifiées : `anon` ne peut exécuter la façade; `authenticated` et `service_role` le peuvent avec contrôle interne; aucun des trois ne peut exécuter le helper privé.
 - Restent ouverts : tests comportementaux ciblés architecture absente/réseau inactif/incohérence; partie 3 reste partielle. Aucun déploiement ni workflow relancé.
+
+
+## Promoteur — clôture de la réconciliation test et transition partie 4 (29/10/2026)
+
+- La contradiction de façade publique sur le projet de test `naxa-ci-replay-2` est levée et le sous-chantier de réalignement du replay est clos. Les assertions SQL ciblées 147/PVH sont PASS; le test comportemental 028 a été relancé avec rollback confirmé.
+- Cette clôture n'équivalait pas à la certification globale de la partie 3. Les cas comportementaux limites restent ouverts et le helper privé Production demeure divergent; aucune migration Production n'a été appliquée.
+- La partie 4 est maintenant en revue statique : gestion Caisse, quotas, délégation et périmètres. Un point à qualifier concerne l'absence de filtre explicite `target.actif` dans `naxa_can_manage_team_member`; aucun défaut n'est déclaré avant lecture de `naxa_set_caisse_status` et tests de transition.
+- Les tests 029–031 n'ont pas été exécutés dans cette passe; aucun contournement de trigger, déploiement ni workflow relancé.
