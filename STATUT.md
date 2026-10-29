@@ -638,3 +638,10 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **ACL confirmées :** `promoteur_soumettre_reglement(...)` et `admin_confirmer_reglement_promoteur(uuid,uuid)` sont exécutables par `service_role` seulement. Cela ne valide pas la route : le contrôle identité↔`p_promoteur` et l'origine de `p_admin` restent à inspecter dans le code appelant.
 - **Étape exacte :** inspection des appelants serveur des deux RPC de règlement. La recherche GitHub par symbole n'a pas fourni de résultats exploitables; aucun appelant n'est déclaré vérifié. Ne pas refaire l'audit général ni le contrôle ACL déjà clos.
 - **Non effectué :** aucun changement de logique, aucune écriture métier Supabase, aucun déploiement et aucune relance CI.
+
+
+
+## Audit 360° Promoteur — clôture des routes de règlement (29/10/2026)
+- **Clôturé sur inspection du code :** la soumission de règlement exige l'utilisateur authentifié et un profil Promoteur; `p_promoteur` vient de `user.id`. La confirmation/contestation exige `requireAdminActive`; `p_admin` vient de `user.id`. Les ACL RPC correspondantes sont réservées à `service_role`.
+- **Non testé en intégration :** les routes sont vérifiées statiquement, mais aucun test d'exécution UI/API n'est déclaré réussi.
+- **Reprise unique :** partie 3, accréditation Responsable et contrôle des privilèges; comparer les façades publiques aux implémentations `private.*` et trouver un environnement non-Production pour le test comportemental 028. Les fixtures ne seront pas exécutées en Production.
