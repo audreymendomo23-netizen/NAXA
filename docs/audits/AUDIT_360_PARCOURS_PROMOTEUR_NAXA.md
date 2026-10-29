@@ -214,3 +214,28 @@ Rétablir un replay non-Production cohérent pour la façade publique à partir 
 - Limite : les cas comportementaux d'architecture absente, réseau inactif et incohérence pharmacie/architecture ne sont pas certifiés séparément. Une tentative de mise en place d'une incohérence a été bloquée par le trigger de provisionnement; aucune désactivation de trigger ni contournement n'a été effectué. Les tests 147/PVH sont des assertions statiques, pas une recette complète du parcours.
 - Production : définition publique déjà protégée par garde identité/Admin; helper privé toujours divergent par rapport au contrat canonique de 147. La migration de réconciliation du helper demeure **non appliquée** en Production. Aucun déploiement ni workflow relancé.
 - Décision : la contradiction de façade sur l'environnement de test est levée; la partie 3 reste **partielle** tant que les scénarios comportementaux restants et la comparaison helper Production ne sont pas validés. Ne pas ouvrir la partie 4 avant cette clôture.
+
+
+## Clôture de la passe de réconciliation — et ouverture de la partie 4 (29/10/2026)
+
+### Clôture du sous-chantier limité
+Le sous-chantier « réalignement de la façade publique sur le replay non-Production » est **clos** : la façade du projet `naxa-ci-replay-2` a été réalignée et les assertions ciblées 147/PVH ont passé; le scénario 028 a repassé avec rollback et zéro profil Promoteur persistant. Cette clôture concerne uniquement la réconciliation de l'environnement de test, pas la certification globale de la partie 3 ni la correction Production.
+
+**Rectification de portée importante :** les tests 147/PVH exécutés après la correction étaient des assertions SQL statiques ciblées correspondant à leurs contrats. Ils ne remplacent pas l'exécution intégrale et indépendante des scénarios comportementaux limites. La partie 3 reste donc **partielle**, sans migration Production ni déploiement.
+
+### Partie 4 — gestion Caisse, quotas, périmètres et délégation : première revue statique
+Fichiers examinés sur `main` : migrations 029/030, tests 029/030/031, réconciliation 141, garde 156, Server Actions et page `src/app/pharmacie/caisses/privileges/`.
+
+Constats positifs :
+- `naxa_provision_caisse` impose Promoteur commercialement valide ou Responsable autorisé, périmètre pharmacie, architecture permettant le niveau Caisse, quota et interdiction de réutiliser le provisionnement comme réactivation.
+- `naxa_grant_privilege` vérifie l'autorisation `naxa_can`, la cible hiérarchique directe, l'activité de la cible, l'architecture, la délégabilité et l'interdiction de déléguer les privilèges de gouvernance.
+- L'écran de délégation ne liste que les Caisses actives du réseau opérationnel et masque les privilèges hors architecture; les Server Actions vérifient la session, le rôle, la cible, le lien actif au réseau et la pharmacie publiée avant d'appeler les RPC.
+- La garde 156 intercepte les activations de Caisse déclenchées par un Promoteur et vérifie parent direct, pharmacie active/publiée, lien réseau actif et validité Promoteur.
+
+Point à approfondir, non encore qualifié comme défaut :
+- `naxa_can_manage_team_member` dans la migration 141 ne filtre pas explicitement `target.actif`, contrairement à `naxa_can_manage_privilege_target`. Comme cette fonction est aussi utilisée pour gérer le statut d'une Caisse, il faut lire la suite de `naxa_set_caisse_status` et tester les transitions inactive→active / active→inactive avant de conclure à un risque ou de modifier le code.
+
+Limites de cette passe :
+- Les tests 029/030/031 sont des scripts transactionnels contenant des changements de rôle et des bascules de `session_replication_role`; ils n'ont pas été exécutés dans cette passe. Aucun contournement de trigger n'a été tenté.
+- Aucun build, test CI, déploiement ou écriture Production n'a été lancé.
+- Partie 4 : **audit statique commencé, non certifié**. Prochaine action : contrôler la fonction complète `naxa_set_caisse_status`, ses ACL effectives, ses appels UI/API et les tests comportementaux de transition de statut.
