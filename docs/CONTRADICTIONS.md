@@ -123,3 +123,10 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Cette clôture n'équivalait pas à la certification globale de la partie 3. Les cas comportementaux limites restent ouverts et le helper privé Production demeure divergent; aucune migration Production n'a été appliquée.
 - La partie 4 est maintenant en revue statique : gestion Caisse, quotas, délégation et périmètres. Un point à qualifier concerne l'absence de filtre explicite `target.actif` dans `naxa_can_manage_team_member`; aucun défaut n'est déclaré avant lecture de `naxa_set_caisse_status` et tests de transition.
 - Les tests 029–031 n'ont pas été exécutés dans cette passe; aucun contournement de trigger, déploiement ni workflow relancé.
+
+
+## Partie 4 Promoteur — replay incomplet de la garde d'activation (29/10/2026)
+- Les tests exacts 147, PVH et 141 passent sur le replay non-Production après réalignement de la façade.
+- Le test 156 échoue uniquement parce que le replay ne contient ni la fonction de garde ni son trigger. Une vérification directe confirme que les deux existent en Production. Il faut aligner le replay par la migration canonique avant de conclure sur le test 156; aucune migration Production n'est requise pour cette vérification.
+- Le point `target.actif` de `naxa_can_manage_team_member` ne constitue pas, à lui seul, un défaut : la réactivation passe par un privilège spécifique, puis par les gardes d'architecture et de quota; la suspension passe par son propre privilège.
+- Les tests transactionnels 029–031 restent non exécutés; aucun contournement ni écriture Production.
