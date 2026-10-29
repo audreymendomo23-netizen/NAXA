@@ -382,11 +382,9 @@ Une revue statique des pages Promoteur/Admin et du flux de notifications a corri
 
 
 ### Notifications Promoteur — file e-mail (29 octobre 2026)
-Une file privée idempotente et un worker Resend ont été ajoutés sur main pour les rappels J−5 et les événements de règlement. Le test structurel 262 passe sur l'environnement isolé. L'ordonnanceur externe, la configuration des secrets et la délivrance réelle restent à valider; aucune migration Production ni aucun déploiement n'ont été effectués. Voir §60.47 du cahier Audit 360 Administrateur.
+Une file privée idempotente et un worker Google Apps Script sont présents sur main pour les rappels J−5 et les événements de règlement. Le test structurel 262 passe sur l'environnement isolé. La passerelle Google existante doit être mise à jour et un ordonnanceur autorisé doit être configuré avant toute délivrance réelle. Voir §60.47 à §60.49 du cahier Audit 360 Administrateur.
 
-Complément : l'inventaire Vercel Production confirme `CRON_SECRET`, mais pas les variables Resend requises; aucun cron Vercel n'est configuré. Le projet est sur le plan Hobby. Les secrets et l'ordonnanceur Production restent inchangés; aucun e-mail réel n'est déclaré envoyé.
-
-### Canal e-mail NAXA — Google Apps Script
-Resend a été remplacé dans le worker par une passerelle Google Apps Script `MailApp`. Le code et le guide sont dans `google-apps-script/naxa-mail-gateway/`. Le projet Apps Script, ses propriétés secrètes, les variables Vercel et la preuve de réception restent à configurer; aucun envoi réel ni déploiement n'a été effectué. Voir §60.48 de l'audit Administrateur.
+### Canal e-mail NAXA — passerelle Google existante
+NAXA réutilise `scripts/google-welcome-email.gs` et les variables `GOOGLE_APPS_SCRIPT_URL` / `GOOGLE_APPS_SCRIPT_SECRET` déjà présentes. Le propriétaire doit publier une nouvelle version du projet Apps Script après mise à jour du code. Aucun envoi réel n'est encore certifié.
 ### Passerelle Google e-mail
 NAXA réutilise le projet Apps Script déjà associé au courrier de bienvenue (`scripts/google-welcome-email.gs`). Le worker de notifications Promoteur est aligné sur son contrat existant. Après le commit, le propriétaire doit reporter le script dans le projet Google existant et publier une nouvelle version Web App; aucune valeur secrète n'a été modifiée et aucun e-mail test n'a été envoyé.
