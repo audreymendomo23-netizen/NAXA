@@ -1,7 +1,7 @@
 ## Dernière passe — Promoteur 028 et revue statique des parties 5–6 (29/10/2026)
 
 - 028 comportemental : **PASS en environnement isolé** `naxa-ci-replay-2`; transaction annulée par ROLLBACK.
-- Partie 5 (scope réseau/pilotage) : revue statique faite; comportement non certifié. ACL Production : `authenticated` a USAGE sur `private` et EXECUTE sur trois helpers privés. La configuration visuelle « Exposed schemas » a depuis été confirmée par l’utilisateur : `private` et `bi` non cochés; le contrôle visuel est clos, mais la sécurité globale reste JAUNE jusqu’à vérification des privilèges SQL et des autres voies d’accès.
+- Partie 5 (scope réseau/pilotage) : revue statique faite; comportement non certifié. ACL Production : `authenticated` a USAGE sur `private` et EXECUTE sur plusieurs helpers privés. Le contrôle ciblé d’exposition Data API est désormais CLOS : `private` n’est pas exposé, aucun objet relationnel n’est présent dans `private` et aucun ACL par défaut de fonction n’a été relevé. Les ACL existantes servent à certaines façades `public` invoker; ne pas les révoquer globalement sans refactorisation et tests. La validation comportementale de la partie 5 reste distinctement ouverte.
 - Partie 6 (pilotage hors périmètre) : revue statique faite; test 033 non exécuté, garde-fou SQL a bloqué le script qui manipule `session_replication_role`; aucun contournement.
 - Tests 029–031 : réserve technique, non exécutés et non déclarés réussis.
 - Aucun changement Production ni déploiement. Parties 3 à 6 restent ouvertes jusqu'aux preuves manquantes.
@@ -9,9 +9,11 @@
 ## Audit sécurité Data API — point 3 (29/10/2026)
 
 - **Sous-contrôle « Exposed schemas » : CLOS / CONFORME visuellement**, selon confirmation visuelle fournie par l’utilisateur : `graphql_public` et `public` cochés; `private` et `bi` non cochés.
-- **Point sécurité global : JAUNE / réserve restante.** Le contrôle visuel ne certifie pas les privilèges SQL, les droits EXECUTE sur les fonctions ni les autres voies d’accès. Les vérifications SQL antérieures indiquaient notamment `USAGE` sur `private` et des droits `EXECUTE` pour `authenticated` sur certains helpers privés.
+- **Vérifications SQL complémentaires en lecture seule :** `authenticated` dispose de `USAGE` sur `private` et d’`EXECUTE` sur plusieurs helpers; aucun objet relationnel dans `private` ni ACL par défaut de fonction dans ce schéma n’a été relevé. Plusieurs fonctions publiques invoker délèguent intentionnellement à ces helpers; une révocation globale de `USAGE`/`EXECUTE` casserait ces appels sans conversion contrôlée des façades.
+- **Autres voies d’accès examinées :** les façades publiques de gestion consultées délèguent aux helpers `SECURITY DEFINER` avec `search_path` contraint et contrôles d’identité, de rôle ou de périmètre (ex. accréditation, gestion des privilèges, provisioning Caisse, réactivation pharmacie et pilotage). Cette vérification ciblée ne remplace pas la recette exhaustive des RPC publiques.
+- **Décision : point d’exposition du schéma `private` CLOS / CONFORME pour la Data API.** Aucun correctif SQL Production n’est nécessaire pour retirer `private` des schémas exposés puisqu’il n’y figure pas; aucune révocation ACL large n’est faite sans refactorisation et test des façades. Les parties Promoteur 3–6 et la recette exhaustive des RPC publiques restent ouvertes dans leurs propres critères.
 - **Aucune action de configuration :** aucun réglage Supabase modifié, aucune écriture Production, aucune migration ni aucun déploiement.
-- **Décision de clôture :** clore la vérification visuelle comme terminée et tracée; ne pas présenter la sécurité complète du schéma `private` comme validée ou verte.
+- **Décision de clôture :** le contrôle d’exposition directe du schéma `private` via Data API est clos après la preuve visuelle et les contrôles SQL complémentaires. Cette clôture ne certifie pas toutes les RPC publiques ni les parties Promoteur 3–6.
 
 # STATUT NAXA — documents de référence actifs
 
