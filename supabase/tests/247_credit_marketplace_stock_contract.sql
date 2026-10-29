@@ -42,7 +42,7 @@ begin
      or position('reservation_item_lots' in v_decide)=0
      or position('stock_decremented,stock_restored' in replace(v_hold,' ',''))=0
      or position('false,false' in replace(v_hold,' ',''))=0
-     or position('update public.stocks set quantite=quantite-' in lower(replace(v_hold,' ','')))>0 then
+     or position('updatepublic.stockssetquantite=quantite-' in lower(replace(v_hold,' ','')))>0 then
     raise exception 'L’approbation ne crée pas un hold lié et alloué sans débit physique';
   end if;
   if position('p_approuver' in v_decide)=0 or position('statut=''rejetee''' in replace(v_decide,' ',''))=0 then
