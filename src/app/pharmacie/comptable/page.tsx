@@ -181,7 +181,7 @@ export default async function ComptableDashboardPage() {
             </article>
           </section>
 
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <RapportsALaDemande variant="comptable" />\n\n          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><h2 className="text-lg font-bold text-slate-950">Pilotage comptable 360°</h2><p className="mt-1 text-sm text-slate-600">Indicateurs calculés depuis les sources accessibles pour la période du {monthStartDate} au {new Date(nextMonthStart.getTime() - 86400000).toISOString().slice(0,10)}.</p></div>
               <span className={"rounded-full px-3 py-1 text-xs font-semibold " + (auditState === "valide" ? "bg-emerald-50 text-emerald-800" : auditState === "invalide" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900")}>Chaîne d’audit : {auditState === "valide" ? "vérifiée" : auditState === "invalide" ? "alerte" : "non vérifiée"}</span>
