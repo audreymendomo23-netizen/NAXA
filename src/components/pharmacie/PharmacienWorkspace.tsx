@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";\nimport RapportsALaDemande from "@/components/RapportsALaDemande";
+import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
+import RapportsALaDemande from "@/components/RapportsALaDemande";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
@@ -155,7 +156,8 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     setBusy(false);
     if(error){setMsg("Export bloqué : la journalisation serveur est indisponible. Vérifiez la migration 191 et les droits du compte.");return;}
     const rows=[["Date","Type","Action","Référence dossier","Statut précédent","Statut actuel"],...reportAuditEvents.map(e=>[new Date(e.occurred_at).toISOString(),e.entity_type,e.action,e.entity_id.slice(0,8).toUpperCase(),e.old_status??"",e.new_status??""])];
-    const csv="\uFEFF"+rows.map(row=>row.map(value=>`"${String(value??"").replace(/"/g,'""')}"`).join(";")).join("\r\n");
+    const csv="\uFEFF"+rows.map(row=>row.map(value=>`"${String(value??"").replace(/"/g,'""')}"`).join(";")).join("\r
+");
     const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
     const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=`naxa-rapport-pharmacien-${reportPeriod}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
     setMsg(`Export CSV généré (${reportAuditEvents.length} événements) et journalisé côté serveur.`);
