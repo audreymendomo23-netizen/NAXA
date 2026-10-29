@@ -670,3 +670,11 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Tests complets 147 et PVH : non PASS, car la façade publique du replay est encore l'ancien wrapper sans garde identité/Admin (assertions 147.3/PVH.4). Une tentative d'application de la migration 040 à ce replay a été bloquée par le contrôle de sécurité de l'outil; pas de répétition de cette tentative.
 - Production conserve l'écart déjà prouvé : le helper privé ne comporte pas encore les trois gardes; la migration corrective reste non appliquée. Partie 3 = 🟡 partielle, jamais déclarée verte.
 - Prochaine étape unique : aligner la façade du replay via les migrations canoniques existantes, relancer 147/PVH, puis tester les cas limites métier. Aucun déploiement ni aucune migration Production effectués.
+
+
+## Audit 360° Promoteur — validation complémentaire test-only (29/10/2026)
+
+- Sur Supabase non-Production `naxa-ci-replay-2`, la façade publique a été réalignée avec le contrat de la migration 040 par migration de diagnostic dédiée. Tests SQL statiques 147 et PVH : **PASS**; test comportemental 028 : **PASS** avec rollback confirmé.
+- ACL après correction : `anon` n'exécute pas la façade; `authenticated` et `service_role` l'exécutent mais restent soumis aux gardes identité/Admin internes. Le helper privé n'est exécutable par aucun de ces rôles.
+- Les scénarios comportementaux d'architecture absente/réseau inactif/incohérence pharmacie-architecture restent non certifiés. La correction du helper privé n'a pas été appliquée à Production; aucune écriture Production, aucun déploiement ni workflow relancé.
+- Partie 3 du Pilotage Promoteur : **partielle**, non clôturée. Référence détaillée : `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
