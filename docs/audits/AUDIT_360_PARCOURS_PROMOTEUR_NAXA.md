@@ -81,3 +81,24 @@ Inventaire de signatures et droits :
 3. Revalider la partie 3 du Pilotage Promoteur (migration 028 + tests comportementaux disponibles).
 4. Construire la matrice de tests par rôle : Promoteur, Admin, pharmacie/caisse et non-propriétaire.
 5. Ne corriger que les écarts prouvés; ajouter les tests et mettre à jour ce document, `STATUT.md` et `docs/CONTRADICTIONS.md`.
+
+## 7. Lecture des définitions SQL — passe 2 (29/10/2026)
+
+### 7.1 Contrôle positif : confirmation du règlement
+La définition active de `admin_confirmer_reglement_promoteur(uuid,uuid)` vérifie un profil Admin actif, verrouille le règlement et l'abonnement/convention, refuse un règlement qui n'est plus en attente, exige date/compte payeur/preuve, compare le montant déclaré au tarif conventionné et bloque une convention ou un abonnement résilié. La confirmation est idempotente pour un règlement déjà confirmé. Elle renouvelle l'abonnement et la convention, crée le paiement, notifie et journalise l'opération.
+
+Point conforme au garde-fou : cette fonction ne réactive pas directement les profils ou pharmacies; le commentaire SQL explique que la cause d'une inactivation n'est pas suffisamment traçable pour lever automatiquement toute suspension.
+
+### 7.2 Contrôle positif : soumission du règlement
+La définition active de `promoteur_soumettre_reglement(...)` valide le Promoteur, le montant, le canal, les informations payeur, la date et le chemin de preuve, vérifie l'abonnement/convention et le tarif, et empêche plusieurs règlements `en_attente` pour le même Promoteur. Elle notifie l'Admin avec le nom du Promoteur et les pharmacies, et le Promoteur de la soumission. Son privilège EXECUTE n'est pas accordé directement à `authenticated` ni à `anon` selon le contrôle précédent : l'autorisation du demandeur doit donc être vérifiée dans la route serveur privilégiée qui l'appelle.
+
+### 7.3 Risque de cohérence à instruire — voie distincte de réactivation
+La fonction `reactiver_promoteur(uuid,text)` vérifie `public.is_admin()` et la cible Promoteur, puis réactive l'abonnement/la convention, **toutes les pharmacies liées** et des profils associés. Cette voie est plus large que `admin_confirmer_reglement_promoteur`, qui préserve l'état des profils/pharmacies. Il faut confirmer ses droits EXECUTE effectifs et rechercher tous ses appelants pour établir si elle constitue un ancien chemin manuel encore accessible. Aucune modification n'est faite à ce stade.
+
+### 7.4 Fonctions de lecture et autorisation
+- `naxa_promoteur_valide(uuid)` vérifie qu'une session existe et refuse un Promoteur différent de `auth.uid()` sauf Admin; l'appel interne est `private.naxa_promoteur_valide`.
+- `validites_promoteurs_admin()` filtre ses résultats avec `public.is_admin()`; elle est néanmoins EXECUTE par `authenticated`, donc le garde interne est déterminant et doit être conservé.
+- `is_promoteur()` délègue à `private.is_promoteur()`; son exécution par `anon` n'expose à première vue qu'un booléen, mais son usage doit être évalué dans les politiques et routes.
+
+### 7.5 Limites
+Les définitions SQL ont été lues, mais les routes API et composants qui appellent ces fonctions n'ont pas encore été identifiés et inspectés. Les contrôles statiques ne remplacent pas les tests de rôle ni une exécution bout en bout. La priorité suivante est de rechercher les appelants de `reactiver_promoteur` et de `promoteur_soumettre_reglement`, puis d'inspecter les écrans Promoteur/Admin correspondants.
