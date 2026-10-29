@@ -1,4 +1,7 @@
 > **ÉTAT OPÉRATIONNEL — actualisé le 29 octobre 2026**
+
+> **Audit 360° du parcours Promoteur — 29/10/2026 :** reprise active conformément au prompt maître. Le contrôle Supabase confirme la présence du socle convention/abonnement/règlement/réseau avec RLS; le parcours métier, les routes UI/API et les parties 3–6 du Pilotage Promoteur ne sont pas encore certifiés. Rapport et preuves : [Audit 360° du parcours Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md). Aucun déploiement manuel n'a été lancé.
+
 >
 > La branche GitHub `main` est la seule source de vérité du code NAXA. Le protocole canonique est défini dans `AGENTS.md` : corrections ciblées sur `main`, sans nouvelle branche. Aucun déploiement manuel n'est lancé sans autorisation explicite. Les écritures Supabase Production restent interdites sans autorisation et périmètre explicites; pour la présente passe, l'utilisateur a explicitement autorisé six migrations additives ciblées, appliquées et vérifiées le 29 octobre. Voir `docs/CONTRADICTIONS.md` pour les preuves, les statuts et les limites restantes. Les derniers correctifs vérifiés concernent la suppression d'un index strictement dupliqué sur `stocks_lots` et le durcissement du `search_path` de quatre fonctions SECURITY DEFINER (deux fonctions de catalogue et deux helpers RLS); aucun déploiement manuel n'a été lancé.
 
