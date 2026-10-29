@@ -2610,3 +2610,16 @@ Le point 3 n'est pas à reprendre. Le prochain contrôle ouvert de l'audit Admin
 - Preuve : configuration Storage conforme observée en lecture seule; accès effectif par navigateur et téléchargement de fichiers réels non certifiés.
 - Livraison externe : non démontrée; le planificateur actif ne déclenche que la fonction SQL d'insertion en base. Il faut définir et tester un chemin d'envoi idempotent pour J−5 et les événements de règlement, sans double planification ni exposition des secrets.
 - Point 4 reste OUVERT. Aucune migration, écriture ou modification de configuration Supabase Production; aucun déploiement Vercel; aucun workflow CI relancé. Le commit source est documentaire/UI sur main uniquement.
+
+
+## §60.47 — File de délivrance e-mail idempotente (29 octobre 2026)
+
+**Correctif source sur `main`; validation isolée structurelle PASS; aucune délivrance réelle ni activation Production.**
+
+- Cause confirmée : le job `pg_cron` `naxa-promoteur-echeance-5j` exécute `generer_rappels_echeance_promoteurs()`, qui crée les notifications et marque le rappel J−5 comme envoyé. La route historique réclamait ensuite les mêmes échéances via `claim_validite_promoteurs_5j()`; elle arrivait donc trop tard. Le rappel DB et la délivrance externe étaient couplés de façon contradictoire.
+- Migration source additive `supabase/migration_20261029_notification_email_outbox_delivery.sql` : création d'une file privée `private.notification_email_outbox`, RLS activée, accès direct révoqué, contrainte unique notification/canal, trigger d'enqueue sur les notifications J−5 et règlements, RPC de réservation avec `FOR UPDATE SKIP LOCKED`, bail de 15 minutes et RPC de clôture avec reprises exponentielles plafonnées à cinq tentatives.
+- Types pris en charge : `abonnement_echeance_5j`, `abonnement_echeance_5j_admin`, `abonnement_reglement_a_verifier`, `abonnement_reglement_soumis`, `abonnement_reglement_confirme`, `abonnement_reglement_refuse`.
+- Route `/api/cron/validite` convertie en worker de file. Elle conserve la synchronisation des validités, exige `CRON_SECRET`, `RESEND_API_KEY` et `REPORT_FROM_EMAIL`, réclame uniquement la file, récupère l'adresse du compte côté serveur, envoie via Resend avec clé d'idempotence stable par message et confirme/réessaie l'état en base. Elle ne consomme plus le claim J−5 séparé.
+- Test structurel `supabase/tests/262_notification_email_outbox_contract.sql` exécuté sur `naxa-ci-replay-2` avec transaction/ROLLBACK : PASS (table privée, trigger, unicité, RLS, droits service_role et refus anon/authenticated). Le replay ne contenait aucun profil Promoteur/Admin; aucun test comportemental de notification, appel Resend ou livraison réelle n'a donc été effectué.
+- **Reste à faire avant clôture :** vérifier les secrets sans afficher leurs valeurs; définir un ordonnanceur externe autorisé pour appeler la route (aucun ordonnanceur de cette route n'est actuellement prouvé); exécuter un scénario de test avec destinataire de test et confirmer le reçu Resend; tester les événements de soumission/confirmation/refus et les reprises après erreur.
+- Aucune modification Supabase Production, aucune écriture métier, aucun changement de secrets, aucun envoi réel, aucun déploiement Vercel et aucun workflow CI relancé. La migration est présente sur `main` mais n'est pas appliquée en Production.
