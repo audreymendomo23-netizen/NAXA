@@ -239,3 +239,11 @@ Limites de cette passe :
 - Les tests 029/030/031 sont des scripts transactionnels contenant des changements de rôle et des bascules de `session_replication_role`; ils n'ont pas été exécutés dans cette passe. Aucun contournement de trigger n'a été tenté.
 - Aucun build, test CI, déploiement ou écriture Production n'a été lancé.
 - Partie 4 : **audit statique commencé, non certifié**. Prochaine action : contrôler la fonction complète `naxa_set_caisse_status`, ses ACL effectives, ses appels UI/API et les tests comportementaux de transition de statut.
+
+
+### Complément de validation et point de contrôle Partie 4 (29/10/2026, passe suivante)
+- Les scripts exacts du dépôt `supabase/tests/147_promoteur_validity_internal_facade_split.sql`, `supabase/tests/promoteur_validity_helper_reconciliation.sql` et `supabase/tests/141_promoteur_caisse_management_reconciliation.sql` ont été exécutés sur le projet non-Production après alignement de la façade : **PASS** chacun.
+- Le script exact `supabase/tests/156_promoteur_caisse_activation_guard.sql` échoue sur le replay parce que la fonction `public.naxa_guard_promoteur_caisse_activation()` et son trigger y sont absents. Contrôle en lecture seule : fonction et trigger présents en Production, absents sur le replay. Ce résultat caractérise un replay incomplet; il ne prouve pas un défaut de la garde en Production.
+- La question `target.actif` dans `naxa_can_manage_team_member` est résolue au niveau de la revue statique : l'absence du filtre est cohérente avec la gestion des transitions de statut, car la réactivation passe ensuite par `naxa_can('REACTIVATE_CAISSE',...)`, la vérification d'architecture et le quota; la suspension exige `SUSPEND_CAISSE`. Aucun défaut confirmé et aucune modification de code.
+- Reste à exécuter les tests comportementaux 029/030/031 dans un environnement adapté; ils manipulent `session_replication_role` et n'ont pas été lancés. Ne pas contourner ce garde-fou.
+- Partie 4 reste **en audit / non certifiée** jusqu'à alignement contrôlé du replay et tests comportementaux. Production inchangée; aucun déploiement ni workflow relancé.
