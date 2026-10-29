@@ -16,8 +16,8 @@ begin
   select pg_get_functiondef('public.client_credit_demande_decider(uuid,boolean)'::regprocedure) into v_approval;
   select pg_get_functiondef('public.vente_reservation_encaisser(uuid,uuid,integer)'::regprocedure) into v_cash;
   select pg_get_functiondef('public.vente_reservation_credit_finaliser(uuid,uuid,text)'::regprocedure) into v_withdrawal;
-  v_hold_compact := lower(regexp_replace(v_hold, '\\s+', '', 'g'));
-  v_withdrawal_compact := lower(regexp_replace(v_withdrawal, '\\s+', '', 'g'));
+  v_hold_compact := lower(regexp_replace(v_hold, '[[:space:]]+', '', 'g'));
+  v_withdrawal_compact := lower(regexp_replace(v_withdrawal, '[[:space:]]+', '', 'g'));
 
   if position('stock_decremented,stock_restored' in v_hold_compact)=0
      or position('false,false' in v_hold_compact)=0 then
