@@ -83,3 +83,10 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 - La définition de `reactiver_promoteur(uuid,text)` peut réactiver un réseau complet, mais l'ACL effective de Production interdit EXECUTE à `anon`, `authenticated` et `service_role`; seul `postgres` est autorisé. La voie n'est donc pas accessible via l'API Supabase standard dans l'état contrôlé. Point clos sans changement de fonction ni de grants.
 - Les deux RPC de règlement restent réservées à `service_role`. La contradiction restante n'est plus le privilège SQL : c'est la garantie d'identité dans leurs routes appelantes. Étape suivante unique : inspecter ces routes, prouver la liaison utilisateur/Promoteur et l'autorisation Admin avant de toucher au code.
 - L'indexation/recherche GitHub n'a pas retourné de résultats de code pour ces symboles; cela ne prouve pas l'absence d'appelants. Ils restent non vérifiés jusqu'à lecture directe des fichiers pertinents.
+
+
+
+## Audit 360° Promoteur — résolution de la contradiction sur les routes (29/10/2026)
+- Les routes de soumission et de confirmation de règlement ont été localisées dans `src/app/promoteur/paiements/actions.ts` et `src/app/admin/pilotage/reglements/actions.ts`. L'identité n'est pas prise d'un champ libre : Promoteur = `auth.getUser().user.id`; Admin = utilisateur renvoyé par `requireAdminActive`, qui impose `role='admin'` et `actif=true`. Point clos pour la revue statique.
+- Le test runtime multi-rôles reste à exécuter dans un environnement non-Production. Aucun test de fixture n'a été lancé sur Production.
+- Reprise : partie 3 du Pilotage Promoteur (accréditation Responsable), sans revenir sur les routes déjà vérifiées.
