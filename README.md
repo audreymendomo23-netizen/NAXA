@@ -353,3 +353,6 @@ La façade publique de validité a été réalignée sur l'environnement Supabas
 
 ### Audit Promoteur — progression contrôlée (29/10/2026)
 Le sous-chantier de réconciliation de la façade dans l'environnement de test non-Production est clos. Les assertions SQL ciblées 147/PVH et le test comportemental 028 sont PASS, avec rollback confirmé. La partie 3 globale reste partielle : scénarios limites à certifier et helper privé Production non corrigé. L'audit statique de la partie 4 (gestion Caisse, quotas et délégation) a commencé; un point relatif aux transitions de statut des Caisses reste à qualifier. Aucun déploiement ni changement Production. Détails : [rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md).
+
+
+Mise à jour de l'audit Promoteur : les scripts SQL exacts 147, PVH et 141 passent sur le replay non-Production. Le test 156 révèle un replay incomplet (garde d'activation et trigger absents du replay, présents en Production). Les tests comportementaux 029–031 restent à exécuter dans un environnement adapté; la partie 4 n'est pas certifiée. Aucun changement Production ni déploiement.
