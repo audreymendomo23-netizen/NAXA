@@ -22,11 +22,15 @@ function doPost(e) {
     if (props.getProperty(key)) return json_({ sent: true, alreadySent: true });
 
     const fromName = props.getProperty("NAXA_WELCOME_FROM_NAME") || "NAXA";
-    MailApp.sendEmail(String(p.to), String(p.subject), "Votre compte NAXA est prêt. Ouvrez ce message dans un client compatible HTML.", {
-      htmlBody: p.html,
+    const plainText = typeof p.text === "string" && p.text.trim()
+      ? p.text.slice(0, 10000)
+      : "Votre compte NAXA est prêt. Ouvrez ce message dans un client compatible HTML.";
+    MailApp.sendEmail(String(p.to), String(p.subject).slice(0, 180), plainText, {
+      htmlBody: String(p.html).slice(0, 30000),
       name: fromName,
     });
     props.setProperty(key, new Date().toISOString());
+    if (String(p.idempotencyKey).indexOf("naxa-notification-") === 0) pruneNotificationKeys_(props);
     return json_({ sent: true, alreadySent: false });
   } catch (err) {
     console.error("NAXA welcome email failed: " + String(err));
@@ -49,4 +53,19 @@ function constantTimeEquals_(a, b) {
 
 function json_(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+/**
+ * Nettoie uniquement les clés de notifications après 30 jours.
+ * Les clés de bienvenue restent conservées pour préserver leur anti-doublon historique.
+ */
+function pruneNotificationKeys_(props) {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const all = props.getProperties();
+  Object.keys(all).forEach(function(key) {
+    if (key.indexOf("sent_naxa-notification-") !== 0) return;
+    const sentAt = Date.parse(all[key]);
+    if (!sentAt || sentAt < cutoff) props.deleteProperty(key);
+  });
 }
