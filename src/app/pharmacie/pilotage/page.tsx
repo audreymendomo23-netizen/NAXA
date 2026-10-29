@@ -104,7 +104,7 @@ export default function PilotagePharmacie() {
               <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage</p>
               <h1 className="text-2xl font-black text-naxa-canari sm:text-3xl">Mon activité</h1>
             </div>
-            <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link></div>
+            <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie/pilotage/rapports" className="btn btn-canari">Rapports &amp; exports</Link><Link href="/pharmacie/pilotage/rapports" className="btn btn-canari">Rapports &amp; exports</Link><Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link></div>
           </header>
 
           <nav className="flex gap-2 overflow-x-auto">
