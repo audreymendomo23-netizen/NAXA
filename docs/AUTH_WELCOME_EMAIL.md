@@ -39,3 +39,16 @@ Le même projet Google Apps Script et le même endpoint peuvent aussi délivrer 
 - Les variables `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET` ont été observées dans la configuration Vercel Production. Leur valeur reste masquée; aucune valeur n'a été déchiffrée ni modifiée.
 
 **Important :** après modification du fichier Apps Script source, le propriétaire doit mettre à jour le projet Apps Script existant et publier une nouvelle version du déploiement Web App. Le simple commit GitHub ne met pas à jour le code Google déjà déployé. Effectuer ensuite un test de bienvenue et un test de notification sur une adresse de recette.
+
+### Déclencheur Google pour vider la file Promoteur
+
+Le script canonique contient aussi `processNaxaNotificationQueue` et `installNaxaNotificationTrigger`. Pour activer l'appel périodique du worker depuis le compte Google propriétaire :
+
+1. Dans les Script Properties du même projet, ajouter `NAXA_WORKER_URL` avec l'URL HTTPS de Production suivie de `/api/cron/validite`.
+2. Ajouter `NAXA_CRON_SECRET` avec la valeur de la variable Vercel Production `CRON_SECRET`. Ne jamais confondre ce secret avec `NAXA_WELCOME_SECRET`.
+3. Mettre à jour le manifeste avec les scopes de `scripts/google-welcome-email.appsscript.json` (envoi mail, requêtes externes, gestion des déclencheurs).
+4. Enregistrer le projet et autoriser les nouveaux scopes.
+5. Exécuter manuellement `installNaxaNotificationTrigger` une seule fois. Il remplace les anciens déclencheurs du même handler et crée une exécution toutes les 5 minutes.
+6. Vérifier dans **Déclencheurs** Apps Script que le déclencheur est actif, puis contrôler les journaux d'exécution et l'outbox.
+
+Pour arrêter le traitement automatique, exécuter `removeNaxaNotificationTrigger`. Le déclencheur Google n'est pas encore installé par le code GitHub : cette activation nécessite l'autorisation du propriétaire du compte Google.
