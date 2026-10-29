@@ -356,3 +356,7 @@ Le sous-chantier de réconciliation de la façade dans l'environnement de test n
 
 
 Mise à jour de l'audit Promoteur : les scripts SQL exacts 147, PVH et 141 passent sur le replay non-Production. Le test 156 révèle un replay incomplet (garde d'activation et trigger absents du replay, présents en Production). Les tests comportementaux 029–031 restent à exécuter dans un environnement adapté; la partie 4 n'est pas certifiée. Aucun changement Production ni déploiement.
+
+
+### Audit Promoteur / gestion Caisse — contrôle ACL (29/10/2026)
+Un écart d'ACL a été identifié sur les RPC de provisionnement, statut, attribution et révocation Caisse : `service_role` pouvait les exécuter en Production, alors que les appels UI recensés utilisent le client authentifié. Un correctif additif et son test ACL 157 sont présents sur `main`; test PASS sur le replay non-Production uniquement. **Aucune migration Production ni aucun déploiement n'ont été effectués.** La partie 4 reste en audit tant que les tests comportementaux 029/030/031 ne sont pas validés sans désactivation de triggers.
