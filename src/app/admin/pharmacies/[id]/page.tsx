@@ -6,7 +6,9 @@ import { validerDossierPharmacie } from "@/app/admin/promoteurs/actions";
 
 type Props={params:{id:string};searchParams?:{ok?:string;erreur?:string}};
 const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré.",validation:"Dossier validé. Le Promoteur, son rattachement et la pharmacie sont activés après les contrôles transactionnels."};
-const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.","stockage":"Le stockage privé a refusé le fichier.","registre":"Inscription impossible ; le fichier temporaire a été supprimé.","pharmacie":"Pharmacie introuvable.","decision":"Décision impossible à enregistrer.","document":"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible.","verification":"Confirmez la vérification effective des autorisations avant de valider.","rattachement":"Le rattachement Promoteur–pharmacie est absent ou ambigu.","promoteur":"Le compte Promoteur ne correspond pas à cette pharmacie ou son architecture est invalide.","dossier-incomplet":"Dossier administratif incomplet : vérifiez les coordonnées privées requises.","contrat":"Convention, abonnement et architecture ne sont pas cohérents.","deja-active":"Ce dossier est déjà actif. Aucune réinitialisation de la période d’essai n’a été faite.","validation-etat":"Cette pharmacie n’est pas dans l’état d’une ouverture en attente. Utilisez le parcours de validité commerciale pour un dossier déjà activé.","validation-impossible":"La validation transactionnelle n’a pas abouti. Aucun succès n’est confirmé : vérifiez les prérequis puis réessayez."};
+const REQUIRED_RECEIPT_FIELDS=[["kyc","Vérification KYC"],["piece_existence_legale","Existence légale"],["registre_commerce","Registre de commerce (RCCM)"],["niu","Numéro d’identifiant unique (NIU)"],["attestation_non_redevance","Attestation de non-redevance"],["plan_localisation","Plan de localisation"],["cni_promoteur","CNI du Promoteur"]] as const;
+const REQUIRED_DOCUMENT_TYPES=[["existence_legale","Existence légale"],["registre_commerce","Registre de commerce (RCCM)"],["niu","Numéro d’identifiant unique (NIU)"],["attestation_non_redevance","Attestation de non-redevance"],["plan_localisation","Plan de localisation"],["cni_promoteur","CNI du Promoteur"]] as const;
+const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.","stockage":"Le stockage privé a refusé le fichier.","registre":"Inscription impossible ; le fichier temporaire a été supprimé.","pharmacie":"Pharmacie introuvable.","decision":"Décision impossible à enregistrer.","document":"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible.","verification":"Confirmez la vérification effective des autorisations avant de valider.","rattachement":"Le rattachement Promoteur–pharmacie est absent ou ambigu.","promoteur":"Le compte Promoteur ne correspond pas à cette pharmacie ou son architecture est invalide.","dossier-incomplet":"Dossier administratif incomplet : vérifiez les coordonnées privées requises.","contrat":"Convention, abonnement et architecture ne sont pas cohérents.","deja-active":"Ce dossier est déjà actif. Aucune réinitialisation de la période d’essai n’a été faite.","validation-etat":"Cette pharmacie n’est pas dans l’état d’une ouverture en attente. Utilisez le parcours de validité commerciale pour un dossier déjà activé.","validation-impossible":"La validation transactionnelle n’a pas abouti. Aucun succès n’est confirmé : vérifiez les prérequis puis réessayez.","documents-indisponibles":"Le registre des déclarations de réception ou des fichiers ne peut pas être lu. La validation est bloquée par sécurité.","pieces-reception":"Toutes les déclarations de réception doivent être confirmées avant la validation.","documents-validation":"La dernière version de chacun des six fichiers requis doit être validée avant la validation globale."};
 export default async function PharmacieIndividuelle({params,searchParams}:Props){
  const sb=supabaseServer();
  const{data:auth}=await sb.auth.getUser();
@@ -17,7 +19,7 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
  const db=supabaseAdmin();
  const [{data:pharmacy,error},{data:documents,error:documentsError},{data:bebeService,error:bebeServiceError}]=await Promise.all([
   db.from("pharmacies").select("id,nom,ville,quartier,adresse,actif,visible_recherche,created_at,est_demo,de_garde,horaires").eq("id",params.id).maybeSingle(),
-  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false}),
+  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false}).order("version",{ascending:false}).order("id",{ascending:false}),
   db.from("pharmacie_services").select("id,status,updated_at").eq("pharmacie_id",params.id).eq("service_slug","bebe-maman").maybeSingle()
  ]);
  if(error||!pharmacy)notFound();
@@ -43,7 +45,14 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
   : {data:[]};
  const docsHistory=history??[];
  const status=pharmacy.actif&&pharmacy.visible_recherche?"Active et visible":pharmacy.actif?"Active, masquée":"Inactive";
- const dossierValidationEnAttente=pharmacy.actif===false&&pharmacy.visible_recherche===false&&link?.actif===false&&promoter?.actif===false;
+ const dossierEnAttenteInitiale=pharmacy.actif===false&&pharmacy.visible_recherche===false&&link?.actif===false&&promoter?.actif===false;
+ const declarationsManquantes=REQUIRED_RECEIPT_FIELDS.filter(([key])=>received?.[key]!==true);
+ const dernierDocumentParType=new Map<string,(typeof docs)[number]>();
+ for(const document of docs){if(!dernierDocumentParType.has(document.type_document))dernierDocumentParType.set(document.type_document,document);}
+ const fichiersNonValides=REQUIRED_DOCUMENT_TYPES.filter(([type])=>dernierDocumentParType.get(type)?.statut_validation!=="valide");
+ const controlePiecesIndisponible=docsUnavailable||!!receivedError;
+ const piecesCompletes=!controlePiecesIndisponible&&!!received&&declarationsManquantes.length===0&&fichiersNonValides.length===0;
+ const dossierValidationEnAttente=dossierEnAttenteInitiale&&piecesCompletes;
  return <main className="mx-auto min-h-screen max-w-6xl space-y-5 px-3 py-5 sm:px-6">
   <Link href="/admin/promoteurs" className="inline-flex min-h-10 items-center font-semibold text-naxa-green-900 underline underline-offset-4">← Retour au registre des pharmacies</Link>
   <header className="rounded-3xl bg-naxa-green-900 p-5 text-white sm:p-7"><p className="text-xs font-bold uppercase tracking-[.18em] text-white/70">Espace administratif individuel</p><h1 className="mt-2 break-words text-2xl font-black sm:text-3xl">{pharmacy.nom}</h1><p className="mt-2 text-sm text-white/80">{[pharmacy.quartier,pharmacy.ville].filter(Boolean).join(" · ")||"Localisation non renseignée"}</p>{pharmacy.est_demo&&<p className="mt-3 inline-flex rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-amber-950">PHARMACIE DE TEST</p>}<div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{status}</span><span className="rounded-full bg-white/15 px-3 py-1 text-xs">Dossier isolé · accès administrateur</span></div></header>
@@ -72,7 +81,17 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
     <button type="submit" className="min-h-11 w-full rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-5 py-3 font-extrabold text-[#0B3D26] sm:w-auto">VALIDER LE DOSSIER ET ACTIVER LA PHARMACIE</button>
    </form>
   </section>}
-  {!pharmacy.actif&&!dossierValidationEnAttente&&<section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+  {dossierEnAttenteInitiale&&!piecesCompletes&&<section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+   <h2 className="font-extrabold">Validation suspendue — pièces à compléter</h2>
+   {controlePiecesIndisponible
+    ? <p className="mt-1">Le registre des déclarations de réception ou des fichiers n’est pas disponible. Aucun bouton de validation n’est proposé tant que ces données ne peuvent pas être contrôlées.</p>
+    : <div className="mt-2 space-y-2">
+       {declarationsManquantes.length>0&&<p>Déclarations de réception manquantes : {declarationsManquantes.map(([,label])=>label).join(", ")}.</p>}
+       {fichiersNonValides.length>0&&<p>Fichiers requis absents, en attente ou rejetés : {fichiersNonValides.map(([type,label])=>{const document=dernierDocumentParType.get(type);return label+(document?" ("+document.statut_validation+")":" (absent)");}).join(", ")}.</p>}
+       <p>Chaque déclaration doit être confirmée reçue et la dernière version des six fichiers requis doit porter le statut « valide » avant l’activation globale.</p>
+     </div>}
+  </section>}
+  {!pharmacy.actif&&!dossierEnAttenteInitiale&&<section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
    <h2 className="font-extrabold">Validation initiale indisponible</h2>
    <p className="mt-1">{linksError||promoterError?"L’état du rattachement ou du compte Promoteur n’a pas pu être confirmé. La validation reste masquée tant que le dossier n’est pas lisible.":"Cette pharmacie est inactive, mais son état ne correspond pas à une création en attente (pharmacie masquée/inactive, rattachement inactif et compte Promoteur inactif). Pour éviter de réinitialiser une période d’essai, la validation initiale n’est pas proposée ici."}</p>
    <Link href="/admin/pilotage/validite" className="mt-2 inline-flex font-bold underline">Consulter la validité commerciale →</Link>

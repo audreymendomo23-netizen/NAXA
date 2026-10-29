@@ -29,6 +29,7 @@
 
 - La fiche `/admin/pharmacies/[id]` comporte le formulaire de validation globale, relié à l’action serveur et à la RPC transactionnelle existante.
 - Le formulaire apparaît seulement pour une création encore en attente : pharmacie inactive et masquée, lien Promoteur inactif et profil Promoteur inactif. L’action serveur et la RPC revérifient ces états.
+- La validation est bloquée tant que les sept déclarations de réception ne sont pas confirmées ou que la dernière version de l’un des six types de fichiers requis n’est pas validée. Le type « autre » reste facultatif.
 - Migration additive : `supabase/migrations/20261029110000_admin_validate_dossier_pending_only.sql`. Test structurel ajouté : `supabase/tests/20261029110000_admin_validate_dossier_pending_only.sql`.
 - **Construction : 🟡 code versionné, validation runtime non certifiée.** Le contrôle Supabase effectué ici était en lecture seule ; test SQL, build, typecheck, lint et navigateur non exécutés.
 - Aucune migration appliquée, aucune donnée métier modifiée, aucun déploiement lancé. La recette visuelle attend un déploiement autorisé distinct.

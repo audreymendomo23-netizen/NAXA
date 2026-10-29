@@ -73,3 +73,12 @@ Continuer par les pages de pilotage, validité et rapports, puis auditer les dé
 - **Le nouveau contrat SQL n’a pas été exécuté** : la migration n’a pas été appliquée à une base de test dans cette passe. Build, typecheck, lint et navigateur non exécutés.
 - Aucune migration appliquée à Supabase, aucune donnée métier modifiée, aucun déploiement déclenché.
 - Suite : rejouer la migration et le contrat sur un PostgreSQL de test isolé, puis demander séparément l’autorisation de déployer avant recette visuelle.
+
+
+## Suivi d’exécution — 29 octobre 2026 : garde documentaire de la validation initiale
+
+- La revue de sortie a identifié un écart : la case d’attestation du formulaire était obligatoire, mais ni l’action ni la RPC ne vérifiaient que les déclarations de réception soient complètes et que les fichiers réellement déposés aient été validés.
+- La validation initiale exige désormais les sept déclarations déjà exposées dans l’interface (KYC, existence légale, RCCM, NIU, attestation de non-redevance, plan de localisation, CNI) et un statut « valide » sur la dernière version de chacun des six types de fichiers requis. Le type « autre » demeure facultatif.
+- La fiche affiche les déclarations manquantes et les fichiers absents/en attente/rejetés, et masque le bouton si les registres sont illisibles. L’action serveur recontrôle les deux registres ; la RPC les recontrôle dans la transaction avant l’activation.
+- Le test structurel est étendu aux nouvelles gardes et utilise to_regprocedure pour résoudre la signature stable de la RPC.
+- **État :** modifications versionnées sur main ; migration et tests non exécutés. Aucun changement de données, aucune migration appliquée et aucun déploiement lancé.

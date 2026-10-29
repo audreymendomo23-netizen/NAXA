@@ -21,6 +21,9 @@ declare
   v_links_count integer;
   v_conventions_count integer;
   v_abonnements_count integer;
+  v_documents_recus public.pharmacie_documents_recus%rowtype;
+  v_required_document_type text;
+  v_latest_document_status text;
   v_fin date := current_date + 14;
 begin
   if v_admin is null or not public.is_admin() then
@@ -80,6 +83,45 @@ begin
   ) then
     raise exception 'Dossier administratif incomplet' using errcode = '23514';
   end if;
+
+  -- Les déclarations « reçues » et les fichiers réellement validés sont deux preuves distinctes.
+  select r.* into v_documents_recus
+  from public.pharmacie_documents_recus r
+  where r.pharmacie_id = p_pharmacie
+  for update;
+  if not found
+     or v_documents_recus.kyc is distinct from true
+     or v_documents_recus.piece_existence_legale is distinct from true
+     or v_documents_recus.registre_commerce is distinct from true
+     or v_documents_recus.niu is distinct from true
+     or v_documents_recus.attestation_non_redevance is distinct from true
+     or v_documents_recus.plan_localisation is distinct from true
+     or v_documents_recus.cni_promoteur is distinct from true then
+    raise exception 'Pièces déclarées reçues incomplètes' using errcode = '23514';
+  end if;
+
+  foreach v_required_document_type in array array[
+    'existence_legale',
+    'registre_commerce',
+    'niu',
+    'attestation_non_redevance',
+    'plan_localisation',
+    'cni_promoteur'
+  ]
+  loop
+    v_latest_document_status := null;
+    select d.statut_validation into v_latest_document_status
+    from public.pharmacie_documents d
+    where d.pharmacie_id = p_pharmacie
+      and d.type_document = v_required_document_type
+    order by d.recu_le desc, d.version desc, d.id desc
+    limit 1
+    for update;
+
+    if not found or v_latest_document_status is distinct from 'valide' then
+      raise exception 'Document requis absent ou non validé : %', v_required_document_type using errcode = '23514';
+    end if;
+  end loop;
 
   select count(*) into v_conventions_count
   from public.conventions_promoteurs c
