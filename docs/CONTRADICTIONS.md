@@ -107,3 +107,11 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Le helper privé réconcilié passe un contrôle ciblé des trois gardes métier (architecture, réseau actif, cohérence pharmacie/architecture) et des ACL (aucun EXECUTE pour `anon`, `authenticated`, `service_role`). Le test comportemental 028 passe également sur le replay.
 - Les tests complets 147/PVH restent bloqués par la façade de replay, non par les assertions du helper. La tentative d'application de la migration 040 sur ce projet a été refusée par le contrôle de sécurité de l'outil; ne pas boucler sur la même opération. La prochaine action doit réaligner le replay avec les migrations canoniques disponibles, puis rejouer les tests.
 - Production n'a pas été modifiée : la migration corrective du helper est toujours préparée dans le dépôt, non appliquée. La partie 3 reste partielle jusqu'aux tests complets et cas limites.
+
+
+## Réconciliation façade Promoteur — test non-Production (29/10/2026)
+
+- La façade publique ancienne du projet de test `naxa-ci-replay-2` a été réalignée via une migration de diagnostic dédiée; tests statiques 147 et PVH PASS. Ce correctif ne constitue pas une migration canonique appliquée à Production.
+- Production conserve sa façade publique avec garde identité/Admin, mais le helper privé actif ne satisfait pas encore le contrat de garde architecture/réseau/cohérence de la migration 147. Correction helper non appliquée en Production.
+- ACL test vérifiées : `anon` ne peut exécuter la façade; `authenticated` et `service_role` le peuvent avec contrôle interne; aucun des trois ne peut exécuter le helper privé.
+- Restent ouverts : tests comportementaux ciblés architecture absente/réseau inactif/incohérence; partie 3 reste partielle. Aucun déploiement ni workflow relancé.
