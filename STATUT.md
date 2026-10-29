@@ -1,3 +1,13 @@
+## Rectificatif opérationnel — 29/10/2026
+- Référence active : dépôt `audreymendomo23-netizen/NAXA`, branche `main`; aucune branche créée.
+- Trois migrations Supabase ciblées ont été appliquées après autorisation explicite et vérifiées dans l'historique : `safe_promoter_payment_reactivation_scope` (`20261029052116`), `admin_validate_dossier_pending_only` (`20261029052125`) et `promoteur_notifications_include_pharmacies` (`20261029052131`).
+- La migration `disable_admin_manual_promoter_payment_entry` était déjà présente (`20261027063825`); les privilèges vérifiés bloquent son exécution par `anon`, `authenticated` et `service_role`.
+- Garde dossier en attente confirmée dans la fonction Supabase active. Confirmation de paiement : pas de réactivation en bloc des profils/pharmacies. Rappels J-5 : la fonction active inclut les noms Promoteur/pharmacies.
+- Aucun déploiement manuel, aucun workflow relancé, aucune donnée métier modifiée intentionnellement.
+- Non certifié vert : build complet, tests métier multi-rôles, recette visuelle, état Production, audit complet ligne par ligne, SQLSTATE `08006` et constats restants des conseillers Supabase. Détail : `docs/CONTRADICTIONS.md`.
+
+---
+
 ## Correctif visuel accueil client et BottomNav — 25/10/2026
 - Ajout d'une carte photo plein cadre autour du bloc de bienvenue, recherche et filtres de l'accueil client ; le contenu et ses interactions sont conservés, avec une composition responsive et un voile vert léger.
 - Photo choisie dans les ressources déjà présentes : `/couvertures/pharmacies-garde.webp` ; aucun fichier externe ajouté. La carte photo déjà présente sous les filtres et la page Achats ne sont pas modifiées.
