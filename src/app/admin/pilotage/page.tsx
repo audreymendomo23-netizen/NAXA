@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
-import { Barres, Liste, Section, Tuile, useTempsReel } from "@/components/Pilotage";
+import { Barres, Liste, Section, Tuile, useTempsReel } from "@/components/Pilotage";\nimport RapportsALaDemande from "@/components/RapportsALaDemande";
 
 type PilotageData = {
   pharmacies: { actives: number; inactives: number; total?: number };
@@ -163,7 +163,7 @@ export default function Page() {
             <Section titre="Activité quotidienne">
               <Barres points={d.serie.map((x) => ({ jour: x.jour, n: x.reservations }))} etiquette="Réservations quotidiennes" />
             </Section>
-            <Section titre="Signaux à examiner">
+            <RapportsALaDemande variant="admin" />\n            <Section titre="Signaux à examiner">
               <p className="mb-3 text-sm text-slate-600">Pistes de vérification calculées à partir des indicateurs disponibles pour la période sélectionnée. Elles signalent des points à examiner, pas des causes établies.</p>
               <Liste vide="Aucun signal positif à examiner selon les indicateurs actuellement disponibles." lignes={[
                 ...(d.recherches.sans_resultat > 0 ? [{ cle: "recherche", texte: "Recherches sans résultat", valeur: String(d.recherches.sans_resultat) + " · vérifier la couverture du catalogue et les synonymes" }] : []),
