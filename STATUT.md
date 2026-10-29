@@ -768,3 +768,10 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Tests SQL 260/261 restent PASS sur replay et rollback confirmé; ils valident les notifications en base, pas une délivrance fournisseur.
 - Point 4 ouvert : recette UI navigateur/E2E, accès effectif aux preuves, conception/validation d'un envoi externe idempotent et vérification du fournisseur. Aucun test navigateur/build exécuté dans cette passe; aucun message externe envoyé.
 - Aucun changement Production, aucune migration, aucun déploiement et aucun workflow CI relancé.
+
+
+### Audit 360° Administrateur — point 4 : outbox e-mail (29/10/2026)
+- Cause du défaut confirmée : le job pg_cron crée les notifications J−5 et marque le rappel comme traité; la route historique réclamait ensuite le même rappel et ne pouvait donc plus l'envoyer. Les événements de règlement n'avaient pas de délivrance externe.
+- Correctif source sur main : migration additive `supabase/migration_20261029_notification_email_outbox_delivery.sql`, file privée idempotente et trigger d'enqueue pour J−5 + soumission/confirmation/refus de règlement; route `/api/cron/validite` transformée en worker Resend avec verrouillage, reprise et clé d'idempotence fournisseur.
+- Test 262 structurel : **PASS sur naxa-ci-replay-2**, transaction annulée; RLS, trigger, unicité et ACL vérifiés. Aucun profil Promoteur/Admin dans le replay : pas de test comportemental ni d'envoi réel.
+- À faire avant validation opérationnelle : configurer/vérifier l'ordonnanceur externe et les secrets sans les exposer, puis test de délivrance avec adresse de recette. Aucun changement Production, aucune donnée métier, aucun déploiement ni workflow relancé. Point 4 reste ouvert.
