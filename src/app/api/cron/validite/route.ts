@@ -4,14 +4,6 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const escapeHtml = (value: unknown) =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
 type OutboxItem = {
   outbox_id: string;
   notification_id: string;
@@ -22,21 +14,31 @@ type OutboxItem = {
   attempt_count: number;
 };
 
-// Endpoint appelé par un ordonnanceur externe. Le job pg_cron existant continue
-// uniquement à créer les notifications; le trigger les place dans l'outbox.
+// Le job pg_cron crée les notifications; le trigger les place dans l'outbox.
+// Cette route ne fait que synchroniser les validités et déléguer l'e-mail à Google.
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || req.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.REPORT_FROM_EMAIL;
-  if (!apiKey || !from) {
+  const googleUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
+  const googleSecret = process.env.GOOGLE_APPS_SCRIPT_SECRET;
+  if (!googleUrl || !googleSecret) {
     return NextResponse.json(
-      { error: "RESEND_API_KEY et REPORT_FROM_EMAIL doivent être configurés." },
+      { error: "GOOGLE_APPS_SCRIPT_URL et GOOGLE_APPS_SCRIPT_SECRET doivent être configurés." },
       { status: 503 }
     );
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(googleUrl);
+  } catch {
+    return NextResponse.json({ error: "URL Google Apps Script invalide." }, { status: 503 });
+  }
+  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "script.google.com") {
+    return NextResponse.json({ error: "L'URL doit être une URL HTTPS Google Apps Script officielle." }, { status: 503 });
   }
 
   const sb = supabaseAdmin();
@@ -61,33 +63,33 @@ export async function GET(req: Request) {
     let failure = "";
 
     try {
-      if (!item.email) {
-        throw new Error("Aucune adresse e-mail associée au compte destinataire.");
+      if (!item.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) {
+        throw new Error("Adresse e-mail destinataire absente ou invalide.");
       }
 
-      const response = await fetch("https://api.resend.com/emails", {
+      const response = await fetch(googleUrl, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "Idempotency-Key": item.outbox_id,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          from,
-          to: [item.email],
+          secret: googleSecret,
+          idempotencyKey: item.outbox_id,
+          to: item.email,
           subject: `NAXA — ${item.title}`,
+          text: item.body,
           html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>NAXA</h2><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body).replace(/\n/g, "<br>")}</p><p>Connectez-vous à votre espace NAXA pour consulter les détails.</p></div>`,
         }),
+        redirect: "follow",
+        signal: AbortSignal.timeout(25000),
       });
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(`Resend HTTP ${response.status}: ${JSON.stringify(payload).slice(0, 500)}`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok !== true || payload?.idempotent !== true) {
+        throw new Error(`Google Apps Script HTTP ${response.status}: réponse invalide ou envoi non confirmé.`);
       }
       success = true;
-      providerMessageId = typeof payload?.id === "string" ? payload.id : null;
+      providerMessageId = typeof payload.messageId === "string" ? payload.messageId : item.outbox_id;
     } catch (error) {
-      failure = error instanceof Error ? error.message : "Erreur inconnue de délivrance.";
+      failure = error instanceof Error ? error.message : "Erreur inconnue de délivrance Google.";
     }
 
     const { data: finished, error: finishError } = await sb.rpc(
@@ -101,8 +103,6 @@ export async function GET(req: Request) {
     );
 
     if (finishError || finished !== true) {
-      // Le verrou expirera après 15 minutes; la tentative sera récupérée sans
-      // marquer faussement le message comme délivré.
       retried++;
       continue;
     }
@@ -112,11 +112,13 @@ export async function GET(req: Request) {
     else retried++;
   }
 
-  return NextResponse.json({
-    claimed: items.length,
-    sent,
-    retried,
-    dead,
-    remaining: "La file conserve les messages en attente et ceux dont le délai de reprise n'est pas écoulé.",
-  });
+  return NextResponse.json({ claimed: items.length, sent, retried, dead });
 }
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
