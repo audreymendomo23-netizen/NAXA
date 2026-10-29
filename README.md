@@ -385,3 +385,6 @@ Une revue statique des pages Promoteur/Admin et du flux de notifications a corri
 Une file privée idempotente et un worker Resend ont été ajoutés sur main pour les rappels J−5 et les événements de règlement. Le test structurel 262 passe sur l'environnement isolé. L'ordonnanceur externe, la configuration des secrets et la délivrance réelle restent à valider; aucune migration Production ni aucun déploiement n'ont été effectués. Voir §60.47 du cahier Audit 360 Administrateur.
 
 Complément : l'inventaire Vercel Production confirme `CRON_SECRET`, mais pas les variables Resend requises; aucun cron Vercel n'est configuré. Le projet est sur le plan Hobby. Les secrets et l'ordonnanceur Production restent inchangés; aucun e-mail réel n'est déclaré envoyé.
+
+### Canal e-mail NAXA — Google Apps Script
+Resend a été remplacé dans le worker par une passerelle Google Apps Script `MailApp`. Le code et le guide sont dans `google-apps-script/naxa-mail-gateway/`. Le projet Apps Script, ses propriétés secrètes, les variables Vercel et la preuve de réception restent à configurer; aucun envoi réel ni déploiement n'a été effectué. Voir §60.48 de l'audit Administrateur.
