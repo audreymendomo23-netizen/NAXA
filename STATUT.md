@@ -1,3 +1,13 @@
+## Audit Promoteur — approfondissement des RPC (29/10/2026)
+
+- Lecture SQL de `admin_confirmer_reglement_promoteur` : garde Admin actif, verrouillage des lignes, règlement en attente seulement, champs de preuve obligatoires, tarif comparé à la convention, refus si résiliation, idempotence de confirmation, notification/journal; ne réactive pas les profils/pharmacies.
+- Lecture SQL de `promoteur_soumettre_reglement` : validations métier et prévention des règlements simultanément en attente; les noms Promoteur/pharmacies sont inclus dans les notifications. Comme EXECUTE direct n'est pas accordé à `authenticated`/ `anon`, la garde de la route serveur appelante doit être vérifiée.
+- Point à investiguer avant toute modification : `reactiver_promoteur` réactive abonnement, convention, pharmacies et profils liés après garde Admin. Vérifier EXECUTE effectif et tous les appelants pour déterminer si une ancienne voie manuelle reste accessible.
+- `validites_promoteurs_admin()` filtre les résultats via `is_admin()`; `naxa_promoteur_valide(uuid)` limite l'identité à l'utilisateur connecté ou Admin. Les contrôles applicatifs restent à auditer.
+- Rapport vivant : `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`. Le parcours UI/API, la partie 3 et les parties 4–6 restent non certifiés.
+
+---
+
 ## Audit 360° du parcours Promoteur — reprise active (29/10/2026)
 
 - Le périmètre actif est désormais explicitement documenté dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`, conformément au prompt maître NAXA. Les dernières corrections Supabase de sécurité/performance ne sont pas une certification du parcours métier.
