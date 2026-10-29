@@ -341,3 +341,7 @@ La revue statique des deux routes de règlement est clôturée : l'identité Pro
 
 ### Audit 360° Promoteur — point de vigilance actif
 La revue des fonctions de validité a révélé une différence entre la définition du helper `private.naxa_promoteur_valide` dans la migration 147 et celle réellement active en Production. L'écart est documenté dans le rapport d'audit; aucun impact immédiat n'est détecté sur l'unique Promoteur actuellement en base. La correction est suspendue jusqu'à l'identification de la migration ou de l'action qui a redéfini la fonction.
+
+
+### Audit 360° Promoteur — correction préparée, non appliquée (29/10/2026)
+Le helper privé de validité active en Production ne correspond pas au contrat de la migration 147. Une migration additive et un test ciblé sont préparés sur `main`, mais ils ne sont ni appliqués ni exécutés. La partie 3 reste non certifiée jusqu'à une validation dans un environnement Supabase non-Production. Détails et preuves : [rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md).
