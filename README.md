@@ -360,3 +360,7 @@ Mise à jour de l'audit Promoteur : les scripts SQL exacts 147, PVH et 141 passe
 
 ### Audit Promoteur / gestion Caisse — contrôle ACL (29/10/2026)
 Un écart d'ACL a été identifié sur les RPC de provisionnement, statut, attribution et révocation Caisse : `service_role` pouvait les exécuter en Production, alors que les appels UI recensés utilisent le client authentifié. Un correctif additif et son test ACL 157 sont présents sur `main`; test PASS sur le replay non-Production uniquement. **Aucune migration Production ni aucun déploiement n'ont été effectués.** La partie 4 reste en audit tant que les tests comportementaux 029/030/031 ne sont pas validés sans désactivation de triggers.
+
+
+### Audit 360° Administrateur — état au 29 octobre 2026
+Le point 3 du sous-chantier crédit Marketplace est clos côté code et validation technique isolée. Les tests SQL 247, 251, 252, 255, 256, 257, 258 et l'E2E réel 259 passent sur `naxa-ci-replay-2`; les fixtures transactionnelles sont annulées. Les correctifs couvrent la déduction des holds actifs dans la disponibilité Marketplace, la consommation des lots affectés à la réservation, la finalisation cohérente de la vente POS crédit et la complétude du reçu. Aucun changement de schéma ou de données Production et aucun déploiement n'ont été réalisés. Le point 4 est engagé : le test structurel des notifications J−5/règlements avec noms des pharmacies passe sur le replay; preuve de délivrance runtime et recette UI restent à faire. Détails : [audit Administrateur § 60.44](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md).
