@@ -153,3 +153,11 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - **Preuve E2E** : test 259 PASS sur replay non-Production pour deux réservations du même produit retirées dans l'ordre inverse; les lots propres à chaque réservation, les quantités de lots/stock agrégé, les ventes et opérations crédit sont cohérents; rollback confirmé.
 - **Résultats cumulés** : tests 247, 251, 252, 255, 256, 257, 258 et 259 PASS sur replay. Les migrations 258/259 n'ont pas été appliquées à Production. Aucun déploiement ni workflow CI relancé.
 - **Point 3** : clos côté source/test. **Point 4** : en cours sur notifications de validité/règlement J−5; test structurel PASS, délivrance runtime et recette UI non encore démontrées.
+
+
+## Audit Administrateur — point 4 notifications (29/10/2026)
+- Test structurel notifications : **PASS** sur `naxa-ci-replay-2`.
+- Test 260 J−5 : **PASS**, nom Promoteur et pharmacies dans les notifications Promoteur/Admin, deuxième exécution sans doublon; transaction annulée.
+- Test 261 soumission de règlement : **PASS**, notification Admin contient le nom Promoteur/pharmacie et notification de confirmation Promoteur créée; transaction annulée.
+- Limite restante : les assertions prouvent les écritures de notifications en base, pas la livraison externe; UI, upload/accès de preuve et états d'erreur ne sont pas encore testés. Point 4 reste ouvert uniquement sur ces preuves applicatives.
+- Aucune migration Production ni aucun déploiement. Aucun workflow CI relancé.
