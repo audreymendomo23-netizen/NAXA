@@ -332,3 +332,8 @@ Les logos sont stockés dans `pharmacies-photos/logos/<pharmacie_id>/`. Les poli
 
 ### Audit 360° du parcours Promoteur — mise à jour ciblée (29/10/2026)
 Le contrôle SQL direct ferme le point d'accès applicatif de `reactiver_promoteur(uuid,text)` : EXECUTE est refusé à `anon`, `authenticated` et `service_role`. Les deux RPC de règlement sont, elles, réservées à `service_role`; la vérification suivante porte donc sur leurs routes appelantes et l'identité qu'elles transmettent. Le suivi de reprise et les preuves sont consignés dans [le rapport d'audit Promoteur](docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md). Aucun déploiement ni aucune écriture métier n'ont été réalisés.
+
+
+
+### Audit 360° Promoteur — étape au 29/10/2026
+La revue statique des deux routes de règlement est clôturée : l'identité Promoteur et Admin est déterminée côté serveur, et les RPC sont réservées à `service_role`. Les tests d'intégration restent non exécutés. La reprise est maintenant centrée sur la partie 3 (accréditation Responsable et privilèges) avec comparaison des façades SQL de Production aux migrations de réconciliation. Aucun test fixture ni déploiement n'a été lancé en Production.
