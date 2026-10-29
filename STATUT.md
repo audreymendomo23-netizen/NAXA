@@ -660,3 +660,13 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - ACL privées vérifiées en lecture seule : EXECUTE refusé à `anon`, `authenticated`, `service_role`; propriétaire autorisé.
 - **Non testé / non déployé :** test SQL non exécuté (ne pas l'exécuter sur Production); environnement Supabase non-Production non confirmé. Partie 3 reste 🟡/non close.
 - **Suite unique :** obtenir/identifier un environnement isolé, exécuter le test ciblé et le test comportemental 028/147, puis clôturer la partie 3 ou corriger les échecs. Aucun déploiement ni migration Production effectués.
+
+
+## Audit 360° Promoteur — résultat des tests isolés partie 3 (29/10/2026)
+- Environnement non-Production confirmé : Supabase `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`), distinct de Production.
+- Migrations de test appliquées uniquement sur ce replay : migration 147 et migration additive `20261029_promoteur_validity_helper_reconciliation`. **Aucune application Production.**
+- Test comportemental `028_promoteur_responsable_accreditation_behavior.sql` : PASS.
+- Test ciblé du helper privé réconcilié (architecture, réseau, cohérence, ACL) : PASS.
+- Tests complets 147 et PVH : non PASS, car la façade publique du replay est encore l'ancien wrapper sans garde identité/Admin (assertions 147.3/PVH.4). Une tentative d'application de la migration 040 à ce replay a été bloquée par le contrôle de sécurité de l'outil; pas de répétition de cette tentative.
+- Production conserve l'écart déjà prouvé : le helper privé ne comporte pas encore les trois gardes; la migration corrective reste non appliquée. Partie 3 = 🟡 partielle, jamais déclarée verte.
+- Prochaine étape unique : aligner la façade du replay via les migrations canoniques existantes, relancer 147/PVH, puis tester les cas limites métier. Aucun déploiement ni aucune migration Production effectués.
