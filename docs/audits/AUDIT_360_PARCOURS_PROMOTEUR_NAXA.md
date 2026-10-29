@@ -126,3 +126,24 @@ Le contrôle confirme aussi les ACL déjà documentées pour les deux fonctions 
 3. Ensuite seulement, reprendre la validation comportementale de la partie 3 du Pilotage Promoteur et avancer vers la partie 4 selon le mandat.
 
 **Limite de cette passe :** la recherche de code GitHub n'a renvoyé aucun résultat exploitable pour les noms des fonctions; les appelants applicatifs ne sont donc pas déclarés vérifiés. Aucun déploiement, aucune relance CI et aucune écriture Supabase n'ont été effectués.
+
+
+
+## 9. Clôture des appelants applicatifs de règlement et reprise partie 3 (29/10/2026)
+
+### 9.1 Routes de règlement — vérifiées dans le code réel de `main`
+- `src/app/promoteur/paiements/actions.ts` (blob `80176eacaa463229e63764d62865c1162918f817`) : appelle `auth.getUser()`, exige un profil `role='promoteur'`, transmet `p_promoteur=user.id` (pas un champ libre), valide les champs, téléverse la preuve sous un chemin préfixé par l'UUID connecté, puis appelle `promoteur_soumettre_reglement` via le client serveur privilégié. En cas d'échec RPC, retire le fichier envoyé. **Contrôle d'identité de la soumission : conforme au code inspecté.**
+- `src/app/admin/pilotage/reglements/actions.ts` (blob `fa92c6126fbe836d5ddee5ab3f698d6213a1be18`) : les actions de confirmation et de contestation passent par `requireAdminActive`; la confirmation passe `p_admin=user.id`, exige une UUID de règlement, l'état `en_attente`, une preuve signée accessible et une case de confirmation. **Contrôle de rôle et origine de l'identité Admin : conforme au code inspecté.**
+- `src/lib/admin/require-admin-active.ts` (blob `f9f7591e8beb7e93872d92b7ec832a91e4840d85`) vérifie l'utilisateur par `auth.getUser()` et le profil `role='admin'` + `actif=true` côté serveur.
+- Les ACL Supabase observées confirment que les deux RPC de règlement ne sont exécutables que par `service_role`; les actions serveur sont les appelants identifiés. La fonction `reactiver_promoteur` demeure non exécutable par les rôles applicatifs et n'est pas utilisée par ces deux actions.
+
+**Résultat de la tranche : clôturée sur inspection de code et ACL.** Les tests d'intégration/runtime n'ont pas été exécutés; ce statut ne les prétend pas réussis.
+
+### 9.2 Partie 3 — état réel et limite des preuves
+- Le dépôt contient `supabase/migration_028_promoteur_responsable_accreditation.sql` et `supabase/tests/028_promoteur_responsable_accreditation_behavior.sql`. Le test comportemental décrit une fixture transactionnelle pour l'architecture, le scope, l'accréditation Responsable, l'expiration commerciale et le refus en architecture ORPHELIN.
+- La base de Production expose actuellement des façades publiques `accrediter_profile`, `accrediter_responsable`, `naxa_has_privilege`, `naxa_can`, `naxa_promoteur_valide`, `naxa_provision_caisse`, `naxa_set_caisse_status`, avec `search_path=''`; les wrappers délèguent plusieurs traitements au schéma `private`. EXECUTE est refusé à `anon` et accordé à `authenticated` pour les RPC métier observées.
+- L'historique `supabase_migrations.schema_migrations` ne contient pas de version littérale `028` : le fichier `migration_028...` est à la racine de `supabase/`, hors du répertoire `supabase/migrations/`. Cela **ne prouve pas** à lui seul que la fonctionnalité est absente : des migrations ultérieures de réconciliation sont enregistrées en Production. La version effective est celle des définitions SQL lues, pas le seul nom de fichier.
+- Les scripts `supabase/tests/028...` et suivants existent dans le dépôt mais leur présence n'est pas une preuve d'exécution réussie. Ils n'ont pas été lancés sur Production, afin d'éviter les écritures de fixtures même temporaires sur la base de production.
+
+### 9.3 Étape de reprise unique
+La tranche des routes de règlement est terminée. Continuer sur la **partie 3 du Pilotage Promoteur** en comparant les fonctions `private.accrediter_profile`, `private.naxa_has_privilege`, `private.naxa_can`, `private.naxa_promoteur_valide` et les migrations de réconciliation 137/142/146/147/153, puis déterminer un environnement de test non-Production disponible pour exécuter le test comportemental. Ne pas recommencer la vérification des routes de paiement ni déclarer la partie 3 verte avant preuve comportementale.
