@@ -759,3 +759,12 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Défaut concret corrigé dans `src/app/pharmacie/caisses/page.tsx` : les erreurs de lecture des Caisses et des architectures sont traitées explicitement; la liste n'affiche plus « aucune Caisse » si sa requête a échoué.
 - La création est désactivée si la liste des Caisses ou les quotas d'architecture ne peuvent pas être lus; une pharmacie sans architecture active est désactivée dans le sélecteur.
 - **Statut :** correction source préparée sur `main`; pas de build/test UI exécuté dans cette passe. Tests transactionnels 029–031 restent différés parce que leurs scripts changent `session_replication_role`; pas de contournement de triggers. Aucun changement Supabase Production, aucun déploiement.
+
+## Audit 360° Administrateur — point 4, revue complémentaire (29/10/2026)
+- Revue statique Promoteur/Admin effectuée sur les pages de paiement, Server Actions, notifications et route cron.
+- Défaut Promoteur corrigé sur main, commit 37b46503e2eceae21ce3ddba653d2bb52099459b : une erreur de lecture ne s'affiche plus comme un historique vide; la soumission est bloquée si les données d'abonnement/paiement sont indisponibles ou si le tarif n'est pas configuré; indisponibilité du lien sécurisé de preuve explicitée.
+- Storage vérifié en lecture seule sur Production et replay : bucket privé, limite 25 MiB et MIME attendus. Cela correspond à la validation du formulaire (la migration initiale historique indique encore 8 MiB, sans refléter la configuration effective observée).
+- Délivrance externe non démontrée : le job pg_cron Production actif naxa-promoteur-echeance-5j appelle uniquement public.generer_rappels_echeance_promoteurs() (insertions en base). Aucun trigger d'envoi externe sur public.notifications; la route /api/cron/validite avec Resend n'est pas appelée par le job observé. Les événements de soumission/confirmation règlement ne présentent pas non plus de chemin e-mail/SMS dédié dans les fichiers examinés.
+- Tests SQL 260/261 restent PASS sur replay et rollback confirmé; ils valident les notifications en base, pas une délivrance fournisseur.
+- Point 4 ouvert : recette UI navigateur/E2E, accès effectif aux preuves, conception/validation d'un envoi externe idempotent et vérification du fournisseur. Aucun test navigateur/build exécuté dans cette passe; aucun message externe envoyé.
+- Aucun changement Production, aucune migration, aucun déploiement et aucun workflow CI relancé.
