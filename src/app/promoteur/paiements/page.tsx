@@ -17,16 +17,18 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
   if (profile?.role !== "promoteur") return <main className="mx-auto max-w-2xl p-4"><section className="rounded-2xl bg-white p-5">Cette page est réservée à l’espace Promoteur.</section></main>;
 
   const db = supabaseAdmin();
-  const [{ data: rows, error }, { data: subscription }] = await Promise.all([
+  const [{ data: rows, error }, { data: subscription, error: subscriptionError }] = await Promise.all([
     db.from("abonnement_promoteur_reglements").select("id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_du,periode_au,created_at,confirme_le,preuve_path,motif_contestation").eq("promoteur_id", user.id).order("created_at", { ascending: false }).limit(100),
     db.from("abonnements_promoteurs").select("echeance,statut,montant_mensuel").eq("promoteur_id", user.id).maybeSingle(),
   ]);
   const proofLinks = new Map<string, string>();
+  const proofErrors = new Set<string>();
   await Promise.all((rows ?? []).map(async r => {
-    const { data } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path, 600);
+    const { data, error: proofError } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path, 600);
     if (data?.signedUrl) proofLinks.set(r.id, data.signedUrl);
+    else if (proofError) proofErrors.add(r.id);
   }));
-  const pending = (rows ?? []).some(r => r.statut === "en_attente");
+  const pending = !error && (rows ?? []).some(r => r.statut === "en_attente");
   const errors: Record<string, string> = {
     champs: "Vérifiez le montant et le canal de paiement.",
     canal: "Précisez le canal utilisé.",
@@ -47,12 +49,13 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
 
     {searchParams?.ok === "soumis" && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">Votre paiement a été transmis à l’administrateur. Le renouvellement interviendra uniquement après vérification de l’encaissement.</p>}
     {searchParams?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur] ?? "Une erreur est survenue."}</p>}
-    {error && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Le suivi des paiements est temporairement indisponible.</p>}
+    {error && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Le suivi des paiements est temporairement indisponible. L’historique et la possibilité de soumettre un nouveau règlement sont suspendus jusqu’au rétablissement du service.</p>}
+    {subscriptionError && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Les informations de votre abonnement n’ont pas pu être chargées. Aucun montant ne sera présumé : réessayez avant de soumettre un règlement.</p>}
 
     <section className="rounded-3xl bg-white p-4 sm:p-5">
       <h2 className="text-lg font-extrabold">Déclarer un paiement effectué</h2>
       <p className="mt-1 text-sm text-slate-600">Le paiement se fait directement par votre banque, Orange Money ou Mobile Money. NAXA ne débite pas votre compte depuis cette page.</p>
-      {pending ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Un paiement est déjà en cours de vérification. Vous pourrez soumettre une nouvelle déclaration après son traitement.</p> : <form action={soumettrePaiementPromoteur} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
+      {error || subscriptionError ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">La déclaration est temporairement désactivée car les données nécessaires n’ont pas pu être vérifiées.</p> : pending ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Un paiement est déjà en cours de vérification. Vous pourrez soumettre une nouvelle déclaration après son traitement.</p> : !subscription?.montant_mensuel ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Votre abonnement ou son tarif mensuel n’est pas configuré. Contactez l’administrateur avant tout règlement.</p> : <form action={soumettrePaiementPromoteur} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-semibold">Montant payé (FCFA)<input required type="number" name="montant" min="1" step="1" inputMode="numeric" defaultValue={subscription?.montant_mensuel ?? ""} className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
         <label className="grid gap-1 text-sm font-semibold">Canal de paiement<select required name="canal" defaultValue="orange_money" className="min-h-11 rounded-xl border border-slate-300 px-3"><option value="orange_money">Orange Money</option><option value="mtn_momo">MTN Mobile Money</option><option value="virement">Virement bancaire</option><option value="depot_bancaire">Dépôt bancaire</option><option value="especes">Espèces</option><option value="autre">Autre</option></select></label>
         <label className="grid gap-1 text-sm font-semibold">Précision si « Autre »<input name="canal_autre" maxLength={80} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="Autre canal"/></label>
@@ -65,10 +68,10 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
     </section>
 
     <section className="space-y-3"><h2 className="text-lg font-black">Historique et reçus</h2>
-      {!rows?.length ? <div className="rounded-2xl bg-white p-5"><p className="font-bold">Aucun paiement déclaré.</p><p className="mt-1 text-sm text-slate-600">Après soumission, le statut de vérification apparaîtra ici.</p></div> : rows.map(r => <article key={r.id} className="rounded-2xl bg-white p-4 shadow-sm">
+      {error ? <div role="alert" className="rounded-2xl bg-white p-5 text-red-700">L’historique ne peut pas être affiché tant que la lecture des règlements est en erreur. Aucune absence de paiement n’est déduite.</div> : !rows?.length ? <div className="rounded-2xl bg-white p-5"><p className="font-bold">Aucun paiement déclaré.</p><p className="mt-1 text-sm text-slate-600">Après soumission, le statut de vérification apparaîtra ici.</p></div> : rows.map(r => <article key={r.id} className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-extrabold">{money(r.montant)}</p><p className="mt-1 text-xs text-slate-500">Soumis le {dt(r.created_at)}</p></div><span className={"rounded-full px-3 py-1 text-xs font-bold " + (r.statut === "confirme" ? "bg-green-100 text-green-800" : r.statut === "conteste" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900")}>{r.statut === "confirme" ? "Confirmé" : r.statut === "conteste" ? "À corriger" : "En attente de vérification"}</span></div>
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Canal</dt><dd className="font-semibold">{LABEL[r.canal] ?? r.canal}{r.canal_autre ? " · " + r.canal_autre : ""}</dd></div><div><dt className="text-slate-500">Compte payeur</dt><dd className="font-semibold">{r.compte_payeur || "—"}</dd></div><div><dt className="text-slate-500">Référence</dt><dd className="font-semibold">{r.reference || "—"}</dd></div><div><dt className="text-slate-500">Date réelle déclarée</dt><dd className="font-semibold">{dt(r.paye_le)}</dd></div><div><dt className="text-slate-500">Date de validation</dt><dd className="font-semibold">{dt(r.confirme_le)}</dd></div>{r.periode_du && <div><dt className="text-slate-500">Période après validation</dt><dd className="font-semibold">{r.periode_du + " → " + r.periode_au}</dd></div>}</dl>
-        {proofLinks.get(r.id) && <a className="mt-3 inline-block text-sm font-bold text-[#0147BB] underline" href={proofLinks.get(r.id)} target="_blank" rel="noreferrer">Consulter ma preuve</a>}
+        {proofLinks.get(r.id) ? <a className="mt-3 inline-block text-sm font-bold text-[#0147BB] underline" href={proofLinks.get(r.id)} target="_blank" rel="noreferrer">Consulter ma preuve</a> : <p role="status" className="mt-3 text-xs text-amber-800">{proofErrors.has(r.id) ? "La preuve existe dans le dossier, mais son lien sécurisé est temporairement indisponible. Réessayez plus tard." : "Aucun lien temporaire vers la preuve n’a été généré."}</p>}
         {r.statut === "conteste" && r.motif_contestation && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900"><strong>Correction demandée :</strong> {r.motif_contestation}</p>}
         {r.statut === "confirme" && <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-slate-600">ID paiement : {r.identifiant_paiement ?? "—"} · Reçu : {r.numero_recu ?? "—"}</p><Link className="rounded-full bg-[#0F6B3F] px-4 py-2 text-sm font-bold text-white" href={"/promoteur/paiements/" + r.id + "/recu"}>Télécharger / imprimer le reçu</Link></div>}
       </article>)}
