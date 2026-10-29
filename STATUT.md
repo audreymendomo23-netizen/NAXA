@@ -772,16 +772,16 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 
 ### Audit 360° Administrateur — point 4 : outbox e-mail (29/10/2026)
 - Cause du défaut confirmée : le job pg_cron crée les notifications J−5 et marque le rappel comme traité; la route historique réclamait ensuite le même rappel et ne pouvait donc plus l'envoyer. Les événements de règlement n'avaient pas de délivrance externe.
-- Correctif source sur main : migration additive `supabase/migration_20261029_notification_email_outbox_delivery.sql`, file privée idempotente et trigger d'enqueue pour J−5 + soumission/confirmation/refus de règlement; route `/api/cron/validite` transformée en worker Resend avec verrouillage, reprise et clé d'idempotence fournisseur.
+- Correctif source sur main : migration additive `supabase/migration_20261029_notification_email_outbox_delivery.sql`, file privée idempotente et trigger d'enqueue pour J−5 + soumission/confirmation/refus de règlement; route `/api/cron/validite` transformée en worker Google Apps Script avec verrouillage, reprise et clé d'idempotence.
 - Test 262 structurel : **PASS sur naxa-ci-replay-2**, transaction annulée; RLS, trigger, unicité et ACL vérifiés. Aucun profil Promoteur/Admin dans le replay : pas de test comportemental ni d'envoi réel.
 - À faire avant validation opérationnelle : configurer/vérifier l'ordonnanceur externe et les secrets sans les exposer, puis test de délivrance avec adresse de recette. Aucun changement Production, aucune donnée métier, aucun déploiement ni workflow relancé. Point 4 reste ouvert.
 
-- Contrôle configuration complémentaire : variables Vercel Production `CRON_SECRET` présente; `RESEND_API_KEY` et `REPORT_FROM_EMAIL` absentes. Plan Vercel retourné : Hobby; aucun cron Vercel ni `vercel.json` observé. Supabase Production possède `pg_cron`, `pg_net`, Vault et le secret ciblé `naxa_posology_cron_secret` (non réutilisé). Secrets et ordonnanceur non modifiés. La délivrance réelle reste bloquée jusqu'à la validation du fournisseur et à l'autorisation de configurer un déclencheur.
+- Contrôle configuration complémentaire initial : l'absence des variables Resend a conduit à abandonner ce fournisseur. L'inventaire Vercel a ensuite confirmé `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET` déjà présents sur les environnements concernés; voir le réalignement Google ci-dessous. Aucun secret n'a été modifié.
 
 ### Audit 360° Administrateur — canal Google Mail (29/10/2026)
-- Resend abandonné. Worker Next.js raccordé à Google Apps Script via variables `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET`; secret Google distinct `NAXA_MAIL_SECRET`, protection route par `CRON_SECRET`.
-- Code Apps Script `Code.gs`, manifeste à scope mail minimal et guide de déploiement ajoutés dans `google-apps-script/naxa-mail-gateway/`. Verrou, anti-doublon 30 jours, contrôle du quota et fonction de test vers `NAXA_TEST_EMAIL` inclus.
-- Projet Google non créé/déployé; propriétés et variables Vercel non configurées; aucun envoi réel. Test de réception et ordonnanceur restent à réaliser. Point 4 ouvert. Aucun changement Production ni déploiement Vercel.
+- Resend abandonné au profit de la passerelle Apps Script déjà utilisée pour le courrier de bienvenue.
+- Le fichier canonique `scripts/google-welcome-email.gs` a été étendu pour accepter les notifications Promoteur tout en préservant le contrat `{sent, alreadySent}` du courrier de bienvenue. Le worker `/api/cron/validite` utilise ce contrat et les variables Vercel déjà existantes `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET`.
+- Le propriétaire doit mettre à jour le projet Apps Script existant et publier une nouvelle version Web App. Aucun envoi réel, aucune modification de secret et aucun déploiement Vercel; la délivrance reste non certifiée.
 ### Réalignement Google Mail — 29/10/2026
 - Réutilisation du canal Google déjà existant : `scripts/google-welcome-email.gs`, route de bienvenue et variables Vercel `GOOGLE_APPS_SCRIPT_URL` (Production) + `GOOGLE_APPS_SCRIPT_SECRET` (Production/Preview/Development) confirmées présentes en inventaire masqué.
 - Le worker est aligné sur le contrat `{sent, alreadySent}` existant; le script canonique gère désormais les notifications Promoteur sans casser le courrier de bienvenue. Les fichiers provisoires d'une seconde passerelle ont été supprimés.
