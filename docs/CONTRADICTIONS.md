@@ -143,3 +143,13 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Les migrations source accordent EXECUTE aux RPC Caisse pour `authenticated` mais ne retirent pas explicitement `service_role`; Production montre donc les quatre façades accessibles aux deux rôles (et refusées à `anon`). Les appels UI recensés passent par `supabaseServer()`, pas par `supabaseAdmin()`.
 - Migration additive `20261029160000_restrict_promoteur_caisse_rpc_service_role.sql` et test `157_promoteur_caisse_service_role_acl.sql` ajoutés sur `main`. Test 157 PASS sur `naxa-ci-replay-2` après migration de test. Production recontrôlée : non modifiée, grants service_role encore présents.
 - Sous-chantier ACL clos en source/test. Partie 4 reste ouverte jusqu'aux scénarios comportementaux 029/030/031 en environnement sûr; aucun contournement de trigger.
+
+
+## Audit 360° Administrateur — contradictions résolues au 29/10/2026
+
+- **Tests 247/251** : les assertions de normalisation des espaces étaient incohérentes et 251 vérifiait encore le contrat d'une ancienne RPC générique plutôt que le retrait crédit canonique. Les tests ont été corrigés et passent.
+- **Disponibilité Marketplace** : la fonction ne retranchait pas les holds logiques alors que la réservation ne débite pas le stock physique. Migration additive 258 et test comportemental 258 ajoutés sur `main`; test PASS sur le replay.
+- **Retrait crédit** : l'E2E réel a révélé les colonnes de demande/opération ambiguës dans PL/pgSQL, le CHECK de `paiement_mode` qui excluait `credit`, la vente non finalisée avant le passage de réservation à `payee` et le snapshot de reçu sans `montant_percu`/`monnaie_rendue`. Migration additive 259 corrige ces quatre points.
+- **Preuve E2E** : test 259 PASS sur replay non-Production pour deux réservations du même produit retirées dans l'ordre inverse; les lots propres à chaque réservation, les quantités de lots/stock agrégé, les ventes et opérations crédit sont cohérents; rollback confirmé.
+- **Résultats cumulés** : tests 247, 251, 252, 255, 256, 257, 258 et 259 PASS sur replay. Les migrations 258/259 n'ont pas été appliquées à Production. Aucun déploiement ni workflow CI relancé.
+- **Point 3** : clos côté source/test. **Point 4** : en cours sur notifications de validité/règlement J−5; test structurel PASS, délivrance runtime et recette UI non encore démontrées.
