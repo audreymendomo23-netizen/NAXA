@@ -388,3 +388,5 @@ Complément : l'inventaire Vercel Production confirme `CRON_SECRET`, mais pas le
 
 ### Canal e-mail NAXA — Google Apps Script
 Resend a été remplacé dans le worker par une passerelle Google Apps Script `MailApp`. Le code et le guide sont dans `google-apps-script/naxa-mail-gateway/`. Le projet Apps Script, ses propriétés secrètes, les variables Vercel et la preuve de réception restent à configurer; aucun envoi réel ni déploiement n'a été effectué. Voir §60.48 de l'audit Administrateur.
+### Passerelle Google e-mail
+NAXA réutilise le projet Apps Script déjà associé au courrier de bienvenue (`scripts/google-welcome-email.gs`). Le worker de notifications Promoteur est aligné sur son contrat existant. Après le commit, le propriétaire doit reporter le script dans le projet Google existant et publier une nouvelle version Web App; aucune valeur secrète n'a été modifiée et aucun e-mail test n'a été envoyé.
