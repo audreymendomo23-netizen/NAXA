@@ -5,6 +5,33 @@
 
 > **Document de référence vivant** — audit préliminaire en cours. Ce document sépare les preuves directes, les déclarations historiques, les déductions et les vérifications encore indisponibles. Aucun déploiement n'est autorisé dans ce chantier.
 
+## Guide de construction — prompt NAXA-MANDAT CTO
+
+Ce guide opérationnel consigne les consignes explicites du **NAXA-MANDAT CTO** pour construire et maintenir le présent cahier des charges Audit 360 Administrateur. Il ne réintroduit ni le cahier V3.7 ni le Prompt maître supprimés.
+
+### Prompt d'exécution
+
+> Agis comme CTO senior de NAXA. Le document de vérité fonctionnelle est le cahier des charges Audit 360 du parcours Administrateur, à construire et maintenir selon le NAXA-MANDAT CTO. Compare systématiquement les résultats attendus, le code réel sur GitHub `main`, les schémas/fonctions/RLS de Supabase, les parcours UI/API et les preuves de tests. Raisonner par contradiction et corriger la cause réelle, sans recréer ce qui existe déjà ni ouvrir de chantier parallèle.
+>
+> Travaille exclusivement dans le dépôt `audreymendomo23-netizen/NAXA`, sur `main` uniquement. Ne crée aucune branche et ne lance aucun déploiement sans autorisation explicite. N'effectue aucune écriture sur Supabase Production sans autorisation et périmètre explicites. N'utilise jamais Production pour simuler un test ou contourner un garde-fou.
+>
+> Pour chaque contrôle, distingue le code inspecté, le test effectivement exécuté, son environnement, le résultat observé et les réserves. Ne déclare jamais un test réussi sans preuve. Un point ne passe au vert que lorsque les critères correspondants sont démontrés; une absence de données de recette ne doit pas interrompre les vérifications indépendantes et l'avancement du chantier. Réutilise les preuves existantes, documente chaque action utile dans le présent cahier et dans `STATUT.md`, puis poursuis l'étape suivante sans répétition improductive.
+>
+> Le chantier Promoteur reste ouvert tant que les parties 3 à 6 ne sont pas validées. Les tests 029–031 demeurent une réserve technique tant qu'aucune preuve d'exécution fiable n'est disponible.
+
+### Statut d'application du guide
+
+Le texte ci-dessus est la transcription opérationnelle des règles explicites disponibles dans l'historique de travail. Le fichier source intégral intitulé « NAXA-MANDAT CTO » n'a pas été retrouvé dans le dépôt au moment de cette mise à jour; le présent passage ne prétend donc pas être une copie verbatim d'un fichier absent.
+
+---
+
+## Reprise des validations Promoteur — 29/10/2026
+
+- **028 comportemental : VERT / PASS** — `supabase/tests/028_promoteur_responsable_accreditation_behavior.sql` exécuté dans le projet isolé Supabase `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`), résultat retourné : `028_promoteur_responsable_accreditation_behavior PASS`. Le test est transactionnel et se termine par `ROLLBACK`. Aucune écriture Production.
+- **Exposition API du schéma `private` : JAUNE / non concluant** — les contrôles SQL en lecture seule sur le projet NAXA Production montrent que `anon` n'a pas `USAGE` sur `private`, mais `authenticated` l'a. Plusieurs fonctions du schéma privé accordent aussi EXECUTE à `authenticated` (notamment `naxa_has_privilege` et `naxa_scope_allows`). La configuration effective « Exposed schemas » de PostgREST n'est pas accessible par les outils de gestion utilisés; les paramètres `pgrst.db_schemas` renvoient `NULL` via SQL et ne constituent pas une preuve de configuration. Donc **ne pas déclarer ce point vert**; aucun changement de Production n'a été effectué.
+- **Tests 029–031 : réserve technique** — non exécutés dans cette passe; ils ne sont pas déclarés réussis sans preuve. Leurs scripts modifient `session_replication_role`; ils devront être exécutés seulement dans un environnement isolé dont le statut est confirmé.
+- **Progression** — l'absence de données de recette ne bloque pas les contrôles indépendants ni la revue du code. La partie 3 n'est pas globalement close tant que l'exposition API n'est pas vérifiée et les réserves pertinentes traitées. Continuer la revue des parties 5 puis 6 sans présenter les parties 3–6 comme intégralement validées.
+
 ## 1. Résumé exécutif
 
 - **Dépôt confirmé :** `audreymendomo23-netizen/NAXA` (privé).

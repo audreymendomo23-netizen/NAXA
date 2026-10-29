@@ -2,7 +2,7 @@
 
 > Autorités uniques du chantier : **MANDAT CTO NAXA** et **cahier des charges Audit 360 du parcours Administrateur** ([document d'audit](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier V3.7 et le Prompt maître ont été supprimés. Toute mention historique éventuelle ci-dessous n'a aucune autorité de décision.
 >
-> Périmètre actif : Audit 360 Administrateur uniquement. Aucun déploiement sans autorisation explicite.
+> Périmètre directeur : cahier des charges Audit 360 Administrateur guidé par le NAXA-MANDAT CTO. Les validations techniques Promoteur parties 3 à 6 restent ouvertes; aucun déploiement sans autorisation explicite.
 
 - Contrôle Supabase Production en lecture seule (29/10) : `reactiver_promoteur(uuid,text)` reste dans le catalogue mais EXECUTE est refusé à `anon`, `authenticated` et `service_role`; soumission et confirmation de règlement restent service-role-only derrière les gardes des Server Actions. `accrediter_profile` est exposée via une façade publique invoker et un helper privé SECURITY DEFINER avec `search_path=''`; l'exposition API effective du schéma `private` doit encore être vérifiée. Test comportemental 028 non lancé car il manipule `session_replication_role`; partie 3 reste non certifiée.
 ## Audit Promoteur — approfondissement des RPC (29/10/2026)

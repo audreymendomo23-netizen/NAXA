@@ -326,3 +326,10 @@ Dans `src/app/pharmacie/caisses/page.tsx`, la page affichait l'état vide si la 
 - Vérification source seulement : aucun build Next.js, test navigateur ou recette de rôle n'a été exécuté.
 - Les tests 029–031 ne sont pas relancés : leurs fixtures modifient `session_replication_role`, contraire aux garde-fous du chantier. Ce point est consigné comme réserve, sans bloquer la poursuite de l'audit.
 - Production inchangée; aucune migration, aucun déploiement. Prochaine étape métier : poursuivre l'audit des états/actions du parcours Promoteur partie 4, puis enchaîner les parties 5–6 sans réouvrir les sous-chantiers ACL déjà documentés.
+
+
+## Reprise du test comportemental 028 — 29/10/2026
+
+- **PASS confirmé en environnement isolé** : `supabase/tests/028_promoteur_responsable_accreditation_behavior.sql` a été exécuté sur le projet `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`). Résultat effectif : `028_promoteur_responsable_accreditation_behavior PASS`. Le script utilise une transaction et finit par `ROLLBACK`.
+- **Exposition API de `private` toujours non vérifiée** : sur NAXA Production, `anon` n'a pas `USAGE` du schéma, mais `authenticated` l'a; plusieurs helpers privés sont exécutables par `authenticated`. Les outils disponibles n'exposent pas la valeur effective de la configuration PostgREST « Exposed schemas ». Ce point reste JAUNE, aucun changement de Production.
+- **Tests 029–031** : réserve technique non exécutée et non certifiée. Aucun statut vert sans preuve. L'absence de données de recette ne bloque pas la poursuite de la revue des parties 5 et 6.
