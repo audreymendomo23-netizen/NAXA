@@ -1,3 +1,4 @@
+- Contrôle Supabase Production en lecture seule (29/10) : `reactiver_promoteur(uuid,text)` reste dans le catalogue mais EXECUTE est refusé à `anon`, `authenticated` et `service_role`; soumission et confirmation de règlement restent service-role-only derrière les gardes des Server Actions. `accrediter_profile` est exposée via une façade publique invoker et un helper privé SECURITY DEFINER avec `search_path=''`; l'exposition API effective du schéma `private` doit encore être vérifiée. Test comportemental 028 non lancé car il manipule `session_replication_role`; partie 3 reste non certifiée.
 ## Audit Promoteur — approfondissement des RPC (29/10/2026)
 
 - Lecture SQL de `admin_confirmer_reglement_promoteur` : garde Admin actif, verrouillage des lignes, règlement en attente seulement, champs de preuve obligatoires, tarif comparé à la convention, refus si résiliation, idempotence de confirmation, notification/journal; ne réactive pas les profils/pharmacies.

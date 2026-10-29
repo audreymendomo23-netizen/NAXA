@@ -293,3 +293,16 @@ Vérifier la nécessité des grants `service_role` sur les façades de la gestio
 - Partie 3 du Pilotage Promoteur : **non certifiée** tant que les preuves comportementales de la migration 028 et l'intégration du parcours ne sont pas revalidées.
 - Parties 4–6 : **ouvertes**; aucune clôture globale déclarée.
 - Suite immédiate : rechercher les références restantes à `reactiver_promoteur` dans le dépôt et contrôler ses ACL effectives, puis reprendre la validation ciblée de la partie 3. Aucun déploiement ni écriture Supabase dans cette passe.
+
+
+## Contrôle SQL Production en lecture seule — ACL et accréditation (29/10/2026)
+
+- Le contrôle direct des ACL confirme que l'ancienne RPC `public.reactiver_promoteur(uuid,text)` existe encore dans le catalogue, mais n'est exécutable par aucun des rôles `anon`, `authenticated` ou `service_role`. Son ancien corps réactive plusieurs profils/pharmacies; l'absence de droit EXECUTE bloque ce chemin dans l'état observé. Ne pas rétablir ses droits.
+- `public.promoteur_soumettre_reglement(...)` et `public.admin_confirmer_reglement_promoteur(uuid,uuid)` sont exécutables uniquement par `service_role` parmi les trois rôles vérifiés. Les actions serveur examinées vérifient respectivement l'identité/rôle Promoteur et l'identité Admin active avant d'utiliser le client privilégié.
+- `public.accrediter_profile(uuid,uuid,smallint,uuid)` est une façade SQL invoker avec EXECUTE pour `authenticated` et `service_role`, sans droit `anon`. Le helper `private.accrediter_profile(...)` est SECURITY DEFINER, `search_path=''`, avec EXECUTE `authenticated`; le schéma `private` est utilisable par `authenticated`, mais pas par `anon` ni `service_role`. Le corps impose acteur actif, fonction, validité commerciale, périmètre, privilège, architecture, parent et quota. Le fait que le schéma s'appelle `private` ne suffit pas à conclure que PostgREST l'expose : vérifier la configuration effective d'exposition API avant de qualifier le chemin direct.
+- `public.naxa_promoteur_valide(uuid)` refuse l'absence d'`auth.uid()` et les identités tierces sauf Admin; `naxa_scope_allows` et `naxa_has_privilege` imposent les gardes de périmètre et de validité. Les fonctions vérifiées utilisent `search_path=''`.
+
+### Limites et suite
+- Ces requêtes étaient en lecture seule. Aucune donnée, migration ou permission n'a été modifiée dans Supabase Production.
+- Le test comportemental 028 du dépôt crée des fixtures et bascule `session_replication_role`; il n'a pas été lancé dans cette passe. La revue statique confirme les assertions attendues (réseau autorisé, hors périmètre refusé, expiration bloque l'accréditation, architecture incompatible refuse le Responsable), mais ne remplace pas le PASS comportemental.
+- Partie 3 reste **non certifiée**. Prochaine action : vérifier la configuration d'exposition API du schéma `private`, puis sélectionner un runner de test isolé pour la migration 028 sans toucher à Production; ensuite poursuivre les parties 4–6.
