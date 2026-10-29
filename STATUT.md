@@ -787,3 +787,13 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Le worker est aligné sur le contrat `{sent, alreadySent}` existant; le script canonique gère désormais les notifications Promoteur sans casser le courrier de bienvenue. Les fichiers provisoires d'une seconde passerelle ont été supprimés.
 - Étape manuelle : mettre à jour le projet Apps Script existant depuis `scripts/google-welcome-email.gs` et publier une nouvelle version Web App. Pas de déploiement Vercel, pas de secret modifié, aucun e-mail test envoyé. Délivrance réelle non certifiée.
 - Ordonnancement Google préparé dans le script existant : `processNaxaNotificationQueue` + déclencheur toutes les 5 minutes (`installNaxaNotificationTrigger` / arrêt avec `removeNaxaNotificationTrigger`). À activer manuellement dans Apps Script avec `NAXA_WORKER_URL` et `NAXA_CRON_SECRET`, après autorisation des scopes. Le worker Google côté Next.js est sur main mais non déployé; aucune activation/envoi réel.
+
+## Rapports BI à la demande + J'IA — 30/10/2026
+
+- Première livraison sur `main` : composant partagé `RapportsALaDemande`, API serveur `POST /api/rapports`, écrans rapports Admin et Pharmacie/Promoteur/Responsable/Caisse.
+- Génération à la demande : données relues à chaque appel ; fenêtres quotidiennes, hebdomadaires, mensuelles, trimestrielles, semestrielles et annuelles (1/7/30/90/180/365 jours glissants) ; export direct PDF et CSV.
+- Contrôle d'accès : session Supabase active ; calcul confié aux RPC `stats_pilotage_scope` et `stats_caisse_scope`, qui gardent leurs contrôles de rôle et privilège. Historique filtré par périmètre en lecture.
+- IA : adaptateur serveur Vercel AI Gateway, optionnel et sans blocage des exports si `AI_GATEWAY_API_KEY` absente. Aucun secret configuré.
+- Réserves explicites : pas encore de comparaison N/N-1 (RPC actuelle limitée à `p_jours`), périodes glissantes et non calendaires, PDF texte multipage (pas encore la maquette BI graphique), historique Promoteur non persisté, automatisation six périodes et transport Google non alignés.
+- Tests de build, tests comportementaux des scopes et recette navigateur non exécutés via les outils disponibles. Aucun SQL/migration appliqué, aucune donnée Production modifiée, aucun secret Vercel modifié, aucun déploiement.
+- Référence : [docs/architecture/RAPPORTS_BI_IA_NAXA.md](docs/architecture/RAPPORTS_BI_IA_NAXA.md).
