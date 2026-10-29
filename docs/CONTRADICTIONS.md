@@ -100,3 +100,10 @@ La définition active de `private.naxa_promoteur_valide(uuid)` en Production est
 - Le helper `private.naxa_promoteur_valide(uuid)` actif en Production reste plus permissif que le contrat de la migration 147. Les migrations 149, 151, 152 et 153 consultées ne le redéfinissent pas directement; l'origine exacte de la dérive demeure inconnue.
 - Une migration additive de réconciliation et un test ciblé sont désormais présents sur `main` : `supabase/migration_20261029_promoteur_validity_helper_reconciliation.sql` et `supabase/tests/promoteur_validity_helper_reconciliation.sql`. Ils ne sont **pas appliqués ni exécutés**.
 - Le test ne sera pas lancé sur Production. La partie 3 reste non close jusqu'à validation sur un environnement non-Production accessible et exécution des cas comportementaux 028/147.
+
+
+## Audit 360° Promoteur — divergence du replay isolé (29/10/2026)
+- Le projet de test `naxa-ci-replay-2` n'est pas un miroir fidèle de la façade Production : `public.naxa_promoteur_valide(uuid)` y délègue directement au helper privé sans la garde `auth.uid()`/Admin attendue par le test 147.3 et le test PVH.4.
+- Le helper privé réconcilié passe un contrôle ciblé des trois gardes métier (architecture, réseau actif, cohérence pharmacie/architecture) et des ACL (aucun EXECUTE pour `anon`, `authenticated`, `service_role`). Le test comportemental 028 passe également sur le replay.
+- Les tests complets 147/PVH restent bloqués par la façade de replay, non par les assertions du helper. La tentative d'application de la migration 040 sur ce projet a été refusée par le contrôle de sécurité de l'outil; ne pas boucler sur la même opération. La prochaine action doit réaligner le replay avec les migrations canoniques disponibles, puis rejouer les tests.
+- Production n'a pas été modifiée : la migration corrective du helper est toujours préparée dans le dépôt, non appliquée. La partie 3 reste partielle jusqu'aux tests complets et cas limites.
