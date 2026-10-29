@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
+import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";\nimport RapportsALaDemande from "@/components/RapportsALaDemande";
 
 export const dynamic = "force-dynamic";
 
