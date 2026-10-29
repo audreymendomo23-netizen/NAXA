@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ error: "URL Google Apps Script invalide." }, { status: 503 });
   }
-  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "script.google.com") {
+  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "script.google.com" || !/^\/macros\/s\/[^/]+\/exec$/.test(parsedUrl.pathname)) {
     return NextResponse.json({ error: "L'URL doit être une URL HTTPS Google Apps Script officielle." }, { status: 503 });
   }
 
