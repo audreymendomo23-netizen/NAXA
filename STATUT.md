@@ -782,3 +782,7 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Resend abandonné. Worker Next.js raccordé à Google Apps Script via variables `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET`; secret Google distinct `NAXA_MAIL_SECRET`, protection route par `CRON_SECRET`.
 - Code Apps Script `Code.gs`, manifeste à scope mail minimal et guide de déploiement ajoutés dans `google-apps-script/naxa-mail-gateway/`. Verrou, anti-doublon 30 jours, contrôle du quota et fonction de test vers `NAXA_TEST_EMAIL` inclus.
 - Projet Google non créé/déployé; propriétés et variables Vercel non configurées; aucun envoi réel. Test de réception et ordonnanceur restent à réaliser. Point 4 ouvert. Aucun changement Production ni déploiement Vercel.
+### Réalignement Google Mail — 29/10/2026
+- Réutilisation du canal Google déjà existant : `scripts/google-welcome-email.gs`, route de bienvenue et variables Vercel `GOOGLE_APPS_SCRIPT_URL` (Production) + `GOOGLE_APPS_SCRIPT_SECRET` (Production/Preview/Development) confirmées présentes en inventaire masqué.
+- Le worker est aligné sur le contrat `{sent, alreadySent}` existant; le script canonique gère désormais les notifications Promoteur sans casser le courrier de bienvenue. Les fichiers provisoires d'une seconde passerelle ont été supprimés.
+- Étape manuelle : mettre à jour le projet Apps Script existant depuis `scripts/google-welcome-email.gs` et publier une nouvelle version Web App. Pas de déploiement Vercel, pas de secret modifié, aucun e-mail test envoyé. Délivrance réelle non certifiée.
