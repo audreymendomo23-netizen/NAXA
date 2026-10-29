@@ -202,3 +202,15 @@ Sur cet environnement de test uniquement, les migrations sources `supabase/migra
 
 ### Prochaine action unique
 Rétablir un replay non-Production cohérent pour la façade publique à partir des migrations canoniques déjà présentes, puis relancer sans modification les tests 147 et PVH complets. Une fois ces tests verts, exécuter le scénario comportemental élargi des cas valides, architecture absente, réseau absent et pharmacie/architecture incohérente. Ne pas reprendre les routes de règlement ni les ACL déjà clôturées.
+
+
+## Réconciliation de la façade en environnement de test — 29/10/2026 (mise à jour)
+
+- Environnement strictement non-Production : projet Supabase `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`). Migration de diagnostic `test_reconcile_promoteur_public_facade_20261029` appliquée pour restaurer la façade publique avec garde `auth.uid()` + Admin, selon le contrat de la migration 040. Elle n'est pas enregistrée comme migration canonique de Production et n'a pas été appliquée à Production.
+- Suite SQL statique 147 : **PASS** après réalignement de la façade. Contrat testé : helper privé distinct, façade limitée à soi-même ou Admin, provisionnement utilisant le helper interne, aucun EXECUTE direct sur le helper pour `anon`/`authenticated`.
+- Test de réconciliation PVH : **PASS**. Les gardes d'architecture, réseau Promoteur actif et cohérence pharmacie/architecture sont présentes; helper non exécutable par `anon`, `authenticated` et `service_role`.
+- ACL vérifiées après correction : façade publique non exécutable par `anon`, exécutable par `authenticated` et `service_role`; helper privé non exécutable par ces trois rôles. L'autorisation de la façade ne remplace pas ses gardes internes.
+- Le test comportemental `028_promoteur_responsable_accreditation_behavior.sql` reste PASS et son rollback a été confirmé sans profils Promoteur persistants.
+- Limite : les cas comportementaux d'architecture absente, réseau inactif et incohérence pharmacie/architecture ne sont pas certifiés séparément. Une tentative de mise en place d'une incohérence a été bloquée par le trigger de provisionnement; aucune désactivation de trigger ni contournement n'a été effectué. Les tests 147/PVH sont des assertions statiques, pas une recette complète du parcours.
+- Production : définition publique déjà protégée par garde identité/Admin; helper privé toujours divergent par rapport au contrat canonique de 147. La migration de réconciliation du helper demeure **non appliquée** en Production. Aucun déploiement ni workflow relancé.
+- Décision : la contradiction de façade sur l'environnement de test est levée; la partie 3 reste **partielle** tant que les scénarios comportementaux restants et la comparaison helper Production ne sont pas validés. Ne pas ouvrir la partie 4 avant cette clôture.
