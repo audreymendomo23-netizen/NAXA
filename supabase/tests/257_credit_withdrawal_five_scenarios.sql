@@ -21,7 +21,7 @@ begin
   select pg_get_functiondef('private.set_reservation_status(uuid,public.resa_statut)'::regprocedure) into c;
   select pg_get_functiondef('public.expirer_reservations_cron(integer)'::regprocedure) into e;
   select pg_get_functiondef('public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure) into o;
-  compact:=lower(regexp_replace(w,'\s+','','g'));
+  compact:=lower(regexp_replace(w,'[[:space:]]+','','g'));
 
   -- 1: allocation propre à chaque réservation et verrouillage lot+allocation.
   if position('a.reservation_id=r.id' in compact)=0 or position('a.produit_id=v_item.produit_id' in compact)=0
@@ -47,15 +47,15 @@ begin
   end if;
   -- 5: restauration idempotente, jamais après consommation; annulation/expiration branchées.
   if position('stock_decremented' in lower(rs))=0 or position('stock_restored' in lower(rs))=0
-     or position('consumed_atisnull' in lower(regexp_replace(rs,'\s+','','g')))=0
+     or position('consumed_atisnull' in lower(regexp_replace(rs,'[[:space:]]+','','g')))=0
      or position('restore_stock' in lower(e))=0 or position('expiree' in lower(e))=0
      or position('set_reservation_status' in lower(c))=0
      or position('reservation_items' in lower(o))=0
-     or position('coalesce(r.stock_decremented,false)=false' in lower(regexp_replace(o,'\s+','','g')))=0
-     or position('coalesce(r.stock_restored,false)=false' in lower(regexp_replace(o,'\s+','','g')))=0
-     or position('r.expires_at>now()' in lower(regexp_replace(o,'\s+','','g')))=0
-     or position('r.consumed_atisnull' in lower(regexp_replace(o,'\s+','','g')))=0
-     or position('greatest(coalesce(v_disponible,0)-coalesce(v_reserve,0),0)' in lower(regexp_replace(o,'\s+','','g')))=0 then
+     or position('coalesce(r.stock_decremented,false)=false' in lower(regexp_replace(o,'[[:space:]]+','','g')))=0
+     or position('coalesce(r.stock_restored,false)=false' in lower(regexp_replace(o,'[[:space:]]+','','g')))=0
+     or position('r.expires_at>now()' in lower(regexp_replace(o,'[[:space:]]+','','g')))=0
+     or position('r.consumed_atisnull' in lower(regexp_replace(o,'[[:space:]]+','','g')))=0
+     or position('greatest(coalesce(v_disponible,0)-coalesce(v_reserve,0),0)' in lower(regexp_replace(o,'[[:space:]]+','','g')))=0 then
     raise exception 'Scénario 5 : libération/expiration ou protection double-restauration incomplète';
   end if;
 end;
