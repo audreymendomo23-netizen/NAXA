@@ -147,3 +147,14 @@ Le contrôle confirme aussi les ACL déjà documentées pour les deux fonctions 
 
 ### 9.3 Étape de reprise unique
 La tranche des routes de règlement est terminée. Continuer sur la **partie 3 du Pilotage Promoteur** en comparant les fonctions `private.accrediter_profile`, `private.naxa_has_privilege`, `private.naxa_can`, `private.naxa_promoteur_valide` et les migrations de réconciliation 137/142/146/147/153, puis déterminer un environnement de test non-Production disponible pour exécuter le test comportemental. Ne pas recommencer la vérification des routes de paiement ni déclarer la partie 3 verte avant preuve comportementale.
+
+
+## 10. Contradiction concrète découverte — validité commerciale active (29/10/2026)
+
+La définition actuelle de Production de `private.naxa_promoteur_valide(uuid)`, lue directement dans `pg_get_functiondef`, vérifie le profil Promoteur actif, la convention active/non expirée et l'abonnement actif/non expiré. Elle **ne contient pas** les gardes présentes dans `supabase/migration_147_promoteur_validity_internal_facade_split.sql` et attendues par `supabase/tests/147_promoteur_validity_internal_facade_split.sql` : architecture de convention non nulle, au moins une pharmacie réseau active, et cohérence de chaque pharmacie active avec une pharmacie active et une architecture active de même code.
+
+L'historique Supabase contient bien la migration `promoteur_validity_internal_facade_split_147` (version `20261019122137`), mais le corps actif ne correspond pas au corps de ce fichier. C'est un **écart code Git / fonction Production prouvé**, pas seulement une hypothèse. Les causes possibles (migration ultérieure, dérive manuelle ou autre fichier qui redéfinit le helper) restent à établir avant de corriger.
+
+Contrôle d'impact en lecture seule : 1 Promoteur en base; il satisfait à la fois l'ancienne et la règle stricte actuellement écrite dans le dépôt. Aucun impact utilisateur actuel n'a été détecté par ce comptage, mais le contrôle est un instantané, pas un test fonctionnel.
+
+**Décision de cette passe :** ne pas écraser le helper par une migration corrective tant que la source du remplacement divergent n'a pas été localisée. Étape ciblée suivante : comparer toutes les définitions/migrations postérieures du helper et les règles canoniques de validité. Le test 147 doit ensuite être exécuté dans un environnement non-Production; sa présence dans le dépôt n'est pas une preuve de PASS en Production.
