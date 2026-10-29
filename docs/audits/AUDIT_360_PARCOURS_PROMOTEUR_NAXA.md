@@ -102,3 +102,27 @@ La fonction `reactiver_promoteur(uuid,text)` vérifie `public.is_admin()` et la 
 
 ### 7.5 Limites
 Les définitions SQL ont été lues, mais les routes API et composants qui appellent ces fonctions n'ont pas encore été identifiés et inspectés. Les contrôles statiques ne remplacent pas les tests de rôle ni une exécution bout en bout. La priorité suivante est de rechercher les appelants de `reactiver_promoteur` et de `promoteur_soumettre_reglement`, puis d'inspecter les écrans Promoteur/Admin correspondants.
+
+
+## 8. Clôture d'un point — droits effectifs de `reactiver_promoteur` (29/10/2026)
+
+**Contrôle direct exécuté sur Supabase Production, en lecture seule :** `has_function_privilege` et ACL effectives de la signature `public.reactiver_promoteur(uuid,text)`.
+
+| Rôle | EXECUTE effectif |
+|---|---|
+| `anon` | Non |
+| `authenticated` | Non |
+| `service_role` | Non |
+| `postgres` (propriétaire) | Oui |
+
+La fonction reste `SECURITY DEFINER` avec `search_path=''` et contient un contrôle `public.is_admin()`. Mais **aucun des rôles de l'application Supabase, y compris `service_role`, ne peut l'exécuter avec les droits actuels**. Le risque précis d'une invocation via la route applicative Supabase standard est donc clos pour l'état ACL observé. La fonction n'a pas été supprimée ni modifiée; aucune donnée métier n'a été écrite. Ne pas rouvrir ce point à moins qu'une modification future de ses grants ou de son propriétaire soit constatée.
+
+Le contrôle confirme aussi les ACL déjà documentées pour les deux fonctions de règlement : `promoteur_soumettre_reglement(...)` et `admin_confirmer_reglement_promoteur(uuid,uuid)` sont exécutables par `service_role` uniquement, pas par `anon` ni `authenticated`. Leur **autorisation de route** demeure donc le prochain contrôle métier prioritaire : l'identité authentifiée doit être liée au Promoteur demandé, et l'identité Admin active ne doit pas provenir d'un UUID librement fourni par le client.
+
+### Point de reprise unique — ne pas recommencer l'audit général
+
+1. Rechercher dans le code réel l'appel serveur à `promoteur_soumettre_reglement` et vérifier l'égalité entre l'utilisateur authentifié et `p_promoteur`; vérifier également le chemin d'appel de `admin_confirmer_reglement_promoteur` et la source de `p_admin`.
+2. Fermer cette tranche avec une preuve de code ou corriger le contrôle manquant, puis tests ciblés. Ne pas reprendre le contrôle ACL de `reactiver_promoteur` sans changement de grants.
+3. Ensuite seulement, reprendre la validation comportementale de la partie 3 du Pilotage Promoteur et avancer vers la partie 4 selon le mandat.
+
+**Limite de cette passe :** la recherche de code GitHub n'a renvoyé aucun résultat exploitable pour les noms des fonctions; les appelants applicatifs ne sont donc pas déclarés vérifiés. Aucun déploiement, aucune relance CI et aucune écriture Supabase n'ont été effectués.
