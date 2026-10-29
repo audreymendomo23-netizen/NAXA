@@ -69,3 +69,72 @@ function pruneNotificationKeys_(props) {
     if (!sentAt || sentAt < cutoff) props.deleteProperty(key);
   });
 }
+
+
+/**
+ * Worker planifié : appelle le endpoint NAXA protégé par CRON_SECRET.
+ * Propriétés requises : NAXA_WORKER_URL et NAXA_CRON_SECRET.
+ * Le déclencheur tourne sous le compte Google propriétaire du script.
+ */
+function processNaxaNotificationQueue() {
+  const props = PropertiesService.getScriptProperties();
+  const workerUrl = String(props.getProperty("NAXA_WORKER_URL") || "").trim();
+  const cronSecret = String(props.getProperty("NAXA_CRON_SECRET") || "");
+  if (!workerUrl || !cronSecret) {
+    throw new Error("Configurer NAXA_WORKER_URL et NAXA_CRON_SECRET dans les propriétés du script.");
+  }
+  if (!/^https:\/\//i.test(workerUrl) || !/\/api\/cron\/validite$/.test(workerUrl)) {
+    throw new Error("NAXA_WORKER_URL doit cibler l'endpoint HTTPS /api/cron/validite.");
+  }
+
+  const response = UrlFetchApp.fetch(workerUrl, {
+    method: "get",
+    headers: { Authorization: "Bearer " + cronSecret },
+    muteHttpExceptions: true,
+    followRedirects: false
+  });
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  if (status < 200 || status >= 300) {
+    throw new Error("Worker NAXA HTTP " + status + " : " + body.slice(0, 300));
+  }
+  let result;
+  try {
+    result = JSON.parse(body);
+  } catch (_) {
+    throw new Error("Réponse JSON invalide du worker NAXA.");
+  }
+  console.log("NAXA notification worker: " + JSON.stringify({
+    claimed: result.claimed,
+    sent: result.sent,
+    retried: result.retried,
+    dead: result.dead
+  }));
+  return result;
+}
+
+/**
+ * À exécuter une seule fois manuellement après configuration des propriétés.
+ * Remplace tout ancien déclencheur de ce handler pour éviter les doublons.
+ */
+function installNaxaNotificationTrigger() {
+  const handler = "processNaxaNotificationQueue";
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === handler) ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger(handler).timeBased().everyMinutes(5).create();
+  return "Déclencheur NAXA installé : toutes les 5 minutes.";
+}
+
+/** Arrêt d'urgence du déclencheur de notifications. */
+function removeNaxaNotificationTrigger() {
+  const handler = "processNaxaNotificationQueue";
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === handler) {
+      ScriptApp.deleteTrigger(trigger);
+      removed++;
+    }
+  });
+  return "Déclencheurs NAXA supprimés : " + removed;
+}
