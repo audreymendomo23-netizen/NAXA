@@ -709,3 +709,14 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Correctif additif ajouté sur `main` : `supabase/migrations/20261029160000_restrict_promoteur_caisse_rpc_service_role.sql`; test ACL `supabase/tests/157_promoteur_caisse_service_role_acl.sql`.
 - Sur replay non-Production uniquement, migration de test appliquée et test 157 **PASS**. Production vérifiée après coup : grants service_role toujours présents, aucune migration Production appliquée.
 - Sous-chantier ACL clos; partie 4 globale reste non certifiée car les tests comportementaux 029/030/031 restent à exécuter sans contournement de triggers. Aucun déploiement ni workflow relancé.
+
+
+## Audit 360° Administrateur — clôture point 3 et reprise point 4 (29/10/2026)
+
+**Point 3 : CLOS côté code et validation isolée.** Le contrat de retrait crédit Marketplace est maintenant vérifié par les tests 247, 251, 252, 255, 256, 257, 258 et par l'E2E réel 259 exécutés sur le replay non-Production `naxa-ci-replay-2`. L'E2E a retiré deux réservations dans l'ordre inverse de leurs allocations, vérifié le ciblage des lots, le stock agrégé, les ventes et les opérations de crédit; la transaction a été annulée. Les défauts d'assertions, la déduction des holds de la disponibilité Marketplace, les références PL/pgSQL ambiguës, le statut de vente et le reçu POS ont été corrigés par des fichiers additifs sur `main`.
+
+**Point 4 : OUVERT / démarré.** Le test structurel `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql` passe sur le replay après application de la migration de test. Restent la preuve de délivrance runtime, les états d'erreur UI et la non-régression applicative.
+
+**Séparation impérative des environnements :** aucune migration 258/259 appliquée à Supabase Production, aucune donnée métier Production modifiée, aucun déploiement déclenché, aucun workflow CI relancé. Les migrations de test ont été appliquées uniquement au projet `naxa-ci-replay-2`; les fixtures des tests transactionnels ont été annulées. Une livraison Production nécessite toujours l'autorisation explicite « OUI, DÉPLOIE ».
+
+Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md), § 60.44.
