@@ -72,7 +72,7 @@ export async function GET(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           secret: googleSecret,
-          idempotencyKey: item.outbox_id,
+          idempotencyKey: `naxa-notification-${item.outbox_id}`,
           to: item.email,
           subject: `NAXA — ${item.title}`,
           text: item.body,
@@ -83,11 +83,11 @@ export async function GET(req: Request) {
       });
 
       const payload = await response.json().catch(() => null);
-      if (!response.ok || payload?.ok !== true || payload?.idempotent !== true) {
+      if (!response.ok || payload?.sent !== true || typeof payload?.alreadySent !== "boolean") {
         throw new Error(`Google Apps Script HTTP ${response.status}: réponse invalide ou envoi non confirmé.`);
       }
       success = true;
-      providerMessageId = typeof payload.messageId === "string" ? payload.messageId : item.outbox_id;
+      providerMessageId = item.outbox_id;
     } catch (error) {
       failure = error instanceof Error ? error.message : "Erreur inconnue de délivrance Google.";
     }
