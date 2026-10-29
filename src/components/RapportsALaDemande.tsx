@@ -22,7 +22,7 @@ const periods: { value: Period; label: string }[] = [
   { value: "annuel", label: "Annuel" },
 ];
 
-export default function RapportsALaDemande() {
+type Variant = "default" | "admin" | "stock" | "pharmacien" | "comptable";\n\nexport default function RapportsALaDemande({ variant = "default" }: { variant?: Variant }) {
   const [periode, setPeriode] = useState<Period>("hebdomadaire");
   const [rapport, setRapport] = useState<Report | null>(null);
   const [busy, setBusy] = useState(false);
