@@ -122,7 +122,7 @@ export async function GET() {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
-  const { data: profile } = await sb.from("profiles").select("role,fonction_interne,actif").eq("id", auth.user.id).single();
+  const { data: profile } = await sb.from("profiles").select("role,fonction_interne,pharmacie_id,actif").eq("id", auth.user.id).single();
   if (!profile?.actif || !["admin", "promoteur", "pharmacie", "caisse"].includes(profile.role)) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
@@ -132,8 +132,8 @@ export async function GET() {
   if (error) return NextResponse.json({ error: "Historique des rapports indisponible." }, { status: 500 });
   const scoped = (data ?? []).filter((report: any) => {
     if (profile.role === "admin") return report.portee === "admin";
-    if (profile.role === "promoteur") return false; // Aucun historique promoteur consolidé n'est encore persisté.
-    return report.pharmacie_id === (auth.user?.user_metadata?.pharmacie_id ?? report.pharmacie_id);
+    if (profile.role === "promoteur") return false;
+    return Boolean(profile.pharmacie_id) && report.pharmacie_id === profile.pharmacie_id;
   });
   return NextResponse.json({ rapports: scoped.map((r: any) => ({ ...r, pharmacie_nom: r.pharmacies?.nom ?? null })) });
 }
