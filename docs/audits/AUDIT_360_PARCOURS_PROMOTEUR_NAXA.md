@@ -247,3 +247,20 @@ Limites de cette passe :
 - La question `target.actif` dans `naxa_can_manage_team_member` est résolue au niveau de la revue statique : l'absence du filtre est cohérente avec la gestion des transitions de statut, car la réactivation passe ensuite par `naxa_can('REACTIVATE_CAISSE',...)`, la vérification d'architecture et le quota; la suspension exige `SUSPEND_CAISSE`. Aucun défaut confirmé et aucune modification de code.
 - Reste à exécuter les tests comportementaux 029/030/031 dans un environnement adapté; ils manipulent `session_replication_role` et n'ont pas été lancés. Ne pas contourner ce garde-fou.
 - Partie 4 reste **en audit / non certifiée** jusqu'à alignement contrôlé du replay et tests comportementaux. Production inchangée; aucun déploiement ni workflow relancé.
+
+
+## Partie 4 — contrôle live de `naxa_set_caisse_status` et ACL (29/10/2026)
+
+### Clôture de la passe de revue statique
+- Définition Production de `private.naxa_set_caisse_status(uuid,boolean)` relue directement via `pg_get_functiondef`. Le flux vérifie que la cible est une Caisse rattachée, que l'acteur peut gérer cette cible dans la pharmacie, puis exige `REACTIVATE_CAISSE` + architecture autorisant le niveau 3 + quota disponible avant réactivation; la suspension exige `SUSPEND_CAISSE`. La cible inactive peut donc rester gérable pour permettre sa réactivation; l'absence de `target.actif=true` dans le helper de management n'est pas, à elle seule, un défaut confirmé.
+- Le helper privé `private.naxa_can_manage_team_member` est `SECURITY DEFINER`, `search_path=''`, et n'est pas exécutable par `anon`; il est exécutable par `authenticated`. Il vérifie identité, acteur actif, niveau/fonction, lien hiérarchique direct, pharmacie et réseau Promoteur actif. La façade publique est invoker et délègue au helper privé.
+- `private.naxa_set_caisse_status` et les RPC privés de provisionnement/délégation sont `SECURITY DEFINER`, `search_path=''`, sans EXECUTE pour `anon`; les fonctions sensibles exigent une identité via `auth.uid()` et des contrôles de périmètre/privilège dans leur corps.
+- Observation ACL à durcir/justifier : plusieurs façades publiques (`naxa_set_caisse_status`, `naxa_provision_caisse`, `naxa_grant_privilege`, `naxa_revoke_privilege`) sont exécutables par `service_role` en Production alors que le parcours attendu est utilisateur authentifié. Le code privé garde des contrôles métier, et aucune exploitation n'a été démontrée; ne pas présenter cela comme une vulnérabilité confirmée. Vérifier les grants canoniques et la nécessité de `service_role` dans un sous-contrôle ACL ciblé, sans changement live.
+
+### Tests et limites
+- Les tests dépôt 029/030/031 restent non exécutés : leur préparation de fixtures utilise `session_replication_role='replica'` et des changements de rôle de session. Aucun contournement de trigger n'a été tenté.
+- Le test 156 reste non validé sur le replay incomplet, où la fonction/trigger de garde sont absents alors qu'ils sont présents en Production. Ce résultat n'est pas imputé à la Production.
+- Partie 4 : **revue statique de `naxa_set_caisse_status` clôturée; audit comportemental toujours non certifié**. Aucune migration Production, aucun déploiement ni workflow relancé.
+
+### Prochaine action
+Vérifier la nécessité des grants `service_role` sur les façades de la gestion Caisse et la migration canonique qui les attribue; ensuite préparer des tests comportementaux isolés sans désactivation de triggers ni changement de `session_replication_role`.
