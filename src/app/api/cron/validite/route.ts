@@ -40,6 +40,11 @@ export async function GET(req: Request) {
   }
 
   const sb = supabaseAdmin();
+  const { error: syncError } = await sb.rpc("synchroniser_validite_pharmacies");
+  if (syncError) {
+    return NextResponse.json({ error: "Échec de synchronisation des validités." }, { status: 500 });
+  }
+
   const { data, error } = await sb.rpc("claim_notification_email_outbox", { p_limit: 25 });
   if (error) {
     return NextResponse.json({ error: "Impossible de réclamer la file e-mail." }, { status: 500 });
@@ -65,6 +70,7 @@ export async function GET(req: Request) {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": item.outbox_id,
         },
         body: JSON.stringify({
           from,
