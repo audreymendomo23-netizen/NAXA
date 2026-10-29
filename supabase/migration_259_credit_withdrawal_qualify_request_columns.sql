@@ -188,6 +188,13 @@ begin
   );
   if v_op is null then raise exception 'Échec de création de l’opération de crédit'; end if;
 
+  -- Le snapshot de reçu POS exige un montant perçu et une monnaie rendue, y compris
+  -- pour un paiement intégral par crédit (monnaie rendue = 0).
+  update public.vente_paiements as vp
+  set montant_percu=r.total, monnaie_rendue=0
+  where vp.vente_id=v_vente and vp.mode='credit';
+  if not found then raise exception 'Paiement POS crédit absent ou incomplet'; end if;
+
   -- L’opération d’octroi est aussi rattachée à la session qui a remis les produits.
   update public.client_credit_operations as op
   set caisse_session_id=p_session
