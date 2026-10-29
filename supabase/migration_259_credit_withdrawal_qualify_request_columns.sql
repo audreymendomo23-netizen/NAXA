@@ -194,6 +194,16 @@ begin
   where op.id=v_op and op.vente_id=v_vente and op.nature='credit';
   if not found then raise exception 'Opération de crédit non rattachée à la session de caisse'; end if;
 
+  -- Le paiement de crédit doit aussi finaliser la vente POS avant la transition
+  -- de réservation vers payee, qui exige un ticket POS effectivement payé.
+  update public.ventes as v
+  set statut='payee',
+      mode_paiement='credit',
+      paiement_ref=nullif(trim(p_reference),''),
+      paid_at=now()
+  where v.id=v_vente and v.statut='brouillon';
+  if not found then raise exception 'La vente crédit n’a pas pu être finalisée'; end if;
+
   update public.reservations
   set paiement_mode='credit',
       paiement_ref=nullif(trim(p_reference),''),
