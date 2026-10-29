@@ -651,3 +651,12 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Contradiction prouvée :** la migration 147 et son test prévoient architecture non nulle, réseau actif et cohérence de chaque pharmacie/architecture; la définition active de `private.naxa_promoteur_valide(uuid)` en Production ne vérifie que profil actif, convention active/non expirée et abonnement actif/non expiré.
 - Le comptage en lecture seule trouve 1 Promoteur et celui-ci satisfait aux deux critères. Aucun impact immédiat détecté, mais la dérive doit être résolue avant de certifier la partie 3.
 - Prochaine action : retrouver la définition qui a remplacé le helper, puis réconcilier la source canonique et exécuter le test 147 hors Production. Pas de migration corrective ni de déploiement avant d'avoir identifié l'origine.
+
+
+## Audit 360° Promoteur — correction préparée du helper de validité (29/10/2026)
+- **Écart Production/code confirmé :** le helper privé de validité commerciale omet architecture de convention, présence d'un rattachement réseau actif et cohérence des pharmacies/architectures actives prévues par la migration 147.
+- Les migrations 149, 151, 152 et 153 inspectées ne redéfinissent pas directement ce helper; la source exacte de la dérive n'est pas établie.
+- **Travail sur main, non appliqué :** migration additive `supabase/migration_20261029_promoteur_validity_helper_reconciliation.sql` (commit `7b6191fddc7ded1aa7222d53fc82e19155011327`) et test ciblé `supabase/tests/promoteur_validity_helper_reconciliation.sql` (commit `fac003d8220b9490efaf90ff605e99693eac8901`).
+- ACL privées vérifiées en lecture seule : EXECUTE refusé à `anon`, `authenticated`, `service_role`; propriétaire autorisé.
+- **Non testé / non déployé :** test SQL non exécuté (ne pas l'exécuter sur Production); environnement Supabase non-Production non confirmé. Partie 3 reste 🟡/non close.
+- **Suite unique :** obtenir/identifier un environnement isolé, exécuter le test ciblé et le test comportemental 028/147, puis clôturer la partie 3 ou corriger les échecs. Aucun déploiement ni migration Production effectués.
