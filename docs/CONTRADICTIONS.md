@@ -1,4 +1,12 @@
 # NAXA — Registre des contradictions et preuves opérationnelles
+## Audit 360° du parcours Promoteur — constat initial (29/10/2026)
+
+- Le périmètre d'exécution est le parcours Promoteur et la clôture du Pilotage 360° définis par `naxa_prompt_maitre_fusion_v2.md`; rapport vivant : `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
+- Contrôle Supabase en lecture seule : cinq tables commerciales/réseau présentes avec RLS activée; aucun accès SELECT direct `anon`; les privilèges `authenticated` sont filtrés par RLS sur conventions, abonnements, paiements et relation Promoteur-pharmacies. La table des règlements n'accorde pas de privilèges directs à `authenticated`.
+- Des policies SELECT se recouvrent sur `promoteur_pharmacies`. À analyser avec les routes et les tests; aucune suppression spéculative.
+- Les fonctions de soumission et de décision de règlement ont des droits EXECUTE restreints d'après `has_function_privilege`. Les corps de toutes les fonctions, les appelants applicatifs et le comportement bout en bout restent à auditer.
+- La partie 3 du Pilotage Promoteur est toujours « à revalider »; parties 4 à 6 non certifiées. L'existence du schéma n'est pas une preuve de complétude métier. Aucun déploiement manuel ni relance de workflow.
+
 **Mise à jour : 29 octobre 2026 — branche de référence : `main`**
 
 Ce registre sépare les faits vérifiés, les corrections appliquées et les limites encore ouvertes. Il prévaut sur les formulations historiques contradictoires des anciens rapports, sans effacer leur valeur d'archive.
