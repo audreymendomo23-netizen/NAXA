@@ -1,4 +1,11 @@
 # NAXA — Registre des contradictions et preuves opérationnelles
+## Audit Promoteur — garde-fous des RPC (29/10/2026)
+
+- La définition active de `admin_confirmer_reglement_promoteur` vérifie Admin actif, la cohérence convention/abonnement/tarif et les éléments de preuve; elle conserve l'état des pharmacies et profils, même après renouvellement.
+- `promoteur_soumettre_reglement` valide les champs métier et interdit un second règlement en attente. Son chemin applicatif privilégié doit vérifier explicitement l'identité du Promoteur.
+- Contradiction potentielle à résoudre avant toute conclusion : `reactiver_promoteur` reste une fonction distincte qui peut réactiver tout le réseau et les profils liés sous garde Admin, contrairement au chemin de confirmation du règlement. Les droits EXECUTE et appelants doivent être recherchés avant de décider si ce chemin est encore accessible ou conforme à la règle métier.
+- Aucun changement fonctionnel ou de droits effectué dans cette passe; le constat est documenté dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
+
 ## Audit 360° du parcours Promoteur — constat initial (29/10/2026)
 
 - Le périmètre d'exécution est le parcours Promoteur et la clôture du Pilotage 360° définis par `naxa_prompt_maitre_fusion_v2.md`; rapport vivant : `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
