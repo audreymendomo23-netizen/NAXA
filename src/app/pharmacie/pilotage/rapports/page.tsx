@@ -1,4 +1,17 @@
 "use client";
-import Link from "next/link";import{useEffect,useState}from"react";import{exporterCsv}from"@/components/Pilotage";
-export default function Reports(){const[data,setData]=useState<any[]>([]),[err,setErr]=useState("");useEffect(()=>{(async()=>{const r=await fetch("/api/rapports");const j=await r.json();if(!r.ok){setErr(j.error||"Impossible de charger les rapports.");return}setData(j.rapports||[])})()},[]);
-return <main className="min-h-screen bg-naxa-green-50 p-3 sm:p-6"><div className="mx-auto max-w-5xl space-y-4"><header className="flex items-center justify-between rounded-3xl bg-naxa-green-900 p-5 text-white"><div><p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Rapports</p><h1 className="text-2xl font-black text-naxa-canari">Rapports & Analytics</h1></div><div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie/pilotage" className="btn btn-clair">Retour au pilotage</Link></div></header>{err&&<p role="alert" className="rounded-3xl bg-white p-4 text-red-700">{err}</p>}{!err&&!data.length&&<p className="rounded-3xl bg-white p-5">Aucun rapport disponible.</p>}{data.map(r=><article key={r.id} className="rounded-3xl border border-naxa-green-100 bg-white p-5 shadow-none"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-extrabold">{r.periode} · {r.pharmacie_nom||"NAXA"}</h2><p className="text-xs text-slate-500">{r.du} → {r.au}</p></div><button className="rounded-full border px-4 py-2 text-sm font-bold" onClick={()=>exporterCsv("rapport-"+r.id,[{periode:r.periode,du:r.du,au:r.au,texte:r.texte}])}>CSV</button></div><p className="mt-3 text-sm leading-6">{r.texte}</p></article>)}</div></main>}
+
+import Link from "next/link";
+import RapportsALaDemande from "@/components/RapportsALaDemande";
+
+export default function Reports() {
+  return <main className="min-h-screen bg-naxa-green-50 p-3 sm:p-6">
+    <div className="mx-auto max-w-6xl space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-naxa-green-900 p-5 text-white">
+        <div><p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Rapports</p><h1 className="text-2xl font-black text-naxa-canari">Rapports & Analytics</h1></div>
+        <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie/pilotage" className="btn btn-clair">Retour au pilotage</Link></div>
+      </header>
+      <RapportsALaDemande />
+      <p className="rounded-2xl bg-white p-4 text-xs leading-5 text-slate-500">Le rapport est calculé à la demande et reste limité au périmètre que le moteur de pilotage Supabase autorise pour votre poste. Les données des autres pharmacies ou caisses ne sont pas accessibles.</p>
+    </div>
+  </main>;
+}
