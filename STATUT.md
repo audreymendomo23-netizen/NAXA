@@ -645,3 +645,9 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - **Clôturé sur inspection du code :** la soumission de règlement exige l'utilisateur authentifié et un profil Promoteur; `p_promoteur` vient de `user.id`. La confirmation/contestation exige `requireAdminActive`; `p_admin` vient de `user.id`. Les ACL RPC correspondantes sont réservées à `service_role`.
 - **Non testé en intégration :** les routes sont vérifiées statiquement, mais aucun test d'exécution UI/API n'est déclaré réussi.
 - **Reprise unique :** partie 3, accréditation Responsable et contrôle des privilèges; comparer les façades publiques aux implémentations `private.*` et trouver un environnement non-Production pour le test comportemental 028. Les fixtures ne seront pas exécutées en Production.
+
+
+## Audit 360° Promoteur — écart de définition du helper de validité (29/10/2026)
+- **Contradiction prouvée :** la migration 147 et son test prévoient architecture non nulle, réseau actif et cohérence de chaque pharmacie/architecture; la définition active de `private.naxa_promoteur_valide(uuid)` en Production ne vérifie que profil actif, convention active/non expirée et abonnement actif/non expiré.
+- Le comptage en lecture seule trouve 1 Promoteur et celui-ci satisfait aux deux critères. Aucun impact immédiat détecté, mais la dérive doit être résolue avant de certifier la partie 3.
+- Prochaine action : retrouver la définition qui a remplacé le helper, puis réconcilier la source canonique et exécuter le test 147 hors Production. Pas de migration corrective ni de déploiement avant d'avoir identifié l'origine.
