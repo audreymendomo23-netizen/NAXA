@@ -77,3 +77,9 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 | 7 — Environnement | 🟡 impact non démontré | Écart de domaine documenté; aucun changement arbitraire; déploiement non testé. |
 
 **Règle :** le vert signifie uniquement que le point précis indiqué est traité et vérifié, jamais une certification complète de NAXA.
+
+
+## Audit 360° Promoteur — résolution d'une contradiction ACL (29/10/2026)
+- La définition de `reactiver_promoteur(uuid,text)` peut réactiver un réseau complet, mais l'ACL effective de Production interdit EXECUTE à `anon`, `authenticated` et `service_role`; seul `postgres` est autorisé. La voie n'est donc pas accessible via l'API Supabase standard dans l'état contrôlé. Point clos sans changement de fonction ni de grants.
+- Les deux RPC de règlement restent réservées à `service_role`. La contradiction restante n'est plus le privilège SQL : c'est la garantie d'identité dans leurs routes appelantes. Étape suivante unique : inspecter ces routes, prouver la liaison utilisateur/Promoteur et l'autorisation Admin avant de toucher au code.
+- L'indexation/recherche GitHub n'a pas retourné de résultats de code pour ces symboles; cela ne prouve pas l'absence d'appelants. Ils restent non vérifiés jusqu'à lecture directe des fichiers pertinents.
