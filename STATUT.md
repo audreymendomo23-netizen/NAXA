@@ -730,3 +730,9 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Test runtime `supabase/tests/261_promoteur_payment_submission_notification_runtime.sql` : **PASS**; soumission, notification Admin avec Promoteur/pharmacie et confirmation Promoteur; rollback confirmé.
 - **Point 4 toujours ouvert uniquement** pour la recette UI, la vérification du téléversement/accès à la preuve et la preuve d'envoi externe. Les tests vérifient les notifications en base, pas un e-mail/SMS réellement délivré.
 - Replay seulement : migrations de prérequis appliquées à `naxa-ci-replay-2`; Production inchangée, aucun déploiement et aucun workflow CI relancé.
+
+
+## Partie 4 Promoteur — correction UI gestion Caisse (29/10/2026)
+- Défaut concret corrigé dans `src/app/pharmacie/caisses/page.tsx` : les erreurs de lecture des Caisses et des architectures sont traitées explicitement; la liste n'affiche plus « aucune Caisse » si sa requête a échoué.
+- La création est désactivée si la liste des Caisses ou les quotas d'architecture ne peuvent pas être lus; une pharmacie sans architecture active est désactivée dans le sélecteur.
+- **Statut :** correction source préparée sur `main`; pas de build/test UI exécuté dans cette passe. Tests transactionnels 029–031 restent différés parce que leurs scripts changent `session_replication_role`; pas de contournement de triggers. Aucun changement Supabase Production, aucun déploiement.

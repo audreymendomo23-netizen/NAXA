@@ -54,7 +54,7 @@ export default async function CaissesPage({ searchParams }: Props) {
     .in("pharmacie_id", pharmacyIds)
     .order("created_at", { ascending: true });
 
-  const { data: architectureRows } = await sb.from("pharmacie_architectures")
+  const { data: architectureRows, error: architectureError } = await sb.from("pharmacie_architectures")
     .select("pharmacie_id,architecture_code,max_caisses")
     .in("pharmacie_id", pharmacyIds)
     .eq("active", true);
@@ -91,11 +91,11 @@ export default async function CaissesPage({ searchParams }: Props) {
 
       {searchParams.ok && <p role="status" className="carte">Opération terminée : {searchParams.ok === "creation" ? "Caisse créée et provisionnée." : searchParams.ok === "blocage" ? "Caisse bloquée." : "Caisse réactivée."}</p>}
       {searchParams.erreur && <p role="alert" className="carte text-red-700">{errors[searchParams.erreur] ?? "Impossible d'effectuer cette opération."}</p>}
-      {(linksError || caissesError) && <p role="alert" className="carte text-red-700">Impossible de charger le réseau ou les comptes Caisse. Réessayez après vérification de la connexion.</p>}
+      {(linksError || caissesError || architectureError) && <p role="alert" className="carte text-red-700">Impossible de charger le réseau, les comptes Caisse ou les quotas d’architecture. La liste et la création sont suspendues pour éviter d’afficher un réseau vide ou un quota erroné. Réessayez après vérification de la connexion.</p>}
 
       <section className="carte space-y-3">
         <h2 className="text-lg font-bold">Comptes existants</h2>
-        {caisses?.length ? caisses.map((c) => {
+        {caissesError ? null : caisses?.length ? caisses.map((c) => {
           const ph = c.pharmacie_id ? pharmacyById.get(c.pharmacie_id) : null;
           return (
             <article key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
@@ -118,14 +118,16 @@ export default async function CaissesPage({ searchParams }: Props) {
         {!pharmacyIds.length && <p role="alert" className="text-sm text-amber-800">Aucune pharmacie active n'est liée à votre réseau. La création est désactivée jusqu'à ce que NAXA établisse le lien Promoteur/pharmacie.</p>}
         <form action={creerCaisse} className="space-y-3">
           <label className="block text-sm font-semibold">Pharmacie
-            <select name="pharmacie_id" required disabled={!pharmacyIds.length} className={champ} defaultValue="">
+            <select name="pharmacie_id" required disabled={!pharmacyIds.length || Boolean(caissesError || architectureError)} className={champ} defaultValue="">
               <option value="" disabled>Choisir une pharmacie du réseau</option>
               {(pharmacies ?? []).map((p) => {
                 const a = archById.get(p.id);
                 const max = a?.max_caisses;
                 const active = countActive(p.id);
                 const reached = max != null && active >= max;
-                return <option key={p.id} value={p.id} disabled={reached}>{p.nom} — {p.ville ?? "Ville non renseignée"} · {active}/{max ?? "∞"} Caisse(s) active(s){reached ? " · quota atteint" : ""}</option>;
+                 const unavailable = !a;
+                 const quotaLabel = unavailable ? "architecture indisponible" : String(active) + "/" + (max ?? "∞") + " Caisse(s) active(s)";
+                return <option key={p.id} value={p.id} disabled={reached || unavailable || Boolean(caissesError || architectureError)}>{p.nom} — {p.ville ?? "Ville non renseignée"} · {quotaLabel}{reached ? " · quota atteint" : ""}</option>;
               })}
             </select>
           </label>
@@ -133,7 +135,7 @@ export default async function CaissesPage({ searchParams }: Props) {
             <input name="username" required minLength={3} maxLength={30} pattern="[a-z0-9][a-z0-9._-]{2,29}" autoComplete="off" className={champ} placeholder="ex. mariam237" />
           </label>
           <p className="text-xs leading-5 text-slate-600">La personne doit avoir créé et validé son compte NAXA au préalable. Son nom d’utilisateur est unique : ne demandez ni son mot de passe ni son code OTP. NAXA vérifie le compte côté serveur avant l’attribution.</p>
-          <button className="btn btn-vert w-full" disabled={!pharmacyIds.length}>Attribuer l’accès Caissière</button>
+          <button className="btn btn-vert w-full" disabled={!pharmacyIds.length || Boolean(caissesError || architectureError)}>Attribuer l’accès Caissière</button>
         </form>
       </section>
     </main>

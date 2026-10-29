@@ -306,3 +306,21 @@ Vérifier la nécessité des grants `service_role` sur les façades de la gestio
 - Ces requêtes étaient en lecture seule. Aucune donnée, migration ou permission n'a été modifiée dans Supabase Production.
 - Le test comportemental 028 du dépôt crée des fixtures et bascule `session_replication_role`; il n'a pas été lancé dans cette passe. La revue statique confirme les assertions attendues (réseau autorisé, hors périmètre refusé, expiration bloque l'accréditation, architecture incompatible refuse le Responsable), mais ne remplace pas le PASS comportemental.
 - Partie 3 reste **non certifiée**. Prochaine action : vérifier la configuration d'exposition API du schéma `private`, puis sélectionner un runner de test isolé pour la migration 028 sans toucher à Production; ensuite poursuivre les parties 4–6.
+
+
+## Partie 4 Promoteur — correction UI de la gestion Caisse (29/10/2026)
+
+### Défaut observé
+Dans `src/app/pharmacie/caisses/page.tsx`, la page affichait l'état vide si la requête des Caisses échouait, et ignorait l'erreur de lecture de `pharmacie_architectures`. Cela pouvait présenter une liste incomplète et des quotas comme illimités dans l'interface, même si les RPC serveur restent l'autorité.
+
+### Correction source
+- L'erreur de lecture des architectures est désormais capturée et signalée avec les erreurs de lecture du réseau/équipe.
+- Si la lecture des Caisses échoue, la page ne rend plus le message « Aucune Caisse ».
+- Les sélecteurs et le bouton de création sont bloqués si les données nécessaires au calcul du quota sont indisponibles.
+- Une pharmacie sans architecture active est désactivée dans le sélecteur, avec un libellé explicite.
+
+### Statut
+- Défaut UI statique corrigé dans le même commit que cette note.
+- Vérification source seulement : aucun build Next.js, test navigateur ou recette de rôle n'a été exécuté.
+- Les tests 029–031 ne sont pas relancés : leurs fixtures modifient `session_replication_role`, contraire aux garde-fous du chantier. Ce point est consigné comme réserve, sans bloquer la poursuite de l'audit.
+- Production inchangée; aucune migration, aucun déploiement. Prochaine étape métier : poursuivre l'audit des états/actions du parcours Promoteur partie 4, puis enchaîner les parties 5–6 sans réouvrir les sous-chantiers ACL déjà documentés.

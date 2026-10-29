@@ -371,3 +371,6 @@ Le point 3 du sous-chantier crédit Marketplace est clos côté code et validati
 
 
 Complément Audit Administrateur — point 4 (29/10/2026) : le rappel J−5 et la soumission de règlement sont maintenant couverts par deux tests transactionnels runtime, `supabase/tests/260_promoteur_j5_notification_runtime.sql` et `supabase/tests/261_promoteur_payment_submission_notification_runtime.sql`, tous deux **PASS** sur le replay non-Production avec rollback. Ils vérifient l'identité Promoteur, les pharmacies concernées et l'anti-doublon du rappel. La recette UI, le téléversement/accès à la preuve et la livraison d'un message externe restent à vérifier. Production n'a pas été modifiée; aucun déploiement ni workflow CI relancé.
+
+
+> **Pilotage Promoteur — robustesse de la gestion Caisse (29 octobre 2026) :** l'écran `/pharmacie/caisses` ne doit plus présenter un résultat vide comme s'il n'existait aucune Caisse quand la lecture échoue. L'erreur de lecture des comptes ou des architectures est maintenant affichée et bloque la création; les pharmacies sans architecture active ne peuvent plus être choisies. Correction source sur `main`; aucune migration ni aucun déploiement.
