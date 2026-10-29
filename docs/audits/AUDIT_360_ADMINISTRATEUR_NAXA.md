@@ -2496,3 +2496,17 @@ Les migrations nécessaires au schéma de test ont été rejouées dans ce proje
 
 ### Enchaînement direct — point 4 ouvert
 Le point 3 n'est pas à reprendre. Le prochain contrôle ouvert de l'audit Administrateur est la validation du parcours de notification de validité/règlement J−5 et de la présence du réseau de pharmacies dans les messages et la file Admin. Le test structurel `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql` a été exécuté sur le même replay après application de la migration de test correspondante : **PASS (structurel)**. Le point 4 reste actif pour la preuve runtime de notification délivrée, les états d'erreur UI et la non-régression applicative; aucun message réel n'a été envoyé.
+
+
+## 60.45 — Point 4 engagé : preuves runtime des notifications J−5 et de soumission du règlement (29 octobre 2026)
+
+### Résultats obtenus dans le replay non-Production
+- Le test structurel `supabase/tests/20261029120000_promoteur_notifications_include_pharmacies.sql` reste **PASS** après application de la migration correspondante au replay.
+- Nouveau test transactionnel `supabase/tests/260_promoteur_j5_notification_runtime.sql` : **PASS**. Il crée des fixtures Admin/Promoteur/pharmacie, appelle le générateur J−5, vérifie que les notifications Promoteur et Admin contiennent le nom du Promoteur et le nom de la pharmacie, puis appelle une seconde fois le générateur et confirme qu'aucun rappel doublon n'est produit. La transaction est annulée.
+- Nouveau test transactionnel `supabase/tests/261_promoteur_payment_submission_notification_runtime.sql` : **PASS**. Il soumet un règlement de test, vérifie la création de la déclaration et la notification Admin contenant le Promoteur et sa pharmacie, puis confirme la notification de soumission au Promoteur. La transaction est annulée.
+- Les prérequis historiques du règlement ont été rejoués dans le replay uniquement, car ce replay ne possédait pas la table `abonnement_promoteur_reglements`; la chaîne de migrations de test a été réalignée avant l'exécution.
+
+### Contradiction et limites
+- L'exécution SQL confirme les insertions de notifications en base, pas l'envoi d'un e-mail ou d'un SMS externe. Aucun message réel n'a été expédié.
+- Les tests transactionnels ne remplacent pas la recette UI des états loading/empty/error, l'accès à la preuve téléversée ni une vérification de livraison du fournisseur de notification.
+- Point 4 : **validation SQL structurelle et métier des deux déclencheurs PASS; recette applicative/UI et livraison externe encore ouvertes.** Aucun déploiement, aucun workflow CI relancé et aucune migration appliquée à Supabase Production.
