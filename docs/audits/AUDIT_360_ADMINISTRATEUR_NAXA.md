@@ -2409,3 +2409,33 @@ Les échecs 247/256 démontrent un écart entre le schéma des bases interrogée
 Le code versionné a reçu une revue statique ciblée et les scénarios de fixture isolés passent. **Le critère strict « chantier validé / vert » n’est pas atteint** tant que les migrations 247, 252 et 256 avec leurs prérequis ne sont pas rejouées dans un PostgreSQL de test isolé, puis que les tests 247, 256 et 257 ne passent pas ensemble. Cette étape est une validation bloquée par l’environnement, pas une invitation à modifier les bases distantes ni à répéter les mêmes essais.
 
 Pour reprendre ultérieurement, la seule action utile est de fournir/ouvrir un runner PostgreSQL isolé avec les migrations et prérequis du dépôt. À ce moment-là, exécuter les tests dans l’ordre 247 → 256 → 257, puis ajouter la preuve de résultat à cet audit. Aucun autre correctif de code n’est justifié par les éléments observés dans cette passe.
+
+## 60.42 — Passe finale et décision de sortie du sous-chantier crédit Marketplace
+
+**Date : 29 octobre 2026 — périmètre de la passe finale : dépôt `main`, migrations versionnées, tests SQL, audit administrateur et environnements Supabase consultables en lecture seule.**
+
+### Vérifications finales consolidées
+
+- Relecture des contrats sources 247, 252 et 256, des tests 247, 255, 256 et 257, du job SQL CircleCI et des sections 60.37 à 60.41 de cet audit.
+- Le job SQL CircleCI prévoit déjà un Supabase local éphémère, un rejeu complet des migrations et l'exécution des tests SQL. Cette voie est la bonne pour la preuve d'intégration; elle n'a pas été déclenchée dans cette passe, conformément à l'interdiction de relancer la CI.
+- Les cinq fixtures temporaires du test 257 restent le seul succès d'exécution confirmé pour les invariants simulés. Elles ne prouvent pas le fonctionnement de la RPC de retrait réelle.
+- Les échecs 247 et 256 observés sur le replay distant sont expliqués par l'absence des colonnes/fonctions attendues dans le schéma interrogé; le test intégré 257 est donc bloqué avant ses assertions de contrat. Ces résultats ne justifient ni une correction spéculative des migrations ni une écriture sur un projet distant.
+- Le dépôt contient le correctif d'allocation des lots et le test intégré regroupé. Aucun défaut statique nouveau justifiant une autre migration n'a été établi pendant cette passe.
+- Aucun binaire/runtime PostgreSQL local exploitable n'est disponible dans l'environnement de travail inspecté. Les seules bases accessibles restent strictement en lecture seule.
+
+### Décision sans ambiguïté
+
+**Implémentation et revue statique : terminées pour ce sous-chantier. Validation runtime intégrée : NON VALIDÉE / BLOQUÉE par l'absence d'un rejeu isolé exécutable dans cette session.**
+
+En conséquence, ce sous-chantier peut être fermé comme **passe d'implémentation terminée avec réserve de validation documentée**, mais il ne peut pas recevoir honnêtement le statut « vert / chantier techniquement validé » défini par cet audit. Marquer « vert » sans preuve des tests 247, 256 et 257 exécutés ensemble serait contraire au critère de validation et aux preuves consignées.
+
+Pour éviter toute boucle de travail, aucune nouvelle analyse ni correction n'est à entreprendre sur ce sous-chantier dans le cadre de cette passe. La réserve est explicitement transférée au registre des validations bloquées : elle ne sera réouverte que si un résultat de CI existant est consultable sans relance, ou si un runner PostgreSQL isolé devient effectivement disponible et autorisé. Dans ce cas seulement, la preuve attendue est l'exécution conjointe des tests 247, 256 et 257 après rejeu des migrations/prérequis.
+
+### Garde-fous confirmés
+
+- Aucun branchement, aucune PR, aucune fusion distincte de ce commit documentaire.
+- Aucune migration ni écriture de données sur Supabase principal ou replay distant.
+- Aucun déploiement, aucune relance CI ou de workflow.
+- Aucun succès de test intégré ou de validation production revendiqué.
+
+**Sortie de passe :** le dossier d'audit contient désormais la décision finale, les limites probatoires et le déclencheur précis d'une éventuelle réouverture. Le chantier principal peut continuer sur un autre sous-chantier sans réitérer les mêmes tentatives.
