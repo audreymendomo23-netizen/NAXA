@@ -12,6 +12,9 @@ begin
       ('naxa_revoke_privilege','public.naxa_revoke_privilege(uuid,text,uuid,text)')
     ) as x(nom,signature)
   loop
+    if to_regprocedure(v_sig) is null then
+      raise exception 'ACL157 : façade manquante %',v_name;
+    end if;
     if has_function_privilege('anon',v_sig,'EXECUTE') then
       raise exception 'ACL157 : anon exécute %',v_name;
     end if;
@@ -22,10 +25,12 @@ begin
       raise exception 'ACL157 : service_role exécute encore %',v_name;
     end if;
   end loop;
-  if has_function_privilege('service_role','private.naxa_grant_privilege(uuid,text,uuid,text)','EXECUTE') then
+  if to_regprocedure('private.naxa_grant_privilege(uuid,text,uuid,text)') is not null
+     and has_function_privilege('service_role','private.naxa_grant_privilege(uuid,text,uuid,text)','EXECUTE') then
     raise exception 'ACL157 : service_role exécute le helper privé grant';
   end if;
-  if has_function_privilege('service_role','private.naxa_revoke_privilege(uuid,text,uuid,text)','EXECUTE') then
+  if to_regprocedure('private.naxa_revoke_privilege(uuid,text,uuid,text)') is not null
+     and has_function_privilege('service_role','private.naxa_revoke_privilege(uuid,text,uuid,text)','EXECUTE') then
     raise exception 'ACL157 : service_role exécute le helper privé revoke';
   end if;
 end
