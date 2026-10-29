@@ -383,3 +383,5 @@ Une revue statique des pages Promoteur/Admin et du flux de notifications a corri
 
 ### Notifications Promoteur — file e-mail (29 octobre 2026)
 Une file privée idempotente et un worker Resend ont été ajoutés sur main pour les rappels J−5 et les événements de règlement. Le test structurel 262 passe sur l'environnement isolé. L'ordonnanceur externe, la configuration des secrets et la délivrance réelle restent à valider; aucune migration Production ni aucun déploiement n'ont été effectués. Voir §60.47 du cahier Audit 360 Administrateur.
+
+Complément : l'inventaire Vercel Production confirme `CRON_SECRET`, mais pas les variables Resend requises; aucun cron Vercel n'est configuré. Le projet est sur le plan Hobby. Les secrets et l'ordonnanceur Production restent inchangés; aucun e-mail réel n'est déclaré envoyé.
