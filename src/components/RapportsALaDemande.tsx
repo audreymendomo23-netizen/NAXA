@@ -22,7 +22,9 @@ const periods: { value: Period; label: string }[] = [
   { value: "annuel", label: "Annuel" },
 ];
 
-type Variant = "default" | "admin" | "stock" | "pharmacien" | "comptable";\n\nexport default function RapportsALaDemande({ variant = "default" }: { variant?: Variant }) {
+type Variant = "default" | "admin" | "stock" | "pharmacien" | "comptable";
+
+export default function RapportsALaDemande({ variant = "default" }: { variant?: Variant }) {
   const [periode, setPeriode] = useState<Period>("hebdomadaire");
   const [rapport, setRapport] = useState<Report | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,8 +69,10 @@ type Variant = "default" | "admin" | "stock" | "pharmacien" | "comptable";\n\nex
     } finally { setExportBusy(""); }
   }
 
+  const shellClass = variant === "admin" ? "rounded-3xl border border-[#0147BB]/15 bg-white p-5 shadow-sm" : variant === "stock" ? "rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm" : variant === "pharmacien" ? "carte space-y-4" : "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm";
+
   return (
-    <section className="rounded-3xl bg-white p-5 shadow-sm">
+    <section className={shellClass}>
       <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">Rapport à la demande · Données actualisées</p>
       <h2 className="mt-1 text-xl font-black">Générer un rapport maintenant</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">Chaque génération relit les données autorisées au moment de la demande. Le rapport n'attend pas la prochaine échéance automatique. Les mêmes indicateurs alimentent l'aperçu, le PDF et le CSV.</p>
