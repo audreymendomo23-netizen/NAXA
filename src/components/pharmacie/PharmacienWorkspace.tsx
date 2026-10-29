@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
+import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";\nimport RapportsALaDemande from "@/components/RapportsALaDemande";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Ord={id:string;document_ref:string|null;created_at:string;motif_rejet:string|null;client_id:string|null;statut:string;consultation_id?:string|null};
