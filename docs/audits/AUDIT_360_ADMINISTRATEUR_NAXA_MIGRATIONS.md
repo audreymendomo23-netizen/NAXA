@@ -34,3 +34,10 @@ Aucune écriture Supabase n'a été exécutée. Aucun déploiement n'a été dé
 - **PRE-027 — Confirmé :** les versions live ne correspondent pas systématiquement aux préfixes horodatés des fichiers.
 - **PRE-028 — Signal de rapprochement :** 248 entrées live ne correspondent pas au préfixe de 14 chiffres d'un fichier moderne; ce n'est pas une preuve d'absence de source.
 - **PRE-029 — Confirmé :** deux conventions de stockage des migrations coexistent.
+
+
+## Addendum — migrations 258/259 et replay crédit (29 octobre 2026)
+
+- `supabase/migration_258_marketplace_availability_subtract_holds.sql` : la disponibilité Marketplace retranche les holds actifs non expirés, non consommés, non restaurés et non déjà débités. Test `supabase/tests/258_marketplace_availability_subtract_holds.sql` : **PASS** sur le replay.
+- `supabase/migration_259_credit_withdrawal_qualify_request_columns.sql` : corrige les références PL/pgSQL ambiguës, autorise `paiement_mode='credit'`, finalise la vente POS crédit et renseigne les champs requis au snapshot du reçu. Test E2E `supabase/tests/259_credit_withdrawal_inverse_order_e2e.sql` : **PASS**, retrait dans l'ordre inverse des allocations, rollback confirmé.
+- Les migrations 258/259 ont été appliquées uniquement au replay non-Production `naxa-ci-replay-2` pour validation; elles ne sont pas appliquées à Supabase Production. Aucun déploiement n'a été lancé.
