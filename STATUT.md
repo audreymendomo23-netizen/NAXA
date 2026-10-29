@@ -18,7 +18,7 @@
 
 ## Audit 360° du parcours Promoteur — reprise active (29/10/2026)
 
-- Le périmètre actif est désormais explicitement documenté dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`, conformément au ancienne référence supprimée (historique uniquement) NAXA. Les dernières corrections Supabase de sécurité/performance ne sont pas une certification du parcours métier.
+- Le périmètre actif est désormais explicitement documenté dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`, conformément au Prompt maître supprimé (historique uniquement) NAXA. Les dernières corrections Supabase de sécurité/performance ne sont pas une certification du parcours métier.
 - Contrôle Supabase en lecture seule : les tables convention, abonnement Promoteur, paiements, règlements et réseau multi-pharmacie existent; RLS est activée sur les cinq tables; aucun privilège SELECT direct n'est accordé à `anon`.
 - Les RPC de soumission de règlement et de confirmation/refus Admin ont des privilèges directs restreints selon le contrôle `has_function_privilege`. Les définitions complètes, routes UI/API et scénarios métier restent à examiner.
 - Point à approfondir : politiques RLS SELECT qui se recouvrent sur `promoteur_pharmacies`; aucune policy n'a été supprimée sans preuve d'équivalence.

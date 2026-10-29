@@ -1,6 +1,6 @@
 > **DOCUMENTS DE RÉFÉRENCE — NAXA**
 >
-> Les deux seules références faisant autorité pour le chantier en cours sont le **MANDAT CTO NAXA** et le **cahier des charges Audit 360 du parcours Administrateur** ([audit de référence](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier des charges V3.7 et le ancienne référence supprimée (historique uniquement) sont supprimés et ne doivent plus être utilisés ni cités comme sources de décision.
+> Les deux seules références faisant autorité pour le chantier en cours sont le **MANDAT CTO NAXA** et le **cahier des charges Audit 360 du parcours Administrateur** ([audit de référence](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier des charges V3.7 et le Prompt maître ont été supprimés et ne doivent plus être utilisés ni cités comme sources de décision.
 >
 > **Périmètre actif :** Audit 360 du parcours Administrateur uniquement. Ne pas reprendre l'audit du parcours Promoteur comme chantier courant. Branche de travail : `main`; aucune nouvelle branche et aucun déploiement sans autorisation explicite.
 
