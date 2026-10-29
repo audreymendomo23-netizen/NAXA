@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PromoteurSectionStyles } from "@/components/pharmacie/PromoteurSectionStyles";
+import RapportsALaDemande from "@/components/RapportsALaDemande";
 
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { fcfa } from "@/lib/ranking";
@@ -290,6 +291,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
         </header>
         <div className="promoteur-bento-grid min-w-0">
         <AvisRappelsLotsPromoteur />
+        <RapportsALaDemande variant="default" />
 
         {alert && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Certaines données ne sont pas disponibles. Les indicateurs indisponibles sont affichés sans inventer de valeurs.</p>}
 
