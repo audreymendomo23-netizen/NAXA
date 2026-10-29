@@ -3,6 +3,24 @@
 -- Correctif versionné uniquement : ne pas appliquer à une base distante sans validation explicite.
 begin;
 
+-- Le retrait crédit doit pouvoir marquer la réservation comme crédit sans violer
+-- l'ancien CHECK qui n'acceptait que les canaux de paiement Marketplace classiques.
+alter table public.reservations
+  drop constraint if exists reservations_paiement_mode_check;
+alter table public.reservations
+  add constraint reservations_paiement_mode_check
+  check (
+    paiement_mode is null
+    or paiement_mode = any(array[
+      'mtn_marchand'::text,
+      'orange_money'::text,
+      'especes_retrait'::text,
+      'especes_livraison'::text,
+      'a_convenir'::text,
+      'credit'::text
+    ])
+  );
+
 create or replace function public.vente_reservation_credit_finaliser(
   p_reservation uuid,
   p_session uuid,
