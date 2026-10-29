@@ -158,3 +158,22 @@ L'historique Supabase contient bien la migration `promoteur_validity_internal_fa
 Contrôle d'impact en lecture seule : 1 Promoteur en base; il satisfait à la fois l'ancienne et la règle stricte actuellement écrite dans le dépôt. Aucun impact utilisateur actuel n'a été détecté par ce comptage, mais le contrôle est un instantané, pas un test fonctionnel.
 
 **Décision de cette passe :** ne pas écraser le helper par une migration corrective tant que la source du remplacement divergent n'a pas été localisée. Étape ciblée suivante : comparer toutes les définitions/migrations postérieures du helper et les règles canoniques de validité. Le test 147 doit ensuite être exécuté dans un environnement non-Production; sa présence dans le dépôt n'est pas une preuve de PASS en Production.
+
+
+## 11. Action corrective préparée — helper de validité Promoteur (29/10/2026)
+
+### Constat confirmé
+La lecture directe de `pg_get_functiondef` confirme que `private.naxa_promoteur_valide(uuid)` en Production ne contrôle que le rôle Promoteur, l'état actif du profil, le statut et l'échéance de la convention et de l'abonnement. Elle omet trois gardes du contrat de la migration 147 : architecture de convention renseignée, existence d'au moins un rattachement réseau actif et cohérence de chaque rattachement actif avec une pharmacie active et une architecture active de même code.
+
+Les migrations 149, 151, 152 et 153 inspectées ne redéfinissent pas directement ce helper. L'origine exacte de la dérive reste **non identifiée**; l'historique prouve que la migration 147 a été enregistrée, mais son corps actif n'est plus celui attendu. Le seul Promoteur présent au moment du comptage passe les règles strictes, ce qui ne prouve pas le comportement sur les cas limites.
+
+### Travail réalisé sur `main` — non appliqué en Production
+- Migration additive préparée : [`supabase/migration_20261029_promoteur_validity_helper_reconciliation.sql`](../../supabase/migration_20261029_promoteur_validity_helper_reconciliation.sql), commit `7b6191fddc7ded1aa7222d53fc82e19155011327`. Elle rétablit le corps attendu et réaffirme l'absence d'EXECUTE pour les rôles API. Elle ne modifie aucune donnée métier.
+- Test ciblé ajouté : [`supabase/tests/promoteur_validity_helper_reconciliation.sql`](../../supabase/tests/promoteur_validity_helper_reconciliation.sql), commit `fac003d8220b9490efaf90ff605e99693eac8901`. Il contrôle les gardes de définition, la façade publique et les ACL du helper.
+- Les ACL actuelles du helper ont été contrôlées en lecture seule : `anon=false`, `authenticated=false`, `service_role=false`, propriétaire `postgres=true`.
+
+### Statut et point de sortie
+**La correction est préparée, mais non exécutée.** Aucun test SQL n'a été lancé sur Production; aucun environnement non-Production n'est actuellement confirmé dans les accès disponibles. Ne pas qualifier la migration de validée ou la partie 3 de verte. Avant application, exécuter le test dans un environnement isolé; puis comparer les résultats fonctionnels sur cas valides, sans architecture, sans réseau actif et avec incohérence pharmacie/architecture. Aucun déploiement ni aucune migration Production n'ont été lancés.
+
+### Prochaine action unique
+Identifier ou obtenir un environnement Supabase non-Production réellement accessible, exécuter le test ciblé et le scénario comportemental 028/147, corriger les échecs puis fermer la partie 3 sur preuves. Ne pas recommencer l'audit des routes de règlement ni le contrôle ACL déjà clos.
