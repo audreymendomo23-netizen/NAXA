@@ -7,13 +7,13 @@
 
 ## Clôture ciblée — point 3, configuration visuelle Data API (29 octobre 2026)
 
-**Décision : le sous-contrôle visuel est clos; le risque sécurité global reste JAUNE.**
+**Décision : point d’exposition directe du schéma `private` via la Data API — CLOS / CONFORME.** La clôture est limitée à ce risque précis; elle ne certifie pas l’ensemble des RPC publiques ni les parcours Promoteur 3–6.
 
 - **Preuve visuelle déclarée par l’utilisateur :** dans Supabase > Project Settings > Data API, `graphql_public` et `public` sont cochés; `private` et `bi` ne sont pas cochés.
-- **Conclusion limitée :** le schéma `private` n’est pas sélectionné dans la liste visible des schémas exposés de la Data API. La capture visuelle n’est pas une preuve d’absence de toute voie d’accès.
-- **Réserve :** les vérifications SQL antérieures ont relevé `USAGE` sur `private` et des droits `EXECUTE` pour `authenticated` sur plusieurs fonctions privées. Les ACL SQL, fonctions exposées et voies d’accès indirectes restent à auditer avant toute certification globale.
+- **Contrôles SQL complémentaires en lecture seule :** aucun objet relationnel (table/vue/séquence) dans le schéma `private` et aucun ACL par défaut de fonction pour ce schéma n’ont été relevés. `authenticated` a néanmoins `USAGE` sur `private` et `EXECUTE` sur plusieurs helpers.
+- **Voies d’accès indirectes examinées :** plusieurs fonctions du schéma `public` sont des façades `invoker` qui délèguent aux helpers privés. Les définitions consultées montrent des contrôles d’identité, de rôle ou de périmètre pour les opérations sensibles (accréditation, délégation/révocation de privilèges, provisioning Caisse, réactivation pharmacie et pilotage). Les ACL privées ne sont donc pas révoquées globalement : cela casserait ces façades sans refactorisation et tests ciblés. La recette exhaustive des RPC publiques reste hors de cette clôture ciblée.
 - **Garde-fous respectés :** aucun réglage Supabase modifié; aucune migration ni écriture Production; aucun déploiement.
-- **Statut de sortie :** sous-contrôle de configuration visuelle **CLOS / CONFORME**; sécurité complète du schéma `private` **JAUNE / NON CERTIFIÉE**.
+- **Statut de sortie :** exposition directe de `private` via Data API **CLOS / CONFORME** sur preuves visuelle et SQL. Pas de changement de configuration ou de privilèges Production nécessaire pour ce point. Les validations globales des RPC publiques et des parties Promoteur 3–6 restent distinctement ouvertes.
 
 ---
 
