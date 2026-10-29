@@ -105,3 +105,14 @@ function json_(value) {
     .createTextOutput(JSON.stringify(value))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+
+/** Test manuel depuis l'éditeur Apps Script; destinataire contrôlé par propriété. */
+function testNaxaMailGateway() {
+  const props = PropertiesService.getScriptProperties();
+  const recipient = String(props.getProperty('NAXA_TEST_EMAIL') || '').trim();
+  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient)) throw new Error('Définir NAXA_TEST_EMAIL avec une adresse valide.');
+  if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Quota quotidien MailApp épuisé.');
+  MailApp.sendEmail({to: recipient, subject: 'NAXA — Test de configuration Google Mail', body: 'Ceci est un message de test du canal e-mail Google de NAXA.', name: NAXA_BRAND});
+  return 'Message de test envoyé à l’adresse de recette configurée.';
+}
