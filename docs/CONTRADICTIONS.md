@@ -90,3 +90,7 @@ Projet ciblé : `eouwtuusnsuxaejsxknf`. Les écritures ci-dessous ont été expl
 - Les routes de soumission et de confirmation de règlement ont été localisées dans `src/app/promoteur/paiements/actions.ts` et `src/app/admin/pilotage/reglements/actions.ts`. L'identité n'est pas prise d'un champ libre : Promoteur = `auth.getUser().user.id`; Admin = utilisateur renvoyé par `requireAdminActive`, qui impose `role='admin'` et `actif=true`. Point clos pour la revue statique.
 - Le test runtime multi-rôles reste à exécuter dans un environnement non-Production. Aucun test de fixture n'a été lancé sur Production.
 - Reprise : partie 3 du Pilotage Promoteur (accréditation Responsable), sans revenir sur les routes déjà vérifiées.
+
+
+## Audit 360° Promoteur — contradiction SQL à résoudre
+La définition active de `private.naxa_promoteur_valide(uuid)` en Production est plus permissive que la définition du dépôt `migration_147` et le contrat du test 147 : elle ne vérifie ni architecture de convention, ni réseau actif, ni cohérence pharmacie/architecture. Le Promoteur actuellement présent en base passe les deux critères, mais cela ne supprime pas le risque de dérive. Localiser d'abord la redéfinition postérieure; aucun changement SQL n'est appliqué dans cette passe.
