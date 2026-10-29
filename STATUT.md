@@ -694,3 +694,11 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Test 156 **bloqué/FAIL sur le replay incomplet** : garde `naxa_guard_promoteur_caisse_activation` et trigger absents du replay mais présents en Production. Ce n'est pas classé comme défaut Production.
 - Le point `target.actif` du helper de management est expliqué par le flux de réactivation dédié, qui exige `REACTIVATE_CAISSE`, une architecture compatible et le quota; aucun défaut confirmé.
 - Partie 4 toujours non certifiée : tests comportementaux 029/030/031 non exécutés; pas de contournement de trigger/role, pas de migration Production, pas de déploiement.
+
+
+## Partie 4 Promoteur — clôture de la revue statique du statut Caisse (29/10/2026)
+- `private.naxa_set_caisse_status` Production relue : réactivation soumise à `REACTIVATE_CAISSE`, architecture niveau 3 et quota; suspension soumise à `SUSPEND_CAISSE`. L'absence de filtre `target.actif` dans le helper de management permet le traitement des transitions de statut et n'est pas un défaut confirmé.
+- Helper privé `naxa_can_manage_team_member` : `SECURITY DEFINER`, `search_path=''`, acteur actif, rôle/niveau, descendant direct, pharmacie et réseau Promoteur actif; aucun EXECUTE `anon`.
+- Point à contrôler : plusieurs façades Caisse sont également exécutables par `service_role`; les contrôles métier sont présents et aucun exploit n'a été démontré. Justifier/réconcilier les grants canoniques avant toute modification.
+- Tests comportementaux 029/030/031 non exécutés car leurs fixtures changent `session_replication_role`; aucun contournement de trigger. Test 156 non concluant sur replay incomplet (garde absente du replay, présente en Production).
+- Passe de revue statique clôturée; partie 4 globale reste non certifiée. Production inchangée, aucun déploiement/workflow relancé. Détails dans `docs/audits/AUDIT_360_PARCOURS_PROMOTEUR_NAXA.md`.
