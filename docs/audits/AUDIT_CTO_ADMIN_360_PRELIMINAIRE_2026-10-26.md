@@ -1,3 +1,10 @@
+> **RECTIFICATIF OPÉRATIONNEL — 29 octobre 2026**  
+> Ce rapport a été ouvert dans un contexte historique qui mentionnait la branche `audit/admin-360-20261026`. La référence opérationnelle actuelle est désormais `main`, conformément à `AGENTS.md`. Les descriptions de branche, de fusion différée et de compteurs dans le corps ci-dessous sont des constats historiques à la date de rédaction, non des consignes actives.  
+>   
+> **Réconciliation Supabase effectuée après autorisation explicite du 29 octobre :** les migrations `safe_promoter_payment_reactivation_scope` (version `20261029052116`), `admin_validate_dossier_pending_only` (`20261029052125`) et `promoteur_notifications_include_pharmacies` (`20261029052131`) ont été appliquées au projet NAXA et leur présence a été vérifiée dans `supabase_migrations.schema_migrations`. La migration de désactivation de l'ancienne saisie manuelle existait déjà sous la version `20261027063825`. Aucun déploiement Vercel n'a été lancé.  
+>   
+> **Limites actuelles :** les vérifications SQL post-migration confirment les fonctions et droits ciblés, mais ne remplacent ni les tests métier multi-rôles, ni le build, ni la recette visuelle, ni une validation de Production. Les constats généraux de sécurité/performance Supabase restent ouverts lorsqu'ils sont mentionnés dans le registre `docs/CONTRADICTIONS.md`.  
+>
 # NAXA — Audit CTO 360° du parcours Administrateur
 **Document de travail unique — étape préliminaire obligatoire**
 
