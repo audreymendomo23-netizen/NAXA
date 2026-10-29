@@ -8,6 +8,15 @@ revoke execute on function public.naxa_set_caisse_status(uuid,boolean) from serv
 revoke execute on function public.naxa_grant_privilege(uuid,text,uuid,text) from service_role;
 revoke execute on function public.naxa_revoke_privilege(uuid,text,uuid,text) from service_role;
 
--- Les façades grant/revoke sont invoker et appellent directement ces implémentations privées.
-revoke execute on function private.naxa_grant_privilege(uuid,text,uuid,text) from service_role;
-revoke execute on function private.naxa_revoke_privilege(uuid,text,uuid,text) from service_role;
+-- Le replay de test peut ne pas contenir les helpers privés de délégation.
+-- En Production, les signatures existent et leurs droits sont révoqués explicitement.
+do $acl$
+begin
+  if to_regprocedure('private.naxa_grant_privilege(uuid,text,uuid,text)') is not null then
+    execute 'revoke execute on function private.naxa_grant_privilege(uuid,text,uuid,text) from service_role';
+  end if;
+  if to_regprocedure('private.naxa_revoke_privilege(uuid,text,uuid,text)') is not null then
+    execute 'revoke execute on function private.naxa_revoke_privilege(uuid,text,uuid,text) from service_role';
+  end if;
+end
+$acl$;
