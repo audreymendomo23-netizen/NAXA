@@ -2,9 +2,10 @@
 - Référence active : dépôt `audreymendomo23-netizen/NAXA`, branche `main`; aucune branche créée.
 - Trois migrations Supabase ciblées ont été appliquées après autorisation explicite et vérifiées dans l'historique : `safe_promoter_payment_reactivation_scope` (`20261029052116`), `admin_validate_dossier_pending_only` (`20261029052125`) et `promoteur_notifications_include_pharmacies` (`20261029052131`).
 - La migration `disable_admin_manual_promoter_payment_entry` était déjà présente (`20261027063825`); les privilèges vérifiés bloquent son exécution par `anon`, `authenticated` et `service_role`.
+- **Nouvelle correction performance :** migration `remove_duplicate_stocks_lots_id_index` (`20261029052838`) appliquée et vérifiée. L'index redondant `stocks_lots_id_uidx` a été retiré; `stocks_lots_id_uq` est conservé et reste référencé par les contraintes. Le conseil `duplicate_index` a disparu du contrôle Supabase après correction.
 - Garde dossier en attente confirmée dans la fonction Supabase active. Confirmation de paiement : pas de réactivation en bloc des profils/pharmacies. Rappels J-5 : la fonction active inclut les noms Promoteur/pharmacies.
 - Aucun déploiement manuel, aucun workflow relancé, aucune donnée métier modifiée intentionnellement.
-- Non certifié vert : build complet, tests métier multi-rôles, recette visuelle, état Production, audit complet ligne par ligne, SQLSTATE `08006` et constats restants des conseillers Supabase. Détail : `docs/CONTRADICTIONS.md`.
+- Non certifié vert : build complet, tests métier multi-rôles, recette visuelle, état Production, audit complet ligne par ligne et constats restants des conseillers Supabase (120 FK sans index couvrant, 95 index déclarés inutilisés, 59 groupes de politiques permissives, plus les alertes de sécurité listées au registre). Une nouvelle requête ciblée n'a pas retrouvé SQLSTATE `08006` dans la fenêtre interrogée; l'observation historique n'est pas formellement clôturée. Détail : `docs/CONTRADICTIONS.md`.
 
 ---
 
