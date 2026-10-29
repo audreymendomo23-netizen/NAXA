@@ -27,3 +27,15 @@ Le serveur vérifie la session Supabase et la confirmation de l'adresse. Apps Sc
 ## Version des textes juridiques
 
 Le courrier indique la version initiale proposée du 12 octobre 2026. Cette date ne vaut pas validation juridique. Avant diffusion réelle, le responsable NAXA doit confirmer l'identité légale de l'opérateur, les coordonnées de contact et la conformité des textes à la loi camerounaise n° 2024/017 du 23 décembre 2024 relative à la protection des données à caractère personnel.
+
+## Notifications Promoteur — réutilisation de la passerelle existante
+
+Le même projet Google Apps Script et le même endpoint peuvent aussi délivrer les notifications de la file Promoteur. Le fichier source canonique est `scripts/google-welcome-email.gs`; il conserve le contrat de bienvenue existant et accepte en plus un champ texte facultatif `text` pour les notifications.
+
+- Le worker `/api/cron/validite` transmet `to`, `subject`, `html`, `text`, `secret` et une clé `naxa-notification-<UUID>`.
+- La passerelle conserve le même secret `NAXA_WELCOME_SECRET` dans Script Properties, correspondant à `GOOGLE_APPS_SCRIPT_SECRET` côté Vercel.
+- Les clés de bienvenue historiques restent conservées; seules les clés de notifications sont nettoyées après 30 jours.
+- La réponse existante `{sent, alreadySent}` est conservée pour ne pas casser le parcours de bienvenue.
+- Les variables `GOOGLE_APPS_SCRIPT_URL` et `GOOGLE_APPS_SCRIPT_SECRET` ont été observées dans la configuration Vercel Production. Leur valeur reste masquée; aucune valeur n'a été déchiffrée ni modifiée.
+
+**Important :** après modification du fichier Apps Script source, le propriétaire doit mettre à jour le projet Apps Script existant et publier une nouvelle version du déploiement Web App. Le simple commit GitHub ne met pas à jour le code Google déjà déployé. Effectuer ensuite un test de bienvenue et un test de notification sur une adresse de recette.
