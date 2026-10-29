@@ -16,7 +16,7 @@ begin
     and i.indisunique
     and i.indpred is null
     and i.indexprs is null
-    and i.indkey::text = '1';
+    and i.indkey::text = '7';
 
   select i.indexrelid into v_retained
   from pg_index i
@@ -29,7 +29,7 @@ begin
     and i.indisunique
     and i.indpred is null
     and i.indexprs is null
-    and i.indkey::text = '1';
+    and i.indkey::text = '7';
 
   if v_duplicate is null or v_retained is null then
     raise exception 'Expected duplicate/retained unique indexes on public.stocks_lots(id) not found; aborting';
