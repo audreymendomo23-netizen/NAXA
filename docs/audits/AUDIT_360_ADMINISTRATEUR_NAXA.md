@@ -5,6 +5,18 @@
 
 > **Document de référence vivant** — audit préliminaire en cours. Ce document sépare les preuves directes, les déclarations historiques, les déductions et les vérifications encore indisponibles. Aucun déploiement n'est autorisé dans ce chantier.
 
+## Clôture ciblée — point 3, configuration visuelle Data API (29 octobre 2026)
+
+**Décision : le sous-contrôle visuel est clos; le risque sécurité global reste JAUNE.**
+
+- **Preuve visuelle déclarée par l’utilisateur :** dans Supabase > Project Settings > Data API, `graphql_public` et `public` sont cochés; `private` et `bi` ne sont pas cochés.
+- **Conclusion limitée :** le schéma `private` n’est pas sélectionné dans la liste visible des schémas exposés de la Data API. La capture visuelle n’est pas une preuve d’absence de toute voie d’accès.
+- **Réserve :** les vérifications SQL antérieures ont relevé `USAGE` sur `private` et des droits `EXECUTE` pour `authenticated` sur plusieurs fonctions privées. Les ACL SQL, fonctions exposées et voies d’accès indirectes restent à auditer avant toute certification globale.
+- **Garde-fous respectés :** aucun réglage Supabase modifié; aucune migration ni écriture Production; aucun déploiement.
+- **Statut de sortie :** sous-contrôle de configuration visuelle **CLOS / CONFORME**; sécurité complète du schéma `private` **JAUNE / NON CERTIFIÉE**.
+
+---
+
 ## Guide de construction — prompt NAXA-MANDAT CTO
 
 Ce guide opérationnel consigne les consignes explicites du **NAXA-MANDAT CTO** pour construire et maintenir le présent cahier des charges Audit 360 Administrateur. Il ne réintroduit ni le cahier V3.7 ni le Prompt maître supprimés.
@@ -32,9 +44,9 @@ Les obligations à appliquer sont celles du texte intégral fourni : gouvernance
 ## Reprise des validations Promoteur — 29/10/2026
 
 - **028 comportemental : VERT / PASS** — `supabase/tests/028_promoteur_responsable_accreditation_behavior.sql` exécuté dans le projet isolé Supabase `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`), résultat retourné : `028_promoteur_responsable_accreditation_behavior PASS`. Le test est transactionnel et se termine par `ROLLBACK`. Aucune écriture Production.
-- **Exposition API du schéma `private` : JAUNE / non concluant** — les contrôles SQL en lecture seule sur le projet NAXA Production montrent que `anon` n'a pas `USAGE` sur `private`, mais `authenticated` l'a. Plusieurs fonctions du schéma privé accordent aussi EXECUTE à `authenticated` (notamment `naxa_has_privilege` et `naxa_scope_allows`). La configuration effective « Exposed schemas » de PostgREST n'est pas accessible par les outils de gestion utilisés; les paramètres `pgrst.db_schemas` renvoient `NULL` via SQL et ne constituent pas une preuve de configuration. Donc **ne pas déclarer ce point vert**; aucun changement de Production n'a été effectué.
+- **Configuration visuelle « Exposed schemas » : CLOS / CONFORME selon confirmation visuelle utilisateur (29/10/2026)** — `graphql_public` et `public` sont cochés; `private` et `bi` ne le sont pas. Cette preuve clôt uniquement le sous-contrôle de configuration visible. **Sécurité globale du schéma `private` : JAUNE / non certifiée** — les contrôles SQL en lecture seule indiquent que `authenticated` a `USAGE` sur `private` et `EXECUTE` sur plusieurs helpers privés, notamment `naxa_has_privilege` et `naxa_scope_allows`. Les privilèges SQL et les autres voies d’accès doivent encore être vérifiés. Aucun réglage Production n'a été modifié.
 - **Tests 029–031 : réserve technique** — non exécutés dans cette passe; ils ne sont pas déclarés réussis sans preuve. Leurs scripts modifient `session_replication_role`; ils devront être exécutés seulement dans un environnement isolé dont le statut est confirmé.
-- **Progression** — l'absence de données de recette ne bloque pas les contrôles indépendants ni la revue du code. La partie 3 n'est pas globalement close tant que l'exposition API n'est pas vérifiée et les réserves pertinentes traitées. Continuer la revue des parties 5 puis 6 sans présenter les parties 3–6 comme intégralement validées.
+- **Progression** — l'absence de données de recette ne bloque pas les contrôles indépendants ni la revue du code. Le sous-contrôle visuel « Exposed schemas » est clos sur preuve fournie; la sécurité globale de `private` reste JAUNE jusqu’à vérification des privilèges SQL et des autres voies d’accès. Les parties 3 à 6 ne doivent pas être présentées comme intégralement validées.
 
 ## Parties 5 et 6 Promoteur — revue statique initiale (29/10/2026)
 
