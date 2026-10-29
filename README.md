@@ -337,3 +337,7 @@ Le contrôle SQL direct ferme le point d'accès applicatif de `reactiver_promote
 
 ### Audit 360° Promoteur — étape au 29/10/2026
 La revue statique des deux routes de règlement est clôturée : l'identité Promoteur et Admin est déterminée côté serveur, et les RPC sont réservées à `service_role`. Les tests d'intégration restent non exécutés. La reprise est maintenant centrée sur la partie 3 (accréditation Responsable et privilèges) avec comparaison des façades SQL de Production aux migrations de réconciliation. Aucun test fixture ni déploiement n'a été lancé en Production.
+
+
+### Audit 360° Promoteur — point de vigilance actif
+La revue des fonctions de validité a révélé une différence entre la définition du helper `private.naxa_promoteur_valide` dans la migration 147 et celle réellement active en Production. L'écart est documenté dans le rapport d'audit; aucun impact immédiat n'est détecté sur l'unique Promoteur actuellement en base. La correction est suspendue jusqu'à l'identification de la migration ou de l'action qui a redéfini la fonction.
