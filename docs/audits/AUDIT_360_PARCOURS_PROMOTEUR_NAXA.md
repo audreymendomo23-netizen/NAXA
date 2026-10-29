@@ -264,3 +264,13 @@ Limites de cette passe :
 
 ### Prochaine action
 Vérifier la nécessité des grants `service_role` sur les façades de la gestion Caisse et la migration canonique qui les attribue; ensuite préparer des tests comportementaux isolés sans désactivation de triggers ni changement de `session_replication_role`.
+
+
+## Partie 4 — ACL service_role des RPC Caisse : correctif préparé et testé (29/10/2026)
+
+- Lecture croisée des appels applicatifs : les parcours Caisse (création, suspension, réactivation, attribution/révocation de privilèges) appellent les RPC via `supabaseServer()` après vérification de l'identité utilisateur. `supabaseAdmin()` est utilisé pour la recherche/lecture administrative du compte et la préparation/restauration du profil, pas pour appeler ces RPC.
+- Contrôle live Production : les quatre façades `naxa_provision_caisse`, `naxa_set_caisse_status`, `naxa_grant_privilege`, `naxa_revoke_privilege` sont exécutables par `authenticated` et aussi par `service_role`, mais pas par `anon`. Les migrations canoniques accordent `authenticated` sans révoquer explicitement `service_role`; les droits de service sont donc plus larges que nécessaire pour le parcours UI.
+- Correctif additif créé sur `main` : `supabase/migrations/20261029160000_restrict_promoteur_caisse_rpc_service_role.sql` (commit `cee0f0c8b7610ed26459deca07a885021e0b60e6`). Il révoque EXECUTE de `service_role` sur les quatre façades et, si présents, sur les helpers privés grant/revoke. Aucun droit `authenticated` n'est retiré.
+- Test sans fixtures ni modification métier ajouté : `supabase/tests/157_promoteur_caisse_service_role_acl.sql` (commit `d38a26d27ad7376243e5944bc65323d13d17c565`). Migration de diagnostic appliquée uniquement sur le replay non-Production `naxa-ci-replay-2`; test 157 : **PASS**.
+- Recontrôle Production après l'essai : les droits `service_role` sont toujours présents, preuve que le correctif n'a pas été appliqué à Production. Aucun déploiement, aucune CI relancée.
+- Clôture : sous-chantier ACL service_role **clos côté source et replay de test**. Partie 4 reste non certifiée tant que les scénarios comportementaux 029/030/031 ne sont pas validés dans un environnement sûr; aucun test ne doit désactiver les triggers ou changer `session_replication_role`.
