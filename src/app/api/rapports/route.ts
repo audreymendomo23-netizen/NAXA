@@ -93,7 +93,7 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
   const add = (label: string, value: unknown) => {
     if (typeof value === "number" || typeof value === "string") rows.push({ indicateur: label, valeur: value });
   };
-  add("Périmètre", stats.role === "admin" ? "Réseau NAXA" : stats.role === "promoteur" ? "Réseau Promoteur autorisé" : stats.role === "caisse" ? "Activité de caisse personnelle" : "Pharmacie autorisée");
+  add("Périmètre", stats.role === "admin" ? "Réseau NAXA" : stats.role === "promoteur" ? "Réseau Promoteur autorisé" : stats.role === "caisse" ? "Activité de caisse personnelle" : stats.role === "pharmacien" ? "Activité du poste Pharmacien · pharmacie rattachée" : stats.role === "comptable" ? "Comptabilité · pharmacie autorisée" : stats.role === "gestionnaire_stock" ? "Stock · pharmacies affectées" : "Pharmacie autorisée");
   add("Pharmacies du périmètre", stats.pharmacies?.total);
   add("Pharmacies actives", stats.pharmacies?.actives);
   add("Pharmacies inactives", stats.pharmacies?.inactives);
@@ -115,6 +115,25 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
   add("Paiements traités", stats.paiements);
   add("Retraits traités", stats.retraits);
   add("Annulations", stats.annulations);
+  add("Consultations pharmaceutiques", stats.consultations);
+  add("Prescriptions", stats.prescriptions);
+  add("Prescriptions en attente", stats.prescriptions_en_attente);
+  add("Préparations", stats.preparations);
+  add("Événements d'audit Pharmacien", stats.evenements_audit);
+  add("Ventes payées", stats.ventes_payees);
+  add("Chiffre d'affaires comptable (FCFA)", stats.chiffre_affaires);
+  add("Dépenses enregistrées", stats.depenses);
+  add("Montant des dépenses (FCFA)", stats.montant_depenses);
+  add("Mouvements de trésorerie", stats.mouvements_tresorerie);
+  add("Montant brut de trésorerie (FCFA)", stats.montant_tresorerie_brut);
+  add("Dossiers assurance", stats.dossiers_assurance);
+  add("Contrôles comptables à traiter", stats.controles_a_traiter);
+  add("Pharmacies affectées", stats.pharmacies);
+  add("Références en stock", stats.references_stock);
+  add("Stocks bas (≤ 5)", stats.stocks_bas);
+  add("Lots à contrôler", stats.lots_a_controler);
+  add("Réservations à traiter", stats.reservations_a_traiter);
+  add("Inventaires ouverts", stats.inventaires_ouverts);
   return rows;
 }
 
