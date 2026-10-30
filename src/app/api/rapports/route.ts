@@ -154,6 +154,14 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
   add("Lots à contrôler (état actuel)", stats.lots_a_controler);
   add("Réservations en attente (état actuel)", stats.reservations_a_traiter);
   add("Inventaires ouverts (état actuel)", stats.inventaires_ouverts);
+  add("Affectations accordées / reçues sur la période", stats.affectations_periode);
+  add("Affectations actives à la génération", stats.affectations_actives_a_generation);
+  add("Fonctions couvertes par affectation", stats.fonctions_affectees);
+  add("Membres concernés par affectation (Promoteur)", stats.staff_concernes_par_affectation);
+  add("Pharmacies concernées par affectation (Promoteur)", stats.pharmacies_concernees_par_affectation);
+  if (stats.affectations_par_fonction && typeof stats.affectations_par_fonction === "object") {
+    Object.entries(stats.affectations_par_fonction).forEach(([fonction, count]) => add("Affectations · " + fonction, count));
+  }
   return rows;
 }
 
