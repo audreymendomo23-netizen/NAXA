@@ -168,6 +168,8 @@ export default function PilotagePharmacie() {
           <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link></div>
         </header>
 
+        <RapportsALaDemande variant="default" />
+
         <nav className="flex gap-2 overflow-x-auto">
           {[7, 30, 90].map((j) => (
             <button
