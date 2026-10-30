@@ -416,3 +416,12 @@ Le PDF à la demande présente désormais une synthèse KPI, des tableaux regrou
 Le modèle `naxa_professional_assignments` permet de tracer les fonctions temporaires/multiples (pharmacie, fonction, motif, période, auteur et révocation). L'évolution BI prévue intégrera ces événements au rapport individuel du staff et donnera au Promoteur une vue consolidée des affectations par pharmacie et membre du personnel. Une affectation ne prouve pas une présence effective.
 
 Les sources actuellement examinées ne contiennent pas de pointage individuel arrivée/départ ni de journal des heures de garde réellement effectuées. Les périodes `garde_debut/garde_fin` rattachées à `pharmacies` décrivent la garde de la pharmacie, pas celle d'un employé. Les KPI de présence et d'heures travaillées restent donc en attente d'un contrat métier de planning/pointage audité. Aucun indicateur de présence ne doit être déduit d'une simple affectation.
+
+
+## Rapports BI — état de clôture bornée affectations / présence / recette (30/10/2026)
+
+L'API sur `main` intègre maintenant des indicateurs d'affectation lus sous RLS : affectations visibles du membre connecté, affectations accordées par le Promoteur connecté, affectations actives à la génération et volumes par fonction; le Promoteur voit aussi les nombres de membres et pharmacies concernés. Ces agrégats alimentent les rapports et leurs exports existants.
+
+La restitution nominative complète par membre/pharmacie reste conditionnée à une règle RLS ou une RPC dédiée, sans élargissement de privilèges dans cette passe. Aucun journal individuel fiable d'arrivée/départ ou d'heures de garde effectuées n'a été identifié : les rapports signalent cette absence et ne déduisent aucune présence des affectations ou de la garde publiée de la pharmacie.
+
+**Recette non certifiée :** tests authentifiés par rôle, tests négatifs de cloisonnement, téléchargements/ouverture PDF et CSV, et build Next/TypeScript restent à exécuter. Aucun changement Supabase Production, aucune migration appliquée, aucun secret modifié, aucun déploiement.
