@@ -78,3 +78,11 @@ L'API serveur expose des indicateurs propres aux postes internes :
 La revue du code a corrigé deux séquences de retour à la ligne échappées qui s'étaient glissées dans les fichiers TSX Admin Pilotage et Gestionnaire Stock. Le composant est aussi monté sur la branche Promoteur/Responsable de `/pharmacie/pilotage` (en plus du cas Caisse) et ses couleurs d'accent/bouton suivent la variante du dashboard.
 
 Le dernier statut CircleCI disponible reste `ci/circleci: quality = failure` (build 8291). Les logs ne sont pas accessibles avec la connexion actuelle; aucun diagnostic de cause ne doit être inventé. Tant que le build, les appels API authentifiés par rôle et les téléchargements PDF/CSV ne sont pas validés, le chantier demeure non certifié.
+
+## Fiabilité des agrégats par poste — correction du 30/10/2026
+
+- **Comptable :** les lectures de ventes, dépenses, mouvements de trésorerie, dossiers assurance et contrôles sont paginées par plages ordonnées de 1 000 lignes jusqu'à épuisement des résultats. Les totaux et volumes ne sont donc plus calculés sur une seule page plafonnée à 5 000 lignes. Toute erreur de page interrompt le rapport complet.
+- **Pharmacien :** le nombre de prescriptions et le nombre de prescriptions en attente utilisent chacun un comptage exact Supabase (`count: exact`, sans charger les lignes). Les autres volumes restent des comptages serveur exacts.
+- **Gestionnaire de stock :** les références, stocks bas, lots à contrôler, réservations en attente et inventaires ouverts sont explicitement libellés comme **états actuels**. La période choisie ne prétend plus mesurer leur évolution historique. L'aperçu, le CSV et le PDF portent cette réserve temporelle.
+- **Limite :** les indicateurs stock historiques (mouvements, variations de quantité, entrées/sorties par période) ne sont pas ajoutés faute de contrat de journal de mouvements confirmé dans cette passe. Ils nécessitent une définition métier et un schéma vérifiés avant implémentation.
+- **Validation :** correction vérifiée statiquement sur `main`; aucun test runtime avec comptes Comptable/Pharmacien/Stock ni build Next/TypeScript n'a été exécuté. Aucune écriture Supabase Production, aucun secret ni déploiement.
