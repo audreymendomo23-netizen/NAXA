@@ -171,6 +171,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
     accountingPeriodsListResult,
     staffProfilesResult,
     networkSalesResult,
+    professionalAssignmentsResult,
   ] = await Promise.all([
     scopedIds.length
       ? adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", scopedIds).order("started_at", { ascending: false }).limit(50)
@@ -196,8 +197,13 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
     scopedIds.length
       ? adminDb.from("v_reservations_ca").select("pharmacie_id,jour,ventes,total").in("pharmacie_id", scopedIds).gte("jour", new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10))
       : Promise.resolve({ data: [], error: null }),
+    scopedIds.length
+      ? adminDb.from("naxa_professional_assignments").select("id,profile_id,pharmacie_id,fonction,statut,motif,commence_at,expire_at,accorde_at,revoque_at,motif_revocation").eq("accorde_par", auth.user.id).in("pharmacie_id", scopedIds).order("accorde_at", { ascending: false }).limit(500)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error);
+  const professionalAssignmentsError = Boolean(professionalAssignmentsResult.error);
+  const professionalAssignments = professionalAssignmentsResult.data ?? [];
   const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error || accountingPeriodsListResult.error);
   const networkSalesError = Boolean(networkSalesResult.error);
   const salesByPharmacy = new Map<string, { ca: number; ventes: number }>();
@@ -332,6 +338,24 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
             </div>
           )}
           <p className="mt-3 text-xs leading-5 text-naxa-green-700">Le suivi est affiché uniquement pour les postes disposant d'une table de session. Les rôles sans journal de service ne sont pas inventés.</p>
+        </section>
+
+        <section id="affectations-personnel" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-green-100 bg-white p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-lg font-extrabold">Affectations du personnel — détail nominatif</h2><p className="mt-1 text-sm text-naxa-green-700">Affectations accordées par votre compte dans les pharmacies actives de votre réseau, y compris les révocations récentes.</p></div>
+            <span className="rounded-full bg-[#F2FAF5] px-3 py-1 text-xs font-extrabold text-naxa-green-900">{professionalAssignmentsError ? "Indisponible" : professionalAssignments.length + " affectation(s)"}</span>
+          </div>
+          {professionalAssignmentsError ? <p role="status" className="mt-3 rounded-xl bg-orange-50 p-3 text-sm text-orange-950">Le détail des affectations n’a pas pu être chargé. Aucune liste partielle n’est présentée comme complète.</p> : !professionalAssignments.length ? <p className="mt-3 rounded-xl bg-[#F2FAF5] p-3 text-sm text-naxa-green-700">Aucune affectation accordée dans le périmètre chargé.</p> : (
+            <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm">
+              <thead><tr className="border-b border-slate-200 text-naxa-green-700"><th className="p-2">Personnel</th><th className="p-2">Pharmacie</th><th className="p-2">Fonction</th><th className="p-2">Début</th><th className="p-2">Fin prévue</th><th className="p-2">Statut</th><th className="p-2">Révocation</th></tr></thead>
+              <tbody>{professionalAssignments.map((a) => <tr key={a.id} className="border-b border-slate-100">
+                <td className="p-2 font-semibold">{staffById.get(a.profile_id) ?? "Personnel non identifié"}</td>
+                <td className="p-2">{(pharmacies ?? []).find((ph) => ph.id === a.pharmacie_id)?.nom ?? "Pharmacie du réseau"}</td>
+                <td className="p-2">{a.fonction}</td><td className="p-2 tabular-nums">{dateTime(a.commence_at)}</td><td className="p-2 tabular-nums">{dateTime(a.expire_at)}</td>
+                <td className="p-2">{a.statut === "active" ? "Active" : "Révoquée"}</td><td className="p-2 tabular-nums">{dateTime(a.revoque_at)}</td>
+              </tr>)}</tbody>
+            </table></div>
+          )}
         </section>
 
 <section id="pharmaciens" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6"><h2 className="text-lg font-extrabold">Pharmaciens</h2><p className="mt-1 text-sm text-naxa-green-700">Supervision agrégée. Aucun nom de patient, contenu d’ordonnance ni détail de dispensation n’est affiché.</p><p className="mt-3 text-sm">Comptes actifs : <strong>{roleControl.pharmaciens===null?"Indisponible":roleControl.pharmaciens}</strong> · Ordonnances en attente : <strong>{roleControl.prescriptions===null?"Indisponible":roleControl.prescriptions}</strong></p>{serviceSessionsError?<p className="mt-3 text-sm">Historique des services pharmacien indisponible.</p>:<div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead><tr><th className="p-2">Poste / service</th><th className="p-2">Personnel</th><th className="p-2">Prise</th><th className="p-2">Fin</th><th className="p-2">État</th></tr></thead><tbody>{staffSessions.filter(s=>s.role==="Pharmacien").map(s=><tr key={s.id}><td className="p-2">Pharmacien</td><td className="p-2">{staffById.get(s.userId)??"Personnel non identifié"}</td><td className="p-2">{dateTime(s.startedAt)}</td><td className="p-2">{dateTime(s.endedAt)}</td><td className="p-2">{s.endedAt?"Clôturé":"Ouvert"}</td></tr>)}</tbody></table></div>}</section>
