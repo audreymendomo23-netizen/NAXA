@@ -12,7 +12,7 @@ create policy stock_service_sessions_read_scope
   on public.stock_service_sessions for select to authenticated
   using (
     gestionnaire_id = (select auth.uid())
-    or (select private.is_admin())
+    or (select public.is_admin())
     or (select private.naxa_scope_allows((select auth.uid()), pharmacie_id, 'PHARMACIE'))
   );
 
@@ -25,7 +25,7 @@ create policy stock_service_counts_read_scope
       where s.id = session_id
         and (
           s.gestionnaire_id = (select auth.uid())
-          or (select private.is_admin())
+          or (select public.is_admin())
           or (select private.naxa_scope_allows((select auth.uid()), s.pharmacie_id, 'PHARMACIE'))
         )
     )
