@@ -860,3 +860,11 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - **Limites restantes :** session Caisse = ouverture/fermeture du tiroir, pas présence générale; aucun pointage individuel Responsable/Comptable ni registre de garde individuelle effectuée. Les sessions encore ouvertes sont provisoires; pas de calcul de retard, absence ou planning théorique.
 - **Validation opérationnelle ouverte :** tests authentifiés par rôle et tests négatifs de cloisonnement, téléchargements et ouverture réels PDF/CSV, build Next/TypeScript restent à exécuter. Aucune certification opérationnelle n'est prononcée.
 - Aucune migration appliquée, aucune écriture Supabase Production, aucun secret modifié, aucun déploiement.
+
+
+## Complément — intégration nominative et pointages BI (30/10/2026)
+
+- `src/app/api/rapports/route.ts` : historiques personnels paginés Pharmacien/Stock, sessions personnelles de Caisse et consolidation paginée Promoteur des trois journaux sur son réseau actif. Les rapports JSON/PDF/CSV incluent identités accessibles, heures de début/fin et durées; une session ouverte est provisoire à l'heure de génération.
+- `src/app/pharmacie/promoteur/page.tsx` : correction du mauvais raccordement de la table Stock; utilisation de `stock_service_sessions` et de ses colonnes `gestionnaire_id/opened_at/closed_at`. Les noms sont résolus par identifiants exacts des sessions/affectations autorisées. Ajout du tableau nominatif des affectations accordées par le Promoteur.
+- Les tests structurels 188 et 212 ont été renforcés pour vérifier les colonnes d'horodatage et les politiques RLS. Ils sont présents mais n'ont pas été exécutés ici.
+- **Recette non certifiée :** tests authentifiés par rôle, contrôles négatifs d'accès croisé, téléchargements/ouverture navigateur PDF/CSV et build local non exécutés. Le seul workflow Actions récent visible est la sauvegarde indépendante, en échec; aucun workflow de build n'est configuré dans `.github/workflows`. Aucun changement Supabase Production, aucune migration appliquée, aucun déploiement.
