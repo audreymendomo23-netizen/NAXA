@@ -413,7 +413,7 @@ Le PDF à la demande présente désormais une synthèse KPI, des tableaux regrou
 
 ## Rapports BI — périmètre personnel et permutations
 
-Le modèle `naxa_professional_assignments` permet de tracer les fonctions temporaires/multiples (pharmacie, fonction, motif, période, auteur et révocation). L'évolution BI prévue intégrera ces événements au rapport individuel du staff et donnera au Promoteur une vue consolidée des affectations par pharmacie et membre du personnel. Une affectation ne prouve pas une présence effective.
+Le modèle `naxa_professional_assignments` trace les fonctions temporaires/multiples (pharmacie, fonction, motif, période, auteur et révocation). L'API BI et le tableau Promoteur présentent désormais les affectations nominatives dans le périmètre autorisé. Une affectation ne prouve pas une présence effective.
 
 Correction après audit du code : les dashboards disposent de journaux de service horodatés pour Pharmacien (`pharmacien_service_sessions`, migration 188), Gestionnaire de stock (`stock_service_sessions`, migration 212) et Caisse (`caisses_sessions`, migration 044). Les heures début/fin sont maintenant exploitées dans les rapports. La session Caisse décrit le tiroir, pas une présence générale. `pharmacies.garde_debut/garde_fin` restent des périodes de garde publiées au niveau pharmacie, pas des gardes individuelles effectuées.
 
