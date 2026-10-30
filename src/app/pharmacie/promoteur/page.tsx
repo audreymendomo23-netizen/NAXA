@@ -202,8 +202,13 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
       : Promise.resolve({ data: [], error: null }),
   ]);
   const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error);
-  const professionalAssignmentsError = Boolean(professionalAssignmentsResult.error);
   const professionalAssignments = professionalAssignmentsResult.data ?? [];
+  const assignmentProfileIds = [...new Set(professionalAssignments.map((assignment) => assignment.profile_id))];
+  const { data: assignmentProfiles, error: assignmentProfilesError } = assignmentProfileIds.length
+    ? await adminDb.from("profiles").select("id,first_name,last_name,username").in("id", assignmentProfileIds)
+    : { data: [], error: null };
+  const assignmentStaffById = new Map((assignmentProfiles ?? []).map((person) => [person.id, [person.first_name, person.last_name].filter(Boolean).join(" ") || person.username || "Personnel non identifié"] as const));
+  const professionalAssignmentsError = Boolean(professionalAssignmentsResult.error || assignmentProfilesError);
   const accountingError = Boolean(accountingPeriodsResult.error || accountingQueueResult.error || accountingEntriesResult.error || accountingPeriodsListResult.error);
   const networkSalesError = Boolean(networkSalesResult.error);
   const salesByPharmacy = new Map<string, { ca: number; ventes: number }>();
@@ -349,7 +354,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
             <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm">
               <thead><tr className="border-b border-slate-200 text-naxa-green-700"><th className="p-2">Personnel</th><th className="p-2">Pharmacie</th><th className="p-2">Fonction</th><th className="p-2">Début</th><th className="p-2">Fin prévue</th><th className="p-2">Statut</th><th className="p-2">Révocation</th></tr></thead>
               <tbody>{professionalAssignments.map((a) => <tr key={a.id} className="border-b border-slate-100">
-                <td className="p-2 font-semibold">{staffById.get(a.profile_id) ?? "Personnel non identifié"}</td>
+                <td className="p-2 font-semibold">{assignmentStaffById.get(a.profile_id) ?? "Personnel non identifié"}</td>
                 <td className="p-2">{(pharmacies ?? []).find((ph) => ph.id === a.pharmacie_id)?.nom ?? "Pharmacie du réseau"}</td>
                 <td className="p-2">{a.fonction}</td><td className="p-2 tabular-nums">{dateTime(a.commence_at)}</td><td className="p-2 tabular-nums">{dateTime(a.expire_at)}</td>
                 <td className="p-2">{a.statut === "active" ? "Active" : "Révoquée"}</td><td className="p-2 tabular-nums">{dateTime(a.revoque_at)}</td>
