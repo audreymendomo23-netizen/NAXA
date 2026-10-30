@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";\nimport RapportsALaDemande from "@/components/RapportsALaDemande";
+import { GestionnaireStockSidebar } from "@/components/pharmacie/GestionnaireStockSidebar";
+import RapportsALaDemande from "@/components/RapportsALaDemande";
 import { modifierEmplacementStock, modifierEmplacementLot, modifierBlocageLotGestionStock, initialiserReferenceStock, ajusterQuantiteStockGestionnaire, transfererStockEntrePharmacies } from "@/app/pharmacie/gestionnaire-stock/actions";
 
 type RelatedProduct = { nom?: string | null; dosage?: string | null; forme?: string | null };
