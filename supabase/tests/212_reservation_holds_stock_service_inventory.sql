@@ -43,6 +43,16 @@ begin
     raise exception 'Les RPC de prise/fin de service sont absentes';
   end if;
 
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='stock_service_sessions' and column_name='opened_at')
+     or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='stock_service_sessions' and column_name='closed_at')
+     or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='stock_service_sessions' and column_name='gestionnaire_id') then
+    raise exception 'Le journal de service Stock ne fournit pas les horodatages individuels attendus';
+  end if;
+  if not exists (select 1 from pg_tables where schemaname='public' and tablename='stock_service_sessions' and rowsecurity)
+     or not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_service_sessions' and policyname='stock_service_sessions_read_scope') then
+    raise exception 'Le périmètre RLS du journal de service Stock est absent';
+  end if;
+
   if has_function_privilege('authenticated','public.consume_reservation_for_sale(uuid,uuid)','EXECUTE') then
     raise exception 'La consommation de réservation est exposée directement au client';
   end if;
