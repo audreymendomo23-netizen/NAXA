@@ -72,3 +72,9 @@ L'API serveur expose des indicateurs propres aux postes internes :
 - Admin / Promoteur / Responsable / Caisse : RPC de pilotage déjà en place, avec contrôles d'accès existants.
 
 **État de validation :** revue statique des fichiers et branchements UI/API effectuée. Les tests d'exécution avec comptes de recette pour chacun des postes, le build TypeScript et la recette visuelle navigateur restent à réaliser. Ne pas déclarer la fonctionnalité certifiée en production sur la seule base de cette intégration source.
+
+
+## Corrections de cohérence et de recette statique — 30/10/2026
+La revue du code a corrigé deux séquences de retour à la ligne échappées qui s'étaient glissées dans les fichiers TSX Admin Pilotage et Gestionnaire Stock. Le composant est aussi monté sur la branche Promoteur/Responsable de `/pharmacie/pilotage` (en plus du cas Caisse) et ses couleurs d'accent/bouton suivent la variante du dashboard.
+
+Le dernier statut CircleCI disponible reste `ci/circleci: quality = failure` (build 8291). Les logs ne sont pas accessibles avec la connexion actuelle; aucun diagnostic de cause ne doit être inventé. Tant que le build, les appels API authentifiés par rôle et les téléchargements PDF/CSV ne sont pas validés, le chantier demeure non certifié.
