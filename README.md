@@ -437,3 +437,13 @@ Les tests SQL structurels 188 et 212 ont été renforcés sur les colonnes d'hor
 ## Pointage Stock — sécurité validée sur rejeu (30/10/2026)
 
 La migration additive 263 rétablit RLS sur les sessions de service Stock et les comptages, avec lecture limitée au propriétaire/Admin/scope pharmacie et écritures par RPC. Appliquée uniquement à `naxa-ci-replay-2`; test ciblé 263 et test Pharmacien 188 : PASS. Le test 212 complet est bloqué par une dépendance de réservation absente du rejeu. Production non modifiée.
+
+
+## Comptable — correction RBAC et pointage individuel (30/10/2026)
+
+- Réconciliation du moteur RBAC sur `main` : `MANAGE_ACCOUNTING` est rétabli dans le catalogue et les matrices d'architecture; `naxa_has_privilege` reconnaît la fonction professionnelle Comptable sans créer de rôle technique ni attribuer automatiquement un privilège nominatif. Les contrôles de scope et d'attribution individuelle sont conservés.
+- Migration `supabase/migrations/20261030120000_comptable_service_sessions.sql` : journal séparé `comptable_service_sessions`, horodatage serveur, pharmacie liée, une session ouverte maximum par compte, RPC démarrer/terminer et RLS en lecture personnelle. Les écritures directes sont interdites aux rôles applicatifs.
+- Interface `/pharmacie/comptable/service` avec historique, durée, note facultative et statut provisoire des sessions ouvertes. Entrée de navigation ajoutée au tableau de bord et menu latéral sur la page de service.
+- API Rapports raccordée : historique individuel Comptable et consolidation nominative Promoteur sur ses seules pharmacies actives; pagination conservée et sessions ouvertes provisoires.
+- Vérification : migration appliquée uniquement au rejeu `naxa-ci-replay-2`; test structurel 265 exécuté avec succès (RLS, politique, absence d'écriture directe, ACL RPC, index unicité, contrôles identité/scope). Le test comportemental avec comptes réels, tests négatifs inter-pharmacies et build Next/TypeScript restent à exécuter.
+- Aucun changement Production, aucun secret modifié, aucun déploiement.
