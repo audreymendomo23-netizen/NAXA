@@ -402,3 +402,10 @@ Le générateur partagé `RapportsALaDemande` est intégré directement aux dash
 ### Rapports BI — fiabilité des agrégats (30/10/2026)
 
 Les lectures Comptable sont désormais paginées jusqu'à épuisement des résultats (pages ordonnées de 1 000 lignes), et les prescriptions Pharmacien/en attente reposent sur des comptages exacts Supabase plutôt que sur un échantillon limité. Les indicateurs Gestionnaire de stock sont explicitement présentés comme des états actuels dans l'aperçu et les exports, et non comme des mouvements sur la période sélectionnée. Les KPI historiques de mouvements de stock restent à construire après confirmation du contrat de données. Correctif source sur `main`; tests runtime et build non exécutés, aucune modification Production ni aucun déploiement.
+
+
+## Rapports BI — présentation PDF enrichie (30/10/2026)
+
+Le PDF à la demande présente désormais une synthèse KPI, des tableaux regroupés par thèmes, l'analyse J'IA, les réserves de comparaison et une pagination structurée. Une courbe d'évolution n'apparaît que si une série temporelle numérique valide est fournie; aucune visualisation artificielle n'est construite à partir de KPI non comparables. Le contrat API, les exports CSV, les périmètres de rôle et les contrôles d'accès existants sont conservés.
+
+**Statut :** amélioration source sur `main`, vérification statique uniquement. Téléchargements réels, ouverture des PDF, appels API authentifiés par rôle et build restent à tester; la certification opérationnelle demeure ouverte. Aucun déploiement, aucune écriture Production, aucun secret modifié.
