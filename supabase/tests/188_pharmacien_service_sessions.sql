@@ -10,6 +10,10 @@ begin
   if to_regprocedure('public.pharmacien_service_terminer(uuid,text)') is null then
     raise exception 'NAXA 188: RPC de fin de service absente';
   end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='pharmacien_service_sessions' and column_name='started_at')
+     or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='pharmacien_service_sessions' and column_name='ended_at') then
+    raise exception 'NAXA 188: horodatages individuels début/fin absents';
+  end if;
   if not exists (
     select 1 from pg_indexes
     where schemaname='public'
