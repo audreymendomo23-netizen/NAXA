@@ -364,23 +364,23 @@ export async function POST(request: Request) {
   const sinceSessions = new Date(Date.now() - config.days * 86400000).toISOString();
   let serviceRows: Array<{ poste: string; personnel?: string; debut: string; fin: string | null; duree_heures: number }> = [];
   if (fonction === "pharmacien") {
-    const { data, error } = await sb.from("pharmacien_service_sessions")
+    const sessions = await fetchAllRows<{ id: string; started_at: string; ended_at: string | null }>((from, to) => sb.from("pharmacien_service_sessions")
       .select("id,started_at,ended_at").eq("pharmacien_id", auth.user.id)
-      .gte("started_at", sinceSessions).order("started_at", { ascending: false }).limit(500);
-    if (error) return NextResponse.json({ error: "Le journal de service Pharmacien est indisponible." }, { status: 503 });
-    serviceRows = (data ?? []).map(s => ({ poste: "Pharmacien", debut: s.started_at, fin: s.ended_at, duree_heures: Math.round((Math.max(0, new Date(s.ended_at ?? new Date().toISOString()).getTime() - new Date(s.started_at).getTime()) / 3600000) * 100) / 100 }));
+      .gte("started_at", sinceSessions).order("started_at", { ascending: false }).range(from, to));
+    if (sessions.error) return NextResponse.json({ error: "Le journal de service Pharmacien est indisponible." }, { status: 503 });
+    serviceRows = sessions.data.map(s => ({ poste: "Pharmacien", debut: s.started_at, fin: s.ended_at, duree_heures: Math.round((Math.max(0, new Date(s.ended_at ?? new Date().toISOString()).getTime() - new Date(s.started_at).getTime()) / 3600000) * 100) / 100 }));
   } else if (["gestionnaire_stock", "magasinier"].includes(fonction)) {
-    const { data, error } = await sb.from("stock_service_sessions")
+    const sessions = await fetchAllRows<{ id: string; opened_at: string; closed_at: string | null }>((from, to) => sb.from("stock_service_sessions")
       .select("id,opened_at,closed_at").eq("gestionnaire_id", auth.user.id)
-      .gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).limit(500);
-    if (error) return NextResponse.json({ error: "Le journal de service Stock est indisponible." }, { status: 503 });
-    serviceRows = (data ?? []).map(s => ({ poste: "Gestionnaire de stock", debut: s.opened_at, fin: s.closed_at, duree_heures: Math.round((Math.max(0, new Date(s.closed_at ?? new Date().toISOString()).getTime() - new Date(s.opened_at).getTime()) / 3600000) * 100) / 100 }));
+      .gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).range(from, to));
+    if (sessions.error) return NextResponse.json({ error: "Le journal de service Stock est indisponible." }, { status: 503 });
+    serviceRows = sessions.data.map(s => ({ poste: "Gestionnaire de stock", debut: s.opened_at, fin: s.closed_at, duree_heures: Math.round((Math.max(0, new Date(s.closed_at ?? new Date().toISOString()).getTime() - new Date(s.opened_at).getTime()) / 3600000) * 100) / 100 }));
   } else if (profile.role === "caisse") {
-    const { data, error } = await sb.from("caisses_sessions")
+    const sessions = await fetchAllRows<{ id: string; ouvert_at: string; cloture_at: string | null }>((from, to) => sb.from("caisses_sessions")
       .select("id,ouvert_at,cloture_at").eq("ouvert_par", auth.user.id)
-      .gte("ouvert_at", sinceSessions).order("ouvert_at", { ascending: false }).limit(500);
-    if (error) return NextResponse.json({ error: "Le journal des sessions de caisse est indisponible." }, { status: 503 });
-    serviceRows = (data ?? []).map(s => ({ poste: "Caisse (session de caisse, pas présence générale)", debut: s.ouvert_at, fin: s.cloture_at, duree_heures: Math.round((Math.max(0, new Date(s.cloture_at ?? new Date().toISOString()).getTime() - new Date(s.ouvert_at).getTime()) / 3600000) * 100) / 100 }));
+      .gte("ouvert_at", sinceSessions).order("ouvert_at", { ascending: false }).range(from, to));
+    if (sessions.error) return NextResponse.json({ error: "Le journal des sessions de caisse est indisponible." }, { status: 503 });
+    serviceRows = sessions.data.map(s => ({ poste: "Caisse (session de caisse, pas présence générale)", debut: s.ouvert_at, fin: s.cloture_at, duree_heures: Math.round((Math.max(0, new Date(s.cloture_at ?? new Date().toISOString()).getTime() - new Date(s.ouvert_at).getTime()) / 3600000) * 100) / 100 }));
   } else if (profile.role === "promoteur") {
     const { data: rawIds, error: scopeError } = await sb.rpc("my_pharmacies");
     if (scopeError) return NextResponse.json({ error: "Le périmètre du réseau Promoteur est indisponible pour le rapport de service." }, { status: 503 });
