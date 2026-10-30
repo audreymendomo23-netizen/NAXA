@@ -86,3 +86,17 @@ Le dernier statut CircleCI disponible reste `ci/circleci: quality = failure` (bu
 - **Gestionnaire de stock :** les références, stocks bas, lots à contrôler, réservations en attente et inventaires ouverts sont explicitement libellés comme **états actuels**. La période choisie ne prétend plus mesurer leur évolution historique. L'aperçu, le CSV et le PDF portent cette réserve temporelle.
 - **Limite :** les indicateurs stock historiques (mouvements, variations de quantité, entrées/sorties par période) ne sont pas ajoutés faute de contrat de journal de mouvements confirmé dans cette passe. Ils nécessitent une définition métier et un schéma vérifiés avant implémentation.
 - **Validation :** correction vérifiée statiquement sur `main`; aucun test runtime avec comptes Comptable/Pharmacien/Stock ni build Next/TypeScript n'a été exécuté. Aucune écriture Supabase Production, aucun secret ni déploiement.
+
+
+## Evolution du PDF BI — 30/10/2026
+
+Le PDF à la demande a été enrichi sans changer le contrat de génération des données ni les périmètres d'accès :
+- page de synthèse avec période, périmètre et cartes KPI;
+- indicateurs regroupés en tableaux thématiques (finance/ventes, activité métier, stock/approvisionnement, pilotage/performance, réseau/périmètre);
+- note temporelle Stock conservée et mise en évidence;
+- analyse J'IA, statut de disponibilité, limites de comparaison et pied de page paginé;
+- pagination automatique des tableaux et du contenu long.
+
+Un graphique d'évolution n'est rendu que si `stats.serie` contient au moins deux points avec un libellé et une valeur numérique exploitables. En l'absence d'une série valide, aucun graphique artificiel n'est dessiné. Les indicateurs isolés ne sont pas comparés visuellement entre eux, car leurs unités et significations peuvent différer. Les annexes exhaustives ne sont pas ajoutées par défaut : le rapport reste synthétique et n'expose pas de lignes transactionnelles nominatives.
+
+**Validation :** amélioration du générateur PDF contrôlée statiquement. Le PDF binaire doit encore être téléchargé et ouvert en navigateur avec des comptes de recette pour chaque rôle; le build TypeScript/Next et les appels API authentifiés restent à tester. Certification opérationnelle toujours ouverte. Aucun déploiement, aucune écriture Supabase Production et aucun secret modifié.
