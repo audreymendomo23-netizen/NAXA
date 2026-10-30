@@ -201,7 +201,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
       ? adminDb.from("naxa_professional_assignments").select("id,profile_id,pharmacie_id,fonction,statut,motif,commence_at,expire_at,accorde_at,revoque_at,motif_revocation").eq("accorde_par", auth.user.id).in("pharmacie_id", scopedIds).order("accorde_at", { ascending: false }).limit(500)
       : Promise.resolve({ data: [], error: null }),
   ]);
-  const serviceSessionsError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error);
+  const serviceSessionSourceError = Boolean(ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error);
   const professionalAssignments = professionalAssignmentsResult.data ?? [];
   const assignmentProfileIds = [...new Set(professionalAssignments.map((assignment) => assignment.profile_id))];
   const { data: assignmentProfiles, error: assignmentProfilesError } = assignmentProfileIds.length
@@ -224,6 +224,12 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
     ...pharmacistSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.pharmacien_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Pharmacien", label: "Service pharmacien" })),
     ...stockSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.gestionnaire_id, startedAt: s.opened_at, endedAt: s.closed_at, role: "Gestionnaire de stock", label: "Service stock" })),
   ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);
+  const sessionProfileIds = [...new Set(staffSessions.map((session) => session.userId))];
+  const { data: sessionProfiles, error: sessionProfilesError } = sessionProfileIds.length
+    ? await adminDb.from("profiles").select("id,first_name,last_name,username").in("id", sessionProfileIds)
+    : { data: [], error: null };
+  const sessionStaffById = new Map([...staffProfiles, ...(sessionProfiles ?? [])].map((person) => [person.id, [person.first_name, person.last_name].filter(Boolean).join(" ") || person.username || "Personnel non identifié"] as const));
+  const serviceSessionsError = Boolean(serviceSessionSourceError || sessionProfilesError);
   const openServiceCount = staffSessions.filter((s) => !s.endedAt).length;
 
   // Consolidation opérationnelle par poste : uniquement des agrégats et des profils
@@ -335,7 +341,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
                 <thead><tr className="border-b border-slate-200 text-naxa-green-700"><th className="p-2">Poste / service</th><th className="p-2">Personnel</th><th className="p-2">Prise</th><th className="p-2">Fin</th><th className="p-2">État</th></tr></thead>
                 <tbody>{staffSessions.map((s) => <tr key={s.role + s.id} className="border-b border-slate-100">
                   <td className="p-2"><span className="font-bold">{s.role}</span><span className="block text-xs text-naxa-green-700">{s.label}</span></td>
-                  <td className="p-2">{staffById.get(s.userId) ?? "Personnel non identifié"}</td>
+                  <td className="p-2">{sessionStaffById.get(s.userId) ?? "Personnel non identifié"}</td>
                   <td className="p-2 tabular-nums">{dateTime(s.startedAt)}</td><td className="p-2 tabular-nums">{dateTime(s.endedAt)}</td>
                   <td className="p-2"><span className={s.endedAt ? "rounded-full bg-[#F2FAF5] px-2 py-1 text-xs font-bold text-naxa-green-900" : "rounded-full bg-[#FFE33D] px-2 py-1 text-xs font-bold text-naxa-green-900"}>{s.endedAt ? "Clôturé" : "Ouvert"}</span></td>
                 </tr>)}</tbody>
@@ -363,7 +369,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
           )}
         </section>
 
-<section id="pharmaciens" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6"><h2 className="text-lg font-extrabold">Pharmaciens</h2><p className="mt-1 text-sm text-naxa-green-700">Supervision agrégée. Aucun nom de patient, contenu d’ordonnance ni détail de dispensation n’est affiché.</p><p className="mt-3 text-sm">Comptes actifs : <strong>{roleControl.pharmaciens===null?"Indisponible":roleControl.pharmaciens}</strong> · Ordonnances en attente : <strong>{roleControl.prescriptions===null?"Indisponible":roleControl.prescriptions}</strong></p>{serviceSessionsError?<p className="mt-3 text-sm">Historique des services pharmacien indisponible.</p>:<div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead><tr><th className="p-2">Poste / service</th><th className="p-2">Personnel</th><th className="p-2">Prise</th><th className="p-2">Fin</th><th className="p-2">État</th></tr></thead><tbody>{staffSessions.filter(s=>s.role==="Pharmacien").map(s=><tr key={s.id}><td className="p-2">Pharmacien</td><td className="p-2">{staffById.get(s.userId)??"Personnel non identifié"}</td><td className="p-2">{dateTime(s.startedAt)}</td><td className="p-2">{dateTime(s.endedAt)}</td><td className="p-2">{s.endedAt?"Clôturé":"Ouvert"}</td></tr>)}</tbody></table></div>}</section>
+<section id="pharmaciens" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6"><h2 className="text-lg font-extrabold">Pharmaciens</h2><p className="mt-1 text-sm text-naxa-green-700">Supervision agrégée. Aucun nom de patient, contenu d’ordonnance ni détail de dispensation n’est affiché.</p><p className="mt-3 text-sm">Comptes actifs : <strong>{roleControl.pharmaciens===null?"Indisponible":roleControl.pharmaciens}</strong> · Ordonnances en attente : <strong>{roleControl.prescriptions===null?"Indisponible":roleControl.prescriptions}</strong></p>{serviceSessionsError?<p className="mt-3 text-sm">Historique des services pharmacien indisponible.</p>:<div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead><tr><th className="p-2">Poste / service</th><th className="p-2">Personnel</th><th className="p-2">Prise</th><th className="p-2">Fin</th><th className="p-2">État</th></tr></thead><tbody>{staffSessions.filter(s=>s.role==="Pharmacien").map(s=><tr key={s.id}><td className="p-2">Pharmacien</td><td className="p-2">{sessionStaffById.get(s.userId)??"Personnel non identifié"}</td><td className="p-2">{dateTime(s.startedAt)}</td><td className="p-2">{dateTime(s.endedAt)}</td><td className="p-2">{s.endedAt?"Clôturé":"Ouvert"}</td></tr>)}</tbody></table></div>}</section>
         <section id="clotures-caisses" className="promoteur-card xl:col-span-12 rounded-3xl border border-naxa-canari bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-lg font-extrabold">Clôtures de caisse et soldes de fin de service</h2><p className="mt-1 text-sm text-naxa-green-700">Inclut les clôtures sans écart : le solde théorique et le montant compté sont visibles même lorsque l'écart est nul.</p></div>
