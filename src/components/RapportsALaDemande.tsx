@@ -70,10 +70,12 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
   }
 
   const shellClass = variant === "admin" ? "rounded-3xl border border-[#0147BB]/15 bg-white p-5 shadow-sm" : variant === "stock" ? "rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm" : variant === "pharmacien" ? "carte space-y-4" : "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm";
+  const titleClass = variant === "admin" ? "text-[#0147BB]" : variant === "stock" ? "text-emerald-800" : "text-naxa-green-900";
+  const primaryButtonClass = variant === "admin" ? "bg-[#0147BB]" : variant === "stock" ? "bg-[#0B3D26]" : "bg-naxa-green-900";
 
   return (
     <section className={shellClass}>
-      <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">Rapport à la demande · Données actualisées</p>
+      <p className={`text-xs font-extrabold uppercase tracking-widest ${titleClass}`}>Rapport à la demande · Données actualisées</p>
       <h2 className="mt-1 text-xl font-black">Générer un rapport maintenant</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">Chaque génération relit les données autorisées au moment de la demande. Le rapport n'attend pas la prochaine échéance automatique. Les mêmes indicateurs alimentent l'aperçu, le PDF et le CSV.</p>
       <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -82,7 +84,7 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
             {periods.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
-        <button type="button" onClick={() => void generate()} disabled={busy || !!exportBusy} className="min-h-11 rounded-xl bg-[#0147BB] px-5 font-bold text-white disabled:opacity-60">{busy ? "Calcul en cours…" : "Générer maintenant"}</button>
+        <button type="button" onClick={() => void generate()} disabled={busy || !!exportBusy} className={`min-h-11 rounded-xl ${primaryButtonClass} px-5 font-bold text-white disabled:opacity-60`}>{busy ? "Calcul en cours…" : "Générer maintenant"}</button>
         {rapport && <>
           <button type="button" onClick={() => void download("pdf")} disabled={!!exportBusy} className="min-h-11 rounded-xl border border-slate-300 px-5 font-bold disabled:opacity-60">{exportBusy === "pdf" ? "Préparation PDF…" : "Télécharger PDF"}</button>
           <button type="button" onClick={() => void download("csv")} disabled={!!exportBusy} className="min-h-11 rounded-xl border border-slate-300 px-5 font-bold disabled:opacity-60">{exportBusy === "csv" ? "Préparation CSV…" : "Télécharger CSV"}</button>
