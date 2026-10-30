@@ -851,3 +851,13 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Aucun KPI d'arrivée, départ, retard, absence ou heures réellement travaillées ne sera calculé sans source explicite de planning/pointage, horodatages et audit des corrections.
 - **Travail réalisé :** cadrage et documentation de l'extension uniquement. L'API Rapports et les exports ne sont pas encore modifiés pour ces données. Prochaine étape : audit du parcours d'affectation et des droits de lecture des profils, puis spécification du journal de pointage/planning.
 - Aucun changement Supabase Production, aucune migration appliquée, aucun secret modifié, aucun déploiement.
+
+
+## Clôture bornée — Rapports BI affectations / présence / recette (30/10/2026)
+
+- **Intégration source réalisée sur `main` :** l'API Rapports lit sous RLS les affectations du membre connecté et, pour le Promoteur, les affectations qu'il a lui-même accordées. Aucun accès `service_role` ni élargissement RLS n'est introduit.
+- Les indicateurs intégrés couvrent les affectations visibles sur la période, celles encore actives à la génération, les volumes par fonction et, pour le Promoteur, les nombres de membres et pharmacies concernés. Les données alimentent les formats JSON/PDF/CSV par le moteur existant.
+- **Réserve de complétude :** pas encore de restitution nominative complète par membre/pharmacie. La RLS `profiles` n'a pas été élargie; une façade d'accès explicitement autorisée et testée sera nécessaire pour ce niveau de détail.
+- **Présences/gardes :** aucun journal individuel fiable d'arrivée/départ ou d'heures de garde réellement effectuées identifié. Aucun chiffre de présence, retard, absence ou heures effectuées n'est inventé; la limite est explicitement portée dans le rapport.
+- **Validation opérationnelle ouverte :** tests authentifiés par rôle et tests négatifs de cloisonnement, téléchargements et ouverture réels PDF/CSV, build Next/TypeScript restent à exécuter. Aucune certification opérationnelle n'est prononcée.
+- Aucune migration appliquée, aucune écriture Supabase Production, aucun secret modifié, aucun déploiement.
