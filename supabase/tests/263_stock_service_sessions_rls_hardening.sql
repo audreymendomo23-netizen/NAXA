@@ -1,0 +1,1 @@
+-- NAXA 263: stock service session RLS contract test.
