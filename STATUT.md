@@ -868,3 +868,8 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - `src/app/pharmacie/promoteur/page.tsx` : correction du mauvais raccordement de la table Stock; utilisation de `stock_service_sessions` et de ses colonnes `gestionnaire_id/opened_at/closed_at`. Les noms sont résolus par identifiants exacts des sessions/affectations autorisées. Ajout du tableau nominatif des affectations accordées par le Promoteur.
 - Les tests structurels 188 et 212 ont été renforcés pour vérifier les colonnes d'horodatage et les politiques RLS. Ils sont présents mais n'ont pas été exécutés ici.
 - **Recette non certifiée :** tests authentifiés par rôle, contrôles négatifs d'accès croisé, téléchargements/ouverture navigateur PDF/CSV et build local non exécutés. Le seul workflow Actions récent visible est la sauvegarde indépendante, en échec; aucun workflow de build n'est configuré dans `.github/workflows`. Aucun changement Supabase Production, aucune migration appliquée, aucun déploiement.
+
+
+## Pointage Stock — test isolé (30/10/2026)
+
+Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non-Production `naxa-ci-replay-2` pour rétablir RLS sur les sessions de service Stock et leurs comptages. Test ciblé 263 : PASS. Test Pharmacien 188 : PASS. Le test 212 complet reste bloqué par une fonction de réservation absente du rejeu (`consume_reservation_for_sale`); ce blocage est distinct du test RLS. Aucun changement Supabase Production.
