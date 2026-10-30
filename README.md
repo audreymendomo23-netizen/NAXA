@@ -398,3 +398,7 @@ Le générateur partagé `RapportsALaDemande` est intégré directement aux dash
 
 
 **Correctif de recette statique (30 octobre 2026) :** les retours à la ligne échappés des fichiers TSX Admin Pilotage et Gestionnaire Stock ont été réparés; le générateur est maintenant aussi présent dans la vue Promoteur/Responsable de `/pharmacie/pilotage`, et ses accents visuels suivent les variantes de poste. Le contrôle CircleCI `quality` demeure en échec (build 8291, logs non accessibles via la connexion actuelle) : aucune certification ni mise en production n'est revendiquée. Aucun déploiement ni changement Supabase Production.
+
+### Rapports BI — fiabilité des agrégats (30/10/2026)
+
+Les lectures Comptable sont désormais paginées jusqu'à épuisement des résultats (pages ordonnées de 1 000 lignes), et les prescriptions Pharmacien/en attente reposent sur des comptages exacts Supabase plutôt que sur un échantillon limité. Les indicateurs Gestionnaire de stock sont explicitement présentés comme des états actuels dans l'aperçu et les exports, et non comme des mouvements sur la période sélectionnée. Les KPI historiques de mouvements de stock restent à construire après confirmation du contrat de données. Correctif source sur `main`; tests runtime et build non exécutés, aucune modification Production ni aucun déploiement.
