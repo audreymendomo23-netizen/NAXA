@@ -262,6 +262,46 @@ export async function POST(request: Request) {
   }
   if (!stats || typeof stats !== "object") return NextResponse.json({ error: "Le moteur BI n'a pas renvoyé de données exploitables." }, { status: 502 });
 
+  // Affectations : lecture sous RLS, sans service-role ni exposition de noms/profils tiers.
+  // Un membre ne voit que ses affectations; un Promoteur ne voit que celles qu'il a accordées.
+  const assignmentSince = new Date(Date.now() - config.days * 86400000).toISOString();
+  const [ownAssignmentsResult, grantedAssignmentsResult] = await Promise.all([
+    sb.from("naxa_professional_assignments")
+      .select("id,profile_id,pharmacie_id,fonction,statut,commence_at,expire_at,accorde_at,revoque_at")
+      .eq("profile_id", auth.user.id)
+      .gte("accorde_at", assignmentSince),
+    profile.role === "promoteur"
+      ? sb.from("naxa_professional_assignments")
+          .select("id,profile_id,pharmacie_id,fonction,statut,commence_at,expire_at,accorde_at,revoque_at")
+          .eq("accorde_par", auth.user.id)
+          .gte("accorde_at", assignmentSince)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (ownAssignmentsResult.error || grantedAssignmentsResult.error) {
+    return NextResponse.json({ error: "Le journal des affectations est indisponible. Aucun rapport partiel n'est présenté comme complet." }, { status: 503 });
+  }
+  const assignmentRows = [...(ownAssignmentsResult.data ?? []), ...(grantedAssignmentsResult.data ?? [])]
+    .filter((row, index, all) => all.findIndex(candidate => candidate.id === row.id) === index);
+  const assignmentNow = Date.now();
+  const assignmentActive = assignmentRows.filter(row =>
+    row.statut === "active" &&
+    new Date(row.commence_at).getTime() <= assignmentNow &&
+    new Date(row.expire_at).getTime() > assignmentNow
+  );
+  const assignmentFunctions = assignmentRows.reduce<Record<string, number>>((acc, row) => {
+    acc[row.fonction] = (acc[row.fonction] ?? 0) + 1;
+    return acc;
+  }, {});
+  stats.affectations_periode = assignmentRows.length;
+  stats.affectations_actives_a_generation = assignmentActive.length;
+  stats.fonctions_affectees = Object.keys(assignmentFunctions).length;
+  stats.affectations_par_fonction = assignmentFunctions;
+  if (profile.role === "promoteur") {
+    stats.staff_concernes_par_affectation = new Set(assignmentRows.map(row => row.profile_id)).size;
+    stats.pharmacies_concernees_par_affectation = new Set(assignmentRows.map(row => row.pharmacie_id)).size;
+  }
+  stats.note_affectations = "Les affectations décrivent des autorisations/plannings temporaires, pas une présence ni des heures réellement effectuées. Le périmètre est limité aux lignes visibles par RLS (membre affecté ou Promoteur auteur).";
+
   const now = new Date();
   const start = new Date(now.getTime() - config.days * 86400000);
   const startDate = start.toISOString().slice(0, 10);
