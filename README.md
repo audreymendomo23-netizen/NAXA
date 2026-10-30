@@ -395,3 +395,6 @@ Le même projet Google Apps Script peut également planifier l'appel du worker t
 
 ### Rapports BI à la demande — intégration UI multi-postes (30/10/2026)
 Le générateur partagé `RapportsALaDemande` est intégré directement aux dashboards Admin (accueil et pilotage), Promoteur, Responsable, Caisse, Comptable, Gestionnaire de stock et Pharmacien. Les variantes visuelles reprennent les codes de chaque espace (Admin bleu/canari, espaces pharmacie vert NAXA, surfaces et rayons propres aux postes). La génération et les exports sont servis par `POST /api/rapports`, avec des calculs spécifiques au poste et un contrôle serveur du périmètre.
+
+
+**Correctif de recette statique (30 octobre 2026) :** les retours à la ligne échappés des fichiers TSX Admin Pilotage et Gestionnaire Stock ont été réparés; le générateur est maintenant aussi présent dans la vue Promoteur/Responsable de `/pharmacie/pilotage`, et ses accents visuels suivent les variantes de poste. Le contrôle CircleCI `quality` demeure en échec (build 8291, logs non accessibles via la connexion actuelle) : aucune certification ni mise en production n'est revendiquée. Aucun déploiement ni changement Supabase Production.
