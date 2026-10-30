@@ -1,0 +1,1 @@
+-- NAXA 263: RLS hardening for stock service sessions.
