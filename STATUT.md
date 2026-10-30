@@ -832,3 +832,12 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - **Limite maintenue :** aucun KPI de mouvements/variations historiques de stock n'a été inventé; le contrat de journal de mouvements doit être confirmé avant d'ajouter ces mesures.
 - **Contrôle statique :** helper de pagination présent; cinq sources comptables utilisent `fetchAllRows`; aucune occurrence `limit(5000)` ne subsiste dans la route; comptage Pharmacien `en_attente` exact; note temporelle propagée aux formats. Pas de build TypeScript/Next, test API authentifié ou test navigateur disponible dans cette passe.
 - Travail sur `main` uniquement. Aucune écriture Supabase Production, aucun secret modifié, aucun déploiement.
+
+
+## Rapports BI — PDF de synthèse BI (30/10/2026)
+
+- PDF enrichi : page de synthèse, cartes KPI, tableaux par thèmes, analyse J'IA, notes de limites et pagination automatique.
+- Graphique d'évolution conditionnel : affiché uniquement si la série renvoyée comporte au moins deux points numériques étiquetés. Aucun faux graphique ni comparaison d'indicateurs d'unités différentes.
+- Les indicateurs, le contrat JSON/CSV, les appels API et les contrôles de périmètre par rôle sont conservés; aucune fonctionnalité existante n'est retirée.
+- **Validation statique seulement.** Build TypeScript/Next, appels authentifiés avec chaque rôle, téléchargement et ouverture réels des fichiers PDF/CSV restent à tester. Certification opérationnelle non accordée.
+- Travail sur `main` uniquement. Aucun déploiement, aucune écriture Supabase Production, aucun secret modifié.
