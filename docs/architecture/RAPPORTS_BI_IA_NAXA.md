@@ -119,11 +119,11 @@ La politique RLS de lecture limite les lignes au membre affecté, à l'auteur de
 
 ### Limite de données vérifiée
 
-Les sources examinées ne fournissent pas de journal de pointage individuel (arrivée/départ) ni de registre fiable d'heures de garde réellement effectuées. Les colonnes `pharmacies.garde_debut` et `garde_fin` de `migration_070_pharmacie_photos_garde.sql` décrivent une période de garde publiée/confirmée pour la pharmacie, pas les horaires d'un membre du personnel. Elles ne peuvent donc pas alimenter les heures de présence ou de garde individuelles.
+Correction après audit des tableaux de bord : des pointages individuels horodatés existent déjà pour le Pharmacien (`pharmacien_service_sessions`, migration 188), le Gestionnaire de stock (`stock_service_sessions`, migration 212) et la Caisse (`caisses_sessions`, migration 044). Les sessions Pharmacien et Stock enregistrent début et fin de service; la session Caisse enregistre l'ouverture et la clôture du tiroir et ne vaut pas preuve de présence générale. En revanche, `pharmacies.garde_debut/garde_fin` (migration 070) décrivent une période de garde publiée pour la pharmacie, pas une garde individuelle effectivement réalisée.
 
 Avant d'afficher arrivée, départ, durée travaillée, retard, absence ou garde effectuée, il faut identifier ou concevoir une source métier explicite de planning et de pointage : acteur, pharmacie, horodatages, fuseau `Africa/Douala`, méthode de pointage, corrections auditées, statut de validation et règles de pause/chevauchement. Les horaires planifiés, les pointages bruts et les heures validées doivent rester trois notions distinctes.
 
-**État :** revue statique des sources et contrat fonctionnel cadré; aucune intégration de ces nouveaux indicateurs dans l'API à ce stade. Prochaine étape : audit du parcours d'affectation et des droits de lecture des profils, puis choix du contrat de pointage/planning avant toute migration additive. Aucun changement Supabase Production, aucun secret modifié, aucun déploiement.
+**État corrigé :** les pointages existants sont désormais raccordés aux rapports BI et aux exports. Les heures sont calculées depuis les horodatages serveur `started_at/ended_at` (Pharmacien), `opened_at/closed_at` (Stock) et `ouvert_at/cloture_at` (Caisse). Une session encore ouverte est calculée jusqu'à la génération et marquée provisoire. Aucun horaire planifié, retard, absence ou garde individuelle n'est déduit. Aucun changement Supabase Production, aucune migration appliquée, aucun secret modifié, aucun déploiement.
 
 
 ## Clôture technique bornée — affectations, présences et recette (30/10/2026)
