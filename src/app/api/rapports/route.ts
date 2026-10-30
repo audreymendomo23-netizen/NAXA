@@ -326,7 +326,7 @@ export async function POST(request: Request) {
     au: endDate,
     genere_le: now.toISOString(),
     comparaison: { disponible: false, motif: "Le moteur de statistiques actuel ne prend pas encore de date de début/fin arbitraire. Aucune comparaison artificielle n'est affichée." },
-    note_periode: stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null,
+    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_affectations, "Présences individuelles, heures réellement effectuées et gardes individuelles : non disponibles faute de journal de pointage fiable. Aucune valeur n’est estimée à partir des affectations ou des gardes publiées de la pharmacie."].filter(Boolean).join(" "),
     indicateurs: rows,
     serie: Array.isArray(stats.serie) ? stats.serie : [],
     analyse_ia: ai,
