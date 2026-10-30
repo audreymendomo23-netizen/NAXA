@@ -807,3 +807,11 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - **Limites non masquées :** comparaison N/N-1 absente; périodes glissantes et non calendaires; PDF actuel encore textuel; IA dépendante de la configuration serveur `AI_GATEWAY_API_KEY`; génération/exports multi-postes non encore validés par tests runtime et recette navigateur.
 - **Vérification :** présence des imports et composants UI contrôlée dans les 10 fichiers dashboards/composants concernés; cohérence de l'API relue statiquement. Aucun build TypeScript, test API avec comptes de chaque rôle, ni test visuel navigateur exécuté.
 - **Gouvernance :** changements effectués sur `main` uniquement. Aucun push sur une autre branche, aucune écriture Supabase Production, aucun secret modifié, aucun déploiement.
+
+
+## Rapports BI — correction de recette statique (30/10/2026)
+- Revue du code réel de `main` : deux séquences littérales `\\n` avaient été introduites dans des fichiers TSX (`src/app/admin/pilotage/page.tsx` et `src/components/pharmacie/GestionnaireStockEspace.tsx`). Elles ont été remplacées par de vrais retours à la ligne.
+- Défaut de couverture UI corrigé : le générateur est désormais également affiché dans la branche Promoteur/Responsable de `/pharmacie/pilotage`, et reste dans la branche Caisse.
+- Cohérence visuelle corrigée dans `RapportsALaDemande` : l'accent du titre et le bouton principal suivent maintenant la variante Admin (bleu), Stock (vert pharmacie) ou les espaces pharmacie par défaut.
+- **Validation restante :** le contrôle CircleCI `ci/circleci: quality` reste en échec sur le dernier commit observé (build 8291). L'interface CircleCI n'est pas lisible via la connexion disponible; la cause exacte n'est donc pas attribuée. Aucun build local, test runtime par rôle ni recette navigateur n'a pu être exécuté dans cette passe.
+- Le chantier reste **non certifié**. Aucun déploiement, aucune écriture Supabase Production et aucun changement de secret.
