@@ -375,6 +375,12 @@ export async function POST(request: Request) {
       .gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).range(from, to));
     if (sessions.error) return NextResponse.json({ error: "Le journal de service Stock est indisponible." }, { status: 503 });
     serviceRows = sessions.data.map(s => ({ poste: "Gestionnaire de stock", debut: s.opened_at, fin: s.closed_at, duree_heures: Math.round((Math.max(0, new Date(s.closed_at ?? new Date().toISOString()).getTime() - new Date(s.opened_at).getTime()) / 3600000) * 100) / 100 }));
+  } else if (fonction === "comptable") {
+    const sessions = await fetchAllRows<{ id: string; started_at: string; ended_at: string | null }>((from, to) => sb.from("comptable_service_sessions")
+      .select("id,started_at,ended_at").eq("comptable_id", auth.user.id)
+      .gte("started_at", sinceSessions).order("started_at", { ascending: false }).range(from, to));
+    if (sessions.error) return NextResponse.json({ error: "Le journal de service Comptable est indisponible." }, { status: 503 });
+    serviceRows = sessions.data.map(s => ({ poste: "Comptable", debut: s.started_at, fin: s.ended_at, duree_heures: Math.round((Math.max(0, new Date(s.ended_at ?? new Date().toISOString()).getTime() - new Date(s.started_at).getTime()) / 3600000) * 100) / 100 }));
   } else if (profile.role === "caisse") {
     const sessions = await fetchAllRows<{ id: string; ouvert_at: string; cloture_at: string | null }>((from, to) => sb.from("caisses_sessions")
       .select("id,ouvert_at,cloture_at").eq("ouvert_par", auth.user.id)
@@ -387,14 +393,15 @@ export async function POST(request: Request) {
     const ids = [...new Set(Array.isArray(rawIds) ? rawIds.filter((id): id is string => typeof id === "string") : [])];
     if (ids.length) {
       const adminDb = supabaseAdmin();
-      const [{ data: pharmacies, error: pharmaciesError }, { data: pharmacists, error: pharmacistError }, { data: stock, error: stockError }, { data: profiles, error: profilesError }, { data: caisses, error: caissesError }] = await Promise.all([
+      const [{ data: pharmacies, error: pharmaciesError }, { data: pharmacists, error: pharmacistError }, { data: stock, error: stockError }, { data: profiles, error: profilesError }, { data: caisses, error: caissesError }, comptables] = await Promise.all([
         adminDb.from("pharmacies").select("id").in("id", ids).eq("actif", true).eq("visible_recherche", true),
         fetchAllRows<{ id: string; pharmacie_id: string; pharmacien_id: string; started_at: string; ended_at: string | null }>((from, to) => adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", ids).gte("started_at", sinceSessions).order("started_at", { ascending: false }).range(from, to)),
         fetchAllRows<{ id: string; pharmacie_id: string; gestionnaire_id: string; opened_at: string; closed_at: string | null }>((from, to) => adminDb.from("stock_service_sessions").select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at").in("pharmacie_id", ids).gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).range(from, to)),
         adminDb.from("profiles").select("id,first_name,last_name,username").in("pharmacie_id", ids),
         adminDb.from("caisses").select("id,pharmacie_id,nom").in("pharmacie_id", ids),
+        fetchAllRows<{ id: string; pharmacie_id: string; comptable_id: string; started_at: string; ended_at: string | null }>((from, to) => adminDb.from("comptable_service_sessions").select("id,pharmacie_id,comptable_id,started_at,ended_at").in("pharmacie_id", ids).gte("started_at", sinceSessions).order("started_at", { ascending: false }).range(from, to)),
       ]);
-      if ([pharmaciesError, pharmacistError, stockError, profilesError, caissesError].some(Boolean)) return NextResponse.json({ error: "Une source du journal de service Promoteur est indisponible." }, { status: 503 });
+      if ([pharmaciesError, pharmacistError, stockError, profilesError, caissesError, comptables.error].some(Boolean)) return NextResponse.json({ error: "Une source du journal de service Promoteur est indisponible." }, { status: 503 });
       const activeIds = new Set((pharmacies ?? []).map(p => p.id));
       const names = new Map((profiles ?? []).map(p => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"]));
       const pushSession = (poste: string, userId: string, debut: string, fin: string | null) => {
@@ -403,6 +410,7 @@ export async function POST(request: Request) {
       };
       for (const s of pharmacists ?? []) if (activeIds.has(s.pharmacie_id)) pushSession("Pharmacien", s.pharmacien_id, s.started_at, s.ended_at);
       for (const s of stock ?? []) if (activeIds.has(s.pharmacie_id)) pushSession("Gestionnaire de stock", s.gestionnaire_id, s.opened_at, s.closed_at);
+      for (const s of comptables.data ?? []) if (activeIds.has(s.pharmacie_id)) pushSession("Comptable", s.comptable_id, s.started_at, s.ended_at);
       const caisseIds = (caisses ?? []).filter(x => activeIds.has(x.pharmacie_id)).map(x => x.id);
       if (caisseIds.length) {
         const tills = await fetchAllRows<{ id: string; ouvert_par: string; ouvert_at: string; cloture_at: string | null; caisse_id: string }>((from, to) => adminDb.from("caisses_sessions")
