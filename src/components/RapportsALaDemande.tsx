@@ -11,6 +11,7 @@ type Report = {
   indicateurs: { indicateur: string; valeur: string | number }[];
   analyse_ia: { status: string; texte: string };
   comparaison: { disponible: boolean; motif: string };
+  note_periode?: string | null;
 };
 
 const periods: { value: Period; label: string }[] = [
@@ -93,6 +94,7 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
       {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {rapport && <div className="mt-5 space-y-4">
         <p role="status" className="text-xs text-slate-500">Généré le {new Date(rapport.genere_le).toLocaleString("fr-FR")} · {rapport.du} au {rapport.au}</p>
+        {rapport.note_periode && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{rapport.note_periode}</p>}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {rapport.indicateurs.map((row) => <article key={row.indicateur} className="rounded-xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{row.indicateur}</p><p className="mt-1 break-words text-lg font-black">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</p></article>)}
         </div>
