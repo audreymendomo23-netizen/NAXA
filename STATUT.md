@@ -855,9 +855,8 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 
 ## Clôture bornée — Rapports BI affectations / présence / recette (30/10/2026)
 
-- **Intégration source réalisée sur `main` :** l'API Rapports lit sous RLS les affectations du membre connecté et, pour le Promoteur, les affectations qu'il a lui-même accordées. Aucun accès `service_role` ni élargissement RLS n'est introduit.
-- Les indicateurs intégrés couvrent les affectations visibles sur la période, celles encore actives à la génération, les volumes par fonction et, pour le Promoteur, les nombres de membres et pharmacies concernés. Les données alimentent les formats JSON/PDF/CSV par le moteur existant.
-- **Réserve de complétude :** pas encore de restitution nominative complète par membre/pharmacie. La RLS `profiles` n'a pas été élargie; une façade d'accès explicitement autorisée et testée sera nécessaire pour ce niveau de détail.
-- **Présences/gardes :** aucun journal individuel fiable d'arrivée/départ ou d'heures de garde réellement effectuées identifié. Aucun chiffre de présence, retard, absence ou heures effectuées n'est inventé; la limite est explicitement portée dans le rapport.
+- **Affectations nominatives :** le tableau Promoteur liste les affectations qu'il a accordées dans son réseau actif (personne, pharmacie, fonction, début, fin prévue, statut et révocation). Les exports personnels et Promoteur incluent les lignes nominatives accessibles selon le périmètre RLS/serveur.
+- **Pointages réels :** l'API intègre les heures et durées issues de `pharmacien_service_sessions`, `stock_service_sessions` et `caisses_sessions`. Les rapports Promoteur consolident les sessions sur les pharmacies actives du réseau; les rapports individuels filtrent sur l'utilisateur connecté. Les lectures sont paginées pour ne pas tronquer les historiques personnels et les sessions réseau.
+- **Limites restantes :** session Caisse = ouverture/fermeture du tiroir, pas présence générale; aucun pointage individuel Responsable/Comptable ni registre de garde individuelle effectuée. Les sessions encore ouvertes sont provisoires; pas de calcul de retard, absence ou planning théorique.
 - **Validation opérationnelle ouverte :** tests authentifiés par rôle et tests négatifs de cloisonnement, téléchargements et ouverture réels PDF/CSV, build Next/TypeScript restent à exécuter. Aucune certification opérationnelle n'est prononcée.
 - Aucune migration appliquée, aucune écriture Supabase Production, aucun secret modifié, aucun déploiement.
