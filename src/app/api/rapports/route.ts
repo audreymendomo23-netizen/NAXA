@@ -389,8 +389,8 @@ export async function POST(request: Request) {
       const adminDb = supabaseAdmin();
       const [{ data: pharmacies, error: pharmaciesError }, { data: pharmacists, error: pharmacistError }, { data: stock, error: stockError }, { data: profiles, error: profilesError }, { data: caisses, error: caissesError }] = await Promise.all([
         adminDb.from("pharmacies").select("id").in("id", ids).eq("actif", true).eq("visible_recherche", true),
-        adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", ids).gte("started_at", sinceSessions).order("started_at", { ascending: false }).limit(500),
-        adminDb.from("stock_service_sessions").select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at").in("pharmacie_id", ids).gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).limit(500),
+        fetchAllRows<{ id: string; pharmacie_id: string; pharmacien_id: string; started_at: string; ended_at: string | null }>((from, to) => adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", ids).gte("started_at", sinceSessions).order("started_at", { ascending: false }).range(from, to)),
+        fetchAllRows<{ id: string; pharmacie_id: string; gestionnaire_id: string; opened_at: string; closed_at: string | null }>((from, to) => adminDb.from("stock_service_sessions").select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at").in("pharmacie_id", ids).gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).range(from, to)),
         adminDb.from("profiles").select("id,first_name,last_name,username").in("pharmacie_id", ids),
         adminDb.from("caisses").select("id,pharmacie_id,nom").in("pharmacie_id", ids),
       ]);
@@ -405,11 +405,11 @@ export async function POST(request: Request) {
       for (const s of stock ?? []) if (activeIds.has(s.pharmacie_id)) pushSession("Gestionnaire de stock", s.gestionnaire_id, s.opened_at, s.closed_at);
       const caisseIds = (caisses ?? []).filter(x => activeIds.has(x.pharmacie_id)).map(x => x.id);
       if (caisseIds.length) {
-        const { data: tills, error: tillsError } = await adminDb.from("caisses_sessions")
+        const tills = await fetchAllRows<{ id: string; ouvert_par: string; ouvert_at: string; cloture_at: string | null; caisse_id: string }>((from, to) => adminDb.from("caisses_sessions")
           .select("id,ouvert_par,ouvert_at,cloture_at,caisse_id").in("caisse_id", caisseIds)
-          .gte("ouvert_at", sinceSessions).order("ouvert_at", { ascending: false }).limit(500);
-        if (tillsError) return NextResponse.json({ error: "Les sessions de caisse du réseau sont indisponibles." }, { status: 503 });
-        for (const s of tills ?? []) pushSession("Caisse", s.ouvert_par, s.ouvert_at, s.cloture_at);
+          .gte("ouvert_at", sinceSessions).order("ouvert_at", { ascending: false }).range(from, to));
+        if (tills.error) return NextResponse.json({ error: "Les sessions de caisse du réseau sont indisponibles." }, { status: 503 });
+        for (const s of tills.data) pushSession("Caisse", s.ouvert_par, s.ouvert_at, s.cloture_at);
       }
     }
   }
