@@ -222,6 +222,15 @@ export async function POST(request: Request) {
 
   let stats: Record<string, any>;
   const fonction = String(profile.fonction_interne ?? "").toLowerCase();
+  let hasActiveStockAssignment = false;
+  if (!["gestionnaire_stock", "magasinier"].includes(fonction)) {
+    const { data: stockAssignments, error: stockAssignmentError } = await sb.from("naxa_professional_assignments")
+      .select("commence_at,expire_at").eq("profile_id", auth.user.id).eq("statut", "active")
+      .in("fonction", ["gestionnaire_stock", "magasinier"]);
+    if (stockAssignmentError) return NextResponse.json({ error: "Les affectations de service Stock sont indisponibles." }, { status: 503 });
+    const now = Date.now();
+    hasActiveStockAssignment = (stockAssignments ?? []).some(a => new Date(a.commence_at).getTime() <= now && new Date(a.expire_at).getTime() > now);
+  }
 
   if (fonction === "pharmacien") {
     if (!profile.pharmacie_id) return NextResponse.json({ error: "Pharmacie de rattachement introuvable." }, { status: 403 });
@@ -253,7 +262,7 @@ export async function POST(request: Request) {
     const paid = sales.data.filter(x => x.statut === "payee");
     const total = (items: any[], key: string) => items.reduce((sum, item) => sum + Number(item[key] ?? 0), 0);
     stats = { role: "comptable", ventes_payees: paid.length, chiffre_affaires: total(paid, "total_net"), depenses: expenses.data.length, montant_depenses: total(expenses.data, "montant"), mouvements_tresorerie: cash.data.length, montant_tresorerie_brut: total(cash.data, "montant"), dossiers_assurance: claims.data.length, controles_a_traiter: controls.data.filter(x => x.statut === "a_controler").length };
-  } else if (["gestionnaire_stock", "magasinier"].includes(fonction)) {
+  } else if (["gestionnaire_stock", "magasinier"].includes(fonction) || hasActiveStockAssignment) {
     const [{ data: assignments, error: assignmentError }, { data: myPharmacies, error: pharmaciesError }] = await Promise.all([
       sb.from("naxa_professional_assignments").select("pharmacie_id,commence_at,expire_at").eq("profile_id", auth.user.id).eq("statut", "active").in("fonction", ["gestionnaire_stock", "magasinier"]),
       sb.rpc("my_pharmacies"),
