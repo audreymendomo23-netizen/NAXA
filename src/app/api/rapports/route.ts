@@ -291,25 +291,6 @@ export async function POST(request: Request) {
     return new Response("\ufeff" + csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="naxa-rapport-${periode}-${endDate}.csv"`, "Cache-Control": "no-store" } });
   }
   if (body.format === "pdf") {
-    const lines = [
-      "NAXA - RAPPORT BI",
-      `Periode : ${config.label} (${config.days} jours)`,
-      `Du ${startDate} au ${endDate} | Genere le ${now.toISOString()}`,
-      `Perimetre : ${String(rows[0]?.valeur ?? "Autorise")}`,
-      "",
-      ...(report.note_periode ? [report.note_periode, ""] : []),
-      "INDICATEURS",
-      ...rows.map((row) => `${row.indicateur} : ${row.valeur}`),
-      "",
-      "ANALYSE IA",
-      `Statut : ${ai.status}`,
-      ...ai.texte.split("\n"),
-      "",
-      "COMPARAISON",
-      report.comparaison.motif,
-      "",
-      "NOTE : les hypotheses de l'IA ne constituent pas des causalites prouvees.",
-    ];
     const pdf = toPdf(report);
     return new Response(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="naxa-rapport-${periode}-${endDate}.pdf"`, "Cache-Control": "no-store" } });
   }
