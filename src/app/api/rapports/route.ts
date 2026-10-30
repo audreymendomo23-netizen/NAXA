@@ -166,6 +166,14 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
   add("Services clôturés", stats.services_clotures);
   add("Services encore ouverts à la génération", stats.services_ouverts);
   add("Durée cumulée des services (heures)", stats.duree_services_heures);
+  if (Array.isArray(stats.details_affectations)) stats.details_affectations.forEach((assignment: any) => {
+    const identity = assignment.personnel + " · " + assignment.pharmacie + " · " + assignment.fonction;
+    add("Affectation " + identity + " · début", assignment.debut);
+    add("Affectation " + identity + " · fin prévue", assignment.fin_prevue);
+    add("Affectation " + identity + " · statut", assignment.statut);
+    add("Affectation " + identity + " · accordée le", assignment.accordee_le);
+    if (assignment.revoquee_le) add("Affectation " + identity + " · révoquée le", assignment.revoquee_le);
+  });
   if (Array.isArray(stats.details_services)) stats.details_services.forEach((session: any) => {
     const who = session.personnel ? " · " + session.personnel : "";
     add("Service " + session.poste + who + " · début", session.debut);
@@ -314,10 +322,32 @@ export async function POST(request: Request) {
   stats.affectations_actives_a_generation = assignmentActive.length;
   stats.fonctions_affectees = Object.keys(assignmentFunctions).length;
   stats.affectations_par_fonction = assignmentFunctions;
-  if (profile.role === "promoteur") {
+  let assignmentNames = new Map<string, string>();
+  let assignmentPharmacies = new Map<string, string>();
+  if (profile.role === "promoteur" && assignmentRows.length) {
+    const adminDb = supabaseAdmin();
+    const profileIds = [...new Set(assignmentRows.map(row => row.profile_id))];
+    const pharmacyIds = [...new Set(assignmentRows.map(row => row.pharmacie_id))];
+    const [{ data: people, error: peopleError }, { data: pharmacies, error: pharmacyError }] = await Promise.all([
+      adminDb.from("profiles").select("id,first_name,last_name,username").in("id", profileIds),
+      adminDb.from("pharmacies").select("id,nom").in("id", pharmacyIds),
+    ]);
+    if (peopleError || pharmacyError) return NextResponse.json({ error: "Le détail nominatif des affectations est indisponible." }, { status: 503 });
+    assignmentNames = new Map((people ?? []).map(person => [person.id, [person.first_name, person.last_name].filter(Boolean).join(" ") || person.username || "Personnel non identifié"]));
+    assignmentPharmacies = new Map((pharmacies ?? []).map(pharmacy => [pharmacy.id, pharmacy.nom ?? "Pharmacie"]));
     stats.staff_concernes_par_affectation = new Set(assignmentRows.map(row => row.profile_id)).size;
     stats.pharmacies_concernees_par_affectation = new Set(assignmentRows.map(row => row.pharmacie_id)).size;
   }
+  stats.details_affectations = assignmentRows.map(row => ({
+    personnel: assignmentNames.get(row.profile_id) ?? (profile.role === "promoteur" ? "Personnel non identifié" : "Mon compte"),
+    pharmacie: assignmentPharmacies.get(row.pharmacie_id) ?? "Pharmacie autorisée",
+    fonction: row.fonction,
+    statut: row.statut,
+    debut: row.commence_at,
+    fin_prevue: row.expire_at,
+    accordee_le: row.accorde_at,
+    revoquee_le: row.revoque_at,
+  }));
   stats.note_affectations = "Les affectations décrivent des autorisations temporaires, pas une présence. Les heures de service ci-dessous proviennent uniquement des sessions horodatées effectivement enregistrées; elles ne représentent pas les horaires planifiés ni les gardes publiées de la pharmacie.";
 
   // Pointages réels disponibles : Pharmacien, Gestionnaire de stock et sessions de caisse.
