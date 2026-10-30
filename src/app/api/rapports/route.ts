@@ -418,7 +418,7 @@ export async function POST(request: Request) {
     stats.services_clotures = serviceRows.filter(s => s.fin !== null).length;
     stats.services_ouverts = serviceRows.filter(s => s.fin === null).length;
     stats.duree_services_heures = Math.round(serviceRows.reduce((sum, s) => sum + s.duree_heures, 0) * 100) / 100;
-    stats.details_services = serviceRows.sort((a, b) => b.debut.localeCompare(a.debut)).slice(0, 100);
+    stats.details_services = serviceRows.sort((a, b) => b.debut.localeCompare(a.debut));
   } else {
     stats.services_pointes = 0;
     stats.services_clotures = 0;
