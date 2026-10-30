@@ -100,3 +100,27 @@ Le PDF à la demande a été enrichi sans changer le contrat de génération des
 Un graphique d'évolution n'est rendu que si `stats.serie` contient au moins deux points avec un libellé et une valeur numérique exploitables. En l'absence d'une série valide, aucun graphique artificiel n'est dessiné. Les indicateurs isolés ne sont pas comparés visuellement entre eux, car leurs unités et significations peuvent différer. Les annexes exhaustives ne sont pas ajoutées par défaut : le rapport reste synthétique et n'expose pas de lignes transactionnelles nominatives.
 
 **Validation :** amélioration du générateur PDF contrôlée statiquement. Le PDF binaire doit encore être téléchargé et ouvert en navigateur avec des comptes de recette pour chaque rôle; le build TypeScript/Next et les appels API authentifiés restent à tester. Certification opérationnelle toujours ouverte. Aucun déploiement, aucune écriture Supabase Production et aucun secret modifié.
+
+
+## Extension — permutations, présence et gardes du personnel (30/10/2026)
+
+### Constat du modèle existant
+
+La table `public.naxa_professional_assignments` (migration `supabase/migration_225_professional_assignments.sql`) constitue la source existante des affectations professionnelles temporaires/multiples. Elle conserve le membre (`profile_id`), la pharmacie, la fonction, le motif, les bornes `commence_at/expire_at`, l'auteur (`accorde_par/accorde_at`) et la révocation (`revoque_par/revoque_at/motif_revocation`). Les statuts actuellement admis sont `active` et `revoked`; l'état temporel effectif doit aussi vérifier `commence_at <= instant < expire_at`.
+
+La politique RLS de lecture limite les lignes au membre affecté, à l'auteur de l'affectation, à l'auteur de la révocation ou à l'Admin. La fonction de création exige notamment le privilège `ASSIGN_USER_TO_PHARMACY`, une pharmacie active du réseau du Promoteur, une cible active et une période valide. Les rapports doivent réutiliser ces règles et ne pas élargir les accès par une lecture service-role non filtrée.
+
+### Intégration BI attendue
+
+- **Rapport individuel staff :** affectations/permutations sur la période, pharmacie, fonction temporaire, motif, dates, auteur, statut temporel et révocation; distinguer affectation active à la date de génération et événement historique intervenu pendant la période.
+- **Rapport Promoteur :** agrégats par pharmacie et par staff des affectations accordées dans son périmètre, fonctions couvertes, périodes, remplacements et révocations. Une ligne d'affectation ne vaut pas preuve de présence.
+- Les fonctions multiples simultanées autorisées restent distinctes : ne pas écraser la fonction permanente ni fusionner des affectations différentes. Les chevauchements et la couverture de poste doivent être présentés comme signaux de planning, pas comme présence constatée.
+- Conserver le même moteur, les mêmes formats JSON/PDF/CSV et les mêmes contrôles serveur; aucun export nominatif hors périmètre autorisé. La visibilité des noms doit être vérifiée avec les règles RLS de `profiles` avant intégration.
+
+### Limite de données vérifiée
+
+Les sources examinées ne fournissent pas de journal de pointage individuel (arrivée/départ) ni de registre fiable d'heures de garde réellement effectuées. Les colonnes `pharmacies.garde_debut` et `garde_fin` de `migration_070_pharmacie_photos_garde.sql` décrivent une période de garde publiée/confirmée pour la pharmacie, pas les horaires d'un membre du personnel. Elles ne peuvent donc pas alimenter les heures de présence ou de garde individuelles.
+
+Avant d'afficher arrivée, départ, durée travaillée, retard, absence ou garde effectuée, il faut identifier ou concevoir une source métier explicite de planning et de pointage : acteur, pharmacie, horodatages, fuseau `Africa/Douala`, méthode de pointage, corrections auditées, statut de validation et règles de pause/chevauchement. Les horaires planifiés, les pointages bruts et les heures validées doivent rester trois notions distinctes.
+
+**État :** revue statique des sources et contrat fonctionnel cadré; aucune intégration de ces nouveaux indicateurs dans l'API à ce stade. Prochaine étape : audit du parcours d'affectation et des droits de lecture des profils, puis choix du contrat de pointage/planning avant toute migration additive. Aucun changement Supabase Production, aucun secret modifié, aucun déploiement.
