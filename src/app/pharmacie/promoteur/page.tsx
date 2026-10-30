@@ -176,7 +176,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
       ? adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", scopedIds).order("started_at", { ascending: false }).limit(50)
       : Promise.resolve({ data: [], error: null }),
     scopedIds.length
-      ? adminDb.from("gestionnaire_stock_sessions").select("id,pharmacie_id,user_id,started_at,ended_at").in("pharmacie_id", scopedIds).order("started_at", { ascending: false }).limit(50)
+      ? adminDb.from("stock_service_sessions").select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at").in("pharmacie_id", scopedIds).order("opened_at", { ascending: false }).limit(50)
       : Promise.resolve({ data: [], error: null }),
     scopedIds.length
       ? adminDb.from("compta_periodes").select("id", { count: "exact", head: true }).in("pharmacie_id", scopedIds).eq("statut", "ouverte")
@@ -211,7 +211,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
   const staffSessions = [
     ...(caisseSessions ?? []).map((s) => ({ id: s.id, pharmacyId: caisseById.get(s.caisse_id)?.pharmacie_id ?? "", userId: s.ouvert_par, startedAt: s.ouvert_at, endedAt: s.cloture_at, role: "Caisse", label: caisseById.get(s.caisse_id)?.nom ?? "Caisse" })),
     ...pharmacistSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.pharmacien_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Pharmacien", label: "Service pharmacien" })),
-    ...stockSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.user_id, startedAt: s.started_at, endedAt: s.ended_at, role: "Gestionnaire de stock", label: "Service stock" })),
+    ...stockSessions.map((s) => ({ id: s.id, pharmacyId: s.pharmacie_id, userId: s.gestionnaire_id, startedAt: s.opened_at, endedAt: s.closed_at, role: "Gestionnaire de stock", label: "Service stock" })),
   ].filter((s) => activePharmacyIds.has(s.pharmacyId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 50);
   const openServiceCount = staffSessions.filter((s) => !s.endedAt).length;
 
