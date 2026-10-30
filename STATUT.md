@@ -873,3 +873,11 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 ## Pointage Stock — test isolé (30/10/2026)
 
 Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non-Production `naxa-ci-replay-2` pour rétablir RLS sur les sessions de service Stock et leurs comptages. Test ciblé 263 : PASS. Test Pharmacien 188 : PASS. Le test 212 complet reste bloqué par une fonction de réservation absente du rejeu (`consume_reservation_for_sale`); ce blocage est distinct du test RLS. Aucun changement Supabase Production.
+
+
+## Comptable — RBAC et pointage (30/10/2026)
+- Correctif RBAC sur main : privilège `MANAGE_ACCOUNTING` réconcilié dans catalogue/matrices; moteur `naxa_has_privilege` traite la fonction Comptable comme fonction professionnelle et conserve scope + attribution nominative. Pas de nouveau rôle technique ni d'auto-attribution.
+- Pointage ajouté : `comptable_service_sessions`, début/fin serveur, une session ouverte par compte, RPC dédiées, RLS lecture personnelle et interdiction d'écriture directe; page `/pharmacie/comptable/service`, entrée tableau de bord et menu latéral.
+- Rapports : historique individuel Comptable et sessions nominatives Promoteur limitées aux pharmacies actives du réseau; sessions ouvertes provisoires.
+- Migration appliquée au rejeu uniquement; assertions structurelles 265 : PASS. Tests authentifiés réels, refus inter-pharmacies, build et recette navigateur : non exécutés. Production et Vercel inchangés.
+- Sous-chantier Comptable : implémentation avancée, **non clôturé** jusqu'aux tests comportementaux et à la validation du parcours.
