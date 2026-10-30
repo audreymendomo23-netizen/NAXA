@@ -134,3 +134,12 @@ Avant d'afficher arrivée, départ, durée travaillée, retard, absence ou garde
 - Une session ouverte est calculée jusqu'à l'heure de génération et reste provisoire. Les affectations ne prouvent pas une présence. Les sessions de caisse ne prouvent pas une présence générale; aucun pointage Responsable/Comptable, retard, absence ou horaire théorique n'est calculé. Les périodes de garde publiées restent distinctes d'une garde individuelle effectuée.
 - Certification : tests authentifiés par rôle, vérification des refus d'accès croisés, téléchargement/ouverture PDF et CSV et build Next/TypeScript non exécutés dans cette passe. Ils restent ouverts; aucune certification opérationnelle n'est déclarée.
 - Travail sur `main` uniquement. Aucun déploiement, aucune écriture Supabase Production, aucune migration appliquée, aucun secret modifié.
+
+
+## Mise à jour intégration nominative et pointages — 30/10/2026
+
+- API Rapports : historiques personnels paginés pour Pharmacien et Gestionnaire de stock, sessions de tiroir personnelles pour Caisse; pour Promoteur, agrégation paginée des trois journaux sur les pharmacies actives de `my_pharmacies`. Les rapports exposent les débuts, fins, durées et identités disponibles; toutes les sessions de service sont conservées dans le détail exporté.
+- Dashboard Promoteur : correction du raccordement Stock vers la vraie table `stock_service_sessions` (colonnes `gestionnaire_id`, `opened_at`, `closed_at`, et non l'ancienne table `gestionnaire_stock_sessions`). Résolution des noms à partir des identifiants exacts des sessions et affectations autorisées.
+- Dashboard Promoteur : tableau nominatif des affectations qu'il a accordées, avec pharmacie, fonction, période, statut et révocation.
+- Tests SQL structurels renforcés : `supabase/tests/188_pharmacien_service_sessions.sql` vérifie les horodatages début/fin; `supabase/tests/212_reservation_holds_stock_service_inventory.sql` vérifie les horodatages Stock et son périmètre RLS. Tests non exécutés dans cette passe.
+- Recette toujours non certifiée : aucun compte authentifié de chaque rôle, aucun téléchargement navigateur PDF/CSV et aucun build local disponible dans cette session. Le seul workflow Actions récent visible est `naxa-independent-backup.yml` (échec); il ne constitue pas un résultat de build. Aucune migration Production, aucune écriture Production et aucun déploiement.
