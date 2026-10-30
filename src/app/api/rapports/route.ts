@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -162,6 +162,16 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
   if (stats.affectations_par_fonction && typeof stats.affectations_par_fonction === "object") {
     Object.entries(stats.affectations_par_fonction).forEach(([fonction, count]) => add("Affectations · " + fonction, count));
   }
+  add("Services pointés sur la période", stats.services_pointes);
+  add("Services clôturés", stats.services_clotures);
+  add("Services encore ouverts à la génération", stats.services_ouverts);
+  add("Durée cumulée des services (heures)", stats.duree_services_heures);
+  if (Array.isArray(stats.details_services)) stats.details_services.forEach((session: any) => {
+    const who = session.personnel ? " · " + session.personnel : "";
+    add("Service " + session.poste + who + " · début", session.debut);
+    add("Service " + session.poste + who + " · fin", session.fin ?? "En cours à la génération");
+    add("Service " + session.poste + who + " · durée (heures)", session.duree_heures);
+  });
   return rows;
 }
 
@@ -308,7 +318,75 @@ export async function POST(request: Request) {
     stats.staff_concernes_par_affectation = new Set(assignmentRows.map(row => row.profile_id)).size;
     stats.pharmacies_concernees_par_affectation = new Set(assignmentRows.map(row => row.pharmacie_id)).size;
   }
-  stats.note_affectations = "Les affectations décrivent des autorisations/plannings temporaires, pas une présence ni des heures réellement effectuées. Le périmètre est limité aux lignes visibles par RLS (membre affecté ou Promoteur auteur).";
+  stats.note_affectations = "Les affectations décrivent des autorisations temporaires, pas une présence. Les heures de service ci-dessous proviennent uniquement des sessions horodatées effectivement enregistrées; elles ne représentent pas les horaires planifiés ni les gardes publiées de la pharmacie.";
+
+  // Pointages réels disponibles : Pharmacien, Gestionnaire de stock et sessions de caisse.
+  // Les membres ordinaires ne lisent que leurs propres sessions sous RLS.
+  const sinceSessions = new Date(Date.now() - config.days * 86400000).toISOString();
+  let serviceRows: Array<{ poste: string; personnel?: string; debut: string; fin: string | null; duree_heures: number }> = [];
+  if (fonction === "pharmacien") {
+    const { data, error } = await sb.from("pharmacien_service_sessions")
+      .select("id,started_at,ended_at").eq("pharmacien_id", auth.user.id)
+      .gte("started_at", sinceSessions).order("started_at", { ascending: false }).limit(500);
+    if (error) return NextResponse.json({ error: "Le journal de service Pharmacien est indisponible." }, { status: 503 });
+    serviceRows = (data ?? []).map(s => ({ poste: "Pharmacien", debut: s.started_at, fin: s.ended_at, duree_heures: Math.round((Math.max(0, new Date(s.ended_at ?? new Date().toISOString()).getTime() - new Date(s.started_at).getTime()) / 3600000) * 100) / 100 }));
+  } else if (["gestionnaire_stock", "magasinier"].includes(fonction)) {
+    const { data, error } = await sb.from("stock_service_sessions")
+      .select("id,opened_at,closed_at").eq("gestionnaire_id", auth.user.id)
+      .gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).limit(500);
+    if (error) return NextResponse.json({ error: "Le journal de service Stock est indisponible." }, { status: 503 });
+    serviceRows = (data ?? []).map(s => ({ poste: "Gestionnaire de stock", debut: s.opened_at, fin: s.closed_at, duree_heures: Math.round((Math.max(0, new Date(s.closed_at ?? new Date().toISOString()).getTime() - new Date(s.opened_at).getTime()) / 3600000) * 100) / 100 }));
+  } else if (profile.role === "caisse") {
+    const { data, error } = await sb.from("caisses_sessions")
+      .select("id,ouvert_at,cloture_at").eq("ouvert_par", auth.user.id)
+      .gte("ouvert_at", sinceSessions).order("ouvert_at", { ascending: false }).limit(500);
+    if (error) return NextResponse.json({ error: "Le journal des sessions de caisse est indisponible." }, { status: 503 });
+    serviceRows = (data ?? []).map(s => ({ poste: "Caisse (session de caisse, pas présence générale)", debut: s.ouvert_at, fin: s.cloture_at, duree_heures: Math.round((Math.max(0, new Date(s.cloture_at ?? new Date().toISOString()).getTime() - new Date(s.ouvert_at).getTime()) / 3600000) * 100) / 100 }));
+  } else if (profile.role === "promoteur") {
+    const { data: rawIds, error: scopeError } = await sb.rpc("my_pharmacies");
+    if (scopeError) return NextResponse.json({ error: "Le périmètre du réseau Promoteur est indisponible pour le rapport de service." }, { status: 503 });
+    const ids = [...new Set(Array.isArray(rawIds) ? rawIds.filter((id): id is string => typeof id === "string") : [])];
+    if (ids.length) {
+      const adminDb = supabaseAdmin();
+      const [{ data: pharmacies, error: pharmaciesError }, { data: pharmacists, error: pharmacistError }, { data: stock, error: stockError }, { data: profiles, error: profilesError }, { data: caisses, error: caissesError }] = await Promise.all([
+        adminDb.from("pharmacies").select("id").in("id", ids).eq("actif", true).eq("visible_recherche", true),
+        adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", ids).gte("started_at", sinceSessions).order("started_at", { ascending: false }).limit(500),
+        adminDb.from("stock_service_sessions").select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at").in("pharmacie_id", ids).gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).limit(500),
+        adminDb.from("profiles").select("id,first_name,last_name,username").in("pharmacie_id", ids),
+        adminDb.from("caisses").select("id,pharmacie_id,nom").in("pharmacie_id", ids),
+      ]);
+      if ([pharmaciesError, pharmacistError, stockError, profilesError, caissesError].some(Boolean)) return NextResponse.json({ error: "Une source du journal de service Promoteur est indisponible." }, { status: 503 });
+      const activeIds = new Set((pharmacies ?? []).map(p => p.id));
+      const names = new Map((profiles ?? []).map(p => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "Personnel"]));
+      const pushSession = (poste: string, userId: string, debut: string, fin: string | null) => {
+        const elapsed = Math.max(0, new Date(fin ?? new Date().toISOString()).getTime() - new Date(debut).getTime());
+        serviceRows.push({ poste, personnel: names.get(userId) ?? "Personnel non identifié", debut, fin, duree_heures: Math.round(elapsed / 36000) / 100 });
+      };
+      for (const s of pharmacists ?? []) if (activeIds.has(s.pharmacie_id)) pushSession("Pharmacien", s.pharmacien_id, s.started_at, s.ended_at);
+      for (const s of stock ?? []) if (activeIds.has(s.pharmacie_id)) pushSession("Gestionnaire de stock", s.gestionnaire_id, s.opened_at, s.closed_at);
+      const caisseIds = (caisses ?? []).filter(x => activeIds.has(x.pharmacie_id)).map(x => x.id);
+      if (caisseIds.length) {
+        const { data: tills, error: tillsError } = await adminDb.from("caisses_sessions")
+          .select("id,ouvert_par,ouvert_at,cloture_at,caisse_id").in("caisse_id", caisseIds)
+          .gte("ouvert_at", sinceSessions).order("ouvert_at", { ascending: false }).limit(500);
+        if (tillsError) return NextResponse.json({ error: "Les sessions de caisse du réseau sont indisponibles." }, { status: 503 });
+        for (const s of tills ?? []) pushSession("Caisse", s.ouvert_par, s.ouvert_at, s.cloture_at);
+      }
+    }
+  }
+  if (serviceRows.length) {
+    stats.services_pointes = serviceRows.length;
+    stats.services_clotures = serviceRows.filter(s => s.fin !== null).length;
+    stats.services_ouverts = serviceRows.filter(s => s.fin === null).length;
+    stats.duree_services_heures = Math.round(serviceRows.reduce((sum, s) => sum + s.duree_heures, 0) * 100) / 100;
+    stats.details_services = serviceRows.sort((a, b) => b.debut.localeCompare(a.debut)).slice(0, 100);
+  } else {
+    stats.services_pointes = 0;
+    stats.services_clotures = 0;
+    stats.services_ouverts = 0;
+    stats.duree_services_heures = 0;
+    stats.details_services = [];
+  }
 
   const now = new Date();
   const start = new Date(now.getTime() - config.days * 86400000);
@@ -326,7 +404,7 @@ export async function POST(request: Request) {
     au: endDate,
     genere_le: now.toISOString(),
     comparaison: { disponible: false, motif: "Le moteur de statistiques actuel ne prend pas encore de date de début/fin arbitraire. Aucune comparaison artificielle n'est affichée." },
-    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_affectations, "Présences individuelles, heures réellement effectuées et gardes individuelles : non disponibles faute de journal de pointage fiable. Aucune valeur n’est estimée à partir des affectations ou des gardes publiées de la pharmacie."].filter(Boolean).join(" "),
+    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_affectations, "Les durées de service sont calculées à partir des horodatages serveur des sessions ouvertes/clôturées. Une session encore ouverte est calculée jusqu’à l’heure de génération et reste provisoire. Les sessions de caisse décrivent l’ouverture/fermeture du tiroir, pas une présence générale. Les gardes de pharmacie publiées ne sont pas des gardes individuelles effectuées."].filter(Boolean).join(" "),
     indicateurs: rows,
     serie: Array.isArray(stats.serie) ? stats.serie : [],
     analyse_ia: ai,
