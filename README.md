@@ -409,3 +409,10 @@ Les lectures Comptable sont désormais paginées jusqu'à épuisement des résul
 Le PDF à la demande présente désormais une synthèse KPI, des tableaux regroupés par thèmes, l'analyse J'IA, les réserves de comparaison et une pagination structurée. Une courbe d'évolution n'apparaît que si une série temporelle numérique valide est fournie; aucune visualisation artificielle n'est construite à partir de KPI non comparables. Le contrat API, les exports CSV, les périmètres de rôle et les contrôles d'accès existants sont conservés.
 
 **Statut :** amélioration source sur `main`, vérification statique uniquement. Téléchargements réels, ouverture des PDF, appels API authentifiés par rôle et build restent à tester; la certification opérationnelle demeure ouverte. Aucun déploiement, aucune écriture Production, aucun secret modifié.
+
+
+## Rapports BI — périmètre personnel et permutations
+
+Le modèle `naxa_professional_assignments` permet de tracer les fonctions temporaires/multiples (pharmacie, fonction, motif, période, auteur et révocation). L'évolution BI prévue intégrera ces événements au rapport individuel du staff et donnera au Promoteur une vue consolidée des affectations par pharmacie et membre du personnel. Une affectation ne prouve pas une présence effective.
+
+Les sources actuellement examinées ne contiennent pas de pointage individuel arrivée/départ ni de journal des heures de garde réellement effectuées. Les périodes `garde_debut/garde_fin` rattachées à `pharmacies` décrivent la garde de la pharmacie, pas celle d'un employé. Les KPI de présence et d'heures travaillées restent donc en attente d'un contrat métier de planning/pointage audité. Aucun indicateur de présence ne doit être déduit d'une simple affectation.
