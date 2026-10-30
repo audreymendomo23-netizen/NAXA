@@ -124,3 +124,13 @@ Les sources examinées ne fournissent pas de journal de pointage individuel (arr
 Avant d'afficher arrivée, départ, durée travaillée, retard, absence ou garde effectuée, il faut identifier ou concevoir une source métier explicite de planning et de pointage : acteur, pharmacie, horodatages, fuseau `Africa/Douala`, méthode de pointage, corrections auditées, statut de validation et règles de pause/chevauchement. Les horaires planifiés, les pointages bruts et les heures validées doivent rester trois notions distinctes.
 
 **État :** revue statique des sources et contrat fonctionnel cadré; aucune intégration de ces nouveaux indicateurs dans l'API à ce stade. Prochaine étape : audit du parcours d'affectation et des droits de lecture des profils, puis choix du contrat de pointage/planning avant toute migration additive. Aucun changement Supabase Production, aucun secret modifié, aucun déploiement.
+
+
+## Clôture technique bornée — affectations, présences et recette (30/10/2026)
+
+- L'API `POST /api/rapports` lit désormais les affectations du membre connecté sous RLS et, pour un Promoteur, les affectations dont il est l'auteur. Aucun accès service-role n'est utilisé pour cette lecture.
+- Les rapports exposent le nombre d'affectations visibles sur la fenêtre, les affectations actives à la génération et les volumes par fonction; le Promoteur obtient aussi les nombres de membres et pharmacies concernés. Les exports PDF/CSV réutilisent les mêmes lignes d'indicateurs.
+- Limite assumée : l'intégration ne fournit pas encore une liste nominative complète par collaborateur/pharmacie. La RLS actuelle n'autorise pas une lecture générale des profils du réseau; aucune dérogation n'est introduite. La consolidation nominative reste conditionnée à une façade RPC/RLS explicitement autorisée et testée.
+- L'aperçu/les exports signalent explicitement que les affectations ne prouvent ni présence ni heures effectuées. Aucun KPI individuel d'arrivée, départ, retard, absence ou garde réalisée n'est produit; aucun registre fiable n'a été identifié.
+- Certification : tests authentifiés par rôle, vérification des refus d'accès croisés, téléchargement/ouverture PDF et CSV et build Next/TypeScript non exécutés dans cette passe. Ils restent ouverts; aucune certification opérationnelle n'est déclarée.
+- Travail sur `main` uniquement. Aucun déploiement, aucune écriture Supabase Production, aucune migration appliquée, aucun secret modifié.
