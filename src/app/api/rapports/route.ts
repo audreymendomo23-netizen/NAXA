@@ -141,11 +141,11 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
   add("Dossiers assurance", stats.dossiers_assurance);
   add("Contrôles comptables à traiter", stats.controles_a_traiter);
   add("Pharmacies affectées", stats.pharmacies);
-  add("Références en stock", stats.references_stock);
-  add("Stocks bas (≤ 5)", stats.stocks_bas);
-  add("Lots à contrôler", stats.lots_a_controler);
-  add("Réservations à traiter", stats.reservations_a_traiter);
-  add("Inventaires ouverts", stats.inventaires_ouverts);
+  add("Références en stock (état actuel)", stats.references_stock);
+  add("Stocks bas (état actuel, ≤ 5)", stats.stocks_bas);
+  add("Lots à contrôler (état actuel)", stats.lots_a_controler);
+  add("Réservations en attente (état actuel)", stats.reservations_a_traiter);
+  add("Inventaires ouverts (état actuel)", stats.inventaires_ouverts);
   return rows;
 }
 
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
   };
 
   if (body.format === "csv") {
-    const csvRows = [...rows, { indicateur: "Statut analyse IA", valeur: ai.status }, { indicateur: "Analyse IA", valeur: ai.texte }];
+    const csvRows = [...(report.note_periode ? [{ indicateur: "Périmètre temporel", valeur: report.note_periode }] : []), ...rows, { indicateur: "Statut analyse IA", valeur: ai.status }, { indicateur: "Analyse IA", valeur: ai.texte }];
     const csv = ["indicateur,valeur", ...csvRows.map((row) => [csvEscape(row.indicateur), csvEscape(row.valeur)].join(","))].join("\r\n");
     return new Response("\ufeff" + csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="naxa-rapport-${periode}-${endDate}.csv"`, "Cache-Control": "no-store" } });
   }
