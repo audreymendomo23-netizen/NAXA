@@ -841,3 +841,13 @@ Rapport de référence : [Audit 360° Administrateur NAXA](docs/audits/AUDIT_360
 - Les indicateurs, le contrat JSON/CSV, les appels API et les contrôles de périmètre par rôle sont conservés; aucune fonctionnalité existante n'est retirée.
 - **Validation statique seulement.** Build TypeScript/Next, appels authentifiés avec chaque rôle, téléchargement et ouverture réels des fichiers PDF/CSV restent à tester. Certification opérationnelle non accordée.
 - Travail sur `main` uniquement. Aucun déploiement, aucune écriture Supabase Production, aucun secret modifié.
+
+
+## Rapports BI — extension permutations / présence / gardes (30/10/2026)
+
+- Revue du modèle réel : `naxa_professional_assignments` existe (migration 225) avec profil, pharmacie, fonction, motif, dates de validité, Promoteur auteur et métadonnées de révocation. RLS limite la lecture au staff concerné, à l'auteur et à l'Admin; création conditionnée à `ASSIGN_USER_TO_PHARMACY`.
+- Contrat cadré : rapport individuel du staff = historique de ses affectations temporaires/multiples; rapport Promoteur = vue agrégée par pharmacie et staff des affectations qu'il a accordées, des fonctions couvertes et des révocations. Une affectation n'est jamais une preuve de présence.
+- **Réserve bloquante pour les heures :** aucun journal individuel de pointage arrivée/départ ni registre d'heures de garde réalisées n'a été identifié dans les sources examinées. `pharmacies.garde_debut/garde_fin` (migration 070) décrivent une période de garde de la pharmacie, pas les heures d'un employé.
+- Aucun KPI d'arrivée, départ, retard, absence ou heures réellement travaillées ne sera calculé sans source explicite de planning/pointage, horodatages et audit des corrections.
+- **Travail réalisé :** cadrage et documentation de l'extension uniquement. L'API Rapports et les exports ne sont pas encore modifiés pour ces données. Prochaine étape : audit du parcours d'affectation et des droits de lecture des profils, puis spécification du journal de pointage/planning.
+- Aucun changement Supabase Production, aucune migration appliquée, aucun secret modifié, aucun déploiement.
