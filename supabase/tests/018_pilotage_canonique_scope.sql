@@ -92,16 +92,16 @@ begin
   on conflict (pharmacie_id) do update
     set echeance=excluded.echeance,statut='actif',montant_mensuel=excluded.montant_mensuel;
 
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
-  values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
-  on conflict (promoteur_id,pharmacie_id) do update set actif=true;
-
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(v_a,'PARENTS_AINES_CADETS',v_admin,true,5,5),
         (v_b,'PARENTS_AINES_CADETS',v_admin,true,5,5)
   on conflict (pharmacie_id) do update
     set architecture_code=excluded.architecture_code,active=true,
         max_responsables=excluded.max_responsables,max_caisses=excluded.max_caisses;
+
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values(v_promoteur,v_a,true),(v_promoteur,v_b,true)
+  on conflict (promoteur_id,pharmacie_id) do update set actif=true;
 
   insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
   values
