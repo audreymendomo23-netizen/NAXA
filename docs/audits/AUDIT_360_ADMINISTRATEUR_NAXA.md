@@ -2707,3 +2707,21 @@ Le mandat et AGENTS.md interdisent les écritures Supabase Production sans autor
 - **Garde-fous :** aucune écriture Supabase Production, aucune migration, aucun changement de secret, aucun déploiement et aucun workflow CI relancé.
 
 **Statut de sortie : VERT pour le contrôle ciblé du périmètre des KPI testés; validation globale du tableau de pilotage et recette UI restent distinctes.**
+
+
+## Rectificatif — décisions historiques à intégrer au point 7 (01/11/2026)
+
+La revue des décisions antérieures corrige les conclusions de la première passe :
+
+1. **Domaine canonique : pas d'anomalie.** Le 24/10/2026, l'utilisateur a choisi explicitement `https://nnaxa.vercel.app` parce que le domaine était disponible, avec instruction de le conserver comme domaine principal et de ne pas remplacer automatiquement les références. Le 26/10, cette URL a de nouveau été confirmée comme URL publique canonique. Les alias générés par Vercel (`naxa-naxa3.vercel.app`, `naxa-git-main-naxa3.vercel.app`) ne constituent donc pas une contradiction. `NEXT_PUBLIC_SITE_URL=https://nnaxa.vercel.app` est cohérent avec la décision historique. **Retirer ce constat de la liste des anomalies.**
+
+2. **SSO / protection : décision intentionnelle.** Le 25/10/2026, l'utilisateur a demandé de verrouiller la protection Vercel. La décision historique du 01/11 confirme que Production doit rester protégée et que les appels serveur-à-serveur utilisent un secret Automation Bypass dédié, sans désactivation globale du SSO. Le réglage `deploymentType: all` est donc conforme; ne pas le présenter comme un défaut ni le désactiver.
+
+3. **Secret Automation Bypass : rapprochement requis, absence non confirmée.** L'historique indique que `NAXA_VERCEL_BYPASS_SECRET` a été créé puis confirmé par l'utilisateur le 01/11/2026, distinct de `CRON_SECRET`. L'inventaire précédent ne l'a pas retourné. Cette différence contredit l'état historique connu, mais ne prouve pas son absence définitive : vérifier le bon projet, la bonne équipe et les cibles Production/Preview/Development, sans déchiffrer la valeur. Statut corrigé : **À RÉCONCILIER / NON CONFIRMÉ**.
+
+4. **NAXA_PRIVACY_CONTACT_EMAIL : usage à qualifier.** Le guide `docs/AUTH_WELCOME_EMAIL.md` la liste, mais l'inventaire ne l'a pas trouvée. Les décisions retrouvées confirment l'adresse publique `naxa.home@gmail.com), sans établir que cette variable a été volontairement omise ou qu'elle est requise par un chemin runtime actif. Statut : **NON VÉRIFIÉE — usage runtime à confirmer**. Ne pas créer la variable sans vérifier ses références dans le code et la décision produit.
+
+5. **Éléments hors diagnostic de configuration.** Le dernier déploiement Production en erreur relève du contrôle de déploiement / du point 4 déjà documenté; il ne prouve pas à lui seul une anomalie du point 7. De même, `live: false` dans les métadonnées projet ne prouve pas isolément une désactivation du site.
+
+### Décision révisée du point 7
+**JAUNE — inventaire effectué, rapprochement historique partiellement incomplet.** Domaine canonique `nnaxa.vercel.app` et protection SSO `all` conformes aux décisions retrouvées. Le secret Automation Bypass doit être réconcilié avec sa confirmation historique. La variable de contact confidentialité reste à qualifier par son usage réel. Aucun changement Vercel, Google ou Supabase n'est autorisé ni effectué; aucune valeur secrète n'a été lue.
