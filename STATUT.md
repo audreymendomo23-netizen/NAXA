@@ -941,3 +941,13 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Apps Script actif, propriétés et déclencheur non vérifiables avec les connecteurs disponibles; aucun e-mail de recette reçu ou envoyé dans cette passe.
 - **Point 4 : JAUNE / non vert en Production.** Causes : infrastructure outbox absente en Production, bypass Vercel manquant, activation Google et preuve de réception non établies. Aucun changement Production, secret ou déploiement, conformément au mandat et à AGENTS.md.
 - Preuve détaillée : section « Point 4 — audit contradictoire complémentaire et état de sortie » dans docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md.
+
+
+## Clôture point 6 — pilotage Promoteur hors périmètre (01/11/2026)
+- Test `supabase/tests/033_promoteur_pilotage_hors_scope_8.sql` exécuté sur Replay `naxa-ci-replay-2` : **PASS transactionnel**.
+- Assertions vérifiées : 2 pharmacies réseau; 2 recherches; 1 recherche sans résultat; 2 fiches vues; 1 ajout panier. Pharmacie C hors réseau et événements non attribués exclus des KPI testés.
+- Rollback contrôlé : zéro résidu Auth, profil, pharmacie ou événement synthétique.
+- Production en lecture seule : définition active de `private.stats_pilotage_scope` confirme l'identité/profil actif, le privilège `VIEW_NETWORK_PILOTAGE`, le scope issu des liens Promoteur-pharmacie actifs et l'exclusion des événements non attribués pour les Promoteurs. Définition de la logique examinée identique au Replay.
+- Limites : les KPI secondaires (réservations, ventes/CA, stock, alertes, série) ne sont pas tous couverts par ce scénario; recette navigateur non exécutée.
+- **Point 6 clos pour le contrôle ciblé du périmètre des KPI testés.** Aucun changement Production, migration, secret ou déploiement.
+- Détail : `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`, section « Point 6 — pilotage Promoteur hors périmètre ».
