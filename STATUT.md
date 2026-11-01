@@ -1008,3 +1008,14 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Contrôles positifs : Bébé & Maman rattaché au dossier pharmacie; verrouillage phase 1 des dispositifs; confidentialité des mesures par consentement/partage; messagerie Admin pour Aide NAXA.
 - **Étape 8 : JAUNE — revue de couverture documentée, couverture fonctionnelle non complète.** Les correctifs restent soumis à validation; aucune écriture Production, aucun déploiement et aucune modification de secret/configuration.
 - **Suite du canevas : étape 9 — simulation de exactement 1 000 cas pratiques**, sans inventer de fonctionnalités ni déclarer les réserves corrigées.
+
+
+## Audit 360 Administrateur — Étape 9, simulation de 1 000 cas (02/11/2026)
+
+- Simulation statique construite sur 10 domaines × 10 familles de situations × 10 variantes de contexte : **1 000 cas**, identifiants uniques NAXA-ADM-0001 à NAXA-ADM-1000; 100 cas par domaine.
+- Résultats : 200 directement résolubles (20 %), 150 nécessitant une intervention technique (15 %), 300 partiels (30 %), 200 non couverts (20 %), 150 non évaluables (15 %).
+- Dénominateur évaluables : 850. Scores par dimension : détection 76,5 %, diagnostic 58,8 %, accès aux données 58,8 %, capacité d'action 41,2 %, vérification de résolution 41,2 %, traçabilité 50,0 %.
+- Les non-évaluables sont séparés et exclus des taux; ils concernent principalement les univers sans données opérationnelles et les parcours dont l'exécution réelle n'a pas été prouvée.
+- **Nature de la preuve : simulation statique basée sur le code, les RPC, RLS et données Production en lecture seule; ce n'est pas l'exécution de 1 000 transactions ou tests navigateur.**
+- **Étape 9 : terminée sur le périmètre de simulation, résultat JAUNE.** Aucune écriture Production, aucun déploiement, aucun changement de secret/configuration.
+- **Suite : étape 10 — registre consolidé des problèmes**, avec identifiant, preuve, gravité, impact, cause/hypothèse, correction, statut et vérification.
