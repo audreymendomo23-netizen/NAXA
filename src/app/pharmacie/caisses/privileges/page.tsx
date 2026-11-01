@@ -47,13 +47,13 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
   const operationalIds = new Set(operationalPharmacies.map((p) => p.id));
   const team = (caisses ?? []).filter((c) => c.pharmacie_id && operationalIds.has(c.pharmacie_id));
   const teamIds = team.map((c) => c.id);
-  const [assignPermissions, architectureRows, assignedRows] = await Promise.all([
+  const [assignPermissions, revokePermissions, architectureRows, assignedRows] = await Promise.all([
     Promise.all(team.map(async (c) => {
-      const result = await sb.rpc("naxa_can", {
-        p_privilege: "ASSIGN_PRIVILEGE",
-        p_pharmacie: c.pharmacie_id,
-        p_target: c.id,
-      });
+      const result = await sb.rpc("naxa_can", { p_privilege: "ASSIGN_PRIVILEGE", p_pharmacie: c.pharmacie_id, p_target: c.id });
+      return [c.id, !result.error && result.data === true] as const;
+    })),
+    Promise.all(team.map(async (c) => {
+      const result = await sb.rpc("naxa_can", { p_privilege: "REVOKE_PRIVILEGE", p_pharmacie: c.pharmacie_id, p_target: c.id });
       return [c.id, !result.error && result.data === true] as const;
     })),
     sb.from("naxa_architecture_privileges").select("architecture_code,role_key,privilege_code")
@@ -65,6 +65,7 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
   ]);
 
   const permissionByTarget = new Map(assignPermissions);
+  const revokePermissionByTarget = new Map(revokePermissions);
   const allowedByArchitecture = new Map<string, Set<string>>();
   for (const row of architectureRows.data ?? []) {
     if (!allowedByArchitecture.has(row.architecture_code)) allowedByArchitecture.set(row.architecture_code, new Set());
@@ -127,12 +128,12 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
                 return (
                   <li key={row.privilege_code} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
                     <span className="text-sm">{p?.libelle ?? row.privilege_code}</span>
-                    <form action={retirerPrivilegeCaisse}>
+                    {revokePermissionByTarget.get(c.id) && <form action={retirerPrivilegeCaisse}>
                       <input type="hidden" name="caisse_id" value={c.id} />
                       <input type="hidden" name="pharmacie_id" value={c.pharmacie_id ?? ""} />
                       <input type="hidden" name="privilege_code" value={row.privilege_code} />
                       <button className="btn btn-clair">Retirer</button>
-                    </form>
+                    </form>}
                   </li>
                 );
               })}
