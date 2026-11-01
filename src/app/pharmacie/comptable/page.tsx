@@ -48,11 +48,7 @@ export default async function ComptableDashboardPage() {
 
   // Le poste Comptable est une fonction interne autorisée par privilège :
   // aucune nouvelle valeur de profiles.role/role_type n'est créée.
-  const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", {
-    p_privilege: "MANAGE_ACCOUNTING",
-    p_pharmacie: profile.pharmacie_id,
-    p_target: null,
-  });
+  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
   const [{ data: pharmacy, error: pharmacyError }, { data: evenements, error: eventsError },
