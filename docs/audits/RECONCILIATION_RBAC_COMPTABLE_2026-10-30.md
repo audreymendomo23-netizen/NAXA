@@ -33,3 +33,12 @@ Une contradiction supplémentaire a été reproduite sur le rejeu : `public.naxa
 - Tests structurels 264, 265 et 266 exécutés après application de la migration au rejeu `pwfftcsjyeibxxqhwysw` : PASS (aucune exception SQL).
 - Aucun profil Comptable de test n'existe dans ce rejeu au moment du contrôle (0 profil identifié par fonction ou par `naxa_business_function`). Les tests authentifiés réels, refus inter-pharmacies, build Next/TypeScript et recette navigateur restent donc ouverts.
 - Production et Vercel inchangés; aucune migration Production ni aucun déploiement.
+
+
+## Preuve transactionnelle d'isolation inter-pharmacies — 01/11/2026
+
+- Test ajouté : supabase/tests/267_comptable_cross_pharmacy_isolation.sql.
+- Fixture synthétique avec deux pharmacies du même réseau, Comptable rattaché à A et privilège nominatif MANAGE_ACCOUNTING accordé uniquement sur A.
+- Assertions exécutées : compta_scope_autorise(A)=true, compta_scope_autorise(B)=false; RPC de démarrage écrit sur A; RPC de clôture refuse une session B appartenant pourtant au même compte; la session A peut être clôturée.
+- Résultat : PASS transactionnel. Le test se termine par ROLLBACK; aucune fixture ne persiste dans Replay.
+- Les tests 264–266 restent les preuves de contrat RBAC/RLS/ACL. Cette preuve ajoute le test comportemental du helper et des RPC, mais ne remplace pas une recette navigateur avec un compte connecté.
