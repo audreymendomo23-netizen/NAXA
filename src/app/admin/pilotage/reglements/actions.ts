@@ -31,10 +31,10 @@ export async function confirmerReglementPromoteur(formData: FormData) {
     : null;
   const pharmacyIds = [...new Set((links ?? []).map(link => link.pharmacie_id).filter(Boolean))];
   const { data: pharmacies, error: pharmaciesError } = pharmacyIds.length
-    ? await db.from("pharmacies").select("id").in("id", pharmacyIds)
+    ? await db.from("pharmacies").select("id,nom").in("id", pharmacyIds)
     : { data: [], error: null };
   if (promoterError || linksError || pharmaciesError || !promoterName ||
-      !pharmacyIds.length || new Set((pharmacies ?? []).map(pharmacy => pharmacy.id)).size !== pharmacyIds.length) {
+      !pharmacyIds.length || new Set((pharmacies ?? []).map(pharmacy => pharmacy.id)).size !== pharmacyIds.length || (pharmacies ?? []).some(pharmacy => !pharmacy.nom?.trim())) {
     redirect("/admin/pilotage/reglements?erreur=dossier");
   }
 
