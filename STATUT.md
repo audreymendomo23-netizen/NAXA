@@ -881,3 +881,14 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Rapports : historique individuel Comptable et sessions nominatives Promoteur limitées aux pharmacies actives du réseau; sessions ouvertes provisoires.
 - Migration appliquée au rejeu uniquement; assertions structurelles 265 : PASS. Tests authentifiés réels, refus inter-pharmacies, build et recette navigateur : non exécutés. Production et Vercel inchangés.
 - Sous-chantier Comptable : implémentation avancée, **non clôturé** jusqu'aux tests comportementaux et à la validation du parcours.
+
+
+## Comptable — correction du contrôle d'accès et navigation commune (01/11/2026)
+- **Cause racine complémentaire confirmée sur le rejeu :** `naxa_can('MANAGE_ACCOUNTING', pharmacie, NULL)` retourne faux par contrat, car la cible nulle est réservée aux privilèges `VIEW_*`. L'ancienne implémentation de `compta_scope_autorise` réutilisait cet appel et pouvait bloquer tout le poste Comptable malgré le mapping RBAC correct.
+- **Correction sur main :** migration additive `20261101090000_comptable_scope_privilege_fix.sql`; `compta_scope_autorise` appelle directement `private.naxa_has_privilege` avec le scope `PHARMACIE`, après vérification de l'identité fonctionnelle et du scope. Le contrat global de `naxa_can` n'est pas élargi.
+- Toutes les pages Comptable, actions serveur et l'API Rapports utilisent maintenant `compta_scope_autorise`. L'API GET des rapports accepte le poste Comptable sous ce contrôle.
+- Le layout partagé apporte le menu latéral à toutes les routes Comptable, avec indication de la page active. Le menu n'est plus limité à la page de pointage.
+- La consolidation Promoteur filtre les pharmacies actives du réseau sans exiger leur visibilité dans la recherche publique.
+- Rejeu non-Production `pwfftcsjyeibxxqhwysw` : migration appliquée; tests SQL 264, 265 et 266 exécutés sans exception (**PASS structurel**).
+- **Réserves non levées :** aucun profil Comptable de test disponible dans le rejeu (0 trouvé); tests comportementaux authentifiés et inter-pharmacies impossibles à certifier avec les données actuelles. Build Next/TypeScript et recette navigateur non exécutés.
+- Sous-chantier Comptable : **corrigé sur le plan statique et structurel, toujours non clôturé** jusqu'à preuve fonctionnelle ou levée explicite des réserves. Aucun changement Production, aucun secret modifié, aucun déploiement.
