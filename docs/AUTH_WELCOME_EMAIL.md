@@ -12,6 +12,7 @@ NAXA utilise Gmail via Google Apps Script (service MailApp, limité à l’envoi
 6. Ajouter aux variables serveur de l'application :
    - `GOOGLE_APPS_SCRIPT_URL` : URL /exec.
    - `GOOGLE_APPS_SCRIPT_SECRET` : même secret que la propriété Apps Script.
+   - `NAXA_VERCEL_BYPASS_SECRET` : secret de contournement de la protection de déploiement Vercel, utilisé uniquement par le déclencheur Google pour appeler le worker protégé. Il doit correspondre au secret configuré dans Vercel; ne jamais le journaliser ni le transmettre dans une URL.
    - `NEXT_PUBLIC_SITE_URL` : URL HTTPS du site dans cet environnement, sans barre finale.
    - `NAXA_PRIVACY_CONTACT_EMAIL` : adresse Gmail consultée par l'équipe pour les questions relatives aux données.
 7. Tester avec un compte confirmé et vérifier la réception réelle avant de considérer l'envoi opérationnel.
@@ -46,9 +47,13 @@ Le script canonique contient aussi `processNaxaNotificationQueue` et `installNax
 
 1. Dans les Script Properties du même projet, ajouter `NAXA_WORKER_URL` avec l'URL HTTPS de Production suivie de `/api/cron/validite`.
 2. Ajouter `NAXA_CRON_SECRET` avec la valeur de la variable Vercel Production `CRON_SECRET`. Ne jamais confondre ce secret avec `NAXA_WELCOME_SECRET`.
-3. Mettre à jour le manifeste avec les scopes de `scripts/google-welcome-email.appsscript.json` (envoi mail, requêtes externes, gestion des déclencheurs).
-4. Enregistrer le projet et autoriser les nouveaux scopes.
-5. Exécuter manuellement `installNaxaNotificationTrigger` une seule fois. Il remplace les anciens déclencheurs du même handler et crée une exécution toutes les 5 minutes.
-6. Vérifier dans **Déclencheurs** Apps Script que le déclencheur est actif, puis contrôler les journaux d'exécution et l'outbox.
+3. Ajouter `NAXA_VERCEL_BYPASS_SECRET` avec la valeur du secret de contournement Vercel du projet `naxa` (Protection Bypass for Automation). Le worker transmet ce secret dans l'en-tête `x-vercel-protection-bypass`; il ne remplace jamais `CRON_SECRET`.
+4. Mettre à jour le manifeste avec les scopes de `scripts/google-welcome-email.appsscript.json` (envoi mail, requêtes externes, gestion des déclencheurs).
+5. Enregistrer le projet et autoriser les nouveaux scopes.
+6. Exécuter manuellement `installNaxaNotificationTrigger` une seule fois. Il remplace les anciens déclencheurs du même handler et crée une exécution toutes les 5 minutes.
+7. Vérifier dans **Déclencheurs** Apps Script que le déclencheur est actif, puis contrôler les journaux d'exécution et l'outbox.
 
 Pour arrêter le traitement automatique, exécuter `removeNaxaNotificationTrigger`. Le déclencheur Google n'est pas encore installé par le code GitHub : cette activation nécessite l'autorisation du propriétaire du compte Google.
+
+
+**Contrôle de cohérence obligatoire avant activation :** vérifier que les trois propriétés NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET sont présentes dans Apps Script, et que CRON_SECRET, GOOGLE_APPS_SCRIPT_URL et GOOGLE_APPS_SCRIPT_SECRET sont présentes dans Vercel Production. Les valeurs ne doivent jamais être copiées dans un rapport. Une variable simplement présente ne prouve ni l'installation du déclencheur ni la réception d'un e-mail.
