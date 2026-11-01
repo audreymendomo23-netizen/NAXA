@@ -892,3 +892,6 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Rejeu non-Production `pwfftcsjyeibxxqhwysw` : migration appliquée; tests SQL 264, 265 et 266 exécutés sans exception (**PASS structurel**).
 - **Réserves non levées :** aucun profil Comptable de test disponible dans le rejeu (0 trouvé); tests comportementaux authentifiés et inter-pharmacies impossibles à certifier avec les données actuelles. Build Next/TypeScript et recette navigateur non exécutés.
 - Sous-chantier Comptable : **corrigé sur le plan statique et structurel, toujours non clôturé** jusqu'à preuve fonctionnelle ou levée explicite des réserves. Aucun changement Production, aucun secret modifié, aucun déploiement.
+
+
+- **Contrôle GitHub du HEAD de cette passe :** le statut combiné remonte `ci/circleci: quality = failure`. Aucun job n'a été relancé. Cette CI n'est pas utilisée comme gate du chantier; le build local reste non exécuté faute d'environnement d'exécution disponible dans cette passe.
