@@ -1634,3 +1634,13 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Statut :** 🟡 **CONSTRUIT — VALIDATION FONCTIONNELLE RESTANTE**.
 - **Réserve :** aucun profil Comptable de test n'est disponible dans le rejeu diagnostique; il faut un compte de test contrôlé pour prouver autorisation, refus, démarrage/fin et isolation.
 - **Production / déploiement :** aucun changement.
+
+
+## Comptable — isolation inter-pharmacies (01/11/2026)
+- Test transactionnel 267 exécuté sur Replay : Comptable autorisé sur sa pharmacie A, refusé sur B malgré appartenance des deux pharmacies au réseau Promoteur; prise de service sur A; refus de clôture d'une session B; clôture de sa propre session A.
+- Résultat PASS avec rollback des fixtures. Le sous-chantier Comptable est désormais validé sur le contrôle d'isolation helper/RPC; restent build/typecheck et recette navigateur du parcours complet.
+
+## Responsable — revue des points ouverts (01/11/2026)
+- Tests 018b (pilotage scope Responsable) et 023 (matrice RBAC, architecture, fonctions et ACL) exécutés sur Replay : PASS après correction de l'ordre de création de la fixture 018b.
+- Défaut UI/Server Actions : la gestion des Caisses était Promoteur-only malgré les privilèges et RPC Responsable N2 prévus par le contrat. Correction sur main : /pharmacie/caisses, creerCaisse, bloquerCaisse, reactiverCaisse acceptent aussi un Responsable N2 et restent bornés à sa pharmacie; l'accès et la création sont vérifiés séparément par VIEW_TEAM / CREATE_CAISSE. Le dashboard affiche le lien si VIEW_TEAM est autorisé.
+- Statut : corrigé statiquement, validation runtime/build encore à faire. Délégation de privilèges sur /pharmacie/caisses/privileges toujours Promoteur-only; pointage individuel Responsable non identifié dans le modèle et à confirmer avec le mandat.
