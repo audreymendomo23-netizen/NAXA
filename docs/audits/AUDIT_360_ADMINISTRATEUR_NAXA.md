@@ -2692,3 +2692,18 @@ Le point 3 n'est pas à reprendre. Le prochain contrôle ouvert de l'audit Admin
 Le mandat et AGENTS.md interdisent les écritures Supabase Production sans autorisation et périmètre explicites, les modifications de secrets sans autorisation et tout déploiement sans autorisation explicite. La demande de clôture ne fournit pas les valeurs ni le périmètre opérationnel de migration/secrets/déploiement; ces garde-fous ne peuvent pas être contournés pour fabriquer un statut vert. L'accès au projet Google Apps Script actif n'est pas exposé par les connecteurs disponibles. Les contrôles indépendants accessibles ont été effectués et la contradiction documentaire a été corrigée.
 
 **Statut final : JAUNE / BLOQUÉ PAR ACTIVATION PRODUCTION ET PREUVE EXTERNE.** Le point 4 ne doit pas être déclaré vert. Aucun résultat fictif, aucune donnée métier créée, aucune écriture Production.
+
+
+## Point 6 — pilotage Promoteur hors périmètre (01/11/2026)
+
+**Décision : CONTRÔLE COMPORTEMENTAL PASS sur Replay; cohérence de la fonction active confirmée en lecture seule sur Production.** Cette clôture porte sur l'exclusion des pharmacies hors réseau et des événements non attribués dans les KPI testés; elle ne certifie pas l'ensemble des indicateurs ni la recette navigateur.
+
+- **Test exécuté :** `supabase/tests/033_promoteur_pilotage_hors_scope_8.sql` exécuté intégralement sur le projet isolé `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`). Résultat retourné : `Verification 8 — Pilotage hors périmètre : PASS transactionnel`.
+- **Scénario :** Promoteur synthétique avec pharmacies A+B liées activement et pharmacie C non liée; événements de recherche, fiche vue et ajout panier répartis entre A, B, C et `pharmacie_id IS NULL`.
+- **Assertions PASS :** total pharmacies = 2; recherches = 2; recherches sans résultat = 1; fiches vues = 2; ajouts panier = 1. Les événements de C et non attribués ne gonflent donc pas les KPI contrôlés.
+- **Rollback vérifié :** après exécution, zéro résidu pour le compte Auth, le profil, les trois pharmacies et les événements synthétiques recherchés. La transaction de test s'est terminée par `ROLLBACK`.
+- **Contrôle Production en lecture seule :** `public.stats_pilotage_scope(integer)` et `private.stats_pilotage_scope(integer)` existent. La fonction privée active conserve `SECURITY DEFINER`, `search_path=''`, vérifie `auth.uid()`, le profil actif et `VIEW_NETWORK_PILOTAGE`, puis construit le périmètre Promoteur exclusivement depuis les liens `promoteur_pharmacies` actifs et les pharmacies non démo. Les requêtes KPI utilisent ce tableau de pharmacies; pour les Promoteurs, les événements sans pharmacie ne sont pas inclus. La définition SQL observée sur Production correspond à celle du Replay pour la logique examinée.
+- **Limites conservées :** le test 033 couvre recherches, recherches sans résultat, fiches vues et paniers, pas chaque KPI secondaire (réservations, ventes/CA, stock, alertes et série quotidienne) dans un scénario distinct. Aucune recette navigateur ni test authentifié multi-compte n'a été exécuté dans cette passe.
+- **Garde-fous :** aucune écriture Supabase Production, aucune migration, aucun changement de secret, aucun déploiement et aucun workflow CI relancé.
+
+**Statut de sortie : VERT pour le contrôle ciblé du périmètre des KPI testés; validation globale du tableau de pilotage et recette UI restent distinctes.**
