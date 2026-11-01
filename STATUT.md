@@ -1030,3 +1030,14 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Les points clôturés (sous-chantier crédit, corrections ALT-01/SEC-MSG-01/MSG-02, garde Admin actif, cooldown OSM, pilotage ciblé) ne sont pas rouverts.
 - **Étape 10 : TERMINÉE / JAUNE.** Aucun correctif de code/SQL n'a été appliqué dans le cadre du registre; les changements soumis à validation restent en attente.
 - **Suite du canevas : étape 11 — code mort**, avec distinction obligatoire entre code mort confirmé et usage indirect potentiel.
+
+
+## Audit 360 Administrateur — Étape 11, recherche de code mort (premier passage, 02/11/2026)
+
+- Inventaire de 32 fichiers sous src/app/admin et relecture de 14 composants/helpers directement liés.
+- Code mort confirmé : constante locale types inutilisée dans src/app/admin/univers/actions.ts (ADM-DEAD-01).
+- Candidats non supprimés : action legacy creerPartenaire, action mettreAJourPiecesRecues, export exporterCsv; leurs références hors du sous-arbre Admin ne sont pas prouvées.
+- Routes potentiellement orphelines : /admin/geolocalisation et /admin/rappels-lots; routes encore directement accessibles, donc pas classées mortes.
+- Candidats CSS non référencés dans les pages Admin examinées : admin-kanban-*, admin-report-card, admin-home-live. Aucune règle supprimée.
+- Contrôles positifs : admin-bento.css est importée par le layout; les composants Admin identifiés et les actions de création pharmacie/univers sont effectivement utilisés.
+- **Étape 11 : EN COURS / JAUNE.** Le premier passage Admin est documenté; la recherche globale des références indirectes et l'inventaire exhaustif de tous les styles/animations restent à terminer. Aucun code n'a été supprimé.
