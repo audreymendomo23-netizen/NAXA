@@ -921,3 +921,13 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Test `supabase/tests/018c_responsable_delegation_privileges_caisse.sql` exécuté sur Replay : PASS transactionnel — attribution nominative `VIEW_SALES`, refus inter-pharmacies, révocation effective, rollback.
 - Build/typecheck et recette navigateur non exécutés. Aucune écriture Production ni aucun déploiement.
 - **Point 2/2 fermé** sur preuve SQL comportementale et correction statique UI/Server Actions.
+
+
+## Clôture point 5 — règlements Promoteur (01/11/2026)
+- Contrôle statique des actions Promoteur et Admin sur main, et contrôle en lecture seule des fonctions/contraintes/RLS Production.
+- Contestation : admin actif requis, motif obligatoire, verrouillage et refus des états non en attente, notification et journalisation.
+- Double soumission : identité Promoteur issue de la session serveur; garde-fou SQL contre une seconde déclaration tant qu'un règlement est en attente; fonction de soumission exécutable uniquement par service_role.
+- Confirmation répétée : verrouillage et retour idempotent des références existantes; pas de second renouvellement.
+- Suspension disciplinaire : la confirmation ne réactive aucun profil, pharmacie ou lien Promoteur-pharmacie.
+- **Point 5 clos de façon bornée** sur les contrôles statiques et SQL Production. Réserves conservées : pas de rejeu E2E / navigateur ni encaissement réel; nettoyage Storage compensatoire non vérifié après erreur RPC; libellé « 31 jours » à aligner sur la période mensuelle calendaire; réconciliation exhaustive migrations GitHub/Supabase à poursuivre si nécessaire.
+- Aucun test fictif ni aucune écriture Production, aucune migration, aucun déploiement.
