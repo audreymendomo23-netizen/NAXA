@@ -982,3 +982,12 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Dossier partenaire indépendant : garde de cohérence owner/association/type-univers intégrée à `main` au commit `121fd9b3b17b2cf48803128ce96fcc1e086bcfcc`; migration Replay `20261101214824`; test structurel PASS. Production non modifiée; inventaire SQL existant conforme (0 anomalie sur les relations contrôlées).
 - **Suite :** poursuivre l'audit des pages de pilotage, validité et rapports administrateur; conserver les preuves de build et navigateur comme réserves différées, sans réouvrir les contrôles déjà clôturés.
 
+## Étape 7 — dernière passe Pilotage / Validité / Rapports (01/11/2026)
+
+- **Dernier sous-contrôle exécuté et documenté** dans `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
+- Replay : test `018_pilotage_canonique_scope.sql` **PASS**, scopes Admin/Promoteur/Caisse/Responsable et refus Client; transaction annulée par ROLLBACK.
+- Production, lecture seule : RLS `rapports` active; SELECT anon refusé; authenticated SELECT soumis à RLS; aucune écriture directe authenticated. Les RPC de pilotage et validité ont les gardes Admin/rôle/périmètre attendues.
+- Corrections sur `main` : suppression des KPI périmés après erreur du pilotage (`d3dce07`); état de chargement distinct pour l’historique des rapports (`86fb8e5`); historique GET `Cache-Control: no-store` (`6ac716f`).
+- Vercel : réconciliation terminée sur le bon projet/équipe. `NAXA_VERCEL_BYPASS_SECRET` présent en Production (valeur non lue); `NAXA_PRIVACY_CONTACT_EMAIL=naxa.home@gmail.com` présent et utilisé par le courrier de bienvenue; `nnaxa.vercel.app` attaché et vérifié; SSO `all` confirmé. Aucun changement de configuration ou secret.
+- **État : dernier sous-contrôle terminé; étape 7 globale JAUNE, non bloquante.** Build/typecheck/lint, recette navigateur et POST OSM réel restent différés; aucun succès n’est revendiqué pour ces vérifications.
+- Aucun changement de données Supabase Production, aucune migration Production, aucun déploiement manuel.
