@@ -1651,3 +1651,11 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Test négatif inter-pharmacies : pharmacie B du même Promoteur, sans privilèges nominatifs du Responsable A; création refusée par naxa_can et RPC naxa_provision_caisse.
 - PASS transactionnel final; rollback vérifié : aucun compte, pharmacie ou profil Caisse synthétique ne subsiste.
 - Point 1/2 fermé. Build/typecheck et recette navigateur non inclus dans cette preuve.
+
+
+## Responsable — point 2/2 clôturé : délégation des privilèges Caisse — 01/11/2026
+- `/pharmacie/caisses/privileges` et ses Server Actions permettent au Responsable N2 actif de consulter et déléguer les privilèges de ses Caisses enfants dans sa seule pharmacie, sous réserve de `VIEW_PRIVILEGES`, `ASSIGN_PRIVILEGE` et `REVOKE_PRIVILEGE`.
+- Les garde-fous SQL existants imposent l'architecture, le niveau Caisse, la délégabilité et l'exclusion des droits de gouvernance. La page n'affiche les actions d'attribution/révocation que si le droit correspondant est effectif.
+- Test 018c exécuté sur Replay : PASS transactionnel — attribution `VIEW_SALES`, refus inter-pharmacies, révocation effective et rollback.
+- Code/test intégrés à `main`; build/typecheck et recette navigateur non exécutés. Aucune écriture Production ni aucun déploiement.
+- Les deux points ciblés du sous-chantier Responsable sont clos; cette clôture ne certifie pas le build global ni les autres parcours.
