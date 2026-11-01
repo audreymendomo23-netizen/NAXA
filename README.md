@@ -447,3 +447,12 @@ La migration additive 263 rétablit RLS sur les sessions de service Stock et les
 - API Rapports raccordée : historique individuel Comptable et consolidation nominative Promoteur sur ses seules pharmacies actives; pagination conservée et sessions ouvertes provisoires.
 - Vérification : migration appliquée uniquement au rejeu `naxa-ci-replay-2`; test structurel 265 exécuté avec succès (RLS, politique, absence d'écriture directe, ACL RPC, index unicité, contrôles identité/scope). Le test comportemental avec comptes réels, tests négatifs inter-pharmacies et build Next/TypeScript restent à exécuter.
 - Aucun changement Production, aucun secret modifié, aucun déploiement.
+
+
+## Comptable — correction du garde d'accès et navigation commune (01/11/2026)
+
+Une seconde cause racine a été corrigée : `naxa_can` réserve `p_target = NULL` aux privilèges de consultation, alors que `MANAGE_ACCOUNTING` est un privilège fonctionnel sur une pharmacie. `compta_scope_autorise` utilise maintenant le moteur RBAC nominatif `naxa_has_privilege` avec le scope pharmacie, sans élargir le contrat générique de `naxa_can`. Les pages, actions serveur et l'API Rapports utilisent ce contrôle dédié.
+
+Le poste dispose maintenant d'un layout commun et d'un menu latéral persistant sur toutes ses routes. Le rapport Promoteur inclut toutes les pharmacies actives du réseau, même si elles ne sont pas publiées dans la recherche publique. Les tests structurels 264, 265 et 266 passent sur le rejeu non-Production après application de la migration corrective.
+
+**Statut non clôturé :** aucun profil Comptable de test n'est présent sur le rejeu; les scénarios authentifiés, les refus inter-pharmacies, le build et la recette navigateur restent à prouver. Production et Vercel inchangés.
