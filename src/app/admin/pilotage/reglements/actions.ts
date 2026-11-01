@@ -14,8 +14,30 @@ export async function confirmerReglementPromoteur(formData: FormData) {
   if (!preuveVerifiee) redirect("/admin/pilotage/reglements?erreur=verification");
   const db = supabaseAdmin();
   const { data: reglement, error: readError } = await db.from("abonnement_promoteur_reglements")
-    .select("id,statut,preuve_path").eq("id", id).maybeSingle();
+    .select("id,promoteur_id,statut,preuve_path").eq("id", id).maybeSingle();
   if (readError || !reglement || reglement.statut !== "en_attente") redirect("/admin/pilotage/reglements?erreur=confirmation");
+
+  // Ne jamais confirmer un paiement si l'identité du Promoteur ou son réseau
+  // ne peut pas être établi. Les pharmacies peuvent rester inactives :
+  // le paiement ne lève aucune suspension indépendante.
+  const [{ data: promoter, error: promoterError }, { data: links, error: linksError }] = await Promise.all([
+    db.from("profiles").select("id,first_name,last_name,username")
+      .eq("id", reglement.promoteur_id).eq("role", "promoteur").maybeSingle(),
+    db.from("promoteur_pharmacies").select("pharmacie_id")
+      .eq("promoteur_id", reglement.promoteur_id),
+  ]);
+  const promoterName = promoter
+    ? [promoter.first_name, promoter.last_name].filter(Boolean).join(" ") || promoter.username
+    : null;
+  const pharmacyIds = [...new Set((links ?? []).map(link => link.pharmacie_id).filter(Boolean))];
+  const { data: pharmacies, error: pharmaciesError } = pharmacyIds.length
+    ? await db.from("pharmacies").select("id").in("id", pharmacyIds)
+    : { data: [], error: null };
+  if (promoterError || linksError || pharmaciesError || !promoterName ||
+      !pharmacyIds.length || new Set((pharmacies ?? []).map(pharmacy => pharmacy.id)).size !== pharmacyIds.length) {
+    redirect("/admin/pilotage/reglements?erreur=dossier");
+  }
+
   const { data: preuve } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(reglement.preuve_path, 600);
   if (!preuve?.signedUrl) redirect("/admin/pilotage/reglements?erreur=preuve");
   const { error } = await db.rpc("admin_confirmer_reglement_promoteur", { p_reglement: id, p_admin: user.id });
