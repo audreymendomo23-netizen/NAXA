@@ -931,3 +931,13 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Suspension disciplinaire : la confirmation ne réactive aucun profil, pharmacie ou lien Promoteur-pharmacie.
 - **Point 5 clos de façon bornée** sur les contrôles statiques et SQL Production. Réserves conservées : pas de rejeu E2E / navigateur ni encaissement réel; nettoyage Storage compensatoire non vérifié après erreur RPC; libellé « 31 jours » à aligner sur la période mensuelle calendaire; réconciliation exhaustive migrations GitHub/Supabase à poursuivre si nécessaire.
 - Aucun test fictif ni aucune écriture Production, aucune migration, aucun déploiement.
+
+
+## Point 4 — notification e-mail Promoteur : audit de sortie (01/11/2026)
+- Contradiction corrigée dans docs/AUTH_WELCOME_EMAIL.md : le script Google exige aussi NAXA_VERCEL_BYPASS_SECRET pour appeler le worker protégé; la procédure documente maintenant cette propriété distincte de CRON_SECRET et GOOGLE_APPS_SCRIPT_SECRET.
+- Lecture seule Supabase : sur Replay, outbox et RPC claim/finish présents; sur Production, public.notifications existe mais private.notification_email_outbox et les RPC claim/finish sont absentes. La migration source de l'outbox n'est pas appliquée en Production.
+- Inventaire Vercel sans déchiffrement : CRON_SECRET, GOOGLE_APPS_SCRIPT_URL et GOOGLE_APPS_SCRIPT_SECRET présents en Production; NAXA_VERCEL_BYPASS_SECRET absent de l'inventaire consulté. Aucune valeur secrète lue.
+- Dernier déploiement Production observé : ERROR sur commit af7230b2cf63e2ef6f024e525bf5a9159a2eed2b. Aucun déploiement relancé.
+- Apps Script actif, propriétés et déclencheur non vérifiables avec les connecteurs disponibles; aucun e-mail de recette reçu ou envoyé dans cette passe.
+- **Point 4 : JAUNE / non vert en Production.** Causes : infrastructure outbox absente en Production, bypass Vercel manquant, activation Google et preuve de réception non établies. Aucun changement Production, secret ou déploiement, conformément au mandat et à AGENTS.md.
+- Preuve détaillée : section « Point 4 — audit contradictoire complémentaire et état de sortie » dans docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md.
