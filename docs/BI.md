@@ -28,3 +28,14 @@ Le rapport porte un scope explicite : `PHARMACIE`, `RESPONSABLE`, `PROMOTEUR` ou
 ## Exports par scope
 L'export ne constitue jamais une nouvelle couche d'autorisation. Il consomme un jeu de rapports déjà filtré par le scope autorisé. Le CSV existant est conservé. Les métadonnées `scope_type`, `scope_profile_id` et `scope_pharmacie_id` accompagnent le rapport. Tant que le moteur hiérarchique multi-pharmacie n'est pas actif, aucun Promoteur/Responsable ne peut obtenir un périmètre élargi par simple ajout de ces champs.
 \n\nLe grain BI reste `pharmacie × période` pour les indicateurs agrégés. `promoteur_pharmacies` définit le périmètre Promoteur ; `my_pharmacies()` le projette en périmètre autorisé ; `can_access_pharmacy()` sert de garde RLS. Les vues BI sont `security_invoker` et ne créent pas une voie parallèle autour des tables sources. La consolidation est une agrégation des pharmacies autorisées, sans duplication de faits.\n
+
+
+## Frontière IA et confidentialité des rapports
+
+La route `/api/rapports` construit deux jeux distincts :
+- le rapport destiné à l'utilisateur autorisé, qui conserve les indicateurs et détails nécessaires à son écran/export selon son périmètre ;
+- le jeu `aiMetrics`, limité aux valeurs numériques agrégées et à la série quotidienne agrégée.
+
+Les noms, identifiants, détails d'affectations, horodatages individuels et sessions nominatives ne doivent jamais être ajoutés au prompt IA. Toute nouvelle métrique envoyée à un fournisseur IA doit passer par une liste blanche explicite et être agrégée avant transmission.
+
+Le moteur RPC `private.stats_pilotage_scope(integer)` reste inaccessible en exécution directe aux rôles clients. La façade `public.stats_pilotage_scope(integer)` est `SECURITY DEFINER`, avec `search_path = ''`, et délègue au moteur privé qui conserve les contrôles `auth.uid()`, rôle, privilèges et périmètre. La migration 243 rétablit cette séparation après la concession EXECUTE directe de la migration 043. Le test 268 contrôle les ACL et le mode de sécurité ; il doit être exécuté sur une base de test avant toute validation technique.
