@@ -20,9 +20,7 @@ export default async function ProfilComptablePage({ searchParams }: { searchPara
     .select("id,role,fonction_interne,actif,pharmacie_id,first_name,last_name,username,created_at")
     .eq("id", auth.user.id).single();
   if (error || !profile || profile.actif !== true || !profile.pharmacie_id) redirect("/pharmacie");
-  const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", {
-    p_privilege: "MANAGE_ACCOUNTING", p_pharmacie: profile.pharmacie_id, p_target: null,
-  });
+  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
   const { data: pharmacy } = await sb.from("pharmacies").select("nom").eq("id", profile.pharmacie_id).maybeSingle();
   const label = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || auth.user.email || "Compte Comptable";
