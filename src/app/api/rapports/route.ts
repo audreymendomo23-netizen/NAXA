@@ -261,7 +261,10 @@ export async function GET() {
   else return NextResponse.json({ rapports: [] });
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: "Historique des rapports indisponible." }, { status: 500 });
-  return NextResponse.json({ rapports: (data ?? []).map((r: any) => ({ ...r, pharmacie_nom: r.pharmacies?.nom ?? null })) });
+  return NextResponse.json(
+    { rapports: (data ?? []).map((r: any) => ({ ...r, pharmacie_nom: r.pharmacies?.nom ?? null })) },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
 
 export async function POST(request: Request) {
