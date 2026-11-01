@@ -904,3 +904,11 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Défaut de parcours Responsable identifié et corrigé sur main : la page /pharmacie/caisses et les Server Actions étaient exclusivement Promoteur alors que les RPC RBAC autorisent explicitement un Responsable N2 correctement habilité à provisionner une Caisse et gérer son cycle de vie. La page et les actions acceptent maintenant Promoteur ou Responsable; le Responsable est limité à sa pharmacie, les droits VIEW_TEAM et CREATE_CAISSE sont contrôlés séparément, et la création vérifie l'activité de la pharmacie. Le dashboard expose l'entrée Gestion de l’équipe uniquement après contrôle VIEW_TEAM.
 - Réserves Responsable : pas encore de test transactionnel dédié prouvant de bout en bout la création, suspension et réactivation par un Responsable; pas de build/typecheck ni de recette navigateur. La page de délégation des privilèges Caisse (/pharmacie/caisses/privileges) reste Promoteur-only. Aucun pointage individuel Responsable n'existe dans le modèle actuellement identifié; ce point reste à arbitrer selon le mandat.
 - Aucun changement Supabase Production, aucun secret modifié, aucun déploiement.
+
+
+## Clôture point Responsable 1/2 — cycle de vie des Caisses — 01/11/2026
+- Test 018b renforcé puis exécuté sur Replay : le Responsable A3 consulte son équipe, provisionne une Caisse vierge, la rattache à sa pharmacie et à son propre parent hiérarchique, la suspend, puis la réactive.
+- Contrôle négatif ajouté : une seconde pharmacie B est liée au même Promoteur, mais le Responsable A ne possède pas les privilèges nominatifs sur B. naxa_can(CREATE_CAISSE,B) refuse et naxa_provision_caisse échoue comme attendu.
+- Résultat final : 018b PASS transactionnel. Une première exécution a révélé que la fixture n'accordait pas VIEW_TEAM; l'habilitation a été ajoutée à la fixture et le test complet a ensuite passé.
+- Contrôle post-rollback : 0 compte auth, 0 pharmacie et 0 profil Caisse de test résiduel.
+- Point 1/2 clôturé : création, suspension, réactivation et limitation au périmètre du Responsable sont prouvées au niveau SQL/RPC. Le test navigateur/build reste distinct et n'est pas présenté comme exécuté.
