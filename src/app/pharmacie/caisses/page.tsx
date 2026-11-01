@@ -12,40 +12,62 @@ export default async function CaissesPage({ searchParams }: Props) {
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("id,role,actif")
+    .select("id,role,fonction_interne,niveau_interne,pharmacie_id,actif")
     .eq("id", auth.user.id)
     .single();
-  if (profile?.role !== "promoteur") redirect("/pharmacie");
-  if (profile.actif !== true) redirect("/pharmacie/promoteur");
+  const isPromoteur = profile?.role === "promoteur";
+  const isResponsable = profile?.role === "pharmacie"
+    && profile.fonction_interne === "responsable"
+    && profile.niveau_interne === 2
+    && Boolean(profile.pharmacie_id);
+  if (!profile || (!isPromoteur && !isResponsable)) redirect("/pharmacie");
+  if (profile.actif !== true) redirect(isPromoteur ? "/pharmacie/promoteur" : "/pharmacie");
 
-  const { data: links, error: linksError } = await sb.from("promoteur_pharmacies")
-    .select("pharmacie_id")
-    .eq("promoteur_id", auth.user.id)
-    .eq("actif", true);
+  let pharmacyIds: string[] = [];
+  let pharmacies: { id: string; nom: string; ville: string | null; quartier: string | null; actif: boolean; visible_recherche: boolean }[] = [];
+  let linksError: any = null;
+  let pharmaciesError: any = null;
 
-  if (linksError || !links?.length) redirect("/pharmacie/promoteur");
-
-  // Un lien actif ne suffit pas : une pharmacie suspendue ou masquée ne doit
-  // ni exposer ses Caisses ni permettre d'en créer/réactiver.
-  const linkedIds = [...new Set(links.map((link) => link.pharmacie_id))];
-  const { data: linkedPharmacies, error: pharmaciesError } = await sb.from("pharmacies")
-    .select("id,nom,ville,quartier,actif,visible_recherche")
-    .in("id", linkedIds);
-  if (pharmaciesError) redirect("/pharmacie/promoteur");
-  const pharmacies = (linkedPharmacies ?? []).filter((pharmacy) => pharmacy.actif === true && pharmacy.visible_recherche === true);
-  const pharmacyIds = pharmacies.map((pharmacy) => pharmacy.id);
-  if (!pharmacyIds.length) redirect("/pharmacie/promoteur");
-
-  // Le moteur commercial et les privilèges doivent autoriser au moins une
-  // pharmacie du périmètre réellement opérationnel.
-  const permissions = await Promise.all(pharmacyIds.map((pharmacieId) => sb.rpc("naxa_can", {
-    p_privilege: "MANAGE_CAISSES",
-    p_pharmacie: pharmacieId,
-    p_target: null,
-  })));
-  if (!permissions.some((permission) => !permission.error && permission.data === true)) {
-    redirect("/pharmacie/promoteur");
+  if (isResponsable) {
+    pharmacyIds = [profile.pharmacie_id as string];
+    const result = await sb.from("pharmacies")
+      .select("id,nom,ville,quartier,actif,visible_recherche")
+      .eq("id", pharmacyIds[0]).eq("actif", true).maybeSingle();
+    pharmaciesError = result.error;
+    if (result.data) pharmacies = [result.data];
+  } else {
+    const { data: links, error } = await sb.from("promoteur_pharmacies")
+      .select("pharmacie_id").eq("promoteur_id", auth.user.id).eq("actif", true);
+    linksError = error;
+    if (!error && links?.length) {
+      const linkedIds = [...new Set(links.map((link) => link.pharmacie_id))];
+      const result = await sb.from("pharmacies")
+        .select("id,nom,ville,quartier,actif,visible_recherche")
+        .in("id", linkedIds).eq("actif", true);
+      pharmaciesError = result.error;
+      pharmacies = result.data ?? [];
+      pharmacyIds = pharmacies.map((pharmacy) => pharmacy.id);
+    }
   }
+  if (linksError || pharmaciesError || !pharmacyIds.length) {
+    redirect(isPromoteur ? "/pharmacie/promoteur" : "/pharmacie");
+  }
+
+  // Les droits sont vérifiés pharmacie par pharmacie : consultation d'équipe
+  // et création sont deux capacités distinctes.
+  const [viewPermissions, createPermissions] = await Promise.all([
+    Promise.all(pharmacyIds.map((pharmacieId) => sb.rpc("naxa_can", {
+      p_privilege: "VIEW_TEAM", p_pharmacie: pharmacieId, p_target: null,
+    }))),
+    Promise.all(pharmacyIds.map((pharmacieId) => sb.rpc("naxa_can", {
+      p_privilege: "CREATE_CAISSE", p_pharmacie: pharmacieId, p_target: null,
+    }))),
+  ]);
+  const canViewTeam = viewPermissions.some((permission) => !permission.error && permission.data === true);
+  const creatablePharmacyIds = pharmacyIds.filter((_, index) =>
+    !createPermissions[index]?.error && createPermissions[index]?.data === true
+  );
+  if (!canViewTeam && !creatablePharmacyIds.length) redirect(isPromoteur ? "/pharmacie/promoteur" : "/pharmacie");
 
   const { data: caisses, error: caissesError } = await sb.from("profiles")
     .select("id,username,first_name,last_name,actif,pharmacie_id,created_at")
@@ -115,12 +137,12 @@ export default async function CaissesPage({ searchParams }: Props) {
 
       <section className="carte space-y-3">
         <h2 className="text-lg font-bold">Attribuer un accès Caissière</h2>
-        {!pharmacyIds.length && <p role="alert" className="text-sm text-amber-800">Aucune pharmacie active n'est liée à votre réseau. La création est désactivée jusqu'à ce que NAXA établisse le lien Promoteur/pharmacie.</p>}
+        {!creatablePharmacyIds.length && <p role="alert" className="text-sm text-amber-800">Votre rôle ne dispose pas du privilège de création de Caisse sur cette pharmacie. La consultation de l’équipe reste disponible si elle est autorisée.</p>}
         <form action={creerCaisse} className="space-y-3">
           <label className="block text-sm font-semibold">Pharmacie
-            <select name="pharmacie_id" required disabled={!pharmacyIds.length || Boolean(caissesError || architectureError)} className={champ} defaultValue="">
+            <select name="pharmacie_id" required disabled={!creatablePharmacyIds.length || Boolean(caissesError || architectureError)} className={champ} defaultValue="">
               <option value="" disabled>Choisir une pharmacie du réseau</option>
-              {(pharmacies ?? []).map((p) => {
+              {(pharmacies ?? []).filter((p) => creatablePharmacyIds.includes(p.id)).map((p) => {
                 const a = archById.get(p.id);
                 const max = a?.max_caisses;
                 const active = countActive(p.id);
@@ -135,7 +157,7 @@ export default async function CaissesPage({ searchParams }: Props) {
             <input name="username" required minLength={3} maxLength={30} pattern="[a-z0-9][a-z0-9._-]{2,29}" autoComplete="off" className={champ} placeholder="ex. mariam237" />
           </label>
           <p className="text-xs leading-5 text-slate-600">La personne doit avoir créé et validé son compte NAXA au préalable. Son nom d’utilisateur est unique : ne demandez ni son mot de passe ni son code OTP. NAXA vérifie le compte côté serveur avant l’attribution.</p>
-          <button className="btn btn-vert w-full" disabled={!pharmacyIds.length || Boolean(caissesError || architectureError)}>Attribuer l’accès Caissière</button>
+          <button className="btn btn-vert w-full" disabled={!creatablePharmacyIds.length || Boolean(caissesError || architectureError)}>Attribuer l’accès Caissière</button>
         </form>
       </section>
     </main>
