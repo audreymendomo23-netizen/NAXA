@@ -1644,3 +1644,10 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Tests 018b (pilotage scope Responsable) et 023 (matrice RBAC, architecture, fonctions et ACL) exécutés sur Replay : PASS après correction de l'ordre de création de la fixture 018b.
 - Défaut UI/Server Actions : la gestion des Caisses était Promoteur-only malgré les privilèges et RPC Responsable N2 prévus par le contrat. Correction sur main : /pharmacie/caisses, creerCaisse, bloquerCaisse, reactiverCaisse acceptent aussi un Responsable N2 et restent bornés à sa pharmacie; l'accès et la création sont vérifiés séparément par VIEW_TEAM / CREATE_CAISSE. Le dashboard affiche le lien si VIEW_TEAM est autorisé.
 - Statut : corrigé statiquement, validation runtime/build encore à faire. Délégation de privilèges sur /pharmacie/caisses/privileges toujours Promoteur-only; pointage individuel Responsable non identifié dans le modèle et à confirmer avec le mandat.
+
+
+## Responsable — point 1/2 clôturé : cycle de vie des Caisses — 01/11/2026
+- Test 018b exécuté sur Replay avec fixtures transactionnelles : consultation d'équipe, création/provisionnement de Caisse, rattachement pharmacie + parent N2, suspension et réactivation.
+- Test négatif inter-pharmacies : pharmacie B du même Promoteur, sans privilèges nominatifs du Responsable A; création refusée par naxa_can et RPC naxa_provision_caisse.
+- PASS transactionnel final; rollback vérifié : aucun compte, pharmacie ou profil Caisse synthétique ne subsiste.
+- Point 1/2 fermé. Build/typecheck et recette navigateur non inclus dans cette preuve.
