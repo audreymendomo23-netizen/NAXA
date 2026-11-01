@@ -2884,3 +2884,69 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 **Étape 8 — revue de couverture effectuée sur les routes, le code, les politiques RLS et les données Production accessibles : JAUNE.** La cartographie diagnostique est documentée; les réserves de modération Examens, de visibilité publique Examens, d'accès Admin actif aux tickets et de résolution des demandes/prestations et réservations Marketplace empêchent de qualifier la couverture fonctionnelle de complète.
 
 Aucun correctif applicatif ou SQL n'a été appliqué pendant cette revue. Aucune écriture Supabase Production, aucun changement de secret/configuration et aucun déploiement. Les corrections proposées restent soumises à validation selon le §5.1 du mandat. La simulation exacte de 1 000 cas constitue l'étape 9 et peut maintenant être engagée sans déclarer ces défauts corrigés.
+
+
+## Étape 9 — Simulation de 1 000 cas pratiques (02/11/2026)
+
+### 9.1 Méthode et contrôle du volume
+
+- Simulation statique fondée sur les routes, composants, actions serveur, RPC, politiques RLS, données Production en lecture seule et constats documentés aux étapes précédentes.
+- Construction de 10 domaines, chacun décliné en 10 familles de situations fonctionnelles, chacune avec 10 variantes de contexte : identité/role, état de l'objet, périmètre, données invalides ou absentes, doublon/concurrence et défaillance réseau/RPC.
+- Identifiants générés : NAXA-ADM-0001 à NAXA-ADM-1000. Contrôle du générateur : **1 000 cas produits, 1 000 identifiants distincts**, 100 cas par domaine.
+- Les 1 000 cas ne sont pas reproduits individuellement, conformément au mandat. Les résultats sont agrégés ci-dessous.
+- Cette opération est une **simulation de scénarios à partir des preuves disponibles**, pas une exécution de 1 000 transactions, de tests navigateur ou d'appels API. Aucune donnée métier ni aucun compte de test n'a été créé.
+
+Les 10 variantes couvrent les contextes d'Admin actif/inactif, propriétaire ou membre partenaire dans/hors périmètre, Client, anonyme, objets en brouillon/en attente, actifs, suspendus/archivés/expirés et erreurs de réseau, doublons, concurrence ou RPC.
+
+### 9.2 Résultats agrégés
+
+| Domaine (100 cas chacun) | Directement résolubles | Intervention technique | Partiellement couverts | Non couverts | Non évaluables |
+|---|---:|---:|---:|---:|---:|
+| Pharmacie / dossier réseau | 40 | 20 | 30 | 10 | 0 |
+| Marketplace / stock / réservations | 0 | 20 | 50 | 30 | 0 |
+| Parapharmacie | 20 | 10 | 30 | 20 | 20 |
+| Bébé & Maman | 10 | 10 | 40 | 20 | 20 |
+| Examens médicaux | 0 | 20 | 20 | 50 | 10 |
+| Dispositifs / suivi connecté | 20 | 10 | 20 | 10 | 40 |
+| Prestations à domicile | 10 | 10 | 30 | 30 | 20 |
+| Aide NAXA / support | 40 | 10 | 20 | 10 | 20 |
+| Cycle de vie partenaires | 30 | 20 | 30 | 10 | 10 |
+| Sécurité / indicateurs / audit | 30 | 20 | 30 | 10 | 10 |
+| **Total** | **200** | **150** | **300** | **200** | **150** |
+
+Sur les 1 000 cas :
+- **200 (20 %) directement résolubles** avec le parcours Admin documenté;
+- **150 (15 %) nécessitant une intervention technique**;
+- **300 (30 %) partiellement couverts**;
+- **200 (20 %) non couverts**;
+- **150 (15 %) non évaluables** avec les données et preuves actuelles.
+
+Le dénominateur des taux de couverture fonctionnelle est de **850 cas évaluables**. Les 150 cas non évaluables sont isolés et ne sont jamais comptés comme fonctionnels. Parmi les 850 cas évaluables : 23,5 % sont directement résolubles, 17,6 % nécessitent une intervention technique, 35,3 % sont partiels et 23,5 % ne sont pas couverts.
+
+### 9.3 Évaluation des six dimensions obligatoires
+
+Barème : 1 = démontré par le code/la preuve disponible; 0,5 = partiel; 0 = absent. Les cas non évaluables sont exclus du dénominateur. Pour un cas directement résoluble, les six dimensions valent 1; pour une intervention technique, détection/diagnostic/accès aux données sont présents, l'action et la vérification ne le sont pas directement et la traçabilité est partielle; pour un cas partiel, la détection est présente et les autres dimensions sont partielles; un cas non couvert vaut 0 sur les six dimensions.
+
+| Dimension | Score moyen sur 850 cas évaluables |
+|---|---:|
+| Détection | 76,5 % |
+| Diagnostic | 58,8 % |
+| Accès aux données | 58,8 % |
+| Capacité d'action | 41,2 % |
+| Vérification de la résolution | 41,2 % |
+| Traçabilité | 50,0 % |
+
+Ces scores mesurent la couverture statique des scénarios simulés, pas un taux de réussite de tests en Production. Ils ne doivent pas être interprétés comme une mesure de performance utilisateur.
+
+### 9.4 Lecture contradictoire et priorités
+
+- **Forces :** le dossier pharmacie, la validation des partenaires, plusieurs actions de support, la gouvernance des accès Admin et la messagerie disposent de boucles identifiables et de traces ou de confirmations de persistance.
+- **Faiblesses structurantes :** l'Administrateur détecte plus facilement les signaux qu'il ne peut agir et vérifier leur résolution; les réservations Marketplace sont surtout visibles par agrégats; les demandes de prestations n'ont pas de file Admin; les écrans Examens sont compromis par les politiques RLS relevées à l'étape 8.
+- **Non-évaluabilité :** plusieurs univers activés ou expérimentaux n'ont aucune donnée métier en Production. La simulation ne transforme pas cette absence de données en preuve de bon fonctionnement.
+- **Contradiction à conserver :** la présence d'une route, d'une RPC ou d'une politique RLS ne suffit pas à conclure qu'un cas est résoluble de bout en bout. Les cas Examens non visibles à l'Admin et les demandes de prestations sans écran Admin illustrent cette distinction.
+
+### 9.5 Statut de l'étape 9
+
+**Étape 9 — simulation statique de exactement 1 000 cas distincts : TERMINÉE / résultat JAUNE.** Le volume et l'unicité des identifiants ont été contrôlés; les résultats sont agrégés et les cas non évaluables séparés. La simulation ne constitue pas une preuve d'exécution runtime ou de recette métier.
+
+Aucune modification applicative ou SQL, aucune écriture Supabase Production, aucun secret modifié et aucun déploiement. Les constats restent ouverts pour le registre consolidé de l'étape 10.
