@@ -2950,3 +2950,172 @@ Ces scores mesurent la couverture statique des scénarios simulés, pas un taux 
 **Étape 9 — simulation statique de exactement 1 000 cas distincts : TERMINÉE / résultat JAUNE.** Le volume et l'unicité des identifiants ont été contrôlés; les résultats sont agrégés et les cas non évaluables séparés. La simulation ne constitue pas une preuve d'exécution runtime ou de recette métier.
 
 Aucune modification applicative ou SQL, aucune écriture Supabase Production, aucun secret modifié et aucun déploiement. Les constats restent ouverts pour le registre consolidé de l'étape 10.
+
+
+## Étape 10 — Registre consolidé des problèmes (02/11/2026)
+
+### 10.1 Règles de classement
+
+- **P1 — élevé :** risque de sécurité/intégrité ou parcours métier important rendu non fiable.
+- **P2 — moyen :** couverture fonctionnelle incomplète, intégration non démontrée ou preuve de validation manquante.
+- **P3 — faible / surveillance :** limite de volumétrie, ergonomie ou cohérence à améliorer sans incident établi.
+- **OUVERT :** correction nécessaire, à soumettre à validation avant implémentation.
+- **RÉSERVE DE PREUVE :** aucun défaut runtime n'est affirmé; le test ou la preuve manque.
+- **SURVEILLANCE :** limite connue et annoncée, pas de défaut confirmé à ce stade.
+
+### 10.2 Registre actif
+
+#### P1 — priorité élevée
+
+**ADM-EXAM-01 — Sécurité / fonctionnalité — OUVERT**
+- **Preuve :** Production RLS ne comporte aucune politique SELECT Admin sur exam_centers, exam_services et exam_packs; les politiques présentes sont publiques sur les lignes actives ou réservées aux membres partenaires. La page /admin/examens lit ces tables avec le client de session après requireAdminActive.
+- **Impact :** brouillons, éléments archivés ou centres suspendus non visibles dans la file Admin; RLS peut produire une liste vide sans erreur.
+- **Cause racine :** oubli des politiques de lecture Admin dans les migrations 107–110.
+- **Correction proposée :** politiques SELECT Admin actif sur les trois tables, séparées des droits partenaire/public.
+- **Vérification attendue :** test RLS multi-rôles couvrant Admin actif/inactif, partenaire hors périmètre, Client et anonyme; vérifier les états draft/active/suspended/archived.
+
+**ADM-EXAM-02 — Sécurité / exposition inter-partenaire — OUVERT**
+- **Preuve :** migration source 107 et politique live exam_centers_public_read contiennent pu.partner_id = pu.partner_id, au lieu d'une corrélation avec le partenaire du centre.
+- **Impact :** dès qu'une association Examens est ouverte pour un partenaire, les centres actifs d'autres partenaires pourraient satisfaire la condition de visibilité; la réservation vérifie ensuite l'association réelle et peut refuser le centre affiché.
+- **Cause racine :** référence SQL non qualifiée/corrélée dans la sous-requête RLS.
+- **Correction proposée :** corréler explicitement l'association à exam_centers.partner_id et revoir les politiques dépendantes services/packs/items/créneaux.
+- **Vérification attendue :** test anonyme à deux partenaires, un seul autorisé; le centre du partenaire non associé doit rester invisible. Aucun centre n'existe actuellement en Production, donc l'exposition n'a pas été observée.
+
+**ADM-PARTNER-01 — Intégrité métier / sécurité — OUVERT**
+- **Preuve :** migration main supabase/migrations/20261101214724_admin_partner_dossier_membership_guard.sql vérifiée sur Replay, absente de l'historique des migrations Production. La définition Production de admin_valider_dossier_partenaire ne vérifie pas que le promoteur est membre owner du partenaire, ne vérifie pas l'existence de l'association désactivée et n'exige pas qu'une ligne d'association soit effectivement activée.
+- **Impact :** un futur dossier pourrait être validé malgré un rattachement owner ou une association manquante/incohérente; aucun dossier incohérent n'a été observé dans les contrôles Production précédents.
+- **Cause racine :** durcissement versionné sur main mais non appliqué en Production.
+- **Correction proposée :** appliquer la migration additive après validation explicite du périmètre Production; aucune autre migration ne doit être incluse.
+- **Vérification attendue :** contrôler owner, type/univers, association désactivée avant validation, activation exactement d'une association et rollback atomique; tester sur Replay avant toute décision Production.
+
+**ADM-NOTIF-01 — Intégration / métier — OUVERT**
+- **Preuve :** Production ne contient ni private.notification_email_outbox, ni claim_notification_email_outbox, ni finish_notification_email_outbox, ni trigger trg_enqueue_notification_email. Ces objets existent sur Replay et la migration source est sur main; le worker /api/cron/validite en dépend.
+- **Impact :** la file d'envoi J−5/règlements ne peut pas être réclamée ni finalisée par le worker Production.
+- **Cause racine :** migration outbox non appliquée en Production.
+- **Correction proposée :** appliquer uniquement supabase/migration_20261029_notification_email_outbox_delivery.sql après autorisation Production spécifique; ne pas effectuer de backfill des deux notifications historiques sans décision séparée.
+- **Vérification attendue :** relecture RLS/ACL/SECURITY DEFINER, insertion future de notification, claim/finish et rejeu idempotent en environnement isolé, puis recette contrôlée autorisée.
+
+#### P2 — priorité moyenne
+
+**ADM-EXAM-03 — Sécurité / autorisation — OUVERT**
+- **Preuve :** exam_appointments_admin_read autorise SELECT au profil role=admin sans exiger actif=true; le droit SELECT authenticated est accordé. La page elle-même applique requireAdminActive.
+- **Impact :** un Admin désactivé conservant une session pourrait interroger directement les tickets via l'API.
+- **Cause racine :** politique RLS 122 non alignée sur le garde canonique Admin actif.
+- **Correction proposée :** utiliser public.is_admin() ou vérifier explicitement role et actif.
+- **Vérification attendue :** lecture autorisée Admin actif; refus Admin inactif, Client hors ticket et anonyme.
+
+**ADM-SERVICES-01 — Couverture fonctionnelle — OUVERT**
+- **Preuve :** /admin/prestations ne lit que home_service_offers; aucune page Admin examinée ne lit home_service_requests. La politique home_service_requests_admin_read existe.
+- **Impact :** l'Administrateur peut modérer les offres, mais ne dispose pas d'une file pour diagnostiquer les demandes clients et leurs statuts.
+- **Cause racine :** surface UI de supervision des demandes absente.
+- **Correction proposée :** définir une vue Admin de lecture des demandes, de leur historique et des états métier réellement autorisés.
+- **Vérification attendue :** cas client, partenaire hors périmètre, Admin actif/inactif, demande annulée/terminée et journal.
+
+**ADM-MKT-01 — Couverture fonctionnelle — OUVERT**
+- **Preuve :** /admin/pilotage fournit des agrégats et s'abonne aux changements reservations/stocks/alertes; aucune file Admin détaillée de réservation Marketplace n'a été identifiée. Production contient 6 réservations, 6 lignes et 4 événements.
+- **Impact :** détection agrégée possible, mais diagnostic et résolution individuelle d'un incident de réservation non démontrés.
+- **Cause racine :** absence de surface opérationnelle Admin dédiée.
+- **Correction proposée :** définir une vue de support en lecture contrôlée reliant réservation, lignes, pharmacie, historique et stock, sans encaissement ni modification du paiement pharmacie.
+- **Vérification attendue :** accès Admin autorisé, isolation des données, transitions et événements consultables, aucune action financière non autorisée.
+
+**ADM-NOTIF-02 — Intégration externe — RÉSERVE DE PREUVE**
+- **Preuve :** l'utilisateur a confirmé que Google Apps Script est correctement configuré; le worker Production ne peut toutefois pas être testé tant que l'outbox SQL est absente. Le déclencheur périodique effectif et la réception depuis le worker ne sont pas démontrés.
+- **Impact :** impossibilité de certifier la livraison J−5 et des événements de règlement de bout en bout.
+- **Cause racine :** absence de preuve de l'ordonnanceur et du trajet worker → Apps Script → destinataire.
+- **Correction proposée :** après activation autorisée de l'outbox, vérifier le déclencheur existant sans créer de double planification, puis réaliser une recette avec destinataire de test.
+- **Vérification attendue :** preuve de réception, idempotence, reprise sur erreur et absence de doublon. Ne pas redemander une capture Apps Script déjà confirmée par l'utilisateur.
+
+**ADM-STEP7-TEST-01 — Qualité / validation technique — RÉSERVE DE PREUVE**
+- **Preuve :** build, typecheck et lint n'ont pas été exécutés dans la passe documentée.
+- **Impact :** les modifications source ciblées ne disposent pas encore d'une preuve globale de compilation/typage/lint.
+- **Cause racine :** contrôles différés conformément à la consigne de ne pas bloquer les travaux indépendants.
+- **Correction proposée :** exécuter ces contrôles hors déploiement lorsque le canevas le permettra; traiter les erreurs trouvées sans lancer de déploiement.
+- **Vérification attendue :** résultats horodatés et rattachés au commit testé.
+
+**ADM-STEP7-TEST-02 — UX / navigation — RÉSERVE DE PREUVE**
+- **Preuve :** les corrections statiques de navigation et d'états UI sont consignées; la recette visuelle navigateur des écrans Admin n'a pas été exécutée.
+- **Impact :** le comportement visuel et la navigation réelle ne sont pas certifiés.
+- **Cause racine :** absence de recette navigateur.
+- **Correction proposée :** recette manuelle ciblée sur les routes Admin, menus imbriqués, erreurs, états vides, chargement et affichage mobile.
+- **Vérification attendue :** résultats par route, captures ou observations explicites, sans déploiement.
+
+**ADM-OSM-01 — Intégration externe — RÉSERVE DE PREUVE**
+- **Preuve :** migration admin_osm_atomic_cooldown appliquée en Production; RPC atomique et ACL service_role relues; tests Replay de réservation atomique consignés. Aucun POST HTTP réel ni appel Overpass n'a été déclenché.
+- **Impact :** l'appel externe réel et la qualité du rapprochement des résultats ne sont pas certifiés.
+- **Cause racine :** absence de recette contrôlée de l'intégration externe.
+- **Correction proposée :** prévoir une exécution contrôlée et autorisée, distincte d'un déploiement.
+- **Vérification attendue :** réponse externe, correspondances exactes, absence de doublons et conservation des coordonnées existantes.
+
+**ADM-MSG-01 — Performance / volumétrie — RÉSERVE DE PREUVE**
+- **Preuve :** les réserves ALT-02 et MSG-01 sont consignées comme non mesurées.
+- **Impact :** le comportement sous volumétrie élevée et les limites de pagination/chargement ne sont pas quantifiés.
+- **Cause racine :** absence de mesure de charge et de seuils observés.
+- **Correction proposée :** définir les seuils métier et mesurer les requêtes/listes concernées avant de modifier les limites.
+- **Vérification attendue :** mesures reproductibles sur données de test représentatives.
+
+**ADM-MSG-02 — Métier / support — RÉSERVE DE VALIDATION**
+- **Preuve :** le cycle de fermeture des tickets reste à confronter au contrat métier; les corrections ALT-01, SEC-MSG-01 et MSG-02 sont déjà consignées comme effectuées.
+- **Impact :** les états de clôture, réouverture et responsabilité finale du ticket ne sont pas certifiés par rapport à la règle métier.
+- **Cause racine :** contrat de cycle de vie du ticket non rapproché de tous les états UI/API.
+- **Correction proposée :** comparer les transitions réelles aux décisions métier existantes avant tout changement.
+- **Vérification attendue :** matrice de transitions et tests des rôles Client, pharmacie et Admin.
+
+**ADM-PILOTAGE-01 — Indicateurs / validation — RÉSERVE DE PREUVE**
+- **Preuve :** le test de scope 033 couvre recherches, recherches sans résultat, fiches vues et ajouts panier; il ne couvre pas chaque KPI secondaire réservations, ventes/CA, stock, alertes et série quotidienne dans un scénario distinct.
+- **Impact :** la cohérence des KPI secondaires n'est pas entièrement certifiée par le test existant.
+- **Cause racine :** couverture de test partielle des métriques.
+- **Correction proposée :** compléter la matrice de tests par KPI et par rôle/périmètre.
+- **Vérification attendue :** assertions dédiées sur Replay, sans données fictives présentées comme Production.
+
+**ADM-SETTLEMENT-01 — Règlement Promoteur / recette — RÉSERVE DE PREUVE**
+- **Preuve :** le point 5 est clôturé sur les contrôles de sécurité et de cohérence; aucun rejeu E2E avec comptes de recette ni encaissement bancaire réel n'a été exécuté.
+- **Impact :** la clôture bornée ne certifie pas le parcours navigateur complet ni la preuve de paiement externe.
+- **Cause racine :** absence de recette E2E et d'un encaissement de test contrôlé.
+- **Correction proposée :** conserver la clôture fonctionnelle; programmer une recette séparée lorsque les comptes et moyens de test autorisés seront disponibles.
+- **Vérification attendue :** dépôt, soumission, vérification, confirmation/refus et maintien des suspensions, sans paiement réel non autorisé.
+
+**ADM-SETTLEMENT-02 — Stockage / intégrité — OUVERT**
+- **Preuve :** après échec RPC, la suppression compensatoire du fichier de preuve uploadé est tentée mais son résultat n'est pas contrôlé.
+- **Impact :** possibilité de fichier orphelin dans le stockage privé.
+- **Cause racine :** résultat du nettoyage compensatoire non vérifié/consigné.
+- **Correction proposée :** vérifier le résultat de suppression et tracer l'échec de compensation; prévoir une réconciliation sûre des fichiers temporaires.
+- **Vérification attendue :** test succès, échec RPC, échec suppression et absence d'accès non autorisé.
+
+**ADM-SETTLEMENT-03 — Cohérence UI / métier — P3 / OUVERT**
+- **Preuve :** le libellé Promoteur « 31 jours » ne correspond pas au calcul SQL d'un mois calendaire.
+- **Impact :** compréhension erronée de la durée d'abonnement.
+- **Cause racine :** libellé UI fixe, calcul SQL calendaire.
+- **Correction proposée :** aligner le texte sur la règle métier de mois calendaire, sans modifier le calcul validé.
+- **Vérification attendue :** comparaison des dates sur mois de 28/29/30/31 jours.
+
+**ADM-MIGRATION-01 — Documentation / configuration — RÉSERVE DE PREUVE**
+- **Preuve :** la réconciliation exhaustive de tous les fichiers de migration GitHub avec l'historique des migrations Production reste explicitement ouverte.
+- **Impact :** risque de divergence non détectée entre code versionné, Replay et Production.
+- **Cause racine :** historique de migrations ancien et noms/horodatages parfois distincts.
+- **Correction proposée :** produire une comparaison exhaustive et traçable, sans appliquer automatiquement les migrations manquantes.
+- **Vérification attendue :** liste des fichiers, version live correspondante, équivalence SQL, statut appliqué/non appliqué et décision pour chaque écart.
+
+#### P3 — Surveillance de volumétrie
+
+**ADM-LIMITS-01 — Performance / indicateurs — SURVEILLANCE**
+- **Preuve :** /admin/univers limite partenaires et produits partenaires à 100; /admin/produits à 30 fiches par recherche; /admin/examens à 200 centres, 300 examens, 200 packs et 300 réservations.
+- **Impact :** au-delà des plafonds, les listes et compteurs ne représentent pas l'intégralité du réseau; certaines limites sont annoncées dans l'interface.
+- **Cause racine :** plafonds de requêtes sans pagination complète.
+- **Correction proposée :** surveiller la croissance; introduire pagination et compteurs globaux exacts si les volumes l'exigent.
+- **Vérification attendue :** tests au-delà de chaque plafond et preuve que les totaux ne sont pas présentés comme exhaustifs.
+
+### 10.3 Éléments clos ou exclus du registre actif
+
+Pour éviter de refaire les mêmes travaux :
+- ALT-01, SEC-MSG-01 et MSG-02 : corrections source déjà consignées; seules les réserves distinctes ALT-02/MSG-01 et le cycle de fermeture du ticket restent listés.
+- Garde Admin actif, façade public.is_admin, verrou atomique OSM et rapprochement des variables Vercel : contrôles ciblés déjà clos; le POST OSM réel reste une réserve de preuve.
+- Pilotage/validité/rapports : dernier sous-contrôle de l'étape 7 terminé; seules les couvertures KPI secondaires et recettes différées sont listées.
+- Sous-chantier crédit Marketplace : clôturé selon la décision antérieure de l'utilisateur; non réouvert dans ce registre.
+- Point 5 règlement manuel Promoteur : clôture bornée conservée; seules les réserves de recette et de stockage ci-dessus restent suivies, sans rouvrir les contrôles de sécurité déjà clos.
+- Déploiement Vercel en échec : explicitement hors périmètre de correction du présent mandat; aucun travail de relance ou de correction n'est inscrit.
+
+### 10.4 Statut de l'étape 10
+
+**Étape 10 — registre consolidé établi : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
+
+Aucune correction de code ou SQL n'a été appliquée pendant la constitution du registre. Les corrections nécessitant validation restent soumises au §5.1 du mandat. La prochaine étape du canevas est l'étape 11 — recherche du code mort, en distinguant le code mort confirmé du code potentiellement utilisé indirectement.
