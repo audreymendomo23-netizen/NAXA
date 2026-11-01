@@ -73,15 +73,16 @@ function pruneNotificationKeys_(props) {
 
 /**
  * Worker planifié : appelle le endpoint NAXA protégé par CRON_SECRET.
- * Propriétés requises : NAXA_WORKER_URL et NAXA_CRON_SECRET.
+ * Propriétés requises : NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET.
  * Le déclencheur tourne sous le compte Google propriétaire du script.
  */
 function processNaxaNotificationQueue() {
   const props = PropertiesService.getScriptProperties();
   const workerUrl = String(props.getProperty("NAXA_WORKER_URL") || "").trim();
   const cronSecret = String(props.getProperty("NAXA_CRON_SECRET") || "");
-  if (!workerUrl || !cronSecret) {
-    throw new Error("Configurer NAXA_WORKER_URL et NAXA_CRON_SECRET dans les propriétés du script.");
+  const vercelBypassSecret = String(props.getProperty("NAXA_VERCEL_BYPASS_SECRET") || "");
+  if (!workerUrl || !cronSecret || !vercelBypassSecret) {
+    throw new Error("Configurer NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET dans les propriétés du script.");
   }
   if (!/^https:\/\//i.test(workerUrl) || !/\/api\/cron\/validite$/.test(workerUrl)) {
     throw new Error("NAXA_WORKER_URL doit cibler l'endpoint HTTPS /api/cron/validite.");
@@ -89,7 +90,10 @@ function processNaxaNotificationQueue() {
 
   const response = UrlFetchApp.fetch(workerUrl, {
     method: "get",
-    headers: { Authorization: "Bearer " + cronSecret },
+    headers: {
+      Authorization: "Bearer " + cronSecret,
+      "x-vercel-protection-bypass": vercelBypassSecret
+    },
     muteHttpExceptions: true,
     followRedirects: false
   });
