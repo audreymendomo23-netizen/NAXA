@@ -2725,3 +2725,26 @@ La revue des décisions antérieures corrige les conclusions de la première pas
 
 ### Décision révisée du point 7
 **JAUNE — inventaire effectué, rapprochement historique partiellement incomplet.** Domaine canonique `nnaxa.vercel.app` et protection SSO `all` conformes aux décisions retrouvées. Le secret Automation Bypass doit être réconcilié avec sa confirmation historique. La variable de contact confidentialité reste à qualifier par son usage réel. Aucun changement Vercel, Google ou Supabase n'est autorisé ni effectué; aucune valeur secrète n'a été lue.
+
+## Correctifs du parcours Administrateur — 01/11/2026
+
+### Géolocalisation OSM — verrou atomique du délai de 24 heures
+
+- **Cause racine :** l'ancienne route effectuait un SELECT du dernier démarrage puis un UPSERT séparé. Deux POST concurrents pouvaient tous deux lire un créneau libre.
+- **Correction sur main :** la route appelle désormais `public.admin_try_start_pharmacies_geo_osm_sync()`. La fonction réalise un `INSERT ... ON CONFLICT DO UPDATE ... WHERE` conditionnel dans une seule instruction PostgreSQL et ne réserve le créneau que si aucun démarrage n'existe ou si les 24 heures sont écoulées.
+- **Sécurité :** fonction `SECURITY DEFINER`, `search_path=''`, objets qualifiés; EXECUTE révoqué à `public`, `anon` et `authenticated`, accordé uniquement à `service_role`. La route appelle cette RPC avec le client serveur privilégié après son contrôle d'accès Admin.
+- **Limite :** migration ajoutée au dépôt uniquement; non appliquée à Supabase Production.
+
+### Navigation Admin — sélection du parent sur les routes imbriquées
+
+- **Cause racine :** la navigation ne considérait active qu'une entrée dont le chemin était strictement égal au pathname.
+- **Correction sur main :** correspondance exacte ou préfixe de chemin avec séparateur `/`; lorsqu'un parent et un enfant correspondent, l'entrée au chemin le plus long gagne. Cela évite notamment que « Pilotage réseau » et « Validité » soient simultanément actifs.
+- **Limite :** revue statique uniquement; recette visuelle navigateur non exécutée. La fiche pharmacie n'a pas d'entrée /admin/pharmacies dédiée dans la navigation actuelle; aucun lien vers une page de liste inexistante n'a été ajouté.
+
+### Contrôle d'accès SQL — réserve bornée
+
+- La migration `20261026150000_require_active_admin_for_is_admin.sql` établit que `private.is_admin()` exige `role='admin'` et `actif=true`; la migration `20261026180000_harden_private_is_admin_search_path.sql` impose ensuite `search_path=''`.
+- Les routes API Admin recensées sont la géolocalisation OSM et la messagerie. La messagerie vérifie directement rôle et statut actif; la géolocalisation appelle `public.is_admin()`. La définition actuelle de cette façade publique et son exécution effective n'ont pas encore été relues dans le catalogue du projet : **parité applicative/SQL non certifiée**.
+- Dix fichiers d'actions serveur ont été recensés et inspectés; les gardes actifs sont présents via `requireAdminActive` ou contrôle équivalent. Cette revue statique ne remplace pas des tests multi-rôles.
+- **Tests :** aucun test SQL, build, lint, typecheck, test de concurrence ou navigateur exécuté dans cette passe. Aucun changement Production, aucune migration appliquée et aucun déploiement.
+- **Statut :** deux corrections source versionnées; activation SQL et preuves comportementales restent ouvertes. Étape 7 non clôturée.

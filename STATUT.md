@@ -961,3 +961,13 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Le dernier déploiement ERROR et la métadonnée `live: false` ne sont pas, à eux seuls, des anomalies du point 7.
 - **Point 7 révisé : JAUNE — inventaire fait, rapprochement de la variable Automation Bypass et qualification du contact confidentialité restantes.** Aucun changement de configuration, secret, Supabase ou déploiement.
 - Détail : section « Rectificatif — décisions historiques à intégrer au point 7 » dans `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
+
+## Étape 7 — corrections ciblées du parcours Administrateur (01/11/2026)
+
+- **Navigation imbriquée :** correction versionnée sur `main`; sélection de l'entrée correspondante au chemin le plus spécifique. Recette navigateur non exécutée.
+- **Synchronisation OSM :** correction versionnée sur `main`; remplacement du read-then-write par une RPC PostgreSQL atomique, exécutable uniquement par `service_role`. Migration `supabase/migrations/20261101160000_admin_osm_atomic_cooldown.sql` ajoutée au dépôt; **non appliquée en Production**.
+- **Contrôle SQL Admin :** `private.is_admin()` exige bien `role='admin'` et `actif=true` dans la migration inspectée. La définition actuelle de la façade `public.is_admin()` appelée par l'API OSM reste à confirmer dans le catalogue du projet.
+- **Inventaire statique :** 19 pages Admin, 2 routes API Admin et 10 fichiers d'actions serveur recensés. Les gardes actifs sont présents dans les actions inspectées; messagerie vérifie explicitement le rôle et l'état actif.
+- **Preuves non acquises :** pas de build, typecheck, lint, test SQL, test de concurrence ni recette navigateur exécutés. Ne pas déclarer le parcours vert.
+- **Garde-fous :** aucun déploiement, aucune migration Production, aucune écriture métier ou changement de configuration.
+- **Décision : JAUNE — corrections source réalisées, validation comportementale et vérification de la façade SQL encore nécessaires.

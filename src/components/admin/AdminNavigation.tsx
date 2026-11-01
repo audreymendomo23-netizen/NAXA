@@ -23,7 +23,10 @@ export function AdminNavigation() {
   return (
     <nav className="admin-bento-nav" aria-label="Pages d’administration">
       {sections.map((section, index) => {
-        const active = pathname === section.href;
+        const activeHref = sections
+          .filter((candidate) => pathname === candidate.href || pathname.startsWith(candidate.href + "/"))
+          .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+        const active = activeHref === section.href;
         return (
           <Link
             key={section.href}

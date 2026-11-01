@@ -58,32 +58,34 @@ export async function POST() {
   if ("error" in context) return context.error;
 
   const db = supabaseAdmin();
-  const { data: cooldown, error: cooldownError } = await db
-    .from("pharmacies_geo_osm_sync")
-    .select("last_started_at")
-    .eq("id", true)
-    .maybeSingle();
-
-  if (cooldownError) {
+  // PostgreSQL claims the 24-hour slot atomically; a read-then-write check
+  // would allow concurrent requests to start duplicate imports.
+  const { data: claimed, error: claimError } = await db.rpc("admin_try_start_pharmacies_geo_osm_sync");
+  if (claimError) {
     return jsonError(
-      "Migration de géolocalisation OSM absente ou non appliquée : exécutez migration_072_geolocalisation_osm.sql avant la synchronisation.",
+      "Verrouillage OSM indisponible : vérifiez que la migration atomique de géolocalisation est appliquée.",
       503,
     );
   }
-  const lastStarted = cooldown?.last_started_at ? Date.parse(cooldown.last_started_at) : 0;
-  if (lastStarted && Date.now() - lastStarted < 24 * 60 * 60 * 1000) {
+  if (claimed !== true) {
+    const { data: cooldown, error: cooldownError } = await db
+      .from("pharmacies_geo_osm_sync")
+      .select("last_started_at")
+      .eq("id", true)
+      .maybeSingle();
+    if (cooldownError) return jsonError("État de synchronisation OSM indisponible.", 503);
+    const lastStarted = cooldown?.last_started_at ? Date.parse(cooldown.last_started_at) : 0;
     return NextResponse.json({
       ok: true,
       skipped: true,
       message: "Une synchronisation OSM a déjà été lancée dans les dernières 24 heures.",
-      nextAllowedAt: new Date(lastStarted + 24 * 60 * 60 * 1000).toISOString(),
+      nextAllowedAt: lastStarted
+        ? new Date(lastStarted + 24 * 60 * 60 * 1000).toISOString()
+        : null,
     });
   }
 
   const startedAt = new Date().toISOString();
-  const { error: lockError } = await db.from("pharmacies_geo_osm_sync")
-    .upsert({ id: true, last_started_at: startedAt, last_finished_at: null, candidats_importes: 0, pharmacies_rapprochees: 0, erreur: null });
-  if (lockError) return jsonError("Impossible de réserver le créneau de synchronisation OSM.", 503);
 
   try {
     const query = `[out:json][timeout:25];(node["amenity"="pharmacy"]${YAOUNDE_BBOX};way["amenity"="pharmacy"]${YAOUNDE_BBOX};relation["amenity"="pharmacy"]${YAOUNDE_BBOX};);out center tags;`;
