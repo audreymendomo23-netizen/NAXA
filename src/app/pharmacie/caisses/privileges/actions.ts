@@ -11,9 +11,19 @@ async function verifierCible(formData: FormData, action: "ASSIGN_PRIVILEGE" | "R
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses/privileges");
 
-  const { data: profile } = await sb.from("profiles").select("id,role,actif").eq("id", auth.user.id).single();
-  if (profile?.role !== "promoteur") redirect("/pharmacie");
-  if (profile.actif !== true) redirect("/pharmacie/promoteur");
+  const { data: profile } = await sb.from("profiles").select("id,role,actif,fonction_interne,niveau_interne,pharmacie_id").eq("id", auth.user.id).single();
+  if (profile?.actif !== true) redirect("/pharmacie");
+  const isPromoteur = profile.role === "promoteur";
+  const isResponsable = profile.role === "pharmacie"
+    && profile.fonction_interne === "responsable"
+    && profile.niveau_interne === 2;
+  if (!isPromoteur && !isResponsable) redirect("/pharmacie");
+  if (isResponsable) {
+    const { data: canView, error } = await sb.rpc("naxa_can", {
+      p_privilege: "VIEW_PRIVILEGES", p_pharmacie: profile.pharmacie_id, p_target: null,
+    });
+    if (error || canView !== true) redirect("/pharmacie");
+  }
 
   const caisseId = value(formData, "caisse_id");
   const pharmacieId = value(formData, "pharmacie_id");
@@ -23,7 +33,9 @@ async function verifierCible(formData: FormData, action: "ASSIGN_PRIVILEGE" | "R
   }
 
   const [{ data: link, error: linkError }, { data: pharmacy, error: pharmacyError }, { data: caisse, error: caisseError }] = await Promise.all([
-    sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id", auth.user.id).eq("pharmacie_id", pharmacieId).eq("actif", true).maybeSingle(),
+    isPromoteur
+      ? sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id", auth.user.id).eq("pharmacie_id", pharmacieId).eq("actif", true).maybeSingle()
+      : Promise.resolve({ data: profile.pharmacie_id === pharmacieId ? { pharmacie_id: pharmacieId } : null, error: null }),
     sb.from("pharmacies").select("id,actif,visible_recherche").eq("id", pharmacieId).maybeSingle(),
     sb.from("profiles").select("id,role,actif,pharmacie_id,parent_profile_id,niveau_interne").eq("id", caisseId).eq("parent_profile_id", auth.user.id).eq("role", "caisse").eq("actif", true).eq("pharmacie_id", pharmacieId).maybeSingle(),
   ]);
