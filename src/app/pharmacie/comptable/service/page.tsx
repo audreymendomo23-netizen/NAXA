@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { ComptableSidebar } from "@/components/pharmacie/ComptableSidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +64,7 @@ export default async function ComptableServicePage({searchParams}:{searchParams?
         <h1 className="mt-1 text-2xl font-black">Prise / fin de service</h1>
         <p className="mt-1 text-sm text-emerald-100">{pharmacy?.nom??"Pharmacie autorisée"} · Pointage personnel horodaté par le serveur.</p>
       </header>
-      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <ComptableSidebar active="/pharmacie/comptable/service"/>
-        <section className="min-w-0 space-y-4">
+      <section className="space-y-4">
           {searchParams?.ok && okMessages[searchParams.ok] && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{okMessages[searchParams.ok]}</p>}
           {searchParams?.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{errorMessages[searchParams.erreur]??"Opération refusée."}</p>}
           {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Historique indisponible. Aucune donnée de présence ne peut être confirmée.</p>}
@@ -97,8 +94,7 @@ export default async function ComptableServicePage({searchParams}:{searchParams?
               <tbody>{sessions.map(s=><tr key={s.id} className="border-b last:border-0"><td className="px-3 py-3">{date(s.started_at)}</td><td className="px-3 py-3">{s.ended_at?date(s.ended_at):"En cours"}</td><td className="px-3 py-3">{duration(s.started_at,s.ended_at)}</td><td className="px-3 py-3"><span className={s.ended_at?"text-emerald-800":"font-bold text-amber-800"}>{s.ended_at?"Clôturé":"Provisoire"}</span></td></tr>)}</tbody>
             </table></div>}
           </section>
-        </section>
-      </div>
+      </section>
     </div>
   </main>;
 }
