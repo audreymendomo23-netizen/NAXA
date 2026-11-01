@@ -188,11 +188,17 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
   const { data: profile } = await sb.from("profiles").select("role,fonction_interne,pharmacie_id,actif").eq("id", auth.user.id).single();
-  if (!profile?.actif || !["admin", "promoteur", "pharmacie", "caisse"].includes(profile.role)) {
+  const isComptable = profile?.fonction_interne === "comptable";
+  if (!profile?.actif || !(["admin", "promoteur", "pharmacie", "caisse"].includes(profile.role) || isComptable)) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
-  if (profile.role === "pharmacie" && profile.fonction_interne !== "responsable") {
-    return NextResponse.json({ error: "Historique réservé au Responsable habilité." }, { status: 403 });
+  if (profile.role === "pharmacie" && profile.fonction_interne !== "responsable" && !isComptable) {
+    return NextResponse.json({ error: "Historique réservé au Responsable ou Comptable habilité." }, { status: 403 });
+  }
+  if (isComptable) {
+    if (!profile.pharmacie_id) return NextResponse.json({ error: "Pharmacie de rattachement introuvable." }, { status: 403 });
+    const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
+    if (permissionError || allowed !== true) return NextResponse.json({ error: "Privilège comptable requis." }, { status: 403 });
   }
   if (profile.role === "promoteur") return NextResponse.json({ rapports: [] });
   let query = sb.from("rapports")
@@ -248,7 +254,7 @@ export async function POST(request: Request) {
     stats = { role: "pharmacien", consultations: consultations.count ?? 0, prescriptions: prescriptions.count ?? 0, prescriptions_en_attente: pendingPrescriptions.count ?? 0, preparations: preparations.count ?? 0, evenements_audit: audit.count ?? 0 };
   } else if (fonction === "comptable") {
     if (!profile.pharmacie_id) return NextResponse.json({ error: "Pharmacie de rattachement introuvable." }, { status: 403 });
-    const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", { p_privilege: "MANAGE_ACCOUNTING", p_pharmacie: profile.pharmacie_id, p_target: null });
+    const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
     if (permissionError || allowed !== true) return NextResponse.json({ error: "Privilège comptable requis." }, { status: 403 });
     const since = new Date(Date.now() - config.days * 86400000).toISOString();
     const [sales, expenses, cash, claims, controls] = await Promise.all([
