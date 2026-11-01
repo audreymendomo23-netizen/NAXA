@@ -66,6 +66,7 @@ begin
   insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
   values
     (v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
+    (v_actor,'VIEW_TEAM',v_a,'PHARMACIE',v_admin,true),
     (v_actor,'CREATE_CAISSE',v_a,'PHARMACIE',v_admin,true),
     (v_actor,'SUSPEND_CAISSE',v_a,'PHARMACIE',v_admin,true),
     (v_actor,'REACTIVATE_CAISSE',v_a,'PHARMACIE',v_admin,true)
