@@ -991,3 +991,20 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Vercel : réconciliation terminée sur le bon projet/équipe. `NAXA_VERCEL_BYPASS_SECRET` présent en Production (valeur non lue); `NAXA_PRIVACY_CONTACT_EMAIL=naxa.home@gmail.com` présent et utilisé par le courrier de bienvenue; `nnaxa.vercel.app` attaché et vérifié; SSO `all` confirmé. Aucun changement de configuration ou secret.
 - **État : dernier sous-contrôle terminé; étape 7 globale JAUNE, non bloquante.** Build/typecheck/lint, recette navigateur et POST OSM réel restent différés; aucun succès n’est revendiqué pour ces vérifications.
 - Aucun changement de données Supabase Production, aucune migration Production, aucun déploiement manuel.
+
+
+## Audit 360 Administrateur — Étape 8, couverture des univers (02/11/2026)
+
+- Revue des 18 routes/pages Admin pertinentes, des points d'entrée univers/Pharmacie/Marketplace/Examens/Prestations/Aide/Suivi, des actions et des politiques RLS Production.
+- États Production : 6 univers configurés; Parapharmacie, Examens, Prestations et Aide activés; Bébé & Maman et Dispositifs médicaux désactivés. La Pharmacie/Marketplace reste un parcours séparé.
+- Comptages Production : 4 pharmacies (1 active et visible, 3 démo), 13 produits, 9 stocks, 6 réservations, 6 lignes, 4 événements; 0 partenaire/association/produit partenaire; 0 service Bébé & Maman; 0 centre/examen/pack/créneau/réservation d'examen; 0 offre/demande de prestation; 0 compte allowlisté/professionnel/consentement/mesure de suivi.
+- Constats à traiter et documentés dans le cahier :
+  - ADM-UNIV-EXAM-01 — pas de politique SELECT Admin sur centres/examens/packs : la modération des brouillons/suspendus est masquée.
+  - ADM-UNIV-EXAM-02 — exam_centers_public_read contient pu.partner_id = pu.partner_id, association non corrélée au partenaire du centre.
+  - ADM-UNIV-EXAM-03 — la politique Admin de lecture des tickets d'examens ne vérifie pas actif=true.
+  - ADM-UNIV-SERVICES-01 — les demandes de prestations ont une politique RLS Admin mais aucune file UI Admin.
+  - ADM-MKT-01 — le pilotage Marketplace est agrégé, sans file de résolution détaillée des réservations identifiée.
+- Limites annoncées : univers/partenaires et produits partenaires plafonnés à 100; fiches produits à 30; page examens plafonnée à 200 centres, 300 examens, 200 packs et 300 réservations.
+- Contrôles positifs : Bébé & Maman rattaché au dossier pharmacie; verrouillage phase 1 des dispositifs; confidentialité des mesures par consentement/partage; messagerie Admin pour Aide NAXA.
+- **Étape 8 : JAUNE — revue de couverture documentée, couverture fonctionnelle non complète.** Les correctifs restent soumis à validation; aucune écriture Production, aucun déploiement et aucune modification de secret/configuration.
+- **Suite du canevas : étape 9 — simulation de exactement 1 000 cas pratiques**, sans inventer de fonctionnalités ni déclarer les réserves corrigées.
