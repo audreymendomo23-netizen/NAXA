@@ -69,31 +69,47 @@ function toPdf(report: {
 }
 
 async function explainWithAi(metrics: Record<string, unknown>, role: string, period: string) {
-  const key = process.env.AI_GATEWAY_API_KEY;
-  if (!key) return { status: "indisponible", texte: "Analyse IA non configurée. Les indicateurs chiffrés restent disponibles." };
-  try {
-    const response = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.AI_GATEWAY_MODEL || "openai/gpt-4.1-mini",
-        temperature: 0.1,
-        messages: [
-          { role: "system", content: "Tu es l'analyste BI de NAXA. Analyse uniquement les chiffres fournis. Ne fabrique aucun historique, aucune comparaison ni causalité. Distingue faits, signaux et hypothèses. Si les données ne permettent pas d'expliquer une variation, dis-le. Réponds en français, en 5 points maximum." },
-          { role: "user", content: JSON.stringify({ role, period, metrics, comparison: "Aucune comparaison N-1 n'est fournie par le moteur actuel. Ne pas en inventer." }) },
-        ],
-      }),
-      cache: "no-store",
-    });
-    if (!response.ok) return { status: "erreur", texte: "Analyse IA temporairement indisponible. Les indicateurs chiffrés restent disponibles." };
-    const payload = await response.json();
-    const texte = payload.choices?.[0]?.message?.content;
-    return typeof texte === "string" && texte.trim()
-      ? { status: "disponible", texte: texte.trim().slice(0, 7000) }
-      : { status: "erreur", texte: "L'analyse IA n'a pas renvoyé de contenu exploitable." };
-  } catch {
-    return { status: "erreur", texte: "Analyse IA temporairement indisponible. Les indicateurs chiffrés restent disponibles." };
+  const payload = {
+    model: "",
+    temperature: 0.1,
+    messages: [
+      { role: "system", content: "Tu es l'analyste BI de NAXA. Analyse uniquement les chiffres fournis. Ne fabrique aucun historique, aucune comparaison ni causalité. Distingue faits, signaux et hypothèses. Si les données ne permettent pas d'expliquer une variation, dis-le. Réponds en français, en 5 points maximum." },
+      { role: "user", content: JSON.stringify({ role, period, metrics, comparison: "Aucune comparaison N-1 n'est fournie." }) },
+    ],
+  };
+  const providers = [
+    process.env.GROQ_API_KEY
+      ? { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: process.env.GROQ_API_KEY, model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile" }
+      : null,
+    process.env.AI_GATEWAY_API_KEY
+      ? { name: "Vercel AI Gateway", url: "https://ai-gateway.vercel.sh/v1/chat/completions", key: process.env.AI_GATEWAY_API_KEY, model: process.env.AI_GATEWAY_MODEL || "openai/gpt-4.1-mini" }
+      : null,
+  ].filter((provider): provider is { name: string; url: string; key: string; model: string } => Boolean(provider));
+
+  if (!providers.length) {
+    return { status: "indisponible", texte: "Analyse IA non configurée. Les indicateurs chiffrés restent disponibles." };
   }
+
+  for (const provider of providers) {
+    try {
+      const response = await fetch(provider.url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${provider.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, model: provider.model }),
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) continue;
+      const json = await response.json();
+      const texte = json?.choices?.[0]?.message?.content;
+      if (typeof texte === "string" && texte.trim()) {
+        return { status: "disponible", texte: texte.trim() };
+      }
+    } catch {
+      // Le fournisseur suivant est essayé sans interrompre le rapport chiffré.
+    }
+  }
+
+  return { status: "erreur", texte: "Analyse IA temporairement indisponible chez les fournisseurs configurés. Les indicateurs chiffrés restent disponibles." };
 }
 
 async function fetchAllRows<T>(buildQuery: (from: number, to: number) => any): Promise<{ data: T[]; error: any }> {
