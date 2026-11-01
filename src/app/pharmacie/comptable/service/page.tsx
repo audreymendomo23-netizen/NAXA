@@ -16,9 +16,7 @@ async function authorizedContext() {
   const { data: profile, error } = await sb.from("profiles")
     .select("id,actif,pharmacie_id").eq("id",auth.user.id).maybeSingle();
   if (error || !profile || profile.actif !== true || !profile.pharmacie_id) redirect("/pharmacie");
-  const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", {
-    p_privilege:"MANAGE_ACCOUNTING",p_pharmacie:profile.pharmacie_id,p_target:null,
-  });
+  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
   return { sb, userId:auth.user.id, pharmacyId:profile.pharmacie_id };
 }
