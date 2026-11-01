@@ -400,7 +400,7 @@ export async function POST(request: Request) {
     if (ids.length) {
       const adminDb = supabaseAdmin();
       const [{ data: pharmacies, error: pharmaciesError }, { data: pharmacists, error: pharmacistError }, { data: stock, error: stockError }, { data: profiles, error: profilesError }, { data: caisses, error: caissesError }, comptables] = await Promise.all([
-        adminDb.from("pharmacies").select("id").in("id", ids).eq("actif", true).eq("visible_recherche", true),
+        adminDb.from("pharmacies").select("id").in("id", ids).eq("actif", true),
         fetchAllRows<{ id: string; pharmacie_id: string; pharmacien_id: string; started_at: string; ended_at: string | null }>((from, to) => adminDb.from("pharmacien_service_sessions").select("id,pharmacie_id,pharmacien_id,started_at,ended_at").in("pharmacie_id", ids).gte("started_at", sinceSessions).order("started_at", { ascending: false }).range(from, to)),
         fetchAllRows<{ id: string; pharmacie_id: string; gestionnaire_id: string; opened_at: string; closed_at: string | null }>((from, to) => adminDb.from("stock_service_sessions").select("id,pharmacie_id,gestionnaire_id,opened_at,closed_at").in("pharmacie_id", ids).gte("opened_at", sinceSessions).order("opened_at", { ascending: false }).range(from, to)),
         adminDb.from("profiles").select("id,first_name,last_name,username").in("pharmacie_id", ids),
