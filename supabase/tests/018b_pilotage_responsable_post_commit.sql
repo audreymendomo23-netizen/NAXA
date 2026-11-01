@@ -63,6 +63,13 @@ begin
   values(v_promoteur,v_a,true)
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
 
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
+  values(v_b,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
+  on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,assigned_by=excluded.assigned_by,active=true;
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values(v_promoteur,v_b,true)
+  on conflict(promoteur_id,pharmacie_id) do update set actif=true;
+
   insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
   values
     (v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
@@ -83,6 +90,16 @@ begin
   perform set_config('request.jwt.claim.sub',v_actor::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_actor::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
+
+  if public.naxa_can('CREATE_CAISSE',v_b,null) is not false then
+    raise exception 'Le Responsable A ne doit pas pouvoir créer une Caisse sur la pharmacie B';
+  end if;
+  begin
+    perform public.naxa_provision_caisse(v_caisse,v_b);
+    raise exception 'Le Responsable A ne doit pas pouvoir provisionner une Caisse sur B';
+  exception when others then
+    if sqlerrm='Le Responsable A ne doit pas pouvoir provisionner une Caisse sur B' then raise; end if;
+  end;
 
   if public.naxa_can('VIEW_TEAM',v_a,null) is not true
      or public.naxa_can('CREATE_CAISSE',v_a,null) is not true then
