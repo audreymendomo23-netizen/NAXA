@@ -11,19 +11,30 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses/privileges");
 
   const { data: profile } = await sb.from("profiles")
-    .select("id,role,actif")
+    .select("id,role,actif,fonction_interne,niveau_interne,pharmacie_id")
     .eq("id", auth.user.id)
     .single();
-  if (profile?.role !== "promoteur") redirect("/pharmacie");
-  if (profile.actif !== true) redirect("/pharmacie/promoteur");
+  if (profile?.actif !== true) redirect("/pharmacie");
+  const isPromoteur = profile.role === "promoteur";
+  const isResponsable = profile.role === "pharmacie"
+    && profile.fonction_interne === "responsable"
+    && profile.niveau_interne === 2
+    && Boolean(profile.pharmacie_id);
+  if (!isPromoteur && !isResponsable) redirect("/pharmacie");
 
-  const { data: links, error: linksError } = await sb.from("promoteur_pharmacies")
-    .select("pharmacie_id")
-    .eq("promoteur_id", auth.user.id)
-    .eq("actif", true);
-  if (linksError || !links?.length) redirect("/pharmacie/promoteur");
-
-  const ids = [...new Set(links.map((link) => link.pharmacie_id))];
+  let ids: string[];
+  if (isResponsable) {
+    const { data: canView, error } = await sb.rpc("naxa_can", {
+      p_privilege: "VIEW_PRIVILEGES", p_pharmacie: profile.pharmacie_id, p_target: null,
+    });
+    if (error || canView !== true) redirect("/pharmacie");
+    ids = [profile.pharmacie_id as string];
+  } else {
+    const { data: links, error: linksError } = await sb.from("promoteur_pharmacies")
+      .select("pharmacie_id").eq("promoteur_id", auth.user.id).eq("actif", true);
+    if (linksError || !links?.length) redirect("/pharmacie/promoteur");
+    ids = [...new Set(links.map((link) => link.pharmacie_id))];
+  }
   const [{ data: pharmacies, error: pharmaciesError }, { data: caisses, error: caissesError }, { data: privileges, error: privilegesError }] = await Promise.all([
     sb.from("pharmacies").select("id,nom,actif,visible_recherche").in("id", ids),
     sb.from("profiles").select("id,username,first_name,last_name,pharmacie_id,architecture_code,actif")
