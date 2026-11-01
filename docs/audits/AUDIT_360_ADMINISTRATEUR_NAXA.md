@@ -2667,3 +2667,28 @@ Le point 3 n'est pas à reprendre. Le prochain contrôle ouvert de l'audit Admin
 - **Garde-fous :** lecture seule sur Production; aucune écriture métier, aucune migration appliquée, aucun changement de configuration, aucun déploiement.
 
 **Statut de sortie : CLOS / CONTRÔLES DE SÉCURITÉ ET DE COHÉRENCE VÉRIFIÉS; RECETTE E2E ET PETITES RÉSERVES TECHNIQUES NON CERTIFIÉES.** Ne pas transformer cette clôture bornée en affirmation que les tests navigateur ou l'encaissement réel ont été exécutés.
+
+
+## Point 4 — audit contradictoire complémentaire et état de sortie (01/11/2026)
+
+**Décision : POINT 4 NON VERT EN PRODUCTION — construction source partiellement prête; chaîne opérationnelle non activée.** Les contrôles ci-dessous ont été effectués en lecture seule. Aucune écriture Production, aucun changement de secret, aucune migration appliquée et aucun déploiement.
+
+### Preuves fraîches
+- **Code main :** src/app/api/cron/validite/route.ts réclame la file claim_notification_email_outbox, appelle la passerelle Apps Script avec GOOGLE_APPS_SCRIPT_SECRET, puis clôture par finish_notification_email_outbox. Le script scripts/google-welcome-email.gs exige en plus NAXA_VERCEL_BYPASS_SECRET pour franchir la protection Vercel via l'en-tête x-vercel-protection-bypass.
+- **Contradiction documentaire corrigée :** l'ancienne procédure d'activation ne listait pas NAXA_VERCEL_BYPASS_SECRET, alors que le code le rend obligatoire. Le guide docs/AUTH_WELCOME_EMAIL.md a été corrigé sur main pour documenter cette propriété et distinguer les secrets Vercel/Google. Cela ne crée ni ne renseigne le secret.
+- **Supabase Replay pwfftcsjyeibxxqhwysw :** requête SQL en lecture seule : table private.notification_email_outbox présente; fonctions claim_notification_email_outbox, finish_notification_email_outbox et generer_rappels_echeance_promoteurs présentes; table public.notifications présente. Les tests 260/261/262 restent les preuves antérieures consignées; aucun nouvel envoi externe n'a été simulé.
+- **Supabase Production eouwtuusnsuxaejsxknf :** requête SQL en lecture seule : table public.notifications présente, mais private.notification_email_outbox absente; parmi les trois fonctions ciblées, seule generer_rappels_echeance_promoteurs est présente. La migration source supabase/migration_20261029_notification_email_outbox_delivery.sql n'est donc pas appliquée en Production. En conséquence, le worker ne peut pas réclamer la file attendue en Production.
+- **Vercel, inventaire des noms de variables sans déchiffrement :** Production contient CRON_SECRET, GOOGLE_APPS_SCRIPT_URL et GOOGLE_APPS_SCRIPT_SECRET. Aucune entrée NAXA_VERCEL_BYPASS_SECRET n'a été trouvée dans l'inventaire du projet. La présence des variables ne prouve pas que l'URL et le secret correspondent au déploiement Apps Script actif. Aucune valeur secrète n'a été lue.
+- **Vercel, déploiement Production observé :** dernier déploiement retourné en état ERROR, commit af7230b2cf63e2ef6f024e525bf5a9159a2eed2b; il ne contient pas la garantie d'un worker opérationnel et n'a pas été relancé.
+
+### Causes racines et réserves
+1. La migration outbox est sur GitHub mais absente de Production : le worker n'a pas son infrastructure SQL.
+2. Le secret de contournement Vercel exigé par le script Google n'est pas configuré dans l'inventaire Vercel consulté.
+3. Le contenu actuellement déployé dans le projet Apps Script, ses Script Properties et son déclencheur réel ne sont pas accessibles via les connecteurs disponibles; leur activation et leur état ne peuvent pas être prouvés depuis GitHub.
+4. Aucun e-mail de recette n'a été envoyé ni reçu; les tests SQL 260/261 prouvent l'insertion des notifications, pas la délivrance externe.
+5. Le déploiement Production Vercel observé est en erreur; aucun nouveau déploiement n'est autorisé dans le cadre de ce mandat sans ordre explicite.
+
+### Pourquoi le point n'a pas été forcé au vert
+Le mandat et AGENTS.md interdisent les écritures Supabase Production sans autorisation et périmètre explicites, les modifications de secrets sans autorisation et tout déploiement sans autorisation explicite. La demande de clôture ne fournit pas les valeurs ni le périmètre opérationnel de migration/secrets/déploiement; ces garde-fous ne peuvent pas être contournés pour fabriquer un statut vert. L'accès au projet Google Apps Script actif n'est pas exposé par les connecteurs disponibles. Les contrôles indépendants accessibles ont été effectués et la contradiction documentaire a été corrigée.
+
+**Statut final : JAUNE / BLOQUÉ PAR ACTIVATION PRODUCTION ET PREUVE EXTERNE.** Le point 4 ne doit pas être déclaré vert. Aucun résultat fictif, aucune donnée métier créée, aucune écriture Production.
