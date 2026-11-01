@@ -895,3 +895,12 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 
 
 - **Contrôle GitHub du HEAD de cette passe :** le statut combiné remonte `ci/circleci: quality = failure`. Aucun job n'a été relancé. Cette CI n'est pas utilisée comme gate du chantier; le build local reste non exécuté faute d'environnement d'exécution disponible dans cette passe.
+
+
+## Vérification Comptable / Responsable — 01/11/2026
+- Comptable — isolation inter-pharmacies prouvée sur Replay : nouveau test transactionnel 267. Il construit deux pharmacies synthétiques dans un même réseau, attribue MANAGE_ACCOUNTING uniquement à A, vérifie autorisation A / refus B, démarrage du service dans A, clôture de sa propre session et refus de clôturer une session B. Résultat : PASS, transaction annulée. Aucun compte ni aucune pharmacie de test ne subsiste.
+- Responsable — test de pilotage réparé : le test 018b créait le lien Promoteur/pharmacie avant l'architecture active, alors que le trigger de provisionnement exige l'architecture. L'ordre de la fixture a été corrigé; le test transactionnel retourne maintenant PASS.
+- Responsable — matrice et périmètre : les 14 assertions de 023 ont été exécutées individuellement; toutes retournent true. La matrice A3 inclut VIEW_TEAM, CREATE_CAISSE, SUSPEND_CAISSE, REACTIVATE_CAISSE et les privilèges de pilotage; A1/A2 ne reçoivent pas de privilèges Responsable, et la gouvernance NAXA reste exclue.
+- Défaut de parcours Responsable identifié et corrigé sur main : la page /pharmacie/caisses et les Server Actions étaient exclusivement Promoteur alors que les RPC RBAC autorisent explicitement un Responsable N2 correctement habilité à provisionner une Caisse et gérer son cycle de vie. La page et les actions acceptent maintenant Promoteur ou Responsable; le Responsable est limité à sa pharmacie, les droits VIEW_TEAM et CREATE_CAISSE sont contrôlés séparément, et la création vérifie l'activité de la pharmacie. Le dashboard expose l'entrée Gestion de l’équipe uniquement après contrôle VIEW_TEAM.
+- Réserves Responsable : pas encore de test transactionnel dédié prouvant de bout en bout la création, suspension et réactivation par un Responsable; pas de build/typecheck ni de recette navigateur. La page de délégation des privilèges Caisse (/pharmacie/caisses/privileges) reste Promoteur-only. Aucun pointage individuel Responsable n'existe dans le modèle actuellement identifié; ce point reste à arbitrer selon le mandat.
+- Aucun changement Supabase Production, aucun secret modifié, aucun déploiement.
