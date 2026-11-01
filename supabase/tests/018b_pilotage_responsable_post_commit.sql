@@ -52,13 +52,14 @@ begin
   values(v_actor,'pharmacie',true,v_a,v_promoteur,'responsable',2,2,'PARENTS_AINES_CADETS')
   on conflict(id) do update set role='pharmacie',actif=true,pharmacie_id=v_a,parent_profile_id=v_promoteur,fonction_interne='responsable',niveau_interne=2,niveau_hierarchique=2,architecture_code='PARENTS_AINES_CADETS';
 
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
-  values(v_promoteur,v_a,true)
-  on conflict(promoteur_id,pharmacie_id) do update set actif=true;
-
+  -- L'architecture doit exister avant le lien Promoteur : le trigger de provisionnement l'exige.
   insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses)
   values(v_a,'PARENTS_AINES_CADETS',v_promoteur,true,5,5)
   on conflict(pharmacie_id) do update set architecture_code=excluded.architecture_code,assigned_by=excluded.assigned_by,active=true;
+
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values(v_promoteur,v_a,true)
+  on conflict(promoteur_id,pharmacie_id) do update set actif=true;
 
   insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
   values(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
