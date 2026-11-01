@@ -1019,3 +1019,14 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - **Nature de la preuve : simulation statique basée sur le code, les RPC, RLS et données Production en lecture seule; ce n'est pas l'exécution de 1 000 transactions ou tests navigateur.**
 - **Étape 9 : terminée sur le périmètre de simulation, résultat JAUNE.** Aucune écriture Production, aucun déploiement, aucun changement de secret/configuration.
 - **Suite : étape 10 — registre consolidé des problèmes**, avec identifiant, preuve, gravité, impact, cause/hypothèse, correction, statut et vérification.
+
+
+## Audit 360 Administrateur — Étape 10, registre des problèmes (02/11/2026)
+
+- Registre consolidé établi dans le cahier d'audit avec identifiant, catégorie, gravité, preuve, impact, cause/hypothèse, correction proposée, statut et vérification attendue.
+- Priorités P1 : RLS Admin manquante sur Examens; corrélation partenaire erronée dans la politique publique Examens; garde owner/association du dossier partenaire présente sur main/Replay mais absente de l'historique Production; outbox e-mail absente de Production.
+- Priorités P2 : lecture tickets Examens sans garde actif; absence de file Admin demandes prestations et réservations Marketplace; preuve E2E Google worker non disponible; build/typecheck/lint et recette navigateur différés; POST OSM réel non testé; volumétrie alertes/messagerie et cycle de fermeture tickets à valider; KPI secondaires non tous testés; réserves E2E et stockage règlement Promoteur; réconciliation exhaustive des migrations.
+- P3 / surveillance : libellé « 31 jours » à aligner sur le mois calendaire; plafonds de lecture des listes Admin à surveiller.
+- Les points clôturés (sous-chantier crédit, corrections ALT-01/SEC-MSG-01/MSG-02, garde Admin actif, cooldown OSM, pilotage ciblé) ne sont pas rouverts.
+- **Étape 10 : TERMINÉE / JAUNE.** Aucun correctif de code/SQL n'a été appliqué dans le cadre du registre; les changements soumis à validation restent en attente.
+- **Suite du canevas : étape 11 — code mort**, avec distinction obligatoire entre code mort confirmé et usage indirect potentiel.
