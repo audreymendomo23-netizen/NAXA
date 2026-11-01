@@ -456,3 +456,10 @@ Une seconde cause racine a été corrigée : `naxa_can` réserve `p_target = NUL
 Le poste dispose maintenant d'un layout commun et d'un menu latéral persistant sur toutes ses routes. Le rapport Promoteur inclut toutes les pharmacies actives du réseau, même si elles ne sont pas publiées dans la recherche publique. Les tests structurels 264, 265 et 266 passent sur le rejeu non-Production après application de la migration corrective.
 
 **Statut non clôturé :** aucun profil Comptable de test n'est présent sur le rejeu; les scénarios authentifiés, les refus inter-pharmacies, le build et la recette navigateur restent à prouver. Production et Vercel inchangés.
+
+
+### Sécurité des postes Comptable et Responsable — 01/11/2026
+- Test 267 : isolation inter-pharmacies Comptable et RPC de pointage prouvées sur Replay (PASS transactionnel, rollback).
+- Tests Responsable 018b et 023 : PASS sur Replay; fixture 018b corrigée pour créer l'architecture avant le lien Promoteur/pharmacie.
+- Correction sur main : parcours de gestion des Caisses désormais accessible à un Responsable N2 habilité, dans sa seule pharmacie; contrôle séparé VIEW_TEAM / CREATE_CAISSE et Server Actions contrôlées par RPC.
+- Build/typecheck et recette navigateur restent à exécuter; aucun déploiement ni changement Production.
