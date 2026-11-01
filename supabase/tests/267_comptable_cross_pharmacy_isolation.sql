@@ -11,6 +11,7 @@ declare
   v_b uuid := '02670000-0000-4000-8000-000000000102';
   v_session_a uuid;
   v_session_b uuid := '02670000-0000-4000-8000-000000000201';
+  v_convention uuid;
   v_ended timestamptz;
 begin
   set local session_replication_role = replica;
@@ -39,10 +40,10 @@ begin
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values(v_promoteur,30000,current_date+30,'active','PARENTS_AINES_CADETS')
   on conflict(promoteur_id) do update set date_expiration=current_date+30,statut='active',architecture_code='PARENTS_AINES_CADETS'
-  returning id into v_session_b;
+  returning id into v_convention;
 
   insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
-  values(v_promoteur,v_session_b,30000,current_date,current_date+30,'actif')
+  values(v_promoteur,v_convention,30000,current_date,current_date+30,'actif')
   on conflict(promoteur_id) do update set convention_id=excluded.convention_id,montant_mensuel=excluded.montant_mensuel,debut=current_date,echeance=current_date+30,statut='actif';
 
   -- L'architecture doit exister avant le lien Promoteur : le trigger provisionne les privilèges.
@@ -79,6 +80,9 @@ begin
   if not exists(select 1 from public.comptable_service_sessions where id=v_session_a and pharmacie_id=v_a and comptable_id=v_comptable and ended_at is null) then
     raise exception 'FAIL: start RPC did not create the session in pharmacy A';
   end if;
+
+  -- Une seule session ouverte par compte : fermer A avant de créer la ligne B de simulation.
+
 
   insert into public.comptable_service_sessions(id,pharmacie_id,comptable_id)
   values(v_session_b,v_b,v_comptable);
