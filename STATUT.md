@@ -912,3 +912,12 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Résultat final : 018b PASS transactionnel. Une première exécution a révélé que la fixture n'accordait pas VIEW_TEAM; l'habilitation a été ajoutée à la fixture et le test complet a ensuite passé.
 - Contrôle post-rollback : 0 compte auth, 0 pharmacie et 0 profil Caisse de test résiduel.
 - Point 1/2 clôturé : création, suspension, réactivation et limitation au périmètre du Responsable sont prouvées au niveau SQL/RPC. Le test navigateur/build reste distinct et n'est pas présenté comme exécuté.
+
+
+## Responsable — point 2/2 clôturé : délégation des privilèges Caisse — 01/11/2026
+- La matrice `PARENTS_AINES_CADETS` prévoit `ASSIGN_PRIVILEGE` et `REVOKE_PRIVILEGE` pour le Responsable; le helper SQL de cible autorise déjà uniquement ses Caisses enfants. L'écart était dans la page et les Server Actions Promoteur-only.
+- `/pharmacie/caisses/privileges` et ses actions acceptent désormais le Promoteur ou le Responsable N2 actif. Le Responsable est limité à sa pharmacie et doit posséder `VIEW_PRIVILEGES`; la cible doit être une Caisse active enfant, même pharmacie. Attribution et révocation sont contrôlées séparément par `naxa_can`.
+- Catalogue limité aux privilèges actifs, délégables, non-gouvernance et prévus pour le niveau Caisse par l'architecture.
+- Test `supabase/tests/018c_responsable_delegation_privileges_caisse.sql` exécuté sur Replay : PASS transactionnel — attribution nominative `VIEW_SALES`, refus inter-pharmacies, révocation effective, rollback.
+- Build/typecheck et recette navigateur non exécutés. Aucune écriture Production ni aucun déploiement.
+- **Point 2/2 fermé** sur preuve SQL comportementale et correction statique UI/Server Actions.
