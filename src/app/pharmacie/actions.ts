@@ -4,24 +4,29 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 
-async function exigerPromoteur() {
+async function exigerGestionEquipe() {
   const sb = supabaseServer();
   const { data: u } = await sb.auth.getUser();
   if (!u.user) redirect("/connexion?retour=/pharmacie/caisses");
   const { data: p } = await sb
     .from("profiles")
-    .select("id,role,actif")
+    .select("id,role,fonction_interne,niveau_interne,pharmacie_id,actif")
     .eq("id", u.user.id)
     .single();
-  if (p?.role !== "promoteur") redirect("/");
-  if (p.actif !== true) redirect("/pharmacie/promoteur");
-  return { userId: u.user.id, sb };
+  const promoteur = p?.role === "promoteur";
+  const responsable = p?.role === "pharmacie"
+    && p.fonction_interne === "responsable"
+    && p.niveau_interne === 2
+    && Boolean(p.pharmacie_id);
+  if (!p || (!promoteur && !responsable)) redirect("/");
+  if (p.actif !== true) redirect(promoteur ? "/pharmacie/promoteur" : "/pharmacie");
+  return { userId: u.user.id, sb, profile: p, promoteur, responsable };
 }
 
 const value = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 
 export async function creerCaisse(formData: FormData) {
-  const { userId, sb } = await exigerPromoteur();
+  const { userId, sb, profile, promoteur, responsable } = await exigerGestionEquipe();
   const pharmacieId = value(formData, "pharmacie_id");
   const username = value(formData, "username").toLowerCase();
 
@@ -29,14 +34,21 @@ export async function creerCaisse(formData: FormData) {
     redirect("/pharmacie/caisses?erreur=validation");
   }
 
-  const { data: lien, error: lienError } = await sb
-    .from("promoteur_pharmacies")
-    .select("pharmacie_id")
-    .eq("promoteur_id", userId)
-    .eq("pharmacie_id", pharmacieId)
-    .eq("actif", true)
-    .maybeSingle();
-  if (lienError || !lien) redirect("/pharmacie/caisses?erreur=perimetre");
+  if (promoteur) {
+    const { data: lien, error: lienError } = await sb
+      .from("promoteur_pharmacies")
+      .select("pharmacie_id")
+      .eq("promoteur_id", userId)
+      .eq("pharmacie_id", pharmacieId)
+      .eq("actif", true)
+      .maybeSingle();
+    if (lienError || !lien) redirect("/pharmacie/caisses?erreur=perimetre");
+  } else if (responsable && profile.pharmacie_id !== pharmacieId) {
+    redirect("/pharmacie/caisses?erreur=perimetre");
+  }
+  const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
+    .select("id,actif").eq("id", pharmacieId).maybeSingle();
+  if (pharmacyError || !pharmacy?.actif) redirect("/pharmacie/caisses?erreur=perimetre");
 
   const { data: autorise, error: authError } = await sb.rpc("naxa_can", {
     p_privilege: "CREATE_CAISSE",
@@ -98,7 +110,7 @@ export async function creerCaisse(formData: FormData) {
 }
 
 async function changerStatutCaisse(formData: FormData, actif: boolean) {
-  const { sb } = await exigerPromoteur();
+  const { sb } = await exigerGestionEquipe();
   const caisseId = value(formData, "caisse_id");
   if (!caisseId) redirect("/pharmacie/caisses?erreur=cible");
 
