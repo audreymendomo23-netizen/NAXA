@@ -82,7 +82,9 @@ begin
   end if;
 
   -- Une seule session ouverte par compte : fermer A avant de créer la ligne B de simulation.
-
+  perform public.comptable_service_terminer(v_session_a,'fin test A');
+  select ended_at into v_ended from public.comptable_service_sessions where id=v_session_a;
+  if v_ended is null then raise exception 'FAIL: own session A was not closed'; end if;
 
   insert into public.comptable_service_sessions(id,pharmacie_id,comptable_id)
   values(v_session_b,v_b,v_comptable);
@@ -97,9 +99,6 @@ begin
   select ended_at into v_ended from public.comptable_service_sessions where id=v_session_b;
   if v_ended is not null then raise exception 'FAIL: foreign session B was modified'; end if;
 
-  perform public.comptable_service_terminer(v_session_a,'fin test A');
-  select ended_at into v_ended from public.comptable_service_sessions where id=v_session_a;
-  if v_ended is null then raise exception 'FAIL: own session A was not closed'; end if;
 end
 $test$;
 
