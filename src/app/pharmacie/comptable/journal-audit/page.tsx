@@ -14,9 +14,7 @@ export default async function JournalAuditComptablePage({ searchParams }: { sear
   const { data: profile, error: profileError } = await sb.from("profiles")
     .select("id,actif,pharmacie_id").eq("id", auth.user.id).single();
   if (profileError || !profile || profile.actif !== true || !profile.pharmacie_id) redirect("/pharmacie");
-  const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", {
-    p_privilege: "MANAGE_ACCOUNTING", p_pharmacie: profile.pharmacie_id, p_target: null,
-  });
+  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
   const validDate = (v?: string) => {
