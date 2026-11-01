@@ -1617,3 +1617,20 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Le push sur `main` a déclenché automatiquement deux déploiements Vercel ciblant Production (`dpl_93k4BKD6CBYQ5L1YyQNbLudX6MVa` et `dpl_GHwEvcWnyTzoANKjrd6zJD1dDhPR`). Les deux ont été annulés avant publication (`readyState: CANCELED`) afin de respecter l’absence d’autorisation explicite de déploiement.
 - Aucune compilation locale n'a pu être exécutée via les outils disponibles dans cette session. Les migrations et le test SQL restent non exécutés.
 
+
+
+## NAXA-COMPTABLE-001 — Poste Comptable, accès RBAC, pointage et rapports — 01/11/2026
+
+- **Domaine :** ERP pharmacie / fonction professionnelle Comptable.
+- **Routes :** `/pharmacie/comptable`, `journal-ventes`, `rapprochements`, `clotures`, `journal-audit`, `service`, `profil`.
+- **Données :** privilège `MANAGE_ACCOUNTING`, table `comptable_service_sessions`, RPC de début/fin, journaux comptables existants et API Rapports.
+- **Sécurité :** fonction Comptable sans nouveau rôle technique; attribution nominative obligatoire; contrôle central `compta_scope_autorise` sur la pharmacie; RLS en lecture personnelle; écritures par RPC; aucune écriture directe accordée aux comptes applicatifs.
+- **Navigation :** layout partagé avec menu latéral persistant et route active.
+- **Pointage :** horodatage serveur, une session ouverte maximum par compte, historique personnel, sessions ouvertes provisoires.
+- **Rapports :** sessions individuelles Comptable et consolidation Promoteur limitée aux pharmacies actives du réseau.
+- **Migrations :** `20261030100000_comptable_professional_privilege_reconciliation.sql`, `20261030120000_comptable_service_sessions.sql`, `20261101090000_comptable_scope_privilege_fix.sql`.
+- **Tests structurels :** 264, 265 et 266 exécutés sur le rejeu non-Production; PASS sans exception SQL.
+- **Niveaux de validation :** code intégré; sécurité structurelle SQL vérifiée; comportement authentifié, isolement inter-pharmacies, build et navigateur non certifiés.
+- **Statut :** 🟡 **CONSTRUIT — VALIDATION FONCTIONNELLE RESTANTE**.
+- **Réserve :** aucun profil Comptable de test n'est disponible dans le rejeu diagnostique; il faut un compte de test contrôlé pour prouver autorisation, refus, démarrage/fin et isolation.
+- **Production / déploiement :** aucun changement.
