@@ -12,7 +12,7 @@ type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
 
 export default function PanneauPharmacie(){
- const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[role,setRole]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[garde,setGarde]=useState(false),[module,setModule]=useState<""|"marketplace"|"erp">("");
+ const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[role,setRole]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[garde,setGarde]=useState(false),[canManageTeam,setCanManageTeam]=useState(false),[module,setModule]=useState<""|"marketplace"|"erp">("");
 
  const charger=useCallback(async(id:string)=>{
   const [{data:s,error:se},{data:r,error:re},{data:ph,error:pe},{data:charges,error:ce},{data:couts,error:coe},{data:lots,error:le},{data:catalogue,error:catError}]=await Promise.all([
