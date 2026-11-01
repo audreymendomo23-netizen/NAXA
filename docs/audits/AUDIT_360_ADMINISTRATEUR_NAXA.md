@@ -2760,3 +2760,43 @@ La revue des décisions antérieures corrige les conclusions de la première pas
 - **Validation partenaire indépendant :** la revue Production en lecture seule a révélé que la RPC ne vérifiait pas explicitement le rattachement `owner` ni la présence de l'association à l'univers avant activation. Correction additive intégrée à `main` au commit `121fd9b3b17b2cf48803128ce96fcc1e086bcfcc`, migration `20261101214724_admin_partner_dossier_membership_guard.sql`. Elle verrouille et vérifie le propriétaire, l'association encore désactivée et la correspondance type/univers, puis contrôle l'activation effective de l'association. Migration appliquée sur Replay sous version `20261101214824`; test `admin_partner_dossier_relationship_guard PASS (structurel)`. Contrôle Production en lecture seule : zéro dossier pending sans owner/association et zéro dossier validé sans owner/association active. La migration n'est pas appliquée en Production.
 - **État de l'étape 7 : JAUNE, non bloquante pour la suite.** Build/typecheck/lint et recette navigateur restent non exécutés; le POST OSM réel reste non testé. Ces preuves seront apportées ultérieurement sans suspendre les contrôles indépendants.
 
+## Clôture du dernier sous-contrôle de l’étape 7 — Pilotage, validité, rapports et rapprochement Vercel (01/11/2026)
+
+### Contrôles SQL Production — lecture seule
+
+- `public.rapports` : RLS activée (`relrowsecurity=true`, non forcée). La politique SELECT autorise l’Admin via `private.is_admin()`, ou les rapports de portée pharmacie uniquement pour la pharmacie renvoyée par `private.my_pharmacie()`.
+- Privilèges : `anon` n’a pas SELECT; `authenticated` a SELECT mais aucun INSERT, UPDATE ou DELETE direct sur `rapports`. L’isolation des lignes repose donc sur la politique RLS.
+- `public.validites_promoteurs_admin()` : EXECUTE refusé à anon, autorisé à authenticated; la fonction est SECURITY DEFINER, `search_path=''`, et filtre les résultats par `public.is_admin()`.
+- `public.stats_pilotage_scope(integer)` : EXECUTE refusé à anon, autorisé à authenticated. La façade délègue au helper privé; `private.stats_pilotage_scope(integer)` est SECURITY DEFINER, `search_path=''`, non exécutable directement par anon/authenticated, et exige une identité connectée, un profil actif, un rôle admissible et le privilège correspondant avant de calculer le périmètre.
+- Aucun changement SQL Production ni aucune donnée métier modifiée.
+
+### Test comportemental du moteur de pilotage
+
+- `supabase/tests/018_pilotage_canonique_scope.sql` exécuté sur Replay `pwfftcsjyeibxxqhwysw` : **PASS** (`naxa_018_pilotage_scope_pass=true`).
+- Le test vérifie les scopes Admin, Promoteur, Caisse et Responsable, l’exclusion du Client, les pharmacies de démonstration et le filtrage des recherches hors périmètre. Le script termine par `ROLLBACK`; aucune fixture persistante.
+- Le test 033 du périmètre Promoteur (8 assertions) reste PASS selon la preuve déjà consignée au point 6; il n’a pas été rejoué dans cette passe.
+
+### Corrections ciblées sur main
+
+- `src/app/admin/pilotage/page.tsx` : en cas d’erreur RPC, de réponse inexploitable ou d’exception réseau, les anciennes statistiques sont désormais effacées. L’écran ne conserve plus des KPI précédents à côté d’une erreur de rafraîchissement. Commit `d3dce07aa24d3cffde7fd5c15a866fbaf3f00b62`.
+- `src/app/admin/pilotage/rapports/page.tsx` : ajout d’un état de chargement distinct; le message « aucun rapport » n’apparaît qu’après la réponse réussie et vide du serveur. Commit `86fb8e51fd171c027fc3a75db188219c0914060b`.
+- `src/app/api/rapports/route.ts` : réponse GET de l’historique explicitement marquée `Cache-Control: no-store` pour éviter la mise en cache de données administratives/personnelles. Les filtres serveur et RLS restent en place. Commit `6ac716f20f452fe3aafe563a5170ed174d47bfc3`.
+- La page de validité conserve les états distincts VALIDE, À RÉGULARISER, NON CONFIGURÉ, SUSPENDU / INACTIF et À VÉRIFIER; le garde serveur `requireAdminActive` et la RPC filtrée Admin sont présents.
+
+### Rapprochement final Vercel — projet `naxa`
+
+Contrôle en lecture seule effectué sur le projet `prj_WtDcnR5OvRWKCt2xXgBPvpzzRYVH`, dans l’équipe propriétaire `team_BMPHZQHTElVZL77cwpFxk59X` :
+
+- `NAXA_VERCEL_BYPASS_SECRET` : présent en Production, type sensitive. La valeur n’a pas été déchiffrée. La différence avec l’inventaire précédent venait du scope d’équipe erroné; la présence dans Vercel est maintenant confirmée.
+- `NAXA_PRIVACY_CONTACT_EMAIL` : présent en Production avec `naxa.home@gmail.com`. Le code `src/app/api/auth/welcome-email/route.ts` l’utilise pour le contact relatif aux données personnelles; son fallback est la même adresse. Aucune variable supplémentaire à créer.
+- `NEXT_PUBLIC_SITE_URL` : `https://nnaxa.vercel.app` sur Production/Preview/Development. Le domaine `nnaxa.vercel.app` est bien attaché au projet et vérifié; `naxa-opal.vercel.app` redirige en 307 vers le domaine canonique.
+- Protection SSO : activée avec `deploymentType=all`, conformément à la décision utilisateur.
+- Aucune valeur secrète n’a été lue; aucune variable, protection, liaison de domaine ou configuration Vercel/Apps Script n’a été modifiée.
+
+### Décision et réserves
+
+**Dernier sous-contrôle pilotage/validité/rapports et rapprochement de configuration Vercel : TERMINÉ.** Les garde-fous SQL Production et le test de scope Replay sont vérifiés; les trois défauts UI/cache ciblés sont corrigés sur `main`.
+
+La **clôture globale de l’étape 7 reste JAUNE**, sans blocage de progression, jusqu’aux preuves différées déjà identifiées : build/typecheck/lint, recette navigateur de la navigation et des écrans Admin, et POST OSM réel. La présence du secret Vercel ne prouve pas que la propriété Apps Script correspondante est identique ni que le déclencheur Google est actif; ces preuves d’activation externe restent dans le point 4 et ne sont pas revendiquées ici.
+
+Aucun déploiement manuel, aucune écriture Supabase Production, aucune modification de secret ou de configuration externe.
