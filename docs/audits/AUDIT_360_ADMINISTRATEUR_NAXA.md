@@ -2806,3 +2806,81 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - Après les trois commits applicatifs et les mises à jour documentaires, l’inventaire Vercel ne retourne aucun déploiement Production plus récent.
 - Le dernier déploiement Production observé reste `dpl_DmRuRQmpfrABb8TPSnDUjy8ubwcB`, état **ERROR**, associé à l’ancien commit `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`.
 - Aucun build post-correctif ni déploiement manuel n’est donc revendiqué. La validation build/typecheck/lint reste différée comme demandé.
+
+
+## Étape 8 — Couverture des univers (02/11/2026)
+
+**Périmètre :** couverture réelle de l’Administrateur sur Marketplace/Pharmacie, Parapharmacie, Bébé & Maman, Examens médicaux, Dispositifs médicaux/Suivi connecté, Prestations à domicile et Aide NAXA. Revue des routes et actions Admin sur main, politiques RLS et compteurs Supabase Production en lecture seule. Aucun parcours métier n'a été modifié ou déclenché.
+
+### 8.1 Inventaire des univers et données Production
+
+| Domaine | État canonique Production | Données présentes | Entrée / visibilité Admin | Couverture observée |
+|---|---|---:|---|---|
+| Pharmacie historique | Parcours séparé des univers commerciaux | 4 pharmacies, dont 1 active et visible et 3 démo; 13 produits, 9 lignes de stock | /admin, /admin/alertes, dossiers /admin/pharmacies/[id], /admin/produits, rappels de lots et pilotage | Supervision réseau, dossiers et catalogue présents; le pilotage donne des agrégats mais aucune file Admin dédiée à la résolution individuelle des réservations Marketplace n'a été identifiée. |
+| Marketplace adossée à la Pharmacie | Pas de slug d'univers distinct; dépend du catalogue et du stock pharmacie | 6 réservations, 6 lignes de réservation, 4 événements | KPI de pilotage et abonnements temps réel sur reservations, stocks et alertes | Visibilité agrégée; pas de liste opérationnelle Admin identifiée pour ouvrir une réservation, examiner son historique et traiter son incident. |
+| Parapharmacie | Univers activé; flag universe.parapharmacie=true | 0 partenaire, 0 association, 0 produit partenaire, 0 réservation multi-univers | /admin/univers : activation, partenaires, associations, produits et publication | Contrôle administratif présent, mais aucune activité partenaire réelle en Production à superviser. |
+| Bébé & Maman | Univers et flag commercial désactivés | 0 service pharmacie_services actif | Dossier pharmacie /admin/pharmacies/[id], action dédiée admin_set_pharmacie_bebe_maman_service | Rattachement au dossier pharmacie conforme au modèle; aucune pharmacie n'a actuellement ce service enregistré. L'association partenaire autonome est bloquée dans l'interface et dans l'action serveur. |
+| Examens médicaux | Univers et flag activés | 0 centre, 0 examen, 0 pack, 0 créneau et 0 réservation | /admin/examens : validation/suspension des centres, publication des examens/packs, calendrier des tickets | Interface et RPC de décision présentes, mais réserve RLS majeure : les brouillons et centres suspendus ne sont pas lisibles par un Admin standard; voir constats 8.2. |
+| Dispositifs médicaux | Univers commercial suivi et flag universe.suivi désactivés; verrouillage phase 1 | 0 compte allowlisté, 0 professionnel, 0 consentement, 0 mesure | /admin/univers : allowlist de test et registre des professionnels; migration 125 verrouille activation/association/publication | Couverture de gouvernance de l'expérimentation présente. Les mesures personnelles ne sont pas exposées à l'Admin par RLS, ce qui préserve leur confidentialité. Aucun compte de test ni aucune activité n'est actuellement enregistré. |
+| Prestations à domicile | Univers et flag activés | 0 offre et 0 demande | /admin/prestations : publication, remise en brouillon et archivage des offres | Modération des offres présente; les demandes clients ne sont pas consultées dans une page Admin, malgré une politique RLS home_service_requests_admin_read. |
+| Aide NAXA | Ligne aide activée dans universes; pas de flag commercial universe.aide | Les tables support ne sont pas incluses dans le comptage de cet audit | /admin/messagerie : tickets et messages support; /aide côté client | Canal de support administratif présent. La carte Aide n'est pas dans la liste commerciale codée de /admin/univers; ce traitement séparé est cohérent avec sa nature de service support, mais doit rester explicite dans le registre des univers. |
+
+**Sources de comptage Production :** tables universes, feature_flags, pharmacies, produits, stocks, reservations, reservation_items, reservation_events, pharmacie_services, partners, partner_universes, partner_products, universe_reservations, exam_centers, exam_services, exam_packs, exam_slots, exam_appointments, home_service_offers, home_service_requests, feature_flag_test_accounts, suivi_professionals, suivi_consents et suivi_measurements. Les requêtes étaient en lecture seule; aucun contenu personnel n'a été extrait.
+
+### 8.2 Constats confirmés par confrontation code / RLS / Production
+
+#### ADM-UNIV-EXAM-01 — La file de modération des centres, examens et packs est masquée à l'Admin
+
+- src/app/admin/examens/page.tsx utilise le client Supabase de session après requireAdminActive et lit directement exam_centers, exam_services et exam_packs.
+- src/lib/admin/require-admin-active.ts confirme que la page est protégée côté serveur par role=admin et actif=true; elle ne remplace pas le client par un client service-role.
+- Les politiques Production de ces trois tables ne comportent aucune politique SELECT Admin. Elles se limitent à la lecture publique des lignes actives et à la gestion des membres partenaires. Les droits SELECT existent pour authenticated, mais RLS reste active.
+- Conséquence : les lignes brouillon/archivées/suspendues qui ne satisfont pas les politiques publiques ne sont pas visibles à l'Admin via ces requêtes. Une lecture RLS filtrée peut retourner zéro ligne sans erreur; la page peut alors afficher « Aucun centre d'examen enregistré » et masquer une file de modération réelle.
+- **Classement : confirmé par code et catalogue RLS Production; impact sur des lignes non vides déduit du comportement RLS, non reproduit car les tables sont actuellement vides.**
+- **Correction à soumettre :** ajouter des politiques SELECT limitées à l'Admin actif sur centres, examens et packs, cohérentes avec public.is_admin(); garder les politiques partenaires/public distinctes. Ajouter un test multi-rôles couvrant Admin actif/inactif, partenaire hors périmètre et Client.
+
+#### ADM-UNIV-EXAM-02 — La politique publique des centres ne corrèle pas l'association au partenaire courant
+
+- La migration source supabase/migration_107_exam_catalog_slots_booking.sql et la politique live exam_centers_public_read contiennent le prédicat pu.partner_id = pu.partner_id dans le sous-select partner_universes, au lieu de corréler pu.partner_id au partner_id du centre courant.
+- Ce prédicat est tautologique. La politique vérifie donc l'existence d'une association Examens activée, sans prouver que cette association appartient au partenaire du centre affiché.
+- Les RPC de publication et de réservation relisent, elles, l'association du partenaire ciblé. Un centre peut donc être visible dans le catalogue public alors que son propre partenaire n'est pas autorisé à l'univers; l'action de réservation peut ensuite refuser ce centre.
+- Production ne contient actuellement aucun centre ni aucune association partenaire, donc aucune exposition de ligne n'a été observée. Le défaut de corrélation est néanmoins directement confirmé dans la définition SQL live.
+- **Classement : défaut de politique confirmé par définition; exposition effective future conditionnelle à la présence de centres et d'au moins une association activée.**
+- **Correction à soumettre :** remplacer le prédicat par une corrélation explicite à la ligne de exam_centers, puis ajouter un test SQL public anonyme avec deux partenaires, dont un seul associé à Examens; le centre du second partenaire doit rester invisible. Vérifier aussi la cohérence des politiques services, packs, items et créneaux.
+
+#### ADM-UNIV-EXAM-03 — La lecture Admin des tickets d'examens ne vérifie pas l'état actif
+
+- La migration supabase/migration_122_exam_appointments_admin_read.sql et la politique Production exam_appointments_admin_read autorisent SELECT si le profil a role=admin, sans condition actif=true.
+- L'écran Admin impose bien requireAdminActive, mais l'accès direct à la table via l'API reste régi par RLS et le rôle authenticated.
+- **Classement : écart de sécurité confirmé dans la politique; aucune session d'Admin inactif n'a été utilisée pour un test d'accès.**
+- **Correction à soumettre :** aligner la politique sur le garde canonique Admin actif, ou sur public.is_admin(), puis tester explicitement un profil Admin inactif.
+
+#### ADM-UNIV-SERVICES-01 — Les demandes clients de prestations n'ont pas de vue opérationnelle Admin
+
+- src/app/admin/prestations/page.tsx lit home_service_offers et permet de publier, remettre en brouillon ou archiver les offres. Il ne lit pas home_service_requests.
+- La politique home_service_requests_admin_read existe en Production, mais aucune page du répertoire src/app/admin ne présente une file des demandes client ou leur statut opérationnel.
+- Les tables Production home_service_offers et home_service_requests sont actuellement vides.
+- **Classement : absence de couverture UI confirmée par inventaire des routes et lecture du code; aucune demande réelle n'est présente pour éprouver le parcours.**
+- **Correction à soumettre :** ajouter une vue Admin de consultation/diagnostic des demandes et de leur historique, avec actions limitées aux transitions métier autorisées; ne pas ajouter d'action de paiement ou de traitement non prévue.
+
+#### ADM-MKT-01 — Le pilotage Marketplace est agrégé, sans file Admin de résolution des réservations
+
+- /admin/pilotage utilise stats_pilotage_scope et actualise ses indicateurs via les événements reservations, stocks et alertes; il expose des totaux et tendances.
+- L'inventaire des routes Admin ne révèle pas de page dédiée à la consultation détaillée d'une réservation Marketplace, de ses lignes, de ses événements et de son état de stock.
+- Production contient 6 réservations, 6 lignes et 4 événements; ces quantités ne prouvent pas que l'Administrateur peut examiner et résoudre chaque cas individuellement.
+- **Classement : couverture de pilotage agrégée confirmée; absence d'une file de résolution détaillée confirmée dans les routes Admin examinées.**
+- **Correction à soumettre :** définir une vue de support en lecture contrôlée qui relie réservation, lignes, pharmacie, transitions et événements, sans permettre à NAXA d'encaisser ou de modifier le paiement effectué auprès de la pharmacie.
+
+### 8.3 Limites de couverture et contrôles positifs
+
+- /admin/univers charge au maximum 100 partenaires et 100 produits partenaires; ses compteurs partenaires/produits décrivent explicitement les lignes chargées, pas un total exhaustif. /admin/produits affiche au maximum 30 fiches par recherche. Ces limites sont annoncées dans l'interface, mais ne constituent pas une mesure globale exhaustive.
+- /admin/examens limite ses lectures à 200 centres, 300 examens, 200 packs et 300 réservations; aucune pagination n'est visible dans cette page.
+- Le registre des professionnels du suivi et la liste allowlist sont contrôlés par des politiques Admin dédiées; l'Admin peut gérer ces registres. Les mesures personnelles restent soumises au consentement, au propriétaire et au partage professionnel vérifié; aucune politique Admin générale de lecture des mesures n'a été ajoutée.
+- Bébé & Maman est correctement rattaché au dossier d'une pharmacie, et non à un établissement partenaire autonome. Le code Admin empêche l'ouverture d'une association partenaire autonome pour cet univers.
+- Les offres de prestations ont une politique Admin de gestion; les demandes ont une politique Admin de lecture, mais manquent de surface UI.
+- Aide NAXA est traitée via la messagerie de support, séparément des univers commerciaux.
+
+### 8.4 Statut de l'étape 8
+
+**Étape 8 — revue de couverture effectuée sur les routes, le code, les politiques RLS et les données Production accessibles : JAUNE.** La cartographie diagnostique est documentée; les réserves de modération Examens, de visibilité publique Examens, d'accès Admin actif aux tickets et de résolution des demandes/prestations et réservations Marketplace empêchent de qualifier la couverture fonctionnelle de complète.
+
+Aucun correctif applicatif ou SQL n'a été appliqué pendant cette revue. Aucune écriture Supabase Production, aucun changement de secret/configuration et aucun déploiement. Les corrections proposées restent soumises à validation selon le §5.1 du mandat. La simulation exacte de 1 000 cas constitue l'étape 9 et peut maintenant être engagée sans déclarer ces défauts corrigés.
