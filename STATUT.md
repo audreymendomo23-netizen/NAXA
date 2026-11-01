@@ -951,3 +951,13 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Limites : les KPI secondaires (réservations, ventes/CA, stock, alertes, série) ne sont pas tous couverts par ce scénario; recette navigateur non exécutée.
 - **Point 6 clos pour le contrôle ciblé du périmètre des KPI testés.** Aucun changement Production, migration, secret ou déploiement.
 - Détail : `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`, section « Point 6 — pilotage Promoteur hors périmètre ».
+
+
+## Rectificatif point 7 — décisions historiques (01/11/2026)
+- Domaine canonique confirmé par décisions utilisateur des 24 et 26/10 : `https://nnaxa.vercel.app`. Sa différence avec les alias Vercel n'est pas une anomalie; `NEXT_PUBLIC_SITE_URL` est cohérente avec le choix historique.
+- Protection SSO Vercel verrouillée à la demande de l'utilisateur le 25/10 et confirmée le 01/11 : conserver la protection Production; ne pas désactiver globalement SSO. Le worker serveur-à-serveur doit utiliser le secret Automation Bypass distinct de `CRON_SECRET`.
+- `NAXA_VERCEL_BYPASS_SECRET` avait été déclaré créé et confirmé le 01/11; son absence dans l'inventaire antérieur est un écart à réconcilier (projet/équipe/cibles), pas une absence définitive établie.
+- `NAXA_PRIVACY_CONTACT_EMAIL` non trouvée dans l'inventaire; usage runtime et nécessité à confirmer avant toute création. Adresse publique de contact historique : `naxa.home@gmail.com`.
+- Le dernier déploiement ERROR et la métadonnée `live: false` ne sont pas, à eux seuls, des anomalies du point 7.
+- **Point 7 révisé : JAUNE — inventaire fait, rapprochement de la variable Automation Bypass et qualification du contact confidentialité restantes.** Aucun changement de configuration, secret, Supabase ou déploiement.
+- Détail : section « Rectificatif — décisions historiques à intégrer au point 7 » dans `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
