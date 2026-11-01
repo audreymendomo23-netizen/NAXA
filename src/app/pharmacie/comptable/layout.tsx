@@ -11,7 +11,7 @@ export default async function ComptableLayout({ children }: { children: React.Re
 
   const { data: profile, error } = await sb.from("profiles")
     .select("actif,pharmacie_id,fonction_interne").eq("id", auth.user.id).maybeSingle();
-  if (error || !profile || profile.actif !== true || !profile.pharmacie_id || profile.fonction_interne !== "comptable") {
+  if (error || !profile || profile.actif !== true || !profile.pharmacie_id) {
     redirect("/pharmacie");
   }
 
