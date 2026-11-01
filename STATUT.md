@@ -971,3 +971,14 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - **Preuves non acquises :** pas de build, typecheck, lint, test SQL, test de concurrence ni recette navigateur exécutés. Ne pas déclarer le parcours vert.
 - **Garde-fous :** aucun déploiement, aucune migration Production, aucune écriture métier ou changement de configuration.
 - **Décision : JAUNE — corrections source réalisées, validation comportementale et vérification de la façade SQL encore nécessaires.
+
+
+## Audit 360 Administrateur — reprise après contrôles du 01/11/2026
+
+- **Étape 7 : JAUNE, sans blocage de progression.** Build/typecheck/lint et recette navigateur restent différés; les contrôles indépendants continuent.
+- OSM : migration atomique appliquée et vérifiée en Production sous version `20261101213620`; RPC réservée à service_role. Aucun POST Overpass réel ni recette navigateur.
+- Alertes/messagerie : ALT-01, SEC-MSG-01 et MSG-02 confirmés corrigés statiquement sur `main`.
+- Validation initiale pharmacie : migration `20261029110000` et test structurel PASS sur Replay.
+- Dossier partenaire indépendant : garde de cohérence owner/association/type-univers intégrée à `main` au commit `121fd9b3b17b2cf48803128ce96fcc1e086bcfcc`; migration Replay `20261101214824`; test structurel PASS. Production non modifiée; inventaire SQL existant conforme (0 anomalie sur les relations contrôlées).
+- **Suite :** poursuivre l'audit des pages de pilotage, validité et rapports administrateur; conserver les preuves de build et navigateur comme réserves différées, sans réouvrir les contrôles déjà clôturés.
+

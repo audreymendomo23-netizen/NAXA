@@ -82,3 +82,24 @@ Continuer par les pages de pilotage, validité et rapports, puis auditer les dé
 - La fiche affiche les déclarations manquantes et les fichiers absents/en attente/rejetés, et masque le bouton si les registres sont illisibles. L’action serveur recontrôle les deux registres ; la RPC les recontrôle dans la transaction avant l’activation.
 - Le test structurel est étendu aux nouvelles gardes et utilise to_regprocedure pour résoudre la signature stable de la RPC.
 - **État :** modifications versionnées sur main ; migration et tests non exécutés. Aucun changement de données, aucune migration appliquée et aucun déploiement lancé.
+
+
+## Suivi d'exécution — 01/11/2026 : intégrité de la validation d'un partenaire indépendant
+
+### Contradiction et cause racine
+- La RPC `admin_valider_dossier_partenaire(uuid)` activait le partenaire, son association à l'univers et le profil propriétaire, mais ne vérifiait pas explicitement que le propriétaire restait membre `owner` du partenaire ni que la ligne `partner_universes` existait avant l'UPDATE.
+- Les contraintes SQL garantissaient les références vers les tables parentes, mais aucune FK ni contrainte n'imposait la présence de ces deux relations depuis le dossier administratif. L'UPDATE de l'association pouvait donc affecter zéro ligne sans faire échouer la validation.
+- Le contrôle Production en lecture seule n'a relevé aucune anomalie existante : zéro dossier en attente sans owner/association et zéro dossier validé sans owner/association active. Le défaut était préventif, pas une corruption constatée.
+
+### Correction intégrée à main
+- Migration additive `supabase/migrations/20261101214724_admin_partner_dossier_membership_guard.sql`, commit `121fd9b3b17b2cf48803128ce96fcc1e086bcfcc`.
+- La RPC verrouille le dossier et le partenaire, vérifie le type partenaire/univers, exige le membre propriétaire `owner`, exige l'association existante et encore désactivée, puis vérifie que l'activation de cette association a effectivement modifié une ligne.
+- Le contrôle interne `public.is_admin()`, `SECURITY DEFINER`, `search_path=''` et les ACL (pas d'EXECUTE anon, EXECUTE authenticated sous contrôle interne) sont conservés.
+- Le rôle de profil du propriétaire n'est pas changé : l'accès partenaire est autorisé par le lien `partner_members`, et les pages partenaires contrôlent ce rattachement.
+
+### Preuve
+- Migration appliquée uniquement sur Replay; historique Replay : `20261101214824`.
+- Test `supabase/tests/20261101214724_admin_partner_dossier_membership_guard.sql` exécuté sur Replay : **PASS structurel**.
+- Aucun dossier métier créé ou modifié par le test; aucun changement Supabase Production et aucun déploiement.
+- Build, tests comportementaux authentifiés et recette navigateur non exécutés.
+
