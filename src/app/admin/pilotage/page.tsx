@@ -45,6 +45,7 @@ export default function Page() {
       const { data, error } = result;
 
       if (error) {
+        setD(null);
         setErr(
           error.code === "PGRST202" || error.code === "42883"
             ? "Le service de statistiques est indisponible. La fonction Supabase attendue n’est pas accessible."
@@ -56,6 +57,7 @@ export default function Page() {
       }
 
       if (!data || typeof data !== "object" || !("entonnoir" in data) || !("pharmacies" in data)) {
+        setD(null);
         setErr("Le service de statistiques a répondu sans données exploitables.");
         return;
       }
@@ -63,6 +65,7 @@ export default function Page() {
       setD(data as PilotageData);
       setErr("");
     } catch (cause) {
+      setD(null);
       setErr(
         cause instanceof Error && cause.message === "PILOTAGE_TIMEOUT"
           ? "Le service de statistiques ne répond pas après 12 secondes. Vérifie la fonction Supabase stats_pilotage_scope et réessaie."
