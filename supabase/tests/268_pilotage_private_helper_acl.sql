@@ -13,12 +13,20 @@ begin
   end if;
   if has_function_privilege('authenticated',v_private,'EXECUTE')
      or has_function_privilege('anon',v_private,'EXECUTE')
-     or has_function_privilege('public',v_private,'EXECUTE') then
+     or exists (
+       select 1 from pg_proc p
+       cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+       where p.oid=v_private and a.grantee=0 and a.privilege_type='EXECUTE'
+     ) then
     raise exception '268.3 : aucun rôle client ne doit exécuter directement le moteur privé';
   end if;
   if not has_function_privilege('authenticated',v_public,'EXECUTE')
      or has_function_privilege('anon',v_public,'EXECUTE')
-     or has_function_privilege('public',v_public,'EXECUTE') then
+     or exists (
+       select 1 from pg_proc p
+       cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+       where p.oid=v_public and a.grantee=0 and a.privilege_type='EXECUTE'
+     ) then
     raise exception '268.4 : seule la façade doit être exécutable par authenticated';
   end if;
   if position('private.stats_pilotage_scope' in v_public_def)=0 then
