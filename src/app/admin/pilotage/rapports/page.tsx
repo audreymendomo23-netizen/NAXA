@@ -9,6 +9,7 @@ type SavedReport = { id: string; periode: string; du: string; au: string; texte:
 export default function Reports() {
   const [data, setData] = useState<SavedReport[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
     fetch("/api/rapports", { cache: "no-store" }).then(async (response) => {
@@ -16,7 +17,8 @@ export default function Reports() {
       if (!active) return;
       if (!response.ok) setError(payload.error || "Historique indisponible.");
       else setData(payload.rapports || []);
-    }).catch(() => { if (active) setError("Impossible de charger l'historique."); });
+    }).catch(() => { if (active) setError("Impossible de charger l'historique."); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
 
@@ -29,9 +31,10 @@ export default function Reports() {
       <RapportsALaDemande />
       <section className="space-y-3">
         <h2 className="px-1 text-lg font-black text-slate-950">Historique des rapports automatiques enregistrés</h2>
-        {error && <p role="alert" className="rounded-2xl bg-white p-4 text-sm text-red-800">{error}</p>}
-        {!error && data.length === 0 && <p className="rounded-2xl bg-white p-5 text-sm text-slate-600">Aucun rapport automatique enregistré pour le moment. Les rapports à la demande sont générés sans attendre cette planification.</p>}
-        {data.map((report) => <article key={report.id} className="rounded-3xl bg-white p-5 shadow-sm">
+        {loading && <p role="status" className="rounded-2xl bg-white p-4 text-sm text-slate-600">Chargement de l’historique…</p>}
+        {!loading && error && <p role="alert" className="rounded-2xl bg-white p-4 text-sm text-red-800">{error}</p>}
+        {!loading && !error && data.length === 0 && <p className="rounded-2xl bg-white p-5 text-sm text-slate-600">Aucun rapport automatique enregistré pour le moment. Les rapports à la demande sont générés sans attendre cette planification.</p>}
+        {!loading && !error && data.map((report) => <article key={report.id} className="rounded-3xl bg-white p-5 shadow-sm">
           <h3 className="font-extrabold">{report.periode} · {report.pharmacie_nom || "NAXA"}</h3>
           <p className="text-xs text-slate-500">{report.du} → {report.au}</p>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-6">{report.texte}</p>
