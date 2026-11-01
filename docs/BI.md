@@ -30,6 +30,14 @@ L'export ne constitue jamais une nouvelle couche d'autorisation. Il consomme un 
 \n\nLe grain BI reste `pharmacie × période` pour les indicateurs agrégés. `promoteur_pharmacies` définit le périmètre Promoteur ; `my_pharmacies()` le projette en périmètre autorisé ; `can_access_pharmacy()` sert de garde RLS. Les vues BI sont `security_invoker` et ne créent pas une voie parallèle autour des tables sources. La consolidation est une agrégation des pharmacies autorisées, sans duplication de faits.\n
 
 
+## Fournisseurs IA — rapports BI et fiches médicament
+
+Les analyses narratives des rapports BI utilisent Groq en priorité (`GROQ_API_KEY`, modèle par défaut `llama-3.3-70b-versatile`). Si Groq est absent ou indisponible, la route tente Vercel AI Gateway (`AI_GATEWAY_API_KEY`, modèle par défaut `openai/gpt-4.1-mini`). L'indisponibilité des fournisseurs ne bloque jamais la génération des indicateurs chiffrés.
+
+Les fiches d'information médicament utilisent Gemini (`GEMINI_API_KEY`, modèle par défaut `gemini-2.5-flash`). Pour compatibilité avec la variable Vercel préexistante, le code accepte temporairement aussi `Gemini_API_Key`; la convention cible reste `GEMINI_API_KEY`.
+
+Les clés sont des variables serveur sensibles, jamais préfixées par `NEXT_PUBLIC_`. Aucun secret n'est inscrit dans le dépôt. Les prompts BI ne reçoivent que les agrégats filtrés par la frontière de confidentialité ci-dessous.
+
 ## Frontière IA et confidentialité des rapports
 
 La route `/api/rapports` construit deux jeux distincts :
