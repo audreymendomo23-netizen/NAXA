@@ -180,7 +180,43 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
     add("Service " + session.poste + who + " · fin", session.fin ?? "En cours à la génération");
     add("Service " + session.poste + who + " · durée (heures)", session.duree_heures);
   });
+
   return rows;
+}
+
+/**
+ * Frontière de confidentialité IA : ne transmettre que des métriques
+ * numériques agrégées. Les libellés détaillés (personnes, affectations,
+ * sessions, horodatages) restent hors du prompt.
+ */
+function buildAiMetrics(stats: Record<string, any>, rows: ReportRow[]) {
+  const indicateurs: Record<string, number> = {};
+  for (const row of rows) {
+    if (
+      typeof row.valeur === "number" &&
+      Number.isFinite(row.valeur) &&
+      !row.indicateur.startsWith("Affectation ") &&
+      !row.indicateur.startsWith("Service ")
+    ) {
+      indicateurs[row.indicateur] = row.valeur;
+    }
+  }
+
+  const serie = Array.isArray(stats.serie)
+    ? stats.serie.map((point: Record<string, unknown>) => ({
+        jour: String(point.jour ?? point.date ?? point.label ?? ""),
+        recherches: Number(point.recherches ?? 0),
+        reservations: Number(point.reservations ?? 0),
+        ventes: Number(point.ventes ?? 0),
+      })).filter((point: { jour: string; recherches: number; reservations: number; ventes: number }) =>
+        point.jour &&
+        Number.isFinite(point.recherches) &&
+        Number.isFinite(point.reservations) &&
+        Number.isFinite(point.ventes)
+      )
+    : [];
+
+  return { indicateurs, serie };
 }
 
 export async function GET() {
@@ -446,7 +482,8 @@ export async function POST(request: Request) {
   const startDate = start.toISOString().slice(0, 10);
   const endDate = now.toISOString().slice(0, 10);
   const rows = rowsFromStats(stats);
-  const ai = await explainWithAi(stats, profile.role, config.label);
+  const aiMetrics = buildAiMetrics(stats, rows);
+  const ai = await explainWithAi(aiMetrics, profile.role, config.label);
   const report = {
     titre: "Rapport BI NAXA",
     role: profile.role,
