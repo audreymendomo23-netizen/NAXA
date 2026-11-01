@@ -2800,3 +2800,9 @@ Contrôle en lecture seule effectué sur le projet `prj_WtDcnR5OvRWKCt2xXgBPvpzz
 La **clôture globale de l’étape 7 reste JAUNE**, sans blocage de progression, jusqu’aux preuves différées déjà identifiées : build/typecheck/lint, recette navigateur de la navigation et des écrans Admin, et POST OSM réel. La présence du secret Vercel ne prouve pas que la propriété Apps Script correspondante est identique ni que le déclencheur Google est actif; ces preuves d’activation externe restent dans le point 4 et ne sont pas revendiquées ici.
 
 Aucun déploiement manuel, aucune écriture Supabase Production, aucune modification de secret ou de configuration externe.
+
+### Vérification du déploiement après les commits
+
+- Après les trois commits applicatifs et les mises à jour documentaires, l’inventaire Vercel ne retourne aucun déploiement Production plus récent.
+- Le dernier déploiement Production observé reste `dpl_DmRuRQmpfrABb8TPSnDUjy8ubwcB`, état **ERROR**, associé à l’ancien commit `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`.
+- Aucun build post-correctif ni déploiement manuel n’est donc revendiqué. La validation build/typecheck/lint reste différée comme demandé.
