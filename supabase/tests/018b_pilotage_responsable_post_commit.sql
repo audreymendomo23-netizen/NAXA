@@ -9,6 +9,7 @@ declare
   v_actor uuid := '018b0000-0000-4000-8000-000000000001';
   v_admin uuid := '018b0000-0000-4000-8000-000000000002';
   v_promoteur uuid := '018b0000-0000-4000-8000-000000000003';
+  v_caisse uuid := '018b0000-0000-4000-8000-000000000004';
   v_a uuid := '018b0000-0000-4000-8000-000000000101';
   v_b uuid := '018b0000-0000-4000-8000-000000000102';
   v_convention uuid;
@@ -21,7 +22,8 @@ begin
   ) values
     ('00000000-0000-0000-0000-000000000000',v_actor,'authenticated','authenticated','naxa-test-018b-resp@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()),
     ('00000000-0000-0000-0000-000000000000',v_admin,'authenticated','authenticated','naxa-test-018b-admin@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()),
-    ('00000000-0000-0000-0000-000000000000',v_promoteur,'authenticated','authenticated','naxa-test-018b-promoteur@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now())
+    ('00000000-0000-0000-0000-000000000000',v_promoteur,'authenticated','authenticated','naxa-test-018b-promoteur@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()),
+    ('00000000-0000-0000-0000-000000000000',v_caisse,'authenticated','authenticated','naxa-test-018b-caisse@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now())
   on conflict(id) do nothing;
   set local session_replication_role = origin;
 
@@ -62,9 +64,17 @@ begin
   on conflict(promoteur_id,pharmacie_id) do update set actif=true;
 
   insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
-  values(v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true)
+  values
+    (v_actor,'VIEW_RESPONSABLE_PILOTAGE',v_a,'PHARMACIE',v_admin,true),
+    (v_actor,'CREATE_CAISSE',v_a,'PHARMACIE',v_admin,true),
+    (v_actor,'SUSPEND_CAISSE',v_a,'PHARMACIE',v_admin,true),
+    (v_actor,'REACTIVATE_CAISSE',v_a,'PHARMACIE',v_admin,true)
   on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
   do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
+
+  insert into public.profiles(id,role,actif,fonction_interne,niveau_interne,niveau_hierarchique)
+  values(v_caisse,'caisse',false,'caisse',3,3)
+  on conflict(id) do update set role='caisse',actif=false,fonction_interne='caisse',niveau_interne=3,niveau_hierarchique=3,pharmacie_id=null,parent_profile_id=null,architecture_code=null;
 
   insert into public.evenements(type,pharmacie_id,resultats)
   values ('recherche',v_a,1),('recherche',v_b,1);
@@ -72,6 +82,23 @@ begin
   perform set_config('request.jwt.claim.sub',v_actor::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_actor::text,'role','authenticated')::text,true);
   v_json := public.stats_pilotage_scope(7);
+
+  if public.naxa_can('VIEW_TEAM',v_a,null) is not true
+     or public.naxa_can('CREATE_CAISSE',v_a,null) is not true then
+    raise exception 'Le Responsable A3 doit pouvoir consulter son équipe et créer une Caisse';
+  end if;
+  perform public.naxa_provision_caisse(v_caisse,v_a);
+  if not exists(select 1 from public.profiles where id=v_caisse and pharmacie_id=v_a and parent_profile_id=v_actor and actif and niveau_interne=3) then
+    raise exception 'La provision Caisse par le Responsable doit rattacher la cible à sa pharmacie et à son parent';
+  end if;
+  perform public.naxa_set_caisse_status(v_caisse,false);
+  if exists(select 1 from public.profiles where id=v_caisse and actif) then
+    raise exception 'Le Responsable doit pouvoir suspendre sa Caisse enfant';
+  end if;
+  perform public.naxa_set_caisse_status(v_caisse,true);
+  if not exists(select 1 from public.profiles where id=v_caisse and actif) then
+    raise exception 'Le Responsable doit pouvoir réactiver sa Caisse enfant';
+  end if;
 
   if v_json->>'role' <> 'pharmacie' or v_json->>'fonction_interne' <> 'responsable' then
     raise exception 'Le profil Responsable doit être représenté par role=pharmacie + fonction_interne=responsable; obtenu role=%, fonction=%',
