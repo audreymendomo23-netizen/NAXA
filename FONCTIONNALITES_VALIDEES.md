@@ -51,6 +51,26 @@
 
 ---
 
+### Sécurité Admin — fermeture des voies RLS role-only (02/11/2026)
+
+**PRE-044 — catalogue, partenaires et stock**
+- Source : migration supabase/migrations/20261102083000_admin_active_catalog_stock_rls.sql.
+- Remplacement de huit policies Admin ALL par public.is_admin() (USING + WITH CHECK); branche Admin de stock_movements_partner_read alignée sans supprimer la lecture des membres partenaires.
+- Test 270 PASS sur Replay : Admin actif peut modifier le partenaire fixture; Admin inactif et Client n'ont aucun effet; les huit policies et le périmètre partenaire sont contrôlés. Transaction annulée.
+- Replay version : 20261102072715. Production : migration non appliquée, appel bloqué par le contrôle de sécurité de l'outil.
+- Statut : 🟡 corrigé et testé sur Replay; Production à appliquer après levée du blocage de sécurité.
+
+**PRE-045 — Storage medicaments**
+- Source : migration supabase/migrations/20261102084500_admin_active_medicament_storage_rls.sql.
+- INSERT/UPDATE/DELETE sur storage.objects, bucket medicaments, exigent public.is_admin(); la lecture publique est préservée.
+- Test 271 PASS structurel sur Replay; bucket absent de cet environnement, donc pas de test d'upload.
+- Replay version : 20261102072914. Production : migration non appliquée, appel bloqué par le contrôle de sécurité de l'outil.
+- Statut : 🟡 structure testée en Replay; Production non corrigée.
+
+**À ne pas confondre :** les migrations 269 pour examens/prestations sont déjà appliquées et vérifiées sur Production; les migrations 270/271 de ce ratissage ne le sont pas.
+
+---
+
 ### Gouvernance des preuves
 - La configuration `.gitlab-ci.yml` est versionnée sur `main`, déclenchable manuellement/API seulement, sans tâche de déploiement.
 - Le miroir GitLab actuel reste en retard sur le dépôt GitHub et son dernier pipeline observé est tombé sur le quota avant l’exécution des jobs. Aucun résultat CI courant n’est revendiqué.
