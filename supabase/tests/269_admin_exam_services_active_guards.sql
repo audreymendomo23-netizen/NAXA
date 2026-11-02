@@ -98,7 +98,7 @@ begin
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 0 then raise exception '269.8 : anon lit un ticket examen'; end if;
   if has_table_privilege('anon','public.home_service_requests','SELECT') then
-    select count(*) into n from public.home_service_requests where id like '50000000-%';
+    select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
     if n <> 0 then raise exception '269.9 : anon lit une demande domicile'; end if;
   end if;
 end
@@ -113,7 +113,7 @@ begin
   if not public.is_admin() then raise exception '269.10 : Admin actif refusé par le garde'; end if;
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 1 then raise exception '269.11 : Admin actif ne lit pas le ticket examen'; end if;
-  select count(*) into n from public.home_service_requests where id like '50000000-%';
+  select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
   if n <> 4 then raise exception '269.12 : Admin actif ne lit pas les demandes'; end if;
   update public.home_service_offers set description='edited-by-active-admin'
     where id='40000000-0000-4000-8000-000000000001';
@@ -131,7 +131,7 @@ begin
   if public.is_admin() then raise exception '269.14 : Admin inactif autorisé par le garde'; end if;
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 0 then raise exception '269.15 : Admin inactif lit le ticket examen'; end if;
-  select count(*) into n from public.home_service_requests where id like '50000000-%';
+  select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
   if n <> 0 then raise exception '269.16 : Admin inactif lit les demandes'; end if;
   update public.home_service_offers set description='edited-by-inactive-admin'
     where id='40000000-0000-4000-8000-000000000001';
@@ -152,7 +152,7 @@ begin
   if public.is_admin() then raise exception '269.19 : Client reconnu Admin'; end if;
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 1 then raise exception '269.20 : Client propriétaire ne lit pas son ticket'; end if;
-  select count(*) into n from public.home_service_requests where id like '50000000-%';
+  select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
   if n <> 2 then raise exception '269.21 : le Client ne reste pas limité à ses demandes'; end if;
   perform public.transition_home_service_request('50000000-0000-4000-8000-000000000004','cancelled');
   begin
@@ -169,7 +169,7 @@ declare n integer;
 begin
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 0 then raise exception '269.23 : Client tiers lit un ticket étranger'; end if;
-  select count(*) into n from public.home_service_requests where id like '50000000-%';
+  select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
   if n <> 2 then raise exception '269.24 : second Client non limité à ses demandes'; end if;
 end
 $client_other$;
@@ -180,7 +180,7 @@ declare n integer;
 begin
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 1 then raise exception '269.25 : membre partenaire ne lit pas le ticket de son centre'; end if;
-  select count(*) into n from public.home_service_requests where id like '50000000-%';
+  select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
   if n <> 4 then raise exception '269.26 : membre partenaire ne voit pas son périmètre'; end if;
   perform public.transition_home_service_request('50000000-0000-4000-8000-000000000003','confirmed');
 end
