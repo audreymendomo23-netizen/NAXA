@@ -412,7 +412,7 @@ export async function POST(request: Request) {
     }
     const pilotageData = (Array.isArray(pilotage) ? pilotage[0] : pilotage) as Record<string, any>;
     const comptesData = (Array.isArray(comptes) ? comptes[0] : comptes) as Record<string, any>;
-    if (!pilotageData || !comptesData || !comptesData.totaux || !Array.isArray(comptesData.par_pharmacie) || !Array.isArray(comptesData.par_promoteur)) {
+    if (!pilotageData || !comptesData || !comptesData.totaux || !Array.isArray(comptesData.par_pharmacie) || !Array.isArray(comptesData.par_promoteur) || !comptesData.partenaires_globaux?.totaux || !Array.isArray(comptesData.partenaires_globaux.par_type_statut)) {
       return NextResponse.json({ error: "La consolidation Admin a renvoyé un résultat incomplet." }, { status: 502 });
     }
     stats = { ...pilotageData, ...comptesData, role: "admin" };
