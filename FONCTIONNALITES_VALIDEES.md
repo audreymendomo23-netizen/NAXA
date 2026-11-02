@@ -21,6 +21,36 @@
 - **Statut :** **🟡 SOURCE CORRIGÉE — CI ET RECETTE DANS L’APPLICATION RESTENT À EXÉCUTER.** Ce point n’est pas déclaré vert fonctionnel ou Production.
 - **Commits de code :** `6270b797e428b503bdbb07b87742d1109972fdf7`, `26a200213f69f7a670cbf6abd72b06aab2885365`, `89fde66e2dc5601f01ddf8363f3da33c82a6b111`, `ee9168fbc52c1b419f4174584dceee97582e198e`, `e2e23fcfa9a48509da6b2f1dca616992160f8270`, `7dafac109909486930de3e8c4fd5d0f1840e9313`.
 
+### Supervision Admin — demandes domicile et réservations Marketplace (02/11/2026)
+
+**Demandes de prestations à domicile**
+- Route : /admin/prestations/demandes, accessible depuis /admin/prestations.
+- Source : home_service_requests + partenaire; garde requireAdminActive et RLS Admin Production confirmée.
+- Lecture seule : pas d'adresse exacte, de téléphone ou de note client sélectionnés; aucune action de statut/paiement.
+- Fichier : src/app/admin/prestations/demandes/page.tsx.
+
+**Diagnostic des réservations Marketplace**
+- Route : /admin/pilotage/reservations, accessible depuis /admin/pilotage.
+- Sources : réservations, articles, pharmacie, produits et journal d'événements; garde requireAdminActive; politiques RLS Admin Production confirmées pour les réservations, lignes et événements.
+- Lecture seule : aucun code/référence de paiement, téléphone, adresse de livraison ou action d'encaissement/mutation sélectionné.
+- Fichier : src/app/admin/pilotage/reservations/page.tsx.
+
+**Preuves et statut**
+- Test de contrat : scripts/test-admin-queues.cjs; il vérifie les gardes, sources, minimisation des champs sensibles, absence de mutations et liens depuis les écrans parents.
+- npm test regroupe maintenant les huit scripts Node scripts/test-*.cjs.
+- .gitlab-ci.yml ajouté à GitHub main : pipeline manuel/API, typecheck, lint, audit dépendances, tests et build; aucun déploiement.
+- **Statut : 🟡 SOURCE CORRIGÉE — CI et recette application à exécuter.** Aucun de ces écrans n'est déclaré validé en runtime.
+
+**Commits dédiés**
+- File demandes domicile : 50607d79c4992d5d69608ddb289c538b7c70710e.
+- File réservations Marketplace : f4b2ee81f5c2fdb9296bba75122a0370831e9bcc.
+- Liens depuis les pages parentes : 151e206b0474c0521ae43879407933d195b8321f et 2e4d8bf02262a4db4c242bb096bfb48543bb96eb.
+- Tests files Admin : 89a97c74c6235dd03fa157b1317940eca34bc547.
+- Ajustement du diagnostic stock : 4de1070f2bb6a8161aff79e1ea2506d1921917a9.
+- Minimisation des données domicile : afa069496ad80d9e990837197b564bddaf30f0af.
+
+---
+
 ### Gouvernance des preuves
 - La configuration `.gitlab-ci.yml` est versionnée sur `main`, déclenchable manuellement/API seulement, sans tâche de déploiement.
 - Le miroir GitLab actuel reste en retard sur le dépôt GitHub et son dernier pipeline observé est tombé sur le quota avant l’exécution des jobs. Aucun résultat CI courant n’est revendiqué.
