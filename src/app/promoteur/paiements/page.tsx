@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
-import { soumettrePaiementPromoteur } from "./actions";
+import { deposerPreuveComplementaire, soumettrePaiementPromoteur } from "./actions";
 
 const LABEL: Record<string, string> = {
   orange_money: "Orange Money", mtn_momo: "MTN Mobile Money", virement: "Virement bancaire",
@@ -17,7 +17,7 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
 
   const db = supabaseAdmin();
   const [{ data: rows, error }, { data: subscription, error: subscriptionError }, { data: destinationsRows, error: destinationsError }] = await Promise.all([
-    db.from("abonnement_promoteur_reglements").select("id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_du,periode_au,created_at,confirme_le,preuve_path,motif_contestation").eq("promoteur_id", user.id).order("created_at", { ascending: false }).limit(100),
+    db.from("abonnement_promoteur_reglements").select("id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_du,periode_au,created_at,declared_at,confirme_le,preuve_path,destination_snapshot,motif_contestation").eq("promoteur_id", user.id).order("created_at", { ascending: false }).limit(100),
     db.from("abonnements_promoteurs").select("echeance,statut,montant_mensuel").eq("promoteur_id", user.id).maybeSingle(),
     db.from("naxa_payment_destinations").select("canal,beneficiaire,reference_destination,instructions,actif").eq("actif", true),
   ]);
@@ -25,12 +25,13 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
   const destinationsReady = ["orange_money", "mtn_momo", "virement"].some((canal) => destinations.has(canal));
   const proofLinks = new Map<string, string>();
   const proofErrors = new Set<string>();
-  await Promise.all((rows ?? []).map(async r => {
-    const { data, error: proofError } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path, 600);
+  await Promise.all((rows ?? []).filter(r => Boolean(r.preuve_path)).map(async r => {
+    const { data, error: proofError } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path!, 600);
     if (data?.signedUrl) proofLinks.set(r.id, data.signedUrl);
     else if (proofError) proofErrors.add(r.id);
   }));
-  const pending = !error && (rows ?? []).some(r => r.statut === "en_attente");
+  const pending = !error && (rows ?? []).some(r => r.statut === "en_attente" || r.statut === "non_confirme");
+  const activeChannels = ["orange_money", "mtn_momo", "virement"].filter((canal) => destinations.has(canal));
   const destinationsAvailable = !destinationsError && destinationsReady;
   const errors: Record<string, string> = {
     champs: "Vérifiez le montant et le canal de paiement.",
@@ -38,9 +39,12 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
     reference: "La référence de transaction ou de virement est obligatoire.",
     compte: "Le numéro de compte bancaire ou le numéro Orange Money / Mobile Money ayant effectué le paiement est obligatoire.",
     date: "Indiquez la date réelle du paiement. Elle ne peut pas être future.",
-    preuve: "Joignez une preuve de paiement de 25 Mo maximum.",
-    format: "Formats acceptés : PDF, JPEG, PNG, WebP, MP4, WebM ou MOV.",
-    upload: "La preuve n’a pas pu être envoyée. Aucun paiement n’a été soumis.",
+    preuve: "Joignez une image ou un PDF de 25 Mo maximum.",
+    format: "Formats acceptés pour la preuve complémentaire : PDF, JPEG, PNG ou WebP.",
+    upload: "La preuve complémentaire n’a pas pu être envoyée.",
+    preuve_trop_tot: "La preuve complémentaire sera disponible une heure après votre déclaration de paiement.",
+    preuve_indisponible: "La déclaration ne permet plus de joindre une preuve complémentaire.",
+    destination: "Le canal sélectionné n’a pas de destination active configurée par NAXA.",
     deja_attente: "Un paiement est déjà en attente de vérification. Attendez la réponse de l’administrateur.",
     montant: "Le montant doit correspondre au tarif mensuel de votre convention.",
     soumission: "Le paiement n’a pas pu être soumis. Vérifiez les informations et réessayez.",
@@ -70,16 +74,18 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
         <label className="grid gap-1 text-sm font-semibold">Compte / numéro ayant effectué le paiement<input required name="compte_payeur" maxLength={120} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="N° Orange Money, MoMo ou compte bancaire"/></label>
         <label className="grid gap-1 text-sm font-semibold">Référence de transaction / virement<input required name="reference" minLength={3} maxLength={160} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="Identifiant MTN/Orange ou référence bancaire"/></label>
         <label className="grid gap-1 text-sm font-semibold">Date et heure du paiement<input required type="datetime-local" name="paye_le" className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
-        <label className="grid gap-1 text-sm font-semibold sm:col-span-2">Preuve du paiement — photo, PDF ou vidéo (25 Mo maximum)<input required type="file" name="preuve" accept="application/pdf,image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" capture="environment" className="min-h-11 rounded-xl border border-slate-300 p-2"/><span className="text-xs font-normal text-slate-500">Vous pouvez joindre une capture, un document ou une vidéo filmée depuis votre téléphone.</span></label>
-        <button className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white sm:col-span-2">Paiement effectué — transmettre ma déclaration</button>
+        <p className="text-xs text-slate-500 sm:col-span-2">Une preuve image ou PDF pourra être ajoutée depuis l’historique une heure après cette déclaration si la confirmation automatique n’est pas encore intervenue.</p>
+        <button className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white sm:col-span-2">Paiement effectué — déclarer la transaction</button>
       </form>}
     </section>
 
     <section className="space-y-3"><h2 className="text-lg font-black">Historique et reçus</h2>
       {error ? <div role="alert" className="rounded-2xl bg-white p-5 text-red-700">L’historique ne peut pas être affiché tant que la lecture des règlements est en erreur. Aucune absence de paiement n’est déduite.</div> : !rows?.length ? <div className="rounded-2xl bg-white p-5"><p className="font-bold">Aucun paiement déclaré.</p><p className="mt-1 text-sm text-slate-600">Après soumission, le statut de vérification apparaîtra ici.</p></div> : rows.map(r => <article key={r.id} className="rounded-2xl bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-extrabold">{money(r.montant)}</p><p className="mt-1 text-xs text-slate-500">Soumis le {dt(r.created_at)}</p></div><span className={"rounded-full px-3 py-1 text-xs font-bold " + (r.statut === "confirme" ? "bg-green-100 text-green-800" : r.statut === "conteste" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900")}>{r.statut === "confirme" ? "Confirmé" : r.statut === "conteste" ? "À corriger" : "En attente de vérification"}</span></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-extrabold">{money(r.montant)}</p><p className="mt-1 text-xs text-slate-500">Déclaration reçue (T0) : {dt(r.declared_at ?? r.created_at)}</p></div><span className={"rounded-full px-3 py-1 text-xs font-bold " + (r.statut === "confirme" ? "bg-green-100 text-green-800" : r.statut === "conteste" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900")}>{r.statut === "confirme" ? "Confirmé" : r.statut === "conteste" ? "À corriger" : r.statut === "non_confirme" ? "Non confirmé — détection toujours active" : "En attente de confirmation"}</span></div>
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Canal</dt><dd className="font-semibold">{LABEL[r.canal] ?? r.canal}{r.canal_autre ? " · " + r.canal_autre : ""}</dd></div><div><dt className="text-slate-500">Compte payeur</dt><dd className="font-semibold">{r.compte_payeur || "—"}</dd></div><div><dt className="text-slate-500">Référence</dt><dd className="font-semibold">{r.reference || "—"}</dd></div><div><dt className="text-slate-500">Date réelle déclarée</dt><dd className="font-semibold">{dt(r.paye_le)}</dd></div><div><dt className="text-slate-500">Date de validation</dt><dd className="font-semibold">{dt(r.confirme_le)}</dd></div>{r.periode_du && <div><dt className="text-slate-500">Période après validation</dt><dd className="font-semibold">{r.periode_du + " → " + r.periode_au}</dd></div>}</dl>
         {proofLinks.get(r.id) ? <a className="mt-3 inline-block text-sm font-bold text-[#0147BB] underline" href={proofLinks.get(r.id)} target="_blank" rel="noreferrer">Consulter ma preuve</a> : <p role="status" className="mt-3 text-xs text-amber-800">{proofErrors.has(r.id) ? "La preuve existe dans le dossier, mais son lien sécurisé est temporairement indisponible. Réessayez plus tard." : "Aucun lien temporaire vers la preuve n’a été généré."}</p>}
+        {r.destination_snapshot && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs"><p className="font-bold">Destination utilisée lors de la déclaration</p><p>{r.destination_snapshot.beneficiaire} · {r.destination_snapshot.reference_destination}</p></div>}
+        {r.statut !== "confirme" && r.statut !== "conteste" && !r.preuve_path && r.declared_at && Date.now() >= new Date(r.declared_at).getTime() + 60 * 60 * 1000 && <form action={deposerPreuveComplementaire} encType="multipart/form-data" className="mt-3 grid gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3"><input type="hidden" name="reglement_id" value={r.id}/><p className="text-sm font-semibold">Plus d’une heure s’est écoulée. Vous pouvez joindre une preuve complémentaire.</p><input required type="file" name="preuve" accept="application/pdf,image/jpeg,image/png,image/webp" className="min-h-11 rounded-xl border border-amber-300 bg-white p-2"/><button className="min-h-10 w-fit rounded-full bg-[#0F6B3F] px-4 text-sm font-bold text-white">Envoyer la preuve complémentaire</button></form>}
         {r.statut === "conteste" && r.motif_contestation && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900"><strong>Correction demandée :</strong> {r.motif_contestation}</p>}
         {r.statut === "confirme" && <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-slate-600">ID paiement : {r.identifiant_paiement ?? "—"} · Reçu : {r.numero_recu ?? "—"}</p><Link className="rounded-full bg-[#0F6B3F] px-4 py-2 text-sm font-bold text-white" href={"/promoteur/paiements/" + r.id + "/recu"}>Télécharger / imprimer le reçu</Link></div>}
       </article>)}
