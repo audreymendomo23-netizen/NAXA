@@ -19,7 +19,8 @@ insert into auth.users (
 insert into public.pharmacies(id,nom,ville,lat,lng,slug,est_demo,actif)
 values
 ('01300000-0000-4000-8000-000000000101','NAXA E13 Pharmacie active','Yaoundé',3.8480,11.5021,'naxa-e13-active',false,true),
-('01300000-0000-4000-8000-000000000102','NAXA E13 Pharmacie démo','Yaoundé',3.8490,11.5031,'naxa-e13-demo',true,true);
+('01300000-0000-4000-8000-000000000102','NAXA E13 Pharmacie démo','Yaoundé',3.8490,11.5031,'naxa-e13-demo',true,true),
+('01300000-0000-4000-8000-000000000103','NAXA E13 Pharmacie active B','Yaoundé',3.8500,11.5041,'naxa-e13-active-b',false,true);
 
 update public.profiles set role='admin',actif=true,pharmacie_id=null,niveau_interne=1 where id='01300000-0000-4000-8000-000000000001';
 update public.profiles set role='promoteur',fonction_interne='promoteur',actif=true,pharmacie_id=null,niveau_interne=1,architecture_code=null where id='01300000-0000-4000-8000-000000000002';
@@ -31,12 +32,15 @@ update public.profiles set role='pharmacie',fonction_interne='comptable',actif=t
 update public.profiles set role='client',fonction_interne=null,actif=true,pharmacie_id=null,niveau_interne=4 where id='01300000-0000-4000-8000-000000000008';
 
 insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
-values('01300000-0000-4000-8000-000000000002','01300000-0000-4000-8000-000000000101',true);
+values
+('01300000-0000-4000-8000-000000000002','01300000-0000-4000-8000-000000000101',true),
+('01300000-0000-4000-8000-000000000002','01300000-0000-4000-8000-000000000103',true);
 
 insert into public.reservations(client_id,pharmacie_id,total,expires_at,created_at)
 values
 ('01300000-0000-4000-8000-000000000008','01300000-0000-4000-8000-000000000101',2500,now()+interval '1 hour',now()),
-('01300000-0000-4000-8000-000000000008','01300000-0000-4000-8000-000000000102',3000,now()+interval '1 hour',now());
+('01300000-0000-4000-8000-000000000008','01300000-0000-4000-8000-000000000102',3000,now()+interval '1 hour',now()),
+('01300000-0000-4000-8000-000000000008','01300000-0000-4000-8000-000000000103',3500,now()+interval '1 hour',now());
 
 insert into public.partners(id,name,partner_type,city,status,created_by)
 values('01300000-0000-4000-8000-000000000201','NAXA E13 partenaire','centre_examen','Yaoundé','active','01300000-0000-4000-8000-000000000001');
@@ -82,6 +86,11 @@ begin
     raise exception 'E13.3 : agrégats globaux des comptes incomplets : %',v_json->'totaux';
   end if;
 
+  if (v_json->'totaux'->>'reservations')::integer <> 2
+     or (v_json->'totaux'->>'clients_avec_reservation')::integer <> 1 then
+    raise exception 'E13.3c : total réseau doit compter 2 réservations mais 1 client distinct : %',v_json->'totaux';
+  end if;
+
   if (v_json->'partenaires_globaux'->'totaux'->>'partenaires_total')::integer < 1
      or (v_json->'partenaires_globaux'->'totaux'->>'partenaires_actifs')::integer < 1
      or (v_json->'partenaires_globaux'->'totaux'->>'membres_partenaires_total')::integer < 1
@@ -122,9 +131,10 @@ begin
   from jsonb_array_elements(v_json->'par_promoteur') e(value)
   where e.value->>'id'=v_promoteur::text;
   if v_prom is null
-     or (v_prom->>'pharmacies_total')::integer <> 1
-     or (v_prom->'indicateurs'->>'reservations')::integer <> 1 then
-    raise exception 'E13.8 : agrégat Promoteur incorrect : %',v_prom;
+     or (v_prom->>'pharmacies_total')::integer <> 2
+     or (v_prom->'indicateurs'->>'reservations')::integer <> 2
+     or (v_prom->'indicateurs'->>'clients_avec_reservation')::integer <> 1 then
+    raise exception 'E13.8 : agrégat Promoteur doit compter 2 pharmacies, 2 réservations et 1 client distinct : %',v_prom;
   end if;
 
   if (v_json->'sources'->>'affectations_professionnelles')::boolean is not true
