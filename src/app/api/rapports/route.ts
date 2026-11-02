@@ -16,6 +16,41 @@ const PERIODS = {
 type Period = keyof typeof PERIODS;
 type ReportRow = { indicateur: string; valeur: string | number };
 
+const ADMIN_ACCOUNT_METRICS_LABELS: Record<string, string> = {
+  clients_avec_reservation: "Clients avec réservation",
+  reservations: "Réservations",
+  ventes_marketplace: "Ventes Marketplace",
+  ca_marketplace_fcfa: "CA Marketplace (FCFA)",
+  ventes_pos_payees: "Ventes POS payées",
+  ca_pos_fcfa: "CA POS (FCFA)",
+  references_stock: "Références en stock",
+  stocks_bas: "Stocks bas (≤ 5)",
+  ruptures_stock: "Ruptures de stock",
+  lots_a_controler: "Lots à contrôler",
+  inventaires_ouverts: "Inventaires ouverts",
+  consultations_pharmaceutiques: "Consultations pharmaceutiques",
+  prescriptions: "Prescriptions",
+  preparations_prescriptions: "Préparations de prescriptions",
+  evenements_audit_pharmacien: "Événements d'audit Pharmacien",
+  caisses_actives: "Caisses actives",
+  sessions_caisse: "Sessions de caisse",
+  ecarts_caisse_a_verifier: "Écarts de caisse à vérifier",
+  depenses: "Dépenses enregistrées",
+  montant_depenses_fcfa: "Montant des dépenses (FCFA)",
+  mouvements_tresorerie: "Mouvements de trésorerie",
+  montant_tresorerie_brut_fcfa: "Trésorerie brute (FCFA)",
+  dossiers_assurance: "Dossiers assurance",
+  montant_prise_en_charge_fcfa: "Prise en charge assurance (FCFA)",
+  services_pharmacien_pointes: "Services Pharmacien pointés",
+  services_stock_pointes: "Services Stock pointés",
+  affectations_professionnelles_actives: "Affectations professionnelles actives",
+  controles_comptables_a_traiter: "Contrôles comptables à traiter",
+  evenements_comptables_a_traiter: "Événements comptables à traiter",
+  periodes_comptables_ouvertes: "Périodes comptables ouvertes",
+  ecritures_comptables: "Écritures comptables",
+};
+
+
 function csvEscape(value: unknown) {
   const raw = String(value ?? "");
   const safe = /^[=+@-]/.test(raw) ? "'" + raw : raw;
@@ -196,6 +231,55 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
     add("Service " + session.poste + who + " · fin", session.fin ?? "En cours à la génération");
     add("Service " + session.poste + who + " · durée (heures)", session.duree_heures);
   });
+
+  if (Array.isArray(stats.comptes_globaux)) {
+    for (const group of stats.comptes_globaux) {
+      add(
+        `Comptes globaux · ${group.role} · ${group.fonction_interne} · ${group.actif ? "actifs" : "inactifs"}`,
+        group.total
+      );
+    }
+  }
+
+  if (stats.totaux && typeof stats.totaux === "object") {
+    add("Clients actifs", stats.totaux.clients_actifs);
+    add("Clients total", stats.totaux.clients_total);
+    add("Promoteurs actifs", stats.totaux.promoteurs_actifs);
+    add("Promoteurs total", stats.totaux.promoteurs_total);
+    add("Comptes professionnels", stats.totaux.comptes_professionnels);
+    add("Pharmacies du réseau (hors démo)", stats.totaux.pharmacies_total);
+    add("Pharmacies actives (hors démo)", stats.totaux.pharmacies_actives);
+    for (const [key, label] of Object.entries(ADMIN_ACCOUNT_METRICS_LABELS)) {
+      const value = stats.totaux[key];
+      add(label + " · Total réseau", value === null || value === undefined ? "Indisponible" : value);
+    }
+  }
+
+  const addAccountDetails = (prefix: string, entity: Record<string, any>) => {
+    const name = String(entity.nom ?? "Périmètre");
+    if (typeof entity.pharmacies_total === "number") add(`${prefix} · ${name} · Pharmacies rattachées`, entity.pharmacies_total);
+    if (Array.isArray(entity.comptes)) {
+      for (const group of entity.comptes) {
+        add(
+          `${prefix} · ${name} · Compte ${group.role} · ${group.fonction_interne} · ${group.actif ? "actif" : "inactif"}`,
+          group.total
+        );
+      }
+    }
+    if (entity.indicateurs && typeof entity.indicateurs === "object") {
+      for (const [key, label] of Object.entries(ADMIN_ACCOUNT_METRICS_LABELS)) {
+        const value = entity.indicateurs[key];
+        add(`${prefix} · ${name} · ${label}`, value === null || value === undefined ? "Indisponible" : value);
+      }
+    }
+  };
+
+  if (Array.isArray(stats.par_pharmacie)) {
+    for (const pharmacy of stats.par_pharmacie) addAccountDetails("Détail pharmacie", pharmacy);
+  }
+  if (Array.isArray(stats.par_promoteur)) {
+    for (const promoter of stats.par_promoteur) addAccountDetails("Détail Promoteur", promoter);
+  }
 
   return rows;
 }
