@@ -3303,9 +3303,9 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 - Le parcours de recherche public est présent dans la page d'accueil via le composant `Recherche`; l'usage réel, les résultats et les erreurs réseau n'ont pas été rejoués dans un navigateur authentifié.
 
 **Réservations et parcours transactionnels**
-- La source de vérité Marketplace comporte des réservations, lignes et événements; l'Administrateur dispose d'agrégats mais pas encore d'une file de résolution complète reliant ticket, lignes, pharmacie, transitions et actions autorisées.
-- Les prestations à domicile disposent de tables et de politiques Client/partenaire, mais l'interface Admin n'expose pas de file opérationnelle des demandes.
-- Les examens disposent d'un écran de calendrier et d'une lecture Admin dédiée; le garde RLS a été corrigé puis validé par la matrice SQL 269 sur Replay. La politique Production attend toujours sa migration.
+- La source de vérité Marketplace comporte des réservations, lignes et événements; la file `/admin/pilotage/reservations` est maintenant reliée au Pilotage, protégée par `requireAdminActive` et strictement en lecture seule. Elle fournit le diagnostic des dossiers sans modifier statuts, paiements ou stocks. La recette réelle de la file reste à faire.
+- Les prestations à domicile disposent de tables et de politiques Client/partenaire; la file `/admin/prestations/demandes` est maintenant reliée à l'écran Prestations, protégée par `requireAdminActive` et strictement en lecture seule. Elle n'expose pas les adresses exactes, téléphones ni notes privées des clients. La recette réelle de la file reste à faire.
+- Les examens disposent d'un écran de calendrier et d'une lecture Admin dédiée; les politiques Admin des rendez-vous sont alignées sur `public.is_admin()` depuis l'application Production des migrations du 02/11 (versions 20261102032259 et 20261102032304 selon le périmètre). Le test Replay 269 couvre la matrice RLS; le test HTTP avec vrais JWT reste à exécuter.
 - Aucun achat, paiement, réservation, annulation, remboursement ou traitement de demande réelle n'a été déclenché pendant cette revue.
 
 ### 14.2 Revue du point de vue CTO
@@ -3348,14 +3348,14 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 - **Confirmé en runtime SQL isolé :** après application des deux migrations sur Replay, le test 269 passe avec 31 assertions : Admin actif/inactif, Client propriétaire/tiers, partenaire membre, anon, lectures, mutation des offres, transitions RPC et journal d’audit. Tous les fixtures sont annulés.
 - **Non vérifié :** test HTTP PostgREST avec JWT réels et sessions Auth réelles; recette navigateur.
 - **Correction source effectuée :** les files Admin à domicile (ADM-SERVICES-01) et Marketplace (ADM-MKT-01) sont construites en lecture seule et reliées depuis leurs écrans parents. Leur CI et leur recette navigateur restent à exécuter.
-- **Contrôle Supabase Security Advisor (02/11/2026, Production) :** six tables avec RLS activé sans politique; cinq fonctions SECURITY DEFINER accessibles à `anon`; 120 fonctions SECURITY DEFINER exécutables par `authenticated`. Ces alertes sont préexistantes et dépassent le périmètre immédiat des deux politiques corrigées; elles restent à qualifier individuellement, sans révocation massive ni changement opportuniste. Les politiques Client/partenaire des deux tables visées n'ont pas été modifiées.
+- **Contrôle Supabase Security Advisor (02/11/2026, Production après correction Étape 13) :** six tables avec RLS activé sans politique; cinq fonctions SECURITY DEFINER accessibles à `anon`; 121 fonctions SECURITY DEFINER exécutables par `authenticated`; protection contre les mots de passe compromis désactivée. La façade `admin_comptes_indicateurs` figure dans les 121 car son appel par `authenticated` est nécessaire au client Admin; sa garde interne exige Admin actif, `anon` est refusé et les moteurs privés ne sont pas directement exécutables. Les autres alertes demeurent à qualifier fonction par fonction.
 - **Historique Production antérieur (relevé avant le 02/11) :** le constat d’historique arrêté à 20261101213620 et les prédicats role-only décrivent l’état observé avant application. Il est supersédé par l’application Production confirmée le 02/11/2026, versions 20261102032259 et 20261102032304, avec relecture des politiques/RPC après migration.
 - **Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`; test 269 PASS.
 - **Réserves hors périmètre de ces deux corrections :** limites de pagination et files Admin de résolution Marketplace/prestations.
 
 ### 14.5 Statut de l'étape 14
 
-**Étape 14 — 🟢 TERMINÉE POUR LES CORRECTIONS RLS/RPC EXAMENS ET PRESTATIONS (migrations 269); EXTENSION DE SÉCURITÉ PRE-044/PRE-045 : 🟡 SOURCE ET REPLAY VALIDÉS, PRODUCTION NON APPLIQUÉE.**
+**Étape 14 — 🟢 TERMINÉE POUR LES CORRECTIONS CIBLÉES RLS/RPC EXAMENS ET PRESTATIONS (269), PRE-044 et PRE-045 : DÉFINITIONS PRODUCTION APPLIQUÉES ET RELUES.** La validation reste partielle sur les parcours réels : CI/build et recette dans l'application, notamment Storage avec un véritable fichier, HTTP/JWT et navigation des files Admin.
 
 ## Étape 11 — Recherche et nettoyage du code mort Admin (clôture, 02/11/2026)
 
@@ -3490,14 +3490,21 @@ Les sorties de synthèse ne contiennent ni identifiants clients, ni coordonnées
 - **Sources Replay :** les sept tables complémentaires sont présentes; la fonction les détecte comme disponibles. L'agrégat partenaire renvoie une structure valide (zéro ligne sur l'environnement sans partenaire).
 - **Advisors Replay :** aucun nouveau constat de performance ciblant les fonctions de l'étape 13. Un avertissement sécurité signale la façade `SECURITY DEFINER` exécutable par `authenticated`; il est intentionnel et suit le modèle déjà utilisé par `public.stats_pilotage_scope` (migration 243) : ACL `anon` refusée, garde Admin actif dans le moteur privé, helpers non exécutables directement.
 - Test d'acceptation fixture ajouté : `supabase/tests/20261102014000_admin_global_accounts_pilotage.sql`. Il couvre rôles, ventilation, exclusion des pharmacies démo, scope Promoteur, partenaires, ACL, Admin inactif et absence de données client. **Son exécution complète n'est pas certifiée** : l'appel de rejeu du script a été bloqué par les contrôles de sécurité de l'outil; aucune réussite comportementale n'est revendiquée.
-- **Production, lecture seule :** `public.admin_comptes_indicateurs(integer)` est absent; les sept sources complémentaires ci-dessus sont absentes. Les deux migrations ne sont pas appliquées en Production.
-- Aucun déploiement Vercel correspondant au code de l'étape n'a été déclenché. Build, TypeScript, lint, recette navigateur et vérification du rapport réel restent non exécutés.
+- **Production — application confirmée le 02/11/2026 :** les deux migrations sont présentes dans l'historique du projet Naxa sous les versions `20261102101654` (`admin_global_accounts_pilotage`) et `20261102101658` (`admin_partner_accounts_summary`). Les quatre fonctions publiques/privées ont été relues dans le catalogue. L'ACL confirme : `anon` ne peut pas appeler la façade; `authenticated` peut appeler la façade; les helpers privés ne sont pas exécutables directement par `anon` ni `authenticated`.
+- **Sources facultatives Production :** les sept tables complémentaires ci-dessus restent absentes. La fonction les signale avec des valeurs `null` et des indicateurs de disponibilité faux; elle ne présente pas ces métriques comme des zéros réels. Le contrôle live relevait 1 Admin actif, 1 Promoteur actif, 8 Clients actifs, 1 pharmacie non démo, 0 partenaire et 0 membre partenaire au moment de la requête.
+- **Défaut de calcul corrigé :** le total réseau et le total Promoteur additionnaient les clients distincts par pharmacie, ce qui pouvait compter plusieurs fois un même Client présent dans plusieurs pharmacies. La migration additive `20261102104330_admin_unique_clients_network_totals` remplace la façade pour recalculer `clients_avec_reservation` par `count(distinct client_id)` sur l'union du périmètre réseau ou des rattachements Promoteur actifs, en excluant les pharmacies démo. Le moteur privé, sa garde Admin actif et les agrégats détaillés par pharmacie sont préservés.
+- **Historique migration après correction :** Production `20261102104330`; Replay `20261102104229`. Le fichier source sur main est `supabase/migrations/20261102104330_admin_unique_clients_network_totals.sql`, aligné sur l'historique réel.
+- **Régression SQL Replay : PASS.** Transaction dédiée avec un Client réservant dans deux pharmacies non-démo et une pharmacie démo : total réseau = 2 réservations / 1 Client distinct; Promoteur = 2 pharmacies / 2 réservations / 1 Client distinct; la pharmacie démo est exclue. Résultat `E13 cross-pharmacy distinct-client regression PASS`; transaction terminée par `ROLLBACK`.
+- **Relecture Production après application :** la définition de `public.admin_comptes_indicateurs(integer)` contient le dédoublonnage; `SECURITY DEFINER` et `search_path=''` sont conservés; `anon_execute=false`, `authenticated_execute=true`. Les trois helpers privés restent non exécutables directement.
+- **Security Advisor Production après cette migration :** 6 tables RLS sans policy, 5 fonctions SECURITY DEFINER exécutables par `anon`, 121 exécutables par `authenticated`, et protection contre les mots de passe compromis désactivée. Le compte 121 inclut la façade Admin volontairement appelable par `authenticated`, avec garde interne Admin actif; les helpers privés restent fermés. Les autres findings n'ont pas été traités par révocation massive, car chaque fonction exige une vérification de contrat indépendante.
+- Aucun déploiement Vercel, aucune donnée métier permanente et aucun secret/configuration n'ont été modifiés par cette correction.
 
 ### 13.5 Statut de sortie
 
-**Étape 13 : JAUNE — couverture source construite et structurée; validation Production non acquise.** Les comptes et indicateurs sont maintenant modélisés et intégrés au pilotage/rapport Admin sur `main`; les contrôles structurels/ACL Replay sont cohérents. Le vert exige :
-1. autorisation explicite puis application en Production des migrations `20261102014000` et `20261102015500`;
-2. exécution du test fixture sur Replay et contrôle SQL post-migration Production;
-3. build/typecheck/lint, prévisualisation et recette Admin des rapports, sans déploiement Production non autorisé.
+**Étape 13 : 🟡 CODE ET SQL CORRIGÉS — VÉRIFICATION REPLAY + DÉFINITIONS PRODUCTION PASS; CI ET RECETTE APPLICATION RESTANTES.** Le contrat des autres comptes et des partenaires est implémenté sur `main`; les deux migrations initiales et le correctif de dédoublonnage sont appliqués en Production et leurs définitions/ACL ont été relues. La régression inter-pharmacies passe en Replay avec rollback. Les sept sources professionnelles absentes restent correctement signalées indisponibles; elles ne bloquent pas les agrégats des données réellement présentes.
 
-Aucune migration Production, aucune écriture métier, aucun secret/configuration modifié et aucun déploiement n'ont été effectués dans cette étape.
+**Seules validations restantes pour clôturer la preuve de livraison :**
+1. CI/build/typecheck/lint sur le HEAD courant (sans CircleCI/Netlify et sans job de déploiement);
+2. recette dans l'application Admin des agrégats, rapports CSV/PDF, états de sources indisponibles et accès sous une vraie session Admin.
+
+Aucune migration Production, aucune écriture métier permanente, aucun secret/configuration modifié et aucun déploiement n'ont été effectués pendant le test de régression; les migrations autorisées ont uniquement modifié les définitions SQL et leurs ACL.
