@@ -3172,3 +3172,38 @@ Aucune correction de code ou SQL n'a été appliquée pendant la constitution du
 
 **Étape 11 — TERMINÉE sur le périmètre du parcours Administrateur / JAUNE probatoire.** Le code mort confirmé dans ce périmètre a été nettoyé et relu; les faux positifs ont été corrigés et les candidats incertains conservés. La réserve restante est strictement délimitée : une certification exhaustive de toutes les références croisées des 353 fichiers source du dépôt n'a pas été obtenue. Aucune suppression risquée n'a été faite pour masquer cette limite.
 
+## Étape 12 — Design et animations (02/11/2026)
+
+**Périmètre :** finition visuelle du parcours Administrateur recensé dans ce cahier. La cartographie de référence recense 18 routes Admin et 12 entrées de navigation. La revue porte sur le shell partagé, les règles CSS Admin et les 18 pages; elle ne modifie ni les parcours métier, ni les droits, ni les données.
+
+### Audit statique initial
+
+- Le shell partagé est centralisé dans `src/app/admin/layout.tsx` et `src/app/admin/admin-bento.css`.
+- Les règles existantes couvrent les vues desktop, tablette et mobile (breakpoints 1440, 1050, 1000, 900, 760, 680 et 420 px), avec navigation mobile fixe et prise en compte de `safe-area-inset-bottom`.
+- Les états de focus et les champs disposent déjà de styles dédiés. Le mode `prefers-reduced-motion: reduce` neutralise les animations et transitions du shell.
+- Les 18 pages examinées ne déclarent pas de classes utilitaires d'animation propres; les mouvements présents avant cette passe étaient principalement des transitions d'interaction et de progression.
+- Deux faiblesses de contraste ont été relevées dans les petits libellés : blanc atténué dans la navigation verte et `--texte-3: #7D8E84` sur surface blanche (ratio mesuré 3,46:1, insuffisant pour du petit texte). Le focus jaune sur surface claire n'offrait pas non plus le contraste le plus robuste.
+
+### Corrections versionnées sur `main`
+
+- Entrée de page discrète (220 ms, opacité et translation de 8 px) appliquée au contenu Admin.
+- Retours tactiles sur liens et boutons; léger déplacement des liens de navigation et des cartes du tableau de bord sur appareils disposant d'un pointeur.
+- Respect explicite de la préférence de réduction des animations : aucune animation d'entrée, transition ou transformation imposée lorsque `prefers-reduced-motion: reduce` est actif.
+- Anneaux de focus clavier renforcés pour navigation, liens, boutons et champs.
+- Libellés secondaires de la navigation passés en blanc plein; petites notes de KPI et de synthèse équipe basculées vers `--texte-2`.
+- Aucun changement de palette, de contenu métier, de navigation, de structure de données ou de logique fonctionnelle.
+
+**Commits :**
+- `e9833101b30d1ba4e48c4e87a54e69f62747592c` — animations d'entrée et interactions.
+- `2fbcf4e9f06275c040a759ab2722dc33c3fbfde6` — contraste et focus clavier.
+- `a84d0b92de43c59a5d4d0a326c878954d78ce2bd` — contraste des notes de synthèse.
+
+### Preuves et limites
+
+- Relecture GitHub du CSS après chaque écriture : PASS; SHA final du blob `src/app/admin/admin-bento.css` : `526e272212027ff2e7a67ccf5d85b1b4915d6717`.
+- Contrôle structurel local du texte CSS : accolades équilibrées (profondeur finale 0, aucune profondeur négative).
+- Contrastes calculés à partir des tokens CSS : blanc sur vert Admin 6,57:1; jaune sur vert 5,00:1; accent vert sur blanc 6,61:1; texte secondaire sur blanc 6,00:1.
+- Le déploiement Vercel observé reste sur l'ancien commit `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`, état `ERROR`. Aucun déploiement correspondant au commit de finition n'a été trouvé; aucun déploiement n'a été déclenché.
+- Build, TypeScript, lint et recette visuelle navigateur non exécutés. La revue ne prétend donc pas prouver le rendu réel aux largeurs cibles, le comportement des transitions dans Next.js ni l'absence de débordement sur appareil.
+
+**Statut : JAUNE — corrections CSS versionnées et contrôles statiques PASS; validation visuelle et navigateur non acquise.** Le passage au vert exige une prévisualisation réellement accessible, puis la vérification des vues 390 px, 768 px et desktop, du focus clavier et du mode réduction des animations. Aucune migration, écriture Supabase ou modification de configuration n'a été effectuée.
