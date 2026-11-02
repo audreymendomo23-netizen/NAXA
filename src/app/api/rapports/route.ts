@@ -50,6 +50,16 @@ const ADMIN_ACCOUNT_METRICS_LABELS: Record<string, string> = {
   ecritures_comptables: "Écritures comptables",
 };
 
+const ADMIN_SOURCE_LABELS: Record<string, string> = {
+  affectations_professionnelles: "Affectations professionnelles",
+  preparations_prescriptions: "Préparations de prescriptions",
+  audit_pharmacien: "Journal d'audit Pharmacien",
+  controles_comptables: "Contrôles comptables",
+  evenements_comptables: "Événements comptables",
+  periodes_comptables: "Périodes comptables",
+  ecritures_comptables: "Écritures comptables",
+};
+
 
 function csvEscape(value: unknown) {
   const raw = String(value ?? "");
@@ -618,15 +628,7 @@ export async function POST(request: Request) {
   const aiMetrics = buildAiMetrics(stats, rows);
   const ai = await explainWithAi(aiMetrics, profile.role, config.label);
   const adminMissingSources = profile.role === "admin" && stats.sources
-    ? Object.entries(stats.sources as Record<string, boolean>).filter(([, available]) => !available).map(([key]) => ({
-        affectations_professionnelles: "Affectations professionnelles",
-        preparations_prescriptions: "Préparations de prescriptions",
-        audit_pharmacien: "Journal d'audit Pharmacien",
-        controles_comptables: "Contrôles comptables",
-        evenements_comptables: "Événements comptables",
-        periodes_comptables: "Périodes comptables",
-        ecritures_comptables: "Écritures comptables",
-      }[key] ?? key))
+    ? Object.entries(stats.sources as Record<string, boolean>).filter(([, available]) => !available).map(([key]) => ADMIN_SOURCE_LABELS[key] ?? key)
     : [];
   const adminSourcesNote = profile.role !== "admin" ? null : adminMissingSources.length
     ? "Sources non déployées sur cet environnement : " + adminMissingSources.join(", ") + ". Les valeurs correspondantes sont indisponibles, jamais assimilées à zéro."
