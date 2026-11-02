@@ -59,7 +59,57 @@ export async function soumettrePaiementPromoteur(formData: FormData) {
     p_preuve_path: proofPath,
   });
   if (error) {
-    await db.storage.from("preuves-reglements-promoteurs").remove([proofPath]);
+    const bucket = db.storage.from("preuves-reglements-promoteurs");
+    let proofRemoved = false;
+    let cleanupFailure = false;
+
+    // Compensation contrôlée : deux tentatives de suppression, puis lecture du
+    // dossier pour vérifier l'absence réelle de l'objet (pas seulement l'absence d'erreur).
+    for (let attempt = 0; attempt < 2 && !proofRemoved; attempt += 1) {
+      try {
+        const { error: removeError } = await bucket.remove([proofPath]);
+        if (removeError) cleanupFailure = true;
+        const folder = proofPath.slice(0, proofPath.lastIndexOf("/"));
+        const filename = proofPath.slice(proofPath.lastIndexOf("/") + 1);
+        const { data: remaining, error: listError } = await bucket.list(folder, {
+          search: filename,
+          limit: 10,
+        });
+        if (!listError && !(remaining ?? []).some(file => file.name === filename)) {
+          proofRemoved = true;
+        } else if (listError) {
+          cleanupFailure = true;
+        }
+      } catch {
+        cleanupFailure = true;
+      }
+    }
+
+    if (!proofRemoved) {
+      // Trace durable pour l'Administration lorsque la compensation Storage échoue.
+      const { error: journalError } = await db.from("journal_admin").insert({
+        admin_profile_id: null,
+        action: "reglement_preuve_orpheline",
+        cible_type: "promoteur",
+        cible_id: user.id,
+        motif: "Nettoyage Storage non confirmé après refus de la soumission du règlement",
+        detail: {
+          bucket: "preuves-reglements-promoteurs",
+          storage_path: proofPath,
+          rpc_error_code: error.code ?? "unknown",
+          cleanup_error_observed: cleanupFailure,
+        },
+      });
+      if (journalError) {
+        console.error("[promoteur-payment] orphan-proof audit failed", {
+          promoteurId: user.id,
+          rpcErrorCode: error.code ?? "unknown",
+          journalErrorCode: journalError.code ?? "unknown",
+        });
+      }
+      redirect("/promoteur/paiements?erreur=nettoyage_preuve");
+    }
+
     const message = error.message.toLowerCase();
     const code = message.includes("attente") ? "deja_attente" : message.includes("montant") ? "montant" : "soumission";
     redirect("/promoteur/paiements?erreur=" + code);
