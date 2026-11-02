@@ -89,3 +89,27 @@ La correspondance de navigation est basée sur l'égalité exacte `pathname === 
 - Aucun déploiement déclenché.
 - Aucune migration ni écriture Supabase effectuée pendant cette cartographie.
 - Aucun test navigateur ou test automatisé n'est déclaré exécuté.
+
+---
+
+## Addendum — rapprochement du HEAD main (02 novembre 2026)
+
+La cartographie ci-dessus demeure une photographie datée du 26 octobre 2026, où 18 fichiers de page avaient été recensés. Le contrôle récursif du HEAD main du 2 novembre trouve **19 fichiers page.tsx** sous src/app/admin/ et confirme toujours **12 entrées** dans AdminNavigation.tsx.
+
+La 19e route à intégrer au registre est :
+
+| # courant | Route | Fichier | Fonction / accès | Navigation |
+|---:|---|---|---|---|
+| 19 | /admin/pilotage/reglements | src/app/admin/pilotage/reglements/page.tsx | Vérification des règlements Promoteur en attente, consultation de l’historique, affichage des preuves privées et actions de confirmation/contestation. | Lien direct depuis /admin/pilotage/validite (« Gérer les règlements manuels »); pas d’entrée latérale dédiée. |
+
+Cette route n’est donc pas orpheline : sa page parente Validité fournit un lien explicite vers elle. Son absence de la cartographie initiale était un défaut d’inventaire, pas un défaut d’accès.
+
+### État de couverture corrigé
+
+- Pages route détectées au HEAD du 02/11 : **19**.
+- Entrées de navigation latérale : **12**.
+- Route /admin/pilotage/reglements : recensée et accès parent identifié.
+- Pages uniques / sous-routes : les fichiers de page restent un décompte technique; ils ne représentent pas nécessairement 19 fonctionnalités métier indépendantes.
+- Revue visuelle de l’étape 12 du cahier principal : elle porte sur 18 pages dans son état documenté; la route règlements n’est pas explicitement incluse dans cette preuve visuelle. Son rendu et ses interactions restent à valider dans l’application.
+
+Aucun changement de navigation n’est nécessaire pour corriger l’inventaire. Aucun lien entrant ne doit être inventé : le lien réel depuis la page Validité a été relu dans src/app/admin/pilotage/validite/page.tsx.
