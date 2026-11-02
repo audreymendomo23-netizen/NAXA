@@ -3,8 +3,7 @@ import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 import { soumettrePaiementPromoteur } from "./actions";
 
 const LABEL: Record<string, string> = {
-  especes: "Espèces", orange_money: "Orange Money", mtn_momo: "MTN Mobile Money",
-  virement: "Virement bancaire", depot_bancaire: "Dépôt bancaire", autre: "Autre",
+  orange_money: "Orange Money", mtn_momo: "MTN Mobile Money", virement: "Virement bancaire",
 };
 const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
 const dt = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
@@ -17,10 +16,13 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
   if (profile?.role !== "promoteur") return <main className="mx-auto max-w-2xl p-4"><section className="rounded-2xl bg-white p-5">Cette page est réservée à l’espace Promoteur.</section></main>;
 
   const db = supabaseAdmin();
-  const [{ data: rows, error }, { data: subscription, error: subscriptionError }] = await Promise.all([
+  const [{ data: rows, error }, { data: subscription, error: subscriptionError }, { data: destinationsRows, error: destinationsError }] = await Promise.all([
     db.from("abonnement_promoteur_reglements").select("id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_du,periode_au,created_at,confirme_le,preuve_path,motif_contestation").eq("promoteur_id", user.id).order("created_at", { ascending: false }).limit(100),
     db.from("abonnements_promoteurs").select("echeance,statut,montant_mensuel").eq("promoteur_id", user.id).maybeSingle(),
+    db.from("naxa_payment_destinations").select("canal,beneficiaire,reference_destination,instructions,actif").eq("actif", true),
   ]);
+  const destinations = new Map((destinationsRows ?? []).map((row) => [row.canal, row]));
+  const destinationsReady = ["orange_money", "mtn_momo", "virement"].some((canal) => destinations.has(canal));
   const proofLinks = new Map<string, string>();
   const proofErrors = new Set<string>();
   await Promise.all((rows ?? []).map(async r => {
@@ -29,9 +31,11 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
     else if (proofError) proofErrors.add(r.id);
   }));
   const pending = !error && (rows ?? []).some(r => r.statut === "en_attente");
+  const destinationsAvailable = !destinationsError && destinationsReady;
   const errors: Record<string, string> = {
     champs: "Vérifiez le montant et le canal de paiement.",
-    canal: "Précisez le canal utilisé.",
+    canal: "Précisez un canal configuré par NAXA.",
+    reference: "La référence de transaction ou de virement est obligatoire.",
     compte: "Le numéro de compte bancaire ou le numéro Orange Money / Mobile Money ayant effectué le paiement est obligatoire.",
     date: "Indiquez la date réelle du paiement. Elle ne peut pas être future.",
     preuve: "Joignez une preuve de paiement de 25 Mo maximum.",
@@ -54,17 +58,20 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
     {subscriptionError && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Les informations de votre abonnement n’ont pas pu être chargées. Aucun montant ne sera présumé : réessayez avant de soumettre un règlement.</p>}
 
     <section className="rounded-3xl bg-white p-4 sm:p-5">
-      <h2 className="text-lg font-extrabold">Déclarer un paiement effectué</h2>
-      <p className="mt-1 text-sm text-slate-600">Le paiement se fait directement par votre banque, Orange Money ou Mobile Money. NAXA ne débite pas votre compte depuis cette page.</p>
-      {error || subscriptionError ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">La déclaration est temporairement désactivée car les données nécessaires n’ont pas pu être vérifiées.</p> : pending ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Un paiement est déjà en cours de vérification. Vous pourrez soumettre une nouvelle déclaration après son traitement.</p> : !subscription?.montant_mensuel ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Votre abonnement ou son tarif mensuel n’est pas configuré. Contactez l’administrateur avant tout règlement.</p> : <form action={soumettrePaiementPromoteur} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
+      <h2 className="text-lg font-extrabold">1. Effectuer le paiement externe</h2>
+      <p className="mt-1 text-sm text-slate-600">NAXA ne débite pas votre compte. Utilisez uniquement les coordonnées administrées ci-dessous ; payez le montant exact de votre abonnement.</p>
+      {destinationsError && <p role="alert" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Les destinations de paiement ne peuvent pas être chargées. Ne procédez à aucun paiement avant leur rétablissement.</p>}
+      {!destinationsError && <div className="mt-3 grid gap-3 sm:grid-cols-3">{["orange_money", "mtn_momo", "virement"].map((canal) => { const d = destinations.get(canal); return <article key={canal} className="rounded-xl border border-slate-200 p-3"><p className="font-bold">{LABEL[canal]}</p>{d ? <>{<p className="mt-2 text-xs text-slate-500">Bénéficiaire</p>}<p className="font-semibold">{d.beneficiaire}</p><p className="mt-2 text-xs text-slate-500">{canal === "virement" ? "Compte bancaire" : "Code marchand"}</p><p className="break-all font-bold">{d.reference_destination}</p>{d.instructions && <p className="mt-2 text-xs text-slate-600">{d.instructions}</p>}</> : <p className="mt-2 text-sm text-amber-800">Destination non configurée par NAXA.</p>}</article>; })}</div>}
+      <h2 className="mt-6 text-lg font-extrabold">2. Déclarer le paiement effectué</h2>
+      <p className="mt-1 text-sm text-slate-600">Après paiement, saisissez la référence reçue, le numéro utilisé et la date réelle de la transaction.</p>
+      {error || subscriptionError ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">La déclaration est temporairement désactivée car les données nécessaires n’ont pas pu être vérifiées.</p> : pending ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Un paiement est déjà en cours de vérification. Vous pourrez soumettre une nouvelle déclaration après son traitement.</p> : !subscription?.montant_mensuel ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Votre abonnement ou son tarif mensuel n’est pas configuré. Contactez l’administrateur avant tout règlement.</p> : !destinationsAvailable ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Aucun canal de paiement n’est configuré. Contactez NAXA ; ne payez pas sur une ancienne destination.</p> : <form action={soumettrePaiementPromoteur} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-semibold">Montant payé (FCFA)<input required type="number" name="montant" min="1" step="1" inputMode="numeric" defaultValue={subscription?.montant_mensuel ?? ""} className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
-        <label className="grid gap-1 text-sm font-semibold">Canal de paiement<select required name="canal" defaultValue="orange_money" className="min-h-11 rounded-xl border border-slate-300 px-3"><option value="orange_money">Orange Money</option><option value="mtn_momo">MTN Mobile Money</option><option value="virement">Virement bancaire</option><option value="depot_bancaire">Dépôt bancaire</option><option value="especes">Espèces</option><option value="autre">Autre</option></select></label>
-        <label className="grid gap-1 text-sm font-semibold">Précision si « Autre »<input name="canal_autre" maxLength={80} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="Autre canal"/></label>
+        <label className="grid gap-1 text-sm font-semibold">Canal de paiement<select required name="canal" defaultValue="orange_money" className="min-h-11 rounded-xl border border-slate-300 px-3">{["orange_money", "mtn_momo", "virement"].filter((canal) => destinations.has(canal)).map((canal) => <option key={canal} value={canal}>{LABEL[canal]}</option>)}</select></label>
         <label className="grid gap-1 text-sm font-semibold">Compte / numéro ayant effectué le paiement<input required name="compte_payeur" maxLength={120} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="N° Orange Money, MoMo ou compte bancaire"/></label>
-        <label className="grid gap-1 text-sm font-semibold">Référence de transaction<input name="reference" maxLength={160} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="Référence fournie par l’opérateur / la banque"/></label>
+        <label className="grid gap-1 text-sm font-semibold">Référence de transaction / virement<input required name="reference" minLength={3} maxLength={160} className="min-h-11 rounded-xl border border-slate-300 px-3" placeholder="Identifiant MTN/Orange ou référence bancaire"/></label>
         <label className="grid gap-1 text-sm font-semibold">Date et heure du paiement<input required type="datetime-local" name="paye_le" className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
         <label className="grid gap-1 text-sm font-semibold sm:col-span-2">Preuve du paiement — photo, PDF ou vidéo (25 Mo maximum)<input required type="file" name="preuve" accept="application/pdf,image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" capture="environment" className="min-h-11 rounded-xl border border-slate-300 p-2"/><span className="text-xs font-normal text-slate-500">Vous pouvez joindre une capture, un document ou une vidéo filmée depuis votre téléphone.</span></label>
-        <button className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white sm:col-span-2">Soumettre le paiement à l’administrateur</button>
+        <button className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white sm:col-span-2">Paiement effectué — transmettre ma déclaration</button>
       </form>}
     </section>
 
