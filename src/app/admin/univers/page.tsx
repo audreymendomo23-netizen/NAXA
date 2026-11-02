@@ -24,7 +24,7 @@ export default async function AdminUnivers({ searchParams }: { searchParams: { o
     sb.from("suivi_professionals").select("user_id,professional_role,display_name,verified,created_at").order("created_at", { ascending: false }),
     sb.from("admin_partner_dossiers").select("partner_id,dossier_status,universe_slug"),
   ]);
-  const missing = !!(u.error || f.error || p.error || a.error || t.error || logs.error || productsResult.error || suiviPros.error);
+  const missing = !!(u.error || f.error || p.error || a.error || t.error || logs.error || productsResult.error || suiviPros.error || partnerDossiersResult.error);
   const dossierPartnerIds = new Set((partnerDossiersResult.data ?? []).map((item) => item.partner_id));
   const dossiersEnAttente = (partnerDossiersResult.data ?? []).filter((item) => item.dossier_status === "pending").length;
   const universesUnavailable = !!(u.error || f.error);
