@@ -40,12 +40,13 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
     deja_attente: "Un paiement est déjà en attente de vérification. Attendez la réponse de l’administrateur.",
     montant: "Le montant doit correspondre au tarif mensuel de votre convention.",
     soumission: "Le paiement n’a pas pu être soumis. Vérifiez les informations et réessayez.",
+    nettoyage_preuve: "La soumission a été refusée, mais le nettoyage automatique de la preuve n’a pas pu être confirmé. L’incident a été consigné pour traitement administratif ; ne renvoyez pas le même paiement avant vérification.",
   };
 
   return <main className="min-h-screen bg-[#F4F8F5] px-4 py-6"><div className="mx-auto max-w-3xl space-y-4">
     <header className="rounded-3xl bg-[#0B3D26] p-5 text-white"><p className="text-xs uppercase tracking-[.18em] text-white/70">NAXA · Espace Promoteur</p><h1 className="mt-1 text-2xl font-black">Mon abonnement et mes paiements</h1><p className="mt-2 text-sm text-white/85">Payez par votre canal habituel, puis déclarez les références et transmettez votre preuve. L’administrateur vérifie l’encaissement avant tout renouvellement.</p></header>
 
-    <section className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">État de l’abonnement</p><p className="mt-1 text-lg font-extrabold">{subscription?.statut === "actif" ? "Actif" : "À régulariser / en vérification"}</p><p className="mt-1 text-sm text-slate-600">Prochaine échéance : {subscription?.echeance ?? "Non configurée"} · Tarif mensuel : {subscription?.montant_mensuel ? money(subscription.montant_mensuel) : "Non configuré"}</p><p className="mt-2 text-xs text-slate-500">Après validation administrative, la prochaine échéance est calculée à 31 jours à compter de la date de validation.</p></section>
+    <section className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">État de l’abonnement</p><p className="mt-1 text-lg font-extrabold">{subscription?.statut === "actif" ? "Actif" : "À régulariser / en vérification"}</p><p className="mt-1 text-sm text-slate-600">Prochaine échéance : {subscription?.echeance ?? "Non configurée"} · Tarif mensuel : {subscription?.montant_mensuel ? money(subscription.montant_mensuel) : "Non configuré"}</p><p className="mt-2 text-xs text-slate-500">Après validation administrative, la prochaine échéance est calculée sur un mois calendaire à compter de la date de validation.</p></section>
 
     {searchParams?.ok === "soumis" && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">Votre paiement a été transmis à l’administrateur. Le renouvellement interviendra uniquement après vérification de l’encaissement.</p>}
     {searchParams?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur] ?? "Une erreur est survenue."}</p>}
