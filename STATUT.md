@@ -14,9 +14,9 @@
 
 ## Dernière passe — ADM-EXAM-03, ADM-SERVICES-02/03 et clôture de l'étape 14 (02/11/2026)
 
-- **ADM-EXAM-03 : 🟢 CONSTRUCTION VERTE / Replay validé.** La migration `20261102023000_admin_active_read_policies.sql` aligne la lecture Admin des tickets d'examens sur `public.is_admin()`.
+- **ADM-EXAM-03 : 🟢 CONSTRUCTION VERTE / Replay validé.** La migration `20261102032259_admin_active_read_policies.sql` aligne la lecture Admin des tickets d'examens sur `public.is_admin()`.
 - **ADM-SERVICES-02 : 🟢 CONSTRUCTION VERTE / Replay validé.** La même migration aligne la lecture Admin des demandes domicile et conserve les règles de lecture Client propriétaire et partenaire.
-- **ADM-SERVICES-03 : 🟢 CONSTRUCTION VERTE / Replay validé.** La migration `20261102031000_admin_active_home_services_guards.sql` aligne la mutation Admin des offres et la branche Admin de `transition_home_service_request` sur `public.is_admin()`; les transitions Client et partenaire restent conservées.
+- **ADM-SERVICES-03 : 🟢 CONSTRUCTION VERTE / Replay validé.** La migration `20261102032304_admin_active_home_services_guards.sql` aligne la mutation Admin des offres et la branche Admin de `transition_home_service_request` sur `public.is_admin()`; les transitions Client et partenaire restent conservées.
 - **Test 269 : PASS — 31 assertions** exécutées sur le projet isolé `naxa-ci-replay-2`. Matrice : Admin actif/inactif, Client propriétaire/tiers, membre partenaire, anonyme, lecture, modification d'offre, transitions et journalisation. Les identités et données de test sont dans une transaction terminée par `ROLLBACK`.
 - **Historique Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`. Script reproductible : `supabase/tests/269_admin_exam_services_active_guards.sql`.
 - **Production : non corrigée à ce stade.** Le projet `Naxa` conserve l'historique jusqu'à `20261101213620`, les anciennes politiques role-only et l'ancienne branche Admin RPC. Aucune migration/écriture Production n'a été effectuée, conformément au périmètre de l'audit. Ne pas assimiler le vert Replay à un vert Production.
