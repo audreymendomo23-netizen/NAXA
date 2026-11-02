@@ -603,10 +603,10 @@ export async function POST(request: Request) {
     stats.duree_services_heures = Math.round(serviceRows.reduce((sum, s) => sum + s.duree_heures, 0) * 100) / 100;
     stats.details_services = serviceRows.sort((a, b) => b.debut.localeCompare(a.debut));
   } else {
-    stats.services_pointes = 0;
-    stats.services_clotures = 0;
-    stats.services_ouverts = 0;
-    stats.duree_services_heures = 0;
+    stats.services_pointes = profile.role === "admin" ? null : 0;
+    stats.services_clotures = profile.role === "admin" ? null : 0;
+    stats.services_ouverts = profile.role === "admin" ? null : 0;
+    stats.duree_services_heures = profile.role === "admin" ? null : 0;
     stats.details_services = [];
   }
 
