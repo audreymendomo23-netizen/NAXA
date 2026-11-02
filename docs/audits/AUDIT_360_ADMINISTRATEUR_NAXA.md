@@ -3555,3 +3555,47 @@ Le fondateur a confirmé que les cases « documents reçus » sont informatives 
 - **Non exécuté :** `npm test`, build/typecheck et exécution SQL de la migration/test. La migration n'a pas été appliquée à Supabase Production.
 
 **Statut :** source et contrat de test corrigés sur `main`; vérification statique PASS. Runtime/SQL non certifiés.
+
+
+---
+
+## Addendum de réconciliation — arbitrages du 02/11/2026 et sources actuelles
+
+Les décisions détaillées sont consignées dans [docs/DECISIONS_METIER_CONFIRMEES_2026-11-02.md](../DECISIONS_METIER_CONFIRMEES_2026-11-02.md). Cet addendum corrige les constats historiques qui ne décrivent plus exactement la source actuelle.
+
+### États persistants de préparation
+
+- La migration source `supabase/migrations/20261027030000_sm01_reservations_disciplinaire_et_garde_rpc.sql` ajoute `preparation_statut`, `preparation_demarre_le` et `prete_au_retrait_le`, avec une RPC serveur dédiée.
+- La page actuelle `src/app/pharmacie/gestionnaire-stock/reservations/page.tsx` affiche et fait évoluer `en_preparation` puis `prete_au_retrait`.
+- L'action `marquerPreparationReservationGestionStock` appelle cette RPC. La phase physique n'est donc plus seulement déduite du statut `confirmee`.
+- Cette preuve est une présence source ; elle ne remplace pas un test runtime de migration, transitions, RLS et non-régression.
+
+### SM-01 et suspension complète
+
+- La décision du 02/11 confirme SM-01 comme blocage Marketplace du Promoteur et des pharmacies liées, tout en conservant les opérations ERP internes autorisées.
+- La décision distincte de suspension complète d'une pharmacie annule toutes les réservations non retirées et informe les Clients.
+- Le trigger SM-01 actuel annule les réservations non payées ciblées en attente/en préparation et préserve les dossiers prêts au retrait, payés ou retirés. Il ne démontre donc pas à lui seul la nouvelle règle de suspension complète.
+- Le traitement des réservations déjà payées mais non retirées doit être conçu séparément : paiement déjà encaissé par la pharmacie, remboursement éventuel et restauration exacte du stock. Aucun remboursement ne doit être simulé ni effectué par NAXA, qui ne collecte pas le paiement des médicaments.
+
+### Cases documentaires pharmacie
+
+- Les cases de réception sont informatives.
+- Le code actuel `src/app/admin/promoteurs/actions.ts` contrôle séparément les vrais fichiers de chaque type requis et leur statut de validation avant d'appeler la RPC de validation du dossier.
+- Il faut préserver cette distinction entre déclaration de réception et justificatif réel vérifié.
+
+### KPI Admin et alertes
+
+- `src/app/admin/page.tsx` et `src/app/admin/layout.tsx` excluent déjà les pharmacies reconnues comme démo par `isDemoPharmacy`.
+- `src/lib/admin/is-demo-pharmacy.ts` utilise un motif de nom ; la robustesse de cette détection pour tous les enregistrements de démonstration reste à vérifier.
+- Les compteurs agrègent des signaux (stocks sans horodatage, pharmacies inactives/masquées et échéances). Ils ne dédupliquent pas les dossiers, ce qui correspond à la décision du fondateur du 02/11.
+
+### Crédit Marketplace et synchronisation hors ligne — contradictions actuelles à corriger
+
+- La migration `supabase/migration_251_credit_hold_no_physical_decrement.sql` formalise un hold Marketplace sans décrément physique ; le contrat de test `supabase/tests/247_credit_marketplace_stock_contract.sql` vérifie explicitement cette règle.
+- La nouvelle décision du 02/11 impose le décrément physique dès la validation du crédit. Le chemin d'approbation doit être adapté sans double débit à la préparation, la vente ou au retrait, et sans casser les réservations Marketplace ordinaires.
+- La migration `supabase/migration_220_offline_device_sync_contract.sql` compare `stocks.updated_at` à `base_updated_at` et marque un conflit au lieu de choisir automatiquement le dernier horodatage.
+- La nouvelle règle LWW exige un contrat de chronologie persistant et fiable, commun aux modifications en ligne et hors ligne, plus un journal de la valeur perdante. Ne pas faire confiance naïvement à l'horloge du téléphone et ne pas écraser les mouvements append-only.
+
+### Statut de vérification de cet addendum
+
+Lecture des sources versionnées de `main` uniquement. Aucun test SQL, build, test navigateur, appel RPC métier, changement Supabase Production ni déploiement n'a été effectué dans cette réconciliation documentaire.
