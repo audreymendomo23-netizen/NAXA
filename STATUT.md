@@ -1,8 +1,18 @@
+## Ratissage de cohérence Admin — mise à jour finale de la source (02/11/2026)
+
+- **Files manquantes désormais construites :** /admin/prestations/demandes et /admin/pilotage/reservations, toutes deux en lecture seule, sous requireAdminActive, reliées depuis les pages Prestations et Pilotage.
+- **Minimisation des données :** demandes domicile sans adresse exacte, téléphone ou note client; réservations sans code/référence de paiement, téléphone ou adresse de livraison; aucune mutation métier ou financière.
+- **Tests de contrat :** scripts/test-admin-queues.cjs et scripts/test-admin-messagerie.cjs; npm test agrège les huit scripts Node. Vérification statique des contrats effectuée via connecteur, mais pas d'exécution du runner Node.
+- **Cartographie :** 21 routes Admin, 12 entrées latérales. RLS Production de lecture confirmée pour demandes domicile, réservations, lignes et événements.
+- **Statut :** 🟡 source corrigée; la seule preuve qui manque dans ce lot est l'exécution CI des contrôles et la recette dans l'application. Aucun déploiement ni écriture Production.
+- Détails et SHA : docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md.
+
+---
 ## Ratissage de cohérence Admin — 02/11/2026
 
 - Messagerie Admin : optimisation appliquée; le fil de messages est chargé uniquement pour le ticket sélectionné. Le GET et le POST partagent le garde strict Admin actif. Commits code : 6270b797e428b503bdbb07b87742d1109972fdf7, 26a200213f69f7a670cbf6abd72b06aab2885365, 89fde66e2dc5601f01ddf8363f3da33c82a6b111 et ee9168fbc52c1b419f4174584dceee97582e198e.
 - Les anciens constats ALT-01, MSG-02, SEC-MSG-01/PRE-039 et PROM-02 sont rectifiés : le code courant affiche l’indisponibilité à la place de faux zéros, aligne la limite UI/API à 2 000 caractères et exige actif=true sur l’API messagerie.
-- Cartographie Admin recalée : 19 fichiers page.tsx et 12 entrées latérales. La route /admin/pilotage/reglements est liée depuis /admin/pilotage/validite et a été ajoutée au complément cartographique.
+- Cartographie Admin recalée au HEAD après corrections : 21 fichiers page.tsx et 12 entrées latérales. Les routes /admin/pilotage/reglements, /admin/prestations/demandes et /admin/pilotage/reservations sont reliées depuis leurs écrans parents.
 - Le détail des preuves, réserves et SHA est consigné dans docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md et docs/audits/AUDIT_DETAILLE_ADMIN_ALERTES_JOURNAL_MESSAGERIE_2026-10-26.md.
 - Aucun build, lint, typecheck, test HTTP sous JWT réel, navigateur ou CI n’a été exécuté dans cette passe. Aucun déploiement n’a été déclenché.
 
@@ -29,7 +39,7 @@
 - **Test 269 : PASS — 31 assertions** exécutées sur le projet isolé `naxa-ci-replay-2`. Matrice : Admin actif/inactif, Client propriétaire/tiers, membre partenaire, anonyme, lecture, modification d'offre, transitions et journalisation. Les identités et données de test sont dans une transaction terminée par `ROLLBACK`.
 - **Historique Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`. Script reproductible : `supabase/tests/269_admin_exam_services_active_guards.sql`.
 - **Production — état historique avant application du 02/11/2026 :** la mention « non corrigée à ce stade » décrit l’état antérieur aux migrations Production ci-dessus et ne constitue plus le statut courant. Les versions 20261102032259 et 20261102032304 ont depuis été appliquées et vérifiées par relecture des politiques/RPC.
-- **Étape 14 : 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DE LA REVUE ET DES CONTRÔLES ISOLÉS.** Les files Admin détaillées des demandes domicile (`ADM-SERVICES-01`) et des réservations Marketplace (`ADM-MKT-01`) restent des constats fonctionnels indépendants et ouverts.
+- **Étape 14 : 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DE LA REVUE ET DES CONTRÔLES SQL DISPONIBLES.** Les anciennes absences de files Admin domicile (`ADM-SERVICES-01`) et Marketplace (`ADM-MKT-01`) sont corrigées dans la source par les routes `/admin/prestations/demandes` et `/admin/pilotage/reservations`; elles restent 🟡 jusqu'à exécution CI et recette navigateur.
 - Build, lint, typecheck, test HTTP avec vrais JWT et recette navigateur non exécutés. Aucun déploiement ni workflow n'a été déclenché.
 - Cahier de suivi : `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
 
