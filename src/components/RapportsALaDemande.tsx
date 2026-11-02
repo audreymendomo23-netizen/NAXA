@@ -73,7 +73,13 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
   const shellClass = variant === "admin" ? "rounded-3xl border border-[#0147BB]/15 bg-white p-5 shadow-sm" : variant === "stock" ? "rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm" : variant === "pharmacien" ? "carte space-y-4" : "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm";
   const titleClass = variant === "admin" ? "text-[#0147BB]" : variant === "stock" ? "text-emerald-800" : "text-naxa-green-900";
   const primaryButtonClass = variant === "admin" ? "bg-[#0147BB]" : variant === "stock" ? "bg-[#0B3D26]" : "bg-naxa-green-900";
-  const summaryRows = rapport?.indicateurs.filter(row => !row.indicateur.startsWith("Détail ")) ?? [];
+  const summaryRows = rapport?.indicateurs.filter(row =>
+    !row.indicateur.startsWith("Détail ") &&
+    !row.indicateur.startsWith("Comptes globaux ·") &&
+    !row.indicateur.startsWith("Partenaires Marketplace ·")
+  ) ?? [];
+  const accountRows = rapport?.indicateurs.filter(row => row.indicateur.startsWith("Comptes globaux ·")) ?? [];
+  const partnerRows = rapport?.indicateurs.filter(row => row.indicateur.startsWith("Partenaires Marketplace ·")) ?? [];
   const pharmacyRows = rapport?.indicateurs.filter(row => row.indicateur.startsWith("Détail pharmacie ·")) ?? [];
   const promoterRows = rapport?.indicateurs.filter(row => row.indicateur.startsWith("Détail Promoteur ·")) ?? [];
 
@@ -101,6 +107,24 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {summaryRows.map((row) => <article key={row.indicateur} className="rounded-xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{row.indicateur}</p><p className="mt-1 break-words text-lg font-black">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</p></article>)}
         </div>
+        {accountRows.length > 0 && <details className="rounded-xl border border-slate-200 p-3">
+          <summary className="cursor-pointer font-bold">Répartition globale des comptes ({accountRows.length} lignes)</summary>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-2">Type / fonction / état</th><th className="p-2 text-right">Nombre</th></tr></thead>
+              <tbody>{accountRows.map(row => <tr key={row.indicateur} className="border-t border-slate-100"><td className="p-2">{row.indicateur.replace("Comptes globaux · ", "")}</td><td className="p-2 text-right font-semibold">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </details>}
+        {partnerRows.length > 0 && <details className="rounded-xl border border-slate-200 p-3">
+          <summary className="cursor-pointer font-bold">Répartition des partenaires Marketplace ({partnerRows.length} lignes)</summary>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-2">Type / statut</th><th className="p-2 text-right">Nombre</th></tr></thead>
+              <tbody>{partnerRows.map(row => <tr key={row.indicateur} className="border-t border-slate-100"><td className="p-2">{row.indicateur.replace("Partenaires Marketplace · ", "")}</td><td className="p-2 text-right font-semibold">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </details>}
         {pharmacyRows.length > 0 && <details className="rounded-xl border border-slate-200 p-3">
           <summary className="cursor-pointer font-bold">Ventilation détaillée par pharmacie ({pharmacyRows.length} lignes)</summary>
           <div className="mt-3 overflow-x-auto">
