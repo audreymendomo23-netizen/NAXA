@@ -1,0 +1,64 @@
+# Contrôles de qualité NAXA — aucun job de déploiement.
+# Exécution manuelle/API uniquement; la CI est regroupée à la fin des lots.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
+    - when: never
+
+stages:
+  - quality
+  - unit
+  - build
+
+default:
+  image: node:20-bookworm
+  interruptible: true
+  cache:
+    key:
+      files:
+        - package.json
+    paths:
+      - .npm/
+
+.install:
+  before_script:
+    - npm install --cache .npm --prefer-offline
+
+typecheck:
+  extends: .install
+  stage: quality
+  needs: []
+  script:
+    - npx tsc --noEmit
+
+lint:
+  extends: .install
+  stage: quality
+  needs: []
+  script:
+    - npm run lint
+
+dependency_audit:
+  extends: .install
+  stage: quality
+  needs: []
+  script:
+    - npm audit --omit=dev --audit-level=high
+
+unit_tests:
+  extends: .install
+  stage: unit
+  needs: []
+  script:
+    - npm test
+
+build:
+  extends: .install
+  stage: build
+  needs: []
+  variables:
+    NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+    SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+  script:
+    - npm run build
