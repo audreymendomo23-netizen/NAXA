@@ -362,3 +362,16 @@ Dans `src/app/pharmacie/caisses/page.tsx`, la page affichait l'état vide si la 
 
 ---
 
+
+
+---
+
+## Mise à jour métier et correction — début de la période à la confirmation réelle (02/11/2026)
+
+Le choix du fondateur prévoit que la nouvelle période commence à la date réelle de confirmation du paiement. L'ancienne fonction active dans le dépôt (`20261027090000_safe_promoter_payment_reactivation_scope.sql`) utilisait `greatest(date locale de confirmation, a.echeance + 1)`, donc un paiement confirmé avant l'échéance était porté après l'ancienne échéance.
+
+**Correction source sur main :** migration additive `supabase/migrations/20261102115000_promoteur_subscription_period_starts_on_confirmation.sql` remplace le calcul par `(now() at time zone 'Africa/Douala')::date`. La fin reste `début + 1 mois - 1 jour`. La date transactionnelle `paye_le` reste distincte de `confirme_le` et de la période contractuelle. Les verrous, le contrôle Admin, l'idempotence, la protection des résiliations, l'absence de réactivation générale et les ACL service_role uniquement sont conservés.
+
+**Preuves préparées :** `supabase/tests/20261102115000_promoteur_subscription_period_starts_on_confirmation.sql` et `scripts/test-promoter-payment-period-start.cjs`. Le test Node a été ajouté au motif `npm test`; aucun test Node/SQL runtime, build ou typecheck n'a été exécuté dans cette passe. La migration n'a pas été appliquée à Supabase Production.
+
+**Réserve :** l'interface et les tables sont encore mensuelles (`montant_mensuel`, renouvellement de 1 mois). Le choix annuel est consigné, mais aucun montant annuel ni champ de périodicité n'existe encore dans le contrat actuel. Construire cette extension de façon additive ; ne pas accepter une déclaration annuelle tant que le montant annuel convenu et l'enregistrement de la durée de 12 mois ne sont pas correctement gérés.
