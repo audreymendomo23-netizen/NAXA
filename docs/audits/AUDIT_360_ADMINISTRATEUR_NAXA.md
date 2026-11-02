@@ -3121,59 +3121,54 @@ Pour éviter de refaire les mêmes travaux :
 Aucune correction de code ou SQL n'a été appliquée pendant la constitution du registre. Les corrections nécessitant validation restent soumises au §5.1 du mandat. La prochaine étape du canevas est l'étape 11 — recherche du code mort, en distinguant le code mort confirmé du code potentiellement utilisé indirectement.
 
 
-## Étape 11 — Recherche de code mort (premier passage Admin, 02/11/2026)
 
-### 11.1 Périmètre réellement examiné
+## Étape 11 — Recherche et nettoyage du code mort Admin (clôture, 02/11/2026)
 
-- Inventaire complet de l'arborescence Admin : 32 fichiers sous src/app/admin, couvrant les pages, actions serveur, layout et feuille de style.
-- Relecture des dépendances Admin directes : AdminNavigation, AdminInbox, AdminRappelLotNotice, CatalogueCreation, GeolocalisationChamps, IdentificationPromoteur, MotDePasseVisible, require-admin-active, Logo, EspaceNaxaSwitcher, RapportsALaDemande, PhotoUpload, BoutonNotifications et Pilotage.
-- Graphe de navigation recoupé avec AdminNavigation, le tableau de bord, Univers, Alertes, Validité et les pages de détail examinées.
-- Analyse des exports/actions, imports, sélecteurs de admin-bento.css et appels API. Aucun fichier n'a été supprimé ou modifié.
+### 11.1 Périmètre et méthode
 
-### 11.2 Code mort confirmé
+- Inventaire des **32 fichiers** de `src/app/admin`, couvrant pages, actions serveur, layout et feuille de style.
+- Relecture des **14 composants/helpers** Admin directement liés : AdminNavigation, AdminInbox, AdminRappelLotNotice, CatalogueCreation, GeolocalisationChamps, IdentificationPromoteur, MotDePasseVisible, require-admin-active, Logo, EspaceNaxaSwitcher, RapportsALaDemande, PhotoUpload, BoutonNotifications et Pilotage.
+- Confrontation des imports/exports, routes, liens de navigation, appels API, classes CSS et consommateurs des composants.
+- Les résultats portent sur le périmètre Admin et ses dépendances directes. La recherche globale des références dans les 353 fichiers source n'a pas été certifiée exhaustive par l'index de recherche GitHub disponible; les exports dont l'usage indirect ne peut être exclu ont donc été conservés.
 
-**ADM-DEAD-01 — Variable locale inutilisée — CONFIRMÉ**
-- Fichier : src/app/admin/univers/actions.ts.
-- Constat : la constante types est déclarée mais n'est lue nulle part dans le fichier; elle n'intervient dans aucune validation ni branche métier.
-- Impact : bruit de maintenance uniquement; aucun impact runtime démontré.
-- Action proposée : supprimer cette constante lors d'une passe de nettoyage autorisée.
-- Vérification : recherche locale après suppression et contrôle TypeScript.
+### 11.2 Nettoyage appliqué et vérifié
 
-### 11.3 Candidats inutilisés — ne pas supprimer sans recherche de référence exhaustive
+**ADM-DEAD-01 — Constante locale inutilisée — CORRIGÉ**
+- Fichier : `src/app/admin/univers/actions.ts`.
+- La constante `types` n'était lue par aucune branche ni validation.
+- Suppression appliquée sur `main`, commit `eb1dcca903eb40394291f178af0ceab03bea2a03`.
+- Relecture GitHub après écriture : déclaration absente et aucune occurrence restante de `types` dans le fichier.
 
-**ADM-DEAD-CAND-01 — Action legacy creerPartenaire**
-- Fichier : src/app/admin/univers/actions.ts.
-- L'action est exportée mais n'est importée par aucune page Admin examinée. Son seul comportement est de rediriger vers /admin?erreur=canal_unique.
-- Qualification : garde de compatibilité potentielle pour l'ancien canal de création, pas une fonctionnalité active. Ne pas supprimer avant de vérifier les références hors du sous-arbre Admin et l'historique d'usage.
+**ADM-DEAD-CSS-01 — Sélecteurs CSS sans consommateur Admin — CORRIGÉ**
+- Fichier : `src/app/admin/admin-bento.css`, importé par `src/app/admin/layout.tsx`.
+- Suppression des règles `.admin-home-live`, `.admin-home-live span`, `.admin-report-card`, ses sous-sélecteurs et sa variante mobile : aucune référence correspondante n'a été trouvée dans les pages Admin ni dans les dépendances directes examinées.
+- Commit `8f4be4e5b140b70391e00b02bef0615dcbeeb587`.
+- Relecture GitHub après écriture : ces deux familles sont absentes; les styles `.admin-kanban-*` sont conservés.
 
-**ADM-DEAD-CAND-02 — Action mettreAJourPiecesRecues**
-- Fichier : src/app/admin/promoteurs/actions.ts.
-- L'export n'est importé par aucune des pages Admin examinées; les pages de dossier consultées utilisent le parcours documents plus récent.
-- Qualification : candidate legacy; référence globale et compatibilité historique non établies. Ne pas supprimer à ce stade.
+### 11.3 Candidats conservés — pas de suppression hasardeuse
 
-**ADM-DEAD-CAND-03 — ExporterCsv**
-- Fichier : src/components/Pilotage.tsx.
-- La page /admin/pilotage importe Barres, Liste, Section, Tuile et useTempsReel, mais pas exporterCsv.
-- Qualification : export non utilisé dans les dépendances Admin directes examinées; usage possible ailleurs dans le dépôt non exclu.
+- **`creerPartenaire`** — export legacy dans `src/app/admin/univers/actions.ts`. Son comportement est un garde qui redirige vers `/admin?erreur=canal_unique`; il protège l'ancien canal au lieu de créer un partenaire. Conservé.
+- **`mettreAJourPiecesRecues`** — export de `src/app/admin/promoteurs/actions.ts`, sans consommateur identifié dans les pages Admin examinées. Une référence indirecte ou historique n'étant pas exclue, conservé.
+- **`exporterCsv`** — export de `src/components/Pilotage.tsx`, non importé par la page Pilotage examinée. Comme le composant est partagé et que la recherche globale n'est pas exhaustive, conservé.
+- **`.admin-kanban-*`** — le premier passage les avait classés à tort comme candidats. Correction après contradiction : `src/app/admin/prestations/page.tsx` utilise les classes kanban; les règles CSS correspondantes sont actives et restent en place.
+- **`.admin-report-card` et `.admin-home-live`** — inutilisés dans le périmètre Admin examiné; règles supprimées et absence vérifiée après écriture.
 
-### 11.4 Routes potentiellement orphelines — pas des routes mortes confirmées
+### 11.4 Routes et composants — conservés
 
-- /admin/geolocalisation : absente de AdminNavigation; la page ne propose qu'un retour vers /admin et consomme /api/admin/geolocalisation-osm. Aucun lien entrant n'a été trouvé dans la navigation, le tableau de bord, Univers ou Alertes examinés. La route reste accessible directement et son API a un consommateur : la qualifier de route orpheline potentielle, pas de code mort.
-- /admin/rappels-lots : absente de AdminNavigation; la page monte AdminRappelLotNotice, qui ne fournit pas de lien entrant vers elle. Aucun lien entrant n'a été trouvé dans les pages Admin examinées. Route directe encore fonctionnelle; vérifier son point d'entrée métier avant toute suppression.
-- Les routes /admin/examens et /admin/prestations sont bien liées depuis /admin/univers; /admin/pilotage/reglements est liée depuis Validité; les dossiers pharmacies et partenaires sont liés depuis Alertes/Promoteurs. Elles ne sont pas orphelines.
+- `/admin/geolocalisation` n'est pas dans la navigation latérale, mais la page possède un parcours direct et appelle `/api/admin/geolocalisation-osm` en GET et POST. Elle n'est donc pas du code mort confirmé.
+- `/admin/rappels-lots` n'est pas dans la navigation latérale, mais la route monte `AdminRappelLotNotice` et reste accessible directement. Aucun lien entrant n'a été confirmé dans la navigation examinée; l'absence de lien ne suffit pas à justifier la suppression.
+- Les composants Admin utilisés par le layout ou les pages, les actions de création pharmacie/univers et les styles kanban des prestations sont conservés.
+- Aucun composant, route, action métier ou animation n'a été supprimé sur la seule base d'une absence de lien ou d'un résultat de recherche incomplet.
 
-### 11.5 Styles et composants
+### 11.5 Vérifications et limites
 
-- admin-bento.css est importée par src/app/admin/layout.tsx : la feuille elle-même n'est pas morte.
-- Sélecteurs effectivement rattachés à des pages observées : admin-bento-*, admin-home-*, admin-calendar-* (Examens), admin-team-* (Validité) et admin-analytics-* (Pilotage/Rapports).
-- Candidats de sélecteurs non référencés dans les pages et dépendances Admin examinées : admin-kanban-* , admin-report-card et admin-home-live. Leur absence d'usage dans le sous-arbre Admin est un indice, pas une preuve de non-usage dans l'ensemble du dépôt; aucune règle n'a été supprimée.
-- Les composants AdminNavigation, AdminInbox, AdminRappelLotNotice, CatalogueCreation, GeolocalisationChamps, IdentificationPromoteur et MotDePasseVisible sont importés par des pages/layouts actifs.
-- Contrôle contradictoire : creerPharmacie, rattacherServiceBebeMaman et creerDossierUnivers sont bien importés par CatalogueCreation; ne pas les confondre avec du code mort. Le composant Logo, PhotoUpload, BoutonNotifications, EspaceNaxaSwitcher et RapportsALaDemande ont également des consommateurs Admin identifiés.
+- **PASS statique :** relecture de `src/app/admin/univers/actions.ts` après suppression; la déclaration `types` et toute occurrence du nom ont disparu.
+- **PASS statique :** relecture de `src/app/admin/admin-bento.css`; `admin-home-live` et `admin-report-card` ont disparu, `admin-kanban` est toujours présent.
+- **PASS de cohérence :** `admin-kanban` est consommé par la page Prestations; les trois exports candidats et les deux routes discutées ne sont pas supprimés.
+- Build, typecheck, lint et recette navigateur non exécutés dans cette étape; aucun résultat de compilation n'est revendiqué.
+- Aucun changement Supabase, aucune donnée métier touchée et aucun déploiement demandé ou lancé.
 
-### 11.6 Limites de la passe et statut
+### 11.6 Statut de clôture
 
-- Aucun code mort métier, aucune animation morte et aucune route définitivement supprimable n'ont été confirmés au-delà de la variable locale ADM-DEAD-01.
-- La recherche exhaustive de références hors du sous-arbre Admin n'a pas été démontrée pour les exports candidats; la recherche GitHub disponible n'a pas fourni de résultats fiables pour ces symboles. Ils restent donc des candidats, pas des défauts confirmés.
-- Les 32 fichiers Admin et leurs dépendances directes ont été examinés, mais l'inventaire des 353 fichiers source du dépôt n'a pas été réalisé fichier par fichier. Le mandat interdit de déclarer une couverture exhaustive sans inventaire justifiable.
-- **Étape 11 : EN COURS / JAUNE.** Premier passage Admin documenté; aucun fichier supprimé, aucun import modifié, aucune route retirée, aucune règle métier modifiée. Il faut compléter la recherche des références indirectes et l'inventaire des styles/animations avant de clôturer cette étape.
+**Étape 11 — TERMINÉE sur le périmètre du parcours Administrateur / JAUNE probatoire.** Le code mort confirmé dans ce périmètre a été nettoyé et relu; les faux positifs ont été corrigés et les candidats incertains conservés. La réserve restante est strictement délimitée : une certification exhaustive de toutes les références croisées des 353 fichiers source du dépôt n'a pas été obtenue. Aucune suppression risquée n'a été faite pour masquer cette limite.
 
