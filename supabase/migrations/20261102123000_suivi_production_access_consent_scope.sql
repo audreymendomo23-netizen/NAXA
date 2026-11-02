@@ -237,42 +237,58 @@ with check (
   and public.suivi_has_consent(user_id, public.suivi_measurement_family(measurement_type))
 );
 
-drop policy if exists suivi_user_devices_insert_self on public.suivi_user_devices;
-create policy suivi_user_devices_insert_self on public.suivi_user_devices for insert to authenticated
-with check (
-  user_id = (select auth.uid())
-  and public.suivi_is_enabled_user((select auth.uid()))
-  and public.suivi_has_consent(user_id, public.suivi_device_family(device_key))
-);
+-- This table is present in Production but may be absent from older Replay snapshots.
+-- Apply the same active-account guard whenever the device integration schema exists.
+do $device_policies$
+begin
+  if to_regclass('public.suivi_user_devices') is not null then
+    execute 'drop policy if exists suivi_user_devices_insert_self on public.suivi_user_devices';
+    execute $sql$
+      create policy suivi_user_devices_insert_self on public.suivi_user_devices for insert to authenticated
+      with check (
+        user_id = (select auth.uid())
+        and public.suivi_is_enabled_user((select auth.uid()))
+        and public.suivi_has_consent(user_id, public.suivi_device_family(device_key))
+      )
+    $sql$;
 
-drop policy if exists suivi_user_devices_update_self on public.suivi_user_devices;
-create policy suivi_user_devices_update_self on public.suivi_user_devices for update to authenticated
-using (
-  user_id = (select auth.uid())
-  and public.suivi_is_enabled_user((select auth.uid()))
-)
-with check (
-  user_id = (select auth.uid())
-  and public.suivi_is_enabled_user((select auth.uid()))
-  and (
-    active = false
-    or public.suivi_has_consent(user_id, public.suivi_device_family(device_key))
-  )
-);
+    execute 'drop policy if exists suivi_user_devices_update_self on public.suivi_user_devices';
+    execute $sql$
+      create policy suivi_user_devices_update_self on public.suivi_user_devices for update to authenticated
+      using (
+        user_id = (select auth.uid())
+        and public.suivi_is_enabled_user((select auth.uid()))
+      )
+      with check (
+        user_id = (select auth.uid())
+        and public.suivi_is_enabled_user((select auth.uid()))
+        and (
+          active = false
+          or public.suivi_has_consent(user_id, public.suivi_device_family(device_key))
+        )
+      )
+    $sql$;
 
-drop policy if exists suivi_user_devices_select_self on public.suivi_user_devices;
-create policy suivi_user_devices_select_self on public.suivi_user_devices for select to authenticated
-using (
-  user_id = (select auth.uid())
-  and public.suivi_is_enabled_user((select auth.uid()))
-);
+    execute 'drop policy if exists suivi_user_devices_select_self on public.suivi_user_devices';
+    execute $sql$
+      create policy suivi_user_devices_select_self on public.suivi_user_devices for select to authenticated
+      using (
+        user_id = (select auth.uid())
+        and public.suivi_is_enabled_user((select auth.uid()))
+      )
+    $sql$;
 
-drop policy if exists suivi_user_devices_delete_self on public.suivi_user_devices;
-create policy suivi_user_devices_delete_self on public.suivi_user_devices for delete to authenticated
-using (
-  user_id = (select auth.uid())
-  and public.suivi_is_enabled_user((select auth.uid()))
-);
+    execute 'drop policy if exists suivi_user_devices_delete_self on public.suivi_user_devices';
+    execute $sql$
+      create policy suivi_user_devices_delete_self on public.suivi_user_devices for delete to authenticated
+      using (
+        user_id = (select auth.uid())
+        and public.suivi_is_enabled_user((select auth.uid()))
+      )
+    $sql$;
+  end if;
+end;
+$device_policies$;
 
 comment on function public.suivi_is_enabled_user(uuid) is
   'Autorise un utilisateur courant actif au suivi connecté lorsque le drapeau global est actif. Refuse explicitement toute identité étrangère ou absente.';
