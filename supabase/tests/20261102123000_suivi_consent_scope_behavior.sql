@@ -61,13 +61,13 @@ $structure$;
 
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 values
-('00000000-0000-4000-8000-000000012301','authenticated','authenticated','naxa-suivi-owner-a@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
-('00000000-0000-4000-8000-000000012302','authenticated','authenticated','naxa-suivi-owner-b@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
-('00000000-0000-4000-8000-000000012303','authenticated','authenticated','naxa-suivi-owner-c@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
-('00000000-0000-4000-8000-000000012304','authenticated','authenticated','naxa-suivi-owner-d@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
-('00000000-0000-4000-8000-000000012305','authenticated','authenticated','naxa-suivi-professional@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
-('00000000-0000-4000-8000-000000012306','authenticated','authenticated','naxa-suivi-unverified@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
-('00000000-0000-4000-8000-000000012307','authenticated','authenticated','naxa-suivi-inactive-professional@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now());
+('00000000-0000-4000-8000-000000012301','authenticated','authenticated','naxa-suivi-owner-a@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now()),
+('00000000-0000-4000-8000-000000012302','authenticated','authenticated','naxa-suivi-owner-b@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now()),
+('00000000-0000-4000-8000-000000012303','authenticated','authenticated','naxa-suivi-owner-c@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now()),
+('00000000-0000-4000-8000-000000012304','authenticated','authenticated','naxa-suivi-owner-d@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now()),
+('00000000-0000-4000-8000-000000012305','authenticated','authenticated','naxa-suivi-professional@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now()),
+('00000000-0000-4000-8000-000000012306','authenticated','authenticated','naxa-suivi-unverified@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now()),
+('00000000-0000-4000-8000-000000012307','authenticated','authenticated','naxa-suivi-inactive-professional@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{"naxa_signup_pending":"true"}',now(),now());
 
 insert into public.profiles(id,role,username,actif)
 values
