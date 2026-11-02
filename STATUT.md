@@ -1,3 +1,17 @@
+## Ratissage CTO — état consolidé après correction des incohérences (02/11/2026)
+
+- **Source :** GitHub `audreymendomo23-netizen/NAXA`, `main`. Le cahier central `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` contient le détail des corrections, tests, preuves Production et réserves.
+- **Inventaire HEAD avant cette mise à jour :** 1 402 entrées Git, 21 pages Admin, 12 entrées latérales, 2 API Admin, 10 fichiers d'actions Admin, 79 migrations horodatées et 229 tests SQL, 13 scripts Node ciblés.
+- **Anomalies fermées côté code :** libellé de paiement `a_verifier` affiché « À vérifier » dans la file Marketplace; test de contrat correspondant ajouté. Test SQL 122 aligné sur `public.is_admin()` et non sur l'ancienne forme textuelle du prédicat.
+- **Sécurité Production réconciliée :** les quatre constats P1 historiques ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01 et ADM-NOTIF-01 sont corrigés et leurs définitions live sont relues. Les migrations Production 20261102101510, 20261102105033, 20261102105229 et 20261102105542 sont présentes; les tests Replay correspondants PASS.
+- **Autres corrections déjà versionnées :** ADM-SETTLEMENT-02 dispose de tentatives et vérification effective de suppression Storage avec journal d'orphelin; ADM-SETTLEMENT-03 indique le mois calendaire. Le script `test-promoteur-payment-cleanup.cjs` couvre ces contrats.
+- **Tests SQL Replay exécutés cette passe :** 122, 124, 269 (31 assertions), 270, 271 (structurel), 20261102014000, 20261102101510 (contrat et comportement), 20261102105033, 20261102105229, 20261102105542 et 262 — tous PASS. Les jeux de test sont transactionnels et annulés; aucun envoi e-mail externe, upload Storage réel ou action métier sur dossiers de Production.
+- **Alertes sécurité qualifiées :** les six tables publiques RLS sans policy refusent SELECT à `anon` et `authenticated` et ne sont accessibles qu'à `service_role`; les cinq fonctions SECURITY DEFINER accessibles à `anon` sont des façades de catalogue public, avec `search_path` vide et filtres d'activité/publication. Aucun correctif global de privilèges n'est justifié par ces seuls avertissements.
+- **Réserves de livraison :** `npm test`, typecheck, lint et build sur le HEAD exact; HTTP avec JWT réels; recette navigateur des files Admin et états d'erreur; upload Storage réel; preuve de réception e-mail Google Apps Script. Ces réserves ne doivent pas bloquer les vérifications statiques/SQL indépendantes déjà effectuées.
+- **GitLab CI :** le miroir NAXA connu reste au SHA `178a655880d75f933a5968e34d3de3f802de5e5c` du 21/10/2026; le dernier pipeline a échoué avant les jobs par épuisement de quota. Il n'a pas été relancé sur cette source périmée. CircleCI et Netlify n'ont pas été utilisés.
+- **Déploiement :** aucun déploiement ou promotion n'a été déclenché.
+
+---
 ## Ratissage NAXA — addendum courant de cohérence (02/11/2026)
 
 - **Dépôt et branche :** `audreymendomo23-netizen/NAXA`, `main` exclusivement. HEAD observé avant cette mise à jour documentaire : `538392681580250b14509d378b74a43fe6bcefd5`; les commits documentaires ci-dessous feront avancer ce HEAD.
@@ -27,7 +41,7 @@
 
 - **Files manquantes désormais construites :** /admin/prestations/demandes et /admin/pilotage/reservations, toutes deux en lecture seule, sous requireAdminActive, reliées depuis les pages Prestations et Pilotage.
 - **Minimisation des données :** demandes domicile sans adresse exacte, téléphone ou note client; réservations sans code/référence de paiement, téléphone ou adresse de livraison; aucune mutation métier ou financière.
-- **Tests de contrat :** scripts/test-admin-queues.cjs et scripts/test-admin-messagerie.cjs; npm test agrège les huit scripts Node. Vérification statique des contrats effectuée via connecteur, mais pas d'exécution du runner Node.
+- **Tests de contrat :** scripts/test-admin-queues.cjs et scripts/test-admin-messagerie.cjs; npm test découvre les 13 scripts Node `scripts/test-*.cjs` présents dans l'arbre courant. Vérification statique des contrats effectuée via connecteur, mais pas d'exécution du runner Node.
 - **Cartographie :** 21 routes Admin, 12 entrées latérales. RLS Production de lecture confirmée pour demandes domicile, réservations, lignes et événements.
 - **Statut des files et de la messagerie :** 🟡 source corrigée; CI et recette dans l'application restent à exécuter. **PRE-044/PRE-045 :** les deux migrations sont désormais appliquées en Production (versions 20261102095050 et 20261102095056), et les 12 policies ciblées ont été relues avec le garde Admin actif. Les anciennes mentions d'un refus de migration dans les états historiques ci-dessous sont supersédées par l'addendum courant en tête du fichier.
 - Détails et SHA : docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md.
