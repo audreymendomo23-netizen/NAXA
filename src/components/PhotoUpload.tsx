@@ -44,14 +44,14 @@ export function PhotoUpload({ produitId, photoUrl }: { produitId: string; photoU
       });
       if (error) throw error;
       const { data } = sb.storage.from("medicaments").getPublicUrl(chemin);
-      const { error: updateError } = await sb.from("produits").update({
+      const { data: updated, error: updateError } = await sb.from("produits").update({
         photo_path: chemin,
         photo_source_url: sourceUrl.trim().slice(0, 1000),
         photo_licence: licence.trim().slice(0, 500),
         photo_verifiee_le: new Date().toISOString(),
         photo_url: data.publicUrl
-      }).eq("id", produitId);
-      if (updateError) throw updateError;
+      }).eq("id", produitId).select("id").maybeSingle();
+      if (updateError || updated?.id !== produitId) throw updateError ?? new Error("Produit introuvable ou modification refusée.");
       setEtat("ok");
       router.refresh();
     } catch {
