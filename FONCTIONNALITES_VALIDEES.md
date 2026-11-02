@@ -1739,3 +1739,14 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Test 018c exécuté sur Replay : PASS transactionnel — attribution `VIEW_SALES`, refus inter-pharmacies, révocation effective et rollback.
 - Code/test intégrés à `main`; build/typecheck et recette navigateur non exécutés. Aucune écriture Production ni aucun déploiement.
 - Les deux points ciblés du sous-chantier Responsable sont clos; cette clôture ne certifie pas le build global ni les autres parcours.
+
+
+---
+
+## Registre des décisions métier — questionnaire fondateur (02/11/2026)
+
+- **Source de vérité :** docs/DECISIONS_METIER_FONDATEUR.md.
+- **État :** décisions métier consignées comme confirmées, avec résiduels explicitement isolés dans la section G du registre.
+- **Arbitrages majeurs consignés :** cumul des fonctions avec un seul contexte actif ; délégation du Responsable sous plafonds ; Responsable limité à PARENTS_AINES_CADETS/HYBRIDE et multi-pharmacie par affectations explicites ; accréditation Pharmacien proposée par Promoteur et validée par Admin ; affectations urgentes traçables avec expiration ; affectations ordinaires permanentes jusqu'à révocation ; annulation de toutes réservations non retirées lors d'une suspension complète ; SM-01 limité au blocage Marketplace ; états persistants En préparation et Prête au retrait ; validation des ordonnances réservée aux professionnels accrédités ; règles de crédit et de stock ; paramétrage Caisse ; abonnement mensuel/annuel ; détection automatique quand une notification fiable est disponible ; connexion Promoteur par mot de passe ; résolution hors ligne par dernière modification horodatée ; sources autorisées du catalogue ; exclusion des pharmacies démo des KPI ; compteur d'alertes en nombre de signaux ; règles de diffusion des rappels de lots à clarifier car deux portées ont été sélectionnées ; checklists documentaires informatives.
+- **Limite de statut :** ceci valide les décisions métier uniquement. Aucune fonctionnalité n'est déclarée implémentée, testée ou verte sur la seule base de cet arbitrage. Les corrections indépendantes doivent continuer sur main ; les questions résiduelles ne bloquent que leurs dépendances directes.
+- **Gouvernance active :** exclusivement main ; aucun déploiement ; aucune écriture Supabase Production ; aucun contrôle CI ni compte de test réel requis comme critère de mise au vert ; aucune régression acceptée.
