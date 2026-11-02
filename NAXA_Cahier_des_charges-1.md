@@ -1,3 +1,7 @@
+> **ARCHIVE HISTORIQUE — VERSION DU 3 OCTOBRE 2026.** Ce document est conservé pour la traçabilité des décisions initiales. Il n'est plus une source normative et ne doit plus être utilisé pour arbitrer une contradiction actuelle. Il est supersédé par [`docs/CAHIER_DES_CHARGES.md`](docs/CAHIER_DES_CHARGES.md), version 3.7 du 6 octobre 2026, puis par les décisions métier approuvées plus récentes et le code effectivement vérifié sur `main`. En particulier, l'ancienne phrase « ce document fait foi » ne s'applique plus. Pour l'audit 360 Administrateur, la méthode et la séquence sont gouvernées par le texte intégral du MANDAT CTO NAXA; le registre des preuves est [`docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md).
+
+---
+
 # NAXA : cahier des charges compilé (version validée, mise à jour du 3 octobre 2026 : catalogue, panier, bandeau)
 
 Document de référence. En cas de conflit avec un autre document, **le flyer client et ce document font foi**. Le plan en 5 points et les captures de l'archive ne servent que d'inspiration.
