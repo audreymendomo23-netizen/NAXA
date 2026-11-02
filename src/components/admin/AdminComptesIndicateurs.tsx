@@ -231,7 +231,7 @@ export default function AdminComptesIndicateurs({ jours }: { jours: number }) {
             <table className="w-full min-w-[420px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-3">Type de partenaire</th><th className="p-3">Statut</th><th className="p-3 text-right">Nombre</th></tr></thead>
               <tbody>
-                {data.partenaires_globaux.par_type_statut.map((item,index) => <tr key={item.type + item.statut + index} className="border-t border-slate-100"><td className="p-3 font-semibold">{item.type.replaceAll("_"," ")}</td><td className="p-3">{item.statut}</td><td className="p-3 text-right font-bold">{number(item.total)}</td></tr>)}
+                {data.partenaires_globaux.par_type_statut.map((item,index) => <tr key={item.type + item.statut + index} className="border-t border-slate-100"><td className="p-3 font-semibold">{item.type.replace(/_/g," ")}</td><td className="p-3">{item.statut}</td><td className="p-3 text-right font-bold">{number(item.total)}</td></tr>)}
                 {!data.partenaires_globaux.par_type_statut.length && <tr><td colSpan={3} className="p-4 text-center text-slate-500">Aucun partenaire Marketplace recensé.</td></tr>}
               </tbody>
             </table>
