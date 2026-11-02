@@ -1,7 +1,7 @@
 ## Ratissage CTO — état consolidé après correction des incohérences (02/11/2026)
 
 - **Source :** GitHub `audreymendomo23-netizen/NAXA`, `main`. Le cahier central `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` contient le détail des corrections, tests, preuves Production et réserves.
-- **Inventaire HEAD avant cette mise à jour :** 1 402 entrées Git, 21 pages Admin, 12 entrées latérales, 2 API Admin, 10 fichiers d'actions Admin, 79 migrations horodatées et 229 tests SQL, 13 scripts Node ciblés.
+- **Inventaire :** les nombres 1 402 entrées Git, 21 pages Admin, 12 entrées latérales, 2 API Admin, 10 actions serveur, 79 migrations, 229 tests SQL et 13 scripts Node sont une photographie antérieure; ils ne sont pas certifiés sur le HEAD courant `f9e70c5c64c53ea4286c966ff2066aef3893a171`.
 - **Anomalies fermées côté code :** libellé de paiement `a_verifier` affiché « À vérifier » dans la file Marketplace; test de contrat correspondant ajouté. Test SQL 122 aligné sur `public.is_admin()` et non sur l'ancienne forme textuelle du prédicat.
 - **Sécurité Production réconciliée :** les quatre constats P1 historiques ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01 et ADM-NOTIF-01 sont corrigés et leurs définitions live sont relues. Les migrations Production 20261102101510, 20261102105033, 20261102105229 et 20261102105542 sont présentes; les tests Replay correspondants PASS.
 - **Autres corrections déjà versionnées :** ADM-SETTLEMENT-02 dispose de tentatives et vérification effective de suppression Storage avec journal d'orphelin; ADM-SETTLEMENT-03 indique le mois calendaire. Le script `test-promoteur-payment-cleanup.cjs` couvre ces contrats.
