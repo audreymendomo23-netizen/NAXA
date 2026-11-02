@@ -1,5 +1,16 @@
 # NAXA — REGISTRE DES FONCTIONNALITÉS / ÉTAT DE VALIDATION
 
+## Arbitrages métier du fondateur — 02/11/2026
+
+- **31 réponses métier consignées** dans [DECISIONS_METIER_CONFIRMEES_2026-11-02.md](docs/DECISIONS_METIER_CONFIRMEES_2026-11-02.md). Elles sont confirmées comme règles métier, mais leur consignation ne vaut pas preuve d'implémentation ni de test.
+- Les décisions couvrent les fonctions et affectations, le Responsable, la suspension et SM-01, les états de préparation, les crédits comptoir/Marketplace, les mouvements de stock, les remboursements, les règles Caisse, l'abonnement Promoteur, la détection de paiement, le mode hors ligne, le catalogue, les KPI Admin et les dossiers pharmacie.
+- **Contradictions isolées :** durée des affectations urgentes vs affectations ordinaires permanentes ; acteurs du crédit au comptoir ; remboursement et stock d'une réservation payée annulée lors d'une suspension complète ; portée ciblée/nationale des rappels de lots ; tarif annuel à configurer ; chronologie fiable du LWW hors ligne ; valeurs numériques des paramètres financiers ; fournisseurs/licences du catalogue médical.
+- **Contradictions du code à corriger :** approbation de crédit Marketplace actuellement conçue comme hold sans décrément physique ; synchronisation hors ligne actuellement fondée sur base_updated_at avec rejet de conflit, contrairement au LWW décidé.
+- **Éléments déjà présents à vérifier/tester, sans les reconstruire :** exclusions des démos dans les KPI Admin, compteur d'alertes par signaux, états persistants de préparation, garde SM-01 Marketplace distincte des RPC ERP, cases documentaires informatives avec contrôle séparé des vrais fichiers.
+- Les réserves ne bloquent que le sous-parcours qui en dépend. Les corrections indépendantes continuent. Travail sur main uniquement ; aucun déploiement ; aucune écriture Supabase Production.
+
+---
+
 ## Ratissage Admin 360 — état courant et preuves Production (02/11/2026)
 
 - **PRE-044 — catalogue/partenaires/stock :** migration `20261102083000_admin_active_catalog_stock_rls.sql`, appliquée à Supabase Production sous la version `20261102095050`.
