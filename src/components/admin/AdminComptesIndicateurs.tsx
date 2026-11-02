@@ -39,6 +39,17 @@ type Payload = {
   par_pharmacie: PharmacyRow[];
   par_promoteur: PromoterRow[];
   sources: Record<string, boolean>;
+  partenaires_globaux: {
+    totaux: {
+      partenaires_total: number;
+      partenaires_actifs: number;
+      partenaires_en_attente: number;
+      partenaires_suspendus: number;
+      membres_partenaires_total: number;
+      membres_partenaires_uniques: number;
+    };
+    par_type_statut: { type: string; statut: string; total: number }[];
+  };
   note_scope: string;
 };
 
@@ -205,6 +216,26 @@ export default function AdminComptesIndicateurs({ jours }: { jours: number }) {
             <p className="text-xs font-semibold text-slate-600">Stocks bas / ruptures</p>
             <p className="mt-1 text-xl font-black">{number(summary.stocks_bas)} / {number(summary.ruptures_stock)}</p>
           </article>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="font-extrabold text-slate-950">Comptes partenaires Marketplace · périmètre séparé</h3>
+          <p className="text-xs text-slate-500">Les partenaires et leurs membres ne sont pas rattachés à une pharmacie ni à un Promoteur; ils sont donc comptabilisés séparément.</p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold text-slate-500">Partenaires actifs / total</p><p className="mt-1 text-xl font-black">{number(data.partenaires_globaux.totaux.partenaires_actifs)} / {number(data.partenaires_globaux.totaux.partenaires_total)}</p></article>
+            <article className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold text-slate-500">En attente / suspendus</p><p className="mt-1 text-xl font-black">{number(data.partenaires_globaux.totaux.partenaires_en_attente)} / {number(data.partenaires_globaux.totaux.partenaires_suspendus)}</p></article>
+            <article className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold text-slate-500">Membres partenaires</p><p className="mt-1 text-xl font-black">{number(data.partenaires_globaux.totaux.membres_partenaires_total)}</p></article>
+            <article className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold text-slate-500">Membres distincts</p><p className="mt-1 text-xl font-black">{number(data.partenaires_globaux.totaux.membres_partenaires_uniques)}</p></article>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-3">Type de partenaire</th><th className="p-3">Statut</th><th className="p-3 text-right">Nombre</th></tr></thead>
+              <tbody>
+                {data.partenaires_globaux.par_type_statut.map((item,index) => <tr key={item.type + item.statut + index} className="border-t border-slate-100"><td className="p-3 font-semibold">{item.type.replaceAll("_"," ")}</td><td className="p-3">{item.statut}</td><td className="p-3 text-right font-bold">{number(item.total)}</td></tr>)}
+                {!data.partenaires_globaux.par_type_statut.length && <tr><td colSpan={3} className="p-4 text-center text-slate-500">Aucun partenaire Marketplace recensé.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="space-y-2">
