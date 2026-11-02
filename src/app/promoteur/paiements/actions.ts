@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 
-const CANAUX = new Set(["orange_money", "mtn_momo", "virement", "depot_bancaire", "especes", "autre"]);
+const CANAUX = new Set(["orange_money", "mtn_momo", "virement"]);
 
 export async function soumettrePaiementPromoteur(formData: FormData) {
   const sb = supabaseServer();
@@ -14,15 +14,14 @@ export async function soumettrePaiementPromoteur(formData: FormData) {
 
   const montant = Number(formData.get("montant"));
   const canal = String(formData.get("canal") ?? "");
-  const canalAutre = String(formData.get("canal_autre") ?? "").trim();
   const comptePayeur = String(formData.get("compte_payeur") ?? "").trim();
   const reference = String(formData.get("reference") ?? "").trim();
   const payeLeRaw = String(formData.get("paye_le") ?? "").trim();
   const preuve = formData.get("preuve");
 
   if (!Number.isSafeInteger(montant) || montant <= 0 || !CANAUX.has(canal)) redirect("/promoteur/paiements?erreur=champs");
-  if (canal === "autre" && (canalAutre.length < 2 || canalAutre.length > 80)) redirect("/promoteur/paiements?erreur=canal");
   if (comptePayeur.length < 3 || comptePayeur.length > 120) redirect("/promoteur/paiements?erreur=compte");
+  if (reference.length < 3 || reference.length > 160) redirect("/promoteur/paiements?erreur=reference");
   if (!payeLeRaw) redirect("/promoteur/paiements?erreur=date");
   const payeLeDate = new Date(payeLeRaw + ":00+01:00");
   if (!Number.isFinite(payeLeDate.getTime()) || payeLeDate.getTime() > Date.now() + 5 * 60_000) redirect("/promoteur/paiements?erreur=date");
@@ -52,7 +51,7 @@ export async function soumettrePaiementPromoteur(formData: FormData) {
     p_promoteur: user.id,
     p_montant: montant,
     p_canal: canal,
-    p_canal_autre: canalAutre || null,
+    p_canal_autre: null,
     p_compte_payeur: comptePayeur,
     p_reference: reference || null,
     p_paye_le: payeLeDate.toISOString(),
