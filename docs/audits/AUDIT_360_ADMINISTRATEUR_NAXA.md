@@ -3508,3 +3508,24 @@ Les sorties de synthèse ne contiennent ni identifiants clients, ni coordonnées
 2. recette dans l'application Admin des agrégats, rapports CSV/PDF, états de sources indisponibles et accès sous une vraie session Admin.
 
 Aucune migration Production, aucune écriture métier permanente, aucun secret/configuration modifié et aucun déploiement n'ont été effectués pendant le test de régression; les migrations autorisées ont uniquement modifié les définitions SQL et leurs ACL.
+
+
+---
+
+## Mise à jour des arbitrages fondateur — 02/11/2026
+
+Référence métier prioritaire : docs/DECISIONS_METIER_FONDATEUR.md. Les points historiques ci-dessous ne doivent plus être traités comme des questions sans réponse :
+
+- **KPI Admin et démos :** les pharmacies de démonstration sont exclues des KPI opérationnels.
+- **Compteur d'alertes :** compter les signaux, même si plusieurs signaux concernent un même dossier ; ne pas le présenter comme un nombre de dossiers uniques.
+- **Checklist de pièces reçues :** les cases sont informatives uniquement et ne prouvent pas l'authenticité. La nécessité de vérifier les fichiers justificatifs réels reste distincte.
+- **Validation d'un dossier pharmacie :** les cases de checklist ne sont pas, à elles seules, un prérequis bloquant. Les exigences réglementaires et la présence effective des pièces réellement requises restent à établir séparément.
+- **Renouvellement :** la période d'abonnement renouvelée commence à la date réelle de confirmation du paiement ; périodicité mensuelle ou annuelle au choix du Promoteur ; frais de transaction intégrés au tarif convenu.
+- **Rapprochement :** détecter automatiquement tous les canaux lorsqu'une notification fiable est disponible, avec vérification Admin en secours. Le contrat de paiement complet demeure celui du registre fondateur.
+- **SM-01 :** blocage Marketplace du Promoteur et de ses pharmacies concernées, sans couper les opérations ERP internes qui restent autorisées.
+
+**Point non codable sans nouvel arbitrage :** les destinataires sélectionnés pour les rappels de lots contiennent deux portées incompatibles en partie (« uniquement le réseau du Promoteur concerné » et « toutes les pharmacies actives et vérifiées »). La diffusion ne doit pas être élargie ou restreinte arbitrairement.
+
+**Correction indépendante appliquée après décision :** les KPI du tableau Admin, le badge d'alertes de navigation et la page Alertes filtrent maintenant les pharmacies de démonstration en reprenant les marqueurs de nom utilisés par la migration 244. Le sélecteur de pharmacies actives et publiées pour la création de catalogue conserve sa source complète ; seule la mesure opérationnelle est filtrée.
+
+Preuves de code et contrôle ciblé consignés dans FONCTIONNALITES_VALIDEES.md. Aucun déploiement et aucune écriture Supabase Production.
