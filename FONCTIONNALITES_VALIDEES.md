@@ -1774,3 +1774,16 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Non exécuté :** `npm test`, build/typecheck, test SQL runtime et recette navigateur. Migration non appliquée à Supabase Production ; aucun déploiement.
 - **Commits :** `db8961b355dcbe54f6c9823423c49367bab15e73`, `8c14afd2f9829e6cee232fe9330e39605fcac475`, `4c6746700e02c48f03de4ee018eb4cd9ee61695f`, `3cc0a959e9cf5265d0e134302950bb5138e5c1c9`, `137f0c118599a38d68d482a15ee6d982425d0d66`, `26228dd9097962344ad2d10b390d1e2facf11224`, `1b17914df644ba07816ef26877b9487040dbf641`.
 - **Statut :** source corrigée et contrats alignés ; contrôles statiques PASS ; SQL runtime/recette non certifiés.
+
+
+## Promoteur — période mensuelle à partir de la confirmation réelle (02/11/2026)
+
+- **Décision :** la nouvelle période commence à la date réelle de confirmation du paiement, pas à l'ancienne échéance + 1 jour.
+- **Contradiction :** l'ancienne formule SQL `greatest(date_confirmation_locale, a.echeance + 1)` retardait le démarrage en cas de paiement confirmé avant l'échéance.
+- **Correction sur main :** migration additive `supabase/migrations/20261102115000_promoteur_subscription_period_starts_on_confirmation.sql` fixe `v_debut` à `(now() at time zone 'Africa/Douala')::date`; la fin mensuelle reste un mois calendaire moins un jour. `paye_le` garde la date réelle de transaction ; `confirme_le` reflète l'événement de confirmation.
+- **Sécurité conservée :** verrouillage des lignes, confirmation idempotente, refus des règlements non en attente, contrôle Admin actif, protection contre les résiliations indépendantes, aucune réactivation globale des pharmacies/profils, ACL RPC service_role uniquement.
+- **Tests ajoutés :** `supabase/tests/20261102115000_promoteur_subscription_period_starts_on_confirmation.sql` et `scripts/test-promoter-payment-period-start.cjs` (inclus dans `npm test` par le motif Node existant).
+- **Limite :** test SQL/Node runtime, build et typecheck non exécutés ; migration non appliquée à Production.
+- **Commits :** `8eda1556b8632acf7328bc8d378e97bce2fa06a5` (migration), `ff8c64c0b3d23bcec4bf057150b0f427421321c7` (test SQL), `2c6f13df8aa9fba51f867ed8ee1a619b9a2c791b` (test Node).
+- **Réserve annuelle :** décision de périodicité annuelle confirmée, mais le code courant ne gère qu'un tarif mensuel et une période de 1 mois. Le tarif annuel/son stockage/sa période 12 mois restent à construire ; ne pas déclarer la fonction annuelle verte ni permettre la soumission annuelle avant sa réalisation.
+- **Statut :** correction source versionnée ; preuves statiques à exécuter/compléter ; aucun test runtime ou validation Production revendiqués.
