@@ -127,8 +127,6 @@
 .admin-home-heading h1 { margin: 5px 0 7px; }
 .admin-home-heading p { margin: 0; color: var(--texte-2); font-size: 13px; }
 .admin-home-kicker { color: var(--accent-texte) !important; font-size: 10px !important; font-weight: 900; letter-spacing: .15em; }
-.admin-home-live { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 9px 12px; border: 1px solid var(--bordure); border-radius: 999px; color: var(--texte-2); font-size: 11px; font-weight: 800; }
-.admin-home-live span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-texte); }
 .admin-home-kpis { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .admin-home-kpi { display: flex; min-width: 0; min-height: 138px; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; border: 1px solid var(--bordure); border-radius: var(--admin-radius); background: var(--surface); box-shadow: 0 7px 24px color-mix(in srgb, var(--texte) 4%, transparent); }
 .admin-home-kpi > span { color: var(--texte-2); font-size: 11px; font-weight: 750; }
@@ -218,11 +216,7 @@
 .admin-analytics-panels > * { min-width: 0; padding: 20px !important; border: 1px solid var(--bordure) !important; border-radius: var(--admin-radius) !important; background: var(--surface) !important; box-shadow: 0 7px 24px color-mix(in srgb, var(--texte) 4%, transparent); }
 .admin-analytics-page > div > nav { display: flex; flex-wrap: wrap; gap: 8px; }
 .admin-analytics-page > div > nav button { min-height: 44px; padding-inline: 18px; border-radius: 999px; border: 1px solid var(--bordure); }
-.admin-report-card { display: grid; gap: 14px; border: 1px solid var(--bordure) !important; border-radius: var(--admin-radius) !important; background: var(--surface) !important; box-shadow: 0 7px 24px color-mix(in srgb, var(--texte) 4%, transparent); }
-.admin-report-card > div:first-child { padding-bottom: 12px; border-bottom: 1px solid var(--bordure); }
-.admin-report-card button { min-width: 76px; }
 @media (max-width: 680px) {
   .admin-analytics-kpis > * { min-height: 112px; padding: 14px !important; border-radius: 17px !important; }
   .admin-analytics-panels > * { padding: 15px !important; border-radius: 18px !important; }
-  .admin-report-card { padding: 15px !important; border-radius: 18px !important; }
 }
