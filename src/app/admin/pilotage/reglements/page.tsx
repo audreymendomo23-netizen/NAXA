@@ -91,7 +91,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
       <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage réseau</p>
       <h1 className="mt-1 text-2xl font-black text-[#D95304]">Vérification des paiements Promoteurs</h1>
       <p className="mt-2 text-sm text-white/80">Le Promoteur déclare son paiement et transmet la preuve. Vous vérifiez les références et l’encaissement réel avant de confirmer. La confirmation renouvelle l’abonnement sur une période mensuelle et génère le reçu.</p>
-      <Link href="/admin/pilotage/validite" className="mt-3 inline-block text-sm font-bold underline">Retour à la validité</Link>
+      <div className="mt-3 flex flex-wrap gap-4 text-sm font-bold"><Link href="/admin/pilotage/reglements/configuration" className="underline">Configurer les destinations de paiement</Link><Link href="/admin/pilotage/validite" className="underline">Retour à la validité</Link></div>
     </header>
     {searchParams?.ok && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">{searchParams.ok === "confirme" ? "Paiement confirmé, abonnement renouvelé et reçu disponible dans l’espace Promoteur." : "Règlement mis à jour."}</p>}
     {searchParams?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur] ?? "Une erreur est survenue."}</p>}
