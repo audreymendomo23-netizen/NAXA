@@ -30,6 +30,7 @@ test("la file Marketplace est protégée par le garde Admin actif et lit réserv
   assert.match(marketplace, /reservation_items\(/);
   assert.match(marketplace, /reservation_events/);
   assert.match(marketplace, /pharmacies\(nom\)/);
+  assert.match(marketplace, /a_verifier:\s*"À vérifier"/);
   assert.match(marketplace, /count: "exact"/);
 });
 
