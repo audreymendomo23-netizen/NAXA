@@ -124,6 +124,23 @@ begin
     v_denied := true;
   end;
   if not v_denied then raise exception 'E13.10 : le Promoteur ne doit pas appeler les indicateurs globaux Admin'; end if;
+
+  update public.profiles set actif=false where id=v_admin;
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
+  v_denied := false;
+  begin
+    perform public.admin_comptes_indicateurs(30);
+  exception when others then
+    v_denied := true;
+  end;
+  if not v_denied then raise exception 'E13.11 : un Admin inactif ne doit pas accéder aux indicateurs globaux'; end if;
+
+  if position('01300000-0000-4000-8000-000000000008' in v_json::text) > 0
+     or position('email' in lower(v_json::text)) > 0
+     or position('telephone' in lower(v_json::text)) > 0 then
+    raise exception 'E13.12 : les données nominatives du client ne doivent pas être retournées';
+  end if;
 end;
 $test$;
 
