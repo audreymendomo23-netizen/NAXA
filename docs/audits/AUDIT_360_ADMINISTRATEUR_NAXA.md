@@ -2881,19 +2881,19 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 
 #### ADM-EXAM-04 — Erreur de lecture des rendez-vous non affichée — OUVERT
 
-- **Preuve :** dans `src/app/admin/examens/page.tsx`, la requête `exam_appointments` expose `error: ae`, mais `broken` ne prend en compte que `ce || se || pe`. Le calendrier est ensuite construit à partir de `appointments ?? []`.
+- **Contre-preuve :** le même fichier affichait déjà un état spécifique `ae ? Données indisponibles` pour le calendrier; la correction de cette passe ajoute aussi `ae` au verrou `broken`. Le constat ne doit donc pas être compté comme défaut actif.
 - **Impact :** une panne ou un refus RLS limité à la lecture des rendez-vous peut être présenté comme un calendrier vide, sans avertissement, alors que les centres/examens/packs sont lisibles.
 - **Classement : confirmé par lecture directe du code; non reproduit en runtime.**
 - **Correction proposée :** traiter séparément l'indisponibilité du calendrier et afficher un état d'erreur explicite; conserver les autres sections si elles sont disponibles.
-- **Vérification attendue :** échec isolé de la requête rendez-vous; l'écran ne doit pas afficher un faux état « aucun ticket ».
+- **Vérification restante :** injecter un échec isolé de la requête en environnement de test pour vérifier le rendu et le verrou des actions.
 
 #### ADM-SERVICES-02 — Lecture des demandes domicile autorisée aux administrateurs inactifs — OUVERT
 
 - **Preuve :** la politique Production `home_service_requests_admin_read` est une politique SELECT `authenticated` dont le prédicat vérifie `profiles.role = 'admin'`, sans condition `profiles.actif = true`. La même omission `actif` est observée dans `exam_appointments_admin_read` (constat ADM-EXAM-03).
 - **Impact :** un compte Admin désactivé conservant une session authentifiée peut continuer à lire les demandes clients via l'API PostgREST, même si les pages Admin utilisent `requireAdminActive`. Les demandes contiennent notamment des notes et informations de service.
 - **Classement : défaut d'autorisation confirmé par définition RLS; scénario d'accès d'une session inactive non exécuté.**
-- **Correction proposée :** aligner la politique sur le garde canonique Admin actif (`public.is_admin()` ou contrôle explicite rôle + actif), en conservant les accès Client propriétaire et partenaire autorisé.
-- **Vérification attendue :** Admin actif autorisé; Admin inactif, Client tiers et anonyme refusés; Client propriétaire et partenaire autorisé conservent uniquement leur périmètre.
+- **Correction versionnée :** `supabase/migrations/20261102023000_admin_active_read_policies.sql` remplace les deux politiques Admin par `(select public.is_admin())`; les politiques Client propriétaire et partenaire autorisé ne sont pas modifiées. Migration non appliquée en Production conformément au mandat.
+- **Vérification restante :** appliquer la migration lors d'une fenêtre autorisée, puis tester la matrice JWT Admin actif/inactif, Client propriétaire/tiers, partenaire autorisé/hors périmètre et anonyme.
 
 ### 8.3 Limites de couverture et contrôles positifs
 
@@ -2906,9 +2906,9 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 
 ### 8.4 Statut de l'étape 8
 
-**Étape 8 — revue de couverture effectuée sur les routes, le code, les politiques RLS et les données Production accessibles : JAUNE.** La cartographie diagnostique est documentée; les réserves de modération Examens, de visibilité publique Examens, d'accès Admin actif aux tickets et de résolution des demandes/prestations et réservations Marketplace empêchent de qualifier la couverture fonctionnelle de complète.
+**Étape 8 — revue de couverture effectuée et corrections de fiabilité UI implémentées : CORRECTION SOURCE IMPLÉMENTÉE — VALIDATION PARTIELLE / JAUNE.** La cartographie diagnostique est documentée; les réserves de modération Examens, de visibilité publique Examens, d'accès Admin actif aux tickets et de résolution des demandes/prestations et réservations Marketplace empêchent de qualifier la couverture fonctionnelle de complète.
 
-Aucun correctif applicatif ou SQL n'a été appliqué pendant cette revue. Aucune écriture Supabase Production, aucun changement de secret/configuration et aucun déploiement. Les corrections proposées restent soumises à validation selon le §5.1 du mandat. La simulation exacte de 1 000 cas constitue l'étape 9 et peut maintenant être engagée sans déclarer ces défauts corrigés.
+Deux corrections source ont été apportées ensuite sur main : propagation de l'erreur du registre dossiers partenaires et inclusion de l'erreur rendez-vous dans le verrou des actions Examens. Une migration RLS additive est versionnée mais non appliquée en Production. Aucune écriture Supabase Production, aucun changement de secret/configuration et aucun déploiement.
 
 
 ## Étape 9 — Simulation de 1 000 cas pratiques (02/11/2026)
@@ -3178,16 +3178,76 @@ Pour éviter de refaire les mêmes travaux :
 
 - Constats actifs avant ce complément : 19 identifiants uniques.
 - Nouveaux constats ajoutés après relecture contradictoire du code et des politiques live : 3.
-- **Total actuel : 22 constats uniques** — P1 : 4; P2 : 17; P3 : 1. Aucun doublon d'identifiant détecté.
+- **Total historique : 22 constats uniques** — après requalification d'ADM-EXAM-04 comme non actif, 21 constats restent actifs ou sous réserve (P1/P2/P3 inchangés à recalculer lors de la prochaine consolidation). Aucun doublon d'identifiant détecté.
 - Les statuts OUVERT, RÉSERVE DE PREUVE et SURVEILLANCE restent distincts; aucun constat n'est déclaré corrigé par la seule inscription au registre.
 
 ### 10.5 Statut de l'étape 10
 
-**Étape 10 — registre consolidé établi et enrichi : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
+**Étape 10 — registre consolidé établi, enrichi et relié aux corrections de cette passe : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
 
-Aucune correction de code ou SQL n'a été appliquée pendant la constitution du registre. Les corrections nécessitant validation restent soumises au §5.1 du mandat. Les étapes 11, 12 et 13 sont déjà documentées plus loin dans ce registre. La prochaine étape non encore abordée du canevas est donc l'étape 14 — revue finale client et CTO.
+Les deux corrections source sont implémentées sur main; la migration SQL est versionnée mais non appliquée. Les tests runtime restent ouverts. Les étapes 11, 12 et 13 sont documentées plus loin; l'étape 14 est maintenant engagée ci-dessus.
 
 
+
+## Étape 14 — Revue finale client et CTO (02/11/2026)
+
+### 14.1 Revue du point de vue client
+
+**Parcours public et accès**
+- `src/app/page.tsx` applique une déclaration d'âge côté client, conserve une déclaration temporaire dans localStorage et un cookie `naxa-age-status-v2`; le composant valide aussi les destinations de retour internes avant redirection.
+- La page publique détecte un client authentifié et le redirige vers `/client` après contrôle de la déclaration d'âge.
+- **Réserve contradictoire :** le contrôle visible dans la page est une barrière de parcours, pas une preuve d'identité ou d'âge réel. La protection des routes privées dépend aussi du middleware et des gardes serveur; leur exécution avec sessions réelles n'a pas été possible dans cette passe.
+- Le parcours de recherche public est présent dans la page d'accueil via le composant `Recherche`; l'usage réel, les résultats et les erreurs réseau n'ont pas été rejoués dans un navigateur authentifié.
+
+**Réservations et parcours transactionnels**
+- La source de vérité Marketplace comporte des réservations, lignes et événements; l'Administrateur dispose d'agrégats mais pas encore d'une file de résolution complète reliant ticket, lignes, pharmacie, transitions et actions autorisées.
+- Les prestations à domicile disposent de tables et de politiques Client/partenaire, mais l'interface Admin n'expose pas de file opérationnelle des demandes.
+- Les examens disposent d'un écran de calendrier et d'une lecture Admin dédiée; la politique RLS Admin relevée ne vérifiait pas l'activité du compte avant la migration proposée dans cette passe.
+- Aucun achat, paiement, réservation, annulation, remboursement ou traitement de demande réelle n'a été déclenché pendant cette revue.
+
+### 14.2 Revue du point de vue CTO
+
+**Supervision et fiabilité**
+- Le tableau de bord Admin `src/app/admin/page.tsx` signale explicitement les erreurs des sources Pharmacies, validité Promoteurs et journal; ses KPI de stocks sont construits à partir des pharmacies chargées et ne sont pas une preuve de fraîcheur du stock métier.
+- Les pages univers/partenaires et examens utilisent des plafonds de lecture (respectivement 100 partenaires/produits, 200 centres, 300 examens, 200 packs et 300 rendez-vous). Les chiffres affichés sont donc des vues bornées, pas des totaux globaux exhaustifs.
+- La page Univers propage désormais l'erreur de `admin_partner_dossiers` dans l'état général d'indisponibilité; son libellé local indique aussi explicitement que le registre est indisponible.
+- La page Examens inclut désormais l'erreur `ae` dans le verrou global `broken`; le calendrier affichait déjà un état spécifique « Données indisponibles ». Le constat historique ADM-EXAM-04 est reclassé comme **déjà couvert par le code présent avant cette correction**, et non comme défaut confirmé restant.
+- Les politiques RLS Production précédemment lues montraient que `exam_appointments_admin_read` et `home_service_requests_admin_read` vérifiaient le rôle Admin sans vérifier `actif=true`. Le helper `public.is_admin()` délègue à `private.is_admin()`, qui vérifie rôle Admin et compte actif.
+
+**Sécurité, séparation des rôles et données**
+- Les politiques Client propriétaire et partenaire membre restent séparées des politiques Admin pour les rendez-vous d'examens et demandes à domicile.
+- Une migration additive `supabase/migrations/20261102023000_admin_active_read_policies.sql` a été créée sur `main` pour remplacer uniquement les deux politiques Admin par `(select public.is_admin())`; elle ne modifie pas les politiques Client/partenaire.
+- **Limite critique :** conformément à l'interdiction de modifier Supabase Production, cette migration n'a pas été appliquée. Le défaut RLS demeure donc présent en Production jusqu'à une procédure de migration autorisée ultérieure. La création du fichier ne vaut pas correction effective de la base.
+- Aucune donnée personnelle, aucun secret et aucun contenu de demande client n'a été exporté dans ce rapport.
+
+### 14.3 Corrections et contrôles effectués pendant cette passe
+
+| Élément | Modification | Vérification | Statut |
+|---|---|---|---|
+| `src/app/admin/univers/page.tsx` | Ajout de `partnerDossiersResult.error` au booléen `missing` | Relecture du fichier après commit; la condition contient la source dossiers | Correction source vérifiée statiquement |
+| `src/app/admin/examens/page.tsx` | Ajout de `ae` au booléen `broken` | Relecture du fichier après commit; le verrou inclut les quatre sources | Correction source vérifiée statiquement |
+| Migration RLS | Nouvelle migration qui réutilise `public.is_admin()` pour les deux politiques Admin | SQL relu; définition live du helper confirmée; aucune application Production | Versionnée, non appliquée |
+| ADM-EXAM-04 | Requalification du constat, car le calendrier avait déjà un message dédié pour `ae` | Code antérieur relu | Faux positif/constat redondant, à retirer du décompte actif |
+
+**Contrôles négatifs et limites :**
+- Pas de compte de test ni de session réelle disponible pour rejouer Admin actif/inactif, Client propriétaire/tiers, partenaire autorisé/hors périmètre et anonyme.
+- Pas de test HTTP PostgREST sous JWT de chaque rôle.
+- Pas d'exécution locale de `npm run lint`, `npx tsc --noEmit` ou build dans cet environnement; aucune preuve d'exécution de ces commandes n'est revendiquée.
+- Aucun test de navigateur mobile/desktop, accessibilité assistive, latence ou réseau dégradé.
+- Aucun workflow de déploiement, déploiement ou action de relance n'a été lancé.
+
+### 14.4 Verdict contradictoire
+
+- **Confirmé par lecture de code :** les erreurs de lecture des dossiers et des rendez-vous sont maintenant propagées dans les états d'indisponibilité globaux.
+- **Confirmé par lecture RLS Production :** avant application de la migration, les deux politiques Admin ne vérifiaient pas l'état actif.
+- **Confirmé par lecture du helper :** `private.is_admin()` vérifie `role='admin'` et `actif=true`; la migration réutilise ce garde plutôt que de dupliquer la règle.
+- **Non vérifié en runtime :** le refus effectif d'un Admin inactif et la conservation des scopes Client/partenaire.
+- **Non démontré :** résolution complète par l'Admin des réservations Marketplace et des demandes de prestations à domicile.
+- **Risque résiduel principal :** la migration RLS est versionnée mais non appliquée; les limites de pagination et les surfaces de résolution métier restent ouvertes.
+
+### 14.5 Statut de l'étape 14
+
+**Étape 14 — revue finale client et CTO engagée et documentée : CORRECTION SOURCE IMPLÉMENTÉE — VALIDATION PARTIELLE / JAUNE.** Les vérifications statiques et les lectures Production disponibles sont documentées; les scénarios runtime, la recette navigateur et l'application de la migration sont hors des opérations autorisées ou des moyens accessibles pendant cette passe.
 
 ## Étape 11 — Recherche et nettoyage du code mort Admin (clôture, 02/11/2026)
 
