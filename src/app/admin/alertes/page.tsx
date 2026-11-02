@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isDemoPharmacy } from "@/lib/admin/is-demo-pharmacy";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 export default async function AdminAlertes() {
@@ -7,7 +8,7 @@ export default async function AdminAlertes() {
     sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche").order("nom"),
     sb.rpc("validites_promoteurs_admin"),
   ]);
-  const rows = pharmacies ?? [];
+  const rows = (pharmacies ?? []).filter((p) => !isDemoPharmacy(p.nom));
   const missingStock = rows.filter((p) => !p.stock_updated_at);
   const inactive = rows.filter((p) => p.actif === false || p.visible_recherche === false);
   const overdue = ((validites ?? []) as any[]).filter((x) => x.statut === "impaye" || Number(x.jours_restants) < 0);
