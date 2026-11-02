@@ -23,7 +23,7 @@ test("l'action de gestion Bébé & Maman valide les UUID pharmacie au format can
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   assert.equal(uuid.test("01800000-0000-4000-8000-000000000001"), true);
   assert.equal(uuid.test("01800000-0000-4000-8000-00000000001"), false);
-  assert.equal(uuid.test("01800000-0000-4000-7000-000000000001"), false);
+  assert.equal(uuid.test("01800000-0000-9000-8000-000000000001"), false);
 });
 
 test("la mutation conserve le garde Admin actif et le contrôle d'éligibilité pharmacie", () => {
