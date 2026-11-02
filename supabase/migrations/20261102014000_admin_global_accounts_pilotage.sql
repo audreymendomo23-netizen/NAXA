@@ -442,4 +442,4 @@ revoke all on function public.admin_comptes_indicateurs(integer) from public,ano
 grant execute on function public.admin_comptes_indicateurs(integer) to authenticated;
 
 comment on function public.admin_comptes_indicateurs(integer) is
-  'Indicateurs agrégés des comptes professionnels et clients, ventilés par pharmacie et Promoteur. Accès réservé à un Admin actif; aucune donnée client nominative ni donnée de santé n'est retournée. Les noms Promoteur sont affichés uniquement dans le périmètre Admin.';
+  'Indicateurs agrégés des comptes professionnels et clients, ventilés par pharmacie et Promoteur. Accès réservé à un Admin actif; aucune donnée client nominative ni donnée de santé n''est retournée. Les noms Promoteur sont affichés uniquement dans le périmètre Admin.';
