@@ -460,23 +460,29 @@ export async function POST(request: Request) {
   // Affectations : lecture sous RLS, sans service-role ni exposition de noms/profils tiers.
   // Un membre ne voit que ses affectations; un Promoteur ne voit que celles qu'il a accordées.
   const assignmentSince = new Date(Date.now() - config.days * 86400000).toISOString();
-  const [ownAssignmentsResult, grantedAssignmentsResult] = await Promise.all([
-    sb.from("naxa_professional_assignments")
-      .select("id,profile_id,pharmacie_id,fonction,statut,commence_at,expire_at,accorde_at,revoque_at")
-      .eq("profile_id", auth.user.id)
-      .gte("accorde_at", assignmentSince),
-    profile.role === "promoteur"
-      ? sb.from("naxa_professional_assignments")
-          .select("id,profile_id,pharmacie_id,fonction,statut,commence_at,expire_at,accorde_at,revoque_at")
-          .eq("accorde_par", auth.user.id)
-          .gte("accorde_at", assignmentSince)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (ownAssignmentsResult.error || grantedAssignmentsResult.error) {
-    return NextResponse.json({ error: "Le journal des affectations est indisponible. Aucun rapport partiel n'est présenté comme complet." }, { status: 503 });
+  let assignmentRows: Array<{
+    id: string; profile_id: string; pharmacie_id: string; fonction: string; statut: string;
+    commence_at: string; expire_at: string; accorde_at: string; revoque_at: string | null;
+  }> = [];
+  if (profile.role === "promoteur" || profile.role === "pharmacie") {
+    const [ownAssignmentsResult, grantedAssignmentsResult] = await Promise.all([
+      sb.from("naxa_professional_assignments")
+        .select("id,profile_id,pharmacie_id,fonction,statut,commence_at,expire_at,accorde_at,revoque_at")
+        .eq("profile_id", auth.user.id)
+        .gte("accorde_at", assignmentSince),
+      profile.role === "promoteur"
+        ? sb.from("naxa_professional_assignments")
+            .select("id,profile_id,pharmacie_id,fonction,statut,commence_at,expire_at,accorde_at,revoque_at")
+            .eq("accorde_par", auth.user.id)
+            .gte("accorde_at", assignmentSince)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (ownAssignmentsResult.error || grantedAssignmentsResult.error) {
+      return NextResponse.json({ error: "Le journal des affectations est indisponible. Aucun rapport partiel n'est présenté comme complet." }, { status: 503 });
+    }
+    assignmentRows = [...(ownAssignmentsResult.data ?? []), ...(grantedAssignmentsResult.data ?? [])]
+      .filter((row, index, all) => all.findIndex(candidate => candidate.id === row.id) === index);
   }
-  const assignmentRows = [...(ownAssignmentsResult.data ?? []), ...(grantedAssignmentsResult.data ?? [])]
-    .filter((row, index, all) => all.findIndex(candidate => candidate.id === row.id) === index);
   const assignmentNow = Date.now();
   const assignmentActive = assignmentRows.filter(row =>
     row.statut === "active" &&
