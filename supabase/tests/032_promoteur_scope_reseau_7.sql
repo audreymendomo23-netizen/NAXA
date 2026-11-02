@@ -7,12 +7,10 @@ create temp table v7_ids(promoteur uuid,a uuid,b uuid,c uuid);
 do $$
 declare p uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); c uuid:=gen_random_uuid();
 begin
-  set local session_replication_role='replica';
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
-  values(p,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','v7-promoteur@example.test','x',now(),'{}','{}',now(),now());
+  values(p,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','v7-promoteur@example.test','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{"naxa_signup_pending":true}'::jsonb,now(),now());
   insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif,fonction_interne,niveau_interne,niveau_hierarchique)
   values(p,'promoteur','v7promoteur','V7','Promoteur','+237690000071','CM','1990-01-01',true,now(),true,'promoteur',1,1);
-  set local session_replication_role='origin';
   insert into public.pharmacies(id,nom,lat,lng,actif) values(a,'V7 A',3.86,11.51,true),(b,'V7 B',3.87,11.52,true),(c,'V7 C',3.88,11.53,true);
   insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
   values(p,30000,current_date+30,'active','ORPHELIN');
