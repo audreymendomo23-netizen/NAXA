@@ -14,7 +14,7 @@ export async function confirmerReglementPromoteur(formData: FormData) {
   if (!preuveVerifiee) redirect("/admin/pilotage/reglements?erreur=verification");
   const db = supabaseAdmin();
   const { data: reglement, error: readError } = await db.from("abonnement_promoteur_reglements")
-    .select("id,promoteur_id,statut,preuve_path").eq("id", id).maybeSingle();
+    .select("id,promoteur_id,statut").eq("id", id).maybeSingle();
   if (readError || !reglement || reglement.statut !== "en_attente") redirect("/admin/pilotage/reglements?erreur=confirmation");
 
   // Ne jamais confirmer un paiement si l'identité du Promoteur ou son réseau
@@ -38,8 +38,7 @@ export async function confirmerReglementPromoteur(formData: FormData) {
     redirect("/admin/pilotage/reglements?erreur=dossier");
   }
 
-  const { data: preuve } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(reglement.preuve_path, 600);
-  if (!preuve?.signedUrl) redirect("/admin/pilotage/reglements?erreur=preuve");
+  // La preuve complémentaire est facultative ; l’Administrateur confirme après rapprochement externe.
   const { error } = await db.rpc("admin_confirmer_reglement_promoteur", { p_reglement: id, p_admin: user.id });
   if (error) redirect("/admin/pilotage/reglements?erreur=confirmation");
   revalidatePath("/admin/pilotage/reglements");
