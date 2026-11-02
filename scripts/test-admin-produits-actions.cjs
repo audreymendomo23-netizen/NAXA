@@ -11,6 +11,10 @@ const photoUpload = fs.readFileSync(
   path.join(__dirname, "../src/components/PhotoUpload.tsx"),
   "utf8",
 );
+const adminProfile = fs.readFileSync(
+  path.join(__dirname, "../src/app/admin/profil/page.tsx"),
+  "utf8",
+);
 
 test("les deux actions de fiche sont réservées à un administrateur actif", () => {
   assert.match(source, /requireAdminActive\("\/admin\/produits"\)/);
@@ -48,4 +52,10 @@ test("l'upload ne confirme pas une photo si les métadonnées produit n'ont pas 
   assert.match(photoUpload, /updateError \|\| updated\?\.id !== produitId/);
   assert.match(photoUpload, /if \(chemin\) await sb\.storage\.from\("medicaments"\)\.remove\(\[chemin\]\)/);
   assert.ok(photoUpload.indexOf("updated?.id !== produitId") < photoUpload.indexOf('setEtat("ok")'));
+});
+
+test("le profil personnel ne confirme pas une mise à jour sans ligne retournée", () => {
+  assert.match(adminProfile, /\.eq\("id", auth\.user\.id\)\.select\("id"\)\.maybeSingle\(\)/);
+  assert.match(adminProfile, /updateError \|\| updated\?\.id !== auth\.user\.id/);
+  assert.ok(adminProfile.indexOf("updated?.id !== auth.user.id") < adminProfile.indexOf('setMessage("Profil mis à jour.")'));
 });
