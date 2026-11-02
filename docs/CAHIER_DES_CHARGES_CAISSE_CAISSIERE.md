@@ -287,12 +287,14 @@ Migrations SQL, politiques RLS, fonctions de calcul testées, routes serveur, é
 
 ---
 
-## 13. Points à confirmer par le promoteur
-1. Carte « Montant remboursé » : lignes « Principal » et « Remboursement » = part assureur / part client ? (hypothèse retenue)
-2. « OM Cash » = Orange Money ? Faut-il en plus un bouton Espèces (ajouté par défaut) ?
-3. Périmètre de « Solde crédit » : session, caissière ou pharmacie entière ?
-4. Seuil d'écart, validation du responsable, crédit autorisé à la caissière, remises : valeurs à saisir par la pharmacie.
-5. Largeur d'imprimante des pharmacies pilotes (58 ou 80 mm).
+## 13. Points métier — état après arbitrages du fondateur (02/11/2026)
+1. **RÉSOLU :** « Principal » = part assureur ; « Remboursement » = part Client.
+2. **RÉSOLU :** remplacer « OM Cash » par « Orange Money » ; conserver « Espèces » séparément.
+3. **RÉSOLU :** le solde crédit affiché à la Caisse concerne uniquement les crédits de la session.
+4. **PARTIELLEMENT RÉSOLU :** NAXA fournit les valeurs de référence, personnalisables par pharmacie ; le Promoteur configure depuis son compte les plafonds et délais de crédit. Les montants et seuils numériques doivent provenir de la configuration réelle, jamais être inventés.
+5. **À CONFIRMER :** largeur d'imprimante des pharmacies pilotes (58 ou 80 mm).
+
+Référence prioritaire : docs/DECISIONS_METIER_FONDATEUR.md.
 
 ---
 
