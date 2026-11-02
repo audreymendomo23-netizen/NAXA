@@ -3529,3 +3529,29 @@ Référence métier prioritaire : docs/DECISIONS_METIER_FONDATEUR.md. Les points
 **Correction indépendante appliquée après décision :** les KPI du tableau Admin, le badge d'alertes de navigation et la page Alertes filtrent maintenant les pharmacies de démonstration en reprenant les marqueurs de nom utilisés par la migration 244. Le sélecteur de pharmacies actives et publiées pour la création de catalogue conserve sa source complète ; seule la mesure opérationnelle est filtrée.
 
 Preuves de code et contrôle ciblé consignés dans FONCTIONNALITES_VALIDEES.md. Aucun déploiement et aucune écriture Supabase Production.
+
+
+---
+
+## Correction appliquée — checklist de réception documentaire informative (02/11/2026)
+
+Le fondateur a confirmé que les cases « documents reçus » sont informatives et ne doivent pas être une condition bloquante de validation.
+
+**Contradiction initiale confirmée dans le code :**
+- L'écran `src/app/admin/pharmacies/[id]/page.tsx` combinait les déclarations de réception (`pharmacie_documents_recus`) et les fichiers réels dans `piecesCompletes`.
+- L'action `src/app/admin/promoteurs/actions.ts::validerDossierPharmacie` refusait la validation si une déclaration était absente.
+- La RPC SQL `admin_valider_dossier_pharmacie` exigeait les sept cases de réception avant de contrôler les six fichiers réels.
+
+**Correction appliquée sur main :**
+- Les cases restent affichées et modifiables à titre informatif ; elles ne sont plus lues par l'action de validation ni par la RPC comme prérequis.
+- L'écran ne bloque plus l'ouverture sur l'état des cases ; il bloque encore lorsque le registre des fichiers réels est indisponible ou qu'un fichier requis est absent, en attente ou rejeté.
+- L'action serveur conserve l'attestation Admin, les contrôles du Promoteur/rattachement/état initial et la validation des six fichiers.
+- Migration additive `supabase/migrations/20261102114000_admin_pharmacy_receipt_checklist_informational.sql` remplace la RPC en retirant uniquement le prérequis des cases, tout en préservant `SECURITY DEFINER`, `is_admin()`, l'attestation explicite, les verrous, l'état initial en attente, les six validations de fichiers et le provisionnement transactionnel.
+- Le test SQL structurel existant a été réaligné pour rejeter le retour d'un blocage basé sur les cases ; un test Node ciblé a été ajouté.
+
+**Preuves :**
+- Contrôle statique ciblé exécuté : 11/11 invariants observés conformes (écriture des cases toujours accessible, absence de dépendance des cases dans l'action et la RPC, présence des six contrôles de fichiers, des gardes Admin et de l'état initial, cohérence de l'écran et des tests).
+- Commits : `db8961b355dcbe54f6c9823423c49367bab15e73` (action), `8c14afd2f9829e6cee232fe9330e39605fcac475` (écran), `4c6746700e02c48f03de4ee018eb4cd9ee61695f` (migration additive), `3cc0a959e9cf5265d0e134302950bb5138e5c1c9` (contrat SQL), `137f0c118599a38d68d482a15ee6d982425d0d66` (commentaire RPC), `26228dd9097962344ad2d10b390d1e2facf11224` et `1b17914df644ba07816ef26877b9487040dbf641` (test Node).
+- **Non exécuté :** `npm test`, build/typecheck et exécution SQL de la migration/test. La migration n'a pas été appliquée à Supabase Production.
+
+**Statut :** source et contrat de test corrigés sur `main`; vérification statique PASS. Runtime/SQL non certifiés.
