@@ -251,6 +251,20 @@ function rowsFromStats(stats: Record<string, any>): ReportRow[] {
     }
   }
 
+  if (stats.partenaires_globaux?.totaux) {
+    add("Partenaires Marketplace total", stats.partenaires_globaux.totaux.partenaires_total);
+    add("Partenaires Marketplace actifs", stats.partenaires_globaux.totaux.partenaires_actifs);
+    add("Partenaires Marketplace en attente", stats.partenaires_globaux.totaux.partenaires_en_attente);
+    add("Partenaires Marketplace suspendus", stats.partenaires_globaux.totaux.partenaires_suspendus);
+    add("Membres partenaires", stats.partenaires_globaux.totaux.membres_partenaires_total);
+    add("Membres partenaires distincts", stats.partenaires_globaux.totaux.membres_partenaires_uniques);
+    if (Array.isArray(stats.partenaires_globaux.par_type_statut)) {
+      for (const item of stats.partenaires_globaux.par_type_statut) {
+        add(`Partenaires Marketplace · ${item.type} · ${item.statut}`, item.total);
+      }
+    }
+  }
+
   if (stats.totaux && typeof stats.totaux === "object") {
     add("Clients actifs", stats.totaux.clients_actifs);
     add("Clients total", stats.totaux.clients_total);
@@ -643,7 +657,7 @@ export async function POST(request: Request) {
     au: endDate,
     genere_le: now.toISOString(),
     comparaison: { disponible: false, motif: "Le moteur de statistiques actuel ne prend pas encore de date de début/fin arbitraire. Aucune comparaison artificielle n'est affichée." },
-    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_scope, stats.note_affectations, adminSourcesNote, "Les durées de service sont calculées à partir des horodatages serveur des sessions ouvertes/clôturées. Une session encore ouverte est calculée jusqu’à l’heure de génération et reste provisoire. Les sessions de caisse décrivent l’ouverture/fermeture du tiroir, pas une présence générale. Les gardes de pharmacie publiées ne sont pas des gardes individuelles effectuées."].filter(Boolean).join(" "),
+    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_scope, stats.partenaires_globaux ? "Les comptes Partenaires Marketplace sont comptabilisés séparément, car ils ne sont pas rattachés à une pharmacie ni à un Promoteur." : null, stats.note_affectations, adminSourcesNote, "Les durées de service sont calculées à partir des horodatages serveur des sessions ouvertes/clôturées. Une session encore ouverte est calculée jusqu’à l’heure de génération et reste provisoire. Les sessions de caisse décrivent l’ouverture/fermeture du tiroir, pas une présence générale. Les gardes de pharmacie publiées ne sont pas des gardes individuelles effectuées."].filter(Boolean).join(" "),
     indicateurs: rows,
     serie: Array.isArray(stats.serie) ? stats.serie : [],
     analyse_ia: ai,
