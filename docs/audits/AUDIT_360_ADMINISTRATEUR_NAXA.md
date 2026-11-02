@@ -2873,11 +2873,11 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 
 #### ADM-UNIV-DOSSIER-01 — Erreur de lecture des dossiers partenaires non propagée — OUVERT
 
-- **Preuve :** dans `src/app/admin/univers/page.tsx`, la requête `admin_partner_dossiers` est incluse dans `Promise.all`, mais `partnerDossiersResult.error` n'est pas inclus dans le booléen `missing`. Les valeurs de `dossierPartnerIds` et `dossiersEnAttente` sont calculées avec `data ?? []`.
+- **Preuve historique :** la requête `admin_partner_dossiers` n'était pas incluse dans `missing`. Le fichier courant inclut maintenant `partnerDossiersResult.error` dans le booléen global; le bandeau local affiche également « Registre des dossiers indisponible ».
 - **Impact :** si cette seule lecture échoue, l'écran peut présenter zéro dossier en attente et aucune association à un dossier, sans signaler l'indisponibilité de cette source. L'Administrateur risque de confondre une erreur d'accès/schéma avec une absence réelle de dossiers.
 - **Classement : confirmé par lecture directe du code; non reproduit en runtime.**
-- **Correction proposée :** inclure `partnerDossiersResult.error` dans l'état d'indisponibilité et afficher un état d'erreur propre à la section dossiers, sans transformer l'erreur en liste vide.
-- **Vérification attendue :** simulation d'échec isolé de cette requête; les autres sections restent utilisables et la section dossiers affiche explicitement son indisponibilité.
+- **Correction implémentée sur main :** ajout de `partnerDossiersResult.error` dans `missing`; l'indisponibilité est propagée au bandeau global et au message local existant.
+- **Vérification effectuée :** relecture du fichier sur main et assertion de présence de la condition mise à jour. **Reste à faire :** injection runtime d'une erreur isolée pour confirmer le rendu navigateur.
 
 #### ADM-EXAM-04 — Erreur de lecture des rendez-vous non affichée — OUVERT
 
@@ -3178,14 +3178,14 @@ Pour éviter de refaire les mêmes travaux :
 
 - Constats actifs avant ce complément : 19 identifiants uniques.
 - Nouveaux constats ajoutés après relecture contradictoire du code et des politiques live : 3.
-- **Total historique : 22 constats uniques** — après requalification d'ADM-EXAM-04 comme non actif, 21 constats restent actifs ou sous réserve (P1/P2/P3 inchangés à recalculer lors de la prochaine consolidation). Aucun doublon d'identifiant détecté.
+- **Total historique : 22 identifiants uniques**. Après clôture source d'ADM-UNIV-DOSSIER-01 et retrait du doublon ADM-EXAM-04, **20 constats actifs ou sous réserve** restent suivis : P1 : 4; P2 : 15; P3 : 1. Aucun doublon d'identifiant détecté.
 - Les statuts OUVERT, RÉSERVE DE PREUVE et SURVEILLANCE restent distincts; aucun constat n'est déclaré corrigé par la seule inscription au registre.
 
 ### 10.5 Statut de l'étape 10
 
 **Étape 10 — registre consolidé établi, enrichi et relié aux corrections de cette passe : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
 
-Les deux corrections source sont implémentées sur main; la migration SQL est versionnée mais non appliquée. Les tests runtime restent ouverts. Les étapes 11, 12 et 13 sont documentées plus loin; l'étape 14 est maintenant engagée ci-dessus.
+Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 est clos côté code, avec réserve de test runtime. ADM-EXAM-04 est retiré comme constat redondant. La migration SQL est versionnée mais non appliquée. Les tests runtime restent ouverts. Les étapes 11, 12 et 13 sont documentées plus loin; l'étape 14 est maintenant engagée ci-dessus.
 
 
 
@@ -3243,6 +3243,8 @@ Les deux corrections source sont implémentées sur main; la migration SQL est v
 - **Confirmé par lecture du helper :** `private.is_admin()` vérifie `role='admin'` et `actif=true`; la migration réutilise ce garde plutôt que de dupliquer la règle.
 - **Non vérifié en runtime :** le refus effectif d'un Admin inactif et la conservation des scopes Client/partenaire.
 - **Non démontré :** résolution complète par l'Admin des réservations Marketplace et des demandes de prestations à domicile.
+- **Contrôle Supabase Security Advisor (02/11/2026, Production) :** six tables avec RLS activé sans politique; cinq fonctions SECURITY DEFINER accessibles à `anon`; 120 fonctions SECURITY DEFINER exécutables par `authenticated`. Ces alertes sont préexistantes et dépassent le périmètre immédiat des deux politiques corrigées; elles restent à qualifier individuellement, sans révocation massive ni changement opportuniste. Les politiques Client/partenaire des deux tables visées n'ont pas été modifiées.
+- **État de la migration :** l'historique Production consulté s'arrête à `20261101213620`; `20261102023000_admin_active_read_policies.sql` n'y figure pas. La migration est donc confirmée non appliquée.
 - **Risque résiduel principal :** la migration RLS est versionnée mais non appliquée; les limites de pagination et les surfaces de résolution métier restent ouvertes.
 
 ### 14.5 Statut de l'étape 14
