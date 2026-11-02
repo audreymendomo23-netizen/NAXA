@@ -15,8 +15,8 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
   await requireAdminActive("/admin/pilotage/reglements");
   const db = supabaseAdmin();
   const [{ data: pending, error: pendingError }, { data: recent, error: recentError }] = await Promise.all([
-    db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,created_at").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
-    db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_au,created_at,motif_contestation").neq("statut", "en_attente").order("created_at", { ascending: false }).limit(50),
+    db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,destination_snapshot,declared_at,created_at").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
+    db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_au,declared_at,destination_snapshot,created_at,motif_contestation").neq("statut", "en_attente").order("created_at", { ascending: false }).limit(50),
   ]);
   const paymentRows = [...(pending ?? []), ...(recent ?? [])];
   const promoterIds = [...new Set(paymentRows.map(r => r.promoteur_id).filter((id): id is string => typeof id === "string" && id.length > 0))];
@@ -74,8 +74,8 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
   );
   const promoterLabel = (promoteurId: string) => people.get(promoteurId) || "Identité du Promoteur indisponible";
   const proofLinks = new Map<string, string>();
-  await Promise.all((pending ?? []).map(async r => {
-    const { data } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path, 600);
+  await Promise.all((pending ?? []).filter(r => Boolean(r.preuve_path)).map(async r => {
+    const { data } = await db.storage.from("preuves-reglements-promoteurs").createSignedUrl(r.preuve_path!, 600);
     if (data?.signedUrl) proofLinks.set(r.id, data.signedUrl);
   }));
   const errors: Record<string, string> = {
@@ -104,12 +104,12 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
         const proof = proofLinks.get(r.id);
         const isVideo = /\.(mp4|webm|mov)$/i.test(r.preuve_path);
         return <article key={r.id} className="rounded-3xl bg-white p-4 sm:p-5">
-          <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-extrabold">{promoterLabel(r.promoteur_id)}</h3><p className="mt-1 break-words text-sm text-slate-700">Pharmacie(s) : <span className="font-semibold">{pharmacyLabel(r.promoteur_id)}</span></p><p className="text-xs text-slate-500">Soumis le {date(r.created_at)}</p></div><strong className="text-lg">{money(r.montant)}</strong></div>
+          <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-extrabold">{promoterLabel(r.promoteur_id)}</h3><p className="mt-1 break-words text-sm text-slate-700">Pharmacie(s) : <span className="font-semibold">{pharmacyLabel(r.promoteur_id)}</span></p><p className="text-xs text-slate-500">Déclaration reçue (T0) : {date(r.declared_at ?? r.created_at)}</p></div><strong className="text-lg">{money(r.montant)}</strong></div>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div><dt className="text-slate-500">Canal de paiement</dt><dd className="font-semibold">{CANAUX[r.canal] ?? r.canal}{r.canal_autre ? " · " + r.canal_autre : ""}</dd></div>
             <div><dt className="text-slate-500">Compte / numéro payeur</dt><dd className="font-semibold">{r.compte_payeur || "—"}</dd></div>
             <div><dt className="text-slate-500">Référence de transaction</dt><dd className="font-semibold">{r.reference || "Non renseignée"}</dd></div>
-            <div><dt className="text-slate-500">Date de paiement déclarée</dt><dd className="font-semibold">{date(r.paye_le)}</dd></div>
+            <div><dt className="text-slate-500">Date de paiement déclarée</dt><dd className="font-semibold">{date(r.paye_le)}</dd></div><div><dt className="text-slate-500">Destination utilisée</dt><dd className="font-semibold">{r.destination_snapshot ? `${r.destination_snapshot.beneficiaire} · ${r.destination_snapshot.reference_destination}` : "Instantané non disponible"}</dd></div>
           </dl>
           {proof && <div className="mt-4 rounded-2xl border border-slate-200 p-3">
             {isVideo && <video controls preload="metadata" className="mb-3 max-h-80 w-full rounded-xl bg-black" src={proof}>Votre navigateur ne peut pas lire cette vidéo.</video>}
@@ -117,8 +117,8 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
             <a className="inline-block rounded-full border border-[#0147BB] px-4 py-2 text-sm font-bold text-[#0147BB] underline" href={proof} target="_blank" rel="noreferrer" download>Consulter / télécharger la preuve privée</a>
             <p className="mt-2 text-xs text-slate-500">Lien privé temporaire, valable 10 minutes. Renouvelez la page si nécessaire.</p>
           </div>}
-          {!proof && <p className="mt-3 text-sm text-red-700">La preuve n’a pas pu être chargée. Ne confirmez pas le paiement sans l’avoir vérifiée.</p>}
-          <form action={confirmerReglementPromoteur} className="mt-4"><input type="hidden" name="reglement_id" value={r.id}/><label className="mb-3 flex items-start gap-2 text-sm"><input required type="checkbox" name="preuve_verifiee" className="mt-1 h-4 w-4 accent-[#0F6B3F]"/><span>J’ai consulté la preuve et vérifié les références ainsi que la réalité de l’encaissement auprès du canal concerné.</span></label><button disabled={!proof || paymentContextUnavailable} className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white disabled:opacity-40">Confirmer l’encaissement réel et renouveler l’abonnement</button><p className="mt-2 text-xs text-slate-500">Cette action est définitive et journalisée. Elle met à jour l’échéance à partir de la date de validation.</p></form>
+          {!proof && <p className="mt-3 text-sm text-amber-800">{r.preuve_path ? "La preuve complémentaire déposée n’a pas pu être chargée. Vous pouvez procéder uniquement après vérification externe complète." : "Aucune preuve complémentaire n’a encore été déposée. Vérifiez directement la transaction auprès de l’opérateur ou de la banque."}</p>}
+          <form action={confirmerReglementPromoteur} className="mt-4"><input type="hidden" name="reglement_id" value={r.id}/><label className="mb-3 flex items-start gap-2 text-sm"><input required type="checkbox" name="preuve_verifiee" className="mt-1 h-4 w-4 accent-[#0F6B3F]"/><span>J’ai vérifié directement auprès de l’opérateur ou de la banque la réalité de l’encaissement, le montant, le canal, le compte payeur, la destination et la référence exacte de cette transaction.</span></label><button disabled={paymentContextUnavailable} className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white disabled:opacity-40">Confirmer l’encaissement réel et renouveler l’abonnement</button><p className="mt-2 text-xs text-slate-500">Cette action est définitive et journalisée. Elle met à jour l’échéance à partir de la date de validation.</p></form>
           <form action={contesterReglementPromoteur} className="mt-4 grid gap-2 rounded-2xl border border-red-100 bg-red-50 p-3"><input type="hidden" name="reglement_id" value={r.id}/><label className="grid gap-1 text-sm font-semibold text-red-900">Contester / demander une correction<textarea required minLength={5} maxLength={500} name="motif" className="min-h-20 rounded-xl border border-red-200 bg-white p-3 font-normal" placeholder="Précisez la référence ou l’élément à corriger."/></label><button className="min-h-10 w-fit rounded-full border border-red-300 px-4 font-bold text-red-800">Contester le paiement</button></form>
         </article>;
       })}
