@@ -1,18 +1,29 @@
-## Rectificatif — exécution contrôlée des migrations PRE-044/PRE-045 (02/11/2026)
+## État courant — migrations PRE-044/PRE-045 appliquées et vérifiées en Production (02/11/2026)
 
-L'appel Supabase Production `apply_migration` pour la migration `20261102083000_admin_active_catalog_stock_rls` a été refusé par le contrôle de sécurité de l'outil avant exécution. Il n'a donc pas modifié le projet Production. Aucun contournement via `execute_sql`, RPC ou autre connecteur n'a été tenté. La même décision s'applique à `20261102084500_admin_active_medicament_storage_rls`.
+Les deux migrations précédemment bloquées avant exécution ont été appliquées avec succès après l'autorisation explicite de l'utilisateur de poursuivre les corrections Supabase dans le périmètre du ratissage.
 
-Le contrôle SQL en lecture seule effectué après le refus a relu les 12 politiques visées et confirmé qu'elles sont encore dans leur état role-only. Le correctif reste prêt et testé sur Replay, mais **PRE-044 et PRE-045 ne sont pas corrigés en Production**. Cette réserve n'est pas une réserve CI/application : elle est liée au contrôle d'autorisation de l'outil de migration Production. Les migrations ne doivent pas être déclarées vertes en Production avant application effective.
+- `admin_active_catalog_stock_rls` — version Supabase Production **20261102095050** — source `supabase/migrations/20261102083000_admin_active_catalog_stock_rls.sql`.
+- `admin_active_medicament_storage_rls` — version Supabase Production **20261102095056** — source `supabase/migrations/20261102084500_admin_active_medicament_storage_rls.sql`.
+- **Preuve live :** les 12 politiques ciblées ont été relues dans `pg_policy`; les neuf policies publiques (huit mutations Admin + lecture partenaire stock) et les trois policies Storage utilisent désormais `public.is_admin()` dans leurs clauses `USING` et/ou `WITH CHECK` selon l'opération.
+- **Garde canonique :** `public.is_admin()` délègue à `private.is_admin()`; cette dernière exige `auth.uid()`, `profiles.role='admin'` et `profiles.actif IS TRUE`, avec `search_path=''`.
+- **Tests Replay :** test 269 PASS (31 assertions), test 270 PASS (huit policies, garde Admin actif/inactif/Client et préservation du périmètre partenaire), test 271 PASS structurel (mutations Storage). Les fixtures sont transactionnelles et annulées. Le bucket Storage `medicaments` n'existe pas dans Replay : aucun upload réel n'est revendiqué.
+- **État :** PRE-044 et PRE-045 sont corrigés et leurs définitions live vérifiées en Production. La recette Storage réelle et les parcours HTTP/JWT restent à vérifier par CI ou test dans l'application.
+- **Aucune donnée métier n'a été créée, modifiée ou supprimée. Aucun déploiement n'a été déclenché.**
 
+### Traçabilité des anciens états
+
+Le refus initial de l'outil de migration est un événement historique antérieur à l'autorisation explicite et à la réussite des deux appels `apply_migration`. Les paragraphes plus anciens qui indiquent « migration Production non appliquée », « policies role-only encore présentes » ou « blocage de sécurité de l'outil » décrivent cet état antérieur et sont **supersédés par le présent relevé**. Ils ne doivent plus être interprétés comme l'état courant.
+
+---
 
 ## Addendum — extension du garde Admin actif aux politiques catalogue, stock et Storage (02/11/2026)
 
 - **Cause racine confirmée en Production :** huit policies Admin `ALL` sur `feature_flag_test_accounts`, `feature_flags`, `partner_members`, `partner_universes`, `partners`, `stock_movements`, `suivi_professionals`, `universes`, ainsi que la branche Admin de `stock_movements_partner_read), vérifient le rôle sans l'état actif. Trois policies Storage du bucket `medicaments` font de même pour INSERT/UPDATE/DELETE.
 - **Migration catalogue/stock :** `20261102083000_admin_active_catalog_stock_rls.sql`, commit source `5752248c28cb3a6812ec7920de317588cf0f4334`; Replay appliquée sous version `20261102072715`. Test `270` PASS (comportement Admin actif/inactif/Client sur partners + contrôles structurels des huit policies et du scope partenaire), `ROLLBACK`.
 - **Migration Storage :** `20261102084500_admin_active_medicament_storage_rls.sql`, commit source `5f82cb9d1fa876cd16e308a470ff1d208880de6c`; Replay appliquée sous version `20261102072914`. Test `271` PASS structurel; le bucket medicaments n'existe pas dans ce Replay, aucune opération fichier n'est prétendue.
-- **Production :** application de ces deux migrations refusée par le contrôle de sécurité de l'outil; aucune tentative de contournement par `execute_sql` ou autre chemin. Les catalogues Production relus après le refus montrent toujours les anciennes définitions role-only.
+- **Production :** les deux migrations ont ensuite été appliquées avec succès et les 12 politiques relues : version `20261102095050` (`admin_active_catalog_stock_rls`) et `20261102095056` (`admin_active_medicament_storage_rls`). La définition de `public.is_admin()` délègue au garde privé qui exige `profiles.actif IS TRUE`. Voir l'état courant en tête du document.
 - **Tests d'application et CI :** aucun build, lint, typecheck, HTTP JWT ou navigateur exécuté; le miroir GitLab reste au commit du 21/10, pipeline interrompu par `ci_quota_exceeded` avant les jobs.
-- **Statut :** code et tests versionnés, tests Replay PASS; correctif RLS Production PRE-044/PRE-045 en attente, et non déclaré vert Production.
+- **Statut :** PRE-044/PRE-045 corrigés et vérifiés sur les définitions de politiques en Production; tests Replay 270/271 PASS. La vérification des permissions réelles par JWT et l'upload réel Storage restent à faire en CI ou dans l'application.
 
 
 ## Addendum — couverture des demandes domicile et réservations Marketplace (02/11/2026)
@@ -36,7 +47,7 @@ Les deux surfaces sont en lecture seule. Elles ne mutent aucun statut, stock, pa
 
 ### État courant du parcours Admin
 
-- HEAD de référence de la dernière modification de code de ce ratissage : `afa069496ad80d9e990837197b564bddaf30f0af`.
+- HEAD de référence vérifié après les correctifs de sécurité : `04e266205e767c132c15004758d0572f0a383e0e` (main).
 - Nombre de pages Admin au HEAD : **21** (12 entrées de navigation latérale et accès directs/imbriqués).
 - Aucun commit de cette passe n’a créé de branche, de PR, de modification Supabase Production ou de déploiement.
 - Les anciennes mentions « files Admin absentes » sont remplacées par « source construite — CI et recette application en attente ».
@@ -72,10 +83,12 @@ Les deux surfaces sont en lecture seule. Elles ne mutent aucun statut, stock, pa
 
 # Cahier des charges — Audit 360° du parcours Administrateur NAXA
 
-> **Document de référence de l’audit 360 Administrateur.** La gouvernance de ce chantier est définie par le texte intégral du MANDAT CTO NAXA fourni par l’utilisateur; ce cahier enregistre les preuves, constats, corrections et statuts. Le cahier des charges V3.7 et le Prompt maître ne gouvernent pas le workflow de cet audit. Cette précision ne signifie pas que des fichiers historiques portant ces références ont été supprimés du dépôt; ils ne peuvent être utilisés qu’en arrière-plan fonctionnel lorsqu’ils ne contredisent ni le mandat ni les décisions plus récentes.
+> **Hiérarchie des références :** le texte intégral du **MANDAT CTO NAXA** gouverne la méthode, l'ordre des étapes, le travail sur `main`, l'interdiction de déploiement et la validation par preuves. `docs/CAHIER_DES_CHARGES.md` (v3.7) reste la référence fonctionnelle et métier, sous réserve des décisions approuvées plus récentes et de l'état réel démontré. Le présent fichier est le registre de preuves et de corrections de l'audit 360 Administrateur. Le Prompt maître historique ne gouverne pas ce chantier.
 
 
 > **Document de référence vivant** — audit 360 détaillé en cours de clôture contradictoire. Les sous-étapes et corrections sont versionnées; les statuts distinguent preuve statique, test SQL Replay, définition Production relue, CI et recette navigateur. Aucun déploiement n’est autorisé dans ce chantier.
+
+> **Note de lecture — snapshots historiques :** les sections numérotées et relevés datés d'octobre conservent l'état observé à leur date. Elles ne sont pas automatiquement l'état courant. En cas de divergence, les addenda datés les plus récents en tête du document, les preuves du HEAD `main` et les vérifications live Supabase priment. Ne pas réutiliser un ancien décompte, un ancien état de migration ou un ancien constat sans vérifier sa date et son éventuelle correction.
 
 ## Clôture ciblée — point 3, configuration visuelle Data API (29 octobre 2026)
 
