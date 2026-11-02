@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   if (!admin.ok) return admin.response;
 
   const ticketId = new URL(request.url).searchParams.get("ticket_id")?.trim() ?? "";
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(ticketId)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ticketId)) {
     return NextResponse.json({ error: "Identifiant de ticket invalide." }, { status: 400 });
   }
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   }
   const ticketId = String(body.ticket_id ?? "").trim();
   const contenu = String(body.contenu ?? "").trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(ticketId)
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ticketId)
     || contenu.length < 1 || contenu.length > 2000) {
     return NextResponse.json({ error: "Le ticket et un message de 1 à 2 000 caractères sont requis." }, { status: 400 });
   }
