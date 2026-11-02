@@ -117,3 +117,16 @@ La décision « décrémenter physiquement le stock dès validation du crédit �
 - L'attestation explicite de l'Administrateur confirmant le contrôle réel des autorisations et pièces reste obligatoire. Les gardes de dossier en attente, cohérence convention/abonnement/architecture et provisionnement transactionnel sont préservés.
 - Source corrigée sur main : écran Admin individuel, action serveur et migration additive `20261102114000_admin_pharmacy_receipt_checklist_informational.sql`; contrat SQL mis à jour et test Node ciblé ajouté.
 - La migration n'a pas été appliquée à Supabase Production. Le test Node/SQL n'a pas été exécuté via `npm test` ou sur un environnement SQL dans cette passe ; seuls les contrôles statiques ciblés ont été exécutés.
+
+
+### Vérification du renouvellement mensuel — période à la confirmation réelle (02/11/2026)
+
+Le contrat versionné initial calculait le début par `greatest(date_confirmation_locale, ancienne_echeance + 1 jour)`, ce qui reportait un paiement confirmé avant l'échéance à la fin de la période en cours. Ce comportement contredisait le choix du fondateur « la nouvelle période commence à la date réelle de confirmation du paiement ».
+
+- Migration additive créée : `supabase/migrations/20261102115000_promoteur_subscription_period_starts_on_confirmation.sql`.
+- Le début de la période est maintenant la date de `now()` dans le fuseau `Africa/Douala`; la période mensuelle conserve une borne calendaire d'un mois.
+- La date réelle du paiement externe (`paye_le`) reste conservée comme date de transaction ; elle n'est pas confondue avec la date de confirmation (`confirme_le`) qui déclenche la période.
+- Le verrouillage du règlement/abonnement/convention, l'idempotence d'un règlement confirmé, le refus d'un règlement non en attente, la protection des résiliations et les ACL service_role uniquement sont conservés.
+- Tests structurel SQL et test Node ciblé ajoutés. Aucun test SQL runtime n'a été exécuté et la migration n'a pas été appliquée à Supabase Production.
+
+**Réserve distincte :** le modèle de contrat et l'interface Promoteur ne portent actuellement qu'un `montant_mensuel` et un renouvellement de 1 mois. Le choix « mensuel ou annuel » est confirmé, mais le tarif annuel et sa représentation (prix annuel négocié, périodicité enregistrée et échéance de 12 mois) ne sont pas encore implémentés. Le parcours mensuel reste indépendant et corrigé ; ne pas accepter de paiement annuel tant que sa tarification et son contrat ne sont pas construits.
