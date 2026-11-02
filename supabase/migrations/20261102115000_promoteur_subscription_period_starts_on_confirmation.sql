@@ -41,9 +41,7 @@ begin
   if r.paye_le is null or nullif(trim(coalesce(r.compte_payeur,'')),'') is null then
     raise exception 'Les références du paiement sont incomplètes';
   end if;
-  if nullif(trim(coalesce(r.preuve_path,'')),'') is null then
-    raise exception 'La preuve du paiement est obligatoire';
-  end if;
+  -- La preuve complémentaire est facultative ; la confirmation repose sur la vérification Admin externe ou la notification fiable.
 
   select * into a
   from public.abonnements_promoteurs
