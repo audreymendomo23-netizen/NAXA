@@ -45,7 +45,7 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
         if (!Array.isArray(result.messages)) {
           throw new Error("La réponse du serveur ne contient pas un historique valide.");
         }
-        setMessages(result.messages as Message[]);
+        if (!controller.signal.aborted) setMessages(result.messages as Message[]);
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
