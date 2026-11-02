@@ -94,3 +94,17 @@ Sauf décision plus récente contraire, restent applicables :
 ## I. Statut de validation
 
 Ce registre valide les **décisions métier** ci-dessus, pas leur état d'implémentation. Chaque fonctionnalité doit rester classée séparément : décision confirmée, code présent, correction réalisée, test exécuté, preuve obtenue, recette utilisateur éventuelle. Les arbitrages résiduels de la section G ne doivent bloquer que leurs dépendances directes.
+
+### Vérification du code après réception des décisions — crédit Marketplace
+
+La décision « décrémenter physiquement le stock dès validation du crédit » est confirmée, mais le contrat actuellement versionné fait encore l'inverse :
+
+- Migration 247 : la décision de crédit crée une réservation et des allocations FEFO sans débit physique.
+- Migration 251 : réaffirme explicitement le hold sans débit physique ; le test SQL 251 vérifie que l'approbation ne diminue ni stocks.quantite ni stocks_lots.quantite.
+- Migrations 252/256 : le débit physique est effectué au retrait POS, avec consommation des lots affectés.
+- Le retrait utilise le marqueur stock_decremented pour éviter le débit de stock agrégé au retrait, mais la version 256 diminue encore les quantités de lots pendant le retrait.
+- Le cron d'expiration annule les réservations expirées et appelle restore_stock dans la même transaction. La réservation crédit est créée avec une expiration de quatre heures. Le registre des demandes de crédit ne prévoit que les statuts en_attente, approuvee et rejetee ; l'expiration de la réservation ne ferme pas actuellement la demande approuvee associée.
+
+**Conséquence :** le contrat antérieur « hold sans débit à l'approbation » est remplacé par la décision du fondateur du 02/11/2026. La correction doit être additive : débiter stocks agrégés et lots alloués à l'approbation, marquer stock_decremented, ne pas redébiter au retrait POS, et conserver une restitution unique via restore_stock si la réservation est annulée/expirée. Les tests 251 doivent être remplacés/actualisés par des preuves de débit à l'approbation, retrait sans double débit, restauration une seule fois et isolation inter-pharmacies. Aucune migration Production n'est autorisée par le présent mandat.
+
+**Arbitrage fonctionnel complémentaire requis :** lorsqu'une réservation de crédit approuvée expire après le délai de retrait, faut-il fermer automatiquement la demande de crédit associée en « rejetée/expirée » afin de libérer le Client pour une nouvelle demande, ou conserver la demande approuvée pour une reprise manuelle ? Tant que ce point n'est pas arbitré, le travail sur les autres fonctionnalités continue.
