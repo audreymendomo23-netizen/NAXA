@@ -103,7 +103,7 @@ export async function changerStatutServiceBebeMaman(formData: FormData) {
   await requireAdmin();
   const pharmacieId = String(formData.get("pharmacie_id") ?? "").trim();
   const enabled = String(formData.get("enabled") ?? "") === "true";
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(pharmacieId)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pharmacieId)) {
     redirect("/admin/promoteurs?erreur=pharmacie");
   }
   const db = supabaseAdmin();
