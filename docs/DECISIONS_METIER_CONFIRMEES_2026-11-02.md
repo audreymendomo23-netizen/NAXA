@@ -54,14 +54,15 @@ La suspension complète et le SM-01 ne doivent pas partager un simple booléen d
 22. **Début de période après paiement tardif :** la nouvelle période commence à la date réelle de confirmation du paiement.
 23. **Frais de transaction :** les frais éventuels sont intégrés au tarif convenu ; ils ne sont pas ajoutés comme une ligne surprise au paiement du Promoteur.
 24. **Détection automatique :** tous les canaux (MTN Mobile Money, Orange Money, virement bancaire) peuvent être détectés automatiquement lorsqu'une notification fiable et suffisamment probante est disponible ; l'Administrateur assure le contrôle exceptionnel en secours.
-25. **Connexion Promoteur :** mot de passe uniquement ; aucune double authentification de connexion supplémentaire n'est imposée par cette décision. Les confirmations sensibles déjà définies pour les opérations métiers ne sont pas supprimées par ce choix.
+25. **Application compagnon de détection :** l'application Android dédiée au téléphone Admin pour détecter les notifications de paiement est distribuée depuis le site NAXA, sans hébergement Play Store. Elle est distincte de l'application Android du Promoteur, reportée et hors critères du présent chantier.
+26. **Connexion Promoteur :** mot de passe uniquement ; aucune double authentification de connexion supplémentaire n'est imposée par cette décision. Les confirmations sensibles déjà définies pour les opérations métiers ne sont pas supprimées par ce choix.
 
 Les règles de paiement Promoteur–NAXA déjà confirmées séparément restent inchangées : déclaration à T0, passage à « NON CONFIRMÉ » à T+2 minutes sans arrêt de la détection, alerte Admin à T+1 heure, accès maintenus 24 heures à partir de T0, blocage après T+24 heures sans décision, détection poursuivie au-delà et confirmation tardive avec activation/rétablissement automatique, pièce jointe non suffisante à elle seule, reçu après confirmation seulement, anti-doublon transactionnel et snapshot des coordonnées bénéficiaires.
 
 ### 2.5 Mode hors ligne et données de référence
 
-26. **Conflit hors ligne :** la dernière modification horodatée gagne automatiquement. Cette règle doit être appliquée avec une chronologie fiable et déterministe, sans permettre à un appareil de transférer ses opérations à une autre identité ou pharmacie.
-27. **Catalogue médicaments :** sources autorisées retenues :
+27. **Conflit hors ligne :** la dernière modification horodatée gagne automatiquement. Cette règle doit être appliquée avec une chronologie fiable et déterministe, sans permettre à un appareil de transférer ses opérations à une autre identité ou pharmacie.
+28. **Catalogue médicaments :** sources autorisées retenues :
    - données transmises par les pharmacies ;
    - catalogues fournis par les grossistes ;
    - source médicale disposant d'une licence compatible.
@@ -70,10 +71,10 @@ Les règles de paiement Promoteur–NAXA déjà confirmées séparément restent
 
 ### 2.6 Pilotage et administration
 
-28. **Pharmacies de démonstration :** elles sont exclues des KPI opérationnels. Elles peuvent rester consultables dans un périmètre explicitement identifié comme démonstration, mais ne doivent pas fausser les indicateurs du réseau réel.
-29. **Compteur d'alertes Admin :** il compte le nombre total de signaux ; plusieurs signaux peuvent concerner un même dossier.
-30. **Rappels de lots :** les destinataires sont les pharmacies du réseau Promoteur concerné et les pharmacies actives et vérifiées. La portée doit être contextualisée selon la nature du rappel, voir section 4.
-31. **Pièces reçues des dossiers pharmacie :** les cases « documents reçus » sont informatives ; elles ne constituent pas à elles seules une preuve d'authenticité ou une condition bloquante. Les véritables fichiers justificatifs, leur validation et l'attestation Admin restent soumis aux contrôles documentaires déjà prévus.
+29. **Pharmacies de démonstration :** elles sont exclues des KPI opérationnels. Elles peuvent rester consultables dans un périmètre explicitement identifié comme démonstration, mais ne doivent pas fausser les indicateurs du réseau réel.
+30. **Compteur d'alertes Admin :** il compte le nombre total de signaux ; plusieurs signaux peuvent concerner un même dossier.
+31. **Rappels de lots :** les destinataires sont les pharmacies du réseau Promoteur concerné et les pharmacies actives et vérifiées. La portée doit être contextualisée selon la nature du rappel, voir section 4.
+32. **Pièces reçues des dossiers pharmacie :** les cases « documents reçus » sont informatives ; elles ne constituent pas à elles seules une preuve d'authenticité ou une condition bloquante. Les véritables fichiers justificatifs, leur validation et l'attestation Admin restent soumis aux contrôles documentaires déjà prévus.
 
 ## 3. Règles de mise en œuvre qui ne changent pas les décisions
 
