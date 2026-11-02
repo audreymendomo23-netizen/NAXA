@@ -1762,3 +1762,15 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Limite :** le script Node du dépôt a été ajouté mais npm test/build/typecheck n'ont pas été exécutés dans cette passe. Aucune recette navigateur ni vérification live n'est revendiquée.
 - **Commits de correction :** 8d4332a41e88faab6534b6c1c91ede8c152fe686 (helper initial), ad1eb1a23d70fbaf69c1069e4dd3e34f4d1b464b (dashboard), 14bf905594052656f4c3e8aa38cdaece076d0627 (layout), 35e8e4fa1c1382ffd04669d4505c78c4cb962e56 (alertes), e3e7ef9b6fa520bb59a9441784aa93ba6b47a337 (correction regex), 46eee647403250388107725a74a16d5c169f5ce1 (test ciblé).
 - **Statut :** source corrigée et contrôles ciblés passés ; construction prête à la vérification de build/recette, pas de validation runtime ni Production.
+
+
+## Admin — checklist de réception documentaire informative (02/11/2026)
+
+- **Décision métier :** les cases « documents reçus » sont informatives et ne conditionnent plus la validation initiale.
+- **Avant correction :** la page, l'action serveur et la RPC SQL exigeaient que toutes les cases soient cochées, en plus de la validation de chaque fichier réel.
+- **Correction sur main :** `src/app/admin/pharmacies/[id]/page.tsx` (affichage informatif, ouverture bloquée uniquement par indisponibilité/fichiers réels non valides) ; `src/app/admin/promoteurs/actions.ts` (suppression du prérequis `pharmacie_documents_recus` dans `validerDossierPharmacie`, conservation des contrôles des six fichiers) ; migration additive `supabase/migrations/20261102114000_admin_pharmacy_receipt_checklist_informational.sql` (RPC corrigée sans prérequis de checklist, avec sécurité Admin/attestation/état pending/verrouillage/provisionnement conservés).
+- **Contrat :** `supabase/tests/20261029110000_admin_validate_dossier_pending_only.sql` actualisé pour vérifier que les cases ne sont pas des prérequis et que les six fichiers réels restent contrôlés ; `scripts/test-admin-document-receipt-checklist.cjs` ajouté et inclus dans le motif `node --test scripts/test-*.cjs` de `npm test`.
+- **Vérification exécutée :** 11/11 contrôles statiques directs PASS sur les fichiers récupérés de main : la checklist est maintenue, aucune dépendance dans la validation serveur/RPC, l'écran dépend des fichiers réels uniquement, les six fichiers restent exigés, les gardes Admin/attestation/état initial et le provisionnement sont conservés, les contrats SQL/Node reflètent la décision.
+- **Non exécuté :** `npm test`, build/typecheck, test SQL runtime et recette navigateur. Migration non appliquée à Supabase Production ; aucun déploiement.
+- **Commits :** `db8961b355dcbe54f6c9823423c49367bab15e73`, `8c14afd2f9829e6cee232fe9330e39605fcac475`, `4c6746700e02c48f03de4ee018eb4cd9ee61695f`, `3cc0a959e9cf5265d0e134302950bb5138e5c1c9`, `137f0c118599a38d68d482a15ee6d982425d0d66`, `26228dd9097962344ad2d10b390d1e2facf11224`, `1b17914df644ba07816ef26877b9487040dbf641`.
+- **Statut :** source corrigée et contrats alignés ; contrôles statiques PASS ; SQL runtime/recette non certifiés.
