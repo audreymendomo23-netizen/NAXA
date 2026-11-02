@@ -6,7 +6,6 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 const PHARMACY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const REQUIRED_RECEIPT_FIELDS = ["kyc","piece_existence_legale","registre_commerce","niu","attestation_non_redevance","plan_localisation","cni_promoteur"] as const;
 const REQUIRED_DOCUMENT_TYPES = ["existence_legale","registre_commerce","niu","attestation_non_redevance","plan_localisation","cni_promoteur"] as const;
 
 function redirectValidationPharmacie(pharmacyId: string, retourFiche: boolean, query: string): never {
@@ -95,23 +94,16 @@ export async function validerDossierPharmacie(formData: FormData) {
     return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-etat");
   }
 
-  // Les déclarations de réception et les fichiers validés sont deux preuves distinctes.
-  const [{ data: receivedDocs, error: receivedDocsError }, { data: documents, error: documentsError }] = await Promise.all([
-    adminDb.from("pharmacie_documents_recus")
-      .select("kyc,piece_existence_legale,registre_commerce,niu,attestation_non_redevance,plan_localisation,cni_promoteur")
-      .eq("pharmacie_id", pharmacyId).maybeSingle(),
-    adminDb.from("pharmacie_documents")
-      .select("type_document,statut_validation,recu_le,version,id")
-      .eq("pharmacie_id", pharmacyId)
-      .order("recu_le", { ascending: false })
-      .order("version", { ascending: false })
-      .order("id", { ascending: false }),
-  ]);
-  if (receivedDocsError || documentsError) {
+  // Les cases « documents reçus » sont informatives. Seuls les fichiers réellement déposés
+  // et validés constituent ici le contrôle documentaire ; l'attestation Admin reste obligatoire.
+  const { data: documents, error: documentsError } = await adminDb.from("pharmacie_documents")
+    .select("type_document,statut_validation,recu_le,version,id")
+    .eq("pharmacie_id", pharmacyId)
+    .order("recu_le", { ascending: false })
+    .order("version", { ascending: false })
+    .order("id", { ascending: false });
+  if (documentsError) {
     return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=documents-indisponibles");
-  }
-  if (!receivedDocs || REQUIRED_RECEIPT_FIELDS.some((field) => receivedDocs[field] !== true)) {
-    return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=pieces-reception");
   }
   const latestStatusByType = new Map<string, string>();
   for (const document of documents ?? []) {
@@ -135,7 +127,6 @@ export async function validerDossierPharmacie(formData: FormData) {
     if (message.includes("rattachement")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=rattachement");
     if (message.includes("promoteur")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=promoteur");
     if (message.includes("dossier administratif")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=dossier-incomplet");
-    if (message.includes("pièces déclarées reçues")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=pieces-reception");
     if (message.includes("document requis absent ou non validé")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=documents-validation");
     if (message.includes("non en attente")) return redirectValidationPharmacie(pharmacyId, retourFiche, "erreur=validation-etat");
     if (message.includes("convention") || message.includes("abonnement") || message.includes("architecture")) {
