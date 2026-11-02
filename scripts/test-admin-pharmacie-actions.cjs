@@ -31,7 +31,7 @@ test("la mutation conserve le garde Admin actif et le contrôle d'éligibilité 
   const start = source.indexOf("export async function changerStatutServiceBebeMaman");
   const action = source.slice(start);
   assert.match(action, /await requireAdmin\(\)/);
-  assert.match(action, /if \(enabled && \(!pharmacy\.actif \|\| !pharmacy\.visible_recherche\)\)/);
+  assert.ok(action.includes("if (!pharmacy || (enabled && (!pharmacy.actif || !pharmacy.visible_recherche)))"));
   assert.match(action, /admin_set_pharmacie_bebe_maman_service/);
 });
 
