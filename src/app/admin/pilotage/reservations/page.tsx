@@ -12,6 +12,7 @@ const statusLabels: Record<string, string> = {
 
 const paymentLabels: Record<string, string> = {
   en_attente: "En attente",
+  a_verifier: "À vérifier",
   effectue: "Paiement signalé effectué",
   rembourse: "Remboursé",
   annule: "Annulé",
