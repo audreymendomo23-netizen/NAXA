@@ -4,12 +4,30 @@
 > Ce registre sert à savoir **ce qui est réellement terminé, ce qui est terminé hors `main`, ce qui est seulement construit, ce qui est bloqué par une preuve et ce qui reste à construire**.
 >
 > **Source de vérité du code intégré : `main`.**
-> **Sources de vérité fonctionnelles : Cahier des charges NAXA v3.7 + Prompt maître + historique technique vérifié.**
+> **Sources de vérité fonctionnelles : Cahier des charges NAXA v3.7, décisions métier approuvées plus récentes et historique technique vérifié.**
+> **Gouvernance opérationnelle :** appliquer `AGENTS.md` et, pour l'audit 360 Administrateur, le texte intégral du MANDAT CTO NAXA. Le Prompt maître reste une archive utile au contexte historique, mais ne définit plus le workflow de cet audit. Les anciennes mentions de branches, PR, CircleCI ou déploiements dans les fiches datées sont des traces historiques, pas des instructions courantes.
 >
 > **Règle cardinale : un point 🟢 réellement validé n'est jamais reconstruit ni retraité, sauf régression prouvée.**
 
 ---
 
+## Mise à jour du registre — ratissage Admin 360 (02/11/2026)
+
+### Messagerie support Admin — chargement ciblé du fil
+- **Correction source sur `main` :** l’API Admin GET renvoie uniquement les messages du ticket sélectionné; la page serveur n’envoie plus au navigateur les messages de tous les tickets chargés.
+- **Sécurité source :** GET et POST appliquent le même garde de session, rôle Admin et profil actif; GET vérifie le ticket, renvoie `private, no-store`, et POST conserve le verrou de ticket ouvert et la limite de 2 000 caractères.
+- **Interface :** chargement à la demande, annulation d’une requête précédente, états d’attente/erreur, recharge du fil après réponse.
+- **Tests préparés :** `scripts/test-admin-messagerie.cjs`, agrégé à `npm test`. Les vérifications statiques via connecteur ont contrôlé 11 invariants (11/11 PASS).
+- **Statut :** **🟡 SOURCE CORRIGÉE — CI ET RECETTE DANS L’APPLICATION RESTENT À EXÉCUTER.** Ce point n’est pas déclaré vert fonctionnel ou Production.
+- **Commits de code :** `6270b797e428b503bdbb07b87742d1109972fdf7`, `26a200213f69f7a670cbf6abd72b06aab2885365`, `89fde66e2dc5601f01ddf8363f3da33c82a6b111`, `ee9168fbc52c1b419f4174584dceee97582e198e`, `e2e23fcfa9a48509da6b2f1dca616992160f8270`, `7dafac109909486930de3e8c4fd5d0f1840e9313`.
+
+### Gouvernance des preuves
+- La configuration `.gitlab-ci.yml` est versionnée sur `main`, déclenchable manuellement/API seulement, sans tâche de déploiement.
+- Le miroir GitLab actuel reste en retard sur le dépôt GitHub et son dernier pipeline observé est tombé sur le quota avant l’exécution des jobs. Aucun résultat CI courant n’est revendiqué.
+- Aucun build complet, lint, typecheck, test HTTP sous JWT réel ou test navigateur n’est marqué comme exécuté.
+
+---
+ 
 ## 1. RÈGLE DE TRAVAIL — VERSION COURANTE
 
 Le cycle NAXA est :
