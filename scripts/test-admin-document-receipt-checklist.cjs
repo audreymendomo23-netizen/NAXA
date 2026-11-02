@@ -24,7 +24,7 @@ test("les cases de réception restent modifiables mais ne bloquent pas la valida
 
 test("l'interface affiche la checklist comme informative et ne la combine pas aux prérequis", () => {
   assert.match(page, /db\.from\("pharmacie_documents_recus"\)/);
-  assert.match(page, /Checklist informative/);
+  assert.match(page, /checklist.*reste informative/i);
   assert.match(page, /const piecesCompletes=!controlePiecesIndisponible&&fichiersNonValides\.length===0/);
   assert.doesNotMatch(page, /declarationsManquantes\.length===0/);
 });
