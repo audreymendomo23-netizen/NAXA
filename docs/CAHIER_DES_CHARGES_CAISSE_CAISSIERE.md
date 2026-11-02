@@ -540,3 +540,18 @@ Commencer par confirmer que les trois annexes ont été lues, en résumant en di
 ## 26. Statut de la Partie 3
 
 Cette partie est intégrée comme prompt de référence dans le document. Son intégration ne signifie pas que l'audit a été exécuté, que les étapes de développement sont achevées ou que les tests sont verts. Les questions ouvertes restent ouvertes jusqu'à décision explicite du promoteur. Aucun déploiement ni changement de Supabase Production n'est autorisé par ce document.
+
+
+---
+
+## Mise à jour métier — arbitrages du fondateur du 02/11/2026
+
+Les décisions ci-dessous remplacent les points correspondants du §13 et priment sur les hypothèses antérieures. Référence complète : docs/DECISIONS_METIER_FONDATEUR.md.
+
+1. **Montant remboursé :** « Principal » = part assureur ; « Remboursement » = part Client.
+2. **Moyens de paiement :** remplacer « OM Cash » par « Orange Money » ; conserver « Espèces » comme moyen distinct.
+3. **Solde crédit :** afficher uniquement les crédits de la session.
+4. **Paramètres financiers :** NAXA fournit les valeurs de référence ; elles sont personnalisables par pharmacie. Les plafonds et délais de crédit sont configurés par le Promoteur depuis son compte. Aucun montant absent de la configuration ne doit être inventé.
+5. **Imprimante :** largeur 58 mm ou 80 mm demeure à confirmer pour les pharmacies concernées.
+
+**Crédit au comptoir :** les rôles autorisés et les limites sont consignés dans le registre fondateur. La portée de la mention « Promoteur uniquement » dans la réponse multiple reste à clarifier avant d'appliquer une règle d'approbation ambiguë.
