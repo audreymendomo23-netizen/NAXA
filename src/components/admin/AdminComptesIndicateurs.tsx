@@ -150,11 +150,6 @@ export default function AdminComptesIndicateurs({ jours }: { jours: number }) {
     [data]
   );
 
-  const pharmacyMap = useMemo(
-    () => new Map((data?.par_pharmacie ?? []).map(ph => [ph.id, ph])),
-    [data]
-  );
-
   const summary = data?.totaux;
 
   return (
