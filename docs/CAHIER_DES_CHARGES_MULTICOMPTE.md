@@ -648,3 +648,19 @@ Le test supabase/tests/225_professional_assignments_security.sql vérifie mainte
 
 **Limites de validation** : aucun parcours n’a été joué avec un véritable compte assigné; aucun build, lint, typecheck ou CI n’a été lancé. La base de test ne reflète pas toutes les migrations de l’application, certaines fonctions ont donc été validées par inspection de leurs définitions du dépôt et par contrat de catalogue après préparation du schéma de test. Ces migrations n’ont pas été appliquées à Production et aucun déploiement n’a été lancé.
 
+
+
+---
+
+## Mise à jour métier — décisions du fondateur du 02/11/2026
+
+Le registre docs/DECISIONS_METIER_FONDATEUR.md est la référence prioritaire pour les arbitrages plus récents. Il précise et complète les points de la présente fiche :
+
+- Plusieurs fonctions peuvent être affectées simultanément à une même personne dans la même pharmacie, mais un seul espace/fonction est sélectionné comme contexte actif à la fois.
+- Le Responsable est autorisé uniquement dans les architectures PARENTS_AINES_CADETS et HYBRIDE ; son périmètre peut couvrir plusieurs pharmacies du même Promoteur par affectations explicites.
+- Le Promoteur peut déléguer au Responsable des validations dans des plafonds qu'il définit.
+- Les affectations ordinaires sont permanentes jusqu'à révocation explicite.
+- Une affectation urgente peut être créée directement par le Promoteur, avec traçabilité et expiration automatique. La durée exacte d'expiration urgente reste à définir.
+- L'accréditation Pharmacien est proposée par le Promoteur, puis vérifiée et validée par l'Administrateur NAXA.
+
+Ces règles remplacent les formulations antérieures indiquant que le cumul, l'urgence ou la durée restent entièrement à arbitrer. Elles ne prouvent pas l'implémentation du modèle ni les contrôles serveur.
