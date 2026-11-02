@@ -2,6 +2,8 @@
 
 Mise à jour du 06/10/2026 (**v3.7** : v3.6 + alignement sur l'existant réel du 06/10/2026 (§ 2bis : Pilotage 360°, hiérarchie N0 à N3, privilèges, convention Promoteur, réseau multi-pharmacie, CA canonique) + profil **Responsable (RES)** complet (§ 4.4, § 14.7, droits § 4.2, circuits § 7A, questions 21 et 22 du § 12) ; **v3.6** : v3.5 + douze fonctionnalités F64 à F75 décrites pour tous les profils concernés (rappel de lot, ordonnancier, trésorerie et dépenses, valeur du stock et coût d'achat, fiche client et crédit, équipe, plusieurs sites, fournisseurs avancés, hors-médicaments, qualité et sécurité, communication client, prévision saisonnière) ; v3.5 : v3.3 + paiement de l'abonnement par l'API Mobile Money (F63), scan code-barres, parcours ordonnance + vente, coffre ordonnances, registre des stupéfiants, validation par empreinte, sauvegardes, mode dégradé, et un atlas § 13 qui décrit chaque fonctionnalité par un cas de figure, le parcours de la caissière et les éléments de chaque écran), construite à partir du README et du STATUT du 5 octobre 2026 et des décisions du fondateur.
 
+**Registre des décisions métier postérieures :** les arbitrages explicites du fondateur consignés dans [docs/DECISIONS_METIER_FONDATEUR.md](DECISIONS_METIER_FONDATEUR.md) priment sur les questions ouvertes, propositions ou hypothèses antérieures du présent cahier lorsqu'ils traitent du même sujet. Le cahier v3.7 reste la description fonctionnelle de référence pour les exigences non contredites. Une décision métier confirmée ne vaut pas preuve d'implémentation ou de test.
+
 **Légende**
 - **[EXISTANT]** : en production ou décidé, conservé tel quel. Ne pas modifier, ne pas réécrire.
 - **[NOUVEAU]** : à ajouter, en migrations et modules additifs.
@@ -387,6 +389,8 @@ Ordre décidé : **Qualité → ERP (phases A à H) → mise en service terrain 
 ---
 
 ## 12. Questions ouvertes
+
+**État des arbitrages au 02/11/2026 :** les questions historiques relatives au Responsable (Q21–Q22), à la double authentification de connexion Promoteur (Q6), à l'accréditation Pharmacien (Q8), aux architectures/périmètres et à la délégation, au crédit, aux règles de caisse, aux sources du catalogue et au paiement d'abonnement sont désormais traitées dans le registre du fondateur. Ne pas les redemander comme questions ouvertes. Seuls les résiduels de la section G du registre restent à préciser, en plus des sujets réglementaires, de conservation et de déploiement terrain non tranchés.
 
 1. **Paiement en ligne du client** : partenaire et périmètre, à demander au fondateur à la fin (phase J).
 2. Périmètre exact du chantier Qualité restant, à confirmer par l'autre IA.
