@@ -617,6 +617,20 @@ export async function POST(request: Request) {
   const rows = rowsFromStats(stats);
   const aiMetrics = buildAiMetrics(stats, rows);
   const ai = await explainWithAi(aiMetrics, profile.role, config.label);
+  const adminMissingSources = profile.role === "admin" && stats.sources
+    ? Object.entries(stats.sources as Record<string, boolean>).filter(([, available]) => !available).map(([key]) => ({
+        affectations_professionnelles: "Affectations professionnelles",
+        preparations_prescriptions: "Préparations de prescriptions",
+        audit_pharmacien: "Journal d'audit Pharmacien",
+        controles_comptables: "Contrôles comptables",
+        evenements_comptables: "Événements comptables",
+        periodes_comptables: "Périodes comptables",
+        ecritures_comptables: "Écritures comptables",
+      }[key] ?? key))
+    : [];
+  const adminSourcesNote = profile.role !== "admin" ? null : adminMissingSources.length
+    ? "Sources non déployées sur cet environnement : " + adminMissingSources.join(", ") + ". Les valeurs correspondantes sont indisponibles, jamais assimilées à zéro."
+    : "Toutes les sources métiers complémentaires attendues sont présentes.";
   const report = {
     titre: "Rapport BI NAXA",
     role: profile.role,
@@ -627,7 +641,7 @@ export async function POST(request: Request) {
     au: endDate,
     genere_le: now.toISOString(),
     comparaison: { disponible: false, motif: "Le moteur de statistiques actuel ne prend pas encore de date de début/fin arbitraire. Aucune comparaison artificielle n'est affichée." },
-    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_affectations, "Les durées de service sont calculées à partir des horodatages serveur des sessions ouvertes/clôturées. Une session encore ouverte est calculée jusqu’à l’heure de génération et reste provisoire. Les sessions de caisse décrivent l’ouverture/fermeture du tiroir, pas une présence générale. Les gardes de pharmacie publiées ne sont pas des gardes individuelles effectuées."].filter(Boolean).join(" "),
+    note_periode: [stats.role === "gestionnaire_stock" ? "Les indicateurs Stock présentés sont des états courants à la date de génération. La période sélectionnée ne les transforme pas en mouvements historiques." : null, stats.note_scope, stats.note_affectations, adminSourcesNote, "Les durées de service sont calculées à partir des horodatages serveur des sessions ouvertes/clôturées. Une session encore ouverte est calculée jusqu’à l’heure de génération et reste provisoire. Les sessions de caisse décrivent l’ouverture/fermeture du tiroir, pas une présence générale. Les gardes de pharmacie publiées ne sont pas des gardes individuelles effectuées."].filter(Boolean).join(" "),
     indicateurs: rows,
     serie: Array.isArray(stats.serie) ? stats.serie : [],
     analyse_ia: ai,
