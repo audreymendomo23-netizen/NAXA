@@ -1,3 +1,10 @@
+## Rectificatif — exécution contrôlée des migrations PRE-044/PRE-045 (02/11/2026)
+
+L'appel Supabase Production `apply_migration` pour la migration `20261102083000_admin_active_catalog_stock_rls` a été refusé par le contrôle de sécurité de l'outil avant exécution. Il n'a donc pas modifié le projet Production. Aucun contournement via `execute_sql`, RPC ou autre connecteur n'a été tenté. La même décision s'applique à `20261102084500_admin_active_medicament_storage_rls`.
+
+Le contrôle SQL en lecture seule effectué après le refus a relu les 12 politiques visées et confirmé qu'elles sont encore dans leur état role-only. Le correctif reste prêt et testé sur Replay, mais **PRE-044 et PRE-045 ne sont pas corrigés en Production**. Cette réserve n'est pas une réserve CI/application : elle est liée au contrôle d'autorisation de l'outil de migration Production. Les migrations ne doivent pas être déclarées vertes en Production avant application effective.
+
+
 ## Addendum — extension du garde Admin actif aux politiques catalogue, stock et Storage (02/11/2026)
 
 - **Cause racine confirmée en Production :** huit policies Admin `ALL` sur `feature_flag_test_accounts`, `feature_flags`, `partner_members`, `partner_universes`, `partners`, `stock_movements`, `suivi_professionals`, `universes`, ainsi que la branche Admin de `stock_movements_partner_read), vérifient le rôle sans l'état actif. Trois policies Storage du bucket `medicaments` font de même pour INSERT/UPDATE/DELETE.
@@ -41,7 +48,7 @@ Les deux surfaces sont en lecture seule. Elles ne mutent aucun statut, stock, pa
 - Alertes / dossiers partenaires : les constats ALT-01 et PROM-02 sont reclassés comme résolus dans le code courant : les compteurs liés à une source en erreur affichent une indisponibilité, pas un zéro métier.
 - PRE-039 / SEC-MSG-01 : la divergence historique du garde d’activation messagerie est résolue dans le code courant. Le test de bout en bout sous JWT réel reste à exécuter.
 - Cartographie à jour au HEAD courant : **21 routes Admin** et **12 entrées de navigation latérale**. Les deux routes ajoutées par ce ratissage sont `/admin/prestations/demandes` et `/admin/pilotage/reservations`; elles sont reliées depuis les pages Prestations et Pilotage. `/admin/pilotage/reglements`, ajoutée dans le ratissage précédent, reste reliée depuis Validité.
-- Contrôle du HEAD courant : arbre GitHub récursif non tronqué, 1 378 entrées, **21 pages Admin**, 12 entrées latérales, 70 fichiers SQL sous `supabase/migrations/`, 220 tests SQL sous `supabase/tests/` et 8 scripts Node `scripts/test-*.cjs`. Ces nombres sont des inventaires de chemins, pas des preuves d’exécution.
+- Contrôle du HEAD courant : arbre GitHub récursif non tronqué, 1 378 entrées, **21 pages Admin**, 12 entrées latérales, 72 fichiers SQL sous `supabase/migrations/`, 222 tests SQL sous `supabase/tests/` et 8 scripts Node `scripts/test-*.cjs`. Ces nombres sont des inventaires de chemins, pas des preuves d’exécution.
 - Commits de correction messagerie : `6270b797e428b503bdbb07b87742d1109972fdf7`, `26a200213f69f7a670cbf6abd72b06aab2885365`, `89fde66e2dc5601f01ddf8363f3da33c82a6b111`, `ee9168fbc52c1b419f4174584dceee97582e198e`, `e2e23fcfa9a48509da6b2f1dca616992160f8270`, `7dafac109909486930de3e8c4fd5d0f1840e9313`.
 - Files de diagnostic : `ADM-SERVICES-01` et `ADM-MKT-01` sont construites en lecture seule sur `main`, derrière `requireAdminActive`, reliées depuis les écrans Prestations/Pilotage et couvertes par `scripts/test-admin-queues.cjs`. Les données privées (adresse exacte, téléphone, code et référence de paiement) ne sont pas sélectionnées. Les politiques RLS Production autorisent la lecture Admin des demandes, réservations, lignes et événements.
 - Tests de contrat ajoutés : `scripts/test-admin-messagerie.cjs` et `scripts/test-admin-queues.cjs`; `npm test` les agrège avec les tests Node existants. **Les tests n’ont pas été exécutés** : cette relecture via GitHub ne remplace pas le runner Node/CI.
