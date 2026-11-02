@@ -73,6 +73,9 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
   const shellClass = variant === "admin" ? "rounded-3xl border border-[#0147BB]/15 bg-white p-5 shadow-sm" : variant === "stock" ? "rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm" : variant === "pharmacien" ? "carte space-y-4" : "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm";
   const titleClass = variant === "admin" ? "text-[#0147BB]" : variant === "stock" ? "text-emerald-800" : "text-naxa-green-900";
   const primaryButtonClass = variant === "admin" ? "bg-[#0147BB]" : variant === "stock" ? "bg-[#0B3D26]" : "bg-naxa-green-900";
+  const summaryRows = rapport?.indicateurs.filter(row => !row.indicateur.startsWith("Détail ")) ?? [];
+  const pharmacyRows = rapport?.indicateurs.filter(row => row.indicateur.startsWith("Détail pharmacie ·")) ?? [];
+  const promoterRows = rapport?.indicateurs.filter(row => row.indicateur.startsWith("Détail Promoteur ·")) ?? [];
 
   return (
     <section className={shellClass}>
@@ -96,8 +99,26 @@ export default function RapportsALaDemande({ variant = "default" }: { variant?: 
         <p role="status" className="text-xs text-slate-500">Généré le {new Date(rapport.genere_le).toLocaleString("fr-FR")} · {rapport.du} au {rapport.au}</p>
         {rapport.note_periode && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{rapport.note_periode}</p>}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {rapport.indicateurs.map((row) => <article key={row.indicateur} className="rounded-xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{row.indicateur}</p><p className="mt-1 break-words text-lg font-black">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</p></article>)}
+          {summaryRows.map((row) => <article key={row.indicateur} className="rounded-xl border border-slate-200 p-3"><p className="text-xs text-slate-500">{row.indicateur}</p><p className="mt-1 break-words text-lg font-black">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</p></article>)}
         </div>
+        {pharmacyRows.length > 0 && <details className="rounded-xl border border-slate-200 p-3">
+          <summary className="cursor-pointer font-bold">Ventilation détaillée par pharmacie ({pharmacyRows.length} lignes)</summary>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-2">Pharmacie · indicateur</th><th className="p-2 text-right">Valeur</th></tr></thead>
+              <tbody>{pharmacyRows.map(row => <tr key={row.indicateur} className="border-t border-slate-100"><td className="p-2">{row.indicateur.replace("Détail pharmacie · ", "")}</td><td className="p-2 text-right font-semibold">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </details>}
+        {promoterRows.length > 0 && <details className="rounded-xl border border-slate-200 p-3">
+          <summary className="cursor-pointer font-bold">Ventilation détaillée par Promoteur ({promoterRows.length} lignes)</summary>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-2">Promoteur · indicateur</th><th className="p-2 text-right">Valeur</th></tr></thead>
+              <tbody>{promoterRows.map(row => <tr key={row.indicateur} className="border-t border-slate-100"><td className="p-2">{row.indicateur.replace("Détail Promoteur · ", "")}</td><td className="p-2 text-right font-semibold">{typeof row.valeur === "number" ? row.valeur.toLocaleString("fr-FR") : row.valeur}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </details>}
         <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-extrabold">Analyse J'IA</h3><span className="text-xs font-semibold">{rapport.analyse_ia.status}</span></div>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{rapport.analyse_ia.texte}</p>
