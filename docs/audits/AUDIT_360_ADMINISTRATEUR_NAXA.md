@@ -3185,7 +3185,7 @@ Pour éviter de refaire les mêmes travaux :
 
 **Étape 10 — registre consolidé établi et enrichi : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
 
-Aucune correction de code ou SQL n'a été appliquée pendant la constitution du registre. Les corrections nécessitant validation restent soumises au §5.1 du mandat. La prochaine étape du canevas est l'étape 11 — recherche du code mort, en distinguant le code mort confirmé du code potentiellement utilisé indirectement.
+Aucune correction de code ou SQL n'a été appliquée pendant la constitution du registre. Les corrections nécessitant validation restent soumises au §5.1 du mandat. Les étapes 11, 12 et 13 sont déjà documentées plus loin dans ce registre. La prochaine étape non encore abordée du canevas est donc l'étape 14 — revue finale client et CTO.
 
 
 
