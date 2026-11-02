@@ -71,43 +71,6 @@ const number = (value: number | null | undefined) =>
 const money = (value: number | null | undefined) =>
   value === null || value === undefined ? "Indisponible" : value.toLocaleString("fr-FR") + " FCFA";
 
-const metricLabels: Record<string, string> = {
-  clients_avec_reservation: "Clients avec réservation",
-  reservations: "Réservations",
-  ventes_marketplace: "Ventes Marketplace",
-  ca_marketplace_fcfa: "CA Marketplace",
-  ventes_pos_payees: "Ventes POS payées",
-  ca_pos_fcfa: "CA POS",
-  references_stock: "Références en stock",
-  stocks_bas: "Stocks bas (≤ 5)",
-  ruptures_stock: "Ruptures",
-  lots_a_controler: "Lots à contrôler",
-  inventaires_ouverts: "Inventaires ouverts",
-  consultations_pharmaceutiques: "Consultations",
-  prescriptions: "Prescriptions",
-  preparations_prescriptions: "Préparations d'ordonnances",
-  evenements_audit_pharmacien: "Événements d'audit Pharmacien",
-  caisses_actives: "Caisses actives",
-  sessions_caisse: "Sessions de caisse",
-  ecarts_caisse_a_verifier: "Écarts de caisse à vérifier",
-  depenses: "Dépenses enregistrées",
-  montant_depenses_fcfa: "Montant des dépenses",
-  mouvements_tresorerie: "Mouvements de trésorerie",
-  montant_tresorerie_brut_fcfa: "Trésorerie brute",
-  dossiers_assurance: "Dossiers d'assurance",
-  montant_prise_en_charge_fcfa: "Prise en charge assurance",
-  services_pharmacien_pointes: "Services Pharmacien pointés",
-  services_stock_pointes: "Services Stock pointés",
-  affectations_professionnelles_actives: "Affectations professionnelles actives",
-  controles_comptables_a_traiter: "Contrôles comptables à traiter",
-  evenements_comptables_a_traiter: "Événements comptables à traiter",
-  periodes_comptables_ouvertes: "Périodes comptables ouvertes",
-  ecritures_comptables: "Écritures comptables",
-};
-
-const formatMetric = (key: string, value: number | null | undefined) =>
-  key.endsWith("_fcfa") || key.startsWith("montant_") ? money(value) : number(value);
-
 const sourceLabels: Record<string, string> = {
   affectations_professionnelles: "Affectations professionnelles",
   preparations_prescriptions: "Préparations d'ordonnances",
