@@ -100,7 +100,8 @@ export default async function AdminMarketplaceReservationsPage({
                 ["Dossiers chargés", reservations.length, "Sur les 100 plus récents"],
                 ["À traiter", summary.pending, "En attente ou confirmés"],
                 ["Paiement marqué effectué", summary.paid, "Statut déclaré par la pharmacie"],
-                ["À examiner — stock", summary.stockReview + summary.issues, "Signaux de cohérence, pas une preuve d’incident"],
+                ["Stock réservé", summary.stockReview, "Décrémenté sans restauration ni consommation caisse"],
+                ["Contradiction de stock", summary.issues, "Stock restauré et vente consommée : à vérifier"],
               ].map(([label, value, hint]) => (
                 <article key={String(label)} className="rounded-2xl border bg-white p-4">
                   <p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-3xl font-black">{value}</p><p className="mt-1 text-xs text-slate-500">{hint}</p>
