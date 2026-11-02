@@ -6,9 +6,8 @@ import { validerDossierPharmacie } from "@/app/admin/promoteurs/actions";
 
 type Props={params:{id:string};searchParams?:{ok?:string;erreur?:string}};
 const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré.",validation:"Dossier validé. Le Promoteur, son rattachement et la pharmacie sont activés après les contrôles transactionnels."};
-const REQUIRED_RECEIPT_FIELDS=[["kyc","Vérification KYC"],["piece_existence_legale","Existence légale"],["registre_commerce","Registre de commerce (RCCM)"],["niu","Numéro d’identifiant unique (NIU)"],["attestation_non_redevance","Attestation de non-redevance"],["plan_localisation","Plan de localisation"],["cni_promoteur","CNI du Promoteur"]] as const;
 const REQUIRED_DOCUMENT_TYPES=[["existence_legale","Existence légale"],["registre_commerce","Registre de commerce (RCCM)"],["niu","Numéro d’identifiant unique (NIU)"],["attestation_non_redevance","Attestation de non-redevance"],["plan_localisation","Plan de localisation"],["cni_promoteur","CNI du Promoteur"]] as const;
-const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.","stockage":"Le stockage privé a refusé le fichier.","registre":"Inscription impossible ; le fichier temporaire a été supprimé.","pharmacie":"Pharmacie introuvable.","decision":"Décision impossible à enregistrer.","document":"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible.","verification":"Confirmez la vérification effective des autorisations avant de valider.","rattachement":"Le rattachement Promoteur–pharmacie est absent ou ambigu.","promoteur":"Le compte Promoteur ne correspond pas à cette pharmacie ou son architecture est invalide.","dossier-incomplet":"Dossier administratif incomplet : vérifiez les coordonnées privées requises.","contrat":"Convention, abonnement et architecture ne sont pas cohérents.","deja-active":"Ce dossier est déjà actif. Aucune réinitialisation de la période d’essai n’a été faite.","validation-etat":"Cette pharmacie n’est pas dans l’état d’une ouverture en attente. Utilisez le parcours de validité commerciale pour un dossier déjà activé.","validation-impossible":"La validation transactionnelle n’a pas abouti. Aucun succès n’est confirmé : vérifiez les prérequis puis réessayez.","documents-indisponibles":"Le registre des déclarations de réception ou des fichiers ne peut pas être lu. La validation est bloquée par sécurité.","pieces-reception":"Toutes les déclarations de réception doivent être confirmées avant la validation.","documents-validation":"La dernière version de chacun des six fichiers requis doit être validée avant la validation globale."};
+const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.","stockage":"Le stockage privé a refusé le fichier.","registre":"Inscription impossible ; le fichier temporaire a été supprimé.","pharmacie":"Pharmacie introuvable.","decision":"Décision impossible à enregistrer.","document":"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible.","verification":"Confirmez la vérification effective des autorisations avant de valider.","rattachement":"Le rattachement Promoteur–pharmacie est absent ou ambigu.","promoteur":"Le compte Promoteur ne correspond pas à cette pharmacie ou son architecture est invalide.","dossier-incomplet":"Dossier administratif incomplet : vérifiez les coordonnées privées requises.","contrat":"Convention, abonnement et architecture ne sont pas cohérents.","deja-active":"Ce dossier est déjà actif. Aucune réinitialisation de la période d’essai n’a été faite.","validation-etat":"Cette pharmacie n’est pas dans l’état d’une ouverture en attente. Utilisez le parcours de validité commerciale pour un dossier déjà activé.","validation-impossible":"La validation transactionnelle n’a pas abouti. Aucun succès n’est confirmé : vérifiez les prérequis puis réessayez.","documents-indisponibles":"Le registre des fichiers justificatifs ne peut pas être lu. La validation reste bloquée par sécurité.","documents-validation":"La dernière version de chacun des six fichiers requis doit être validée avant la validation globale."};
 export default async function PharmacieIndividuelle({params,searchParams}:Props){
  const sb=supabaseServer();
  const{data:auth}=await sb.auth.getUser();
@@ -46,12 +45,11 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
  const docsHistory=history??[];
  const status=pharmacy.actif&&pharmacy.visible_recherche?"Active et visible":pharmacy.actif?"Active, masquée":"Inactive";
  const dossierEnAttenteInitiale=pharmacy.actif===false&&pharmacy.visible_recherche===false&&link?.actif===false&&promoter?.actif===false;
- const declarationsManquantes=REQUIRED_RECEIPT_FIELDS.filter(([key])=>received?.[key]!==true);
  const dernierDocumentParType=new Map<string,(typeof docs)[number]>();
  for(const document of docs){if(!dernierDocumentParType.has(document.type_document))dernierDocumentParType.set(document.type_document,document);}
  const fichiersNonValides=REQUIRED_DOCUMENT_TYPES.filter(([type])=>dernierDocumentParType.get(type)?.statut_validation!=="valide");
- const controlePiecesIndisponible=docsUnavailable||!!receivedError;
- const piecesCompletes=!controlePiecesIndisponible&&!!received&&declarationsManquantes.length===0&&fichiersNonValides.length===0;
+ const controlePiecesIndisponible=docsUnavailable;
+ const piecesCompletes=!controlePiecesIndisponible&&fichiersNonValides.length===0;
  const dossierValidationEnAttente=dossierEnAttenteInitiale&&piecesCompletes;
  return <main className="mx-auto min-h-screen max-w-6xl space-y-5 px-3 py-5 sm:px-6">
   <Link href="/admin/promoteurs" className="inline-flex min-h-10 items-center font-semibold text-naxa-green-900 underline underline-offset-4">← Retour au registre des pharmacies</Link>
@@ -82,13 +80,12 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
    </form>
   </section>}
   {dossierEnAttenteInitiale&&!piecesCompletes&&<section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-   <h2 className="font-extrabold">Validation suspendue — pièces à compléter</h2>
+   <h2 className="font-extrabold">Validation suspendue — fichiers justificatifs à valider</h2>
    {controlePiecesIndisponible
-    ? <p className="mt-1">Le registre des déclarations de réception ou des fichiers n’est pas disponible. Aucun bouton de validation n’est proposé tant que ces données ne peuvent pas être contrôlées.</p>
+    ? <p className="mt-1">Le registre des fichiers justificatifs n’est pas disponible. Aucun bouton de validation n’est proposé tant que ces fichiers ne peuvent pas être contrôlés.</p>
     : <div className="mt-2 space-y-2">
-       {declarationsManquantes.length>0&&<p>Déclarations de réception manquantes : {declarationsManquantes.map(([,label])=>label).join(", ")}.</p>}
        {fichiersNonValides.length>0&&<p>Fichiers requis absents, en attente ou rejetés : {fichiersNonValides.map(([type,label])=>{const document=dernierDocumentParType.get(type);return label+(document?" ("+document.statut_validation+")":" (absent)");}).join(", ")}.</p>}
-       <p>Chaque déclaration doit être confirmée reçue et la dernière version des six fichiers requis doit porter le statut « valide » avant l’activation globale.</p>
+       <p>La checklist « documents reçus » reste informative. La dernière version de chacun des six fichiers justificatifs requis doit porter le statut « valide » avant l’activation globale.</p>
      </div>}
   </section>}
   {!pharmacy.actif&&!dossierEnAttenteInitiale&&<section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
