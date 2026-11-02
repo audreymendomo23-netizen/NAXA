@@ -27,20 +27,20 @@
 .admin-bento-brand-copy { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
 .admin-bento-brand-copy strong { font-size: 21px; letter-spacing: -.04em; }
 .admin-bento-brand-copy small { color: color-mix(in srgb, var(--sur-vert) 86%, transparent); font-size: 9px; font-weight: 800; letter-spacing: .19em; }
-.admin-bento-nav-caption { padding: 0 10px 10px; color: color-mix(in srgb, var(--sur-vert) 86%, transparent); font-size: 9px; font-weight: 800; letter-spacing: .16em; }
+.admin-bento-nav-caption { padding: 0 10px 10px; color: var(--sur-vert); font-size: 9px; font-weight: 800; letter-spacing: .16em; }
 .admin-bento-nav { display: grid; gap: 5px; }
 .admin-bento-nav-link { display: grid; grid-template-columns: 27px minmax(0,1fr) 16px; align-items: center; gap: 9px; min-height: 58px; padding: 8px 9px; border: 1px solid transparent; border-radius: 15px; color: inherit; text-decoration: none; transition: background-color var(--naxa-motion-fast,160ms), border-color var(--naxa-motion-fast,160ms), transform var(--naxa-motion-fast,160ms); }
 .admin-bento-nav-link:hover, .admin-bento-nav-link:focus-visible { border-color: color-mix(in srgb, var(--sur-vert) 24%, transparent); background: color-mix(in srgb, var(--sur-vert) 10%, transparent); }
-.admin-bento-nav-index { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--sur-vert) 10%, transparent); color: color-mix(in srgb, var(--sur-vert) 72%, transparent); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-bento-nav-index { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--sur-vert) 10%, transparent); color: var(--sur-vert); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .admin-bento-nav-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .admin-bento-nav-copy strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 800; line-height: 1.2; }
-.admin-bento-nav-copy small { color: color-mix(in srgb, var(--sur-vert) 86%, transparent); font-size: 10px; line-height: 1.2; }
+.admin-bento-nav-copy small { color: var(--sur-vert); font-size: 10px; line-height: 1.2; }
 .admin-bento-nav-arrow { color: color-mix(in srgb, var(--sur-vert) 52%, transparent); font-size: 13px; }
 .admin-bento-sidebar-footer { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 18px 9px 0; border-top: 1px solid color-mix(in srgb, var(--sur-vert) 20%, transparent); }
 .admin-bento-status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--jaune); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sur-vert) 9%, transparent); }
 .admin-bento-sidebar-footer span:last-child { display: flex; flex-direction: column; gap: 4px; }
 .admin-bento-sidebar-footer strong { font-size: 11px; }
-.admin-bento-sidebar-footer small { color: color-mix(in srgb, var(--sur-vert) 86%, transparent); font-size: 10px; }
+.admin-bento-sidebar-footer small { color: var(--sur-vert); font-size: 10px; }
 .admin-bento-workspace { min-width: 0; flex: 1; }
 .admin-bento-topbar { position: relative; z-index: 5; display: flex; min-height: 78px; align-items: center; justify-content: space-between; gap: 16px; padding: 15px clamp(18px, 3vw, 38px); border-bottom: 1px solid var(--bordure); background: var(--surface); }
 .admin-bento-eyebrow { color: var(--accent-texte); font-size: 10px; font-weight: 900; letter-spacing: .14em; }
@@ -131,7 +131,7 @@
 .admin-home-kpi { display: flex; min-width: 0; min-height: 138px; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; border: 1px solid var(--bordure); border-radius: var(--admin-radius); background: var(--surface); box-shadow: 0 7px 24px color-mix(in srgb, var(--texte) 4%, transparent); }
 .admin-home-kpi > span { color: var(--texte-2); font-size: 11px; font-weight: 750; }
 .admin-home-kpi > strong { color: var(--texte); font-size: clamp(1.7rem, 3vw, 2.35rem); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
-.admin-home-kpi > small { margin-top: auto; color: var(--texte-3); font-size: 10px; }
+.admin-home-kpi > small { margin-top: auto; color: var(--texte-2); font-size: 10px; }
 .admin-home-lower { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(260px,.85fr); gap: 12px; }
 .admin-home-progress,.admin-home-reminder { min-width: 0; padding: 20px; border: 1px solid var(--bordure); border-radius: var(--admin-radius); background: var(--surface); }
 .admin-home-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -262,4 +262,19 @@
   .admin-bento-nav-link {
     transition: none !important;
   }
+}
+
+/* Contraste des libellés secondaires et indicateurs de focus clavier. */
+.admin-bento-nav-link:focus-visible {
+  outline: 3px solid var(--jaune);
+  outline-offset: 3px;
+}
+.admin-bento-content main :is(input:not([type=checkbox]):not([type=radio]), textarea, select):focus-visible {
+  outline: 3px solid var(--accent-texte);
+  outline-offset: 2px;
+}
+.admin-bento-content main :is(a, button):focus-visible {
+  outline: 3px solid var(--accent-texte);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--surface);
 }
