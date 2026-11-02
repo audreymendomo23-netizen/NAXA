@@ -27,10 +27,10 @@ Le snapshot historique du 26/10 demeure inchangé plus bas. Ses nombres 37/290/2
 
 ## Tests Replay et relectures Production
 
-- Replay : 269 (31 assertions), 270, 271, 122 réaligné, 124, `20261102014000`, `20261102101510` (structurel et comportemental), `20261102105033`, `20261102105229`, `20261102105542` et 262 : tous PASS. Les tests transactionnels annulent leurs fixtures.
+- Replay : 122 réaligné, 124, 261 (soumission de règlement/notifications), 269 (31 assertions), 270, 271, `20261102014000`, `20261102101510` (structurel et comportemental), `20261102105033`, `20261102105229`, `20261102105542` et 262 : tous PASS. Les tests transactionnels annulent leurs fixtures.
 - Production : les politiques Admin ciblées, les gardes `public.is_admin()`, la RPC de validation partenaire, la politique publique de visibilité Examens, les politiques catalogue Examens et la table/RPC outbox ont été relues en SQL.
 - Réserve : le test 271 ne simule pas un véritable upload; le bucket `medicaments` n'est pas provisionné en Replay. Aucune action Storage réelle ou donnée métier Production n'a été créée.
-- Réserve : le cycle outbox a été vérifié jusqu'à `claim`/`finish` sans envoi Google externe. Le cron `naxa-promoteur-echeance-5j` est actif à 06:00 UTC; la réception effective doit être confirmée par une recette contrôlée dans l'application.
+- Réserve : le cycle outbox a été vérifié jusqu'à `claim`/`finish` sans envoi Google externe. Le cron `naxa-promoteur-echeance-5j` est actif à 06:00 UTC; la réception effective doit être confirmée par une recette contrôlée dans l'application. Le test 261 confirme également la soumission du règlement et les notifications sans transfert bancaire réel.
 - Le build/Node/CI sur le SHA courant, HTTP/JWT réel et navigateur restent réservés à la CI et à la recette d'application; aucun déploiement n'a été lancé.
 
 ---
