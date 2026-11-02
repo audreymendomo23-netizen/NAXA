@@ -1,10 +1,21 @@
+## Sécurité RLS Admin — résultat du ratissage complet (02/11/2026)
+
+- **PRE-044 — catalogue/partenaires/stock :** migration supabase/migrations/20261102083000_admin_active_catalog_stock_rls.sql, commit 5752248c28cb3a6812ec7920de317588cf0f4334. Replay version 20261102072715; test supabase/tests/270_admin_active_catalog_stock_rls.sql PASS, transaction annulée. Les huit policies Admin et la branche Admin du stock sont alignées sur le garde actif dans Replay; la lecture partenaire est conservée.
+- **PRE-045 — Storage medicaments :** migration supabase/migrations/20261102084500_admin_active_medicament_storage_rls.sql, commit 5f82cb9d1fa876cd16e308a470ff1d208880de6c. Replay version 20261102072914; test supabase/tests/271_admin_active_medicament_storage_rls.sql PASS structurel. Le bucket n'existe pas dans Replay; aucun test d'upload réel n'est revendiqué. La lecture publique Production n'est pas modifiée.
+- **Production :** l'appel d'application des migrations a été refusé par le contrôle de sécurité de l'outil avant exécution. La lecture SQL postérieure confirme que les anciennes policies role-only sont toujours présentes. Aucun DDL via execute_sql ni autre chemin n'a été utilisé pour contourner le refus.
+- **CI/application :** .gitlab-ci.yml versionné sur GitHub main, mais le miroir GitLab reste en retard au 21/10/2026 et son dernier pipeline échoue sur ci_quota_exceeded avant les jobs. Aucun build, lint, typecheck, test Node, HTTP JWT ou navigateur exécuté.
+- **Inventaire du HEAD après ajout :** 72 migrations SQL sous supabase/migrations/ et 222 tests SQL sous supabase/tests/; les 21 routes Admin et 12 entrées latérales demeurent.
+- **Statut global :** migrations 269 appliquées et vérifiées en Production; PRE-044/PRE-045 testées en Replay mais non appliquées en Production; files Admin et messagerie construites, en attente de CI et recette navigateur. Ne pas confondre ces trois niveaux.
+
+---
+
 ## Ratissage de cohérence Admin — mise à jour finale de la source (02/11/2026)
 
 - **Files manquantes désormais construites :** /admin/prestations/demandes et /admin/pilotage/reservations, toutes deux en lecture seule, sous requireAdminActive, reliées depuis les pages Prestations et Pilotage.
 - **Minimisation des données :** demandes domicile sans adresse exacte, téléphone ou note client; réservations sans code/référence de paiement, téléphone ou adresse de livraison; aucune mutation métier ou financière.
 - **Tests de contrat :** scripts/test-admin-queues.cjs et scripts/test-admin-messagerie.cjs; npm test agrège les huit scripts Node. Vérification statique des contrats effectuée via connecteur, mais pas d'exécution du runner Node.
 - **Cartographie :** 21 routes Admin, 12 entrées latérales. RLS Production de lecture confirmée pour demandes domicile, réservations, lignes et événements.
-- **Statut :** 🟡 source corrigée; la seule preuve qui manque dans ce lot est l'exécution CI des contrôles et la recette dans l'application. Aucun déploiement ni écriture Production.
+- **Statut des files et de la messagerie :** 🟡 source corrigée; CI et recette dans l'application restent à exécuter. **Réserve de sécurité distincte :** PRE-044/PRE-045, huit policies Admin ALL, une policy de lecture stock et trois policies Storage sont encore role-only en Production; les migrations additives 270/271 et leurs tests sont versionnés et PASS sur Replay, mais l'application Production a été bloquée par le contrôle de sécurité de l'outil. Aucune tentative de contournement. Aucun déploiement.
 - Détails et SHA : docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md.
 
 ---
