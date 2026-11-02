@@ -1,12 +1,41 @@
+## Addendum — couverture des demandes domicile et réservations Marketplace (02/11/2026)
+
+### Routes et contrats construits
+
+| Constat | Route livrée | Source de données / contrôle | Statut de construction |
+|---|---|---|---|
+| ADM-SERVICES-01 | `/admin/prestations/demandes` | `home_service_requests` + `partners`; `requireAdminActive`; RLS Production `home_service_requests_admin_read` | 🟡 Source construite, CI et recette navigateur requises |
+| ADM-MKT-01 | `/admin/pilotage/reservations` | `reservations`, `reservation_items`, `reservation_events`, `pharmacies`, `produits`; `requireAdminActive`; politiques Production `resa_read`, `resa_items_read`, `reservation_events_participant_read` | 🟡 Source construite, CI et recette navigateur requises |
+
+Les deux surfaces sont en lecture seule. Elles ne mutent aucun statut, stock, paiement, encaissement ou remboursement. La page domicile n’accède pas à `home_service_request_addresses`, n’affiche aucun téléphone/adresse exacte et ne sélectionne pas les notes Client. La page Marketplace n’accède pas à `code_paiement`, `paiement_ref`, téléphone ou adresses de livraison.
+
+### Chaîne de vérification
+
+- Contrats Node ajoutés : `scripts/test-admin-queues.cjs`; tests messagerie : `scripts/test-admin-messagerie.cjs`.
+- `npm test` agrège les huit scripts `scripts/test-*.cjs`.
+- Vérification statique des fichiers : les deux routes utilisent `requireAdminActive`, lisent uniquement les sources prévues, n’exposent aucune action de mutation et sont reliées depuis les écrans Admin existants.
+- **Aucun test Node, build, lint, typecheck ou CI n’a été exécuté** sur le HEAD courant. Le miroir GitLab connecté est au commit du 21/10 et son pipeline historique échoue sur `ci_quota_exceeded` avant exécution des jobs; il n’est pas une preuve du HEAD courant.
+- **Recette application restante :** vérifier sous compte Admin actif/inactif, avec données présentes/vides, erreurs d’accès, filtres et affichage mobile; vérifier que les événements/lignes ne sont pas tronqués au-delà des limites documentées.
+
+### État courant du parcours Admin
+
+- HEAD de référence de la dernière modification de code de ce ratissage : `afa069496ad80d9e990837197b564bddaf30f0af`.
+- Nombre de pages Admin au HEAD : **21** (12 entrées de navigation latérale et accès directs/imbriqués).
+- Aucun commit de cette passe n’a créé de branche, de PR, de modification Supabase Production ou de déploiement.
+- Les anciennes mentions « files Admin absentes » sont remplacées par « source construite — CI et recette application en attente ».
+
+
 ## Addendum — ratissage contradictoire du 02/11/2026
 
 - Messagerie Admin : l’historique des messages n’est plus chargé en bloc pour les 100 tickets. Le endpoint GET vérifie le ticket et ne renvoie que le fil sélectionné; GET et POST partagent un garde Admin exigeant une session valide, le rôle admin et actif=true. La limite de 2 000 caractères est alignée entre UI et API.
 - Alertes / dossiers partenaires : les constats ALT-01 et PROM-02 sont reclassés comme résolus dans le code courant : les compteurs liés à une source en erreur affichent une indisponibilité, pas un zéro métier.
 - PRE-039 / SEC-MSG-01 : la divergence historique du garde d’activation messagerie est résolue dans le code courant. Le test de bout en bout sous JWT réel reste à exécuter.
-- Cartographie : le HEAD contient 19 pages Admin et 12 entrées latérales. La route /admin/pilotage/reglements avait été omise de la cartographie initiale; elle est reliée par un lien depuis /admin/pilotage/validite et figure désormais dans le complément cartographique.
-- Contrôle des sources : l’arbre GitHub récursif non tronqué compte 1 126 entrées, 70 fichiers SQL sous supabase/migrations/ et 220 fichiers de test SQL sous supabase/tests/. Ces nombres sont des inventaires de chemins, pas des preuves d’exécution.
-- Commits de correction de la messagerie : 6270b797e428b503bdbb07b87742d1109972fdf7, 26a200213f69f7a670cbf6abd72b06aab2885365, 89fde66e2dc5601f01ddf8363f3da33c82a6b111 et ee9168fbc52c1b419f4174584dceee97582e198e.
-- Vérification restante : aucun build, lint, typecheck, HTTP sous JWT réel ou navigateur n’a été exécuté dans cette passe. Les corrections ci-dessus sont donc marquées comme source relue; la validation d’intégration CI et la recette de l’application restent les seules réserves probatoires identifiées dans ce lot. Aucun déploiement n’a été lancé.
+- Cartographie à jour au HEAD courant : **21 routes Admin** et **12 entrées de navigation latérale**. Les deux routes ajoutées par ce ratissage sont `/admin/prestations/demandes` et `/admin/pilotage/reservations`; elles sont reliées depuis les pages Prestations et Pilotage. `/admin/pilotage/reglements`, ajoutée dans le ratissage précédent, reste reliée depuis Validité.
+- Contrôle du HEAD courant : arbre GitHub récursif non tronqué, 1 378 entrées, **21 pages Admin**, 12 entrées latérales, 70 fichiers SQL sous `supabase/migrations/`, 220 tests SQL sous `supabase/tests/` et 8 scripts Node `scripts/test-*.cjs`. Ces nombres sont des inventaires de chemins, pas des preuves d’exécution.
+- Commits de correction messagerie : `6270b797e428b503bdbb07b87742d1109972fdf7`, `26a200213f69f7a670cbf6abd72b06aab2885365`, `89fde66e2dc5601f01ddf8363f3da33c82a6b111`, `ee9168fbc52c1b419f4174584dceee97582e198e`, `e2e23fcfa9a48509da6b2f1dca616992160f8270`, `7dafac109909486930de3e8c4fd5d0f1840e9313`.
+- Files de diagnostic : `ADM-SERVICES-01` et `ADM-MKT-01` sont construites en lecture seule sur `main`, derrière `requireAdminActive`, reliées depuis les écrans Prestations/Pilotage et couvertes par `scripts/test-admin-queues.cjs`. Les données privées (adresse exacte, téléphone, code et référence de paiement) ne sont pas sélectionnées. Les politiques RLS Production autorisent la lecture Admin des demandes, réservations, lignes et événements.
+- Tests de contrat ajoutés : `scripts/test-admin-messagerie.cjs` et `scripts/test-admin-queues.cjs`; `npm test` les agrège avec les tests Node existants. **Les tests n’ont pas été exécutés** : cette relecture via GitHub ne remplace pas le runner Node/CI.
+- Vérifications restantes de cette passe : exécution réelle de `npm test`, `tsc --noEmit`, lint et build par CI; puis recette navigateur des deux nouvelles files, du fil de messagerie et des états d’erreur. Aucun autre contrôle statique accessible n’est laissé intentionnellement de côté. Aucun déploiement n’a été lancé.
 
 
 
@@ -29,7 +58,7 @@
 > **Document de référence de l’audit 360 Administrateur.** La gouvernance de ce chantier est définie par le texte intégral du MANDAT CTO NAXA fourni par l’utilisateur; ce cahier enregistre les preuves, constats, corrections et statuts. Le cahier des charges V3.7 et le Prompt maître ne gouvernent pas le workflow de cet audit. Cette précision ne signifie pas que des fichiers historiques portant ces références ont été supprimés du dépôt; ils ne peuvent être utilisés qu’en arrière-plan fonctionnel lorsqu’ils ne contredisent ni le mandat ni les décisions plus récentes.
 
 
-> **Document de référence vivant** — audit préliminaire en cours. Ce document sépare les preuves directes, les déclarations historiques, les déductions et les vérifications encore indisponibles. Aucun déploiement n'est autorisé dans ce chantier.
+> **Document de référence vivant** — audit 360 détaillé en cours de clôture contradictoire. Les sous-étapes et corrections sont versionnées; les statuts distinguent preuve statique, test SQL Replay, définition Production relue, CI et recette navigateur. Aucun déploiement n’est autorisé dans ce chantier.
 
 ## Clôture ciblée — point 3, configuration visuelle Data API (29 octobre 2026)
 
@@ -45,7 +74,7 @@
 
 ## Guide de construction — prompt NAXA-MANDAT CTO
 
-Ce guide opérationnel consigne les consignes explicites du **NAXA-MANDAT CTO** pour construire et maintenir le présent cahier des charges Audit 360 Administrateur. Il ne réintroduit ni le cahier V3.7 ni le Prompt maître supprimés.
+Ce guide opérationnel consigne les consignes explicites du **NAXA-MANDAT CTO** pour construire et maintenir le présent audit 360 Administrateur. Le cahier NAXA v3.7 reste une référence fonctionnelle compatible; le Prompt maître et les rapports anciens sont des archives et ne gouvernent pas ce workflow. Leur présence ou absence dans le dépôt ne doit pas être affirmée sans vérification.
 
 ### Prompt d'exécution
 
@@ -288,7 +317,7 @@ La phase préliminaire est **en cours**. Le dépôt privé, la branche `main`, l
 
 ### Documents antérieurs déjà présents
 
-- `docs/AUDIT_PRELIMINAIRE_360_NAXA_ADMIN_2026-10-26.md` (33 535 caractères) : rapport préliminaire déjà présent, qui signale explicitement que l'arbre complet ne signifie pas que toutes les lignes ont été relues et que l'audit des 18 pages Admin reste à conduire.
+- `docs/AUDIT_PRELIMINAIRE_360_NAXA_ADMIN_2026-10-26.md` (33 535 caractères) : photographie préliminaire du 26/10. Sa mention de 18 pages est historique; le HEAD du 02/11 contient 21 routes Admin, les routes ajoutées depuis sont consignées dans la cartographie courante.
 - `docs/audits/AUDIT_CTO_ADMIN_360_PRELIMINAIRE_2026-10-26.md` (131 340 caractères) : rapport existant qui indique dans son en-tête une branche `audit/admin-360-20261026` et des migrations Supabase déjà appliquées. Ces affirmations historiques entrent en tension avec le présent mandat (travail uniquement sur main, aucune modification Supabase). Elles ne sont pas reprises comme opérations de cette session et devront être réconciliées avec les commits, le diff et l'historique de migrations. Le document n'a pas été modifié.
 - L'existence de ces deux rapports est une preuve documentaire importante : le présent fichier est le registre central demandé par le mandat actuel, mais n'est pas le seul document d'audit historique du dépôt. Une revue des recouvrements et divergences documentaires est requise.
 
@@ -352,7 +381,7 @@ Le protocole de dépôt confirme que `main` est la source de vérité et interdi
 
 À partir de l'arbre Git récursif du HEAD initial (donc avant les deux commits du présent registre) :
 
-- **18 fichiers `page.tsx`** détectés sous `src/app/admin/`; ce chiffre représente des fichiers de page, pas nécessairement 18 écrans métier uniques.
+- **18 fichiers `page.tsx` détectés au relevé initial du 26/10** sous `src/app/admin/`; ce chiffre historique représente des fichiers de page, pas nécessairement des écrans métier uniques. Le décompte courant du 02/11 est de 21.
 - **37 fichiers SQL** sous `supabase/migrations/` correspondant au motif exact `supabase/migrations/*.sql` (les sous-répertoires sont inclus par le préfixe de chemin).
 - **290 fichiers SQL** correspondant au motif historique `supabase/migration_NNN_*.sql` à la racine de `supabase/`.
 - **186 fichiers SQL de test** sous `supabase/tests/`.
@@ -384,7 +413,7 @@ L'inventaire du projet principal a retourné **0 fonction Edge** via l'outil Sup
 | ID | Constat | Preuve | Gravité provisoire | Statut |
 |---|---|---|---|---|
 | PRE-016 | Le statut GitHub `ci/circleci: quality` est en échec pour le commit de mise à jour du registre | P — statut du commit | À qualifier | Consigné, sans relance |
-| PRE-017 | 18 fichiers de page Admin sont détectés par le motif `src/app/admin/**/page.tsx` | P — arbre Git | Information | Inventaire de routes à approfondir |
+| PRE-017 | 18 fichiers de page Admin étaient détectés au relevé du 26/10; 21 routes sont présentes au HEAD du 02/11 | P — arbres Git datés | Information historique mise à jour | Cartographie courante : 21 pages |
 | PRE-018 | Le linter signale 120 fonctions `SECURITY DEFINER` exécutables par `authenticated` et 5 par `anon` | P — conseils Supabase | Élevée à qualifier | Revue SQL ciblée nécessaire |
 | PRE-019 | Le linter signale 59 groupes de politiques permissives multiples | P — conseils Supabase | Moyenne à qualifier | Revue politique par politique |
 | PRE-020 | Le linter signale 92 index inutilisés | P — conseils Supabase | Faible à moyenne | Aucun retrait sans preuve |
@@ -2879,54 +2908,40 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - **Statut hérité :** voir `ADM-EXAM-03` pour la correction versionnée, la preuve du test 269 sur Replay et la réserve Production.
 - **Décision :** conserver cet identifiant historique comme alias de traçabilité; ne pas le compter comme point actif distinct.
 
-#### ADM-UNIV-SERVICES-01 — Les demandes clients de prestations n'ont pas de vue opérationnelle Admin
+#### ADM-UNIV-SERVICES-01 — ALIAS HISTORIQUE DE ADM-SERVICES-01 — DEMANDES DOMICILE
 
-- src/app/admin/prestations/page.tsx lit home_service_offers et permet de publier, remettre en brouillon ou archiver les offres. Il ne lit pas home_service_requests.
-- La politique home_service_requests_admin_read existe en Production, mais aucune page du répertoire src/app/admin ne présente une file des demandes client ou leur statut opérationnel.
-- Les tables Production home_service_offers et home_service_requests sont actuellement vides.
-- **Classement : absence de couverture UI confirmée par inventaire des routes et lecture du code; aucune demande réelle n'est présente pour éprouver le parcours.**
-- **Correction à soumettre :** ajouter une vue Admin de consultation/diagnostic des demandes et de leur historique, avec actions limitées aux transitions métier autorisées; ne pas ajouter d'action de paiement ou de traitement non prévue.
+- **État historique au 26/10 :** aucune file Admin ne lisait `home_service_requests`.
+- **État courant au 02/11 :** la route `/admin/prestations/demandes` est créée et accessible depuis `/admin/prestations`. Elle liste les demandes, le statut, l’offre, le professionnel, la zone, les dates et le tarif indicatif.
+- **Sécurité / minimisation :** garde `requireAdminActive`; RLS `home_service_requests_admin_read` confirmée en Production; aucune adresse exacte, aucun téléphone, note client ou contact privé ne sont sélectionnés. Aucune action de mutation n’est exposée.
+- **Statut :** SOURCE CORRIGÉE — tests Node/CI et recette navigateur à exécuter. Cet alias n’est pas un constat actif séparé d’ADM-SERVICES-01.
 
-#### ADM-MKT-01 — Le pilotage Marketplace est agrégé, sans file Admin de résolution des réservations
+#### ADM-MKT-01 — Diagnostic des réservations Marketplace
 
-- /admin/pilotage utilise stats_pilotage_scope et actualise ses indicateurs via les événements reservations, stocks et alertes; il expose des totaux et tendances.
-- L'inventaire des routes Admin ne révèle pas de page dédiée à la consultation détaillée d'une réservation Marketplace, de ses lignes, de ses événements et de son état de stock.
-- Production contient 6 réservations, 6 lignes et 4 événements; ces quantités ne prouvent pas que l'Administrateur peut examiner et résoudre chaque cas individuellement.
-- **Classement : couverture de pilotage agrégée confirmée; absence d'une file de résolution détaillée confirmée dans les routes Admin examinées.**
-- **Correction à soumettre :** définir une vue de support en lecture contrôlée qui relie réservation, lignes, pharmacie, transitions et événements, sans permettre à NAXA d'encaisser ou de modifier le paiement effectué auprès de la pharmacie.
+- **État historique au 26/10 :** le pilotage exposait des agrégats sans file Admin détaillée des réservations.
+- **État courant au 02/11 :** la route `/admin/pilotage/reservations` est créée et reliée depuis `/admin/pilotage`. Elle lit les réservations, lignes, pharmacie, statut de paiement, indicateurs de stock et événements.
+- **Sécurité / périmètre :** garde `requireAdminActive`; politiques Production `resa_read`, `resa_items_read` et `reservation_events_participant_read` accordent la lecture Admin via `private.is_admin()`. La page ne sélectionne aucun code de paiement, référence de paiement, adresse ou téléphone et n’expose aucune mutation, transition ou action d’encaissement.
+- **Statut :** SOURCE CORRIGÉE — tests Node/CI et recette navigateur à exécuter.
 
+#### ADM-UNIV-DOSSIER-01 — Fiabilité de supervision — SOURCE CORRIGÉE
 
-#### ADM-UNIV-DOSSIER-01 — Erreur de lecture des dossiers partenaires non propagée — OUVERT
+- **État courant du code :** `partnerDossiersResult.error` est inclus dans le verrou global `missing`; le bandeau local indique explicitement l’indisponibilité du registre des dossiers. L’erreur n’est plus transformée silencieusement en file vide.
+- **Statut :** SOURCE CORRIGÉE — injection d’erreur et rendu navigateur à vérifier en recette.
 
-- **Preuve historique :** la requête `admin_partner_dossiers` n'était pas incluse dans `missing`. Le fichier courant inclut maintenant `partnerDossiersResult.error` dans le booléen global; le bandeau local affiche également « Registre des dossiers indisponible ».
-- **Impact :** si cette seule lecture échoue, l'écran peut présenter zéro dossier en attente et aucune association à un dossier, sans signaler l'indisponibilité de cette source. L'Administrateur risque de confondre une erreur d'accès/schéma avec une absence réelle de dossiers.
-- **Classement : confirmé par lecture directe du code; non reproduit en runtime.**
-- **Correction implémentée sur main :** ajout de `partnerDossiersResult.error` dans `missing`; l'indisponibilité est propagée au bandeau global et au message local existant.
-- **Vérification effectuée :** relecture du fichier sur main et assertion de présence de la condition mise à jour. **Reste à faire :** injection runtime d'une erreur isolée pour confirmer le rendu navigateur.
+#### ADM-EXAM-04 — DOUBLON / NON ACTIF
 
-#### ADM-EXAM-04 — Erreur de lecture des rendez-vous non affichée — OUVERT
+- **Décision conservée :** le calendrier possède un état d’indisponibilité et son erreur participe au verrou des actions; ce constat ne constitue pas un défaut actif indépendant.
 
-- **Contre-preuve :** le même fichier affichait déjà un état spécifique `ae ? Données indisponibles` pour le calendrier; la correction de cette passe ajoute aussi `ae` au verrou `broken`. Le constat ne doit donc pas être compté comme défaut actif.
-- **Impact :** une panne ou un refus RLS limité à la lecture des rendez-vous peut être présenté comme un calendrier vide, sans avertissement, alors que les centres/examens/packs sont lisibles.
-- **Classement : confirmé par lecture directe du code; non reproduit en runtime.**
-- **Correction proposée :** traiter séparément l'indisponibilité du calendrier et afficher un état d'erreur explicite; conserver les autres sections si elles sont disponibles.
-- **Vérification restante :** injecter un échec isolé de la requête en environnement de test pour vérifier le rendu et le verrou des actions.
+#### ADM-SERVICES-02 — Sécurité RLS — PRODUCTION CORRIGÉE
 
-#### ADM-SERVICES-02 — Lecture des demandes domicile autorisée aux administrateurs inactifs — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE
+- **Correction :** migration `20261102032259_admin_active_read_policies` appliquée sur Supabase Production le 02/11/2026 après autorisation explicite.
+- **Preuves :** migration visible dans l’historique Production; politiques `exam_appointments_admin_read` et `home_service_requests_admin_read` relues avec `public.is_admin()`; matrice SQL Replay 269 PASS, 31 assertions.
+- **Réserve :** test HTTP PostgREST sous JWT Admin actif/inactif et recette dans l’application à exécuter.
 
-- **Preuve Production (lecture seule) :** la politique `home_service_requests_admin_read` vérifiait le rôle Admin sans condition `actif=true`.
-- **Correction versionnée :** migration `supabase/migrations/20261102032259_admin_active_read_policies.sql`, qui remplace la politique par `(select public.is_admin())`; les politiques Client propriétaire et partenaire autorisé restent inchangées.
-- **Validation exécutée :** test `supabase/tests/269_admin_exam_services_active_guards.sql` sur `naxa-ci-replay-2`; lecture Admin actif autorisée, Admin inactif refusé, accès Client propriétaire/tiers et partenaire conservés. Le test complet passe avec 31 assertions; fixtures annulés.
-- **Statut :** 🟢 construction validée en Replay. La politique Production reste à migrer lors d'une opération explicitement autorisée.
+#### ADM-SERVICES-03 — Sécurité RLS/RPC — PRODUCTION CORRIGÉE
 
-#### ADM-SERVICES-03 — Les mutations de prestations ne vérifient pas systématiquement l'activité Admin — CORRECTION VERSIONNÉE
-
-- **Preuve Production (lecture seule) :** la politique `home_service_offers_admin_manage` autorisait les opérations `ALL` à un profil `role='admin'` sans vérifier `actif=true`. La fonction SECURITY DEFINER `transition_home_service_request(uuid,text)` déterminait également `is_admin` par le seul rôle.
-- **Impact :** une session Admin persistante après désactivation pouvait modifier directement les offres via RLS ou confirmer/terminer une demande via la RPC. Les gardes de page et Server Actions ne remplacent pas les contrôles de la base.
-- **Cause racine :** deux chemins d'autorisation base de données non alignés sur le garde canonique `public.is_admin()`.
-- **Correction versionnée :** migration `supabase/migrations/20261102032304_admin_active_home_services_guards.sql`. Elle remplace uniquement la politique Admin des offres par `public.is_admin()` et modifie la branche Admin de la RPC; les droits Client d'annulation et le périmètre partenaire actif restent inchangés.
-- **Validation exécutée :** migration appliquée sur `naxa-ci-replay-2`; test reproductible `supabase/tests/269_admin_exam_services_active_guards.sql` exécuté avec 31 assertions structurelles et comportementales PASS : Admin actif/inactif, Client propriétaire/tiers, membre partenaire, lecture, modification d'offre, transitions RPC et journal d'audit. Toutes les données de scénario sont annulées par `ROLLBACK`.
-- **Statut :** 🟢 construction verte en Replay. La migration Production reste en attente d'une opération explicitement autorisée.
+- **Correction :** migration `20261102032304_admin_active_home_services_guards` appliquée en Production le 02/11/2026 après autorisation explicite.
+- **Preuves :** politique `home_service_offers_admin_manage` et fonction `public.transition_home_service_request(uuid,text)` relues après application; les gardes Admin utilisent `public.is_admin()`. Test Replay 269 PASS, 31 assertions, incluant conservation des transitions Client et partenaire.
+- **Réserve :** test HTTP sous JWT réel et recette de transition Client/partenaire/Admin dans l’application à exécuter.
 
 ### 8.3 Limites de couverture et contrôles positifs
 
@@ -3068,49 +3083,48 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 
 #### P2 — priorité moyenne
 
-**ADM-EXAM-03 — Sécurité / autorisation — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
-- **Preuve Production (lecture seule) :** la politique `exam_appointments_admin_read` autorisait SELECT au profil `role=admin` sans exiger `actif=true`; l'écran Admin applique `requireAdminActive`.
-- **Correction versionnée :** migration `supabase/migrations/20261102032259_admin_active_read_policies.sql`, qui remplace la politique Admin par `(select public.is_admin())`, garde canonique exigeant Admin et compte actif.
-- **Validation exécutée :** test `supabase/tests/269_admin_exam_services_active_guards.sql` sur Replay; Admin actif autorisé, Admin inactif et Client tiers refusés, Client propriétaire et partenaire autorisés selon leur propre périmètre. Le test complet passe avec 31 assertions.
-- **Statut :** 🟢 construction verte en Replay. La politique Production reste à migrer lors d'une opération explicitement autorisée.
+**ADM-EXAM-03 — Sécurité / autorisation — PRODUCTION CORRIGÉE**
 
-**ADM-SERVICES-01 — Couverture fonctionnelle — OUVERT**
-- **Preuve :** /admin/prestations ne lit que home_service_offers; aucune page Admin examinée ne lit home_service_requests. La politique home_service_requests_admin_read existe.
-- **Impact :** l'Administrateur peut modérer les offres, mais ne dispose pas d'une file pour diagnostiquer les demandes clients et leurs statuts.
-- **Cause racine :** surface UI de supervision des demandes absente.
-- **Correction proposée :** définir une vue Admin de lecture des demandes, de leur historique et des états métier réellement autorisés.
-- **Vérification attendue :** cas client, partenaire hors périmètre, Admin actif/inactif, demande annulée/terminée et journal.
+- Migration `20261102032259_admin_active_read_policies` appliquée en Production le 02/11/2026.
+- La politique `exam_appointments_admin_read` a été relue après application et utilise `public.is_admin()`.
+- Test SQL Replay 269 : 31 assertions PASS pour Admin actif/inactif, Client propriétaire/tiers, partenaire et anonyme.
+- **Réserve :** test HTTP PostgREST sous JWT réel et recette navigateur encore requis.
 
-**ADM-MKT-01 — Couverture fonctionnelle — OUVERT**
-- **Preuve :** /admin/pilotage fournit des agrégats et s'abonne aux changements reservations/stocks/alertes; aucune file Admin détaillée de réservation Marketplace n'a été identifiée. Production contient 6 réservations, 6 lignes et 4 événements.
-- **Impact :** détection agrégée possible, mais diagnostic et résolution individuelle d'un incident de réservation non démontrés.
-- **Cause racine :** absence de surface opérationnelle Admin dédiée.
-- **Correction proposée :** définir une vue de support en lecture contrôlée reliant réservation, lignes, pharmacie, historique et stock, sans encaissement ni modification du paiement pharmacie.
-- **Vérification attendue :** accès Admin autorisé, isolation des données, transitions et événements consultables, aucune action financière non autorisée.
+**ADM-SERVICES-01 — Couverture fonctionnelle — SOURCE CORRIGÉE**
 
+- La page `/admin/prestations/demandes` est créée sur `main` et reliée depuis `/admin/prestations`.
+- La file utilise `requireAdminActive` et la RLS Admin Production confirmée pour `home_service_requests`; elle affiche le suivi opérationnel en lecture seule et ne sélectionne aucune adresse exacte, aucun téléphone ni note personnelle.
+- Un test de contrat statique est ajouté dans `scripts/test-admin-queues.cjs` et inclus par `npm test`.
+- **Réserve :** exécution Node/CI et recette navigateur (lecture de vraies demandes/états vides/erreurs) à effectuer.
 
-**ADM-UNIV-DOSSIER-01 — Fiabilité de supervision — OUVERT**
-- **Preuve :** `src/app/admin/univers/page.tsx` ignore `partnerDossiersResult.error` dans son indicateur global d'indisponibilité et transforme les données absentes en tableau vide.
-- **Impact :** faux zéro possible dans la file des dossiers partenaires en cas d'erreur isolée.
-- **Cause racine :** résultat d'une requête parallèle omis du contrôle d'erreur.
-- **Correction proposée :** propager l'erreur et afficher l'indisponibilité de la seule section dossiers.
-- **Vérification attendue :** échec simulé de cette requête, absence de faux état vide, autres sections encore consultables.
+**ADM-MKT-01 — Couverture fonctionnelle — SOURCE CORRIGÉE**
+
+- La page `/admin/pilotage/reservations` est créée sur `main` et reliée depuis `/admin/pilotage`.
+- Elle lit les réservations, les articles, les pharmacies et les événements au moyen des politiques de lecture Admin existantes. Elle ne sélectionne ni code de paiement, ni référence de paiement, ni adresse ou téléphone et ne propose aucune mutation.
+- Le diagnostic stock distingue le stock normalement réservé de l’indicateur contradictoire « restauré et vente consommée »; ce dernier est un signal à vérifier, pas la preuve d’un incident.
+- Un test de contrat statique est ajouté dans `scripts/test-admin-queues.cjs` et inclus par `npm test`.
+- **Réserve :** exécution Node/CI et recette navigateur (événements, lignes, réservations de tous statuts, erreurs) à effectuer.
+
+**ADM-UNIV-DOSSIER-01 — Fiabilité de supervision — SOURCE CORRIGÉE**
+
+- `src/app/admin/univers/page.tsx` inclut `partnerDossiersResult.error` dans le contrôle d’indisponibilité global et affiche un message local si le registre dossiers échoue.
+- **Réserve :** injection d’une erreur isolée et recette du rendu navigateur à exécuter.
 
 **ADM-EXAM-04 — Fiabilité de supervision — DOUBLON / NON ACTIF**
 - **Contre-preuve :** le composant affichait déjà `Données indisponibles` quand la lecture des rendez-vous échouait; la correction de cette passe inclut aussi `ae` dans le verrou global `broken`.
 - **Décision :** faux positif / constat redondant retiré du registre actif. Aucun défaut indépendant restant sous cet identifiant.
 
-**ADM-SERVICES-02 — Sécurité RLS — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
-- **Preuve :** politique Production Admin basée sur le rôle seul, sans `actif=true`.
-- **Correction versionnée :** migration `20261102032259_admin_active_read_policies.sql`, avec garde canonique `public.is_admin()`.
-- **Validation exécutée :** test Replay 269 PASS (31 assertions globales), couvrant Admin actif/inactif et conservation des droits Client/propriétaire et partenaire.
-- **Réserve :** migration Production non appliquée dans ce chantier.
+**ADM-SERVICES-02 — Sécurité RLS — PRODUCTION CORRIGÉE**
 
-**ADM-SERVICES-03 — Sécurité RLS/RPC — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
-- **Preuve :** la politique Production `home_service_offers_admin_manage` et la branche Admin de `transition_home_service_request` ne vérifiaient pas l'activité du profil.
-- **Correction versionnée :** migration `20261102032304_admin_active_home_services_guards.sql`; politique et branche Admin RPC alignées sur `public.is_admin()`. Les droits Client d'annulation et le scope partenaire restent conservés.
-- **Validation exécutée :** test Replay 269 PASS : Admin actif peut modifier une offre et confirmer/terminer une demande; Admin inactif en est empêché; le Client conserve l'annulation autorisée et le partenaire membre conserve ses transitions propres; journal vérifié.
-- **Statut :** 🟢 construction verte en Replay. Migration Production en attente d'une opération explicitement autorisée.
+- Migration `20261102032259_admin_active_read_policies` appliquée en Production le 02/11/2026; la politique `home_service_requests_admin_read` relue utilise `public.is_admin()`.
+- Test Replay 269 PASS (31 assertions) couvre Admin actif/inactif et conservation des droits Client/partenaire.
+- **Réserve :** test HTTP sous JWT réel et recette navigateur à exécuter.
+
+**ADM-SERVICES-03 — Sécurité RLS/RPC — PRODUCTION CORRIGÉE**
+
+- Migration `20261102032304_admin_active_home_services_guards` appliquée en Production le 02/11/2026; politique de gestion des offres et RPC `transition_home_service_request(uuid,text)` relues après application avec garde `public.is_admin()`.
+- Test Replay 269 PASS (31 assertions) conserve les transitions Client et membre partenaire.
+- **Réserve :** test HTTP sous JWT réel et recette navigateur à exécuter.
 
 **ADM-NOTIF-02 — Intégration externe — RÉSERVE DE PREUVE**
 - **Preuve :** l'utilisateur a confirmé que Google Apps Script est correctement configuré; le worker Production ne peut toutefois pas être testé tant que l'outbox SQL est absente. Le déclencheur périodique effectif et la réception depuis le worker ne sont pas démontrés.
