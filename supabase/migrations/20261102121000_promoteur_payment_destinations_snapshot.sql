@@ -163,7 +163,7 @@ begin
     p_promoteur,
     'abonnement_reglement_soumis',
     'Paiement transmis à NAXA',
-    'Votre déclaration de paiement a été transmise à NAXA. Le renouvellement interviendra uniquement après confirmation effective.',
+    'Votre déclaration de paiement a été transmise à NAXA. Le renouvellement interviendra uniquement après confirmation effective.'
   );
 
   return v_id;
