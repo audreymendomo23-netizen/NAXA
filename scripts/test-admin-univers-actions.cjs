@@ -63,3 +63,10 @@ test("la diffusion d'avis réseau exige un UUID retourné par la RPC avant le su
   assert.ok(notices.indexOf("typeof data !== \"string\"") < notices.indexOf('setMessage("Avis diffusé aux pharmacies actives'));
   assert.match(notices, /finally \{\s*setBusy\(false\);\s*\}/);
 });
+
+test("les accusés de réception chargent toutes les lignes des avis affichés sans lecture globale", () => {
+  assert.match(notices, /\.in\("avis_id",noticeIds\)/);
+  assert.match(notices, /\.range\(offset,offset\+pageSize-1\)/);
+  assert.match(notices, /if \(page\.length<pageSize\)break/);
+  assert.match(notices, /if\(re\)\{setError\("Impossible de charger les accusés de réception\."/);
+});
