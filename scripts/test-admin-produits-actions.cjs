@@ -15,6 +15,10 @@ const adminProfile = fs.readFileSync(
   path.join(__dirname, "../src/app/admin/profil/page.tsx"),
   "utf8",
 );
+const adminProductsPage = fs.readFileSync(
+  path.join(__dirname, "../src/app/admin/produits/page.tsx"),
+  "utf8",
+);
 
 test("les deux actions de fiche sont réservées à un administrateur actif", () => {
   assert.match(source, /requireAdminActive\("\/admin\/produits"\)/);
@@ -58,4 +62,12 @@ test("le profil personnel ne confirme pas une mise à jour sans ligne retournée
   assert.match(adminProfile, /\.eq\("id", auth\.user\.id\)\.select\("id"\)\.maybeSingle\(\)/);
   assert.match(adminProfile, /updateError \|\| updated\?\.id !== auth\.user\.id/);
   assert.ok(adminProfile.indexOf("updated?.id !== auth.user.id") < adminProfile.indexOf('setMessage("Profil mis à jour.")'));
+});
+
+test("les KPI produits ne présentent pas de faux zéros quand la source échoue", () => {
+  assert.ok(adminProductsPage.includes('value: error ? "—" : compte.toutes'));
+  assert.ok(adminProductsPage.includes('value: error ? "—" : compte["a-completer"]'));
+  assert.ok(adminProductsPage.includes('value: error ? "—" : compte["a-relire"]'));
+  assert.ok(adminProductsPage.includes('value: error ? "—" : compte.validees'));
+  assert.match(adminProductsPage, /Les produits n’ont pas pu être chargés/);
 });
