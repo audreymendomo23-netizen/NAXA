@@ -29,20 +29,22 @@ begin
      or position('v_promoteur.actif is distinct from false' in v_lower) = 0 then
     raise exception 'La RPC doit exiger pharmacie, rattachement et Promoteur tous encore en attente';
   end if;
-  if position('public.pharmacie_documents_recus' in v_lower) = 0
-     or position('v_documents_recus.kyc is distinct from true' in v_lower) = 0
-     or position('v_documents_recus.piece_existence_legale is distinct from true' in v_lower) = 0
-     or position('v_documents_recus.registre_commerce is distinct from true' in v_lower) = 0
-     or position('v_documents_recus.niu is distinct from true' in v_lower) = 0
-     or position('v_documents_recus.attestation_non_redevance is distinct from true' in v_lower) = 0
-     or position('v_documents_recus.plan_localisation is distinct from true' in v_lower) = 0
-     or position('v_documents_recus.cni_promoteur is distinct from true' in v_lower) = 0
-     or position('public.pharmacie_documents' in v_lower) = 0
+  if position('pharmacie_documents_recus' in v_lower) <> 0
+     or position('piece_existence_legale is distinct from true' in v_lower) <> 0
+     or position('kyc is distinct from true' in v_lower) <> 0 then
+    raise exception 'Les cases de réception doivent rester informatives et ne pas bloquer la validation';
+  end if;
+  if position('public.pharmacie_documents' in v_lower) = 0
+     or position('existence_legale' in v_lower) = 0
+     or position('registre_commerce' in v_lower) = 0
+     or position('attestation_non_redevance' in v_lower) = 0
+     or position('plan_localisation' in v_lower) = 0
+     or position('cni_promoteur' in v_lower) = 0
      or position('v_latest_document_status is distinct from ''valide''' in v_lower) = 0
      or position('d.recu_le desc' in v_lower) = 0
      or position('d.version desc' in v_lower) = 0
      or position('d.id desc' in v_lower) = 0 then
-    raise exception 'Les déclarations doivent être complètes et les dernières versions des six fichiers validées';
+    raise exception 'Les dernières versions des six fichiers réels doivent toujours être validées';
   end if;
 
   v_activation := position('set statut = ''active''' in v_lower);
