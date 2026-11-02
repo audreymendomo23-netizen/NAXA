@@ -111,6 +111,7 @@ export default function Page() {
           <div className="flex flex-wrap gap-2">
             <Link className="rounded-full border border-white px-4 py-2 text-sm" href="/admin">Espace NAXA</Link>
             <Link className="rounded-full bg-[#FAD405] px-4 py-2 text-sm font-bold text-black" href="/admin/pilotage/validite">Validité pharmacies</Link>
+            <Link className="rounded-full border border-white px-4 py-2 text-sm" href="/admin/pilotage/reservations">Réservations Marketplace</Link>
             <Link className="rounded-full border border-white px-4 py-2 text-sm" href="/admin/pilotage/rapports">Rapports &amp; exports</Link>
           </div>
         </header>
