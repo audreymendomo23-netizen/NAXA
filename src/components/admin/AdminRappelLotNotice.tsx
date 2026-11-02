@@ -28,10 +28,20 @@ export function AdminRappelLotNotice() {
   async function diffuse(){
     if(busy)return;
     setBusy(true);setError("");setMessage("");
-    const {data,error:e}=await sb.rpc("admin_avis_rappel_lot_diffuser",{p_produit_nom:product.trim(),p_numero_lot:lot.trim(),p_reference_avis:reference.trim()||null,p_motif:motif.trim(),p_consigne:consigne.trim()});
-    if(e)setError(e.message||"Diffusion refusée.");
-    else {setMessage("Avis diffusé aux pharmacies actives. Aucun stock ni aucune vente n’a été consulté.");setProduct("");setLot("");setReference("");setMotif("");setConsigne("");await load();}
-    setBusy(false);
+    try {
+      const {data,error:e}=await sb.rpc("admin_avis_rappel_lot_diffuser",{p_produit_nom:product.trim(),p_numero_lot:lot.trim(),p_reference_avis:reference.trim()||null,p_motif:motif.trim(),p_consigne:consigne.trim()});
+      if(e || typeof data !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data)) {
+        setError(e?.message || "La diffusion n’a pas été confirmée par Supabase.");
+        return;
+      }
+      setMessage("Avis diffusé aux pharmacies actives. Aucun stock ni aucune vente n’a été consulté.");
+      setProduct("");setLot("");setReference("");setMotif("");setConsigne("");
+      await load();
+    } catch {
+      setError("La diffusion a échoué. Vérifiez la connexion puis réessayez.");
+    } finally {
+      setBusy(false);
+    }
   }
   return <main className="mx-auto min-h-dvh max-w-5xl space-y-5 px-4 py-6 text-slate-900">
     <header className="rounded-3xl bg-[#0B3D26] p-6 text-white"><p className="text-xs font-bold uppercase tracking-widest text-white/70">NAXA · Administration · F64-ADM</p><h1 className="mt-2 text-2xl font-extrabold">Avis réseau de rappel de lot</h1><p className="mt-2 text-sm text-white/80">Diffusez une consigne officielle. L’administration ne voit ni les stocks, ni les ventes, ni les clients des pharmacies.</p></header>
