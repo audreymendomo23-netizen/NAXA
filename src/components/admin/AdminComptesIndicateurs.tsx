@@ -235,7 +235,7 @@ export default function AdminComptesIndicateurs({ jours }: { jours: number }) {
                 {data.par_pharmacie.map(ph => <tr key={ph.id} className="border-t border-slate-100 align-top">
                   <td className="p-3"><span className="font-bold">{ph.nom}</span><span className={"mt-1 block text-xs " + (ph.actif ? "text-emerald-700" : "text-slate-500")}>{ph.actif ? "Active" : "Inactive"}</span>
                     {ph.promoteurs.length > 0 && <span className="mt-1 block text-xs text-slate-500">Promoteur(s) : {ph.promoteurs.map(p => p.nom).join(", ")}</span>}
-                    <span className="mt-1 block text-xs text-slate-500">{ph.comptes.map(c => accountLabel(c.role, c.fonction_interne) + " " + c.total).join(" · ") || "Aucun compte rattaché"}</span>
+                    <span className="mt-1 block text-xs text-slate-500">{ph.comptes.map(c => accountLabel(c.role, c.fonction_interne) + " " + (c.actif ? "actif" : "inactif") + " : " + c.total).join(" · ") || "Aucun compte rattaché"}</span>
                   </td>
                   <td className="p-3 text-right font-bold tabular-nums">{number(accountCount(ph.comptes))}</td>
                   <td className="p-3 text-right tabular-nums">{number(ph.indicateurs.reservations)}</td>
