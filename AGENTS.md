@@ -4,14 +4,14 @@ Ce fichier est la consigne de travail à appliquer à chaque intervention sur NA
 
 ## Objectif unique
 
-Construire, corriger et livrer NAXA jusqu’à ce que toutes les fonctionnalités prévues soient réellement implémentées et fonctionnelles en Production. L’assistant est là pour exécuter le travail, pas pour transférer la charge à l’utilisateur.
+Construire et corriger NAXA jusqu’à ce que les fonctionnalités prévues soient réellement implémentées, intégrées et testables. Un déploiement en Production n’est jamais automatique : il exige une autorisation explicite et doit être exclu lorsqu’un mandat actif l’interdit. L’assistant exécute le travail autorisé au lieu de le transférer à l’utilisateur.
 
 ## Ordres d’exécution
 
 1. **Source de vérité :** travailler sur le dépôt GitHub privé `audreymendomo23-netizen/NAXA`, branche `main`. Ne pas réactiver, rechercher ou reprendre d’anciennes branches. Ne pas créer de branche de travail.
 2. **Pas de PR :** ne pas ouvrir, demander ni imposer de Pull Request. Appliquer directement les modifications autorisées à `main`.
-3. **Pas de CircleCI ni de Netlify :** ne pas lancer, recommander ni attendre de validation via CircleCI ou Netlify. Utiliser les moyens disponibles et gratuits pour compiler, tester et déployer, notamment les outils du dépôt et Vercel si le projet y est connecté.
-4. **Exécution de bout en bout :** inspecter le code pertinent, identifier la cause réelle, modifier le code, exécuter les tests pertinents, corriger les échecs, puis déployer en Production lorsque le changement est prêt. Ne pas s’arrêter à une proposition, une liste de tâches ou un correctif non appliqué.
+3. **CI et outils de validation :** ne pas utiliser CircleCI ni Netlify. Lorsque la campagne CI est requise, la regrouper à la fin du chantier et privilégier les vérifications GitLab disponibles, sans déclencher de job de déploiement. En l’absence de runner adapté, exécuter les contrôles statiques et tests ciblés accessibles et rapporter précisément le contrôle CI manquant.
+4. **Exécution de bout en bout :** inspecter le code pertinent, identifier la cause réelle, modifier le code, exécuter les tests pertinents et corriger les échecs. Préparer une version vérifiable. Ne déployer en Production qu’après autorisation explicite et uniquement si le mandat actif ne l’interdit pas. Pour l’audit 360 Administrateur régi par le NAXA-MANDAT CTO, aucun déploiement ni relancement de déploiement n’est autorisé.
 5. **Aucune vérification déléguée à l’utilisateur :** effectuer soi-même toutes les vérifications accessibles. Ne pas demander à l’utilisateur de cliquer, copier des logs ou tester manuellement ce que les outils permettent de contrôler. Si un test utilisateur reste nécessaire (appareil physique, compte ou secret indisponible), le signaler seulement après avoir terminé tout le travail automatisable.
 6. **Aucune confirmation redondante :** lorsque l’utilisateur a ordonné une modification, une fusion, une correction ou un déploiement, exécuter cet ordre sans exiger une formule de confirmation supplémentaire. Ne pas ajouter d’étape d’approbation inventée.
 7. **Production et données :** ne jamais exposer de secrets. Ne jamais écrire dans la base Supabase Production ni exécuter une migration destructive sans disposer d’une autorisation et d’un périmètre explicites pour cette opération. Préserver les données et les contrôles de sécurité. Pour le reste, agir directement dans le périmètre demandé.
@@ -64,6 +64,6 @@ Si un accès, un secret, un environnement ou un outil indisponible empêche une 
 ### Priorité de livraison
 - Priorité à une fonctionnalité concrète et essayable plutôt qu'à un audit général répétitif.
 - Ne pas attendre la fin de toutes les fonctionnalités pour remettre une première tranche testable.
-- Ne pas lancer de vérifications CI/build/lint/typecheck ni de déploiement si les consignes courantes les excluent. Un ordre plus récent et explicite de l'utilisateur prévaut sur une consigne ancienne.
+- Regrouper CI/build/lint/typecheck en fin de lot; utiliser GitLab lorsque le runner de validation est disponible, sans déclencher de déploiement. Si la CI n’est pas accessible, poursuivre toutes les vérifications statiques et ciblées possibles, puis signaler uniquement la preuve CI manquante. Un mandat actif interdisant le déploiement prévaut même si les changements sont prêts.
 - Aucun déploiement sans autorisation explicite. Aucune écriture dans Supabase Production.
 - Rapport de fin bref : **Fait / Preuve / Statut de construction / Recette utilisateur / Reste / Suite**.
