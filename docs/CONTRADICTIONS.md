@@ -1,4 +1,17 @@
 # NAXA — Registre des contradictions et preuves opérationnelles
+
+## Ratissage du 02/11/2026 — rectifications récentes
+
+- **Migrations globales Admin (Étape 13) :** les passages historiques du registre et de STATUT.md qui indiquaient que les migrations globales étaient absentes de Production sont supersédés. Production contient `admin_global_accounts_pilotage` version `20261102101654` et `admin_partner_accounts_summary` version `20261102101658`; les fonctions et ACL ont été relues.
+- **Dédoublonnage réseau/Promoteur :** défaut confirmé puis corrigé par `supabase/migrations/20261102104330_admin_unique_clients_network_totals.sql`. Les totaux comptent maintenant les clients distincts sur l'union de leur périmètre; le détail par pharmacie n'est pas modifié. Migration présente dans Replay (`20261102104229`) et Production (`20261102104330`).
+- **Preuve de régression :** sur Replay, un même Client a une réservation dans deux pharmacies non-démo et une réservation dans une pharmacie démo. Le réseau et le Promoteur renvoient 2 réservations / 1 Client distinct; la pharmacie démo est exclue. Résultat `E13 cross-pharmacy distinct-client regression PASS`; la transaction a été annulée par `ROLLBACK`.
+- **ACL de la façade :** `public.admin_comptes_indicateurs(integer)` est `SECURITY DEFINER`, `search_path=''`; EXECUTE est refusé à `anon`, accordé à `authenticated` pour permettre l'appel UI, et les helpers privés ne sont pas directement exécutables par `anon` ou `authenticated`. Le moteur interne vérifie `auth.uid()`, le rôle Admin et `actif=true`.
+- **Advisor actualisé après le correctif :** 6 tables RLS sans policy, 5 fonctions SECURITY DEFINER accessibles à `anon`, 121 accessibles à `authenticated`, protection contre les mots de passe compromis désactivée. Le finding 121 inclut la façade Admin ci-dessus dont l'accès authentifié est intentionnel et garde Admin-actif; il ne doit pas être confondu avec un accès anonyme ni avec l'accès direct aux helpers privés. Les autres fonctions restent à qualifier une par une.
+- **Files Admin :** les anciens constats d'absence de file de résolution pour les prestations à domicile et les réservations Marketplace sont supersédés côté code par `/admin/prestations/demandes` et `/admin/pilotage/reservations`; les deux pages sont protégées par `requireAdminActive`, liées à leurs écrans parents et conçues en lecture seule. La CI et la recette dans l'application restent à exécuter.
+- **PRE-044/PRE-045 et examens/prestations :** les anciens états de non-application Production sont supersédés par les addenda du 02/11 dans `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` : les migrations correspondantes ont été appliquées et les politiques/fonctions relues. Les tests Replay disponibles restent distincts d'une recette HTTP avec vrais JWT.
+- **Réserves exactes de ce ratissage :** CI/build/typecheck/lint sur le HEAD courant et recette réelle de l'application. Les contrôles statiques, SQL Replay et relectures de définitions Production disponibles ont été utilisés; aucune absence d'accès documentaire ou de donnée de démo ne constitue un motif de blocage des corrections.
+
+---
 ## Audit Promoteur — garde-fous des RPC (29/10/2026)
 
 - La définition active de `admin_confirmer_reglement_promoteur` vérifie Admin actif, la cohérence convention/abonnement/tarif et les éléments de preuve; elle conserve l'état des pharmacies et profils, même après renouvellement.
