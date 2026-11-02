@@ -1,3 +1,14 @@
+## Ratissage NAXA — addendum courant de cohérence (02/11/2026)
+
+- **Dépôt et branche :** `audreymendomo23-netizen/NAXA`, `main` exclusivement. HEAD observé avant cette mise à jour documentaire : `538392681580250b14509d378b74a43fe6bcefd5`; les commits documentaires ci-dessous feront avancer ce HEAD.
+- **Étape 13 :** migrations globales comptes/partenaires appliquées en Production (`20261102101654`, `20261102101658`); défaut de dédoublonnage clients corrigé par `20261102104330` sur Replay et Production. Fonction relue, ACL cohérentes; régression SQL Replay PASS avec rollback.
+- **Fichier de migration :** `supabase/migrations/20261102104330_admin_unique_clients_network_totals.sql` est désormais aligné sur la version enregistrée en Production et Replay; l'ancien nom `20261102110000_...` a été supprimé.
+- **Étapes 11–14 :** les corrections de code mort confirmé, états d'erreur Univers/Examens, queues Admin, garde messagerie et durcissements RLS ciblés sont documentés dans le cahier d'audit. Les affirmations historiques de non-application sont remplacées par les preuves plus récentes.
+- **CI/application :** seules validations restantes identifiées dans ce lot : CI/build/typecheck/lint sur le HEAD final et recette réelle de l'application (sessions JWT, files de résolution, rapport Admin, rendu responsive, Storage). Les vérifications SQL/statique indépendantes ont été poursuivies.
+- **Règles :** aucun CircleCI/Netlify; aucun déploiement/relance de déploiement; aucune écriture de données métier permanente. Les migrations Production appliquées étaient limitées aux définitions SQL/ACL explicitement autorisées.
+
+---
+
 ## Audit 360 Administrateur — état courant après ratissage et corrections Production (02/11/2026)
 
 - **Référence Git :** dépôt `audreymendomo23-netizen/NAXA`, branche `main`; HEAD vérifié au début de cette passe : `04e266205e767c132c15004758d0572f0a383e0e`. Les mises à jour documentaires de ce ratissage sont commitées directement sur `main`.
@@ -1120,14 +1131,15 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - **Statut étape 12 : JAUNE — corrections source et contrôles statiques PASS; rendu visuel réel non prouvé.** Pas de déploiement, changement Supabase ou configuration.
 - **Suite :** obtenir une prévisualisation autorisée et vérifier les rendus 390/768/desktop, navigation clavier et réduction des animations avant clôture verte.
 
-## Étape 13 — Autres comptes et indicateurs globaux (02/11/2026)
+## Étape 13 — Autres comptes et indicateurs globaux (mise à jour du 02/11/2026)
 
 - **Contrat :** audit des comptes Client, Promoteur, Pharmacie/Caisse et fonctions internes (Responsable, Pharmacien, Gestionnaire de stock, Comptable), ainsi que des partenaires Marketplace; consolidation Admin globale, par pharmacie et Promoteur, avec rapports chiffrés.
-- **Écart constaté :** le pilotage Admin existant ne reprenait que les KPI réseau de `stats_pilotage_scope`; les indicateurs des autres fonctions n'étaient pas consolidés par pharmacie/Promoteur dans le rapport Admin.
-- **Corrections sur main :** RPC privée `admin_comptes_indicateurs` + façade Admin, ventilation par pharmacie/Promoteur, agrégat séparé `partners/partner_members`, nouveau bloc `/admin/pilotage`, enrichissement du rapport API et des exports PDF/CSV. Les détails pharmacie/Promoteur sont exclus du prompt IA; seules les métriques agrégées y sont transmises.
-- **Migrations ajoutées :** `20261102014000_admin_global_accounts_pilotage.sql` et `20261102015500_admin_partner_accounts_summary.sql`. Test fixture ajouté : `supabase/tests/20261102014000_admin_global_accounts_pilotage.sql`.
-- **Replay :** migrations enregistrées sous `20261102015709` (`admin_global_accounts_pilotage`) et `20261102020303` (`admin_partner_accounts_summary`); façade publique et helpers privés présents; ACL vérifiées (`authenticated` autorisé sur la façade, `anon` refusé, helpers privés non exécutables directement); appel sans identité rejeté. Advisors : aucun finding performance ciblant ces fonctions; avertissement SECURITY DEFINER attendu selon le modèle de `stats_pilotage_scope`. Le test fixture complet n'est pas certifié exécuté.
-- **Production en lecture seule :** 1 Admin actif, 1 Promoteur actif, 8 clients actifs; 4 pharmacies (1 active, 3 démo); 0 partenaire et 0 membre partenaire. Aucun compte professionnel interne. Les tables d'affectations, préparations Pharmacien, audit Pharmacien et contrôles/événements/périodes/écritures comptables listées dans le cahier sont absentes; la nouvelle fonction les signale indisponibles au lieu de renvoyer zéro.
-- **Blocage de sortie :** la RPC est absente de Production et les deux migrations n'y sont pas appliquées. Le code n'est pas déployé. Build, typecheck, lint et recette navigateur non exécutés.
-- **Statut : JAUNE — implémentation et contrôles structurels Replay réalisés; Production et recette non certifiées.** Aucune écriture Production, aucun déploiement ni changement de secret/configuration.
-- **Suite :** obtenir l'autorisation explicite pour appliquer les deux migrations en Production; ensuite contrôle post-migration et recette/build sous autorisation de déploiement distincte.
+- **Corrections sur main :** RPC privée `admin_comptes_indicateurs` + façade Admin, ventilation par pharmacie/Promoteur, agrégat séparé `partners/partner_members`, bloc `/admin/pilotage`, enrichissement du rapport API et des exports PDF/CSV. Les détails pharmacie/Promoteur sont exclus du prompt IA; seules les métriques agrégées y sont transmises.
+- **Migrations appliquées Production :** `20261102014000_admin_global_accounts_pilotage.sql` (historique Production `20261102101654`) et `20261102015500_admin_partner_accounts_summary.sql` (historique Production `20261102101658`). Elles sont aussi présentes sur Replay sous `20261102015709` et `20261102020303`.
+- **Défaut de métrique corrigé :** les totaux réseau et Promoteur comptaient plusieurs fois un même client qui avait réservé dans plusieurs pharmacies. La migration `supabase/migrations/20261102104330_admin_unique_clients_network_totals.sql` corrige le dédoublonnage par `count(distinct client_id)`; appliquée sur Replay (`20261102104229`) et Production (`20261102104330`).
+- **Test Replay :** régression transactionnelle inter-pharmacies PASS : un Client dans deux pharmacies non-démo + une démo produit 2 réservations / 1 Client distinct sur le réseau et le Promoteur; la démo est exclue. Résultat `E13 cross-pharmacy distinct-client regression PASS`; rollback confirmé.
+- **Contrôle Production :** façade présente, `SECURITY DEFINER`, `search_path=''`; `anon` refusé, `authenticated` autorisé sur la façade seulement; les moteurs privés sont non exécutables directement. La fonction et ses ACL ont été relues après migration.
+- **Sources optionnelles :** les sept tables professionnelles complémentaires restent absentes dans Production. Elles sont explicitement signalées indisponibles (`null` + indicateur source faux), jamais transformées en métriques nulles interprétées comme zéro.
+- **Données Production au moment de la lecture :** 1 Admin actif, 1 Promoteur actif, 8 Clients actifs, 1 pharmacie non-démo, 0 partenaire et 0 membre partenaire. Aucun compte professionnel interne n'était présent.
+- **Advisor Production après correction :** 6 tables RLS sans policy, 5 SECURITY DEFINER accessibles à `anon`, 121 accessibles à `authenticated`, protection contre les mots de passe compromis désactivée. La façade Admin ajoute un finding authenticated attendu : garde Admin actif dans le moteur privé, anon refusé, helpers privés non exécutables directement. Les autres alertes demandent une revue par fonction; aucun retrait massif de droits n'est justifié par le seul compteur.
+- **Statut : 🟡 SQL Replay et définitions Production vérifiés; CI/build/typecheck/lint et recette de l'interface Admin restent à exécuter.** Pas de déploiement. Aucune donnée métier permanente n'a été modifiée.
