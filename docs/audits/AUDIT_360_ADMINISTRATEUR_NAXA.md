@@ -3207,3 +3207,62 @@ Aucune correction de code ou SQL n'a été appliquée pendant la constitution du
 - Build, TypeScript, lint et recette visuelle navigateur non exécutés. La revue ne prétend donc pas prouver le rendu réel aux largeurs cibles, le comportement des transitions dans Next.js ni l'absence de débordement sur appareil.
 
 **Statut : JAUNE — corrections CSS versionnées et contrôles statiques PASS; validation visuelle et navigateur non acquise.** Le passage au vert exige une prévisualisation réellement accessible, puis la vérification des vues 390 px, 768 px et desktop, du focus clavier et du mode réduction des animations. Aucune migration, écriture Supabase ou modification de configuration n'a été effectuée.
+
+## Étape 13 — Autres comptes et indicateurs globaux (02/11/2026)
+
+### 13.1 Contrat de l'étape
+
+L'étape vérifie les autres comptes NAXA et la capacité du compte Administrateur à consulter leurs chiffres consolidés :
+- comptes Client et Promoteur;
+- comptes Pharmacie et Caisse, avec les fonctions internes Responsable, Pharmacien, Gestionnaire de stock et Comptable portées par `fonction_interne`;
+- comptes partenaires Marketplace, gérés séparément par `partners` et `partner_members`;
+- indicateurs globaux, ventilés par pharmacie et Promoteur, et intégrés aux rapports chiffrés Admin.
+
+Les sorties de synthèse ne contiennent ni identifiants clients, ni coordonnées, ni données individuelles de santé. Les données de stock sont explicitement des états courants; les autres indicateurs transactionnels sont bornés à la période demandée.
+
+### 13.2 Audit contradictoire de l'existant
+
+- Le type `role_type` de Production ne comporte que `client`, `pharmacie`, `admin`, `promoteur` et `caisse`. Les fonctions internes sont distinctes du rôle technique et portées par `fonction_interne`.
+- `/admin/pilotage` utilisait `stats_pilotage_scope` pour les KPI réseau. Les rapports spécifiques des autres fonctions existaient dans `/api/rapports`, mais le chemin Admin ne consolidait pas les comptes/fonctions et ne ventilait pas les chiffres par pharmacie et Promoteur.
+- Le rapport Admin ne pouvait donc pas servir de vue chiffrée transversale des comptes. Les partenaires Marketplace n'étaient pas inclus dans les comptes de `profiles`; ils nécessitent un agrégat distinct.
+- **Production, lecture seule :** 1 compte Admin actif, 1 Promoteur actif, 8 clients actifs; aucun compte de rôle Pharmacie ou Caisse et aucune fonction interne professionnelle recensée. Le réseau comporte 4 pharmacies, dont 1 active et 3 démo. Les tables `partners` et `partner_members` contiennent 0 ligne chacune.
+- Les sources professionnelles complémentaires suivantes sont absentes du schéma Production : `naxa_professional_assignments`, `prescription_preparations`, `pharmacien_audit_events`, `compta_controles_cloture`, `compta_evenement`, `compta_periodes`, `compta_ecriture`. Il est donc impossible de certifier des indicateurs opérationnels de ces fonctions sur des comptes réels Production qui ne sont pas encore présents.
+
+### 13.3 Corrections versionnées sur `main`
+
+**Consolidation SQL**
+- Migration `supabase/migrations/20261102014000_admin_global_accounts_pilotage.sql` : moteur privé par pharmacie et façade `public.admin_comptes_indicateurs(integer)`.
+- Le moteur contrôle `auth.uid()`, le rôle Admin et `actif=true`; les fonctions utilisent `search_path=''`. Les helpers privés sont sans EXECUTE direct pour `anon` et `authenticated`; la façade publique est exécutable uniquement par `authenticated`.
+- Les comptes sont agrégés par rôle/fonction/état globalement, par pharmacie et par Promoteur. Les métriques couvrent réservations, clients actifs par pharmacie, ventes Marketplace et POS, CA distincts, stock, lots, inventaires, consultations, prescriptions, caisse, dépenses, trésorerie, assurances et sessions de service.
+- Le total réseau compte chaque pharmacie non démo une seule fois. Les périmètres Promoteur suivent les rattachements actifs; une note signale explicitement un possible chevauchement si plusieurs Promoteurs sont associés à la même pharmacie.
+- Les tables complémentaires sont testées par `to_regclass` et interrogées dynamiquement. Une source absente donne `null` et un état de disponibilité faux, jamais un zéro d'activité.
+
+**Partenaires Marketplace**
+- Migration `supabase/migrations/20261102015500_admin_partner_accounts_summary.sql` : agrégat distinct des partenaires par type/statut, total actifs/en attente/suspendus et nombre de membres (total et distincts).
+- Les membres partenaires ne sont pas artificiellement rattachés à une pharmacie ou à un Promoteur.
+
+**Interface et rapports**
+- Nouveau composant `src/components/admin/AdminComptesIndicateurs.tsx`, intégré à `/admin/pilotage` : comptes par rôle/fonction, statut, ventilation pharmacie/Promoteur, partenaires Marketplace et avertissement des sources absentes.
+- `/api/rapports` combine les KPI Admin existants avec le nouvel agrégat; le rapport comporte les totaux, les lignes par pharmacie, par Promoteur et les comptes partenaires.
+- `RapportsALaDemande` sépare les synthèses et les tableaux détaillés afin de garder une lecture exploitable; CSV et PDF conservent la ventilation.
+- La frontière IA ne transmet que des métriques numériques agrégées : les lignes détaillées nommant une pharmacie ou un Promoteur sont exclues du prompt. Aucun rapport Admin incomplet n'est présenté comme complet si la RPC manque.
+
+### 13.4 Preuves obtenues et limites
+
+- Les deux moteurs sont présents dans Replay après application des migrations; la façade et les helpers ont été relus dans le catalogue.
+- **ACL Replay :** `authenticated` peut appeler la façade publique; `anon` ne le peut pas; les trois helpers privés ne sont pas exécutables directement par `authenticated` ni `anon`.
+- **Garde :** l'appel RPC sans identité authentifiée est rejeté par « Connexion requise ».
+- **Sources Replay :** les sept tables complémentaires sont présentes; la fonction les détecte comme disponibles. L'agrégat partenaire renvoie une structure valide (zéro ligne sur l'environnement sans partenaire).
+- **Advisors Replay :** aucun nouveau constat de performance ciblant les fonctions de l'étape 13. Un avertissement sécurité signale la façade `SECURITY DEFINER` exécutable par `authenticated`; il est intentionnel et suit le modèle déjà utilisé par `public.stats_pilotage_scope` (migration 243) : ACL `anon` refusée, garde Admin actif dans le moteur privé, helpers non exécutables directement.
+- Test d'acceptation fixture ajouté : `supabase/tests/20261102014000_admin_global_accounts_pilotage.sql`. Il couvre rôles, ventilation, exclusion des pharmacies démo, scope Promoteur, partenaires, ACL, Admin inactif et absence de données client. **Son exécution complète n'est pas certifiée** : l'appel de rejeu du script a été bloqué par les contrôles de sécurité de l'outil; aucune réussite comportementale n'est revendiquée.
+- **Production, lecture seule :** `public.admin_comptes_indicateurs(integer)` est absent; les sept sources complémentaires ci-dessus sont absentes. Les deux migrations ne sont pas appliquées en Production.
+- Aucun déploiement Vercel correspondant au code de l'étape n'a été déclenché. Build, TypeScript, lint, recette navigateur et vérification du rapport réel restent non exécutés.
+
+### 13.5 Statut de sortie
+
+**Étape 13 : JAUNE — couverture source construite et structurée; validation Production non acquise.** Les comptes et indicateurs sont maintenant modélisés et intégrés au pilotage/rapport Admin sur `main`; les contrôles structurels/ACL Replay sont cohérents. Le vert exige :
+1. autorisation explicite puis application en Production des migrations `20261102014000` et `20261102015500`;
+2. exécution du test fixture sur Replay et contrôle SQL post-migration Production;
+3. build/typecheck/lint, prévisualisation et recette Admin des rapports, sans déploiement Production non autorisé.
+
+Aucune migration Production, aucune écriture métier, aucun secret/configuration modifié et aucun déploiement n'ont été effectués dans cette étape.
