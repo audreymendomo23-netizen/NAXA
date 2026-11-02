@@ -2870,6 +2870,31 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - **Classement : couverture de pilotage agrégée confirmée; absence d'une file de résolution détaillée confirmée dans les routes Admin examinées.**
 - **Correction à soumettre :** définir une vue de support en lecture contrôlée qui relie réservation, lignes, pharmacie, transitions et événements, sans permettre à NAXA d'encaisser ou de modifier le paiement effectué auprès de la pharmacie.
 
+
+#### ADM-UNIV-DOSSIER-01 — Erreur de lecture des dossiers partenaires non propagée — OUVERT
+
+- **Preuve :** dans `src/app/admin/univers/page.tsx`, la requête `admin_partner_dossiers` est incluse dans `Promise.all`, mais `partnerDossiersResult.error` n'est pas inclus dans le booléen `missing`. Les valeurs de `dossierPartnerIds` et `dossiersEnAttente` sont calculées avec `data ?? []`.
+- **Impact :** si cette seule lecture échoue, l'écran peut présenter zéro dossier en attente et aucune association à un dossier, sans signaler l'indisponibilité de cette source. L'Administrateur risque de confondre une erreur d'accès/schéma avec une absence réelle de dossiers.
+- **Classement : confirmé par lecture directe du code; non reproduit en runtime.**
+- **Correction proposée :** inclure `partnerDossiersResult.error` dans l'état d'indisponibilité et afficher un état d'erreur propre à la section dossiers, sans transformer l'erreur en liste vide.
+- **Vérification attendue :** simulation d'échec isolé de cette requête; les autres sections restent utilisables et la section dossiers affiche explicitement son indisponibilité.
+
+#### ADM-EXAM-04 — Erreur de lecture des rendez-vous non affichée — OUVERT
+
+- **Preuve :** dans `src/app/admin/examens/page.tsx`, la requête `exam_appointments` expose `error: ae`, mais `broken` ne prend en compte que `ce || se || pe`. Le calendrier est ensuite construit à partir de `appointments ?? []`.
+- **Impact :** une panne ou un refus RLS limité à la lecture des rendez-vous peut être présenté comme un calendrier vide, sans avertissement, alors que les centres/examens/packs sont lisibles.
+- **Classement : confirmé par lecture directe du code; non reproduit en runtime.**
+- **Correction proposée :** traiter séparément l'indisponibilité du calendrier et afficher un état d'erreur explicite; conserver les autres sections si elles sont disponibles.
+- **Vérification attendue :** échec isolé de la requête rendez-vous; l'écran ne doit pas afficher un faux état « aucun ticket ».
+
+#### ADM-SERVICES-02 — Lecture des demandes domicile autorisée aux administrateurs inactifs — OUVERT
+
+- **Preuve :** la politique Production `home_service_requests_admin_read` est une politique SELECT `authenticated` dont le prédicat vérifie `profiles.role = 'admin'`, sans condition `profiles.actif = true`. La même omission `actif` est observée dans `exam_appointments_admin_read` (constat ADM-EXAM-03).
+- **Impact :** un compte Admin désactivé conservant une session authentifiée peut continuer à lire les demandes clients via l'API PostgREST, même si les pages Admin utilisent `requireAdminActive`. Les demandes contiennent notamment des notes et informations de service.
+- **Classement : défaut d'autorisation confirmé par définition RLS; scénario d'accès d'une session inactive non exécuté.**
+- **Correction proposée :** aligner la politique sur le garde canonique Admin actif (`public.is_admin()` ou contrôle explicite rôle + actif), en conservant les accès Client propriétaire et partenaire autorisé.
+- **Vérification attendue :** Admin actif autorisé; Admin inactif, Client tiers et anonyme refusés; Client propriétaire et partenaire autorisé conservent uniquement leur périmètre.
+
 ### 8.3 Limites de couverture et contrôles positifs
 
 - /admin/univers charge au maximum 100 partenaires et 100 produits partenaires; ses compteurs partenaires/produits décrivent explicitement les lignes chargées, pas un total exhaustif. /admin/produits affiche au maximum 30 fiches par recherche. Ces limites sont annoncées dans l'interface, mais ne constituent pas une mesure globale exhaustive.
@@ -2897,6 +2922,19 @@ Aucun correctif applicatif ou SQL n'a été appliqué pendant cette revue. Aucun
 - Cette opération est une **simulation de scénarios à partir des preuves disponibles**, pas une exécution de 1 000 transactions, de tests navigateur ou d'appels API. Aucune donnée métier ni aucun compte de test n'a été créé.
 
 Les 10 variantes couvrent les contextes d'Admin actif/inactif, propriétaire ou membre partenaire dans/hors périmètre, Client, anonyme, objets en brouillon/en attente, actifs, suspendus/archivés/expirés et erreurs de réseau, doublons, concurrence ou RPC.
+
+
+### 9.1 bis — Reproductibilité de la matrice et recalcul des scores
+
+La matrice déterministe est construite comme le produit cartésien de 10 domaines × 10 familles de situations × 10 contextes, soit exactement 1 000 scénarios. L'ordre d'énumération est domaine, puis famille, puis contexte; l'identifiant est attribué séquentiellement à partir de `NAXA-ADM-0001`.
+
+**Familles de situations :** identité/rôle; statut/cycle de vie; périmètre/rattachement; données absentes ou incohérentes; données invalides; doublon/idempotence; concurrence; erreur réseau/RPC; journal/notification; reprise/vérification.
+
+**Contextes :** Admin actif; Admin inactif; Client propriétaire; Client tiers; partenaire owner; partenaire membre hors périmètre; anonyme; objet brouillon/en attente; objet actif/suspendu; erreur/timeout.
+
+**Contrôle de génération exécuté pendant cette passe :** 1 000 objets de scénario générés en mémoire; 1 000 identifiants uniques; premier identifiant `NAXA-ADM-0001`; dernier `NAXA-ADM-1000`; 100 scénarios par domaine. Il s'agit d'un contrôle du générateur/matrice, pas d'une exécution métier des scénarios.
+
+**Recalcul des résultats :** catégories = 200 + 150 + 300 + 200 + 150 = 1 000; évaluables = 850; non évaluables = 150. Les six scores sont recalculés avec les pondérations annoncées : direct = (1,1,1,1,1,1); intervention technique = (1,1,1,0,0,0,5); partiel = (1,0,5,0,5,0,5,0,5,0,5); non couvert = (0,0,0,0,0,0). Totaux dimensionnels = 650, 500, 500, 350, 350 et 425 points sur 850, soit respectivement 76,5 %, 58,8 %, 58,8 %, 41,2 %, 41,2 % et 50,0 % après arrondi à une décimale. Les non évaluables sont exclus du dénominateur.
 
 ### 9.2 Résultats agrégés
 
@@ -3018,6 +3056,28 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 - **Correction proposée :** définir une vue de support en lecture contrôlée reliant réservation, lignes, pharmacie, historique et stock, sans encaissement ni modification du paiement pharmacie.
 - **Vérification attendue :** accès Admin autorisé, isolation des données, transitions et événements consultables, aucune action financière non autorisée.
 
+
+**ADM-UNIV-DOSSIER-01 — Fiabilité de supervision — OUVERT**
+- **Preuve :** `src/app/admin/univers/page.tsx` ignore `partnerDossiersResult.error` dans son indicateur global d'indisponibilité et transforme les données absentes en tableau vide.
+- **Impact :** faux zéro possible dans la file des dossiers partenaires en cas d'erreur isolée.
+- **Cause racine :** résultat d'une requête parallèle omis du contrôle d'erreur.
+- **Correction proposée :** propager l'erreur et afficher l'indisponibilité de la seule section dossiers.
+- **Vérification attendue :** échec simulé de cette requête, absence de faux état vide, autres sections encore consultables.
+
+**ADM-EXAM-04 — Fiabilité de supervision — OUVERT**
+- **Preuve :** `src/app/admin/examens/page.tsx` récupère `ae` mais ne l'inclut pas dans `broken`; le calendrier utilise `appointments ?? []`.
+- **Impact :** une erreur de lecture des rendez-vous peut être présentée comme une absence de tickets.
+- **Cause racine :** erreur de la quatrième requête non intégrée à l'état d'erreur.
+- **Correction proposée :** isoler et afficher l'état d'indisponibilité du calendrier.
+- **Vérification attendue :** échec isolé de la requête appointments, sans faux calendrier vide.
+
+**ADM-SERVICES-02 — Sécurité RLS — OUVERT**
+- **Preuve :** la politique Production `home_service_requests_admin_read` vérifie `role='admin'` sans exiger `actif=true`.
+- **Impact :** un Admin désactivé avec session persistante pourrait lire les demandes clients via PostgREST.
+- **Cause racine :** politique RLS non alignée sur le garde Admin actif.
+- **Correction proposée :** contrôle `public.is_admin()` ou rôle + actif, en conservant les scopes Client et partenaire.
+- **Vérification attendue :** matrice RLS Admin actif/inactif, Client propriétaire/tiers, partenaire autorisé/hors périmètre et anonyme.
+
 **ADM-NOTIF-02 — Intégration externe — RÉSERVE DE PREUVE**
 - **Preuve :** l'utilisateur a confirmé que Google Apps Script est correctement configuré; le worker Production ne peut toutefois pas être testé tant que l'outbox SQL est absente. Le déclencheur périodique effectif et la réception depuis le worker ne sont pas démontrés.
 - **Impact :** impossibilité de certifier la livraison J−5 et des événements de règlement de bout en bout.
@@ -3114,9 +3174,16 @@ Pour éviter de refaire les mêmes travaux :
 - Point 5 règlement manuel Promoteur : clôture bornée conservée; seules les réserves de recette et de stockage ci-dessus restent suivies, sans rouvrir les contrôles de sécurité déjà clos.
 - Déploiement Vercel en échec : explicitement hors périmètre de correction du présent mandat; aucun travail de relance ou de correction n'est inscrit.
 
-### 10.4 Statut de l'étape 10
+### 10.4 Contrôle quantitatif du registre
 
-**Étape 10 — registre consolidé établi : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
+- Constats actifs avant ce complément : 19 identifiants uniques.
+- Nouveaux constats ajoutés après relecture contradictoire du code et des politiques live : 3.
+- **Total actuel : 22 constats uniques** — P1 : 4; P2 : 17; P3 : 1. Aucun doublon d'identifiant détecté.
+- Les statuts OUVERT, RÉSERVE DE PREUVE et SURVEILLANCE restent distincts; aucun constat n'est déclaré corrigé par la seule inscription au registre.
+
+### 10.5 Statut de l'étape 10
+
+**Étape 10 — registre consolidé établi et enrichi : TERMINÉE / JAUNE.** Chaque problème actif comporte un identifiant, une catégorie, une gravité, une preuve ou une limite probatoire, un impact, une cause ou hypothèse, une correction proposée, un statut et un critère de vérification.
 
 Aucune correction de code ou SQL n'a été appliquée pendant la constitution du registre. Les corrections nécessitant validation restent soumises au §5.1 du mandat. La prochaine étape du canevas est l'étape 11 — recherche du code mort, en distinguant le code mort confirmé du code potentiellement utilisé indirectement.
 
