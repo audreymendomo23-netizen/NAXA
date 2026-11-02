@@ -7,6 +7,10 @@ const source = fs.readFileSync(
   path.join(__dirname, "../src/app/admin/univers/actions.ts"),
   "utf8",
 );
+const notices = fs.readFileSync(
+  path.join(__dirname, "../src/components/admin/AdminRappelLotNotice.tsx"),
+  "utf8",
+);
 
 function action(name, nextName) {
   const start = source.indexOf(`export async function ${name}(`);
@@ -51,3 +55,11 @@ test("la désactivation d'un professionnel vérifie la ligne modifiée", () => {
 });
 
 process.stdout.write("Contrat des mutations Admin univers/partenaires vérifié.\n");
+
+test("la diffusion d'avis réseau exige un UUID retourné par la RPC avant le succès", () => {
+  assert.match(notices, /admin_avis_rappel_lot_diffuser/);
+  assert.match(notices, /typeof data !== "string"/);
+  assert.match(notices, /setMessage\("Avis diffusé aux pharmacies actives/);
+  assert.ok(notices.indexOf("typeof data !== \"string\"") < notices.indexOf('setMessage("Avis diffusé aux pharmacies actives'));
+  assert.match(notices, /finally \{\s*setBusy\(false\);\s*\}/);
+});
