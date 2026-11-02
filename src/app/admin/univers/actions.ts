@@ -32,8 +32,9 @@ export async function changerStatutPartenaire(form: FormData) {
   }
   const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (status === "active") { patch.verified_at = new Date().toISOString(); patch.verified_by = actor; }
-  const { error } = await sb.from("partners").update(patch).eq("id", id);
-  if (error) redirect("/admin/univers?erreur=schema");
+  const { data: updated, error } = await sb.from("partners").update(patch)
+    .eq("id", id).select("id").maybeSingle();
+  if (error || updated?.id !== id) redirect("/admin/univers?erreur=schema");
   const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "partner.status_changed", entity_type: "partner",
     entity_id: id, metadata: { status },
@@ -164,8 +165,9 @@ export async function retirerCompteTestSuivi(form: FormData) {
   const { sb, actor } = await admin();
   const userId = field(form, "user_id", 40);
   if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=compte_test");
-  const { error } = await sb.from("feature_flag_test_accounts").delete().eq("user_id", userId);
-  if (error) redirect("/admin/univers?erreur=compte_test");
+  const { data: deleted, error } = await sb.from("feature_flag_test_accounts")
+    .delete().eq("user_id", userId).select("user_id").maybeSingle();
+  if (error || deleted?.user_id !== userId) redirect("/admin/univers?erreur=compte_test");
   const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "tracking.test_account_removed", entity_type: "test_account",
     entity_id: userId, metadata: {},
@@ -230,8 +232,9 @@ export async function changerStatutProduitPartenaire(form: FormData) {
       redirect("/admin/univers?erreur=association");
     }
   }
-  const { error } = await sb.from("partner_products").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
-  if (error) redirect("/admin/univers?erreur=produit");
+  const { data: updated, error } = await sb.from("partner_products")
+    .update({ status, updated_at: new Date().toISOString() }).eq("id", id).select("id").maybeSingle();
+  if (error || updated?.id !== id) redirect("/admin/univers?erreur=produit");
   const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "partner_product.status_changed", entity_type: "partner_product",
     entity_id: id, metadata: { status },
@@ -270,8 +273,9 @@ export async function retirerProfessionnelSuivi(form: FormData) {
   const { sb, actor } = await admin();
   const userId = field(form, "user_id", 40);
   if (!/^[0-9a-f-]{36}$/i.test(userId)) redirect("/admin/univers?erreur=professionnel_suivi");
-  const { error } = await sb.from("suivi_professionals").update({ verified: false }).eq("user_id", userId);
-  if (error) redirect("/admin/univers?erreur=professionnel_suivi");
+  const { data: updated, error } = await sb.from("suivi_professionals").update({ verified: false })
+    .eq("user_id", userId).select("user_id").maybeSingle();
+  if (error || updated?.user_id !== userId) redirect("/admin/univers?erreur=professionnel_suivi");
   const { error: journalError } = await sb.from("audit_log").insert({
     actor_id: actor, action: "tracking.professional_unverified", entity_type: "tracking_professional",
     entity_id: userId, metadata: {},
