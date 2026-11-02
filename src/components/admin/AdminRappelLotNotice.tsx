@@ -17,12 +17,28 @@ export function AdminRappelLotNotice() {
     if(!auth.user){router.replace("/connexion?retour=/admin/rappels-lots");return;}
     const {data:p}=await sb.from("profiles").select("role,actif").eq("id",auth.user.id).maybeSingle();
     if(p?.role!=="admin"||p.actif!==true){router.replace("/");return;}
-    const [{data:n,error:ne},{data:r,error:re}]=await Promise.all([
-      sb.from("avis_rappels_lots_reseau").select("id,produit_nom,numero_lot,reference_avis,motif,consigne,statut,created_at").order("created_at",{ascending:false}).limit(100),
-      sb.from("avis_rappels_lots_destinataires").select("avis_id,pharmacie_id,accuse_at,pharmacies(nom)")
-    ]);
-    if(ne||re){setError("Impossible de charger les avis réseau.");return;}
-    setNotices((n??[]) as Notice[]);setRecipients((r??[]) as unknown as Recipient[]);setReady(true);
+    const {data:n,error:ne}=await sb.from("avis_rappels_lots_reseau")
+      .select("id,produit_nom,numero_lot,reference_avis,motif,consigne,statut,created_at")
+      .order("created_at",{ascending:false}).limit(100);
+    if(ne){setError("Impossible de charger les avis réseau.");return;}
+
+    const noticeRows=(n??[]) as Notice[];
+    const noticeIds=noticeRows.map(item=>item.id);
+    const recipientRows:Recipient[]=[];
+    const pageSize=500;
+    if(noticeIds.length){
+      for(let offset=0;;offset+=pageSize){
+        const {data:r,error:re}=await sb.from("avis_rappels_lots_destinataires")
+          .select("avis_id,pharmacie_id,accuse_at,pharmacies(nom)")
+          .in("avis_id",noticeIds).order("avis_id",{ascending:true})
+          .range(offset,offset+pageSize-1);
+        if(re){setError("Impossible de charger les accusés de réception.");return;}
+        const page=(r??[]) as unknown as Recipient[];
+        recipientRows.push(...page);
+        if(page.length<pageSize)break;
+      }
+    }
+    setNotices(noticeRows);setRecipients(recipientRows);setReady(true);
   },[router,sb]);
   useEffect(()=>{void load();},[load]);
   async function diffuse(){
