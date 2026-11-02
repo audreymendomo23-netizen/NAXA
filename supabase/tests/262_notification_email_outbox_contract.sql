@@ -47,3 +47,4 @@ end;
 $$;
 
 rollback;
+select '262 notification email outbox structure/ACL PASS' as resultat;
