@@ -1,3 +1,17 @@
+## Ratissage complet — contradictions réconciliées et corrections (02/11/2026)
+
+- **Référence Git :** `audreymendomo23-netizen/NAXA`, branche `main`, HEAD contrôlé avant cette mise à jour : `65dd811f3c0e2852d459cdcfea0fd9ffe5aa52f9`. Aucun branchement, aucune PR et aucun déploiement.
+- **Cartographie actuelle :** arbre GitHub non tronqué, 1 402 entrées; 21 pages Admin, 12 entrées latérales, 2 routes API Admin, 10 fichiers d'actions serveur Admin, 79 migrations sous `supabase/migrations/`, 229 tests SQL sous `supabase/tests/` et 13 scripts Node `scripts/test-*.cjs`.
+- **Corrections source supplémentaires :** le statut de paiement Marketplace `a_verifier` est désormais libellé « À vérifier » dans `/admin/pilotage/reservations`; une assertion correspondante est ajoutée à `scripts/test-admin-queues.cjs`. Le test SQL 122 a été réaligné sur le garde RLS courant `public.is_admin()` au lieu de chercher le texte obsolète `profiles` directement dans le prédicat.
+- **Contrats Node présents mais non encore exécutés sur ce HEAD :** `scripts/test-promoteur-payment-cleanup.cjs` couvre la compensation des preuves Storage et le libellé de mois calendaire; `scripts/test-admin-queues.cjs` couvre maintenant aussi le statut `a_verifier`.
+- **Production vérifiée en lecture SQL :** historique migrations contient les versions 20261102032259, 20261102032304, 20261102095050, 20261102095056, 20261102101510, 20261102101654, 20261102101658, 20261102104330, 20261102105033, 20261102105229 et 20261102105542. Les migrations Examens, partenaire et outbox sont présentes; leurs fonctions/policies/ACL ont été relues.
+- **Signaux Security Advisor qualifiés :** les six tables RLS sans policy ont zéro privilège SELECT pour `anon` et `authenticated`; elles sont accessibles en lecture uniquement à `service_role`. Les cinq fonctions SECURITY DEFINER exécutables par `anon` sont des façades de catalogue public (offres actives, produits d'univers publiés, disponibilité publique, produits populaires agrégés, visibilité publique d'un partenaire), avec `search_path` vide et filtres de publication. Ces alertes ne démontrent pas une fuite de données.
+- **Tests Replay exécutés avec le contenu de `main` :** 122 (réaligné), 124, 269 (31 assertions), 270, 271, 20261102014000 (étape 13 indicateurs), 20261102101510 (contrat et comportement propriétaire/association), 20261102105033 (cloisonnement centres Examens), 20261102105229 (cycle outbox) et 20261102105542 (catalogue Examens Admin), 262 (contrat outbox). Tous retournent PASS; les fixtures transactionnelles sont annulées. Le test 271 est structurel, car le bucket `medicaments` n'est pas provisionné sur Replay; aucun upload Storage réel n'est revendiqué.
+- **Autres réserves uniquement de vérification :** `npm test`, typecheck, lint, build sur le HEAD courant; tests HTTP/JWT réels; navigation/rendu responsive des files Admin; upload réel Storage et réception d'e-mail externe Google. Le miroir GitLab NAXA reste en retard sur GitHub `main` (dernier SHA miroir connu `178a655880d75f933a5968e34d3de3f802de5e5c`, 21/10/2026); son dernier pipeline a échoué avant le démarrage des jobs pour épuisement de quota. Il n'a pas été relancé sur ce code périmé.
+- **Inventaire de migration :** les décomptes et non-correspondances de nom du snapshot du 26/10 sont historiques. Les fichiers horodatés et les 288 entrées live ne se correspondent pas par version seule; les sources legacy réutilisent d'autres conventions. Aucun nom ou version différent n'a été assimilé automatiquement à une migration manquante. Le suivi de traçabilité des anciennes migrations reste un relevé historique, sans incidence démontrée sur les corrections Admin du présent ratissage.
+- **Bilan du registre :** ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01 et ADM-NOTIF-01 sont résolus au niveau SQL Production et tests Replay; ADM-SETTLEMENT-02/03 sont corrigés côté source et couverts par contrat. PRE-039 est déjà corrigé sur le HEAD courant. Les 14 réserves restantes de l'étape 10 se limitent aux preuves CI ou à la recette dans l'application, sans autre correction source identifiée par ce ratissage.
+
+---
 ## État courant — migrations PRE-044/PRE-045 appliquées et vérifiées en Production (02/11/2026)
 
 Les deux migrations précédemment bloquées avant exécution ont été appliquées avec succès après l'autorisation explicite de l'utilisateur de poursuivre les corrections Supabase dans le périmètre du ratissage.
@@ -3106,36 +3120,30 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 
 ### 10.2 Registre actif
 
-#### P1 — priorité élevée
+#### P1 — aucun défaut P1 actif après rapprochement Production (02/11/2026)
 
-**ADM-EXAM-01 — Sécurité / fonctionnalité — OUVERT**
-- **Preuve :** Production RLS ne comporte aucune politique SELECT Admin sur exam_centers, exam_services et exam_packs; les politiques présentes sont publiques sur les lignes actives ou réservées aux membres partenaires. La page /admin/examens lit ces tables avec le client de session après requireAdminActive.
-- **Impact :** brouillons, éléments archivés ou centres suspendus non visibles dans la file Admin; RLS peut produire une liste vide sans erreur.
-- **Cause racine :** oubli des politiques de lecture Admin dans les migrations 107–110.
-- **Correction proposée :** politiques SELECT Admin actif sur les trois tables, séparées des droits partenaire/public.
-- **Vérification attendue :** test RLS multi-rôles couvrant Admin actif/inactif, partenaire hors périmètre, Client et anonyme; vérifier les états draft/active/suspended/archived.
+**ADM-EXAM-01 — Sécurité / lecture du catalogue Examens — PRODUCTION CORRIGÉE**
+- Migration `20261102105542_admin_exam_catalog_active_read` appliquée et présente dans l'historique Production.
+- Les politiques `exam_centers_admin_read`, `exam_services_admin_read` et `exam_packs_admin_read` sont présentes et utilisent `public.is_admin()`.
+- Test Replay `20261102105542_admin_exam_catalog_active_read.sql` : **PASS** (matrice Admin actif/inactif).
+- La recette du rendu réel des pages Examens demeure couverte par le contrôle d'application `ADM-STEP7-TEST-02`.
 
-**ADM-EXAM-02 — Sécurité / exposition inter-partenaire — OUVERT**
-- **Preuve :** migration source 107 et politique live exam_centers_public_read contiennent pu.partner_id = pu.partner_id, au lieu d'une corrélation avec le partenaire du centre.
-- **Impact :** dès qu'une association Examens est ouverte pour un partenaire, les centres actifs d'autres partenaires pourraient satisfaire la condition de visibilité; la réservation vérifie ensuite l'association réelle et peut refuser le centre affiché.
-- **Cause racine :** référence SQL non qualifiée/corrélée dans la sous-requête RLS.
-- **Correction proposée :** corréler explicitement l'association à exam_centers.partner_id et revoir les politiques dépendantes services/packs/items/créneaux.
-- **Vérification attendue :** test anonyme à deux partenaires, un seul autorisé; le centre du partenaire non associé doit rester invisible. Aucun centre n'existe actuellement en Production, donc l'exposition n'a pas été observée.
+**ADM-EXAM-02 — Sécurité / exposition inter-partenaire — PRODUCTION CORRIGÉE**
+- Migration `20261102105033_admin_exam_centers_public_scope` appliquée et présente dans l'historique Production.
+- La politique publique filtre les centres actifs et appelle `public.universe_partner_is_public(exam_centers.partner_id, 'examens')`; la comparaison auto-référente historique n'est plus présente.
+- Test Replay `20261102105033_admin_exam_centers_public_scope.sql` : **PASS** avec deux partenaires actifs, association Examens activée pour un seul; le centre non associé reste invisible.
 
-**ADM-PARTNER-01 — Intégrité métier / sécurité — OUVERT**
-- **Preuve :** migration main supabase/migrations/20261101214724_admin_partner_dossier_membership_guard.sql vérifiée sur Replay, absente de l'historique des migrations Production. La définition Production de admin_valider_dossier_partenaire ne vérifie pas que le promoteur est membre owner du partenaire, ne vérifie pas l'existence de l'association désactivée et n'exige pas qu'une ligne d'association soit effectivement activée.
-- **Impact :** un futur dossier pourrait être validé malgré un rattachement owner ou une association manquante/incohérente; aucun dossier incohérent n'a été observé dans les contrôles Production précédents.
-- **Cause racine :** durcissement versionné sur main mais non appliqué en Production.
-- **Correction proposée :** appliquer la migration additive après validation explicite du périmètre Production; aucune autre migration ne doit être incluse.
-- **Vérification attendue :** contrôler owner, type/univers, association désactivée avant validation, activation exactement d'une association et rollback atomique; tester sur Replay avant toute décision Production.
+**ADM-PARTNER-01 — Intégrité métier / sécurité — PRODUCTION CORRIGÉE**
+- Migration `20261102101510_admin_partner_dossier_membership_guard` appliquée et présente dans l'historique Production.
+- La fonction live `public.admin_valider_dossier_partenaire(uuid)` exige Admin actif, type partenaire correspondant à l'univers, propriétaire membre `owner`, association existante et désactivée avant validation, activation exactement d'une association et journal d'audit.
+- Tests Replay `20261102101510_admin_partner_dossier_membership_guard.sql` et `20261102101510_admin_partner_dossier_membership_behavior.sql` : **PASS** (structurel et matrice positive/négative avec rollback).
 
-**ADM-NOTIF-01 — Intégration / métier — OUVERT**
-- **Preuve :** Production ne contient ni private.notification_email_outbox, ni claim_notification_email_outbox, ni finish_notification_email_outbox, ni trigger trg_enqueue_notification_email. Ces objets existent sur Replay et la migration source est sur main; le worker /api/cron/validite en dépend.
-- **Impact :** la file d'envoi J−5/règlements ne peut pas être réclamée ni finalisée par le worker Production.
-- **Cause racine :** migration outbox non appliquée en Production.
-- **Correction proposée :** appliquer uniquement supabase/migration_20261029_notification_email_outbox_delivery.sql après autorisation Production spécifique; ne pas effectuer de backfill des deux notifications historiques sans décision séparée.
-- **Vérification attendue :** relecture RLS/ACL/SECURITY DEFINER, insertion future de notification, claim/finish et rejeu idempotent en environnement isolé, puis recette contrôlée autorisée.
-
+**ADM-NOTIF-01 — Intégration SQL / outbox e-mail — CORRIGÉ EN PRODUCTION**
+- Migration `20261102105229_notification_email_outbox_delivery` appliquée et présente dans l'historique Production.
+- Production confirme la table privée avec RLS, le trigger `trg_enqueue_notification_email`, aucun accès direct table pour `anon`/`authenticated`/`service_role`, et EXECUTE des RPC `claim`/`finish` réservé à `service_role`.
+- Le cron `naxa-promoteur-echeance-5j` est actif à `06:00 UTC`.
+- Tests Replay `20261102105229_notification_email_outbox_lifecycle.sql` et `262_notification_email_outbox_contract.sql` : **PASS**; aucun e-mail externe n'a été envoyé par ces tests.
+- La réception effective par Google Apps Script et le destinataire reste la réserve distincte `ADM-NOTIF-02`.
 #### P2 — priorité moyenne
 
 **ADM-EXAM-03 — Sécurité / autorisation — PRODUCTION CORRIGÉE**
@@ -3237,20 +3245,15 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 - **Correction proposée :** conserver la clôture fonctionnelle; programmer une recette séparée lorsque les comptes et moyens de test autorisés seront disponibles.
 - **Vérification attendue :** dépôt, soumission, vérification, confirmation/refus et maintien des suspensions, sans paiement réel non autorisé.
 
-**ADM-SETTLEMENT-02 — Stockage / intégrité — OUVERT**
-- **Preuve :** après échec RPC, la suppression compensatoire du fichier de preuve uploadé est tentée mais son résultat n'est pas contrôlé.
-- **Impact :** possibilité de fichier orphelin dans le stockage privé.
-- **Cause racine :** résultat du nettoyage compensatoire non vérifié/consigné.
-- **Correction proposée :** vérifier le résultat de suppression et tracer l'échec de compensation; prévoir une réconciliation sûre des fichiers temporaires.
-- **Vérification attendue :** test succès, échec RPC, échec suppression et absence d'accès non autorisé.
-
-**ADM-SETTLEMENT-03 — Cohérence UI / métier — P3 / OUVERT**
-- **Preuve :** le libellé Promoteur « 31 jours » ne correspond pas au calcul SQL d'un mois calendaire.
-- **Impact :** compréhension erronée de la durée d'abonnement.
-- **Cause racine :** libellé UI fixe, calcul SQL calendaire.
-- **Correction proposée :** aligner le texte sur la règle métier de mois calendaire, sans modifier le calcul validé.
-- **Vérification attendue :** comparaison des dates sur mois de 28/29/30/31 jours.
-
+**ADM-SETTLEMENT-02 — Stockage / intégrité — SOURCE CORRIGÉE**
+- `src/app/promoteur/paiements/actions.ts` effectue deux tentatives de suppression après un refus RPC, vérifie l'absence effective du fichier avec `bucket.list`, puis journalise le fichier orphelin si le nettoyage ne peut être confirmé.
+- Le parcours affiche une erreur dédiée et demande de ne pas soumettre à nouveau le même paiement avant vérification.
+- `scripts/test-promoteur-payment-cleanup.cjs` couvre les tentatives, la vérification Storage et le journal d'orphelin; il est inclus dans `npm test`.
+- Statut : correction source effectuée; exécution du runner Node/CI et recette Storage dans l'application restent à faire.
+**ADM-SETTLEMENT-03 — Cohérence UI / métier — SOURCE CORRIGÉE**
+- L'espace Promoteur annonce désormais une échéance calculée sur un « mois calendaire », cohérente avec le calcul SQL; le libellé « 31 jours » a disparu.
+- `scripts/test-promoteur-payment-cleanup.cjs` vérifie le libellé actuel et l'absence de l'ancien texte.
+- Statut : correction source effectuée; exécution du runner Node/CI et recette visuelle dans l'application restent à faire.
 **ADM-MIGRATION-01 — Documentation / configuration — RÉSERVE DE PREUVE**
 - **Preuve :** la réconciliation exhaustive de tous les fichiers de migration GitHub avec l'historique des migrations Production reste explicitement ouverte.
 - **Impact :** risque de divergence non détectée entre code versionné, Replay et Production.
@@ -3279,9 +3282,10 @@ Pour éviter de refaire les mêmes travaux :
 
 ### 10.4 Contrôle quantitatif du registre
 
-- Constats actifs avant ce complément : 19 identifiants uniques.
-- Nouveaux constats ajoutés après relecture contradictoire du code et des politiques live : 3.
-- **Total historique : 22 identifiants uniques**. Après clôture source d'ADM-UNIV-DOSSIER-01 et retrait du doublon ADM-EXAM-04, **20 constats actifs ou sous réserve** restent suivis : P1 : 4; P2 : 15; P3 : 1. Aucun doublon d'identifiant détecté.
+- Constats historiques recensés : 22 identifiants uniques.
+- Les quatre constats P1 (ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01, ADM-NOTIF-01) sont désormais corrigés et vérifiés au niveau des définitions Production, avec leurs tests Replay.
+- ADM-SETTLEMENT-02 et ADM-SETTLEMENT-03 sont corrigés dans la source et couverts par un test de contrat Node versionné.
+- **14 constats restent actifs ou sous réserve** après ces six clôtures : P1 : 0; P2 : 14; P3 : 0. Les constats résolus sont conservés dans l'historique mais exclus du décompte actif.
 - Les statuts OUVERT, RÉSERVE DE PREUVE et SURVEILLANCE restent distincts; aucun constat n'est déclaré corrigé par la seule inscription au registre.
 
 ### 10.5 Statut de l'étape 10
