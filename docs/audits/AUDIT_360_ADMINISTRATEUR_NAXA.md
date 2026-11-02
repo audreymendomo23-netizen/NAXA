@@ -1,3 +1,15 @@
+## Addendum — ratissage contradictoire du 02/11/2026
+
+- Messagerie Admin : l’historique des messages n’est plus chargé en bloc pour les 100 tickets. Le endpoint GET vérifie le ticket et ne renvoie que le fil sélectionné; GET et POST partagent un garde Admin exigeant une session valide, le rôle admin et actif=true. La limite de 2 000 caractères est alignée entre UI et API.
+- Alertes / dossiers partenaires : les constats ALT-01 et PROM-02 sont reclassés comme résolus dans le code courant : les compteurs liés à une source en erreur affichent une indisponibilité, pas un zéro métier.
+- PRE-039 / SEC-MSG-01 : la divergence historique du garde d’activation messagerie est résolue dans le code courant. Le test de bout en bout sous JWT réel reste à exécuter.
+- Cartographie : le HEAD contient 19 pages Admin et 12 entrées latérales. La route /admin/pilotage/reglements avait été omise de la cartographie initiale; elle est reliée par un lien depuis /admin/pilotage/validite et figure désormais dans le complément cartographique.
+- Contrôle des sources : l’arbre GitHub récursif non tronqué compte 1 126 entrées, 70 fichiers SQL sous supabase/migrations/ et 220 fichiers de test SQL sous supabase/tests/. Ces nombres sont des inventaires de chemins, pas des preuves d’exécution.
+- Commits de correction de la messagerie : 6270b797e428b503bdbb07b87742d1109972fdf7, 26a200213f69f7a670cbf6abd72b06aab2885365, 89fde66e2dc5601f01ddf8363f3da33c82a6b111 et ee9168fbc52c1b419f4174584dceee97582e198e.
+- Vérification restante : aucun build, lint, typecheck, HTTP sous JWT réel ou navigateur n’a été exécuté dans cette passe. Les corrections ci-dessus sont donc marquées comme source relue; la validation d’intégration CI et la recette de l’application restent les seules réserves probatoires identifiées dans ce lot. Aucun déploiement n’a été lancé.
+
+
+
 ## Addendum — Application Production des migrations ADM-EXAM-03 / ADM-SERVICES-02/03 (02/11/2026)
 
 - **Autorisation :** demande explicite de l'utilisateur « Applique les migrations sur supabase ».
@@ -14,7 +26,7 @@
 
 # Cahier des charges — Audit 360° du parcours Administrateur NAXA
 
-> **Document de vérité fonctionnelle du chantier actif.** À appliquer conjointement avec le MANDAT CTO NAXA, seule autorité de gouvernance technique. Le cahier des charges V3.7 et le Prompt maître ont été supprimés; ils ne constituent plus des références.
+> **Document de référence de l’audit 360 Administrateur.** La gouvernance de ce chantier est définie par le texte intégral du MANDAT CTO NAXA fourni par l’utilisateur; ce cahier enregistre les preuves, constats, corrections et statuts. Le cahier des charges V3.7 et le Prompt maître ne gouvernent pas le workflow de cet audit. Cette précision ne signifie pas que des fichiers historiques portant ces références ont été supprimés du dépôt; ils ne peuvent être utilisés qu’en arrière-plan fonctionnel lorsqu’ils ne contredisent ni le mandat ni les décisions plus récentes.
 
 
 > **Document de référence vivant** — audit préliminaire en cours. Ce document sépare les preuves directes, les déclarations historiques, les déductions et les vérifications encore indisponibles. Aucun déploiement n'est autorisé dans ce chantier.
@@ -551,7 +563,7 @@ Aucune donnée Supabase, politique, fonction, variable, configuration ni workflo
 Contrôle limité aux fichiers suivants sur `main` : `src/lib/admin/require-admin-active.ts`, `src/app/admin/layout.tsx`, `src/app/admin/page.tsx`, `src/app/api/admin/geolocalisation-osm/route.ts`, `src/app/api/admin/messagerie/route.ts`, `src/middleware.ts` et `package.json`. Il ne remplace pas la revue de toutes les routes et actions.
 
 - **PRE-038 — Garde des pages Admin observée :** `requireAdminActive` exige une session valide, `profiles.role === "admin"` et `profiles.actif === true`; une erreur de lecture ou une valeur active absente entraîne le refus d'accès. Cette conclusion concerne les appels qui utilisent effectivement ce helper.
-- **PRE-039 — Divergence potentielle à vérifier :** la route `POST /api/admin/messagerie` contrôle `role === "admin"` mais ne refuse que `profiles.actif === false`; contrairement au garde canonique, elle ne requiert pas explicitement `actif === true`. Si `actif` peut être nul ou absent, le comportement diffère. Vérifier le schéma réel, les contraintes et le contrat attendu avant de qualifier l'impact. **Aucune correction n'a été appliquée.**
+- **PRE-039 — Écart historique résolu sur le HEAD courant :** la route POST /api/admin/messagerie exige maintenant profile.role === admin et profile.actif === true, à l’identique du garde canonique. La lecture SQL précédente confirme que profiles.role et profiles.actif sont NOT NULL. La divergence décrite dans les constats initiaux n’est donc plus présente dans le code courant; le test HTTP sous JWT réel reste à exécuter.
 - **PRE-040 — Contrôle de la route OSM observé :** `POST /api/admin/geolocalisation-osm` vérifie l'identité, puis appelle le RPC `is_admin` et exige le résultat booléen `true` avant d'utiliser le client privilégié. Les protections internes du RPC et les droits effectifs restent à examiner.
 - **PRE-041 — Indicateurs Admin :** la mise en page charge les pharmacies, le RPC `validites_promoteurs_admin` et le nombre de tickets ouverts. Le code prévoit un état d'indicateurs partiels si certaines requêtes échouent; le tableau de bord affiche donc des compteurs qui peuvent être incomplets, plutôt que de garantir une vue exhaustive.
 - **PRE-042 — Scripts de tests déclarés :** `package.json` expose des scripts ciblés (géolocalisation, catalogue médicaments, calculs caisse, moteur comptable, interopérabilité suivi, etc.), mais aucun script générique `test` n'est défini dans le manifeste observé. La présence des scripts ne prouve pas leur exécution ni leur réussite. Aucun test n'a été lancé dans cette étape.
@@ -564,7 +576,7 @@ Aucune route, règle d'accès, fonction SQL ou configuration n'a été modifiée
 
 Une requête directe au catalogue PostgreSQL confirme les cinq tables signalées par l'advisor : RLS activé, zéro politique déclarée et `FORCE ROW LEVEL SECURITY = false`. Les cinq objets restent à qualifier selon leur mode d'accès prévu et leurs privilèges de table; l'absence de politique RLS ne signifie pas à elle seule qu'un utilisateur authentifié peut les lire.
 
-La même vérification confirme que `profiles.actif` et `profiles.role` sont `NOT NULL`, avec `actif` par défaut à `true`. **Précision sur PRE-039 :** la différence de condition entre le helper Admin et la route messagerie ne crée pas de voie d'accès via une valeur NULL dans le schéma live actuel; l'écart est une incohérence de contrat/code à traiter lors de l'audit détaillé, pas une vulnérabilité démontrée.
+La même vérification confirme que profiles.actif et profiles.role sont NOT NULL, avec actif par défaut à true. Mise à jour PRE-039 au 02/11 : le contrat du code courant a été aligné sur le garde strict (profile.actif !== true entraîne le refus). L’écart historique est résolu dans la source; il ne doit plus figurer parmi les défauts actifs. La recette HTTP reste à réaliser.
 
 ### Fonctions exposées — échantillon du catalogue PostgreSQL
 
@@ -672,7 +684,7 @@ L'arbre GitHub récursif a été relu après les derniers commits documentaires 
 
 - Dix modules d'actions Admin identifiés dans l'arbre : actions générales, création d'univers, examens, documents/pharmacies, validité, prestations, produits, promoteurs, partenaires et univers.
 - Deux routes API Admin identifiées : `/api/admin/geolocalisation-osm` et `/api/admin/messagerie`.
-- La vérification statique des actions lues a retrouvé le contrôle `requireAdminActive` dans la majorité des modules inspectés. Le module `src/app/admin/pharmacies/[id]/actions.ts` applique son propre garde : session, rôle admin et `actif === true`, avant les opérations utilisant le client privilégié. La route OSM utilise `is_admin`; la route messagerie emploie un contrôle distinct qui accepte toute valeur `actif` autre que `false`, divergence documentée en PRE-039.
+- La vérification statique des actions lues a retrouvé le contrôle requireAdminActive dans la majorité des modules inspectés. Le module src/app/admin/pharmacies/[id]/actions.ts applique son propre garde : session, rôle admin et actif === true, avant les opérations utilisant le client privilégié. La route OSM utilise is_admin; la route messagerie applique désormais le contrôle strict profile.actif === true, aligné sur le garde canonique; la divergence historique PRE-039 est résolue dans le code courant.
 - Le module `supabaseAdmin()` utilise la clé de service, mais cette observation ne signifie pas que les valeurs de secrets ont été lues : elles ne l'ont pas été. Toute action utilisant ce client exige un contrôle serveur robuste avant chaque mutation.
 
 ### Couverture des tests et limites
@@ -3234,12 +3246,12 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 - Les pages univers/partenaires et examens utilisent des plafonds de lecture (respectivement 100 partenaires/produits, 200 centres, 300 examens, 200 packs et 300 rendez-vous). Les chiffres affichés sont donc des vues bornées, pas des totaux globaux exhaustifs.
 - La page Univers propage désormais l'erreur de `admin_partner_dossiers` dans l'état général d'indisponibilité; son libellé local indique aussi explicitement que le registre est indisponible.
 - La page Examens inclut désormais l'erreur `ae` dans le verrou global `broken`; le calendrier affichait déjà un état spécifique « Données indisponibles ». Le constat historique ADM-EXAM-04 est reclassé comme **déjà couvert par le code présent avant cette correction**, et non comme défaut confirmé restant.
-- Les anciennes politiques Production de lecture Examens et demandes domicile vérifiaient le rôle Admin sans `actif=true`; les définitions ont été alignées sur `public.is_admin()` et validées en Replay par le test 269. Production n'a pas encore reçu ces migrations.
+- Les anciennes politiques Production de lecture Examens et demandes domicile vérifiaient le rôle Admin sans actif=true. Les migrations correctives ont depuis été appliquées sur Production le 02/11/2026 et les définitions live relues : les politiques Admin utilisent désormais public.is_admin(). Le test comportemental 269 reste la preuve isolée de la matrice complète.
 
 **Sécurité, séparation des rôles et données**
 - Les politiques Client propriétaire et partenaire membre restent séparées des politiques Admin pour les rendez-vous d'examens et demandes à domicile.
 - Les migrations `20261102032259_admin_active_read_policies.sql` et `20261102032304_admin_active_home_services_guards.sql` sont versionnées sur `main`; elles ont aussi été appliquées sur `naxa-ci-replay-2`, avec les versions d'historique Replay `20261102023801` et `20261102023807`.
-- **Limite Production :** les migrations ne sont pas appliquées au projet principal `Naxa`. Les politiques Admin et la RPC Production restent dans leur état antérieur; aucune écriture Production n'a été effectuée.
+- **État Production corrigé le 02/11/2026 :** les migrations 20261102032259_admin_active_read_policies et 20261102032304_admin_active_home_services_guards ont été appliquées au projet Naxa après autorisation explicite. Les trois politiques ciblées et la définition de public.transition_home_service_request(uuid,text) ont été relues : les gardes Admin utilisent public.is_admin(). La vérification porte sur les définitions live; le test HTTP sous JWT réel et la recette métier navigateur ne sont pas revendiqués.
 - Aucune donnée personnelle, aucun secret et aucun contenu de demande client n'a été exporté dans ce rapport.
 
 ### 14.3 Corrections et contrôles effectués pendant cette passe
@@ -3248,8 +3260,8 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 |---|---|---|---|
 | `src/app/admin/univers/page.tsx` | Ajout de `partnerDossiersResult.error` au booléen `missing` | Relecture du fichier après commit; la condition contient la source dossiers | Correction source vérifiée statiquement |
 | `src/app/admin/examens/page.tsx` | Ajout de `ae` au booléen `broken` | Relecture du fichier après commit; le verrou inclut les quatre sources | Correction source vérifiée statiquement |
-| Migration RLS Examens + demandes domicile | Politiques Admin remplacées par `public.is_admin()` | Appliquée sur Replay; test 269 : matrice RLS PASS | 🟢 Replay / Production en attente |
-| Migration garde-fous prestations | Politique Admin offres et branche Admin de `transition_home_service_request` alignées sur `public.is_admin()` | Appliquée sur Replay; test 269 : mutations/RPC/audit PASS | 🟢 Replay / Production en attente |
+| Migration RLS Examens + demandes domicile | Politiques Admin remplacées par public.is_admin() | Test 269 : matrice RLS PASS sur Replay; migration appliquée et politiques relues sur Production le 02/11 | 🟢 Replay + définitions Production vérifiées |
+| Migration garde-fous prestations | Politique Admin offres et branche Admin de transition_home_service_request alignées sur public.is_admin() | Appliquée et testée sur Replay; appliquée sur Production puis politique/RPC relues le 02/11 | 🟢 Replay + définitions Production vérifiées |
 | Test reproductible 269 | 31 assertions structurelles et comportementales | Exécution sur `naxa-ci-replay-2`; transaction entièrement annulée | PASS |
 | ADM-EXAM-04 | Requalification du constat, car le calendrier avait déjà un message dédié pour `ae` | Code antérieur relu | Faux positif/constat redondant, à retirer du décompte actif |
 
@@ -3264,17 +3276,17 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 
 - **Confirmé par lecture de code :** les erreurs de lecture des dossiers et des rendez-vous sont maintenant propagées dans les états d'indisponibilité globaux.
 - **Confirmé par lecture RLS/RPC Production :** avant correction, les politiques Admin Examens/demandes, la politique de gestion des offres et la branche Admin RPC ne vérifiaient pas toutes l'état actif.
-- **Confirmé en runtime SQL isolé :** après application des deux migrations sur Replay, le test 269 passe avec 31 assertions : Admin actif/inactif, Client propriétaire/tiers, partenaire membre, anon, lectures, mutation des offres, transitions RPC et journal d'audit. Tous les fixtures sont annulés.
+- **Confirmé en runtime SQL isolé :** après application des deux migrations sur Replay, le test 269 passe avec 31 assertions : Admin actif/inactif, Client propriétaire/tiers, partenaire membre, anon, lectures, mutation des offres, transitions RPC et journal d’audit. Tous les fixtures sont annulés.
 - **Non vérifié :** test HTTP PostgREST avec JWT réels et sessions Auth réelles; recette navigateur.
 - **Non démontré et laissé ouvert :** files Admin détaillées de résolution des demandes à domicile (ADM-SERVICES-01) et des réservations Marketplace (ADM-MKT-01).
 - **Contrôle Supabase Security Advisor (02/11/2026, Production) :** six tables avec RLS activé sans politique; cinq fonctions SECURITY DEFINER accessibles à `anon`; 120 fonctions SECURITY DEFINER exécutables par `authenticated`. Ces alertes sont préexistantes et dépassent le périmètre immédiat des deux politiques corrigées; elles restent à qualifier individuellement, sans révocation massive ni changement opportuniste. Les politiques Client/partenaire des deux tables visées n'ont pas été modifiées.
-- **Production, recontrôlée après tests :** historique toujours arrêté à `20261101213620`; les deux migrations restent absentes. Les trois politiques Production conservent encore des prédicats role-only et la RPC Production garde son ancienne vérification rôle-only. Aucune migration Production n'a été exécutée.
+- **Historique Production antérieur (relevé avant le 02/11) :** le constat d’historique arrêté à 20261101213620 et les prédicats role-only décrivent l’état observé avant application. Il est supersédé par l’application Production confirmée le 02/11/2026, versions 20261102032259 et 20261102032304, avec relecture des politiques/RPC après migration.
 - **Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`; test 269 PASS.
 - **Réserves hors périmètre de ces deux corrections :** limites de pagination et files Admin de résolution Marketplace/prestations.
 
 ### 14.5 Statut de l'étape 14
 
-**Étape 14 — 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DE LA REVUE ET DES CONTRÔLES ISOLÉS.** La revue contradictoire client/CTO est achevée; les deux corrections RLS/RPC sont versionnées, appliquées et vérifiées sur Replay par 31 assertions PASS. Le vert certifie la clôture de l'étape d'audit et la validation technique isolée; il ne certifie pas la conformité Production. Les migrations demeurent non appliquées au projet principal, conformément au périmètre de ce chantier. Les constats fonctionnels distincts ADM-SERVICES-01 et ADM-MKT-01 (files opérationnelles Admin absentes) restent ouverts et ne sont pas masqués par cette clôture.
+**Étape 14 — 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DES CONTRÔLES SQL DISPONIBLES.** La revue contradictoire client/CTO est achevée; les deux corrections RLS/RPC sont versionnées, appliquées et vérifiées sur Replay par 31 assertions PASS. Elles ont également été appliquées sur Production et les définitions des trois politiques et de la RPC ont été relues après migration. Le comportement via JWT réel/PostgREST et les parcours navigateur ne sont pas certifiés. Les constats fonctionnels distincts ADM-SERVICES-01 et ADM-MKT-01 (files opérationnelles Admin absentes) restent ouverts et ne sont pas masqués par cette clôture.
 
 ## Étape 11 — Recherche et nettoyage du code mort Admin (clôture, 02/11/2026)
 
@@ -3328,14 +3340,14 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 
 ## Étape 12 — Design et animations (02/11/2026)
 
-**Périmètre :** finition visuelle du parcours Administrateur recensé dans ce cahier. La cartographie de référence recense 18 routes Admin et 12 entrées de navigation. La revue porte sur le shell partagé, les règles CSS Admin et les 18 pages; elle ne modifie ni les parcours métier, ni les droits, ni les données.
+**Périmètre :** finition visuelle du parcours Administrateur recensé dans ce cahier. Le relevé du HEAD du 02/11 dénombre 19 routes de page Admin et 12 entrées de navigation. La revue visuelle documentée a porté sur 18 pages; /admin/pilotage/reglements est la route supplémentaire absente de cette couverture visuelle et reste à vérifier dans l’application. Les corrections CSS ne modifient ni les parcours métier, ni les droits, ni les données.
 
 ### Audit statique initial
 
 - Le shell partagé est centralisé dans `src/app/admin/layout.tsx` et `src/app/admin/admin-bento.css`.
 - Les règles existantes couvrent les vues desktop, tablette et mobile (breakpoints 1440, 1050, 1000, 900, 760, 680 et 420 px), avec navigation mobile fixe et prise en compte de `safe-area-inset-bottom`.
 - Les états de focus et les champs disposent déjà de styles dédiés. Le mode `prefers-reduced-motion: reduce` neutralise les animations et transitions du shell.
-- Les 18 pages examinées ne déclarent pas de classes utilitaires d'animation propres; les mouvements présents avant cette passe étaient principalement des transitions d'interaction et de progression.
+- Les 18 pages visuellement examinées ne déclarent pas de classes utilitaires d'animation propres; la 19e route /admin/pilotage/reglements n’est pas couverte par cette observation. Les mouvements présents avant cette passe étaient principalement des transitions d'interaction et de progression.
 - Deux faiblesses de contraste ont été relevées dans les petits libellés : blanc atténué dans la navigation verte et `--texte-3: #7D8E84` sur surface blanche (ratio mesuré 3,46:1, insuffisant pour du petit texte). Le focus jaune sur surface claire n'offrait pas non plus le contraste le plus robuste.
 
 ### Corrections versionnées sur `main`
