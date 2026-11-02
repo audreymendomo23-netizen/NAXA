@@ -30,7 +30,7 @@ export function AdminRappelLotNotice() {
       for(let offset=0;;offset+=pageSize){
         const {data:r,error:re}=await sb.from("avis_rappels_lots_destinataires")
           .select("avis_id,pharmacie_id,accuse_at,pharmacies(nom)")
-          .in("avis_id",noticeIds).order("avis_id",{ascending:true})
+          .in("avis_id",noticeIds).order("avis_id",{ascending:true}).order("pharmacie_id",{ascending:true})
           .range(offset,offset+pageSize-1);
         if(re){setError("Impossible de charger les accusés de réception.");return;}
         const page=(r??[]) as unknown as Recipient[];
