@@ -1,5 +1,17 @@
 # NAXA — REGISTRE DES FONCTIONNALITÉS / ÉTAT DE VALIDATION
 
+## Ratissage Admin 360 — état courant et preuves Production (02/11/2026)
+
+- **PRE-044 — catalogue/partenaires/stock :** migration `20261102083000_admin_active_catalog_stock_rls.sql`, appliquée à Supabase Production sous la version `20261102095050`.
+- **PRE-045 — Storage medicaments :** migration `20261102084500_admin_active_medicament_storage_rls.sql`, appliquée à Supabase Production sous la version `20261102095056`.
+- **Vérification Production :** 12 politiques relues après application; toutes les clauses Admin concernées utilisent `public.is_admin()`, qui délègue à `private.is_admin()` et exige `role='admin'` avec `actif IS TRUE`. La lecture publique du bucket n'a pas été modifiée.
+- **Tests Replay :** 269 PASS (31 assertions), 270 PASS (Admin actif/inactif/Client, huit policies et préservation du scope partenaire), 271 PASS structurel. Transactions annulées. Le bucket `medicaments` absent de Replay empêche seulement une preuve d'upload réel par ce test.
+- **Messagerie et files Admin :** source construite et contrôles statiques de contrat vérifiés; les deux files sont en lecture seule et sous garde Admin actif. Pas de mutation financière ou métier dans ces files.
+- **Réserves restantes :** CI sur le HEAD courant (`npm test`, typecheck, lint, audit dépendances, build) et recette HTTP sous JWT/navigateur dans l'application. Le miroir GitLab n'est pas synchronisé avec GitHub main et son dernier pipeline a échoué sur le quota avant démarrage; aucun résultat CI courant n'est revendiqué.
+- Aucun déploiement ni aucune modification de données métier n'a été effectué.
+
+---
+
 > **Document de pilotage permanent.**
 > Ce registre sert à savoir **ce qui est réellement terminé, ce qui est terminé hors `main`, ce qui est seulement construit, ce qui est bloqué par une preuve et ce qui reste à construire**.
 >
@@ -57,17 +69,17 @@
 - Source : migration supabase/migrations/20261102083000_admin_active_catalog_stock_rls.sql.
 - Remplacement de huit policies Admin ALL par public.is_admin() (USING + WITH CHECK); branche Admin de stock_movements_partner_read alignée sans supprimer la lecture des membres partenaires.
 - Test 270 PASS sur Replay : Admin actif peut modifier le partenaire fixture; Admin inactif et Client n'ont aucun effet; les huit policies et le périmètre partenaire sont contrôlés. Transaction annulée.
-- Replay version : 20261102072715. Production : migration non appliquée, appel bloqué par le contrôle de sécurité de l'outil.
-- Statut : 🟡 corrigé et testé sur Replay; Production à appliquer après levée du blocage de sécurité.
+- Replay version historique : 20261102072715. Production appliquée sous la version 20261102095050; les politiques live ont été relues et utilisent `public.is_admin()`.
+- Statut : 🟢 définitions RLS corrigées et vérifiées en Production; CI et recette réelle restent distinctes.
 
 **PRE-045 — Storage medicaments**
 - Source : migration supabase/migrations/20261102084500_admin_active_medicament_storage_rls.sql.
 - INSERT/UPDATE/DELETE sur storage.objects, bucket medicaments, exigent public.is_admin(); la lecture publique est préservée.
 - Test 271 PASS structurel sur Replay; bucket absent de cet environnement, donc pas de test d'upload.
-- Replay version : 20261102072914. Production : migration non appliquée, appel bloqué par le contrôle de sécurité de l'outil.
-- Statut : 🟡 structure testée en Replay; Production non corrigée.
+- Replay version historique : 20261102072914. Production appliquée sous la version 20261102095056; les trois politiques live de mutation ont été relues avec le garde Admin actif.
+- Statut : 🟢 définitions Storage corrigées et vérifiées en Production; le test d'upload réel est réservé à la recette application car le bucket n'existe pas dans Replay.
 
-**À ne pas confondre :** les migrations 269 pour examens/prestations sont déjà appliquées et vérifiées sur Production; les migrations 270/271 de ce ratissage ne le sont pas.
+**État actuel :** les migrations 269 (versions Production 20261102032259/20261102032304) ainsi que 270/271 (versions Production 20261102095050/20261102095056) sont appliquées et relues sur Production. Les résultats Replay et les définitions Production restent deux preuves distinctes.
 
 ---
 
