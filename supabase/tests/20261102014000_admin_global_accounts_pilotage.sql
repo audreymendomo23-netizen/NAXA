@@ -38,6 +38,11 @@ values
 ('01300000-0000-4000-8000-000000000008','01300000-0000-4000-8000-000000000101',2500,now()+interval '1 hour',now()),
 ('01300000-0000-4000-8000-000000000008','01300000-0000-4000-8000-000000000102',3000,now()+interval '1 hour',now());
 
+insert into public.partners(id,name,partner_type,city,status,created_by)
+values('01300000-0000-4000-8000-000000000201','NAXA E13 partenaire','centre_examen','Yaoundé','active','01300000-0000-4000-8000-000000000001');
+insert into public.partner_members(partner_id,user_id,member_role)
+values('01300000-0000-4000-8000-000000000201','01300000-0000-4000-8000-000000000008','owner');
+
 do $test$
 declare
   v_admin uuid := '01300000-0000-4000-8000-000000000001';
@@ -61,7 +66,9 @@ begin
      or has_function_privilege('authenticated',v_private,'EXECUTE')
      or has_function_privilege('authenticated',v_pharmacy_helper,'EXECUTE')
      or has_function_privilege('anon',v_private,'EXECUTE')
-     or has_function_privilege('anon',v_pharmacy_helper,'EXECUTE') then
+     or has_function_privilege('anon',v_pharmacy_helper,'EXECUTE')
+     or has_function_privilege('authenticated','private.admin_partners_summary()','EXECUTE')
+     or has_function_privilege('anon','private.admin_partners_summary()','EXECUTE') then
     raise exception 'E13.2 : ACL de la façade ou des moteurs privés incorrecte';
   end if;
 
@@ -73,6 +80,17 @@ begin
      or (v_json->'totaux'->>'promoteurs_total')::integer < 1
      or (v_json->'totaux'->>'comptes_professionnels')::integer < 6 then
     raise exception 'E13.3 : agrégats globaux des comptes incomplets : %',v_json->'totaux';
+  end if;
+
+  if (v_json->'partenaires_globaux'->'totaux'->>'partenaires_total')::integer < 1
+     or (v_json->'partenaires_globaux'->'totaux'->>'partenaires_actifs')::integer < 1
+     or (v_json->'partenaires_globaux'->'totaux'->>'membres_partenaires_total')::integer < 1
+     or not exists (
+       select 1 from jsonb_array_elements(v_json->'partenaires_globaux'->'par_type_statut') e(value)
+       where e.value->>'type'='centre_examen' and e.value->>'statut'='active'
+         and (e.value->>'total')::integer=1
+     ) then
+    raise exception 'E13.3b : agrégats des comptes Partenaires Marketplace incomplets : %',v_json->'partenaires_globaux';
   end if;
 
   select e.value into v_ph
