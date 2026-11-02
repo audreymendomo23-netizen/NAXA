@@ -1032,12 +1032,14 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - **Suite du canevas : étape 11 — code mort**, avec distinction obligatoire entre code mort confirmé et usage indirect potentiel.
 
 
-## Audit 360 Administrateur — Étape 11, recherche de code mort (premier passage, 02/11/2026)
 
-- Inventaire de 32 fichiers sous src/app/admin et relecture de 14 composants/helpers directement liés.
-- Code mort confirmé : constante locale types inutilisée dans src/app/admin/univers/actions.ts (ADM-DEAD-01).
-- Candidats non supprimés : action legacy creerPartenaire, action mettreAJourPiecesRecues, export exporterCsv; leurs références hors du sous-arbre Admin ne sont pas prouvées.
-- Routes potentiellement orphelines : /admin/geolocalisation et /admin/rappels-lots; routes encore directement accessibles, donc pas classées mortes.
-- Candidats CSS non référencés dans les pages Admin examinées : admin-kanban-*, admin-report-card, admin-home-live. Aucune règle supprimée.
-- Contrôles positifs : admin-bento.css est importée par le layout; les composants Admin identifiés et les actions de création pharmacie/univers sont effectivement utilisés.
-- **Étape 11 : EN COURS / JAUNE.** Le premier passage Admin est documenté; la recherche globale des références indirectes et l'inventaire exhaustif de tous les styles/animations restent à terminer. Aucun code n'a été supprimé.
+## Audit 360 Administrateur — Étape 11, code mort (clôture, 02/11/2026)
+
+- Périmètre : 32 fichiers Admin et 14 dépendances directes examinés.
+- Code mort confirmé supprimé : constante locale `types` inutilisée dans `src/app/admin/univers/actions.ts`; commit `eb1dcca903eb40394291f178af0ceab03bea2a03`; relecture après écriture PASS.
+- CSS inutilisé supprimé : `.admin-home-live` et `.admin-report-card` dans `src/app/admin/admin-bento.css`; commit `8f4be4e5b140b70391e00b02bef0615dcbeeb587`; relecture après écriture PASS.
+- Rectification : les règles `.admin-kanban-*` sont utilisées par `/admin/prestations`; elles ont été conservées.
+- Exports `creerPartenaire`, `mettreAJourPiecesRecues` et `exporterCsv` conservés faute de preuve exhaustive d'absence de références indirectes.
+- Routes `/admin/geolocalisation` et `/admin/rappels-lots` conservées : non présentes dans la navigation latérale, mais accessibles directement et dotées d'un parcours propre.
+- Build/typecheck/lint et recette navigateur non exécutés; aucune modification Supabase et aucun déploiement.
+- **Étape 11 : TERMINÉE sur le périmètre Admin / JAUNE probatoire.** Réserve : l'inventaire exhaustif des références croisées sur les 353 fichiers source n'est pas certifié; aucun candidat incertain n'a été supprimé.
