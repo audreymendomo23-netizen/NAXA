@@ -1043,3 +1043,13 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - Routes `/admin/geolocalisation` et `/admin/rappels-lots` conservées : non présentes dans la navigation latérale, mais accessibles directement et dotées d'un parcours propre.
 - Build/typecheck/lint et recette navigateur non exécutés; aucune modification Supabase et aucun déploiement.
 - **Étape 11 : TERMINÉE sur le périmètre Admin / JAUNE probatoire.** Réserve : l'inventaire exhaustif des références croisées sur les 353 fichiers source n'est pas certifié; aucun candidat incertain n'a été supprimé.
+
+## Étape 12 — Design et animations Administrateur (02/11/2026)
+
+- **Périmètre inspecté :** 18 routes Admin, 12 entrées de navigation, layout partagé et `admin-bento.css`.
+- **Corrections sur main :** animation d'entrée discrète; retours hover/tactiles; respect explicite de `prefers-reduced-motion`; focus clavier renforcé; amélioration du contraste des libellés secondaires et notes de synthèse.
+- **Contrôles statiques :** relecture GitHub PASS; accolades CSS équilibrées; ratios calculés : 6,57:1 (blanc/vert Admin), 5,00:1 (jaune/vert), 6,61:1 (accent/ blanc), 6,00:1 (texte secondaire/blanc).
+- **Commits :** `e9833101b30d1ba4e48c4e87a54e69f62747592c`, `2fbcf4e9f06275c040a759ab2722dc33c3fbfde6`, `a84d0b92de43c59a5d4d0a326c878954d78ce2bd`.
+- **Réserve :** aucun déploiement trouvé pour le dernier commit; le dernier Production observé reste en erreur sur `af7230b2cf63e2ef6f024e525bf5a9159a2eed2b`. Build, lint, typecheck et recette navigateur non exécutés.
+- **Statut étape 12 : JAUNE — corrections source et contrôles statiques PASS; rendu visuel réel non prouvé.** Pas de déploiement, changement Supabase ou configuration.
+- **Suite :** obtenir une prévisualisation autorisée et vérifier les rendus 390/768/desktop, navigation clavier et réduction des animations avant clôture verte.
