@@ -40,3 +40,38 @@ La page charge jusqu’à 100 tickets, puis tous les messages liés à ces ticke
 Priorités proposées : (1) aligner la garde d’activation de l’API messagerie et vérifier le cas `actif=null`, (2) aligner les limites de longueur, (3) vérifier le modèle documentaire KYC de la création pharmacie, (4) auditer les dossiers Promoteurs et les actions de validation/réactivation.
 
 Aucune modification de code, écriture métier ou migration n’a été effectuée dans cette passe. Ce rapport est une analyse statique, pas une certification fonctionnelle ou de sécurité.
+
+---
+
+## Ratissage contradictoire du code courant — 02 novembre 2026
+
+Les constats du 26 octobre ci-dessus sont conservés comme photographie historique. Leur statut doit être recalé sur le code main actuellement relu : plusieurs corrections ont été intégrées depuis la rédaction initiale.
+
+| ID | Vérification sur le code courant | État actuel |
+|---|---|---|
+| ALT-01 | src/app/admin/alertes/page.tsx affiche — pour chaque compteur dont la source est en erreur et un état explicite d’indisponibilité dans les listes. | **CORRIGÉ — source cohérente** |
+| MSG-02 | AdminInbox.tsx limite le textarea à 2 000 caractères; POST /api/admin/messagerie applique la même limite. | **CORRIGÉ — limites alignées** |
+| SEC-MSG-01 / PRE-039 | Le garde API exige désormais profile.role === "admin" et profile.actif === true; le helper canonique impose la même condition. Le catalogue Production consulté précédemment déclare aussi ces colonnes NOT NULL. | **CORRIGÉ — garde strict identique** |
+| PROM-02 | src/app/admin/promoteurs/page.tsx affiche — si le registre admin_partner_dossiers échoue, au lieu de présenter un faux zéro. | **CORRIGÉ — source cohérente** |
+| SEC-MSG-02 | La lecture du fil et l’envoi passent maintenant par le même garde API Admin actif avant tout usage de supabaseAdmin(). | **GARDE SOURCE COHÉRENT — tests HTTP encore requis** |
+| MSG-01 | La page ne charge plus tous les messages des 100 tickets. Le fil est récupéré à la demande pour le ticket sélectionné via GET /api/admin/messagerie?ticket_id=…. | **CORRIGÉ EN SOURCE — vérification d’intégration requise** |
+| MSG-03 | La réponse reste interdite lorsque le ticket n’est plus ouvert (HTTP 409). Le statut du ticket n’est pas modifié par l’envoi d’une réponse. | **CONTRAT CONSERVÉ — comportement à valider dans l’application** |
+| ALT-02 / JOUR-01 / JOUR-02 | Les limites de volume et l’ergonomie des filtres/identification de l’acteur restent des améliorations distinctes; aucun impact quantifié ne justifie une modification spéculative dans cette passe. | **À reconsidérer après mesure/recette** |
+
+### Correction de fiabilité de la messagerie
+
+Le chargement des messages a été déplacé côté API et limité au ticket choisi. Le nouvel endpoint GET :
+- exige un utilisateur authentifié, un profil Admin et actif === true;
+- valide le format UUID du ticket, vérifie son existence puis lit uniquement son fil;
+- renvoie un cache privé no-store et des erreurs explicites;
+- utilise le même garde que POST, qui conserve le contrôle du statut ouvert et la limite de 2 000 caractères.
+
+Le composant client ne soumet plus les messages d’autres tickets au navigateur; il affiche les états de chargement et d’erreur et recharge le fil après l’envoi.
+
+**Commits sur main :**
+- 6270b797e428b503bdbb07b87742d1109972fdf7 — endpoint GET du fil et garde partagé initial;
+- 26a200213f69f7a670cbf6abd72b06aab2885365 — validation UUID PostgreSQL sans contrainte artificielle de version;
+- 89fde66e2dc5601f01ddf8363f3da33c82a6b111 — chargement du fil à la demande côté composant;
+- ee9168fbc52c1b419f4174584dceee97582e198e — suppression du chargement global des messages dans la page serveur.
+
+**Limites de preuve :** relecture statique des trois fichiers après modification effectuée; aucun build TypeScript/Next, test HTTP avec JWT réel, ni test navigateur n’a été exécuté dans cette passe. La validation restante porte donc exclusivement sur l’intégration CI et la recette dans l’application; aucune action métier sur des tickets réels n’a été effectuée.
