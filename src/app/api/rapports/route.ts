@@ -296,7 +296,8 @@ function buildAiMetrics(stats: Record<string, any>, rows: ReportRow[]) {
       typeof row.valeur === "number" &&
       Number.isFinite(row.valeur) &&
       !row.indicateur.startsWith("Affectation ") &&
-      !row.indicateur.startsWith("Service ")
+      !row.indicateur.startsWith("Service ") &&
+      !row.indicateur.startsWith("Détail ")
     ) {
       indicateurs[row.indicateur] = row.valeur;
     }
@@ -368,7 +369,7 @@ export async function POST(request: Request) {
   let stats: Record<string, any>;
   const fonction = String(profile.fonction_interne ?? "").toLowerCase();
   let hasActiveStockAssignment = false;
-  if (!["gestionnaire_stock", "magasinier"].includes(fonction)) {
+  if (profile.role === "pharmacie" && !["gestionnaire_stock", "magasinier"].includes(fonction)) {
     const { data: stockAssignments, error: stockAssignmentError } = await sb.from("naxa_professional_assignments")
       .select("commence_at,expire_at").eq("profile_id", auth.user.id).eq("statut", "active")
       .in("fonction", ["gestionnaire_stock", "magasinier"]);
@@ -377,7 +378,21 @@ export async function POST(request: Request) {
     hasActiveStockAssignment = (stockAssignments ?? []).some(a => new Date(a.commence_at).getTime() <= now && new Date(a.expire_at).getTime() > now);
   }
 
-  if (fonction === "pharmacien") {
+  if (profile.role === "admin") {
+    const [{ data: pilotage, error: pilotageError }, { data: comptes, error: comptesError }] = await Promise.all([
+      sb.rpc("stats_pilotage_scope", { p_jours: config.days }),
+      sb.rpc("admin_comptes_indicateurs", { p_jours: config.days }),
+    ]);
+    if (pilotageError || comptesError) {
+      return NextResponse.json({ error: "La consolidation Admin des comptes et indicateurs est indisponible. Aucun rapport incomplet n'est généré." }, { status: 503 });
+    }
+    const pilotageData = (Array.isArray(pilotage) ? pilotage[0] : pilotage) as Record<string, any>;
+    const comptesData = (Array.isArray(comptes) ? comptes[0] : comptes) as Record<string, any>;
+    if (!pilotageData || !comptesData || !comptesData.totaux || !Array.isArray(comptesData.par_pharmacie) || !Array.isArray(comptesData.par_promoteur)) {
+      return NextResponse.json({ error: "La consolidation Admin a renvoyé un résultat incomplet." }, { status: 502 });
+    }
+    stats = { ...pilotageData, ...comptesData, role: "admin" };
+  } else if (fonction === "pharmacien") {
     if (!profile.pharmacie_id) return NextResponse.json({ error: "Pharmacie de rattachement introuvable." }, { status: 403 });
     const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies").select("id,actif").eq("id", profile.pharmacie_id).maybeSingle();
     if (pharmacyError || !pharmacy?.actif) return NextResponse.json({ error: "Pharmacie inactive ou indisponible." }, { status: 403 });
