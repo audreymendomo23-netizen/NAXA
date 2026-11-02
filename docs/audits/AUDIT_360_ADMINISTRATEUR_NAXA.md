@@ -2887,13 +2887,12 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - **Correction proposée :** traiter séparément l'indisponibilité du calendrier et afficher un état d'erreur explicite; conserver les autres sections si elles sont disponibles.
 - **Vérification restante :** injecter un échec isolé de la requête en environnement de test pour vérifier le rendu et le verrou des actions.
 
-#### ADM-SERVICES-02 — Lecture des demandes domicile autorisée aux administrateurs inactifs — OUVERT
+#### ADM-SERVICES-02 — Lecture des demandes domicile autorisée aux administrateurs inactifs — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE
 
-- **Preuve :** la politique Production `home_service_requests_admin_read` est une politique SELECT `authenticated` dont le prédicat vérifie `profiles.role = 'admin'`, sans condition `profiles.actif = true`. La même omission `actif` est observée dans `exam_appointments_admin_read` (constat ADM-EXAM-03).
-- **Impact :** un compte Admin désactivé conservant une session authentifiée peut continuer à lire les demandes clients via l'API PostgREST, même si les pages Admin utilisent `requireAdminActive`. Les demandes contiennent notamment des notes et informations de service.
-- **Classement : défaut d'autorisation confirmé par définition RLS; scénario d'accès d'une session inactive non exécuté.**
-- **Correction versionnée :** `supabase/migrations/20261102023000_admin_active_read_policies.sql` remplace les deux politiques Admin par `(select public.is_admin())`; les politiques Client propriétaire et partenaire autorisé ne sont pas modifiées. Migration non appliquée en Production conformément au mandat.
-- **Vérification restante :** appliquer la migration lors d'une fenêtre autorisée, puis tester la matrice JWT Admin actif/inactif, Client propriétaire/tiers, partenaire autorisé/hors périmètre et anonyme.
+- **Preuve Production (lecture seule) :** la politique `home_service_requests_admin_read` vérifiait le rôle Admin sans condition `actif=true`.
+- **Correction versionnée :** migration `supabase/migrations/20261102023000_admin_active_read_policies.sql`, qui remplace la politique par `(select public.is_admin())`; les politiques Client propriétaire et partenaire autorisé restent inchangées.
+- **Validation exécutée :** test `supabase/tests/269_admin_exam_services_active_guards.sql` sur `naxa-ci-replay-2`; lecture Admin actif autorisée, Admin inactif refusé, accès Client propriétaire/tiers et partenaire conservés. Le test complet passe avec 31 assertions; fixtures annulés.
+- **Statut :** 🟢 construction validée en Replay. La politique Production reste à migrer lors d'une opération explicitement autorisée.
 
 #### ADM-SERVICES-03 — Les mutations de prestations ne vérifient pas systématiquement l'activité Admin — CORRECTION VERSIONNÉE
 
@@ -2901,8 +2900,8 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - **Impact :** une session Admin persistante après désactivation pouvait modifier directement les offres via RLS ou confirmer/terminer une demande via la RPC. Les gardes de page et Server Actions ne remplacent pas les contrôles de la base.
 - **Cause racine :** deux chemins d'autorisation base de données non alignés sur le garde canonique `public.is_admin()`.
 - **Correction versionnée :** migration `supabase/migrations/20261102031000_admin_active_home_services_guards.sql`. Elle remplace uniquement la politique Admin des offres par `public.is_admin()` et modifie la branche Admin de la RPC; les droits Client d'annulation et le périmètre partenaire actif restent inchangés.
-- **Vérification :** politique et fonction Production relues avant correction; migration relue statiquement après création sur `main`. Tests JWT Admin actif/inactif, Client et partenaire non exécutés. Migration non appliquée en Production.
-- **Statut :** correction source versionnée; risque Production non levé tant que la migration n'est pas appliquée et testée.
+- **Validation exécutée :** migration appliquée sur `naxa-ci-replay-2`; test reproductible `supabase/tests/269_admin_exam_services_active_guards.sql` exécuté avec 31 assertions structurelles et comportementales PASS : Admin actif/inactif, Client propriétaire/tiers, membre partenaire, lecture, modification d'offre, transitions RPC et journal d'audit. Toutes les données de scénario sont annulées par `ROLLBACK`.
+- **Statut :** 🟢 construction verte en Replay. La migration Production reste en attente d'une opération explicitement autorisée.
 
 ### 8.3 Limites de couverture et contrôles positifs
 
@@ -3044,12 +3043,11 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 
 #### P2 — priorité moyenne
 
-**ADM-EXAM-03 — Sécurité / autorisation — CORRECTION VERSIONNÉE / VALIDATION RLS EN ATTENTE**
-- **Preuve :** la politique Production `exam_appointments_admin_read` autorisait SELECT au profil `role=admin` sans exiger `actif=true`; la page applique `requireAdminActive`.
-- **Correction versionnée :** migration `supabase/migrations/20261102023000_admin_active_read_policies.sql` remplaçant la politique Admin par `(select public.is_admin())`, garde canonique qui exige rôle Admin et compte actif.
-- **Vérification :** définition de la politique Production et du helper relus; migration relue sur `main`. L'historique Production confirme qu'elle n'est pas appliquée.
-- **Critère restant :** appliquer lors d'une fenêtre autorisée puis tester Admin actif/inactif, Client propriétaire/tiers et anonyme.
-- **Statut :** correction source prête; pas vert en Production tant que l'application et la matrice JWT ne sont pas prouvées.
+**ADM-EXAM-03 — Sécurité / autorisation — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
+- **Preuve Production (lecture seule) :** la politique `exam_appointments_admin_read` autorisait SELECT au profil `role=admin` sans exiger `actif=true`; l'écran Admin applique `requireAdminActive`.
+- **Correction versionnée :** migration `supabase/migrations/20261102023000_admin_active_read_policies.sql`, qui remplace la politique Admin par `(select public.is_admin())`, garde canonique exigeant Admin et compte actif.
+- **Validation exécutée :** test `supabase/tests/269_admin_exam_services_active_guards.sql` sur Replay; Admin actif autorisé, Admin inactif et Client tiers refusés, Client propriétaire et partenaire autorisés selon leur propre périmètre. Le test complet passe avec 31 assertions.
+- **Statut :** 🟢 construction verte en Replay. La politique Production reste à migrer lors d'une opération explicitement autorisée.
 
 **ADM-SERVICES-01 — Couverture fonctionnelle — OUVERT**
 - **Preuve :** /admin/prestations ne lit que home_service_offers; aucune page Admin examinée ne lit home_service_requests. La politique home_service_requests_admin_read existe.
@@ -3080,18 +3078,17 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 - **Correction proposée :** isoler et afficher l'état d'indisponibilité du calendrier.
 - **Vérification attendue :** échec isolé de la requête appointments, sans faux calendrier vide.
 
-**ADM-SERVICES-02 — Sécurité RLS — CORRECTION VERSIONNÉE / VALIDATION EN ATTENTE**
-- **Preuve :** la politique Production `home_service_requests_admin_read` vérifie `role='admin'` sans exiger `actif=true`.
-- **Impact :** un Admin désactivé avec session persistante pourrait lire les demandes clients via PostgREST.
-- **Cause racine :** politique RLS non alignée sur le garde Admin actif.
-- **Correction proposée :** contrôle `public.is_admin()` ou rôle + actif, en conservant les scopes Client et partenaire.
-- **Vérification attendue :** matrice RLS Admin actif/inactif, Client propriétaire/tiers, partenaire autorisé/hors périmètre et anonyme.
+**ADM-SERVICES-02 — Sécurité RLS — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
+- **Preuve :** politique Production Admin basée sur le rôle seul, sans `actif=true`.
+- **Correction versionnée :** migration `20261102023000_admin_active_read_policies.sql`, avec garde canonique `public.is_admin()`.
+- **Validation exécutée :** test Replay 269 PASS (31 assertions globales), couvrant Admin actif/inactif et conservation des droits Client/propriétaire et partenaire.
+- **Réserve :** migration Production non appliquée dans ce chantier.
 
-**ADM-SERVICES-03 — Sécurité RLS/RPC — CORRECTION VERSIONNÉE / VALIDATION EN ATTENTE**
-- **Preuve :** `home_service_offers_admin_manage` et `transition_home_service_request` autorisaient l'Admin sur le seul rôle, sans contrôle `actif`.
-- **Correction versionnée :** migration `20261102031000_admin_active_home_services_guards.sql`; politique et branche Admin RPC alignées sur `public.is_admin()`, sans modifier les droits Client ni le scope partenaire.
-- **Critère restant :** application autorisée et tests JWT Admin actif/inactif, Client propriétaire, partenaire membre actif/hors périmètre.
-- **Statut :** source corrigée, Production non corrigée tant que la migration n'est pas appliquée.
+**ADM-SERVICES-03 — Sécurité RLS/RPC — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
+- **Preuve :** la politique Production `home_service_offers_admin_manage` et la branche Admin de `transition_home_service_request` ne vérifiaient pas l'activité du profil.
+- **Correction versionnée :** migration `20261102031000_admin_active_home_services_guards.sql`; politique et branche Admin RPC alignées sur `public.is_admin()`. Les droits Client d'annulation et le scope partenaire restent conservés.
+- **Validation exécutée :** test Replay 269 PASS : Admin actif peut modifier une offre et confirmer/terminer une demande; Admin inactif en est empêché; le Client conserve l'annulation autorisée et le partenaire membre conserve ses transitions propres; journal vérifié.
+- **Statut :** 🟢 construction verte en Replay. Migration Production en attente d'une opération explicitement autorisée.
 
 **ADM-NOTIF-02 — Intégration externe — RÉSERVE DE PREUVE**
 - **Preuve :** l'utilisateur a confirmé que Google Apps Script est correctement configuré; le worker Production ne peut toutefois pas être testé tant que l'outbox SQL est absente. Le déclencheur périodique effectif et la réception depuis le worker ne sont pas démontrés.
@@ -3217,7 +3214,7 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 **Réservations et parcours transactionnels**
 - La source de vérité Marketplace comporte des réservations, lignes et événements; l'Administrateur dispose d'agrégats mais pas encore d'une file de résolution complète reliant ticket, lignes, pharmacie, transitions et actions autorisées.
 - Les prestations à domicile disposent de tables et de politiques Client/partenaire, mais l'interface Admin n'expose pas de file opérationnelle des demandes.
-- Les examens disposent d'un écran de calendrier et d'une lecture Admin dédiée; la politique RLS Admin relevée ne vérifiait pas l'activité du compte avant la migration proposée dans cette passe.
+- Les examens disposent d'un écran de calendrier et d'une lecture Admin dédiée; le garde RLS a été corrigé puis validé par la matrice SQL 269 sur Replay. La politique Production attend toujours sa migration.
 - Aucun achat, paiement, réservation, annulation, remboursement ou traitement de demande réelle n'a été déclenché pendant cette revue.
 
 ### 14.2 Revue du point de vue CTO
@@ -3227,12 +3224,12 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 - Les pages univers/partenaires et examens utilisent des plafonds de lecture (respectivement 100 partenaires/produits, 200 centres, 300 examens, 200 packs et 300 rendez-vous). Les chiffres affichés sont donc des vues bornées, pas des totaux globaux exhaustifs.
 - La page Univers propage désormais l'erreur de `admin_partner_dossiers` dans l'état général d'indisponibilité; son libellé local indique aussi explicitement que le registre est indisponible.
 - La page Examens inclut désormais l'erreur `ae` dans le verrou global `broken`; le calendrier affichait déjà un état spécifique « Données indisponibles ». Le constat historique ADM-EXAM-04 est reclassé comme **déjà couvert par le code présent avant cette correction**, et non comme défaut confirmé restant.
-- Les politiques RLS Production précédemment lues montraient que `exam_appointments_admin_read` et `home_service_requests_admin_read` vérifiaient le rôle Admin sans vérifier `actif=true`. Le helper `public.is_admin()` délègue à `private.is_admin()`, qui vérifie rôle Admin et compte actif.
+- Les anciennes politiques Production de lecture Examens et demandes domicile vérifiaient le rôle Admin sans `actif=true`; les définitions ont été alignées sur `public.is_admin()` et validées en Replay par le test 269. Production n'a pas encore reçu ces migrations.
 
 **Sécurité, séparation des rôles et données**
 - Les politiques Client propriétaire et partenaire membre restent séparées des politiques Admin pour les rendez-vous d'examens et demandes à domicile.
-- Une migration additive `supabase/migrations/20261102023000_admin_active_read_policies.sql` a été créée sur `main` pour remplacer uniquement les deux politiques Admin par `(select public.is_admin())`; elle ne modifie pas les politiques Client/partenaire.
-- **Limite critique :** conformément à l'interdiction de modifier Supabase Production, cette migration n'a pas été appliquée. Le défaut RLS demeure donc présent en Production jusqu'à une procédure de migration autorisée ultérieure. La création du fichier ne vaut pas correction effective de la base.
+- Les migrations `20261102023000_admin_active_read_policies.sql` et `20261102031000_admin_active_home_services_guards.sql` sont versionnées sur `main`; elles ont aussi été appliquées sur `naxa-ci-replay-2`, avec les versions d'historique Replay `20261102023801` et `20261102023807`.
+- **Limite Production :** les migrations ne sont pas appliquées au projet principal `Naxa`. Les politiques Admin et la RPC Production restent dans leur état antérieur; aucune écriture Production n'a été effectuée.
 - Aucune donnée personnelle, aucun secret et aucun contenu de demande client n'a été exporté dans ce rapport.
 
 ### 14.3 Corrections et contrôles effectués pendant cette passe
@@ -3241,13 +3238,14 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 |---|---|---|---|
 | `src/app/admin/univers/page.tsx` | Ajout de `partnerDossiersResult.error` au booléen `missing` | Relecture du fichier après commit; la condition contient la source dossiers | Correction source vérifiée statiquement |
 | `src/app/admin/examens/page.tsx` | Ajout de `ae` au booléen `broken` | Relecture du fichier après commit; le verrou inclut les quatre sources | Correction source vérifiée statiquement |
-| Migration RLS Examens + demandes domicile | Politiques Admin remplacées par `public.is_admin()` | SQL relu; helper live confirmé; migration non appliquée | Versionnée, Production en attente |
-| Migration garde-fous prestations | Politique Admin offres et branche Admin de `transition_home_service_request` alignées sur `public.is_admin()` | Définitions Production lues avant correction; migration relue sur main | Versionnée, Production en attente |
+| Migration RLS Examens + demandes domicile | Politiques Admin remplacées par `public.is_admin()` | Appliquée sur Replay; test 269 : matrice RLS PASS | 🟢 Replay / Production en attente |
+| Migration garde-fous prestations | Politique Admin offres et branche Admin de `transition_home_service_request` alignées sur `public.is_admin()` | Appliquée sur Replay; test 269 : mutations/RPC/audit PASS | 🟢 Replay / Production en attente |
+| Test reproductible 269 | 31 assertions structurelles et comportementales | Exécution sur `naxa-ci-replay-2`; transaction entièrement annulée | PASS |
 | ADM-EXAM-04 | Requalification du constat, car le calendrier avait déjà un message dédié pour `ae` | Code antérieur relu | Faux positif/constat redondant, à retirer du décompte actif |
 
 **Contrôles négatifs et limites :**
-- Pas de compte de test ni de session réelle disponible pour rejouer Admin actif/inactif, Client propriétaire/tiers, partenaire autorisé/hors périmètre et anonyme.
-- Pas de test HTTP PostgREST sous JWT de chaque rôle.
+- Les identités et claims de test ont été simulés dans une transaction isolée Replay; ce ne sont pas des sessions Auth réelles ni des utilisateurs de Production.
+- Aucun test HTTP PostgREST avec de vrais JWT Supabase par rôle n'a été exécuté.
 - Pas d'exécution locale de `npm run lint`, `npx tsc --noEmit` ou build dans cet environnement; aucune preuve d'exécution de ces commandes n'est revendiquée.
 - Aucun test de navigateur mobile/desktop, accessibilité assistive, latence ou réseau dégradé.
 - Aucun workflow de déploiement, déploiement ou action de relance n'a été lancé.
@@ -3255,17 +3253,18 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 ### 14.4 Verdict contradictoire
 
 - **Confirmé par lecture de code :** les erreurs de lecture des dossiers et des rendez-vous sont maintenant propagées dans les états d'indisponibilité globaux.
-- **Confirmé par lecture RLS/RPC Production :** les politiques Admin Examens et demandes domicile, la politique de gestion des offres et la branche Admin de la RPC de transition ne vérifiaient pas toutes l'état actif.
-- **Corrections versionnées :** migrations `20261102023000_admin_active_read_policies.sql` et `20261102031000_admin_active_home_services_guards.sql`, utilisant le garde canonique `public.is_admin()`.
-- **Non vérifié en runtime :** refus effectif d'un Admin inactif et conservation des scopes Client/partenaire après application des migrations.
-- **Non démontré :** résolution complète par l'Admin des réservations Marketplace et des demandes de prestations à domicile.
+- **Confirmé par lecture RLS/RPC Production :** avant correction, les politiques Admin Examens/demandes, la politique de gestion des offres et la branche Admin RPC ne vérifiaient pas toutes l'état actif.
+- **Confirmé en runtime SQL isolé :** après application des deux migrations sur Replay, le test 269 passe avec 31 assertions : Admin actif/inactif, Client propriétaire/tiers, partenaire membre, anon, lectures, mutation des offres, transitions RPC et journal d'audit. Tous les fixtures sont annulés.
+- **Non vérifié :** test HTTP PostgREST avec JWT réels et sessions Auth réelles; recette navigateur.
+- **Non démontré et laissé ouvert :** files Admin détaillées de résolution des demandes à domicile (ADM-SERVICES-01) et des réservations Marketplace (ADM-MKT-01).
 - **Contrôle Supabase Security Advisor (02/11/2026, Production) :** six tables avec RLS activé sans politique; cinq fonctions SECURITY DEFINER accessibles à `anon`; 120 fonctions SECURITY DEFINER exécutables par `authenticated`. Ces alertes sont préexistantes et dépassent le périmètre immédiat des deux politiques corrigées; elles restent à qualifier individuellement, sans révocation massive ni changement opportuniste. Les politiques Client/partenaire des deux tables visées n'ont pas été modifiées.
-- **État de la migration :** l'historique Production consulté s'arrête à `20261101213620`; `20261102023000_admin_active_read_policies.sql` n'y figure pas. La migration est donc confirmée non appliquée.
-- **Risque résiduel principal :** la migration RLS est versionnée mais non appliquée; les limites de pagination et les surfaces de résolution métier restent ouvertes.
+- **Production, recontrôlée après tests :** historique toujours arrêté à `20261101213620`; les deux migrations restent absentes. Les trois politiques Production conservent encore des prédicats role-only et la RPC Production garde son ancienne vérification rôle-only. Aucune migration Production n'a été exécutée.
+- **Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`; test 269 PASS.
+- **Réserves hors périmètre de ces deux corrections :** limites de pagination et files Admin de résolution Marketplace/prestations.
 
 ### 14.5 Statut de l'étape 14
 
-**Étape 14 — revue finale client et CTO : CLÔTURÉE SUR LE PÉRIMÈTRE D'AUDIT / JAUNE GLOBAL.** La revue contradictoire, les corrections source accessibles et les réserves sont consignées. Les points de sécurité concernés sont corrigés et versionnés sur `main`, mais les migrations ne sont pas appliquées en Production; la validation runtime JWT et la recette navigateur restent explicitement non démontrées. Cette clôture termine la revue 14 sans déclarer la sécurité Production conforme ni fermer les chantiers fonctionnels distincts (file des demandes domicile et file de résolution Marketplace).
+**Étape 14 — 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DE LA REVUE ET DES CONTRÔLES ISOLÉS.** La revue contradictoire client/CTO est achevée; les deux corrections RLS/RPC sont versionnées, appliquées et vérifiées sur Replay par 31 assertions PASS. Le vert certifie la clôture de l'étape d'audit et la validation technique isolée; il ne certifie pas la conformité Production. Les migrations demeurent non appliquées au projet principal, conformément au périmètre de ce chantier. Les constats fonctionnels distincts ADM-SERVICES-01 et ADM-MKT-01 (files opérationnelles Admin absentes) restent ouverts et ne sont pas masqués par cette clôture.
 
 ## Étape 11 — Recherche et nettoyage du code mort Admin (clôture, 02/11/2026)
 
