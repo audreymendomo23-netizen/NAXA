@@ -108,3 +108,12 @@ La décision « décrémenter physiquement le stock dès validation du crédit �
 **Conséquence :** le contrat antérieur « hold sans débit à l'approbation » est remplacé par la décision du fondateur du 02/11/2026. La correction doit être additive : débiter stocks agrégés et lots alloués à l'approbation, marquer stock_decremented, ne pas redébiter au retrait POS, et conserver une restitution unique via restore_stock si la réservation est annulée/expirée. Les tests 251 doivent être remplacés/actualisés par des preuves de débit à l'approbation, retrait sans double débit, restauration une seule fois et isolation inter-pharmacies. Aucune migration Production n'est autorisée par le présent mandat.
 
 **Arbitrage fonctionnel complémentaire requis :** lorsqu'une réservation de crédit approuvée expire après le délai de retrait, faut-il fermer automatiquement la demande de crédit associée en « rejetée/expirée » afin de libérer le Client pour une nouvelle demande, ou conserver la demande approuvée pour une reprise manuelle ? Tant que ce point n'est pas arbitré, le travail sur les autres fonctionnalités continue.
+
+
+### Traduction dans le parcours Admin — checklist des pièces reçues (02/11/2026)
+
+- Décision appliquée : les cases de la checklist de réception sont informatives, conservées comme traces de déclaration, et ne constituent plus une condition de validation du dossier.
+- Distinction préservée dans le code : les six fichiers réellement déposés (existence légale, RCCM, NIU, attestation de non-redevance, plan de localisation, CNI Promoteur) restent contrôlés individuellement et leur dernière version doit être validée. Cette conservation reflète le prérequis documentaire actuellement codé ; elle ne constitue pas à elle seule une conclusion sur les exigences réglementaires camerounaises.
+- L'attestation explicite de l'Administrateur confirmant le contrôle réel des autorisations et pièces reste obligatoire. Les gardes de dossier en attente, cohérence convention/abonnement/architecture et provisionnement transactionnel sont préservés.
+- Source corrigée sur main : écran Admin individuel, action serveur et migration additive `20261102114000_admin_pharmacy_receipt_checklist_informational.sql`; contrat SQL mis à jour et test Node ciblé ajouté.
+- La migration n'a pas été appliquée à Supabase Production. Le test Node/SQL n'a pas été exécuté via `npm test` ou sur un environnement SQL dans cette passe ; seuls les contrôles statiques ciblés ont été exécutés.
