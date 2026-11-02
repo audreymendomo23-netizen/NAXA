@@ -39,3 +39,21 @@ Périmètre : sources de `main` consultées, sans exécution contre Supabase Pro
 ## Limites de cette passe
 
 Aucun build, lint, test TypeScript, replay SQL, test navigateur, ni appel à Supabase n'a été exécuté. Aucune migration n'a été appliquée à Supabase Production et aucun déploiement n'a été lancé. La prochaine correction SQL doit être fondée sur les définitions complètes et effectives des RPC et leurs tests existants; elles ne doivent pas être remplacées à l'aveugle.
+
+
+---
+
+## Mise à jour des décisions métier — 02/11/2026
+
+Le fondateur a tranché les points suivants (référence : docs/DECISIONS_METIER_FONDATEUR.md) :
+
+1. Le cycle doit comporter deux états persistés et journalisés : « En préparation », puis « Prête au retrait ». Le statut UI ne suffit pas ; chaque transition doit être protégée côté serveur.
+2. Lors d'une suspension complète de pharmacie, toutes les réservations non retirées sont annulées, le stock réservé est libéré/restauré selon le mécanisme approprié et les Clients sont informés.
+3. La sanction Marketplace SM-01 est distincte : elle bloque le Promoteur et ses pharmacies sur la Marketplace, en préservant les opérations ERP internes encore autorisées.
+
+**Questions de séquencement restant à préciser avant le changement de machine d'état :**
+- Le parcours POS actuel lie le statut « payée » à l'encaissement en caisse et « retirée » au retrait physique confirmé. Le fondateur a validé « En préparation » puis « Prête au retrait », mais n'a pas encore indiqué si l'encaissement intervient avant ou après « Prête au retrait ». Ne pas réordonner les transitions POS à l'aveugle.
+- La règle de suspension annule toutes les réservations non retirées, ce qui peut inclure une réservation déjà payée. Le paiement des médicaments étant directement reçu par la pharmacie et non par NAXA, la procédure de remboursement/avoir reste à préciser ; NAXA ne doit pas prétendre rembourser un paiement qu'il n'a pas encaissé.
+- Le crédit Marketplace décrémente physiquement le stock à sa validation. La règle de restauration si ce crédit validé est ensuite annulé ou non retiré reste à préciser.
+
+Les corrections indépendantes de ticket durable, idempotence, sécurité de transition et historique doivent continuer sans attendre ces précisions.
