@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { Barres, Liste, Section, Tuile, useTempsReel } from "@/components/Pilotage";
 import RapportsALaDemande from "@/components/RapportsALaDemande";
+import AdminComptesIndicateurs from "@/components/admin/AdminComptesIndicateurs";
 
 type PilotageData = {
   pharmacies: { actives: number; inactives: number; total?: number };
@@ -167,6 +168,7 @@ export default function Page() {
             <Section titre="Activité quotidienne">
               <Barres points={d.serie.map((x) => ({ jour: x.jour, n: x.reservations }))} etiquette="Réservations quotidiennes" />
             </Section>
+            <AdminComptesIndicateurs jours={jours} />
             <RapportsALaDemande variant="admin" />
             <Section titre="Signaux à examiner">
               <p className="mb-3 text-sm text-slate-600">Pistes de vérification calculées à partir des indicateurs disponibles pour la période sélectionnée. Elles signalent des points à examiner, pas des causes établies.</p>
