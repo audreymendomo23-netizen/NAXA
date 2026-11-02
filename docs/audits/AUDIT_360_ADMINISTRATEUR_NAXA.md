@@ -2847,12 +2847,11 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - **Classement : défaut de politique confirmé par définition; exposition effective future conditionnelle à la présence de centres et d'au moins une association activée.**
 - **Correction à soumettre :** remplacer le prédicat par une corrélation explicite à la ligne de exam_centers, puis ajouter un test SQL public anonyme avec deux partenaires, dont un seul associé à Examens; le centre du second partenaire doit rester invisible. Vérifier aussi la cohérence des politiques services, packs, items et créneaux.
 
-#### ADM-UNIV-EXAM-03 — La lecture Admin des tickets d'examens ne vérifie pas l'état actif
+#### ADM-UNIV-EXAM-03 — Lecture Admin des tickets sans garde actif — DOUBLON RATTACHÉ À ADM-EXAM-03
 
-- La migration supabase/migration_122_exam_appointments_admin_read.sql et la politique Production exam_appointments_admin_read autorisent SELECT si le profil a role=admin, sans condition actif=true.
-- L'écran Admin impose bien requireAdminActive, mais l'accès direct à la table via l'API reste régi par RLS et le rôle authenticated.
-- **Classement : écart de sécurité confirmé dans la politique; aucune session d'Admin inactif n'a été utilisée pour un test d'accès.**
-- **Correction à soumettre :** aligner la politique sur le garde canonique Admin actif, ou sur public.is_admin(), puis tester explicitement un profil Admin inactif.
+- **Déduplication :** ce constat décrit exactement la même politique `exam_appointments_admin_read` et la même cause racine que `ADM-EXAM-03` dans le registre consolidé. Il ne constitue pas un second défaut indépendant.
+- **Statut hérité :** voir `ADM-EXAM-03` pour la correction versionnée, la preuve du test 269 sur Replay et la réserve Production.
+- **Décision :** conserver cet identifiant historique comme alias de traçabilité; ne pas le compter comme point actif distinct.
 
 #### ADM-UNIV-SERVICES-01 — Les demandes clients de prestations n'ont pas de vue opérationnelle Admin
 
@@ -3071,12 +3070,9 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 - **Correction proposée :** propager l'erreur et afficher l'indisponibilité de la seule section dossiers.
 - **Vérification attendue :** échec simulé de cette requête, absence de faux état vide, autres sections encore consultables.
 
-**ADM-EXAM-04 — Fiabilité de supervision — OUVERT**
-- **Preuve :** `src/app/admin/examens/page.tsx` récupère `ae` mais ne l'inclut pas dans `broken`; le calendrier utilise `appointments ?? []`.
-- **Impact :** une erreur de lecture des rendez-vous peut être présentée comme une absence de tickets.
-- **Cause racine :** erreur de la quatrième requête non intégrée à l'état d'erreur.
-- **Correction proposée :** isoler et afficher l'état d'indisponibilité du calendrier.
-- **Vérification attendue :** échec isolé de la requête appointments, sans faux calendrier vide.
+**ADM-EXAM-04 — Fiabilité de supervision — DOUBLON / NON ACTIF**
+- **Contre-preuve :** le composant affichait déjà `Données indisponibles` quand la lecture des rendez-vous échouait; la correction de cette passe inclut aussi `ae` dans le verrou global `broken`.
+- **Décision :** faux positif / constat redondant retiré du registre actif. Aucun défaut indépendant restant sous cet identifiant.
 
 **ADM-SERVICES-02 — Sécurité RLS — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
 - **Preuve :** politique Production Admin basée sur le rôle seul, sans `actif=true`.
