@@ -262,6 +262,7 @@ declare
   v_sqlstate text;
   v_original_entry uuid;
   v_vente_id uuid;
+  v_count bigint;
 begin
   if coalesce(auth.role(),'') <> 'service_role' then
     raise exception 'Worker comptable réservé au service role';
@@ -313,7 +314,7 @@ begin
       v_vente_id := nullif(v_event.donnees->>'vente_id','')::uuid;
       if v_vente_id is null then raise exception 'vente_origine_absente'; end if;
 
-      select count(*),min(e.id) into v_count,v_original_entry
+      select count(*),(array_agg(e.id order by e.id))[1] into v_count,v_original_entry
       from public.compta_ecriture e
       where e.pharmacie_id=v_event.pharmacie_id
         and e.source_type='vente'
