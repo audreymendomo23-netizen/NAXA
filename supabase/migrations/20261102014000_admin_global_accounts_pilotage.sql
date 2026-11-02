@@ -261,13 +261,12 @@ begin
     group by p.role,p.fonction_interne,p.actif
   ) x;
 
-  select count(*)::integer,
-         count(*) filter(where p.role::text='client')::integer,
+  select count(*) filter(where p.role::text='client')::integer,
          count(*) filter(where p.role::text='client' and p.actif)::integer,
          count(*) filter(where p.role::text='promoteur')::integer,
          count(*) filter(where p.role::text='promoteur' and p.actif)::integer,
          count(*) filter(where p.role::text not in ('admin','client'))::integer
-  into v_comptes_professionnels,v_clients_total,v_clients_actifs,v_promoteurs_total,v_promoteurs_actifs,v_comptes_professionnels
+  into v_clients_total,v_clients_actifs,v_promoteurs_total,v_promoteurs_actifs,v_comptes_professionnels
   from public.profiles p;
 
   for v_ph in
