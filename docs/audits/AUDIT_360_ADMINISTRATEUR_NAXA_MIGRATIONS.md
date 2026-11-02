@@ -1,19 +1,39 @@
-# État courant — addendum de traçabilité (02/11/2026)
+# État courant — addendum de traçabilité après ratissage (02/11/2026)
 
-Ce document conserve le rapprochement historique réalisé le 26/10/2026. Son en-tête « aucune migration appliquée » et ses décomptes 37/290/251 décrivent exclusivement le snapshot de cette date; ils ne décrivent pas l'état live du 02/11/2026.
+Le snapshot historique du 26/10 demeure inchangé plus bas. Ses nombres 37/290/251 ne doivent plus être interprétés comme l'état live.
 
-Depuis ce snapshot, les quatre migrations du ratissage Admin ont été appliquées à Supabase Production et vérifiées par relecture SQL :
-- `20261102032259` — `admin_active_read_policies`
-- `20261102032304` — `admin_active_home_services_guards`
-- `20261102095050` — `admin_active_catalog_stock_rls`
-- `20261102095056` — `admin_active_medicament_storage_rls`
+## Inventaire live et versionné
 
-Les tests Replay 269 (31 assertions), 270 et 271 ont retourné PASS. Les tests 270/271 utilisent des transactions annulées; le test 271 est structurel et ne certifie pas un upload Storage réel, le bucket `medicaments` étant absent du Replay. Le détail des politiques live, des contrôles et des limites figure dans le registre courant : `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
+- Supabase Production `Naxa` : **288 migrations appliquées** selon l'historique `schema_migrations` relu.
+- GitHub `main` : **79 fichiers SQL** sous `supabase/migrations/`, **306 fichiers historiques** `supabase/migration_NNN*.sql` à la racine de `supabase/`, et **229 tests SQL** sous `supabase/tests/`.
+- Les nombres source/live ne sont pas comparables par le seul préfixe 14 chiffres : l'historique Supabase conserve des timestamps d'application distincts et des noms normalisés; certaines sources legacy utilisent un numéro interne ou une autre convention.
+- Aucune version dont le préfixe diffère n'a été assimilée automatiquement à une migration manquante. Les changements Admin actuels ont été rapprochés par nom, source correspondante, historique live et relecture des objets SQL déployés.
 
-Aucune donnée métier n'a été modifiée et aucun déploiement n'a été déclenché dans cette passe.
+## Migrations Admin et sécurité associée confirmées en Production
+
+| Version Production | Nom enregistré | Fichier source associé |
+|---|---|---|
+| `20261102032259` | `admin_active_read_policies` | `supabase/migrations/20261102032259_admin_active_read_policies.sql` |
+| `20261102032304` | `admin_active_home_services_guards` | `supabase/migrations/20261102032304_admin_active_home_services_guards.sql` |
+| `20261102095050` | `admin_active_catalog_stock_rls` | `supabase/migrations/20261102083000_admin_active_catalog_stock_rls.sql` |
+| `20261102095056` | `admin_active_medicament_storage_rls` | `supabase/migrations/20261102084500_admin_active_medicament_storage_rls.sql` |
+| `20261102101510` | `admin_partner_dossier_membership_guard` | `supabase/migrations/20261102101510_admin_partner_dossier_membership_guard.sql` |
+| `20261102101654` | `admin_global_accounts_pilotage` | `supabase/migrations/20261102014000_admin_global_accounts_pilotage.sql` |
+| `20261102101658` | `admin_partner_accounts_summary` | `supabase/migrations/20261102015500_admin_partner_accounts_summary.sql` |
+| `20261102104330` | `admin_unique_clients_network_totals` | `supabase/migrations/20261102104330_admin_unique_clients_network_totals.sql` |
+| `20261102105033` | `admin_exam_centers_public_scope` | `supabase/migrations/20261102105033_admin_exam_centers_public_scope.sql` |
+| `20261102105229` | `notification_email_outbox_delivery` | `supabase/migrations/20261102105229_notification_email_outbox_delivery.sql` |
+| `20261102105542` | `admin_exam_catalog_active_read` | `supabase/migrations/20261102105542_admin_exam_catalog_active_read.sql` |
+
+## Tests Replay et relectures Production
+
+- Replay : 269 (31 assertions), 270, 271, 122 réaligné, 124, `20261102014000`, `20261102101510` (structurel et comportemental), `20261102105033`, `20261102105229`, `20261102105542` et 262 : tous PASS. Les tests transactionnels annulent leurs fixtures.
+- Production : les politiques Admin ciblées, les gardes `public.is_admin()`, la RPC de validation partenaire, la politique publique de visibilité Examens, les politiques catalogue Examens et la table/RPC outbox ont été relues en SQL.
+- Réserve : le test 271 ne simule pas un véritable upload; le bucket `medicaments` n'est pas provisionné en Replay. Aucune action Storage réelle ou donnée métier Production n'a été créée.
+- Réserve : le cycle outbox a été vérifié jusqu'à `claim`/`finish` sans envoi Google externe. Le cron `naxa-promoteur-echeance-5j` est actif à 06:00 UTC; la réception effective doit être confirmée par une recette contrôlée dans l'application.
+- Le build/Node/CI sur le SHA courant, HTTP/JWT réel et navigateur restent réservés à la CI et à la recette d'application; aucun déploiement n'a été lancé.
 
 ---
-
 # Complément technique — rapprochement des migrations NAXA
 Date : 26 octobre 2026
 Branche : main
