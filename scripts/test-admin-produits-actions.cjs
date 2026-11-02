@@ -7,6 +7,10 @@ const source = fs.readFileSync(
   path.join(__dirname, "../src/app/admin/produits/actions.ts"),
   "utf8",
 );
+const photoUpload = fs.readFileSync(
+  path.join(__dirname, "../src/components/PhotoUpload.tsx"),
+  "utf8",
+);
 
 test("les deux actions de fiche sont réservées à un administrateur actif", () => {
   assert.match(source, /requireAdminActive\("\/admin\/produits"\)/);
@@ -38,3 +42,10 @@ test("brouillonIA vérifie la ligne produite avant de déclarer le succès", () 
   assert.ok(action.indexOf("updated?.id !== id") < action.indexOf("&ok=ia"));
 });
 process.stdout.write("Contrat actions fiches produits Admin vérifié.\n");
+
+test("l'upload ne confirme pas une photo si les métadonnées produit n'ont pas été enregistrées", () => {
+  assert.match(photoUpload, /\.eq\("id", produitId\)\.select\("id"\)\.maybeSingle\(\)/);
+  assert.match(photoUpload, /updateError \|\| updated\?\.id !== produitId/);
+  assert.match(photoUpload, /if \(chemin\) await sb\.storage\.from\("medicaments"\)\.remove\(\[chemin\]\)/);
+  assert.ok(photoUpload.indexOf("updated?.id !== produitId") < photoUpload.indexOf('setEtat("ok")'));
+});
