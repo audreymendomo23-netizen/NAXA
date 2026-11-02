@@ -493,10 +493,17 @@ export async function POST(request: Request) {
     acc[row.fonction] = (acc[row.fonction] ?? 0) + 1;
     return acc;
   }, {});
-  stats.affectations_periode = assignmentRows.length;
-  stats.affectations_actives_a_generation = assignmentActive.length;
-  stats.fonctions_affectees = Object.keys(assignmentFunctions).length;
-  stats.affectations_par_fonction = assignmentFunctions;
+  if (profile.role === "admin") {
+    stats.affectations_periode = null;
+    stats.affectations_actives_a_generation = null;
+    stats.fonctions_affectees = null;
+    stats.affectations_par_fonction = null;
+  } else {
+    stats.affectations_periode = assignmentRows.length;
+    stats.affectations_actives_a_generation = assignmentActive.length;
+    stats.fonctions_affectees = Object.keys(assignmentFunctions).length;
+    stats.affectations_par_fonction = assignmentFunctions;
+  }
   let assignmentNames = new Map<string, string>();
   let assignmentPharmacies = new Map<string, string>();
   if (profile.role === "promoteur" && assignmentRows.length) {
@@ -523,7 +530,9 @@ export async function POST(request: Request) {
     accordee_le: row.accorde_at,
     revoquee_le: row.revoque_at,
   }));
-  stats.note_affectations = "Les affectations décrivent des autorisations temporaires, pas une présence. Les heures de service ci-dessous proviennent uniquement des sessions horodatées effectivement enregistrées; elles ne représentent pas les horaires planifiés ni les gardes publiées de la pharmacie.";
+  stats.note_affectations = profile.role === "admin" && stats.sources?.affectations_professionnelles === false
+    ? "La source des affectations professionnelles n’est pas déployée sur cet environnement; les chiffres correspondants sont indisponibles et ne sont pas assimilés à zéro."
+    : "Les affectations décrivent des autorisations temporaires, pas une présence. Les heures de service ci-dessous proviennent uniquement des sessions horodatées effectivement enregistrées; elles ne représentent pas les horaires planifiés ni les gardes publiées de la pharmacie.";
 
   // Pointages réels disponibles : Pharmacien, Gestionnaire de stock et sessions de caisse.
   // Les membres ordinaires ne lisent que leurs propres sessions sous RLS.
