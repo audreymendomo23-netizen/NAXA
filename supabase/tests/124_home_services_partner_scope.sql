@@ -70,3 +70,4 @@ begin
   raise notice 'naxa_124_home_services_security_pass=true assertions=%', result_count;
 end;
 $test$;
+select 'NAXA 124 home services partner scope PASS (' || (select count(*) from pg_policies where schemaname='public' and tablename in ('home_service_requests','home_service_request_addresses'))::text || ' policies inspected)' as resultat;
