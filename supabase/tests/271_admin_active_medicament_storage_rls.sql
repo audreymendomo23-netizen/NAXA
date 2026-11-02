@@ -43,9 +43,13 @@ begin
   select qual into v_public_read from pg_policies
   where schemaname='storage' and tablename='objects' and policyname='medicaments_public_read'
     and cmd='SELECT';
-  if v_public_read is null or v_public_read not ilike '%bucket_id%'
-     or v_public_read ilike '%is_admin%' then
-    raise exception '271.5 : la politique de lecture publique a été modifiée';
+  -- Le Replay peut ne pas embarquer le bucket medicaments ni sa policy publique.
+  -- Si elle existe, sa portée publique bucket_id doit rester inchangée.
+  if v_public_read is not null and (
+       v_public_read not ilike '%bucket_id%'
+       or v_public_read ilike '%is_admin%'
+     ) then
+    raise exception '271.5 : la politique de lecture publique existante a été modifiée';
   end if;
 end
 $storage$;
