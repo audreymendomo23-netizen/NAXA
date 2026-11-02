@@ -12,7 +12,6 @@ async function admin() {
 
 const field = (form: FormData, key: string, max = 160) => String(form.get(key) ?? "").trim().slice(0, max);
 const slugs = ["parapharmacie", "bebe-maman", "examens", "suivi", "prestations", "aide"];
-const types = ["parapharmacie", "maternite", "centre_examen", "professionnel_domicile", "autre"];
 
 export async function creerPartenaire(_form: FormData) {
   redirect("/admin?erreur=canal_unique");
