@@ -2903,7 +2903,7 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 #### ADM-SERVICES-02 — Lecture des demandes domicile autorisée aux administrateurs inactifs — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE
 
 - **Preuve Production (lecture seule) :** la politique `home_service_requests_admin_read` vérifiait le rôle Admin sans condition `actif=true`.
-- **Correction versionnée :** migration `supabase/migrations/20261102023000_admin_active_read_policies.sql`, qui remplace la politique par `(select public.is_admin())`; les politiques Client propriétaire et partenaire autorisé restent inchangées.
+- **Correction versionnée :** migration `supabase/migrations/20261102032259_admin_active_read_policies.sql`, qui remplace la politique par `(select public.is_admin())`; les politiques Client propriétaire et partenaire autorisé restent inchangées.
 - **Validation exécutée :** test `supabase/tests/269_admin_exam_services_active_guards.sql` sur `naxa-ci-replay-2`; lecture Admin actif autorisée, Admin inactif refusé, accès Client propriétaire/tiers et partenaire conservés. Le test complet passe avec 31 assertions; fixtures annulés.
 - **Statut :** 🟢 construction validée en Replay. La politique Production reste à migrer lors d'une opération explicitement autorisée.
 
@@ -2912,7 +2912,7 @@ Aucun déploiement manuel, aucune écriture Supabase Production, aucune modifica
 - **Preuve Production (lecture seule) :** la politique `home_service_offers_admin_manage` autorisait les opérations `ALL` à un profil `role='admin'` sans vérifier `actif=true`. La fonction SECURITY DEFINER `transition_home_service_request(uuid,text)` déterminait également `is_admin` par le seul rôle.
 - **Impact :** une session Admin persistante après désactivation pouvait modifier directement les offres via RLS ou confirmer/terminer une demande via la RPC. Les gardes de page et Server Actions ne remplacent pas les contrôles de la base.
 - **Cause racine :** deux chemins d'autorisation base de données non alignés sur le garde canonique `public.is_admin()`.
-- **Correction versionnée :** migration `supabase/migrations/20261102031000_admin_active_home_services_guards.sql`. Elle remplace uniquement la politique Admin des offres par `public.is_admin()` et modifie la branche Admin de la RPC; les droits Client d'annulation et le périmètre partenaire actif restent inchangés.
+- **Correction versionnée :** migration `supabase/migrations/20261102032304_admin_active_home_services_guards.sql`. Elle remplace uniquement la politique Admin des offres par `public.is_admin()` et modifie la branche Admin de la RPC; les droits Client d'annulation et le périmètre partenaire actif restent inchangés.
 - **Validation exécutée :** migration appliquée sur `naxa-ci-replay-2`; test reproductible `supabase/tests/269_admin_exam_services_active_guards.sql` exécuté avec 31 assertions structurelles et comportementales PASS : Admin actif/inactif, Client propriétaire/tiers, membre partenaire, lecture, modification d'offre, transitions RPC et journal d'audit. Toutes les données de scénario sont annulées par `ROLLBACK`.
 - **Statut :** 🟢 construction verte en Replay. La migration Production reste en attente d'une opération explicitement autorisée.
 
@@ -3058,7 +3058,7 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 
 **ADM-EXAM-03 — Sécurité / autorisation — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
 - **Preuve Production (lecture seule) :** la politique `exam_appointments_admin_read` autorisait SELECT au profil `role=admin` sans exiger `actif=true`; l'écran Admin applique `requireAdminActive`.
-- **Correction versionnée :** migration `supabase/migrations/20261102023000_admin_active_read_policies.sql`, qui remplace la politique Admin par `(select public.is_admin())`, garde canonique exigeant Admin et compte actif.
+- **Correction versionnée :** migration `supabase/migrations/20261102032259_admin_active_read_policies.sql`, qui remplace la politique Admin par `(select public.is_admin())`, garde canonique exigeant Admin et compte actif.
 - **Validation exécutée :** test `supabase/tests/269_admin_exam_services_active_guards.sql` sur Replay; Admin actif autorisé, Admin inactif et Client tiers refusés, Client propriétaire et partenaire autorisés selon leur propre périmètre. Le test complet passe avec 31 assertions.
 - **Statut :** 🟢 construction verte en Replay. La politique Production reste à migrer lors d'une opération explicitement autorisée.
 
@@ -3090,13 +3090,13 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 
 **ADM-SERVICES-02 — Sécurité RLS — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
 - **Preuve :** politique Production Admin basée sur le rôle seul, sans `actif=true`.
-- **Correction versionnée :** migration `20261102023000_admin_active_read_policies.sql`, avec garde canonique `public.is_admin()`.
+- **Correction versionnée :** migration `20261102032259_admin_active_read_policies.sql`, avec garde canonique `public.is_admin()`.
 - **Validation exécutée :** test Replay 269 PASS (31 assertions globales), couvrant Admin actif/inactif et conservation des droits Client/propriétaire et partenaire.
 - **Réserve :** migration Production non appliquée dans ce chantier.
 
 **ADM-SERVICES-03 — Sécurité RLS/RPC — 🟢 CONSTRUCTION VERTE / PRODUCTION EN ATTENTE**
 - **Preuve :** la politique Production `home_service_offers_admin_manage` et la branche Admin de `transition_home_service_request` ne vérifiaient pas l'activité du profil.
-- **Correction versionnée :** migration `20261102031000_admin_active_home_services_guards.sql`; politique et branche Admin RPC alignées sur `public.is_admin()`. Les droits Client d'annulation et le scope partenaire restent conservés.
+- **Correction versionnée :** migration `20261102032304_admin_active_home_services_guards.sql`; politique et branche Admin RPC alignées sur `public.is_admin()`. Les droits Client d'annulation et le scope partenaire restent conservés.
 - **Validation exécutée :** test Replay 269 PASS : Admin actif peut modifier une offre et confirmer/terminer une demande; Admin inactif en est empêché; le Client conserve l'annulation autorisée et le partenaire membre conserve ses transitions propres; journal vérifié.
 - **Statut :** 🟢 construction verte en Replay. Migration Production en attente d'une opération explicitement autorisée.
 
@@ -3238,7 +3238,7 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 
 **Sécurité, séparation des rôles et données**
 - Les politiques Client propriétaire et partenaire membre restent séparées des politiques Admin pour les rendez-vous d'examens et demandes à domicile.
-- Les migrations `20261102023000_admin_active_read_policies.sql` et `20261102031000_admin_active_home_services_guards.sql` sont versionnées sur `main`; elles ont aussi été appliquées sur `naxa-ci-replay-2`, avec les versions d'historique Replay `20261102023801` et `20261102023807`.
+- Les migrations `20261102032259_admin_active_read_policies.sql` et `20261102032304_admin_active_home_services_guards.sql` sont versionnées sur `main`; elles ont aussi été appliquées sur `naxa-ci-replay-2`, avec les versions d'historique Replay `20261102023801` et `20261102023807`.
 - **Limite Production :** les migrations ne sont pas appliquées au projet principal `Naxa`. Les politiques Admin et la RPC Production restent dans leur état antérieur; aucune écriture Production n'a été effectuée.
 - Aucune donnée personnelle, aucun secret et aucun contenu de demande client n'a été exporté dans ce rapport.
 
