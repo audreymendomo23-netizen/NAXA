@@ -83,7 +83,7 @@ begin
     raise exception 'Dossier administratif incomplet' using errcode = '23514';
   end if;
 
-  -- La table pharmacie_documents_recus est informative et n'est pas une condition de validation.
+  -- Les cases de réception sont informatives et ne sont pas une condition de validation.
 
   foreach v_required_document_type in array array[
     'existence_legale',
