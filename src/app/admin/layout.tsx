@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { isDemoPharmacy } from "@/lib/admin/is-demo-pharmacy";
 import Link from "next/link";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import "./admin-bento.css";
@@ -15,14 +16,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let compteursPartiels = false;
   {
       const [{ data: pharmacies, error: pharmaciesError }, { data: validites, error: validitesError }, { count: ticketsCount, error: ticketsError }] = await Promise.all([
-        sb.from("pharmacies").select("id,stock_updated_at,actif,visible_recherche"),
+        sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche"),
         sb.rpc("validites_promoteurs_admin"),
         sb.from("tickets_support").select("id", { count: "exact", head: true }).eq("statut", "ouvert"),
       ]);
       if (!ticketsError) requetesOuvertes = ticketsCount ?? 0; else compteursPartiels = true;
       if (!pharmaciesError) {
-        alertes += (pharmacies ?? []).filter((p) => !p.stock_updated_at).length;
-        alertes += (pharmacies ?? []).filter((p) => p.actif === false || p.visible_recherche === false).length;
+        const pharmaciesOperationnelles = (pharmacies ?? []).filter((p) => !isDemoPharmacy(p.nom));
+        alertes += pharmaciesOperationnelles.filter((p) => !p.stock_updated_at).length;
+        alertes += pharmaciesOperationnelles.filter((p) => p.actif === false || p.visible_recherche === false).length;
       } else compteursPartiels = true;
       if (!validitesError) {
         alertes += ((validites ?? []) as { statut?: string; jours_restants?: number | string | null }[])
