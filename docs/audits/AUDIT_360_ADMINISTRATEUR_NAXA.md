@@ -1,3 +1,13 @@
+## Addendum — extension du garde Admin actif aux politiques catalogue, stock et Storage (02/11/2026)
+
+- **Cause racine confirmée en Production :** huit policies Admin `ALL` sur `feature_flag_test_accounts`, `feature_flags`, `partner_members`, `partner_universes`, `partners`, `stock_movements`, `suivi_professionals`, `universes`, ainsi que la branche Admin de `stock_movements_partner_read), vérifient le rôle sans l'état actif. Trois policies Storage du bucket `medicaments` font de même pour INSERT/UPDATE/DELETE.
+- **Migration catalogue/stock :** `20261102083000_admin_active_catalog_stock_rls.sql`, commit source `5752248c28cb3a6812ec7920de317588cf0f4334`; Replay appliquée sous version `20261102072715`. Test `270` PASS (comportement Admin actif/inactif/Client sur partners + contrôles structurels des huit policies et du scope partenaire), `ROLLBACK`.
+- **Migration Storage :** `20261102084500_admin_active_medicament_storage_rls.sql`, commit source `5f82cb9d1fa876cd16e308a470ff1d208880de6c`; Replay appliquée sous version `20261102072914`. Test `271` PASS structurel; le bucket medicaments n'existe pas dans ce Replay, aucune opération fichier n'est prétendue.
+- **Production :** application de ces deux migrations refusée par le contrôle de sécurité de l'outil; aucune tentative de contournement par `execute_sql` ou autre chemin. Les catalogues Production relus après le refus montrent toujours les anciennes définitions role-only.
+- **Tests d'application et CI :** aucun build, lint, typecheck, HTTP JWT ou navigateur exécuté; le miroir GitLab reste au commit du 21/10, pipeline interrompu par `ci_quota_exceeded` avant les jobs.
+- **Statut :** code et tests versionnés, tests Replay PASS; correctif RLS Production PRE-044/PRE-045 en attente, et non déclaré vert Production.
+
+
 ## Addendum — couverture des demandes domicile et réservations Marketplace (02/11/2026)
 
 ### Routes et contrats construits
@@ -652,7 +662,7 @@ Ces paramètres sont ceux de la base live. La limite particulièrement faible du
 
 ### Politiques Storage — écarts à examiner
 
-- **PRE-043 — Divergence de garde potentielle :** les politiques `medicaments_admin_insert/update/delete` vérifient le bucket et `profiles.role = 'admin'`, mais ne vérifient pas `profiles.actif = true`. Le garde canonique des pages Admin et le RPC `private.is_admin()` exigent au contraire le compte actif. Une session admin dont le profil a été désactivé pourrait donc conserver des droits Storage sur le bucket `medicaments`, selon les politiques et les privilèges effectifs. À confirmer avec un test d'autorisation contrôlé avant toute correction; aucun test d'écriture n'a été tenté.
+- **PRE-043 — État historique / corrigé par migration source 271 :** les anciennes politiques `medicaments_admin_insert/update/delete` contrôlaient seulement `profiles.role='admin'`. Le contrôle Production a confirmé ce défaut. La migration `20261102084500_admin_active_medicament_storage_rls.sql` remplace ces trois règles par `public.is_admin()` tout en conservant `medicaments_public_read`; test 271 PASS sur Replay (contrôle structurel, le bucket n'étant pas provisionné dans ce Replay). **Production reste à appliquer** : l’appel de migration a été bloqué par le contrôle de sécurité de l’outil, sans contournement.
 - Les politiques `photos_admin_ajout/maj/suppr` sur `produits-photos` appellent `private.is_admin()`, dont le corps live vérifie rôle admin **et** compte actif. Elles sont déclarées pour le rôle `public`, mais la fonction privée n'accorde pas `USAGE` à `anon`; l'accès effectif doit être validé sans supposer qu'une policy permissive autorise à elle seule l'opération.
 - Les politiques de logos pharmacie contrôlent le rôle promoteur, le compte actif, l'affectation active à la pharmacie et un préfixe de chemin `logos/{pharmacie_id}/...`. Les expressions sont cohérentes avec le cloisonnement attendu sur les opérations listées; les cas de renommage/déplacement et les politiques non couvertes restent à vérifier.
 - La lecture publique est explicitement autorisée sur les buckets `medicaments` et `produits-photos`; les buckets `pharmacies-photos` et `dispositifs` sont aussi configurés publics. Le contenu réel et les autres chemins de lecture restent à inventorier.
@@ -660,32 +670,57 @@ Ces paramètres sont ceux de la base live. La limite particulièrement faible du
 Aucune policy Storage, aucun bucket et aucun objet n'a été modifié.
 
 
-## 29. Contrôle des politiques Admin par comparaison avec le garde actif
+## 29. Contrôle des politiques Admin par comparaison avec le garde actif — mise à jour 02/11/2026
 
-Requête de lecture seule sur `pg_policies`, ciblant les politiques qui testent directement `profiles.role = 'admin'` sans tester explicitement `profiles.actif`. Ce contrôle est un tri statique, pas une preuve d'accès exploitable; les policies peuvent coexister avec d'autres restrictions, les droits de table et les contrôles RPC.
+Le contrôle Production en lecture seule de `pg_policies` a été élargi à tous les schémas exposés pertinents et comparé au contrat du helper `public.is_admin()`, qui délègue à `private.is_admin()` (identité authentifiée, rôle admin et profil actif). Les règles actives ci-dessous sont celles relues sur Production **avant** application des migrations 270/271; les migrations sont versionnées sur `main` et les tests correspondants PASS sur Replay.
 
-### Écarts potentiels à prioriser
+### PRE-044 — Politiques Admin catalogue / partenaires / stock — cause racine confirmée
 
-Les politiques suivantes ne contrôlent que le rôle Admin dans leur expression, sans vérifier directement `actif` :
+Les politiques Production suivantes autorisent les opérations Admin sur le seul rôle `admin` sans vérifier `profiles.actif` :
 
-- `audit_log_admin_insert` et `audit_log_admin_read` — journal d'audit.
-- `exam_appointments_admin_read` — rendez-vous.
-- `feature_flag_test_accounts_admin_all` et `feature_flags_admin_all` — comptes de test et indicateurs de fonctionnalité.
-- `home_service_offers_admin_manage` et `home_service_requests_admin_read` — offres et demandes de services à domicile.
-- `partner_members_admin_all`, `partner_universes_admin_all`, `partners_admin_all` — membres, univers et partenaires.
-- `stock_movements_admin_all` — mouvements de stock.
-- `suivi_professionals_admin_manage` — professionnels de l'espace de suivi.
+- `feature_flag_test_accounts_admin_all`
+- `feature_flags_admin_all`
+- `partner_members_admin_all`
+- `partner_universes_admin_all`
+- `partners_admin_all`
+- `stock_movements_admin_all`
+- `suivi_professionals_admin_manage`
+- `universes_admin_all`
+- branche Admin de `stock_movements_partner_read`
 
-**Qualification : PRE-044, cohérence de révocation Admin.** Ces politiques directes diffèrent du garde applicatif `requireAdminActive` et de `private.is_admin()`, qui vérifient aussi le statut actif. Si le contrat voulu est la révocation globale immédiate d'un compte Admin désactivé, ces expressions sont à harmoniser. Les profils actuellement observés dans la base ne comprennent qu'un compte admin actif; aucun compte Admin désactivé n'a été utilisé pour un test. Aucun test d'accès n'a été exécuté et aucune politique n'a été modifiée.
+La cause est l'usage direct de `profiles.role='admin'` dans les policies RLS, au lieu du garde canonique. Les autres politiques partenaires (`partner_members_self_read`, `partner_universes_member_read`, `partners_member_read`) sont conservées et ne sont pas remplacées.
 
-### État opérationnel observé (comptages, sans données nominatives)
+**Correction versionnée :** `supabase/migrations/20261102083000_admin_active_catalog_stock_rls.sql` remplace les huit politiques `ALL` par `(select public.is_admin())` dans `USING` et `WITH CHECK`, et ne change dans `stock_movements_partner_read` que la branche Admin, en conservant exactement la branche des membres partenaires.
 
-- `public.pharmacies` : 4 enregistrements, dont 1 actif et 3 marqués `est_demo`.
-- `public.tickets_support` : 0 ticket au moment du relevé.
-- `public.admin_partner_dossiers` : 0 dossier au moment du relevé.
-- `public.profiles` : 1 profil admin actif, 1 promoteur actif et 8 clients actifs dans le regroupement effectué.
+**Test 270 : PASS sur Replay** — huit politiques structurellement alignées; RLS active; branche Admin du stock et périmètre partenaire présents; mutation d'un partenaire autorisée à l'Admin actif et refusée à l'Admin inactif et au Client. Test transactionnel, terminé par `ROLLBACK`. Historique Replay : `20261102072715 / admin_active_catalog_stock_rls`.
 
-Ces valeurs sont un instantané de la base live, pas une validation métier de l'interface. Les trois pharmacies marquées démo sont un point à comparer aux exigences NAXA sur l'interdiction d'afficher des données de test; leur présence en base ne démontre pas qu'elles sont visibles sur l'application.
+**Production : NON APPLIQUÉE.** Le lancement de `apply_migration` sur le projet Production Naxa a été refusé par le contrôle de sécurité de l’outil. Aucune autre voie n'a été utilisée pour contourner ce blocage. Les politiques live restent donc celles qui doivent être remplacées.
+
+### PRE-045 — Storage / bucket medicaments — cause racine confirmée
+
+Les trois politiques Production `storage.objects` du bucket `medicaments` — `medicaments_admin_insert`, `medicaments_admin_update`, `medicaments_admin_delete` — vérifient le bucket et le rôle Admin, sans vérifier le statut actif.
+
+**Correction versionnée :** `supabase/migrations/20261102084500_admin_active_medicament_storage_rls.sql` exige `public.is_admin()` dans `WITH CHECK` pour INSERT, dans `USING` et `WITH CHECK` pour UPDATE, et dans `USING` pour DELETE. La politique publique `medicaments_public_read` n'est pas modifiée.
+
+**Test 271 : PASS sur Replay** — les trois expressions RLS de mutation requièrent `is_admin()` et le bucket `medicaments`; la lecture publique est contrôlée lorsqu'elle existe. Le bucket n'est pas provisionné dans ce Replay, le test est donc structurel et n'affirme pas avoir réalisé un upload Storage. Historique Replay : `20261102072914 / admin_active_medicament_storage_rls`.
+
+**Production : NON APPLIQUÉE.** Même blocage du contrôle de sécurité de l’outil; les anciennes politiques sont encore présentes dans le catalogue live.
+
+### Contrôles positifs — politiques déjà compatibles
+
+- `home_service_requests_admin_read`, `home_service_offers_admin_manage), `exam_appointments_admin_read` utilisent `public.is_admin()` depuis les migrations 269 déjà appliquées en Production.
+- `partner_products_admin_all` utilise le helper actif.
+- `pharmacie_documents_storage_admin_insert/select/update/delete` utilise `is_admin()`.
+- `photos_admin_ajout/maj/suppr` utilise `private.is_admin()`.
+- `naxa_session_audit_read_scope` et `naxa_session_audit_failures_admin_read` incluent le statut actif explicitement.
+- `fournisseurs_insert_staff` exige `p.actif=true`.
+- `rappels_lots_traitements_read` exclut explicitement le rôle Admin et vérifie le profil actif des rôles autorisés.
+- Les politiques Client/partenaire spécifiques des demandes, réservations et partenaires restent séparées des droits Admin.
+
+### Décision de sécurité
+
+Le contrôle du catalogue montre que le risque n'est pas limité à l'interface : des sessions authentifiées d'un profil Admin désactivé pourraient encore satisfaire plusieurs politiques Data API directes tant que PRE-044 et PRE-045 ne sont pas appliquées en Production. Les deux migrations additives sont testées en Replay et versionnées, mais le correctif Production reste en attente du contrôle de sécurité de l'outil. Aucun changement de données métier n'a été effectué.
+
 
 ## 30. Concordance des indicateurs de la page d'accueil Admin
 
@@ -706,7 +741,7 @@ L'arbre GitHub récursif a été relu après les derniers commits documentaires 
 
 ### Routes de page Admin identifiées
 
-18 fichiers `page.tsx` :
+18 fichiers `page.tsx` au relevé historique du 26/10; le HEAD courant du 02/11 après ajout des trois routes atteint 21 fichiers :
 - `/admin`, `/admin/alertes`, `/admin/configuration`, `/admin/examens`, `/admin/geolocalisation`, `/admin/journal`, `/admin/messagerie`, `/admin/pharmacies/[id]`, `/admin/pilotage`, `/admin/pilotage/rapports`, `/admin/pilotage/validite`, `/admin/prestations`, `/admin/produits`, `/admin/profil`, `/admin/promoteurs`, `/admin/promoteurs/partenaires/[id]`, `/admin/rappels-lots`, `/admin/univers`.
 
 ### Actions serveur et API
@@ -3292,7 +3327,7 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 - **Confirmé par lecture RLS/RPC Production :** avant correction, les politiques Admin Examens/demandes, la politique de gestion des offres et la branche Admin RPC ne vérifiaient pas toutes l'état actif.
 - **Confirmé en runtime SQL isolé :** après application des deux migrations sur Replay, le test 269 passe avec 31 assertions : Admin actif/inactif, Client propriétaire/tiers, partenaire membre, anon, lectures, mutation des offres, transitions RPC et journal d’audit. Tous les fixtures sont annulés.
 - **Non vérifié :** test HTTP PostgREST avec JWT réels et sessions Auth réelles; recette navigateur.
-- **Non démontré et laissé ouvert :** files Admin détaillées de résolution des demandes à domicile (ADM-SERVICES-01) et des réservations Marketplace (ADM-MKT-01).
+- **Correction source effectuée :** les files Admin à domicile (ADM-SERVICES-01) et Marketplace (ADM-MKT-01) sont construites en lecture seule et reliées depuis leurs écrans parents. Leur CI et leur recette navigateur restent à exécuter.
 - **Contrôle Supabase Security Advisor (02/11/2026, Production) :** six tables avec RLS activé sans politique; cinq fonctions SECURITY DEFINER accessibles à `anon`; 120 fonctions SECURITY DEFINER exécutables par `authenticated`. Ces alertes sont préexistantes et dépassent le périmètre immédiat des deux politiques corrigées; elles restent à qualifier individuellement, sans révocation massive ni changement opportuniste. Les politiques Client/partenaire des deux tables visées n'ont pas été modifiées.
 - **Historique Production antérieur (relevé avant le 02/11) :** le constat d’historique arrêté à 20261101213620 et les prédicats role-only décrivent l’état observé avant application. Il est supersédé par l’application Production confirmée le 02/11/2026, versions 20261102032259 et 20261102032304, avec relecture des politiques/RPC après migration.
 - **Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`; test 269 PASS.
@@ -3300,7 +3335,7 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 
 ### 14.5 Statut de l'étape 14
 
-**Étape 14 — 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DES CONTRÔLES SQL DISPONIBLES.** La revue contradictoire client/CTO est achevée; les deux corrections RLS/RPC sont versionnées, appliquées et vérifiées sur Replay par 31 assertions PASS. Elles ont également été appliquées sur Production et les définitions des trois politiques et de la RPC ont été relues après migration. Le comportement via JWT réel/PostgREST et les parcours navigateur ne sont pas certifiés. Les constats fonctionnels distincts ADM-SERVICES-01 et ADM-MKT-01 (files opérationnelles Admin absentes) restent ouverts et ne sont pas masqués par cette clôture.
+**Étape 14 — 🟢 TERMINÉE POUR LES CORRECTIONS RLS/RPC EXAMENS ET PRESTATIONS (migrations 269); EXTENSION DE SÉCURITÉ PRE-044/PRE-045 : 🟡 SOURCE ET REPLAY VALIDÉS, PRODUCTION NON APPLIQUÉE.**
 
 ## Étape 11 — Recherche et nettoyage du code mort Admin (clôture, 02/11/2026)
 
@@ -3354,14 +3389,14 @@ Les deux corrections source sont implémentées sur main; ADM-UNIV-DOSSIER-01 es
 
 ## Étape 12 — Design et animations (02/11/2026)
 
-**Périmètre :** finition visuelle du parcours Administrateur recensé dans ce cahier. Le relevé du HEAD du 02/11 dénombre 19 routes de page Admin et 12 entrées de navigation. La revue visuelle documentée a porté sur 18 pages; /admin/pilotage/reglements est la route supplémentaire absente de cette couverture visuelle et reste à vérifier dans l’application. Les corrections CSS ne modifient ni les parcours métier, ni les droits, ni les données.
+**Périmètre :** finition visuelle du parcours Administrateur recensé dans ce cahier. Le HEAD courant compte 21 routes Admin et 12 entrées de navigation. La revue visuelle documentée a porté sur 18 pages; trois routes n’ont donc pas de preuve visuelle dans cette passe.
 
 ### Audit statique initial
 
 - Le shell partagé est centralisé dans `src/app/admin/layout.tsx` et `src/app/admin/admin-bento.css`.
 - Les règles existantes couvrent les vues desktop, tablette et mobile (breakpoints 1440, 1050, 1000, 900, 760, 680 et 420 px), avec navigation mobile fixe et prise en compte de `safe-area-inset-bottom`.
 - Les états de focus et les champs disposent déjà de styles dédiés. Le mode `prefers-reduced-motion: reduce` neutralise les animations et transitions du shell.
-- Les 18 pages visuellement examinées ne déclarent pas de classes utilitaires d'animation propres; la 19e route /admin/pilotage/reglements n’est pas couverte par cette observation. Les mouvements présents avant cette passe étaient principalement des transitions d'interaction et de progression.
+- Les 18 pages visuellement examinées ne déclarent pas de classes utilitaires d'animation propres; les trois routes ajoutées ou recensées hors de cette couverture sont `/admin/pilotage/reglements`, `/admin/prestations/demandes` et `/admin/pilotage/reservations`. Les mouvements observés avant cette passe étaient principalement des transitions d'interaction et de progression.
 - Deux faiblesses de contraste ont été relevées dans les petits libellés : blanc atténué dans la navigation verte et `--texte-3: #7D8E84` sur surface blanche (ratio mesuré 3,46:1, insuffisant pour du petit texte). Le focus jaune sur surface claire n'offrait pas non plus le contraste le plus robuste.
 
 ### Corrections versionnées sur `main`
