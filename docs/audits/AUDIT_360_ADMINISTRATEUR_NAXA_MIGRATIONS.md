@@ -1,3 +1,19 @@
+# État courant — addendum de traçabilité (02/11/2026)
+
+Ce document conserve le rapprochement historique réalisé le 26/10/2026. Son en-tête « aucune migration appliquée » et ses décomptes 37/290/251 décrivent exclusivement le snapshot de cette date; ils ne décrivent pas l'état live du 02/11/2026.
+
+Depuis ce snapshot, les quatre migrations du ratissage Admin ont été appliquées à Supabase Production et vérifiées par relecture SQL :
+- `20261102032259` — `admin_active_read_policies`
+- `20261102032304` — `admin_active_home_services_guards`
+- `20261102095050` — `admin_active_catalog_stock_rls`
+- `20261102095056` — `admin_active_medicament_storage_rls`
+
+Les tests Replay 269 (31 assertions), 270 et 271 ont retourné PASS. Les tests 270/271 utilisent des transactions annulées; le test 271 est structurel et ne certifie pas un upload Storage réel, le bucket `medicaments` étant absent du Replay. Le détail des politiques live, des contrôles et des limites figure dans le registre courant : `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
+
+Aucune donnée métier n'a été modifiée et aucun déploiement n'a été déclenché dans cette passe.
+
+---
+
 # Complément technique — rapprochement des migrations NAXA
 Date : 26 octobre 2026
 Branche : main
