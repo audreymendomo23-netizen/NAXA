@@ -14,6 +14,20 @@ do $$ declare p uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_
  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif) values(p,a,true),(p,b,true);
  insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active) values(p,'VIEW_NETWORK_PILOTAGE',null,'RESEAU',p,true) on conflict(profile_id,privilege_code,pharmacie_id,scope_type) do update set active=true,revoked_at=null;
  insert into public.evenements(type,pharmacie_id,terme,resultats) values('recherche',a,'a',1),('fiche_vue',a,'a',1),('panier_ajout',a,'a',1),('recherche',b,'b',0),('fiche_vue',b,'b',1),('recherche',c,'c',1),('recherche',null,'global',0);
+
+ insert into public.produits(id,nom)
+ values('33000000-0000-0000-0000-000000000033','V8 Produit KPI');
+ insert into public.stocks(pharmacie_id,produit_id,prix,quantite)
+ values(a,'33000000-0000-0000-0000-000000000033',2500,5),
+       (b,'33000000-0000-0000-0000-000000000033',2500,0),
+       (c,'33000000-0000-0000-0000-000000000033',2500,9);
+ insert into public.reservations(client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut)
+ values(p,a,'retiree'::resa_statut,12000,now()+interval '1 day','reservation','effectue'),
+       (p,b,'expiree'::resa_statut,7000,now()+interval '1 day','reservation','a_verifier'),
+       (p,c,'retiree'::resa_statut,5000,now()+interval '1 day','reservation','effectue');
+ insert into public.alertes(pharmacie_id,type,message,lue)
+ values(a,'v8_test','Alerte dans scope',false),
+       (c,'v8_test','Alerte hors scope',false);
  insert into v8_ids values(p,a,b,c);
 end $$;
 grant select on v8_ids to authenticated;
@@ -29,6 +43,16 @@ begin
   if (v_json->'recherches'->>'sans_resultat')::int <> 1 then raise exception '8.3 recherches sans résultat attendues=1, obtenu=%',v_json->'recherches'->>'sans_resultat'; end if;
   if (v_json->'entonnoir'->>'fiches_vues')::int <> 2 then raise exception '8.4 fiches vues attendues=2, obtenu=%',v_json->'entonnoir'->>'fiches_vues'; end if;
   if (v_json->'entonnoir'->>'paniers')::int <> 1 then raise exception '8.5 paniers attendus=1, obtenu=%',v_json->'entonnoir'->>'paniers'; end if;
+
+  if (v_json->'entonnoir'->>'reservations')::int <> 2 then raise exception '8.6 reservations attendues=2'; end if;
+  if (v_json->'entonnoir'->>'ventes')::int <> 1 then raise exception '8.7 ventes attendues=1'; end if;
+  if (v_json->>'ca')::int <> 12000 then raise exception '8.8 CA attendu=12000'; end if;
+  if (v_json->'stock'->>'produits_en_stock')::int <> 1 then raise exception '8.9 produits en stock attendus=1'; end if;
+  if (v_json->'stock'->>'ruptures')::int <> 1 then raise exception '8.10 ruptures attendues=1'; end if;
+  if (v_json->>'alertes')::int <> 1 then raise exception '8.11 alertes attendues=1'; end if;
+  if (v_json->'performance'->>'taux_retrait')::numeric <> 50 then raise exception '8.12 taux retrait attendu=50'; end if;
+  if jsonb_array_length(v_json->'serie') <> 7 then raise exception '8.13 série quotidienne attendue=7 jours'; end if;
+
 end
 $v8assert$;
 
