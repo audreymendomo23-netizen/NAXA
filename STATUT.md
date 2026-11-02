@@ -1,3 +1,12 @@
+## Ratissage de cohérence Admin — 02/11/2026
+
+- Messagerie Admin : optimisation appliquée; le fil de messages est chargé uniquement pour le ticket sélectionné. Le GET et le POST partagent le garde strict Admin actif. Commits code : 6270b797e428b503bdbb07b87742d1109972fdf7, 26a200213f69f7a670cbf6abd72b06aab2885365, 89fde66e2dc5601f01ddf8363f3da33c82a6b111 et ee9168fbc52c1b419f4174584dceee97582e198e.
+- Les anciens constats ALT-01, MSG-02, SEC-MSG-01/PRE-039 et PROM-02 sont rectifiés : le code courant affiche l’indisponibilité à la place de faux zéros, aligne la limite UI/API à 2 000 caractères et exige actif=true sur l’API messagerie.
+- Cartographie Admin recalée : 19 fichiers page.tsx et 12 entrées latérales. La route /admin/pilotage/reglements est liée depuis /admin/pilotage/validite et a été ajoutée au complément cartographique.
+- Le détail des preuves, réserves et SHA est consigné dans docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md et docs/audits/AUDIT_DETAILLE_ADMIN_ALERTES_JOURNAL_MESSAGERIE_2026-10-26.md.
+- Aucun build, lint, typecheck, test HTTP sous JWT réel, navigateur ou CI n’a été exécuté dans cette passe. Aucun déploiement n’a été déclenché.
+
+
 ## Addendum — Application Production des migrations ADM-EXAM-03 / ADM-SERVICES-02/03 (02/11/2026)
 
 - **Autorisation :** demande explicite de l'utilisateur « Applique les migrations sur supabase ».
@@ -19,7 +28,7 @@
 - **ADM-SERVICES-03 : 🟢 CONSTRUCTION VERTE / Replay validé.** La migration `20261102032304_admin_active_home_services_guards.sql` aligne la mutation Admin des offres et la branche Admin de `transition_home_service_request` sur `public.is_admin()`; les transitions Client et partenaire restent conservées.
 - **Test 269 : PASS — 31 assertions** exécutées sur le projet isolé `naxa-ci-replay-2`. Matrice : Admin actif/inactif, Client propriétaire/tiers, membre partenaire, anonyme, lecture, modification d'offre, transitions et journalisation. Les identités et données de test sont dans une transaction terminée par `ROLLBACK`.
 - **Historique Replay :** migrations enregistrées sous `20261102023801` et `20261102023807`. Script reproductible : `supabase/tests/269_admin_exam_services_active_guards.sql`.
-- **Production : non corrigée à ce stade.** Le projet `Naxa` conserve l'historique jusqu'à `20261101213620`, les anciennes politiques role-only et l'ancienne branche Admin RPC. Aucune migration/écriture Production n'a été effectuée, conformément au périmètre de l'audit. Ne pas assimiler le vert Replay à un vert Production.
+- **Production — état historique avant application du 02/11/2026 :** la mention « non corrigée à ce stade » décrit l’état antérieur aux migrations Production ci-dessus et ne constitue plus le statut courant. Les versions 20261102032259 et 20261102032304 ont depuis été appliquées et vérifiées par relecture des politiques/RPC.
 - **Étape 14 : 🟢 TERMINÉE / VALIDÉE AU PÉRIMÈTRE DE LA REVUE ET DES CONTRÔLES ISOLÉS.** Les files Admin détaillées des demandes domicile (`ADM-SERVICES-01`) et des réservations Marketplace (`ADM-MKT-01`) restent des constats fonctionnels indépendants et ouverts.
 - Build, lint, typecheck, test HTTP avec vrais JWT et recette navigateur non exécutés. Aucun déploiement ni workflow n'a été déclenché.
 - Cahier de suivi : `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md`.
@@ -45,7 +54,7 @@
 
 # STATUT NAXA — documents de référence actifs
 
-> Autorités uniques du chantier : **MANDAT CTO NAXA** et **cahier des charges Audit 360 du parcours Administrateur** ([document d'audit](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier V3.7 et le Prompt maître ont été supprimés. Toute mention historique éventuelle ci-dessous n'a aucune autorité de décision.
+> Autorités uniques du chantier d’audit Administrateur : **MANDAT CTO NAXA** et **cahier des charges Audit 360 du parcours Administrateur** (document d’audit lié ci-dessous). Le cahier V3.7 et le Prompt maître ne gouvernent pas le workflow de cet audit; cette précision ne signifie pas que leurs ressources historiques ont été supprimées du dépôt. Elles ne peuvent éclairer les exigences fonctionnelles que lorsqu’elles restent compatibles avec le mandat et les décisions plus récentes.
 >
 > Périmètre directeur : cahier des charges Audit 360 Administrateur guidé par le NAXA-MANDAT CTO. Les validations techniques Promoteur parties 3 à 6 restent ouvertes; aucun déploiement sans autorisation explicite.
 
