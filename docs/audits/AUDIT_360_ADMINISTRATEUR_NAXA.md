@@ -3249,7 +3249,7 @@ Les sorties de synthèse ne contiennent ni identifiants clients, ni coordonnées
 
 ### 13.4 Preuves obtenues et limites
 
-- Les deux moteurs sont présents dans Replay après application des migrations; la façade et les helpers ont été relus dans le catalogue.
+- Les deux moteurs sont présents dans Replay après application : historique Replay `20261102015709` (`admin_global_accounts_pilotage`) et `20261102020303` (`admin_partner_accounts_summary`). Les fichiers source versionnés restent `20261102014000_admin_global_accounts_pilotage.sql` et `20261102015500_admin_partner_accounts_summary.sql`; la façade et les helpers ont été relus dans le catalogue.
 - **ACL Replay :** `authenticated` peut appeler la façade publique; `anon` ne le peut pas; les trois helpers privés ne sont pas exécutables directement par `authenticated` ni `anon`.
 - **Garde :** l'appel RPC sans identité authentifiée est rejeté par « Connexion requise ».
 - **Sources Replay :** les sept tables complémentaires sont présentes; la fonction les détecte comme disponibles. L'agrégat partenaire renvoie une structure valide (zéro ligne sur l'environnement sans partenaire).
