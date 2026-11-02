@@ -24,7 +24,7 @@ export default async function AdminHomeServiceRequestsPage({
   let requestQuery = sb
     .from("home_service_requests")
     .select(
-      "id,client_id,partner_id,offer_id,offer_name,category,price_fcfa,service_area_label,preferred_at,status,created_at,updated_at,confirmed_at,completed_at,partners!inner(name,city,neighborhood,status)",
+      "id,partner_id,offer_id,offer_name,category,price_fcfa,service_area_label,preferred_at,status,created_at,updated_at,confirmed_at,completed_at,partners!inner(name,city,neighborhood,status)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
@@ -133,7 +133,7 @@ export default async function AdminHomeServiceRequestsPage({
                         <div><dt className="text-slate-500">Demande créée</dt><dd className="mt-1 font-semibold">{new Date(row.created_at).toLocaleString("fr-FR")}</dd></div>
                       </dl>
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs text-slate-500">
-                        <span>Référence demande : {String(row.id).slice(0, 8).toUpperCase()} · Référence client masquée</span>
+                        <span>Référence demande : {String(row.id).slice(0, 8).toUpperCase()} · Aucun renseignement client sensible affiché</span>
                         <span>Dernière mise à jour : {new Date(row.updated_at).toLocaleString("fr-FR")}</span>
                       </div>
                     </article>
