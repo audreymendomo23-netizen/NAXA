@@ -18,7 +18,7 @@ test("les deux actions de fiche sont réservées à un administrateur actif", ()
 });
 
 test("les identifiants de produit sont validés avant lecture ou mutation", () => {
-  assert.match(source, /const UUID = \/\^\[0-9a-f\]/i);
+  assert.ok(source.includes("const UUID = /^[0-9a-f]{8}-"));
   assert.equal((source.match(/if \(!UUID\.test\(id\)\)/g) ?? []).length, 2);
 });
 
