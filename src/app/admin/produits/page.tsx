@@ -61,10 +61,10 @@ export default async function AdminProduits({
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { key: "toutes", label: "Résultats", value: compte.toutes, tone: "border-slate-200" },
-          { key: "a-completer", label: "À compléter", value: compte["a-completer"], tone: "border-slate-300" },
-          { key: "a-relire", label: "À relire", value: compte["a-relire"], tone: "border-amber-300" },
-          { key: "validees", label: "Validées", value: compte.validees, tone: "border-emerald-300" },
+          { key: "toutes", label: "Résultats", value: error ? "—" : compte.toutes, tone: "border-slate-200" },
+          { key: "a-completer", label: "À compléter", value: error ? "—" : compte["a-completer"], tone: "border-slate-300" },
+          { key: "a-relire", label: "À relire", value: error ? "—" : compte["a-relire"], tone: "border-amber-300" },
+          { key: "validees", label: "Validées", value: error ? "—" : compte.validees, tone: "border-emerald-300" },
         ].map((item) => <div key={item.key} className={`rounded-2xl border bg-white p-3 sm:p-4 ${item.tone}`}><p className="text-xs font-semibold text-slate-500 sm:text-sm">{item.label}</p><p className="mt-1 text-2xl font-black text-slate-950">{item.value}</p></div>)}
       </div>
     </section>
