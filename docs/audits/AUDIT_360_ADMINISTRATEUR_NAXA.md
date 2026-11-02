@@ -1,3 +1,17 @@
+## Addendum — Application Production des migrations ADM-EXAM-03 / ADM-SERVICES-02/03 (02/11/2026)
+
+- **Autorisation :** demande explicite de l'utilisateur « Applique les migrations sur supabase ».
+- **Projet ciblé et confirmé :** Supabase `Naxa`, projet Production actif `eouwtuusnsuxaejsxknf` (région `eu-west-1`). Le projet Replay `naxa-ci-replay-2` n'a pas été modifié pendant cette opération.
+- **Migration 1 appliquée avec succès :** `20261102032259_admin_active_read_policies`. Elle remplace les politiques Admin SELECT de `exam_appointments` et `home_service_requests` par le garde `public.is_admin()`.
+- **Migration 2 appliquée avec succès :** `20261102032304_admin_active_home_services_guards`. Elle aligne la politique de gestion des offres domicile et la branche Admin de `public.transition_home_service_request(uuid,text)` sur `public.is_admin()`, en conservant l'annulation Client et les transitions des membres partenaires.
+- **Vérification post-application :** l'historique Supabase contient les deux versions ci-dessus; les trois politiques sont relues avec le prédicat `is_admin()` et les rôles `authenticated`; la définition SQL de la RPC confirme l'appel à `public.is_admin()`.
+- **Résultat :** ADM-EXAM-03, ADM-SERVICES-02 et ADM-SERVICES-03 sont 🟢 corrigés et vérifiés en Production au niveau des définitions de politiques/fonction. L'étape 14 est désormais 🟢 clôturée pour ce périmètre.
+- **Validation comportementale restante :** le test SQL Replay 269 (31 assertions) reste la preuve de matrice Admin actif/inactif, Client, partenaire et anon. Aucun test HTTP PostgREST sous JWT réel ni aucune action métier sur des dossiers clients réels n'a été exécuté en Production.
+- **Security Advisor après migration :** les alertes générales préexistantes restent visibles (6 tables RLS sans politique, 5 fonctions SECURITY DEFINER accessibles à anon, 120 accessibles à authenticated, protection des mots de passe compromis désactivée). Elles ne sont pas présentées comme causées par ces migrations et restent à traiter dans des chantiers séparés.
+- **Aucun déploiement Vercel ni modification de données métier n'a été effectué.**
+
+---
+
 # Cahier des charges — Audit 360° du parcours Administrateur NAXA
 
 > **Document de vérité fonctionnelle du chantier actif.** À appliquer conjointement avec le MANDAT CTO NAXA, seule autorité de gouvernance technique. Le cahier des charges V3.7 et le Prompt maître ont été supprimés; ils ne constituent plus des références.
