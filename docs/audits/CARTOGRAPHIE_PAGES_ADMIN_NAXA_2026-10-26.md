@@ -113,3 +113,20 @@ Cette route n’est donc pas orpheline : sa page parente Validité fournit un li
 - Revue visuelle de l’étape 12 du cahier principal : elle porte sur 18 pages dans son état documenté; la route règlements n’est pas explicitement incluse dans cette preuve visuelle. Son rendu et ses interactions restent à valider dans l’application.
 
 Aucun changement de navigation n’est nécessaire pour corriger l’inventaire. Aucun lien entrant ne doit être inventé : le lien réel depuis la page Validité a été relu dans src/app/admin/pilotage/validite/page.tsx.
+
+## Addendum — deux routes de supervision ajoutées au ratissage du 02/11/2026
+
+Le décompte de 19 pages figurant dans l’addendum du 2 novembre ci-dessus correspond à l’état antérieur à la création des deux files détaillées; il est supersédé par le décompte suivant.
+
+| # courant | Route | Fichier | Fonction / accès | Navigation |
+|---:|---|---|---|---|
+| 20 | `/admin/prestations/demandes` | `src/app/admin/prestations/demandes/page.tsx` | File de suivi en lecture seule des demandes domicile : offre, partenaire, zone, statut, dates et tarif indicatif. Garde `requireAdminActive`; RLS `home_service_requests_admin_read`. | Lien depuis `/admin/prestations` |
+| 21 | `/admin/pilotage/reservations` | `src/app/admin/pilotage/reservations/page.tsx` | Diagnostic en lecture seule des réservations Marketplace : pharmacie, articles, statuts, indicateurs de stock et événements. Garde `requireAdminActive`; politiques RLS de lecture Admin pour réservations, lignes et événements. | Lien depuis `/admin/pilotage` |
+
+### Décompte actualisé
+
+- **21 fichiers page.tsx** sous `src/app/admin/` après création des deux routes.
+- **12 entrées** dans `AdminNavigation.tsx`; aucune entrée latérale supplémentaire n’a été ajoutée, les deux vues sont atteignables depuis leurs écrans parents.
+- Les trois routes récentes par rapport à la cartographie du 26/10 sont désormais `/admin/pilotage/reglements`, `/admin/prestations/demandes` et `/admin/pilotage/reservations`.
+- Les deux nouvelles files utilisent les politiques Production existantes et n’effectuent aucune mutation. Les tests Node/CI et la validation navigateur restent à exécuter.
+
