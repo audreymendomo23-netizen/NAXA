@@ -69,8 +69,8 @@ begin
   if p_paye_le is null or p_paye_le > v_declared_at + interval '5 minutes' then
     raise exception 'La date réelle du paiement est requise et ne peut pas être future';
   end if;
-  if p_preuve_path is null or p_preuve_path !~ (
-    '^' || p_promoteur::text || '/[0-9a-fA-F-]+\.(pdf|jpg|jpeg|png|webp|mp4|webm|mov)$'
+  if p_preuve_path is not null and p_preuve_path !~ (
+    '^' || p_promoteur::text || '/[0-9a-fA-F-]+\\.(pdf|jpg|jpeg|png|webp|mov)$'
   ) then
     raise exception 'Chemin de preuve invalide';
   end if;
