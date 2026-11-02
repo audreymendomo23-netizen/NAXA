@@ -9,7 +9,7 @@
 - **Tests Replay exécutés avec le contenu de `main` :** 122 (réaligné), 124, 269 (31 assertions), 270, 271, 20261102014000 (étape 13 indicateurs), 20261102101510 (contrat et comportement propriétaire/association), 20261102105033 (cloisonnement centres Examens), 20261102105229 (cycle outbox) et 20261102105542 (catalogue Examens Admin), 262 (contrat outbox). Tous retournent PASS; les fixtures transactionnelles sont annulées. Le test 271 est structurel, car le bucket `medicaments` n'est pas provisionné sur Replay; aucun upload Storage réel n'est revendiqué.
 - **Autres réserves uniquement de vérification :** `npm test`, typecheck, lint, build sur le HEAD courant; tests HTTP/JWT réels; navigation/rendu responsive des files Admin; upload réel Storage et réception d'e-mail externe Google. Le miroir GitLab NAXA reste en retard sur GitHub `main` (dernier SHA miroir connu `178a655880d75f933a5968e34d3de3f802de5e5c`, 21/10/2026); son dernier pipeline a échoué avant le démarrage des jobs pour épuisement de quota. Il n'a pas été relancé sur ce code périmé.
 - **Inventaire de migration :** les décomptes et non-correspondances de nom du snapshot du 26/10 sont historiques. Les fichiers horodatés et les 288 entrées live ne se correspondent pas par version seule; les sources legacy réutilisent d'autres conventions. Aucun nom ou version différent n'a été assimilé automatiquement à une migration manquante. Le suivi de traçabilité des anciennes migrations reste un relevé historique, sans incidence démontrée sur les corrections Admin du présent ratissage.
-- **Bilan du registre :** ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01 et ADM-NOTIF-01 sont résolus au niveau SQL Production et tests Replay; ADM-SETTLEMENT-02/03 sont corrigés côté source et couverts par contrat. PRE-039 est déjà corrigé sur le HEAD courant. Les 14 réserves restantes de l'étape 10 se limitent aux preuves CI ou à la recette dans l'application, sans autre correction source identifiée par ce ratissage.
+- **Bilan du registre :** ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01 et ADM-NOTIF-01 sont résolus au niveau SQL Production et tests Replay; ADM-SETTLEMENT-02/03 sont corrigés côté source et couverts par contrat. PRE-039 est déjà corrigé sur le HEAD courant. Les 13 réserves restantes de l'étape 10 se limitent aux preuves CI ou à la recette dans l'application, sans autre correction source identifiée par ce ratissage. ADM-MIGRATION-01 est conservé comme note historique non bloquante.
 
 ---
 ## État courant — migrations PRE-044/PRE-045 appliquées et vérifiées en Production (02/11/2026)
@@ -3254,12 +3254,11 @@ Aucune modification applicative ou SQL, aucune écriture Supabase Production, au
 - L'espace Promoteur annonce désormais une échéance calculée sur un « mois calendaire », cohérente avec le calcul SQL; le libellé « 31 jours » a disparu.
 - `scripts/test-promoteur-payment-cleanup.cjs` vérifie le libellé actuel et l'absence de l'ancien texte.
 - Statut : correction source effectuée; exécution du runner Node/CI et recette visuelle dans l'application restent à faire.
-**ADM-MIGRATION-01 — Documentation / configuration — RÉSERVE DE PREUVE**
-- **Preuve :** la réconciliation exhaustive de tous les fichiers de migration GitHub avec l'historique des migrations Production reste explicitement ouverte.
-- **Impact :** risque de divergence non détectée entre code versionné, Replay et Production.
-- **Cause racine :** historique de migrations ancien et noms/horodatages parfois distincts.
-- **Correction proposée :** produire une comparaison exhaustive et traçable, sans appliquer automatiquement les migrations manquantes.
-- **Vérification attendue :** liste des fichiers, version live correspondante, équivalence SQL, statut appliqué/non appliqué et décision pour chaque écart.
+**ADM-MIGRATION-01 — Traçabilité historique — RECLASSÉ HORS DU REGISTRE ACTIF**
+- Les 11 migrations rattachées aux corrections Admin actuelles sont toutes présentes dans l'historique Production et associées à un fichier source versionné dans `supabase/migrations/`.
+- Le rapprochement des 288 versions live par nom exact retrouve 226 correspondances directes; 62 entrées historiques utilisent des noms/timestamps/conventions qui ne correspondent pas exactement après normalisation. Cette différence n'établit pas qu'une migration manque du dépôt ni qu'un objet courant diverge.
+- Aucune migration manquante ou divergence DDL active n'a été confirmée sur le périmètre Admin traité. Les définitions des objets SQL correspondants ont été relues après application.
+- Décision : conserver les différences de nommage comme note d'historique de migration, sans `db push`, renommage ou réapplication spéculative. Ce point n'est plus un défaut Admin actif et ne bloque pas les vérifications CI/app.
 
 #### P3 — Surveillance de volumétrie
 
@@ -3285,7 +3284,7 @@ Pour éviter de refaire les mêmes travaux :
 - Constats historiques recensés : 22 identifiants uniques.
 - Les quatre constats P1 (ADM-EXAM-01, ADM-EXAM-02, ADM-PARTNER-01, ADM-NOTIF-01) sont désormais corrigés et vérifiés au niveau des définitions Production, avec leurs tests Replay.
 - ADM-SETTLEMENT-02 et ADM-SETTLEMENT-03 sont corrigés dans la source et couverts par un test de contrat Node versionné.
-- **14 constats restent actifs ou sous réserve** après ces six clôtures : P1 : 0; P2 : 14; P3 : 0. Les constats résolus sont conservés dans l'historique mais exclus du décompte actif.
+- **13 constats restent actifs ou sous réserve** après les six clôtures et le reclassement historique ADM-MIGRATION-01 : P1 : 0; P2 : 13; P3 : 0. Les constats résolus sont conservés dans l'historique mais exclus du décompte actif.
 - Les statuts OUVERT, RÉSERVE DE PREUVE et SURVEILLANCE restent distincts; aucun constat n'est déclaré corrigé par la seule inscription au registre.
 
 ### 10.5 Statut de l'étape 10
