@@ -37,13 +37,16 @@ export default function ProfilAdmin() {
       const sb = supabaseBrowser();
       const { data: auth } = await sb.auth.getUser();
       if (!auth.user) { setError("Connexion requise."); return; }
-      const { error: updateError } = await sb.from("profiles").update({
+      const { data: updated, error: updateError } = await sb.from("profiles").update({
         username: profile.username?.trim() || null,
         first_name: profile.first_name?.trim() || null,
         last_name: profile.last_name?.trim() || null,
         phone: profile.phone?.trim() || null,
-      }).eq("id", auth.user.id);
-      if (updateError) { setError("Le profil n’a pas été modifié. Vérifiez les champs et les autorisations."); return; }
+      }).eq("id", auth.user.id).select("id").maybeSingle();
+      if (updateError || updated?.id !== auth.user.id) {
+        setError("Le profil n’a pas été modifié. Vérifiez la session, les champs et les autorisations.");
+        return;
+      }
       setMessage("Profil mis à jour.");
     } catch { setError("La mise à jour a échoué. Réessayez."); }
     finally { setSaving(false); }
