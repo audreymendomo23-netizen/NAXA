@@ -140,7 +140,7 @@ export default function AdminComptesIndicateurs({ jours }: { jours: number }) {
             ? "Le service de consolidation des comptes n'est pas encore disponible sur cet environnement."
             : "Les indicateurs des autres comptes sont indisponibles pour ce périmètre Admin."
         );
-        if (!result || typeof result !== "object" || !("totaux" in result) || !("par_pharmacie" in result)) {
+        if (!result || typeof result !== "object" || !("totaux" in result) || !("par_pharmacie" in result) || !("par_promoteur" in result) || !("partenaires_globaux" in result)) {
           throw new Error("Le moteur de consolidation a renvoyé une réponse incomplète.");
         }
         if (live) setData(result as Payload);
