@@ -1,5 +1,7 @@
 # NAXA — Cahier des charges multicompte
 
+> **Addendum prioritaire du 02/11/2026 :** les décisions plus récentes sur le cumul des fonctions, l'espace actif unique, le périmètre du Responsable et les affectations urgentes/ordinaires figurent dans [DECISIONS_METIER_CONFIRMEES_2026-11-02.md](DECISIONS_METIER_CONFIRMEES_2026-11-02.md). Elles priment sur les questions antérieures de ce document pour les sujets concernés. L'affectation urgente exige toujours une date d'expiration ; sa durée reste à préciser.
+
 **Version :** 1.0 — 23 octobre 2026  
 **Dépôt de référence :** `audreymendomo23-netizen/NAXA`  
 **Branche de référence :** `main`  
