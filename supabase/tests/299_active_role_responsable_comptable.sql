@@ -32,8 +32,8 @@ begin
   insert into public.profiles(id,role,username,actif,niveau_interne)
   values
     (v_promoter,'promoteur','naxa299_'||substr(replace(v_promoter::text,'-',''),1,12),true,1),
-    (v_responsable,'client','naxa299_'||substr(replace(v_responsable::text,'-',''),1,12),true,null),
-    (v_comptable,'client','naxa299_'||substr(replace(v_comptable::text,'-',''),1,12),true,null);
+    (v_responsable,'client','naxa299_'||substr(replace(v_responsable::text,'-',''),1,12),true,4),
+    (v_comptable,'client','naxa299_'||substr(replace(v_comptable::text,'-',''),1,12),true,4);
 
   insert into public.conventions_promoteurs(
     promoteur_id,montant_mensuel,date_paiement,date_expiration,statut,architecture_code
