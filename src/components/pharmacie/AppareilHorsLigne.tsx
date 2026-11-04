@@ -46,7 +46,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
 
   async function activate() {
     setError("");
-    if (!/^\\d{4,6}$/.test(pin) || pin !== confirmPin) {
+    if (!/^\d{4,6}$/.test(pin) || pin !== confirmPin) {
       setError("Saisissez deux fois le même PIN de 4 à 6 chiffres.");
       return;
     }
@@ -148,10 +148,10 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold">PIN local (4 à 6 chiffres)
-          <input className="champ mt-1 w-full" inputMode="numeric" autoComplete="new-password" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/\\D/g, "").slice(0, 6))} />
+          <input className="champ mt-1 w-full" inputMode="numeric" autoComplete="new-password" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))} />
         </label>
         <label className="block text-sm font-semibold">Confirmer le PIN
-          <input className="champ mt-1 w-full" inputMode="numeric" autoComplete="new-password" maxLength={6} value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\\D/g, "").slice(0, 6))} />
+          <input className="champ mt-1 w-full" inputMode="numeric" autoComplete="new-password" maxLength={6} value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 6))} />
         </label>
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
