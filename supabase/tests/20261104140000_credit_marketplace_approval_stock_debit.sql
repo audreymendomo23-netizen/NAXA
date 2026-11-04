@@ -15,7 +15,9 @@ select admin_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','au
 union all
 select client_a_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-a-'||replace(client_a_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
 union all
-select client_b_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-b-'||replace(client_b_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids;
+select client_b_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-b-'||replace(client_b_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
+union all
+select responsable_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-responsable-'||replace(responsable_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids;
 set local session_replication_role='origin';
 
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
