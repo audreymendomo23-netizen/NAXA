@@ -122,17 +122,22 @@ begin
   -- L'ancien RPC Caisse ne peut pas être utilisé depuis un autre poste Admin que celui sélectionné.
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
-  perform public.naxa_select_active_role('client',null);
+  perform public.naxa_grant_professional_assignment(
+    v_admin,v_pharmacy_b,'caisse',v_now,null,'Test Admin bascule vers Caisse'
+  );
+  perform public.naxa_select_active_role('caisse',v_pharmacy_b);
+  if public.naxa_business_function(v_admin)<>'caisse' or public.is_admin() then
+    raise exception 'Le rôle Admin conserve ses privilèges globaux après bascule vers Caisse';
+  end if;
   v_rejected:=false;
   begin
     perform public.naxa_provision_caisse(gen_random_uuid(),v_pharmacy_a);
   exception when others then
     v_rejected:=true;
   end;
-  if not v_rejected then raise exception 'Le compte Admin resté en espace Client peut provisionner une Caisse'; end if;
-  if public.is_admin() then raise exception 'La sélection Client conserve les privilèges Admin'; end if;
-  insert into naxa_role_296_results values('admin_revoque_dans_espace_client',true,
-    'L''ancienne identité Admin ne permet plus le provisionnement quand le poste Client est actif');
+  if not v_rejected then raise exception 'Le profil Admin basculé sur Caisse conserve la capacité de provisionnement NAXA'; end if;
+  insert into naxa_role_296_results values('admin_global_suspendu_en_poste_caisse',true,
+    'Après Admin → Caisse, is_admin=false et l''ancienne RPC de provisionnement est refusée');
 
 end;
 $test$;
