@@ -130,6 +130,13 @@ Ces sujets ne remettent pas en cause les décisions générales consignées ci-d
 - Une comparaison naïve de l'heure du téléphone avec stocks.updated_at est insuffisante : horloges décalées, synchronisations reçues dans un ordre différent et écrasements successifs peuvent produire un mauvais gagnant.
 - Traitement : concevoir une version/timestamp de mutation persistant, cohérent pour les écritures en ligne et hors ligne, un départage déterministe et un journal des valeurs perdantes. Les mouvements de stock/financiers restent des événements append-only ; ne pas les écraser par LWW.
 
+**État technique vérifié au 04/11/2026 — sous-périmètre correction de quantité du stock :**
+- Les mutations sont ordonnées par horodatage serveur estimé/ancré, puis séquence d'appareil et identifiant déterministe. Une correction hors ligne rejouée ne remplace pas un comptage serveur qui possède le même horodatage milliseconde ; le comptage en ligne est prioritaire (`device_id IS NULL`).
+- La synchronisation revalide l'appareil, l'utilisateur, l'association à la pharmacie, le rôle professionnel autorisé et l'état actif de la pharmacie. Les opérations perdantes/conflits restent consultables comme résultats terminaux ; les mouvements demeurent des événements de journal.
+- Sources : `supabase/migration_268_offline_stock_lww_chronology.sql`, `supabase/migration_269_offline_lww_server_tie_priority.sql`, `supabase/migration_270_offline_stock_lww_role_guard.sql`. Tests Replay 053, 220, 221, 268, 269 et 270 PASS le 04/11/2026 ; le scénario 221 est intégralement annulé.
+- **Limite :** preuve de code et SQL sur Replay uniquement ; pas de recette navigateur/appareil réel ni de validation CI au HEAD courant. Seules les corrections de quantité de stock non lotisé sont opérables hors ligne ; le mode vente/caisse/clôture complet n'est pas livré.
+- Le PIN 4–6 chiffres de `AppareilHorsLigne` est un verrou technique local protégeant la clé de chiffrement IndexedDB. Il ne constitue pas une décision métier, n'est pas le PIN Promoteur F01-PRO et ne remplace pas l'authentification NAXA.
+
 ### DEC-07 — Paramètres financiers de référence
 
 - Les valeurs de référence NAXA sont personnalisables par pharmacie, mais les valeurs numériques des plafonds, seuils d'écart et limites de remise ne sont pas fournies ici.
