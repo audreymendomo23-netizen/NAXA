@@ -75,7 +75,9 @@ union all select credit_b_id,client_b_id,pharmacie_id,10000,0,true,admin_id from
 
 insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
 select promoteur_id,'ASSIGN_PRIVILEGE',pharmacie_id,'PHARMACIE',admin_id,true
-from _naxa_credit_debit_ids;
+from _naxa_credit_debit_ids
+on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
+do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
 -- L’affectation permanente couvre une pharmacie secondaire, et aucune autre.
 insert into public.naxa_professional_assignments(profile_id,pharmacie_id,fonction,statut,nature_affectation,motif,commence_at,expire_at,accorde_par)
