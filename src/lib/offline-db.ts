@@ -72,32 +72,68 @@ export async function getLocalInstallationId() {
   await tx(META, "readwrite", s => s.put({ id: "installation", value }));
   return value;
 }
-export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: "pharmacie" | "caisse"; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
-  if (!/^\d{4,6}$/.test(input.pin)) throw new Error("Le PIN doit contenir 4 à 6 chiffres");
-  if (input.role !== "pharmacie" && input.role !== "caisse") throw new Error("Rôle local non autorisé.");
-  // Never rotate the encryption key while any device metadata, queue or snapshot exists.
-  // The queue and snapshot were encrypted with the previous key and must remain readable.
+export async function assertLocalDeviceActivationAllowed() {
   const database = await openDb();
   await new Promise<void>((resolve, reject) => {
     const t = database.transaction([META, QUEUE, REF], "readonly");
+    let checks = 0;
     let deviceExists = false;
     let queuedCount = 0;
     let referenceCount = 0;
-    t.objectStore(META).get("device").onsuccess = event => { deviceExists = Boolean((event.target as IDBRequest).result); };
-    t.objectStore(QUEUE).count().onsuccess = event => { queuedCount = Number((event.target as IDBRequest).result ?? 0); };
-    t.objectStore(REF).count().onsuccess = event => { referenceCount = Number((event.target as IDBRequest).result ?? 0); };
-    t.oncomplete = () => {
-      database.close();
-      if (deviceExists || queuedCount > 0 || referenceCount > 0) reject(new Error("Un appareil ou des données hors ligne existent déjà. Réactivation et changement de PIN bloqués pour préserver la file chiffrée. Déverrouillez le poste existant et synchronisez-le avant toute procédure de remplacement."));
-      else resolve();
+    const finishCheck = () => {
+      checks += 1;
+      if (checks !== 3) return;
+      if (deviceExists || queuedCount > 0 || referenceCount > 0) {
+        reject(new Error("Un appareil ou des données hors ligne existent déjà. Réactivation et changement de PIN bloqués pour préserver la file chiffrée. Déverrouillez le poste existant et synchronisez-le avant toute procédure de remplacement."));
+      }
     };
+    const deviceRequest = t.objectStore(META).get("device");
+    deviceRequest.onsuccess = () => { deviceExists = Boolean(deviceRequest.result); finishCheck(); };
+    const queueRequest = t.objectStore(QUEUE).count();
+    queueRequest.onsuccess = () => { queuedCount = Number(queueRequest.result ?? 0); finishCheck(); };
+    const referenceRequest = t.objectStore(REF).count();
+    referenceRequest.onsuccess = () => { referenceCount = Number(referenceRequest.result ?? 0); finishCheck(); };
+    t.oncomplete = () => { database.close(); resolve(); };
     t.onerror = () => { database.close(); reject(t.error ?? new Error("Vérification de l'appareil local impossible.")); };
     t.onabort = () => { database.close(); reject(t.error ?? new Error("Vérification de l'appareil local annulée.")); };
   });
+}
+export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: "pharmacie" | "caisse"; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
+  if (!/^\d{4,6}$/.test(input.pin)) throw new Error("Le PIN doit contenir 4 à 6 chiffres");
+  if (input.role !== "pharmacie" && input.role !== "caisse") throw new Error("Rôle local non autorisé.");
   const salt = crypto.getRandomValues(new Uint8Array(16)), { aes, hash } = await derive(input.pin, salt);
   const localNow = Date.now();
   const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, role: input.role, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: Math.max(0, Math.floor(input.nextDeviceSequence ?? 0)), lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
-  await tx(META, "readwrite", s => s.put(meta));
+  // Check-and-insert in one read/write transaction: two tabs cannot race and re-key
+  // an existing encrypted queue or snapshot.
+  const database = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const t = database.transaction([META, QUEUE, REF], "readwrite");
+    let checks = 0;
+    let deviceExists = false;
+    let queuedCount = 0;
+    let referenceCount = 0;
+    let guardError: Error | null = null;
+    const finishCheck = () => {
+      checks += 1;
+      if (checks !== 3) return;
+      if (deviceExists || queuedCount > 0 || referenceCount > 0) {
+        guardError = new Error("Un appareil ou des données hors ligne existent déjà. Réactivation et changement de PIN bloqués pour préserver la file chiffrée. Déverrouillez le poste existant et synchronisez-le avant toute procédure de remplacement.");
+        t.abort();
+        return;
+      }
+      t.objectStore(META).add(meta);
+    };
+    const deviceRequest = t.objectStore(META).get("device");
+    deviceRequest.onsuccess = () => { deviceExists = Boolean(deviceRequest.result); finishCheck(); };
+    const queueRequest = t.objectStore(QUEUE).count();
+    queueRequest.onsuccess = () => { queuedCount = Number(queueRequest.result ?? 0); finishCheck(); };
+    const referenceRequest = t.objectStore(REF).count();
+    referenceRequest.onsuccess = () => { referenceCount = Number(referenceRequest.result ?? 0); finishCheck(); };
+    t.oncomplete = () => { database.close(); resolve(); };
+    t.onerror = () => { /* IndexedDB abort handler reports the transaction failure. */ };
+    t.onabort = () => { database.close(); reject(guardError ?? t.error ?? new Error("Activation locale annulée.")); };
+  });
   activeUnlocked = { deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, token: input.token, aes, lastSync: Date.now() };
   if (input.reference !== undefined) await saveReference(input.reference);
 }
