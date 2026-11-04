@@ -437,3 +437,13 @@ Vérifier le HEAD actuel, exécuter ou obtenir des contrôles de compilation/lin
 
 ### Suite
 Poursuivre uniquement sur les contrôles de compilation/CI et recette navigateur accessibles ; ne pas déclarer F07 entièrement livré tant que le périmètre POS/caisse/clôture hors ligne n'est pas construit et testé.
+
+
+## Journal de continuité — scopes Caisse et autorisation lots (04/11/2026)
+
+- Migration 277 : les RPC de correction stock, le helper de snapshot et l'activation utilisent `POSTE_CAISSE` pour EDIT lorsque `naxa_business_function()` retourne `caisse` ; `VIEW_STOCK` reste en scope `PHARMACIE`. Test 277 PASS ; test comportemental 221 PASS avec une attribution EDIT en `POSTE_CAISSE`.
+- Migration 278 puis 279 : RLS lots interdit la voie `MANAGE_LOTS` à la Caisse ; le comptage de quarantaine reste néanmoins ouvert à l'équipe active, Caisse comprise, car il s'agit d'une observation auditable sans mutation stock/lot. Test 179 PASS (Caisse compte, stock et lot restent inchangés), test 278 PASS.
+- Migration 280 : helper `naxa_can_manage_lots` centralise périmètre, affectations, fonctions de gestion et privilège MANAGE_LOTS. Le helper est utilisé par les policies RLS des lots/rappels/traitements, la RPC `lot_rappeler` et le composant `RappelsLotsManager`. La Caisse ne peut pas administrer les lots même si un grant MANAGE_LOTS trop large est présent ; test 280 PASS et test 221 inclut cette vérification.
+- Test 275 ajusté pour les nouvelles policies fondées sur le helper et repassé PASS. Test 175, 181 et 221 également PASS après migration280.
+- Les tests 053, 175, 177, 179, 181, 220, 221, 271–280 affichent explicitement PASS dans Replay ; tests 268–270, 174, 193, 198, 200, 201, 203, 204, 206, 207 et 219 exécutés sans erreur SQL mais les scripts ne retournent pas tous un libellé PASS explicite.
+- Aucune migration ni écriture Supabase Production ; aucun déploiement. Build complet, lint, CI au SHA courant et recette navigateur/appareil réel restent non prouvés. F07 offline complet (POS/ventes, caisse, mouvements autonomes, clôture) reste hors du périmètre livré ; seuls les ajustements de quantité non lotisés sont offline.
