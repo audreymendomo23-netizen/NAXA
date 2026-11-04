@@ -135,7 +135,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
       const role = String(activationData.role ?? "");
       const canViewStock = activationData.canViewStock === true;
       const canEditStock = activationData.canEditStock === true;
-      if (!token || !deviceId || linkedPharmacyId !== pharmacyId || (role !== "pharmacie" && role !== "caisse") || !canViewStock || !canEditStock) {
+      if (!token || !deviceId || linkedPharmacyId !== pharmacyId || (!role || ["admin","client","promoteur"].includes(role)) || !canViewStock || !canEditStock) {
         throw new Error("La réponse d'activation ne correspond pas à la pharmacie active.");
       }
 
@@ -147,7 +147,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
         deviceId,
         pharmacyId,
         pharmacyName: String(activationData.pharmacyName ?? pharmacyName),
-        role: role as "pharmacie" | "caisse",
+        role,
         canViewStock: true,
         canEditStock: true,
         token,
