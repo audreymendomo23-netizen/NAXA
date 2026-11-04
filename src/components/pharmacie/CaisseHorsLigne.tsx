@@ -125,6 +125,10 @@ export function CaisseHorsLigne({ pharmacieId, pharmacyName }: { pharmacieId:str
     try{
       const lines=cart.map(line=>({produit_id:line.produit_id,quantite:line.quantitePanier,prix_unitaire:line.prix}));
       const id=await enregistrerOperation("caisse_sale",{session_id:session.id,total_attendu:total,montant_percu:amount,lignes:lines});
+      setProducts(current=>current.map(product=>{
+        const sold=lines.find(line=>line.produit_id===product.produit_id)?.quantite??0;
+        return sold?{...product,quantite:Math.max(0,product.quantite-sold)}:product;
+      }));
       setCart([]);setCashReceived("");await refreshQueue();
       setMessage("Vente chiffrée localement ("+id.slice(0,8)+"). Elle sera confirmée par le serveur au retour du réseau ; aucun ticket définitif n’est encore émis.");
     }catch(error){
