@@ -63,7 +63,7 @@ begin
 
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op1,'stock_set_quantity',
-      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target,'base_updated_at',v_stock.updated_at),
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',1),
       v_modified_ms
     );
     if v_result->>'status' is distinct from 'applied' then
