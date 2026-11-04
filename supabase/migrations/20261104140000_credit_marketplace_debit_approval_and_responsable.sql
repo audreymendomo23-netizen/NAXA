@@ -195,6 +195,19 @@ select case
 end
 $function$;
 
+-- Les politiques RLS historiques appellent can_access_pharmacy; le Responsable
+-- affecté doit donc obtenir exactement le même périmètre que le moteur canonique.
+create or replace function public.can_access_pharmacy(p_pharmacie uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $function$
+  select p_pharmacie is not null
+    and public.naxa_scope_allows((select auth.uid()),p_pharmacie,'PHARMACIE');
+$function$;
+
 create or replace function private.naxa_can_manage_privilege_target(
   p_target uuid,p_pharmacie uuid default null
 ) returns boolean
