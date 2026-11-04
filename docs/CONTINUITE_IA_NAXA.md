@@ -447,3 +447,9 @@ Poursuivre uniquement sur les contrôles de compilation/CI et recette navigateur
 - Test 275 ajusté pour les nouvelles policies fondées sur le helper et repassé PASS. Test 175, 181 et 221 également PASS après migration280.
 - Les tests 053, 175, 177, 179, 181, 220, 221, 271–280 affichent explicitement PASS dans Replay ; tests 268–270, 174, 193, 198, 200, 201, 203, 204, 206, 207 et 219 exécutés sans erreur SQL mais les scripts ne retournent pas tous un libellé PASS explicite.
 - Aucune migration ni écriture Supabase Production ; aucun déploiement. Build complet, lint, CI au SHA courant et recette navigateur/appareil réel restent non prouvés. F07 offline complet (POS/ventes, caisse, mouvements autonomes, clôture) reste hors du périmètre livré ; seuls les ajustements de quantité non lotisés sont offline.
+
+## Vérification de livraison — dernier contrôle du 04/11/2026
+
+- HEAD au moment du contrôle : `e91bc8583eee5be6575477418084e2ec6fb16a9b`. Statut Vercel GitHub : `failure`, destination `upgradeToPro=build-rate-limit`; la recherche Vercel filtrée sur ce SHA retourne zéro déploiement. Aucun build ou déploiement n'est confirmé.
+- Miroir GitLab NAXA : toujours au SHA `178a655880d75f933a5968e34d3de3f802de5e5c` (21/10/2026). Dernier pipeline consulté : `ci_quota_exceeded` avant le démarrage des jobs. Aucune CI GitLab actuelle sur le SHA de GitHub main.
+- Ne pas interpréter le statut CircleCI en échec comme un résultat à corriger : `AGENTS.md` interdit son usage. Aucun déploiement ni aucune écriture Supabase Production.
