@@ -90,7 +90,14 @@ begin
   if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
     or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE')
     or private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE') then
-    raise exception 'Affectation permanente : périmètre pharmacie incorrect'; end if;
+    raise exception 'Affectation : helper %, scope assigned %, scope home %, uid %, fn %, active profile %, assignment rows %',
+      public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable'),
+      private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE'),
+      private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE'),
+      auth.uid(),public.naxa_business_function(x.responsable_id),
+      (select actif from public.profiles where id=x.responsable_id),
+      (select count(*) from public.naxa_professional_assignments where profile_id=x.responsable_id and pharmacie_id=x.pharmacie_id and statut='active');
+  end if;
 
   perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
