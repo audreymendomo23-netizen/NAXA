@@ -9,6 +9,7 @@ declare
   v_op_online uuid := gen_random_uuid();
   v_op3 uuid := gen_random_uuid();
   v_op4 uuid := gen_random_uuid();
+  v_op5 uuid := gen_random_uuid();
   v_installation uuid := gen_random_uuid();
   v_stock record;
   v_target integer;
@@ -137,7 +138,31 @@ begin
       raise exception 'MC-03: losing offline tie overwrote the server count';
     end if;
 
-    -- Revoking the explicit stock privilege must stop a later device mutation.
+    -- Removing VIEW_STOCK while keeping EDIT_STOCK_QUANTITY must still block writes.
+    update public.naxa_profile_privileges set active=false
+      where profile_id=v_uid and privilege_code='VIEW_STOCK' and pharmacie_id=v_stock.pharmacie_id;
+    v_permissions := public.naxa_device_permissions_v1(v_device);
+    if v_permissions->>'authorized' is distinct from 'true'
+      or v_permissions->>'canViewStock' is distinct from 'false'
+      or v_permissions->>'canEditStock' is distinct from 'true' then
+      raise exception 'MC-03: view revocation must independently remove read access: %',v_permissions;
+    end if;
+    v_result := public.naxa_apply_offline_operation_v1(
+      v_device,v_op3,'stock_set_quantity',
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 30,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',3),
+      v_modified_ms + 100
+    );
+    if v_result->>'status' is distinct from 'rejected'
+      or v_result->>'reason' is distinct from 'stock_view_privilege_denied' then
+      raise exception 'MC-03: revoked view privilege must block stock mutation: %',v_result;
+    end if;
+    if exists(select 1 from public.offline_operations where operation_id=v_op3) then
+      raise exception 'MC-03: missing view privilege must not create an operation';
+    end if;
+
+    -- Revoking EDIT_STOCK_QUANTITY while restoring VIEW_STOCK must leave read-only access.
+    update public.naxa_profile_privileges set active=true
+      where profile_id=v_uid and privilege_code='VIEW_STOCK' and pharmacie_id=v_stock.pharmacie_id;
     update public.naxa_profile_privileges set active=false
       where profile_id=v_uid and privilege_code='EDIT_STOCK_QUANTITY' and pharmacie_id=v_stock.pharmacie_id;
     v_permissions := public.naxa_device_permissions_v1(v_device);
@@ -147,16 +172,16 @@ begin
       raise exception 'MC-03: revoked edit privilege should preserve read-only access: %',v_permissions;
     end if;
     v_result := public.naxa_apply_offline_operation_v1(
-      v_device,v_op3,'stock_set_quantity',
-      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 30,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',3),
-      v_modified_ms + 100
+      v_device,v_op4,'stock_set_quantity',
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 40,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',4),
+      v_modified_ms + 200
     );
     if v_result->>'status' is distinct from 'rejected'
       or v_result->>'reason' is distinct from 'stock_edit_privilege_denied' then
-      raise exception 'MC-03: revoked stock privilege must be rejected: %',v_result;
+      raise exception 'MC-03: revoked stock edit privilege must be rejected: %',v_result;
     end if;
-    if exists(select 1 from public.offline_operations where operation_id=v_op3) then
-      raise exception 'MC-03: revoked privilege must not create an operation';
+    if exists(select 1 from public.offline_operations where operation_id=v_op4) then
+      raise exception 'MC-03: revoked edit privilege must not create an operation';
     end if;
 
     -- A role downgrade/unauthorized role must also be rejected at synchronization time.
@@ -168,15 +193,15 @@ begin
       raise exception 'MC-03: unauthorized profile must lose all stock access: %',v_permissions;
     end if;
     v_result := public.naxa_apply_offline_operation_v1(
-      v_device,v_op4,'stock_set_quantity',
-      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 40,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',4),
-      v_modified_ms + 200
+      v_device,v_op5,'stock_set_quantity',
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 50,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',5),
+      v_modified_ms + 300
     );
     if v_result->>'status' is distinct from 'rejected'
       or v_result->>'reason' is distinct from 'professional_inactive_or_role_unauthorized' then
       raise exception 'MC-03: unauthorized role must be rejected at sync: %',v_result;
     end if;
-    if exists(select 1 from public.offline_operations where operation_id=v_op4) then
+    if exists(select 1 from public.offline_operations where operation_id=v_op5) then
       raise exception 'MC-03: unauthorized role must not create an operation';
     end if;
 
