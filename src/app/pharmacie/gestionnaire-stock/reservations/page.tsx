@@ -70,7 +70,7 @@ export default async function GestionnaireStockReservationsPage({
 
   const { data: profile, error: profileError } = await sb
     .from("profiles")
-    .select("role,fonction_interne,actif")
+    .select("role,fonction_interne,pharmacie_id,actif")
     .eq("id", auth.user.id)
     .maybeSingle();
 
@@ -89,7 +89,11 @@ export default async function GestionnaireStockReservationsPage({
   if (!allowedRole) redirect("/");
 
   const { data: pharmacies, error: pharmaciesError } = await sb.rpc("my_pharmacies");
-  const pharmacyIds = [...new Set([...(Array.isArray(pharmacies) ? pharmacies : []).filter((id): id is string => typeof id === "string"), ...assignedIds])];
+  const pharmacyIds = [...new Set([
+    ...(Array.isArray(pharmacies) ? pharmacies : []).filter((id): id is string => typeof id === "string"),
+    ...(profile.pharmacie_id ? [profile.pharmacie_id] : []),
+    ...assignedIds,
+  ])];
   if ((pharmaciesError && !hasStockAssignment) || assignmentError) {
     return <main className="mx-auto max-w-5xl p-5"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Impossible de déterminer le périmètre pharmacie du compte.</p></main>;
   }
