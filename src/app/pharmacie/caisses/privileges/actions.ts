@@ -11,12 +11,11 @@ async function verifierCible(formData: FormData, action: "ASSIGN_PRIVILEGE" | "R
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses/privileges");
 
-  const { data: profile } = await sb.from("profiles").select("id,role,actif,fonction_interne,niveau_interne,pharmacie_id").eq("id", auth.user.id).single();
-  if (profile?.actif !== true) redirect("/pharmacie");
-  const isPromoteur = profile.role === "promoteur";
-  const isResponsable = profile.role === "pharmacie"
-    && profile.fonction_interne === "responsable"
-    && profile.niveau_interne === 2;
+  const { data: profile } = await sb.from("profiles").select("id,actif,pharmacie_id").eq("id", auth.user.id).single();
+  const { data: activeFunction, error: activeFunctionError } = await sb.rpc("naxa_business_function");
+  if (profile?.actif !== true || activeFunctionError) redirect("/pharmacie");
+  const isPromoteur = activeFunction === "promoteur";
+  const isResponsable = activeFunction === "responsable";
   if (!isPromoteur && !isResponsable) redirect("/pharmacie");
   if (isResponsable) {
     const { data: canView, error } = await sb.rpc("naxa_can", {
@@ -32,14 +31,15 @@ async function verifierCible(formData: FormData, action: "ASSIGN_PRIVILEGE" | "R
     redirect("/pharmacie/caisses/privileges?erreur=validation");
   }
 
-  const [{ data: link, error: linkError }, { data: pharmacy, error: pharmacyError }, { data: caisse, error: caisseError }] = await Promise.all([
+  const [{ data: link, error: linkError }, { data: pharmacy, error: pharmacyError }, { data: caisse, error: caisseError }, { data: assignment, error: assignmentError }] = await Promise.all([
     isPromoteur
       ? sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id", auth.user.id).eq("pharmacie_id", pharmacieId).eq("actif", true).maybeSingle()
       : Promise.resolve({ data: profile.pharmacie_id === pharmacieId ? { pharmacie_id: pharmacieId } : null, error: null }),
     sb.from("pharmacies").select("id,actif,visible_recherche").eq("id", pharmacieId).maybeSingle(),
-    sb.from("profiles").select("id,role,actif,pharmacie_id,parent_profile_id,niveau_interne").eq("id", caisseId).eq("parent_profile_id", auth.user.id).eq("role", "caisse").eq("actif", true).eq("pharmacie_id", pharmacieId).maybeSingle(),
+    sb.from("profiles").select("id,actif").eq("id", caisseId).eq("actif", true).maybeSingle(),
+    sb.from("naxa_professional_assignments").select("id").eq("profile_id", caisseId).eq("pharmacie_id", pharmacieId).eq("role_code", "caisse").eq("statut", "active").maybeSingle(),
   ]);
-  if (linkError || pharmacyError || caisseError || !link || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true || !caisse) {
+  if (linkError || pharmacyError || caisseError || assignmentError || !link || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true || !caisse || !assignment) {
     redirect("/pharmacie/caisses/privileges?erreur=cible");
   }
 
