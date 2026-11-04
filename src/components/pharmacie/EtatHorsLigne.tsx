@@ -11,7 +11,6 @@ import {
   markOperationTerminal,
   saveServerTimeAnchor,
   saveReference,
-  readReference,
   markLocalSync,
   markDeviceServerLocked,
   getUnlockedDevice,
@@ -51,11 +50,9 @@ export function EtatHorsLigne({ onReferenceUpdated }: Props) {
 
   const mergeReference = useCallback(async (reference: unknown) => {
     if (reference === undefined || reference === null) return;
-    const old = await readReference();
-    const previous = old?.value && typeof old.value === "object"
-      ? old.value as Record<string, unknown>
-      : {};
-    await saveReference({ ...previous, ...(reference as Record<string, unknown>) });
+    // The server now returns the complete, permission-filtered snapshot.
+    // Replace it instead of merging so legacy costs/catalogue/expense fields are purged.
+    await saveReference(reference);
   }, []);
 
   const acceptServerClock = useCallback(async (data: Record<string, unknown>) => {
