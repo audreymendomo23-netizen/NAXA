@@ -24,9 +24,13 @@ begin
     or position('naxa_business_function' in coalesce(v_treatment,''))=0 then
     raise exception 'Les policies lot doivent exclure le rôle métier Caisse du chemin MANAGE_LOTS';
   end if;
-  if position('caisse' in lower(v_quarantine))=0
-    or position('Comptage de quarantaine interdit pour la Caisse' in v_quarantine)=0 then
-    raise exception 'Le comptage de quarantaine doit refuser explicitement la Caisse';
+  if position('role::text' in v_quarantine)=0
+    or position('client' in v_quarantine)=0
+    or position('naxa_scope_allows' in v_quarantine)=0 then
+    raise exception 'Le comptage doit rester réservé à l'équipe active et confinée à la pharmacie';
+  end if;
+  if position('Comptage de quarantaine interdit pour la Caisse' in v_quarantine)>0 then
+    raise exception 'La Caisse doit conserver le comptage physique audité sans mutation de stock';
   end if;
 end;
 $test$;
