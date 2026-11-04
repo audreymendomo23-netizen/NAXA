@@ -45,6 +45,6 @@ begin
   ) then
     raise exception 'MC-03: un appareil inconnu ne doit créer aucune opération métier';
   end if;
-end $;
+end $$;
 
 select '220_offline_device_sync_contract PASS' as resultat;
