@@ -16,6 +16,7 @@ declare
   v_result jsonb;
   v_modified_ms bigint;
   v_server_quantity integer;
+  v_primary_pharmacy uuid;
 begin
   begin
     select s.pharmacie_id, s.produit_id, s.quantite, s.updated_at
@@ -30,6 +31,9 @@ begin
     if not found then
       raise exception 'MC-03: test requires one stock row without lots';
     end if;
+    select id into v_primary_pharmacy from public.pharmacies
+      where id<>v_stock.pharmacie_id and actif is true limit 1;
+    if not found then raise exception 'MC-03: test requires a second active pharmacy for assignment scope'; end if;
 
     insert into auth.users(id,aud,role,email,created_at,updated_at,raw_app_meta_data,raw_user_meta_data)
     values(v_uid,'authenticated','authenticated',
@@ -37,9 +41,13 @@ begin
       now(),now(),'{}'::jsonb,'{"naxa_signup_pending":"true"}'::jsonb);
 
     insert into public.profiles(id,role,pharmacie_id,actif,fonction_interne)
-    values(v_uid,'caisse',v_stock.pharmacie_id,true,null)
+    values(v_uid,'caisse',v_primary_pharmacy,true,null)
     on conflict(id) do update
       set role='caisse',pharmacie_id=excluded.pharmacie_id,actif=true,fonction_interne=null;
+
+    insert into public.naxa_professional_assignments(
+      profile_id,pharmacie_id,fonction,statut,motif,commence_at,accorde_par
+    ) values(v_uid,v_stock.pharmacie_id,'caisse','active','Test affectation multi-pharmacie',now(),v_uid);
 
     perform set_config('request.jwt.claim.sub',v_uid::text,true);
     insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,max_responsables,max_caisses,active)
