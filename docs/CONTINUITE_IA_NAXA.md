@@ -2,7 +2,7 @@
 
 > **Priorité documentaire (mise à jour 2026-10-16) :** `AGENTS.md` est la règle opérationnelle prioritaire. Toute consigne historique de ce document qui impose CircleCI, interdit une modification autorisée de `main`, ou exige une PR/branche de travail est obsolète et ne doit pas être appliquée contre `AGENTS.md` et les ordres explicites plus récents de l’utilisateur. La Production Supabase reste en lecture seule sans autorisation explicite et aucun secret ne doit être affiché.
 
-Dernière mise à jour : 2026-10-13
+Dernière mise à jour : 2026-11-04
 
 ## Règles impératives
 - Déclencheur « Rappel » : relire ce document, vérifier l'état réel GitHub/CI, comparer avec le dernier point, puis reprendre sans refaire inutilement le travail.
@@ -387,4 +387,26 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 - Route cron corrigée : utilise `NAXA_VAPID_SUBJECT` avec repli sur le sujet NAXA, inclut les colonnes `last_notified_key IS NULL` dans la prise atomique (le filtre `neq` seul ignorait les NULL), examine les six dernières minutes pour tolérer un déclencheur gratuit toutes les cinq minutes et libère la clé de déduplication si aucun envoi n'a réussi, afin de permettre une nouvelle tentative.
 - Le workflow `.github/workflows/naxa-posologie-reminders.yml` a été retiré car il dépendait de variables/secrets GitHub non prouvés comme configurés et de minutes Actions privées non confirmées disponibles. Aucun déclencheur externe gratuit n'est encore configuré : l'API cron existe, mais les rappels en arrière-plan ne sont pas déclarés fonctionnels.
 - Commits appliqués à `main` : migration `0ec7eb5249b67e3d5ad731bcab78e2c45973454c`; retrait workflow `7d17ddc52acbc81faedf6227fc937212f84012d7`; correction route `4dfe2d3c171fdecc196eea3263243ea8e16bba5f`.
+
+## Journal de continuité — reprise hors ligne / LWW (04/11/2026)
+
+**Référence courante :** dépôt GitHub `audreymendomo23-netizen/NAXA`, branche `main`. Appliquer `AGENTS.md` en premier ; les consignes historiques de branche/PR/CI présentes dans les autres documents ne prévalent pas.
+
+### Corrections versionnées
+- Protection IndexedDB contre la rotation du PIN/sel de chiffrement lorsqu'un appareil, une file ou un instantané existent ; le contrôle et l'insertion sont atomiques pour éviter les courses entre onglets.
+- Déverrouillage local refuse un retour de l'horloge et les appareils qui dépassent la fenêtre locale de sept jours sans synchronisation.
+- `/pharmacie` retrouve l'identité locale après rechargement hors ligne, présente le verrou local avant l'instantané chiffré et expose uniquement les corrections de quantité du stock non lotisé dans ce shell.
+- La synchronisation des opérations commence dès le montage de `EtatHorsLigne`.
+- La migration 269 remplace la réécriture dynamique du texte de fonction par un départage explicite ; la migration 270 revalide le rôle professionnel, le rattachement pharmacie et l'activité de la pharmacie au moment du replay.
+- Le PIN appareil est un verrou technique local et ne doit pas être confondu avec le PIN personnel Promoteur F01-PRO ni considéré comme une décision métier.
+
+### Preuves et limites
+- Sur Replay `naxa-ci-replay-2`, tests 053, 220, 221, 268, 269 et 270 exécutés et PASS le 04/11/2026. Le test 221 vérifie l'idempotence, l'égalité d'horodatage avec priorité au comptage serveur et le rejet d'un rôle devenu non autorisé ; son jeu d'essai est annulé.
+- Migration 270 appliquée sur Replay uniquement. Aucune écriture Supabase Production, aucune migration Production et aucun déploiement.
+- Le périmètre hors ligne livré reste limité aux corrections de quantité du stock non lotisé. Ventes, caisse, mouvements autonomes et clôtures ne sont pas couverts.
+- Build complet, TypeScript complet, lint et recette navigateur/appareil réel non exécutés. Le miroir GitLab n'est pas à jour : dernier SHA observé `178a655880d75f933a5968e34d3de3f802de5e5c`, avec pipeline du 23/10/2026 en échec `ci_quota_exceeded`. Ne pas présenter cette CI comme preuve sur le HEAD courant.
+
+### Prochaine action autorisée
+Vérifier le HEAD actuel, exécuter ou obtenir des contrôles de compilation/lint/CI au SHA exact dès qu'un runner disponible existe, puis compléter une recette navigateur hors ligne ; ne pas étendre le périmètre F07 sans spécification et sans tests.
+
 - Aucun build/test automatisé n'a été exécuté dans cet environnement. Les commits sur `main` ont déclenché automatiquement Vercel malgré l'absence d'une demande de déploiement : le déploiement de la migration `0ec7eb5249b67e3d5ad731bcab78e2c45973454c` a été observé `READY` sur Production; les déploiements des commits `7d17ddc52acbc81faedf6227fc937212f84012d7`, `4dfe2d3c171fdecc196eea3263243ea8e16bba5f` et `ce5ffa1ceebcdc38a1dab5221523f53389c2374c` ont ensuite été annulés dans Vercel. Le changement déjà `READY` n'a pas été annulé et son effet exact sur l'alias actif n'a pas été vérifié. Prochaine étape : confirmer l'état Production sans écrire dans Supabase, obtenir une preuve de build sur le code corrigé, puis configurer un déclencheur gratuit; ne pas relancer un déploiement manuellement sans autorisation explicite.
