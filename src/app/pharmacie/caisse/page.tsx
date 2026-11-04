@@ -215,22 +215,22 @@ export default function CaissePage() {
         }
         return;
       }
-      const { data: profile, error: profileError } = await sb.from("profiles")
-        .select("pharmacie_id,actif")
-        .eq("id", auth.user.id)
-        .maybeSingle();
-      const { data: activeRole, error: activeRoleError } = await sb.rpc("naxa_business_function");
-      const isCashier = !activeRoleError && activeRole === "caisse";
-      if (profileError || !profile || profile.actif !== true || !isCashier || !profile.pharmacie_id) {
+      const [{ data: profile, error: profileError }, { data: activeRole, error: activeRoleError }, { data: activePharmacyId, error: activePharmacyError }] = await Promise.all([
+        sb.from("profiles").select("actif").eq("id", auth.user.id).maybeSingle(),
+        sb.rpc("naxa_business_function"),
+        sb.rpc("naxa_active_role_pharmacy"),
+      ]);
+      if (profileError || activeRoleError || activePharmacyError || !profile
+        || profile.actif !== true || activeRole !== "caisse" || typeof activePharmacyId !== "string") {
         if (!cancelled) {
-          setMsg("Accès refusé : cette page est réservée à un compte Caisse actif, rattaché à une pharmacie.");
+          setMsg("Accès refusé : le poste Caisse doit être actif et rattaché à une pharmacie.");
           setLoading(false);
         }
         return;
       }
       const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
         .select("id,nom,actif,visible_recherche")
-        .eq("id", profile.pharmacie_id)
+        .eq("id", activePharmacyId)
         .maybeSingle();
       if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
         if (!cancelled) {
