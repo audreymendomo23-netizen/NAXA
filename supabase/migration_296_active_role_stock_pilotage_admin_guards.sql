@@ -281,14 +281,14 @@ declare
   v_new text;
 begin
   v_sql:=pg_get_functiondef('public.partner_adjust_universe_stock(uuid,numeric,text,text)'::regprocedure);
-  v_old:=$old$not exists ( select 1 from public.profiles p where p.id=uid and p.role='admin' )$old$;
-  v_new:=$new$not public.is_admin()$new$;
+  v_old:=$old$p.id=uid and p.role='admin'$old$;
+  v_new:=$new$p.id=uid and public.is_admin()$new$;
   if position(v_old in v_sql)=0 then raise exception 'Bypass admin stock partenaire introuvable'; end if;
   execute replace(v_sql,v_old,v_new);
 
   v_sql:=pg_get_functiondef('public.partner_import_universe_products(uuid,text,jsonb)'::regprocedure);
-  v_old:=$old$not exists(select 1 from public.profiles p where p.id=uid and p.role='admin')$old$;
-  v_new:=$new$not public.is_admin()$new$;
+  v_old:=$old$p.id=uid and p.role='admin'$old$;
+  v_new:=$new$p.id=uid and public.is_admin()$new$;
   if position(v_old in v_sql)=0 then raise exception 'Bypass admin import partenaire introuvable'; end if;
   execute replace(v_sql,v_old,v_new);
 end;
