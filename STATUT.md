@@ -1,3 +1,20 @@
+## Postes professionnels autonomes — résultat de la passe CTO (04/11/2026)
+
+**Construction : 🟡 corrigée et testée côté SQL Replay — build/runtime non certifiés.**
+
+- Identité de personne séparée des postes professionnels ; affectations cumulables ; un seul espace actif sélectionné ; pharmacie strictement limitée au poste actif.
+- Caisse, Responsable, Comptable, Pharmacien, Gestionnaire de stock et Magasinier sont attribuables sans changer le rôle Auth de la personne. Livreur est attribuable/sélectionnable mais n'a aucun droit métier implicite et son espace est un écran informatif.
+- Migrations 287–299 appliquées sur Supabase Replay uniquement.
+- Recettes transactionnelles PASS : tests 295 (11), 296 (6), 297 (8), 298 (7), 299 (4) : **36 assertions réussies**.
+- Après rollback : zéro utilisateur/profil/affectation/sélection/session/inventaire/convention/abonnement de test résiduel. Les données E2E créées précédemment (1 profil Admin et 3 pharmacies) restent en place ; zéro affectation et zéro sélection active.
+- Interfaces et API Caisse, Admin, Promoteur, Pharmacien, Stock, Comptable et Livreur raccordées au poste actif ou à leur façade de compatibilité.
+
+**Non prouvé / reste :** aucun build Next.js, typecheck complet, lint, `npm test` ou test navigateur/appareil n'a été exécuté sur le HEAD courant. Le miroir GitLab reste ancien et son dernier pipeline connu a échoué avant démarrage sur `ci_quota_exceeded`; aucun pipeline frais ne confirme le HEAD actuel. Le conseil Supabase signale encore des constats existants, notamment une vue `public.v_reservations_ca` SECURITY DEFINER ; ils n'ont pas été modifiés dans cette passe. Le workflow opérationnel Livreur n'est pas construit : les privilèges restent fermés par défaut.
+
+**Production / déploiement :** aucune écriture Supabase Production ; aucun déploiement Vercel effectué.
+
+---
+
 ## Reprise sécurisée hors ligne, droits stock et gestion des lots — état vérifié le 04/11/2026
 
 - **Reprise locale :** activation atomique et protégée contre le ré-enrôlement/rotation de jeton ; file et snapshot chiffrés préservés ; verrou PIN après 15 minutes d'inactivité ; la reprise après reload exige déverrouillage ; les corrections en attente sont réappliquées chronologiquement. Les lots sont exclus des corrections agrégées offline.
