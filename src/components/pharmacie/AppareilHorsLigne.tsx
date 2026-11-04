@@ -101,6 +101,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
         pharmacyName: String(activationData.pharmacyName ?? pharmacyName),
         token,
         serverTimeMs: syncData.serverTimeMs,
+        nextDeviceSequence: Number(activationData.nextDeviceSequence ?? 0),
         reference: syncData.reference,
       });
       setKnownDevice(true);
