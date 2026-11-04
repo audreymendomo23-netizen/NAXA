@@ -364,6 +364,25 @@ begin
     v_responsable_sans_droit,'APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE'
   );
 
+  -- Vérifier l’action de retrait de privilège explicite avant de le réattribuer.
+  perform public.naxa_revoke_privilege(
+    v_responsable_sans_droit,'APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE'
+  );
+
+  perform set_config('request.jwt.claim.sub',v_responsable_sans_droit::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_responsable_sans_droit::text,'role','authenticated')::text,true);
+
+  if public.naxa_can_approve_marketplace_credit(v_pharmacie_affectee) is not false then
+    raise exception 'La révocation explicite du privilège n’a pas bloqué l’approbation';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoter::text,'role','authenticated')::text,true);
+
+  perform public.naxa_grant_privilege(
+    v_responsable_sans_droit,'APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE'
+  );
+
   perform set_config('request.jwt.claim.sub',v_responsable_sans_droit::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_responsable_sans_droit::text,'role','authenticated')::text,true);
 
