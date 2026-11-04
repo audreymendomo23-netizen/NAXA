@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle } from "./actions";
+import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace } from "./actions";
 
 type Assignment = {
   id:string;
@@ -17,6 +17,8 @@ type Assignment = {
   revoque_at:string|null;
   motif_revocation:string|null;
 };
+type ResponsableProfile={id:string;first_name:string|null;last_name:string|null;username:string|null};
+type CreditPrivilege={profile_id:string;pharmacie_id:string;active:boolean;revoked_at:string|null};
 
 const labels:Record<string,string>={
   caisse:"Caissier / Caissière",
@@ -55,12 +57,35 @@ export default async function AffectationsPage({
   ]);
   const assignments=(rows??[]) as Assignment[];
   const pharmacyName=new Map((pharmacies??[]).map(p=>[p.id,p.nom]));
+  const activeResponsableAssignments=assignments.filter(a=>
+    a.fonction==="responsable"&&a.statut==="active"
+    &&new Date(a.commence_at).getTime()<=Date.now()
+    &&(a.expire_at===null||new Date(a.expire_at).getTime()>Date.now())
+  );
+  const responsableIds=[...new Set(activeResponsableAssignments.map(a=>a.profile_id))];
+  const responsablePharmacyIds=[...new Set(activeResponsableAssignments.map(a=>a.pharmacie_id))];
+  const [{data:responsables,error:responsablesError},{data:creditPrivilegeRows,error:creditPrivilegeError}]=await Promise.all([
+    responsableIds.length
+      ?sb.from("profiles").select("id,first_name,last_name,username").in("id",responsableIds)
+      :Promise.resolve({data:[] as ResponsableProfile[],error:null}),
+    responsableIds.length&&responsablePharmacyIds.length
+      ?sb.from("naxa_profile_privileges").select("profile_id,pharmacie_id,active,revoked_at")
+        .eq("privilege_code","APPROVE_MARKETPLACE_CREDIT")
+        .eq("scope_type","PHARMACIE").in("profile_id",responsableIds)
+        .in("pharmacie_id",responsablePharmacyIds)
+      :Promise.resolve({data:[] as CreditPrivilege[],error:null}),
+  ]);
+  const responsableById=new Map((responsables??[]).map(p=>[p.id,p]));
+  const creditPrivilegeByKey=new Map((creditPrivilegeRows??[]).map(p=>[
+    p.profile_id+":"+p.pharmacie_id,p.active&&p.revoked_at===null
+  ]));
   const errorMessages:Record<string,string>={
     validation:"Vérifiez le nom d’utilisateur, la pharmacie, la fonction, le type de période et le motif.",
     recherche:"La recherche du compte a échoué. Réessayez.",
     cible:"Aucun compte actif unique ne correspond à ce nom d’utilisateur.",
     autorisation:"Attribution refusée par les contrôles serveur : vérifiez le périmètre, le privilège et la période.",
     revocation:"Révocation refusée. Vérifiez le motif et vos droits sur cette affectation.",
+    droit_credit:"Délégation refusée. Vérifiez que le Responsable est actif, affecté à cette pharmacie et que votre droit de délégation est valide.",
   };
   const now=Date.now();
 
@@ -75,7 +100,12 @@ export default async function AffectationsPage({
         <Link href="/pharmacie/promoteur" className="underline">← Espace Promoteur</Link>
       </header>
 
-      {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{searchParams.ok==="accordee"?"Affectation accordée.":"Affectation révoquée."}</p>}
+      {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
+        searchParams.ok==="accordee"?"Affectation accordée.":
+        searchParams.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
+        searchParams.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
+        "Affectation révoquée."
+      }</p>}
       {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[searchParams.erreur]??"Opération impossible."}</p>}
       {(linksError||assignmentsError)&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">Lecture incomplète. Aucune opération ne doit être considérée comme validée.</p>}
 
@@ -117,6 +147,45 @@ export default async function AffectationsPage({
           </label>
           <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Accorder l’affectation</button>
         </form>
+      </section>
+
+      <section className="rounded-2xl border bg-white p-5">
+        <h2 className="text-lg font-bold">Droit d’approbation des crédits Marketplace</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Le Promoteur délègue ce droit individuellement, pharmacie par pharmacie. Un Responsable affecté ne peut approuver un crédit que dans les pharmacies où ce droit est actif. La révocation de l’affectation professionnelle retire également son droit secondaire lorsqu’il ne dispose plus d’une autre affectation active dans cette pharmacie.
+        </p>
+        {responsablesError||creditPrivilegeError
+          ?<p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">Impossible de vérifier les droits des Responsables. Aucune délégation n’est proposée.</p>
+          :activeResponsableAssignments.length===0
+            ?<p className="mt-3 text-sm text-slate-600">Aucun Responsable n’est actuellement affecté à vos pharmacies.</p>
+            :<div className="mt-4 space-y-3">
+              {activeResponsableAssignments.map(a=>{
+                const person=responsableById.get(a.profile_id);
+                const granted=creditPrivilegeByKey.get(a.profile_id+":"+a.pharmacie_id)===true;
+                return <article key={a.id} className="rounded-xl border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-bold">{person?.first_name??""} {person?.last_name??""}{person?.username?" · @"+person.username:""}</p>
+                      <p className="text-sm text-slate-600">{pharmacyName.get(a.pharmacie_id)??"Pharmacie"}</p>
+                    </div>
+                    <span className={granted?"rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900":"rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"}>
+                      {granted?"Approbation autorisée":"Sans droit d’approbation"}
+                    </span>
+                  </div>
+                  {granted
+                    ?<form action={retirerDroitCreditMarketplace} className="mt-3">
+                      <input type="hidden" name="responsable_id" value={a.profile_id}/>
+                      <input type="hidden" name="pharmacie_id" value={a.pharmacie_id}/>
+                      <button className="rounded-lg border border-red-300 px-4 py-2 text-sm font-bold text-red-800">Retirer le droit d’approbation</button>
+                    </form>
+                    :<form action={attribuerDroitCreditMarketplace} className="mt-3">
+                      <input type="hidden" name="responsable_id" value={a.profile_id}/>
+                      <input type="hidden" name="pharmacie_id" value={a.pharmacie_id}/>
+                      <button className="rounded-lg bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white">Autoriser l’approbation des crédits</button>
+                    </form>}
+                </article>;
+              })}
+            </div>}
       </section>
 
       <section className="rounded-2xl border bg-white p-5">
