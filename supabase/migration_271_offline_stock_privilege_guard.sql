@@ -26,7 +26,7 @@ begin
   if p_base_updated_at is null then raise exception 'Horodatage de base requis'; end if;
   if p_quantite is null or p_quantite<0 then raise exception 'Quantité invalide'; end if;
 
-  if not public.naxa_can('EDIT_STOCK_QUANTITY',p_pharmacie_id,null) then
+  if not public.naxa_has_privilege('EDIT_STOCK_QUANTITY',p_pharmacie_id,'PHARMACIE') then
     raise exception 'Privilège EDIT_STOCK_QUANTITY requis pour corriger le stock';
   end if;
 
@@ -140,7 +140,6 @@ begin
   select * into v_profile from public.profiles where id=v_uid;
   if not found
     or v_profile.actif is distinct from true
-    or v_profile.pharmacie_id is distinct from v_pharmacy
     or v_profile.role::text not in ('pharmacie','caisse')
     or (v_profile.role::text='pharmacie' and nullif(btrim(v_profile.fonction_interne),'') is null)
     or not exists(select 1 from public.pharmacies ph where ph.id=v_pharmacy and ph.actif is true) then
@@ -153,7 +152,7 @@ begin
   -- the device owner's identity rather than the service_role request identity.
   v_previous_claim_sub:=current_setting('request.jwt.claim.sub',true);
   perform pg_catalog.set_config('request.jwt.claim.sub',v_uid::text,true);
-  v_can_edit_stock:=public.naxa_can('EDIT_STOCK_QUANTITY',v_pharmacy,null);
+  v_can_edit_stock:=public.naxa_has_privilege('EDIT_STOCK_QUANTITY',v_pharmacy,'PHARMACIE');
   perform pg_catalog.set_config('request.jwt.claim.sub',coalesce(v_previous_claim_sub,''),true);
   if not v_can_edit_stock then
     return jsonb_build_object('status','rejected','reason','stock_edit_privilege_denied');
