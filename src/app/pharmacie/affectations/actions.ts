@@ -84,3 +84,82 @@ export async function revoquerAffectationProfessionnelle(formData:FormData){
   revalidatePath("/pharmacie/responsable/credits");
   redirect("/pharmacie/affectations?ok=revoquee");
 }
+
+
+
+async function verifierResponsableAffecte(
+  sb:ReturnType<typeof supabaseServer>,
+  actorId:string,
+  targetId:string,
+  pharmacyId:string,
+){
+  if(!uuid.test(targetId)||!uuid.test(pharmacyId)){
+    redirect("/pharmacie/affectations?erreur=droit_credit");
+  }
+
+  const [{data:profile,error:profileError},{data:network,error:networkError},{data:assignment,error:assignmentError},{data:pharmacy,error:pharmacyError}] = await Promise.all([
+    sb.from("profiles").select("id,role,fonction_interne,niveau_interne,parent_profile_id,actif")
+      .eq("id",targetId).maybeSingle(),
+    sb.from("promoteur_pharmacies").select("pharmacie_id")
+      .eq("promoteur_id",actorId).eq("pharmacie_id",pharmacyId).eq("actif",true).maybeSingle(),
+    sb.from("naxa_professional_assignments").select("id")
+      .eq("profile_id",targetId).eq("pharmacie_id",pharmacyId)
+      .eq("fonction","responsable").eq("statut","active")
+      .lte("commence_at",new Date().toISOString())
+      .or("expire_at.is.null,expire_at.gt."+new Date().toISOString())
+      .limit(1).maybeSingle(),
+    sb.from("pharmacies").select("id,actif").eq("id",pharmacyId).maybeSingle(),
+  ]);
+
+  if(profileError||networkError||assignmentError||pharmacyError
+    ||!profile||profile.actif!==true||profile.role!=="pharmacie"
+    ||profile.fonction_interne!=="responsable"||profile.niveau_interne!==2
+    ||profile.parent_profile_id!==actorId||!network||!assignment
+    ||!pharmacy||pharmacy.actif!==true){
+    redirect("/pharmacie/affectations?erreur=droit_credit");
+  }
+}
+
+async function gererDroitCreditMarketplace(formData:FormData,grant:boolean){
+  const sb=supabaseServer();
+  const {data:auth}=await sb.auth.getUser();
+  if(!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
+
+  const {data:actor}=await sb.from("profiles")
+    .select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
+  if(!actor||actor.role!=="promoteur"||actor.actif!==true||actor.niveau_interne!==1){
+    redirect("/pharmacie/promoteur");
+  }
+
+  const targetId=value(formData,"responsable_id");
+  const pharmacyId=value(formData,"pharmacie_id");
+  await verifierResponsableAffecte(sb,auth.user.id,targetId,pharmacyId);
+
+  const {error}=grant
+    ?await sb.rpc("naxa_grant_privilege",{
+      p_target:targetId,
+      p_privilege:"APPROVE_MARKETPLACE_CREDIT",
+      p_pharmacie:pharmacyId,
+      p_scope:"PHARMACIE",
+    })
+    :await sb.rpc("naxa_revoke_privilege",{
+      p_target:targetId,
+      p_privilege:"APPROVE_MARKETPLACE_CREDIT",
+      p_pharmacie:pharmacyId,
+      p_scope:"PHARMACIE",
+    });
+
+  if(error)redirect("/pharmacie/affectations?erreur=droit_credit");
+
+  revalidatePath("/pharmacie/affectations");
+  revalidatePath("/pharmacie/responsable/credits");
+  redirect("/pharmacie/affectations?ok="+(grant?"droit_credit":"droit_credit_retire"));
+}
+
+export async function attribuerDroitCreditMarketplace(formData:FormData){
+  return gererDroitCreditMarketplace(formData,true);
+}
+
+export async function retirerDroitCreditMarketplace(formData:FormData){
+  return gererDroitCreditMarketplace(formData,false);
+}
