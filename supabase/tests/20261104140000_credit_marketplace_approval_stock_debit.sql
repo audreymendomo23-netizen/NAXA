@@ -4,7 +4,8 @@ begin;
 
 create temporary table _naxa_credit_debit_ids on commit drop as
 select gen_random_uuid() admin_id,gen_random_uuid() client_a_id,gen_random_uuid() client_b_id,
- gen_random_uuid() responsable_id,gen_random_uuid() pharmacie_id,gen_random_uuid() pharmacie_principale_id,gen_random_uuid() pharmacie_hors_id,
+ gen_random_uuid() responsable_id,gen_random_uuid() promoteur_id,gen_random_uuid() convention_id,
+ gen_random_uuid() pharmacie_id,gen_random_uuid() pharmacie_principale_id,gen_random_uuid() pharmacie_hors_id,
  gen_random_uuid() produit_id,gen_random_uuid() caisse_id,gen_random_uuid() session_id,
  gen_random_uuid() credit_a_id,gen_random_uuid() credit_b_id,gen_random_uuid() demande_a_id,
  gen_random_uuid() demande_b_id,gen_random_uuid() lot_a_id,gen_random_uuid() lot_b_id;
@@ -17,13 +18,28 @@ select client_a_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated',
 union all
 select client_b_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-b-'||replace(client_b_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
 union all
-select responsable_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-responsable-'||replace(responsable_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids;
+select responsable_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-responsable-'||replace(responsable_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
+union all
+select promoteur_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-promoteur-'||replace(promoteur_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids;
 set local session_replication_role='origin';
 
 insert into public.pharmacies(id,nom,ville,lat,lng,actif,visible_recherche)
 select pharmacie_id,'NAXA test crédit débit','Yaoundé',3.87,11.52,true,true from _naxa_credit_debit_ids
 union all select pharmacie_principale_id,'NAXA test pharmacie principale','Yaoundé',3.88,11.53,true,true from _naxa_credit_debit_ids
 union all select pharmacie_hors_id,'NAXA test pharmacie hors périmètre','Yaoundé',3.89,11.54,true,true from _naxa_credit_debit_ids;
+
+insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+select promoteur_id,1000,current_date+30,'active','PARENTS_AINES_CADETS' from _naxa_credit_debit_ids;
+insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
+select cp.promoteur_id,cp.id,1000,current_date,current_date+30,'actif'
+from public.conventions_promoteurs cp
+join _naxa_credit_debit_ids x on x.promoteur_id=cp.promoteur_id;
+insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+select promoteur_id,pharmacie_id,true from _naxa_credit_debit_ids
+union all select promoteur_id,pharmacie_principale_id,true from _naxa_credit_debit_ids;
+insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables)
+select pharmacie_id,'PARENTS_AINES_CADETS',promoteur_id,true,5 from _naxa_credit_debit_ids
+union all select pharmacie_principale_id,'PARENTS_AINES_CADETS',promoteur_id,true,5 from _naxa_credit_debit_ids;
 
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
 select admin_id,'admin'::public.role_type,'NAXA','Admin test',true,true,now(),1,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
@@ -32,7 +48,9 @@ select client_a_id,'client'::public.role_type,'NAXA','Client A',true,true,now(),
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
 select client_b_id,'client'::public.role_type,'NAXA','Client B',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select responsable_id,'pharmacie'::public.role_type,'NAXA','Responsable test',true,true,now(),2,'responsable',pharmacie_principale_id,null::uuid from _naxa_credit_debit_ids;
+select promoteur_id,'promoteur'::public.role_type,'NAXA','Promoteur test',true,true,now(),1,'promoteur',null::uuid,null::uuid from _naxa_credit_debit_ids;
+insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
+select responsable_id,'pharmacie'::public.role_type,'NAXA','Responsable test',true,true,now(),2,'responsable',pharmacie_principale_id,promoteur_id from _naxa_credit_debit_ids;
 insert into public.produits(id,nom) select produit_id,'Produit test crédit débit' from _naxa_credit_debit_ids;
 insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption)
 select pharmacie_id,produit_id,1000,10,current_date+90 from _naxa_credit_debit_ids;
@@ -48,6 +66,10 @@ select session_id,caisse_id,admin_id,'ouverte',0 from _naxa_credit_debit_ids;
 insert into public.client_credits(id,client_id,pharmacie_id,plafond,solde,actif,created_by)
 select credit_a_id,client_a_id,pharmacie_id,10000,0,true,admin_id from _naxa_credit_debit_ids
 union all select credit_b_id,client_b_id,pharmacie_id,10000,0,true,admin_id from _naxa_credit_debit_ids;
+
+insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
+select promoteur_id,'ASSIGN_PRIVILEGE',pharmacie_id,'PHARMACIE',admin_id,true
+from _naxa_credit_debit_ids;
 
 -- L’affectation permanente couvre une pharmacie secondaire, et aucune autre.
 insert into public.naxa_professional_assignments(profile_id,pharmacie_id,fonction,statut,nature_affectation,motif,commence_at,expire_at,accorde_par)
