@@ -129,6 +129,7 @@ export function EtatHorsLigne({ onReferenceUpdated }: Props) {
             allOk = false;
             break;
           }
+          onReferenceUpdated?.();
         } catch {
           await markOperationAttempt(operation.id).catch(() => undefined);
           allOk = false;
