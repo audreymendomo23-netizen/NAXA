@@ -9,7 +9,19 @@ export type PendingOperation = { id: string; type: string; payload: unknown; cre
 type StoredOperation = Omit<PendingOperation, "payload" | "terminalDetail"> & { payloadCipher: Encrypted; terminalDetailCipher?: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
 type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: "pharmacie" | "caisse"; canEditStock?: boolean; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
-let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number } | null = null;
+const LOCAL_IDLE_LOCK_MS = 15 * 60 * 1000;
+let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number; lastActivityAt: number } | null = null;
+function currentUnlocked() {
+  if (activeUnlocked && Date.now() - activeUnlocked.lastActivityAt >= LOCAL_IDLE_LOCK_MS) activeUnlocked = null;
+  return activeUnlocked;
+}
+export function touchLocalDeviceActivity() {
+  const session = currentUnlocked();
+  if (!session) return false;
+  session.lastActivityAt = Date.now();
+  return true;
+}
+export function lockLocalDevice() { activeUnlocked = null; }
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -134,7 +146,7 @@ export async function activateLocalDevice(input: { pin: string; deviceId: string
     t.onerror = () => { /* IndexedDB abort handler reports the transaction failure. */ };
     t.onabort = () => { database.close(); reject(guardError ?? t.error ?? new Error("Activation locale annulée.")); };
   });
-  activeUnlocked = { deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, token: input.token, aes, lastSync: Date.now() };
+  activeUnlocked = { deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, token: input.token, aes, lastSync: Date.now(), lastActivityAt: Date.now() };
   if (input.reference !== undefined) await saveReference(input.reference);
 }
 export async function unlockLocalDevice(pin: string, allowExpired = false) {
@@ -167,19 +179,21 @@ export async function unlockLocalDevice(pin: string, allowExpired = false) {
   meta.lastObservedLocalMs = Math.max(meta.lastObservedLocalMs ?? 0, localNow);
   if (allowExpired) meta.serverLocked = false;
   await tx(META, "readwrite", s => s.put(meta));
-  activeUnlocked = { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName, token, aes, lastSync };
+  activeUnlocked = { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName, token, aes, lastSync, lastActivityAt: Date.now() };
   return activeUnlocked;
 }
-export function getUnlockedDevice() { return activeUnlocked; }
+export function getUnlockedDevice() { return currentUnlocked(); }
 export async function saveReference(data: unknown) {
-  if (!activeUnlocked) return;
-  const value = await encrypt(activeUnlocked.aes, JSON.stringify(data));
+  const session = currentUnlocked();
+  if (!session) return;
+  const value = await encrypt(session.aes, JSON.stringify(data));
   await tx(REF, "readwrite", s => s.put({ id: "snapshot", value, savedAt: Date.now() }));
 }
 export async function readReference() {
   const row = await tx<{ id: string; value: Encrypted; savedAt: number } | undefined>(REF, "readonly", s => s.get("snapshot"));
-  if (!row || !activeUnlocked) return undefined;
-  try { return { id: row.id, value: JSON.parse(await decrypt(activeUnlocked.aes, row.value)), savedAt: row.savedAt }; } catch { return undefined; }
+  const session = currentUnlocked();
+  if (!row || !session) return undefined;
+  try { return { id: row.id, value: JSON.parse(await decrypt(session.aes, row.value)), savedAt: row.savedAt }; } catch { return undefined; }
 }
 export async function saveServerTimeAnchor(serverTimeMs: number) {
   if (!Number.isSafeInteger(serverTimeMs) || serverTimeMs <= 0) throw new Error("Horloge serveur invalide");
@@ -191,11 +205,13 @@ export async function saveServerTimeAnchor(serverTimeMs: number) {
   meta.lastSync = localNow;
   meta.lastObservedLocalMs = Math.max(meta.lastObservedLocalMs ?? 0, localNow);
   await tx(META, "readwrite", s => s.put(meta));
-  if (activeUnlocked) activeUnlocked.lastSync = localNow;
+  const session = currentUnlocked();
+  if (session) session.lastSync = localNow;
 }
 
 export async function enregistrerOperation(type: string, payload: unknown): Promise<string> {
-  if (!activeUnlocked) throw new Error("Déverrouillez l'appareil avant d'enregistrer une opération hors ligne.");
+  const session = currentUnlocked();
+  if (!session) throw new Error("Déverrouillez l'appareil avant d'enregistrer une opération hors ligne.");
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Contenu d'opération invalide.");
   }
@@ -223,7 +239,7 @@ export async function enregistrerOperation(type: string, payload: unknown): Prom
 
   // Encrypt before opening the IndexedDB write transaction; WebCrypto yields and would
   // otherwise allow the transaction to auto-close before the queue write.
-  const payloadCipher = await encrypt(activeUnlocked.aes, JSON.stringify(safePayload));
+  const payloadCipher = await encrypt(session.aes, JSON.stringify(safePayload));
   const id = crypto.randomUUID();
   const localNow = Date.now();
   const d = await openDb();
@@ -272,6 +288,7 @@ export async function enregistrerOperation(type: string, payload: unknown): Prom
 
 export async function listPendingOperations(): Promise<PendingOperation[]> {
   const rows = await tx<StoredOperation[]>(QUEUE, "readonly", s => s.getAll());
+  const session = currentUnlocked();
   const pending = rows.filter(x => x.status === "pending" || x.status === "retry" || (x.status as string) === "failed");
   const output: PendingOperation[] = [];
   for (const row of pending) {
@@ -281,9 +298,9 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
         terminalDetail: { reason: "legacy_operation_without_trusted_chronology", message: "Cette opération a été créée avant l'ancrage horaire et la séquence appareil. Vérifiez le stock puis créez une nouvelle correction." } };
       if (row.payloadCipher) {
         await tx(QUEUE, "readwrite", s => s.put(terminal));
-      } else if ((row as unknown as { payload?: unknown }).payload !== undefined && activeUnlocked) {
+      } else if ((row as unknown as { payload?: unknown }).payload !== undefined && session) {
         const legacyPayload = (row as unknown as { payload: unknown }).payload;
-        const payloadCipher = await encrypt(activeUnlocked.aes, JSON.stringify(legacyPayload));
+        const payloadCipher = await encrypt(session.aes, JSON.stringify(legacyPayload));
         const migrated = { ...terminal, payloadCipher } as StoredOperation;
         delete (migrated as unknown as { payload?: unknown }).payload;
         await tx(QUEUE, "readwrite", s => s.put(migrated));
@@ -292,14 +309,14 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
       }
       continue;
     }
-    if (!activeUnlocked) throw new Error("Déverrouillez l'appareil pour lire la file hors ligne.");
+    if (!session) throw new Error("Déverrouillez l'appareil pour lire la file hors ligne.");
     let payload: unknown;
     if (row.payloadCipher) {
-      payload = JSON.parse(await decrypt(activeUnlocked.aes, row.payloadCipher));
+      payload = JSON.parse(await decrypt(session.aes, row.payloadCipher));
     } else {
       const legacyPayload = (row as unknown as { payload?: unknown }).payload;
       payload = legacyPayload;
-      const payloadCipher = await encrypt(activeUnlocked.aes, JSON.stringify(legacyPayload ?? {}));
+      const payloadCipher = await encrypt(session.aes, JSON.stringify(legacyPayload ?? {}));
       const migrated = { ...row, payloadCipher } as StoredOperation;
       delete (migrated as unknown as { payload?: unknown }).payload;
       await tx(QUEUE, "readwrite", s => s.put(migrated));
@@ -313,12 +330,13 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
 
 export async function listTerminalOperations(): Promise<Array<{ id: string; type: string; createdAt: number; status: string; terminalDetail?: unknown; terminalAt?: number }>> {
   const rows = await tx<StoredOperation[]>(QUEUE, "readonly", s => s.getAll());
+  const session = currentUnlocked();
   const terminal = rows.filter(x => ["conflict", "rejected", "failed_terminal"].includes(x.status));
   const result: Array<{ id: string; type: string; createdAt: number; status: string; terminalDetail?: unknown; terminalAt?: number }> = [];
   for (const row of terminal) {
     let terminalDetail: unknown;
-    if (row.terminalDetailCipher && activeUnlocked) {
-      try { terminalDetail = JSON.parse(await decrypt(activeUnlocked.aes, row.terminalDetailCipher)); }
+    if (row.terminalDetailCipher && session) {
+      try { terminalDetail = JSON.parse(await decrypt(session.aes, row.terminalDetailCipher)); }
       catch { terminalDetail = { reason: "terminal_detail_unreadable" }; }
     } else if (row.terminalDetail !== undefined) {
       terminalDetail = row.terminalDetail;
@@ -344,8 +362,9 @@ export async function markOperationAttempt(id: string) {
   });
 }
 export async function markOperationTerminal(id: string, status: "conflict" | "rejected" | "failed_terminal", detail: unknown) {
-  if (!activeUnlocked) throw new Error("Déverrouillez l'appareil avant d'archiver le résultat de synchronisation.");
-  const terminalDetailCipher = await encrypt(activeUnlocked.aes, JSON.stringify(detail ?? {}));
+  const session = currentUnlocked();
+  if (!session) throw new Error("Déverrouillez l'appareil avant d'archiver le résultat de synchronisation.");
+  const terminalDetailCipher = await encrypt(session.aes, JSON.stringify(detail ?? {}));
   const d = await openDb();
   await new Promise<void>((resolve, reject) => {
     const t = d.transaction(QUEUE, "readwrite"), s = t.objectStore(QUEUE), r = s.get(id);
@@ -364,7 +383,7 @@ export async function markOperationTerminal(id: string, status: "conflict" | "re
   });
 }
 export async function removeOperation(id: string) { await tx(QUEUE, "readwrite", s => s.delete(id)); }
-export async function markLocalSync() { const meta=await tx<Meta|undefined>(META,"readonly",s=>s.get("device"));if(!meta)return;meta.lastSync=Date.now();await tx(META,"readwrite",s=>s.put(meta));if(activeUnlocked)activeUnlocked.lastSync=meta.lastSync; }
+export async function markLocalSync() { const meta=await tx<Meta|undefined>(META,"readonly",s=>s.get("device"));if(!meta)return;meta.lastSync=Date.now();await tx(META,"readwrite",s=>s.put(meta));const session=currentUnlocked();if(session)session.lastSync=meta.lastSync; }
 export async function pendingCount() { return (await listPendingOperations()).length; }
 export async function terminalCount() { return (await listTerminalOperations()).length; }
 export async function clearLocalDevice() {
