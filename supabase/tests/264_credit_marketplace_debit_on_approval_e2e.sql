@@ -81,11 +81,8 @@ begin
     (v_client_c,'client','Client','264 C',true,true,now(),4,null,null,null),
     (v_client_d,'client','Client','264 D',true,true,now(),4,null,null,null);
 
-  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
-  values
-    (v_promoter,v_pharmacie_principale,true),
-    (v_promoter,v_pharmacie_affectee,true);
-
+  -- L'architecture et la convention doivent exister avant le rattachement réseau :
+  -- le trigger de provisionnement contrôle la validité commerciale au moment du lien.
   insert into public.pharmacie_architectures(
     pharmacie_id,architecture_code,assigned_by,active,max_responsables,max_caisses
   ) values
@@ -103,6 +100,11 @@ begin
   ) values (
     v_promoter,v_convention,1000,current_date,current_date+30,'actif'
   );
+
+  insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+  values
+    (v_promoter,v_pharmacie_principale,true),
+    (v_promoter,v_pharmacie_affectee,true);
 
   -- Droits déjà nécessaires du Promoteur pour gérer ses affectations et délégations.
   insert into public.naxa_profile_privileges(
