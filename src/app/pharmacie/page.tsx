@@ -104,9 +104,10 @@ export default function PanneauPharmacie(){
     if(targetError||!target?.actif||!target.visible_recherche){setMsg("Cette pharmacie n’est pas active et publiée. L’espace opérationnel reste fermé.");return}
   }
   if(!targetPharmacyId){setMsg("Aucune pharmacie n’est liée à ce compte.");return}
+  const editScope=(p.role==="caisse"||p.fonction_interne==="caisse")?"POSTE_CAISSE":"PHARMACIE";
   const [{data:viewPermission,error:viewPermissionError},{data:editPermission,error:editPermissionError},{data:importPermission,error:importPermissionError}]=await Promise.all([
     sb.rpc("naxa_has_privilege",{p_privilege:"VIEW_STOCK",p_pharmacie:targetPharmacyId,p_scope:"PHARMACIE"}),
-    sb.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:targetPharmacyId,p_scope:"PHARMACIE"}),
+    sb.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:targetPharmacyId,p_scope:editScope}),
     sb.rpc("naxa_has_privilege",{p_privilege:"IMPORT_STOCK",p_pharmacie:targetPharmacyId,p_scope:"PHARMACIE"})
   ]);
   const canView= !viewPermissionError&&viewPermission===true;
