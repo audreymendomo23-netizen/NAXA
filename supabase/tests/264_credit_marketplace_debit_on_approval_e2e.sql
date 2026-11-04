@@ -406,6 +406,18 @@ begin
   if not public.naxa_has_privilege('APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE') then
     raise exception 'DEBUG264: privilege APPROVE_MARKETPLACE_CREDIT absent du moteur canonique';
   end if;
+  if not exists(select 1 from public.profiles actor where actor.id=auth.uid() and actor.actif and actor.role::text='pharmacie' and actor.fonction_interne='responsable' and actor.niveau_interne=2) then
+    raise exception 'DEBUG264: profil acteur différent du Responsable N2 attendu';
+  end if;
+  if not exists(select 1 from public.profiles actor where actor.id=auth.uid() and actor.parent_profile_id=v_promoter) then
+    raise exception 'DEBUG264: parent_profile_id différent du Promoteur attendu';
+  end if;
+  if not private.naxa_promoteur_valide(v_promoter) then
+    raise exception 'DEBUG264: Promoteur parent commercialement invalide';
+  end if;
+  if not exists(select 1 from public.promoteur_pharmacies pp where pp.promoteur_id=v_promoter and pp.pharmacie_id=v_pharmacie_affectee and pp.actif) then
+    raise exception 'DEBUG264: lien réseau Promoteur/pharmacie absent ou inactif';
+  end if;
 
   perform public.client_credit_demande_decider(v_request_d,true);
   select id into v_reservation_d from public.reservations where credit_request_id=v_request_d;
