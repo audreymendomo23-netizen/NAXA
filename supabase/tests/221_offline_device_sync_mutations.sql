@@ -17,6 +17,7 @@ declare
   v_modified_ms bigint;
   v_server_quantity integer;
   v_primary_pharmacy uuid;
+  v_permissions jsonb;
 begin
   begin
     select s.pharmacie_id, s.produit_id, s.quantite, s.updated_at
@@ -55,13 +56,22 @@ begin
     on conflict(pharmacie_id) do update
       set architecture_code='ORPHELIN',assigned_by=v_uid,max_responsables=0,max_caisses=0,active=true;
     insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
-    values(v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'PHARMACIE',v_uid,true)
+    values
+      (v_uid,'VIEW_STOCK',v_stock.pharmacie_id,'PHARMACIE',v_uid,true),
+      (v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'PHARMACIE',v_uid,true)
     on conflict(profile_id,privilege_code,pharmacie_id,scope_type) do update
       set granted_by=v_uid,active=true;
 
     insert into public.appareils(id,pharmacie_id,utilisateur_id,nom,jeton_hash,installation_id,actif,derniere_synchro)
     values(v_device,v_stock.pharmacie_id,v_uid,'MC03 isolated test device',
       'mc03-test-' || replace(v_device::text,'-',''),v_installation,true,now());
+
+    v_permissions := public.naxa_device_permissions_v1(v_device);
+    if v_permissions->>'authorized' is distinct from 'true'
+      or v_permissions->>'canViewStock' is distinct from 'true'
+      or v_permissions->>'canEditStock' is distinct from 'true' then
+      raise exception 'MC-03: active cross-pharmacy assignment should grant stock permissions: %',v_permissions;
+    end if;
 
     -- Use a client millisecond strictly after the device activation timestamp.
     v_modified_ms := (extract(epoch from clock_timestamp() + interval '1 second') * 1000)::bigint;
@@ -130,6 +140,12 @@ begin
     -- Revoking the explicit stock privilege must stop a later device mutation.
     update public.naxa_profile_privileges set active=false
       where profile_id=v_uid and privilege_code='EDIT_STOCK_QUANTITY' and pharmacie_id=v_stock.pharmacie_id;
+    v_permissions := public.naxa_device_permissions_v1(v_device);
+    if v_permissions->>'authorized' is distinct from 'true'
+      or v_permissions->>'canViewStock' is distinct from 'true'
+      or v_permissions->>'canEditStock' is distinct from 'false' then
+      raise exception 'MC-03: revoked edit privilege should preserve read-only access: %',v_permissions;
+    end if;
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op3,'stock_set_quantity',
       jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 30,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',3),
@@ -145,6 +161,12 @@ begin
 
     -- A role downgrade/unauthorized role must also be rejected at synchronization time.
     update public.profiles set role='admin' where id=v_uid;
+    v_permissions := public.naxa_device_permissions_v1(v_device);
+    if v_permissions->>'authorized' is distinct from 'false'
+      or v_permissions->>'canViewStock' is distinct from 'false'
+      or v_permissions->>'canEditStock' is distinct from 'false' then
+      raise exception 'MC-03: unauthorized profile must lose all stock access: %',v_permissions;
+    end if;
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op4,'stock_set_quantity',
       jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 40,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',4),
