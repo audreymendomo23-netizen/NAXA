@@ -6,17 +6,21 @@ import { createDeviceToken,hashDeviceToken } from "@/lib/appareil-token";
 export async function POST(req:NextRequest){
  const pharmacyId=readPharmacyCookie(req);if(!pharmacyId)return NextResponse.json({error:"Session pharmacie expirée."},{status:401});
  try{
-  const {data:{user},error:userError}=await supabaseServer().auth.getUser();if(userError||!user)return NextResponse.json({error:"Connexion requise."},{status:401});
+  const userClient=supabaseServer();
+  const {data:{user},error:userError}=await userClient.auth.getUser();if(userError||!user)return NextResponse.json({error:"Connexion requise."},{status:401});
   const {data:profile,error:pe}=await supabaseAdmin().from(S.profilesTable).select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileActiveColumn},${S.profileRoleColumn},fonction_interne`).eq(S.profileIdColumn,user.id).maybeSingle();
   const profileRecord = profile as unknown as Record<string, unknown> | null;
   const role=String(profileRecord?.[S.profileRoleColumn]??"");
   const internalFunction=String(profileRecord?.fonction_interne??"").trim();
   const authorizedRole=role==="caisse"||(role==="pharmacie"&&internalFunction.length>0);
   if(pe||!profileRecord||profileRecord[S.profileActiveColumn]!==true||!authorizedRole)return NextResponse.json({error:"Fonction professionnelle active requise."},{status:403});
-  const {data:canEditStock,error:privilegeError}=await supabaseServer().rpc("naxa_has_privilege",{
-    p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"
-  });
-  if(privilegeError||canEditStock!==true)return NextResponse.json({error:"Le privilège Modifier les quantités n'est pas accordé pour cette pharmacie."},{status:403});
+  const [{data:canViewStock,error:viewPrivilegeError},{data:canEditStock,error:editPrivilegeError}]=await Promise.all([
+    userClient.rpc("naxa_has_privilege",{p_privilege:"VIEW_STOCK",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"}),
+    userClient.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"})
+  ]);
+  if(viewPrivilegeError||editPrivilegeError||canViewStock!==true||canEditStock!==true){
+    return NextResponse.json({error:"Les privilèges Voir le stock et Modifier les quantités sont requis pour activer un poste hors ligne."},{status:403});
+  }
   const {data:ph, error:pharmacyError}=await supabaseAdmin().from(S.pharmaciesTable)
     .select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).eq("actif",true).maybeSingle();
   if(pharmacyError||!ph)return NextResponse.json({error:"La pharmacie est inactive ou inaccessible."},{status:403});
@@ -49,6 +53,7 @@ export async function POST(req:NextRequest){
     pharmacyId,
     pharmacyName:ph?.[S.pharmacyNameColumn]??"",
     role,
+    canViewStock:true,
     canEditStock:true,
     nextDeviceSequence:0,
     serverTimeMs:Date.now()
