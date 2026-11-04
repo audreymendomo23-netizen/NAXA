@@ -44,10 +44,12 @@ export async function POST(req: NextRequest) {
       }
       const rawPayload = op.payload && typeof op.payload === "object" && !Array.isArray(op.payload) ? op.payload : {};
       const payload = { ...rawPayload, naxa_device_sequence: deviceSequence };
-      const { data: result, error: applyError } = await supabaseAdmin().rpc("naxa_apply_offline_operation_v1", {
-        p_device_id: deviceRecord[S.deviceIdColumn], p_operation_id: op.id, p_type: op.type, p_payload: payload,
-        p_created_at_ms: modifiedAt,
-      });
+      const saleOperation = op.type === "caisse_sale";
+      const rpcName = saleOperation ? "naxa_apply_offline_sale_v1" : "naxa_apply_offline_operation_v1";
+      const rpcArgs = saleOperation
+        ? { p_device_id: deviceRecord[S.deviceIdColumn], p_operation_id: op.id, p_payload: payload, p_created_at_ms: modifiedAt }
+        : { p_device_id: deviceRecord[S.deviceIdColumn], p_operation_id: op.id, p_type: op.type, p_payload: payload, p_created_at_ms: modifiedAt };
+      const { data: result, error: applyError } = await supabaseAdmin().rpc(rpcName, rpcArgs);
       if (applyError) {
         console.error("NAXA_SYNC_OPERATION_FAILED", { operationId: op.id, message: applyError.message });
         results.push({ id: op.id, status: "retry", detail: "Synchronisation indisponible. Réessayez lorsque la connexion sera rétablie." }); continue;
