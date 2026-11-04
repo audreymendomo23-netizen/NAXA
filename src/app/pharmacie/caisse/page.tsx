@@ -216,10 +216,11 @@ export default function CaissePage() {
         return;
       }
       const { data: profile, error: profileError } = await sb.from("profiles")
-        .select("role,fonction_interne,pharmacie_id,actif")
+        .select("pharmacie_id,actif")
         .eq("id", auth.user.id)
         .maybeSingle();
-      const isCashier = profile?.role === "caisse" || profile?.fonction_interne === "caisse";
+      const { data: activeRole, error: activeRoleError } = await sb.rpc("naxa_business_function");
+      const isCashier = !activeRoleError && activeRole === "caisse";
       if (profileError || !profile || profile.actif !== true || !isCashier || !profile.pharmacie_id) {
         if (!cancelled) {
           setMsg("Accès refusé : cette page est réservée à un compte Caisse actif, rattaché à une pharmacie.");
