@@ -19,7 +19,7 @@ type Cancellation = { id: string; vente_id: string; motif: string; statut: strin
 type Notice = { id: string; user_id: string | null; pharmacie_id: string | null; type: string; titre: string; corps: string; lu_le: string | null; created_at: string };
 type SessionRow = { id: string; caisse_id: string; ouvert_at: string; cloture_at: string | null; statut: string; fond_initial: number; total_theorique: number; total_compte: number | null; ecart: number | null };
 type TicketRow = { vente_id: string; numero_vente: string; statut: string; created_at: string; paid_at: string | null; total_brut: number; remise: number; total_net: number; mode_paiement: string | null; produit_id: string | null; produit_nom: string | null; produit_dosage: string | null; quantite: number | null; total_ligne: number | null };
-type Account = { id: string; role: string | null; fonction_interne: string | null; pharmacie_id: string | null; actif: boolean | null; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
+type Account = { id: string; role: string | null; fonction_interne: string | null; active_role?: string | null; pharmacie_id: string | null; actif: boolean | null; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
 type ClientIdentity = { id: string; first_name: string | null; last_name: string | null; phone: string | null; username: string | null };
 type CreditRepaymentReceipt = { operationId: string; creditId: string; clientId: string; amount: number; reference: string | null; method: string; remainingBalance: number | null; issuedAt: string; cashierName: string; pharmacyName: string };
 
@@ -189,16 +189,19 @@ export default function CaisseParcoursPage() {
       setLoading(true);
       const { data: auth, error: authError } = await sb.auth.getUser();
       if (authError || !auth.user) { if (alive) { setError("Connexion requise pour accéder au parcours caisse."); setLoading(false); } return; }
-      const { data: p, error: profileError } = await sb.from("profiles").select("id,role,fonction_interne,pharmacie_id,actif,first_name,last_name,phone,username").eq("id", auth.user.id).maybeSingle();
-      if (profileError || !p || p.actif !== true || (p.role !== "caisse" && p.fonction_interne !== "caisse") || !p.pharmacie_id) {
-        if (alive) { setError("Accès réservé à un compte Caisse actif rattaché à une pharmacie."); setLoading(false); } return;
+      const [{ data: p, error: profileError }, { data: activeRole, error: activeRoleError }] = await Promise.all([
+        sb.from("profiles").select("id,role,fonction_interne,pharmacie_id,actif,first_name,last_name,phone,username").eq("id", auth.user.id).maybeSingle(),
+        sb.rpc("naxa_business_function"),
+      ]);
+      if (profileError || activeRoleError || !p || p.actif !== true || activeRole !== "caisse" || !p.pharmacie_id) {
+        if (alive) { setError("Accès réservé à une personne ayant le poste Caisse actif dans une pharmacie."); setLoading(false); } return;
       }
       const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies").select("id,nom,actif,visible_recherche").eq("id", p.pharmacie_id).maybeSingle();
       if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
         if (alive) { setError("La pharmacie est inactive ou non publiée ; accès aux opérations refusé."); setLoading(false); } return;
       }
       if (!alive) return;
-      setUid(auth.user.id); setAccount(p as Account); setPharmacyId(pharmacy.id); setPharmacyName(pharmacy.nom ?? "Pharmacie");
+      setUid(auth.user.id); setAccount({ ...p, active_role: activeRole } as Account); setPharmacyId(pharmacy.id); setPharmacyName(pharmacy.nom ?? "Pharmacie");
       await loadSection(pharmacy.id, auth.user.id);
       if (alive) setLoading(false);
     })().catch(() => { if (alive) { setError("Erreur inattendue lors du chargement. Réessayez."); setLoading(false); } });
@@ -358,7 +361,7 @@ export default function CaisseParcoursPage() {
             ["activite", "Activité récente"],
           ] as const).map(([id, label]) => <button key={id} type="button" aria-current={profileTab === id ? "page" : undefined} onClick={() => setProfileTab(id)} className={"min-h-11 shrink-0 rounded-xl px-4 py-2 text-sm font-bold " + (profileTab === id ? "bg-[#0B3D26] text-white" : "border border-slate-200 bg-white text-slate-700")}>{label}</button>)}
         </nav>
-        {profileTab === "compte" && <Panel title="Informations du compte"><dl className="grid gap-3 sm:grid-cols-2">{[["Nom", displayName(account)],["Identifiant", account?.username || "—"],["Téléphone", account?.phone || "Non renseigné"],["Rôle", account?.fonction_interne || account?.role || "—"],["Pharmacie", pharmacyName],["Compte", account?.actif ? "Actif" : "Inactif"]].map(([label, value]) => <div key={label}><dt className="text-sm text-slate-500">{label}</dt><dd className="font-semibold">{value}</dd></div>)}</dl><p className="text-xs text-slate-500">Les informations d’identité sont affichées en lecture seule : leur modification doit rester dans le parcours d’administration autorisé.</p></Panel>}
+        {profileTab === "compte" && <Panel title="Informations du compte"><dl className="grid gap-3 sm:grid-cols-2">{[["Nom", displayName(account)],["Identifiant", account?.username || "—"],["Téléphone", account?.phone || "Non renseigné"],["Poste actif", account?.active_role || account?.fonction_interne || account?.role || "—"],["Pharmacie", pharmacyName],["Compte", account?.actif ? "Actif" : "Inactif"]].map(([label, value]) => <div key={label}><dt className="text-sm text-slate-500">{label}</dt><dd className="font-semibold">{value}</dd></div>)}</dl><p className="text-xs text-slate-500">Les informations d’identité sont affichées en lecture seule : leur modification doit rester dans le parcours d’administration autorisé.</p></Panel>}
         {profileTab === "securite" && <div className="grid gap-4 lg:grid-cols-2">
           <Panel title="Changer le mot de passe"><p className="text-sm text-slate-600">Le changement est transmis à Supabase Auth. Utilisez un mot de passe long et unique.</p><label className="block text-sm font-semibold">Nouveau mot de passe<input className="champ mt-1 w-full" type="password" autoComplete="new-password" minLength={10} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label><label className="mt-3 block text-sm font-semibold">Confirmer le mot de passe<input className="champ mt-1 w-full" type="password" autoComplete="new-password" minLength={10} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></label><button type="button" className="btn btn-vert mt-3" disabled={passwordBusy || !newPassword || !confirmPassword} onClick={() => void changePassword()}>{passwordBusy ? "Mise à jour…" : "Mettre à jour le mot de passe"}</button></Panel>
           <Panel title="Vérification du PIN de reprise"><p className="text-sm text-slate-600">Le PIN doit être configuré par le Promoteur. Le serveur applique les contrôles de session et la limitation des tentatives.</p>{!locked ? <button className="btn btn-vert" onClick={() => setLocked(true)}>Ouvrir la vérification PIN</button> : <div className="space-y-3"><p className="text-sm">Session ouverte détectée : {sessionId ? sessionId.slice(0, 8) + "…" : "aucune"}</p><label className="block text-sm font-semibold">PIN<input className="champ mt-1 w-full" value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" type="password" maxLength={8} autoComplete="off" /></label><button className="btn btn-vert" disabled={busy || !sessionId} onClick={() => void unlock()}>Vérifier le PIN</button><button className="btn btn-clair ml-2" onClick={() => { setLocked(false); setPin(""); }}>Annuler</button></div>}</Panel>
