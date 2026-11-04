@@ -71,13 +71,25 @@ export async function POST(req: NextRequest) {
           .select([S.pharmacyIdColumn,S.pharmacyNameColumn].join(","))
           .eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
         supabaseAdmin().from(S.stocksTable)
-          .select("produit_id,quantite,updated_at,prix,emplacement,date_peremption,produits(nom,dosage)")
+          .select("produit_id,quantite,updated_at,prix,emplacement,date_peremption,produits(nom,dosage,code_barre)")
           .eq(S.pharmacyIdColumn,pharmacyId),
         supabaseAdmin().from(S.stockLotsTable).select("produit_id").eq(S.pharmacyIdColumn,pharmacyId)
       ]);
       if(pharmacyError||stocksError||lotsError) throw new Error("NAXA stock reference snapshot unavailable");
       const lotizedProductIds=[...new Set((lots??[]).map((lot:Record<string,unknown>)=>String(lot.produit_id??"")).filter(Boolean))];
-      reference=pharmacy?{pharmacie:pharmacy,stock:stocks??[],lotized_product_ids:lotizedProductIds}:null;
+      // Cache a cashier session only when exactly one open session belongs to this device owner.
+      // Ambiguous or unavailable sessions are omitted: offline checkout must never guess a register.
+      const {data:cashierSessions,error:cashierSessionError}=await supabaseAdmin().from("caisses_sessions")
+        .select("id,caisse_id,fond_initial,ouvert_at,ouvert_par")
+        .eq("ouvert_par",deviceRecord[S.deviceUserIdColumn]).eq("statut","ouverte");
+      let caisseSession:Record<string,unknown>|null=null;
+      if(!cashierSessionError&&cashierSessions?.length===1){
+        const candidate=cashierSessions[0] as Record<string,unknown>;
+        const {data:register}=await supabaseAdmin().from("caisses")
+          .select("id,nom").eq("id",candidate.caisse_id).eq("pharmacie_id",pharmacyId).eq("actif",true).maybeSingle();
+        if(register)caisseSession={...candidate,nom:register.nom};
+      }
+      reference=pharmacy?{pharmacie:pharmacy,stock:stocks??[],lotized_product_ids:lotizedProductIds,caisse_session:caisseSession}:null;
     }
     const serverTimeMs = Date.now();
     const syncedAt = new Date(serverTimeMs).toISOString();
