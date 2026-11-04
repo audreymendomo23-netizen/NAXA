@@ -32,7 +32,7 @@ function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) 
     let failure: DOMException | null = null;
     r.onsuccess = () => { result = r.result; };
     r.onerror = () => { failure = r.error; };
-    t.oncomplete = () => { d.close(); resolve(result); };
+    t.oncomplete = () => { d.close(); resolve(result as T); };
     t.onabort = () => { d.close(); reject(failure ?? t.error ?? new Error("Transaction IndexedDB annulée")); };
     t.onerror = () => { failure = t.error; };
   }));
