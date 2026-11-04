@@ -88,7 +88,9 @@ export function RappelsLotsManager() {
     setStocks((stockData ?? []) as unknown as StockProduct[]);
     setLots((lotData ?? []) as unknown as Lot[]);
     setRappels((recallData ?? []) as Recall[]);
-    const manageAllowed = !privilegeError && privilege === true;
+    const manageAllowed = profile.role !== "caisse"
+      && profile.fonction_interne !== "caisse"
+      && !privilegeError && privilege === true;
     setCanManage(manageAllowed);
     const viewCosts = !costPrivilegeError && costPrivilege === true;
     setCanViewCosts(viewCosts);
