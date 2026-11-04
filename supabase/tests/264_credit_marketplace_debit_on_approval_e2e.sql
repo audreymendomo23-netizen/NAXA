@@ -193,6 +193,10 @@ begin
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_caisse,v_pharmacie_affectee,'Caisse E2E 264',true);
 
+  -- Le testeur Admin crée la session de test ; le retrait sera ensuite exécuté sous ce même acteur.
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
+
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,statut,fond_initial)
   values(v_session,v_caisse,v_admin,'ouverte',0);
 
