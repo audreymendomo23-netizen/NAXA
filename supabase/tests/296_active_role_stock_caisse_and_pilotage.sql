@@ -66,6 +66,8 @@ begin
   perform public.naxa_grant_professional_assignment(
     v_stock,v_pharmacy_b,'caisse',v_now,null,'Test poste Caisse 296'
   );
+  perform set_config('request.jwt.claim.sub',v_stock::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_stock::text,'role','authenticated')::text,true);
   select public.naxa_business_function(v_stock),public.naxa_active_role_pharmacy(v_stock)
     into v_role,v_pharmacy;
   if v_role<>'gestionnaire_stock' or v_pharmacy is distinct from v_pharmacy_b then
@@ -77,9 +79,6 @@ begin
   end if;
   insert into naxa_role_296_results values('stock_manager_scope_actif',true,
     'Gestionnaire Stock reconnu uniquement dans la pharmacie B');
-
-  perform set_config('request.jwt.claim.sub',v_stock::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',v_stock::text,'role','authenticated')::text,true);
 
   v_session:=public.stock_service_open(v_pharmacy_b,'Recette transactionnelle migration 296');
   if not exists(select 1 from public.stock_service_sessions s
