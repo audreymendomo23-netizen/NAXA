@@ -8,7 +8,7 @@ const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; modifiedAt: number; deviceSequence: number; attempts: number; status: "pending" | "retry" | "conflict" | "rejected" | "failed_terminal"; terminalDetail?: unknown; terminalAt?: number };
 type StoredOperation = Omit<PendingOperation, "payload" | "terminalDetail"> & { payloadCipher: Encrypted; terminalDetailCipher?: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
-type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: "pharmacie" | "caisse"; canViewStock?: boolean; canEditStock?: boolean; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
+type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: string; canViewStock?: boolean; canEditStock?: boolean; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
 export const LOCAL_IDLE_LOCK_MS = 15 * 60 * 1000;
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number; lastActivityAt: number } | null = null;
 function currentUnlocked() {
@@ -123,9 +123,9 @@ export async function assertLocalDeviceActivationAllowed() {
     t.onabort = () => { database.close(); reject(t.error ?? new Error("Vérification de l'appareil local annulée.")); };
   });
 }
-export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: "pharmacie" | "caisse"; canViewStock: true; canEditStock: true; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
+export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: string; canViewStock: true; canEditStock: true; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
   if (!/^\d{4,6}$/.test(input.pin)) throw new Error("Le PIN doit contenir 4 à 6 chiffres");
-  if (input.role !== "pharmacie" && input.role !== "caisse") throw new Error("Rôle local non autorisé.");
+  if (!input.role || ["admin", "client", "promoteur"].includes(input.role)) throw new Error("Rôle local non autorisé.");
   const salt = crypto.getRandomValues(new Uint8Array(16)), { aes, hash } = await derive(input.pin, salt);
   const localNow = Date.now();
   const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, role: input.role, canViewStock: input.canViewStock, canEditStock: input.canEditStock, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: Math.max(0, Math.floor(input.nextDeviceSequence ?? 0)), lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
