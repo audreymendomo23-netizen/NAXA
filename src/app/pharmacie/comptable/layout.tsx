@@ -9,14 +9,18 @@ export default async function ComptableLayout({ children }: { children: React.Re
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable");
 
-  const { data: profile, error } = await sb.from("profiles")
-    .select("actif,pharmacie_id").eq("id", auth.user.id).maybeSingle();
-  if (error || !profile || profile.actif !== true || !profile.pharmacie_id) {
+  const [{ data: profile, error }, { data: activeRole, error: roleError }, { data: pharmacieId, error: pharmacyError }] = await Promise.all([
+    sb.from("profiles").select("actif").eq("id", auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+    sb.rpc("naxa_active_role_pharmacy"),
+  ]);
+  if (error || roleError || pharmacyError || !profile || profile.actif !== true
+    || activeRole !== "comptable" || typeof pharmacieId !== "string") {
     redirect("/pharmacie");
   }
 
   const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", {
-    p_pharmacie: profile.pharmacie_id,
+    p_pharmacie: pharmacieId,
   });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
