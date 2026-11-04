@@ -8,7 +8,7 @@ const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; modifiedAt: number; deviceSequence: number; attempts: number; status: "pending" | "retry" | "conflict" | "rejected" | "failed_terminal"; terminalDetail?: unknown; terminalAt?: number };
 type StoredOperation = Omit<PendingOperation, "payload" | "terminalDetail"> & { payloadCipher: Encrypted; terminalDetailCipher?: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
-type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: "pharmacie" | "caisse"; canEditStock?: boolean; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
+type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: "pharmacie" | "caisse"; canViewStock?: boolean; canEditStock?: boolean; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
 export const LOCAL_IDLE_LOCK_MS = 15 * 60 * 1000;
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number; lastActivityAt: number } | null = null;
 function currentUnlocked() {
@@ -22,6 +22,16 @@ export function touchLocalDeviceActivity() {
   return true;
 }
 export function lockLocalDevice() { activeUnlocked = null; }
+export async function saveDevicePermissions(value: unknown) {
+  if (!value || typeof value !== "object") return;
+  const permissions = value as Record<string, unknown>;
+  if (typeof permissions.canViewStock !== "boolean" || typeof permissions.canEditStock !== "boolean") return;
+  const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
+  if (!meta?.tokenCipher) return;
+  meta.canViewStock = permissions.authorized === false ? false : permissions.canViewStock;
+  meta.canEditStock = meta.canViewStock && permissions.canEditStock;
+  await tx(META, "readwrite", s => s.put(meta));
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -69,7 +79,7 @@ export async function getLocalDeviceIdentity() {
   try {
     const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
     if (!meta?.tokenCipher || !meta.salt || !meta.pinHash || !meta.deviceId || !meta.pharmacyId || !meta.pharmacyName) return null;
-    return { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName ?? "", role: meta.role, canEditStock: meta.canEditStock === true };
+    return { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName ?? "", role: meta.role, canViewStock: meta.canViewStock === true, canEditStock: meta.canViewStock === true && meta.canEditStock === true };
   } catch {
     return null;
   }
@@ -110,12 +120,12 @@ export async function assertLocalDeviceActivationAllowed() {
     t.onabort = () => { database.close(); reject(t.error ?? new Error("Vérification de l'appareil local annulée.")); };
   });
 }
-export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: "pharmacie" | "caisse"; canEditStock: true; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
+export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: "pharmacie" | "caisse"; canViewStock: true; canEditStock: true; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
   if (!/^\d{4,6}$/.test(input.pin)) throw new Error("Le PIN doit contenir 4 à 6 chiffres");
   if (input.role !== "pharmacie" && input.role !== "caisse") throw new Error("Rôle local non autorisé.");
   const salt = crypto.getRandomValues(new Uint8Array(16)), { aes, hash } = await derive(input.pin, salt);
   const localNow = Date.now();
-  const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, role: input.role, canEditStock: input.canEditStock, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: Math.max(0, Math.floor(input.nextDeviceSequence ?? 0)), lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
+  const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, role: input.role, canViewStock: input.canViewStock, canEditStock: input.canEditStock, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: Math.max(0, Math.floor(input.nextDeviceSequence ?? 0)), lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
   // Check-and-insert in one read/write transaction: two tabs cannot race and re-key
   // an existing encrypted queue or snapshot.
   const database = await openDb();
@@ -230,6 +240,12 @@ export async function enregistrerOperation(type: string, payload: unknown): Prom
       const nested = item.produits && typeof item.produits === "object" ? item.produits as Record<string, unknown> : {};
       return String(item.produit_id ?? item.product_id ?? nested.id ?? "") === productId;
     });
+    const lotizedIds = Array.isArray((snapshot as Record<string, unknown> | undefined)?.lotized_product_ids)
+      ? (snapshot as Record<string, unknown>).lotized_product_ids as unknown[]
+      : [];
+    if (lotizedIds.some(value => value === productId)) {
+      throw new Error("Ce produit est géré par lots. Les corrections hors ligne ne sont pas disponibles pour un stock lotisé.");
+    }
     const baseUpdatedAt = row?.updated_at ?? row?.updatedAt;
     if (typeof baseUpdatedAt !== "string" || !Number.isFinite(Date.parse(baseUpdatedAt))) {
       throw new Error("Modification hors ligne impossible : horodatage du stock de référence absent. Synchronisez d'abord l'appareil.");
