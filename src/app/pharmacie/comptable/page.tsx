@@ -36,35 +36,34 @@ export default async function ComptableDashboardPage() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable");
 
-  const { data: profile, error: profileError } = await sb
-    .from("profiles")
-    .select("id,role,actif,pharmacie_id")
-    .eq("id", auth.user.id)
-    .single();
+  const [{ data: profile, error: profileError }, { data: activeRole, error: roleError }, { data: pharmacieId, error: pharmacyRoleError }] = await Promise.all([
+    sb.from("profiles").select("id,actif").eq("id", auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+    sb.rpc("naxa_active_role_pharmacy"),
+  ]);
 
-  if (profileError || !profile || profile.actif !== true || !profile.pharmacie_id) {
+  if (profileError || roleError || pharmacyRoleError || !profile || profile.actif !== true
+    || activeRole !== "comptable" || typeof pharmacieId !== "string") {
     redirect("/pharmacie");
   }
 
-  // Le poste Comptable est une fonction interne autorisée par privilège :
-  // aucune nouvelle valeur de profiles.role/role_type n'est créée.
-  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
+  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: pharmacieId });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
   const [{ data: pharmacy, error: pharmacyError }, { data: evenements, error: eventsError },
     { data: ecritures, error: entriesError }, { data: periodes, error: periodsError }] = await Promise.all([
-    sb.from("pharmacies").select("nom").eq("id", profile.pharmacie_id).maybeSingle(),
+    sb.from("pharmacies").select("nom").eq("id", pharmacieId).maybeSingle(),
     sb.from("compta_evenement")
       .select("id,evenement_type,source_type,source_id,date_evenement,statut,code_erreur,created_at")
-      .eq("pharmacie_id", profile.pharmacie_id)
+      .eq("pharmacie_id", pharmacieId)
       .order("created_at", { ascending: false }).limit(12),
     sb.from("compta_ecriture")
       .select("id,date_ecriture,journal_code,reference_source,libelle,source_type,source_id,created_at")
-      .eq("pharmacie_id", profile.pharmacie_id)
+      .eq("pharmacie_id", pharmacieId)
       .order("date_ecriture", { ascending: false }).limit(8),
     sb.from("compta_periodes")
       .select("id,date_debut,date_fin,statut")
-      .eq("pharmacie_id", profile.pharmacie_id)
+      .eq("pharmacie_id", pharmacieId)
       .order("date_debut", { ascending: false }).limit(4),
   ]);
 
@@ -74,16 +73,16 @@ export default async function ComptableDashboardPage() {
   const monthStartDate = monthStart.toISOString().slice(0, 10);
   const nextMonthStartDate = nextMonthStart.toISOString().slice(0, 10);
   const [salesResult, expensesResult, cashResult, claimsResult, controlsResult, auditIntegrity] = await Promise.all([
-    sb.from("ventes").select("statut,total_net,created_at").eq("pharmacie_id", profile.pharmacie_id)
+    sb.from("ventes").select("statut,total_net,created_at").eq("pharmacie_id", pharmacieId)
       .gte("created_at", monthStartDate + "T00:00:00+01:00").lt("created_at", nextMonthStartDate + "T00:00:00+01:00").limit(5000),
-    sb.from("depenses").select("montant,date_depense,statut").eq("pharmacie_id", profile.pharmacie_id)
+    sb.from("depenses").select("montant,date_depense,statut").eq("pharmacie_id", pharmacieId)
       .gte("date_depense", monthStartDate).lt("date_depense", nextMonthStartDate).limit(5000),
-    sb.from("tresorerie_mouvements").select("montant,nature,date_operation").eq("pharmacie_id", profile.pharmacie_id)
+    sb.from("tresorerie_mouvements").select("montant,nature,date_operation").eq("pharmacie_id", pharmacieId)
       .gte("date_operation", monthStartDate + "T00:00:00+01:00").lt("date_operation", nextMonthStartDate + "T00:00:00+01:00").limit(5000),
-    sb.from("dossiers_assurance").select("statut,montant_prise_en_charge,created_at").eq("pharmacie_id", profile.pharmacie_id)
+    sb.from("dossiers_assurance").select("statut,montant_prise_en_charge,created_at").eq("pharmacie_id", pharmacieId)
       .gte("created_at", monthStartDate + "T00:00:00+01:00").lt("created_at", nextMonthStartDate + "T00:00:00+01:00").limit(5000),
-    sb.from("compta_controles_cloture").select("controle_code,statut").eq("pharmacie_id", profile.pharmacie_id).limit(1000),
-    sb.rpc("compta_verifier_audit", { p_pharmacie: profile.pharmacie_id }),
+    sb.from("compta_controles_cloture").select("controle_code,statut").eq("pharmacie_id", pharmacieId).limit(1000),
+    sb.rpc("compta_verifier_audit", { p_pharmacie: pharmacieId }),
   ]);
 
   const error = pharmacyError || eventsError || entriesError || periodsError;
