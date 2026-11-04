@@ -235,14 +235,12 @@ export async function enregistrerOperation(type: string, payload: unknown): Prom
       throw new Error("Modification hors ligne impossible : produit ou quantité invalide.");
     }
     const reference = await readReference();
-    const snapshot = reference?.value as { stock?: Array<Record<string, unknown>> } | undefined;
+    const snapshot = reference?.value as { stock?: Array<Record<string, unknown>>; lotized_product_ids?: unknown[] } | undefined;
     const row = snapshot?.stock?.find((item) => {
       const nested = item.produits && typeof item.produits === "object" ? item.produits as Record<string, unknown> : {};
       return String(item.produit_id ?? item.product_id ?? nested.id ?? "") === productId;
     });
-    const lotizedIds = Array.isArray((snapshot as Record<string, unknown> | undefined)?.lotized_product_ids)
-      ? (snapshot as Record<string, unknown>).lotized_product_ids as unknown[]
-      : [];
+    const lotizedIds = Array.isArray(snapshot?.lotized_product_ids) ? snapshot.lotized_product_ids : [];
     if (lotizedIds.some(value => value === productId)) {
       throw new Error("Ce produit est géré par lots. Les corrections hors ligne ne sont pas disponibles pour un stock lotisé.");
     }
