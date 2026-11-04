@@ -8,13 +8,13 @@ import { Logo } from "@/components/Logo";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { AppareilHorsLigne } from "@/components/pharmacie/AppareilHorsLigne";
-import { enregistrerOperation } from "@/lib/offline-db";
+import { enregistrerOperation, getLocalDeviceIdentity, readReference } from "@/lib/offline-db";
 
 type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string|null;updated_at:string;emplacement:string|null;produits:{nom:string;dosage:string}|null};
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
 
 export default function PanneauPharmacie(){
- const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[role,setRole]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[garde,setGarde]=useState(false),[canManageTeam,setCanManageTeam]=useState(false),[module,setModule]=useState<""|"marketplace"|"erp">("");
+ const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[role,setRole]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[garde,setGarde]=useState(false),[canManageTeam,setCanManageTeam]=useState(false),[module,setModule]=useState<""|"marketplace"|"erp">(""),[offlineMode,setOfflineMode]=useState(false),[offlineSnapshotReady,setOfflineSnapshotReady]=useState(false);
 
  const charger=useCallback(async(id:string)=>{
   const [{data:s,error:se},{data:r,error:re},{data:ph,error:pe},{data:charges,error:ce},{data:couts,error:coe},{data:lots,error:le},{data:catalogue,error:catError}]=await Promise.all([
@@ -30,11 +30,33 @@ export default function PanneauPharmacie(){
   setStock((s??[]) as unknown as Ligne[]);setResas((r??[]) as unknown as Resa[]);setNom(ph?.nom??"");setGarde(Boolean(ph?.de_garde));
  },[sb]);
 
+ const chargerSnapshotOffline=useCallback(async()=>{
+  try{
+   const saved=await readReference();
+   const snapshot=saved?.value&&typeof saved.value==="object"?saved.value as Record<string,unknown>:null;
+   const pharmacy=snapshot?.pharmacie&&typeof snapshot.pharmacie==="object"?snapshot.pharmacie as Record<string,unknown>:null;
+   if(pharmacy?.id&&pharmacy.id!==pid){setMsg("Le stock local ne correspond pas à la pharmacie de cet appareil.");setOfflineSnapshotReady(false);return;}
+   if(pharmacy&&typeof pharmacy.nom==="string")setNom(pharmacy.nom);
+   setStock(Array.isArray(snapshot?.stock)?snapshot.stock as Ligne[]:[]);
+   setOfflineSnapshotReady(true);
+   setMsg(Array.isArray(snapshot?.stock)?"Instantané local déverrouillé. Seules les corrections de stock sont disponibles hors ligne.":"Aucun instantané de stock chiffré n'est disponible. Reconnectez le poste pour le synchroniser.");
+  }catch{
+   setOfflineSnapshotReady(false);
+   setMsg("Impossible de lire l'instantané local chiffré. Les données restent conservées.");
+  }
+ },[pid]);
 
  useEffect(()=>{const value=new URLSearchParams(window.location.search).get("module");setModule(value==="marketplace"||value==="erp"?value:"")},[]);
 
- useEffect(()=>{(async()=>{
-  if(!navigator.onLine){setMsg("Connexion internet requise pour accéder à l’espace pharmacie.");return}
+ useEffect(()=>{let cancelled=false;void (async()=>{
+  if(!navigator.onLine){
+   const identity=await getLocalDeviceIdentity();
+   if(cancelled)return;
+   setOfflineMode(true);
+   if(identity){setPid(identity.pharmacyId);setNom(identity.pharmacyName);setRole(identity.role??"pharmacie");}
+   else setMsg("Connexion requise pour activer un poste hors ligne. Aucune association locale exploitable n'a été trouvée.");
+   return;
+  }
   const {data:u}=await sb.auth.getUser();
   if(!u.user){window.location.replace("/connexion?espace=pharmacie");return}
   const {data:p}=await sb.from("profiles").select("pharmacie_id,role,fonction_interne,actif").eq("id",u.user.id).single();
@@ -61,14 +83,14 @@ export default function PanneauPharmacie(){
     setCanManageTeam(!teamError&&teamAccess===true);
   }
   setRole(p.role);setPid(targetPharmacyId);await charger(targetPharmacyId);
-})()},[charger,sb]);
+})();return ()=>{cancelled=true}},[charger,sb]);
 
  async function statut(id:string,s:string){const {error}=await sb.rpc("set_reservation_status",{p_id:id,p_statut:s});setMsg(error?"Action impossible.":"Réservation mise à jour.");if(pid&&!error)charger(pid)}
  async function importer(f:File){if(!pid)return;if(!navigator.onLine)return setMsg("L'import Excel nécessite une connexion.");try{const r=await importerStock(f,pid);setMsg(`${r.importes} produits importés, ${r.ignores} lignes ignorées.`);charger(pid)}catch{setMsg("Import impossible. Vérifiez les colonnes Nom, Prix et Quantité.")}}
  async function quantite(l:Ligne,q:number){
   if(!pid)return;
   q=Math.max(0,Math.round(q)||0);
-  if(!navigator.onLine){
+  if(!navigator.onLine||offlineMode){
    try{
     await enregistrerOperation("stock_set_quantity",{produit_id:l.produit_id,quantite:q});
     setMsg("Correction enregistrée localement. Elle sera synchronisée au retour de la connexion.");
@@ -85,7 +107,27 @@ export default function PanneauPharmacie(){
  }
  async function changerGarde(v:boolean){if(!navigator.onLine)return setMsg("Le statut de garde nécessite une connexion.");const result=role==="promoteur"&&pid?await sb.rpc("set_garde_for_pharmacy",{p_pharmacie:pid,p_garde:v}):await sb.rpc("set_garde",{p_garde:v});if(result.error)return setMsg("Impossible de modifier le statut de garde. Vérifiez le périmètre, les privilèges et la validité du réseau.");setGarde(v);setMsg(v?"Pharmacie déclarée de garde.":"Pharmacie retirée de la garde.")}
 
+
  const vus=stock.filter(l=>(l.produits?.nom??"").toLowerCase().includes(filtre.toLowerCase()));
+ if(offlineMode){
+  return <main className="mx-auto min-h-dvh max-w-4xl px-4 pb-16">
+   <header className="-mx-4 mb-5 flex items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white"><Logo taille={32}/><span className="font-semibold">{nom||"Poste pharmacie"}</span></header>
+   <section className="carte mb-4 space-y-2">
+    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-naxa-green-700">Session locale chiffrée</p>
+    <h1 className="text-xl font-extrabold text-naxa-green-900">Reprise hors ligne</h1>
+    <p className="text-sm text-slate-600">Accès limité au stock de référence et aux corrections locales. Réservations, caisse, équipe, garde et paramètres restent indisponibles hors connexion.</p>
+    {pid?<AppareilHorsLigne pharmacyId={pid} pharmacyName={nom} onUnlocked={chargerSnapshotOffline}/>:<p role="alert" className="text-sm text-amber-800">{msg}</p>}
+   </section>
+   {msg&&<p role="status" className="mb-3 text-sm">{msg}</p>}
+   {offlineSnapshotReady&&<section className="space-y-3">
+    <div><h2 className="text-lg font-extrabold">Stock local</h2><p className="text-xs text-slate-500">Instantané chiffré du dernier échange avec le serveur · les corrections sont mises en file et synchronisées au retour du réseau.</p></div>
+    <input className="champ w-full" placeholder="Rechercher un produit" value={filtre} onChange={e=>setFiltre(e.target.value)}/>
+    {vus.length===0?<p className="carte text-sm text-slate-600">Aucun produit dans cet instantané.</p>:<div className="carte overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-3 text-left">Produit</th><th className="p-3 text-left">Quantité</th><th className="p-3 text-left">Prix</th><th className="p-3 text-left">Emplacement</th></tr></thead><tbody>{vus.map(l=><tr key={l.produit_id} className="border-t"><td className="p-3">{l.produits?.nom} {l.produits?.dosage}</td><td className="p-3"><input aria-label={\`Quantité \${l.produits?.nom??"produit"}\`} type="number" min="0" inputMode="numeric" value={l.quantite} onChange={e=>setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:Math.max(0,Number(e.target.value)||0)}:v))} onBlur={e=>quantite(l,Number(e.target.value))} className="w-24 rounded border p-2"/></td><td className="p-3">{fcfa(l.prix)}</td><td className="p-3">{l.emplacement??"—"}</td></tr>)}</tbody></table></div>}
+   </section>}
+   {navigator.onLine&&<button type="button" className="btn btn-clair mt-5" onClick={()=>window.location.reload()}>Recharger l’espace connecté</button>}
+  </main>;
+ }
+
  return <main className="mx-auto min-h-dvh max-w-4xl px-4 pb-16">
   {String(module)!=="marketplace"&&<RappelsLotsBanner pharmacieId={pid} />}
   {module===""&&<header className="-mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-naxa-green-900 px-4 py-3 text-white"><Logo taille={32}/><span className="font-semibold">{nom}</span><EspaceNaxaSwitcher current="pharmacie" /></header>}
