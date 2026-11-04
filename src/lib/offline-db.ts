@@ -8,7 +8,7 @@ const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; modifiedAt: number; deviceSequence: number; attempts: number; status: "pending" | "retry" | "conflict" | "rejected" | "failed_terminal"; terminalDetail?: unknown; terminalAt?: number };
 type StoredOperation = Omit<PendingOperation, "payload" | "terminalDetail"> & { payloadCipher: Encrypted; terminalDetailCipher?: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
-type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
+type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: "pharmacie" | "caisse"; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number } | null = null;
 
 function openDb(): Promise<IDBDatabase> {
@@ -26,9 +26,15 @@ function openDb(): Promise<IDBDatabase> {
 }
 function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return openDb().then(d => new Promise<T>((resolve, reject) => {
-    const t = d.transaction(store, mode), r = fn(t.objectStore(store));
-    r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
-    t.oncomplete = () => d.close(); t.onerror = () => { d.close(); reject(t.error); };
+    const t = d.transaction(store, mode);
+    const r = fn(t.objectStore(store));
+    let result: T;
+    let failure: DOMException | null = null;
+    r.onsuccess = () => { result = r.result; };
+    r.onerror = () => { failure = r.error; };
+    t.oncomplete = () => { d.close(); resolve(result); };
+    t.onabort = () => { d.close(); reject(failure ?? t.error ?? new Error("Transaction IndexedDB annulée")); };
+    t.onerror = () => { failure = t.error; };
   }));
 }
 async function derive(pin: string, salt: Uint8Array) {
@@ -51,7 +57,7 @@ export async function getLocalDeviceIdentity() {
   try {
     const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
     if (!meta?.tokenCipher || !meta.salt || !meta.pinHash || !meta.deviceId || !meta.pharmacyId || !meta.pharmacyName) return null;
-    return { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName ?? "" };
+    return { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName ?? "", role: meta.role };
   } catch {
     return null;
   }
@@ -66,11 +72,31 @@ export async function getLocalInstallationId() {
   await tx(META, "readwrite", s => s.put({ id: "installation", value }));
   return value;
 }
-export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
+export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; role: "pharmacie" | "caisse"; token: string; serverTimeMs?: number; nextDeviceSequence?: number; reference?: unknown }) {
   if (!/^\d{4,6}$/.test(input.pin)) throw new Error("Le PIN doit contenir 4 à 6 chiffres");
+  if (input.role !== "pharmacie" && input.role !== "caisse") throw new Error("Rôle local non autorisé.");
+  // Never rotate the encryption key while any device metadata, queue or snapshot exists.
+  // The queue and snapshot were encrypted with the previous key and must remain readable.
+  const database = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const t = database.transaction([META, QUEUE, REF], "readonly");
+    let deviceExists = false;
+    let queuedCount = 0;
+    let referenceCount = 0;
+    t.objectStore(META).get("device").onsuccess = event => { deviceExists = Boolean((event.target as IDBRequest).result); };
+    t.objectStore(QUEUE).count().onsuccess = event => { queuedCount = Number((event.target as IDBRequest).result ?? 0); };
+    t.objectStore(REF).count().onsuccess = event => { referenceCount = Number((event.target as IDBRequest).result ?? 0); };
+    t.oncomplete = () => {
+      database.close();
+      if (deviceExists || queuedCount > 0 || referenceCount > 0) reject(new Error("Un appareil ou des données hors ligne existent déjà. Réactivation et changement de PIN bloqués pour préserver la file chiffrée. Déverrouillez le poste existant et synchronisez-le avant toute procédure de remplacement."));
+      else resolve();
+    };
+    t.onerror = () => { database.close(); reject(t.error ?? new Error("Vérification de l'appareil local impossible.")); };
+    t.onabort = () => { database.close(); reject(t.error ?? new Error("Vérification de l'appareil local annulée.")); };
+  });
   const salt = crypto.getRandomValues(new Uint8Array(16)), { aes, hash } = await derive(input.pin, salt);
   const localNow = Date.now();
-  const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: Math.max(0, Math.floor(input.nextDeviceSequence ?? 0)), lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
+  const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, role: input.role, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: Math.max(0, Math.floor(input.nextDeviceSequence ?? 0)), lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
   await tx(META, "readwrite", s => s.put(meta));
   activeUnlocked = { deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, token: input.token, aes, lastSync: Date.now() };
   if (input.reference !== undefined) await saveReference(input.reference);
@@ -93,10 +119,17 @@ export async function unlockLocalDevice(pin: string, allowExpired = false) {
     await tx(META, "readwrite", s => s.put(meta));
     throw new Error(meta.pinBlockedUntil && meta.pinBlockedUntil > Date.now() ? "Trop d'essais. Réessayez dans " + Math.ceil((meta.pinBlockedUntil - Date.now()) / 1000) + " secondes." : "PIN incorrect");
   }
+  const localNow = Date.now();
+  if (!allowExpired && ((typeof meta.serverTimeLocalMs === "number" && localNow < meta.serverTimeLocalMs)
+    || (typeof meta.lastObservedLocalMs === "number" && localNow < meta.lastObservedLocalMs))) {
+    throw new Error("L'horloge locale a reculé depuis la dernière synchronisation. Reconnectez l'appareil avant de le déverrouiller.");
+  }
   const lastSync = meta.lastSync || 0;
-  if (!allowExpired && Date.now() - lastSync > 7 * 24 * 60 * 60 * 1000) throw new Error("Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.");
+  if (!allowExpired && (lastSync <= 0 || localNow - lastSync > 7 * 24 * 60 * 60 * 1000)) throw new Error("Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.");
   const token = await decrypt(aes, meta.tokenCipher);
-  meta.pinFailures = 0; meta.pinBlockedUntil = 0; meta.pinBlockSeconds = 30; if (allowExpired) meta.serverLocked = false;
+  meta.pinFailures = 0; meta.pinBlockedUntil = 0; meta.pinBlockSeconds = 30;
+  meta.lastObservedLocalMs = Math.max(meta.lastObservedLocalMs ?? 0, localNow);
+  if (allowExpired) meta.serverLocked = false;
   await tx(META, "readwrite", s => s.put(meta));
   activeUnlocked = { deviceId: meta.deviceId, pharmacyId: meta.pharmacyId, pharmacyName: meta.pharmacyName, token, aes, lastSync };
   return activeUnlocked;
