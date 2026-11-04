@@ -16,13 +16,13 @@ begin
   select qual into v_recall from pg_policies where schemaname='public' and tablename='rappels_lots' and policyname='rappels_lots_read_scope';
   select qual into v_treatment from pg_policies where schemaname='public' and tablename='rappels_lots_traitements' and policyname='rappels_lots_traitements_read';
 
-  if position('naxa_business_function' in coalesce(v_read,''))=0
-    or position('naxa_business_function' in coalesce(v_insert,''))=0
-    or position('naxa_business_function' in coalesce(v_update,''))=0
-    or position('naxa_business_function' in coalesce(v_delete,''))=0
-    or position('naxa_business_function' in coalesce(v_recall,''))=0
-    or position('naxa_business_function' in coalesce(v_treatment,''))=0 then
-    raise exception 'Les policies lot doivent exclure le rôle métier Caisse du chemin MANAGE_LOTS';
+  if position('naxa_can_manage_lots' in coalesce(v_read,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_insert,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_update,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_delete,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_recall,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_treatment,''))=0 then
+    raise exception 'Les policies lot doivent utiliser le helper canonique sans accorder MANAGE_LOTS à la Caisse';
   end if;
   if position('role::text' in v_quarantine)=0
     or position('client' in v_quarantine)=0
