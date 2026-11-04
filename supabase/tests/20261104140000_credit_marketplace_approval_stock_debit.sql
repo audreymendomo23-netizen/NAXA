@@ -105,7 +105,8 @@ begin
   perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
 
- select reservation_id,statut,origine into v_res_a,v_req_status,v_origin from public.client_credit_requests where id=x.demande_a_id;
+  perform public.client_credit_demande_decider(x.demande_a_id,true);
+  select reservation_id,statut,origine into v_res_a,v_req_status,v_origin from public.client_credit_requests where id=x.demande_a_id;
  select quantite into v_stock from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id;
  select quantite into v_qty_a from public.stocks_lots where id=x.lot_a_id;
  select quantite into v_qty_b from public.stocks_lots where id=x.lot_b_id;
