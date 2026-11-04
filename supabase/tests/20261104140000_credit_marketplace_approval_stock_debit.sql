@@ -94,11 +94,14 @@ begin
     or private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE')
     or not public.can_access_pharmacy(x.pharmacie_id)
     or public.can_access_pharmacy(x.pharmacie_hors_id) then
-    raise exception 'Affectation : helper %, scope assigned %, scope home %, scope other %, uid %, fn %, active profile %, assignment rows %',
+    raise exception 'Affectation : helper %, private assigned %, private home %, private other %, public can assigned %, public can other %, public scope assigned %, uid %, fn %, active %, assignments %',
       public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable'),
       private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE'),
       private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE'),
       private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE'),
+      public.can_access_pharmacy(x.pharmacie_id),
+      public.can_access_pharmacy(x.pharmacie_hors_id),
+      public.naxa_scope_allows(auth.uid(),x.pharmacie_id,'PHARMACIE'),
       auth.uid(),public.naxa_business_function(x.responsable_id),
       (select actif from public.profiles where id=x.responsable_id),
       (select count(*) from public.naxa_professional_assignments where profile_id=x.responsable_id and pharmacie_id=x.pharmacie_id and statut='active');
