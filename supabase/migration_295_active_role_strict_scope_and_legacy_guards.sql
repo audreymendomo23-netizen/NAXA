@@ -524,14 +524,14 @@ declare
   v_new text;
 begin
   v_sql:=pg_get_functiondef('public.naxa_grant_professional_assignment(uuid,uuid,text,timestamptz,timestamptz,text)'::regprocedure);
-  v_old:=$old$  if p_fonction='caisse' and v_max_caisses is not null then$new$;
+  v_old:=$old$  if p_fonction='caisse' and v_max_caisses is not null then$old$;
   v_new:=$new$  if p_fonction='caisse' and v_max_caisses is not null then
     perform pg_advisory_xact_lock(hashtextextended('naxa-caisse-quota:'||p_pharmacie::text,0));$new$;
   if position(v_old in v_sql)=0 then raise exception 'Bloc quota provisionnement Caisse introuvable'; end if;
   execute replace(v_sql,v_old,v_new);
 
   v_sql:=pg_get_functiondef('public.naxa_set_professional_assignment_status(uuid,uuid,boolean)'::regprocedure);
-  v_old:=$old$    if v_max is not null then$new$;
+  v_old:=$old$    if v_max is not null then$old$;
   v_new:=$new$    if v_max is not null then
       perform pg_advisory_xact_lock(hashtextextended('naxa-caisse-quota:'||p_pharmacie::text,0));$new$;
   if position(v_old in v_sql)=0 then raise exception 'Bloc quota réactivation Caisse introuvable'; end if;
