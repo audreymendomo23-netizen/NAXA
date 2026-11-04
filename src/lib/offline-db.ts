@@ -6,7 +6,7 @@ const META = "meta";
 const QUEUE = "queue";
 const REF = "reference";
 export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; modifiedAt: number; deviceSequence: number; attempts: number; status: "pending" | "retry" | "conflict" | "rejected" | "failed_terminal"; terminalDetail?: unknown; terminalAt?: number };
-type StoredOperation = Omit<PendingOperation, "payload"> & { payloadCipher: Encrypted };
+type StoredOperation = Omit<PendingOperation, "payload" | "terminalDetail"> & { payloadCipher: Encrypted; terminalDetailCipher?: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
 type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number } | null = null;
@@ -243,10 +243,20 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
 }
 
 export async function listTerminalOperations(): Promise<Array<{ id: string; type: string; createdAt: number; status: string; terminalDetail?: unknown; terminalAt?: number }>> {
-  const rows = await tx<Array<StoredOperation & { terminalDetail?: unknown; terminalAt?: number }>>(QUEUE, "readonly", s => s.getAll());
-  return rows.filter(x => ["conflict", "rejected", "failed_terminal"].includes(x.status))
-    .map(x => ({ id: x.id, type: x.type, createdAt: x.createdAt, status: x.status, terminalDetail: x.terminalDetail, terminalAt: x.terminalAt }))
-    .sort((a, b) => (b.terminalAt ?? b.createdAt) - (a.terminalAt ?? a.createdAt));
+  const rows = await tx<StoredOperation[]>(QUEUE, "readonly", s => s.getAll());
+  const terminal = rows.filter(x => ["conflict", "rejected", "failed_terminal"].includes(x.status));
+  const result: Array<{ id: string; type: string; createdAt: number; status: string; terminalDetail?: unknown; terminalAt?: number }> = [];
+  for (const row of terminal) {
+    let terminalDetail: unknown;
+    if (row.terminalDetailCipher && activeUnlocked) {
+      try { terminalDetail = JSON.parse(await decrypt(activeUnlocked.aes, row.terminalDetailCipher)); }
+      catch { terminalDetail = { reason: "terminal_detail_unreadable" }; }
+    } else if (row.terminalDetail !== undefined) {
+      terminalDetail = row.terminalDetail;
+    }
+    result.push({ id: row.id, type: row.type, createdAt: row.createdAt, status: row.status, terminalDetail, terminalAt: row.terminalAt });
+  }
+  return result.sort((a, b) => (b.terminalAt ?? b.createdAt) - (a.terminalAt ?? a.createdAt));
 }
 
 export async function markOperationAttempt(id: string) {
@@ -265,6 +275,8 @@ export async function markOperationAttempt(id: string) {
   });
 }
 export async function markOperationTerminal(id: string, status: "conflict" | "rejected" | "failed_terminal", detail: unknown) {
+  if (!activeUnlocked) throw new Error("Déverrouillez l'appareil avant d'archiver le résultat de synchronisation.");
+  const terminalDetailCipher = await encrypt(activeUnlocked.aes, JSON.stringify(detail ?? {}));
   const d = await openDb();
   await new Promise<void>((resolve, reject) => {
     const t = d.transaction(QUEUE, "readwrite"), s = t.objectStore(QUEUE), r = s.get(id);
@@ -272,7 +284,8 @@ export async function markOperationTerminal(id: string, status: "conflict" | "re
       if (r.result) {
         r.result.status = status;
         r.result.terminalAt = Date.now();
-        r.result.terminalDetail = detail;
+        r.result.terminalDetailCipher = terminalDetailCipher;
+        delete r.result.terminalDetail;
         r.result.attempts = (r.result.attempts ?? 0) + 1;
         s.put(r.result);
       }
