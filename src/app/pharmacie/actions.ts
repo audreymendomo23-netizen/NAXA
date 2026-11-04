@@ -59,14 +59,14 @@ export async function creerCaisse(formData: FormData) {
   const db = supabaseAdmin();
   const { data: matches, error: lookupError } = await db
     .from("profiles")
-    .select("id,username,role,actif,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
+    .select("id,username,actif,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
     .ilike("username", username)
     .limit(2);
   if (lookupError) redirect("/pharmacie/caisses?erreur=lookup");
   if (!matches || matches.length !== 1) redirect("/pharmacie/caisses?erreur=compte_introuvable");
 
   const target = matches[0];
-  if (target.role !== "client" || target.actif !== true || !target.first_name || !target.last_name
+  if (target.actif !== true || !target.first_name || !target.last_name
     || !target.phone || !target.date_of_birth || target.age_verified !== true || !target.consent_accepted_at) {
     redirect("/pharmacie/caisses?erreur=compte_non_eligible");
   }
