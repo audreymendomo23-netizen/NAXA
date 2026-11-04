@@ -11,6 +11,7 @@ declare
   v_target integer;
   v_after integer;
   v_result jsonb;
+  v_modified_ms bigint;
 begin
   begin
     select s.pharmacie_id, s.produit_id, s.quantite, s.updated_at
@@ -42,11 +43,14 @@ begin
     values(v_device,v_stock.pharmacie_id,v_uid,'MC03 isolated test device',
       'mc03-test-' || replace(v_device::text,'-',''),v_installation,true,now());
 
+    -- Use a client millisecond strictly after the device activation timestamp.
+    v_modified_ms := (extract(epoch from clock_timestamp() + interval '1 second') * 1000)::bigint;
+
     v_target := v_stock.quantite + 1;
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op1,'stock_set_quantity',
       jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',1),
-      (extract(epoch from now()) * 1000)::bigint
+      v_modified_ms
     );
     if v_result->>'status' is distinct from 'applied' then
       raise exception 'MC-03: valid stock operation failed: %',v_result;
@@ -60,7 +64,7 @@ begin
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op1,'stock_set_quantity',
       jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target,'base_updated_at',v_stock.updated_at),
-      (extract(epoch from now()) * 1000)::bigint
+      v_modified_ms
     );
     if v_result->>'status' is distinct from 'applied' then
       raise exception 'MC-03: duplicate replay is not idempotent: %',v_result;
@@ -74,7 +78,7 @@ begin
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op2,'stock_set_quantity',
       jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_stock.quantite + 2,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',2),
-      (extract(epoch from now()) * 1000)::bigint
+      v_modified_ms - 100
     );
     if v_result->>'status' is distinct from 'conflict' then
       raise exception 'MC-03: stale write was not rejected as conflict: %',v_result;
