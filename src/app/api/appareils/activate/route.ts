@@ -40,18 +40,17 @@ export async function POST(req:NextRequest){
   const deviceRecord = device as unknown as Record<string, unknown> | null;
   if(error?.code==="23505")return NextResponse.json({error:"Ce poste vient d'être enrôlé dans un autre onglet. Conservez les données locales et déverrouillez-le."},{status:409});
   if(error||!deviceRecord){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
-  const {data:latestOperation,error:sequenceError}=await supabaseAdmin().from("offline_operations")
-    .select("device_sequence").eq("device_id",deviceRecord[S.deviceIdColumn])
-    .not("device_sequence","is",null).order("device_sequence",{ascending:false}).limit(1).maybeSingle();
-  if(sequenceError){console.error("NAXA_DEVICE_SEQUENCE_LOOKUP_FAILED",sequenceError);return NextResponse.json({error:"Chronologie de l'appareil indisponible."},{status:503})}
-  const {data:ph}=await supabaseAdmin().from(S.pharmaciesTable).select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).single();
+  const {data:ph, error:pharmacyError}=await supabaseAdmin().from(S.pharmaciesTable)
+    .select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).eq("actif",true).maybeSingle();
+  if(pharmacyError||!ph)return NextResponse.json({error:"La pharmacie est inactive ou inaccessible."},{status:403});
   return NextResponse.json({
     deviceId:deviceRecord[S.deviceIdColumn],
     token,
     pharmacyId,
     pharmacyName:ph?.[S.pharmacyNameColumn]??"",
     role,
-    nextDeviceSequence:Number(latestOperation?.device_sequence??0),
+    canEditStock:true,
+    nextDeviceSequence:0,
     serverTimeMs:Date.now()
   });
  }catch(e){console.error("NAXA_DEVICE_ACTIVATION_FAILED",e);return NextResponse.json({error:"Activation impossible."},{status:500})}
