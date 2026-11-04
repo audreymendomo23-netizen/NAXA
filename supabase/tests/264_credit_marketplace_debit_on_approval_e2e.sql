@@ -106,14 +106,25 @@ begin
     (v_promoter,v_pharmacie_principale,true),
     (v_promoter,v_pharmacie_affectee,true);
 
-  -- Droits déjà nécessaires du Promoteur pour gérer ses affectations et délégations.
-  insert into public.naxa_profile_privileges(
-    profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active,revoked_at
-  ) values
-    (v_promoter,'ASSIGN_USER_TO_PHARMACY',v_pharmacie_affectee,'PHARMACIE',v_promoter,true,null),
-    (v_promoter,'ASSIGN_PRIVILEGE',v_pharmacie_affectee,'PHARMACIE',v_promoter,true,null)
-  on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
-  do update set active=true,revoked_at=null,granted_by=excluded.granted_by;
+  -- Vérifier le provisionnement automatique des droits Promoteur par réseau/architecture.
+  if not exists (
+    select 1 from public.naxa_profile_privileges
+    where profile_id=v_promoter and privilege_code='ASSIGN_USER_TO_PHARMACY'
+      and pharmacie_id=v_pharmacie_affectee and scope_type='PHARMACIE'
+      and active and revoked_at is null
+  ) or not exists (
+    select 1 from public.naxa_profile_privileges
+    where profile_id=v_promoter and privilege_code='ASSIGN_PRIVILEGE'
+      and pharmacie_id=v_pharmacie_affectee and scope_type='PHARMACIE'
+      and active and revoked_at is null
+  ) or not exists (
+    select 1 from public.naxa_profile_privileges
+    where profile_id=v_promoter and privilege_code='REVOKE_PRIVILEGE'
+      and pharmacie_id=v_pharmacie_affectee and scope_type='PHARMACIE'
+      and active and revoked_at is null
+  ) then
+    raise exception 'Le provisionnement automatique n’a pas accordé les droits Promoteur requis dans la pharmacie affectée';
+  end if;
 
   -- Affectation permanente au moyen de la vraie RPC (expire_at = NULL).
   perform set_config('request.jwt.claim.sub',v_promoter::text,true);
