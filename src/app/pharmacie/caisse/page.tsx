@@ -12,7 +12,8 @@ import { printAfterImagesLoaded } from "@/lib/print-after-images";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 import { CaisseWorkspaceShell } from "@/components/pharmacie/CaisseWorkspaceShell";
-import { pendingCount, terminalCount } from "@/lib/offline-db";
+import { pendingCount, terminalCount, getLocalDeviceIdentity } from "@/lib/offline-db";
+import { CaisseHorsLigne } from "@/components/pharmacie/CaisseHorsLigne";
 
 type Produit = {
   produit_id: string;
@@ -51,6 +52,7 @@ type TicketLigne = {
 export default function CaissePage() {
   const sb = useMemo(() => supabaseBrowser(), []);
   const [loading, setLoading] = useState(true);
+  const [browserOnline, setBrowserOnline] = useState(true);
   const [ready, setReady] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
   const [pid, setPid] = useState<string | null>(null);
@@ -189,6 +191,22 @@ export default function CaissePage() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      if (!navigator.onLine) {
+        setBrowserOnline(false);
+        const identity = await getLocalDeviceIdentity();
+        if (cancelled) return;
+        if (identity) {
+          setPid(identity.pharmacyId);
+          setPharmacie(identity.pharmacyName);
+          setReady(true);
+          setMsg("Connexion absente. Déverrouillez le poste pour reprendre la session et le catalogue mémorisés.");
+        } else {
+          setMsg("Connexion requise : aucun appareil Caisse déjà activé sur ce navigateur.");
+        }
+        setLoading(false);
+        return;
+      }
+      setBrowserOnline(true);
       const { data: auth } = await sb.auth.getUser();
       if (!auth.user) {
         if (!cancelled) {
@@ -244,6 +262,17 @@ export default function CaissePage() {
     })();
     return () => { cancelled = true; };
   }, [chargerSession, sb]);
+
+  useEffect(() => {
+    const handleOffline = () => setBrowserOnline(false);
+    const handleOnline = () => window.location.reload();
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
 
   const total = useMemo(() => totalPanier(lignes.map((line) => line.total)), [lignes]);
   const montantRecu = Number(percu);
@@ -550,6 +579,17 @@ export default function CaissePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!browserOnline) {
+    return (
+      <CaisseWorkspaceShell sessionOpen={false} pharmacyName={pharmacie}>
+        <div className="space-y-3 p-3">
+          <header className="flex items-center justify-between rounded-2xl bg-naxa-green-900 px-4 py-4 text-white"><a href="/pharmacie">← Pharmacie</a><b>Caisse · {pharmacie || "Poste local"}</b></header>
+          {pid ? <CaisseHorsLigne pharmacieId={pid} pharmacyName={pharmacie} /> : <p role="alert" className="rounded-xl border p-3 text-sm">{msg}</p>}
+        </div>
+      </CaisseWorkspaceShell>
+    );
   }
 
   return (
