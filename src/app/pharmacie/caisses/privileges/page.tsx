@@ -11,15 +11,13 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses/privileges");
 
   const { data: profile } = await sb.from("profiles")
-    .select("id,role,actif,fonction_interne,niveau_interne,pharmacie_id")
+    .select("id,actif,pharmacie_id")
     .eq("id", auth.user.id)
     .single();
-  if (profile?.actif !== true) redirect("/pharmacie");
-  const isPromoteur = profile.role === "promoteur";
-  const isResponsable = profile.role === "pharmacie"
-    && profile.fonction_interne === "responsable"
-    && profile.niveau_interne === 2
-    && Boolean(profile.pharmacie_id);
+  const { data: activeFunction, error: activeFunctionError } = await sb.rpc("naxa_business_function");
+  if (profile?.actif !== true || activeFunctionError) redirect("/pharmacie");
+  const isPromoteur = activeFunction === "promoteur";
+  const isResponsable = activeFunction === "responsable" && Boolean(profile.pharmacie_id);
   if (!isPromoteur && !isResponsable) redirect("/pharmacie");
 
   let ids: string[];
@@ -35,17 +33,37 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
     if (linksError || !links?.length) redirect("/pharmacie/promoteur");
     ids = [...new Set(links.map((link) => link.pharmacie_id))];
   }
-  const [{ data: pharmacies, error: pharmaciesError }, { data: caisses, error: caissesError }, { data: privileges, error: privilegesError }] = await Promise.all([
+  const [{ data: pharmacies, error: pharmaciesError }, { data: cashierAssignments, error: assignmentError }, { data: privileges, error: privilegesError }] = await Promise.all([
     sb.from("pharmacies").select("id,nom,actif,visible_recherche").in("id", ids),
-    sb.from("profiles").select("id,username,first_name,last_name,pharmacie_id,architecture_code,actif")
-      .eq("parent_profile_id", auth.user.id).eq("role", "caisse").eq("actif", true).in("pharmacie_id", ids),
+    sb.from("naxa_professional_assignments").select("id,profile_id,pharmacie_id,commence_at,expire_at,created_at")
+      .eq("role_code", "caisse").eq("statut", "active").in("pharmacie_id", ids),
     sb.from("naxa_privileges").select("code,libelle,famille,niveau_min,niveau_max,delegable,governance,governance_only,active")
       .eq("active", true).eq("delegable", true).eq("governance", false),
   ]);
 
   const operationalPharmacies = (pharmacies ?? []).filter((p) => p.actif === true && p.visible_recherche === true);
   const operationalIds = new Set(operationalPharmacies.map((p) => p.id));
-  const team = (caisses ?? []).filter((c) => c.pharmacie_id && operationalIds.has(c.pharmacie_id));
+  const targetIds = [...new Set((cashierAssignments ?? []).map((a) => a.profile_id))];
+  const { data: targetProfiles, error: caissesError } = targetIds.length
+    ? await sb.from("profiles").select("id,username,first_name,last_name,actif").in("id", targetIds).eq("actif", true)
+    : { data: [] as { id: string; username: string | null; first_name: string | null; last_name: string | null; actif: boolean }[], error: null };
+  const targetById = new Map((targetProfiles ?? []).map((p) => [p.id, p] as const));
+  const { data: pharmacyArchitectures, error: pharmacyArchitectureError } = await sb.from("pharmacie_architectures")
+    .select("pharmacie_id,architecture_code").in("pharmacie_id", ids).eq("active", true);
+  const architectureByPharmacy = new Map((pharmacyArchitectures ?? []).map((a) => [a.pharmacie_id, a.architecture_code] as const));
+  const team = (cashierAssignments ?? []).flatMap((assignment) => {
+    if (!operationalIds.has(assignment.pharmacie_id)
+      || new Date(assignment.commence_at).getTime() > Date.now()
+      || (assignment.expire_at && new Date(assignment.expire_at).getTime() <= Date.now())) return [];
+    const target = targetById.get(assignment.profile_id);
+    if (!target) return [];
+    return [{
+      ...target,
+      id: target.id,
+      pharmacie_id: assignment.pharmacie_id,
+      architecture_code: architectureByPharmacy.get(assignment.pharmacie_id) ?? null,
+    }];
+  });
   const teamIds = team.map((c) => c.id);
   const [assignPermissions, revokePermissions, architectureRows, assignedRows] = await Promise.all([
     Promise.all(team.map(async (c) => {
@@ -75,7 +93,7 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
   const pharmacyById = new Map(operationalPharmacies.map((p) => [p.id, p] as const));
   const privilegeByCode = new Map(catalog.map((p) => [p.code, p] as const));
   const assigned = assignedRows.data ?? [];
-  const loadError = pharmaciesError || caissesError || privilegesError || architectureRows.error || assignedRows.error;
+  const loadError = pharmaciesError || assignmentError || caissesError || pharmacyArchitectureError || privilegesError || architectureRows.error || assignedRows.error;
   const errorText: Record<string, string> = {
     validation: "La cible, la pharmacie ou le privilège demandé est invalide.",
     autorisation: "Action refusée : vérifiez le contrat, le périmètre et les privilèges de délégation.",
