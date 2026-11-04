@@ -221,6 +221,9 @@ begin
       'marketplace',jsonb_build_array(jsonb_build_object('produit_id',v_produit_denied,'quantite',1)));
 
   -- Refus serveur explicite sans délégation : la demande, le stock et les lots restent intacts.
+  perform set_config('request.jwt.claim.sub',v_responsable_sans_droit::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_responsable_sans_droit::text,'role','authenticated')::text,true);
+
   begin
     perform public.client_credit_demande_decider(v_request_d,true);
     raise exception 'E2E264_EXPECTED_PERMISSION_DENIAL_NOT_RAISED';
