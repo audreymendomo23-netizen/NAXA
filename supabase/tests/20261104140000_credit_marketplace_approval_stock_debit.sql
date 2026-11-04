@@ -82,7 +82,7 @@ end;
 $contract$;
 
 do $e2e$
-declare x record;v_res_a uuid;v_res_b uuid;v_sale uuid;v_num text;v_total integer;v_stock integer;v_qty_a integer;v_qty_b integer;v_allocated integer;
+declare x record;v_res_a uuid;v_res_b uuid;v_sale uuid;v_num text;v_total integer;v_stock integer;v_qty_a integer;v_qty_b integer;v_allocated integer;v_req_status text;v_origin text;
 begin
  select * into x from _naxa_credit_debit_ids;
   perform set_config('request.jwt.claim.sub',x.responsable_id::text,true);
@@ -105,12 +105,12 @@ begin
   perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
 
- select reservation_id into v_res_a from public.client_credit_requests where id=x.demande_a_id;
+ select reservation_id,statut,origine into v_res_a,v_req_status,v_origin from public.client_credit_requests where id=x.demande_a_id;
  select quantite into v_stock from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id;
  select quantite into v_qty_a from public.stocks_lots where id=x.lot_a_id;
  select quantite into v_qty_b from public.stocks_lots where id=x.lot_b_id;
  select coalesce(sum(quantite),0)::integer into v_allocated from public.reservation_item_lots where reservation_id=v_res_a and restauree_at is null;
- if v_stock<>5 or v_qty_a<>0 or v_qty_b<>5 or v_allocated<>5 then raise exception 'Approbation A : stock %, lot A %, lot B %, allocation %',v_stock,v_qty_a,v_qty_b,v_allocated; end if;
+ if v_stock<>5 or v_qty_a<>0 or v_qty_b<>5 or v_allocated<>5 then raise exception 'Approbation A : status %, origine %, reservation %, stock %, lot A %, lot B %, allocation %',v_req_status,v_origin,v_res_a,v_stock,v_qty_a,v_qty_b,v_allocated; end if;
  if not exists(select 1 from public.reservations where id=v_res_a and stock_decremented and not stock_restored and expires_at is null and credit_request_id=x.demande_a_id and preparation_statut='non_commencee') then
    raise exception 'Approbation A : réservation durable ou lien crédit manquant'; end if;
 
