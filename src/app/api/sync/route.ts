@@ -21,16 +21,23 @@ export async function POST(req: NextRequest) {
     }
     const body = await req.json();
     const operations = Array.isArray(body.operations) ? body.operations.slice(0, 100) : [];
-    operations.sort((a: any, b: any) => Number(a.createdAt || 0) - Number(b.createdAt || 0) || String(a.id).localeCompare(String(b.id)));
+    operations.sort((a: any, b: any) => Number(a.modifiedAt || 0) - Number(b.modifiedAt || 0) || Number(a.deviceSequence || 0) - Number(b.deviceSequence || 0) || String(a.id).localeCompare(String(b.id)));
     const results: Array<{ id: string; status: string; detail?: unknown }> = [];
     for (const op of operations) {
       if (!op || typeof op.id !== "string" || !/^[0-9a-f-]{36}$/i.test(op.id) || typeof op.type !== "string") {
         results.push({ id: String(op?.id || ""), status: "rejected" }); continue;
       }
-      const payload = op.payload && typeof op.payload === "object" ? op.payload : {};
+      const modifiedAt = Number(op.modifiedAt);
+      const deviceSequence = Number(op.deviceSequence);
+      if (!Number.isSafeInteger(modifiedAt) || modifiedAt <= 0 || !Number.isSafeInteger(deviceSequence) || deviceSequence <= 0) {
+        results.push({ id: op.id, status: "rejected", detail: { reason: "trusted_chronology_required", message: "L'opération ne possède pas d'horodatage serveur ancré et de séquence appareil fiables." } });
+        continue;
+      }
+      const rawPayload = op.payload && typeof op.payload === "object" && !Array.isArray(op.payload) ? op.payload : {};
+      const payload = { ...rawPayload, naxa_device_sequence: deviceSequence };
       const { data: result, error: applyError } = await supabaseAdmin().rpc("naxa_apply_offline_operation_v1", {
         p_device_id: deviceRecord[S.deviceIdColumn], p_operation_id: op.id, p_type: op.type, p_payload: payload,
-        p_created_at_ms: Number.isFinite(Number(op.createdAt)) ? Number(op.createdAt) : Date.now(),
+        p_created_at_ms: modifiedAt,
       });
       if (applyError) {
         console.error("NAXA_SYNC_OPERATION_FAILED", { operationId: op.id, message: applyError.message });
@@ -45,8 +52,6 @@ export async function POST(req: NextRequest) {
         results.push({ id: op.id, status: "retry", detail: "Réponse de synchronisation invalide. L'opération est conservée pour une nouvelle tentative." });
       }
     }
-    const now = new Date().toISOString();
-    await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: now }).eq(S.deviceIdColumn, deviceRecord[S.deviceIdColumn]);
     const pharmacyId = deviceRecord[S.devicePharmacyIdColumn];
     const [{data:pharmacy,error:pharmacyError},{data:stocks,error:stocksError},{data:costs,error:costsError},{data:lots,error:lotsError},{data:expenses,error:expensesError},{data:catalogue,error:catalogueError}] = await Promise.all([
       supabaseAdmin().from(S.pharmaciesTable).select([S.pharmacyIdColumn,S.pharmacyNameColumn,S.pharmacyOnCallColumn,S.pharmacyStockUpdatedColumn].join(",")).eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
@@ -58,7 +63,10 @@ export async function POST(req: NextRequest) {
     ]);
     if(pharmacyError||stocksError||costsError||lotsError||expensesError||catalogueError) throw new Error("NAXA reference snapshot unavailable");
     const reference = pharmacy ? { pharmacie: pharmacy, stock: stocks ?? [], couts: costs ?? [], lots: lots ?? [], charges: expenses ?? [], catalogue: catalogue ?? [] } : null;
-    return NextResponse.json({ ok: true, results, reference, syncedAt: now });
+    const serverTimeMs = Date.now();
+    const syncedAt = new Date(serverTimeMs).toISOString();
+    await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: syncedAt }).eq(S.deviceIdColumn, deviceRecord[S.deviceIdColumn]);
+    return NextResponse.json({ ok: true, results, reference, syncedAt, serverTimeMs });
   } catch (error) {
     console.error("NAXA_SYNC_FAILED", error);
     return NextResponse.json({ error: "Synchronisation indisponible." }, { status: 503 });
