@@ -12,6 +12,7 @@ import { printAfterImagesLoaded } from "@/lib/print-after-images";
 import { CaisseDecaissements } from "@/components/pharmacie/CaisseDecaissements";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 import { CaisseWorkspaceShell } from "@/components/pharmacie/CaisseWorkspaceShell";
+import { pendingCount, terminalCount } from "@/lib/offline-db";
 
 type Produit = {
   produit_id: string;
@@ -514,12 +515,26 @@ export default function CaissePage() {
   async function cloturerSession() {
     if (!session || busy || draftCheckErreur) return;
     if (vente) return setMsg("Finalisez ou abandonnez le panier avant la clôture de caisse.");
+    try {
+      const [pending, terminal] = await Promise.all([pendingCount(), terminalCount()]);
+      if (pending + terminal > 0) {
+        return setMsg(`Clôture bloquée : ${pending} opération(s) en attente et ${terminal} opération(s) à résoudre dans la file hors ligne. Synchronisez ou traitez toute la file avant de clôturer.`);
+      }
+    } catch {
+      return setMsg("Clôture bloquée : impossible de vérifier la file hors ligne chiffrée. Rechargez le poste et réessayez.");
+    }
     if (totalCompte.trim() === "") return setMsg("Saisissez le montant réellement compté, même s’il est égal à zéro.");
     const amount = Number(totalCompte);
     if (!Number.isSafeInteger(amount) || amount < 0) return setMsg("Saisissez le montant espèces réellement compté, en FCFA.");
     if (!window.confirm("Clôturer définitivement cette session et enregistrer l’écart de caisse ?")) return;
     setBusy(true);
     try {
+      // Recheck immediately before the irreversible server-side closure.
+      const [pending, terminal] = await Promise.all([pendingCount(), terminalCount()]);
+      if (pending + terminal > 0) {
+        setMsg(`Clôture annulée : ${pending} opération(s) en attente et ${terminal} opération(s) à résoudre dans la file hors ligne.`);
+        return;
+      }
       const { data, error } = await sb.rpc("caisse_cloturer", { p_session: session.id, p_total_compte: amount, p_ecart_justification: ecartJustification.trim() || null });
       if (error) return setMsg(error.message);
       const result = Array.isArray(data) ? data[0] : data;
