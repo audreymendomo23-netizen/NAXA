@@ -5,6 +5,7 @@ import { DebloquerAppareil } from "@/components/pharmacie/DebloquerAppareil";
 import { EtatHorsLigne } from "@/components/pharmacie/EtatHorsLigne";
 import {
   activateLocalDevice,
+  assertLocalDeviceActivationAllowed,
   getLocalDeviceIdentity,
   getLocalInstallationId,
   getUnlockedDevice,
@@ -70,6 +71,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
     }
     setBusy(true);
     try {
+      await assertLocalDeviceActivationAllowed();
       const installationId = await getLocalInstallationId();
       const activation = await fetch("/api/appareils/activate", {
         method: "POST",
