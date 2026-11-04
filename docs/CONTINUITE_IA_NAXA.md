@@ -453,3 +453,13 @@ Poursuivre uniquement sur les contrôles de compilation/CI et recette navigateur
 - HEAD au moment du contrôle : `e91bc8583eee5be6575477418084e2ec6fb16a9b`. Statut Vercel GitHub : `failure`, destination `upgradeToPro=build-rate-limit`; la recherche Vercel filtrée sur ce SHA retourne zéro déploiement. Aucun build ou déploiement n'est confirmé.
 - Miroir GitLab NAXA : toujours au SHA `178a655880d75f933a5968e34d3de3f802de5e5c` (21/10/2026). Dernier pipeline consulté : `ci_quota_exceeded` avant le démarrage des jobs. Aucune CI GitLab actuelle sur le SHA de GitHub main.
 - Ne pas interpréter le statut CircleCI en échec comme un résultat à corriger : `AGENTS.md` interdit son usage. Aucun déploiement ni aucune écriture Supabase Production.
+
+
+## Vérification complémentaire — reprise offline et livraison (04/11/2026)
+
+- Correctif `src/lib/offline-db.ts` : comparaison du statut historique `failed` alignée sur la compatibilité IndexedDB existante en castant `row.status as string` avant comparaison. Commit : `1892959c4c9da8aa3839c0c29e3e7d4d6bf755c7`.
+- Preuve ciblée : l'ancienne expression déclenche `TS2367` avec TypeScript strict ; la nouvelle expression passe un test isolé `tsc --strict` (TypeScript global 5.8.3). Ce test ne compile pas l'ensemble du dépôt.
+- Vercel, commit exact : déploiement `dpl_6USNEXJ2WYQgrSCEsTcqSsnERGRu`, état `CANCELED`, lien d'erreur `ignored-build-step`, aucun événement de build retourné. Le check GitHub Vercel `success` ne doit pas être interprété comme un build réussi.
+- GitLab : branche `main` du miroir au SHA `178a655880d75f933a5968e34d3de3f802de5e5c`; pipeline #139 `2980484694`, `ci_quota_exceeded`, jobs non démarrés et aucun runner attribué.
+- Restent non prouvés sur le HEAD exact : `npm test`, TypeScript complet, lint, build Next.js et recette navigateur/appareil. La CI disponible est décrite dans `.gitlab-ci.yml` (typecheck, lint, audit dépendances, tests unitaires, build, aucun déploiement) ; le miroir périmé et le quota empêchent actuellement son exécution.
+- Aucune écriture Supabase Production et aucun déploiement.
