@@ -45,7 +45,7 @@ begin
     v_target := v_stock.quantite + 1;
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op1,'stock_set_quantity',
-      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target,'base_updated_at',v_stock.updated_at),
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',1),
       (extract(epoch from now()) * 1000)::bigint
     );
     if v_result->>'status' is distinct from 'applied' then
@@ -73,7 +73,7 @@ begin
 
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op2,'stock_set_quantity',
-      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_stock.quantite + 2,'base_updated_at',v_stock.updated_at),
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_stock.quantite + 2,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',2),
       (extract(epoch from now()) * 1000)::bigint
     );
     if v_result->>'status' is distinct from 'conflict' then
