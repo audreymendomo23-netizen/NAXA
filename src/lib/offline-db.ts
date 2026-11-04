@@ -9,7 +9,7 @@ export type PendingOperation = { id: string; type: string; payload: unknown; cre
 type StoredOperation = Omit<PendingOperation, "payload" | "terminalDetail"> & { payloadCipher: Encrypted; terminalDetailCipher?: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
 type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; role?: "pharmacie" | "caisse"; canEditStock?: boolean; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
-const LOCAL_IDLE_LOCK_MS = 15 * 60 * 1000;
+export const LOCAL_IDLE_LOCK_MS = 15 * 60 * 1000;
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number; lastActivityAt: number } | null = null;
 function currentUnlocked() {
   if (activeUnlocked && Date.now() - activeUnlocked.lastActivityAt >= LOCAL_IDLE_LOCK_MS) activeUnlocked = null;
