@@ -47,9 +47,13 @@ insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_men
 select cp.promoteur_id,cp.id,1000,current_date,current_date+30,'actif'
 from public.conventions_promoteurs cp
 join _naxa_credit_debit_ids x on x.promoteur_id=cp.promoteur_id;
+-- Les triggers de provisionnement exigent déjà un rattachement pour valider le Promoteur.
+-- Les fixtures sont insérées de façon cohérente puis les triggers sont réactivés avant les RPC testées.
+set local session_replication_role='replica';
 insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
 select promoteur_id,pharmacie_id,true from _naxa_credit_debit_ids
 union all select promoteur_id,pharmacie_principale_id,true from _naxa_credit_debit_ids;
+set local session_replication_role='origin';
 insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables)
 select pharmacie_id,'PARENTS_AINES_CADETS',promoteur_id,true,5 from _naxa_credit_debit_ids
 union all select pharmacie_principale_id,'PARENTS_AINES_CADETS',promoteur_id,true,5 from _naxa_credit_debit_ids;
