@@ -110,7 +110,7 @@ begin
  select quantite into v_qty_a from public.stocks_lots where id=x.lot_a_id;
  select quantite into v_qty_b from public.stocks_lots where id=x.lot_b_id;
  select coalesce(sum(quantite),0)::integer into v_allocated from public.reservation_item_lots where reservation_id=v_res_a and restauree_at is null;
- if v_stock<>5 or v_qty_a<>0 or v_qty_b<>5 or v_allocated<>5 then raise exception 'Approbation A : débit FEFO incohérent'; end if;
+ if v_stock<>5 or v_qty_a<>0 or v_qty_b<>5 or v_allocated<>5 then raise exception 'Approbation A : stock %, lot A %, lot B %, allocation %',v_stock,v_qty_a,v_qty_b,v_allocated; end if;
  if not exists(select 1 from public.reservations where id=v_res_a and stock_decremented and not stock_restored and expires_at is null and credit_request_id=x.demande_a_id and preparation_statut='non_commencee') then
    raise exception 'Approbation A : réservation durable ou lien crédit manquant'; end if;
 
