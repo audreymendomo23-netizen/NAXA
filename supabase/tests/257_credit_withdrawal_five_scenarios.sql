@@ -35,10 +35,16 @@ begin
     raise exception 'Scénario 2 : contrat de décrément lot/stock incomplet';
   end if;
   -- 3: lots bloqués/périmés exclus et quantité restante refusée.
-  if position('coalesce(l.bloque,false)=false' in compact)=0
-     or position('l.date_peremption>=current_date' in compact)=0
+  if position('coalesce(v_lot.bloque,false)' in compact)=0
+     or position('v_lot.date_peremption<current_date' in compact)=0
      or position('ifv_remaining>0thenraiseexception' in compact)=0 then
-    raise exception 'Scénario 3 : garde lot invalide/insuffisant absente';
+    raise exception 'Scénario 3 : le retrait ne refuse plus un lot bloqué/périmé ou une allocation restante';
+  end if;
+  -- Le nouveau contrat doit aussi distinguer un stock déjà débité à l’approbation
+  -- d’un ancien hold virtuel qui sera débité au retrait.
+  if position('v_already_decremented' in compact)=0
+     or position('ifnotv_already_decrementedthen' in compact)=0 then
+    raise exception 'Scénario 3 : garde anti-double-débit absente';
   end if;
   -- 4: les erreurs remontent; le retrait passe par le registre de crédit.
   if position('exceptionwhen' in compact)>0 or position('raiseexception' in compact)=0
