@@ -43,13 +43,13 @@ begin
       now(),now(),'{}'::jsonb,'{"naxa_signup_pending":"true"}'::jsonb);
 
     insert into public.profiles(id,role,pharmacie_id,actif,fonction_interne)
-    values(v_uid,'caisse',v_primary_pharmacy,true,null)
+    values(v_uid,'caisse',v_stock.pharmacie_id,true,null)
     on conflict(id) do update
       set role='caisse',pharmacie_id=excluded.pharmacie_id,actif=true,fonction_interne=null;
 
     insert into public.naxa_professional_assignments(
       profile_id,pharmacie_id,fonction,statut,motif,commence_at,accorde_par
-    ) values(v_uid,v_stock.pharmacie_id,'caisse','active','Test affectation multi-pharmacie',now(),v_uid);
+    ) values(v_uid,v_primary_pharmacy,'caisse','active','Test affectation multi-pharmacie',now(),v_uid);
 
     perform set_config('request.jwt.claim.sub',v_uid::text,true);
     insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,max_responsables,max_caisses,active)
@@ -59,7 +59,7 @@ begin
     insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
     values
       (v_uid,'VIEW_STOCK',v_stock.pharmacie_id,'PHARMACIE',v_uid,true),
-      (v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'PHARMACIE',v_uid,true)
+      (v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'POSTE_CAISSE',v_uid,true)
     on conflict(profile_id,privilege_code,pharmacie_id,scope_type) do update
       set granted_by=v_uid,active=true;
 
@@ -164,7 +164,7 @@ begin
     update public.naxa_profile_privileges set active=true
       where profile_id=v_uid and privilege_code='VIEW_STOCK' and pharmacie_id=v_stock.pharmacie_id;
     update public.naxa_profile_privileges set active=false
-      where profile_id=v_uid and privilege_code='EDIT_STOCK_QUANTITY' and pharmacie_id=v_stock.pharmacie_id;
+      where profile_id=v_uid and privilege_code='EDIT_STOCK_QUANTITY' and pharmacie_id=v_stock.pharmacie_id and scope_type='POSTE_CAISSE';
     v_permissions := public.naxa_device_permissions_v1(v_device);
     if v_permissions->>'authorized' is distinct from 'true'
       or v_permissions->>'canViewStock' is distinct from 'true'
