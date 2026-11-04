@@ -189,19 +189,21 @@ export default function CaisseParcoursPage() {
       setLoading(true);
       const { data: auth, error: authError } = await sb.auth.getUser();
       if (authError || !auth.user) { if (alive) { setError("Connexion requise pour accéder au parcours caisse."); setLoading(false); } return; }
-      const [{ data: p, error: profileError }, { data: activeRole, error: activeRoleError }] = await Promise.all([
-        sb.from("profiles").select("id,role,fonction_interne,pharmacie_id,actif,first_name,last_name,phone,username").eq("id", auth.user.id).maybeSingle(),
+      const [{ data: p, error: profileError }, { data: activeRole, error: activeRoleError }, { data: activePharmacyId, error: activePharmacyError }] = await Promise.all([
+        sb.from("profiles").select("id,role,fonction_interne,actif,first_name,last_name,phone,username").eq("id", auth.user.id).maybeSingle(),
         sb.rpc("naxa_business_function"),
+        sb.rpc("naxa_active_role_pharmacy"),
       ]);
-      if (profileError || activeRoleError || !p || p.actif !== true || activeRole !== "caisse" || !p.pharmacie_id) {
+      if (profileError || activeRoleError || activePharmacyError || !p || p.actif !== true
+        || activeRole !== "caisse" || typeof activePharmacyId !== "string") {
         if (alive) { setError("Accès réservé à une personne ayant le poste Caisse actif dans une pharmacie."); setLoading(false); } return;
       }
-      const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies").select("id,nom,actif,visible_recherche").eq("id", p.pharmacie_id).maybeSingle();
+      const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies").select("id,nom,actif,visible_recherche").eq("id", activePharmacyId).maybeSingle();
       if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
         if (alive) { setError("La pharmacie est inactive ou non publiée ; accès aux opérations refusé."); setLoading(false); } return;
       }
       if (!alive) return;
-      setUid(auth.user.id); setAccount({ ...p, active_role: activeRole } as Account); setPharmacyId(pharmacy.id); setPharmacyName(pharmacy.nom ?? "Pharmacie");
+      setUid(auth.user.id); setAccount({ ...p, active_role: activeRole, pharmacie_id: activePharmacyId } as Account); setPharmacyName(pharmacy.nom ?? "Pharmacie");
       await loadSection(pharmacy.id, auth.user.id);
       if (alive) setLoading(false);
     })().catch(() => { if (alive) { setError("Erreur inattendue lors du chargement. Réessayez."); setLoading(false); } });
