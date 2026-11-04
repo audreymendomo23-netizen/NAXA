@@ -1,14 +1,14 @@
 "use client";
 
 const DB_NAME = "naxa-offline-v1";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const META = "meta";
 const QUEUE = "queue";
 const REF = "reference";
-export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; attempts: number; status: "pending" | "failed" };
+export type PendingOperation = { id: string; type: string; payload: unknown; createdAt: number; modifiedAt: number; deviceSequence: number; attempts: number; status: "pending" | "retry" | "conflict" | "rejected" | "failed_terminal"; terminalDetail?: unknown; terminalAt?: number };
 type StoredOperation = Omit<PendingOperation, "payload"> & { payloadCipher: Encrypted };
 type Encrypted = { iv: number[]; cipher: number[] };
-type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean };
+type Meta = { id: string; salt?: number[]; pinHash?: number[]; deviceId?: string; pharmacyId?: string; pharmacyName?: string; tokenCipher?: Encrypted; lastSync?: number; pinFailures?: number; pinBlockedUntil?: number; pinBlockSeconds?: number; serverLocked?: boolean; serverTimeMs?: number; serverTimeLocalMs?: number; nextDeviceSequence?: number; lastIssuedModifiedAtMs?: number; lastObservedLocalMs?: number };
 let activeUnlocked: { deviceId: string; pharmacyId: string; pharmacyName: string; token: string; aes: CryptoKey; lastSync: number } | null = null;
 
 function openDb(): Promise<IDBDatabase> {
@@ -66,10 +66,11 @@ export async function getLocalInstallationId() {
   await tx(META, "readwrite", s => s.put({ id: "installation", value }));
   return value;
 }
-export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; token: string; reference?: unknown }) {
+export async function activateLocalDevice(input: { pin: string; deviceId: string; pharmacyId: string; pharmacyName: string; token: string; serverTimeMs?: number; reference?: unknown }) {
   if (!/^\d{4,6}$/.test(input.pin)) throw new Error("Le PIN doit contenir 4 à 6 chiffres");
   const salt = crypto.getRandomValues(new Uint8Array(16)), { aes, hash } = await derive(input.pin, salt);
-  const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, tokenCipher: await encrypt(aes, input.token), lastSync: Date.now(), pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
+  const localNow = Date.now();
+  const meta: Meta = { id: "device", salt: Array.from(salt), pinHash: hash, deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, tokenCipher: await encrypt(aes, input.token), lastSync: localNow, serverTimeMs: input.serverTimeMs, serverTimeLocalMs: input.serverTimeMs ? localNow : undefined, nextDeviceSequence: 0, lastIssuedModifiedAtMs: 0, lastObservedLocalMs: localNow, pinFailures: 0, pinBlockedUntil: 0, pinBlockSeconds: 30 };
   await tx(META, "readwrite", s => s.put(meta));
   activeUnlocked = { deviceId: input.deviceId, pharmacyId: input.pharmacyId, pharmacyName: input.pharmacyName, token: input.token, aes, lastSync: Date.now() };
   if (input.reference !== undefined) await saveReference(input.reference);
@@ -111,12 +112,27 @@ export async function readReference() {
   if (!row || !activeUnlocked) return undefined;
   try { return { id: row.id, value: JSON.parse(await decrypt(activeUnlocked.aes, row.value)), savedAt: row.savedAt }; } catch { return undefined; }
 }
+export async function saveServerTimeAnchor(serverTimeMs: number) {
+  if (!Number.isSafeInteger(serverTimeMs) || serverTimeMs <= 0) throw new Error("Horloge serveur invalide");
+  const localNow = Date.now();
+  const meta = await tx<Meta | undefined>(META, "readonly", s => s.get("device"));
+  if (!meta?.deviceId || !meta.tokenCipher) throw new Error("Appareil hors ligne non activé");
+  meta.serverTimeMs = serverTimeMs;
+  meta.serverTimeLocalMs = localNow;
+  meta.lastSync = localNow;
+  meta.lastObservedLocalMs = Math.max(meta.lastObservedLocalMs ?? 0, localNow);
+  await tx(META, "readwrite", s => s.put(meta));
+  if (activeUnlocked) activeUnlocked.lastSync = localNow;
+}
+
 export async function enregistrerOperation(type: string, payload: unknown): Promise<string> {
+  if (!activeUnlocked) throw new Error("Déverrouillez l'appareil avant d'enregistrer une opération hors ligne.");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Contenu d'opération invalide.");
+  }
+
   let safePayload = payload;
   if (type === "stock_set_quantity") {
-    if (!payload || typeof payload !== "object" || Array.isArray(payload) || !activeUnlocked) {
-      throw new Error("Modification hors ligne impossible : référence de stock indisponible.");
-    }
     const input = payload as Record<string, unknown>;
     const productId = String(input.produit_id ?? input.produitId ?? input.product_id ?? "");
     const quantity = Number(input.quantite ?? input.quantity);
@@ -135,26 +151,140 @@ export async function enregistrerOperation(type: string, payload: unknown): Prom
     }
     safePayload = { ...input, produit_id: productId, quantite: quantity, base_updated_at: baseUpdatedAt };
   }
-  const id = crypto.randomUUID(), operation: PendingOperation = { id, type, payload: safePayload, createdAt: Date.now(), attempts: 0, status: "pending" };
-  await tx(QUEUE, "readwrite", s => s.add(operation)); return id;
+
+  // Encrypt before opening the IndexedDB write transaction; WebCrypto yields and would
+  // otherwise allow the transaction to auto-close before the queue write.
+  const payloadCipher = await encrypt(activeUnlocked.aes, JSON.stringify(safePayload));
+  const id = crypto.randomUUID();
+  const localNow = Date.now();
+  const d = await openDb();
+  return new Promise<string>((resolve, reject) => {
+    const t = d.transaction([META, QUEUE], "readwrite");
+    const metaStore = t.objectStore(META);
+    const queueStore = t.objectStore(QUEUE);
+    const request = metaStore.get("device");
+    let resultError: Error | null = null;
+    request.onsuccess = () => {
+      const meta = request.result as Meta | undefined;
+      if (!meta?.deviceId || !meta.serverTimeMs || !meta.serverTimeLocalMs) {
+        resultError = new Error("Synchronisez l'appareil en ligne avant de créer une opération hors ligne.");
+        t.abort();
+        return;
+      }
+      if (typeof meta.lastObservedLocalMs === "number" && localNow < meta.lastObservedLocalMs) {
+        resultError = new Error("L'horloge de cet appareil a reculé. Reconnectez-le pour recalibrer la chronologie.");
+        t.abort();
+        return;
+      }
+      const elapsed = localNow - meta.serverTimeLocalMs;
+      if (elapsed < 0 || elapsed > 7 * 24 * 60 * 60 * 1000) {
+        resultError = new Error("L'ancrage horaire de l'appareil a expiré. Reconnectez-le avant de continuer.");
+        t.abort();
+        return;
+      }
+      const estimatedServerTime = meta.serverTimeMs + elapsed;
+      const modifiedAt = Math.max(estimatedServerTime, (meta.lastIssuedModifiedAtMs ?? 0) + 1);
+      const deviceSequence = (meta.nextDeviceSequence ?? 0) + 1;
+      meta.nextDeviceSequence = deviceSequence;
+      meta.lastIssuedModifiedAtMs = modifiedAt;
+      meta.lastObservedLocalMs = localNow;
+      metaStore.put(meta);
+      const operation: StoredOperation = {
+        id, type, createdAt: localNow, modifiedAt, deviceSequence,
+        attempts: 0, status: "pending", payloadCipher
+      };
+      queueStore.add(operation);
+    };
+    t.oncomplete = () => { d.close(); resolve(id); };
+    t.onerror = () => { d.close(); reject(resultError ?? t.error ?? new Error("Échec de mise en file hors ligne")); };
+    t.onabort = () => { d.close(); reject(resultError ?? t.error ?? new Error("Opération hors ligne annulée")); };
+  });
 }
-export async function listPendingOperations() {
-  // A transient failure must not strand an encrypted operation outside the retry queue.
-  return (await tx<PendingOperation[]>(QUEUE, "readonly", s => s.getAll()))
-    .filter(x => x.status === "pending" || x.status === "failed")
-    .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+
+export async function listPendingOperations(): Promise<PendingOperation[]> {
+  const rows = await tx<StoredOperation[]>(QUEUE, "readonly", s => s.getAll());
+  const pending = rows.filter(x => x.status === "pending" || x.status === "retry" || (x.status as string) === "failed");
+  const output: PendingOperation[] = [];
+  for (const row of pending) {
+    // Legacy queue entries predate the trusted chronology and cannot safely be applied.
+    if (!Number.isSafeInteger(row.modifiedAt) || !Number.isSafeInteger(row.deviceSequence) || row.deviceSequence <= 0) {
+      const terminal = { ...row, status: "failed_terminal" as const, terminalAt: Date.now(),
+        terminalDetail: { reason: "legacy_operation_without_trusted_chronology", message: "Cette opération a été créée avant l'ancrage horaire et la séquence appareil. Vérifiez le stock puis créez une nouvelle correction." } };
+      if (row.payloadCipher) {
+        await tx(QUEUE, "readwrite", s => s.put(terminal));
+      } else if ((row as unknown as { payload?: unknown }).payload !== undefined && activeUnlocked) {
+        const legacyPayload = (row as unknown as { payload: unknown }).payload;
+        const payloadCipher = await encrypt(activeUnlocked.aes, JSON.stringify(legacyPayload));
+        const migrated = { ...terminal, payloadCipher } as StoredOperation;
+        delete (migrated as unknown as { payload?: unknown }).payload;
+        await tx(QUEUE, "readwrite", s => s.put(migrated));
+      } else {
+        await tx(QUEUE, "readwrite", s => s.put(terminal));
+      }
+      continue;
+    }
+    if (!activeUnlocked) throw new Error("Déverrouillez l'appareil pour lire la file hors ligne.");
+    let payload: unknown;
+    if (row.payloadCipher) {
+      payload = JSON.parse(await decrypt(activeUnlocked.aes, row.payloadCipher));
+    } else {
+      const legacyPayload = (row as unknown as { payload?: unknown }).payload;
+      payload = legacyPayload;
+      const payloadCipher = await encrypt(activeUnlocked.aes, JSON.stringify(legacyPayload ?? {}));
+      const migrated = { ...row, payloadCipher } as StoredOperation;
+      delete (migrated as unknown as { payload?: unknown }).payload;
+      await tx(QUEUE, "readwrite", s => s.put(migrated));
+    }
+    output.push({ id: row.id, type: row.type, payload, createdAt: row.createdAt,
+      modifiedAt: row.modifiedAt, deviceSequence: row.deviceSequence, attempts: row.attempts,
+      status: row.status === "failed" ? "retry" : row.status as "pending" | "retry" });
+  }
+  return output.sort((a, b) => a.modifiedAt - b.modifiedAt || a.deviceSequence - b.deviceSequence || a.id.localeCompare(b.id));
 }
-export async function markOperationAttempt(id: string, failed: boolean) {
+
+export async function listTerminalOperations(): Promise<Array<{ id: string; type: string; createdAt: number; status: string; terminalDetail?: unknown; terminalAt?: number }>> {
+  const rows = await tx<Array<StoredOperation & { terminalDetail?: unknown; terminalAt?: number }>>(QUEUE, "readonly", s => s.getAll());
+  return rows.filter(x => ["conflict", "rejected", "failed_terminal"].includes(x.status))
+    .map(x => ({ id: x.id, type: x.type, createdAt: x.createdAt, status: x.status, terminalDetail: x.terminalDetail, terminalAt: x.terminalAt }))
+    .sort((a, b) => (b.terminalAt ?? b.createdAt) - (a.terminalAt ?? a.createdAt));
+}
+
+export async function markOperationAttempt(id: string) {
   const d = await openDb();
   await new Promise<void>((resolve, reject) => {
     const t = d.transaction(QUEUE, "readwrite"), s = t.objectStore(QUEUE), r = s.get(id);
-    r.onsuccess = () => { if (r.result) { r.result.attempts++; r.result.status = failed ? "failed" : "pending"; s.put(r.result); } };
-    t.oncomplete = () => { d.close(); resolve(); }; t.onerror = () => { d.close(); reject(t.error); };
+    r.onsuccess = () => {
+      if (r.result) {
+        r.result.attempts = (r.result.attempts ?? 0) + 1;
+        r.result.status = "retry";
+        s.put(r.result);
+      }
+    };
+    t.oncomplete = () => { d.close(); resolve(); };
+    t.onerror = () => { d.close(); reject(t.error); };
+  });
+}
+export async function markOperationTerminal(id: string, status: "conflict" | "rejected" | "failed_terminal", detail: unknown) {
+  const d = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const t = d.transaction(QUEUE, "readwrite"), s = t.objectStore(QUEUE), r = s.get(id);
+    r.onsuccess = () => {
+      if (r.result) {
+        r.result.status = status;
+        r.result.terminalAt = Date.now();
+        r.result.terminalDetail = detail;
+        r.result.attempts = (r.result.attempts ?? 0) + 1;
+        s.put(r.result);
+      }
+    };
+    t.oncomplete = () => { d.close(); resolve(); };
+    t.onerror = () => { d.close(); reject(t.error); };
   });
 }
 export async function removeOperation(id: string) { await tx(QUEUE, "readwrite", s => s.delete(id)); }
 export async function markLocalSync() { const meta=await tx<Meta|undefined>(META,"readonly",s=>s.get("device"));if(!meta)return;meta.lastSync=Date.now();await tx(META,"readwrite",s=>s.put(meta));if(activeUnlocked)activeUnlocked.lastSync=meta.lastSync; }
 export async function pendingCount() { return (await listPendingOperations()).length; }
+export async function terminalCount() { return (await listTerminalOperations()).length; }
 export async function clearLocalDevice() {
   const d = await openDb();
   await new Promise<void>((resolve, reject) => {
