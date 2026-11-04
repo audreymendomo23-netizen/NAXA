@@ -165,7 +165,15 @@ export default function PilotagePharmacie() {
             <p className="text-xs uppercase tracking-[.2em] text-white/70">NAXA · Pilotage</p>
             <h1 className="text-2xl font-black text-naxa-canari sm:text-3xl">{titre}</h1>
           </div>
-          <div className="flex flex-wrap gap-2"><Link href="/pharmacie/promoteur" className="btn btn-canari">Retour à l’espace Promoteur</Link><Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link></div>
+          <div className="flex flex-wrap gap-2">
+            {stats.role === "responsable" ? (
+              <Link href="/pharmacie/responsable/credits" className="btn btn-canari">Demandes de crédit Marketplace</Link>
+            ) : null}
+            <Link href={stats.role === "responsable" ? "/pharmacie" : "/pharmacie/promoteur"} className="btn btn-clair">
+              {stats.role === "responsable" ? "Espace Responsable" : "Espace Promoteur"}
+            </Link>
+            <Link href="/pharmacie" className="btn btn-clair">Espace opérationnel</Link>
+          </div>
         </header>
 
         <RapportsALaDemande variant="default" />
