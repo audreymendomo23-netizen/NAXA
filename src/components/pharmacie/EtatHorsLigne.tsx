@@ -146,6 +146,7 @@ export function EtatHorsLigne() {
 
   useEffect(() => {
     void refresh();
+    void sync();
     const onConnectivity = () => {
       void refresh();
       if (navigator.onLine) void sync();
