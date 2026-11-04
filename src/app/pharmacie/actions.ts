@@ -10,14 +10,13 @@ async function exigerGestionEquipe() {
   if (!u.user) redirect("/connexion?retour=/pharmacie/caisses");
   const { data: p } = await sb
     .from("profiles")
-    .select("id,role,fonction_interne,niveau_interne,pharmacie_id,actif")
+    .select("id,pharmacie_id,actif")
     .eq("id", u.user.id)
     .single();
-  const promoteur = p?.role === "promoteur";
-  const responsable = p?.role === "pharmacie"
-    && p.fonction_interne === "responsable"
-    && p.niveau_interne === 2
-    && Boolean(p.pharmacie_id);
+  const { data: activeFunction, error: activeFunctionError } = await sb.rpc("naxa_business_function");
+  const promoteur = !activeFunctionError && activeFunction === "promoteur";
+  const responsable = !activeFunctionError && activeFunction === "responsable"
+    && Boolean(p?.pharmacie_id);
   if (!p || (!promoteur && !responsable)) redirect("/");
   if (p.actif !== true) redirect(promoteur ? "/pharmacie/promoteur" : "/pharmacie");
   return { userId: u.user.id, sb, profile: p, promoteur, responsable };
@@ -78,33 +77,15 @@ export async function creerCaisse(formData: FormData) {
     redirect("/pharmacie/caisses?erreur=compte_non_eligible");
   }
 
-  const { data: original, error: originalError } = await db.from("profiles")
-    .select("role,fonction_interne,niveau_interne,niveau_hierarchique,pharmacie_id,parent_profile_id,architecture_code,actif")
-    .eq("id", target.id)
-    .single();
-  if (originalError || !original) redirect("/pharmacie/caisses?erreur=profil");
-
-  const { error: targetError } = await db.from("profiles").update({
-    role: "caisse",
-    fonction_interne: "caisse",
-    niveau_interne: 3,
-    niveau_hierarchique: 3,
-    pharmacie_id: null,
-    parent_profile_id: null,
-    architecture_code: null,
-    actif: false,
-  }).eq("id", target.id).eq("role", "client").eq("actif", true);
-  if (targetError) redirect("/pharmacie/caisses?erreur=profil");
-
-  const { error: provisionError } = await sb.rpc("naxa_provision_caisse", {
+  const { error: assignmentError } = await sb.rpc("naxa_grant_professional_assignment", {
     p_target: target.id,
     p_pharmacie: pharmacieId,
+    p_fonction: "caisse",
+    p_commence_at: new Date().toISOString(),
+    p_expire_at: null,
+    p_motif: "Attribution du poste Caisse depuis la gestion d’équipe NAXA.",
   });
-  if (provisionError) {
-    const { error: restoreError } = await db.from("profiles").update(original).eq("id", target.id);
-    if (restoreError) console.error("NAXA_CAISSE_ASSIGNMENT_RESTORE_FAILED", { targetId: target.id, message: restoreError.message });
-    redirect("/pharmacie/caisses?erreur=provisionnement");
-  }
+  if (assignmentError) redirect("/pharmacie/caisses?erreur=provisionnement");
 
   redirect("/pharmacie/caisses?ok=creation");
 }
@@ -112,12 +93,14 @@ export async function creerCaisse(formData: FormData) {
 async function changerStatutCaisse(formData: FormData, actif: boolean) {
   const { sb } = await exigerGestionEquipe();
   const caisseId = value(formData, "caisse_id");
-  if (!caisseId) redirect("/pharmacie/caisses?erreur=cible");
+  const pharmacieId = value(formData, "pharmacie_id");
+  if (!caisseId || !pharmacieId) redirect("/pharmacie/caisses?erreur=cible");
 
-  // La RPC vérifie le parent, le scope, la validité commerciale et le quota
-  // de réactivation. Pas de mise à jour directe en service-role.
-  const { error } = await sb.rpc("naxa_set_caisse_status", {
+  // La RPC révoque ou recrée l'affectation Caisse. Le compte Auth et ses autres
+  // postes restent actifs ; seul le lien vers ce poste est suspendu/réactivé.
+  const { error } = await sb.rpc("naxa_set_professional_assignment_status", {
     p_target: caisseId,
+    p_pharmacie: pharmacieId,
     p_active: actif,
   });
   redirect(error
