@@ -39,6 +39,7 @@ export async function POST(req:NextRequest){
     token,
     pharmacyId,
     pharmacyName:ph?.[S.pharmacyNameColumn]??"",
+    role,
     nextDeviceSequence:Number(latestOperation?.device_sequence??0),
     serverTimeMs:Date.now()
   });
