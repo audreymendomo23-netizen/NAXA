@@ -59,8 +59,9 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
 
   useEffect(()=>{(async()=>{
     const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
-    const {data:p}=await sb.from("profiles").select("fonction_interne,pharmacie_id,actif,first_name,last_name,phone,username").eq("id",u.user.id).single();
-    if(!p?.pharmacie_id||p.actif!==true||p.fonction_interne!=="pharmacien")return setMsg("Accès réservé à un compte Pharmacien actif.");
+    const {data:p}=await sb.from("profiles").select("pharmacie_id,actif,first_name,last_name,phone,username").eq("id",u.user.id).single();
+    const {data:activeRole,error:activeRoleError}=await sb.rpc("naxa_business_function");
+    if(activeRoleError||!p?.pharmacie_id||p.actif!==true||activeRole!=="pharmacien")return setMsg("Accès réservé au poste Pharmacien actif.");
     const {data:pharmacy,error:pharmacyError}=await sb.from("pharmacies").select("id,actif").eq("id",p.pharmacie_id).maybeSingle();
     if(pharmacyError||!pharmacy||pharmacy.actif!==true)return setMsg("La pharmacie est inactive ; accès aux opérations Pharmacien refusé.");
     setProfileInfo({first_name:p.first_name??null,last_name:p.last_name??null,phone:p.phone??null,username:p.username??null,email:u.user.email??""});
