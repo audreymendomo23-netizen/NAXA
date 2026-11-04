@@ -195,6 +195,16 @@ select case
 end
 $function$;
 
+-- Les fonctions publiques historiques doivent déléguer au moteur de périmètre unique.
+-- Conserver le nom d'argument p_actor pour compatibilité des appels PostgREST existants.
+create or replace function public.naxa_scope_allows(
+  p_actor uuid,p_pharmacie uuid,p_scope text default 'PHARMACIE'
+) returns boolean
+language sql stable security definer set search_path=''
+as $function$
+  select private.naxa_scope_allows(p_actor,p_pharmacie,p_scope);
+$function$;
+
 -- Les politiques RLS historiques appellent can_access_pharmacy; le Responsable
 -- affecté doit donc obtenir exactement le même périmètre que le moteur canonique.
 create or replace function public.can_access_pharmacy(p_pharmacie uuid)
