@@ -31,6 +31,9 @@ export async function saveDevicePermissions(value: unknown) {
   meta.canViewStock = permissions.authorized === false ? false : permissions.canViewStock;
   meta.canEditStock = meta.canViewStock && permissions.canEditStock;
   await tx(META, "readwrite", s => s.put(meta));
+  // A revoked stock-view permission invalidates the cached stock snapshot.
+  // Pending operations stay untouched and can still be processed/rejected by the server.
+  if (!meta.canViewStock) await tx(REF, "readwrite", s => s.delete("snapshot"));
 }
 
 function openDb(): Promise<IDBDatabase> {
