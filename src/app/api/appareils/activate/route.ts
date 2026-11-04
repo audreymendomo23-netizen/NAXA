@@ -30,6 +30,6 @@ export async function POST(req:NextRequest){
   const deviceRecord = device as unknown as Record<string, unknown> | null;
   if(error||!deviceRecord){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
   const {data:ph}=await supabaseAdmin().from(S.pharmaciesTable).select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).single();
-  return NextResponse.json({deviceId:deviceRecord[S.deviceIdColumn],token,pharmacyId,pharmacyName:ph?.[S.pharmacyNameColumn]??""});
+  return NextResponse.json({deviceId:deviceRecord[S.deviceIdColumn],token,pharmacyId,pharmacyName:ph?.[S.pharmacyNameColumn]??"",serverTimeMs:Date.now()});
  }catch(e){console.error("NAXA_DEVICE_ACTIVATION_FAILED",e);return NextResponse.json({error:"Activation impossible."},{status:500})}
 }
