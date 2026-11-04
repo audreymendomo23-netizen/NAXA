@@ -1,3 +1,15 @@
+## Reprise sécurisée hors ligne — état vérifié le 04/11/2026
+
+- **Source :** GitHub `main`. Correctifs ciblés de sécurité locale, de reprise après rechargement, de synchronisation initiale et de départage LWW versionnés dans `src/lib/offline-db.ts`, `src/app/pharmacie/page.tsx`, `src/components/pharmacie/AppareilHorsLigne.tsx`, `src/components/pharmacie/EtatHorsLigne.tsx` et `src/app/api/appareils/activate/route.ts`.
+- **Protection locale :** la réactivation ne peut plus remplacer le sel/PIN et la clé AES qui protègent une file ou un instantané existant ; le contrôle et l'insertion du nouveau poste sont atomiques entre onglets. Le recul de l'horloge et l'expiration locale sont refusés. Aucun effacement automatique de file.
+- **Reprise :** après rechargement hors ligne, la page récupère l'identité locale, exige le déverrouillage, puis n'affiche que l'instantané chiffré de la pharmacie associée. Les actions hors ligne sont limitées à la correction de quantité du stock non lotisé. La synchronisation démarre dès le montage du composant.
+- **Sécurité serveur :** migrations source 269 et 270 ; départage explicite du comptage en ligne à horodatage égal ; vérification du rôle, de l'affectation pharmacie et de l'état actif avant synchronisation ; RPC toujours réservée à `service_role`.
+- **Replay :** migration 270 appliquée à `naxa-ci-replay-2`. Tests 053, 220, 221, 268, 269 et 270 exécutés et PASS le 04/11/2026. Le test 221 vérifie en transaction annulée l'idempotence, le tie-break serveur à milliseconde égale et le rejet d'un rôle devenu non autorisé.
+- **PIN :** verrou technique local uniquement ; ne constitue ni un PIN d'authentification NAXA ni le PIN Promoteur F01-PRO. Aucune règle métier nouvelle n'est introduite.
+- **Limites :** pas de vente, de caisse, de mouvement autonome ni de clôture hors ligne livrés. Build complet, TypeScript complet, lint et tests navigateur/appareil réel non exécutés dans cette passe. Le miroir GitLab est en retard (dernier SHA listé `178a6558`, pipeline du 23/10 en échec `ci_quota_exceeded`) ; aucune preuve CI n'est revendiquée pour le HEAD actuel. Aucun changement Supabase Production et aucun déploiement.
+
+---
+
 ## Ratissage CTO — état consolidé après correction des incohérences (02/11/2026)
 
 - **Source :** GitHub `audreymendomo23-netizen/NAXA`, `main`. Le cahier central `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` contient le détail des corrections, tests, preuves Production et réserves.
