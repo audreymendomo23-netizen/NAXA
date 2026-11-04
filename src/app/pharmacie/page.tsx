@@ -8,7 +8,7 @@ import { Logo } from "@/components/Logo";
 import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import { AppareilHorsLigne } from "@/components/pharmacie/AppareilHorsLigne";
-import { enregistrerOperation, getLocalDeviceIdentity, readReference } from "@/lib/offline-db";
+import { enregistrerOperation, getLocalDeviceIdentity, readReference, listPendingOperations } from "@/lib/offline-db";
 
 type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string|null;updated_at:string;emplacement:string|null;produits:{nom:string;dosage:string}|null};
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
@@ -37,7 +37,17 @@ export default function PanneauPharmacie(){
    const pharmacy=snapshot?.pharmacie&&typeof snapshot.pharmacie==="object"?snapshot.pharmacie as Record<string,unknown>:null;
    if(pharmacy?.id&&pharmacy.id!==pid){setMsg("Le stock local ne correspond pas à la pharmacie de cet appareil.");setOfflineSnapshotReady(false);return;}
    if(pharmacy&&typeof pharmacy.nom==="string")setNom(pharmacy.nom);
-   setStock(Array.isArray(snapshot?.stock)?snapshot.stock as Ligne[]:[]);
+   const snapshotStock=Array.isArray(snapshot?.stock)?snapshot.stock as Ligne[]:[];
+   const pending=await listPendingOperations();
+   const resumedStock=pending.reduce((rows,operation)=>{
+    if(operation.type!=="stock_set_quantity"||!operation.payload||typeof operation.payload!=="object")return rows;
+    const payload=operation.payload as Record<string,unknown>;
+    const productId=typeof payload.produit_id==="string"?payload.produit_id:"";
+    const quantity=Number(payload.quantite);
+    if(!productId||!Number.isSafeInteger(quantity)||quantity<0)return rows;
+    return rows.map(line=>line.produit_id===productId?{...line,quantite:quantity}:line);
+   },snapshotStock);
+   setStock(resumedStock);
    setOfflineSnapshotReady(true);
    setMsg(Array.isArray(snapshot?.stock)?"Instantané local déverrouillé. Seules les corrections de stock sont disponibles hors ligne.":"Aucun instantané de stock chiffré n'est disponible. Reconnectez le poste pour le synchroniser.");
   }catch{
