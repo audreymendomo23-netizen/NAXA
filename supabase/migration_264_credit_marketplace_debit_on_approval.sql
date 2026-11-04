@@ -448,7 +448,7 @@ begin
       and actor.role::text = 'pharmacie'
       and actor.fonction_interne = 'responsable'
       and actor.niveau_interne = 2
-      and public.naxa_promoteur_valide(actor.parent_profile_id)
+      and private.naxa_promoteur_valide(actor.parent_profile_id)
       and (
         actor.pharmacie_id = ph.id
         or exists (
