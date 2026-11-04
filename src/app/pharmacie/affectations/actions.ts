@@ -102,19 +102,18 @@ async function verifierResponsableAffecte(
       .eq("id",targetId).maybeSingle(),
     sb.from("promoteur_pharmacies").select("pharmacie_id")
       .eq("promoteur_id",actorId).eq("pharmacie_id",pharmacyId).eq("actif",true).maybeSingle(),
-    sb.from("naxa_professional_assignments").select("id")
+    sb.from("naxa_professional_assignments").select("id,commence_at,expire_at")
       .eq("profile_id",targetId).eq("pharmacie_id",pharmacyId)
-      .eq("fonction","responsable").eq("statut","active")
-      .lte("commence_at",new Date().toISOString())
-      .or("expire_at.is.null,expire_at.gt."+new Date().toISOString())
-      .limit(1).maybeSingle(),
+      .eq("fonction","responsable").eq("statut","active"),
     sb.from("pharmacies").select("id,actif").eq("id",pharmacyId).maybeSingle(),
   ]);
 
   if(profileError||networkError||assignmentError||pharmacyError
     ||!profile||profile.actif!==true||profile.role!=="pharmacie"
     ||profile.fonction_interne!=="responsable"||profile.niveau_interne!==2
-    ||profile.parent_profile_id!==actorId||!network||!assignment
+    ||profile.parent_profile_id!==actorId||!network
+    ||!(assignment??[]).some(a=>new Date(a.commence_at).getTime()<=Date.now()
+      &&(a.expire_at===null||new Date(a.expire_at).getTime()>Date.now()))
     ||!pharmacy||pharmacy.actif!==true){
     redirect("/pharmacie/affectations?erreur=droit_credit");
   }
