@@ -18,7 +18,7 @@ begin
   select qual into v_stocks_read from pg_policies where schemaname='public' and tablename='stocks' and policyname='stocks_read';
   select with_check into v_stocks_insert from pg_policies where schemaname='public' and tablename='stocks' and policyname='stocks_management_insert';
   select qual||' '||with_check into v_stocks_update from pg_policies where schemaname='public' and tablename='stocks' and policyname='stocks_import_update';
-  select qual||' '||with_check into v_stocks_delete from pg_policies where schemaname='public' and tablename='stocks' and policyname='stocks_management_delete';
+  select coalesce(qual,'')||' '||coalesce(with_check,'') into v_stocks_delete from pg_policies where schemaname='public' and tablename='stocks' and policyname='stocks_management_delete';
   if position('VIEW_STOCK' in coalesce(v_stocks_read,''))=0 or position('can_access_pharmacy' in coalesce(v_stocks_read,''))>0 then
     raise exception 'stocks_read doit imposer VIEW_STOCK, pas le simple scope pharmacie';
   end if;
