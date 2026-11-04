@@ -179,22 +179,24 @@ Ne pas déclarer vert un changement uniquement parce qu'une migration ou un comp
 
 ### Crédit Marketplace
 
-- La migration additive supabase/migrations/20261104140000_credit_marketplace_debit_approval_and_responsable.sql a été versionnée sur main.
-- À l'approbation, le stock agrégé et les lots FEFO sont débités dans la même transaction que l'approbation. La commande de préparation est persistante et n'expire pas automatiquement. Le retrait POS crée la vente et le registre de crédit sans seconde sortie de stock.
+- Les migrations additives `supabase/migration_264_credit_marketplace_debit_on_approval.sql`, `migration_265_promoteur_professional_assignment_architecture.sql`, `migration_266_public_scope_professional_assignments.sql` et `migration_267_credit_withdrawal_no_double_debit_qualified.sql` sont versionnées sur `main`.
+- À l'approbation, le stock agrégé et les lots FEFO sont débités dans la même transaction que l'approbation. La commande de préparation est persistante et n'expire pas automatiquement. Le retrait POS finalise le ticket et le registre de crédit sans seconde sortie de stock ; le correctif 259 de qualification `vente_id` est conservé.
 - Une annulation avant retrait restitue les mêmes lots et le stock agrégé, une seule fois. Une réservation consommée n'est jamais restituée.
-- Le nouveau droit APPROVE_MARKETPLACE_CREDIT est délégable au Responsable uniquement pour PARENTS_AINES_CADETS et HYBRIDE. Le Promoteur valide doit le déléguer explicitement pour chaque pharmacie.
-- Un refus Responsable avant délégation a été testé : aucune réservation ni mouvement physique n'est créé.
+- Le droit `APPROVE_MARKETPLACE_CREDIT` est réservé à un Responsable N2 d'une architecture `PARENTS_AINES_CADETS` ou `HYBRIDE`, et doit être délégué explicitement par le Promoteur valide pour chaque pharmacie.
+- Le Promoteur dispose désormais de commandes de délégation/révocation dans `/pharmacie/affectations`. Le tableau Responsable interroge le contrôle serveur `naxa_can_approve_marketplace_credit` et masque les boutons d'approbation/refus sans droit actif.
+- Les affectations ordinaires sont permanentes (`expire_at IS NULL`) jusqu'à révocation ; les affectations urgentes exigent une expiration explicite. La révocation de l'affectation secondaire désactive son droit crédit lorsque plus aucune affectation active ne justifie ce périmètre.
 
 ### RBAC des affectations
 
-- Le contrôle a révélé l'absence d'ASSIGN_USER_TO_PHARMACY dans la matrice d'architecture du Promoteur, malgré l'existence du privilège dans le catalogue. La migration ajoute ce droit au rôle Promoteur dans les quatre architectures standard.
-- Les affectations ordinaires acceptent une expiration NULL ; les affectations urgentes exigent une expiration explicite. Le formulaire, l'action serveur et les fonctions SQL sont alignés.
-- Les fonctions publiques naxa_scope_allows et can_access_pharmacy délèguent maintenant au moteur de périmètre canonique. La pharmacie principale du profil reste accessible ; une pharmacie secondaire requiert une affectation explicite ; une pharmacie non affectée est refusée.
-- Les pages Promoteur, Responsable, Gestionnaire de stock et le suivi Client ont été raccordés au nouveau contrat. L'écran Responsable liste sa pharmacie principale et les pharmacies supplémentaires actives qui lui sont affectées.
+- Le contrôle a révélé l'absence d'`ASSIGN_USER_TO_PHARMACY` dans la matrice d'architecture du Promoteur, malgré l'existence du privilège dans le catalogue. La migration 265 ajoute ce droit au rôle Promoteur dans les quatre architectures standard.
+- Le contrôle public `public.naxa_scope_allows` prend maintenant en compte les affectations professionnelles actives pour le périmètre PHARMACIE, en exigeant toujours un rattachement valide au réseau du Promoteur.
+- **Limite à ne pas masquer :** `public.can_access_pharmacy` reste un helper historique limité au réseau Promoteur (`my_pharmacies()`). Il est utilisé par d'autres RPC ; le remplacer globalement par le périmètre Responsable sans auditer chacune de ces opérations pourrait élargir des droits non voulus. Les appels historiques doivent être réconciliés séparément avant de déclarer le support multi-pharmacie complet de toutes les fonctions ERP.
+- Les écrans touchés par cette tranche sont `/pharmacie/affectations`, `/pharmacie/promoteur/credits` et `/pharmacie/responsable/credits`. L'interface de délégation vérifie l'affectation active, le parent Promoteur et l'appartenance de la pharmacie au réseau avant d'appeler les RPC de privilège.
 
 ### Preuve et limites
 
-- Test supabase/tests/20261104140000_credit_marketplace_approval_stock_debit.sql exécuté sur la base de rejeu naxa-ci-replay-2 : PASS. La migration et toutes les fixtures ont été exécutées dans une transaction unique annulée ; aucune écriture persistante n'a été conservée.
-- Le test couvre la vraie RPC d'affectation ordinaire, le refus sans privilège, la délégation réelle par le Promoteur, l'approbation sous identité Responsable, le débit FEFO, le retrait sans double débit et la restitution idempotente.
-- Aucune migration n'a été appliquée à Supabase Production. Aucun build/typecheck/lint, test navigateur ou CI globale n'a été exécuté. Aucun déploiement n'a été demandé ou déclenché.
-- La mise en production de ces contrats dépend d'une autorisation distincte. Le code versionné ne doit pas être présenté comme actif dans l'application Production.
+- Test `supabase/tests/264_credit_marketplace_debit_on_approval_e2e.sql` exécuté sur la base de rejeu `naxa-ci-replay-2` : **PASS**. La transaction complète et toutes les fixtures sont annulées ; aucune donnée de test ne persiste.
+- Le test couvre le provisionnement réel automatique des privilèges Promoteur, l'affectation ordinaire permanente via RPC, le périmètre secondaire, le refus sans délégation, l'attribution et la révocation du droit dédié, deux approbations FEFO dans l'ordre inverse, le débit immédiat, le retrait sans double débit et la restitution idempotente après annulation.
+- Aucun build/typecheck/lint, test navigateur ou CI globale n'a été exécuté. Aucune migration n'a été appliquée à Supabase Production. Aucun déploiement n'a été demandé ou déclenché.
+- Le code et les migrations sont sur `main`, mais ne sont pas actifs en Production. La vérification de toutes les opérations ERP historiques qui appellent encore `can_access_pharmacy` reste ouverte.
+- Commits principaux : migrations 264–267 (`5694d1c`, `25d6166`, `b3cb7f1`, `cb2ab42` et correctifs successifs), E2E (`607c8e4`) et interfaces de délégation/décision (`2437d9a`, `ffd2ef4`, `c481436`, `c1fd991`).
