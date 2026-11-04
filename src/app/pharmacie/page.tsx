@@ -86,10 +86,13 @@ export default function PanneauPharmacie(){
   const {data:u}=await sb.auth.getUser();
   if(!u.user){window.location.replace("/connexion?espace=pharmacie");return}
   const {data:p}=await sb.from("profiles").select("pharmacie_id,role,fonction_interne,actif").eq("id",u.user.id).single();
-  if(p?.role==="promoteur"&&(p.actif!==true||new URLSearchParams(window.location.search).get("vue")!=="operation")){window.location.replace("/pharmacie/promoteur");return}
-  if(!p||p.actif!==true||!["pharmacie","promoteur","caisse"].includes(p.role)||(p.role!=="promoteur"&&!p.pharmacie_id)){setMsg("Ce compte pharmacie est désactivé ou non lié à une pharmacie.");return}
+  const {data:activeFunction,error:activeFunctionError}=await sb.rpc("naxa_business_function");
+  const activeRole=typeof activeFunction==="string"?activeFunction:"";
+  if(activeFunctionError||!p||p.actif!==true){setMsg("Impossible de vérifier le profil et le poste actif.");return}
+  if(activeRole==="promoteur"&&(new URLSearchParams(window.location.search).get("vue")!=="operation")){window.location.replace("/pharmacie/promoteur");return}
+  if(!["pharmacie","promoteur","caisse","responsable"].includes(activeRole)||(activeRole!=="promoteur"&&!p.pharmacie_id)){setMsg("Ce compte n’a pas sélectionné un poste autorisé pour cet espace ou n’est pas lié à une pharmacie.");return}
   let targetPharmacyId=p.pharmacie_id;
-  if(p.role==="promoteur"){
+  if(activeRole==="promoteur"){
     const requestedPharmacyId=new URLSearchParams(window.location.search).get("pharmacie");
     if(requestedPharmacyId){
       targetPharmacyId=requestedPharmacyId;
@@ -104,7 +107,7 @@ export default function PanneauPharmacie(){
     if(targetError||!target?.actif||!target.visible_recherche){setMsg("Cette pharmacie n’est pas active et publiée. L’espace opérationnel reste fermé.");return}
   }
   if(!targetPharmacyId){setMsg("Aucune pharmacie n’est liée à ce compte.");return}
-  const editScope=(p.role==="caisse"||p.fonction_interne==="caisse")?"POSTE_CAISSE":"PHARMACIE";
+  const editScope=activeRole==="caisse"?"POSTE_CAISSE":"PHARMACIE";
   const [{data:viewPermission,error:viewPermissionError},{data:editPermission,error:editPermissionError},{data:importPermission,error:importPermissionError}]=await Promise.all([
     sb.rpc("naxa_has_privilege",{p_privilege:"VIEW_STOCK",p_pharmacie:targetPharmacyId,p_scope:"PHARMACIE"}),
     sb.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:targetPharmacyId,p_scope:editScope}),
@@ -115,11 +118,11 @@ export default function PanneauPharmacie(){
   setCanViewStock(canView);
   setCanEditStock(canEdit);
   setCanImportStock(canView&&!importPermissionError&&importPermission===true);
-  if(p.fonction_interne==="responsable"){
+  if(activeRole==="responsable"){
     const {data:teamAccess,error:teamError}=await sb.rpc("naxa_can",{p_privilege:"VIEW_TEAM",p_pharmacie:targetPharmacyId,p_target:null});
     setCanManageTeam(!teamError&&teamAccess===true);
   }
-  setRole(p.role);setPid(targetPharmacyId);await charger(targetPharmacyId,canView);
+  setRole(activeRole);setPid(targetPharmacyId);await charger(targetPharmacyId,canView);
 })();return ()=>{cancelled=true}},[charger,sb]);
 
  async function statut(id:string,s:string){const {error}=await sb.rpc("set_reservation_status",{p_id:id,p_statut:s});setMsg(error?"Action impossible.":"Réservation mise à jour.");if(pid&&!error)charger(pid,canViewStock)}
