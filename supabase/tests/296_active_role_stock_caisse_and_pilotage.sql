@@ -122,8 +122,13 @@ begin
   -- L'ancien RPC Caisse ne peut pas être utilisé depuis un autre poste Admin que celui sélectionné.
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
-  perform public.naxa_grant_professional_assignment(
-    v_admin,v_pharmacy_b,'caisse',v_now,null,'Test Admin bascule vers Caisse'
+  insert into public.naxa_professional_assignments(
+    profile_id,pharmacie_id,fonction,role_code,statut,nature_affectation,motif,
+    commence_at,expire_at,accorde_par,accorde_at
+  ) values(
+    v_admin,v_pharmacy_b,'caisse','caisse','active','ordinaire',
+    'Fixture technique test Admin bascule vers Caisse',
+    v_now,null,v_admin,v_now
   );
   perform public.naxa_select_active_role('caisse',v_pharmacy_b);
   if public.naxa_business_function(v_admin)<>'caisse' or public.is_admin() then
