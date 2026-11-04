@@ -14,9 +14,10 @@ import {
 type Props = {
   pharmacyId: string;
   pharmacyName: string;
+  onUnlocked?: () => void;
 };
 
-export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
+export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Props) {
   const [knownDevice, setKnownDevice] = useState(false);
   const [samePharmacy, setSamePharmacy] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
@@ -47,6 +48,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
       setSamePharmacy(Boolean(identity && identity.pharmacyId === pharmacyId));
       const active = getUnlockedDevice();
       setUnlocked(Boolean(active && active.pharmacyId === pharmacyId));
+      if (active && active.pharmacyId === pharmacyId) onUnlocked?.();
       if (identity && identity.pharmacyId !== pharmacyId) {
         setError("Cet appareil local est déjà associé à une autre pharmacie. Les données en attente doivent être traitées avant tout changement d'association.");
       } else if (exists && !identity) {
@@ -54,7 +56,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [pharmacyId]);
+  }, [pharmacyId, onUnlocked]);
 
   async function activate() {
     setError("");
@@ -80,7 +82,8 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
       const token = String(activationData.token ?? "");
       const deviceId = String(activationData.deviceId ?? "");
       const linkedPharmacyId = String(activationData.pharmacyId ?? "");
-      if (!token || !deviceId || linkedPharmacyId !== pharmacyId) {
+      const role = String(activationData.role ?? "");
+      if (!token || !deviceId || linkedPharmacyId !== pharmacyId || (role !== "pharmacie" && role !== "caisse")) {
         throw new Error("La réponse d'activation ne correspond pas à la pharmacie active.");
       }
 
@@ -99,6 +102,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
         deviceId,
         pharmacyId,
         pharmacyName: String(activationData.pharmacyName ?? pharmacyName),
+        role: role as "pharmacie" | "caisse",
         token,
         serverTimeMs: syncData.serverTimeMs,
         nextDeviceSequence: Number(activationData.nextDeviceSequence ?? 0),
@@ -107,6 +111,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
       setKnownDevice(true);
       setSamePharmacy(true);
       setUnlocked(true);
+      onUnlocked?.();
       setPin("");
       setConfirmPin("");
     } catch (cause) {
@@ -137,6 +142,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
           if (value.pharmacyId === pharmacyId) {
             setError("");
             setUnlocked(true);
+            onUnlocked?.();
           } else {
             setError("L'appareil déverrouillé appartient à une autre pharmacie.");
           }
