@@ -108,11 +108,29 @@ select demande_b_id,credit_b_id,pharmacie_id,client_b_id,5000,'en_attente',clien
  jsonb_build_array(jsonb_build_object('produit_id',produit_id,'quantite',5)) from _naxa_credit_debit_ids;
 
 do $contract$
-declare v_decider text;v_withdraw text;v_restore text;
+declare
+ v_decider text;
+ v_withdraw text;
+ v_restore text;
+ v_approval_guard text;
+ v_approval_rpc text;
 begin
+ if to_regprocedure('private.naxa_actor_can_approve_marketplace_credit(uuid)') is null
+    or to_regprocedure('public.naxa_can_approve_marketplace_credit(uuid)') is null then
+   raise exception 'Contrôle partagé de délégation Responsable absent de la migration';
+ end if;
+ select pg_get_functiondef('private.naxa_actor_can_approve_marketplace_credit(uuid)'::regprocedure) into v_approval_guard;
+ select pg_get_functiondef('public.naxa_can_approve_marketplace_credit(uuid)'::regprocedure) into v_approval_rpc;
  select pg_get_functiondef('public.client_credit_demande_decider(uuid,boolean)'::regprocedure) into v_decider;
  select pg_get_functiondef('public.vente_reservation_credit_finaliser(uuid,uuid,text)'::regprocedure) into v_withdraw;
  select pg_get_functiondef('public.restore_stock(uuid)'::regprocedure) into v_restore;
+ if position('private.naxa_actor_can_approve_marketplace_credit' in lower(v_decider))=0
+    or position('private.naxa_actor_can_approve_marketplace_credit' in lower(v_approval_rpc))=0
+    or position('APPROVE_MARKETPLACE_CREDIT' in v_approval_guard)=0
+    or position('naxa_has_active_professional_assignment' in lower(v_approval_guard))=0
+    or position('naxa_has_privilege' in lower(v_approval_guard))=0 then
+   raise exception 'L’interface et la RPC ne partagent pas la même garde d’affectation et de délégation';
+ end if;
  if position('APPROVE_MARKETPLACE_CREDIT' in v_decider)=0
    or position('naxa_has_active_professional_assignment' in v_decider)=0
    or position('naxa_has_privilege' in v_decider)=0 then raise exception 'Contrôle de délégation Responsable absent'; end if;
