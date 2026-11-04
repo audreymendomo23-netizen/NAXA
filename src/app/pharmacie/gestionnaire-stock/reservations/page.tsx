@@ -39,7 +39,9 @@ type ReservationRow = {
   prete_au_retrait_le: string | null;
   total: number;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
+  stock_decremented: boolean;
+  stock_restored: boolean;
   mode: string;
   credit_request_id: string | null;
   reservation_items: ItemRow[] | null;
@@ -80,7 +82,7 @@ export default async function GestionnaireStockReservationsPage({
     .select("pharmacie_id,fonction,commence_at,expire_at").eq("profile_id", auth.user.id)
     .eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"]);
   const now = Date.now();
-  const assignedIds = (assignmentRows ?? []).filter(a => new Date(a.commence_at).getTime() <= now && new Date(a.expire_at).getTime() > now).map(a => a.pharmacie_id);
+  const assignedIds = (assignmentRows ?? []).filter(a => new Date(a.commence_at).getTime() <= now && (a.expire_at === null || new Date(a.expire_at).getTime() > now)).map(a => a.pharmacie_id);
   const hasStockAssignment = assignedIds.length > 0;
   const allowedRole = role === "admin" || role === "promoteur" ||
     ["pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"].includes(fonction) || hasStockAssignment;
@@ -98,7 +100,7 @@ export default async function GestionnaireStockReservationsPage({
   const pageSize = 50;
   let reservationQuery = sb
     .from("reservations")
-    .select("id,pharmacie_id,client_id,statut,preparation_statut,preparation_demarre_le,prete_au_retrait_le,total,created_at,expires_at,mode,credit_request_id,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))", { count: "exact" })
+    .select("id,pharmacie_id,client_id,statut,preparation_statut,preparation_demarre_le,prete_au_retrait_le,total,created_at,expires_at,stock_decremented,stock_restored,mode,credit_request_id,reservation_items(produit_id,quantite,prix_unitaire,produits(nom,dosage,forme))", { count: "exact" })
     .in("pharmacie_id", pharmacyIds)
     .eq("mode", "reservation")
     .order("created_at", { ascending: true });
@@ -142,7 +144,7 @@ export default async function GestionnaireStockReservationsPage({
         <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]"><GestionnaireStockSidebar active="/pharmacie/gestionnaire-stock/reservations" /><div className="min-w-0 space-y-5">
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Dossiers à traiter</p><p className="mt-1 text-3xl font-black">{reservations.length}</p></div>
-          <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Échéance proche (30 min)</p><p className="mt-1 text-3xl font-black">{reservations.filter((r) => new Date(r.expires_at).getTime() - Date.now() <= 30 * 60 * 1000 && new Date(r.expires_at).getTime() > Date.now()).length}</p></div>
+          <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Échéance proche (30 min)</p><p className="mt-1 text-3xl font-black">{reservations.filter((r) => r.expires_at !== null && new Date(r.expires_at).getTime() - Date.now() <= 30 * 60 * 1000 && new Date(r.expires_at).getTime() > Date.now()).length}</p></div>
           <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Source</p><p className="mt-1 text-sm font-bold">Réservations pharmacie existantes</p><p className="mt-1 text-xs text-slate-500">Aucun dossier ou moteur de stock parallèle.</p></div>
         </section>
 
@@ -156,16 +158,17 @@ export default async function GestionnaireStockReservationsPage({
         <p className="text-sm text-slate-600">Dossiers actifs : {reservationCount ?? "—"} · page {pageNumber} sur {Math.max(1, Math.ceil((reservationCount ?? 0) / pageSize))}</p>
         <div className="space-y-4">
           {reservations.map((reservation) => {
-            const expiresAt = new Date(reservation.expires_at).getTime();
-            const remaining = expiresAt - Date.now();
+            const preDebit = reservation.credit_request_id !== null && reservation.stock_decremented && !reservation.stock_restored;
+            const expiresAt = reservation.expires_at === null ? null : new Date(reservation.expires_at).getTime();
+            const remaining = expiresAt === null ? null : expiresAt - Date.now();
             const pharmacyName = pharmacyRows?.find((row) => row.id === reservation.pharmacie_id)?.nom;
             return (
               <article key={reservation.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{pharmacyName ?? "Pharmacie autorisée"} · Client #{shortId(reservation.client_id)}</p><h2 className="mt-1 text-xl font-black">{reservation.credit_request_id ? "Commande à crédit" : "Réservation"} #{shortId(reservation.id)}</h2>{reservation.credit_request_id && <p className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">Crédit approuvé · stock réservé</p>}<p className="mt-1 text-sm text-slate-600">Reçue le {new Date(reservation.created_at).toLocaleString("fr-FR")}</p></div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${remaining <= 30 * 60 * 1000 ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`}>{reservation.preparation_statut === "prete_au_retrait" ? "Prête au retrait" : reservation.preparation_statut === "en_preparation" ? "En préparation" : reservation.statut === "confirmee" && reservation.preparation_statut === null ? "Phase historique à vérifier" : statusLabels[reservation.statut] ?? reservation.statut}</span>
+                  <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{pharmacyName ?? "Pharmacie autorisée"} · Client #{shortId(reservation.client_id)}</p><h2 className="mt-1 text-xl font-black">{reservation.credit_request_id ? "Commande à crédit" : "Réservation"} #{shortId(reservation.id)}</h2>{reservation.credit_request_id && <p className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">{preDebit ? "Crédit approuvé · stock physiquement débité" : "Crédit · stock en attente de débit"}</p>}<p className="mt-1 text-sm text-slate-600">Reçue le {new Date(reservation.created_at).toLocaleString("fr-FR")}</p></div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${remaining !== null && remaining <= 30 * 60 * 1000 ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`}>{reservation.preparation_statut === "prete_au_retrait" ? "Prête au retrait" : reservation.preparation_statut === "en_preparation" ? "En préparation" : reservation.statut === "confirmee" && reservation.preparation_statut === null ? "Phase historique à vérifier" : statusLabels[reservation.statut] ?? reservation.statut}</span>
                 </div>
-                <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><strong>Expiration :</strong> {new Date(reservation.expires_at).toLocaleString("fr-FR")} · {remaining <= 0 ? "Délai dépassé — vérification requise" : remaining <= 30 * 60 * 1000 ? "Moins de 30 minutes restantes" : "Délai restant : " + Math.floor(remaining / 60000) + " min"}</div>
+                <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm">{expiresAt === null ? <><strong>Échéance :</strong> Aucune expiration automatique — commande crédit approuvée.</> : <><strong>Expiration :</strong> {new Date(reservation.expires_at as string).toLocaleString("fr-FR")} · {remaining !== null && remaining <= 0 ? "Délai dépassé — vérification requise" : remaining !== null && remaining <= 30 * 60 * 1000 ? "Moins de 30 minutes restantes" : "Délai restant : " + Math.floor((remaining ?? 0) / 60000) + " min"}</>}</div>
 
                 <h3 className="mt-4 font-extrabold">Produits de cette réservation</h3>
                 <ul className="mt-2 space-y-3">
@@ -205,16 +208,18 @@ export default async function GestionnaireStockReservationsPage({
                     const usableLots = lots.filter((lot) => !lot.bloque && lot.quantite > 0 && Boolean(lot.date_peremption) && lot.date_peremption! >= today);
                     const usableLotQuantity = usableLots.reduce((sum, lot) => sum + Number(lot.quantite || 0), 0);
                     const usableQuantity = lotsTracked ? usableLotQuantity : stock && (!stock.date_peremption || stock.date_peremption >= new Date().toISOString().slice(0, 10)) ? Number(stock.quantite || 0) : 0;
-                    const locations = lotsTracked
-                      ? usableLots.map((lot) => `${lot.emplacement?.trim() || "Emplacement non renseigné"} · lot ${lot.numero_lot} · péremption ${lot.date_peremption}`)
-                      : stock?.emplacement?.trim() || "Emplacement non renseigné";
+                    const locations = preDebit && lotsTracked
+                      ? allocations.map((allocation) => { const lot = lotRows.find((row) => row.id === allocation.lot_id); return lot ? `${lot.emplacement?.trim() || "Emplacement non renseigné"} · lot ${lot.numero_lot} · péremption ${lot.date_peremption}` : `Lot ${shortId(allocation.lot_id)} · emplacement à vérifier`; })
+                      : lotsTracked
+                        ? usableLots.map((lot) => `${lot.emplacement?.trim() || "Emplacement non renseigné"} · lot ${lot.numero_lot} · péremption ${lot.date_peremption}`)
+                        : stock?.emplacement?.trim() || "Emplacement non renseigné";
                     const blockedOrExpired = lotsTracked && usableLots.length === 0;
-                    const sufficient = usableQuantity >= item.quantite && !blockedOrExpired;
+                    const sufficient = preDebit ? (!lotsTracked || allocationsValid) : usableQuantity >= item.quantite && !blockedOrExpired;
                     return <li key={item.produit_id} className="rounded-xl border p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{item.produits?.nom ?? "Produit sans nom"} {item.produits?.dosage ?? ""} {item.produits?.forme ?? ""}</p><p className="text-sm text-slate-600">Demandé : {item.quantite} · Stock restant après réservations : {usableQuantity} · Déjà affecté à ce dossier : {lotsTracked ? allocatedQuantity : stock ? item.quantite : 0}</p></div><span className={`rounded-full px-2 py-1 text-xs font-bold ${sufficient ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"}`}>{sufficient ? (lotsTracked ? "Lots affectés et valides" : "Stock agrégé réservé") : "Affectation à vérifier"}</span></div>
+                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{item.produits?.nom ?? "Produit sans nom"} {item.produits?.dosage ?? ""} {item.produits?.forme ?? ""}</p><p className="text-sm text-slate-600">Demandé : {item.quantite} · {preDebit ? "Stock restant après débit" : "Stock restant après réservations"} : {usableQuantity} · Déjà affecté à ce dossier : {lotsTracked ? allocatedQuantity : stock ? item.quantite : 0}</p></div><span className={`rounded-full px-2 py-1 text-xs font-bold ${sufficient ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"}`}>{sufficient ? (preDebit ? (lotsTracked ? "Débit FEFO déjà effectué" : "Débit agrégé déjà effectué") : (lotsTracked ? "Lots affectés et valides" : "Stock agrégé réservé")) : "Affectation à vérifier"}</span></div>
                       <p className="mt-2 text-sm"><strong>Localisation :</strong> {Array.isArray(locations) ? locations.join(" ; ") || "Aucun lot utilisable" : locations}</p>
-                      {lotsTracked && <p className={`mt-2 text-xs font-semibold ${allocationsValid ? "text-emerald-800" : "text-red-700"}`}>{allocationResult.error ? "Allocation des lots indisponible : appliquer les migrations de réservation avant confirmation." : allocationsValid ? `Allocation FEFO confirmée : ${allocatedQuantity} unité(s) sur ${allocations.length} lot(s).` : `Allocation insuffisante ou lot bloqué/périmé : ${allocatedQuantity}/${item.quantite} unité(s) affectée(s).`}</p>}{lotsTracked && <ul className="mt-2 space-y-1 text-xs text-slate-600">{lots.map((lot) => <li key={lot.numero_lot}>Lot {lot.numero_lot} · {lot.quantite} unité(s) · péremption {lot.date_peremption} · {lot.bloque ? "BLOQUÉ" : lot.date_peremption && lot.date_peremption < new Date().toISOString().slice(0, 10) ? "PÉRIMÉ" : "contrôle à confirmer"}{lot.motif_blocage ? " · " + lot.motif_blocage : ""}</li>)}</ul>}
-                      {!lotsTracked && stock?.date_peremption && <p className="mt-1 text-xs text-slate-600">Péremption agrégée enregistrée : {stock.date_peremption}. Vérifie les lots si cette information n’est pas spécifique à l’unité prélevée.</p>}
+                      {lotsTracked && <p className={`mt-2 text-xs font-semibold ${allocationsValid ? "text-emerald-800" : "text-red-700"}`}>{allocationResult.error ? "Allocation des lots indisponible : appliquer les migrations de réservation avant confirmation." : allocationsValid ? `${preDebit ? "Débit FEFO enregistré" : "Allocation FEFO confirmée"} : ${allocatedQuantity} unité(s) sur ${allocations.length} lot(s).` : `Allocation insuffisante ou lot bloqué/périmé : ${allocatedQuantity}/${item.quantite} unité(s) affectée(s).`}</p>}{lotsTracked && <ul className="mt-2 space-y-1 text-xs text-slate-600">{lots.map((lot) => <li key={lot.numero_lot}>Lot {lot.numero_lot} · {lot.quantite} unité(s) · péremption {lot.date_peremption} · {lot.bloque ? "BLOQUÉ" : lot.date_peremption && lot.date_peremption < new Date().toISOString().slice(0, 10) ? "PÉRIMÉ" : "contrôle à confirmer"}{lot.motif_blocage ? " · " + lot.motif_blocage : ""}</li>)}</ul>}
+                      {!lotsTracked && preDebit && <p className="mt-1 text-xs text-emerald-800">Le débit physique agrégé a été enregistré au moment de l’approbation du crédit.</p>}{!lotsTracked && stock?.date_peremption && <p className="mt-1 text-xs text-slate-600">Péremption agrégée enregistrée : {stock.date_peremption}. Vérifie les lots si cette information n’est pas spécifique à l’unité prélevée.</p>}
                     </li>;
                   })}
                 </ul>
