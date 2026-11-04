@@ -63,15 +63,16 @@ export default function ValidationsPharmaceutiquesPage() {
     setUserId(auth.user.id);
     const { data: profil, error: profilError } = await sb
       .from("profiles")
-      .select("id,pharmacie_id,fonction_interne,role")
+      .select("id,pharmacie_id")
       .eq("id", auth.user.id)
       .single();
-    if (profilError || !profil) {
-      setErreur("Profil NAXA introuvable ou inaccessible.");
+    const { data: activeRole, error: activeRoleError } = await sb.rpc("naxa_business_function");
+    if (profilError || !profil || activeRoleError) {
+      setErreur("Profil NAXA ou poste actif introuvable.");
       setChargement(false);
       return;
     }
-    const fn = profil.fonction_interne || (profil.role === "caisse" ? "caisse" : profil.role);
+    const fn = typeof activeRole === "string" ? activeRole : "";
     setFonction(fn || "");
     if (!profil.pharmacie_id) {
       setErreur("Aucune pharmacie n’est associée à ce profil. Le Promoteur doit sélectionner une pharmacie depuis son périmètre.");
