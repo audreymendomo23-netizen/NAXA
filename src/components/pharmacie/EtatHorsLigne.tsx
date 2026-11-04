@@ -15,6 +15,7 @@ import {
   markLocalSync,
   markDeviceServerLocked,
   getUnlockedDevice,
+  saveDevicePermissions,
 } from "@/lib/offline-db";
 
 type TerminalItem = Awaited<ReturnType<typeof listTerminalOperations>>[number];
@@ -84,6 +85,7 @@ export function EtatHorsLigne({ onReferenceUpdated }: Props) {
         }
         if (!ping.ok) throw new Error("sync failed");
         const data = await ping.json() as Record<string, unknown>;
+        await saveDevicePermissions(data.permissions);
         await acceptServerClock(data);
         await mergeReference(data.reference);
         onReferenceUpdated?.();
@@ -104,6 +106,7 @@ export function EtatHorsLigne({ onReferenceUpdated }: Props) {
           if (!response.ok) throw new Error("sync failed");
 
           const data = await response.json() as Record<string, unknown>;
+          await saveDevicePermissions(data.permissions);
           await acceptServerClock(data);
           await mergeReference(data.reference);
 
