@@ -88,10 +88,9 @@ export function RappelsLotsManager() {
     setStocks((stockData ?? []) as unknown as StockProduct[]);
     setLots((lotData ?? []) as unknown as Lot[]);
     setRappels((recallData ?? []) as Recall[]);
-    const allowedFunction = ["pharmacien", "pharmacien_assistant", "responsable"].includes(profile.fonction_interne || "");
-    const manageAllowed = profile.role === "promoteur" || (profile.role !== "caisse" && profile.fonction_interne !== "caisse" && (allowedFunction || (!privilegeError && privilege === true)));
+    const manageAllowed = !privilegeError && privilege === true;
     setCanManage(manageAllowed);
-    const viewCosts = profile.role === "promoteur" || profile.fonction_interne === "comptable" || (!costPrivilegeError && costPrivilege === true);
+    const viewCosts = !costPrivilegeError && costPrivilege === true;
     setCanViewCosts(viewCosts);
     if (viewCosts) {
       const productIds = [...new Set((lotData ?? []).map((l) => l.produit_id))];
