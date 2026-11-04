@@ -28,9 +28,9 @@ begin
   insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,
     raw_app_meta_data,raw_user_meta_data,is_super_admin,created_at,updated_at)
   values
-    (v_client,'authenticated','authenticated','naxa-295-'||replace(v_client::text,'-','')||'@example.invalid','',v_now,'{}'::jsonb,'{}'::jsonb,false,v_now,v_now),
-    (v_admin,'authenticated','authenticated','naxa-295-'||replace(v_admin::text,'-','')||'@example.invalid','',v_now,'{}'::jsonb,'{}'::jsonb,false,v_now,v_now),
-    (v_explicit_client,'authenticated','authenticated','naxa-295-'||replace(v_explicit_client::text,'-','')||'@example.invalid','',v_now,'{}'::jsonb,'{}'::jsonb,false,v_now,v_now);
+    (v_client,'authenticated','authenticated','naxa-295-'||replace(v_client::text,'-','')||'@example.invalid','',v_now,'{}'::jsonb,jsonb_build_object('username','naxa295_'||substr(replace((case when email like 'naxa-295-%' then split_part(email,'@',1) else email end),'-',''),1,12),'naxa_signup_pending',true),false,v_now,v_now),
+    (v_admin,'authenticated','authenticated','naxa-295-'||replace(v_admin::text,'-','')||'@example.invalid','',v_now,'{}'::jsonb,jsonb_build_object('username','naxa295_'||substr(replace((case when email like 'naxa-295-%' then split_part(email,'@',1) else email end),'-',''),1,12),'naxa_signup_pending',true),false,v_now,v_now),
+    (v_explicit_client,'authenticated','authenticated','naxa-295-'||replace(v_explicit_client::text,'-','')||'@example.invalid','',v_now,'{}'::jsonb,jsonb_build_object('username','naxa295_'||substr(replace((case when email like 'naxa-295-%' then split_part(email,'@',1) else email end),'-',''),1,12),'naxa_signup_pending',true),false,v_now,v_now);
 
   insert into public.profiles(id,role,username,actif)
   values
