@@ -11,11 +11,11 @@ select gen_random_uuid() admin_id,gen_random_uuid() client_a_id,gen_random_uuid(
 
 set local session_replication_role='replica';
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
-select admin_id,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-admin-'||replace(admin_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
+select admin_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-admin-'||replace(admin_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
 union all
-select client_a_id,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-a-'||replace(client_a_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
+select client_a_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-a-'||replace(client_a_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids
 union all
-select client_b_id,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-b-'||replace(client_b_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids;
+select client_b_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated','authenticated','naxa-credit-b-'||replace(client_b_id::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now() from _naxa_credit_debit_ids;
 set local session_replication_role='origin';
 
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
