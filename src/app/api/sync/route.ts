@@ -19,6 +19,15 @@ export async function POST(req: NextRequest) {
     if (Date.now() - new Date(deviceRecord[S.deviceLastSyncColumn] || deviceRecord[S.deviceCreatedColumn]).getTime() > 7 * 24 * 60 * 60 * 1000) {
       return NextResponse.json({ error: "Appareil expiré après 7 jours sans synchronisation. Reconnectez-vous en ligne.", code: "DEVICE_EXPIRED" }, { status: 401 });
     }
+    const {data:permissionData,error:permissionError}=await supabaseAdmin().rpc("naxa_device_permissions_v1",{
+      p_device_id:deviceRecord[S.deviceIdColumn]
+    });
+    if(permissionError||!permissionData||typeof permissionData!=="object"){
+      console.error("NAXA_SYNC_PERMISSION_LOOKUP_FAILED",permissionError?.message);
+      return NextResponse.json({error:"Vérification des droits du poste indisponible."},{status:503});
+    }
+    const permissions=permissionData as Record<string,unknown>;
+
     const body = await req.json();
     const operations = Array.isArray(body.operations) ? body.operations.slice(0, 100) : [];
     operations.sort((a: any, b: any) => Number(a.modifiedAt || 0) - Number(b.modifiedAt || 0) || Number(a.deviceSequence || 0) - Number(b.deviceSequence || 0) || String(a.id).localeCompare(String(b.id)));
@@ -53,20 +62,29 @@ export async function POST(req: NextRequest) {
       }
     }
     const pharmacyId = deviceRecord[S.devicePharmacyIdColumn];
-    const [{data:pharmacy,error:pharmacyError},{data:stocks,error:stocksError},{data:costs,error:costsError},{data:lots,error:lotsError},{data:expenses,error:expensesError},{data:catalogue,error:catalogueError}] = await Promise.all([
-      supabaseAdmin().from(S.pharmaciesTable).select([S.pharmacyIdColumn,S.pharmacyNameColumn,S.pharmacyOnCallColumn,S.pharmacyStockUpdatedColumn].join(",")).eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
-      supabaseAdmin().from(S.stocksTable).select(`*,${S.productsTable}(*)`).eq(S.pharmacyIdColumn,pharmacyId),
-      supabaseAdmin().from(S.stockCostsTable).select("*").eq(S.pharmacyIdColumn,pharmacyId),
-      supabaseAdmin().from(S.stockLotsTable).select("*").eq(S.pharmacyIdColumn,pharmacyId),
-      supabaseAdmin().from(S.expensesTable).select("*").eq(S.pharmacyIdColumn,pharmacyId).order(S.expensesDateColumn,{ascending:false}).limit(200),
-      supabaseAdmin().from(S.productsTable).select("*").limit(2000)
-    ]);
-    if(pharmacyError||stocksError||costsError||lotsError||expensesError||catalogueError) throw new Error("NAXA reference snapshot unavailable");
-    const reference = pharmacy ? { pharmacie: pharmacy, stock: stocks ?? [], couts: costs ?? [], lots: lots ?? [], charges: expenses ?? [], catalogue: catalogue ?? [] } : null;
+    let reference: Record<string, unknown> | null = null;
+    if(permissions.canViewStock===true){
+      const [{data:pharmacy,error:pharmacyError},{data:stocks,error:stocksError},{data:lots,error:lotsError}]=await Promise.all([
+        supabaseAdmin().from(S.pharmaciesTable)
+          .select([S.pharmacyIdColumn,S.pharmacyNameColumn].join(","))
+          .eq(S.pharmacyIdColumn,pharmacyId).maybeSingle(),
+        supabaseAdmin().from(S.stocksTable)
+          .select("produit_id,quantite,updated_at,prix,emplacement,date_peremption,produits(nom,dosage)")
+          .eq(S.pharmacyIdColumn,pharmacyId),
+        supabaseAdmin().from(S.stockLotsTable).select("produit_id").eq(S.pharmacyIdColumn,pharmacyId)
+      ]);
+      if(pharmacyError||stocksError||lotsError) throw new Error("NAXA stock reference snapshot unavailable");
+      const lotizedProductIds=[...new Set((lots??[]).map((lot:Record<string,unknown>)=>String(lot.produit_id??"")).filter(Boolean))];
+      reference=pharmacy?{pharmacie:pharmacy,stock:stocks??[],lotized_product_ids:lotizedProductIds}:null;
+    }
     const serverTimeMs = Date.now();
     const syncedAt = new Date(serverTimeMs).toISOString();
-    await supabaseAdmin().from(S.devicesTable).update({ [S.deviceLastSyncColumn]: syncedAt }).eq(S.deviceIdColumn, deviceRecord[S.deviceIdColumn]);
-    return NextResponse.json({ ok: true, results, reference, syncedAt, serverTimeMs });
+    if(permissions.authorized===true){
+      const {error:deviceUpdateError}=await supabaseAdmin().from(S.devicesTable)
+        .update({[S.deviceLastSyncColumn]:syncedAt}).eq(S.deviceIdColumn,deviceRecord[S.deviceIdColumn]);
+      if(deviceUpdateError)throw new Error("NAXA device sync timestamp update failed");
+    }
+    return NextResponse.json({ ok: true, results, reference, permissions, syncedAt, ...(permissions.authorized===true?{serverTimeMs}:{}) });
   } catch (error) {
     console.error("NAXA_SYNC_FAILED", error);
     return NextResponse.json({ error: "Synchronisation indisponible." }, { status: 503 });
