@@ -378,6 +378,75 @@ from (values('PARENTS_AINES_CADETS'),('HYBRIDE')) a(code)
 cross join (values('responsable'),('promoteur')) r(role_key)
 on conflict do nothing;
 
+-- Garde unique partagée par l'écran Responsable et la RPC de décision.
+-- Elle évite qu'un bouton visible et une mutation serveur appliquent deux politiques différentes.
+create or replace function private.naxa_actor_can_approve_marketplace_credit(
+  p_pharmacie uuid
+) returns boolean
+language plpgsql
+stable
+security definer
+set search_path=''
+as $function$
+declare
+  v_actor uuid := (select auth.uid());
+  v_function text;
+  v_parent_promoteur uuid;
+begin
+  if v_actor is null or p_pharmacie is null then return false; end if;
+  if public.is_admin() then return true; end if;
+
+  v_function := public.naxa_business_function(v_actor);
+  if v_function='promoteur' then
+    return private.naxa_promoteur_valide(v_actor)
+      and exists(
+        select 1 from public.profiles p
+        where p.id=v_actor and p.actif and p.role::text='promoteur' and p.niveau_interne=1
+      )
+      and exists(
+        select 1 from public.promoteur_pharmacies pp
+        where pp.promoteur_id=v_actor and pp.pharmacie_id=p_pharmacie and pp.actif
+      );
+  end if;
+
+  if v_function<>'responsable' then return false; end if;
+
+  select p.parent_profile_id into v_parent_promoteur
+  from public.profiles p
+  where p.id=v_actor and p.actif and p.role::text='pharmacie'
+    and p.fonction_interne='responsable' and p.niveau_interne=2;
+
+  if v_parent_promoteur is null
+     or not private.naxa_promoteur_valide(v_parent_promoteur)
+     or not exists(
+       select 1 from public.promoteur_pharmacies pp
+       join public.pharmacies ph on ph.id=pp.pharmacie_id and ph.actif
+       where pp.promoteur_id=v_parent_promoteur
+         and pp.pharmacie_id=p_pharmacie and pp.actif
+     )
+     or not public.naxa_has_active_professional_assignment(v_actor,p_pharmacie,'responsable')
+     or not public.naxa_has_privilege('APPROVE_MARKETPLACE_CREDIT',p_pharmacie,'PHARMACIE') then
+    return false;
+  end if;
+
+  return true;
+end;
+$function$;
+revoke all on function private.naxa_actor_can_approve_marketplace_credit(uuid) from public,anon,authenticated;
+
+create or replace function public.naxa_can_approve_marketplace_credit(
+  p_pharmacie uuid
+) returns boolean
+language sql
+stable
+security definer
+set search_path=''
+as $function$
+  select private.naxa_actor_can_approve_marketplace_credit($1);
+$function$;
+revoke all on function public.naxa_can_approve_marketplace_credit(uuid) from public,anon;
+grant execute on function public.naxa_can_approve_marketplace_credit(uuid) to authenticated;
+
 -- L’attribution d’une affectation professionnelle est une capacité de gestion du réseau
 -- du Promoteur et doit être disponible dans les quatre architectures NAXA.
 insert into public.naxa_architecture_privileges(architecture_code,role_key,privilege_code)
@@ -552,7 +621,6 @@ declare
   v_allocated integer;
   v_unallocated integer;
   v_actor_function text;
-  v_parent_promoteur uuid;
 begin
   if auth.uid() is null then raise exception 'Connexion requise'; end if;
   select * into r from public.client_credit_requests where id=p_demande for update;
@@ -560,25 +628,11 @@ begin
 
   v_actor_function:=public.naxa_business_function(auth.uid());
   if r.origine='marketplace' then
-    if public.is_admin() then
-      null;
-    elsif v_actor_function='promoteur' then
-      if not private.naxa_promoteur_valide(auth.uid())
-         or not exists(select 1 from public.promoteur_pharmacies pp
-           where pp.promoteur_id=auth.uid() and pp.pharmacie_id=r.pharmacie_id and pp.actif) then
-        raise exception 'Promoteur invalide ou pharmacie hors réseau'; end if;
-    elsif v_actor_function='responsable' then
-      select parent_profile_id into v_parent_promoteur
-      from public.profiles where id=auth.uid() and actif and niveau_interne=2;
-      if v_parent_promoteur is null
-         or not private.naxa_promoteur_valide(v_parent_promoteur)
-         or not exists(select 1 from public.promoteur_pharmacies pp
-           where pp.promoteur_id=v_parent_promoteur and pp.pharmacie_id=r.pharmacie_id and pp.actif)
-         or not public.naxa_has_active_professional_assignment(auth.uid(),r.pharmacie_id,'responsable')
-         or not public.naxa_has_privilege('APPROVE_MARKETPLACE_CREDIT',r.pharmacie_id,'PHARMACIE') then
-        raise exception 'Responsable non affecté ou privilège d’approbation absent pour cette pharmacie'; end if;
-    else
-      raise exception 'Décision réservée au Promoteur, au Responsable explicitement autorisé ou à NAXA';
+    if not private.naxa_actor_can_approve_marketplace_credit(r.pharmacie_id) then
+      if v_actor_function='responsable' then
+        raise exception 'Responsable non affecté ou privilège d’approbation absent pour cette pharmacie';
+      end if;
+      raise exception 'Décision réservée au Promoteur valide, au Responsable explicitement autorisé ou à NAXA';
     end if;
   else
     if public.is_admin() is not true and not exists(
