@@ -240,7 +240,7 @@ begin
     raise exception 'E2E264_EXPECTED_PERMISSION_DENIAL_NOT_RAISED';
   exception when others then
     if sqlerrm = 'E2E264_EXPECTED_PERMISSION_DENIAL_NOT_RAISED' then raise; end if;
-    if position('Approbation réservée' in sqlerrm) = 0 then raise; end if;
+    if position('Responsable non affecté ou privilège d’approbation absent' in sqlerrm) = 0 then raise; end if;
   end;
 
   select quantite into v_denied_qty from public.stocks
