@@ -6,12 +6,15 @@ declare
   v_device uuid := gen_random_uuid();
   v_op1 uuid := gen_random_uuid();
   v_op2 uuid := gen_random_uuid();
+  v_op_online uuid := gen_random_uuid();
+  v_op3 uuid := gen_random_uuid();
   v_installation uuid := gen_random_uuid();
   v_stock record;
   v_target integer;
   v_after integer;
   v_result jsonb;
   v_modified_ms bigint;
+  v_server_quantity integer;
 begin
   begin
     select s.pharmacie_id, s.produit_id, s.quantite, s.updated_at
@@ -75,18 +78,51 @@ begin
       raise exception 'MC-03: duplicate replay changed the stock quantity';
     end if;
 
+    -- Materialize a server online count and force the exact same millisecond
+    -- as the offline operation to exercise the explicit server tie priority.
+    v_server_quantity := v_target + 10;
+    v_result := public.offline_stock_set_quantity(
+      v_op_online,v_stock.pharmacie_id,v_stock.produit_id,v_server_quantity,v_stock.updated_at
+    );
+    if v_result->>'status' is distinct from 'applied' then
+      raise exception 'MC-03: online authoritative count failed: %',v_result;
+    end if;
+    update public.offline_operations
+      set modified_at=to_timestamp(v_modified_ms::double precision/1000.0)
+      where operation_id=v_op_online and device_id is null and device_sequence is null;
+    if not found then raise exception 'MC-03: online count was not stored as server-owned'; end if;
+
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op2,'stock_set_quantity',
-      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_stock.quantite + 2,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',2),
-      v_modified_ms - 100
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 20,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',2),
+      v_modified_ms
     );
-    if v_result->>'status' is distinct from 'conflict' then
-      raise exception 'MC-03: stale write was not rejected as conflict: %',v_result;
+    if v_result->>'status' is distinct from 'conflict'
+      or v_result->>'reason' is distinct from 'superseded_by_newer_write' then
+      raise exception 'MC-03: equal timestamp must favor server online count: %',v_result;
+    end if;
+    if (v_result->>'winner_operation_id')::uuid is distinct from v_op_online then
+      raise exception 'MC-03: server online count was not selected as the LWW winner: %',v_result;
     end if;
     select quantite into v_after from public.stocks
       where pharmacie_id=v_stock.pharmacie_id and produit_id=v_stock.produit_id;
-    if v_after is distinct from v_target then
-      raise exception 'MC-03: conflicting operation changed the stock quantity';
+    if v_after is distinct from v_server_quantity then
+      raise exception 'MC-03: losing offline tie overwrote the server count';
+    end if;
+
+    -- A role downgrade/unauthorized role must be rejected at synchronization time.
+    update public.profiles set role='admin' where id=v_uid;
+    v_result := public.naxa_apply_offline_operation_v1(
+      v_device,v_op3,'stock_set_quantity',
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 30,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',3),
+      v_modified_ms + 100
+    );
+    if v_result->>'status' is distinct from 'rejected'
+      or v_result->>'reason' is distinct from 'professional_inactive_or_role_unauthorized' then
+      raise exception 'MC-03: unauthorized role must be rejected at sync: %',v_result;
+    end if;
+    if exists(select 1 from public.offline_operations where operation_id=v_op3) then
+      raise exception 'MC-03: unauthorized role must not create an operation';
     end if;
 
     raise exception 'MC03_TEST_FIXTURE_ROLLBACK';
