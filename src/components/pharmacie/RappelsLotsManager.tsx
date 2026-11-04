@@ -77,21 +77,18 @@ export function RappelsLotsManager() {
   const charger = useCallback(async () => {
     if (!pharmacieId || !profile) return;
     setChargement(true); setErreur("");
-    const [{ data: stockData, error: stockError }, { data: lotData, error: lotError }, { data: recallData, error: recallError }, { data: privilege, error: privilegeError }, { data: costPrivilege, error: costPrivilegeError }] = await Promise.all([
+    const [{ data: stockData, error: stockError }, { data: lotData, error: lotError }, { data: recallData, error: recallError }, { data: manageAllowed, error: manageError }, { data: costPrivilege, error: costPrivilegeError }] = await Promise.all([
       sb.from("stocks").select("produit_id,quantite,emplacement,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("produit_id"),
       sb.from("stocks_lots").select("id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,produits(nom,dosage)").eq("pharmacie_id", pharmacieId).order("date_peremption"),
       sb.from("rappels_lots").select("id,lot_id,reference_rappel,motif,statut,date_rappel,leve_at,leve_par,quantite_trouvee,quantite_isolee,compte_at").eq("pharmacie_id", pharmacieId).order("date_rappel", { ascending: false }).limit(100),
-      sb.rpc("naxa_has_privilege", { p_privilege: "MANAGE_LOTS", p_pharmacie: pharmacieId, p_scope: "PHARMACIE" }),
+      sb.rpc("naxa_can_manage_lots", { p_pharmacie: pharmacieId }),
       sb.rpc("naxa_has_privilege", { p_privilege: "VIEW_PURCHASE_COST", p_pharmacie: pharmacieId, p_scope: "PHARMACIE" }),
     ]);
     if (stockError || lotError || recallError) { setErreur("Impossible de charger les lots et rappels. Vérifiez les droits et la connexion."); setChargement(false); return; }
     setStocks((stockData ?? []) as unknown as StockProduct[]);
     setLots((lotData ?? []) as unknown as Lot[]);
     setRappels((recallData ?? []) as Recall[]);
-    const manageAllowed = profile.role !== "caisse"
-      && profile.fonction_interne !== "caisse"
-      && !privilegeError && privilege === true;
-    setCanManage(manageAllowed);
+    setCanManage(!manageError && manageAllowed === true);
     const viewCosts = !costPrivilegeError && costPrivilege === true;
     setCanViewCosts(viewCosts);
     if (viewCosts) {
