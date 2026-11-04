@@ -400,6 +400,12 @@ begin
   if public.naxa_can_approve_marketplace_credit(v_pharmacie_affectee) is not true then
     raise exception 'Le second Responsable n’a pas obtenu le droit après délégation';
   end if;
+  if not public.naxa_has_active_professional_assignment(v_responsable_sans_droit,v_pharmacie_affectee,'responsable') then
+    raise exception 'DEBUG264: affectation Responsable inactive ou hors périmètre';
+  end if;
+  if not public.naxa_has_privilege('APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE') then
+    raise exception 'DEBUG264: privilege APPROVE_MARKETPLACE_CREDIT absent du moteur canonique';
+  end if;
 
   perform public.client_credit_demande_decider(v_request_d,true);
   select id into v_reservation_d from public.reservations where credit_request_id=v_request_d;
