@@ -89,16 +89,9 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
         throw new Error("La réponse d'activation ne correspond pas à la pharmacie active.");
       }
 
-      const ping = await fetch("/api/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ operations: [] }),
-      });
-      const syncData = await ping.json() as Record<string, unknown>;
-      if (!ping.ok || typeof syncData.serverTimeMs !== "number") {
-        throw new Error("L'appareil est créé, mais son horloge serveur et son stock de référence n'ont pas pu être initialisés. Réessayez en ligne.");
-      }
-
+      // Persist the device token before the first sync. If the network drops,
+      // the enrolled device remains recoverable and the queue is never orphaned.
+      const activationServerTime = Number(activationData.serverTimeMs);
       await activateLocalDevice({
         pin,
         deviceId,
@@ -106,9 +99,8 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
         pharmacyName: String(activationData.pharmacyName ?? pharmacyName),
         role: role as "pharmacie" | "caisse",
         token,
-        serverTimeMs: syncData.serverTimeMs,
+        serverTimeMs: Number.isSafeInteger(activationServerTime) && activationServerTime > 0 ? activationServerTime : undefined,
         nextDeviceSequence: Number(activationData.nextDeviceSequence ?? 0),
-        reference: syncData.reference,
       });
       setKnownDevice(true);
       setSamePharmacy(true);
@@ -131,7 +123,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
             <h2 className="font-extrabold">Synchronisation hors ligne</h2>
             <p className="text-xs text-slate-600">File chiffrée · chronologie ancrée au serveur · opérations idempotentes</p>
           </div>
-          <EtatHorsLigne />
+          <EtatHorsLigne onReferenceUpdated={onUnlocked} />
         </div>
       </section>
     );
