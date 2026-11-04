@@ -6,6 +6,9 @@ import { EtatHorsLigne } from "@/components/pharmacie/EtatHorsLigne";
 import {
   activateLocalDevice,
   assertLocalDeviceActivationAllowed,
+  lockLocalDevice,
+  LOCAL_IDLE_LOCK_MS,
+  touchLocalDeviceActivity,
   getLocalDeviceIdentity,
   getLocalInstallationId,
   getUnlockedDevice,
@@ -39,6 +42,33 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
       window.removeEventListener("offline", updateOnline);
     };
   }, []);
+
+  useEffect(() => {
+    if (!unlocked || !samePharmacy) return;
+    let timer: number | undefined;
+    const lock = () => {
+      lockLocalDevice();
+      setUnlocked(false);
+      setError("Session locale verrouillée après 15 minutes d'inactivité. Déverrouillez à nouveau avec le PIN local.");
+    };
+    const resetIdleTimer = () => {
+      if (!touchLocalDeviceActivity()) {
+        lock();
+        return;
+      }
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(lock, LOCAL_IDLE_LOCK_MS);
+    };
+    const activityEvents = ["pointerdown", "keydown", "touchstart", "click", "input"];
+    activityEvents.forEach(event => window.addEventListener(event, resetIdleTimer, { passive: true }));
+    document.addEventListener("visibilitychange", resetIdleTimer);
+    resetIdleTimer();
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      activityEvents.forEach(event => window.removeEventListener(event, resetIdleTimer));
+      document.removeEventListener("visibilitychange", resetIdleTimer);
+    };
+  }, [unlocked, samePharmacy]);
 
   useEffect(() => {
     let cancelled = false;
