@@ -12,14 +12,13 @@ export default async function CaissesPage({ searchParams }: Props) {
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("id,role,fonction_interne,niveau_interne,pharmacie_id,actif")
+    .select("id,pharmacie_id,actif")
     .eq("id", auth.user.id)
     .single();
-  const isPromoteur = profile?.role === "promoteur";
-  const isResponsable = profile?.role === "pharmacie"
-    && profile.fonction_interne === "responsable"
-    && profile.niveau_interne === 2
-    && Boolean(profile.pharmacie_id);
+  const { data: activeFunction, error: activeFunctionError } = await sb.rpc("naxa_business_function");
+  const isPromoteur = !activeFunctionError && activeFunction === "promoteur";
+  const isResponsable = !activeFunctionError && activeFunction === "responsable"
+    && Boolean(profile?.pharmacie_id);
   if (!profile || (!isPromoteur && !isResponsable)) redirect("/pharmacie");
   if (profile.actif !== true) redirect(isPromoteur ? "/pharmacie/promoteur" : "/pharmacie");
 
@@ -69,12 +68,36 @@ export default async function CaissesPage({ searchParams }: Props) {
   );
   if (!canViewTeam && !creatablePharmacyIds.length) redirect(isPromoteur ? "/pharmacie/promoteur" : "/pharmacie");
 
-  const { data: caisses, error: caissesError } = await sb.from("profiles")
-    .select("id,username,first_name,last_name,actif,pharmacie_id,created_at")
-    .eq("parent_profile_id", auth.user.id)
-    .eq("role", "caisse")
+  const { data: assignmentRows, error: assignmentError } = await sb.from("naxa_professional_assignments")
+    .select("id,profile_id,pharmacie_id,statut,commence_at,expire_at,created_at")
+    .eq("role_code", "caisse")
     .in("pharmacie_id", pharmacyIds)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
+  const targetIds = [...new Set((assignmentRows ?? []).map((a) => a.profile_id))];
+  const { data: targetProfiles, error: targetProfilesError } = targetIds.length
+    ? await sb.from("profiles").select("id,username,first_name,last_name,actif,created_at").in("id", targetIds)
+    : { data: [] as { id: string; username: string | null; first_name: string | null; last_name: string | null; actif: boolean; created_at: string }[], error: null };
+  const targetById = new Map((targetProfiles ?? []).map((p) => [p.id, p] as const));
+  const seenAssignments = new Set<string>();
+  const caisses = (assignmentRows ?? []).flatMap((assignment) => {
+    const key = assignment.profile_id + ":" + assignment.pharmacie_id;
+    if (seenAssignments.has(key)) return [];
+    seenAssignments.add(key);
+    const target = targetById.get(assignment.profile_id);
+    if (!target) return [];
+    const withinPeriod = new Date(assignment.commence_at).getTime() <= Date.now()
+      && (assignment.expire_at === null || new Date(assignment.expire_at).getTime() > Date.now());
+    return [{
+      id: target.id,
+      username: target.username,
+      first_name: target.first_name,
+      last_name: target.last_name,
+      actif: target.actif === true && assignment.statut === "active" && withinPeriod,
+      pharmacie_id: assignment.pharmacie_id,
+      created_at: assignment.created_at,
+    }];
+  });
+  const caissesError = assignmentError ?? targetProfilesError;
 
   const { data: architectureRows, error: architectureError } = await sb.from("pharmacie_architectures")
     .select("pharmacie_id,architecture_code,max_caisses")
@@ -108,7 +131,7 @@ export default async function CaissesPage({ searchParams }: Props) {
 
       <section className="carte">
         <h1 className="text-xl font-extrabold">Mes Caisses</h1>
-        <p className="mt-1 text-sm text-slate-600">Attribuez un accès professionnel à une personne qui possède déjà un compte utilisateur NAXA. Son identité et ses données client sont conservées ; les droits pharmacie restent révocables.</p>
+        <p className="mt-1 text-sm text-slate-600">Attribuez un accès professionnel à une personne qui possède déjà un compte utilisateur NAXA. Son compte Auth et ses éventuels autres postes sont conservés ; seul le poste Caisse est attribué ou révoqué.</p>
       </section>
 
       {searchParams.ok && <p role="status" className="carte">Opération terminée : {searchParams.ok === "creation" ? "Caisse créée et provisionnée." : searchParams.ok === "blocage" ? "Caisse bloquée." : "Caisse réactivée."}</p>}
@@ -126,17 +149,17 @@ export default async function CaissesPage({ searchParams }: Props) {
                 <p className="text-sm text-slate-600">@{c.username} · {ph?.nom ?? "Pharmacie non identifiée"} · {c.actif ? "Actif" : "Bloqué"}</p>
               </div>
               {c.actif ? (
-                <form action={bloquerCaisse}><input type="hidden" name="caisse_id" value={c.id} /><button className="btn btn-clair">Bloquer</button></form>
+                <form action={bloquerCaisse}><input type="hidden" name="caisse_id" value={c.id} /><input type="hidden" name="pharmacie_id" value={c.pharmacie_id ?? ""} /><button className="btn btn-clair">Suspendre le poste</button></form>
               ) : (
-                <form action={reactiverCaisse}><input type="hidden" name="caisse_id" value={c.id} /><button className="btn btn-canari">Réactiver</button></form>
+                <form action={reactiverCaisse}><input type="hidden" name="caisse_id" value={c.id} /><input type="hidden" name="pharmacie_id" value={c.pharmacie_id ?? ""} /><button className="btn btn-canari">Réactiver le poste</button></form>
               )}
             </article>
           );
-        }) : <p className="text-sm text-slate-600">Aucune Caisse rattachée à votre compte pour le moment.</p>}
+        }) : <p className="text-sm text-slate-600">Aucun poste Caisse rattaché à votre périmètre pour le moment.</p>}
       </section>
 
       <section className="carte space-y-3">
-        <h2 className="text-lg font-bold">Attribuer un accès Caissière</h2>
+        <h2 className="text-lg font-bold">Attribuer le poste Caisse</h2>
         {!creatablePharmacyIds.length && <p role="alert" className="text-sm text-amber-800">Votre rôle ne dispose pas du privilège de création de Caisse sur cette pharmacie. La consultation de l’équipe reste disponible si elle est autorisée.</p>}
         <form action={creerCaisse} className="space-y-3">
           <label className="block text-sm font-semibold">Pharmacie
@@ -157,7 +180,7 @@ export default async function CaissesPage({ searchParams }: Props) {
             <input name="username" required minLength={3} maxLength={30} pattern="[a-z0-9][a-z0-9._-]{2,29}" autoComplete="off" className={champ} placeholder="ex. mariam237" />
           </label>
           <p className="text-xs leading-5 text-slate-600">La personne doit avoir créé et validé son compte NAXA au préalable. Son nom d’utilisateur est unique : ne demandez ni son mot de passe ni son code OTP. NAXA vérifie le compte côté serveur avant l’attribution.</p>
-          <button className="btn btn-vert w-full" disabled={!creatablePharmacyIds.length || Boolean(caissesError || architectureError)}>Attribuer l’accès Caissière</button>
+          <button className="btn btn-vert w-full" disabled={!creatablePharmacyIds.length || Boolean(caissesError || architectureError)}>Attribuer le poste Caisse</button>
         </form>
       </section>
     </main>
