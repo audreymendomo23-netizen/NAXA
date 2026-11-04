@@ -85,13 +85,16 @@ export default function PanneauPharmacie(){
   }
   const {data:u}=await sb.auth.getUser();
   if(!u.user){window.location.replace("/connexion?espace=pharmacie");return}
-  const {data:p}=await sb.from("profiles").select("pharmacie_id,role,fonction_interne,actif").eq("id",u.user.id).single();
-  const {data:activeFunction,error:activeFunctionError}=await sb.rpc("naxa_business_function");
+  const [{data:p},{data:activeFunction,error:activeFunctionError},{data:selectedPharmacyId,error:selectedPharmacyError}]=await Promise.all([
+    sb.from("profiles").select("actif").eq("id",u.user.id).single(),
+    sb.rpc("naxa_business_function"),
+    sb.rpc("naxa_active_role_pharmacy"),
+  ]);
   const activeRole=typeof activeFunction==="string"?activeFunction:"";
-  if(activeFunctionError||!p||p.actif!==true){setMsg("Impossible de vérifier le profil et le poste actif.");return}
+  if(activeFunctionError||selectedPharmacyError||!p||p.actif!==true){setMsg("Impossible de vérifier le profil et le poste actif.");return}
   if(activeRole==="promoteur"&&(new URLSearchParams(window.location.search).get("vue")!=="operation")){window.location.replace("/pharmacie/promoteur");return}
-  if(!["pharmacie","promoteur","caisse","responsable"].includes(activeRole)||(activeRole!=="promoteur"&&!p.pharmacie_id)){setMsg("Ce compte n’a pas sélectionné un poste autorisé pour cet espace ou n’est pas lié à une pharmacie.");return}
-  let targetPharmacyId=p.pharmacie_id;
+  if(!["pharmacie","promoteur","caisse","responsable"].includes(activeRole)||(activeRole!=="promoteur"&&typeof selectedPharmacyId!=="string")){setMsg("Ce compte n’a pas sélectionné un poste autorisé pour cet espace ou n’est pas lié à une pharmacie.");return}
+  let targetPharmacyId=activeRole==="promoteur"?null:selectedPharmacyId;
   if(activeRole==="promoteur"){
     const requestedPharmacyId=new URLSearchParams(window.location.search).get("pharmacie");
     if(requestedPharmacyId){
