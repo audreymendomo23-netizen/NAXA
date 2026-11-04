@@ -378,6 +378,18 @@ from (values('PARENTS_AINES_CADETS'),('HYBRIDE')) a(code)
 cross join (values('responsable'),('promoteur')) r(role_key)
 on conflict do nothing;
 
+-- L’attribution d’une affectation professionnelle est une capacité de gestion du réseau
+-- du Promoteur et doit être disponible dans les quatre architectures NAXA.
+insert into public.naxa_architecture_privileges(architecture_code,role_key,privilege_code)
+select a.code,'promoteur','ASSIGN_USER_TO_PHARMACY'
+from (values
+  ('ORPHELIN'),
+  ('PARENTS_ENFANTS'),
+  ('PARENTS_AINES_CADETS'),
+  ('HYBRIDE')
+) a(code)
+on conflict do nothing;
+
 -- 4) Restaurer exactement les lots et le stock agrégé, une seule fois, avant retrait.
 create or replace function public.restore_stock(p_resa uuid)
 returns void
