@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "responsable" | "stock" | "pharmacien" | "comptable" | "admin";
+type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "responsable" | "stock" | "pharmacien" | "comptable" | "admin" | "livreur";
 type Props = { current: Space };
 type Profile = {
   role: string | null;
@@ -30,6 +30,7 @@ const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
   pharmacien: { label: "Poste Pharmacien", href: "/pharmacie/pharmacien" },
   comptable: { label: "Espace Comptable", href: "/pharmacie/comptable" },
   admin: { label: "Espace Admin", href: "/admin" },
+  livreur: { label: "Poste Livreur", href: "/pharmacie/livreur" },
 };
 
 function spaceForRole(roleCode: string): Space | null {
@@ -44,8 +45,7 @@ function spaceForRole(roleCode: string): Space | null {
     case "pharmacien": return "pharmacien";
     case "comptable": return "comptable";
     case "admin": return "admin";
-    // Le rôle Livreur existe dans le catalogue mais son espace opérationnel n'est
-    // pas encore livré ; ne pas afficher un lien qui aboutirait à une page absente.
+    case "livreur": return "livreur";
     default: return null;
   }
 }
