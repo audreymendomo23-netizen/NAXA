@@ -84,15 +84,17 @@ do $e2e$
 declare x record;v_res_a uuid;v_res_b uuid;v_sale uuid;v_num text;v_total integer;v_stock integer;v_qty_a integer;v_qty_b integer;v_allocated integer;
 begin
  select * into x from _naxa_credit_debit_ids;
- perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
- perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claim.sub',x.responsable_id::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',x.responsable_id::text,'role','authenticated')::text,true);
 
- if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
-   or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE')
-   or private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE') then
-   raise exception 'Affectation permanente : périmètre pharmacie incorrect'; end if;
+  if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
+    or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE')
+    or private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE') then
+    raise exception 'Affectation permanente : périmètre pharmacie incorrect'; end if;
 
- perform public.client_credit_demande_decider(x.demande_a_id,true);
+  perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
+
  select reservation_id into v_res_a from public.client_credit_requests where id=x.demande_a_id;
  select quantite into v_stock from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id;
  select quantite into v_qty_a from public.stocks_lots where id=x.lot_a_id;
