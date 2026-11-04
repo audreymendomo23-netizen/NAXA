@@ -17,8 +17,14 @@ export async function POST(req:NextRequest){
   const name=String(body.name||"Appareil pharmacie").trim().slice(0,100)||"Appareil pharmacie";
   const installationId=String(body.installationId||"");
   if(!/^[0-9a-f-]{36}$/i.test(installationId)) return NextResponse.json({error:"Identifiant local d'appareil invalide."},{status:400});
+  const {data:existingDevice,error:existingDeviceError}=await supabaseAdmin().from(S.devicesTable)
+    .select(S.deviceIdColumn).eq(S.deviceUserIdColumn,user.id)
+    .eq(S.deviceInstallationColumn,installationId).maybeSingle();
+  if(existingDeviceError){console.error("NAXA_DEVICE_EXISTENCE_CHECK_FAILED",existingDeviceError);return NextResponse.json({error:"Vérification de l'appareil existant impossible."},{status:503})}
+  if(existingDevice)return NextResponse.json({error:"Ce poste est déjà enrôlé sur le serveur. Conservez son stockage local et déverrouillez-le ; aucune rotation automatique du jeton ne sera effectuée."},{status:409});
+
   const token=createDeviceToken();
-  const {data:device,error}=await supabaseAdmin().from(S.devicesTable).upsert({
+  const {data:device,error}=await supabaseAdmin().from(S.devicesTable).insert({
     [S.devicePharmacyIdColumn]:pharmacyId,
     [S.deviceUserIdColumn]:user.id,
     [S.deviceNameColumn]:name,
@@ -26,8 +32,9 @@ export async function POST(req:NextRequest){
     [S.deviceInstallationColumn]:installationId,
     [S.deviceActiveColumn]:true,
     [S.deviceLastSyncColumn]:new Date().toISOString()
-  },{onConflict:`${S.deviceUserIdColumn},${S.deviceInstallationColumn}`}).select(S.deviceIdColumn).single();
+  }).select(S.deviceIdColumn).single();
   const deviceRecord = device as unknown as Record<string, unknown> | null;
+  if(error?.code==="23505")return NextResponse.json({error:"Ce poste vient d'être enrôlé dans un autre onglet. Conservez les données locales et déverrouillez-le."},{status:409});
   if(error||!deviceRecord){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
   const {data:latestOperation,error:sequenceError}=await supabaseAdmin().from("offline_operations")
     .select("device_sequence").eq("device_id",deviceRecord[S.deviceIdColumn])
