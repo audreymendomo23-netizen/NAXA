@@ -89,6 +89,7 @@ begin
   perform set_config('request.jwt.claims',json_build_object('sub',x.responsable_id::text,'role','authenticated')::text,true);
 
   if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
+    or not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_principale_id,'responsable')
     or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE')
     or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE')
     or private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE')
