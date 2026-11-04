@@ -8,7 +8,20 @@ const err=(error:string,status=400)=>NextResponse.json({error},{status});
 const rp=(r:NextRequest)=>new URL(process.env.NEXT_PUBLIC_APP_URL||r.url).hostname;
 const origin=(r:NextRequest)=>new URL(process.env.NEXT_PUBLIC_APP_URL||r.url).origin;
 async function authUser(){const {data,error}=await supabaseServer().auth.getUser();return !error?data.user:null;}
-async function sessionOK(userId:string,sessionId:string){const db=supabaseAdmin();const {data:s}=await db.from("caisses_sessions").select("id,ouvert_par,statut,caisses!inner(pharmacie_id,actif)").eq("id",sessionId).eq("ouvert_par",userId).eq("statut","ouverte").eq("caisses.actif",true).maybeSingle();if(!s)return false;const ph=(s.caisses as unknown as {pharmacie_id:string}).pharmacie_id;const {data:p}=await db.from("profiles").select("id,role,actif,pharmacie_id").eq("id",userId).eq("role","caisse").eq("actif",true).maybeSingle();return !!p&&p.pharmacie_id===ph;}
+async function sessionOK(userId:string,sessionId:string){
+ const sb=supabaseServer(),db=supabaseAdmin();
+ const {data:auth,error:authError}=await sb.auth.getUser();
+ if(authError||auth.user?.id!==userId)return false;
+ const [{data:s,error:sessionError},{data:p,error:profileError},{data:activeRole,error:roleError}]=await Promise.all([
+  db.from("caisses_sessions").select("id,ouvert_par,statut,caisses!inner(pharmacie_id,actif)")
+   .eq("id",sessionId).eq("ouvert_par",userId).eq("statut","ouverte").eq("caisses.actif",true).maybeSingle(),
+  sb.from("profiles").select("id,actif,pharmacie_id").eq("id",userId).maybeSingle(),
+  sb.rpc("naxa_business_function")
+ ]);
+ if(sessionError||profileError||roleError||!s||!p||p.actif!==true||activeRole!=="caisse")return false;
+ const ph=(s.caisses as unknown as {pharmacie_id:string}).pharmacie_id;
+ return p.pharmacie_id===ph;
+}
 async function grant(userId:string,sessionId:string,method:"pin"|"biometric"){const {data,error}=await supabaseAdmin().from("caisse_decaissement_auth_grants").insert({user_id:userId,session_id:sessionId,method,expires_at:new Date(Date.now()+90_000).toISOString()}).select("id").single();if(error||!data)throw new Error("Grant unavailable");return data.id;}
 export async function POST(request:NextRequest){
  const user=await authUser();if(!user)return err("Connexion requise.",401);
@@ -18,11 +31,22 @@ export async function POST(request:NextRequest){
  if(b.action==="configure-pin"){
   const targetId=typeof b.targetUserId==="string"?b.targetUserId:"",pin=typeof b.pin==="string"?b.pin:"";
   if(!/^\d{6,8}$/.test(pin))return err("Le PIN doit contenir 6 à 8 chiffres.");
-  const {data:promoter}=await db.from("profiles").select("id").eq("id",user.id).eq("role","promoteur").eq("actif",true).maybeSingle();
-  const {data:target}=await db.from("profiles").select("id,role,parent_profile_id,pharmacie_id").eq("id",targetId).eq("role","caisse").eq("parent_profile_id",user.id).eq("actif",true).maybeSingle();
-  if(!promoter||!target?.pharmacie_id)return err("Caisse hors de votre équipe ou Promoteur inactif.",403);
-  const {data:membership}=await db.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",user.id).eq("pharmacie_id",target.pharmacie_id).eq("actif",true).maybeSingle();
-  if(!membership)return err("Pharmacie hors périmètre actif.",403);
+  const sb=supabaseServer();
+  const {data:managerProfile,error:managerError}=await sb.from("profiles").select("id,actif").eq("id",user.id).maybeSingle();
+  const {data:target}=await db.from("profiles").select("id,actif,pharmacie_id,role").eq("id",targetId).eq("actif",true).maybeSingle();
+  if(managerError||managerProfile?.actif!==true||!target?.pharmacie_id)return err("Caisse hors de votre équipe ou gestionnaire inactif.",403);
+  const [{data:canCreate,error:createError},{data:canManage,error:manageError},{data:assignments,error:assignmentError}]=await Promise.all([
+   sb.rpc("naxa_can",{p_privilege:"CREATE_CAISSE",p_pharmacie:target.pharmacie_id,p_target:null}),
+   sb.rpc("naxa_can_manage_team_member",{p_target:targetId,p_pharmacie:target.pharmacie_id}),
+   db.from("naxa_professional_assignments").select("id,commence_at,expire_at").eq("profile_id",targetId)
+    .eq("pharmacie_id",target.pharmacie_id).eq("role_code","caisse").eq("statut","active")
+  ]);
+  const now=Date.now();
+  const hasActiveAssignment=(assignments??[]).some(a=>new Date(a.commence_at).getTime()<=now
+    &&(a.expire_at===null||new Date(a.expire_at).getTime()>now));
+  const isLegacyCashier=target.role==="caisse";
+  if(createError||manageError||assignmentError||canCreate!==true||canManage!==true||(!hasActiveAssignment&&!isLegacyCashier))
+   return err("Cette Caisse n’est pas attribuée à une pharmacie que vous pouvez gérer.",403);
   const salt=randomBytes(16).toString("hex"),hash=scryptSync(pin,salt,64).toString("hex");
   const {data:old}=await db.from("caisse_security_credentials").select("webauthn_credential_id,webauthn_public_key,webauthn_counter,webauthn_transports,webauthn_enabled").eq("user_id",targetId).maybeSingle();
   const {error}=await db.from("caisse_security_credentials").upsert({user_id:targetId,...(old||{}),pin_salt:salt,pin_hash:hash,updated_at:new Date().toISOString()});
