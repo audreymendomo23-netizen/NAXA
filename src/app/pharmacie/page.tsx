@@ -14,7 +14,7 @@ type Ligne={produit_id:string;prix:number;quantite:number;date_peremption:string
 type Resa={id:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;reservation_items:{quantite:number;produits:{nom:string}|null}[]};
 
 export default function PanneauPharmacie(){
- const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[role,setRole]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[garde,setGarde]=useState(false),[canManageTeam,setCanManageTeam]=useState(false),[module,setModule]=useState<""|"marketplace"|"erp">(""),[offlineMode,setOfflineMode]=useState(false),[offlineSnapshotReady,setOfflineSnapshotReady]=useState(false);
+ const sb=supabaseBrowser(),[pid,setPid]=useState<string|null>(null),[nom,setNom]=useState(""),[role,setRole]=useState(""),[stock,setStock]=useState<Ligne[]>([]),[resas,setResas]=useState<Resa[]>([]),[filtre,setFiltre]=useState(""),[msg,setMsg]=useState(""),[garde,setGarde]=useState(false),[canManageTeam,setCanManageTeam]=useState(false),[module,setModule]=useState<""|"marketplace"|"erp">(""),[offlineMode,setOfflineMode]=useState(false),[offlineSnapshotReady,setOfflineSnapshotReady]=useState(false),[canEditStock,setCanEditStock]=useState(false);
 
  const charger=useCallback(async(id:string)=>{
   const [{data:s,error:se},{data:r,error:re},{data:ph,error:pe},{data:charges,error:ce},{data:couts,error:coe},{data:lots,error:le},{data:catalogue,error:catError}]=await Promise.all([
@@ -53,7 +53,7 @@ export default function PanneauPharmacie(){
    const identity=await getLocalDeviceIdentity();
    if(cancelled)return;
    setOfflineMode(true);
-   if(identity){setPid(identity.pharmacyId);setNom(identity.pharmacyName);setRole(identity.role??"pharmacie");}
+   if(identity){setPid(identity.pharmacyId);setNom(identity.pharmacyName);setRole(identity.role??"pharmacie");setCanEditStock(identity.canEditStock===true);}
    else setMsg("Connexion requise pour activer un poste hors ligne. Aucune association locale exploitable n'a été trouvée.");
    return;
   }
@@ -78,6 +78,8 @@ export default function PanneauPharmacie(){
     if(targetError||!target?.actif||!target.visible_recherche){setMsg("Cette pharmacie n’est pas active et publiée. L’espace opérationnel reste fermé.");return}
   }
   if(!targetPharmacyId){setMsg("Aucune pharmacie n’est liée à ce compte.");return}
+  const {data:stockPermission,error:stockPermissionError}=await sb.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:targetPharmacyId,p_scope:"PHARMACIE"});
+  setCanEditStock(!stockPermissionError&&stockPermission===true);
   if(p.fonction_interne==="responsable"){
     const {data:teamAccess,error:teamError}=await sb.rpc("naxa_can",{p_privilege:"VIEW_TEAM",p_pharmacie:targetPharmacyId,p_target:null});
     setCanManageTeam(!teamError&&teamAccess===true);
@@ -89,18 +91,20 @@ export default function PanneauPharmacie(){
  async function importer(f:File){if(!pid)return;if(!navigator.onLine)return setMsg("L'import Excel nécessite une connexion.");try{const r=await importerStock(f,pid);setMsg(`${r.importes} produits importés, ${r.ignores} lignes ignorées.`);charger(pid)}catch{setMsg("Import impossible. Vérifiez les colonnes Nom, Prix et Quantité.")}}
  async function quantite(l:Ligne,q:number){
   if(!pid)return;
+  if(!canEditStock){setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:l.quantite}:v));setMsg("Le privilège de modification des quantités n'est pas accordé pour cette pharmacie.");return}
   q=Math.max(0,Math.round(q)||0);
   if(!navigator.onLine||offlineMode){
    try{
     await enregistrerOperation("stock_set_quantity",{produit_id:l.produit_id,quantite:q});
     setMsg("Correction enregistrée localement. Elle sera synchronisée au retour de la connexion.");
    }catch(error){
+    setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:l.quantite}:v));
     setMsg(error instanceof Error?error.message:"Correction hors ligne impossible. Vérifiez l'activation du poste.");
    }
    return;
   }
   const {data:res,error}=await sb.rpc("offline_stock_set_quantity",{p_operation_id:crypto.randomUUID(),p_pharmacie_id:pid,p_produit_id:l.produit_id,p_quantite:q,p_base_updated_at:l.updated_at});
-  if(error||res?.status==="failed"){setMsg("Stock non modifié. Vérifiez la connexion et réessayez.");return}
+  if(error||res?.status==="failed"){setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:l.quantite}:v));setMsg(error?.message??"Stock non modifié. Vérifiez la connexion et réessayez.");return}
   if(res?.status==="conflict"){setMsg("Le stock a changé sur le serveur. Rechargez les données avant de réessayer.");await charger(pid);return}
   setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:q}:v));
   setMsg("Stock mis à jour.");await charger(pid)
@@ -121,8 +125,9 @@ export default function PanneauPharmacie(){
    {msg&&<p role="status" className="mb-3 text-sm">{msg}</p>}
    {offlineSnapshotReady&&<section className="space-y-3">
     <div><h2 className="text-lg font-extrabold">Stock local</h2><p className="text-xs text-slate-500">Instantané chiffré du dernier échange avec le serveur · les corrections sont mises en file et synchronisées au retour du réseau.</p></div>
+    {!canEditStock&&<p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Aucun privilège de modification du stock n'est enregistré sur cet appareil. Le stock reste consultable, mais les quantités sont verrouillées.</p>}
     <input className="champ w-full" placeholder="Rechercher un produit" value={filtre} onChange={e=>setFiltre(e.target.value)}/>
-    {vus.length===0?<p className="carte text-sm text-slate-600">Aucun produit dans cet instantané.</p>:<div className="carte overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-3 text-left">Produit</th><th className="p-3 text-left">Quantité</th><th className="p-3 text-left">Prix</th><th className="p-3 text-left">Emplacement</th></tr></thead><tbody>{vus.map(l=><tr key={l.produit_id} className="border-t"><td className="p-3">{l.produits?.nom} {l.produits?.dosage}</td><td className="p-3"><input aria-label={\`Quantité \${l.produits?.nom??"produit"}\`} type="number" min="0" inputMode="numeric" value={l.quantite} onChange={e=>setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:Math.max(0,Number(e.target.value)||0)}:v))} onBlur={e=>quantite(l,Number(e.target.value))} className="w-24 rounded border p-2"/></td><td className="p-3">{fcfa(l.prix)}</td><td className="p-3">{l.emplacement??"—"}</td></tr>)}</tbody></table></div>}
+    {vus.length===0?<p className="carte text-sm text-slate-600">Aucun produit dans cet instantané.</p>:<div className="carte overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-3 text-left">Produit</th><th className="p-3 text-left">Quantité</th><th className="p-3 text-left">Prix</th><th className="p-3 text-left">Emplacement</th></tr></thead><tbody>{vus.map(l=><tr key={l.produit_id} className="border-t"><td className="p-3">{l.produits?.nom} {l.produits?.dosage}</td><td className="p-3"><input aria-label={\`Quantité \${l.produits?.nom??"produit"}\`} type="number" min="0" inputMode="numeric" value={l.quantite} onChange={e=>setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:Math.max(0,Number(e.target.value)||0)}:v))} onBlur={e=>quantite(l,Number(e.target.value))} disabled={!canEditStock} className="w-24 rounded border p-2 disabled:cursor-not-allowed disabled:opacity-60"/></td><td className="p-3">{fcfa(l.prix)}</td><td className="p-3">{l.emplacement??"—"}</td></tr>)}</tbody></table></div>}
    </section>}
    {navigator.onLine&&<button type="button" className="btn btn-clair mt-5" onClick={()=>window.location.reload()}>Recharger l’espace connecté</button>}
   </main>;
@@ -147,6 +152,6 @@ export default function PanneauPharmacie(){
   {pid&&role!=="promoteur"&&<AppareilHorsLigne pharmacyId={pid} pharmacyName={nom}/>}
   {String(module)!=="marketplace"&&<div className="mb-3 flex flex-wrap justify-end gap-2">{role==="promoteur"&&<a href="/pharmacie/promoteur" className="btn btn-canari">Pilotage Promoteur / réseau</a>}{role==="promoteur"&&<a href="/pharmacie/caisses" className="btn btn-clair">Gestion de l’équipe</a>}<a href="/pharmacie/rappels-lots" className="btn btn-clair">Lots / rappels</a><a href="/pharmacie/caisse" className="btn btn-vert">Caisse / Encaissement</a>{role!=="promoteur"&&<a href="/pharmacie/pharmacien" className="btn btn-clair">Espace Pharmacien</a>}{canManageTeam&&<a href="/pharmacie/caisses" className="btn btn-canari">Gestion de l’équipe</a>}</div>}{String(module)!=="erp"&&<><section className="carte mb-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-extrabold">Statut de la pharmacie</h1><p className="text-sm">Indiquez si l&apos;équipe est actuellement de garde.</p></div><button type="button" className={garde?"btn btn-canari":"btn btn-clair"} onClick={()=>changerGarde(!garde)} aria-pressed={garde}>{garde?"✓ De garde":"Déclarer de garde"}</button></div></section>
   <h2 className="text-xl font-extrabold">Réservations en cours ({resas.length})</h2>{resas.length===0&&<p className="my-3 text-sm">Aucune réservation en cours.</p>}{resas.map(r=><div key={r.id} className="carte my-3"><p className="font-bold">N° {r.id.slice(0,8).toUpperCase()} · {fcfa(r.total)} · {r.statut}</p><p>{r.reservation_items.map(i=>`${i.quantite} × ${i.produits?.nom}`).join(", ")}</p><div className="flex flex-wrap gap-2">{r.statut==="en_attente"&&<button className="btn btn-vert" onClick={()=>statut(r.id,"confirmee")}>Confirmer</button>}{["en_attente","confirmee"].includes(r.statut)&&<button className="btn btn-canari" onClick={()=>statut(r.id,"payee")}>Paiement reçu</button>}{["confirmee","payee"].includes(r.statut)&&<button className="btn btn-vert" onClick={()=>statut(r.id,"retiree")}>Remise au client</button>}<button className="btn btn-clair" onClick={()=>statut(r.id,"annulee")}>Annuler</button></div></div>)}</>}
-  {String(module)!=="marketplace"&&<section className="mt-10"><h2 className="text-xl font-extrabold">Mon stock</h2><div className="flex flex-wrap gap-2"><input className="champ flex-1" placeholder="Rechercher" value={filtre} onChange={e=>setFiltre(e.target.value)}/><label className="btn btn-clair">Importer Excel<input type="file" hidden accept=".xlsx,.xls,.csv" onChange={e=>e.target.files?.[0]&&importer(e.target.files[0])}/></label></div><p className="mt-2 text-xs">Formats : Excel (.xlsx/.xls) ou CSV. Colonnes reconnues : nom/désignation/produit, prix, quantité, dosage/conditionnement, péremption.</p><div className="carte mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-3 text-left">Produit</th><th className="p-3 text-left">Quantité</th><th className="p-3 text-left">Prix</th><th className="p-3 text-left">Emplacement</th></tr></thead><tbody>{vus.map(l=><tr key={l.produit_id} className="border-t"><td className="p-3">{l.produits?.nom} {l.produits?.dosage}</td><td className="p-3"><input aria-label={`Quantité ${l.produits?.nom??"produit"}`} type="number" min="0" inputMode="numeric" value={l.quantite} onChange={e=>setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:Math.max(0,Number(e.target.value)||0)}:v))} onBlur={e=>quantite(l,Number(e.target.value))} className="w-24 rounded border p-2"/></td><td className="p-3">{fcfa(l.prix)}</td><td className="p-3">{l.emplacement??"—"}</td></tr>)}</tbody></table></div></section>}
+  {String(module)!=="marketplace"&&<section className="mt-10"><h2 className="text-xl font-extrabold">Mon stock</h2>{!canEditStock&&<p className="my-2 text-sm text-amber-800">Consultation seule : le privilège de modification des quantités n'est pas accordé.</p>}<div className="flex flex-wrap gap-2"><input className="champ flex-1" placeholder="Rechercher" value={filtre} onChange={e=>setFiltre(e.target.value)}/><label className="btn btn-clair">Importer Excel<input type="file" hidden accept=".xlsx,.xls,.csv" onChange={e=>e.target.files?.[0]&&importer(e.target.files[0])}/></label></div><p className="mt-2 text-xs">Formats : Excel (.xlsx/.xls) ou CSV. Colonnes reconnues : nom/désignation/produit, prix, quantité, dosage/conditionnement, péremption.</p><div className="carte mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="p-3 text-left">Produit</th><th className="p-3 text-left">Quantité</th><th className="p-3 text-left">Prix</th><th className="p-3 text-left">Emplacement</th></tr></thead><tbody>{vus.map(l=><tr key={l.produit_id} className="border-t"><td className="p-3">{l.produits?.nom} {l.produits?.dosage}</td><td className="p-3"><input aria-label={`Quantité ${l.produits?.nom??"produit"}`} type="number" min="0" inputMode="numeric" value={l.quantite} onChange={e=>setStock(x=>x.map(v=>v.produit_id===l.produit_id?{...v,quantite:Math.max(0,Number(e.target.value)||0)}:v))} onBlur={e=>quantite(l,Number(e.target.value))} disabled={!canEditStock} className="w-24 rounded border p-2 disabled:cursor-not-allowed disabled:opacity-60"/></td><td className="p-3">{fcfa(l.prix)}</td><td className="p-3">{l.emplacement??"—"}</td></tr>)}</tbody></table></div></section>}
  </main>;
 }
