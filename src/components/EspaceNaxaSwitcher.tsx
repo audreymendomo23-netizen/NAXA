@@ -103,7 +103,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           if ((assignments ?? []).some((assignment) =>
             ["gestionnaire_stock", "magasinier"].includes(assignment.fonction)
             && new Date(assignment.commence_at).getTime() <= now
-            && new Date(assignment.expire_at).getTime() > now
+            && (assignment.expire_at === null || new Date(assignment.expire_at).getTime() > now)
           )) allowed.push("stock");
         }
 
