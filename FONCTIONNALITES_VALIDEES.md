@@ -1,12 +1,23 @@
 # NAXA — REGISTRE DES FONCTIONNALITÉS / ÉTAT DE VALIDATION
 
+## Complément vérifié — sécurité et reprise hors ligne (04/11/2026)
+
+- **Code sur `main` :** protection de la file et de l'instantané IndexedDB contre toute réactivation/recléage ; vérification atomique avant création du poste local ; identité/pharmacie/role conservés ; déverrouillage PIN refusé après recul de l'horloge ou expiration locale ; reprise du shell pharmacie après rechargement hors ligne ; instantané visible seulement après déverrouillage ; synchronisation déclenchée dès le montage du composant.
+- **Activation serveur :** vérification que l'appareil n'est pas déjà enrôlé afin de ne pas remplacer un jeton associé à une file existante. Les erreurs de synchronisation ne doivent pas amener à supprimer la file locale.
+- **LWW :** migration 269 rend le départage explicite : à horodatage égal, un comptage serveur (sans `device_id`) prime sur une correction appareil. Migration 270 revalide le rôle professionnel actif, l'association pharmacie et l'état actif de la pharmacie au moment de la synchronisation.
+- **Preuves Replay :** tests SQL 053, 220, 221, 268, 269 et 270 PASS le 04/11/2026. Le test 221 vérifie le rejeu idempotent, le tie-break comptage serveur au même milliseconde et le rejet d'un rôle devenu non autorisé ; son jeu d'essai est entièrement annulé.
+- **Limites non masquées :** mode hors ligne actuellement limité à la correction de quantité du stock non lotisé ; ventes, caisse, mouvements autonomes et clôtures hors ligne ne sont pas déclarés livrés. La compilation complète, lint, CI au SHA courant et recette navigateur/appareil réel restent à vérifier. Aucun déploiement ni aucune écriture Production.
+- **PIN local :** mécanisme technique de chiffrement/déverrouillage de l'appareil ; il ne remplace ni le compte NAXA ni le PIN personnel du Promoteur F01-PRO et n'ajoute aucune règle métier à DEC-06/F07.
+
+---
+
 ## Arbitrages métier du fondateur — 02/11/2026
 
 - **31 réponses métier consignées** dans [DECISIONS_METIER_CONFIRMEES_2026-11-02.md](docs/DECISIONS_METIER_CONFIRMEES_2026-11-02.md). Elles sont confirmées comme règles métier, mais leur consignation ne vaut pas preuve d'implémentation ni de test.
 - Les décisions couvrent les fonctions et affectations, le Responsable, la suspension et SM-01, les états de préparation, les crédits comptoir/Marketplace, les mouvements de stock, les remboursements, les règles Caisse, l'abonnement Promoteur, la détection de paiement, le mode hors ligne, le catalogue, les KPI Admin et les dossiers pharmacie.
-- **Contradictions isolées :** durée des affectations urgentes vs affectations ordinaires permanentes ; acteurs du crédit au comptoir ; remboursement et stock d'une réservation payée annulée lors d'une suspension complète ; portée ciblée/nationale des rappels de lots ; tarif annuel à configurer ; chronologie fiable du LWW hors ligne ; valeurs numériques des paramètres financiers ; fournisseurs/licences du catalogue médical.
+- **Contradictions isolées :** durée des affectations urgentes vs affectations ordinaires permanentes ; acteurs du crédit au comptoir ; remboursement et stock d'une réservation payée annulée lors d'une suspension complète ; portée ciblée/nationale des rappels de lots ; tarif annuel à configurer ; limites de périmètre du mode hors ligne ERP complet ; valeurs numériques des paramètres financiers ; fournisseurs/licences du catalogue médical. La règle LWW du sous-parcours correction de quantité stock est désormais codée et testée sur Replay.
 - **Correction du code crédit Marketplace — 04/11/2026 :** débit physique à l'approbation, allocations FEFO, retrait sans double débit, restitution idempotente, délégation Responsable par pharmacie et contrôles UI versionnés sur `main`. Test E2E transactionnel Replay PASS ; aucune activation Production ni recette navigateur.
-- **Contradiction du code encore ouverte :** synchronisation hors ligne fondée sur `base_updated_at` avec rejet de conflit, contrairement au LWW décidé. Le périmètre multi-pharmacie générique reste partiellement à réconcilier : les RPC ERP historiques qui utilisent encore `can_access_pharmacy()` n'ont pas été élargies sans audit de leurs droits.
+- **Réserves de périmètre encore ouvertes :** l'ERP hors ligne complet (ventes, caisse, mouvements autonomes, clôtures) n'est pas livré ; le périmètre multi-pharmacie générique reste partiellement à réconcilier et les RPC ERP historiques utilisant encore `can_access_pharmacy()` ne sont pas élargies sans audit de leurs droits. Le LWW du stock pris en charge n'est plus fondé sur un conflit `base_updated_at` : le contrat 268–270 compare les mutations chronologiques et conserve les résultats perdants.
 - **Éléments déjà présents à vérifier/tester, sans les reconstruire :** exclusions des démos dans les KPI Admin, compteur d'alertes par signaux, états persistants de préparation, garde SM-01 Marketplace distincte des RPC ERP, cases documentaires informatives avec contrôle séparé des vrais fichiers.
 - Les réserves ne bloquent que le sous-parcours qui en dépend. Les corrections indépendantes continuent. Travail sur main uniquement ; aucun déploiement ; aucune écriture Supabase Production.
 
@@ -346,7 +357,7 @@ Suivi, historique, achats, isolation par `auth.uid()`.
 ## NAXA-F012 — Pharmacie / espace équipe
 Route : `/pharmacie`.
 
-Stock, garde via RPC sécurisée, réservations, IndexedDB, offline, badge, synchronisation et résolution par `updated_at`.
+Stock, garde via RPC sécurisée, réservations, IndexedDB chiffré, file hors ligne et synchronisation LWW par horodatage/séquence. Le mode hors ligne vérifié permet la reprise après rechargement et les corrections de quantité de stock non lotisé ; il n'ouvre pas les ventes/caisse/clôtures hors ligne.
 
 Branches historiques : `feat/pharmacie-pilotes-offline-20261005`, `feat/pharmacie-promoteur-caisses-20261005`, `feat/pharmacie-validite-pilotage`.
 
