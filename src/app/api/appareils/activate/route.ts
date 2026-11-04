@@ -17,6 +17,9 @@ export async function POST(req:NextRequest){
     p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"
   });
   if(privilegeError||canEditStock!==true)return NextResponse.json({error:"Le privilège Modifier les quantités n'est pas accordé pour cette pharmacie."},{status:403});
+  const {data:ph, error:pharmacyError}=await supabaseAdmin().from(S.pharmaciesTable)
+    .select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).eq("actif",true).maybeSingle();
+  if(pharmacyError||!ph)return NextResponse.json({error:"La pharmacie est inactive ou inaccessible."},{status:403});
   const body=await req.json();
   const name=String(body.name||"Appareil pharmacie").trim().slice(0,100)||"Appareil pharmacie";
   const installationId=String(body.installationId||"");
@@ -40,9 +43,6 @@ export async function POST(req:NextRequest){
   const deviceRecord = device as unknown as Record<string, unknown> | null;
   if(error?.code==="23505")return NextResponse.json({error:"Ce poste vient d'être enrôlé dans un autre onglet. Conservez les données locales et déverrouillez-le."},{status:409});
   if(error||!deviceRecord){console.error("NAXA_DEVICE_ACTIVATION_FAILED",error);return NextResponse.json({error:"Activation de l'appareil indisponible. Vérifiez la migration Preview."},{status:500})}
-  const {data:ph, error:pharmacyError}=await supabaseAdmin().from(S.pharmaciesTable)
-    .select(S.pharmacyNameColumn).eq(S.pharmacyIdColumn,pharmacyId).eq("actif",true).maybeSingle();
-  if(pharmacyError||!ph)return NextResponse.json({error:"La pharmacie est inactive ou inaccessible."},{status:403});
   return NextResponse.json({
     deviceId:deviceRecord[S.deviceIdColumn],
     token,
