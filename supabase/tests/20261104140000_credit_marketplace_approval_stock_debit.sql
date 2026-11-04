@@ -4,7 +4,7 @@ begin;
 
 create temporary table _naxa_credit_debit_ids on commit drop as
 select gen_random_uuid() admin_id,gen_random_uuid() client_a_id,gen_random_uuid() client_b_id,
- gen_random_uuid() responsable_id,gen_random_uuid() pharmacie_id,gen_random_uuid() pharmacie_principale_id,
+ gen_random_uuid() responsable_id,gen_random_uuid() pharmacie_id,gen_random_uuid() pharmacie_principale_id,gen_random_uuid() pharmacie_hors_id,
  gen_random_uuid() produit_id,gen_random_uuid() caisse_id,gen_random_uuid() session_id,
  gen_random_uuid() credit_a_id,gen_random_uuid() credit_b_id,gen_random_uuid() demande_a_id,
  gen_random_uuid() demande_b_id,gen_random_uuid() lot_a_id,gen_random_uuid() lot_b_id;
@@ -22,7 +22,8 @@ set local session_replication_role='origin';
 
 insert into public.pharmacies(id,nom,ville,lat,lng,actif,visible_recherche)
 select pharmacie_id,'NAXA test crédit débit','Yaoundé',3.87,11.52,true,true from _naxa_credit_debit_ids
-union all select pharmacie_principale_id,'NAXA test pharmacie principale','Yaoundé',3.88,11.53,true,true from _naxa_credit_debit_ids;
+union all select pharmacie_principale_id,'NAXA test pharmacie principale','Yaoundé',3.88,11.53,true,true from _naxa_credit_debit_ids
+union all select pharmacie_hors_id,'NAXA test pharmacie hors périmètre','Yaoundé',3.89,11.54,true,true from _naxa_credit_debit_ids;
 
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
 select admin_id,'admin'::public.role_type,'NAXA','Admin test',true,true,now(),1,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
@@ -89,11 +90,13 @@ begin
 
   if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
     or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE')
-    or private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE') then
-    raise exception 'Affectation : helper %, scope assigned %, scope home %, uid %, fn %, active profile %, assignment rows %',
+    or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE')
+    or private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE') then
+    raise exception 'Affectation : helper %, scope assigned %, scope home %, scope other %, uid %, fn %, active profile %, assignment rows %',
       public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable'),
       private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE'),
       private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE'),
+      private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE'),
       auth.uid(),public.naxa_business_function(x.responsable_id),
       (select actif from public.profiles where id=x.responsable_id),
       (select count(*) from public.naxa_professional_assignments where profile_id=x.responsable_id and pharmacie_id=x.pharmacie_id and statut='active');
