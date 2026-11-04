@@ -32,7 +32,7 @@ export function CaisseHorsLigne({ pharmacieId, pharmacyName }: { pharmacieId:str
       const saved=await readReference();
       const snapshot=saved?.value&&typeof saved.value==="object"?saved.value as Record<string,unknown>:null;
       const pharmacy=snapshot?.pharmacie&&typeof snapshot.pharmacie==="object"?snapshot.pharmacie as Record<string,unknown>:null;
-      if(!pharmacy||pharmacy.id!==pharmacieId){
+      if(!snapshot||!pharmacy||pharmacy.id!==pharmacieId){
         setSession(null);setProducts([]);setReady(false);
         setMessage("Aucun instantané chiffré correspondant à cette pharmacie. Reconnectez et synchronisez le poste.");
         return;
