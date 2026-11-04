@@ -19,13 +19,13 @@ select client_b_id,'00000000-0000-0000-0000-000000000000'::uuid,'authenticated',
 set local session_replication_role='origin';
 
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select admin_id,'admin','NAXA','Admin test',true,true,now(),1,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
+select admin_id,'admin'::public.role_type,'NAXA','Admin test',true,true,now(),1,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select client_a_id,'client','NAXA','Client A',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
+select client_a_id,'client'::public.role_type,'NAXA','Client A',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select client_b_id,'client','NAXA','Client B',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
+select client_b_id,'client'::public.role_type,'NAXA','Client B',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
 insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select responsable_id,'pharmacie','NAXA','Responsable test',true,true,now(),2,'responsable',pharmacie_principale_id,null::uuid from _naxa_credit_debit_ids;
+select responsable_id,'pharmacie'::public.role_type,'NAXA','Responsable test',true,true,now(),2,'responsable',pharmacie_principale_id,null::uuid from _naxa_credit_debit_ids;
 insert into public.pharmacies(id,nom,ville,lat,lng,actif,visible_recherche)
 select pharmacie_id,'NAXA test crédit débit','Yaoundé',3.87,11.52,true,true from _naxa_credit_debit_ids
 union all select pharmacie_principale_id,'NAXA test pharmacie principale','Yaoundé',3.88,11.53,true,true from _naxa_credit_debit_ids;
