@@ -12,7 +12,11 @@ export async function POST(req:NextRequest){
   const role=String(profileRecord?.[S.profileRoleColumn]??"");
   const internalFunction=String(profileRecord?.fonction_interne??"").trim();
   const authorizedRole=role==="caisse"||(role==="pharmacie"&&internalFunction.length>0);
-  if(pe||!profileRecord||profileRecord[S.profileActiveColumn]!==true||profileRecord[S.profilePharmacyIdColumn]!==pharmacyId||!authorizedRole)return NextResponse.json({error:"Fonction professionnelle active requise pour cette pharmacie."},{status:403});
+  if(pe||!profileRecord||profileRecord[S.profileActiveColumn]!==true||!authorizedRole)return NextResponse.json({error:"Fonction professionnelle active requise."},{status:403});
+  const {data:canEditStock,error:privilegeError}=await supabaseServer().rpc("naxa_has_privilege",{
+    p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"
+  });
+  if(privilegeError||canEditStock!==true)return NextResponse.json({error:"Le privilège Modifier les quantités n'est pas accordé pour cette pharmacie."},{status:403});
   const body=await req.json();
   const name=String(body.name||"Appareil pharmacie").trim().slice(0,100)||"Appareil pharmacie";
   const installationId=String(body.installationId||"");
