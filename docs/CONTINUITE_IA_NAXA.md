@@ -410,3 +410,30 @@ Respecter en toutes circonstances les règles NAXA : aucun commit direct sur `ma
 Vérifier le HEAD actuel, exécuter ou obtenir des contrôles de compilation/lint/CI au SHA exact dès qu'un runner disponible existe, puis compléter une recette navigateur hors ligne ; ne pas étendre le périmètre F07 sans spécification et sans tests.
 
 - Aucun build/test automatisé n'a été exécuté dans cet environnement. Les commits sur `main` ont déclenché automatiquement Vercel malgré l'absence d'une demande de déploiement : le déploiement de la migration `0ec7eb5249b67e3d5ad731bcab78e2c45973454c` a été observé `READY` sur Production; les déploiements des commits `7d17ddc52acbc81faedf6227fc937212f84012d7`, `4dfe2d3c171fdecc196eea3263243ea8e16bba5f` et `ce5ffa1ceebcdc38a1dab5221523f53389c2374c` ont ensuite été annulés dans Vercel. Le changement déjà `READY` n'a pas été annulé et son effet exact sur l'alias actif n'a pas été vérifié. Prochaine étape : confirmer l'état Production sans écrire dans Supabase, obtenir une preuve de build sur le code corrigé, puis configurer un déclencheur gratuit; ne pas relancer un déploiement manuellement sans autorisation explicite.
+
+
+## Journal de continuité — permissions et RLS stock (04/11/2026)
+
+### Nouveaux correctifs sur `main`
+- Migration 271 : les RPC online et appareil exigent le privilège `EDIT_STOCK_QUANTITY`; migration 274 : elles exigent conjointement `VIEW_STOCK` et `EDIT_STOCK_QUANTITY`.
+- Migration 272 : helper service-role `naxa_device_permissions_v1` recalcule au serveur l'autorisation du poste et les droits VIEW/EDIT à chaque synchronisation.
+- API `/api/sync` : le serveur renvoie un snapshot minimal uniquement si le droit de lecture est actif. Il n'envoie plus les coûts, dépenses ni catalogue dans le snapshot offline.
+- Client : chaque réponse valide remplace le snapshot complet ; si le droit `VIEW_STOCK` est révoqué, la copie locale chiffrée est supprimée et la file d'opérations est conservée. Les permissions mises en cache ne peuvent plus réactiver un droit absent.
+- Migration 273 : policy UPDATE pour que l'upsert d'import réexistant exige `VIEW_STOCK` + `IMPORT_STOCK`.
+- Migration 275 : policies RLS directes de stock, lots, rappels et coûts alignées sur `VIEW_STOCK`, `MANAGE_LOTS`, `VIEW_PURCHASE_COST`, `EDIT_STOCK_PARAMETERS`, `IMPORT_STOCK` et les droits de correction. La policy ALL précédente sur les lots est supprimée et remplacée par INSERT/UPDATE/DELETE séparées.
+- Le gestionnaire des lots et coûts vérifie désormais les privilèges serveur avant d'afficher les actions et les coûts. La Caisse ne reçoit pas le contrôle de gestion des lots via l'interface.
+- Les opérations IndexedDB sont triées par `modifiedAt`, séquence appareil et identifiant ; la reprise UI superpose les corrections encore en attente sur le snapshot, sans inverser leur ordre.
+- L'inactivité verrouille localement l'appareil après 15 minutes. Les stocks lotisés sont explicitement exclus des corrections de quantité offline.
+
+### Preuves Replay consolidées
+- Migrations 270 à 275 appliquées exclusivement à `naxa-ci-replay-2`; aucune migration Production.
+- Tests 053, 220, 221, 271, 272, 273, 274 et 275 affichent explicitement PASS. Les tests 268, 269 et 270 se sont exécutés sans erreur SQL (leurs blocs de contrôle renvoient un tableau vide).
+- Le test 221 vérifie l'affectation multi-pharmacie, l'idempotence, la priorité d'un comptage serveur à milliseconde égale, puis les révocations indépendantes de `VIEW_STOCK`, `EDIT_STOCK_QUANTITY` et du rôle. Toutes les mutations de fixture sont annulées.
+
+### Limites de validation qui demeurent
+- L'offline livré reste limité à la correction de quantité du stock non lotisé ; ventes, caisse, mouvements autonomes et clôtures offline ne sont pas couverts.
+- Aucun build complet Next.js/TypeScript, lint, CI au SHA courant ou recette navigateur/appareil réel n'a été exécuté dans cette session. Le miroir GitLab reste en retard et échoue avant démarrage des jobs pour quota ; les statuts Vercel consultés correspondent à des déploiements annulés `ignored-build-step`, pas à des builds réussis.
+- Aucun déploiement et aucune écriture Supabase Production.
+
+### Suite
+Poursuivre uniquement sur les contrôles de compilation/CI et recette navigateur accessibles ; ne pas déclarer F07 entièrement livré tant que le périmètre POS/caisse/clôture hors ligne n'est pas construit et testé.
