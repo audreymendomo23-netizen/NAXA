@@ -124,6 +124,12 @@ begin
  if not exists(select 1 from public.naxa_privileges where code='APPROVE_MARKETPLACE_CREDIT' and active and delegable and niveau_min=1 and niveau_max=2 and not governance and not governance_only) then raise exception 'Privilège délégable mal configuré'; end if;
  if not exists(select 1 from public.naxa_architecture_privileges where architecture_code='PARENTS_AINES_CADETS' and role_key='responsable' and privilege_code='APPROVE_MARKETPLACE_CREDIT')
    or not exists(select 1 from public.naxa_architecture_privileges where architecture_code='HYBRIDE' and role_key='responsable' and privilege_code='APPROVE_MARKETPLACE_CREDIT') then raise exception 'Privilège hors architectures compatibles'; end if;
+ if exists(
+   select a.code from (values('ORPHELIN'),('PARENTS_ENFANTS'),('PARENTS_AINES_CADETS'),('HYBRIDE')) a(code)
+   where not exists(select 1 from public.naxa_architecture_privileges ap
+     where ap.architecture_code=a.code and ap.role_key='promoteur'
+       and ap.privilege_code='ASSIGN_USER_TO_PHARMACY')
+ ) then raise exception 'ASSIGN_USER_TO_PHARMACY absent de la matrice Promoteur'; end if;
 end;
 $contract$;
 
