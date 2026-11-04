@@ -59,7 +59,8 @@ begin
     insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
     values
       (v_uid,'VIEW_STOCK',v_stock.pharmacie_id,'PHARMACIE',v_uid,true),
-      (v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'POSTE_CAISSE',v_uid,true)
+      (v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'POSTE_CAISSE',v_uid,true),
+      (v_uid,'MANAGE_LOTS',v_stock.pharmacie_id,'PHARMACIE',v_uid,true)
     on conflict(profile_id,privilege_code,pharmacie_id,scope_type) do update
       set granted_by=v_uid,active=true;
 
@@ -67,6 +68,9 @@ begin
     values(v_device,v_stock.pharmacie_id,v_uid,'MC03 isolated test device',
       'mc03-test-' || replace(v_device::text,'-',''),v_installation,true,now());
 
+    if public.naxa_can_manage_lots(v_stock.pharmacie_id) then
+      raise exception 'MC-03: une Caisse ne doit pas gérer les lots même avec un grant MANAGE_LOTS';
+    end if;
     v_permissions := public.naxa_device_permissions_v1(v_device);
     if v_permissions->>'authorized' is distinct from 'true'
       or v_permissions->>'canViewStock' is distinct from 'true'
