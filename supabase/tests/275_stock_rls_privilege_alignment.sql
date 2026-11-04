@@ -36,11 +36,13 @@ begin
   select with_check into v_lots_insert from pg_policies where schemaname='public' and tablename='stocks_lots' and policyname='stocks_lots_manage_insert';
   select qual||' '||with_check into v_lots_update from pg_policies where schemaname='public' and tablename='stocks_lots' and policyname='stocks_lots_manage_update';
   select qual into v_lots_delete from pg_policies where schemaname='public' and tablename='stocks_lots' and policyname='stocks_lots_manage_delete';
-  if position('VIEW_STOCK' in coalesce(v_lots_read,''))=0 or position('MANAGE_LOTS' in coalesce(v_lots_read,''))=0 then
-    raise exception 'stocks_lots read doit imposer VIEW_STOCK ou MANAGE_LOTS';
+  if position('VIEW_STOCK' in coalesce(v_lots_read,''))=0 or position('naxa_can_manage_lots' in coalesce(v_lots_read,''))=0 then
+    raise exception 'stocks_lots read doit imposer VIEW_STOCK ou le helper de gestion de lots';
   end if;
-  if position('MANAGE_LOTS' in coalesce(v_lots_insert,''))=0 or position('MANAGE_LOTS' in coalesce(v_lots_update,''))=0 or position('MANAGE_LOTS' in coalesce(v_lots_delete,''))=0 then
-    raise exception 'stocks_lots insert/update/delete doit imposer MANAGE_LOTS';
+  if position('naxa_can_manage_lots' in coalesce(v_lots_insert,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_lots_update,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_lots_delete,''))=0 then
+    raise exception 'stocks_lots insert/update/delete doit imposer le helper de gestion de lots';
   end if;
   if exists(select 1 from pg_policies where schemaname='public' and tablename='stocks_lots' and policyname='stocks_lots_equipe' and cmd='ALL') then
     raise exception 'L''ancienne policy ALL des lots ne doit plus autoriser la lecture générique';
@@ -57,8 +59,8 @@ begin
 
   select qual into v_recalls_read from pg_policies where schemaname='public' and tablename='rappels_lots' and policyname='rappels_lots_read_scope';
   select qual into v_treatments_read from pg_policies where schemaname='public' and tablename='rappels_lots_traitements' and policyname='rappels_lots_traitements_read';
-  if position('VIEW_STOCK' in coalesce(v_recalls_read,''))=0 or position('MANAGE_LOTS' in coalesce(v_recalls_read,''))=0
-    or position('MANAGE_LOTS' in coalesce(v_treatments_read,''))=0
+  if position('VIEW_STOCK' in coalesce(v_recalls_read,''))=0 or position('naxa_can_manage_lots' in coalesce(v_recalls_read,''))=0
+    or position('naxa_can_manage_lots' in coalesce(v_treatments_read,''))=0
     or position('VIEW_PURCHASE_COST' in coalesce(v_treatments_read,''))=0 then
     raise exception 'Les lectures de rappels/traitements doivent rester délimitées par les privilèges';
   end if;
