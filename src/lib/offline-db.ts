@@ -28,7 +28,7 @@ function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) 
   return openDb().then(d => new Promise<T>((resolve, reject) => {
     const t = d.transaction(store, mode);
     const r = fn(t.objectStore(store));
-    let result: T;
+    let result: T | undefined;
     let failure: DOMException | null = null;
     r.onsuccess = () => { result = r.result; };
     r.onerror = () => { failure = r.error; };
