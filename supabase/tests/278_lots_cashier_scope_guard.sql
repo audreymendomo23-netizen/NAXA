@@ -27,7 +27,7 @@ begin
   if position('role::text' in v_quarantine)=0
     or position('client' in v_quarantine)=0
     or position('naxa_scope_allows' in v_quarantine)=0 then
-    raise exception 'Le comptage doit rester réservé à l'équipe active et confinée à la pharmacie';
+    raise exception 'Le comptage doit rester reserve a une equipe active et confinee a la pharmacie';
   end if;
   if position('Comptage de quarantaine interdit pour la Caisse' in v_quarantine)>0 then
     raise exception 'La Caisse doit conserver le comptage physique audité sans mutation de stock';
