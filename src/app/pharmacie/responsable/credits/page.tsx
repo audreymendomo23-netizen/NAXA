@@ -33,7 +33,7 @@ export default async function ResponsableCreditsMarketplacePage({
   if(!auth.user)redirect("/connexion?retour=/pharmacie/responsable/credits");
 
   const {data:profile}=await sb.from("profiles")
-    .select("role,fonction_interne,niveau_interne,actif")
+    .select("role,fonction_interne,niveau_interne,pharmacie_id,actif")
     .eq("id",auth.user.id).maybeSingle();
   if(!profile||profile.actif!==true||profile.role!=="pharmacie"
     ||profile.fonction_interne!=="responsable"||profile.niveau_interne!==2)redirect("/pharmacie");
@@ -44,10 +44,13 @@ export default async function ResponsableCreditsMarketplacePage({
     .eq("fonction","responsable")
     .eq("statut","active");
   const now=Date.now();
-  const pharmacyIds=[...new Set((assignments??[])
-    .filter(a=>new Date(a.commence_at).getTime()<=now
-      &&(a.expire_at===null||new Date(a.expire_at).getTime()>now))
-    .map(a=>a.pharmacie_id))];
+  const pharmacyIds=[...new Set([
+    ...(profile.pharmacie_id?[profile.pharmacie_id]:[]),
+    ...(assignments??[])
+      .filter(a=>new Date(a.commence_at).getTime()<=now
+        &&(a.expire_at===null||new Date(a.expire_at).getTime()>now))
+      .map(a=>a.pharmacie_id),
+  ])];
 
   if(assignmentError||!pharmacyIds.length){
     return <main className="mx-auto max-w-5xl space-y-4 px-4 py-6">
