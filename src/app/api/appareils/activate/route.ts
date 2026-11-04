@@ -8,13 +8,20 @@ export async function POST(req:NextRequest){
  try{
   const userClient=supabaseServer();
   const {data:{user},error:userError}=await userClient.auth.getUser();if(userError||!user)return NextResponse.json({error:"Connexion requise."},{status:401});
-  const {data:profile,error:pe}=await supabaseAdmin().from(S.profilesTable).select(`${S.profileIdColumn},${S.profilePharmacyIdColumn},${S.profileActiveColumn},${S.profileRoleColumn},fonction_interne`).eq(S.profileIdColumn,user.id).maybeSingle();
-  const profileRecord = profile as unknown as Record<string, unknown> | null;
-  const role=String(profileRecord?.[S.profileRoleColumn]??"");
-  const internalFunction=String(profileRecord?.fonction_interne??"").trim();
-  const authorizedRole=role==="caisse"||(role==="pharmacie"&&internalFunction.length>0);
-  if(pe||!profileRecord||profileRecord[S.profileActiveColumn]!==true||!authorizedRole)return NextResponse.json({error:"Fonction professionnelle active requise."},{status:403});
-  const editScope=(role==="caisse"||internalFunction==="caisse")?"POSTE_CAISSE":"PHARMACIE";
+  const {data:profile,error:pe}=await supabaseAdmin().from(S.profilesTable)
+    .select(`${S.profileIdColumn},${S.profileActiveColumn}`)
+    .eq(S.profileIdColumn,user.id).maybeSingle();
+  const [{data:activeRole,error:roleError},{data:activePharmacyId,error:scopeError}]=await Promise.all([
+    userClient.rpc("naxa_business_function"),
+    userClient.rpc("naxa_active_role_pharmacy"),
+  ]);
+  const professionalRoles=["pharmacie","caisse","responsable","comptable","pharmacien","gestionnaire_stock","magasinier"];
+  if(pe||roleError||scopeError||!profile||profile[S.profileActiveColumn]!==true
+    ||typeof activeRole!=="string"||!professionalRoles.includes(activeRole)
+    ||activePharmacyId!==pharmacyId){
+    return NextResponse.json({error:"Un poste professionnel actif dans cette pharmacie est requis."},{status:403});
+  }
+  const editScope=activeRole==="caisse"?"POSTE_CAISSE":"PHARMACIE";
   const [{data:canViewStock,error:viewPrivilegeError},{data:canEditStock,error:editPrivilegeError}]=await Promise.all([
     userClient.rpc("naxa_has_privilege",{p_privilege:"VIEW_STOCK",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"}),
     userClient.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:editScope})
@@ -53,7 +60,7 @@ export async function POST(req:NextRequest){
     token,
     pharmacyId,
     pharmacyName:ph?.[S.pharmacyNameColumn]??"",
-    role,
+    role:activeRole,
     canViewStock:true,
     canEditStock:true,
     nextDeviceSequence:0,
