@@ -8,6 +8,7 @@ declare
   v_op2 uuid := gen_random_uuid();
   v_op_online uuid := gen_random_uuid();
   v_op3 uuid := gen_random_uuid();
+  v_op4 uuid := gen_random_uuid();
   v_installation uuid := gen_random_uuid();
   v_stock record;
   v_target integer;
@@ -41,6 +42,14 @@ begin
       set role='caisse',pharmacie_id=excluded.pharmacie_id,actif=true,fonction_interne=null;
 
     perform set_config('request.jwt.claim.sub',v_uid::text,true);
+    insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,max_responsables,max_caisses,active)
+    values(v_stock.pharmacie_id,'ORPHELIN',v_uid,0,0,true)
+    on conflict(pharmacie_id) do update
+      set architecture_code='ORPHELIN',assigned_by=v_uid,max_responsables=0,max_caisses=0,active=true;
+    insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
+    values(v_uid,'EDIT_STOCK_QUANTITY',v_stock.pharmacie_id,'PHARMACIE',v_uid,true)
+    on conflict(profile_id,privilege_code,pharmacie_id,scope_type) do update
+      set granted_by=v_uid,active=true;
 
     insert into public.appareils(id,pharmacie_id,utilisateur_id,nom,jeton_hash,installation_id,actif,derniere_synchro)
     values(v_device,v_stock.pharmacie_id,v_uid,'MC03 isolated test device',
@@ -110,18 +119,34 @@ begin
       raise exception 'MC-03: losing offline tie overwrote the server count';
     end if;
 
-    -- A role downgrade/unauthorized role must be rejected at synchronization time.
-    update public.profiles set role='admin' where id=v_uid;
+    -- Revoking the explicit stock privilege must stop a later device mutation.
+    update public.naxa_profile_privileges set active=false
+      where profile_id=v_uid and privilege_code='EDIT_STOCK_QUANTITY' and pharmacie_id=v_stock.pharmacie_id;
     v_result := public.naxa_apply_offline_operation_v1(
       v_device,v_op3,'stock_set_quantity',
       jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 30,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',3),
       v_modified_ms + 100
     );
     if v_result->>'status' is distinct from 'rejected'
+      or v_result->>'reason' is distinct from 'stock_edit_privilege_denied' then
+      raise exception 'MC-03: revoked stock privilege must be rejected: %',v_result;
+    end if;
+    if exists(select 1 from public.offline_operations where operation_id=v_op3) then
+      raise exception 'MC-03: revoked privilege must not create an operation';
+    end if;
+
+    -- A role downgrade/unauthorized role must also be rejected at synchronization time.
+    update public.profiles set role='admin' where id=v_uid;
+    v_result := public.naxa_apply_offline_operation_v1(
+      v_device,v_op4,'stock_set_quantity',
+      jsonb_build_object('produit_id',v_stock.produit_id,'quantite',v_target + 40,'base_updated_at',v_stock.updated_at,'naxa_device_sequence',4),
+      v_modified_ms + 200
+    );
+    if v_result->>'status' is distinct from 'rejected'
       or v_result->>'reason' is distinct from 'professional_inactive_or_role_unauthorized' then
       raise exception 'MC-03: unauthorized role must be rejected at sync: %',v_result;
     end if;
-    if exists(select 1 from public.offline_operations where operation_id=v_op3) then
+    if exists(select 1 from public.offline_operations where operation_id=v_op4) then
       raise exception 'MC-03: unauthorized role must not create an operation';
     end if;
 
