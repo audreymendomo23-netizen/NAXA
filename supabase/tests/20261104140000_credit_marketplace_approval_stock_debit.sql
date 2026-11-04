@@ -74,15 +74,31 @@ select credit_a_id,client_a_id,pharmacie_id,10000,0,true,admin_id from _naxa_cre
 union all select credit_b_id,client_b_id,pharmacie_id,10000,0,true,admin_id from _naxa_credit_debit_ids;
 
 insert into public.naxa_profile_privileges(profile_id,privilege_code,pharmacie_id,scope_type,granted_by,active)
-select promoteur_id,'ASSIGN_PRIVILEGE',pharmacie_id,'PHARMACIE',admin_id,true
-from _naxa_credit_debit_ids
+select x.promoteur_id,p.privilege_code,x.pharmacie_id,'PHARMACIE',x.admin_id,true
+from _naxa_credit_debit_ids x
+cross join (values('ASSIGN_PRIVILEGE'),('ASSIGN_USER_TO_PHARMACY')) p(privilege_code)
 on conflict(profile_id,privilege_code,pharmacie_id,scope_type)
 do update set active=true,revoked_at=null,granted_by=excluded.granted_by,granted_at=now();
 
--- L’affectation permanente couvre une pharmacie secondaire, et aucune autre.
-insert into public.naxa_professional_assignments(profile_id,pharmacie_id,fonction,statut,nature_affectation,motif,commence_at,expire_at,accorde_par)
-select responsable_id,pharmacie_id,'responsable','active','ordinaire','Couverture permanente pharmacie secondaire',now()-interval '1 hour',null,admin_id
-from _naxa_credit_debit_ids;
+-- L’affectation permanente est créée par le Promoteur via la vraie RPC.
+do $assignment$
+declare x record; v_assignment uuid;
+begin
+  select * into x from _naxa_credit_debit_ids;
+  perform set_config('request.jwt.claim.sub',x.promoteur_id::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',x.promoteur_id::text,'role','authenticated')::text,true);
+  if not public.naxa_has_privilege('ASSIGN_USER_TO_PHARMACY',x.pharmacie_id,'PHARMACIE') then
+    raise exception 'Le Promoteur ne dispose pas du privilège d’affectation'; end if;
+  v_assignment:=public.naxa_grant_professional_assignment(
+    x.responsable_id,x.pharmacie_id,'responsable',now()-interval '1 hour',null,
+    'Couverture permanente pharmacie secondaire'
+  );
+  if not exists(select 1 from public.naxa_professional_assignments
+    where id=v_assignment and nature_affectation='ordinaire' and expire_at is null
+      and statut='active') then
+    raise exception 'La RPC n’a pas créé une affectation ordinaire permanente'; end if;
+end;
+$assignment$;
 
 insert into public.client_credit_requests(id,credit_id,pharmacie_id,client_id,montant,statut,requested_by,origine,panier_items)
 select demande_a_id,credit_a_id,pharmacie_id,client_a_id,5000,'en_attente',client_a_id,'marketplace',
