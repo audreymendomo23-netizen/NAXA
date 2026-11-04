@@ -37,6 +37,10 @@ begin
     and not exists(select 1 from public.stocks_lots l where l.pharmacie_id=s.pharmacie_id and l.produit_id=s.produit_id)
   order by a.quantite desc limit 1;
   if v_produit is null then raise exception 'Fixture de stock non lotisé absente'; end if;
+  -- POS freezes the purchase cost on each sale line; provide a deterministic test cost.
+  insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
+  values(v_pharmacie,v_produit,50,'XAF')
+  on conflict(pharmacie_id,produit_id) do update set cout_unitaire=excluded.cout_unitaire,devise=excluded.devise;
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v_user::text,'role','authenticated')::text,true);
 
