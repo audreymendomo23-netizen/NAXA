@@ -25,7 +25,7 @@ export function supabaseServer(response?: NextResponse){
 }
 export function supabaseAdmin(){
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
   if (!supabaseUrl || !supabaseSecretKey) {
     throw new Error("Supabase Admin is not configured on the server.");
