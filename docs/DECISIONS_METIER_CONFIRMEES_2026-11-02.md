@@ -94,8 +94,9 @@ Ces sujets ne remettent pas en cause les décisions générales consignées ci-d
 ### DEC-01 — Expiration d'une affectation urgente vs affectation permanente
 
 - Réponse confirmée : affectation urgente attribuable directement et avec expiration automatique ; affectation ordinaire permanente jusqu'à révocation.
-- Sous-règle manquante : durée par défaut d'une affectation urgente (par exemple durée saisie à la création, avec maximum configurable).
-- Traitement : les affectations ordinaires peuvent avancer avec révocation explicite ; le sous-parcours urgent exige une durée serveur obligatoire, à faire préciser sans présumer une valeur.
+- Sous-règle non définie : aucune durée par défaut ni durée maximale n'a été fournie.
+- Traitement source versionné le 04/11 : l'affectation ordinaire est permanente (expire_at NULL) jusqu'à révocation ; l'affectation urgente exige une échéance explicite saisie à la création et contrôlée côté serveur. Aucun délai par défaut n'est inventé.
+- Preuve ciblée : test Replay transactionnel de la RPC d'affectation ordinaire et de l'accès pharmacie via cette affectation. Le parcours urgent n'a pas encore de scénario E2E dédié ; il reste à éprouver séparément.
 
 ### DEC-02 — Crédit au comptoir : « Promoteur uniquement » coché avec deux autres acteurs
 
@@ -159,10 +160,10 @@ Cette cartographie est une inspection source, pas une preuve de runtime ni de Pr
 
 ## 6. Ordre de correction après consignation
 
-1. Préserver le socle et corriger la contradiction du crédit Marketplace (débit physique à l'approbation, sans double débit ultérieur).
+1. Crédit Marketplace : correction source et test transactionnel Replay PASS le 04/11 ; reste le build/recette, l'application Production non autorisée et la mise en service ultérieure.
 2. Corriger le contrat de synchronisation hors ligne selon LWW horodaté, après conception et tests d'ordre/concurrence.
 3. Réconcilier le parcours de suspension complète avec les réservations non retirées, en séparant le remboursement des paiements déjà encaissés.
-4. Harmoniser les affectations ordinaires et urgentes ; la durée urgente reste à préciser.
+4. Éprouver le parcours d'affectation urgente et poursuivre la sélection d'une seule fonction active ; aucune durée par défaut urgente n'est inventée.
 5. Vérifier l'accès Caisse, les libellés Orange Money/Espèces, les plafonds et le périmètre de solde.
 6. Finaliser les tarifs mensuel/annuel et les rappels de lots avec leurs deux portées.
 7. Continuer les autres parcours et corrections indépendantes dans l'ordre du mandat de mise au vert.
@@ -172,3 +173,28 @@ Cette cartographie est une inspection source, pas une preuve de runtime ni de Pr
 Pour chaque correction, fournir : état initial, fichiers modifiés, commit SHA sur main, tests réellement exécutés, résultat, contrôles de sécurité, preuve de non-régression et mise à jour de FONCTIONNALITES_VALIDEES.md.
 
 Ne pas déclarer vert un changement uniquement parce qu'une migration ou un composant existe. Aucune branche, aucune PR, aucun déploiement et aucune écriture Supabase Production ne sont autorisés par cette consignation.
+
+
+## 8. Corrections indépendantes versionnées le 04/11/2026 — crédit Marketplace et affectations
+
+### Crédit Marketplace
+
+- La migration additive supabase/migrations/20261104140000_credit_marketplace_debit_approval_and_responsable.sql a été versionnée sur main.
+- À l'approbation, le stock agrégé et les lots FEFO sont débités dans la même transaction que l'approbation. La commande de préparation est persistante et n'expire pas automatiquement. Le retrait POS crée la vente et le registre de crédit sans seconde sortie de stock.
+- Une annulation avant retrait restitue les mêmes lots et le stock agrégé, une seule fois. Une réservation consommée n'est jamais restituée.
+- Le nouveau droit APPROVE_MARKETPLACE_CREDIT est délégable au Responsable uniquement pour PARENTS_AINES_CADETS et HYBRIDE. Le Promoteur valide doit le déléguer explicitement pour chaque pharmacie.
+- Un refus Responsable avant délégation a été testé : aucune réservation ni mouvement physique n'est créé.
+
+### RBAC des affectations
+
+- Le contrôle a révélé l'absence d'ASSIGN_USER_TO_PHARMACY dans la matrice d'architecture du Promoteur, malgré l'existence du privilège dans le catalogue. La migration ajoute ce droit au rôle Promoteur dans les quatre architectures standard.
+- Les affectations ordinaires acceptent une expiration NULL ; les affectations urgentes exigent une expiration explicite. Le formulaire, l'action serveur et les fonctions SQL sont alignés.
+- Les fonctions publiques naxa_scope_allows et can_access_pharmacy délèguent maintenant au moteur de périmètre canonique. La pharmacie principale du profil reste accessible ; une pharmacie secondaire requiert une affectation explicite ; une pharmacie non affectée est refusée.
+- Les pages Promoteur, Responsable, Gestionnaire de stock et le suivi Client ont été raccordés au nouveau contrat. L'écran Responsable liste sa pharmacie principale et les pharmacies supplémentaires actives qui lui sont affectées.
+
+### Preuve et limites
+
+- Test supabase/tests/20261104140000_credit_marketplace_approval_stock_debit.sql exécuté sur la base de rejeu naxa-ci-replay-2 : PASS. La migration et toutes les fixtures ont été exécutées dans une transaction unique annulée ; aucune écriture persistante n'a été conservée.
+- Le test couvre la vraie RPC d'affectation ordinaire, le refus sans privilège, la délégation réelle par le Promoteur, l'approbation sous identité Responsable, le débit FEFO, le retrait sans double débit et la restitution idempotente.
+- Aucune migration n'a été appliquée à Supabase Production. Aucun build/typecheck/lint, test navigateur ou CI globale n'a été exécuté. Aucun déploiement n'a été demandé ou déclenché.
+- La mise en production de ces contrats dépend d'une autorisation distincte. Le code versionné ne doit pas être présenté comme actif dans l'application Production.
