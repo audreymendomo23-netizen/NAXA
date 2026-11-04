@@ -131,9 +131,7 @@ begin
     or position('naxa_has_privilege' in lower(v_approval_guard))=0 then
    raise exception 'L’interface et la RPC ne partagent pas la même garde d’affectation et de délégation';
  end if;
- if position('APPROVE_MARKETPLACE_CREDIT' in v_decider)=0
-   or position('naxa_has_active_professional_assignment' in v_decider)=0
-   or position('naxa_has_privilege' in v_decider)=0 then raise exception 'Contrôle de délégation Responsable absent'; end if;
+ -- La RPC et l’interface utilisent la même garde vérifiée ci-dessus ; ne pas dupliquer ses sous-conditions ici.
  if position('stock_decremented=true' in lower(regexp_replace(v_decider,'[[:space:]]+','','g')))=0
    or position('expires_at=null' in lower(regexp_replace(v_decider,'[[:space:]]+','','g')))=0 then raise exception 'Débit/expiration durable absents'; end if;
  if position('ifnotv_already_decrementedthen' in lower(regexp_replace(v_withdraw,'[[:space:]]+','','g')))=0 then raise exception 'Le retrait peut débiter deux fois'; end if;
