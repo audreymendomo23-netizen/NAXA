@@ -51,22 +51,40 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
       setUnlocked(false);
       setError("Session locale verrouillée après 15 minutes d'inactivité. Déverrouillez à nouveau avec le PIN local.");
     };
-    const resetIdleTimer = () => {
-      if (!touchLocalDeviceActivity()) {
+    const scheduleRemainingIdleTime = () => {
+      const session = getUnlockedDevice();
+      if (!session) {
+        lock();
+        return;
+      }
+      const remaining = LOCAL_IDLE_LOCK_MS - (Date.now() - session.lastActivityAt);
+      if (remaining <= 0) {
         lock();
         return;
       }
       if (timer !== undefined) window.clearTimeout(timer);
-      timer = window.setTimeout(lock, LOCAL_IDLE_LOCK_MS);
+      timer = window.setTimeout(lock, remaining);
+    };
+    const onUserActivity = () => {
+      if (!touchLocalDeviceActivity()) {
+        lock();
+        return;
+      }
+      scheduleRemainingIdleTime();
+    };
+    const onVisibilityChange = () => {
+      // Returning from a suspended/background tab is not user activity.
+      // Re-evaluate the original timestamp instead of resetting the idle clock.
+      if (document.visibilityState === "visible") scheduleRemainingIdleTime();
     };
     const activityEvents = ["pointerdown", "keydown", "touchstart", "click", "input"];
-    activityEvents.forEach(event => window.addEventListener(event, resetIdleTimer, { passive: true }));
-    document.addEventListener("visibilitychange", resetIdleTimer);
-    resetIdleTimer();
+    activityEvents.forEach(event => window.addEventListener(event, onUserActivity, { passive: true }));
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    scheduleRemainingIdleTime();
     return () => {
       if (timer !== undefined) window.clearTimeout(timer);
-      activityEvents.forEach(event => window.removeEventListener(event, resetIdleTimer));
-      document.removeEventListener("visibilitychange", resetIdleTimer);
+      activityEvents.forEach(event => window.removeEventListener(event, onUserActivity));
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [unlocked, samePharmacy]);
 
