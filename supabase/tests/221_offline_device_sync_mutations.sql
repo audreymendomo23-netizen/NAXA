@@ -31,10 +31,10 @@ begin
       'mc03-' || replace(v_uid::text,'-','') || '@example.invalid',
       now(),now(),'{}'::jsonb,'{"naxa_signup_pending":"true"}'::jsonb);
 
-    insert into public.profiles(id,role,pharmacie_id,actif)
-    values(v_uid,'admin',v_stock.pharmacie_id,true)
+    insert into public.profiles(id,role,pharmacie_id,actif,fonction_interne)
+    values(v_uid,'caisse',v_stock.pharmacie_id,true,null)
     on conflict(id) do update
-      set role='admin',pharmacie_id=excluded.pharmacie_id,actif=true,fonction_interne=null;
+      set role='caisse',pharmacie_id=excluded.pharmacie_id,actif=true,fonction_interne=null;
 
     perform set_config('request.jwt.claim.sub',v_uid::text,true);
 
