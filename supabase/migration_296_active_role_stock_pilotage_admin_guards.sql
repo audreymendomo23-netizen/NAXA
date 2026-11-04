@@ -59,7 +59,7 @@ $new$;
  and public.naxa_scope_allows(auth.uid(),p_pharmacie,'PHARMACIE')
  and exists(select 1 from public.profiles p where p.id=auth.uid() and p.actif=true
   and (coalesce(p.role::text,'') in ('admin','promoteur')
-   or coalesce(p.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier'));$old$;
+   or coalesce(p.fonction_interne,'') in ('pharmacien','pharmacien_assistant','responsable','gestionnaire_stock','magasinier')));$old$;
   v_new:=$new$select auth.uid() is not null
  and public.naxa_scope_allows(auth.uid(),p_pharmacie,'PHARMACIE')
  and public.naxa_business_function(auth.uid()) in
