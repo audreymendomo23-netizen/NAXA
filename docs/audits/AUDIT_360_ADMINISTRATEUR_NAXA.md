@@ -3589,13 +3589,19 @@ Les décisions détaillées sont consignées dans [docs/DECISIONS_METIER_CONFIRM
 - `src/lib/admin/is-demo-pharmacy.ts` utilise un motif de nom ; la robustesse de cette détection pour tous les enregistrements de démonstration reste à vérifier.
 - Les compteurs agrègent des signaux (stocks sans horodatage, pharmacies inactives/masquées et échéances). Ils ne dédupliquent pas les dossiers, ce qui correspond à la décision du fondateur du 02/11.
 
-### Crédit Marketplace et synchronisation hors ligne — contradictions actuelles à corriger
+### Crédit Marketplace — état après correction du 04/11/2026
 
-- La migration `supabase/migration_251_credit_hold_no_physical_decrement.sql` formalise un hold Marketplace sans décrément physique ; le contrat de test `supabase/tests/247_credit_marketplace_stock_contract.sql` vérifie explicitement cette règle.
-- La nouvelle décision du 02/11 impose le décrément physique dès la validation du crédit. Le chemin d'approbation doit être adapté sans double débit à la préparation, la vente ou au retrait, et sans casser les réservations Marketplace ordinaires.
+- La contradiction historique du hold virtuel n'est plus présente dans le chemin d'approbation versionné : `supabase/migrations/20261104140000_credit_marketplace_debit_approval_and_responsable.sql` débite le stock agrégé et les lots FEFO dans la transaction de décision. La réservation de préparation est liée à la demande, persistante (`expires_at = NULL`) et marquée physiquement débitée.
+- `restore_stock` restitue une fois les quantités aux lots d'origine et au stock agrégé avant retrait ; la finalisation POS conserve les allocations et ne redébite pas une commande déjà débitée.
+- Le contrôle `private.naxa_actor_can_approve_marketplace_credit` et sa façade authentifiée `public.naxa_can_approve_marketplace_credit` sont créés par la migration standard elle-même. La page Responsable appelle la façade et la RPC de décision appelle le même helper privé. Le droit reste explicite par pharmacie, et réservé aux architectures PARENTS_AINES_CADETS/HYBRIDE pour le Responsable.
+- La migration a été rejouée sur `naxa-ci-replay-2` après suppression préalable des deux fonctions de contrôle héritées ; la migration les a recréées. Les tests transactionnels/structurels 20261104140000, 264, 247, 251, 256, 257 et 259 sont **7/7 PASS**, chacun exécuté dans une transaction annulée.
+- Cette correction n'active rien en Production : aucun changement Supabase Production, aucun déploiement et aucune recette navigateur. Build, typecheck, lint et CI globale non exécutés.
+
+### Synchronisation hors ligne — contradiction encore ouverte
+
 - La migration `supabase/migration_220_offline_device_sync_contract.sql` compare `stocks.updated_at` à `base_updated_at` et marque un conflit au lieu de choisir automatiquement le dernier horodatage.
-- La nouvelle règle LWW exige un contrat de chronologie persistant et fiable, commun aux modifications en ligne et hors ligne, plus un journal de la valeur perdante. Ne pas faire confiance naïvement à l'horloge du téléphone et ne pas écraser les mouvements append-only.
+- La règle LWW confirmée exige un contrat de chronologie persistant et fiable, commun aux modifications en ligne et hors ligne, plus un journal de la valeur perdante. Ne pas faire confiance naïvement à l'horloge du téléphone et ne pas écraser les mouvements append-only.
 
 ### Statut de vérification de cet addendum
 
-Lecture des sources versionnées de `main` uniquement. Aucun test SQL, build, test navigateur, appel RPC métier, changement Supabase Production ni déploiement n'a été effectué dans cette réconciliation documentaire.
+Le sous-parcours crédit Marketplace est testé en PostgreSQL isolé, non activé en Production et non validé en navigateur. Le chantier LWW hors ligne demeure ouvert ; il sera traité séparément. La vérification CI/build globale reste différée en fin de chantier.
