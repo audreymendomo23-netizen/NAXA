@@ -14,9 +14,10 @@ export async function POST(req:NextRequest){
   const internalFunction=String(profileRecord?.fonction_interne??"").trim();
   const authorizedRole=role==="caisse"||(role==="pharmacie"&&internalFunction.length>0);
   if(pe||!profileRecord||profileRecord[S.profileActiveColumn]!==true||!authorizedRole)return NextResponse.json({error:"Fonction professionnelle active requise."},{status:403});
+  const editScope=(role==="caisse"||internalFunction==="caisse")?"POSTE_CAISSE":"PHARMACIE";
   const [{data:canViewStock,error:viewPrivilegeError},{data:canEditStock,error:editPrivilegeError}]=await Promise.all([
     userClient.rpc("naxa_has_privilege",{p_privilege:"VIEW_STOCK",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"}),
-    userClient.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:"PHARMACIE"})
+    userClient.rpc("naxa_has_privilege",{p_privilege:"EDIT_STOCK_QUANTITY",p_pharmacie:pharmacyId,p_scope:editScope})
   ]);
   if(viewPrivilegeError||editPrivilegeError||canViewStock!==true||canEditStock!==true){
     return NextResponse.json({error:"Les privilèges Voir le stock et Modifier les quantités sont requis pour activer un poste hors ligne."},{status:403});
