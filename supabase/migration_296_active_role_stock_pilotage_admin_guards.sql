@@ -266,7 +266,12 @@ begin
       if position(v_old in v_sql)>0 then
         execute replace(v_sql,v_old,v_new);
       else
-        raise exception 'Garde admin incompatible avec le poste actif : %',v_name;
+        v_old:=$old$not exists(select 1 from public.profiles p where p.id=uid and p.role='admin')$old$;
+        if position(v_old in v_sql)>0 then
+          execute replace(v_sql,v_old,v_new);
+        else
+          raise exception 'Garde admin incompatible avec le poste actif : %',v_name;
+        end if;
       end if;
     end if;
   end loop;
