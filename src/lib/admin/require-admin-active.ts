@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 
-/**
- * Canonical server-side guard for NAXA administration pages and server actions.
- * A valid admin must have role=admin and actif=true; null is not treated as active.
- */
+/** Garde canonique de l'administration : le poste Admin doit être celui sélectionné. */
 export async function requireAdminActive(returnTo = "/admin") {
   const sb = supabaseServer();
   const { data: auth, error: authError } = await sb.auth.getUser();
@@ -12,13 +9,13 @@ export async function requireAdminActive(returnTo = "/admin") {
     redirect("/connexion?retour=" + encodeURIComponent(returnTo));
   }
 
-  const { data: profile, error: profileError } = await sb
-    .from("profiles")
-    .select("role,actif")
-    .eq("id", auth.user.id)
-    .maybeSingle();
+  const [{ data: profile, error: profileError }, { data: activeRole, error: activeRoleError }] = await Promise.all([
+    sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+  ]);
 
-  if (profileError || profile?.role !== "admin" || profile.actif !== true) {
+  if (profileError || activeRoleError || profile?.role !== "admin"
+    || profile.actif !== true || activeRole !== "admin") {
     redirect("/");
   }
 
