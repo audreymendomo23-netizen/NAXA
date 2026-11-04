@@ -1833,3 +1833,5 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Migration :** `supabase/migrations/20261104140000_credit_marketplace_debit_approval_and_responsable.sql` versionnée sur main. Elle n’a pas été appliquée à Supabase Production.
 - **Non exécuté :** build, lint, typecheck, test navigateur et CI globale. Aucun déploiement. La recette visuelle dans l’application et la mise en service Supabase Production restent à faire après autorisation explicite.
 - **Statut :** contrat SQL ciblé testé sur Replay ; source et interfaces versionnées ; pas encore actif dans l’application de Production.
+
+- **Contrôle structurel SQL Replay (04/11/2026) :** 10 assertions en lecture seule PASS pour RPC offline, droits EXECUTE, RLS journal de mouvements, colonnes de chronologie LWW, helper de gestion des lots et absence de policy lots générique. La migration 280 est présente dans l'historique Replay. Ceci confirme le schéma et les ACL, pas la compilation complète ni la recette navigateur.
