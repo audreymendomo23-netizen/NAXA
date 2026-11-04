@@ -208,13 +208,9 @@ begin
     $new$  if not public.is_admin() and not public.naxa_scope_allows(auth.uid(),v_demande.pharmacie_id,'PHARMACIE') then raise exception 'Demande hors périmètre'; end if;$new$);
 
   v_sql:=pg_get_functiondef('public.vente_remise_decider(uuid,boolean)'::regprocedure);
-  v_old:=$old$ if not public.is_admin() and not exists(select 1 from public.profiles p where p.id=auth.uid() and p.actif and p.role::text='promoteur' and p.niveau_interne=1) then
-   raise exception 'Décision réservée au Promoteur ou NAXA'; end if;$old$;
-  v_new:=$new$ if not public.is_admin()
-    and (public.naxa_business_function(auth.uid())<>'promoteur'
-      or not private.naxa_promoteur_valide(auth.uid())) then
-   raise exception 'Décision réservée au Promoteur valide ou à NAXA';
- end if;$new$;
+  v_old:=$old$p.role::text='promoteur' and p.niveau_interne=1$old$;
+  v_new:=$new$public.naxa_business_function(auth.uid())='promoteur'
+       and private.naxa_promoteur_valide(auth.uid())$new$;
   if position(v_old in v_sql)=0 then raise exception 'Garde Promoteur remise introuvable'; end if;
   v_sql:=replace(v_sql,v_old,v_new);
   execute replace(v_sql,
