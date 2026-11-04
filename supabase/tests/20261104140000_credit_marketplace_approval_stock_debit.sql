@@ -107,8 +107,22 @@ do $e2e$
 declare x record;v_res_a uuid;v_res_b uuid;v_sale uuid;v_num text;v_total integer;v_stock integer;v_qty_a integer;v_qty_b integer;v_allocated integer;v_req_status text;v_origin text;
 begin
  select * into x from _naxa_credit_debit_ids;
+
+  -- Le Promoteur délègue explicitement le nouveau privilège au Responsable affecté.
+  perform set_config('request.jwt.claim.sub',x.promoteur_id::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',x.promoteur_id::text,'role','authenticated')::text,true);
+  if not private.naxa_promoteur_valide(x.promoteur_id)
+     or not public.naxa_has_privilege('ASSIGN_PRIVILEGE',x.pharmacie_id,'PHARMACIE') then
+    raise exception 'Le Promoteur de test ou son droit de délégation n’est pas valide'; end if;
+  perform public.naxa_grant_privilege(
+    x.responsable_id,'APPROVE_MARKETPLACE_CREDIT',x.pharmacie_id,'PHARMACIE'
+  );
+
   perform set_config('request.jwt.claim.sub',x.responsable_id::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',x.responsable_id::text,'role','authenticated')::text,true);
+
+  if not public.naxa_has_privilege('APPROVE_MARKETPLACE_CREDIT',x.pharmacie_id,'PHARMACIE') then
+    raise exception 'Le privilège crédit Marketplace n’a pas été délégué au Responsable'; end if;
 
   if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
     or not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_principale_id,'responsable')
@@ -130,9 +144,6 @@ begin
       (select count(*) from public.naxa_professional_assignments where profile_id=x.responsable_id and pharmacie_id=x.pharmacie_id and statut='active');
   end if;
 
-  perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
-
   perform public.client_credit_demande_decider(x.demande_a_id,true);
   select reservation_id,statut,origine into v_res_a,v_req_status,v_origin from public.client_credit_requests where id=x.demande_a_id;
  select quantite into v_stock from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id;
@@ -142,6 +153,9 @@ begin
  if v_stock<>5 or v_qty_a<>0 or v_qty_b<>5 or v_allocated<>5 then raise exception 'Approbation A : status %, origine %, reservation %, stock %, lot A %, lot B %, allocation %',v_req_status,v_origin,v_res_a,v_stock,v_qty_a,v_qty_b,v_allocated; end if;
  if not exists(select 1 from public.reservations where id=v_res_a and stock_decremented and not stock_restored and expires_at is null and credit_request_id=x.demande_a_id and preparation_statut='non_commencee') then
    raise exception 'Approbation A : réservation durable ou lien crédit manquant'; end if;
+
+  perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
 
  select r.vente_id,r.numero_vente,r.total into v_sale,v_num,v_total
  from public.vente_reservation_credit_finaliser(v_res_a,x.session_id,'TEST-CREDIT-DEBIT-A') r;
@@ -154,12 +168,16 @@ begin
  if not exists(select 1 from public.reservations where id=v_res_a and consumed_at is not null)
    or not exists(select 1 from public.client_credit_requests where id=x.demande_a_id and consumed_at is not null) then raise exception 'Retrait A : consommation non enregistrée'; end if;
 
+ perform set_config('request.jwt.claim.sub',x.responsable_id::text,true);
+ perform set_config('request.jwt.claims',json_build_object('sub',x.responsable_id::text,'role','authenticated')::text,true);
  perform public.client_credit_demande_decider(x.demande_b_id,true);
  select reservation_id into v_res_b from public.client_credit_requests where id=x.demande_b_id;
  select quantite into v_stock from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id;
  select quantite into v_qty_a from public.stocks_lots where id=x.lot_a_id;
  select quantite into v_qty_b from public.stocks_lots where id=x.lot_b_id;
  if v_stock<>0 or v_qty_a<>0 or v_qty_b<>0 then raise exception 'Approbation B : débit incorrect'; end if;
+ perform set_config('request.jwt.claim.sub',x.admin_id::text,true);
+ perform set_config('request.jwt.claims',json_build_object('sub',x.admin_id::text,'role','authenticated')::text,true);
  perform private.set_reservation_status(v_res_b,'annulee'::public.resa_statut);
  perform public.restore_stock(v_res_b);
  select quantite into v_stock from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id;
