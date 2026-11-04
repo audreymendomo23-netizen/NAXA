@@ -105,7 +105,6 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
       setKnownDevice(true);
       setSamePharmacy(true);
       setUnlocked(true);
-      onUnlocked?.();
       setPin("");
       setConfirmPin("");
     } catch (cause) {
@@ -154,7 +153,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName, onUnlocked }: Prop
     <section className="carte my-4 space-y-3">
       <div>
         <h2 className="font-extrabold">Activer ce poste hors ligne</h2>
-        <p className="text-sm text-slate-600">L'activation enregistre un jeton d'appareil chiffré localement et initialise une référence de stock avec l'heure du serveur.</p>
+        <p className="text-sm text-slate-600">L'activation enregistre d'abord le jeton chiffré localement ; le premier échange serveur charge ensuite la référence de stock.</p>
       </div>
       <label className="block text-sm font-semibold">Nom du poste
         <input className="champ mt-1 w-full" maxLength={100} value={deviceName} onChange={(event) => setDeviceName(event.target.value)} />
