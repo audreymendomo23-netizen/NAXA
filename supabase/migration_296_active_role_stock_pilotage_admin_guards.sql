@@ -43,27 +43,14 @@ $new$;
   if position(v_old in v_sql)=0 then raise exception 'Périmètre pilotage Responsable introuvable'; end if;
   v_sql:=replace(v_sql,v_old,v_new);
 
-  v_old:=$old$    if not public.naxa_has_privilege('VIEW_CAISSE_PILOTAGE',
-                                      (select pharmacie_id from public.profiles where id=uid),
+  v_old:=$old$if not public.naxa_has_privilege('VIEW_CAISSE_PILOTAGE',
+                                      public.naxa_active_role_pharmacy(uid),
                                       'PHARMACIE') then$old$;
-  v_new:=$new$    if not public.naxa_has_privilege('VIEW_CAISSE_PILOTAGE',
+  v_new:=$new$if not public.naxa_has_privilege('VIEW_CAISSE_PILOTAGE',
                                       public.naxa_active_role_pharmacy(uid),
                                       'POSTE_CAISSE') then$new$;
   if position(v_old in v_sql)=0 then raise exception 'Contrôle pilotage Caisse introuvable'; end if;
   v_sql:=replace(v_sql,v_old,v_new);
-
-  v_old:=$old$    select coalesce(array_agg(p.pharmacie_id),'{}'::uuid[]) into v_pharmacies
-    from public.profiles p where p.id=uid and p.pharmacie_id is not null;$old$;
-  v_new:=$new$    if public.naxa_active_role_pharmacy(uid) is null then
-      raise exception 'Pharmacie du poste Caisse introuvable';
-    end if;
-    v_pharmacies:=array[public.naxa_active_role_pharmacy(uid)];$new$;
-  -- The first occurrence was replaced for Responsable; target the remaining Caisse branch.
-  if position(v_old in v_sql)>0 then
-    v_sql:=replace(v_sql,v_old,v_new);
-  else
-    raise exception 'Périmètre pilotage Caisse introuvable';
-  end if;
   execute v_sql;
 
   -- Helper commun du gestionnaire Stock : seuls les rôles sélectionnés comptent.
