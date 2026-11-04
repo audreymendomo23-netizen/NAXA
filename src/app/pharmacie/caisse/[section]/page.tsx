@@ -203,7 +203,7 @@ export default function CaisseParcoursPage() {
         if (alive) { setError("La pharmacie est inactive ou non publiée ; accès aux opérations refusé."); setLoading(false); } return;
       }
       if (!alive) return;
-      setUid(auth.user.id); setAccount({ ...p, active_role: activeRole, pharmacie_id: activePharmacyId } as Account); setPharmacyName(pharmacy.nom ?? "Pharmacie");
+      setUid(auth.user.id); setAccount({ ...p, active_role: activeRole, pharmacie_id: activePharmacyId } as Account); setPharmacyId(pharmacy.id); setPharmacyName(pharmacy.nom ?? "Pharmacie");
       await loadSection(pharmacy.id, auth.user.id);
       if (alive) setLoading(false);
     })().catch(() => { if (alive) { setError("Erreur inattendue lors du chargement. Réessayez."); setLoading(false); } });
