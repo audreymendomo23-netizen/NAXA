@@ -340,7 +340,7 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
     }
     output.push({ id: row.id, type: row.type, payload, createdAt: row.createdAt,
       modifiedAt: row.modifiedAt, deviceSequence: row.deviceSequence, attempts: row.attempts,
-      status: row.status === "failed" ? "retry" : row.status as "pending" | "retry" });
+      status: (row.status as string) === "failed" ? "retry" : row.status as "pending" | "retry" });
   }
   return output.sort((a, b) => a.modifiedAt - b.modifiedAt || a.deviceSequence - b.deviceSequence || a.id.localeCompare(b.id));
 }
