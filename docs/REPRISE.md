@@ -1,5 +1,7 @@
 # NAXA — Reprise opérationnelle consolidée
 
+> **Archive historique du 09/10/2026 :** les états de branche, de Production et de CI décrits ci-dessous sont une photographie ancienne. Pour toute reprise actuelle, appliquer `AGENTS.md` sur `main` et consulter `docs/CONTINUITE_IA_NAXA.md`, `STATUT.md` et `FONCTIONNALITES_VALIDEES.md`. Les anciennes consignes interdisant toute modification de `main` ou imposant des branches/PR sont remplacées par `AGENTS.md`.
+
 Dernière mise à jour : 9 octobre 2026.
 
 ## Source de vérité et garde-fous
