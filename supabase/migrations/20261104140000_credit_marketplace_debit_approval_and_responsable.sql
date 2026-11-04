@@ -16,7 +16,15 @@ alter table public.reservations
   add column if not exists stock_decremented boolean not null default true,
   add column if not exists stock_restored boolean not null default false,
   add column if not exists consumed_by_vente_id uuid,
-  add column if not exists consumed_at timestamptz;
+  add column if not exists consumed_at timestamptz,
+  add column if not exists preparation_statut text,
+  add column if not exists preparation_demarre_le timestamptz,
+  add column if not exists prete_au_retrait_le timestamptz;
+
+alter table public.reservations alter column preparation_statut set default 'non_commencee';
+alter table public.reservations drop constraint if exists reservations_preparation_statut_check;
+alter table public.reservations add constraint reservations_preparation_statut_check
+  check (preparation_statut in ('non_commencee','en_preparation','prete_au_retrait','annulee'));
 
 -- Une commande de crédit approuvée ne doit pas expirer comme un simple hold de réservation.
 alter table public.reservations alter column expires_at drop not null;
