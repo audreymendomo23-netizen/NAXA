@@ -29,7 +29,9 @@ function reasonOf(detail: unknown) {
       : "Résultat serveur à examiner";
 }
 
-export function EtatHorsLigne() {
+type Props = { onReferenceUpdated?: () => void };
+
+export function EtatHorsLigne({ onReferenceUpdated }: Props) {
   const [online, setOnline] = useState(true);
   const [count, setCount] = useState(0);
   const [terminals, setTerminals] = useState<TerminalItem[]>([]);
@@ -84,6 +86,7 @@ export function EtatHorsLigne() {
         const data = await ping.json() as Record<string, unknown>;
         await acceptServerClock(data);
         await mergeReference(data.reference);
+        onReferenceUpdated?.();
       }
 
       for (const operation of operations) {
@@ -142,7 +145,7 @@ export function EtatHorsLigne() {
       allOk = false;
       await refresh();
     }
-  }, [acceptServerClock, mergeReference, refresh]);
+  }, [acceptServerClock, mergeReference, onReferenceUpdated, refresh]);
 
   useEffect(() => {
     void refresh();
