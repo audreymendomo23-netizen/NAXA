@@ -25,16 +25,16 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
  const sb=supabaseServer();
  const {data:auth}=await sb.auth.getUser();
  if(!auth.user) redirect("/connexion?retour="+encodeURIComponent(hrefs[section]));
- const {data:profile,error:profileError}=await sb.from("profiles").select("role,fonction_interne,actif,first_name,last_name").eq("id",auth.user.id).maybeSingle();
+ const {data:profile,error:profileError}=await sb.from("profiles").select("role,fonction_interne,pharmacie_id,actif,first_name,last_name").eq("id",auth.user.id).maybeSingle();
  if(profileError||!profile||profile.actif===false) redirect("/");
  const role=String(profile.role??"").toLowerCase(), fonction=String(profile.fonction_interne??"").toLowerCase();
  const {data:assignmentRows,error:assignmentError}=await sb.from("naxa_professional_assignments").select("pharmacie_id,fonction,commence_at,expire_at").eq("profile_id",auth.user.id).eq("statut","active").in("fonction",["gestionnaire_stock","magasinier"]);
  const now=Date.now();
- const assignedIds=(assignmentRows??[]).filter(a=>new Date(a.commence_at).getTime()<=now&&new Date(a.expire_at).getTime()>now).map(a=>a.pharmacie_id);
+ const assignedIds=(assignmentRows??[]).filter(a=>new Date(a.commence_at).getTime()<=now&&(a.expire_at===null||new Date(a.expire_at).getTime()>now)).map(a=>a.pharmacie_id);
  const hasStockAssignment=assignedIds.length>0;
  if(!(role==="admin"||role==="promoteur"||["pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fonction)||hasStockAssignment)) redirect("/");
  const {data:pharmacies,error:pharmacyError}=await sb.rpc("my_pharmacies");
- const ids=[...new Set([...(Array.isArray(pharmacies)?pharmacies:[]).filter((id):id is string=>typeof id==="string"),...assignedIds])];
+ const ids=[...new Set([...(Array.isArray(pharmacies)?pharmacies:[]).filter((id):id is string=>typeof id==="string"),...(profile.pharmacie_id?[profile.pharmacie_id]:[]),...assignedIds])];
  const {data:pharmacyRowsRaw}=ids.length?await sb.from("pharmacies").select("id,nom").in("id",ids):{data:[] as {id:string;nom:string}[]};
  const pharmacyRows = (Array.isArray(pharmacyRowsRaw) ? pharmacyRowsRaw : []).flatMap((entry: unknown): {id:string;nom:string}[] => {
   if (Array.isArray(entry)) return entry.filter((row: unknown): row is {id:string;nom:string} => typeof row === "object" && row !== null && "id" in row && "nom" in row && typeof row.id === "string" && typeof row.nom === "string");
