@@ -91,7 +91,9 @@ begin
   if not public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable')
     or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE')
     or not private.naxa_scope_allows(x.responsable_id,x.pharmacie_principale_id,'PHARMACIE')
-    or private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE') then
+    or private.naxa_scope_allows(x.responsable_id,x.pharmacie_hors_id,'PHARMACIE')
+    or not public.can_access_pharmacy(x.pharmacie_id)
+    or public.can_access_pharmacy(x.pharmacie_hors_id) then
     raise exception 'Affectation : helper %, scope assigned %, scope home %, scope other %, uid %, fn %, active profile %, assignment rows %',
       public.naxa_has_active_professional_assignment(x.responsable_id,x.pharmacie_id,'responsable'),
       private.naxa_scope_allows(x.responsable_id,x.pharmacie_id,'PHARMACIE'),
