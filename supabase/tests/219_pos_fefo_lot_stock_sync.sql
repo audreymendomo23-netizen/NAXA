@@ -19,7 +19,16 @@ declare
   v_lots_total integer;
 begin
   select id into v_user from public.profiles where role::text='admin' and actif=true order by created_at limit 1;
-  if v_user is null then raise exception 'Fixture admin active absente'; end if;
+  if v_user is null then
+    v_user:=gen_random_uuid();
+    set local session_replication_role=replica;
+    insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at,raw_app_meta_data,raw_user_meta_data)
+    values(v_user,'authenticated','authenticated',
+      'naxa219a_'||substr(replace(v_user::text,'-',''),1,12)||'@invalid.local','',now(),now(),'{}'::jsonb,'{}'::jsonb);
+    set local session_replication_role=origin;
+    insert into public.profiles(id,role,username,actif)
+    values(v_user,'admin','naxa219a_'||substr(replace(v_user::text,'-',''),1,12),true);
+  end if;
   select s.pharmacie_id,s.produit_id,s.quantite into v_pharmacie,v_produit,v_stock_before
   from public.stocks s
   join public.pharmacies ph on ph.id=s.pharmacie_id and ph.actif and ph.visible_recherche
