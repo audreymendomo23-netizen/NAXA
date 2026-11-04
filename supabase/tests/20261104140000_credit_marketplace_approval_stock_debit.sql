@@ -28,6 +28,19 @@ select pharmacie_id,'NAXA test crédit débit','Yaoundé',3.87,11.52,true,true f
 union all select pharmacie_principale_id,'NAXA test pharmacie principale','Yaoundé',3.88,11.53,true,true from _naxa_credit_debit_ids
 union all select pharmacie_hors_id,'NAXA test pharmacie hors périmètre','Yaoundé',3.89,11.54,true,true from _naxa_credit_debit_ids;
 
+
+
+insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
+select admin_id,'admin'::public.role_type,'NAXA','Admin test',true,true,now(),1,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
+insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
+select client_a_id,'client'::public.role_type,'NAXA','Client A',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
+insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
+select client_b_id,'client'::public.role_type,'NAXA','Client B',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
+insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
+select promoteur_id,'promoteur'::public.role_type,'NAXA','Promoteur test',true,true,now(),1,'promoteur',null::uuid,null::uuid from _naxa_credit_debit_ids;
+insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
+select responsable_id,'pharmacie'::public.role_type,'NAXA','Responsable test',true,true,now(),2,'responsable',pharmacie_principale_id,promoteur_id from _naxa_credit_debit_ids;
+
 insert into public.conventions_promoteurs(promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
 select promoteur_id,1000,current_date+30,'active','PARENTS_AINES_CADETS' from _naxa_credit_debit_ids;
 insert into public.abonnements_promoteurs(promoteur_id,convention_id,montant_mensuel,debut,echeance,statut)
@@ -40,17 +53,6 @@ union all select promoteur_id,pharmacie_principale_id,true from _naxa_credit_deb
 insert into public.pharmacie_architectures(pharmacie_id,architecture_code,assigned_by,active,max_responsables)
 select pharmacie_id,'PARENTS_AINES_CADETS',promoteur_id,true,5 from _naxa_credit_debit_ids
 union all select pharmacie_principale_id,'PARENTS_AINES_CADETS',promoteur_id,true,5 from _naxa_credit_debit_ids;
-
-insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select admin_id,'admin'::public.role_type,'NAXA','Admin test',true,true,now(),1,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
-insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select client_a_id,'client'::public.role_type,'NAXA','Client A',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
-insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select client_b_id,'client'::public.role_type,'NAXA','Client B',true,true,now(),4,null::text,null::uuid,null::uuid from _naxa_credit_debit_ids;
-insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select promoteur_id,'promoteur'::public.role_type,'NAXA','Promoteur test',true,true,now(),1,'promoteur',null::uuid,null::uuid from _naxa_credit_debit_ids;
-insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne,fonction_interne,pharmacie_id,parent_profile_id)
-select responsable_id,'pharmacie'::public.role_type,'NAXA','Responsable test',true,true,now(),2,'responsable',pharmacie_principale_id,promoteur_id from _naxa_credit_debit_ids;
 insert into public.produits(id,nom) select produit_id,'Produit test crédit débit' from _naxa_credit_debit_ids;
 insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption)
 select pharmacie_id,produit_id,1000,10,current_date+90 from _naxa_credit_debit_ids;
