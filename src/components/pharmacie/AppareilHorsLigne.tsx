@@ -24,7 +24,19 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
   const [confirmPin, setConfirmPin] = useState("");
   const [deviceName, setDeviceName] = useState("Poste pharmacie");
   const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const updateOnline = () => setOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,7 +167,7 @@ export function AppareilHorsLigne({ pharmacyId, pharmacyName }: Props) {
         </label>
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      <button type="button" className="btn btn-vert" disabled={busy || !navigator.onLine} onClick={() => void activate()}>
+      <button type="button" className="btn btn-vert" disabled={busy || !online} onClick={() => void activate()}>
         {busy ? "Activation et synchronisation…" : "Activer ce poste"}
       </button>
     </section>
