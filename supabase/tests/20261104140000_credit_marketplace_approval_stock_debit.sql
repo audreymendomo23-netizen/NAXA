@@ -116,6 +116,22 @@ declare x record;v_res_a uuid;v_res_b uuid;v_sale uuid;v_num text;v_total intege
 begin
  select * into x from _naxa_credit_debit_ids;
 
+  -- Avant délégation, le Responsable doit être refusé sans aucun mouvement de stock.
+  perform set_config('request.jwt.claim.sub',x.responsable_id::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',x.responsable_id::text,'role','authenticated')::text,true);
+  begin
+    perform public.client_credit_demande_decider(x.demande_a_id,true);
+    raise exception 'Le Responsable sans privilège a pu approuver un crédit';
+  exception when others then
+    if sqlerrm not like '%Responsable non affecté ou privilège d’approbation absent%' then
+      raise;
+    end if;
+  end;
+  if (select quantite from public.stocks where pharmacie_id=x.pharmacie_id and produit_id=x.produit_id)<>10
+     or (select count(*) from public.reservations where credit_request_id=x.demande_a_id)>0 then
+    raise exception 'Une tentative non autorisée a modifié le stock ou créé une réservation';
+  end if;
+
   -- Le Promoteur délègue explicitement le nouveau privilège au Responsable affecté.
   perform set_config('request.jwt.claim.sub',x.promoteur_id::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',x.promoteur_id::text,'role','authenticated')::text,true);
