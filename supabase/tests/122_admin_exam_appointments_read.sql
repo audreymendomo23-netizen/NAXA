@@ -52,17 +52,26 @@ begin
     into private_admin_def;
   if private_admin_def not ilike '%security definer%'
      or private_admin_def not ilike '%set search_path to %'
-     or private_admin_def not ilike '%public.naxa_business_function(auth.uid())=''admin''%' then
-    raise exception 'Le garde privé doit déléguer au routeur de poste actif Admin, avec search_path épinglé';
+     or private_admin_def not ilike '%private.naxa_business_function(auth.uid())=''admin''%' then
+    raise exception 'Le garde privé doit déléguer au routeur privé de poste actif Admin, avec search_path épinglé';
   end if;
 
   select pg_get_functiondef('public.naxa_business_function(uuid)'::regprocedure)
     into business_function_def;
-  if business_function_def not ilike '%ar.role_code=''admin''%'
+  if business_function_def not ilike '%p_profile=(select auth.uid())%'
+     or business_function_def not ilike '%private.naxa_business_function(p_profile)%' then
+    raise exception 'La façade publique du routeur doit être liée au profil authentifié courant';
+  end if;
+
+  select pg_get_functiondef('private.naxa_business_function(uuid)'::regprocedure)
+    into business_function_def;
+  if business_function_def not ilike '%security definer%'
+     or business_function_def not ilike '%set search_path to %'
+     or business_function_def not ilike '%ar.role_code=''admin''%'
      or business_function_def not ilike '%p.role::text=''admin''%'
-     or business_function_def not ilike '%p.actif=true%'
-     or business_function_def not ilike '%pharmacie_id is null%' then
-    raise exception 'Le routeur doit exiger le rôle Admin, le profil actif et l’espace Admin global';
+     or business_function_def not ilike '%p.actif is true%'
+     or business_function_def not ilike '%ar.pharmacie_id is null%' then
+    raise exception 'Le routeur privé doit exiger le rôle Admin, le profil actif et l’espace Admin global';
   end if;
 end;
 $test$;
