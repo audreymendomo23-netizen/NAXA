@@ -1,5 +1,7 @@
 -- F07 / 284 — Replay-only end-to-end test for deferred cash POS sales.
--- Uses the seeded demo pharmacy/product below. A temporary synthetic stocks_couts row
+-- Uses the seeded demo pharmacy/product below. Each transaction temporarily changes
+-- est_demo to false so the Marketplace sellable-stock helper models a real published
+-- pharmacy; the final ROLLBACK restores the demo fixture. A synthetic stocks_couts row
 -- satisfies the mandatory POS cost snapshot. Both scenarios are wrapped in ROLLBACK:
 -- no Auth user, profile, register, session, device, sale, payment, stock or cost persists.
 -- Do NOT run this fixture against Production.
@@ -38,6 +40,9 @@ begin
   if not exists(select 1 from public.pharmacies where id=v_pharmacy and actif and visible_recherche and est_demo) then
     raise exception 'F07_284_FAIL: Replay demo pharmacy fixture unavailable';
   end if;
+
+  -- Simulate a genuine, public-listed pharmacy only inside this transaction.
+  update public.pharmacies set est_demo=false where id=v_pharmacy;
   select prix,quantite into v_price,v_stock_before
   from public.stocks where pharmacie_id=v_pharmacy and produit_id=v_product
     and (date_peremption is null or date_peremption>=current_date)
@@ -177,6 +182,9 @@ begin
   if not exists(select 1 from public.pharmacies where id=p and actif and visible_recherche and est_demo) then
     raise exception 'F07_284_FAIL: Replay demo pharmacy fixture unavailable for closure';
   end if;
+
+  -- Simulate a genuine, public-listed pharmacy only inside this transaction.
+  update public.pharmacies set est_demo=false where id=p;
   select prix,quantite into price,before_qty from public.stocks
   where pharmacie_id=p and produit_id=product and (date_peremption is null or date_peremption>=current_date)
   for update;
