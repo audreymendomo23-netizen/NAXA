@@ -41,25 +41,34 @@ Le même projet Google Apps Script et le même endpoint peuvent aussi délivrer 
 
 **Important :** après modification du fichier Apps Script source, le propriétaire doit mettre à jour le projet Apps Script existant et publier une nouvelle version du déploiement Web App. Le simple commit GitHub ne met pas à jour le code Google déjà déployé. Effectuer ensuite un test de bienvenue et un test de notification sur une adresse de recette.
 
-### Déclencheur Google pour vider la file Promoteur
+### Ordonnanceurs e-mail et Web Push
 
-Le script canonique contient aussi `processNaxaNotificationQueue` et `installNaxaNotificationTrigger`. Pour activer l'appel périodique du worker depuis le compte Google propriétaire :
+Les deux canaux sont volontairement séparés afin qu'une panne du fournisseur e-mail ne bloque pas les rappels Push.
 
-1. Dans les Script Properties du même projet, ajouter `NAXA_WORKER_URL` avec l'URL HTTPS de Production suivie de `/api/cron/validite`.
-2. Ajouter `NAXA_CRON_SECRET` avec la valeur de la variable Vercel Production `CRON_SECRET`. Ne jamais confondre ce secret avec `NAXA_WELCOME_SECRET`.
-3. Ajouter `NAXA_VERCEL_BYPASS_SECRET` avec la valeur du secret de contournement Vercel du projet `naxa` (Protection Bypass for Automation). Le worker transmet ce secret dans l'en-tête `x-vercel-protection-bypass`; il ne remplace jamais `CRON_SECRET`.
-4. Mettre à jour le manifeste avec les scopes de `scripts/google-welcome-email.appsscript.json` (envoi mail, requêtes externes, gestion des déclencheurs).
-5. Enregistrer le projet et autoriser les nouveaux scopes.
-6. Exécuter manuellement `installNaxaNotificationTrigger` une seule fois. Il remplace les anciens déclencheurs du même handler et crée une exécution toutes les 5 minutes.
-7. Vérifier dans **Déclencheurs** Apps Script que le déclencheur est actif, puis contrôler les journaux d'exécution et l'outbox.
+#### E-mail (Apps Script)
 
-Le handler `processNaxaNotificationQueue` appelle désormais, à chaque cycle, les deux endpoints Production :
-- `/api/cron/validite` pour synchroniser les validités et délivrer l'outbox e-mail ;
-- `/api/cron/posologie` pour exécuter les rappels de posologie et envoyer les notifications Web Push.
+Le script canonique contient `processNaxaNotificationQueue` et `installNaxaNotificationTrigger`. Le déclencheur Google appelle uniquement le worker e-mail `/api/cron/validite`, qui synchronise les validités puis vide l'outbox idempotente.
 
-Les deux appels transmettent séparément `CRON_SECRET` et `NAXA_VERCEL_BYPASS_SECRET`. Les redirections sont désactivées et chaque réponse doit être un JSON conforme ; une page SSO HTML ou une réponse HTTP non-2xx remonte comme un échec au lieu d'un faux succès. `NAXA_WORKER_URL` doit pointer vers le domaine Production stable `https://nnaxa.vercel.app/api/cron/validite`, jamais vers un alias Preview `naxa-git-main-...`.
+1. Dans les Script Properties du projet, définir `NAXA_WORKER_URL=https://nnaxa.vercel.app/api/cron/validite`.
+2. Définir `NAXA_CRON_SECRET` avec la valeur Vercel Production de `CRON_SECRET`. Ne jamais confondre ce secret avec `NAXA_WELCOME_SECRET`.
+3. Définir `NAXA_VERCEL_BYPASS_SECRET` avec le secret Protection Bypass for Automation si l'alias appelé le requiert. Le code envoie cet en-tête séparément de `Authorization: Bearer CRON_SECRET`.
+4. Vérifier le manifeste `scripts/google-welcome-email.appsscript.json`, enregistrer le projet et autoriser les scopes.
+5. Exécuter `installNaxaNotificationTrigger` une seule fois. Il remplace les anciens déclencheurs du handler et planifie un cycle toutes les cinq minutes.
+6. Contrôler les exécutions Apps Script, les réponses JSON du worker et l'outbox `private.notification_email_outbox`.
 
-Pour arrêter le traitement automatique, exécuter `removeNaxaNotificationTrigger`. Le déclencheur Google n'est pas installé par le code GitHub : cette activation et la publication de la nouvelle version Apps Script nécessitent l'autorisation du propriétaire du compte Google. Après publication, retirer l'ancien job PostgreSQL `naxa-posology-web-push-every-five-minutes` au moyen de la migration de retrait versionnée ; ce job appelait une Preview protégée par SSO et ne doit plus être considéré comme un dispatcher Push valide.
+Le handler impose le domaine stable Production `nnaxa.vercel.app`, désactive les redirections et échoue si la réponse HTTP ou le contrat JSON n'est pas conforme. Une page SSO HTML ne compte jamais comme un succès. Pour arrêter l'ordonnancement, exécuter `removeNaxaNotificationTrigger`.
 
+#### Web Push (Supabase pg_cron)
 
-**Contrôle de cohérence obligatoire avant activation :** vérifier que les trois propriétés NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET sont présentes dans Apps Script, et que CRON_SECRET, GOOGLE_APPS_SCRIPT_URL et GOOGLE_APPS_SCRIPT_SECRET sont présentes dans Vercel Production. Les valeurs ne doivent jamais être copiées dans un rapport. Une variable simplement présente ne prouve ni l'installation du déclencheur ni la réception d'un e-mail.
+Le Web Push n'est pas appelé par Apps Script. Il est déclenché par le job PostgreSQL `naxa-posology-web-push-every-five-minutes` toutes les cinq minutes vers `https://nnaxa.vercel.app/api/cron/posologie`.
+
+- Le jeton dédié est stocké dans Supabase Vault sous le nom `naxa_posology_cron_secret`. Sa valeur ne doit jamais être recopiée dans un rapport ou une variable cliente.
+- Le worker vérifie le jeton côté serveur ; la fonction `naxa_verify_posology_cron_secret(text)` ne renvoie qu'un booléen et son exécution est réservée à `service_role`.
+- Le job appelle le domaine Production stable, pas l'alias Preview `naxa-git-main-...`. Les réponses HTTP/JSON sont contrôlées ; un sous-traitement en échec doit produire un statut HTTP non-2xx.
+- La migration canonique `20261105144009_posology_cron_secret_verification_and_prod_dispatch.sql` porte la vérification du secret et le ciblage Production. Elle a été exécutée et testée sur Replay ; son application Production relève d'une autorisation distincte.
+- La fondation Favoris et rappels est désormais versionnée dans `supabase/migrations/20261105145307_naxa_favoris_reminders_schema_alignment.sql`. Le fichier historique `supabase/migration_238_favoris_sync_achat_reminders.sql` se trouvait hors du répertoire canonique de migrations et n'avait pas créé les tables attendues en Production. La migration canonique a été appliquée et vérifiée sur Replay ; la Production contrôlée n'a pas encore ces trois tables.
+
+**Certification :** un job `pg_cron` marqué `succeeded` ne prouve que la soumission SQL. Vérifier la réponse dans `net._http_response` (code HTTP, type et corps JSON), puis vérifier `checked`, `due`, `sent` et `failed`. La clé publique VAPID HTTP 200 ne prouve pas qu'un appareil a reçu une notification : un abonnement Push réel et un rappel arrivé à échéance sont nécessaires.
+
+**Contrôle d'e-mail :** `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` et `SMTP_FROM` dans Vercel ne configurent pas Supabase Auth. L'OTP utilise le SMTP configuré dans **Supabase Authentication**. Une demande `signInWithOtp` acceptée ne prouve pas la réception ; il faut envoyer un code à une boîte de recette, le recevoir et le valider. Le courrier de bienvenue suit un parcours distinct via Google Apps Script, et doit être vérifié séparément.
+
