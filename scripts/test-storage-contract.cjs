@@ -48,7 +48,7 @@ test("les dépôts métier directs et les compensations restent branchés", () =
   assert.match(creditForm, /storage\.[\s\S]*remove\(\[uploadedPath\]\)/);
   assert.match(logoRoute, /p\.role==="promoteur"/);
   assert.match(logoRoute, /promoteur_pharmacies/);
-  assert.match(logoRoute, /ph\\.actif!==true/);
+  assert.match(logoRoute, /ph\.actif!==true/);
 });
 
 test("le harnais binaire est limité au Replay, envoie des octets et nettoie les comptes/fichiers", () => {
