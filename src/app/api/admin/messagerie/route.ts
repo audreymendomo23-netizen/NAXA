@@ -8,10 +8,13 @@ async function activeAdmin() {
     return { ok: false as const, response: NextResponse.json({ error: "Connexion requise." }, { status: 401 }) };
   }
 
-  const { data: profile, error: profileError } = await sb.from("profiles")
-    .select("role,actif").eq("id", auth.user.id).maybeSingle();
-  if (profileError || profile?.role !== "admin" || profile.actif !== true) {
-    return { ok: false as const, response: NextResponse.json({ error: "Accès administrateur requis." }, { status: 403 }) };
+  const [{ data: profile, error: profileError }, { data: activeRole, error: activeRoleError }] = await Promise.all([
+    sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+  ]);
+  if (profileError || activeRoleError || profile?.role !== "admin"
+    || profile.actif !== true || activeRole !== "admin") {
+    return { ok: false as const, response: NextResponse.json({ error: "Accès réservé à l’espace administrateur actif." }, { status: 403 }) };
   }
 
   return { ok: true as const, user: auth.user };
