@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import webpush from "web-push";
 
 export const runtime = "nodejs";
@@ -37,12 +37,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const publicKey = process.env.NAXA_VAPID_PUBLIC_KEY;
   const privateKey = process.env.NAXA_VAPID_PRIVATE_KEY;
-  if (!url || !serviceKey || !publicKey || !privateKey) {
-    return NextResponse.json({ error: "Configuration serveur incomplète" }, { status: 503 });
+  if (!publicKey || !privateKey) {
+    return NextResponse.json({ error: "Configuration Push serveur incomplète" }, { status: 503 });
+  }
+
+  let db: ReturnType<typeof supabaseAdmin>;
+  try {
+    // Respecte la clé serveur propre à l'environnement :
+    // SUPABASE_SECRET_KEY sur Preview/Development, clé historique Production uniquement en Production.
+    db = supabaseAdmin();
+  } catch {
+    return NextResponse.json({ error: "Accès Supabase serveur indisponible" }, { status: 503 });
   }
 
   webpush.setVapidDetails(
@@ -50,10 +57,6 @@ export async function GET(request: Request) {
     publicKey,
     privateKey,
   );
-
-  const db = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
   const { data, error } = await db
     .from("naxa_posologie_schedules")
     .select("id,user_id,heures,timezone,last_notified_key")
