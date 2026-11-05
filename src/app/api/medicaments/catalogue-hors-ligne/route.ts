@@ -11,10 +11,6 @@ type ProduitCatalogue = {
   forme: string | null;
   synonymes: string[] | null;
   photo_url: string | null;
-  photo_path: string | null;
-  photo_source_url: string | null;
-  photo_licence: string | null;
-  photo_verifiee_le: string | null;
   description: string | null;
   indications: string | null;
   source_fiche: string | null;
@@ -26,7 +22,7 @@ export async function GET() {
     const sb = supabaseServer();
     const { data, error } = await sb
       .from("produits")
-      .select("id,nom,dci,forme,synonymes,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,source_fiche,fiche_validee")
+      .select("id,nom,dci,forme,synonymes,photo_url,description,indications,source_fiche,fiche_validee")
       .eq("fiche_validee", true)
       .order("nom", { ascending: true })
       .limit(500);
@@ -39,10 +35,9 @@ export async function GET() {
     }
 
     const results = ((data ?? []) as ProduitCatalogue[]).map((product) => {
-      const verifiedPhoto = Boolean(product.photo_path && product.photo_licence && product.photo_verifiee_le);
-      const imageUrl = verifiedPhoto && product.photo_path
-        ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
-        : null;
+      // Aucun chemin, licence ni date de vérification photo n'existe encore
+      // dans public.produits : ne jamais afficher photo_url sans ces preuves.
+      const imageUrl = null;
       const validated = product.fiche_validee === true;
       return {
         id: product.id,
@@ -53,9 +48,9 @@ export async function GET() {
         definition: validated ? product.description : null,
         indications: validated ? product.indications : null,
         imageUrl,
-        imageSource: imageUrl ? "Photo hébergée par NAXA — provenance enregistrée" : null,
-        imageSourceUrl: imageUrl ? product.photo_source_url : null,
-        imageLicense: imageUrl ? product.photo_licence : null,
+        imageSource: product.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
+        imageSourceUrl: null,
+        imageLicense: null,
         imageAttribution: null,
         imageTitle: null,
         source: ["Catalogue NAXA"],
