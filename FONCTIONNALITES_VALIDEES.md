@@ -1933,7 +1933,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 ### Protection des mots de passe compromis
 - **Plan NAXA :** l'organisation Supabase est toujours sur Free. L'advisory Auth confirme que la protection native contre les mots de passe compromis est désactivée sur Production et Replay. La documentation Supabase la réserve au plan Pro ou supérieur.
 - **Mesure compensatoire versionnée sur main :** contrôleur HIBP Pwned Passwords en k-anonymat. Seuls les cinq premiers caractères du hash SHA-1 sont transmis à l'API ; le mot de passe et le hash complet restent côté serveur. Contrôle fail-closed et limitation par IP via le rate-limit NAXA.
-- **Parcours intégrés :** création de compte client, récupération du mot de passe et réinitialisation par lien. Le nouveau endpoint retourne 409 si le mot de passe est compromis et 503 si la vérification ne peut pas aboutir.
+- **Parcours intégrés :** création de compte client, récupération du mot de passe, réinitialisation par lien et formulaire de changement du mot de passe Promoteur. Le nouveau endpoint retourne 409 si le mot de passe est compromis et 503 si la vérification ne peut pas aboutir. Le endpoint applique aussi une limite de vérifications par IP via le rate-limit NAXA.
 - **Limite :** les routes serveur de changement de mot de passe Pharmacie et Promoteur (`/api/auth/update-password` et `/api/auth/update-promoteur-password`) n'ont pas accepté les modifications par l'outil GitHub. Elles peuvent encore modifier un mot de passe sans le contrôle compensatoire. Le contrôle UI ne remplace pas le contrôle natif Auth et ne peut pas empêcher un appel direct à Auth.
 - **Statut : NON VERT.** La protection native n'est pas activée. Aucun passage payant au plan Pro n'a été effectué.
 
@@ -1963,7 +1963,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 ### Fichiers et preuves versionnés sur main
 - Migration : `supabase/migrations/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql` — dernier commit `3b93ad9519d7b498f836a389ebb7faf1b1c9c6b6`.
 - Tests : `supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql`, `supabase/tests/20261105143000_trigger_rpc_execute_contract.sql`, `supabase/tests/20261105144000_extension_and_trigger_rpc_contract.sql`.
-- Code HIBP : `src/lib/auth/pwned-passwords.ts`, `src/lib/auth/password-security-client.ts`, `src/app/api/auth/password-security/route.ts`; limitation par IP via `rateLimit`.
+- Code HIBP : `src/lib/auth/pwned-passwords.ts`, `src/lib/auth/password-security-client.ts`, `src/app/api/auth/password-security/route.ts`, `src/app/(auth)/creation-compte/page.tsx`, `src/app/(auth)/mot-de-passe-oublie/page.tsx`, `src/app/(auth)/nouveau-mot-de-passe/page.tsx`, `src/components/pharmacie/PromoteurPasswordForm.tsx`; limitation par IP via `rateLimit`.
 - Aucun déploiement Vercel ou test HTTP Preview/Production des nouveaux parcours n'a été effectué dans cette passe.
 
 ### Décision de clôture
