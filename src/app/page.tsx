@@ -348,9 +348,9 @@ export default function Accueil() {
         <div className="mx-auto flex max-w-xl flex-col gap-1 text-xs">
           <p>{t.avertissement}</p>
           <div className="flex flex-wrap items-center gap-x-4">
-            <a className={lienPied} href="tel:117">117</a>
-            <a className={lienPied} href="tel:118">118</a>
-            <a className={lienPied} href="tel:119">119</a>
+            <a className={lienPied} href="tel:117">Police 117</a>
+            <a className={lienPied} href="tel:118">Pompiers 118</a>
+            <a className={lienPied} href="tel:119">SAMU 119</a>
             <a
               className={lienPied}
               href={
