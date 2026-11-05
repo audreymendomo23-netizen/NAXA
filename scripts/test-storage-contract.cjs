@@ -13,7 +13,8 @@ const logoRoute = read("src/app/api/pharmacie/logo/route.ts");
 const creditProofRoute = read("src/app/api/pharmacie/promoteur/credits/[id]/justificatif/route.ts");
 const paymentActions = read("src/app/promoteur/paiements/actions.ts");
 const binaryE2E = read("scripts/storage-e2e.cjs");
-const packageJson = JSON.parse(read("package.json"));\nconst gitlab = read(".gitlab-ci.yml");
+const packageJson = JSON.parse(read("package.json"));
+const gitlab = read(".gitlab-ci.yml");
 
 test("les buckets absents du Replay sont restaurés avec visibilité, taille et MIME attendus", () => {
   assert.match(migration, /'pharmacies-photos',[\s\S]*true,\s*524288,\s*array\['image\/jpeg','image\/png','image\/webp'\]/);
