@@ -37,9 +37,9 @@ function required(name, fallback) {
   return value;
 }
 
-const supabaseUrl = required("NAXA_STORAGE_E2E_URL", process.env.NEXT_PUBLIC_SUPABASE_URL)
+const supabaseUrl = required("NAXA_STORAGE_E2E_URL", process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL)
   .replace(/\/+$/, "");
-const anonKey = required("NAXA_STORAGE_E2E_ANON_KEY", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const anonKey = required("NAXA_STORAGE_E2E_ANON_KEY", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY);
 const adminKey = required(
   "NAXA_STORAGE_E2E_ADMIN_KEY",
   process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
