@@ -66,7 +66,7 @@ test("le contrat SQL couvre les accès privés et le propriétaire des justifica
   assert.match(sqlTest, /pharmacie_documents_storage_admin_update/);
   assert.match(sqlTest, /pharmacie_documents_storage_admin_delete/);
   assert.match(sqlTest, /credit_marketplace_proof_insert_own/);
-  assert.match(sqlTest, /credit_marketplace_proof_read_own/);
+  assert.match(sqlTest, /credit_marketplace_proof_read_own/);\n  assert.match(sqlTest, /credit_marketplace_proof_delete_own/);\n  assert.match(sqlTest, /server-mediated/);
   assert.match(sqlTest, /preuves-reglements-promoteurs/);
 });
 
