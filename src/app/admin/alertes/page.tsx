@@ -5,10 +5,10 @@ import { requireAdminActive } from "@/lib/admin/require-admin-active";
 export default async function AdminAlertes() {
   const { sb } = await requireAdminActive("/admin/alertes");
   const [{ data: pharmacies, error: pharmaciesError }, { data: validites, error: validitesError }] = await Promise.all([
-    sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche").order("nom"),
+    sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche,est_demo").order("nom"),
     sb.rpc("validites_promoteurs_admin"),
   ]);
-  const rows = (pharmacies ?? []).filter((p) => !isDemoPharmacy(p.nom));
+  const rows = (pharmacies ?? []).filter((p) => !isDemoPharmacy(p.nom, p.est_demo));
   const missingStock = rows.filter((p) => !p.stock_updated_at);
   const inactive = rows.filter((p) => p.actif === false || p.visible_recherche === false);
   const overdue = ((validites ?? []) as any[]).filter((x) => x.statut === "impaye" || Number(x.jours_restants) < 0);
