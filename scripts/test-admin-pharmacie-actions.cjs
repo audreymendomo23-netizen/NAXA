@@ -27,7 +27,9 @@ test("l'action de gestion Bébé & Maman valide les UUID pharmacie au format can
 });
 
 test("la mutation conserve le garde Admin actif et le contrôle d'éligibilité pharmacie", () => {
-  assert.match(source, /profile\?\.role !== "admin" \|\| profile\.actif !== true/);
+  assert.match(source, /requireAdminActive\("\/admin\/pharmacies"\)/);
+  assert.match(source, /await requireAdmin\(\)/);
+  assert.doesNotMatch(source, /profile\?\.role !== "admin"/);
   const start = source.indexOf("export async function changerStatutServiceBebeMaman");
   const action = source.slice(start);
   assert.match(action, /await requireAdmin\(\)/);
