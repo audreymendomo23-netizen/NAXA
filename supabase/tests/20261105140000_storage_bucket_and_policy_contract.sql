@@ -71,6 +71,29 @@ begin
   ) then raise exception 'Public medicament image read policy missing'; end if;
 
   if not exists (
+    select 1 from pg_policies
+    where schemaname='storage' and tablename='objects'
+      and policyname='pharmacie_documents_storage_admin_insert'
+      and cmd='INSERT' and position('is_admin' in with_check)>0
+  ) or not exists (
+    select 1 from pg_policies
+    where schemaname='storage' and tablename='objects'
+      and policyname='pharmacie_documents_storage_admin_select'
+      and cmd='SELECT' and position('is_admin' in qual)>0
+  ) or not exists (
+    select 1 from pg_policies
+    where schemaname='storage' and tablename='objects'
+      and policyname='pharmacie_documents_storage_admin_update'
+      and cmd='UPDATE' and position('is_admin' in qual)>0
+      and position('is_admin' in with_check)>0
+  ) or not exists (
+    select 1 from pg_policies
+    where schemaname='storage' and tablename='objects'
+      and policyname='pharmacie_documents_storage_admin_delete'
+      and cmd='DELETE' and position('is_admin' in qual)>0
+  ) then raise exception 'Pharmacy documents must remain Admin-only for all object operations'; end if;
+
+  if not exists (
     select 1 from storage.buckets where id='credit-marketplace-justificatifs' and public=false
   ) or not exists (
     select 1 from storage.buckets where id='pharmacie-documents' and public=false
