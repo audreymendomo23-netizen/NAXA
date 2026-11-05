@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normaliserTerme, termesRecherche, trouverMedicamentPilote } from "@/lib/medicaments/catalogue-pilote";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,7 +77,7 @@ type LocalProduct = {
   fiche_validee: boolean | null;
 };
 
-type LocalStock = { produit_id: string; pharmacie_id: string; quantite: number; prix: number | null };
+type StockPair = { produit_id: string; pharmacie_id: string };
 type BdpmProduct = {
   cis: string; nom: string; forme: string | null; voies_administration: string | null;
   statut_amm: string | null; etat_commercialisation: string | null; date_amm: string | null;
@@ -130,47 +130,115 @@ async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
 async function realPartnerAvailability(productIds: string[]): Promise<{ verified: boolean; byProduct: Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }> }> {
   const result = new Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }>();
   if (!productIds.length) return { verified: false, byProduct: result };
+
   try {
-    const sb = supabaseServer();
-    const today = new Date().toISOString().slice(0, 10);
-    const { data, error } = await sb.from("stocks")
-      .select("produit_id,pharmacie_id,quantite,prix,pharmacies!inner(actif)")
-      .in("produit_id", productIds)
-      .gt("quantite", 0)
-      .eq("pharmacies.actif", true)
-      .eq("pharmacies.visible_recherche", true)
-      .is("pharmacies.archivee_le", null)
-      .not("pharmacies.nom", "ilike", "%démo%")
-      .not("pharmacies.nom", "ilike", "%test%")
-      .or("date_peremption.is.null,date_peremption.gte." + today);
-    if (error || !data) return { verified: false, byProduct: result };
-    // Garde disciplinaire serveur : si la RPC de filtrage est indisponible,
-    // ne pas présenter la disponibilité comme vérifiée.
-    const pharmacyIds = [...new Set((data as unknown as LocalStock[]).map((row) => row.pharmacie_id))];
-    if (!pharmacyIds.length) return { verified: true, byProduct: result };
-    const { data: allowedIds, error: disciplineError } = await sb.rpc(
-      "marketplace_pharmacies_disciplinairement_autorisees",
-      { p_pharmacies: pharmacyIds }
-    );
-    if (disciplineError || !Array.isArray(allowedIds)) return { verified: false, byProduct: result };
-    const allowedPharmacies = new Set(allowedIds as string[]);
-    const eligibleRows = (data as unknown as LocalStock[]).filter((row) => allowedPharmacies.has(row.pharmacie_id));
-    const grouped = new Map<string, { pharmacies: Set<string>; quantity: number; lowestPrice: number | null }>();
-    for (const row of eligibleRows) {
-      const current = grouped.get(row.produit_id) ?? { pharmacies: new Set<string>(), quantity: 0, lowestPrice: null };
-      current.pharmacies.add(row.pharmacie_id);
-      current.quantity += Math.max(0, Number(row.quantite) || 0);
-      const price = row.prix === null || row.prix === undefined ? Number.NaN : Number(row.prix);
-      if (Number.isFinite(price) && price >= 0 && (current.lowestPrice === null || price < current.lowestPrice)) current.lowestPrice = price;
-      grouped.set(row.produit_id, current);
+    // Les visiteurs publics ne disposent volontairement pas de SELECT sur stocks.
+    // Le serveur identifie les couples produit/pharmacie avec la clé privilégiée,
+    // puis ne lit que l'offre calculée par la RPC publique existante.
+    const db = supabaseAdmin();
+    const pairs = new Map<string, StockPair>();
+    const pageSize = 1000;
+    const maxPairs = 5000;
+
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await db.from("stocks")
+        .select("produit_id,pharmacie_id,pharmacies!inner(nom,est_demo)")
+        .in("produit_id", productIds)
+        .eq("pharmacies.actif", true)
+        .eq("pharmacies.visible_recherche", true)
+        .is("pharmacies.archivee_le", null)
+        .eq("pharmacies.est_demo", false)
+        .not("pharmacies.nom", "ilike", "%test%")
+        .not("pharmacies.nom", "ilike", "%demo%")
+        .not("pharmacies.nom", "ilike", "%démo%")
+        .range(from, from + pageSize - 1);
+
+      if (error || !data) {
+        console.error("NAXA_MARKETPLACE_STOCK_PAIR_LOOKUP_FAILED", error?.message ?? "empty response");
+        return { verified: false, byProduct: new Map() };
+      }
+
+      for (const row of data as unknown as StockPair[]) {
+        if (!row.produit_id || !row.pharmacie_id) continue;
+        pairs.set(row.produit_id + ":" + row.pharmacie_id, {
+          produit_id: row.produit_id,
+          pharmacie_id: row.pharmacie_id,
+        });
+      }
+
+      if (pairs.size > maxPairs) {
+        console.error("NAXA_MARKETPLACE_STOCK_PAIR_LIMIT_EXCEEDED", { limit: maxPairs });
+        return { verified: false, byProduct: new Map() };
+      }
+      if (data.length < pageSize) break;
     }
+
+    const grouped = new Map<string, { pharmacies: Set<string>; quantity: number; lowestPrice: number | null }>();
+    const work = [...pairs.values()];
+    let cursor = 0;
+    let lookupFailed = false;
+
+    const worker = async () => {
+      while (true) {
+        const index = cursor++;
+        if (index >= work.length) return;
+        const pair = work[index];
+        const { data, error } = await db.rpc("marketplace_offre_stock_disponible", {
+          p_pharmacie: pair.pharmacie_id,
+          p_produit: pair.produit_id,
+        });
+
+        if (error) {
+          lookupFailed = true;
+          console.error("NAXA_MARKETPLACE_STOCK_OFFER_FAILED", {
+            productId: pair.produit_id,
+            message: error.message,
+          });
+          continue;
+        }
+
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row || typeof row !== "object") continue;
+        const offer = row as { prix?: unknown; quantite?: unknown };
+        const quantity = Number(offer.quantite);
+        if (!Number.isFinite(quantity) || quantity <= 0) continue;
+
+        const current = grouped.get(pair.produit_id) ?? {
+          pharmacies: new Set<string>(),
+          quantity: 0,
+          lowestPrice: null,
+        };
+        current.pharmacies.add(pair.pharmacie_id);
+        current.quantity += Math.max(0, Math.floor(quantity));
+
+        const price = offer.prix === null || offer.prix === undefined
+          ? Number.NaN
+          : Number(offer.prix);
+        if (Number.isFinite(price) && price >= 0
+          && (current.lowestPrice === null || price < current.lowestPrice)) {
+          current.lowestPrice = price;
+        }
+        grouped.set(pair.produit_id, current);
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(8, work.length) }, () => worker())
+    );
+
+    if (lookupFailed) return { verified: false, byProduct: new Map() };
+
     for (const [id, stock] of grouped) {
-      result.set(id, { pharmacies: stock.pharmacies.size, quantity: stock.quantity, lowestPrice: stock.lowestPrice });
+      result.set(id, {
+        pharmacies: stock.pharmacies.size,
+        quantity: stock.quantity,
+        lowestPrice: stock.lowestPrice,
+      });
     }
     return { verified: true, byProduct: result };
-  } catch {
-    // Une erreur de lecture ne doit jamais être interprétée comme une indisponibilité confirmée.
-    return { verified: false, byProduct: result };
+  } catch (error) {
+    console.error("NAXA_MARKETPLACE_STOCK_LOOKUP_FAILED", error instanceof Error ? error.message : "unknown error");
+    return { verified: false, byProduct: new Map() };
   }
 }
 
