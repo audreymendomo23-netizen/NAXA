@@ -106,7 +106,7 @@ test("Interface admin : synchronisation explicite, sans lancement automatique", 
   const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "geolocalisation", "page.tsx"), "utf8");
   assert.match(page, /Synchroniser OpenStreetMap/);
   assert.match(page, /method: "POST"/);
-  assert.match(page, /method: "GET"/);
+  assert.match(page, /fetch\("\/api\/admin\/geolocalisation-osm", \{ cache: "no-store" \}\)/);
   assert.match(page, /candidats de l’annuaire ne deviennent jamais des partenaires NAXA/);
   assert.match(page, /OpenStreetMap contributors/);
   assert.doesNotMatch(page, /useEffect\(\(\)\s*=>\s*\{\s*void synchroniser\(\)/);
