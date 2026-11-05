@@ -113,23 +113,26 @@ test("Interface admin : synchronisation explicite, sans lancement automatique", 
 });
 
 
-test("Tableau de bord : carte réelle et liste des pharmacies partagent les mêmes identifiants", () => {
+test("Carte OSM : repères GPS réels, liste stable et aucun stock exposé", () => {
   const dashboard = fs.readFileSync(path.join(__dirname, "..", "src", "components", "AccueilClient.tsx"), "utf8");
   const map = fs.readFileSync(path.join(__dirname, "..", "src", "components", "CartePharmaciesProches.tsx"), "utf8");
   assert.match(dashboard, /<CartePharmaciesProches pharmacies=\{pharmaciesProches\.map\(pharmacie\s*=>/);
   assert.match(dashboard, /\)\} position=\{coord\} onLocaliser=\{localiser\}/);
   assert.match(map, /tileLayer\("https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png"/);
-  assert.match(map, /markersRef\.current\.set\(p\.id, marker\)/);
-  assert.match(map, /marker\.on\("click", \(\) =>/);
-  assert.match(map, /Disponibilités connues/);
-  assert.match(map, /from\("stocks"\)/);
-  assert.match(map, /Une pharmacie affichée sur la carte n’est pas une garantie de stock/);
-  assert.match(map, /setSelectedPharmacy\(p\)/);
-  assert.match(map, /key=\{p\.id\}/);
-  assert.match(map, /ouvrirPharmacie\(p\)/);
-  assert.match(map, /fitBounds/);
+  assert.match(map, /const pharmaciesAvecGPS = useMemo/);
+  assert.match(map, /pharmacies\.filter\(p => p\.lat != null && p\.lng != null/);
+  assert.match(map, /const markersRef = useRef<LeafletLayer\[\]>\(\[\]\)/);
+  assert.match(map, /markersRef\.current\.push\(marker\)/);
+  assert.match(map, /markersRef\.current\.forEach\(marker => marker\.remove\(\)\)/);
+  assert.match(map, /map\.fitBounds/);
+  assert.match(map, /Carte des repères des pharmacies partenaires, sans fiches détaillées/);
+  assert.match(map, /aucun stock n’est présenté/);
+  assert.match(map, /pharmaciesAvecContact\.map\(p =>/);
+  assert.match(map, /<article key=\{p\.id\}/);
   assert.match(map, /© OpenStreetMap/);
-  assert.match(map, /Les marqueurs représentent uniquement les pharmacies partenaires NAXA/);
+  assert.doesNotMatch(map, /from\("stocks"\)/);
+  assert.doesNotMatch(map, /marker\.on\("click"/);
+  assert.doesNotMatch(map, /Disponibilités connues/);
   assert.doesNotMatch(dashboard, /CarteIllustrative/);
   assert.doesNotMatch(dashboard, /liste complète des pharmacies à proximité sera bientôt disponible/);
 });
