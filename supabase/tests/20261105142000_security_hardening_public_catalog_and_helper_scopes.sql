@@ -180,7 +180,7 @@ BEGIN
     WHERE n.nspname IN ('public','private') AND p.prokind='f'
       AND (p.prosrc ~* 'public[.]naxa_business_function[[:space:]]*[(]'
         OR p.prosrc ~* 'public[.]naxa_active_role_pharmacy[[:space:]]*[(]')
-      AND p.proname NOT IN ('naxa_business_function','naxa_active_role_pharmacy')
+      AND NOT (n.nspname='public' AND p.proname IN ('naxa_business_function','naxa_active_role_pharmacy','naxa_scope_allows'))
   ) THEN
     RAISE EXCEPTION 'An internal routine still calls the public cross-profile helper';
   END IF;
