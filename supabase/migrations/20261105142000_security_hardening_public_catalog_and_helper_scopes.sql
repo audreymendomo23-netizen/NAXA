@@ -952,7 +952,7 @@ BEGIN
     WHERE p.prokind='f'
       AND p.prosecdef IS TRUE
       AND n.nspname IN ('public','private')
-      AND p.proname NOT IN ('naxa_business_function','naxa_active_role_pharmacy','naxa_scope_allows')
+      AND NOT (n.nspname='public' AND p.proname IN ('naxa_business_function','naxa_active_role_pharmacy','naxa_scope_allows'))
       AND (
         p.prosrc ~* 'public[.]naxa_business_function[[:space:]]*[(]'
         OR p.prosrc ~* 'public[.]naxa_active_role_pharmacy[[:space:]]*[(]'
