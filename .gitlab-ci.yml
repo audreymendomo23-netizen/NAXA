@@ -62,3 +62,18 @@ build:
     SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
   script:
     - npm run build
+
+# Exécution HTTP binaire Storage sur Replay uniquement.
+# Activer explicitement avec NAXA_STORAGE_E2E_ENABLED=1 et fournir les variables
+# masquées NAXA_STORAGE_E2E_URL / NAXA_STORAGE_E2E_ANON_KEY /
+# NAXA_STORAGE_E2E_ADMIN_KEY dans les variables CI du projet.
+storage_binary_e2e:
+  stage: unit
+  needs: []
+  script:
+    - node scripts/storage-e2e.cjs
+  rules:
+    - if: '$NAXA_STORAGE_E2E_ENABLED == "1"'
+      when: manual
+      allow_failure: false
+    - when: never
