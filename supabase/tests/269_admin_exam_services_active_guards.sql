@@ -29,8 +29,19 @@ begin
   end if;
 
   select pg_get_functiondef('private.is_admin()'::regprocedure) into v_def;
-  if v_def not ilike '%role = ''admin''%' or v_def not ilike '%actif is true%' then
-    raise exception '269.5 : le garde canonique ne vérifie pas rôle et activité';
+  if v_def not ilike '%security definer%'
+     or v_def not ilike '%set search_path to %'
+     or v_def not ilike '%private.naxa_business_function(auth.uid())=''admin''%' then
+    raise exception '269.5 : le garde privé ne délègue pas au routeur canonique du poste Admin actif';
+  end if;
+
+  select pg_get_functiondef('private.naxa_business_function(uuid)'::regprocedure) into v_def;
+  if v_def not ilike '%security definer%'
+     or v_def not ilike '%ar.role_code=''admin''%'
+     or v_def not ilike '%p.role::text=''admin''%'
+     or v_def not ilike '%p.actif is true%'
+     or v_def not ilike '%ar.pharmacie_id is null%' then
+    raise exception '269.5b : le routeur ne vérifie pas rôle, activité et portée Admin globale';
   end if;
 
   select pg_get_functiondef('public.transition_home_service_request(uuid,text)'::regprocedure) into v_def;
