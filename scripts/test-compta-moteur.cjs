@@ -61,7 +61,7 @@ assert.equal(indicators.tauxMargeBrute, 35);
 assert.equal(indicators.tauxRotationStock, 5);
 assert.equal(indicators.delaiMoyenEncaissementJours, 6);
 assert.equal(calc.calculerIndicateurs({ chiffreAffairesFcfa: 1000 }).margeBruteFcfa, null);
-assert.equal(calc.calculerIndicateurs({ chiffreAffairesFcfa: 1000, coutDesVentesFcfa: 1000 }).tauxMargeBrute, null);
+assert.equal(calc.calculerIndicateurs({ chiffreAffairesFcfa: 1000, coutDesVentesFcfa: 1000 }).tauxMargeBrute, 0);
 
 const mappings = [
   { evenementType: "vente_payee", sens: "debit", compteId: "a", statut: "valide", valideDu: "2026-01-01" },
