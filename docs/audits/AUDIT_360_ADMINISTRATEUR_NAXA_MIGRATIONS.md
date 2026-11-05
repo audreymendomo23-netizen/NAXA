@@ -157,3 +157,37 @@ Recettes SQL transactionnelles exécutées sur Production, à partir des tests v
 - Aucune donnée utilisateur/commerciale réelle n'a été créée ou transformée par les tests.
 - Aucun déploiement Vercel, build navigateur ou test HTTP/JWT applicatif n'a été lancé dans cette opération.
 
+
+
+---
+
+# Addendum — séparation Vercel Production / Supabase Replay (5 novembre 2026)
+
+## Configuration appliquée
+
+Projet Vercel `naxa` — équipe `naxa3` :
+
+- `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` Production : ciblées sur **Production uniquement**; valeurs Production conservées.
+- `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` Replay : ciblées sur **Preview et Development uniquement**; URL et publishable key lues du projet Supabase `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`).
+- `SUPABASE_SERVICE_ROLE_KEY` global Preview et Development : valeurs vidées et commentaires explicites de désactivation. La valeur Production reste limitée à Production.
+- `SUPABASE_SECRET_KEY` Preview : valeur vidée, car sa provenance Replay n'a pas pu être certifiée. Aucune clé secrète Production n'a été copiée ou utilisée pour tester Replay.
+- `NAXA_REPLAY_EDGE_JWT` Development : ancienne variable E2E temporaire vidée.
+- `NAXA_ADMIN_BOOTSTRAP_SECRET` Preview est restée inchangée, son commentaire l'identifiant comme secret de bootstrap Replay.
+- Protection Vercel Authentication / SSO : toujours activée sur tous les déploiements; aucune protection d'accès n'a été désactivée.
+
+## Vérifications
+
+- Supabase Replay confirmé `ACTIVE_HEALTHY`, région `eu-west-1`, PostgreSQL 17.
+- Requête SQL en lecture seule exécutée directement sur Replay : `current_database() = postgres`, connexion confirmée. Aucune requête ni écriture dans Production.
+- Relecture de la configuration Vercel après modification : les deux variables publiques Production ne ciblent plus que Production; les deux variables publiques Replay ciblent Preview/Development; les secrets privilégiés globaux Preview/Development sont vides.
+- Aucun déploiement, build ou changement de domaine déclenché. Les variables s'appliqueront au prochain build/déploiement Preview ou Production correspondant.
+
+## Blocages résiduels explicites
+
+1. Le code `src/lib/supabase/server.ts` exige `SUPABASE_SECRET_KEY` pour `supabaseAdmin()`. La clé `sb_secret_...` propre à Replay n'a pas pu être créée/récupérée par les outils Supabase disponibles dans cette intervention. Les routes serveur privilégiées/admin restent donc non configurées sur Preview tant qu'une clé secrète issue exclusivement de Replay n'est pas créée dans Supabase Replay puis stockée comme variable Vercel Preview (et Development si nécessaire). Ne jamais utiliser la clé Production comme solution de contournement.
+2. Une ancienne entrée de variable `SUPABASE_SERVICE_ROLE_KEY` reste attachée à la Preview de la branche supprimée `fix/login-page-layout-20261012`. Sa mise à jour a été rejetée par l'API Vercel (`400: Project "naxa" does not have a connected Git repository`). Son commentaire interdit déjà son utilisation; cette entrée n'a pas été lue déchiffrée ni réutilisée. Le projet Vercel signalant l'absence de dépôt Git connecté, le nettoyage de cette portée de branche demande de rétablir ce lien ou de supprimer cette entrée depuis les paramètres Vercel.
+3. L'accès automatisé aux Preview protégées par SSO nécessite un bypass Vercel dédié aux tests, envoyé par l'en-tête `x-vercel-protection-bypass` et stocké côté runner/secret manager. Aucun secret de bypass n'a été créé ou exposé durant cette intervention.
+
+Le fichier `.env.example` a été aligné sur le nom réellement lu par le serveur (`SUPABASE_SECRET_KEY`) et précise qu'en Preview/Development la clé doit provenir de Replay. Cette modification est documentaire et ne crée pas de secret.
+
+**Statut :** variables publiques Production/Replay séparées et vérifiées; secrets privilégiés non Production neutralisés; connexion SQL Replay confirmée. Accès serveur Admin Replay et exécution E2E HTTP à travers SSO restent conditionnés à la clé `sb_secret_...` Replay et au bypass de test dédiés. Aucun déploiement n'a été effectué.
