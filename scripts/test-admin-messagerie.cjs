@@ -10,7 +10,9 @@ const inbox = fs.readFileSync(path.join(root, "src/components/admin/AdminInbox.t
 
 test("GET et POST refusent toute session qui n'est pas un administrateur actif", () => {
   assert.match(api, /auth\.getUser\(\)/);
-  assert.match(api, /profile\?\.role !== "admin" \|\| profile\.actif !== true/);
+  assert.match(api, /sb\.rpc\("naxa_business_function"\)/);
+  assert.match(api, /activeRole !== "admin"/);
+  assert.match(api, /profile\?\.role !== "admin"/);
   assert.equal((api.match(/const admin = await activeAdmin\(\);/g) ?? []).length, 2);
 });
 
