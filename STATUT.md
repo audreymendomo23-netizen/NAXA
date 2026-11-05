@@ -1,3 +1,19 @@
+## Recette pilote pharmacies et utilisateurs — 05/11/2026
+
+**Statut : 🟡 terrain non certifié ; contrôles Replay ciblés PASS.**
+
+- Supabase Replay : 9 pharmacies toutes démo, 1 profil Admin actif, zéro affectation professionnelle et zéro réservation ; aucune cohorte réelle de pharmacies/utilisateurs.
+- Tests transactionnels 295–299 : **36 assertions PASS**.
+- Test E2E POS offline 284 : fixture corrigé et test rejoué PASS ; vente 4 700 FCFA, reçu 5 000 FCFA, monnaie 300 FCFA, stock 52→51, clôture sans écart. Après rollback : zéro caisse/appareil/session/vente de test et indicateur démo restauré.
+- Commit correctif de test : `baee8c94054ace82fc81ed67a24aac4ae29b621e`.
+- Vercel Preview observée READY sur le HEAD antérieur `feb221e79714e6034f3ac303acde4ff9da1700ad`. Aucun déploiement après les changements documentaires/tests.
+- **Restes :** recette réelle avec pharmacie et profils volontaires ; recette UI/appareil non exécutée ; build/typecheck/lint/npm test global non exécutés ; risque POS à lever pour les pharmacies actives non publiées (dépendance au filtre Marketplace) ; workflow Livreur non opérationnel si livraison comprise au lancement.
+- Aucune écriture Supabase Production ni aucun déploiement déclenché.
+
+Rapport détaillé : [docs/RECETTE_PILOTE_TERRAIN_NAXA.md](docs/RECETTE_PILOTE_TERRAIN_NAXA.md).
+
+---
+
 ## Postes professionnels autonomes — résultat de la passe CTO (04/11/2026)
 
 **Construction : 🟡 corrigée et testée côté SQL Replay — build/runtime non certifiés.**
