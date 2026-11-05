@@ -22,7 +22,7 @@ const ACCOUNTS = [
   { key: "stock", email: "naxa.e2e.stock@example.com", username: "naxa_e2e_stock", first: "NAXA", last: "Stock E2E", phone: "+237690000008", roleLabel: "Gestionnaire de stock", assignment: "gestionnaire_stock", pharmacy: "Essos" },
   { key: "caisse", email: "naxa.e2e.caisse@example.com", username: "naxa_e2e_caisse", first: "NAXA", last: "Caisse E2E", phone: "+237690000009", roleLabel: "Caissier", assignment: "caisse", pharmacy: "Bastos" },
   { key: "livreur", email: "naxa.e2e.livreur@example.com", username: "naxa_e2e_livreur", first: "NAXA", last: "Livreur E2E", phone: "+237690000010", roleLabel: "Livreur", assignment: "livreur", pharmacy: "Mvan" },
-  { key: "multi", email: "naxa.e2e.mult postes@example.com", username: "naxa_e2e_multipostes", first: "NAXA", last: "Test Multi Postes", phone: "+237690000011", roleLabel: "Test multi-postes", assignments: ["gestionnaire_stock", "comptable"], pharmacy: "Essos" },
+  { key: "multi", email: "naxa.e2e.multipostes@example.com", username: "naxa_e2e_multipostes", first: "NAXA", last: "Test Multi Postes", phone: "+237690000011", roleLabel: "Test multi-postes", assignments: ["gestionnaire_stock", "comptable"], pharmacy: "Essos" },
 ] as const;
 
 function sameSecret(provided: string | null, expected: string | undefined): boolean {
