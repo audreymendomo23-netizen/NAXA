@@ -12,7 +12,7 @@ const logoManager = read("src/components/pharmacie/PromoteurLogoManager.tsx");
 const logoRoute = read("src/app/api/pharmacie/logo/route.ts");
 const creditProofRoute = read("src/app/api/pharmacie/promoteur/credits/[id]/justificatif/route.ts");
 const paymentActions = read("src/app/promoteur/paiements/actions.ts");
-const binaryE2E = read("scripts/storage-e2e.cjs");
+const binaryE2E = read("scripts/storage-e2e.cjs");\nconst packageJson = JSON.parse(read("package.json"));\nconst gitlab = read(".gitlab-ci.yml");
 
 test("les buckets absents du Replay sont restaurés avec visibilité, taille et MIME attendus", () => {
   assert.match(migration, /'pharmacies-photos',[\s\S]*true,\s*524288,\s*array\['image\/jpeg','image\/png','image\/webp'\]/);
@@ -71,3 +71,10 @@ test("le contrat SQL couvre les accès privés et le propriétaire des justifica
 });
 
 process.stdout.write("Contrat Storage NAXA vérifié.\n");
+
+test("le test binaire est exposé en commande et en job GitLab manuel sans déploiement", () => {
+  assert.equal(packageJson.scripts["test:storage:e2e"], "node scripts/storage-e2e.cjs");
+  assert.match(gitlab, /storage_binary_e2e:/);
+  assert.match(gitlab, /NAXA_STORAGE_E2E_ENABLED == "1"/);
+  assert.doesNotMatch(gitlab, /deploy_storage|vercel deploy/i);
+});
