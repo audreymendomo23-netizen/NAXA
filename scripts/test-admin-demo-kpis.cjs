@@ -24,15 +24,22 @@ test("le filtre Admin reprend les mêmes marqueurs que la migration qui masque l
 
 test("le tableau de bord compte les pharmacies opérationnelles hors démos", () => {
   assert.match(home, /toutesLesPharmacies=pharmacies\?\?\[\]/);
-  assert.match(home, /listePharmacies=toutesLesPharmacies\.filter\(x=>!isDemoPharmacy\(x\.nom\)\)/);
+  assert.match(home, /select\("id,nom,ville,quartier,stock_updated_at,actif,visible_recherche,est_demo"\)/);
+  assert.match(home, /listePharmacies=toutesLesPharmacies\.filter\(x=>!isDemoPharmacy\(x\.nom,x\.est_demo\)\)/);
   assert.match(home, /stocksHorodates=listePharmacies\.filter/);
-  assert.match(home, /toutesLesPharmacies\.filter\(x=>x\.actif===true&&x\.visible_recherche===true\)/);
+  assert.match(home, /CatalogueCreation pharmacies=\{listePharmacies\.filter\(x=>x\.actif===true&&x\.visible_recherche===true\)/);
 });
 
 test("le badge de navigation et la page Alertes appliquent le même périmètre", () => {
-  assert.match(layout, /select\("id,nom,stock_updated_at,actif,visible_recherche"\)/);
-  assert.match(layout, /pharmaciesOperationnelles = \(pharmacies \?\? \[\]\)\.filter\(\(p\) => !isDemoPharmacy\(p\.nom\)\)/);
-  assert.match(alerts, /\.filter\(\(p\) => !isDemoPharmacy\(p\.nom\)\)/);
+  assert.match(layout, /select\("id,nom,stock_updated_at,actif,visible_recherche,est_demo"\)/);
+  assert.match(layout, /isDemoPharmacy\(p\.nom,p\.est_demo\)/);
+  assert.match(alerts, /select\("id,nom,stock_updated_at,actif,visible_recherche,est_demo"\)/);
+  assert.match(alerts, /isDemoPharmacy\(p\.nom, p\.est_demo\)/);
 });
 
 process.stdout.write("Contrat de périmètre KPI Admin hors pharmacies démo vérifié.\n");
+
+
+test("le flag canonique est_demo prime sur le nom lorsqu’il est renseigné", () => {
+  assert.match(helper, /if \(demoFlag !== null && demoFlag !== undefined\) return demoFlag/);
+});
