@@ -89,6 +89,23 @@ begin
       and policyname='credit_marketplace_proof_read_own'
       and cmd='SELECT' and position('auth.uid()' in qual)>0
   ) then raise exception 'Marketplace credit proof must remain owner-scoped'; end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname='storage' and tablename='objects'
+      and policyname='credit_marketplace_proof_delete_own'
+      and cmd='DELETE' and position('auth.uid()' in qual)>0
+  ) then raise exception 'Marketplace credit proof deletion must remain owner-scoped'; end if;
+
+  if exists (
+    select 1 from pg_policies
+    where schemaname='storage' and tablename='objects'
+      and (
+        coalesce(qual,'') ilike '%preuves-reglements-promoteurs%'
+        or coalesce(with_check,'') ilike '%preuves-reglements-promoteurs%'
+      )
+  ) then raise exception 'Promoter payment proofs must remain server-mediated, not directly writable by client roles'; end if;
+
 end
 $test$;
 
