@@ -24,12 +24,13 @@ begin
     into notifications_ok;
   if not notifications_ok then raise exception 'In-app notification schema incomplete'; end if;
 
-  select exists (
+  select not exists (
     select 1 from cron.job
     where jobname='naxa-posology-web-push-every-five-minutes'
-      and schedule='*/5 * * * *'
-      and command like '%/api/cron/posologie%'
+      and active
   ) into cron_ok;
-  if not cron_ok then raise exception 'Five-minute Push dispatcher schedule missing'; end if;
+  if not cron_ok then
+    raise exception 'Legacy Push dispatcher still active: it targets a Vercel Preview protected by SSO; Apps Script owns the unified 5-minute dispatch now';
+  end if;
 end $$;
 select 'naxa_149_background_reminders_push_pass' as test, true as passed;
