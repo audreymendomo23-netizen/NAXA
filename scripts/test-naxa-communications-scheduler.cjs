@@ -7,6 +7,7 @@ const vm = require("node:vm");
 const test = require("node:test");
 
 const source = fs.readFileSync(path.join(__dirname, "google-welcome-email.gs"), "utf8");
+const posologieRoute = fs.readFileSync(path.join(__dirname, "../src/app/api/cron/posologie/route.ts"), "utf8");
 
 function executeWorker({ emailStatus = 200, pushStatus = 200, workerUrl = "https://nnaxa.vercel.app/api/cron/validite" } = {}) {
   const calls = [];
@@ -97,4 +98,11 @@ test("un alias Preview ou protégé est refusé avant tout appel", () => {
     () => executeWorker({ workerUrl: "https://naxa-git-main-naxa3.vercel.app/api/cron/validite" }),
     /domaine stable Production/,
   );
+});
+
+test("le worker Push utilise le client Admin adapté à l'environnement", () => {
+  assert.match(posologieRoute, /import \{ supabaseAdmin \} from "@\/lib\/supabase\/server";/);
+  assert.match(posologieRoute, /db = supabaseAdmin\(\);/);
+  assert.doesNotMatch(posologieRoute, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(posologieRoute, /createClient\(/);
 });
