@@ -1083,4 +1083,16 @@ LEFT JOIN public.naxa_profile_active_roles ar ON ar.profile_id=p.id
 WHERE p.id=p_profile AND p.actif IS TRUE;
 $function$;
 
+
+-- Trigger-only privileged functions are implementation details, not RPCs.
+-- Their triggers remain attached; callers must not EXECUTE them through the API.
+REVOKE ALL ON FUNCTION public.initialiser_abonnement_pharmacie() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.vente_ligne_figer_cout() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.produits_garde_fiche() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.naxa_reservation_receipt_snapshot() FROM PUBLIC, anon, authenticated;
+
+-- is_promoteur is a self-profile helper used by authenticated policies/UI only.
+REVOKE ALL ON FUNCTION public.is_promoteur() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_promoteur() TO authenticated, service_role;
+
 COMMIT;
