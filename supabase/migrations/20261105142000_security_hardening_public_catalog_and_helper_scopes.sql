@@ -546,4 +546,435 @@ GRANT EXECUTE ON FUNCTION public.naxa_scope_allows(uuid, uuid, text) TO authenti
 REVOKE ALL ON FUNCTION public.suivi_is_verified_professional(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.suivi_is_verified_professional(uuid) TO authenticated, service_role;
 
+
+-- ---------------------------------------------------------------------------
+-- Final hardening: keep all SECURITY DEFINER implementations in private.
+-- The private schema is not part of PostgREST's exposed schemas. Only the
+-- narrow catalogue helpers below receive anon EXECUTE, behind public
+-- SECURITY INVOKER wrappers.
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION private.produits_populaires(
+  p_limit integer DEFAULT 10,
+  p_jours integer DEFAULT 7
+)
+RETURNS TABLE(produit_id uuid, nom text, dosage text, photo_url text, prix_min integer)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+WITH top AS (
+  SELECT p.id,p.nom,p.dosage,p.photo_url,min(s.prix)::integer prix_min,count(e.id)::integer score
+  FROM public.recherche_events e
+  JOIN public.produits p ON p.id=e.produit_id
+  JOIN public.stocks s ON s.produit_id=p.id AND s.quantite>0
+  JOIN public.pharmacies ph ON ph.id=s.pharmacie_id
+    AND ph.actif IS TRUE AND ph.visible_recherche IS TRUE
+    AND ph.est_demo IS FALSE AND ph.archivee_le IS NULL
+  WHERE e.created_at>now()-make_interval(days=>LEAST(GREATEST(COALESCE(p_jours,7),1),365))
+  GROUP BY p.id
+),
+comp AS (
+  SELECT p.id,p.nom,p.dosage,p.photo_url,min(s.prix)::integer prix_min,count(DISTINCT s.pharmacie_id)::integer score
+  FROM public.produits p
+  JOIN public.stocks s ON s.produit_id=p.id AND s.quantite>0
+  JOIN public.pharmacies ph ON ph.id=s.pharmacie_id
+    AND ph.actif IS TRUE AND ph.visible_recherche IS TRUE
+    AND ph.est_demo IS FALSE AND ph.archivee_le IS NULL
+  WHERE NOT EXISTS(SELECT 1 FROM top t WHERE t.id=p.id)
+  GROUP BY p.id
+)
+SELECT id,nom,dosage,photo_url,prix_min
+FROM (SELECT *,1 rang FROM top UNION ALL SELECT *,2 rang FROM comp) x
+ORDER BY rang,score DESC
+LIMIT LEAST(GREATEST(COALESCE(p_limit,10),1),20);
+$function$;
+
+CREATE OR REPLACE FUNCTION public.produits_populaires(p_limit integer DEFAULT 10,p_jours integer DEFAULT 7)
+RETURNS TABLE(produit_id uuid,nom text,dosage text,photo_url text,prix_min integer)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT * FROM private.produits_populaires(
+  LEAST(GREATEST(COALESCE(p_limit,10),1),20),
+  LEAST(GREATEST(COALESCE(p_jours,7),1),365)
+);
+$function$;
+
+CREATE OR REPLACE FUNCTION private.search_pharmacies_panier(
+  p_items jsonb,p_lat double precision,p_lng double precision,p_rayon_km double precision DEFAULT 20
+)
+RETURNS TABLE(
+  pharmacie_id uuid,nom text,quartier text,adresse text,lat double precision,lng double precision,
+  de_garde boolean,stock_updated_at timestamptz,distance_km double precision,total_prix integer,
+  items jsonb,trouves integer,demandes integer
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+WITH req AS (
+  SELECT (x->>'produit_id')::uuid produit_id,
+    GREATEST(1,LEAST(10,COALESCE((x->>'quantite')::integer,1))) qte
+  FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p_items)='array' THEN p_items ELSE '[]'::jsonb END) x
+),
+nb AS (SELECT count(*)::integer c FROM req),
+ok AS (
+  SELECT s.pharmacie_id,s.produit_id,p.nom,p.dosage,s.prix,s.quantite,r.qte
+  FROM req r
+  JOIN public.stocks s ON s.produit_id=r.produit_id AND s.quantite>=r.qte
+    AND (s.date_peremption IS NULL OR s.date_peremption>=current_date)
+  JOIN public.pharmacies ph ON ph.id=s.pharmacie_id
+    AND ph.actif IS TRUE AND ph.visible_recherche IS TRUE
+    AND ph.est_demo IS FALSE AND ph.archivee_le IS NULL
+  JOIN public.produits p ON p.id=s.produit_id
+),
+agg AS (
+  SELECT pharmacie_id,count(*)::integer trouves,sum(prix*qte)::integer total,
+    jsonb_agg(jsonb_build_object('produit_id',produit_id,'nom',nom,'dosage',dosage,
+      'prix',prix,'quantite',quantite,'quantite_demandee',qte) ORDER BY nom) items
+  FROM ok GROUP BY pharmacie_id
+)
+SELECT ph.id,ph.nom,ph.quartier,ph.adresse,ph.lat,ph.lng,ph.de_garde,ph.stock_updated_at,d.km,
+  a.total,a.items,a.trouves,nb.c
+FROM agg a
+JOIN public.pharmacies ph ON ph.id=a.pharmacie_id AND ph.actif IS TRUE
+  AND ph.visible_recherche IS TRUE AND ph.est_demo IS FALSE AND ph.archivee_le IS NULL
+CROSS JOIN nb
+CROSS JOIN LATERAL (
+  SELECT 6371*2*asin(sqrt(
+    power(sin(radians(ph.lat-p_lat)/2),2)
+    +cos(radians(p_lat))*cos(radians(ph.lat))*power(sin(radians(ph.lng-p_lng)/2),2)
+  )) km
+) d
+WHERE p_lat BETWEEN -90 AND 90 AND p_lng BETWEEN -180 AND 180
+  AND d.km<=LEAST(GREATEST(COALESCE(p_rayon_km,20),1),100)
+ORDER BY (a.trouves=nb.c) DESC,d.km;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.search_pharmacies_panier(
+  p_items jsonb,p_lat double precision,p_lng double precision,p_rayon_km double precision DEFAULT 20
+)
+RETURNS TABLE(
+  pharmacie_id uuid,nom text,quartier text,adresse text,lat double precision,lng double precision,
+  de_garde boolean,stock_updated_at timestamptz,distance_km double precision,total_prix integer,
+  items jsonb,trouves integer,demandes integer
+)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT * FROM private.search_pharmacies_panier($1,$2,$3,$4);
+$function$;
+
+CREATE OR REPLACE FUNCTION private.marketplace_offre_stock_disponible(p_pharmacie uuid,p_produit uuid)
+RETURNS TABLE(prix integer,quantite integer)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+DECLARE v_stock public.stocks%rowtype; v_has_lots boolean; v_sellable integer; v_reserved integer;
+BEGIN
+  IF p_pharmacie IS NULL OR p_produit IS NULL THEN RETURN; END IF;
+  SELECT s.* INTO v_stock FROM public.stocks s JOIN public.pharmacies ph ON ph.id=s.pharmacie_id
+  WHERE s.pharmacie_id=p_pharmacie AND s.produit_id=p_produit
+    AND ph.actif IS TRUE AND ph.visible_recherche IS TRUE
+    AND ph.est_demo IS FALSE AND ph.archivee_le IS NULL;
+  IF NOT FOUND THEN RETURN; END IF;
+
+  SELECT COALESCE(sum(ri.quantite),0)::integer INTO v_reserved
+  FROM public.reservation_items ri JOIN public.reservations r ON r.id=ri.reservation_id
+  WHERE r.pharmacie_id=p_pharmacie AND ri.produit_id=p_produit
+    AND r.statut IN ('en_attente','confirmee') AND r.expires_at>now()
+    AND r.consumed_at IS NULL AND COALESCE(r.stock_restored,false) IS FALSE
+    AND COALESCE(r.stock_decremented,false) IS FALSE;
+
+  SELECT EXISTS(SELECT 1 FROM public.stocks_lots l
+    WHERE l.pharmacie_id=p_pharmacie AND l.produit_id=p_produit) INTO v_has_lots;
+  IF v_has_lots THEN
+    SELECT COALESCE(sum(l.quantite),0)::integer INTO v_sellable
+    FROM public.stocks_lots l
+    WHERE l.pharmacie_id=p_pharmacie AND l.produit_id=p_produit
+      AND COALESCE(l.bloque,false) IS FALSE
+      AND (COALESCE(l.date_peremption,l.peremption) IS NULL
+        OR COALESCE(l.date_peremption,l.peremption)>=current_date);
+  ELSE
+    v_sellable:=CASE WHEN v_stock.date_peremption IS NULL OR v_stock.date_peremption>=current_date
+      THEN GREATEST(COALESCE(v_stock.quantite,0),0) ELSE 0 END;
+  END IF;
+  RETURN QUERY SELECT v_stock.prix,GREATEST(COALESCE(v_sellable,0)-COALESCE(v_reserved,0),0);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.marketplace_offre_stock_disponible(p_pharmacie uuid,p_produit uuid)
+RETURNS TABLE(prix integer,quantite integer)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT * FROM private.marketplace_offre_stock_disponible($1,$2);
+$function$;
+
+CREATE OR REPLACE FUNCTION private.get_universe_catalog(p_universe_slug text)
+RETURNS TABLE(
+  product_id uuid,partner_id uuid,partner_name text,universe_slug text,name text,brand text,
+  category text,description text,photo_url text,price_fcfa integer,available_quantity numeric,unit_label text
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT pp.id,pa.id,
+  CASE WHEN pp.universe_slug='bebe-maman' THEN ph.nom ELSE pa.name END,
+  pp.universe_slug,pp.name,pp.brand,pp.category,pp.description,pp.photo_url,pp.price_fcfa,
+  GREATEST(0,pp.stock_quantity-COALESCE(reserved.quantity_reserved,0)),pp.unit_label
+FROM public.partner_products pp
+JOIN public.partners pa ON pa.id=pp.partner_id AND pa.status='active'
+JOIN public.partner_universes pu ON pu.partner_id=pa.id AND pu.universe_slug=pp.universe_slug AND pu.enabled=TRUE
+JOIN public.universes u ON u.slug=pp.universe_slug AND u.enabled=TRUE
+JOIN public.feature_flags ff ON ff.flag_key='universe.'||pp.universe_slug AND ff.enabled=TRUE
+LEFT JOIN LATERAL (
+  SELECT sum(ri.quantity)::numeric quantity_reserved
+  FROM public.universe_reservation_items ri JOIN public.universe_reservations r ON r.id=ri.reservation_id
+  WHERE ri.product_id=pp.id AND r.status IN ('requested','confirmed','ready') AND r.expires_at>now()
+) reserved ON TRUE
+LEFT JOIN public.pharmacies ph ON pp.universe_slug='bebe-maman' AND ph.id=pp.pharmacie_id
+  AND ph.actif IS TRUE AND ph.visible_recherche IS TRUE AND ph.est_demo IS FALSE AND ph.archivee_le IS NULL
+LEFT JOIN public.pharmacie_services ps ON ps.pharmacie_id=ph.id AND ps.service_slug='bebe-maman' AND ps.status='active'
+WHERE pp.universe_slug=p_universe_slug AND p_universe_slug IN ('parapharmacie','bebe-maman')
+  AND pp.status='active' AND (pp.expires_at IS NULL OR pp.expires_at>=current_date)
+  AND pp.stock_quantity-COALESCE(reserved.quantity_reserved,0)>0
+  AND (pp.universe_slug<>'bebe-maman' OR (ph.id IS NOT NULL AND ps.pharmacie_id IS NOT NULL))
+ORDER BY pp.category,pp.name,pa.name;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_universe_catalog(p_universe_slug text)
+RETURNS TABLE(
+  product_id uuid,partner_id uuid,partner_name text,universe_slug text,name text,brand text,
+  category text,description text,photo_url text,price_fcfa integer,available_quantity numeric,unit_label text
+)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT * FROM private.get_universe_catalog($1);
+$function$;
+
+CREATE OR REPLACE FUNCTION private.get_home_service_catalog()
+RETURNS TABLE(
+  offer_id uuid,partner_id uuid,partner_name text,city text,neighborhood text,
+  name text,category text,description text,service_area_label text,price_fcfa integer
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT o.id,p.id,p.name,p.city,p.neighborhood,o.name,o.category,o.description,o.service_area_label,o.price_fcfa
+FROM public.home_service_offers o
+JOIN public.partners p ON p.id=o.partner_id AND p.status='active' AND p.partner_type='professionnel_domicile'
+JOIN public.partner_universes pu ON pu.partner_id=p.id AND pu.universe_slug='prestations' AND pu.enabled=TRUE
+JOIN public.universes u ON u.slug='prestations' AND u.enabled=TRUE
+JOIN public.feature_flags ff ON ff.flag_key='universe.prestations' AND ff.enabled=TRUE
+WHERE o.status='active'
+ORDER BY o.category,o.name,p.name;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_home_service_catalog()
+RETURNS TABLE(
+  offer_id uuid,partner_id uuid,partner_name text,city text,neighborhood text,
+  name text,category text,description text,service_area_label text,price_fcfa integer
+)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT * FROM private.get_home_service_catalog();
+$function$;
+
+CREATE OR REPLACE FUNCTION private.universe_partner_is_public(p_partner_id uuid,p_universe_slug text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT EXISTS (
+  SELECT 1 FROM public.partners pa
+  JOIN public.partner_universes pu ON pu.partner_id=pa.id
+  JOIN public.universes u ON u.slug=pu.universe_slug
+  JOIN public.feature_flags ff ON ff.flag_key='universe.'||pu.universe_slug
+  WHERE pa.id=p_partner_id AND pa.status='active'
+    AND pu.universe_slug=p_universe_slug AND pu.enabled=TRUE
+    AND u.enabled=TRUE AND ff.enabled=TRUE
+);
+$function$;
+
+CREATE OR REPLACE FUNCTION public.universe_partner_is_public(p_partner_id uuid,p_universe_slug text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT private.universe_partner_is_public($1,$2);
+$function$;
+
+-- Isolate cross-profile role lookups from public RPC parameters. Internal
+-- SECURITY DEFINER routines are rewritten to call these private helpers.
+CREATE OR REPLACE FUNCTION private.naxa_business_function(p_profile uuid DEFAULT auth.uid())
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT CASE
+  WHEN p.actif IS NOT TRUE THEN NULL
+  WHEN p.role::text='admin' THEN 'admin'
+  WHEN ar.role_code IS NOT NULL THEN ar.role_code
+  WHEN p.fonction_interne='responsable' THEN 'responsable'
+  WHEN p.role::text='promoteur' THEN 'promoteur'
+  WHEN p.role::text='caisse' THEN 'caisse'
+  WHEN p.fonction_interne IN ('manager_regional','chef_agence','custom') THEN p.fonction_interne
+  ELSE NULL
+END
+FROM public.profiles p
+LEFT JOIN public.naxa_profile_active_roles ar ON ar.profile_id=p.id
+WHERE p.id=p_profile;
+$function$;
+
+CREATE OR REPLACE FUNCTION private.naxa_active_role_pharmacy(p_profile uuid DEFAULT auth.uid())
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT CASE
+  WHEN ar.profile_id IS NOT NULL AND ar.role_code=private.naxa_business_function(p.id) THEN ar.pharmacie_id
+  WHEN private.naxa_business_function(p.id) IN ('pharmacie','caisse') THEN p.pharmacie_id
+  ELSE NULL
+END
+FROM public.profiles p
+LEFT JOIN public.naxa_profile_active_roles ar ON ar.profile_id=p.id
+WHERE p.id=p_profile AND p.actif IS TRUE;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.naxa_business_function(p_profile uuid DEFAULT auth.uid())
+RETURNS text
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT CASE WHEN p_profile IS NOT NULL AND p_profile=(SELECT auth.uid())
+  THEN private.naxa_business_function(p_profile) ELSE NULL END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.naxa_active_role_pharmacy(p_profile uuid DEFAULT auth.uid())
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT CASE WHEN p_profile IS NOT NULL AND p_profile=(SELECT auth.uid())
+  THEN private.naxa_active_role_pharmacy(p_profile) ELSE NULL END;
+$function$;
+
+-- Rewrite every stored database routine that used the public cross-profile
+-- helpers. The calling routines have SECURITY DEFINER and run as their owner;
+-- they can therefore use the private helpers without exposing those helpers
+-- as public RPCs. Keep arguments, return types, owners and grants unchanged.
+DO $rewrite$
+DECLARE r record; definition text;
+BEGIN
+  FOR r IN
+    SELECT p.oid
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE p.prokind='f'
+      AND n.nspname IN ('public','private')
+      AND (
+        p.prosrc ~* '(^|[^[:alnum:]_.])naxa_business_function[[:space:]]*[(]'
+        OR p.prosrc ~* '(^|[^[:alnum:]_.])naxa_active_role_pharmacy[[:space:]]*[(]'
+      )
+  LOOP
+    definition:=pg_get_functiondef(r.oid);
+    definition:=regexp_replace(definition,'public[.]naxa_business_function[[:space:]]*[(]','private.naxa_business_function(', 'gi');
+    definition:=regexp_replace(definition,'(^|[^[:alnum:]_.])naxa_business_function[[:space:]]*[(]',E'\1private.naxa_business_function(', 'gi');
+    definition:=regexp_replace(definition,'public[.]naxa_active_role_pharmacy[[:space:]]*[(]','private.naxa_active_role_pharmacy(', 'gi');
+    definition:=regexp_replace(definition,'(^|[^[:alnum:]_.])naxa_active_role_pharmacy[[:space:]]*[(]',E'\1private.naxa_active_role_pharmacy(', 'gi');
+    EXECUTE definition;
+  END LOOP;
+END
+$rewrite$;
+
+CREATE OR REPLACE FUNCTION public.naxa_scope_allows(
+  p_profile uuid,p_pharmacie uuid,p_scope text DEFAULT 'PHARMACIE'::text
+)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT CASE WHEN p_profile IS NOT NULL AND p_profile=(SELECT auth.uid())
+  THEN private.naxa_scope_allows(p_profile,p_pharmacie,p_scope)
+  ELSE FALSE END;
+$function$;
+
+CREATE OR REPLACE FUNCTION private.suivi_is_verified_professional(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT EXISTS(
+  SELECT 1 FROM public.suivi_professionals p
+  WHERE p.user_id=p_user_id AND p.verified IS TRUE
+);
+$function$;
+
+CREATE OR REPLACE FUNCTION public.suivi_is_verified_professional(p_user_id uuid DEFAULT auth.uid())
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
+AS $function$
+SELECT CASE WHEN p_user_id IS NOT NULL AND p_user_id=(SELECT auth.uid())
+  THEN private.suivi_is_verified_professional(p_user_id)
+  ELSE FALSE END;
+$function$;
+
+DROP POLICY IF EXISTS suivi_shares_owner_insert ON public.suivi_shares;
+CREATE POLICY suivi_shares_owner_insert ON public.suivi_shares
+AS PERMISSIVE FOR INSERT TO authenticated
+WITH CHECK (
+  owner_user_id=(SELECT auth.uid())
+  AND suivi_is_enabled_user((SELECT auth.uid()))
+  AND private.suivi_is_verified_professional(recipient_user_id)
+  AND suivi_has_consent(owner_user_id,suivi_measurement_family(measurement_type))
+  AND EXISTS(
+    SELECT 1 FROM public.suivi_measurements m
+    WHERE m.user_id=suivi_shares.owner_user_id AND m.measurement_type=suivi_shares.measurement_type
+  )
+);
+
+DROP POLICY IF EXISTS suivi_shares_owner_update ON public.suivi_shares;
+CREATE POLICY suivi_shares_owner_update ON public.suivi_shares
+AS PERMISSIVE FOR UPDATE TO authenticated
+USING(owner_user_id=(SELECT auth.uid()) AND suivi_is_enabled_user((SELECT auth.uid())))
+WITH CHECK(
+  owner_user_id=(SELECT auth.uid())
+  AND suivi_is_enabled_user((SELECT auth.uid()))
+  AND (
+    active=FALSE OR (
+      private.suivi_is_verified_professional(recipient_user_id)
+      AND suivi_has_consent(owner_user_id,suivi_measurement_family(measurement_type))
+      AND EXISTS(
+        SELECT 1 FROM public.suivi_measurements m
+        WHERE m.user_id=suivi_shares.owner_user_id AND m.measurement_type=suivi_shares.measurement_type
+      )
+    )
+  )
+);
+
+-- private is intentionally not exposed by the PostgREST Data API. Granting
+-- USAGE here allows the invoker wrappers to call a small allow-list of
+-- parameter-safe private helpers; all implicit PUBLIC/anon execute grants in
+-- private are removed first.
+GRANT USAGE ON SCHEMA private TO anon,authenticated,service_role;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA private FROM PUBLIC,anon;
+
+GRANT EXECUTE ON FUNCTION private.produits_populaires(integer,integer) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.search_pharmacies_panier(jsonb,double precision,double precision,double precision) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.marketplace_offre_stock_disponible(uuid,uuid) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.get_universe_catalog(text) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.get_home_service_catalog() TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.universe_partner_is_public(uuid,text) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.naxa_business_function(uuid) TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.naxa_active_role_pharmacy(uuid) TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.naxa_scope_allows(uuid,uuid,text) TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.suivi_is_verified_professional(uuid) TO authenticated,service_role;
+
+REVOKE ALL ON FUNCTION public.produits_populaires(integer,integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.search_pharmacies_panier(jsonb,double precision,double precision,double precision) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.marketplace_offre_stock_disponible(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_universe_catalog(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_home_service_catalog() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.universe_partner_is_public(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.naxa_business_function(uuid) FROM PUBLIC,anon;
+REVOKE ALL ON FUNCTION public.naxa_active_role_pharmacy(uuid) FROM PUBLIC,anon;
+REVOKE ALL ON FUNCTION public.naxa_scope_allows(uuid,uuid,text) FROM PUBLIC,anon;
+REVOKE ALL ON FUNCTION public.suivi_is_verified_professional(uuid) FROM PUBLIC,anon;
+
+GRANT EXECUTE ON FUNCTION public.produits_populaires(integer,integer) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.search_pharmacies_panier(jsonb,double precision,double precision,double precision) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.marketplace_offre_stock_disponible(uuid,uuid) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.get_universe_catalog(text) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.get_home_service_catalog() TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.universe_partner_is_public(uuid,text) TO anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.naxa_business_function(uuid) TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.naxa_active_role_pharmacy(uuid) TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.naxa_scope_allows(uuid,uuid,text) TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.suivi_is_verified_professional(uuid) TO authenticated,service_role;
+
+
 COMMIT;
