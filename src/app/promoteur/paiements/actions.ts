@@ -114,7 +114,79 @@ export async function deposerPreuveComplementaire(formData: FormData) {
     .maybeSingle();
 
   if (updateError || !updated) {
-    await bucket.remove([proofPath]);
+    // A transport error can arrive after Postgres committed the UPDATE.
+    // Never delete a proof until the database confirms that it is unreferenced.
+    const { data: persisted, error: verifyError } = await db.from("abonnement_promoteur_reglements")
+      .select("id,preuve_path")
+      .eq("id", id)
+      .eq("promoteur_id", user.id)
+      .maybeSingle();
+
+    if (!verifyError && persisted?.preuve_path === proofPath) {
+      revalidatePath("/promoteur/paiements");
+      revalidatePath("/admin/pilotage/reglements");
+      redirect("/promoteur/paiements?ok=preuve");
+    }
+
+    // If database state cannot be established, preserve the object and raise
+    // an auditable incident instead of risking a broken DB -> Storage link.
+    if (verifyError) {
+      try {
+        const { error: auditError } = await db.from("audit_log").insert({
+          actor_id: user.id,
+          action: "reglement_preuve_orpheline",
+          entity_type: "abonnement_promoteur_reglement",
+          entity_id: id,
+          metadata: {
+            storage_path: proofPath,
+            storage_bucket: "preuves-reglements-promoteurs",
+            database_state: "uncertain",
+            update_error: updateError?.message ?? null,
+            verification_error: verifyError.message,
+          },
+        });
+        if (auditError) console.error("NAXA: impossible de journaliser la preuve de règlement à vérifier", auditError.message);
+      } catch (auditFailure) {
+        console.error("NAXA: exception pendant la journalisation de preuve de règlement", auditFailure);
+      }
+      redirect("/promoteur/paiements?erreur=nettoyage_preuve");
+    }
+
+    let proofRemoved = false;
+    const folder = user.id;
+    const filename = proofPath.split("/").pop() ?? proofPath;
+    for (let attempt = 0; attempt < 2 && !proofRemoved; attempt += 1) {
+      try {
+        await bucket.remove([proofPath]);
+        const { data: remaining, error: listError } = await bucket.list(folder, { search: filename });
+        proofRemoved = !listError && !(remaining ?? []).some(file => file.name === filename);
+      } catch {
+        proofRemoved = false;
+      }
+    }
+
+    if (!proofRemoved) {
+      try {
+        const { error: auditError } = await db.from("audit_log").insert({
+          actor_id: user.id,
+          action: "reglement_preuve_orpheline",
+          entity_type: "abonnement_promoteur_reglement",
+          entity_id: id,
+          metadata: {
+            storage_path: proofPath,
+            storage_bucket: "preuves-reglements-promoteurs",
+            cleanup_attempts: 2,
+            database_state: "not_referenced",
+            update_error: updateError?.message ?? null,
+          },
+        });
+        if (auditError) console.error("NAXA: impossible de journaliser la preuve de règlement orpheline", auditError.message);
+      } catch (auditFailure) {
+        console.error("NAXA: exception pendant la journalisation de preuve orpheline", auditFailure);
+      }
+      redirect("/promoteur/paiements?erreur=nettoyage_preuve");
+    }
+
     redirect("/promoteur/paiements?erreur=preuve_indisponible");
   }
   if (row.preuve_path) {
