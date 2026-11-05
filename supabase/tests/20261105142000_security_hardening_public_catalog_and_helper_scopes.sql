@@ -51,8 +51,8 @@ BEGIN
     RAISE EXCEPTION 'Universe catalogue is missing pharmacy visibility guards';
   END IF;
 
-  -- Public popular-products endpoint is an invoker wrapper. The implementation
-  -- lives in private and only aggregates public pharmacies.
+  -- Public popular-products endpoint is a deliberately narrow SECURITY DEFINER
+  -- wrapper; its private implementation only aggregates public pharmacies.
   SELECT pg_get_functiondef('private.produits_populaires(integer,integer)'::regprocedure)
   INTO v_privdef;
   SELECT pg_get_functiondef('public.produits_populaires(integer,integer)'::regprocedure)
@@ -60,12 +60,13 @@ BEGIN
   IF v_privdef NOT ILIKE '%ph.est_demo IS FALSE%'
      OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
      OR v_privdef NOT ILIKE '%ph.visible_recherche IS TRUE%'
-     OR v_def ILIKE '%SECURITY DEFINER%' THEN
-    RAISE EXCEPTION 'Popular-products RPC is not isolated behind a filtered private implementation';
+     OR v_def NOT ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%SET search_path TO %' THEN
+    RAISE EXCEPTION 'Popular-products RPC is not isolated behind a filtered, pinned definer wrapper';
   END IF;
 
-  -- The cart-search endpoint is invoker-only and delegates to a filtered
-  -- private implementation.
+  -- The cart-search endpoint is a deliberately narrow SECURITY DEFINER wrapper.
+  -- anon cannot use the private schema, so do not grant schema USAGE to anon.
   SELECT pg_get_functiondef('private.search_pharmacies_panier(jsonb,double precision,double precision,double precision)'::regprocedure)
   INTO v_privdef;
   SELECT pg_get_functiondef('public.search_pharmacies_panier(jsonb,double precision,double precision,double precision)'::regprocedure)
@@ -73,8 +74,9 @@ BEGIN
   IF v_privdef NOT ILIKE '%ph.est_demo IS FALSE%'
      OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
      OR v_privdef NOT ILIKE '%ph.visible_recherche IS TRUE%'
-     OR v_def ILIKE '%SECURITY DEFINER%' THEN
-    RAISE EXCEPTION 'Cart-search RPC is missing the filtered private boundary';
+     OR v_def NOT ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%SET search_path TO %' THEN
+    RAISE EXCEPTION 'Cart-search RPC is missing the filtered, pinned definer boundary';
   END IF;
 
   -- Scope oracle must run with invoker rights and deny non-self profile checks
