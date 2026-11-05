@@ -81,3 +81,8 @@ test("Google Apps Script ne double-dispatche pas les rappels Push", () => {
   assert.match(gasSource, /\/api\/cron\/validite/);
   assert.match(gasSource, /Le Web Push est dispatché directement par pg_cron/);
 });
+
+test("le worker Push ne renvoie pas un faux vert lorsqu'un sous-traitement échoue", () => {
+  assert.match(posologieRoute, /const hasFailures = failed > 0 \|\| suiviFailed > 0 \|\| favorisRappelsEchecs > 0/);
+  assert.match(posologieRoute, /status: hasFailures \? 503 : 200/);
+});
