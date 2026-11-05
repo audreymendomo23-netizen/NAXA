@@ -31,10 +31,26 @@ export function supabaseAdmin(){
     throw new Error("Supabase Admin is not configured on the server.");
   }
 
+  // New sb_secret_* API keys are opaque keys, not JWTs. Send them only
+  // through the apikey header; never mirror them into Authorization: Bearer.
+  const globalOptions = supabaseSecretKey.startsWith("sb_secret_")
+    ? {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+          const headers = new Headers(init?.headers);
+          headers.delete("Authorization");
+          headers.set("apikey", supabaseSecretKey);
+          return fetch(input, { ...init, headers });
+        },
+      }
+    : undefined;
+
   return createClient(
     supabaseUrl,
     supabaseSecretKey,
-    { auth: { persistSession: false } }
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      ...(globalOptions ? { global: globalOptions } : {}),
+    }
   )
 }
 export function supabasePublic(revalidateSecondes=600){
