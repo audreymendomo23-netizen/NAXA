@@ -77,6 +77,7 @@ test("le worker Push vérifie le jeton Vault en Production et CRON_SECRET hors P
 });
 
 test("Google Apps Script ne double-dispatche pas les rappels Push", () => {
-  assert.doesNotMatch(gasSource, /\/api\/cron\/posologie/);
+  assert.equal((gasSource.match(/UrlFetchApp\\.fetch\\(/g) || []).length, 1);
   assert.match(gasSource, /\/api\/cron\/validite/);
+  assert.match(gasSource, /Le Web Push est dispatché directement par pg_cron/);
 });
