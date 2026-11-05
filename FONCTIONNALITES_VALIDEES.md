@@ -1905,3 +1905,40 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Sécurité Replay/Preview :** `NEXT_PUBLIC_SUPABASE_URL` et `SUPABASE_SECRET_KEY` sont configurées pour Preview/Development sur Replay. Les valeurs globales `SUPABASE_SERVICE_ROLE_KEY` de Preview et Development ont été neutralisées ; la clé Production n’a pas été consultée ni utilisée. Une ancienne variable Preview liée à la branche historique `fix/login-page-layout-20261012` reste hors du périmètre `main` et n’a pas pu être éditée par l’API Vercel, le projet n’exposant pas de dépôt Git connecté pour cette portée.
 - **Limite de preuve Admin :** la clé secrète Replay est présente dans l’environnement Preview et le helper serveur la privilégie ; toutefois, l’appel runtime Admin lui-même n’a pas pu être exercé par HTTP POST avec les outils disponibles. Le catalogue n’a aucune fiche validée et la recherche ne déclenche donc pas le parcours stock Admin. Ne pas interpréter les HTTP 200 publics comme une preuve E2E de cette clé.
 - **Aucun changement Supabase Production :** aucune donnée, migration, permission ou clé Production n’a été modifiée ni interrogée dans cette correction.
+
+
+---
+
+## Audit sécurité Supabase — authentification, RPC et RLS (05/11/2026) — NON VERT
+
+### Protection des mots de passe compromis
+- **Production et Replay :** l'advisory auth_leaked_password_protection confirme que la protection est désactivée.
+- **Blocage de plan :** l'organisation Supabase NAXA est sur le plan Free. La documentation Supabase réserve la protection native des mots de passe compromis au plan Pro ou supérieur. Aucun contrôle côté navigateur ou substitut applicatif n'est considéré comme une activation équivalente.
+- **Statut :** NON VERT. Aucune activation n'a été réalisée et aucune mise à niveau payante n'a été déclenchée.
+
+### Revue RLS — Production, lecture seule
+- **159/159 tables public ont RLS activée.** Aucune table publique sans RLS n'a été trouvée.
+- **253 policies** recensées.
+- **10 tables publiques RLS sans policy** ont été recensées. Pour chacune, les grants directs SELECT/INSERT/UPDATE/DELETE sont absents pour anon et authenticated ; le refus est fermé par défaut.
+- Aucun WITH CHECK (true) ou USING (true) non conditionné n'a été trouvé parmi les policies d'écriture accessibles à PUBLIC/anon examinées. Les policies d'écriture observées reposent sur des contrôles Admin, pharmacie ou périmètre.
+- **Statut RLS structurel :** VERT sur les contrôles exécutés en lecture seule. Cela ne remplace pas les tests métier avec comptes de rôles distincts.
+
+### Fonctions sensibles — Production, lecture seule
+- **247 fonctions SECURITY DEFINER dans public ; 247 ont un search_path fixé.** Aucune fonction SECURITY DEFINER publique sans search_path explicite n'a été trouvée.
+- Les advisories signalent **5 fonctions exécutables par anon** et **147 par authenticated**. Ces alertes ne sont pas toutes des vulnérabilités : chaque RPC exposée doit être classée selon son usage et ses contrôles d'accès.
+- Les RPC publiques universe_partner_is_public, get_home_service_catalog, produits_populaires, marketplace_offre_stock_disponible et get_universe_catalog ont été examinées. Les deux dernières ainsi que le classement des produits nécessitent des filtres explicites sur les pharmacies actives, visibles, non démo et non archivées.
+- Contrôles vérifiés sur des opérations sensibles : naxa_provision_caisse délègue à naxa_grant_professional_assignment (authentification, acteur, périmètre, privilège, architecture et quota) ; stats_pilotage_scope exige une session et un privilège de pilotage ; caisse_cloturer vérifie l'acteur, la session et le poste actif ; naxa_can_approve_marketplace_credit contrôle l'acteur courant et sa délégation.
+- **Point restant à refactorer :** naxa_business_function(p_profile) et naxa_active_role_pharmacy(p_profile) permettent une lecture de métadonnées de rôle/périmètre pour un profil fourni. Plusieurs procédures internes les utilisent sur des profils cibles ; retirer leurs EXECUTE sans refactorer ces appels risquerait de casser les contrôles métier. Aucun retrait global aveugle n'a été effectué.
+
+### Correctif préparé sur main — application non confirmée
+- Migration source : supabase/migrations/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, commit cfb5f885e251bd42cb6c3beac1f70aac98f57ca8.
+- Contrat de tests : supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, commit d90c9831ff798a4a11ee1cc89b745b66fb26c5f0.
+- Le correctif renforce les filtres des RPC de catalogue, déplace les implémentations de recherche dans le schéma privé derrière des wrappers invoker, limite les vérifications de périmètre exposées au profil courant et déplace la vérification du professionnel destinataire dans un helper privé utilisé par les policies de partage.
+- **Non appliqué :** l'appel d'administration Supabase apply_migration sur Replay a été refusé avec le message link_id must identify an eligible linked account. Aucun DDL n'a été exécuté via un autre chemin de contournement. La migration et son test sont versionnés, mais pas encore appliqués ni exécutés. Production n'a subi aucune écriture.
+
+### Décision de clôture
+- Protection contre les mots de passe compromis : **NON VERT — plan Free**.
+- Contrôles structurels RLS Production : **VERT sur la base de la revue SQL en lecture seule**.
+- Renforcement des RPC : **PRÉPARÉ SUR MAIN, À APPLIQUER ET TESTER SUR REPLAY**.
+- Revue exhaustive des 147 RPC SECURITY DEFINER accessibles à authenticated : **NON CLÔTURÉE** ; les helpers inter-profils cités ci-dessus restent à refactorer et à tester.
+- Aucun déploiement Vercel ni changement de base Production n'a été effectué.
