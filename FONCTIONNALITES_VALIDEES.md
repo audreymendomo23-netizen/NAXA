@@ -1,3 +1,14 @@
+## Recette pilote — validations techniques Replay et réserves terrain (05/11/2026)
+
+- Tests transactionnels des postes actifs 295–299 exécutés sur Supabase Replay : **36 assertions PASS** (isolation, Caisse, Pharmacien, Stock/Inventaire, Responsable, Comptable et absence de privilèges Livreur implicites).
+- Test E2E offline 284 : le jeu de démonstration est temporairement marqué non-démo dans chaque transaction pour simuler une pharmacie publiée ; le test passe (vente 4 700 FCFA, reçu 5 000 FCFA, monnaie 300 FCFA, stock 52→51, clôture à écart nul). Le `ROLLBACK` restaure le jeu de démo ; zéro donnée opérationnelle F07 résiduelle. Correction du harnais : `baee8c94054ace82fc81ed67a24aac4ae29b621e`.
+- Le Replay ne contient que 9 pharmacies démo, un Admin actif, aucune affectation et aucune réservation. **Aucune recette avec de vraies pharmacies ou des utilisateurs externes n'a été réalisée.**
+- Réserve : le POS réutilise un helper Marketplace filtrant `est_demo=false` et `visible_recherche=true` ; le POS d'une pharmacie active non publiée reste à vérifier/découpler. Le Livreur reste informatif, sans workflow de livraison.
+- UI navigateur/appareil, build, typecheck, lint et `npm test` global non exécutés ; aucun déploiement ni changement Production.
+- Rapport : [docs/RECETTE_PILOTE_TERRAIN_NAXA.md](docs/RECETTE_PILOTE_TERRAIN_NAXA.md).
+
+---
+
 # NAXA — REGISTRE DES FONCTIONNALITÉS / ÉTAT DE VALIDATION
 
 ## Postes professionnels autonomes — audit et preuves Replay (04/11/2026)
