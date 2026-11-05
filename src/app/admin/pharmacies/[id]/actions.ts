@@ -3,16 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { requireAdminActive } from "@/lib/admin/require-admin-active";
 
 const TYPES = new Set(["existence_legale","registre_commerce","niu","attestation_non_redevance","plan_localisation","cni_promoteur","autre"]);
 const MIME = new Set(["application/pdf","image/jpeg","image/png","image/webp"]);
 
 async function requireAdmin() {
-  const sb = supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) throw new Error("Authentification requise.");
-  const { data: profile } = await sb.from("profiles").select("role,actif").eq("id", user.id).maybeSingle();
-  if (profile?.role !== "admin" || profile.actif !== true) throw new Error("Accès administrateur requis.");
+  const { user } = await requireAdminActive("/admin/pharmacies");
   return user;
 }
 
