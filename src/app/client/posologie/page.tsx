@@ -100,7 +100,7 @@ export default function ConfigurerPosologiePage() {
   const [intervalleHeures, setIntervalleHeures] = useState(8);
   const [heureDebut, setHeureDebut] = useState("07:00");
   const [heures, setHeures] = useState(["07:00", "12:00", "19:00"]);
-  const [rappels, setRappels] = useState(true);
+  const [rappels, setRappels] = useState(false);
   const [permission, setPermission] = useState("unsupported");
   const [erreur, setErreur] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
