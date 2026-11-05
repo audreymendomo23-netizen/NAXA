@@ -16,13 +16,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let compteursPartiels = false;
   {
       const [{ data: pharmacies, error: pharmaciesError }, { data: validites, error: validitesError }, { count: ticketsCount, error: ticketsError }] = await Promise.all([
-        sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche"),
+        sb.from("pharmacies").select("id,nom,stock_updated_at,actif,visible_recherche,est_demo"),
         sb.rpc("validites_promoteurs_admin"),
         sb.from("tickets_support").select("id", { count: "exact", head: true }).eq("statut", "ouvert"),
       ]);
       if (!ticketsError) requetesOuvertes = ticketsCount ?? 0; else compteursPartiels = true;
       if (!pharmaciesError) {
-        const pharmaciesOperationnelles = (pharmacies ?? []).filter((p) => !isDemoPharmacy(p.nom));
+        const pharmaciesOperationnelles = (pharmacies ?? []).filter((p) => !isDemoPharmacy(p.nom,p.est_demo));
         alertes += pharmaciesOperationnelles.filter((p) => !p.stock_updated_at).length;
         alertes += pharmaciesOperationnelles.filter((p) => p.actif === false || p.visible_recherche === false).length;
       } else compteursPartiels = true;
