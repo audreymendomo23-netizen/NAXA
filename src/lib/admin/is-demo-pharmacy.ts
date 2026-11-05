@@ -5,6 +5,10 @@
 const DEMO_PHARMACY_NAME_PATTERN =
   /(^|[^\p{L}\p{N}])(?:démo|demo|test|mock|exemple|fictif)(?=$|[^\p{L}\p{N}])/iu;
 
-export function isDemoPharmacy(name: string | null | undefined): boolean {
+export function isDemoPharmacy(
+  name: string | null | undefined,
+  demoFlag?: boolean | null,
+): boolean {
+  if (demoFlag !== null && demoFlag !== undefined) return demoFlag;
   return DEMO_PHARMACY_NAME_PATTERN.test(name ?? "");
 }
