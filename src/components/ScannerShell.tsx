@@ -8,7 +8,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Ecran = "camera" | "crop" | "results";
 type ModeScan = "ordonnance" | "boite";
 type ProduitDetecte = { id: string; nom: string; quantite: number; statut: "Disponible" | "Sur ordonnance" | "À confirmer" };
-type BrouillonPosologie = { medicament: string; dose: string; unite: string; prises?: number; heures: string[]; heureDebut?: string; rappels: boolean };
+type BrouillonPosologie = { medicament: string; dose: string; unite: string; prises?: number; heures: string[]; heureDebut?: string; rappels: boolean; rappelsConsentement?: boolean };
 type DetectionCode = { rawValue: string };
 type DetecteurCode = { detect: (source: CanvasImageSource) => Promise<DetectionCode[]> };
 type ConstructeurDetecteur = new (options?: { formats?: string[] }) => DetecteurCode;
@@ -53,7 +53,7 @@ function extrairePosologie(lecture: LectureOrdonnance): BrouillonPosologie {
   const frequence = lecture.texte.match(/\b([1-8])\s*(?:fois|prises?)\s*(?:par|\/)\s*(?:jour|j)\b/i);
   const prisesDetectees = heures.length || (frequence && Number(frequence[1]) === 3 ? 3 : undefined);
   const horaires = heures.length ? heures : prisesDetectees === 3 ? HEURES_PAR_DEFAUT : [];
-  return { medicament, dose, unite, prises: prisesDetectees, heures: horaires, heureDebut: horaires[0], rappels: true };
+  return { medicament, dose, unite, prises: prisesDetectees, heures: horaires, heureDebut: horaires[0], rappels: false };
 }
 
 export function ScannerShell() {
@@ -74,7 +74,7 @@ export function ScannerShell() {
   const [apercu, setApercu] = useState("");
   const [zoomRecadrage, setZoomRecadrage] = useState(100);
   const [produits, setProduits] = useState<ProduitDetecte[]>([]);
-  const [configurerRappels, setConfigurerRappels] = useState(true);
+  const [configurerRappels, setConfigurerRappels] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const inputFichier = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -86,7 +86,7 @@ export function ScannerShell() {
       const parsed = raw ? JSON.parse(raw) as ProduitDetecte[] : [];
       setProduits(Array.isArray(parsed) ? parsed.filter(p => typeof p.nom === "string").slice(0, 12) : []);
       const draft = sessionStorage.getItem(CLE_BROUILLON);
-      if (draft) setConfigurerRappels((JSON.parse(draft) as BrouillonPosologie).rappels !== false);
+      if (draft) { const saved = JSON.parse(draft) as BrouillonPosologie; setConfigurerRappels(saved.rappels === true && saved.rappelsConsentement === true); }
     } catch {
       setProduits([]);
     }
@@ -351,7 +351,7 @@ export function ScannerShell() {
     try {
       if (configurerRappels) {
         const raw = sessionStorage.getItem(CLE_BROUILLON);
-        if (raw) sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...(JSON.parse(raw) as BrouillonPosologie), rappels: true }));
+        if (raw) sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...(JSON.parse(raw) as BrouillonPosologie), rappels: true, rappelsConsentement: true }));
       } else sessionStorage.removeItem(CLE_POSOLOGIE);
     } catch {}
     const rechercherParNom = () => router.push("/resultats?" + selection.map(item => "q=" + encodeURIComponent(item.nom.trim())).join("&"));
@@ -380,7 +380,7 @@ export function ScannerShell() {
     try {
       const raw = sessionStorage.getItem(CLE_BROUILLON);
       const draft = raw ? JSON.parse(raw) as BrouillonPosologie : { medicament: produits[0]?.nom || "", dose: "", unite: "", heures: [], rappels: configurerRappels };
-      sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...draft, rappels: configurerRappels }));
+      sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...draft, rappels: configurerRappels, rappelsConsentement: configurerRappels }));
       sessionStorage.removeItem(CLE_BROUILLON);
       sessionStorage.removeItem(CLE_RESULTATS);
     } catch {}
@@ -449,7 +449,7 @@ export function ScannerShell() {
           <button type="button" onClick={() => ouvrirPrix(item.nom)} className="mt-3 min-h-10 rounded-full border border-[#0F6B3F] px-4 text-xs font-extrabold text-[#0F6B3F]">Voir les prix</button>
         </article>)}</div> : <div className="rounded-2xl bg-white p-5 text-sm text-[#53685C]">Aucun résultat à afficher. Rescannez une ordonnance plus lisible.</div>}
         <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#D8E5DC] bg-white p-4">
-          <input type="checkbox" checked={configurerRappels} onChange={e => setConfigurerRappels(e.target.checked)} className="mt-1 h-5 w-5 accent-[#0F6B3F]"/>
+          <input type="checkbox" checked={configurerRappels} onChange={e => { const checked = e.target.checked; setConfigurerRappels(checked); try { const raw = sessionStorage.getItem(CLE_BROUILLON); if (raw) sessionStorage.setItem(CLE_BROUILLON, JSON.stringify({ ...(JSON.parse(raw) as BrouillonPosologie), rappels: checked, rappelsConsentement: true })); } catch {} }} className="mt-1 h-5 w-5 accent-[#0F6B3F]"/>
           <span><strong className="block text-sm">Configurer mes rappels</strong><span className="mt-1 block text-xs leading-5 text-[#64776B]">Les horaires restent modifiables. Aucun schéma ni rappel n’est enregistré avant votre validation.</span></span>
         </label>
         <div className="mt-4 grid gap-3">
