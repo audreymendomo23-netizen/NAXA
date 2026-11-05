@@ -54,7 +54,7 @@ function headersFor(apiKey, accessToken, contentType) {
   const headers = new Headers();
   headers.set("apikey", apiKey);
   if (accessToken) headers.set("Authorization", "Bearer " + accessToken);
-  else if (!apiKey.startsWith("sb_secret_")) headers.set("Authorization", "Bearer " + apiKey);
+  else if (!apiKey.startsWith("sb_secret_") && !apiKey.startsWith("sb_publishable_")) headers.set("Authorization", "Bearer " + apiKey);
   if (contentType) headers.set("Content-Type", contentType);
   return headers;
 }
