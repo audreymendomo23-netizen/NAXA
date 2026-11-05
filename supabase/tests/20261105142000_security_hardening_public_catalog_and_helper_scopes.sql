@@ -32,27 +32,36 @@ BEGIN
     RAISE EXCEPTION 'An unguarded public/anon write policy exists';
   END IF;
 
-  -- Marketplace stock must not expose hidden, demo or archived pharmacies.
+  -- Public inventory endpoint is invoker-only; the private definer implementation
+  -- contains the strict pharmacy visibility and non-expired / non-blocked lot filters.
+  SELECT pg_get_functiondef('private.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure)
+  INTO v_privdef;
   SELECT pg_get_functiondef('public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure)
   INTO v_def;
-  IF v_def NOT ILIKE '%ph.est_demo IS FALSE%'
-     OR v_def NOT ILIKE '%ph.archivee_le IS NULL%'
-     OR v_def NOT ILIKE '%coalesce(l.bloque%'
-     OR v_def NOT ILIKE '%date_peremption%' THEN
-    RAISE EXCEPTION 'Marketplace stock RPC is missing pharmacy/lot security guards';
+  IF v_privdef NOT ILIKE '%ph.est_demo IS FALSE%'
+     OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
+     OR v_privdef NOT ILIKE '%coalesce(l.bloque%'
+     OR v_privdef NOT ILIKE '%date_peremption%'
+     OR v_def ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%private.marketplace_offre_stock_disponible%' THEN
+    RAISE EXCEPTION 'Marketplace stock wrapper or private guard is invalid';
   END IF;
 
   -- The Bebe-Maman universe must use only publicly visible real pharmacies.
+  SELECT pg_get_functiondef('private.get_universe_catalog(text)'::regprocedure)
+  INTO v_privdef;
   SELECT pg_get_functiondef('public.get_universe_catalog(text)'::regprocedure)
   INTO v_def;
-  IF v_def NOT ILIKE '%ph.est_demo IS FALSE%'
-     OR v_def NOT ILIKE '%ph.archivee_le IS NULL%'
-     OR v_def NOT ILIKE '%ph.visible_recherche IS TRUE%' THEN
-    RAISE EXCEPTION 'Universe catalogue is missing pharmacy visibility guards';
+  IF v_privdef NOT ILIKE '%ph.est_demo IS FALSE%'
+     OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
+     OR v_privdef NOT ILIKE '%ph.visible_recherche IS TRUE%'
+     OR v_def ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%private.get_universe_catalog%' THEN
+    RAISE EXCEPTION 'Universe catalogue wrapper or private guard is invalid';
   END IF;
 
-  -- Public popular-products endpoint is a deliberately narrow SECURITY DEFINER
-  -- wrapper; its private implementation only aggregates public pharmacies.
+  -- Public popular-products endpoint is invoker-only; the private function
+  -- aggregates only public pharmacies.
   SELECT pg_get_functiondef('private.produits_populaires(integer,integer)'::regprocedure)
   INTO v_privdef;
   SELECT pg_get_functiondef('public.produits_populaires(integer,integer)'::regprocedure)
@@ -60,13 +69,13 @@ BEGIN
   IF v_privdef NOT ILIKE '%ph.est_demo IS FALSE%'
      OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
      OR v_privdef NOT ILIKE '%ph.visible_recherche IS TRUE%'
-     OR v_def NOT ILIKE '%SECURITY DEFINER%'
-     OR v_def NOT ILIKE '%SET search_path TO %' THEN
-    RAISE EXCEPTION 'Popular-products RPC is not isolated behind a filtered, pinned definer wrapper';
+     OR v_def ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%private.produits_populaires%' THEN
+    RAISE EXCEPTION 'Popular-products RPC is not isolated behind its filtered private implementation';
   END IF;
 
-  -- The cart-search endpoint is a deliberately narrow SECURITY DEFINER wrapper.
-  -- anon cannot use the private schema, so do not grant schema USAGE to anon.
+  -- The public cart-search endpoint is invoker-only and calls a filtered
+  -- private implementation through a minimal EXECUTE allow-list.
   SELECT pg_get_functiondef('private.search_pharmacies_panier(jsonb,double precision,double precision,double precision)'::regprocedure)
   INTO v_privdef;
   SELECT pg_get_functiondef('public.search_pharmacies_panier(jsonb,double precision,double precision,double precision)'::regprocedure)
@@ -74,9 +83,9 @@ BEGIN
   IF v_privdef NOT ILIKE '%ph.est_demo IS FALSE%'
      OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
      OR v_privdef NOT ILIKE '%ph.visible_recherche IS TRUE%'
-     OR v_def NOT ILIKE '%SECURITY DEFINER%'
-     OR v_def NOT ILIKE '%SET search_path TO %' THEN
-    RAISE EXCEPTION 'Cart-search RPC is missing the filtered, pinned definer boundary';
+     OR v_def ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%private.search_pharmacies_panier%' THEN
+    RAISE EXCEPTION 'Cart-search RPC is missing the filtered private boundary';
   END IF;
 
   -- Scope oracle must run with invoker rights and deny non-self profile checks
@@ -128,6 +137,52 @@ BEGIN
      OR NOT has_function_privilege('anon', 'public.produits_populaires(integer,integer)', 'EXECUTE')
      OR NOT has_function_privilege('anon', 'public.search_pharmacies_panier(jsonb,double precision,double precision,double precision)', 'EXECUTE') THEN
     RAISE EXCEPTION 'A public catalogue RPC lost its explicit anon grant';
+  END IF;
+
+
+  -- All remaining public catalogue SECURITY DEFINER code must live behind
+  -- invoker wrappers. This prevents anon/authenticated RPCs from executing
+  -- privileged public-schema functions directly.
+  IF (SELECT prosecdef FROM pg_proc WHERE oid='public.get_home_service_catalog()'::regprocedure)
+     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.universe_partner_is_public(uuid,text)'::regprocedure) THEN
+    RAISE EXCEPTION 'A public catalogue wrapper still uses SECURITY DEFINER';
+  END IF;
+  IF has_function_privilege('anon','private.naxa_business_function(uuid)','EXECUTE')
+     OR has_function_privilege('anon','private.naxa_active_role_pharmacy(uuid)','EXECUTE')
+     OR has_function_privilege('anon','private.naxa_scope_allows(uuid,uuid,text)','EXECUTE')
+     OR has_function_privilege('anon','private.suivi_is_verified_professional(uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'An anonymous role can execute an internal private helper';
+  END IF;
+  IF NOT has_function_privilege('anon','private.produits_populaires(integer,integer)','EXECUTE')
+     OR NOT has_function_privilege('anon','private.marketplace_offre_stock_disponible(uuid,uuid)','EXECUTE')
+     OR NOT has_function_privilege('anon','private.get_universe_catalog(text)','EXECUTE')
+     OR NOT has_function_privilege('anon','private.get_home_service_catalog()','EXECUTE')
+     OR NOT has_function_privilege('anon','private.universe_partner_is_public(uuid,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'The anonymous private-helper allow-list is incomplete';
+  END IF;
+
+  -- Public role/scope lookup RPCs may answer only for the caller's own profile.
+  SELECT pg_get_functiondef('public.naxa_business_function(uuid)'::regprocedure) INTO v_def;
+  IF v_def ILIKE '%SECURITY DEFINER%' OR v_def NOT ILIKE '%auth.uid%'
+     OR v_def NOT ILIKE '%private.naxa_business_function%' THEN
+    RAISE EXCEPTION 'Public role helper is not caller-scoped invoker code';
+  END IF;
+  SELECT pg_get_functiondef('public.naxa_active_role_pharmacy(uuid)'::regprocedure) INTO v_def;
+  IF v_def ILIKE '%SECURITY DEFINER%' OR v_def NOT ILIKE '%auth.uid%'
+     OR v_def NOT ILIKE '%private.naxa_active_role_pharmacy%' THEN
+    RAISE EXCEPTION 'Public active-role helper is not caller-scoped invoker code';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname IN ('public','private') AND p.prokind='f'
+      AND (p.prosrc ~* 'public[.]naxa_business_function[[:space:]]*[(]'
+        OR p.prosrc ~* 'public[.]naxa_active_role_pharmacy[[:space:]]*[(]')
+      AND p.proname NOT IN ('naxa_business_function','naxa_active_role_pharmacy')
+  ) THEN
+    RAISE EXCEPTION 'An internal routine still calls the public cross-profile helper';
   END IF;
 
   -- Behavioural regression guard: if public-active demo/archived pharmacies
