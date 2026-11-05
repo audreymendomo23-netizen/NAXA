@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { CodeOtp } from "@/components/CodeOtp";
 import { useAuthDraftState, useClearSignupDrafts } from "@/components/auth/AuthDraftContext";
@@ -118,6 +119,11 @@ function Formulaire(){
   setError("");
   const sb=supabaseBrowser();
   try{
+    const passwordSecurity = await verifierSecuriteMotDePasse(password);
+    if (!passwordSecurity.ok) {
+      setError(passwordSecurity.message);
+      return;
+    }
     const {error:passwordError}=await sb.auth.updateUser({password});
     if(passwordError){
       setError("Impossible d’enregistrer le mot de passe. Vérifiez votre connexion puis réessayez.");
