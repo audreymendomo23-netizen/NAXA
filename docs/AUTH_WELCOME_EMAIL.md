@@ -53,7 +53,13 @@ Le script canonique contient aussi `processNaxaNotificationQueue` et `installNax
 6. Exécuter manuellement `installNaxaNotificationTrigger` une seule fois. Il remplace les anciens déclencheurs du même handler et crée une exécution toutes les 5 minutes.
 7. Vérifier dans **Déclencheurs** Apps Script que le déclencheur est actif, puis contrôler les journaux d'exécution et l'outbox.
 
-Pour arrêter le traitement automatique, exécuter `removeNaxaNotificationTrigger`. Le déclencheur Google n'est pas encore installé par le code GitHub : cette activation nécessite l'autorisation du propriétaire du compte Google.
+Le handler `processNaxaNotificationQueue` appelle désormais, à chaque cycle, les deux endpoints Production :
+- `/api/cron/validite` pour synchroniser les validités et délivrer l'outbox e-mail ;
+- `/api/cron/posologie` pour exécuter les rappels de posologie et envoyer les notifications Web Push.
+
+Les deux appels transmettent séparément `CRON_SECRET` et `NAXA_VERCEL_BYPASS_SECRET`. Les redirections sont désactivées et chaque réponse doit être un JSON conforme ; une page SSO HTML ou une réponse HTTP non-2xx remonte comme un échec au lieu d'un faux succès. `NAXA_WORKER_URL` doit pointer vers le domaine Production stable `https://nnaxa.vercel.app/api/cron/validite`, jamais vers un alias Preview `naxa-git-main-...`.
+
+Pour arrêter le traitement automatique, exécuter `removeNaxaNotificationTrigger`. Le déclencheur Google n'est pas installé par le code GitHub : cette activation et la publication de la nouvelle version Apps Script nécessitent l'autorisation du propriétaire du compte Google. Après publication, retirer l'ancien job PostgreSQL `naxa-posology-web-push-every-five-minutes` au moyen de la migration de retrait versionnée ; ce job appelait une Preview protégée par SSO et ne doit plus être considéré comme un dispatcher Push valide.
 
 
 **Contrôle de cohérence obligatoire avant activation :** vérifier que les trois propriétés NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET sont présentes dans Apps Script, et que CRON_SECRET, GOOGLE_APPS_SCRIPT_URL et GOOGLE_APPS_SCRIPT_SECRET sont présentes dans Vercel Production. Les valeurs ne doivent jamais être copiées dans un rapport. Une variable simplement présente ne prouve ni l'installation du déclencheur ni la réception d'un e-mail.
