@@ -977,4 +977,78 @@ GRANT EXECUTE ON FUNCTION public.naxa_scope_allows(uuid,uuid,text) TO authentica
 GRANT EXECUTE ON FUNCTION public.suivi_is_verified_professional(uuid) TO authenticated,service_role;
 
 
+
+-- Preserve the complete active-role validation logic when the helper is moved
+-- behind the private schema boundary. Do not reduce this to a raw role lookup.
+CREATE OR REPLACE FUNCTION private.naxa_business_function(p_profile uuid DEFAULT auth.uid())
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT COALESCE(
+  (
+    SELECT ar.role_code
+    FROM public.naxa_profile_active_roles ar
+    JOIN public.profiles p ON p.id=ar.profile_id AND p.actif IS TRUE
+    WHERE ar.profile_id=p_profile
+      AND (
+        (ar.role_code='admin' AND p.role::text='admin' AND ar.pharmacie_id IS NULL)
+        OR (ar.role_code='client' AND p.role::text='client' AND ar.pharmacie_id IS NULL)
+        OR (ar.role_code='promoteur' AND p.role::text='promoteur'
+            AND ar.pharmacie_id IS NULL AND private.naxa_promoteur_valide(p.id))
+        OR (ar.role_code='pharmacie' AND p.role::text='pharmacie'
+            AND ar.pharmacie_id=p.pharmacie_id
+            AND EXISTS(SELECT 1 FROM public.pharmacies ph WHERE ph.id=ar.pharmacie_id AND ph.actif))
+        OR (ar.role_code='caisse' AND p.role::text='caisse'
+            AND ar.pharmacie_id=p.pharmacie_id
+            AND EXISTS(SELECT 1 FROM public.pharmacies ph WHERE ph.id=ar.pharmacie_id AND ph.actif))
+        OR EXISTS(
+          SELECT 1
+          FROM public.naxa_professional_assignments a
+          JOIN public.pharmacies ph ON ph.id=a.pharmacie_id AND ph.actif IS TRUE
+          WHERE a.profile_id=p.id
+            AND a.role_code=ar.role_code
+            AND a.pharmacie_id=ar.pharmacie_id
+            AND a.statut='active'
+            AND a.commence_at<=now()
+            AND (a.expire_at IS NULL OR a.expire_at>now())
+        )
+      )
+    LIMIT 1
+  ),
+  (
+    SELECT CASE
+      WHEN p.role::text='admin' THEN 'admin'
+      WHEN p.role::text='client' THEN 'client'
+      WHEN p.role::text='promoteur' AND private.naxa_promoteur_valide(p.id) THEN 'promoteur'
+      WHEN p.role::text='pharmacie'
+        AND EXISTS(SELECT 1 FROM public.pharmacies ph WHERE ph.id=p.pharmacie_id AND ph.actif)
+        THEN 'pharmacie'
+      WHEN p.role::text='caisse'
+        AND EXISTS(SELECT 1 FROM public.pharmacies ph WHERE ph.id=p.pharmacie_id AND ph.actif)
+        THEN 'caisse'
+      ELSE NULL
+    END
+    FROM public.profiles p
+    WHERE p.id=p_profile AND p.actif IS TRUE
+  )
+);
+$function$;
+
+CREATE OR REPLACE FUNCTION private.naxa_active_role_pharmacy(p_profile uuid DEFAULT auth.uid())
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $function$
+SELECT CASE
+  WHEN ar.profile_id IS NOT NULL
+    AND ar.role_code=private.naxa_business_function(p.id)
+    THEN ar.pharmacie_id
+  WHEN private.naxa_business_function(p.id) IN ('pharmacie','caisse')
+    THEN p.pharmacie_id
+  ELSE NULL
+END
+FROM public.profiles p
+LEFT JOIN public.naxa_profile_active_roles ar ON ar.profile_id=p.id
+WHERE p.id=p_profile AND p.actif IS TRUE;
+$function$;
+
 COMMIT;
