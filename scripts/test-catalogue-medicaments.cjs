@@ -53,9 +53,13 @@ test("recherche : résultats instantanés et disponibilité partenaire séparée
   assert.match(recherche, /Vérifier le stock des pharmacies partenaires/);
   assert.match(route, /const availability = !localProduct/);
   assert.match(route, /from\("stocks"\)/);
-  assert.match(route, /\.gt\("quantite", 0\)/);
   assert.match(route, /\.eq\("pharmacies\.actif", true\)/);
-});
+  assert.match(route, /\.eq\("pharmacies\.visible_recherche", true\)/);
+  assert.match(route, /\.eq\("pharmacies\.est_demo", false\)/);
+  assert.match(route, /db\.rpc\("marketplace_offre_stock_disponible"/);
+  assert.match(route, /const quantity = Number\(offer\.quantite\)/);
+  assert.match(route, /quantity <= 0/);
+});;
 
 test("réglementation : le catalogue renvoie vers le répertoire officiel DPML", () => {
   assert.ok(route.includes("https://dpml.cm/repertoireDesAmm/index.php"));
