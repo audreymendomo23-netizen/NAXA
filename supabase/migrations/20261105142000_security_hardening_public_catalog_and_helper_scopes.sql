@@ -1120,4 +1120,11 @@ AS $function$
 $function$;
 REVOKE ALL ON FUNCTION public.naxa_architecture_for_profile(uuid) FROM PUBLIC,anon,authenticated;
 
+
+-- Extensions used by NAXA search/catalogue functions are relocatable and all
+-- stored callers pin search_path to include extensions. Keep extension API
+-- objects outside the PostgREST-exposed public schema.
+ALTER EXTENSION unaccent SET SCHEMA extensions;
+ALTER EXTENSION pg_trgm SET SCHEMA extensions;
+
 COMMIT;
