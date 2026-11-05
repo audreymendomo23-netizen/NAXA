@@ -25,13 +25,12 @@ test("API : trois sources attendues et aucune dépendance à RxImage", () => {
   assert.doesNotMatch(route, /rximage\.nlm\.nih\.gov/);
 });
 
-test("images : aucune image tierce n'est réutilisée sans licence vérifiée", () => {
-  assert.match(route, /photo_licence/);
-  assert.match(route, /photo_verifiee_le/);
-  assert.match(route, /getPublicUrl\(localProduct\.photo_path\)/);
+test("images : aucune photo n'est publiée tant que la provenance et les droits ne sont pas matérialisés", () => {
+  assert.match(route, /const storagePhotoUrl = null/);
+  assert.match(route, /Photo masquée jusqu’à validation de sa provenance et de ses droits/);
   assert.doesNotMatch(route, /dailyMedImage\(/);
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
-});
+});;
 
 test("upload photo : licence, URL HTTPS et confirmation des droits obligatoires", () => {
   assert.match(upload, /sourceUrl\.trim\(\)\.startsWith\("https:\/\/"\)/);
