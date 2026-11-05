@@ -191,3 +191,15 @@ Projet Vercel `naxa` — équipe `naxa3` :
 Le fichier `.env.example` a été aligné sur le nom réellement lu par le serveur (`SUPABASE_SECRET_KEY`) et précise qu'en Preview/Development la clé doit provenir de Replay. Cette modification est documentaire et ne crée pas de secret.
 
 **Statut :** variables publiques Production/Replay séparées et vérifiées; secrets privilégiés non Production neutralisés; connexion SQL Replay confirmée. Accès serveur Admin Replay et exécution E2E HTTP à travers SSO restent conditionnés à la clé `sb_secret_...` Replay et au bypass de test dédiés. Aucun déploiement n'a été effectué.
+
+
+## Correctif de compatibilité serveur — fallback strict Production
+
+Le code `src/lib/supabase/server.ts` a été corrigé après constat que `supabaseAdmin()` attendait `SUPABASE_SECRET_KEY`, alors que la configuration Vercel historique porte la clé serveur Production sous `SUPABASE_SERVICE_ROLE_KEY` :
+
+- `SUPABASE_SECRET_KEY` reste prioritaire pour tout environnement lorsqu'elle est fournie.
+- Le fallback vers `SUPABASE_SERVICE_ROLE_KEY` n'est autorisé que si `VERCEL_ENV === "production"`.
+- Preview et Development ne peuvent pas utiliser l'ancienne variable Production comme fallback; sans secret Replay dédié, les opérations Admin/serveur privilégiées échouent explicitement au lieu de toucher Production.
+- Aucun secret n'a été récupéré, recopié ou imprimé pendant ce correctif.
+
+Fichier modèle `.env.example` complété pour documenter cette frontière. Code modifié sur `main`; build et exécution applicative post-modification non lancés, car cela aurait nécessité un déploiement Preview non demandé.
