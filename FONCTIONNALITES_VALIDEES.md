@@ -1928,39 +1928,52 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 
 ---
 
-## Audit sécurité Supabase — authentification, RPC et RLS (05/11/2026) — NON VERT
+## Audit sécurité Supabase — authentification, RPC et RLS (05/11/2026) — PARTIELLEMENT CORRIGÉ, NON VERT
 
 ### Protection des mots de passe compromis
-- **Production et Replay :** l'advisory auth_leaked_password_protection confirme que la protection est désactivée.
-- **Blocage de plan :** l'organisation Supabase NAXA est sur le plan Free. La documentation Supabase réserve la protection native des mots de passe compromis au plan Pro ou supérieur. Aucun contrôle côté navigateur ou substitut applicatif n'est considéré comme une activation équivalente.
-- **Statut :** NON VERT. Aucune activation n'a été réalisée et aucune mise à niveau payante n'a été déclenchée.
+- **Plan NAXA :** l'organisation Supabase est toujours sur Free. L'advisory Auth confirme que la protection native contre les mots de passe compromis est désactivée sur Production et Replay. La documentation Supabase la réserve au plan Pro ou supérieur.
+- **Mesure compensatoire versionnée sur main :** contrôleur HIBP Pwned Passwords en k-anonymat. Seuls les cinq premiers caractères du hash SHA-1 sont transmis à l'API ; le mot de passe et le hash complet restent côté serveur. Contrôle fail-closed et limitation par IP via le rate-limit NAXA.
+- **Parcours intégrés :** création de compte client, récupération du mot de passe et réinitialisation par lien. Le nouveau endpoint retourne 409 si le mot de passe est compromis et 503 si la vérification ne peut pas aboutir.
+- **Limite :** les routes serveur de changement de mot de passe Pharmacie et Promoteur (`/api/auth/update-password` et `/api/auth/update-promoteur-password`) n'ont pas accepté les modifications par l'outil GitHub. Elles peuvent encore modifier un mot de passe sans le contrôle compensatoire. Le contrôle UI ne remplace pas le contrôle natif Auth et ne peut pas empêcher un appel direct à Auth.
+- **Statut : NON VERT.** La protection native n'est pas activée. Aucun passage payant au plan Pro n'a été effectué.
 
 ### Revue RLS — Production, lecture seule
 - **159/159 tables public ont RLS activée.** Aucune table publique sans RLS n'a été trouvée.
-- **253 policies** recensées.
-- **10 tables publiques RLS sans policy** ont été recensées. Pour chacune, les grants directs SELECT/INSERT/UPDATE/DELETE sont absents pour anon et authenticated ; le refus est fermé par défaut.
-- Aucun WITH CHECK (true) ou USING (true) non conditionné n'a été trouvé parmi les policies d'écriture accessibles à PUBLIC/anon examinées. Les policies d'écriture observées reposent sur des contrôles Admin, pharmacie ou périmètre.
-- **Statut RLS structurel :** VERT sur les contrôles exécutés en lecture seule. Cela ne remplace pas les tests métier avec comptes de rôles distincts.
+- **253 policies** recensées lors de la revue Production.
+- **10 tables publiques RLS sans policy** sont recensées ; les droits SELECT/INSERT/UPDATE/DELETE directs sont absents pour anon et authenticated. Le refus est fermé par défaut.
+- Aucun WITH CHECK (true) ou USING (true) non conditionné n'a été identifié parmi les policies d'écriture publiques examinées.
+- **Statut structurel Production : VERT** sur ces contrôles en lecture seule. La recette par comptes et rôles réels reste distincte.
 
-### Fonctions sensibles — Production, lecture seule
-- **247 fonctions SECURITY DEFINER dans public ; 247 ont un search_path fixé.** Aucune fonction SECURITY DEFINER publique sans search_path explicite n'a été trouvée.
-- Les advisories signalent **5 fonctions exécutables par anon** et **147 par authenticated**. Ces alertes ne sont pas toutes des vulnérabilités : chaque RPC exposée doit être classée selon son usage et ses contrôles d'accès.
-- Les RPC publiques universe_partner_is_public, get_home_service_catalog, produits_populaires, marketplace_offre_stock_disponible et get_universe_catalog ont été examinées. Les deux dernières ainsi que le classement des produits nécessitent des filtres explicites sur les pharmacies actives, visibles, non démo et non archivées.
-- Contrôles vérifiés sur des opérations sensibles : naxa_provision_caisse délègue à naxa_grant_professional_assignment (authentification, acteur, périmètre, privilège, architecture et quota) ; stats_pilotage_scope exige une session et un privilège de pilotage ; caisse_cloturer vérifie l'acteur, la session et le poste actif ; naxa_can_approve_marketplace_credit contrôle l'acteur courant et sa délégation.
-- **Point restant à refactorer :** naxa_business_function(p_profile) et naxa_active_role_pharmacy(p_profile) permettent une lecture de métadonnées de rôle/périmètre pour un profil fourni. Plusieurs procédures internes les utilisent sur des profils cibles ; retirer leurs EXECUTE sans refactorer ces appels risquerait de casser les contrôles métier. Aucun retrait global aveugle n'a été effectué.
+### Fonctions sensibles et RPC — Replay exécuté
+- Migration de sécurité appliquée à `naxa-ci-replay-2` par SQL direct, car l'action d'administration `apply_migration` a été refusée par le connecteur (`link_id must identify an eligible linked account`). Les opérations DDL n'ont pas été exécutées sur Production. Cette application SQL directe n'est pas une preuve que l'historique Supabase des migrations a été mis à jour.
+- **159 tables public Replay, 0 RLS désactivée, 230 policies.** Aucune fonction SECURITY DEFINER publique sans search_path explicite n'a été trouvée.
+- Les six RPC de catalogue/recherche (`produits_populaires`, `search_pharmacies_panier`, `marketplace_offre_stock_disponible`, `get_universe_catalog`, `get_home_service_catalog`, `universe_partner_is_public`) sont désormais des wrappers SECURITY INVOKER. Les implémentations privilégiées sont dans `private`, avec une allow-list EXECUTE contrôlée. Les filtres excluent les pharmacies inactives, masquées, de démonstration ou archivées ; les stocks tiennent compte des lots bloqués/périmés et des réservations actives.
+- Les helpers publics de rôle/périmètre (`naxa_business_function`, `naxa_active_role_pharmacy`, `naxa_scope_allows`, `suivi_is_verified_professional`) sont invoker et limités au profil courant. Les procédures internes ont été réécrites pour employer les helpers privés ; contrôle SQL final : **0 appel interne résiduel vers les anciens helpers publics**.
+- Les policies de partage Suivi contrôlent le professionnel destinataire via le helper privé.
+- Les fonctions exclusivement déclencheurs ne sont plus exécutables par les clients : `initialiser_abonnement_pharmacie`, `vente_ligne_figer_cout`, `produits_garde_fiche`, `naxa_reservation_receipt_snapshot`, `naxa_creer_proposition_favoris_apres_encaissement`. Leurs déclencheurs restent installés.
+- L'ancienne RPC de remboursement libre `client_credit_rembourser(uuid,integer,text,text)` est révoquée. `naxa_architecture_for_profile(uuid)` est invoker et non exécutable par les clients. `is_promoteur()` est authentifié uniquement.
+- **Extensions :** `unaccent` et `pg_trgm` ont été déplacées de `public` vers `extensions`. Tests de fonctions : normalisation de « École à Yaoundé » et similarité de « paracetamol/paracétamol » exécutés avec succès.
+- **Advisor Replay après correction :** deux avertissements anon SECURITY DEFINER restants concernent uniquement `log_recherche` et `log_evenement`, conservés pour la télémétrie publique. L'Advisor remonte également 162 fonctions SECURITY DEFINER exécutables par authenticated ; ces avertissements sont génériques et ne prouvent pas à eux seuls une faille. Les opérations métier ont des contrôles d'authentification, d'acteur, de rôle ou de périmètre ; aucun retrait global aveugle de ces grants n'a été fait. Les alertes RLS sans policy concernent des tables fermées par défaut.
+- **Contrats exécutés sur Replay : PASS (3/3).**
+  - `20261105142000_security_hardening_public_catalog_and_helper_scopes.sql` : contrat catalogue, RLS, wrappers, helpers, visibilité pharmacie.
+  - `20261105143000_trigger_rpc_execute_contract.sql` : révocation des RPC déclencheurs/obsolètes et maintien des déclencheurs.
+  - `20261105144000_extension_and_trigger_rpc_contract.sql` : localisation des extensions et ACL du déclencheur Favoris.
+- **Production reste inchangée :** l'Advisor Production conserve les alertes catalogue/trigger liées à l'ancienne définition (7 anon SECURITY DEFINER et 148 authenticated au dernier relevé) ainsi que l'alerte Auth native. Aucune migration, modification de permission ou mise à jour de données Production n'a été exécutée.
 
-### Correctif préparé sur main — application non confirmée
-- Migration source : supabase/migrations/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, dernier commit de mise à jour d23e3d4de8326d7d54a1db54d5345f594e9104d5.
-- Contrat de tests : supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, dernier commit de mise à jour a0d2aeb133346af10dc91a1fad0b9f4bfed4ec74.
-- Le correctif renforce les filtres des RPC de catalogue ; les implémentations de recherche restent dans le schéma privé derrière des wrappers SECURITY DEFINER étroits (search_path fixé et filtres explicites), car anon ne dispose pas de USAGE sur private ; les vérifications de périmètre et de statut professionnel exposées publiquement deviennent des wrappers SECURITY INVOKER limités au profil courant, tandis que les policies de partage utilisent un helper privé pour contrôler le professionnel destinataire.
-- **Non appliqué :** l'appel d'administration Supabase apply_migration sur Replay a été refusé avec le message link_id must identify an eligible linked account. Aucun DDL n'a été exécuté via un autre chemin de contournement. La migration et son test sont versionnés, mais pas encore appliqués ni exécutés. Production n'a subi aucune écriture.
+### Fichiers et preuves versionnés sur main
+- Migration : `supabase/migrations/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql` — dernier commit `3b93ad9519d7b498f836a389ebb7faf1b1c9c6b6`.
+- Tests : `supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql`, `supabase/tests/20261105143000_trigger_rpc_execute_contract.sql`, `supabase/tests/20261105144000_extension_and_trigger_rpc_contract.sql`.
+- Code HIBP : `src/lib/auth/pwned-passwords.ts`, `src/lib/auth/password-security-client.ts`, `src/app/api/auth/password-security/route.ts`; limitation par IP via `rateLimit`.
+- Aucun déploiement Vercel ou test HTTP Preview/Production des nouveaux parcours n'a été effectué dans cette passe.
 
 ### Décision de clôture
-- Protection contre les mots de passe compromis : **NON VERT — plan Free**.
-- Contrôles structurels RLS Production : **VERT sur la base de la revue SQL en lecture seule**.
-- Renforcement des RPC : **PRÉPARÉ SUR MAIN, À APPLIQUER ET TESTER SUR REPLAY**.
-- Revue exhaustive des 147 RPC SECURITY DEFINER accessibles à authenticated : **NON CLÔTURÉE** ; les helpers inter-profils cités ci-dessus restent à refactorer et à tester.
-- Aucun déploiement Vercel ni changement de base Production n'a été effectué.
+- Protection native Auth : **NON VERT — plan Free ; passage Pro requis**.
+- Contrôle compensatoire HIBP dans les trois parcours clients : **VERSIONNÉ, non encore validé par build/HTTP E2E**.
+- RLS structurel Production : **VERT sur la revue SQL en lecture seule**.
+- RPC/RLS et extensions Replay : **CORRIGÉS ET CONTRATS SQL PASS 3/3**.
+- Fonctions SECURITY DEFINER authenticated : **revue de gardes effectuée ; alertes Advisor génériques restantes, pas de révocation globale**.
+- Production : **NON MODIFIÉE**.
+- Sécurité globale : **NON VERT tant que le contrôle Auth natif et les deux routes server-side ne sont pas couverts et que la migration n'est pas appliquée/testée en Preview/Production après autorisation**.
 
 ## Storage — harnais HTTP binaire et état de certification (05/11/2026)
 
