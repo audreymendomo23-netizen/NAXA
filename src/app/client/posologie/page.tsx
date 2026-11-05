@@ -115,7 +115,7 @@ export default function ConfigurerPosologiePage() {
       sessionStorage.removeItem("naxa:scanner:posologie:pending");
       const draft = JSON.parse(raw) as {
         medicament?: string; dose?: string; unite?: string; prises?: number;
-        heures?: string[]; heureDebut?: string; rappels?: boolean;
+        heures?: string[]; heureDebut?: string; rappels?: boolean; rappelsConsentement?: boolean;
       };
       if (draft.medicament) setMedicament(draft.medicament.slice(0, 100));
       if (draft.dose) setDose(draft.dose.slice(0, 40));
@@ -127,7 +127,7 @@ export default function ConfigurerPosologiePage() {
           : Array.from({ length: draft.prises! }, (_, index) => HEURES_DEFAUT[index]));
       }
       if (draft.heureDebut) setHeureDebut(draft.heureDebut);
-      if (typeof draft.rappels === "boolean") setRappels(draft.rappels);
+      if (typeof draft.rappels === "boolean") setRappels(draft.rappels === true && draft.rappelsConsentement === true);
       setScannerPrefill(true);
       setScannerNotice("Vérifiez chaque champ reconnu sur l’ordonnance avant d’enregistrer.");
       timer = window.setTimeout(() => setScannerPrefill(false), 1200);
