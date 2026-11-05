@@ -328,8 +328,11 @@ export async function GET(request: Request) {
     }
   }
 
+  // Un worker planifié ne doit jamais renvoyer un faux vert quand un sous-traitement a échoué.
+  // Le dispatcher/pg_cron peut ainsi remonter l'échec HTTP et l'historiser.
+  const hasFailures = failed > 0 || suiviFailed > 0 || favorisRappelsEchecs > 0;
   return NextResponse.json({
-    ok: true,
+    ok: !hasFailures,
     checked: data?.length ?? 0,
     due,
     sent,
@@ -343,5 +346,5 @@ export async function GET(request: Request) {
     favorisRappelsPush,
     favorisRappelsEchecs,
     at: now.toISOString(),
-  });
+  }, { status: hasFailures ? 503 : 200 });
 }
