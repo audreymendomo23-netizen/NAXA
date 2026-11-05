@@ -412,7 +412,7 @@ $function$;
 -- an administrator/service role). Internal cross-profile checks use the
 -- private helper and are not exposed as an enumeration endpoint.
 CREATE OR REPLACE FUNCTION public.naxa_scope_allows(
-  p_profile uuid,
+  p_actor uuid,
   p_pharmacie uuid,
   p_scope text DEFAULT 'PHARMACIE'::text
 )
@@ -423,11 +423,11 @@ SECURITY INVOKER
 SET search_path TO ''
 AS $function$
   SELECT CASE
-    WHEN p_profile IS NULL THEN FALSE
-    WHEN p_profile = (SELECT auth.uid())
+    WHEN p_actor IS NULL THEN FALSE
+    WHEN p_actor = (SELECT auth.uid())
       OR (SELECT auth.role()) = 'service_role'
       OR public.is_admin()
-      THEN private.naxa_scope_allows(p_profile, p_pharmacie, p_scope)
+      THEN private.naxa_scope_allows(p_actor, p_pharmacie, p_scope)
     ELSE FALSE
   END;
 $function$;
