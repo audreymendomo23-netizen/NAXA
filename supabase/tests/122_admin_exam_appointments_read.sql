@@ -9,6 +9,7 @@ declare
   policy_row record;
   public_admin_def text;
   private_admin_def text;
+  business_function_def text;
 begin
   select schemaname, tablename, policyname, roles, cmd, qual
     into policy_row
@@ -49,10 +50,19 @@ begin
 
   select pg_get_functiondef('private.is_admin()'::regprocedure)
     into private_admin_def;
-  if private_admin_def not ilike '%role = ''admin''%'
-     or private_admin_def not ilike '%actif is true%'
-     or private_admin_def not ilike '%auth.uid()%' then
-    raise exception 'Le garde privé doit exiger une identité, le rôle admin et le profil actif';
+  if private_admin_def not ilike '%security definer%'
+     or private_admin_def not ilike '%set search_path to %'
+     or private_admin_def not ilike '%public.naxa_business_function(auth.uid())=''admin''%' then
+    raise exception 'Le garde privé doit déléguer au routeur de poste actif Admin, avec search_path épinglé';
+  end if;
+
+  select pg_get_functiondef('public.naxa_business_function(uuid)'::regprocedure)
+    into business_function_def;
+  if business_function_def not ilike '%ar.role_code=''admin''%'
+     or business_function_def not ilike '%p.role::text=''admin''%'
+     or business_function_def not ilike '%p.actif=true%'
+     or business_function_def not ilike '%pharmacie_id is null%' then
+    raise exception 'Le routeur doit exiger le rôle Admin, le profil actif et l’espace Admin global';
   end if;
 end;
 $test$;
