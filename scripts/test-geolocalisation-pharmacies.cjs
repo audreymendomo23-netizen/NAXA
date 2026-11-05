@@ -116,7 +116,8 @@ test("Interface admin : synchronisation explicite, sans lancement automatique", 
 test("Tableau de bord : carte réelle et liste des pharmacies partagent les mêmes identifiants", () => {
   const dashboard = fs.readFileSync(path.join(__dirname, "..", "src", "components", "AccueilClient.tsx"), "utf8");
   const map = fs.readFileSync(path.join(__dirname, "..", "src", "components", "CartePharmaciesProches.tsx"), "utf8");
-  assert.match(dashboard, /<CartePharmaciesProches pharmacies=\{pharmaciesProches\} position=\{coord\}/);
+  assert.match(dashboard, /<CartePharmaciesProches pharmacies=\{pharmaciesProches\.map\(pharmacie\s*=>/);
+  assert.match(dashboard, /\)\} position=\{coord\} onLocaliser=\{localiser\}/);
   assert.match(map, /tileLayer\("https:\/\/\{s\}\.tile\.openstreetmap\.org/);
   assert.match(map, /markersRef\.current\.set\(p\.id, marker\)/);
   assert.match(map, /marker\.on\("click", \(\) =>/);
