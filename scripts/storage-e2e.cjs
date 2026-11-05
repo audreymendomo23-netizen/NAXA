@@ -175,7 +175,7 @@ function makePdf() {
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-    "<< /Length 43 >>\nstream\nBT /F1 12 Tf 20 60 Td (NAXA Storage E2E) Tj ET\nendstream",
+    "<< /Length 47 >>\nstream\nBT /F1 12 Tf 20 60 Td (NAXA Storage E2E) Tj ET\nendstream",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
   ];
   let pdf = "%PDF-1.4\n";
