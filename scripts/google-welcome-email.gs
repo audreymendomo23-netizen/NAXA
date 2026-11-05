@@ -88,7 +88,7 @@ function processNaxaNotificationQueue() {
   // Le worker doit rester sur le domaine stable Production, jamais sur un alias
   // de branche Preview protégé par SSO.
   if (!/^https:\/\/nnaxa\.vercel\.app\/api\/cron\/validite$/.test(workerUrl)) {
-    throw new Error("NAXA_WORKER_URL doit être https://nnaxa.vercel.app/api/cron/validite (Production).");
+    throw new Error("NAXA_WORKER_URL doit utiliser le domaine stable Production https://nnaxa.vercel.app/api/cron/validite.");
   }
 
   const headers = {
