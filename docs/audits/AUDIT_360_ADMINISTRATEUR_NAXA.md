@@ -1,3 +1,126 @@
+# Audit 360° Administrateur — état de la phase préliminaire (05/11/2026)
+
+> **Statut du mandat : PHASE PRÉLIMINAIRE EN COURS.** L'audit détaillé du parcours Administrateur (cartographie page par page, inventaire des éléments, boucles d'interaction et simulation des 1 000 cas) n'a pas commencé. Il attend l'autorisation explicite prévue par le MANDAT CTO. Le présent état ne certifie ni la complétude fonctionnelle de NAXA, ni l'aptitude au lancement.
+
+## 1. Référence, gouvernance et méthode
+
+- Dépôt : `audreymendomo23-netizen/NAXA` (privé), branche par défaut et branche de travail : `main`.
+- HEAD observé à la rédaction : `90e2f5a607cb08cd823231dbb77652cbeacdd1de` — `$(le SHA est documenté dans l'historique Git)`.
+- Aucun travail sur une branche auxiliaire et aucune Pull Request créés pour cette phase.
+- Autorités documentaires : `AGENTS.md`, le MANDAT CTO et le présent cahier d'audit ; `docs/CAHIER_DES_CHARGES.md` v3.7 ; `docs/DECISIONS_METIER_CONFIRMEES_2026-11-02.md` et `docs/DECISIONS_METIER_FONDATEUR.md`. Les arbitrages confirmés priment sur les questions anciennes, mais ne constituent pas une preuve d'implémentation.
+- La phase préliminaire est structurée autour des sept axes imposés : conversations accessibles, GitHub/code, Supabase autorisé, documents, revue systématique de main, erreurs/journaux et variables/configurations.
+- **Limite de couverture des conversations :** seules la conversation en cours, le contexte de continuité disponible et les documents de la Bibliothèque réellement retrouvés ont été pris en compte. Toutes les conversations historiques du projet ne sont pas intégralement accessibles ; elles ne sont donc pas déclarées analysées.
+- La revue fichier par fichier de tout le dépôt n'est pas terminée. Aucun total de fichiers, de routes ou de composants n'est certifié dans cette phase.
+
+## 2. Conformité au mandat — incident à tracer
+
+Le MANDAT CTO interdit tout déploiement, y compris Preview, tout déclenchement manuel ou automatique dans le cadre du chantier, et toute investigation consacrée au déploiement en échec.
+
+- **Non-conformité survenue avant la découverte du mandat complet :** quatre demandes manuelles de déploiement Preview ont été créées pendant la reprise de l'échange : `dpl_AZrEvrwswnu1gLaSFBEhCnKeCJqX` (SHA `bf276344…`), `dpl_B3dzcxu5q8vCVko1Xmvreui5VqVk` (SHA `8677f72d…`), `dpl_FGpsS3Bkamz9NB5GwqoERGtsBHE8` (SHA `7e4d23e…`) et `dpl_AG955y3TV18hHP24obthbwzYo58q` (SHA `05a2e346…`). Elles n'auraient pas dû être déclenchées au regard du mandat. Cet écart est consigné sans ouvrir de chantier de diagnostic Vercel.
+- Des déploiements automatiques ont également été observés à la suite de commits sur `main`, via l'intégration existante. Aucun nouveau déclenchement ni relancement n'a été effectué après lecture du mandat.
+- Aucune mise en Production, promotion, modification de configuration Production ou écriture Supabase Production n'a été réalisée pendant cette phase.
+- La demande d'autorisation d'accès Vercel générée pendant l'incident a été explicitement déclarée inutile ; l'utilisateur a été averti de ne pas l'approuver.
+- Conformément au mandat, l'état détaillé des builds/déploiements n'est pas investigué ici et ne doit pas détourner le chantier de l'audit métier et Administrateur.
+
+## 3. Analyse préliminaire des ressources
+
+### 3.1 Conversations et décisions métier
+
+Les décisions retrouvées couvrent notamment : identité distincte des affectations professionnelles et poste actif unique ; périmètres pharmacie stricts ; rôles Responsable/Promoteur ; accréditation Pharmacien ; distinction sanction Marketplace et suspension complète ; libération idempotente des réservations ; crédit Marketplace et décrément de stock ; abonnement mensuel/annuel ; règles de paiement Promoteur ; ERP comme produit principal et marketplace comme module utilisant le stock réel.
+
+Les décisions du 02/11/2026 précisent elles-mêmes qu'une décision métier ne prouve pas que le code l'implémente. Quelques arbitrages restent explicitement ambigus dans l'addendum (par exemple portée exacte de la sélection « Promoteur uniquement » pour le crédit au comptoir et délai d'expiration d'une affectation urgente). Ils devront être reliés à leur fonctionnalité durant l'audit, sans inventer de règle.
+
+### 3.2 GitHub et sources examinés
+
+Fichiers examinés dans cette passe, sans prétendre à l'inventaire intégral :
+- `AGENTS.md`, `README.md`, `STATUT.md`, `FONCTIONNALITES_VALIDEES.md`, `package.json`, `.gitlab-ci.yml`.
+- `docs/CAHIER_DES_CHARGES.md`, `docs/DECISIONS_METIER_CONFIRMEES_2026-11-02.md`, `docs/DECISIONS_METIER_FONDATEUR.md`, `docs/RECETTE_PILOTE_TERRAIN_NAXA.md`, `docs/AUTH_WELCOME_EMAIL.md`, le présent audit.
+- Échantillon ciblé de routes/API et services touchant la recherche catalogue, Supabase Admin, cron Push/e-mail, géolocalisation et compensation Storage Promoteur.
+- Migrations/tests SQL ciblés cités à la section 3.3, ainsi que tests Node ciblés de communications, géolocalisation, catalogue et paiement. Le contenu de chaque fichier n'a pas encore été inventorié de la première à la dernière ligne.
+
+Le dépôt contient une pipeline GitLab manuelle/API sans job de déploiement : typecheck, lint, audit des dépendances, tests Node et build. Elle n'a pas été déclenchée. L'état du miroir GitLab et ses quotas sont documentés dans les instantanés antérieurs ; aucune pipeline récente sur le HEAD courant n'est revendiquée.
+
+### 3.3 Supabase — Replay seulement
+
+Aucune consultation ni écriture de la base Production n'a été effectuée dans cette phase. Les constats SQL ci-dessous proviennent de Supabase Replay `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) :
+
+| Indicateur Replay | Valeur observée |
+|---|---:|
+| Pharmacies totales | 9 |
+| Pharmacies démo | 9 |
+| Pharmacies actives et visibles | 8 |
+| Produits | 20 |
+| Produits avec fiche validée | 0 |
+| Profils Admin actifs | 1 |
+| Affectations professionnelles | 0 |
+| Réservations | 0 |
+| Abonnements Push | 0 |
+
+Ce jeu de données ne contient pas de cohorte de pharmacies réelles ni de comptes représentatifs permettant une recette métier inter-rôles. Les valeurs sont un instantané Replay, pas des statistiques Production.
+
+Migrations Replay recensées dans l'historique : `20261105124653` (vue financière et offre Marketplace), les restaurations Storage `20261105131057`, `20261105131111`, `20261105131122`, `20261105131219`, et le durcissement de catalogue/helpers enregistré `20261105134508` (`security_hardening_public_catalog_and_helper_scopes`). Le numéro d'enregistrement Supabase `20261105134508` ne doit pas être confondu avec le nom/horodatage du fichier source `20261105142000_...`.
+
+**Tests réellement exécutés sur Replay dans cette passe ou le contexte de continuité accessible :**
+- `supabase/tests/20261105124653_marketplace_and_financial_view_security.sql` : PASS ; vue financière en `security_invoker`, filtres pharmacie démo/archivée, permissions RPC explicites et lecture cloisonnée.
+- `supabase/tests/20261105140000_storage_bucket_and_policy_contract.sql` : PASS structurel ; paramètres de buckets et présence/scopes des policies. Cela ne prouve pas un upload/téléchargement binaire via Storage API.
+- `supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql` : PASS ; wrappers publics appelables, helpers privés non exécutables par anon, pas d'USAGE anon sur `private`, refus d'énumération des scopes et filtres catalogue.
+- `supabase/tests/149_suivi_background_reminders_push.sql` : PASS ; contrat de schéma et absence du job Push hérité actif sur Replay.
+- `supabase/tests/284_offline_pos_sales_e2e_replay.sql` : PASS avec transactions annulées ; vente 4 700 FCFA, reçu 5 000 FCFA, monnaie 300 FCFA, rejeu idempotent, conflits prix/stock, clôture sans écart. Après `ROLLBACK`, fixture démo restaurée et aucun profil/caisse/appareil/session F07 résiduel.
+- Les tests 295–299 sont rapportés dans `STATUT.md` et la recette pilote : 36 assertions PASS sur les scopes Caisse, Pharmacien, Stock, Responsable et Comptable. Ces résultats restent limités à Replay.
+
+La migration de retrait du job `20261105143000_retire_protected_preview_posology_cron.sql` n'a pas été appliquée dans cette phase. Sa propre précondition exige la publication et la mise en route effective du dispatcher Apps Script unifié. Elle ne doit pas être appliquée avant preuve de cette bascule. Le Replay ne possédait déjà aucun job nommé `naxa-posology-web-push-every-five-minutes`.
+
+### 3.4 Documentation
+
+Documents présents et consultés : `README.md`, `STATUT.md`, `FONCTIONNALITES_VALIDEES.md`, `docs/CAHIER_DES_CHARGES.md`, les deux registres de décisions métier, `docs/RECETTE_PILOTE_TERRAIN_NAXA.md`, `docs/AUTH_WELCOME_EMAIL.md` et le présent audit.
+
+Chemins demandés mais non retrouvés à leur emplacement exact lors de la vérification : `docs/NAXA_MASTER_INDEX.md`, `docs/NAXA_REPRISE_EXACTE.md`, `docs/CONTINUITE_NAXA.md`, `docs/P1_COMMUNICATIONS_STATUS.md`, `supabase/config.toml`. Leur éventuelle présence sous un autre nom/emplacement n'a pas été exclue faute d'inventaire exhaustif de l'arbre Git.
+
+Le cahier v3.7 contient des instantanés historiques (notamment anciens numéros d'urgence et anciennes descriptions de rôles) ; les décisions confirmées plus récentes et les corrections source doivent être prises comme références lorsqu'elles les remplacent. Toute divergence résiduelle doit être inventoriée avant conclusion.
+
+### 3.5 Revue systématique de main — état de couverture
+
+La revue fichier par fichier imposée n'est pas terminée. Les constats et nombres d'inventaires contenus plus bas dans l'historique du présent document sont des photographies datées de chantiers antérieurs ; ils ne sont pas reportés comme totaux actuels certifiés. Aucun taux de couverture du code, des pages Admin, des éléments UI ou des boucles métier n'est calculé à ce stade.
+
+### 3.6 Erreurs et journaux — éléments connus, non exhaustifs
+
+- Le registre P1 rapporte un problème antérieur de routage cron vers une Preview protégée par SSO, ainsi qu'un défaut du runtime Production lié à la sélection de la clé Admin. Le code source a été corrigé sur `main`; la passerelle Apps Script réelle n'est pas attestée comme republiée et les événements e-mail/Push réels ne sont pas certifiés.
+- Le script Apps Script source exige la configuration du worker stable, des secrets distincts et l'installation du déclencheur. Aucun test réel de livraison e-mail/Push ou de publication de ce script externe n'est prouvé ici.
+- Les erreurs de builds Preview incidentes sont simplement consignées à la section 2. Elles ne sont pas investiguées conformément au mandat.
+- La dépendance Next est en `14.2.35`, mais Next.js 14.x est hors support en novembre 2026. Le correctif de version antérieur n'équivaut donc pas à une mise à niveau vers une branche supportée. Une migration Next 15/16 exige un chantier distinct et une validation des APIs asynchrones, React et du PWA.
+- Le pilote terrain, les scénarios navigateur/appareil réels, l'upload/download Storage réel, la livraison e-mail/Push, le parcours Livreur opérationnel et l'abonnement annuel complet restent non certifiés dans les documents consultés.
+
+### 3.7 Variables et configurations
+
+- `.gitlab-ci.yml` définit des variables de test fictives uniquement dans le job de build, sans job de déploiement.
+- Les consommateurs de configuration examinés incluent `supabaseAdmin()`, les workers `/api/cron/validite` et `/api/cron/posologie`, ainsi que le script Google Apps Script. Les variables serveur doivent être contrôlées par nom, environnement et consommateur ; aucune valeur secrète n'est consignée ici.
+- La présence et la cohérence actuelles de toutes les variables GitHub/Vercel/Supabase n'ont pas été réauditées exhaustivement sous ce mandat. Les contrôles précédents de configuration sont des instantanés et ne sont pas présentés comme un audit actuel complet.
+- Aucun secret n'a été déchiffré, copié ou inscrit dans ce document. Aucun changement de configuration Production n'a été réalisé.
+
+## 4. Incohérences et risques à garder dans le registre préliminaire
+
+| ID | Constat préliminaire | Preuve / référence | Statut |
+|---|---|---|---|
+| PRE-CTO-01 | Quatre demandes Preview ont été créées avant découverte du mandat, en contradiction avec l'interdiction absolue. | IDs consignés en §2 | Écart de conformité reconnu ; aucune nouvelle action Vercel |
+| PRE-DATA-01 | Le jeu Replay ne permet pas une recette réelle pharmacies/utilisateurs. | Instantané SQL §3.3 | Confirmé par requête Replay |
+| PRE-P1-01 | Le dispatcher Apps Script réel et les réceptions e-mail/Push ne sont pas certifiés. | `scripts/google-welcome-email.gs`, `docs/AUTH_WELCOME_EMAIL.md`, registre P1 | Validation partielle |
+| PRE-PILOT-01 | Livreur et recette terrain non opérationnels/certifiés dans le périmètre consulté. | `STATUT.md`, `docs/RECETTE_PILOTE_TERRAIN_NAXA.md` | Documenté, à confirmer dans l'audit fonctionnel ultérieur |
+| PRE-TECH-01 | Next.js 14.x est hors support ; version actuelle `14.2.35`. | `package.json`, politique de support Next.js | Risque de cycle de vie confirmé |
+| PRE-DOC-01 | Plusieurs chemins documentaires attendus sont absents à leur emplacement exact ; les instantanés historiques peuvent diverger du HEAD courant. | §3.4 | Écart de structure documentaire à confirmer par inventaire d'arbre |
+| PRE-CI-01 | Aucun test global `npm test`, typecheck, lint ni pipeline GitLab n'est revendiqué sur le HEAD de référence de cette phase. | `package.json`, `.gitlab-ci.yml`, état des checks consulté précédemment | Non vérifié sur le HEAD courant |
+
+## 5. Limites et prochaine étape prescrite
+
+1. Poursuivre l'inventaire documentaire, conversationnel et fichier par fichier sur `main`, sans déploiement ni lancement de CI.
+2. Terminer la comparaison des schémas/migrations/configurations accessibles sur Replay ; ne pas consulter ni écrire Production dans ce périmètre.
+3. Construire les inventaires de référence de l'étape préliminaire avec leurs dénominateurs avant de compter pages, composants ou fonctionnalités comme audités.
+4. Compléter le registre des constats et les preuves ; soumettre les corrections qui exigent une décision avant toute implémentation.
+5. **Arrêt obligatoire à la fin de l'étape préliminaire :** présenter son bilan à l'utilisateur et demander l'autorisation de commencer l'audit détaillé Administrateur. Ne pas commencer cet audit avant cette autorisation.
+
+**Conclusion intermédiaire :** des corrections ciblées et plusieurs tests transactionnels/contractuels Replay sont prouvés, mais la phase préliminaire 360 n'est pas achevée. Aucune conclusion de préparation au Go Live ou de couverture exhaustive ne peut être tirée de ces preuves.
+
+---
+
 ## Ratissage complet — contradictions réconciliées et corrections (02/11/2026)
 
 - **Référence Git vérifiée pour ce relevé :** `audreymendomo23-netizen/NAXA`, branche `main`, HEAD observé `f9e70c5c64c53ea4286c966ff2066aef3893a171` (dernier commit du 02/11/2026 à 12:12:52 UTC, avant la présente correction documentaire). Aucun branchement, aucune PR et aucun déploiement déclenchés par ce relevé.
