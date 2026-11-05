@@ -412,26 +412,22 @@ $function$;
 -- 5) The generic scope RPC answers only for the caller's own profile (or
 -- an administrator/service role). Internal cross-profile checks use the
 -- private helper and are not exposed as an enumeration endpoint.
-CREATE OR REPLACE FUNCTION public.naxa_scope_allows(
-  p_actor uuid,
-  p_pharmacie uuid,
-  p_scope text DEFAULT 'PHARMACIE'::text
-)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY INVOKER
-SET search_path TO ''
-AS $function$
-  SELECT CASE
-    WHEN p_actor IS NULL THEN FALSE
-    WHEN p_actor = (SELECT auth.uid())
-      OR (SELECT auth.role()) = 'service_role'
-      OR public.is_admin()
-      THEN private.naxa_scope_allows(p_actor, p_pharmacie, p_scope)
-    ELSE FALSE
-  END;
-$function$;
+DO $scope_wrapper$
+DECLARE v_argument text; v_body text;
+BEGIN
+  SELECT proargnames[1] INTO v_argument
+  FROM pg_proc WHERE oid='public.naxa_scope_allows(uuid,uuid,text)'::regprocedure;
+  IF v_argument IS NULL THEN RAISE EXCEPTION 'public.naxa_scope_allows signature is missing'; END IF;
+  v_body:=format(
+    'SELECT CASE WHEN %1$I IS NOT NULL AND %1$I=(SELECT auth.uid()) THEN private.naxa_scope_allows(%1$I,p_pharmacie,p_scope) ELSE FALSE END',
+    v_argument
+  );
+  EXECUTE format(
+    'CREATE OR REPLACE FUNCTION public.naxa_scope_allows(%1$I uuid,p_pharmacie uuid,p_scope text DEFAULT %2$L) RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO pg_catalog AS %3$L',
+    v_argument,'PHARMACIE',v_body
+  );
+END
+$scope_wrapper$;
 
 -- 6) Verification status is an identity attribute. Keep cross-profile checks
 -- inside the private schema for the share policies; the public RPC is
@@ -873,16 +869,22 @@ BEGIN
 END
 $rewrite$;
 
-CREATE OR REPLACE FUNCTION public.naxa_scope_allows(
-  p_profile uuid,p_pharmacie uuid,p_scope text DEFAULT 'PHARMACIE'::text
-)
-RETURNS boolean
-LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO ''
-AS $function$
-SELECT CASE WHEN p_profile IS NOT NULL AND p_profile=(SELECT auth.uid())
-  THEN private.naxa_scope_allows(p_profile,p_pharmacie,p_scope)
-  ELSE FALSE END;
-$function$;
+DO $scope_wrapper$
+DECLARE v_argument text; v_body text;
+BEGIN
+  SELECT proargnames[1] INTO v_argument
+  FROM pg_proc WHERE oid='public.naxa_scope_allows(uuid,uuid,text)'::regprocedure;
+  IF v_argument IS NULL THEN RAISE EXCEPTION 'public.naxa_scope_allows signature is missing'; END IF;
+  v_body:=format(
+    'SELECT CASE WHEN %1$I IS NOT NULL AND %1$I=(SELECT auth.uid()) THEN private.naxa_scope_allows(%1$I,p_pharmacie,p_scope) ELSE FALSE END',
+    v_argument
+  );
+  EXECUTE format(
+    'CREATE OR REPLACE FUNCTION public.naxa_scope_allows(%1$I uuid,p_pharmacie uuid,p_scope text DEFAULT %2$L) RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path TO pg_catalog AS %3$L',
+    v_argument,'PHARMACIE',v_body
+  );
+END
+$scope_wrapper$;
 
 CREATE OR REPLACE FUNCTION private.suivi_is_verified_professional(p_user_id uuid)
 RETURNS boolean
