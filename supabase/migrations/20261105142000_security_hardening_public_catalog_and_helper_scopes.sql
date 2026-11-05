@@ -1127,4 +1127,10 @@ REVOKE ALL ON FUNCTION public.naxa_architecture_for_profile(uuid) FROM PUBLIC,an
 ALTER EXTENSION unaccent SET SCHEMA extensions;
 ALTER EXTENSION pg_trgm SET SCHEMA extensions;
 
+
+-- Reservation post-payment side-effect is trigger-only; it must never be
+-- callable directly through the PostgREST RPC surface.
+REVOKE ALL ON FUNCTION public.naxa_creer_proposition_favoris_apres_encaissement()
+  FROM PUBLIC, anon, authenticated;
+
 COMMIT;
