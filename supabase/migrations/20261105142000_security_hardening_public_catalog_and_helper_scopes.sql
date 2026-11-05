@@ -73,11 +73,12 @@ AS $function$
   LIMIT LEAST(GREATEST(COALESCE(p_limit, 10), 1), 20);
 $function$;
 
-REVOKE ALL ON FUNCTION private.produits_populaires(integer, integer) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION private.produits_populaires(integer, integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.produits_populaires(integer, integer) FROM PUBLIC, anon, authenticated, service_role;
 
--- Public API wrapper is invoker-only; the private, filtered implementation
--- performs the narrowly-scoped SECURITY DEFINER read.
+-- Public API wrapper is a narrowly-scoped SECURITY DEFINER trampoline.
+-- anon deliberately has no USAGE on schema private; an invoker wrapper would
+-- fail for public visitors. The helper applies the public pharmacy filters and
+-- has a hard limit, while the private schema remains inaccessible to anon.
 CREATE OR REPLACE FUNCTION public.produits_populaires(
   p_limit integer DEFAULT 10,
   p_jours integer DEFAULT 7
@@ -91,7 +92,7 @@ RETURNS TABLE(
 )
 LANGUAGE sql
 STABLE
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path TO ''
 AS $function$
   SELECT *
@@ -101,9 +102,10 @@ AS $function$
   );
 $function$;
 
--- 2) Portable private cart-search implementation. The public wrapper is
--- invoker-only; the SECURITY DEFINER implementation never returns a hidden,
--- demo, inactive or archived pharmacy.
+-- 2) Portable private cart-search implementation. The public wrapper is a
+-- narrowly-scoped SECURITY DEFINER trampoline because anon cannot use schema
+-- private. The implementation never returns a hidden, demo, inactive or
+-- archived pharmacy.
 CREATE OR REPLACE FUNCTION private.search_pharmacies_panier(
   p_items jsonb,
   p_lat double precision,
@@ -216,8 +218,7 @@ AS $function$
   ORDER BY (a.trouves = nb.c) DESC, d.km;
 $function$;
 
-REVOKE ALL ON FUNCTION private.search_pharmacies_panier(jsonb, double precision, double precision, double precision) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION private.search_pharmacies_panier(jsonb, double precision, double precision, double precision) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.search_pharmacies_panier(jsonb, double precision, double precision, double precision) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.search_pharmacies_panier(
   p_items jsonb,
@@ -242,7 +243,7 @@ RETURNS TABLE(
 )
 LANGUAGE sql
 STABLE
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path TO ''
 AS $function$
   SELECT *
