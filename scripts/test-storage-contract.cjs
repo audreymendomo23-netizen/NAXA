@@ -12,7 +12,8 @@ const logoManager = read("src/components/pharmacie/PromoteurLogoManager.tsx");
 const logoRoute = read("src/app/api/pharmacie/logo/route.ts");
 const creditProofRoute = read("src/app/api/pharmacie/promoteur/credits/[id]/justificatif/route.ts");
 const paymentActions = read("src/app/promoteur/paiements/actions.ts");
-const binaryE2E = read("scripts/storage-e2e.cjs");\nconst packageJson = JSON.parse(read("package.json"));\nconst gitlab = read(".gitlab-ci.yml");
+const binaryE2E = read("scripts/storage-e2e.cjs");
+const packageJson = JSON.parse(read("package.json"));\nconst gitlab = read(".gitlab-ci.yml");
 
 test("les buckets absents du Replay sont restaurés avec visibilité, taille et MIME attendus", () => {
   assert.match(migration, /'pharmacies-photos',[\s\S]*true,\s*524288,\s*array\['image\/jpeg','image\/png','image\/webp'\]/);
@@ -66,7 +67,9 @@ test("le contrat SQL couvre les accès privés et le propriétaire des justifica
   assert.match(sqlTest, /pharmacie_documents_storage_admin_update/);
   assert.match(sqlTest, /pharmacie_documents_storage_admin_delete/);
   assert.match(sqlTest, /credit_marketplace_proof_insert_own/);
-  assert.match(sqlTest, /credit_marketplace_proof_read_own/);\n  assert.match(sqlTest, /credit_marketplace_proof_delete_own/);\n  assert.match(sqlTest, /server-mediated/);
+  assert.match(sqlTest, /credit_marketplace_proof_read_own/);
+  assert.match(sqlTest, /credit_marketplace_proof_delete_own/);
+  assert.match(sqlTest, /server-mediated/);
   assert.match(sqlTest, /preuves-reglements-promoteurs/);
 });
 
