@@ -39,7 +39,7 @@ export const textes = {
     etapes: ["Rechercher", "Trouver", "Comparer", "Réserver"],
     pharmacienCta: "Rejoindre NAXA",
     avertissement:
-      "NAXA donne une information de disponibilité, pas un avis médical. En cas d'urgence, appelez les secours au 118 (pompiers) ou 119 (SAMU), ou rendez-vous à la pharmacie la plus proche.",
+      "NAXA donne une information de disponibilité, pas un avis médical. En cas d’urgence : Police 117, pompiers 118 ou SAMU 119.",
     presDeMoi: "Près de moi",
     localisationEnCours: "Localisation en cours…",
     positionEnregistree: "Position enregistrée",
@@ -85,7 +85,7 @@ export const textes = {
     etapes: ["Search", "Find", "Compare", "Reserve"],
     pharmacienCta: "Join NAXA",
     avertissement:
-      "NAXA provides availability information, not medical advice. In an emergency, call 118 (fire) or 119 (ambulance), or go to the nearest pharmacy.",
+      "NAXA provides availability information, not medical advice. In an emergency, call Police 117, Fire service 118 or SAMU ambulance 119.",
     presDeMoi: "Near me",
     localisationEnCours: "Locating…",
     positionEnregistree: "Location saved",
