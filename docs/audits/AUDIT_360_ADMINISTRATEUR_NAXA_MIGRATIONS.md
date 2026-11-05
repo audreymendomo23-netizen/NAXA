@@ -77,3 +77,83 @@ Aucune écriture Supabase n'a été exécutée. Aucun déploiement n'a été dé
 - `supabase/migration_258_marketplace_availability_subtract_holds.sql` : la disponibilité Marketplace retranche les holds actifs non expirés, non consommés, non restaurés et non déjà débités. Test `supabase/tests/258_marketplace_availability_subtract_holds.sql` : **PASS** sur le replay.
 - `supabase/migration_259_credit_withdrawal_qualify_request_columns.sql` : corrige les références PL/pgSQL ambiguës, autorise `paiement_mode='credit'`, finalise la vente POS crédit et renseigne les champs requis au snapshot du reçu. Test E2E `supabase/tests/259_credit_withdrawal_inverse_order_e2e.sql` : **PASS**, retrait dans l'ordre inverse des allocations, rollback confirmé.
 - Les migrations 258/259 ont été appliquées uniquement au replay non-Production `naxa-ci-replay-2` pour validation; elles ne sont pas appliquées à Supabase Production. Aucun déploiement n'a été lancé.
+
+
+---
+
+# Addendum — réconciliation Production / Replay exécutée (5 novembre 2026)
+
+## Périmètre et résultat
+
+Intervention autorisée explicitement par l’utilisateur le 5 novembre 2026 sur Supabase Production `Naxa` (`eouwtuusnsuxaejsxknf`), avec comparaison de référence au projet non-Production `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`).
+
+- Historique Supabase Production avant intervention : **288 migrations enregistrées**.
+- Historique Supabase Production après intervention : **368 migrations enregistrées** (80 entrées supplémentaires, y compris les migrations de compatibilité et de correction ACL).
+- Tables publiques Production après intervention : **159** ; Replay : **156**.
+- Les deux historiques ne sont pas fusionnables par simple comparaison de préfixes : ils contiennent des versions d'application et des conventions de nommage différentes. Le registre live a été enrichi à partir du SQL de `main`, en gardant des noms d'application explicites `production_*`.
+- Aucune migration destructive, aucun reset de base et aucune suppression des données Production n'ont été réalisés.
+
+## Blocs réconciliés en Production
+
+1. Appareils et contrat offline, adapté au modèle Production : `appareils.utilisateur_id` référence `profiles(id)`; la table historique canonique `offline_operations` est conservée.
+2. Catalogue : équivalences de produits.
+3. Pharmacien : préparation des prescriptions, lecture sous RLS, journal append-only, exports audités, partage des mesures et accès opérationnel.
+4. Comptabilité : périodes, plan comptable, mappings, écritures, lignes, audit chaîné, outbox/worker, contrôles et clôture, sessions Comptable et contrepassation de vente.
+5. Gestion Stock : sessions, affectations, inventaires, mouvements, réception, lots, transferts, quarantaines, contrôles d'accès offline et vente POS offline.
+6. RBAC autonome : catalogue canonique de 11 rôles, affectations multi-postes, sélection d'un espace actif par identité, routage des privilèges, séparation Admin/Caisse et gardes Responsable/Pharmacien/Stock/Comptable.
+7. Marketplace crédit et abonnement Promoteur : débit à l'approbation, protections anti-double débit, destinations de paiement figées dans la déclaration, preuve facultative après déclaration et période renouvelée à la confirmation réelle.
+8. Sécurité et compatibilité Production : façade `public.naxa_scope_allows` alignée sur le helper privé RBAC ; `can_manage_profile(uuid)` n'est plus exécutable par `anon` et reste exécutable par `authenticated` et `service_role`.
+
+### Adaptations indispensables à Production
+
+Les scripts Replay n'ont pas été rejoués aveuglément. Des divergences vérifiées ont nécessité des adaptations :
+- Le contrat appareil a été aligné sur la FK Production vers `profiles` et le type `installation_id text`.
+- La migration 266 a conservé la signature d'argument existante `p_profile` et son défaut de scope.
+- La migration 295 a patché `private.naxa_grant_privilege`, le vrai moteur utilisé par la façade publique Production.
+- La migration 296 a été adaptée au corps réel du helper `naxa_stock_manager_actor`; les RPC Admin déjà protégées par `is_admin()` ont conservé leur garde.
+- Le helper privé de périmètre est devenu la source de vérité de la façade publique, ce qui a corrigé un écart fonctionnel révélé par le test 287.
+- La fonction nouvellement créée `can_manage_profile` a reçu un ACL explicite : `anon=false`, `authenticated=true`, `service_role=true`.
+
+## Écarts Replay volontairement conservés
+
+Les 4 tables Replay-only restantes n'ont pas été importées, car elles appartiennent à un modèle ancien/draft ou à un schéma incompatible avec Production :
+- `naxa_profile_custom_roles` : le modèle de `naxa_custom_roles` diffère entre Replay et Production (clé métier Promoteur côté Replay, modèle pharmacie côté Production). La policy Replay référence notamment `promoteur_id`, absent du modèle Production.
+- `tentatives_code`, `naxa_offline_operations`, `naxa_offline_alertes` : objets d'une fondation offline draft historique ; Production conserve déjà le contrat canonique `offline_operations` et les tables offline POS nouvelles.
+- Ne pas importer ces objets sans une migration de conception qui réconcilie leurs schémas, usages applicatifs et politiques RLS.
+
+Les 6 tables existant avant cette intervention uniquement en Production ont été préservées : `suivi_user_devices`, `naxa_session_audit_failures`, `reservation_statut_historique`, `medicaments_referentiel_sources`, `pharmacie_donnees_historique` et `medicaments_images`. La nouvelle table `naxa_payment_destinations` porte le septième écart Production-only.
+
+## Tests et preuve de rollback
+
+Recettes SQL transactionnelles exécutées sur Production, à partir des tests versionnés sur `main`, avec fixtures temporaires adaptées au déclencheur d'inscription Production :
+
+| Test | Assertions Production |
+|---|---:|
+| 287 — rôles autonomes et sélection active | 8 PASS |
+| 295 — scopes stricts et gardes legacy | 11 PASS |
+| 297 — parcours Pharmacien | 8 PASS |
+| 298 — inventaire, Stock et Admin actif | 7 PASS |
+| 299 — Responsable et Comptable autonomes | 4 PASS |
+| **Total** | **38 PASS** |
+
+- Le test 296 (Stock/Caisse/pilotage) a réussi sur Replay, mais l'exécution de son script complet sur Production a été bloquée par le contrôle de sécurité de l'outil avant exécution. Il n'est donc **pas déclaré PASS Production**.
+- Tous les tests Production effectivement exécutés se sont terminés par `ROLLBACK`.
+- Contrôle post-tests : **0** pharmacie fixture, **0** profil fixture, **0** affectation, **0** sélection active, **0** session Stock de test, **0** session Comptable de test et **0** vente offline.
+- Données métier Production préservées : 10 profils et 4 pharmacies ; aucun poste professionnel, période comptable, écriture comptable ou vente offline n'a été provisionné par cette réconciliation.
+
+## Advisories après intervention
+
+- `can_manage_profile` retirée du rôle `anon`; les alertes SECURITY DEFINER exécutables par anon sont passées de 6 à **5**. Les cinq RPC restantes sont des façades publiques de catalogue/lecture (`get_home_service_catalog`, `get_universe_catalog`, `marketplace_offre_stock_disponible`, `produits_populaires`, `universe_partner_is_public`) et n'ont pas été révoquées sans analyse de leur contrat public.
+- 147 fonctions SECURITY DEFINER restent exécutables par `authenticated` : revue individuelle requise, aucune révocation massive.
+- 12 constats RLS « enabled / no policy » demeurent. Les tables serveur concernées ont été contrôlées en ACL : les rôles `anon` et `authenticated` n'ont aucun privilège direct sur les tables vérifiées ; ne pas ajouter une policy publique pour faire disparaître un simple constat INFO.
+- Advisories performance : 129 FK sans index, 132 index inutilisés, 69 groupes de policies permissives multiples et 6 constats RLS initplan. Ils exigent une optimisation ciblée, pas une suppression ou création massive.
+- Protection Auth contre les mots de passe compromis toujours désactivée ; durcissement Auth séparé à planifier.
+
+## Limites et statut de livraison
+
+- Réconciliation des migrations et schéma Production : **appliqués et vérifiés structurellement**.
+- Recettes Production : **38 assertions PASS sur cinq scripts** ; recette 296 non exécutée sur Production.
+- Les quatre tables Replay-only listées plus haut restent intentionnellement hors Production.
+- Aucune donnée utilisateur/commerciale réelle n'a été créée ou transformée par les tests.
+- Aucun déploiement Vercel, build navigateur ou test HTTP/JWT applicatif n'a été lancé dans cette opération.
+
