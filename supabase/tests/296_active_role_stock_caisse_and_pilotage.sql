@@ -48,8 +48,11 @@ begin
   -- Ancienne signature conservée : elle attribue maintenant le poste sans toucher au rôle Auth.
   perform public.naxa_provision_caisse(v_cashier,v_pharmacy_a);
   select role::text into v_base_role from public.profiles where id=v_cashier;
-  select public.naxa_business_function(v_cashier),public.naxa_active_role_pharmacy(v_cashier)
-    into v_role,v_pharmacy;
+  -- Inspecter la ligne sélectionnée du compte cible. La façade publique
+  -- naxa_business_function(p_profile) refuse volontairement les lectures croisées
+  -- lorsque p_profile n'est pas auth.uid() du testeur Admin.
+  select ar.role_code,ar.pharmacie_id into v_role,v_pharmacy
+  from public.naxa_profile_active_roles ar where ar.profile_id=v_cashier;
   if v_base_role<>'client' or v_role<>'caisse' or v_pharmacy is distinct from v_pharmacy_a
      or not exists(select 1 from public.naxa_professional_assignments a
        where a.profile_id=v_cashier and a.pharmacie_id=v_pharmacy_a
