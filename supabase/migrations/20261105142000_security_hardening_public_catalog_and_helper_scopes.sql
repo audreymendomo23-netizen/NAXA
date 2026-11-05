@@ -938,6 +938,36 @@ WITH CHECK(
   )
 );
 
+
+-- Corrected second pass: explicitly include public-qualified references.
+-- The previous unqualified-name predicate intentionally excludes tokens
+-- preceded by a dot, so it cannot by itself discover public.helper(...) calls.
+DO $rewrite_qualified_helpers$
+DECLARE r record; definition text;
+BEGIN
+  FOR r IN
+    SELECT p.oid
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE p.prokind='f'
+      AND p.prosecdef IS TRUE
+      AND n.nspname IN ('public','private')
+      AND p.proname NOT IN ('naxa_business_function','naxa_active_role_pharmacy','naxa_scope_allows')
+      AND (
+        p.prosrc ~* 'public[.]naxa_business_function[[:space:]]*[(]'
+        OR p.prosrc ~* 'public[.]naxa_active_role_pharmacy[[:space:]]*[(]'
+        OR p.prosrc ~* 'public[.]naxa_scope_allows[[:space:]]*[(]'
+      )
+  LOOP
+    definition:=pg_get_functiondef(r.oid);
+    definition:=regexp_replace(definition,'public[.]naxa_business_function[[:space:]]*[(]','private.naxa_business_function(','gi');
+    definition:=regexp_replace(definition,'public[.]naxa_active_role_pharmacy[[:space:]]*[(]','private.naxa_active_role_pharmacy(','gi');
+    definition:=regexp_replace(definition,'public[.]naxa_scope_allows[[:space:]]*[(]','private.naxa_scope_allows(','gi');
+    EXECUTE definition;
+  END LOOP;
+END
+$rewrite_qualified_helpers$;
+
 -- private is intentionally not exposed by the PostgREST Data API. Granting
 -- USAGE here allows the invoker wrappers to call a small allow-list of
 -- parameter-safe private helpers; all implicit PUBLIC/anon execute grants in
