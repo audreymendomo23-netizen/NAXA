@@ -1095,4 +1095,29 @@ REVOKE ALL ON FUNCTION public.naxa_reservation_receipt_snapshot() FROM PUBLIC, a
 REVOKE ALL ON FUNCTION public.is_promoteur() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.is_promoteur() TO authenticated, service_role;
 
+
+-- Remove a retired RPC that only raises an obsolete-contract error.
+REVOKE ALL ON FUNCTION public.client_credit_rembourser(uuid,integer,text,text) FROM PUBLIC,anon,authenticated;
+
+-- This profile architecture lookup is only called from the trusted
+-- SECURITY DEFINER promoter-pharmacy provisioning trigger. Invoker rights
+-- are sufficient there, while direct PostgREST access is not required.
+CREATE OR REPLACE FUNCTION public.naxa_architecture_for_profile(p_profile uuid)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path TO ''
+AS $function$
+  SELECT c.architecture_code
+  FROM public.profiles p
+  JOIN public.profiles parent
+    ON parent.id=CASE WHEN p.niveau_interne=1 THEN p.id ELSE p.parent_profile_id END
+  JOIN public.conventions_promoteurs c ON c.promoteur_id=parent.id
+  WHERE p.id=p_profile AND p.actif IS TRUE AND parent.actif IS TRUE
+    AND c.architecture_code IS NOT NULL
+  LIMIT 1;
+$function$;
+REVOKE ALL ON FUNCTION public.naxa_architecture_for_profile(uuid) FROM PUBLIC,anon,authenticated;
+
 COMMIT;
