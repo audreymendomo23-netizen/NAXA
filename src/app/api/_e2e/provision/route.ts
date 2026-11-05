@@ -27,8 +27,9 @@ const ACCOUNTS = [
 
 function sameSecret(provided: string | null, expected: string | undefined): boolean {
   if (!provided || !expected) return false;
-  const a = Buffer.from(provided, "utf8");
-  const b = Buffer.from(expected, "utf8");
+  const encoder = new TextEncoder();
+  const a = encoder.encode(provided);
+  const b = encoder.encode(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
