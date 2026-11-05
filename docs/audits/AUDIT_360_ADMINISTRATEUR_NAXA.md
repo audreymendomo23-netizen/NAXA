@@ -5,7 +5,7 @@
 ## 1. Référence, gouvernance et méthode
 
 - Dépôt : `audreymendomo23-netizen/NAXA` (privé), branche par défaut et branche de travail : `main`.
-- HEAD observé à la rédaction : `90e2f5a607cb08cd823231dbb77652cbeacdd1de`. Le présent addendum est ensuite versionné par le commit `626a230eae754ba0c79cdf36aa3b468b0aaa60b4`.
+- HEAD source observé à la rédaction : `90e2f5a607cb08cd823231dbb77652cbeacdd1de`. L'addendum initial est commité par `626a230eae754ba0c79cdf36aa3b468b0aaa60b4`, la référence HEAD est précisée par `b927ebcd9ae562b4b679951e04557124a0d40227`, et le rapprochement des ressources documentaires par `b896dfd3cacaaa751bd447cd360dfb2a5f00f031`.
 - Aucun travail sur une branche auxiliaire et aucune Pull Request créés pour cette phase.
 - Autorités documentaires : `AGENTS.md`, le MANDAT CTO et le présent cahier d'audit ; `docs/CAHIER_DES_CHARGES.md` v3.7 ; `docs/DECISIONS_METIER_CONFIRMEES_2026-11-02.md` et `docs/DECISIONS_METIER_FONDATEUR.md`. Les arbitrages confirmés priment sur les questions anciennes, mais ne constituent pas une preuve d'implémentation.
 - La phase préliminaire est structurée autour des sept axes imposés : conversations accessibles, GitHub/code, Supabase autorisé, documents, revue systématique de main, erreurs/journaux et variables/configurations.
