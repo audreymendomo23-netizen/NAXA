@@ -1931,9 +1931,9 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Point restant à refactorer :** naxa_business_function(p_profile) et naxa_active_role_pharmacy(p_profile) permettent une lecture de métadonnées de rôle/périmètre pour un profil fourni. Plusieurs procédures internes les utilisent sur des profils cibles ; retirer leurs EXECUTE sans refactorer ces appels risquerait de casser les contrôles métier. Aucun retrait global aveugle n'a été effectué.
 
 ### Correctif préparé sur main — application non confirmée
-- Migration source : supabase/migrations/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, commit cfb5f885e251bd42cb6c3beac1f70aac98f57ca8.
-- Contrat de tests : supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, commit d90c9831ff798a4a11ee1cc89b745b66fb26c5f0.
-- Le correctif renforce les filtres des RPC de catalogue, déplace les implémentations de recherche dans le schéma privé derrière des wrappers invoker, limite les vérifications de périmètre exposées au profil courant et déplace la vérification du professionnel destinataire dans un helper privé utilisé par les policies de partage.
+- Migration source : supabase/migrations/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, dernier commit de mise à jour d23e3d4de8326d7d54a1db54d5345f594e9104d5.
+- Contrat de tests : supabase/tests/20261105142000_security_hardening_public_catalog_and_helper_scopes.sql, dernier commit de mise à jour a0d2aeb133346af10dc91a1fad0b9f4bfed4ec74.
+- Le correctif renforce les filtres des RPC de catalogue ; les implémentations de recherche restent dans le schéma privé derrière des wrappers SECURITY DEFINER étroits (search_path fixé et filtres explicites), car anon ne dispose pas de USAGE sur private ; les vérifications de périmètre et de statut professionnel exposées publiquement deviennent des wrappers SECURITY INVOKER limités au profil courant, tandis que les policies de partage utilisent un helper privé pour contrôler le professionnel destinataire.
 - **Non appliqué :** l'appel d'administration Supabase apply_migration sur Replay a été refusé avec le message link_id must identify an eligible linked account. Aucun DDL n'a été exécuté via un autre chemin de contournement. La migration et son test sont versionnés, mais pas encore appliqués ni exécutés. Production n'a subi aucune écriture.
 
 ### Décision de clôture
