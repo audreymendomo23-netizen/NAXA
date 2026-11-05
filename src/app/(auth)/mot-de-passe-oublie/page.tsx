@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { CodeOtp } from "@/components/CodeOtp";
@@ -67,6 +68,11 @@ function Formulaire(){
    e.preventDefault();if(!passwordValid){setError(password!==confirmation?"Les deux mots de passe ne correspondent pas.":"Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");return}
    setBusy(true);setError("");
    try{
+     const passwordSecurity = await verifierSecuriteMotDePasse(password);
+     if (!passwordSecurity.ok) {
+       setError(passwordSecurity.message);
+       return;
+     }
      const {error}=await supabaseBrowser().auth.updateUser({password});
      if(error){const details=String(error.message||"").toLowerCase();setError(/same|different.*password|new password.*old password|should be different/.test(details)?"Ce mot de passe est votre mot de passe actuel.":/password.*(weak|short|characters|requirements|strength)/.test(details)?"Utilisez un mot de passe plus sécurisé : au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.":"Impossible de mettre à jour le mot de passe. Vérifiez les critères et réessayez.");return}
      await supabaseBrowser().auth.signOut();
