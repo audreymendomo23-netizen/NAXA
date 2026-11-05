@@ -32,15 +32,10 @@ function zonedParts(date: Date, timezone: string) {
 }
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  const authorization = request.headers.get("authorization") ?? "";
+  const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!bearer) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-
-  const publicKey = process.env.NAXA_VAPID_PUBLIC_KEY;
-  const privateKey = process.env.NAXA_VAPID_PRIVATE_KEY;
-  if (!publicKey || !privateKey) {
-    return NextResponse.json({ error: "Configuration Push serveur incomplète" }, { status: 503 });
   }
 
   let db: ReturnType<typeof supabaseAdmin>;
@@ -50,6 +45,31 @@ export async function GET(request: Request) {
     db = supabaseAdmin();
   } catch {
     return NextResponse.json({ error: "Accès Supabase serveur indisponible" }, { status: 503 });
+  }
+
+  if (process.env.VERCEL_ENV === "production") {
+    // En Production, le jeton de ce dispatcher est celui conservé dans Supabase Vault.
+    // Le compareur ne renvoie jamais le secret et n'est exécutable que par service_role.
+    const { data: authorized, error: authorizationError } = await db.rpc(
+      "naxa_verify_posology_cron_secret",
+      { p_candidate: bearer },
+    );
+    if (authorizationError || authorized !== true) {
+      console.error("Posology cron authentication rejected", authorizationError?.message ?? "invalid token");
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+  } else {
+    // Preview/Development utilisent le secret propre à leur environnement.
+    const secret = process.env.CRON_SECRET;
+    if (!secret || bearer !== secret) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+  }
+
+  const publicKey = process.env.NAXA_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.NAXA_VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) {
+    return NextResponse.json({ error: "Configuration Push serveur incomplète" }, { status: 503 });
   }
 
   webpush.setVapidDetails(
