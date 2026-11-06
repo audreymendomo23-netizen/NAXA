@@ -6,6 +6,7 @@ const entries = [
   { href: "/pharmacie/gestionnaire-stock", label: "Tableau de bord", icon: "▦" },
   { href: "/pharmacie/gestionnaire-stock/stock-logistique", label: "Stock & logistique", icon: "▤" },
   { href: "/pharmacie/gestionnaire-stock/reservations", label: "Réservations Marketplace", icon: "◷" },
+  { href: "/pharmacie/gestionnaire-stock/commandes", label: "Commandes à livrer", icon: "⇢" },
   { href: "/pharmacie/gestionnaire-stock/lots-peremptions", label: "Lots & péremptions", icon: "◫" },
   { href: "/pharmacie/gestionnaire-stock/fournisseurs-receptions", label: "Fournisseurs & réceptions", icon: "⇄" },
   { href: "/pharmacie/gestionnaire-stock/inventaires", label: "Inventaires", icon: "☷" },
