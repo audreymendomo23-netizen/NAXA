@@ -25,12 +25,13 @@ const money = (value: number) =>
 export default async function AdminMarketplaceReservationsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; statut?: string; mode?: string };
+  searchParams: Promise<{ q?: string; statut?: string; mode?: string }>;
 }) {
+  const filters = await searchParams;
   const { sb } = await requireAdminActive("/admin/pilotage/reservations");
   const knownStatuses = Object.keys(statusLabels);
-  const status = knownStatuses.includes(searchParams.statut ?? "") ? searchParams.statut! : "";
-  const mode = ["reservation", "commande"].includes(searchParams.mode ?? "") ? searchParams.mode! : "";
+  const status = knownStatuses.includes(filters.statut ?? "") ? filters.statut! : "";
+  const mode = ["reservation", "commande"].includes(filters.mode ?? "") ? filters.mode! : "";
 
   let query = sb
     .from("reservations")
@@ -45,7 +46,7 @@ export default async function AdminMarketplaceReservationsPage({
 
   const { data, error, count } = await query;
   const reservations = (data ?? []) as any[];
-  const term = (searchParams.q ?? "").trim().toLocaleLowerCase("fr");
+  const term = (filters.q ?? "").trim().toLocaleLowerCase("fr");
   const filtered = reservations.filter((reservation) => {
     const pharmacy = Array.isArray(reservation.pharmacies) ? reservation.pharmacies[0] : reservation.pharmacies;
     const items = (reservation.reservation_items ?? []).map((item: any) => item.produits?.nom ?? "").join(" ");
@@ -112,7 +113,7 @@ export default async function AdminMarketplaceReservationsPage({
 
             <form method="get" role="search" aria-label="Filtrer les réservations" className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-[minmax(0,1fr)_200px_200px_auto_auto]">
               <label className="text-sm font-semibold">Rechercher
-                <input name="q" defaultValue={searchParams.q ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Référence, pharmacie, produit…" />
+                <input name="q" defaultValue={filters.q ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Référence, pharmacie, produit…" />
               </label>
               <label className="text-sm font-semibold">Statut
                 <select name="statut" defaultValue={status} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">

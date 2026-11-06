@@ -9,13 +9,14 @@ type StatutFiche = "toutes" | "a-completer" | "a-relire" | "validees";
 export default async function AdminProduits({
   searchParams,
 }: {
-  searchParams: { q?: string; statut?: string; ok?: string; erreur?: string };
+  searchParams: Promise<{ q?: string; statut?: string; ok?: string; erreur?: string }>;
 }) {
+  const filters = await searchParams;
   const { sb } = await requireAdminActive("/admin/produits");
 
-  const q = (searchParams.q ?? "").trim();
-  const statut = (["toutes", "a-completer", "a-relire", "validees"].includes(searchParams.statut ?? "")
-    ? searchParams.statut
+  const q = (filters.q ?? "").trim();
+  const statut = (["toutes", "a-completer", "a-relire", "validees"].includes(filters.statut ?? "")
+    ? filters.statut
     : "toutes") as StatutFiche;
   let req = sb.from("produits")
     .select("id,nom,dci,dosage,forme,photo_url,description,indications,precautions,synonymes,source_fiche,fiche_validee")
@@ -69,8 +70,8 @@ export default async function AdminProduits({
       </div>
     </section>
 
-    {searchParams.ok && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">{searchParams.ok === "ia" ? "Brouillon IA généré. Relisez-le avant de l’enregistrer comme fiche validée." : "Fiche enregistrée."}</p>}
-    {searchParams.erreur && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{erreurs[searchParams.erreur] ?? "Une erreur est survenue. Réessayez ou vérifiez les journaux techniques."}</p>}
+    {filters.ok && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">{filters.ok === "ia" ? "Brouillon IA généré. Relisez-le avant de l’enregistrer comme fiche validée." : "Fiche enregistrée."}</p>}
+    {filters.erreur && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{erreurs[filters.erreur] ?? "Une erreur est survenue. Réessayez ou vérifiez les journaux techniques."}</p>}
     {error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">Les produits n’ont pas pu être chargés. Vérifiez la connexion à la base puis réessayez.</p>}
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
