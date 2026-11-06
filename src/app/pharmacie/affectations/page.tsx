@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { InvitationLivreurForm } from "@/components/pharmacie/InvitationLivreurForm";
 import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace } from "./actions";
 
 type Assignment = {
@@ -92,6 +93,13 @@ export default async function AffectationsPage({
     autorisation:"Attribution refusée par les contrôles serveur : vérifiez le périmètre, le privilège et la période.",
     revocation:"Révocation refusée. Vérifiez le motif et vos droits sur cette affectation.",
     droit_credit:"Délégation refusée. Vérifiez que le Responsable est actif, affecté à cette pharmacie et que votre droit de délégation est valide.",
+    creation_livreur_validation:"Vérifiez l’adresse e-mail, le compte, l’âge minimum de 18 ans et les informations obligatoires.",
+    creation_livreur_doublon:"Un compte ou une invitation existe déjà pour cette adresse e-mail.",
+    creation_livreur_invitation:"La création de l’invitation a échoué. Aucun nouveau compte n’a été créé.",
+    creation_livreur_profil:"Le profil NAXA n’a pas pu être finalisé. L’affectation reste désactivée.",
+    creation_livreur_affectation:"Le compte est créé mais son affectation n’a pas été activée. Contactez le Promoteur ou l’Administrateur.",
+    creation_livreur_invite:"L’invitation Livreur a été créée.",
+
   };
   const now=Date.now();
 
@@ -110,10 +118,16 @@ export default async function AffectationsPage({
         searchParams.ok==="accordee"?"Affectation accordée.":
         searchParams.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
         searchParams.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
+        searchParams.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
         "Affectation révoquée."
       }</p>}
       {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[searchParams.erreur]??"Opération impossible."}</p>}
       {(linksError||assignmentsError)&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">Lecture incomplète. Aucune opération ne doit être considérée comme validée.</p>}
+
+      <InvitationLivreurForm
+        pharmacies={(pharmacies??[]).map(p=>({id:p.id,nom:p.nom}))}
+        locked={isPharmacie}
+      />
 
       <section className="rounded-2xl border bg-white p-5">
         <h2 className="text-lg font-bold">Accorder une fonction</h2>
