@@ -70,11 +70,11 @@ export function LivreursAssignmentsManager({pharmacies}:{pharmacies:Pharmacy[]})
     setBusy(null);
   }
 
-  const activeCount=rows.filter(row=>{
+  const activeCount=new Set(rows.filter(row=>{
     const now=Date.now();
     return row.statut==="active"&&row.profile_active&&new Date(row.commence_at).getTime()<=now
       &&(!row.expire_at||new Date(row.expire_at).getTime()>now);
-  }).length;
+  }).map(row=>row.profile_id)).size;
 
   return <section className="rounded-2xl border border-emerald-950/10 bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-3">
