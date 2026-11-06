@@ -193,7 +193,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
         <section id="performances" className="scroll-mt-4 rounded-2xl border bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-black">Performances personnelles</h2><p className="mt-1 text-sm text-slate-600">Indicateurs calculés sur les missions auxquelles vos pharmacies vous donnent accès.</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">30 jours</span></div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Taux de prise</p><p className="mt-1 text-2xl font-black">{stats?.acceptance_rate??0}%</p></div>
+            <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Taux d’offres acceptées</p><p className="mt-1 text-2xl font-black">{stats?.acceptance_rate??0}%</p></div>
             <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Prise moyenne</p><p className="mt-1 text-2xl font-black">{stats?.avg_accept_minutes??"—"} <span className="text-xs">min</span></p></div>
             <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Durée moyenne</p><p className="mt-1 text-2xl font-black">{stats?.avg_delivery_minutes??"—"} <span className="text-xs">min</span></p></div>
             <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Missions comptabilisées</p><p className="mt-1 text-2xl font-black">{stats?.total??0}</p></div>
