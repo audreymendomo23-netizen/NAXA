@@ -24,7 +24,8 @@ export const dynamic="force-dynamic";
 
 export default async function CommandesALivrerPage({
   searchParams,
-}:{searchParams:{ok?:string;erreur?:string}}){
+}:{searchParams: Promise<{ok?:string;erreur?:string}>}){
+  const filters = await searchParams;
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/pharmacie/gestionnaire-stock/commandes");
@@ -64,10 +65,10 @@ export default async function CommandesALivrerPage({
       <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
         <GestionnaireStockSidebar active="/pharmacie/gestionnaire-stock/commandes"/>
         <div className="min-w-0 space-y-4">
-          {searchParams.ok==="en_preparation"&&<p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-950">Démarrage de la préparation enregistré.</p>}
-          {searchParams.ok==="prete"&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La préparation physique est confirmée. Vous pouvez maintenant publier la mission pour les livreurs.</p>}
-          {searchParams.ok==="publiee"&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La mission est publiée dans la file Livreur. Les livreurs affectés à cette pharmacie peuvent maintenant la prendre.</p>}
-          {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur==="publication"?"Publication refusée : le stock doit avoir confirmé « Prête pour livraison » et votre poste Stock doit être actif.":searchParams.erreur==="preparation"?"Transition refusée : vérifiez l’état de préparation, la commande et votre affectation Stock.":"Données de commande invalides."}</p>}
+          {filters.ok==="en_preparation"&&<p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-950">Démarrage de la préparation enregistré.</p>}
+          {filters.ok==="prete"&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La préparation physique est confirmée. Vous pouvez maintenant publier la mission pour les livreurs.</p>}
+          {filters.ok==="publiee"&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La mission est publiée dans la file Livreur. Les livreurs affectés à cette pharmacie peuvent maintenant la prendre.</p>}
+          {filters.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{filters.erreur==="publication"?"Publication refusée : le stock doit avoir confirmé « Prête pour livraison » et votre poste Stock doit être actif.":filters.erreur==="preparation"?"Transition refusée : vérifiez l’état de préparation, la commande et votre affectation Stock.":"Données de commande invalides."}</p>}
           <section className="grid gap-3 sm:grid-cols-3">
             <article className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-500">Prêtes pour livraison</p><p className="mt-1 text-3xl font-black">{orders.length}</p></article>
             <article className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-500">Pharmacie concernée</p><p className="mt-1 text-base font-extrabold">{pharmacy.nom}</p></article>

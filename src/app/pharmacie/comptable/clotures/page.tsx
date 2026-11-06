@@ -22,8 +22,9 @@ const statusLabels: Record<string, string> = {
 export default async function CloturesComptablesPage({
   searchParams,
 }: {
-  searchParams?: { result?: string };
+  searchParams?: Promise<{ result?: string }>;
 }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/clotures");
@@ -61,7 +62,7 @@ export default async function CloturesComptablesPage({
     periode_cloturee: "Période clôturée et action journalisée.",
     action_inconnue: "Action non reconnue.",
   };
-  const notice = searchParams?.result ? noticeLabels[searchParams.result] ?? "Résultat de l’action indisponible." : null;
+  const notice = filters?.result ? noticeLabels[filters.result] ?? "Résultat de l’action indisponible." : null;
 
   return <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 pb-16">
     <header className="rounded-2xl bg-naxa-green-900 p-5 text-white">

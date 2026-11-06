@@ -8,7 +8,8 @@ const LABEL: Record<string, string> = {
 const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
 const dt = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
 
-export default async function PromoteurPaiementsPage({ searchParams }: { searchParams?: { ok?: string; erreur?: string } }) {
+export default async function PromoteurPaiementsPage({ searchParams }: { searchParams?: Promise<{ ok?: string; erreur?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return <main className="mx-auto max-w-2xl p-4"><section className="rounded-2xl bg-white p-5">Connectez-vous pour consulter et soumettre vos règlements.</section></main>;
@@ -56,8 +57,8 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
 
     <section className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">État de l’abonnement</p><p className="mt-1 text-lg font-extrabold">{subscription?.statut === "actif" ? "Actif" : "À régulariser / en vérification"}</p><p className="mt-1 text-sm text-slate-600">Prochaine échéance : {subscription?.echeance ?? "Non configurée"} · Tarif mensuel : {subscription?.montant_mensuel ? money(subscription.montant_mensuel) : "Non configuré"}</p><p className="mt-2 text-xs text-slate-500">Après validation administrative, la prochaine échéance est calculée sur un mois calendaire à compter de la date de validation.</p></section>
 
-    {searchParams?.ok === "soumis" && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">Votre paiement a été transmis à l’administrateur. Le renouvellement interviendra uniquement après vérification de l’encaissement.</p>}
-    {searchParams?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur] ?? "Une erreur est survenue."}</p>}
+    {filters?.ok === "soumis" && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">Votre paiement a été transmis à l’administrateur. Le renouvellement interviendra uniquement après vérification de l’encaissement.</p>}
+    {filters?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[filters.erreur] ?? "Une erreur est survenue."}</p>}
     {error && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Le suivi des paiements est temporairement indisponible. L’historique et la possibilité de soumettre un nouveau règlement sont suspendus jusqu’au rétablissement du service.</p>}
     {subscriptionError && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Les informations de votre abonnement n’ont pas pu être chargées. Aucun montant ne sera présumé : réessayez avant de soumettre un règlement.</p>}
 

@@ -14,7 +14,8 @@ const validDate = (value: string | undefined) => {
 };
 const endExclusive = (value: string) => new Date(Date.parse(value + "T00:00:00+01:00") + 86400000).toISOString();
 
-export default async function RapportsExportsPage({ searchParams }: { searchParams?: { debut?: string; fin?: string } }) {
+export default async function RapportsExportsPage({ searchParams }: { searchParams?: Promise<{ debut?: string; fin?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/rapports-exports");
@@ -26,8 +27,8 @@ export default async function RapportsExportsPage({ searchParams }: { searchPara
   });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
-  const debut = validDate(searchParams?.debut);
-  const fin = validDate(searchParams?.fin);
+  const debut = validDate(filters?.debut);
+  const fin = validDate(filters?.fin);
   const invalidPeriod = Boolean(debut && fin && debut > fin);
   const fromTimestamp = debut ? debut + "T00:00:00+01:00" : null;
   const toTimestamp = fin ? endExclusive(fin) : null;

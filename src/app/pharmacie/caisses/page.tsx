@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { bloquerCaisse, creerCaisse, reactiverCaisse } from "../actions";
 
-type Props = { searchParams: { ok?: string; erreur?: string } };
+type Props = { searchParams: Promise<{ ok?: string; erreur?: string }> };
 
 export default async function CaissesPage({ searchParams }: Props) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses");
@@ -134,8 +135,8 @@ export default async function CaissesPage({ searchParams }: Props) {
         <p className="mt-1 text-sm text-slate-600">Attribuez un accès professionnel à une personne qui possède déjà un compte utilisateur NAXA. Son compte Auth et ses éventuels autres postes sont conservés ; seul le poste Caisse est attribué ou révoqué.</p>
       </section>
 
-      {searchParams.ok && <p role="status" className="carte">Opération terminée : {searchParams.ok === "creation" ? "Caisse créée et provisionnée." : searchParams.ok === "blocage" ? "Caisse bloquée." : "Caisse réactivée."}</p>}
-      {searchParams.erreur && <p role="alert" className="carte text-red-700">{errors[searchParams.erreur] ?? "Impossible d'effectuer cette opération."}</p>}
+      {filters.ok && <p role="status" className="carte">Opération terminée : {filters.ok === "creation" ? "Caisse créée et provisionnée." : filters.ok === "blocage" ? "Caisse bloquée." : "Caisse réactivée."}</p>}
+      {filters.erreur && <p role="alert" className="carte text-red-700">{errors[filters.erreur] ?? "Impossible d'effectuer cette opération."}</p>}
       {(linksError || caissesError || architectureError) && <p role="alert" className="carte text-red-700">Impossible de charger le réseau, les comptes Caisse ou les quotas d’architecture. La liste et la création sont suspendues pour éviter d’afficher un réseau vide ou un quota erroné. Réessayez après vérification de la connexion.</p>}
 
       <section className="carte space-y-3">

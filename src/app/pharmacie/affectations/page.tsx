@@ -36,8 +36,9 @@ const date=(v:string)=>new Date(v).toLocaleString("fr-FR",{dateStyle:"medium",ti
 export default async function AffectationsPage({
   searchParams,
 }:{
-  searchParams:{ok?:string;erreur?:string};
+  searchParams: Promise<{ok?:string;erreur?:string}>;
 }){
+  const filters = await searchParams;
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
@@ -115,14 +116,14 @@ export default async function AffectationsPage({
         <Link href={isPromoteur?"/pharmacie/promoteur":"/pharmacie"} className="underline">{isPromoteur?"← Espace Promoteur":"← Espace Pharmacie"}</Link>
       </header>
 
-      {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
-        searchParams.ok==="accordee"?"Affectation accordée.":
-        searchParams.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
-        searchParams.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
-        searchParams.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
+      {filters.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
+        filters.ok==="accordee"?"Affectation accordée.":
+        filters.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
+        filters.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
+        filters.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
         "Affectation révoquée."
       }</p>}
-      {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[searchParams.erreur]??"Opération impossible."}</p>}
+      {filters.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[filters.erreur]??"Opération impossible."}</p>}
       {(linksError||assignmentsError)&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">Lecture incomplète. Aucune opération ne doit être considérée comme validée.</p>}
 
       <InvitationLivreurForm

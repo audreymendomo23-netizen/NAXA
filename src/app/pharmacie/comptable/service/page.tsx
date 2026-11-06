@@ -38,7 +38,8 @@ async function endService(formData: FormData) {
   redirect(error ? "/pharmacie/comptable/service?erreur=fermeture" : "/pharmacie/comptable/service?ok=ferme");
 }
 
-export default async function ComptableServicePage({searchParams}:{searchParams?:{ok?:string;erreur?:string}}) {
+export default async function ComptableServicePage({searchParams}:{searchParams?: Promise<{ok?:string;erreur?:string}>}) {
+  const filters = await searchParams;
   const {sb,userId,pharmacyId}=await authorizedContext();
   const [{data:pharmacy},{data:rows,error}] = await Promise.all([
     sb.from("pharmacies").select("nom").eq("id",pharmacyId).maybeSingle(),
@@ -65,8 +66,8 @@ export default async function ComptableServicePage({searchParams}:{searchParams?
         <p className="mt-1 text-sm text-emerald-100">{pharmacy?.nom??"Pharmacie autorisée"} · Pointage personnel horodaté par le serveur.</p>
       </header>
       <section className="space-y-4">
-          {searchParams?.ok && okMessages[searchParams.ok] && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{okMessages[searchParams.ok]}</p>}
-          {searchParams?.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{errorMessages[searchParams.erreur]??"Opération refusée."}</p>}
+          {filters?.ok && okMessages[filters.ok] && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{okMessages[filters.ok]}</p>}
+          {filters?.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{errorMessages[filters.erreur]??"Opération refusée."}</p>}
           {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Historique indisponible. Aucune donnée de présence ne peut être confirmée.</p>}
           {!active ? <section className="rounded-2xl border bg-white p-5">
             <h2 className="text-lg font-extrabold">Démarrer mon service</h2>

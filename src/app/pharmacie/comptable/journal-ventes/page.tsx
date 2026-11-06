@@ -16,7 +16,8 @@ const fcfa = (value: number | null | undefined) =>
 const dateFr = (value: string) =>
   new Intl.DateTimeFormat("fr-CM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 
-export default async function JournalVentesPage({ searchParams }: { searchParams?: { debut?: string; fin?: string; statut?: string } }) {
+export default async function JournalVentesPage({ searchParams }: { searchParams?: Promise<{ debut?: string; fin?: string; statut?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/journal-ventes");
@@ -27,9 +28,9 @@ export default async function JournalVentesPage({ searchParams }: { searchParams
   const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
-  const debut = /^\d{4}-\d{2}-\d{2}$/.test(searchParams?.debut ?? "") ? searchParams!.debut! : "";
-  const fin = /^\d{4}-\d{2}-\d{2}$/.test(searchParams?.fin ?? "") ? searchParams!.fin! : "";
-  const statut = ["payee", "annulee", "brouillon"].includes(searchParams?.statut ?? "") ? searchParams!.statut! : "";
+  const debut = /^\d{4}-\d{2}-\d{2}$/.test(filters?.debut ?? "") ? searchParams!.debut! : "";
+  const fin = /^\d{4}-\d{2}-\d{2}$/.test(filters?.fin ?? "") ? searchParams!.fin! : "";
+  const statut = ["payee", "annulee", "brouillon"].includes(filters?.statut ?? "") ? searchParams!.statut! : "";
   let query = sb.from("ventes")
     .select("id,numero_vente,statut,remise,total_brut,total_net,mode_paiement,paiement_ref,created_at,paid_at,caisse_session_id")
     .eq("pharmacie_id", profile.pharmacie_id)

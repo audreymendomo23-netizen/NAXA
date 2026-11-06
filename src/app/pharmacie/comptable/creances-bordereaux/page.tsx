@@ -11,7 +11,8 @@ type Dossier = {
   created_at: string; couverture_id: string | null;
 };
 
-export default async function CreancesBordereauxPage({ searchParams }: { searchParams?: { assureur?: string } }) {
+export default async function CreancesBordereauxPage({ searchParams }: { searchParams?: Promise<{ assureur?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/creances-bordereaux");
@@ -36,7 +37,7 @@ export default async function CreancesBordereauxPage({ searchParams }: { searchP
   const insurers = insurersResult.data ?? [];
   const names = new Map((insurerLookup.data ?? []).map(row => [row.id, row.nom]));
   const insurerForCoverage = new Map((coverageResult.data ?? []).map(row => [row.id, row.assureur_id]));
-  const selected = searchParams?.assureur && /^[0-9a-f-]{36}$/i.test(searchParams.assureur) ? searchParams.assureur : "";
+  const selected = filters?.assureur && /^[0-9a-f-]{36}$/i.test(filters.assureur) ? filters.assureur : "";
   const allRows = rows.map(row => ({ ...row, assureurId: row.couverture_id ? insurerForCoverage.get(row.couverture_id) ?? "" : "" }));
   const visibleRows = selected ? allRows.filter(row => row.assureurId === selected) : allRows;
   const total = visibleRows.reduce((sum, row) => sum + Number(row.montant_prise_en_charge ?? 0), 0);
