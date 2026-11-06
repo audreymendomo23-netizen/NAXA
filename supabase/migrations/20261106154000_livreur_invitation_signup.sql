@@ -1,0 +1,175 @@
+-- NAXA — invitation sécurisée et auto-activation du poste Livreur après inscription vérifiée.
+begin;
+
+create table if not exists public.naxa_livreur_invites (
+  token uuid primary key default gen_random_uuid(),
+  pharmacie_id uuid not null references public.pharmacies(id) on delete restrict,
+  email text not null check (email=lower(trim(email)) and length(email) between 6 and 254),
+  inviteur_id uuid not null references public.profiles(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now()+interval '7 days'),
+  accepted_at timestamptz,
+  accepted_by uuid references public.profiles(id) on delete restrict,
+  assignment_id uuid references public.naxa_professional_assignments(id) on delete restrict,
+  revoked_at timestamptz,
+  constraint naxa_livreur_invites_state_ck check (
+    (accepted_at is null and accepted_by is null and assignment_id is null)
+    or (accepted_at is not null and accepted_by is not null and assignment_id is not null)
+  )
+);
+create index if not exists naxa_livreur_invites_email_pharmacy_idx
+  on public.naxa_livreur_invites(lower(email),pharmacie_id,created_at desc);
+create index if not exists naxa_livreur_invites_pending_expiry_idx
+  on public.naxa_livreur_invites(expires_at)
+  where accepted_at is null and revoked_at is null;
+
+alter table public.naxa_livreur_invites enable row level security;
+revoke all on public.naxa_livreur_invites from public,anon,authenticated;
+grant all on public.naxa_livreur_invites to service_role;
+comment on table public.naxa_livreur_invites is
+  'Invitation Livreur à usage unique. Le candidat finalise son compte Client avec OTP puis accepte le lien ; aucune identité Auth n’est créée par le Promoteur.';
+
+create or replace function public.naxa_create_livreur_invite(p_pharmacie uuid,p_email text)
+returns uuid
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_actor uuid:=auth.uid();
+  v_role text;
+  v_token uuid;
+  v_email text:=lower(trim(coalesce(p_email,'')));
+begin
+  if v_actor is null then raise exception 'Connexion requise'; end if;
+  if p_pharmacie is null or v_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+    raise exception 'Pharmacie ou adresse e-mail invalide';
+  end if;
+  if not exists(select 1 from public.pharmacies p where p.id=p_pharmacie and p.actif=true and p.archivee_le is null) then
+    raise exception 'Pharmacie inactive ou introuvable';
+  end if;
+
+  v_role:=public.naxa_business_function(v_actor);
+  if v_role='promoteur' then
+    if not private.naxa_promoteur_valide(v_actor)
+      or not exists(select 1 from public.promoteur_pharmacies pp
+        where pp.promoteur_id=v_actor and pp.pharmacie_id=p_pharmacie and pp.actif)
+      or not public.naxa_has_privilege('ASSIGN_USER_TO_PHARMACY',p_pharmacie,'PHARMACIE') then
+      raise exception 'Pharmacie hors réseau ou privilège d’affectation absent';
+    end if;
+  elsif v_role='pharmacie' then
+    if public.naxa_active_role_pharmacy(v_actor) is distinct from p_pharmacie
+      or not public.naxa_scope_allows(v_actor,p_pharmacie,'PHARMACIE') then
+      raise exception 'Une Pharmacie ne peut inviter que pour son propre établissement';
+    end if;
+  else
+    raise exception 'Invitation réservée au Promoteur ou au compte Pharmacie';
+  end if;
+
+  update public.naxa_livreur_invites
+  set revoked_at=now()
+  where lower(email)=v_email and pharmacie_id=p_pharmacie
+    and accepted_at is null and revoked_at is null;
+
+  insert into public.naxa_livreur_invites(pharmacie_id,email,inviteur_id)
+  values(p_pharmacie,v_email,v_actor)
+  returning token into v_token;
+
+  return v_token;
+end;
+$function$;
+revoke all on function public.naxa_create_livreur_invite(uuid,text) from public,anon;
+grant execute on function public.naxa_create_livreur_invite(uuid,text) to authenticated;
+
+create or replace function public.naxa_accept_livreur_invite(p_token uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_uid uuid:=auth.uid();
+  v_email text;
+  v_confirmed timestamptz;
+  v_invite public.naxa_livreur_invites%rowtype;
+  v_role text;
+  v_assignment uuid;
+begin
+  if v_uid is null then raise exception 'Connectez-vous au compte qui recevra le poste Livreur'; end if;
+
+  select lower(u.email),u.email_confirmed_at into v_email,v_confirmed
+  from auth.users u where u.id=v_uid;
+  if v_email is null or v_confirmed is null then
+    raise exception 'Confirmez l’adresse e-mail de votre compte avant d’accepter l’invitation';
+  end if;
+
+  select * into v_invite from public.naxa_livreur_invites
+  where token=p_token for update;
+  if not found or v_invite.revoked_at is not null or v_invite.accepted_at is not null
+    or v_invite.expires_at<=now() or v_invite.email<>v_email then
+    raise exception 'Invitation invalide, expirée, déjà utilisée ou destinée à une autre adresse';
+  end if;
+
+  if not exists(
+    select 1 from public.profiles p where p.id=v_uid and p.role::text='client'
+      and p.actif=true and p.age_verified=true and p.consent_accepted_at is not null
+      and p.username is not null and p.first_name is not null and p.last_name is not null
+      and p.phone is not null and p.date_of_birth is not null
+  ) then
+    raise exception 'Finalisez d’abord votre compte Client et les vérifications obligatoires NAXA';
+  end if;
+  if not exists(select 1 from public.pharmacies p where p.id=v_invite.pharmacie_id and p.actif=true and p.archivee_le is null) then
+    raise exception 'La pharmacie a été suspendue ou archivée';
+  end if;
+
+  v_role:=public.naxa_business_function(v_invite.inviteur_id);
+  if v_role='promoteur' then
+    if not private.naxa_promoteur_valide(v_invite.inviteur_id)
+      or not exists(select 1 from public.promoteur_pharmacies pp
+        where pp.promoteur_id=v_invite.inviteur_id and pp.pharmacie_id=v_invite.pharmacie_id and pp.actif)
+      or not public.naxa_has_privilege('ASSIGN_USER_TO_PHARMACY',v_invite.pharmacie_id,'PHARMACIE') then
+      raise exception 'L’autorisation du Promoteur a changé : demandez une nouvelle invitation';
+    end if;
+  elsif v_role='pharmacie' then
+    if public.naxa_active_role_pharmacy(v_invite.inviteur_id) is distinct from v_invite.pharmacie_id
+      or not public.naxa_scope_allows(v_invite.inviteur_id,v_invite.pharmacie_id,'PHARMACIE') then
+      raise exception 'L’autorisation de la Pharmacie a changé : demandez une nouvelle invitation';
+    end if;
+  else
+    raise exception 'Le compte ayant émis l’invitation n’est plus autorisé';
+  end if;
+
+  if exists(
+    select 1 from public.naxa_professional_assignments a
+    where a.profile_id=v_uid and a.statut='active'
+      and a.commence_at<=now() and (a.expire_at is null or a.expire_at>now())
+      and a.role_code<>'livreur'
+  ) then
+    raise exception 'Votre compte possède déjà un autre poste professionnel ; un compte Livreur doit rester exclusif';
+  end if;
+
+  insert into public.naxa_professional_assignments(
+    profile_id,pharmacie_id,fonction,role_code,statut,nature_affectation,motif,
+    commence_at,expire_at,accorde_par
+  ) values(
+    v_uid,v_invite.pharmacie_id,'livreur','livreur','active','ordinaire',
+    'Invitation Livreur acceptée par le titulaire du compte',now(),null,v_invite.inviteur_id
+  ) returning id into v_assignment;
+
+  update public.naxa_livreur_invites
+  set accepted_at=now(),accepted_by=v_uid,assignment_id=v_assignment
+  where token=p_token;
+
+  perform public.naxa_select_active_role('livreur',v_invite.pharmacie_id);
+
+  insert into public.notifications(user_id,pharmacie_id,type,titre,corps,related_entity_id)
+  values(v_uid,v_invite.pharmacie_id,'professional_assignment','Poste Livreur activé',
+    'Votre compte Livreur est actif. Vous pouvez ouvrir votre tableau de bord NAXA.',v_assignment);
+
+  return jsonb_build_object('accepted',true,'role','livreur','pharmacie_id',v_invite.pharmacie_id,'assignment_id',v_assignment);
+end;
+$function$;
+revoke all on function public.naxa_accept_livreur_invite(uuid) from public,anon;
+grant execute on function public.naxa_accept_livreur_invite(uuid) to authenticated;
+
+commit;
