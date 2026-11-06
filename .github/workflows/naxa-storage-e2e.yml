@@ -1,0 +1,61 @@
+name: NAXA Replay Storage E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      require_role_matrix:
+        description: "Exiger les comptes Auth Admin et Promoteur Replay configurés"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  storage-e2e:
+    name: Upload/download réel, isolation RLS et nettoyage Replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NAXA_STORAGE_E2E_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      NAXA_STORAGE_E2E_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      NAXA_STORAGE_E2E_ADMIN_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+      NAXA_STORAGE_E2E_ADMIN_EMAIL: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_EMAIL }}
+      NAXA_STORAGE_E2E_ADMIN_PASSWORD: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_PASSWORD }}
+      NAXA_STORAGE_E2E_PROMOTEUR_EMAIL: ${{ secrets.NAXA_STORAGE_E2E_PROMOTEUR_EMAIL }}
+      NAXA_STORAGE_E2E_PROMOTEUR_PASSWORD: ${{ secrets.NAXA_STORAGE_E2E_PROMOTEUR_PASSWORD }}
+      NAXA_STORAGE_E2E_PROMOTEUR_PHARMACY_ID: ${{ secrets.NAXA_STORAGE_E2E_PROMOTEUR_PHARMACY_ID }}
+      NAXA_STORAGE_E2E_OTHER_PHARMACY_ID: ${{ secrets.NAXA_STORAGE_E2E_OTHER_PHARMACY_ID }}
+      NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX: ${{ inputs.require_role_matrix && '1' || '0' }}
+    steps:
+      - name: Checkout QA source
+        uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install deterministic dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify Replay-only credentials are configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$NAXA_STORAGE_E2E_URL" || { echo "::error::Missing NAXA_STORAGE_E2E_URL"; exit 1; }
+          test -n "$NAXA_STORAGE_E2E_ANON_KEY" || { echo "::error::Missing NAXA_STORAGE_E2E_ANON_KEY"; exit 1; }
+          test -n "$NAXA_STORAGE_E2E_ADMIN_KEY" || { echo "::error::Missing NAXA_STORAGE_E2E_ADMIN_KEY"; exit 1; }
+          case "$NAXA_STORAGE_E2E_URL" in
+            https://pwfftcsjyeibxxqhwysw.supabase.co) ;;
+            *) echo "::error::Storage E2E is hard-pinned to NAXA Replay; Production is refused"; exit 1 ;;
+          esac
+          if [ "$NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX" = "1" ]; then
+            test -n "$NAXA_STORAGE_E2E_ADMIN_EMAIL"
+            test -n "$NAXA_STORAGE_E2E_ADMIN_PASSWORD"
+            test -n "$NAXA_STORAGE_E2E_PROMOTEUR_EMAIL"
+            test -n "$NAXA_STORAGE_E2E_PROMOTEUR_PASSWORD"
+            test -n "$NAXA_STORAGE_E2E_PROMOTEUR_PHARMACY_ID"
+            test -n "$NAXA_STORAGE_E2E_OTHER_PHARMACY_ID"
+          fi
+      - name: Execute binary Storage E2E and cleanup
+        run: npm run test:storage:e2e

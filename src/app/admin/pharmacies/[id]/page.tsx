@@ -4,35 +4,37 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { changerStatutServiceBebeMaman, consulterDocumentPharmacie, deposerDocumentPharmacie, statuerDocumentPharmacie } from "./actions";
 import { validerDossierPharmacie } from "@/app/admin/promoteurs/actions";
 
-type Props={params:{id:string};searchParams?:{ok?:string;erreur?:string}};
+type Props={params:Promise<{id:string}>;searchParams?:Promise<{ok?:string;erreur?:string}>};
 const OK_MESSAGES:Record<string,string>={document:"Document déposé et enregistré.",decision:"Décision enregistrée.",service:"Statut du service Bébé & Maman enregistré.",validation:"Dossier validé. Le Promoteur, son rattachement et la pharmacie sont activés après les contrôles transactionnels."};
 const REQUIRED_DOCUMENT_TYPES=[["existence_legale","Existence légale"],["registre_commerce","Registre de commerce (RCCM)"],["niu","Numéro d’identifiant unique (NIU)"],["attestation_non_redevance","Attestation de non-redevance"],["plan_localisation","Plan de localisation"],["cni_promoteur","CNI du Promoteur"]] as const;
 const ERROR_MESSAGES:Record<string,string>={"deja-traite":"Ce document a déjà été traité ou la décision a été prise simultanément. Actualisez la page.","document-introuvable":"Document introuvable dans ce dossier.","stockage":"Le stockage privé a refusé le fichier.","registre":"Inscription impossible ; le fichier temporaire a été supprimé.","pharmacie":"Pharmacie introuvable.","decision":"Décision impossible à enregistrer.","document":"Fichier invalide : vérifiez le type et la taille (10 Mo maximum).","service":"Le statut du service Bébé & Maman n’a pas pu être modifié. Vérifiez que la migration de gestion des services est disponible.","verification":"Confirmez la vérification effective des autorisations avant de valider.","rattachement":"Le rattachement Promoteur–pharmacie est absent ou ambigu.","promoteur":"Le compte Promoteur ne correspond pas à cette pharmacie ou son architecture est invalide.","dossier-incomplet":"Dossier administratif incomplet : vérifiez les coordonnées privées requises.","contrat":"Convention, abonnement et architecture ne sont pas cohérents.","deja-active":"Ce dossier est déjà actif. Aucune réinitialisation de la période d’essai n’a été faite.","validation-etat":"Cette pharmacie n’est pas dans l’état d’une ouverture en attente. Utilisez le parcours de validité commerciale pour un dossier déjà activé.","validation-impossible":"La validation transactionnelle n’a pas abouti. Aucun succès n’est confirmé : vérifiez les prérequis puis réessayez.","documents-indisponibles":"Le registre des fichiers justificatifs ne peut pas être lu. La validation reste bloquée par sécurité.","documents-validation":"La dernière version de chacun des six fichiers requis doit être validée avant la validation globale."};
 export default async function PharmacieIndividuelle({params,searchParams}:Props){
+ const {id}=await params;
+ const query=await searchParams;
  const sb=supabaseServer();
  const{data:auth}=await sb.auth.getUser();
- if(!auth.user)redirect("/connexion?retour=/admin/pharmacies/"+params.id);
+ if(!auth.user)redirect("/connexion?retour=/admin/pharmacies/"+id);
  const{data:profile}=await sb.from("profiles").select("role,actif").eq("id",auth.user.id).single();
  if(profile?.role!=="admin"||profile.actif!==true)redirect("/");
- if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.id))notFound();
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))notFound();
  const db=supabaseAdmin();
  const [{data:pharmacy,error},{data:documents,error:documentsError},{data:bebeService,error:bebeServiceError}]=await Promise.all([
-  db.from("pharmacies").select("id,nom,ville,quartier,adresse,actif,visible_recherche,created_at,est_demo,de_garde,horaires").eq("id",params.id).maybeSingle(),
-  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",params.id).order("recu_le",{ascending:false}).order("version",{ascending:false}).order("id",{ascending:false}),
-  db.from("pharmacie_services").select("id,status,updated_at").eq("pharmacie_id",params.id).eq("service_slug","bebe-maman").maybeSingle()
+  db.from("pharmacies").select("id,nom,ville,quartier,adresse,actif,visible_recherche,created_at,est_demo,de_garde,horaires").eq("id",id).maybeSingle(),
+  db.from("pharmacie_documents").select("id,type_document,nom_fichier,bucket_id,object_path,mime_type,taille_octets,statut_validation,note_validation,recu_le,valide_le,version").eq("pharmacie_id",id).order("recu_le",{ascending:false}).order("version",{ascending:false}).order("id",{ascending:false}),
+  db.from("pharmacie_services").select("id,status,updated_at").eq("pharmacie_id",id).eq("service_slug","bebe-maman").maybeSingle()
  ]);
  if(error||!pharmacy)notFound();
  const [{data:links,error:linksError},{data:privateInfo,error:privateError},{data:received,error:receivedError},{data:allHistory,error:allHistoryError}]=await Promise.all([
- db.from("promoteur_pharmacies").select("promoteur_id,actif,created_at").eq("pharmacie_id",params.id),
- db.from("pharmacie_privee").select("whatsapp").eq("pharmacie_id",params.id).maybeSingle(),
- db.from("pharmacie_documents_recus").select("kyc,piece_existence_legale,registre_commerce,niu,attestation_non_redevance,plan_localisation,cni_promoteur,mis_a_jour_le").eq("pharmacie_id",params.id).maybeSingle(),
- db.from("pharmacie_donnees_historique").select("table_source,operation,acteur_id,horodatage").eq("pharmacie_id",params.id).order("horodatage",{ascending:false}).limit(50)
+ db.from("promoteur_pharmacies").select("promoteur_id,actif,created_at").eq("pharmacie_id",id),
+ db.from("pharmacie_privee").select("whatsapp").eq("pharmacie_id",id).maybeSingle(),
+ db.from("pharmacie_documents_recus").select("kyc,piece_existence_legale,registre_commerce,niu,attestation_non_redevance,plan_localisation,cni_promoteur,mis_a_jour_le").eq("pharmacie_id",id).maybeSingle(),
+ db.from("pharmacie_donnees_historique").select("table_source,operation,acteur_id,horodatage").eq("pharmacie_id",id).order("horodatage",{ascending:false}).limit(50)
  ]);
  const link=links?.length===1?links[0]:null;
  const {data:promoter,error:promoterError}=link?await db.from("profiles").select("id,username,first_name,last_name,phone,architecture_code,actif").eq("id",link.promoteur_id).maybeSingle():{data:null,error:null};
  const {data:conventions,error:conventionsError}=link?await db.from("conventions_promoteurs").select("id,architecture_code,montant_mensuel,date_paiement,date_expiration,statut,created_at").eq("promoteur_id",link.promoteur_id).order("created_at",{ascending:false}):{data:[],error:null};
  const {data:subscriptions,error:subscriptionsError}=link?await db.from("abonnements_promoteurs").select("id,convention_id,montant_mensuel,debut,echeance,statut,created_at,bloque_le,reactive_le").eq("promoteur_id",link.promoteur_id).order("created_at",{ascending:false}):{data:[],error:null};
- const {data:assignedArchitectures,error:assignedArchitectureError}=await db.from("pharmacie_architectures").select("architecture_code,active,assigned_at").eq("pharmacie_id",params.id);
+ const {data:assignedArchitectures,error:assignedArchitectureError}=await db.from("pharmacie_architectures").select("architecture_code,active,assigned_at").eq("pharmacie_id",id);
  const docs=documents??[];
  const docsUnavailable=!!documentsError;
  const fmt=(v:string|null|undefined)=>v?new Date(v).toLocaleDateString("fr-FR"):"Non renseigné";
@@ -64,7 +66,7 @@ export default async function PharmacieIndividuelle({params,searchParams}:Props)
     {bebeService?.status === "active" ? <><input type="hidden" name="enabled" value="false"/><button className="min-h-10 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700">Désactiver le service</button></> : <><input type="hidden" name="enabled" value="true"/><button disabled={!pharmacy.actif || !pharmacy.visible_recherche} className="min-h-10 rounded-xl border-2 border-[#FFE23D] bg-[#FFE23D] px-4 py-2 text-sm font-extrabold text-[#0B3D26] disabled:opacity-50">Activer Bébé &amp; Maman dans ce dossier</button>{(!pharmacy.actif || !pharmacy.visible_recherche) && <p className="w-full text-xs text-amber-800">La pharmacie doit être active et visible pour recevoir ce service.</p>}</>}
    </form>}
   </section>
-  {searchParams?.ok&&<p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-900">{OK_MESSAGES[searchParams.ok]||"Opération terminée."}</p>}{searchParams?.erreur&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-900">{ERROR_MESSAGES[searchParams.erreur]||"Opération impossible. Vérifiez les informations puis réessayez."}</p>}
+  {query?.ok&&<p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-900">{OK_MESSAGES[searchParams.ok]||"Opération terminée."}</p>}{query?.erreur&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-900">{ERROR_MESSAGES[searchParams.erreur]||"Opération impossible. Vérifiez les informations puis réessayez."}</p>}
   {dossierValidationEnAttente&&<section className="rounded-2xl border-2 border-[#FFE23D] bg-white p-4 sm:p-5" aria-labelledby="validation-dossier-pharmacie">
    <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">Étape 2 · Décision administrative</p>
    <h2 id="validation-dossier-pharmacie" className="mt-1 text-xl font-extrabold">Valider le dossier pharmacie</h2>

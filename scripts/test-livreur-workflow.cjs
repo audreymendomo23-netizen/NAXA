@@ -19,6 +19,7 @@ const files = {
   reofferNotification: read("supabase/migrations/20261106172200_livreur_reoffer_notification_recipient.sql"),
   inviteNotification: read("supabase/migrations/20261106172300_livreur_invite_notification_recipient.sql"),
   identityGuards: read("supabase/migrations/20261106172400_livreur_identity_verification_guards.sql"),
+  inviteHardening: read("supabase/migrations/20261106173000_livreur_invite_cross_actor_scope_and_recipient_fix.sql"),
   pharmacyGuards: read("supabase/migrations/20261106172500_livreur_active_pharmacy_guards.sql"),
   pharmacyRevoke: read("supabase/migrations/20261106172600_livreur_pharmacy_revoke_assignment.sql"),
   managementRpc: read("supabase/migrations/20261106172700_livreur_management_list_rpc.sql"),
@@ -43,6 +44,16 @@ test("le Livreur reste un poste exclusif, mais peut être attribué à plusieurs
   assert.match(files.schema, /naxa_grant_livreur_assignment/);
   assert.match(files.schema, /pg_advisory_xact_lock/);
   assert.match(files.schema, /naxa_delivery_missions/);
+});
+
+
+test("l’acceptation d’invitation valide l’émetteur hors session du bénéficiaire, l’âge et le destinataire", () => {
+  assert.ok(files.inviteHardening.includes("private.naxa_business_function(v_invite.inviteur_id)"));
+  assert.ok(files.inviteHardening.includes("private.naxa_active_role_pharmacy(v_invite.inviteur_id)"));
+  assert.ok(files.inviteHardening.includes("private.naxa_scope_allows(v_invite.inviteur_id,v_invite.pharmacie_id,'PHARMACIE')"));
+  assert.ok(files.inviteHardening.includes("date_of_birth <= (current_date - interval '18 years')::date"));
+  assert.ok(files.inviteHardening.includes("notifications(user_id,type,titre,corps,related_entity_id)"));
+  assert.ok(!files.inviteHardening.includes("notifications(user_id,pharmacie_id"));
 });
 
 test("l'invitation est à usage unique et exige un compte Client vérifié", () => {
