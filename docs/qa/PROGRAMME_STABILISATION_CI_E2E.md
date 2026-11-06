@@ -51,3 +51,10 @@ Versions de cette branche :
 ## Limite d'interprétation
 
 Un statut vert sur CI ne remplace pas les recettes fonctionnelles Auth/Storage, la recette sur appareil physique ou les tests de restauration/Production. Aucun résultat non observé ne doit être déclaré PASS.
+
+
+## Synchronisation lockfile et reprises
+
+- Le workflow `naxa-lockfile.yml` a régénéré et commité `package-lock.json` après les overrides de sécurité.
+- Le lockfile courant résout bien SimpleWebAuthn 13.3.3, glob 14.0.2, minimatch 11.0.5, path-scurry 3.0.0, Zod 4.6.7 et PostCSS 8.5.32.
+- Une première exécution `npm ci` a été lancée sur le commit précédent le commit lockfile ; elle a échoué car son couple package/lock n'était pas synchronisé. Le run est invalide pour juger le code applicatif. La campagne est relancée sur le HEAD qui contient les deux fichiers synchronisés.
