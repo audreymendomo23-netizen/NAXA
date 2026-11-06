@@ -295,3 +295,31 @@ export async function publierCommandePourLivreurs(formData: FormData) {
   revalidatePath("/pharmacie/livreur");
   redirect("/pharmacie/gestionnaire-stock/commandes?ok=publiee");
 }
+
+export async function mettreCommandeEnPreparationStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/commandes");
+  const id = String(formData.get("reservation_id") ?? "");
+  if (!safeUuid(id)) redirect("/pharmacie/gestionnaire-stock/commandes?erreur=validation");
+  const { data, error } = await sb.rpc("gestionnaire_stock_commande_preparation", {
+    p_reservation: id, p_etat: "en_preparation",
+  });
+  if (error || data !== true) redirect("/pharmacie/gestionnaire-stock/commandes?erreur=preparation");
+  revalidatePath("/pharmacie/gestionnaire-stock/commandes");
+  redirect("/pharmacie/gestionnaire-stock/commandes?ok=en_preparation");
+}
+
+export async function marquerCommandePretePourLivraison(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/commandes");
+  const id = String(formData.get("reservation_id") ?? "");
+  if (!safeUuid(id)) redirect("/pharmacie/gestionnaire-stock/commandes?erreur=validation");
+  const { data, error } = await sb.rpc("gestionnaire_stock_commande_preparation", {
+    p_reservation: id, p_etat: "prete_au_retrait",
+  });
+  if (error || data !== true) redirect("/pharmacie/gestionnaire-stock/commandes?erreur=preparation");
+  revalidatePath("/pharmacie/gestionnaire-stock/commandes");
+  redirect("/pharmacie/gestionnaire-stock/commandes?ok=prete");
+}
