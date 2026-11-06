@@ -34,6 +34,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState<string|null>(null);
+  const [automaticTracking,setAutomaticTracking]=useState(false);
 
   const load=useCallback(async()=>{
     const sb=supabaseBrowser();
@@ -68,6 +69,29 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
   const available=useMemo(()=>missions.filter(m=>m.statut==="available"),[missions]);
   const active=useMemo(()=>missions.filter(m=>["accepted","picked_up","arrived"].includes(m.statut)),[missions]);
   const history=useMemo(()=>missions.filter(m=>["delivered","failed","cancelled"].includes(m.statut)),[missions]);
+  const pickedUpMissionId=useMemo(()=>missions.find(m=>m.statut==="picked_up")?.id??null,[missions]);
+
+  useEffect(()=>{
+    if(!automaticTracking||!pickedUpMissionId)return;
+    if(!navigator.geolocation){setError("La géolocalisation n’est pas disponible sur cet appareil.");setAutomaticTracking(false);return;}
+    let alive=true;
+    let lastSentAt=0;
+    const watchId=navigator.geolocation.watchPosition(async position=>{
+      const now=Date.now();
+      if(now-lastSentAt<15000)return;
+      lastSentAt=now;
+      const {error:rpcError}=await supabaseBrowser().rpc("naxa_delivery_add_location",{
+        p_mission:pickedUpMissionId,
+        p_latitude:position.coords.latitude,
+        p_longitude:position.coords.longitude,
+        p_accuracy_m:position.coords.accuracy,
+      });
+      if(alive&&rpcError)setError("La position automatique n’a pas pu être partagée. Vérifiez votre connexion.");
+    },()=>{
+      if(alive)setError("Accès GPS refusé. Activez la localisation ou partagez une position manuellement.");
+    },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+    return()=>{alive=false;navigator.geolocation.clearWatch(watchId);};
+  },[automaticTracking,pickedUpMissionId]);
 
   async function callAction(id:string,fn:string,args:Record<string,unknown>={}){
     if(busy)return;
@@ -178,7 +202,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
               <p className="mt-3 font-extrabold">{money(m.total)}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait</button>}
-                {m.statut==="picked_up"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_arrived")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Signaler mon arrivée</button>}
+                {m.statut==="picked_up"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_arrived")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Signaler mon arrivée</button>}{m.statut==="picked_up"&&<button type="button" aria-pressed={automaticTracking} onClick={()=>setAutomaticTracking(value=>!value)} className={automaticTracking?"min-h-11 rounded-xl bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-950":"min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950"}>{automaticTracking?"Arrêter le suivi GPS":"Activer le suivi GPS automatique"}</button>}
                 {["accepted","picked_up","arrived"].includes(m.statut)&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_add_location")} className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950 disabled:opacity-50">Partager ma position</button>}
                 {m.statut==="arrived"&&<p className="w-full rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Le Client doit confirmer la réception dans NAXA. Vous ne pouvez pas valider « Livrée » à sa place.</p>}
               </div>
@@ -186,7 +210,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
                 <p className="text-xs font-bold uppercase text-slate-500">Signaler une difficulté</p>
                 <div className="mt-2 flex flex-wrap gap-2">{(["client_absent","adresse_introuvable","incident_route"] as const).map(code=><button key={code} type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_report_issue",{p_code:code,p_note:null})} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">{issueLabels[code]}</button>)}</div>
               </div>}
-              <p className="mt-3 text-xs text-slate-500">Acceptée : {date(m.accepted_at)} · Retirée : {date(m.picked_up_at)} · Arrivée : {date(m.arrived_at)}</p>
+              {m.statut==="picked_up"&&<p className="mt-2 text-xs text-slate-500">Le suivi GPS automatique fonctionne uniquement pendant que cet écran reste ouvert et que la localisation est autorisée. Il s’arrête lorsque vous le désactivez ou signalez votre arrivée.</p>}<p className="mt-3 text-xs text-slate-500">Acceptée : {date(m.accepted_at)} · Retirée : {date(m.picked_up_at)} · Arrivée : {date(m.arrived_at)}</p>
             </article>)}</div>}
         </section>
 
