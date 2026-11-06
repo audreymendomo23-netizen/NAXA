@@ -37,9 +37,9 @@ const files = {
 };
 
 test("le Livreur reste un poste exclusif, mais peut être attribué à plusieurs pharmacies", () => {
-  assert.match(files.schema, /new\.role_code='livreur'/);
-  assert.match(files.schema, /new\.role_code<>'livreur'/);
-  assert.match(files.schema, /v_profile_role<>'client'/);
+  assert.ok(files.schema.includes("if new.role_code='livreur' then"));
+  assert.ok(files.schema.includes("and a.role_code<>'livreur'"));
+  assert.ok(files.schema.includes("if v_profile_role<>'client' then"));
   assert.match(files.schema, /naxa_grant_livreur_assignment/);
   assert.match(files.schema, /pg_advisory_xact_lock/);
   assert.match(files.schema, /naxa_delivery_missions/);
@@ -80,30 +80,30 @@ test("l'identité Livreur exige un e-mail vérifié, le consentement et 18 ans r
 });
 
 test("la Pharmacie peut gérer et révoquer ses Livreurs sans interrompre une mission", () => {
-  assert.match(files.pharmacyRevoke, /v_actor_role='pharmacie' and v_assignment\\.role_code='livreur'/);
-  assert.match(files.pharmacyRevoke, /naxa_active_role_pharmacy\\(v_actor\\)/);
-  assert.match(files.pharmacyRevoke, /naxa_scope_allows\\(v_actor,v_assignment\\.pharmacie_id,'PHARMACIE'\\)/);
+  assert.ok(files.pharmacyRevoke.includes("elsif v_actor_role='pharmacie' and v_assignment.role_code='livreur' then"));
+  assert.ok(files.pharmacyRevoke.includes("naxa_active_role_pharmacy(v_actor)"));
+  assert.ok(files.pharmacyRevoke.includes("naxa_scope_allows(v_actor,v_assignment.pharmacie_id,'PHARMACIE')"));
   assert.match(files.schema, /naxa_block_livreur_revoke_with_open_delivery/);
 });
 
 test("les missions sont bloquées si la pharmacie est suspendue ou archivée", () => {
-  assert.match(files.pharmacyGuards, /ph\\.actif=true and ph\\.archivee_le is null/);
-  assert.match(files.pharmacyGuards, /La pharmacie est suspendue ou archivée/);
+  assert.ok(files.pharmacyGuards.includes("ph.actif=true and ph.archivee_le is null"));
+  assert.ok(files.pharmacyGuards.includes("La pharmacie est suspendue ou archivée"));
 });
 
 test("une mission peut être réaffectée avant collecte, jamais après", () => {
-  assert.match(files.reoffer, /v_m\\.picked_up_at is not null/);
-  assert.match(files.reoffer, /set offer_status='recalled'/);
-  assert.match(files.reoffer, /commande_statut='preparation'/);
+  assert.ok(files.reoffer.includes("v_m.picked_up_at is not null"));
+  assert.ok(files.reoffer.includes("set offer_status='recalled'"));
+  assert.ok(files.reoffer.includes("update public.reservations set commande_statut='preparation'"));
 });
 
 test("la prise de mission est atomique et le journal des offres reste privé", () => {
-  assert.match(files.offers, /select \* into v_m from public\.naxa_delivery_missions where id=p_mission for update/);
-  assert.match(files.offers, /update public\.naxa_delivery_mission_offers/);
-  assert.match(files.offers, /offer_status='lost'/);
-  assert.match(files.offers, /acceptance_rate/);
-  assert.match(files.offers, /revoke all on public\.naxa_delivery_mission_offers from public,anon,authenticated/);
-  assert.match(files.hardening, /naxa_delivery_driver_can_act/);
+  assert.ok(files.offers.includes("select * into v_m from public.naxa_delivery_missions where id=p_mission for update"));
+  assert.ok(files.offers.includes("update public.naxa_delivery_mission_offers"));
+  assert.ok(files.offers.includes("else 'lost' end"));
+  assert.ok(files.offers.includes("'acceptance_rate'"));
+  assert.ok(files.offers.includes("revoke all on public.naxa_delivery_mission_offers from public,anon,authenticated;"));
+  assert.ok(files.hardening.includes("private.naxa_delivery_driver_can_act"));
 });
 
 test("le Livreur ne modifie ni stock, ni paiement, ni statut final de remise", () => {
