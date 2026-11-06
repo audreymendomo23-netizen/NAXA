@@ -4,7 +4,13 @@ import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
 export function supabaseServer(response?: NextResponse){
-  const store=cookies();
+  // Next 15 retains synchronous cookie access as a temporary migration bridge.
+  // The server client is still synchronous across existing call sites; migrate those
+  // call sites to an async factory before moving to a Next release that removes this bridge.
+  const store = cookies() as unknown as {
+    getAll: () => Array<{ name: string; value: string }>;
+    set: (name: string, value: string, options?: CookieOptions) => void;
+  };
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
