@@ -277,3 +277,21 @@ export async function marquerPreparationReservationGestionStock(formData: FormDa
   redirect("/pharmacie/gestionnaire-stock/reservations?ok=" + etat);
 }
 
+export async function publierCommandePourLivreurs(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/commandes");
+  const id = String(formData.get("reservation_id") ?? "");
+  if (!safeUuid(id)) redirect("/pharmacie/gestionnaire-stock/commandes?erreur=validation");
+
+  // Le serveur vérifie le poste Stock, la pharmacie, le mode commande et l'état préparation.
+  const { data, error } = await sb.rpc("naxa_delivery_make_available", { p_reservation: id });
+  if (error || typeof data !== "string") {
+    redirect("/pharmacie/gestionnaire-stock/commandes?erreur=publication");
+  }
+
+  revalidatePath("/pharmacie/gestionnaire-stock/commandes");
+  revalidatePath("/pharmacie/commandes");
+  revalidatePath("/pharmacie/livreur");
+  redirect("/pharmacie/gestionnaire-stock/commandes?ok=publiee");
+}
