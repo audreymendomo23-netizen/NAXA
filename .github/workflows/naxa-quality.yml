@@ -1,0 +1,55 @@
+name: NAXA QA quality
+
+on:
+  push:
+    branches:
+      - "qa/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naxa-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Tests + TypeScript + ESLint + Next.js build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
+      SUPABASE_SECRET_KEY: build-test-secret-key
+    steps:
+      - name: Checkout full source
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run complete quality gate and production compilation
+        run: npm run build
+
+  dependency-audit:
+    name: Production dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Block high and critical production vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
