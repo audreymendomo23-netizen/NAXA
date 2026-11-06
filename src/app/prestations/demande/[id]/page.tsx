@@ -30,9 +30,9 @@ export default async function HomeServiceRequestReceipt({ params, searchParams }
   params: Promise<{ id: string }>;
   searchParams: Promise<{ ok?: string; erreur?: string }>;
 }) {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) redirect("/prestations");
   const { id } = await params;
   const query = await searchParams;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(id)) redirect("/prestations");
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/prestations/demande/" + id);
