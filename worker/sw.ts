@@ -13,7 +13,17 @@ declare global {
   }
 }
 
-declare const self: ServiceWorkerGlobalScope;
+type NaxaActivateEvent = { waitUntil(promise: Promise<unknown>): void };
+type NaxaWorkerScope = {
+  __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+  caches: CacheStorage;
+  addEventListener(
+    type: "activate",
+    listener: (event: NaxaActivateEvent) => void,
+  ): void;
+};
+
+declare const self: NaxaWorkerScope;
 
 const publicNavigationPaths = new Set([
   "/",
