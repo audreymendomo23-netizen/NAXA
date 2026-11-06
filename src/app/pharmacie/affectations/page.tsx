@@ -27,6 +27,7 @@ const labels:Record<string,string>={
   pharmacien:"Pharmacien",
   responsable:"Responsable",
   comptable:"Comptable",
+  livreur:"Livreur",
 };
 const date=(v:string)=>new Date(v).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"});
 
@@ -39,12 +40,17 @@ export default async function AffectationsPage({
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
 
-  const {data:profile}=await sb.from("profiles").select("role,actif")
-    .eq("id",auth.user.id).maybeSingle();
-  if(profile?.role!=="promoteur"||profile.actif!==true)redirect("/pharmacie/promoteur");
+  const [{data:profile},{data:businessFunction}]=await Promise.all([
+    sb.from("profiles").select("role,actif,pharmacie_id").eq("id",auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+  ]);
+  const isPromoteur=profile?.role==="promoteur"&&profile.actif===true&&businessFunction==="promoteur";
+  const isPharmacie=profile?.role==="pharmacie"&&profile.actif===true&&businessFunction==="pharmacie"&&Boolean(profile.pharmacie_id);
+  if(!isPromoteur&&!isPharmacie)redirect("/pharmacie");
 
-  const {data:links,error:linksError}=await sb.from("promoteur_pharmacies")
-    .select("pharmacie_id").eq("promoteur_id",auth.user.id).eq("actif",true);
+  const {data:links,error:linksError}=isPromoteur
+    ?await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",auth.user.id).eq("actif",true)
+    :{data:profile?.pharmacie_id?[{pharmacie_id:profile.pharmacie_id}]:[],error:null};
   const ids=[...new Set((links??[]).map(x=>x.pharmacie_id))];
 
   const [{data:pharmacies},{data:rows,error:assignmentsError}]=await Promise.all([
@@ -97,7 +103,7 @@ export default async function AffectationsPage({
           <h1 className="text-2xl font-black">Affectations professionnelles</h1>
           <p className="mt-1 text-sm text-emerald-50">Une identité peut recevoir plusieurs fonctions ; chaque affectation reste limitée à sa pharmacie.</p>
         </div>
-        <Link href="/pharmacie/promoteur" className="underline">← Espace Promoteur</Link>
+        <Link href={isPromoteur?"/pharmacie/promoteur":"/pharmacie"} className="underline">{isPromoteur?"← Espace Promoteur":"← Espace Pharmacie"}</Link>
       </header>
 
       {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
@@ -127,7 +133,7 @@ export default async function AffectationsPage({
           <label className="text-sm font-semibold">Fonction supplémentaire
             <select name="fonction" required className="mt-1 w-full rounded-lg border p-3" defaultValue="">
               <option value="" disabled>Choisir</option>
-              {Object.entries(labels).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              {Object.entries(labels).filter(([v])=>isPromoteur||v==="livreur").map(([v,l])=><option key={v} value={v}>{l}</option>)}
             </select>
           </label>
           <label className="text-sm font-semibold">Type d’affectation
