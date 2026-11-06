@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {supabaseBrowser} from "@/lib/supabase/client";
+import {EspaceNaxaSwitcher} from "@/components/EspaceNaxaSwitcher";
 
 type Item={quantite:number;nom:string;dosage:string|null};
 type Mission={
@@ -130,6 +131,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={()=>void load()} className="min-h-10 rounded-xl border border-white/30 px-3 text-sm font-bold">Actualiser</button>
+          <EspaceNaxaSwitcher current="livreur" />
           <button type="button" onClick={()=>void logout()} className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-emerald-950">Déconnexion</button>
         </div>
       </header>
@@ -175,8 +177,8 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
               <ul className="mt-3 space-y-1 border-t pt-3 text-sm">{(m.items??[]).map((item,i)=><li key={i}>{item.quantite} × {item.nom}{item.dosage?" · "+item.dosage:""}</li>)}</ul>
               <p className="mt-3 font-extrabold">{money(m.total)}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait · GPS</button>}
-                {m.statut==="picked_up"&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_arrived")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Signaler mon arrivée · GPS</button>}
+                {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait</button>}
+                {m.statut==="picked_up"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_arrived")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Signaler mon arrivée</button>}
                 {["accepted","picked_up","arrived"].includes(m.statut)&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_add_location")} className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950 disabled:opacity-50">Partager ma position</button>}
                 {m.statut==="arrived"&&<p className="w-full rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Le Client doit confirmer la réception dans NAXA. Vous ne pouvez pas valider « Livrée » à sa place.</p>}
               </div>
