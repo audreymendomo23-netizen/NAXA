@@ -1,6 +1,9 @@
 name: NAXA independent database backup
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: "23 2 * * *"
