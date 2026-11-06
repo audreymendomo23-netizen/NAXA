@@ -21,6 +21,8 @@ const files = {
   identityGuards: read("supabase/migrations/20261106172400_livreur_identity_verification_guards.sql"),
   pharmacyGuards: read("supabase/migrations/20261106172500_livreur_active_pharmacy_guards.sql"),
   pharmacyRevoke: read("supabase/migrations/20261106172600_livreur_pharmacy_revoke_assignment.sql"),
+  managementRpc: read("supabase/migrations/20261106172700_livreur_management_list_rpc.sql"),
+  assignmentManager: read("src/components/pharmacie/LivreursAssignmentsManager.tsx"),
   stockPage: read("src/app/pharmacie/gestionnaire-stock/commandes/page.tsx"),
   stockActions: read("src/app/pharmacie/gestionnaire-stock/actions.ts"),
   courierPage: read("src/app/pharmacie/livreur/page.tsx"),
@@ -64,16 +66,16 @@ test("la livraison ne peut être publiée qu'après la preuve de préparation ph
 });
 
 test("les notifications respectent la contrainte de destinataire unique", () => {
-  assert.match(files.clientNotification, /notifications\\(user_id,type,titre,corps,reservation_id,related_entity_id\\)/);
-  assert.match(files.dispatchNotification, /notifications\\(user_id,type,titre,corps,reservation_id,related_entity_id\\)/);
-  assert.match(files.reofferNotification, /notifications\\(user_id,type,titre,corps,reservation_id,related_entity_id\\)/);
-  assert.match(files.inviteNotification, /notifications\\(user_id,type,titre,corps,related_entity_id\\)/);
-  assert.doesNotMatch(files.clientNotification, /notifications\\(user_id,pharmacie_id/);
+  assert.ok(files.clientNotification.includes("notifications(user_id,type,titre,corps,reservation_id,related_entity_id)"));
+  assert.ok(files.dispatchNotification.includes("notifications(user_id,type,titre,corps,reservation_id,related_entity_id)"));
+  assert.ok(files.reofferNotification.includes("notifications(user_id,type,titre,corps,reservation_id,related_entity_id)"));
+  assert.ok(files.inviteNotification.includes("notifications(user_id,type,titre,corps,related_entity_id)"));
+  assert.ok(!files.clientNotification.includes("notifications(user_id,pharmacie_id"));
 });
 
 test("l'identité Livreur exige un e-mail vérifié, le consentement et 18 ans révolus", () => {
-  assert.match(files.identityGuards, /u\\.email_confirmed_at is not null/);
-  assert.match(files.identityGuards, /date_of_birth <= \\(current_date - interval '18 years'\\)::date/);
+  assert.ok(files.identityGuards.includes("u.email_confirmed_at is not null"));
+  assert.ok(files.identityGuards.includes("date_of_birth <= (current_date - interval '18 years')::date"));
   assert.match(files.identityGuards, /consent_accepted_at is not null/);
 });
 
@@ -129,6 +131,17 @@ test("l'interface Pharmacie ne propose plus de simuler les étapes du Livreur", 
   assert.doesNotMatch(files.orderPage, /en_livraison:"livree"/);
 });
 
+test("la gestion de l’équipe Livreur est cloisonnée au réseau et compte les personnes distinctes", () => {
+  assert.ok(files.managementRpc.includes("create or replace function public.naxa_livreurs_management_list"));
+  assert.ok(files.managementRpc.includes("if v_role='promoteur'"));
+  assert.ok(files.managementRpc.includes("elsif v_role='pharmacie'"));
+  assert.ok(files.managementRpc.includes("public.is_admin()"));
+  assert.ok(files.managementRpc.includes("revoke all on function public.naxa_livreurs_management_list(uuid[]) from public,anon"));
+  assert.ok(files.managementRpc.includes("grant execute on function public.naxa_livreurs_management_list(uuid[]) to authenticated"));
+  assert.ok(files.assignmentManager.includes("naxa_livreurs_management_list"));
+  assert.ok(files.assignmentManager.includes("new Set("));
+});
+
 test("les nouveaux modules TS/TSX sont syntaxiquement valides", () => {
   const targets = [
     "src/app/pharmacie/livreur/page.tsx",
@@ -136,6 +149,7 @@ test("les nouveaux modules TS/TSX sont syntaxiquement valides", () => {
     "src/app/pharmacie/commandes/page.tsx",
     "src/app/reservation/[id]/page.tsx",
     "src/app/pharmacie/affectations/page.tsx",
+    "src/components/pharmacie/LivreursAssignmentsManager.tsx",
     "src/app/pharmacie/affectations/actions.ts",
     "src/components/pharmacie/InvitationLivreurForm.tsx",
     "src/components/pharmacie/LivreurWorkspaceClient.tsx",
