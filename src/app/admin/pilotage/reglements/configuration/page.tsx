@@ -21,7 +21,7 @@ type Destination = {
 export default async function ConfigurationDestinationsPaiement({
   searchParams,
 }: {
-  searchParams?: { ok?: string; erreur?: string };
+  searchParams?: Promise<{ ok?: string; erreur?: string }>;
 }) {
   const query = await searchParams;
   await requireAdminActive("/admin/pilotage/reglements/configuration");
