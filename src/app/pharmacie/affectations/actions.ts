@@ -35,7 +35,7 @@ export async function accorderAffectationProfessionnelle(formData:FormData){
 
   if(!uuid.test(pharmacie)
     ||!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)
-    ||!["caisse","gestionnaire_stock","magasinier","pharmacien","responsable","comptable"].includes(fonction)
+    ||!["caisse","gestionnaire_stock","magasinier","pharmacien","responsable","comptable","livreur"].includes(fonction)
     ||!["ordinaire","urgence"].includes(nature)
     ||!debutDate||!Number.isFinite(debutDate.getTime())
     ||(nature==="urgence"&&(!finDate||!Number.isFinite(finDate.getTime())||finDate<=debutDate))
@@ -51,14 +51,15 @@ export async function accorderAffectationProfessionnelle(formData:FormData){
     redirect("/pharmacie/affectations?erreur=cible");
   }
 
-  const {error}=await sb.rpc("naxa_grant_professional_assignment",{
-    p_target:matches[0].id,
-    p_pharmacie:pharmacie,
-    p_fonction:fonction,
-    p_commence_at:debutDate.toISOString(),
-    p_expire_at:finDate?.toISOString()??null,
-    p_motif:motif,
-  });
+  const {error}=fonction==="livreur"
+    ?await sb.rpc("naxa_grant_livreur_assignment",{
+      p_target:matches[0].id,p_pharmacie:pharmacie,
+      p_commence_at:debutDate.toISOString(),p_expire_at:finDate?.toISOString()??null,p_motif:motif,
+    })
+    :await sb.rpc("naxa_grant_professional_assignment",{
+      p_target:matches[0].id,p_pharmacie:pharmacie,p_fonction:fonction,
+      p_commence_at:debutDate.toISOString(),p_expire_at:finDate?.toISOString()??null,p_motif:motif,
+    });
   if(error)redirect("/pharmacie/affectations?erreur=autorisation");
   revalidatePath("/pharmacie/affectations");
   revalidatePath("/pharmacie/gestionnaire-stock/reservations");
