@@ -66,7 +66,7 @@ export function SuiviLivraison({reservationId}:{reservationId:string}){
   }
 
   if(loading)return <section className="carte"><p className="text-sm text-slate-600">Chargement du suivi de livraison…</p></section>;
-  if(!tracking)return <></>;
+  if(!tracking)return error?<section className="carte"><p className="text-sm text-slate-600">{error}</p></section>:<></>;
 
   const timeline=[
     {key:"ready_at",label:"Commande préparée",at:tracking.ready_at},
