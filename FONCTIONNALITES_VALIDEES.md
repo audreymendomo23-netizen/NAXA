@@ -1,3 +1,17 @@
+## P2 — Workflow Livreur : état de l'audit (06/11/2026)
+
+- **Statut : 🟡 Implémenté sur `main`, recettes SQL Replay réussies ; non certifié vert intégral.**
+- Le rôle Livreur reste une affectation professionnelle d'une identité Client NAXA. Un même compte peut recevoir plusieurs affectations Livreur dans plusieurs pharmacies, mais le serveur refuse toute autre fonction professionnelle active sur ce compte.
+- Le Promoteur peut affecter/inviter dans son réseau actif ; la Pharmacie peut affecter/inviter/révoquer uniquement dans son propre établissement. La révocation est bloquée si une mission est encore acceptée ou en cours.
+- Le Stock doit enregistrer `en_preparation`, puis `prete_au_retrait`, avant de publier la mission. Le Livreur accepte atomiquement, confirme retrait/arrivée, partage sa position volontairement au premier plan ; seul le Client confirme la réception finale.
+- Tableau de bord Livreur, file de missions, performances, historique CSV, profil, invitations, suivi Client et journal d'offres ajoutés. Détail : [docs/audits/AUDIT_WORKFLOW_LIVREUR_NAXA.md](docs/audits/AUDIT_WORKFLOW_LIVREUR_NAXA.md).
+- **Replay :** tests transactionnels PASS sur exclusivité/multi-pharmacies, préparation Stock, publication, acceptation, suivi GPS, destinataire des notifications, confirmation Client, KPI, réaffectation avant collecte et révocation Pharmacy avec verrou sur mission ouverte. Les fixtures ont été annulées par `ROLLBACK`.
+- **Réserve de mise en œuvre :** la RPC de liste d'équipe `naxa_livreurs_management_list` et son composant UI viennent d'être ajoutés ; sa migration Replay doit être confirmée avant de considérer la gestion de liste éprouvée.
+- **Non exécuté :** build/typecheck/lint/npm test sur le HEAD final, inscription/acceptation avec deux vrais comptes Auth, commande réelle avec articles et mouvements de stock, test navigateur/Android/GPS, Push externe et recette terrain.
+- **Production inchangée :** aucune migration Supabase Production et aucun déploiement Vercel Production effectués dans cette passe.
+
+---
+
 ## P1 — Certification opérationnelle e-mail / Push / ordonnanceur (05/11/2026)
 
 - **Push — cause racine de l'ancien faux vert :** l'ancien job PostgreSQL appelait l'alias Preview Vercel protégé par SSO. Supabase pg_net enregistrait HTTP 200 avec une page SSO/redirection ; `cron.job_run_details = succeeded` ne prouvait donc pas que le worker s'exécutait.
