@@ -19,9 +19,14 @@ export async function accorderAffectationProfessionnelle(formData:FormData){
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
 
-  const {data:profile}=await sb.from("profiles").select("role,actif")
-    .eq("id",auth.user.id).maybeSingle();
-  if(profile?.role!=="promoteur"||profile.actif!==true)redirect("/pharmacie/promoteur");
+  const [{data:profile},{data:businessFunction},{data:activePharmacy}]=await Promise.all([
+    sb.from("profiles").select("role,actif,pharmacie_id").eq("id",auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+    sb.rpc("naxa_active_role_pharmacy"),
+  ]);
+  const isPromoteur=profile?.role==="promoteur"&&profile.actif===true&&businessFunction==="promoteur";
+  const isPharmacie=profile?.role==="pharmacie"&&profile.actif===true&&businessFunction==="pharmacie"&&Boolean(activePharmacy);
+  if(!isPromoteur&&!isPharmacie)redirect("/pharmacie/promoteur");
 
   const pharmacie=value(formData,"pharmacie_id");
   const username=value(formData,"username").toLowerCase();
@@ -36,6 +41,7 @@ export async function accorderAffectationProfessionnelle(formData:FormData){
   if(!uuid.test(pharmacie)
     ||!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)
     ||!["caisse","gestionnaire_stock","magasinier","pharmacien","responsable","comptable","livreur"].includes(fonction)
+    ||(isPharmacie&&(fonction!=="livreur"||pharmacie!==String(activePharmacy)))
     ||!["ordinaire","urgence"].includes(nature)
     ||!debutDate||!Number.isFinite(debutDate.getTime())
     ||(nature==="urgence"&&(!finDate||!Number.isFinite(finDate.getTime())||finDate<=debutDate))
