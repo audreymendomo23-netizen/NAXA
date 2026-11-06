@@ -16,7 +16,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  skip-backup-outside-main:
+    if: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm no backup runs outside main
+        run: echo "No database backup is executed from QA or non-main branches."
+
   backup:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
