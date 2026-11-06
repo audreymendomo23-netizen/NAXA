@@ -13,6 +13,13 @@ const files = {
   inviteFix: read("supabase/migrations/20261106160000_livreur_invite_acceptance_and_notifications.sql"),
   offers: read("supabase/migrations/20261106163000_livreur_offers_cancellation_metrics.sql"),
   stockGate: read("supabase/migrations/20261106170000_livreur_stock_preparation_gate.sql"),
+  reoffer: read("supabase/migrations/20261106171000_livreur_reoffer_offer_history.sql"),
+  clientNotification: read("supabase/migrations/20261106172000_livreur_client_notification_recipient.sql"),
+  dispatchNotification: read("supabase/migrations/20261106172100_livreur_dispatch_notification_recipient.sql"),
+  reofferNotification: read("supabase/migrations/20261106172200_livreur_reoffer_notification_recipient.sql"),
+  inviteNotification: read("supabase/migrations/20261106172300_livreur_invite_notification_recipient.sql"),
+  identityGuards: read("supabase/migrations/20261106172400_livreur_identity_verification_guards.sql"),
+  pharmacyGuards: read("supabase/migrations/20261106172500_livreur_active_pharmacy_guards.sql"),
   stockPage: read("src/app/pharmacie/gestionnaire-stock/commandes/page.tsx"),
   stockActions: read("src/app/pharmacie/gestionnaire-stock/actions.ts"),
   courierPage: read("src/app/pharmacie/livreur/page.tsx"),
@@ -55,6 +62,31 @@ test("la livraison ne peut être publiée qu'après la preuve de préparation ph
   assert.match(files.stockActions, /naxa_delivery_make_available/);
 });
 
+test("les notifications respectent la contrainte de destinataire unique", () => {
+  assert.match(files.clientNotification, /notifications\\(user_id,type,titre,corps,reservation_id,related_entity_id\\)/);
+  assert.match(files.dispatchNotification, /notifications\\(user_id,type,titre,corps,reservation_id,related_entity_id\\)/);
+  assert.match(files.reofferNotification, /notifications\\(user_id,type,titre,corps,reservation_id,related_entity_id\\)/);
+  assert.match(files.inviteNotification, /notifications\\(user_id,type,titre,corps,related_entity_id\\)/);
+  assert.doesNotMatch(files.clientNotification, /notifications\\(user_id,pharmacie_id/);
+});
+
+test("l'identité Livreur exige un e-mail vérifié, le consentement et 18 ans révolus", () => {
+  assert.match(files.identityGuards, /u\\.email_confirmed_at is not null/);
+  assert.match(files.identityGuards, /date_of_birth <= \\(current_date - interval '18 years'\\)::date/);
+  assert.match(files.identityGuards, /consent_accepted_at is not null/);
+});
+
+test("les missions sont bloquées si la pharmacie est suspendue ou archivée", () => {
+  assert.match(files.pharmacyGuards, /ph\\.actif=true and ph\\.archivee_le is null/);
+  assert.match(files.pharmacyGuards, /La pharmacie est suspendue ou archivée/);
+});
+
+test("une mission peut être réaffectée avant collecte, jamais après", () => {
+  assert.match(files.reoffer, /v_m\\.picked_up_at is not null/);
+  assert.match(files.reoffer, /set offer_status='recalled'/);
+  assert.match(files.reoffer, /commande_statut='preparation'/);
+});
+
 test("la prise de mission est atomique et le journal des offres reste privé", () => {
   assert.match(files.offers, /select \* into v_m from public\.naxa_delivery_missions where id=p_mission for update/);
   assert.match(files.offers, /update public\.naxa_delivery_mission_offers/);
@@ -93,6 +125,7 @@ test("les nouveaux modules TS/TSX sont syntaxiquement valides", () => {
   const targets = [
     "src/app/pharmacie/livreur/page.tsx",
     "src/app/pharmacie/gestionnaire-stock/commandes/page.tsx",
+    "src/app/pharmacie/commandes/page.tsx",
     "src/app/reservation/[id]/page.tsx",
     "src/app/pharmacie/affectations/page.tsx",
     "src/app/pharmacie/affectations/actions.ts",
