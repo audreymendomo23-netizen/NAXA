@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { InvitationLivreurForm } from "@/components/pharmacie/InvitationLivreurForm";
+import { LivreursAssignmentsManager } from "@/components/pharmacie/LivreursAssignmentsManager";
 import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace } from "./actions";
 
 type Assignment = {
@@ -127,6 +128,10 @@ export default async function AffectationsPage({
       <InvitationLivreurForm
         pharmacies={(pharmacies??[]).map(p=>({id:p.id,nom:p.nom}))}
         locked={isPharmacie}
+      />
+
+      <LivreursAssignmentsManager
+        pharmacies={(pharmacies??[]).map(p=>({id:p.id,nom:p.nom}))}
       />
 
       <section className="rounded-2xl border bg-white p-5">
