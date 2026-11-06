@@ -20,6 +20,7 @@ const files = {
   inviteNotification: read("supabase/migrations/20261106172300_livreur_invite_notification_recipient.sql"),
   identityGuards: read("supabase/migrations/20261106172400_livreur_identity_verification_guards.sql"),
   pharmacyGuards: read("supabase/migrations/20261106172500_livreur_active_pharmacy_guards.sql"),
+  pharmacyRevoke: read("supabase/migrations/20261106172600_livreur_pharmacy_revoke_assignment.sql"),
   stockPage: read("src/app/pharmacie/gestionnaire-stock/commandes/page.tsx"),
   stockActions: read("src/app/pharmacie/gestionnaire-stock/actions.ts"),
   courierPage: read("src/app/pharmacie/livreur/page.tsx"),
@@ -74,6 +75,13 @@ test("l'identité Livreur exige un e-mail vérifié, le consentement et 18 ans r
   assert.match(files.identityGuards, /u\\.email_confirmed_at is not null/);
   assert.match(files.identityGuards, /date_of_birth <= \\(current_date - interval '18 years'\\)::date/);
   assert.match(files.identityGuards, /consent_accepted_at is not null/);
+});
+
+test("la Pharmacie peut gérer et révoquer ses Livreurs sans interrompre une mission", () => {
+  assert.match(files.pharmacyRevoke, /v_actor_role='pharmacie' and v_assignment\\.role_code='livreur'/);
+  assert.match(files.pharmacyRevoke, /naxa_active_role_pharmacy\\(v_actor\\)/);
+  assert.match(files.pharmacyRevoke, /naxa_scope_allows\\(v_actor,v_assignment\\.pharmacie_id,'PHARMACIE'\\)/);
+  assert.match(files.schema, /naxa_block_livreur_revoke_with_open_delivery/);
 });
 
 test("les missions sont bloquées si la pharmacie est suspendue ou archivée", () => {
