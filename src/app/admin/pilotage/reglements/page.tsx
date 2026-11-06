@@ -3,7 +3,7 @@ import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { confirmerReglementPromoteur, contesterReglementPromoteur } from "./actions";
 
-type SearchParams = { ok?: string; erreur?: string };
+type SearchParams = Promise<{ ok?: string; erreur?: string }>;
 const CANAUX: Record<string, string> = {
   especes: "Espèces", orange_money: "Orange Money", mtn_momo: "MTN Mobile Money",
   virement: "Virement bancaire", depot_bancaire: "Dépôt bancaire", autre: "Autre",
@@ -12,6 +12,7 @@ const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
 const date = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
 
 export default async function ReglementsAdminPage({ searchParams }: { searchParams?: SearchParams }) {
+  const query = await searchParams;
   await requireAdminActive("/admin/pilotage/reglements");
   const db = supabaseAdmin();
   const [{ data: pending, error: pendingError }, { data: recent, error: recentError }] = await Promise.all([
@@ -93,8 +94,8 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
       <p className="mt-2 text-sm text-white/80">Le Promoteur déclare son paiement et transmet la preuve. Vous vérifiez les références et l’encaissement réel avant de confirmer. La confirmation renouvelle l’abonnement sur une période mensuelle et génère le reçu.</p>
       <div className="mt-3 flex flex-wrap gap-4 text-sm font-bold"><Link href="/admin/pilotage/reglements/configuration" className="underline">Configurer les destinations de paiement</Link><Link href="/admin/pilotage/validite" className="underline">Retour à la validité</Link></div>
     </header>
-    {searchParams?.ok && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">{searchParams.ok === "confirme" ? "Paiement confirmé, abonnement renouvelé et reçu disponible dans l’espace Promoteur." : "Règlement mis à jour."}</p>}
-    {searchParams?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[searchParams.erreur] ?? "Une erreur est survenue."}</p>}
+    {query?.ok && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">{query?.ok === "confirme" ? "Paiement confirmé, abonnement renouvelé et reçu disponible dans l’espace Promoteur." : "Règlement mis à jour."}</p>}
+    {query?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[query?.erreur] ?? "Une erreur est survenue."}</p>}
     {paymentContextUnavailable && <p role="alert" className="rounded-2xl border border-amber-300 bg-white p-4 text-sm text-amber-900">L’identité du Promoteur ou la liste de ses pharmacies rattachées est incomplète. La confirmation est désactivée jusqu’à ce que le dossier soit entièrement vérifiable.</p>}
     <section className="space-y-3">
       <h2 className="text-xl font-black">Paiements à vérifier ({pending?.length ?? 0})</h2>
