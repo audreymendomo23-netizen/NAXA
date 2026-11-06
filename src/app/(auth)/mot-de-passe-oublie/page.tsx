@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
-import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
+
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { CodeOtp } from "@/components/CodeOtp";
