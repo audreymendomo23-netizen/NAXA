@@ -28,9 +28,9 @@ jobs:
       SUPABASE_SECRET_KEY: build-test-secret-key
     steps:
       - name: Checkout full source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
       - name: Install dependencies
@@ -44,9 +44,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
       - name: Install dependencies
