@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
@@ -116,7 +117,7 @@ export default function PharmacienServicePage() {
     else window.location.href = `/pharmacie/pharmacien/${section}`;
   }}>
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0B3D26] px-4 py-4 text-white">
-      <div><a className="text-sm text-emerald-100 hover:text-white" href="/pharmacie/pharmacien">← Espace Pharmacien</a><h1 className="mt-1 text-2xl font-black">Prise / fin de service</h1><p className="mt-1 text-sm text-emerald-100">Pointage personnel horodaté, séparé des sessions de caisse.</p></div>
+      <div><Link className="text-sm text-emerald-100 hover:text-white" href="/pharmacie/pharmacien">← Espace Pharmacien</Link><h1 className="mt-1 text-2xl font-black">Prise / fin de service</h1><p className="mt-1 text-sm text-emerald-100">Pointage personnel horodaté, séparé des sessions de caisse.</p></div>
       <button type="button" onClick={() => void refresh()} disabled={loading || busy} className="min-h-10 rounded-xl border border-white/30 px-4 py-2 text-sm font-bold disabled:opacity-50">Actualiser</button>
     </header>
     {message && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
