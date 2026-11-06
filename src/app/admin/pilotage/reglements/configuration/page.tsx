@@ -23,6 +23,7 @@ export default async function ConfigurationDestinationsPaiement({
 }: {
   searchParams?: { ok?: string; erreur?: string };
 }) {
+  const query = await searchParams;
   await requireAdminActive("/admin/pilotage/reglements/configuration");
   const db = supabaseAdmin();
   const { data, error } = await db
@@ -50,14 +51,14 @@ export default async function ConfigurationDestinationsPaiement({
           </Link>
         </header>
 
-        {searchParams?.ok === "enregistre" && (
+        {query?.ok === "enregistre" && (
           <p role="status" className="rounded-2xl bg-white p-4 text-green-800">
             Destination enregistrée. Les nouvelles déclarations utiliseront ces coordonnées ; les déclarations déjà soumises gardent leur instantané.
           </p>
         )}
-        {searchParams?.erreur && (
+        {query?.erreur && (
           <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">
-            {messages[searchParams.erreur] ?? "Une erreur est survenue."}
+            {messages[query?.erreur ?? ''] ?? "Une erreur est survenue."}
           </p>
         )}
         {error && (
