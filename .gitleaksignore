@@ -1,0 +1,7 @@
+# Confirmed false positives: these are deterministic localStorage namespace keys,
+# not credentials, tokens, passwords or service/API secrets.
+# The four fingerprints are narrowly scoped to the exact historical commit/file/rule/line.
+c71d9fea6a8b733a26ecfc9ffbb120f9f19f4acb:NAXA-main.zip!NAXA-main/src/components/ActionProtegee.tsx:generic-api-key:7
+8085f77823b946e13e1ae2bf922004678f8d85d2:NAXA-main.zip!NAXA-main/src/components/ActionProtegee.tsx:generic-api-key:7
+040344ef3cdd746af066745afdfe9f43f40db307:src/components/AccueilClient.tsx:generic-api-key:66
+c345ce936ed9a675aa6c732d7dcf47e308f7f6fb:src/components/ActionProtegee.tsx:generic-api-key:7
