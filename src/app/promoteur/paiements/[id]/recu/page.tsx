@@ -6,7 +6,8 @@ const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
 const dt = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
 const dateTime = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
 
-export default async function RecuReglementPage({ params }: { params: { id: string } }) {
+export default async function RecuReglementPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sb = supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect("/connexion");
@@ -16,7 +17,7 @@ export default async function RecuReglementPage({ params }: { params: { id: stri
   const db = supabaseAdmin();
   const { data: r, error } = await db.from("abonnement_promoteur_reglements")
     .select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,numero_recu,identifiant_paiement,periode_du,periode_au,confirme_le,statut")
-    .eq("id", params.id).eq("promoteur_id", user.id).maybeSingle();
+    .eq("id", id).eq("promoteur_id", user.id).maybeSingle();
   if (error || !r || r.statut !== "confirme" || !r.numero_recu || !r.identifiant_paiement) notFound();
 
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || "Promoteur";
