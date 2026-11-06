@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import {useState,type FormEvent} from "react";
 import {supabaseBrowser} from "@/lib/supabase/client";
 
 type Pharmacy={id:string;nom:string};
@@ -12,7 +12,7 @@ export function InvitationLivreurForm({pharmacies,locked=false}:{pharmacies:Phar
   const [busy,setBusy]=useState(false);
   const [copied,setCopied]=useState(false);
 
-  async function createInvite(event:React.FormEvent<HTMLFormElement>){
+  async function createInvite(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(busy||!pharmacie||!email.trim())return;
     setBusy(true);setError("");setInviteUrl("");setCopied(false);
