@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
   try {
     const { data: r, error } = await supabaseServer()
       .from("reservations")
       .select("total,pharmacie_id,statut,expires_at")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error || !r) return NextResponse.json({}, { status: 404 });
