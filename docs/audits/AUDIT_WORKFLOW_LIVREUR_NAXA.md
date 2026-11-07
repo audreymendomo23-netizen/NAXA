@@ -64,3 +64,15 @@ Aucune migration Supabase Production et aucune modification de données Producti
 - Vérification Replay requise : contrôle des fonctions, déclencheur et ACL après application de la migration. Aucun changement Production ni déploiement Vercel.
 
 - Correctif de compatibilité multi-pharmacie : plusieurs affectations Livreur simultanées sur des pharmacies différentes restent possibles ; les chevauchements dans une même pharmacie sont bloqués. L’espace actif reste unique par compte.
+
+
+## Complément de construction — profil autonome Livreur (7 novembre 2026)
+
+- Création de la route protégée \`/pharmacie/livreur/profil\`, accessible uniquement à un compte actif dont l'espace professionnel sélectionné est Livreur.
+- Le profil affiche les informations personnelles, l'e-mail de connexion en lecture seule, l'état de vérification du compte et la date de création.
+- Les champs prénom, nom, nom d'utilisateur et téléphone sont modifiables sur son propre profil uniquement. Les contrôles de format sont appliqués côté interface ; la mise à jour passe par la politique RLS du compte connecté et vérifie le retour de la ligne mise à jour.
+- Le changement de mot de passe appelle le contrôle de sécurité NAXA contre les mots de passe compromis avant \`auth.updateUser\`.
+- La page liste les affectations Livreur personnelles, leurs pharmacies, leur type permanent/temporaire, les dates et l'état ; elle précise qu'un seul espace de pharmacie est actif à la fois.
+- Le tableau de bord renvoie vers ce profil autonome au lieu du profil Client.
+- Le rôle, les affectations, les privilèges, les dates de permanence et les informations de vérification d'identité restent hors du formulaire d'édition.
+- Le script de test ciblé couvre le garde d'accès, la mise à jour du profil, le contrôle du mot de passe et le lien de navigation. Le build et la recette Auth multi-comptes restent à certifier séparément.

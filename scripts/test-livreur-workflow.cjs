@@ -30,6 +30,8 @@ const files = {
   stockActions: read("src/app/pharmacie/gestionnaire-stock/actions.ts"),
   courierPage: read("src/app/pharmacie/livreur/page.tsx"),
   courierUi: read("src/components/pharmacie/LivreurWorkspaceClient.tsx"),
+  courierProfilePage: read("src/app/pharmacie/livreur/profil/page.tsx"),
+  courierProfileUi: read("src/components/pharmacie/LivreurProfileClient.tsx"),
   clientTracking: read("src/components/SuiviLivraison.tsx"),
   orderPage: read("src/app/pharmacie/commandes/page.tsx"),
   inviteForm: read("src/components/pharmacie/InvitationLivreurForm.tsx"),
@@ -142,6 +144,18 @@ test("la prise de mission est atomique et le journal des offres reste privé", (
   assert.ok(files.hardening.includes("private.naxa_delivery_driver_can_act"));
 });
 
+test("le profil Livreur dispose d’une page autonome, éditable et sécurisée", () => {
+  assert.match(files.courierProfilePage, /naxa_business_function/);
+  assert.match(files.courierProfilePage, /role!=="livreur"/);
+  assert.match(files.courierProfilePage, /naxa_professional_assignments/);
+  assert.match(files.courierProfileUi, /from\("profiles"\)\.update/);
+  assert.match(files.courierProfileUi, /auth\.updateUser\(\{password:newPassword\}\)/);
+  assert.match(files.courierProfileUi, /verifierSecuriteMotDePasse/);
+  assert.match(files.courierProfileUi, /Mes affectations Livreur/);
+  assert.match(files.courierUi, /href="\/pharmacie\/livreur\/profil"/);
+  assert.doesNotMatch(files.courierUi, /href="\/client\/profil"/);
+});
+
 test("le Livreur ne modifie ni stock, ni paiement, ni statut final de remise", () => {
   assert.match(files.courierPage, /role!=="livreur"/);
   assert.match(files.courierUi, /naxa_delivery_accept/);
@@ -181,6 +195,8 @@ test("la gestion de l’équipe Livreur est cloisonnée au réseau et compte les
 test("les nouveaux modules TS/TSX sont syntaxiquement valides", () => {
   const targets = [
     "src/app/pharmacie/livreur/page.tsx",
+    "src/app/pharmacie/livreur/profil/page.tsx",
+    "src/components/pharmacie/LivreurProfileClient.tsx",
     "src/app/pharmacie/gestionnaire-stock/commandes/page.tsx",
     "src/app/pharmacie/commandes/page.tsx",
     "src/app/reservation/[id]/page.tsx",

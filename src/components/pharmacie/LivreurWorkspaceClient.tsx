@@ -164,7 +164,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
         <a href="#missions" className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-950">Missions</a>
         <a href="#performances" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Performances</a>
         <a href="#rapports" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Rapports</a>
-        <a href="#compte" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Mon compte</a>
+        <Link href="/pharmacie/livreur/profil" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Mon profil</Link>
       </nav>
 
       {error&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
@@ -239,7 +239,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
             <p><span className="text-slate-500">Téléphone :</span> <strong>{profile.phone??"—"}</strong></p>
             <p><span className="text-slate-500">Profil majeur vérifié :</span> <strong>{profile.age_verified?"Oui":"À vérifier"}</strong></p>
           </div>:<p className="mt-2 text-sm text-slate-600">Profil indisponible.</p>}
-          <Link href="/client/profil" className="mt-4 inline-flex min-h-11 items-center rounded-xl border px-4 py-2 text-sm font-bold text-emerald-950">Gérer mon profil et ma sécurité</Link>
+          <Link href="/pharmacie/livreur/profil" className="mt-4 inline-flex min-h-11 items-center rounded-xl border px-4 py-2 text-sm font-bold text-emerald-950">Ouvrir mon profil Livreur</Link>
         </section>
       </>}
     </div>
