@@ -28,9 +28,12 @@ export default async function JournalVentesPage({ searchParams }: { searchParams
   const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
-  const debut = /^\d{4}-\d{2}-\d{2}$/.test(filters?.debut ?? "") ? searchParams!.debut! : "";
-  const fin = /^\d{4}-\d{2}-\d{2}$/.test(filters?.fin ?? "") ? searchParams!.fin! : "";
-  const statut = ["payee", "annulee", "brouillon"].includes(filters?.statut ?? "") ? searchParams!.statut! : "";
+  const debutParam = filters?.debut ?? "";
+  const finParam = filters?.fin ?? "";
+  const statutParam = filters?.statut ?? "";
+  const debut = /^\d{4}-\d{2}-\d{2}$/.test(debutParam) ? debutParam : "";
+  const fin = /^\d{4}-\d{2}-\d{2}$/.test(finParam) ? finParam : "";
+  const statut = ["payee", "annulee", "brouillon"].includes(statutParam) ? statutParam : "";
   let query = sb.from("ventes")
     .select("id,numero_vente,statut,remise,total_brut,total_net,mode_paiement,paiement_ref,created_at,paid_at,caisse_session_id")
     .eq("pharmacie_id", profile.pharmacie_id)

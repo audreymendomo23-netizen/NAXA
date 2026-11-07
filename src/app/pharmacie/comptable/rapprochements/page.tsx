@@ -20,8 +20,10 @@ export default async function RapprochementsPage({ searchParams }: { searchParam
   const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
-  const debut = /^\d{4}-\d{2}-\d{2}$/.test(filters?.debut ?? "") ? searchParams!.debut! : "";
-  const fin = /^\d{4}-\d{2}-\d{2}$/.test(filters?.fin ?? "") ? searchParams!.fin! : "";
+  const debutParam = filters?.debut ?? "";
+  const finParam = filters?.fin ?? "";
+  const debut = /^\d{4}-\d{2}-\d{2}$/.test(debutParam) ? debutParam : "";
+  const fin = /^\d{4}-\d{2}-\d{2}$/.test(finParam) ? finParam : "";
   let mouvementsQuery = sb.from("tresorerie_mouvements").select("id,nature,montant,libelle,reference,source_type,source_id,date_operation,compte_id").eq("pharmacie_id", profile.pharmacie_id).order("date_operation", { ascending: false }).limit(200);
   let ventesQuery = sb.from("ventes").select("id,numero_vente,total_net,mode_paiement,paid_at,created_at,paiement_ref").eq("pharmacie_id", profile.pharmacie_id).eq("statut", "payee").order("paid_at", { ascending: false }).limit(200);
   if (debut) { mouvementsQuery = mouvementsQuery.gte("date_operation", debut + "T00:00:00"); ventesQuery = ventesQuery.gte("paid_at", debut + "T00:00:00"); }

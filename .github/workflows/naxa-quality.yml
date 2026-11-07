@@ -1,4 +1,4 @@
-name: NAXA QA quality
+name: NAXA grouped quality
 
 on:
   push:
@@ -18,38 +18,50 @@ concurrency:
 
 jobs:
   quality:
-    name: Tests + TypeScript + ESLint + Next.js build
+    name: Secrets + dependencies + tests + TypeScript + ESLint + Next.js build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
       SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
       SUPABASE_SECRET_KEY: build-test-secret-key
     steps:
-      - name: Checkout full source
+      - name: Checkout full history
         uses: actions/checkout@v6
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
         with:
-          node-version: "22"
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Run complete quality gate and production compilation
-        run: npm run build
+          fetch-depth: 0
+          persist-credentials: true
 
-  dependency-audit:
-    name: Production dependency audit
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
+      - name: Fetch every remote branch and tag
+        run: git fetch --force --prune --tags origin '+refs/heads/*:refs/remotes/origin/*'
+
+      - name: Remove Git credentials before scanning
+        run: git config --local --unset-all http.https://github.com/.extraheader || true
+
+      - name: Scan all Git refs, commits and nested archives
+        run: |
+          docker run --rm --volume "$GITHUB_WORKSPACE:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --redact --verbose --log-opts=--all --max-archive-depth=2
+
+      - name: Scan current working tree and nested archives
+        run: |
+          docker run --rm --volume "$GITHUB_WORKSPACE:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            dir /repo --redact --verbose --max-archive-depth=2
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Install dependencies
+          cache: npm
+
+      - name: Install dependencies once
         run: npm ci --no-audit --no-fund
-      - name: Block high and critical production vulnerabilities
+
+      - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Run tests, TypeScript, ESLint and production build
+        run: npm run build

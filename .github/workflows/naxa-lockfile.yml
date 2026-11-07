@@ -1,9 +1,7 @@
 name: NAXA lockfile generation
 
 on:
-  push:
-    branches:
-      - "qa/**"
+  workflow_dispatch:
 
 permissions:
   contents: write
