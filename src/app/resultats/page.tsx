@@ -9,7 +9,7 @@ import { EnTeteClient } from "@/components/EnTeteClient";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-client";
 import { notifierNAXA } from "@/components/NotificationGlobale";
-import { CENTRES_VILLES, obtenirPositionGPS, villeDepuisPosition } from "@/lib/geolocation";
+import { obtenirPositionGPS, villeDepuisPosition } from "@/lib/geolocation";
 
 type Meta={id:string;ville:string|null;horaires:string|null;photo_url:string|null;photo_verified_at:string|null;slug:string|null;est_demo:boolean;visible_recherche:boolean;archivee_le:string|null};
 type Row=ResultatPharmacie&{ville:string;horaires:string|null;demo?:boolean};
