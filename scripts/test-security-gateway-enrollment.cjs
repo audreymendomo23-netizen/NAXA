@@ -69,3 +69,15 @@ test("migration 303 : contraintes caméra idempotentes pour les rejeux racine + 
   }
   assert.match(migration, /end\s+\$naxa_security_gateway_enrollment\$;/);
 });
+
+test("révocation : heartbeat bloqué, codes/clés invalidés et justification auditée", () => {
+  const revoke = read("src/app/api/security/gateway/revoke/route.ts");
+  assert.match(revoke, /access\.activeLinkIds\.has/);
+  assert.match(revoke, /tunnel_status: "revoked"/);
+  assert.match(revoke, /naxa_security_gateway_enrollments/);
+  assert.match(revoke, /revoked_at: now/);
+  assert.match(revoke, /resource_type: "gateway"/);
+  assert.match(revoke, /justification: reason/);
+  assert.match(ui.result.content, /Révoquer/);
+  assert.match(ui.result.content, /\/api\/security\/gateway\/revoke/);
+});

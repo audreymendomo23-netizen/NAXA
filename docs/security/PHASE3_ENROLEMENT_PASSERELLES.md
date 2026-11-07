@@ -83,3 +83,9 @@ La migration ajoute des contraintes sur les profils caméra : les références d
 - Test de contrat statique : code à durée limitée, contrôle de périmètre, consommation unique, anti-rejeu et absence de serveur entrant.
 - Test SQL : RLS forcée, droits service_role seulement, index de code unique, sélection par fingerprint courant et contraintes de secret.
 - La CI ne constitue pas un test physique. Une passerelle et un modèle de caméra réels seront requis pour valider la couche réseau et les futurs drivers.
+
+## 8. Révocation d'urgence d'une passerelle
+
+Le Promoteur peut révoquer une passerelle de son réseau en fournissant une justification de 10 à 500 caractères. Le serveur place immédiatement le statut `tunnel_status` à `revoked`, puis invalide toutes les demandes de jumelage et les clés enregistrées et inscrit l'opération dans le journal append-only.
+
+Le endpoint heartbeat refuse les passerelles révoquées avant la vérification de clé. Si le nettoyage des clés ou le journal échoue, l'API retourne une réponse partielle explicite ; le statut révoqué reste appliqué côté serveur. La révocation ne coupe pas physiquement l'équipement, ne met pas les caméras hors tension et ne commande pas une sirène : elle bloque l'authentification de la passerelle vers NAXA.
