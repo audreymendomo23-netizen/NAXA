@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { declarerCameraSecurite } from "@/app/pharmacie/promoteur/actions";
 
 type PharmacyOption = { id: string; nom: string; ville: string | null; quartier: string | null };
@@ -25,6 +26,9 @@ export function PromoteurSecurityInventoryForm({
   gateways: GatewayOption[];
 }) {
   const searchParams = useSearchParams();
+  const [selectedPharmacyId, setSelectedPharmacyId] = useState(pharmacies[0]?.id ?? "");
+  const [selectedGatewayId, setSelectedGatewayId] = useState("");
+  const availableGateways = gateways.filter((gateway) => gateway.pharmacie_id === selectedPharmacyId);
   const currentMessage = messages[searchParams.get("security") ?? ""];
 
   return (
@@ -57,7 +61,8 @@ export function PromoteurSecurityInventoryForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold">
               Pharmacie
-              <select name="pharmacie_id" required defaultValue={pharmacies[0]?.id ?? ""}
+              <select name="pharmacie_id" required value={selectedPharmacyId}
+                onChange={(event) => { setSelectedPharmacyId(event.target.value); setSelectedGatewayId(""); }}
                 className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal">
                 {pharmacies.map((pharmacy) => (
                   <option key={pharmacy.id} value={pharmacy.id}>{pharmacy.nom} · {[pharmacy.quartier, pharmacy.ville].filter(Boolean).join(" · ")}</option>
@@ -66,20 +71,12 @@ export function PromoteurSecurityInventoryForm({
             </label>
             <label className="block text-sm font-semibold">
               Passerelle / enregistreur
-              <select name="gateway_id" defaultValue=""
+              <select name="gateway_id" value={selectedGatewayId} onChange={(event) => setSelectedGatewayId(event.target.value)}
                 className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal">
                 <option value="">Créer une fiche de passerelle à configurer</option>
-                {pharmacies.map((pharmacy) => {
-                  const options = gateways.filter((gateway) => gateway.pharmacie_id === pharmacy.id);
-                  if (!options.length) return null;
-                  return (
-                    <optgroup key={pharmacy.id} label={pharmacy.nom}>
-                      {options.map((gateway) => (
-                        <option key={gateway.id} value={gateway.id}>{gateway.label} · {gateway.tunnel_status}</option>
-                      ))}
-                    </optgroup>
-                  );
-                })}
+                {availableGateways.map((gateway) => (
+                  <option key={gateway.id} value={gateway.id}>{gateway.label} · {gateway.tunnel_status}</option>
+                ))}
               </select>
             </label>
           </div>
