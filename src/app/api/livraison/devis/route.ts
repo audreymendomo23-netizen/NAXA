@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Pharmacie ou position GPS invalide." }, { status: 400 });
   }
 
-  const db = supabaseAdmin();
+  const db = supabaseAdmin() as any;
   const { data: pharmacy, error: pharmacyError } = await db.from("pharmacies")
     .select("id,nom,ville,quartier,lat,lng,actif,visible_recherche,archivee_le,livraison_active,rayon_livraison_km")
     .eq("id", pharmacieId)
