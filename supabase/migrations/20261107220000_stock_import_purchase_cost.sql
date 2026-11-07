@@ -112,7 +112,6 @@ begin
     ) then
       raise exception 'Le privilège EDIT_STOCK_PARAMETERS est requis pour importer les coûts d’achat';
     end if;
-    end if;
     if v_group.avec_lot and v_group.nb_lignes_sans_lot > 0 then
       raise exception 'Le produit mélange des lignes avec lot et sans lot. Séparez les lignes avant import : %',v_group.produit_id;
     end if;
