@@ -88,9 +88,9 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
   try {
     const sb = supabaseServer();
     const safeQuery = query
-    .replace(/\b\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\b/gi, " ")
-    .replace(/\b\d+\s*(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?)\b/gi, " ");
-      .replace(/[%_,]/g, " ").replace(/\\s+/g, " ").trim();
+      .replace(/\b\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\b/gi, " ")
+      .replace(/\b\d+\s*(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?)\b/gi, " ")
+      .replace(/[%_,]/g, " ").replace(/\s+/g, " ").trim();
     if (safeQuery.length < 3) return null;
 
     // Photos locales importées et validées par un administrateur NAXA.
