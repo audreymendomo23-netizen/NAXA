@@ -36,6 +36,7 @@ type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
   adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null; horaires: string | null; stock_updated_at: string | null;
   livraison_active?: boolean;
+  distanceKm?: number | null;
   distanceRoutiereKm?: number | null;
   dureeTrajetMinutes?: number | null;
   fournisseurItineraire?: "google_routes" | "osrm" | null;
