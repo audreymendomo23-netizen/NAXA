@@ -35,6 +35,7 @@ const FIELDS: Array<{key:StockImportField;label:string}> = [
   {key:"form",label:"Forme"},
   {key:"barcode",label:"Code-barres / CIP"},
   {key:"price",label:"Prix de vente FCFA"},
+  {key:"purchaseCost",label:"Coût d’achat FCFA"},
   {key:"quantity",label:"Quantité en stock"},
   {key:"batch",label:"Numéro de lot"},
   {key:"expiry",label:"Péremption"},
@@ -181,6 +182,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
         produit_id:row.productId,nom:row.name,
         quantite:Math.round(row.quantity??0),
         prix:row.price===null?null:Math.round(row.price),
+        cout_achat:row.purchaseCost===null?null:Math.round(row.purchaseCost),
         lot:row.batch,peremption:row.expiry,emplacement:row.location,
       }));
       const response=await fetch("/api/pharmacie/gestionnaire-stock/import/apply",{
@@ -246,8 +248,8 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
             <div className="rounded-xl border p-3"><p className="text-xs text-slate-500">À corriger / rapprocher</p><p className="text-2xl font-black text-amber-700">{skippedRows}</p></div>
           </div>
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[920px] text-left text-xs">
-              <thead className="bg-slate-100"><tr><th className="p-2">Ligne</th><th className="p-2">Produit importé</th><th className="p-2">Produit catalogue NAXA</th><th className="p-2">Qté</th><th className="p-2">Prix FCFA</th><th className="p-2">Lot / péremption</th><th className="p-2">Contrôle</th></tr></thead>
+            <table className="w-full min-w-[1080px] text-left text-xs">
+              <thead className="bg-slate-100"><tr><th className="p-2">Ligne</th><th className="p-2">Produit importé</th><th className="p-2">Produit catalogue NAXA</th><th className="p-2">Qté</th><th className="p-2">PV FCFA</th><th className="p-2">Coût d’achat FCFA</th><th className="p-2">Lot / péremption</th><th className="p-2">Contrôle</th></tr></thead>
               <tbody>
                 {preview.slice(0,100).map(row=>{
                   const candidates=topMatches(row,products);
@@ -263,6 +265,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
                     </td>
                     <td className="p-2 tabular-nums">{row.quantity??"—"}</td>
                     <td className="p-2 tabular-nums">{row.price===null?"Conserver / vérifier":Math.round(row.price).toLocaleString("fr-FR")}</td>
+                    <td className="p-2 tabular-nums">{row.purchaseCost===null?"Non renseigné":Math.round(row.purchaseCost).toLocaleString("fr-FR")}</td>
                     <td className="p-2">{row.batch||"—"}<br/>{row.expiry||"—"}</td>
                     <td className="max-w-60 p-2">{row.errors.length?<span className="text-amber-800">{row.errors.join(" · ")}</span>:<span className="font-bold text-emerald-700">Prête</span>}</td>
                   </tr>;
@@ -273,7 +276,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
           </div>
           <label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
             <input type="checkbox" checked={confirmSnapshot} onChange={event=>setConfirmSnapshot(event.target.checked)} className="mt-1 h-4 w-4"/>
-            <span><strong>Je confirme qu’il s’agit d’un inventaire total.</strong> Les quantités du fichier remplacent les quantités agrégées actuelles pour les références importées ; elles ne sont pas ajoutées aux quantités existantes.</span>
+            <span><strong>Je confirme qu’il s’agit d’un instantané de stock fiable.</strong> Pour chaque référence présente, la quantité du fichier remplacera la quantité actuelle. Les références absentes du fichier ne seront ni supprimées ni remises à zéro.</span>
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" disabled={!canImport} onClick={()=>void importRows()} className="min-h-11 rounded-xl bg-[#0B3D26] px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
