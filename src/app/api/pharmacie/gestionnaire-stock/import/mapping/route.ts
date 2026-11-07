@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const FIELDS = ["name","dci","dosage","form","barcode","price","quantity","batch","expiry","location"] as const;
+const FIELDS = ["name","dci","dosage","form","barcode","price","purchaseCost","quantity","batch","expiry","location"] as const;
 type Field = typeof FIELDS[number];
 type Mapping = Partial<Record<Field, string>>;
 
@@ -16,6 +16,7 @@ function heuristic(headers: string[]): Mapping {
     form:["forme","form","presentation","forme galenique"],
     barcode:["code barre","barcode","ean","gtin","cip","sku","code produit","reference produit"],
     price:["prix","pu","pv","pvttc","prix vente","prix de vente","tarif","selling price","unit price"],
+    purchaseCost:["prix achat","prix d achat","cout achat","cout d achat","coût achat","coût d achat","pmp","prix moyen pondere","purchase price","purchase cost","buy price","cost price","unit cost"],
     quantity:["quantite","qte","stock","qty","quantity","on hand","available","stock final","existence"],
     batch:["lot","numero lot","batch","batch number","lot number"],
     expiry:["peremption","date peremption","expiration","expiry","expiry date","dlc"],
@@ -81,7 +82,7 @@ export async function POST(request:NextRequest){
     .map(row=>Object.fromEntries(headers.map(header=>{
       const key=header.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
       const privateColumn=/(client|patient|telephone|phone|email|adresse|prescrip|assure|customer|naissance|ordonnance|identite)/i.test(key);
-      const productColumn=/(produit|article|designation|medicament|nom commercial|dci|dosage|forme|stock|quantite|qte|prix|tarif|lot|batch|peremption|expiry|date|ean|gtin|cip|sku|rayon|emplacement)/i.test(key);
+      const productColumn=/(produit|article|designation|medicament|nom commercial|dci|dosage|forme|stock|quantite|qte|prix|tarif|cout|cost|purchase|achat|pmp|lot|batch|peremption|expiry|date|ean|gtin|cip|sku|rayon|emplacement)/i.test(key);
       const value=String(row[header]??"").slice(0,48);
       const safe=privateColumn?"[donnée privée masquée]":productColumn&&value.length>0?value:"[échantillon masqué]";
       return [header,safe];
@@ -93,9 +94,9 @@ export async function POST(request:NextRequest){
     "Tu es un expert en migration de données de pharmacies vers un ERP.",
     "Associe chaque champ canonique au nom exact d'une colonne source, ou null si absent.",
     "Champs permis: "+FIELDS.join(", ")+".",
-    "name=nom commercial/article; dci=principe actif; dosage=concentration; form=forme galénique; barcode=EAN/CIP/SKU; price=prix de vente FCFA; quantity=stock physique disponible; batch=numéro de lot; expiry=date de péremption; location=rayon/emplacement.",
+    "name=nom commercial/article; dci=principe actif; dosage=concentration; form=forme galénique; barcode=EAN/CIP/SKU; price=prix de vente FCFA; purchaseCost=coût d’achat unitaire en FCFA; quantity=stock physique disponible; batch=numéro de lot; expiry=date de péremption; location=rayon/emplacement.",
     "Les en-têtes peuvent être en français, anglais, abréviations ou libellés propres à un logiciel de pharmacie.",
-    "Ne jamais confondre prix d'achat et prix de vente, stock théorique et stock physique, code fournisseur et code-barres.",
+    "Ne jamais confondre prix d’achat et prix de vente, stock théorique et stock physique, code fournisseur et code-barres. Si deux colonnes de prix sont présentes, distingue impérativement le coût d’achat du prix de vente.",
     "Réponds uniquement en JSON: {mapping:{...},confidence:{...},notes:[...]}.",
     "En-têtes autorisés: "+JSON.stringify(headers),
     "Exemples de lignes: "+JSON.stringify(safeSamples)
