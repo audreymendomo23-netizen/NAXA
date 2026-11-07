@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, supabasePublic } from "@/lib/supabase/server";
-import { chargerGardesMfasha, type GardeExterne } from "@/lib/pharmacies-gardes/mfasha";
+import type { GardeExterne } from "@/lib/pharmacies-gardes/mfasha";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
@@ -256,36 +256,75 @@ async function associerPhotos(pharmacies: GardeExterne[]): Promise<GardeExterne[
 }
 
 export async function GET() {
-  const result = await chargerGardesMfasha();
+  try {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const verificationMin = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabasePublic(30)
+      .from("pharmacies")
+      .select("id,nom,ville,region,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at,garde_debut,garde_fin,garde_source_url,garde_verifiee_le")
+      .eq("actif", true)
+      .eq("visible_recherche", true)
+      .eq("est_demo", false)
+      .is("archivee_le", null)
+      .eq("de_garde", true)
+      .lte("garde_debut", nowIso)
+      .gt("garde_fin", nowIso)
+      .not("garde_source_url", "is", null)
+      .gte("garde_verifiee_le", verificationMin)
+      .order("region", { ascending: true })
+      .order("ville", { ascending: true })
+      .order("nom", { ascending: true })
+      .limit(500);
 
-  if (!result || result.pharmacies.length < 5 || !result.periode) {
-    return NextResponse.json(
-      {
+    if (error) {
+      return NextResponse.json({
         ok: false,
-        source: "https://mfasha.com/",
-        message: "La source publique est indisponible ou sa liste n'a pas pu être validée.",
-      },
-      {
-        status: 503,
-        headers: { "Cache-Control": "no-store" },
-      },
-    );
-  }
+        message: "Le planning NAXA n’a pas pu être vérifié.",
+        pharmacies: [],
+      }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
 
-  const pharmacies = await associerPhotos(result.pharmacies);
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const pharmacies = (data ?? []).map((row) => {
+      const photoUrl = typeof row.photo_url === "string" && row.photo_verified_at
+        && base && row.photo_url.startsWith(`${base}/storage/v1/object/public/${BUCKET}/`)
+        ? row.photo_url
+        : null;
+      const format = (value: string) => new Intl.DateTimeFormat("fr-FR", {
+        timeZone: "Africa/Douala",
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value));
+      return {
+        id: row.id,
+        nom: row.nom,
+        quartier: row.quartier || row.adresse || row.ville || null,
+        telephone: null,
+        autresTelephones: [],
+        imageUrl: photoUrl,
+        imageType: photoUrl ? "photo-verifiee" : undefined,
+        periode: `${format(row.garde_debut)} au ${format(row.garde_fin)}`,
+        source: row.garde_source_url,
+        ville: row.ville,
+        region: row.region,
+        lat: row.lat,
+        lng: row.lng,
+        gardeVerifieeLe: row.garde_verifiee_le,
+      };
+    });
 
-  return NextResponse.json(
-    {
+    return NextResponse.json({
       ok: true,
-      source: "https://mfasha.com/",
-      fetchedAt: result.fetchedAt,
-      periode: result.periode,
+      source: "NAXA — plannings partenaires vérifiés",
+      fetchedAt: nowIso,
       pharmacies,
-    },
-    {
-      headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-      },
-    },
-  );
+    }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } });
+  } catch {
+    return NextResponse.json({
+      ok: false,
+      message: "Le planning NAXA est momentanément indisponible.",
+      pharmacies: [],
+    }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
 }
