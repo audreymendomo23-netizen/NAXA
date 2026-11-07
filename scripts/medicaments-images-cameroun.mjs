@@ -121,7 +121,7 @@ async function loadCatalog() {
   const rows = [];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await supabase.from("medicaments_referentiel_sources")
-      .select("cis,nom,forme,substances_actives")
+.select("cis,nom,forme,substances_actives,photo_path,photo_source_url,photo_licence,photo_attribution,photo_verifiee_le")
       .order("nom").range(offset, offset + 999);
     if (error) throw error;
     rows.push(...(data ?? []));
@@ -157,39 +157,36 @@ function priorityIndex(row) {
 }
 
 async function savePhoto(row, photo, dryRun) {
-  // La table historique exige un vrai CIP (clé primaire CIS + CIP). Le référentiel
-  // public ne fournit pas ce CIP : ne jamais inventer de code ni créer de ligne orpheline.
-  const { data: existing, error: lookupError } = await supabase.from("medicaments_images")
-    .select("cis,cip_code,image_path,statut").eq("cis", row.cis).order("cip_code").limit(10);
+  // Le référentiel public est indexé par CIS; aucun CIP fictif ou enregistrement
+  // image orphelin n'est créé. La licence et la provenance sont conservées sur la ligne CIS.
+  const { data: current, error: lookupError } = await supabase.from("medicaments_referentiel_sources")
+    .select("cis,photo_path,photo_source_url,photo_licence,photo_attribution,photo_verifiee_le")
+    .eq("cis", row.cis).maybeSingle();
   if (lookupError) throw lookupError;
-  if (!existing?.length) return { skipped: true, reason: "aucune_presentation_CIP_existante" };
-  const target = existing.find((item) => item.image_path && item.statut === "image_stockee");
-  if (target) return { skipped: true, reason: "photo_deja_stockee" };
-  const presentation = existing[0];
+  if (!current) return { skipped: true, reason: "reference_CIS_absente" };
+  if (current.photo_path && current.photo_source_url && current.photo_licence && current.photo_verifiee_le) {
+    return { skipped: true, reason: "photo_deja_verifiee" };
+  }
+
   const { buffer, mime, ext } = await downloadImage(photo.imageUrl);
   const safeCis = String(row.cis).replace(/[^a-zA-Z0-9_-]/g, "_");
-  const path = `cameroun/${safeCis}/illustration.${ext}`;
-  if (dryRun) return { path, bytes: buffer.length, mime, cip_code: presentation.cip_code };
+  const path = `cameroun/${safeCis}/reference.${ext}`;
+  if (dryRun) return { path, bytes: buffer.length, mime };
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, buffer, {
     contentType: mime, upsert: true, cacheControl: "31536000",
   });
   if (uploadError) throw uploadError;
 
   const record = {
-    libelle_presentation: row.nom + (row.forme ? " — " + row.forme : ""),
-    image_path: path,
-    image_url: null,
-    source_nom: photo.attribution,
-    source_url: photo.sourceUrl,
-    licence: photo.licence,
-    statut: "image_stockee",
-    methode_correspondance: "priorite_cameroun_commons_verification_automatique",
-    updated_at: new Date().toISOString(),
+    photo_path: path,
+    photo_source_url: photo.sourceUrl,
+    photo_licence: photo.licence,
+    photo_attribution: photo.attribution,
+    photo_verifiee_le: new Date().toISOString(),
   };
-  const { error } = await supabase.from("medicaments_images").update(record)
-    .eq("cis", row.cis).eq("cip_code", presentation.cip_code);
+  const { error } = await supabase.from("medicaments_referentiel_sources").update(record).eq("cis", row.cis);
   if (error) throw error;
-  return { path, bytes: buffer.length, mime, cip_code: presentation.cip_code };
+  return { path, bytes: buffer.length, mime };
 }
 
 async function main() {
