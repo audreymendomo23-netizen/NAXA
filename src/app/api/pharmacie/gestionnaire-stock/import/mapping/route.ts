@@ -79,7 +79,7 @@ export async function POST(request:NextRequest){
   if("error" in auth)return auth.error;
   const safeSamples=samples.filter((row):row is Record<string,unknown>=>Boolean(row)&&typeof row==="object"&&!Array.isArray(row))
     .map(row=>Object.fromEntries(headers.map(header=>{
-      const key=header.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+      const key=header.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
       const privateColumn=/(client|patient|telephone|phone|email|adresse|prescrip|assure|customer|naissance|ordonnance|identite)/i.test(key);
       const productColumn=/(produit|article|designation|medicament|nom commercial|dci|dosage|forme|stock|quantite|qte|prix|tarif|lot|batch|peremption|expiry|date|ean|gtin|cip|sku|rayon|emplacement)/i.test(key);
       const value=String(row[header]??"").slice(0,48);
