@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
         frais_livraison: frais,
         zone_id: zone?.id ?? null,
         zone_type: zoneType,
+        zone_nom_snapshot: zone?.nom ?? null,
         zone_supplement_fcfa: zoneSupplement,
         formule_version: "progressive_zones_v1",
         fournisseur_itineraire: route.fournisseur,
