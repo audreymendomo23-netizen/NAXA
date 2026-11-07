@@ -31,23 +31,23 @@ console.log("PASS — sélection de pharmacie, grille 2 × 2, pagination et navi
 console.log("PASS — aucun faux flux vidéo n'est rendu");
 console.log("PASS — données du centre chargées sur le périmètre des pharmacies autorisées");
 
-test("inventaire sécurité : déclaration serveur limitée au réseau Promoteur et état non connecté", () => {
-  const actions = read("src/app/pharmacie/promoteur/actions.ts");
-  const form = read("src/components/pharmacie/PromoteurSecurityInventoryForm.tsx");
-  const dashboard = read("src/app/pharmacie/promoteur/page.tsx");
-  assert.match(form, /declarerCameraSecurite/);
-  assert.match(form, /name="pharmacie_id"/);
-  assert.match(form, /name="gateway_id"/);
-  assert.match(form, /name="manufacturer"/);
-  assert.match(form, /name="model"/);
-  assert.match(actions, /access\.activeLinkIds\.has\(pharmacyId\)/);
-  assert.match(actions, /pharmacy\.visible_recherche/);
-  assert.match(actions, /status: "inventory"/);
-  assert.match(actions, /tunnel_status: "not_configured"/);
-  assert.match(actions, /status: "registered"/);
-  assert.match(actions, /action: "device_update"/);
-  assert.match(actions, /resource_type: "camera"/);
-  assert.match(dashboard, /label,serial_number,firmware_version,tunnel_status/);
-  assert.doesNotMatch(form, /name="(?:password|token|rtsp_url|endpoint_host|auth_secret_reference)"/i);
-  assert.doesNotMatch(actions, /auth_secret_reference\s*:/);
-});
+
+const actions = read("src/app/pharmacie/promoteur/actions.ts");
+const form = read("src/components/pharmacie/PromoteurSecurityInventoryForm.tsx");
+const dashboard = read("src/app/pharmacie/promoteur/page.tsx");
+assert.match(form, /declarerCameraSecurite/);
+assert.match(form, /name="pharmacie_id"/);
+assert.match(form, /name="gateway_id"/);
+assert.match(form, /name="manufacturer"/);
+assert.match(form, /name="model"/);
+assert.match(actions, /access\.activeLinkIds\.has\(pharmacyId\)/);
+assert.match(actions, /pharmacy\.visible_recherche/);
+assert.match(actions, /status: "inventory"/);
+assert.match(actions, /tunnel_status: "not_configured"/);
+assert.match(actions, /status: "registered"/);
+assert.match(actions, /action: "device_update"/);
+assert.match(actions, /resource_type: "camera"/);
+assert.match(dashboard, /label,serial_number,firmware_version,tunnel_status/);
+assert.doesNotMatch(form, /name="(?:password|token|rtsp_url|endpoint_host|auth_secret_reference)"/i);
+assert.doesNotMatch(actions, /auth_secret_reference\s*:/);
+console.log("PASS — déclaration caméra limitée au réseau Promoteur, inventaire et tunnel non configuré");
