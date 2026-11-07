@@ -107,7 +107,7 @@ export function DeliveryMissionChat({
           <label className="block text-sm font-semibold" htmlFor={"delivery-chat-"+reservationId}>Votre message</label>
           <textarea id={"delivery-chat-"+reservationId} value={draft} onChange={event=>setDraft(event.target.value)} maxLength={1000} rows={2}
             onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void send();}}}
-            className="w-full rounded-xl border border-slate-300 p-3 text-sm" placeholder="Écrivez au Client…"/>
+            className="w-full rounded-xl border border-slate-300 p-3 text-sm" placeholder={viewer==="client"?"Écrivez à votre Livreur…":"Écrivez au Client…"}/>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] text-slate-500">{draft.length}/1000 · Entrée pour envoyer</p>
             <button type="button" disabled={busy||!draft.trim()} onClick={()=>void send()} className="min-h-10 rounded-lg bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy?"Envoi…":"Envoyer"}</button>
