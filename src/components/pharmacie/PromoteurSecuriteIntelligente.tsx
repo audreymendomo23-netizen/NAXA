@@ -1,6 +1,7 @@
 "use client";
 
-import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";\nimport { PromoteurGatewayProvisioning } from "@/components/pharmacie/PromoteurGatewayProvisioning";
+import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";
+import { PromoteurGatewayProvisioning } from "@/components/pharmacie/PromoteurGatewayProvisioning";
 
 import { useMemo, useState } from "react";
 

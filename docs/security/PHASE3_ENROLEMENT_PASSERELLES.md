@@ -34,13 +34,16 @@ Créer le code depuis l'espace Promoteur, puis exécuter localement :
 sudo useradd --system --home /var/lib/naxa-security-gateway --shell /usr/sbin/nologin naxa-gateway
 sudo install -d -o naxa-gateway -g naxa-gateway -m 0700 /var/lib/naxa-security-gateway
 sudo install -d -m 0700 /run/naxa-security-gateway
-sudo install -o naxa-gateway -g naxa-gateway -m 0600 /dev/null /run/naxa-security-gateway/enroll.token
+sudo install -m 0600 /dev/null /run/naxa-security-gateway/enroll.token
 sudoedit /run/naxa-security-gateway/enroll.token
-sudo -u naxa-gateway node /opt/naxa-security-gateway/agent.cjs enroll \
+sudo node /opt/naxa-security-gateway/agent.cjs enroll \
   --api-url https://<domaine-naxa> \
   --gateway-id <UUID_PASSERELLE> \
   --state-dir /var/lib/naxa-security-gateway \
   --token-stdin < /run/naxa-security-gateway/enroll.token
+sudo chown -R naxa-gateway:naxa-gateway /var/lib/naxa-security-gateway
+sudo chmod 0700 /var/lib/naxa-security-gateway
+sudo chmod 0600 /var/lib/naxa-security-gateway/config.json /var/lib/naxa-security-gateway/gateway-ed25519-private.pem
 sudo rm -f /run/naxa-security-gateway/enroll.token
 ```
 

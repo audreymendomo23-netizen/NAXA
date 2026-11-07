@@ -17,7 +17,6 @@ ProtectHome=true
 ReadWritePaths=/var/lib/naxa-security-gateway
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 LockPersonality=true
-MemoryDenyWriteExecute=true
 
 [Install]
 WantedBy=multi-user.target
