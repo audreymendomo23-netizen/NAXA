@@ -69,7 +69,7 @@ test("localités camerounaises : les homonymes exigent un choix explicite", () =
 });
 
 test("le Livreur reçoit les coordonnées nécessaires à sa prochaine étape uniquement après acceptation", () => {
-  const migration = read("supabase/migrations/20261107250000_delivery_driver_google_maps_navigation.sql");
+  const migration = read("supabase/migrations/20261107280000_delivery_driver_google_maps_navigation.sql");
   const courier = read("src/components/pharmacie/LivreurWorkspaceClient.tsx");
   assert.match(migration, /'latitude_destination',case when m\.livreur_id=v_uid then r\.latitude_livraison else null end/);
   assert.match(migration, /'latitude_pharmacie',case when m\.livreur_id=v_uid then ph\.lat else null end/);
