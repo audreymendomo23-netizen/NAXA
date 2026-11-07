@@ -50,9 +50,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { asset: string[] } }
+  { params }: { params: Promise<{ asset: string[] }> }
 ) {
-  const key = Array.isArray(params.asset) ? params.asset.join("/") : "";
+  const { asset: assetSegments } = await params;
+  const key = Array.isArray(assetSegments) ? assetSegments.join("/") : "";
   const asset = ASSETS[key];
 
   if (!asset) {
