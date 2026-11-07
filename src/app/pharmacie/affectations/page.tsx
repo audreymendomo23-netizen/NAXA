@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { InvitationLivreurForm } from "@/components/pharmacie/InvitationLivreurForm";
 import { LivreursAssignmentsManager } from "@/components/pharmacie/LivreursAssignmentsManager";
+import { PharmacyDeliveryConfig } from "@/components/PharmacyDeliveryConfig";
 import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace } from "./actions";
 
 type Assignment = {
@@ -58,7 +59,7 @@ export default async function AffectationsPage({
 
   const [{data:pharmacies},{data:rows,error:assignmentsError}]=await Promise.all([
     ids.length
-      ?sb.from("pharmacies").select("id,nom,actif").in("id",ids).eq("actif",true).order("nom")
+      ?sb.from("pharmacies").select("id,nom,actif,livraison_active,rayon_livraison_km,lat,lng").in("id",ids).eq("actif",true).order("nom")
       :Promise.resolve({data:[] as {id:string;nom:string;actif:boolean}[]}),
     sb.from("naxa_professional_assignments")
       .select("id,profile_id,pharmacie_id,fonction,statut,nature_affectation,motif,commence_at,expire_at,accorde_at,revoque_at,motif_revocation")
@@ -133,6 +134,16 @@ export default async function AffectationsPage({
 
       <LivreursAssignmentsManager
         pharmacies={(pharmacies??[]).map(p=>({id:p.id,nom:p.nom}))}
+      />
+
+      <PharmacyDeliveryConfig
+        pharmacies={(pharmacies??[]).map(p=>({
+          id:p.id,nom:p.nom,
+          livraison_active:Boolean((p as any).livraison_active),
+          rayon_livraison_km:Number((p as any).rayon_livraison_km??10),
+          lat:typeof (p as any).lat==="number"?(p as any).lat:null,
+          lng:typeof (p as any).lng==="number"?(p as any).lng:null,
+        }))}
       />
 
       <section className="rounded-2xl border bg-white p-5">
