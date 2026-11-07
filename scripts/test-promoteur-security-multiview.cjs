@@ -34,7 +34,7 @@ console.log("PASS — données du centre chargées sur le périmètre des pharma
 
 const actions = read("src/app/pharmacie/promoteur/actions.ts");
 const form = read("src/components/pharmacie/PromoteurSecurityInventoryForm.tsx");
-const dashboard = read("src/app/pharmacie/promoteur/page.tsx");
+
 assert.match(form, /declarerCameraSecurite/);
 assert.match(form, /name="pharmacie_id"/);
 assert.match(form, /name="gateway_id"/);
