@@ -70,9 +70,10 @@ export async function POST(request: Request) {
     if (intent.canal !== canal) return NextResponse.json({ error: "Le canal de notification ne correspond pas au paiement préparé." }, { status: 409 });
 
     const destination = intent.destination_snapshot as { reference_destination?: string };
+    const referenceDestination = destination.reference_destination ?? "";
     const amountMatches = amount === intent.expected_amount && currency === intent.currency;
-    const destinationMatches = Boolean(destination.reference_destination) &&
-      normalize(recipientReference) === normalize(destination.reference_destination);
+    const destinationMatches = referenceDestination.length > 0 &&
+      normalize(recipientReference) === normalize(referenceDestination);
     const isMatched = amountMatches && destinationMatches;
     const payloadHash = createHash("sha256").update(JSON.stringify({
       deviceId, canal, transactionReference, amount, currency, recipientReference,
