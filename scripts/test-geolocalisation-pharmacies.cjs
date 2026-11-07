@@ -70,7 +70,10 @@ test("GPS et localité manuelle : recherche nationale sans repli implicite vers 
   assert.match(geocoder, /countrycodes", "cm"/);
   assert.match(geocoder, /address\?\.country_code\?\.toLowerCase\(\) !== "cm"/);
   assert.match(geocoder, /revalidate: 86400/);
-  assert.match(geocoder, /paceGeocoder/);
+  assert.match(geocoder, /waitForGlobalGeocoderSlot/);
+  assert.match(geocoder, /naxa_reserve_api_rate_limit/);
+  assert.match(geocoder, /p_interval_ms: 1000/);
+  assert.doesNotMatch(geocoder, /lastRequestAt|requestQueue/);
   assert.doesNotMatch(geocoder, /autocomplete/i);
   assert.doesNotMatch(page, /watchPosition\s*\(/);
   assert.doesNotMatch(page, /localStorage\.setItem\([^\n]*(?:lat|lng|position|coord)/i);
@@ -191,4 +194,15 @@ test("Administration des gardes : rôle actif, source HTTPS et périodes bornée
   assert.match(client, /Publier et vérifier/);
   assert.match(client, /Retirer la garde/);
   assert.match(client, /api\/admin\/gardes/);
+});
+
+test("Géocodage : limite globale atomique et fonction réservée au serveur", () => {
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261107180000_naxa_shared_geocoder_rate_limit.sql"), "utf8");
+  assert.match(migration, /create table if not exists public\.naxa_api_rate_limits/);
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /revoke all on table public\.naxa_api_rate_limits from public, anon, authenticated/);
+  assert.match(migration, /create or replace function public\.naxa_reserve_api_rate_limit/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /grant execute on function public\.naxa_reserve_api_rate_limit/);
+  assert.match(migration, /to service_role/);
 });
