@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { data: reservation, error } = await supabaseServer()
       .from("reservations")
-      .select("total,frais_livraison,pharmacie_id,statut,expires_at,mode,paiement_mode,commande_statut,livraison_confirmee_stock_at")
+      .select("total,frais_livraison,pharmacie_id,statut,expires_at,mode,paiement_mode,paiement_statut,commande_statut,livraison_confirmee_stock_at")
       .eq("id", id)
       .single();
 
