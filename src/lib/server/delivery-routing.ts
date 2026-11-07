@@ -134,7 +134,18 @@ export async function calculerMatriceRoutiere(
   }
 
   const googleKey = process.env.GOOGLE_MAPS_ROUTES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
-  if (googleKey) return calculerAvecGoogle(origins, destination, googleKey);
+  if (googleKey) {
+    try {
+      return await calculerAvecGoogle(origins, destination, googleKey);
+    } catch (googleError) {
+      try {
+        return await calculerAvecOsrm(origins, destination);
+      } catch (osrmError) {
+        throw new Error("GOOGLE_ROUTES_AND_OSRM_UNAVAILABLE: "
+          + String(googleError) + " / " + String(osrmError));
+      }
+    }
+  }
   return calculerAvecOsrm(origins, destination);
 }
 
