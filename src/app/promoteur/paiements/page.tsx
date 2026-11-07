@@ -87,8 +87,7 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
           destination: activeIntent.destination_snapshot,
           expiresAt: activeIntent.expires_at,
         } : null}
-        channels={activeChannels}
-        amount={subscription?.montant_mensuel ?? null}
+        
       />
       <h2 className="mt-6 text-lg font-extrabold">3. Saisie manuelle de secours</h2>
       <p className="mt-1 text-sm text-slate-600">À utiliser uniquement si le compagnon Android ne détecte pas la notification. Vérifiez d’abord que vous êtes toujours connecté au bon compte Promoteur et saisissez les références réelles après paiement.</p>

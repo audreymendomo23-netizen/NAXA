@@ -16,7 +16,7 @@ Environnement de données autorisé : Supabase Replay `pwfftcsjyeibxxqhwysw`.
 ## Endpoints
 
 - `POST /api/promoteur/paiements/device/register` : enrôlement de l'appareil Android par le Promoteur connecté.
-- `POST /api/promoteur/paiements/intent` : préparation avant paiement, liée à l'appareil actif.
+- `POST /api/promoteur/paiements/intent` : préparation avant paiement, appelée uniquement par le compagnon Android avec le Bearer Supabase du Promoteur, `x-naxa-device-id` et `x-naxa-device-token`. La page web ne peut pas créer une intention pour un téléphone qui n'est pas celui qui exécutera la transaction.
 - `POST /api/promoteur/paiements/capture` : réception des données normalisées d'une notification depuis le compagnon Android.
 
 Contrat de capture : Bearer token de session Supabase du Promoteur, `deviceId`, jeton d'appareil, canal, référence de transaction, montant, devise `FCFA`, bénéficiaire normalisé, compte payeur masqué éventuel et date de transaction. Le compagnon ne doit jamais envoyer PIN, OTP ni le texte intégral de la notification.
@@ -45,3 +45,5 @@ Contrat de capture : Bearer token de session Supabase du Promoteur, `deviceId`, 
 - Les avertissements globaux SECURITY DEFINER (179 fonctions authentifiées) et protection contre les mots de passe compromis restent présents dans le projet Replay ; ils ne sont pas créés par cette migration.
 - Aucun appareil Android Promoteur ni événement de notification réel n'est présent dans Replay à ce stade. La capture native et les essais MTN/Orange sur téléphone ne sont donc pas validés.
 - Main reste inchangée. Aucune donnée ni migration Supabase Production n'a été touchée, et aucun déploiement Vercel n'a été lancé.
+
+- Renforcement QA : la préparation du paiement a été déplacée côté compagnon Android ; l'interface web est uniquement en lecture et rappelle que la page ne peut pas se substituer au téléphone enrôlé.

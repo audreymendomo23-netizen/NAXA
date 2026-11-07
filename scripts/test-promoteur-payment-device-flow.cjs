@@ -32,11 +32,12 @@ test("seul un Promoteur actif peut enrôler son téléphone avec sa session", ()
 test("le paiement est préparé avant débit, montant et destination viennent du serveur", () => {
   assert.match(intent, /abonnements_promoteurs/);
   assert.match(intent, /naxa_promoteur_payment_devices/);
-  assert.match(intent, /naxa_payment_destinations/);
-  assert.match(intent, /expected_amount: subscription\.montant_mensuel/);
-  assert.match(intent, /expires_at: new Date\(now\.getTime\(\) \+ 30 \* 60 \* 1000\)/);
+  assert.match(intent, /x-naxa-device-token/);
+  assert.match(intent, /x-naxa-device-id/);
+  assert.match(intent, /expected_amount: subscription\\.montant_mensuel/);
+  assert.match(intent, /status: "awaiting_payment"/);
   assert.match(page, /PaymentIntentPanel/);
-  assert.match(panel, /Préparer le paiement/);
+  assert.match(panel, /la page web ne peut pas préparer un paiement à la place de ce téléphone/i);
 });
 
 test("la notification doit correspondre exactement au montant et au bénéficiaire", () => {
