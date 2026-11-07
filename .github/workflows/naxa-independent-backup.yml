@@ -108,7 +108,7 @@ jobs:
           aws-region: ${{ secrets.NAXA_BACKUP_AWS_REGION || 'eu-west-1' }}
 
       - name: Copy encrypted backup to independent S3 storage
-        if: ${{ secrets.NAXA_BACKUP_S3_BUCKET != '' }}
+        if: ${{ env.NAXA_BACKUP_S3_BUCKET != '' }}
         shell: bash
         env:
           BUCKET: ${{ secrets.NAXA_BACKUP_S3_BUCKET }}

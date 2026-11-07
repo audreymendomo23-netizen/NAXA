@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   // la politique RLS can_access_pharmacy borne le justificatif à la pharmacie accessible.
   const {data:row,error}=await sb.from("client_credit_requests")
     .select("pharmacie_id,origine,justificatif_path")
-    .eq("id",params.id).maybeSingle();
+    .eq("id", id).maybeSingle();
   if(error||!row||row.origine!=="marketplace"||!row.justificatif_path){
     return NextResponse.json({error:"Justificatif indisponible"},{status:404});
   }
