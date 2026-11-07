@@ -1,59 +1,91 @@
-# Décision métier — Tarification des livraisons NAXA
+# Décision métier — Tarification progressive des livraisons NAXA
 
-**Date de validation : 7 novembre 2026**  
-**Périmètre :** livraison nationale NAXA, devis client, commission plateforme et reporting financier.
+**Décision confirmée : 7 novembre 2026**  
+**Périmètre :** livraison nationale, devis client, géorepérage, commission et grand livre.
 
-## Règle de calcul
+## 1. Distance routière : barème progressif
 
-Le tarif total facturé au Client est calculé côté serveur à partir de la distance routière réelle entre la pharmacie et l'adresse GPS du Client.
+Le calcul se fait côté serveur à partir de la distance routière réelle entre la pharmacie et les coordonnées GPS de destination. Le prix marginal au kilomètre augmente à mesure que le trajet s’allonge.
 
-\[
-\text{Tarif client}=\min(3\,500,\ 1\,500+100\times\max(0,\text{distance routière}-2,5))
-\]
+| Tranche de distance | Tarif marginal |
+|---|---:|
+| De 0 à 2,5 km inclus | Forfait de 1 500 FCFA |
+| Au-delà de 2,5 km à 5 km | 100 FCFA/km |
+| Au-delà de 5 km à 10 km | 150 FCFA/km |
+| Au-delà de 10 km à 20 km | 200 FCFA/km |
+| Au-delà de 20 km à 50 km | 250 FCFA/km |
 
-- Forfait de **1 500 FCFA jusqu'à 2,5 km inclus**.
-- Au-delà de 2,5 km : **100 FCFA par kilomètre supplémentaire**, calculé au prorata et arrondi au FCFA le plus proche.
-- Minimum : **1 500 FCFA**.
-- Maximum : **3 500 FCFA**, atteint à partir de 22,5 km.
-- Un itinéraire routier réel est requis; aucune distance à vol d'oiseau ni estimation de secours ne peut servir à facturer.
+Les kilomètres sont calculés au prorata de chaque tranche et le résultat est arrondi au FCFA le plus proche.
 
-### Exemples vérifiables
+### Exemples du tarif progressif avant majoration de zone
 
-| Distance routière | Tarif client |
+| Distance routière | Tarif progressif |
 |---:|---:|
 | 1,5 km | 1 500 FCFA |
 | 2,5 km | 1 500 FCFA |
 | 3 km | 1 550 FCFA |
 | 5 km | 1 750 FCFA |
-| 10 km | 2 250 FCFA |
-| 22,5 km | 3 500 FCFA |
+| 7 km | 2 050 FCFA |
+| 10 km | 2 500 FCFA |
+| 15 km | 3 500 FCFA |
+| 20 km | 4 500 FCFA |
+| 25 km | 5 750 FCFA |
+| 50 km | 12 000 FCFA |
 
-## Ventilation financière
+## 2. Catégorie géographique et majoration
 
-Pour chaque livraison effectivement terminée :
+La destination GPS du Client est comparée à des cercles géographiques configurés et activés par l’Administration. Le Client ne sélectionne pas sa catégorie tarifaire.
+
+| Zone | Majoration initiale proposée | Règle de plafond |
+|---|---:|---|
+| Standard | 0 FCFA | Plafond de 3 500 FCFA |
+| Périurbaine | +300 FCFA | Plafond de 3 500 FCFA |
+| Éloignée | +700 FCFA | Dépassement des 3 500 FCFA autorisé |
+| Accès difficile | +1 200 FCFA | Dépassement des 3 500 FCFA autorisé |
+
+Les majorations sont configurables par l’Administration, entre 0 et 5 000 FCFA. Les montants de ce tableau sont les valeurs initiales proposées par NAXA, modifiables selon les observations terrain.
+
+En cas de chevauchement de géofences, la catégorie la plus contraignante est appliquée dans l’ordre : accès difficile, éloignée, périurbaine. Les devis déjà créés conservent le tarif et la catégorie enregistrés au moment du calcul.
+
+**Une destination qui n’appartient à aucun cercle configuré reste en zone standard.** Elle ne reçoit pas automatiquement une majoration sur la seule base d’un nom de localité approximatif. La couverture des zones spéciales dépend donc de leur configuration et de leur vérification par l’Administration.
+
+### Exemples après majoration
+
+| Trajet | Calcul | Prix Client |
+|---|---|---:|
+| 3 km · standard | 1 550 + 0 | 1 550 FCFA |
+| 10 km · périurbaine | 2 500 + 300, plafonné | 2 800 FCFA |
+| 20 km · standard | 4 500, plafonné | 3 500 FCFA |
+| 20 km · éloignée | 4 500 + 700 | 5 200 FCFA |
+| 20 km · accès difficile | 4 500 + 1 200 | 5 700 FCFA |
+
+## 3. Commission NAXA
+
+Pour chaque livraison effectivement terminée et confirmée par le Client et le Livreur :
 
 - Commission NAXA fixe : **500 FCFA**.
-- Solde affecté au service de livraison : **tarif client − 500 FCFA**.
-- La ventilation doit toujours se réconcilier : tarif client = commission NAXA + solde livraison.
+- Solde affecté au service de livraison : tarif Client − 500 FCFA.
+- La commission est incluse dans le tarif affiché au Client ; elle n’est jamais ajoutée une seconde fois.
 
-Exemple à 5 km : tarif client 1 750 FCFA = 500 FCFA commission NAXA + 1 250 FCFA solde livraison.
+Exemple : une livraison en zone éloignée à 20 km coûte 5 200 FCFA. NAXA reçoit 500 FCFA et le solde livraison est de 4 700 FCFA.
 
-## Visibilité par rôle
+## 4. Visibilité et sécurité
 
-- **Client :** voit uniquement le tarif total de livraison calculé (ex. 1 550 FCFA à 3 km). Aucun montant, libellé ou détail de commission NAXA n'est affiché.
-- **Administration :** voit le détail et les agrégats des commissions acquises, réglées et à régler.
-- **Promoteur :** voit le rapport de commission limité à son réseau de pharmacies, avec le détail par pharmacie et les décomptes.
-- La commission ne s'ajoute pas une seconde fois au montant Client : elle est comprise dans le tarif total.
+- **Client :** seul le prix total de livraison apparaît dans le devis et le paiement.
+- **Promoteur :** consulte ses commissions acquises, réglées et à régler dans son périmètre.
+- **Administration :** consulte les commissions et configure les zones géographiques.
+- La zone, la distance routière, la majoration et la version de formule sont figées dans le devis serveur et recopiées dans le grand livre lors de la livraison terminée.
+- Le devis est lié au Client authentifié, à la pharmacie, aux coordonnées GPS et expire après dix minutes.
+- Les prix et distances transmis par le navigateur ne peuvent pas remplacer le devis serveur.
+- Le rayon opérationnel maximal reste celui configuré pour chaque pharmacie (1 à 50 km). Le contrôle financier technique accepte les nouveaux tarifs jusqu’à 20 000 FCFA ; le barème actuel reste inférieur à cette limite.
 
-## Comptabilisation
+## 5. État de construction
 
-La commission de 500 FCFA est inscrite une seule fois dans le grand livre lors de la confirmation effective de la livraison par le Client et le Livreur. Le règlement est suivi dans le décompte périodique de la pharmacie; les anciennes écritures comptables sont conservées et ne sont pas recalculées selon la nouvelle grille.
+- Barème progressif implémenté dans `src/lib/delivery-pricing.ts`.
+- Détection de zone par géorepérage GPS implémentée côté serveur.
+- Interface Admin de création, activation et désactivation des zones intégrée à `/admin/livraisons`.
+- Migration des règles, des devis et du grand livre appliquée sur Supabase Replay.
+- Aucune migration Supabase Production et aucun déploiement Production n’ont été effectués.
+- Le barème est opérationnel dans les zones configurées ; les zones non encore géorepérées restent en tarif standard jusqu'à vérification et paramétrage Admin.
 
-## Contrôles techniques
-
-- Le tarif est calculé côté serveur à partir d'un trajet routier.
-- Le devis est lié au Client authentifié, à la pharmacie, aux coordonnées et expire après dix minutes.
-- Le trigger SQL vérifie et consomme le devis; les prix et distances envoyés par le navigateur ne sont pas fiables.
-- Les écrans Client ne reçoivent pas la ventilation de commission.
-- Toute nouvelle écriture financière fixe la commission à 500 FCFA et conserve un solde livraison d'au moins 1 000 FCFA.
-- Cette règle est construite sur la branche QA `qa/e2e-stabilisation-20261106`; elle n'est pas une autorisation de déploiement Production.
+**Branche de travail :** `qa/e2e-stabilisation-20261106`.
