@@ -103,7 +103,7 @@ jobs:
             migration_files = sorted(Path("supabase").glob("migration_*.sql"))
             timestamped_migration_files = sorted(Path("supabase/migrations").glob("*.sql"))
             test_files = sorted(Path("supabase/tests").rglob("*.sql"))
-            check("Au moins 135 migrations horodatées conservées", int(len(timestamped_migration_files) >= 136), 1, [len(timestamped_migration_files)])
+            check("Au moins 137 migrations horodatées conservées", int(len(timestamped_migration_files) >= 137), 1, [len(timestamped_migration_files)])
             sql_files = ([schema] if schema.is_file() else []) + migration_files + timestamped_migration_files + test_files
             check("Au moins un fichier SQL à inspecter", int(bool(sql_files)), 1, [len(sql_files)] if sql_files else [])
 

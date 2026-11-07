@@ -17,7 +17,7 @@ select
   exists (select 1 from pg_indexes where schemaname='public'
     and indexname='naxa_security_gateway_one_pending_enrollment_idx') as one_pending_code_per_gateway,
   exists (select 1 from pg_indexes where schemaname='public'
-    and indexname='naxa_security_gateway_one_active_key_idx') as one_active_public_key_per_gateway,
+    and indexname='naxa_security_gateway_active_key_lookup_idx') as active_public_key_lookup_index_present,
   exists (select 1 from pg_constraint where conrelid='public.naxa_security_gateway_enrollments'::regclass
     and conname='naxa_security_gateway_enrollment_key_pair_ck') as consumed_code_requires_public_key,
   exists (select 1 from pg_constraint where conrelid='public.naxa_security_gateway_request_nonces'::regclass

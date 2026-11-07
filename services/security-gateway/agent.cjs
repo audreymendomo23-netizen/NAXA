@@ -91,6 +91,10 @@ function parseFlags(args) {
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
+    if (key === "--token-stdin") {
+      values["token-stdin"] = true;
+      continue;
+    }
     const value = args[index + 1];
     if (!value || value.startsWith("--")) throw new Error("Valeur manquante pour " + key);
     values[key.slice(2)] = value;
@@ -103,20 +107,31 @@ async function enroll(args) {
   const flags = parseFlags(args);
   const apiBaseUrl = secureApiBase(flags["api-url"] || "");
   const gatewayId = String(flags["gateway-id"] || "");
-  const token = String(flags.token || "");
+  if (flags.token) throw new Error("Ne passez jamais le code en argument. Utilisez --token-stdin avec un fichier sécurisé en entrée.");
+  if (!flags["token-stdin"] || process.stdin.isTTY) throw new Error("Utilisez --token-stdin avec un fichier d'entrée protégé en mode 0600.");
+  const token = fs.readFileSync(0, "utf8").trim();
   const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
   if (!/^[0-9a-f-]{36}$/i.test(gatewayId) || !/^[0-9a-f]{64}$/i.test(token)) {
     throw new Error("Identifiant passerelle ou code à usage unique invalide.");
   }
 
   ensurePrivateDirectory(stateDir);
-  const pair = crypto.generateKeyPairSync("ed25519");
-  const privateKeyPem = pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
-  const publicKeyPem = pair.publicKey.export({ type: "spki", format: "pem" }).toString();
   const privateKeyPath = path.join(stateDir, "gateway-ed25519-private.pem");
-  writePrivateFile(privateKeyPath, privateKeyPem);
+  let privateKey;
+  let publicKey;
+  if (fs.existsSync(privateKeyPath)) {
+    privateKey = crypto.createPrivateKey(fs.readFileSync(privateKeyPath, "utf8"));
+    if (privateKey.asymmetricKeyType !== "ed25519") throw new Error("La clé privée locale existante n'est pas Ed25519.");
+    publicKey = crypto.createPublicKey(privateKey);
+  } else {
+    const pair = crypto.generateKeyPairSync("ed25519");
+    privateKey = pair.privateKey;
+    publicKey = pair.publicKey;
+    writePrivateFile(privateKeyPath, privateKey.export({ type: "pkcs8", format: "pem" }).toString());
+  }
+  const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
   const fingerprint = crypto.createHash("sha256")
-    .update(pair.publicKey.export({ type: "spki", format: "der" })).digest("hex");
+    .update(publicKey.export({ type: "spki", format: "der" })).digest("hex");
 
   const response = await fetch(apiBaseUrl + "/api/security/gateway/enroll", {
     method: "POST",

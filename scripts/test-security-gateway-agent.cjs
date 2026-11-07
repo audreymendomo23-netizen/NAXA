@@ -73,3 +73,11 @@ test("stockage local : dossier 0700, clés/configuration 0600 et configuration s
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+test("le code de jumelage est lu depuis stdin protégé, jamais depuis un argument de processus", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../services/security-gateway/agent.cjs"), "utf8");
+  assert.match(source, /--token-stdin/);
+  assert.match(source, /process\.stdin\.isTTY/);
+  assert.match(source, /fs\.readFileSync\(0, "utf8"\)/);
+  assert.match(source, /if \(flags\.token\) throw/);
+});

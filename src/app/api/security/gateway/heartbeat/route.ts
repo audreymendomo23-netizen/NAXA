@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     const admin = supabaseAdmin();
     const { data: gateway, error: gatewayError } = await admin
       .from("naxa_security_gateways")
-      .select("id,pharmacie_id,installation_id,tunnel_status,health_metadata")
+      .select("id,pharmacie_id,installation_id,tunnel_status,health_metadata,agent_key_fingerprint")
       .eq("id", gatewayId)
       .maybeSingle();
 
@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       .from("naxa_security_gateway_enrollments")
       .select("id,public_key_pem,public_key_fingerprint")
       .eq("gateway_id", gatewayId)
+      .eq("public_key_fingerprint", gateway.agent_key_fingerprint)
       .not("consumed_at", "is", null)
       .is("revoked_at", null)
       .order("consumed_at", { ascending: false })

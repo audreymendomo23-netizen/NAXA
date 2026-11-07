@@ -40,25 +40,22 @@ export async function POST(request: Request) {
     const admin = supabaseAdmin();
     const now = new Date();
 
-    const { data: pending, error: pendingError } = await admin
+    const { data: enrollment, error: enrollmentError } = await admin
       .from("naxa_security_gateway_enrollments")
-      .select("id,gateway_id,pharmacie_id,expires_at")
+      .select("id,gateway_id,pharmacie_id,expires_at,consumed_at,public_key_fingerprint,revoked_at")
       .eq("gateway_id", gatewayId)
       .eq("token_hash", tokenHash)
-      .is("consumed_at", null)
-      .is("revoked_at", null)
-      .gt("expires_at", now.toISOString())
       .maybeSingle();
 
-    if (pendingError || !pending) {
-      return NextResponse.json({ error: "Code expiré, déjà utilisé ou invalide." }, { status: 401 });
+    if (enrollmentError || !enrollment || enrollment.revoked_at) {
+      return NextResponse.json({ error: "Code expiré, révoqué ou invalide." }, { status: 401 });
     }
 
     const { data: gateway, error: gatewayError } = await admin
       .from("naxa_security_gateways")
       .select("id,pharmacie_id,installation_id,tunnel_status")
       .eq("id", gatewayId)
-      .eq("pharmacie_id", pending.pharmacie_id)
+      .eq("pharmacie_id", enrollment.pharmacie_id)
       .maybeSingle();
 
     if (gatewayError || !gateway || gateway.tunnel_status === "revoked") {
@@ -68,14 +65,14 @@ export async function POST(request: Request) {
     const { data: pharmacy, error: pharmacyError } = await admin
       .from("pharmacies")
       .select("id,actif,visible_recherche,archivee_le")
-      .eq("id", pending.pharmacie_id)
+      .eq("id", enrollment.pharmacie_id)
       .maybeSingle();
 
     const { data: installation, error: installationError } = await admin
       .from("naxa_security_installations")
       .select("id,status")
       .eq("id", gateway.installation_id)
-      .eq("pharmacie_id", pending.pharmacie_id)
+      .eq("pharmacie_id", enrollment.pharmacie_id)
       .maybeSingle();
 
     if (
@@ -85,37 +82,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Pharmacie ou installation non autorisée." }, { status: 403 });
     }
 
-    // Révoquer l'ancienne clé avant d'activer la nouvelle : l'index unique garantit une seule clé active.
-    const { error: revokeOldKeysError } = await admin
-      .from("naxa_security_gateway_enrollments")
-      .update({ revoked_at: now.toISOString() })
-      .eq("gateway_id", gatewayId)
-      .not("consumed_at", "is", null)
-      .is("revoked_at", null);
+    let enrollmentId = enrollment.id;
+    if (enrollment.consumed_at) {
+      // Reprise idempotente après une erreur réseau/DB : seul le détenteur de la même clé peut terminer l'opération.
+      if (enrollment.public_key_fingerprint !== fingerprint) {
+        return NextResponse.json({ error: "Code déjà utilisé par une autre identité." }, { status: 409 });
+      }
+    } else {
+      if (new Date(enrollment.expires_at).getTime() <= now.getTime()) {
+        return NextResponse.json({ error: "Code expiré." }, { status: 401 });
+      }
+      const { data: consumed, error: consumeError } = await admin
+        .from("naxa_security_gateway_enrollments")
+        .update({
+          consumed_at: now.toISOString(),
+          public_key_pem: canonicalPublicKey,
+          public_key_fingerprint: fingerprint,
+        })
+        .eq("id", enrollment.id)
+        .is("consumed_at", null)
+        .is("revoked_at", null)
+        .gt("expires_at", now.toISOString())
+        .select("id")
+        .maybeSingle();
 
-    if (revokeOldKeysError) {
-      console.error("NAXA_GATEWAY_KEY_ROTATION_FAILED", revokeOldKeysError.code);
-      return NextResponse.json({ error: "Rotation de la clé passerelle impossible." }, { status: 503 });
+      if (consumeError || !consumed) {
+        return NextResponse.json({ error: "Le code a expiré ou vient d'être utilisé." }, { status: 409 });
+      }
+      enrollmentId = consumed.id;
     }
 
-    const { data: consumed, error: consumeError } = await admin
-      .from("naxa_security_gateway_enrollments")
-      .update({
-        consumed_at: now.toISOString(),
-        public_key_pem: canonicalPublicKey,
-        public_key_fingerprint: fingerprint,
-      })
-      .eq("id", pending.id)
-      .is("consumed_at", null)
-      .is("revoked_at", null)
-      .gt("expires_at", now.toISOString())
-      .select("id")
-      .maybeSingle();
-
-    if (consumeError || !consumed) {
-      return NextResponse.json({ error: "Le code a expiré ou vient d'être utilisé." }, { status: 409 });
-    }
-
+    // Le fingerprint courant fait basculer l'identité active. Les anciennes clés ne sont révoquées qu'après la consommation atomique du code.
     const { error: gatewayUpdateError } = await admin
       .from("naxa_security_gateways")
       .update({
@@ -125,7 +122,25 @@ export async function POST(request: Request) {
         health_metadata: { enrollment: "key_registered", fingerprint },
       })
       .eq("id", gatewayId)
-      .eq("pharmacie_id", pending.pharmacie_id);
+      .eq("pharmacie_id", enrollment.pharmacie_id);
+
+    if (gatewayUpdateError) {
+      console.error("NAXA_GATEWAY_ENROLLMENT_GATEWAY_UPDATE_FAILED", gatewayUpdateError.code);
+      return NextResponse.json({ error: "La clé est enregistrée mais le statut passerelle doit être réconcilié. Relancez enroll avec le même dossier local et le même code." }, { status: 503 });
+    }
+
+    const { error: revokeOldKeysError } = await admin
+      .from("naxa_security_gateway_enrollments")
+      .update({ revoked_at: now.toISOString() })
+      .eq("gateway_id", gatewayId)
+      .not("consumed_at", "is", null)
+      .is("revoked_at", null)
+      .neq("id", enrollmentId);
+
+    if (revokeOldKeysError) {
+      console.error("NAXA_GATEWAY_OLD_KEY_REVOCATION_FAILED", revokeOldKeysError.code);
+      // Heartbeats ne sélectionneront que le fingerprint courant du gateway.
+    }
 
     const { error: auditError } = await admin.from("naxa_security_access_audit").insert({
       pharmacie_id: pending.pharmacie_id,
@@ -135,12 +150,12 @@ export async function POST(request: Request) {
       resource_type: "gateway",
       resource_id: gatewayId,
       justification: "Enrôlement de la passerelle par code à usage unique et clé publique Ed25519.",
-      audit_metadata: { enrollment_id: consumed.id, key_fingerprint: fingerprint },
+      audit_metadata: { enrollment_id: enrollmentId, key_fingerprint: fingerprint },
     });
 
     if (gatewayUpdateError || auditError) {
       console.error("NAXA_GATEWAY_ENROLLMENT_PARTIAL", {
-        gateway: gatewayUpdateError?.code ?? null,
+        oldKeys: revokeOldKeysError?.code ?? null,
         audit: auditError?.code ?? null,
       });
       return NextResponse.json({

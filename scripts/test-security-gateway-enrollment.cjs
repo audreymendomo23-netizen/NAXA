@@ -26,7 +26,10 @@ test("enrôlement : clé Ed25519, consommation atomique et révocation de la cl�
   assert.match(enroll, /consumed_at/);
   assert.match(enroll, /revoked_at/);
   assert.match(enroll, /public_key_fingerprint/);
-  assert.match(migration, /one_active_key/);
+  assert.match(migration, /active_key_lookup/);
+  assert.match(enroll, /enrollment\.consumed_at/);
+  assert.match(enroll, /\.neq\("id", enrollmentId\)/);
+  assert.match(heartbeat, /public_key_fingerprint", gateway\.agent_key_fingerprint/);
 });
 
 test("heartbeat : signature du corps, fenêtre temporelle et anti-rejeu", () => {
@@ -40,6 +43,8 @@ test("heartbeat : signature du corps, fenêtre temporelle et anti-rejeu", () => 
 
 test("agent local : aucune dépendance tierce, clé privée hors serveur et aucun port entrant", () => {
   assert.match(agent, /generateKeyPairSync\("ed25519"\)/);
+  assert.match(agent, /--token-stdin/);
+  assert.doesNotMatch(agent, /--token\s/);
   assert.match(agent, /mode: 0o600/);
   assert.match(agent, /https:/);
   assert.match(agent, /api\/security\/gateway\/heartbeat/);

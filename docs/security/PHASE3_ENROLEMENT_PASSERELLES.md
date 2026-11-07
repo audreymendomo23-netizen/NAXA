@@ -14,7 +14,7 @@ Un code aléatoire de 256 bits est généré et son SHA-256 seul est stocké. Il
 
 L'agent local génère une paire Ed25519. La clé privée est conservée localement avec permissions 0600 dans un dossier 0700. La clé publique et son empreinte SHA-256 sont envoyées au serveur avec le code de jumelage.
 
-Le serveur valide le type Ed25519, consomme atomiquement le code et enregistre la clé publique. Les anciennes clés actives sont révoquées lors du remplacement. Aucun secret de passerelle ni clé privée n'est conservé dans la base NAXA.
+Le serveur valide le type Ed25519, consomme atomiquement le code et enregistre la clé publique. Le fingerprint de la passerelle sélectionne l'identité active ; les clés précédentes sont révoquées après la bascule. Le endpoint accepte une reprise idempotente avec la même clé après une erreur transitoire. Aucun secret de passerelle ni clé privée n'est conservé dans la base NAXA.
 
 ## 3. Heartbeat signé et anti-rejeu
 
@@ -31,15 +31,20 @@ Copier `services/security-gateway/agent.cjs` sur une machine passerelle Linux r�
 Créer le code depuis l'espace Promoteur, puis exécuter localement :
 
 ```bash
-sudo install -d -m 0700 /var/lib/naxa-security-gateway
-sudo node /opt/naxa-security-gateway/agent.cjs enroll \
+sudo useradd --system --home /var/lib/naxa-security-gateway --shell /usr/sbin/nologin naxa-gateway
+sudo install -d -o naxa-gateway -g naxa-gateway -m 0700 /var/lib/naxa-security-gateway
+sudo install -d -m 0700 /run/naxa-security-gateway
+sudo install -o naxa-gateway -g naxa-gateway -m 0600 /dev/null /run/naxa-security-gateway/enroll.token
+sudoedit /run/naxa-security-gateway/enroll.token
+sudo -u naxa-gateway node /opt/naxa-security-gateway/agent.cjs enroll \
   --api-url https://<domaine-naxa> \
   --gateway-id <UUID_PASSERELLE> \
-  --token <CODE_A_USAGE_UNIQUE> \
-  --state-dir /var/lib/naxa-security-gateway
+  --state-dir /var/lib/naxa-security-gateway \
+  --token-stdin < /run/naxa-security-gateway/enroll.token
+sudo rm -f /run/naxa-security-gateway/enroll.token
 ```
 
-Ne placez pas le code dans l'historique d'un script ou dans un fichier partagé. L'agent ne l'enregistre pas. Après le jumelage, la clé privée locale et la configuration sont écrites en mode 0600.
+Le code est lu uniquement depuis stdin (fichier temporaire accessible à l'utilisateur système, mode 0600) : il n'apparaît ni dans les arguments du processus, ni dans l'historique du shell, ni dans la configuration persistante. Après le jumelage, la clé privée locale et la configuration restent dans le dossier privé de l'utilisateur système, en mode 0600. En cas d'erreur transitoire, relancer la commande avec le même dossier local, la même clé et le même code tant qu'il n'a pas expiré.
 
 Démarrer le heartbeat ponctuel :
 
@@ -73,5 +78,5 @@ La migration ajoute des contraintes sur les profils caméra : les références d
 
 - Test unitaire agent : signature Ed25519, intégrité du corps, URL HTTPS et permissions de fichiers.
 - Test de contrat statique : code à durée limitée, contrôle de périmètre, consommation unique, anti-rejeu et absence de serveur entrant.
-- Test SQL : RLS forcée, droits service_role seulement, index de code unique/clé active et contraintes de secret.
+- Test SQL : RLS forcée, droits service_role seulement, index de code unique, sélection par fingerprint courant et contraintes de secret.
 - La CI ne constitue pas un test physique. Une passerelle et un modèle de caméra réels seront requis pour valider la couche réseau et les futurs drivers.
