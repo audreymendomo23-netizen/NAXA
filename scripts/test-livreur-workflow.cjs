@@ -20,7 +20,8 @@ const files = {
   inviteNotification: read("supabase/migrations/20261106172300_livreur_invite_notification_recipient.sql"),
   identityGuards: read("supabase/migrations/20261106172400_livreur_identity_verification_guards.sql"),
   inviteHardening: read("supabase/migrations/20261106173000_livreur_invite_cross_actor_scope_and_recipient_fix.sql"),
-  onCall: read("supabase/migrations/20261107110000_livreur_staff_oncall_asymmetry.sql"),
+  onCall: read("supabase/migrations/20261107071446_livreur_staff_oncall_asymmetry_20261107.sql"),
+  multiPharmacy: read("supabase/migrations/20261107071500_livreur_multipharmacy_assignments.sql"),
   pharmacyGuards: read("supabase/migrations/20261106172500_livreur_active_pharmacy_guards.sql"),
   pharmacyRevoke: read("supabase/migrations/20261106172600_livreur_pharmacy_revoke_assignment.sql"),
   managementRpc: read("supabase/migrations/20261106172700_livreur_management_list_rpc.sql"),
@@ -54,6 +55,12 @@ test("un Livreur dédié ne peut pas recevoir un poste staff ; une permanence st
   assert.match(files.onCall, /Un profil Livreur dédié ne peut pas recevoir un autre poste professionnel/);
   assert.match(files.onCall, /private\.naxa_staff_livreur_membership_allowed/);
   assert.match(files.onCall, /a\.role_code not in \('livreur','client','admin','promoteur','pharmacie'\)/);
+});
+
+test("les postes Livreur peuvent être affectés à plusieurs pharmacies sans chevauchement dans une même pharmacie", () => {
+  assert.match(files.multiPharmacy, /a\.pharmacie_id=new\.pharmacie_id/);
+  assert.match(files.multiPharmacy, /a\.pharmacie_id=p_pharmacie/);
+  assert.match(files.multiPharmacy, /Une autre affectation Livreur chevauche déjà cette période/);
 });
 
 test("une mission acceptée reste terminable après la fin de permanence sans nouvelle prise", () => {

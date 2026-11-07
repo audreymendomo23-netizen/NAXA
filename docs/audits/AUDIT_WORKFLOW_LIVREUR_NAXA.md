@@ -62,3 +62,5 @@ Aucune migration Supabase Production et aucune modification de données Producti
 - Une mission déjà acceptée reste actionnable après l'heure de fin de permanence jusqu'à sa clôture ; une affectation expirée ne permet jamais de prendre une nouvelle mission. Le sélecteur de l'application conserve l'accès au poste Livreur seulement lorsqu'une mission est encore ouverte.
 - Le flux d'invitation reste réservé au profil Livreur dédié. Le formulaire d'affectation existant sert à la permanence temporaire du personnel.
 - Vérification Replay requise : contrôle des fonctions, déclencheur et ACL après application de la migration. Aucun changement Production ni déploiement Vercel.
+
+- Correctif de compatibilité multi-pharmacie : plusieurs affectations Livreur simultanées sur des pharmacies différentes restent possibles ; les chevauchements dans une même pharmacie sont bloqués. L’espace actif reste unique par compte.
