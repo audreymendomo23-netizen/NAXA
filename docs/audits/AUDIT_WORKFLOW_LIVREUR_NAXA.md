@@ -76,3 +76,11 @@ Aucune migration Supabase Production et aucune modification de données Producti
 - Le tableau de bord renvoie vers ce profil autonome au lieu du profil Client.
 - Le rôle, les affectations, les privilèges, les dates de permanence et les informations de vérification d'identité restent hors du formulaire d'édition.
 - Le script de test ciblé couvre le garde d'accès, la mise à jour du profil, le contrôle du mot de passe et le lien de navigation. Le build et la recette Auth multi-comptes restent à certifier séparément.
+
+
+## Correction du blocage de build Next.js — 7 novembre 2026
+
+- Le run GitHub Actions `42351667127` a exécuté les contrôles pré-build : 118 tests réussis, TypeScript sans erreur et ESLint sans erreur bloquante. Le build Next.js a ensuite échoué sur `src/app/bebe-maman/page.tsx`, dont le type synchrone de `searchParams` était incompatible avec Next.js 15.
+- La page attend maintenant la promesse `searchParams` avant de transmettre le paramètre `erreur` au catalogue.
+- Cette correction est isolée sur la branche QA. Le nouveau run GitHub Actions doit confirmer le build complet ; tant que son résultat n'est pas `success`, le build reste non certifié.
+- Aucun changement sur `main`, aucune migration Supabase Production et aucun déploiement Vercel.
