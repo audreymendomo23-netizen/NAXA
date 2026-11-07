@@ -25,6 +25,7 @@ test("API : trois sources attendues et aucune dépendance à RxImage", () => {
   assert.match(route, /api\.fda\.gov\/drug\/label\.json/);
   assert.match(route, /dailymed\.nlm\.nih\.gov\/dailymed\/services\/v2/);
   assert.doesNotMatch(route, /rximage\.nlm\.nih\.gov/);
+  assert.match(route, /matchesMedicineQuery/);
 });
 
 test("images : une photo locale n'est publiée qu'avec source, licence et date vérifiées", () => {
@@ -187,7 +188,7 @@ test("référentiel photo : stockage par CIS, licence commerciale et absence de 
   assert.match(referencePhotos, /photo_source_url text/);
   assert.match(referencePhotos, /photo_licence text/);
   assert.match(referencePhotos, /photo_verifiee_le timestamptz/);
-  assert.match(referencePhotos, /photo_reference_photo_provenance_complete/);
+  assert.match(referencePhotos, /medicaments_reference_photo_provenance_complete/);
   assert.match(photoImporter, /from\("medicaments_referentiel_sources"\)/);
   assert.match(photoImporter, /photo_path: path/);
   assert.match(photoImporter, /photo_licence: photo\.licence/);
@@ -195,4 +196,11 @@ test("référentiel photo : stockage par CIS, licence commerciale et absence de 
   assert.doesNotMatch(photoImporter, /medicaments_images/);
   assert.match(photoImporter, /Public domain/);
   assert.match(photoImporter, /CC BY/);
+});
+
+test("recherche médicament : la saisie avec dosage garde le médicament pilote, les résultats non correspondants sont filtrés", () => {
+  assert.match(catalogue, /Accepter les requêtes usuelles qui ajoutent dosage ou forme/);
+  assert.match(catalogue, /replace\(\/\\\\b\\\\d\+/);
+  assert.match(route, /matchesMedicineQuery\(cleaned, query, terms, pilot\?\.alias/);
+  assert.match(route, /matchesMedicineQuery\(name, query, terms, pilot\?\.alias/);
 });
