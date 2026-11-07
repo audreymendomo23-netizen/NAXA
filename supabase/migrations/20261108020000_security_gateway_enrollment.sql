@@ -49,7 +49,7 @@ create index if not exists naxa_security_gateway_enrollments_lookup_idx
 
 create table if not exists public.naxa_security_gateway_request_nonces (
   gateway_id uuid not null references public.naxa_security_gateways(id) on delete cascade,
-  nonce text not null check (length(nonce) between 32 and 128 and nonce ~ '^[-A-Za-z0-9_]+
+  nonce text not null check (length(nonce) between 32 and 128 and nonce ~ '^[-A-Za-z0-9_]+'$'),
   signed_at timestamptz not null,
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),
@@ -72,7 +72,7 @@ alter table public.naxa_security_camera_connections
       auth_secret_reference is null
       or (
         auth_mode <> 'none'
-        and length(auth_secret_reference) between 10 and 264\n        and auth_secret_reference ~ '^vault://[A-Za-z0-9][-A-Za-z0-9/_]+
+        and auth_secret_reference ~ '^vault://[A-Za-z0-9][-A-Za-z0-9/_]+'$'
       )
     ),
   add constraint naxa_security_camera_connection_metadata_no_secrets_ck
