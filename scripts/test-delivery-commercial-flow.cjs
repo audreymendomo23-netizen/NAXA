@@ -11,7 +11,7 @@ const files = {
   pricing: read("src/lib/delivery-pricing.ts"),
   routing: read("src/lib/server/delivery-routing.ts"),
   pricingTest: read("scripts/test-delivery-pricing.cjs"),
-  tariffSql: read("supabase/migrations/20261107300000_delivery_tariff_min1500_max3500.sql"),
+  tariffSql: read("supabase/migrations/20261107150000_delivery_progressive_zone_tariffs.sql"),
   adminDeliveries: read("src/app/admin/livraisons/page.tsx"),
   promoterDeliveries: read("src/app/pharmacie/promoteur/livraisons/page.tsx"),
   checkout: read("src/app/commande/nouvelle/page.tsx"),
@@ -28,6 +28,7 @@ const files = {
   pharmacyTracking: read("src/components/SuiviLivraisonPharmacie.tsx"),
   review: read("src/components/DeliveryReviewForm.tsx"),
   config: read("src/components/PharmacyDeliveryConfig.tsx"),
+  zoneConfig: read("src/components/DeliveryTariffZoneConfig.tsx"),
   report: read("src/components/DeliveryCommissionReport.tsx"),
   createSql: read("supabase/migrations/20261107094500_delivery_distance_signature_commission_20261107.sql"),
   quoteSql: read("supabase/migrations/20261107240000_delivery_server_route_quotes_national_tariffs.sql"),
@@ -40,17 +41,22 @@ const files = {
   settlementSql: read("supabase/migrations/20261107144500_delivery_subscription_commission_settlement_trigger.sql"),
 };
 
-test("le devis routier applique 1 500–3 500 FCFA et conserve 500 FCFA pour NAXA", () => {
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1500/);
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX\s*=\s*3500/);
-  assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\s*=\s*500/);
-  assert.match(files.pricingTest, /calculerFraisLivraison\(1\.5\), 1800/);
+test("le devis routier applique les tranches progressives et les zones tout en conservant 500 FCFA pour NAXA", () => {
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\\s*=\\s*1500/);
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX_STANDARD\\s*=\\s*3500/);
+  assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\\s*=\\s*500/);
+  assert.match(files.pricingTest, /calculerFraisLivraison\\(3\\), 1550/);
+  assert.match(files.pricingTest, /calculerFraisLivraison\\(20, "eloignee", 700\\), 5200/);
   assert.match(files.pricingTest, /commissionNaxa: 500/);
-  assert.match(files.routing, /return calculerFraisLivraison\(distanceKm\)/);
-  assert.match(files.createSql, /check \(commission_naxa = 500\)/);
-  assert.match(files.quoteSql, /new\.frais_livraison := v_quote\.frais_livraison/);
-  assert.match(files.tariffSql, /frais_livraison between 1500 and 3500/);
-  assert.match(files.tariffSql, /solde_livraison >= 1000/);
+  assert.match(files.routing, /return calculerFraisLivraison\\(distanceKm, zoneType, supplementZoneFcfa\\)/);
+  assert.match(files.createSql, /check \\(commission_naxa = 500\\)/);
+  assert.match(files.quoteSql, /new\\.frais_livraison := v_quote\\.frais_livraison/);
+  assert.match(files.tariffSql, /frais_livraison between 1500 and 20000/);
+  assert.match(files.tariffSql, /v_r\\.frais_livraison between 1500 and 20000/);
+  assert.match(files.tariffSql, /naxa_delivery_tariff_zones/);
+  assert.match(files.zoneConfig, /naxa_delivery_tariff_zones/);
+  assert.match(files.adminDeliveries, /DeliveryTariffZoneConfig/);
+  assert.match(files.tariffSql, /solde_livraison/);
 });
 
 test("le Client demande la livraison avant paiement et choisit le paiement seulement après confirmation Stock", () => {
