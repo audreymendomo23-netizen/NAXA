@@ -35,6 +35,12 @@ type Produit = {
 type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
   adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null; horaires: string | null; stock_updated_at: string | null;
+  livraison_active?: boolean;
+  distanceRoutiereKm?: number | null;
+  dureeTrajetMinutes?: number | null;
+  fournisseurItineraire?: "google_routes" | "osrm" | null;
+  fraisLivraisonIndicatifs?: number | null;
+  googleMapsUrl?: string | null;
 };
 type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; imageType?: "photo-verifiee" | "photo-source" | "illustration"; periode: string | null; horaires?: string | null; source: string; ville?: string | null; region?: string | null; lat?: number | null; lng?: number | null; gardeVerifieeLe?: string | null };
 type StockRow = {
