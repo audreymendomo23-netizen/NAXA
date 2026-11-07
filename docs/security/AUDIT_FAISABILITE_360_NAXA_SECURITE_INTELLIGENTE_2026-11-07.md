@@ -272,6 +272,6 @@ NAXA vise la compatibilité la plus large possible, et non une promesse absolue 
 2. Découvrir ONVIF dans le réseau local ; en l'absence d'ONVIF, vérifier RTSP/RTSPS ou l'API/SDK officiel.
 3. Si caméra analogique, identifier le modèle du DVR/encodeur et le canal.
 4. Tester le flux et chaque capacité séparément ; chiffrer les secrets hors base et refuser les ports entrants exposés sur Internet.
-5. Enregistrer le résultat par modèle/firmware, avec connecteur principal et solutions de repli.
+5. Enregistrer le résultat par modèle et firmware, avec connecteur principal et solutions de repli.
 
 Références de compatibilité : la base officielle ONVIF est la source de vérité du statut conformant, lequel est lié à la version logicielle enregistrée ; ONVIF rappelle aussi que les fonctions conditionnelles peuvent varier d'un appareil à l'autre. Voir [produits conformes](https://www.onvif.org/conformant-products/), [profils ONVIF](https://www.onvif.org/profiles/) et [FAQ conformité](https://www.onvif.org/conformance-faq/).
