@@ -26,13 +26,17 @@ Les clés Google restent exclusivement côté serveur. Ne pas utiliser de variab
 
 `POST /api/livraison/devis` authentifie le client, vérifie la pharmacie et son rayon de livraison, demande un itinéraire routier, puis stocke un devis à usage unique qui expire après 10 minutes.
 
-Règle tarifaire appliquée :
-- 1 000 FCFA de prise en charge;
+Règle tarifaire approuvée le 7 novembre 2026 :
+- Base de calcul : 1 500 FCFA;
 - + 200 FCFA par kilomètre routier;
-- minimum 1 000 FCFA;
-- maximum 3 000 FCFA.
+- minimum facturé au Client : 1 500 FCFA;
+- maximum facturé au Client : 3 500 FCFA;
+- commission NAXA fixe : 500 FCFA par livraison terminée;
+- solde affecté au service de livraison : tarif Client moins 500 FCFA.
 
-La commission de plateforme déjà présente (500 FCFA) reste incluse dans le tarif. Le montant et la distance retournés par le navigateur ne sont pas considérés comme fiables : le trigger SQL vérifie le devis et réécrit le prix/la distance depuis la ligne serveur, puis consomme le devis.
+Exemple : à 1,5 km par la route, le Client voit 1 800 FCFA; 500 FCFA sont comptabilisés comme commission NAXA et 1 300 FCFA constituent le solde affecté à la livraison. La commission ne doit pas apparaître dans les écrans Client. Les espaces Administration et Promoteur utilisent le rapport dédié pour suivre les commissions acquises, réglées et restant à régler.
+
+Le montant et la distance retournés par le navigateur ne sont pas considérés comme fiables : le trigger SQL vérifie le devis et réécrit le prix/la distance depuis la ligne serveur, puis consomme le devis. Les anciennes écritures du grand livre sont conservées; les nouvelles règles s'appliquent aux nouveaux devis et aux nouvelles commissions.
 
 Les pharmacies continuent à définir leur rayon de livraison. Le GPS national ne promet pas une livraison hors du rayon de chaque pharmacie.
 

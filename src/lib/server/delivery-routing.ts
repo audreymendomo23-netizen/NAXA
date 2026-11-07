@@ -1,3 +1,5 @@
+import { calculerFraisLivraison } from "@/lib/delivery-pricing";
+
 export type CoordonneesRoutage = { lat: number; lng: number };
 export type ResultatRoute = {
   distanceKm: number;
@@ -150,10 +152,7 @@ export async function calculerMatriceRoutiere(
 }
 
 export function calculerTarifLivraison(distanceKm: number): number {
-  if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 250) {
-    throw new RangeError("Distance routière invalide");
-  }
-  return Math.max(1000, Math.min(3000, Math.round(1000 + distanceKm * 200)));
+  return calculerFraisLivraison(distanceKm);
 }
 
 export function creerLienGoogleMaps(origin: CoordonneesRoutage, destination: CoordonneesRoutage): string {

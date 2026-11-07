@@ -9,7 +9,11 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 const files = {
   pricing: read("src/lib/delivery-pricing.ts"),
+  routing: read("src/lib/server/delivery-routing.ts"),
   pricingTest: read("scripts/test-delivery-pricing.cjs"),
+  tariffSql: read("supabase/migrations/20261107300000_delivery_tariff_min1500_max3500.sql"),
+  adminDeliveries: read("src/app/admin/livraisons/page.tsx"),
+  promoterDeliveries: read("src/app/pharmacie/promoteur/livraisons/page.tsx"),
   checkout: read("src/app/commande/nouvelle/page.tsx"),
   stockPage: read("src/app/pharmacie/gestionnaire-stock/commandes/page.tsx"),
   stockAction: read("src/app/pharmacie/gestionnaire-stock/livraison-actions.ts"),
@@ -36,15 +40,17 @@ const files = {
   settlementSql: read("supabase/migrations/20261107144500_delivery_subscription_commission_settlement_trigger.sql"),
 };
 
-test("le devis routier serveur est limité à 1 000–3 000 FCFA et la commission reste incluse", () => {
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1000/);
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX\s*=\s*3000/);
+test("le devis routier applique 1 500–3 500 FCFA et conserve 500 FCFA pour NAXA", () => {
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1500/);
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX\s*=\s*3500/);
   assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\s*=\s*500/);
-  assert.match(files.pricingTest, /calculerFraisLivraison\(1\.5\), 1300/);
+  assert.match(files.pricingTest, /calculerFraisLivraison\(1\.5\), 1800/);
   assert.match(files.pricingTest, /commissionNaxa: 500/);
+  assert.match(files.routing, /return calculerFraisLivraison\(distanceKm\)/);
   assert.match(files.createSql, /check \(commission_naxa = 500\)/);
-  assert.match(files.quoteSql, /frais_livraison between 1000 and 3000/);
   assert.match(files.quoteSql, /new\.frais_livraison := v_quote\.frais_livraison/);
+  assert.match(files.tariffSql, /frais_livraison between 1500 and 3500/);
+  assert.match(files.tariffSql, /solde_livraison >= 1000/);
 });
 
 test("le Client demande la livraison avant paiement et choisit le paiement seulement après confirmation Stock", () => {
@@ -103,8 +109,11 @@ test("le suivi géographique est consultable côté Client et côté pharmacie",
 test("les frais sont montrés au Client sans dévoiler la commission NAXA", () => {
   assert.match(files.paymentSelector, /Livraison\s*:/);
   assert.doesNotMatch(files.paymentSelector, /commission_naxa|commission NAXA/i);
+  assert.doesNotMatch(files.checkout, /commission NAXA|commission de plateforme/i);
   assert.match(files.pharmacyOrders, /frais_livraison/);
-  assert.match(files.report, /commission_acquise/);
+  assert.match(files.report, /500 FCFA par livraison terminée/);
+  assert.match(files.adminDeliveries, /DeliveryCommissionReport/);
+  assert.match(files.promoterDeliveries, /DeliveryCommissionReport/);
 });
 
 test("les commissions sont uniques, rapportées par pharmacie/région et rapprochées avec l'abonnement mensuel", () => {

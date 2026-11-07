@@ -250,7 +250,7 @@ export default function NouvelleTransactionPage() {
             <>
               <p className="mt-2 text-sm text-slate-700">La demande est en attente de confirmation par la pharmacie. Le Gestionnaire de stock doit accepter la prise en charge avant que vous procédiez au paiement.</p>
               <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-950">Frais de livraison estimés : {Number(deliveryOrder.frais_livraison ?? deliveryFee ?? 0).toLocaleString("fr-FR")} FCFA</p>
-              <p className="mt-2 text-xs text-slate-500">Le prix affiché comprend la commission de plateforme ; aucun supplément NAXA ne sera ajouté au paiement de la livraison.</p>
+              <p className="mt-2 text-xs text-slate-500">Le montant affiché est le tarif total de livraison. Aucun supplément ne sera ajouté au paiement.</p>
             </>
           ) : (
             <p className="mt-2 text-sm text-slate-600">La transaction est enregistrée. Le paiement suit le mode choisi et sera confirmé par la pharmacie.</p>
@@ -353,7 +353,7 @@ export default function NouvelleTransactionPage() {
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                   <p className="text-xs text-emerald-900">Distance routière calculée ({routeQuote.fournisseur === "google_routes" ? "Google Routes" : "OpenStreetMap / OSRM"}) : {routeQuote.km.toFixed(1)} km · environ {routeQuote.minutes} min</p>
                   <p className="mt-1 text-lg font-black text-emerald-950">Frais de livraison : {deliveryFee.toLocaleString("fr-FR")} FCFA</p>
-                  <p className="text-xs text-emerald-900">Tarif minimum 1 000 FCFA · maximum 3 000 FCFA · devis valable 10 minutes.</p>
+                  <p className="text-xs text-emerald-900">Tarif minimum 1 500 FCFA · maximum 3 500 FCFA · devis valable 10 minutes.</p>
                   <a href={routeQuote.googleMapsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-bold text-emerald-950 underline">Voir le trajet dans Google Maps</a>
                   <p className="mt-1 text-xs text-emerald-900">Le serveur NAXA enregistrera ce devis à la création de la commande. Le paiement interviendra après acceptation par le Gestionnaire de stock.</p>
                 </div>
