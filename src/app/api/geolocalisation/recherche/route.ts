@@ -30,7 +30,7 @@ function inCameroon(lat: number, lng: number): boolean {
     && lng >= 8.2 && lng <= 16.5;
 }
 
-/** One explicit place search, never an autocomplete or bulk geocoding endpoint. */
+/** One explicit user-triggered place lookup; bulk geocoding is not permitted here. */
 export async function GET(request: NextRequest) {
   const query = (request.nextUrl.searchParams.get("q") ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
   if (query.length < 2) {
