@@ -157,3 +157,38 @@ test("Migration de géolocalisation : politiques RLS limitées aux administrateu
   assert.match(migration, /revoke all on public\.pharmacies_geolocalisation_referentiel from anon/i);
   assert.doesNotMatch(migration, /drop table|delete from public\.pharmacies/i);
 });
+
+test("Gardes nationales : dates, source et vérification requises sur toutes les régions", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "gardes", "page.tsx"), "utf8");
+  assert.match(page, /garde_debut/);
+  assert.match(page, /garde_fin/);
+  assert.match(page, /garde_source_url/);
+  assert.match(page, /garde_verifiee_le/);
+  assert.match(page, /\.gte\("garde_verifiee_le", verificationMin\)/);
+  assert.match(page, /\.order\("region"/);
+  assert.match(page, /grouperParRegion/);
+  assert.match(page, /Aucune garde NAXA confirmée en cours/);
+  assert.doesNotMatch(page, /\.ilike\("ville", "%Yaound%"/);
+  assert.match(page, /annuaire-medical\.cm\/fr\/pharmacies-de-garde/);
+});
+
+test("Administration des gardes : rôle actif, source HTTPS et périodes bornées", () => {
+  const api = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "gardes", "route.ts"), "utf8");
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "gardes", "page.tsx"), "utf8");
+  const client = fs.readFileSync(path.join(__dirname, "..", "src", "components", "admin", "GardesAdminClient.tsx"), "utf8");
+  assert.match(api, /auth\.getUser\(\)/);
+  assert.match(api, /naxa_business_function/);
+  assert.match(api, /profile\?\.role !== "admin"/);
+  assert.match(api, /profile\.actif !== true/);
+  assert.match(api, /url\.protocol !== "https:"/);
+  assert.match(api, /duration > maxDuration/);
+  assert.match(api, /14 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(api, /garde_verifiee_le: new Date\(\)\.toISOString\(\)/);
+  assert.match(api, /garde_source_url: sourceUrl\.toString\(\)/);
+  assert.match(api, /est_demo/,);
+  assert.match(page, /requireAdminActive/);
+  assert.match(client, /timeZone: "Africa\/Douala"/);
+  assert.match(client, /Publier et vérifier/);
+  assert.match(client, /Retirer la garde/);
+  assert.match(client, /api\/admin\/gardes/);
+});
