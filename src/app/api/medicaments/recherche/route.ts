@@ -24,6 +24,18 @@ function cleanName(value: unknown): string {
     .replace(/^[\s,+-]+|[\s,+-]+$/g, "")
     .trim();
 }
+function matchesMedicineQuery(candidateName: string, query: string, terms: string[], pilotAliases: string[] = []): boolean {
+  const candidate = normaliserTerme(cleanName(candidateName));
+  if (!candidate) return false;
+  const candidateTokens = new Set(candidate.split(/\\s+/).filter(Boolean));
+  const variants = [...new Set([query, ...terms, ...pilotAliases]
+    .map(normaliserTerme).filter((term) => term.length >= 3))];
+  return variants.some((variant) => {
+    const tokens = variant.split(/\\s+/).filter((token) => token.length >= 3 && !/^\\d+(?:[.,]\\d+)?$/.test(token));
+    return tokens.length > 0 && tokens.every((token) => candidateTokens.has(token));
+  });
+}
+
 
 function cleanPublicText(value: unknown, max = 520): string | null {
   const raw = strings(value)[0];
@@ -372,7 +384,7 @@ export async function GET(request: NextRequest) {
   const uniqueCandidates = new Map<string, Candidate>();
   for (const candidate of rxCandidates) {
     const cleaned = cleanName(candidate.rawName);
-    if (!cleaned) continue;
+    if (!cleaned || !matchesMedicineQuery(cleaned, query, terms, pilot?.alias ?? [])) continue;
     if (pilot && pilot.alias[0].trim().split(/\s+/).length === 1 && cleaned.includes(" + ")) continue;
     const key = normaliserTerme(cleaned);
     if (!uniqueCandidates.has(key)) uniqueCandidates.set(key, { ...candidate, rawName: cleaned });
@@ -383,14 +395,16 @@ export async function GET(request: NextRequest) {
       const brand = fdaField(record, "brand_name")[0];
       const generic = fdaField(record, "generic_name")[0];
       const name = cleanName(brand ?? generic ?? "");
-      if (name && !uniqueCandidates.has(normaliserTerme(name))) uniqueCandidates.set(normaliserTerme(name), { rawName: name });
+      if (name && matchesMedicineQuery(name, query, terms, pilot?.alias ?? [])
+        && !uniqueCandidates.has(normaliserTerme(name))) uniqueCandidates.set(normaliserTerme(name), { rawName: name });
     }
   }
   if (uniqueCandidates.size === 0) {
     for (const record of dailyRecords) {
       const title = typeof record.title === "string" ? record.title : "";
       const name = cleanName(title.split("[")[0].replace(/\([^)]*\)/g, ""));
-      if (name && !uniqueCandidates.has(normaliserTerme(name))) uniqueCandidates.set(normaliserTerme(name), { rawName: name });
+      if (name && matchesMedicineQuery(name, query, terms, pilot?.alias ?? [])
+        && !uniqueCandidates.has(normaliserTerme(name))) uniqueCandidates.set(normaliserTerme(name), { rawName: name });
     }
   }
 
