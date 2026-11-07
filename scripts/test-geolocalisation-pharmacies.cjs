@@ -235,3 +235,13 @@ test("Accueil public : l'échec GPS ne prétend plus utiliser Yaoundé par défa
   assert.match(dictionary, /Position non disponible/);
   assert.match(dictionary, /Location unavailable/);
 });
+
+test("Recherche régionale : aucune ville de repli codée en dur", () => {
+  const results = fs.readFileSync(path.join(__dirname, "..", "src", "app", "resultats", "page.tsx"), "utf8");
+  const dictionary = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "accueil-textes.ts"), "utf8");
+  assert.match(results, /Localisation non renseignée/);
+  assert.doesNotMatch(results, /\.ville\|\|["'](?:Yaoundé|Douala)["']/);
+  assert.match(dictionary, /Position détectée/);
+  assert.match(dictionary, /Location detected/);
+  assert.doesNotMatch(dictionary, /Position enregistrée|Location saved/);
+});
