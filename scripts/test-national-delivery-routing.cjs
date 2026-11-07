@@ -56,3 +56,24 @@ test("aucune tarification livraison sur la distance à vol d'oiseau ou estimatio
   assert.match(quote, /calculerTarifLivraison\(km\)/);
   assert.match(quote, /Aucun tarif approximatif ne sera appliqué/);
 });
+
+
+test("localités camerounaises : les homonymes exigent un choix explicite", () => {
+  const api = read("src/app/api/geolocalisation/recherche/route.ts");
+  const page = read("src/app/resultats/page.tsx");
+  assert.match(api, /from\("localites_cameroun"\)/);
+  assert.match(api, /status: 409/);
+  assert.match(api, /candidates/);
+  assert.match(page, /locationCandidates/);
+  assert.match(page, /choisirLocalite/);
+});
+
+test("le Livreur reçoit les coordonnées nécessaires à sa prochaine étape uniquement après acceptation", () => {
+  const migration = read("supabase/migrations/20261107250000_delivery_driver_google_maps_navigation.sql");
+  const courier = read("src/components/pharmacie/LivreurWorkspaceClient.tsx");
+  assert.match(migration, /'latitude_destination',case when m\.livreur_id=v_uid then r\.latitude_livraison else null end/);
+  assert.match(migration, /'latitude_pharmacie',case when m\.livreur_id=v_uid then ph\.lat else null end/);
+  assert.match(courier, /https:\/\/www\.google\.com\/maps\/dir/);
+  assert.match(courier, /Itinéraire vers la pharmacie/);
+  assert.match(courier, /Itinéraire vers le Client/);
+});
