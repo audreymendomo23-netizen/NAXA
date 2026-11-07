@@ -9,11 +9,15 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => null) as {
+    const rawBody = await request.text();
+    if (!rawBody || Buffer.byteLength(rawBody, "utf8") > 4096) {
+      return NextResponse.json({ error: "Demande d'enrôlement trop volumineuse." }, { status: 413 });
+    }
+    const body = JSON.parse(rawBody) as {
       token?: unknown;
       gatewayId?: unknown;
       publicKeyPem?: unknown;
-    } | null;
+    };
 
     const token = String(body?.token ?? "");
     const gatewayId = String(body?.gatewayId ?? "");
@@ -143,7 +147,7 @@ export async function POST(request: Request) {
     }
 
     const { error: auditError } = await admin.from("naxa_security_access_audit").insert({
-      pharmacie_id: pending.pharmacie_id,
+      pharmacie_id: enrollment.pharmacie_id,
       actor_id: null,
       actor_role: "system",
       action: "device_update",

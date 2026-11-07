@@ -47,7 +47,7 @@ sudo chmod 0600 /var/lib/naxa-security-gateway/config.json /var/lib/naxa-securit
 sudo rm -f /run/naxa-security-gateway/enroll.token
 ```
 
-Le code est lu uniquement depuis stdin (fichier temporaire accessible à l'utilisateur système, mode 0600) : il n'apparaît ni dans les arguments du processus, ni dans l'historique du shell, ni dans la configuration persistante. Après le jumelage, la clé privée locale et la configuration restent dans le dossier privé de l'utilisateur système, en mode 0600. En cas d'erreur transitoire, relancer la commande avec le même dossier local, la même clé et le même code tant qu'il n'a pas expiré.
+Le code est lu uniquement depuis stdin (fichier temporaire en mode 0600 accessible uniquement à l'administrateur local pendant l'enrôlement) : il n'apparaît ni dans les arguments du processus, ni dans l'historique du shell, ni dans la configuration persistante. Après le jumelage, la clé privée locale et la configuration sont transférées au compte système `naxa-gateway` et restent dans son dossier privé, en mode 0600. En cas d'erreur transitoire, relancer la commande avec le même dossier local, la même clé et le même code tant qu'il n'a pas expiré.
 
 Démarrer le heartbeat ponctuel :
 
