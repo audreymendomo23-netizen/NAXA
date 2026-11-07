@@ -135,7 +135,7 @@ export function DeliveryTariffZoneConfig({zones}:{zones:DeliveryTariffZone[]}) {
       <p className="mt-1 text-sm text-slate-600">Définissez des cercles autour des quartiers ou localités éloignés. Le serveur compare la position GPS du Client à ces zones ; le Client ne peut pas choisir lui-même sa catégorie tarifaire.</p>
     </div>
     <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-      **Majoration initiale proposée et modifiable :** périurbaine +300 F ; éloignée +700 F ; accès difficile +1 200 F. En cas de chevauchement, « accès difficile » puis « éloignée » est prioritaire.
+      <strong>Majoration initiale proposée et modifiable :</strong> périurbaine +300 F ; éloignée +700 F ; accès difficile +1 200 F. En cas de chevauchement, « accès difficile » puis « éloignée » est prioritaire.
     </div>
     {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {message&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
