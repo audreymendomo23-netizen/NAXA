@@ -16,7 +16,7 @@ type Mission={
   cash_payment_status:string|null;cash_received:number|null;
   client_confirme_at?:string|null;livreur_confirme_at?:string|null;signature_client?:boolean;
   livraison_depart_at?:string|null;livraison_echeance_at?:string|null;duree_livraison_estimee_min?:number|null;
-  total:number;frais_livraison:number;ville:string|null;quartier:string|null;
+  total:number;ville:string|null;quartier:string|null;
   adresse:string|null;repere:string|null;telephone:string|null;items:Item[];
 };
 type Stats={
