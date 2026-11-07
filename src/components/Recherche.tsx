@@ -146,6 +146,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                     boite?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
                     comprime?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
                   };
+                  source?: string;
                 };
                 imageVariants = { boite: payload.photos?.boite ?? null, comprime: payload.photos?.comprime ?? null };
                 if (imageVariants.boite || imageVariants.comprime) break;
@@ -155,7 +156,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
               return {
                 ...item,
                 imageUrl: primary.url,
-                imageSource: "Wikimedia Commons — " + (primary.kind === "boite" ? "boîte" : "comprimé") + " · " + primary.licence,
+                imageSource: (payload.source === "catalogue_local_verifie" ? "Photo liée à la référence vérifiée — " : "Photo de référence validée — ") + (primary.kind === "boite" ? "boîte" : "présentation") + " · " + primary.licence,
                 imageSourceUrl: primary.sourceUrl,
                 imageLicense: primary.licence,
                 imageAttribution: primary.attribution,
