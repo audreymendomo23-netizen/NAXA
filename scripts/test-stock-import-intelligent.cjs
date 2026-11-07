@@ -10,6 +10,7 @@ const workspace = fs.readFileSync(path.join(root, "src/components/pharmacie/Gest
 const mappingApi = fs.readFileSync(path.join(root, "src/app/api/pharmacie/gestionnaire-stock/import/mapping/route.ts"), "utf8");
 const applyApi = fs.readFileSync(path.join(root, "src/app/api/pharmacie/gestionnaire-stock/import/apply/route.ts"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261107210000_stock_import_intelligent_rpc.sql"), "utf8");
+const purchaseCostMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261107220000_stock_import_purchase_cost.sql"), "utf8");
 
 test("import adaptatif : vocabulaire français/anglais et colonnes de logiciels hétérogènes", () => {
   for (const token of ["designation","libelle","active ingredient","ean13","pvttc","prix achat","purchase price","stock final","batch number","date peremption","emplacement"]) {
@@ -55,7 +56,7 @@ test("aperçu obligatoire et snapshot déclaré avant les écritures", () => {
   assert.match(wizard, /Correspondance des colonnes/);
   assert.match(wizard, /Lignes candidates/);
   assert.match(wizard, /À corriger \/ rapprocher/);
-  assert.match(wizard, /Je confirme qu’il s’agit d’un inventaire total/);
+  assert.match(wizard, /Je confirme qu’il s’agit d’un instantané de stock fiable/);
   assert.match(wizard, /disabled=\{!canImport\}/);
   assert.match(wizard, /import\/apply/);
   assert.match(workspace, /ImportStockIntelligent/);
@@ -80,8 +81,9 @@ test("RPC stock : transaction privilégiée, validation des données et garde FE
   assert.match(migration, /grant execute on function public\.naxa_import_stock_batch\(uuid,jsonb\) to authenticated/i);
   assert.match(migration, /Produit déjà suivi par lots/);
   assert.match(migration, /stocks_lots/);
-  assert.match(migration, /stocks_couts/);
-  assert.match(migration, /EDIT_STOCK_PARAMETERS/);
+  assert.match(purchaseCostMigration, /stocks_couts/);
+  assert.match(purchaseCostMigration, /EDIT_STOCK_PARAMETERS/);
+  assert.match(purchaseCostMigration, /cout_achat/);
   assert.match(migration, /on conflict \(pharmacie_id,produit_id\) do update/);
 });
 
