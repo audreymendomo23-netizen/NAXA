@@ -210,3 +210,36 @@ Ces observations ne proviennent pas du code caméra (qui n'existe pas encore) et
 ### Contrôle du nouveau journal géographique
 
 Vérification sur Replay : `public.naxa_pharmacie_geo_audit` existe, avec RLS activée et forcée ; `anon` et `authenticated` n'ont pas le privilège `SELECT`, tandis que `service_role` possède le privilège `INSERT`. Le Security Advisor peut afficher « RLS enabled, no policy » pour cette table : ce choix est intentionnel, car aucune lecture ou écriture cliente n'est autorisée ; les écritures et consultations passent par le serveur privilégié NAXA. Cette information est distincte des avertissements `SECURITY DEFINER` ci-dessus.
+
+
+## 13. Démarrage de la Phase 1 — socle sécurisé (QA)
+
+Le chantier passe de l'audit à une première fondation technique sur la branche qa/e2e-stabilisation-20261106, sans activation Production.
+
+### Registre de données ajouté
+
+Sept tables dédiées, toutes rattachées à une pharmacie et accessibles au backend privilégié uniquement :
+
+- naxa_security_installations : état du site, inventaire, validation juridique et information des personnes ; le passage à pilot_ready / pilot_active est bloqué tant que les deux validations et l'approbateur ne sont pas présents.
+- naxa_security_gateways : passerelle affectée à l'installation, avec mode réseau imposé à outbound_tunnel et référence de secret, jamais mot de passe en clair.
+- naxa_security_cameras : inventaire ONVIF (profils T/G/M) attaché à une passerelle et à la même pharmacie.
+- naxa_security_events : type, gravité, source IA/ONVIF/opérateur, score de confiance et revue humaine obligatoire pour toute qualification finale.
+- naxa_security_clips : métadonnées de clips et chemin d'objet privé futur ; aucun lien public et aucun endpoint d'upload vidéo n'est fourni dans cette phase.
+- naxa_security_siren_commands : registre de demandes et confirmations, avec nonce et idempotence ; aucun worker ni commande vers un relais matériel n'est installé.
+- naxa_security_access_audit : journal append-only des accès, consultations, exports, revues et commandes.
+
+### Contrôles d'accès
+
+RLS est activée et forcée sur les sept tables. Les droits de table sont retirés à PUBLIC, anon et authenticated, puis accordés à service_role uniquement. Les contrôles de périmètre Promoteur/Responsable doivent donc être appliqués côté serveur avant chaque lecture ou mutation. La fonction du trigger d'immuabilité du journal n'est pas exposée comme RPC publique.
+
+Le tableau Promoteur affiche désormais, sur la route Sécurité et uniquement pour les pharmacies actives du réseau courant, les installations et événements enregistrés. Il s'agit d'un panneau de registre, pas d'un lecteur vidéo. Un défaut de lecture du registre est présenté comme indisponibilité, jamais comme absence d'équipement.
+
+### État fonctionnel de cette phase
+
+- Construit : schéma privé, contraintes multi-pharmacies, audit append-only, garde juridique du pilote, écran Promoteur en lecture seule.
+- Non activé : création d'installation depuis l'interface, enrôlement passerelle/caméra, stockage vidéo, flux live, détection IA, notifications Android en arrière-plan et commande physique de sirène.
+- Aucune donnée matérielle de démonstration n'est injectée. Le registre vide signifie qu'aucun équipement n'a été déclaré dans NAXA, et ne prouve pas qu'un site réel n'en possède pas.
+
+### Contrôle technique initial
+
+Le DDL a été exécuté dans une transaction de validation sur Supabase Replay puis annulé : les sept tables, RLS forcée, absence de privilèges anon/authenticated, droits service_role, trigger append-only, revue humaine des événements, confirmation sirène et absence de colonnes d'URL/secret vidéo ont tous été retournés true. La migration persistante Replay et le résultat CI sont suivis séparément avant tout feu vert.

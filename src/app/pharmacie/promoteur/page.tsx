@@ -13,6 +13,7 @@ import { PromoteurLogoManager } from "@/components/pharmacie/PromoteurLogoManage
 import { PromoteurKpiValue } from "@/components/pharmacie/PromoteurKpiValue";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
 import PromoteurGeolocalisationReseau from "@/components/pharmacie/PromoteurGeolocalisationReseau";
+import { PromoteurSecuriteIntelligente } from "@/components/pharmacie/PromoteurSecuriteIntelligente";
 
 type Stats = {
   pharmacies?: { total?: number; actives?: number; inactives?: number };
@@ -160,6 +161,25 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
   const activePharmacyIds = new Set(activePharmacies.map((ph) => ph.id));
   const scopedIds = [...activePharmacyIds];
   const operationalCaisses = (caisses ?? []).filter((c) => c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id));
+  const securityRegistryEnabled = section === "securite";
+  const [securityInstallationsResult, securityGatewaysResult, securityCamerasResult, securityEventsResult] = await Promise.all([
+    securityRegistryEnabled && scopedIds.length
+      ? adminDb.from("naxa_security_installations").select("id,pharmacie_id,status,legal_review_status,privacy_notice_status,updated_at").in("pharmacie_id", scopedIds)
+      : Promise.resolve({ data: [], error: null }),
+    securityRegistryEnabled && scopedIds.length
+      ? adminDb.from("naxa_security_gateways").select("id,pharmacie_id,tunnel_status,last_seen_at").in("pharmacie_id", scopedIds)
+      : Promise.resolve({ data: [], error: null }),
+    securityRegistryEnabled && scopedIds.length
+      ? adminDb.from("naxa_security_cameras").select("id,pharmacie_id,status,model,zone_label").in("pharmacie_id", scopedIds)
+      : Promise.resolve({ data: [], error: null }),
+    securityRegistryEnabled && scopedIds.length
+      ? adminDb.from("naxa_security_events").select("id,pharmacie_id,event_type,severity,status,summary,detected_at").in("pharmacie_id", scopedIds).order("detected_at", { ascending: false }).limit(10)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const securityRegistryAvailable = !securityRegistryEnabled || [
+    securityInstallationsResult.error, securityGatewaysResult.error,
+    securityCamerasResult.error, securityEventsResult.error,
+  ].every((error) => !error);
 
   // Contrôle Promoteur 360° : sessions de service et indicateurs comptables strictement bornés
   // aux pharmacies actives, publiées et liées au Promoteur. Aucun détail de santé n'est chargé.
@@ -535,6 +555,14 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
         }))}/>
         <div id="securite" className="promoteur-card xl:col-span-12 space-y-4 rounded-3xl border border-naxa-green-100 bg-white p-4 sm:p-6">
           <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true && c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id)).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
+          {section === "securite" && <PromoteurSecuriteIntelligente
+            pharmacies={activePharmacies.map((ph) => ({ id: ph.id, nom: ph.nom, ville: ph.ville, quartier: ph.quartier }))}
+            installations={securityInstallationsResult.data ?? []}
+            gateways={securityGatewaysResult.data ?? []}
+            cameras={securityCamerasResult.data ?? []}
+            events={securityEventsResult.data ?? []}
+            registryAvailable={securityRegistryAvailable}
+          />}
           <section id="configuration" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5">
             <h2 className="text-lg font-extrabold">Configuration et périmètre contractuel</h2>
             <p className="mt-2 text-sm leading-6 text-naxa-green-700">Architecture attribuée par NAXA : <strong>{convention?.architecture_code ?? profile.architecture_code ?? "Non renseignée"}</strong>. Le Promoteur peut gérer les Caisses et déléguer uniquement les privilèges compatibles, actifs et délégables. Les paramètres de convention et les droits de gouvernance ne sont pas modifiables depuis cet espace.</p>
