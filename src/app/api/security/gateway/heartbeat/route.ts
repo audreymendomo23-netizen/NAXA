@@ -9,9 +9,9 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const noncePattern = /^[A-Za-z0-9_-]{32,128}$/;
 const allowedAgentCapabilities = new Set(["heartbeat"]);
 
-function canonicalMessage(gatewayId: string, timestamp: string, nonce: string, rawBody: string) {
+function canonicalMessage(gatewayId: string, timestamp: string, nonce: string, rawBody: string): Uint8Array {
   const bodyHash = createHash("sha256").update(rawBody, "utf8").digest("hex");
-  return Buffer.from(`${gatewayId}\n${timestamp}\n${nonce}\n${bodyHash}`, "utf8");
+  return new TextEncoder().encode(`${gatewayId}\n${timestamp}\n${nonce}\n${bodyHash}`);
 }
 
 export async function POST(request: Request) {
@@ -100,8 +100,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Passerelle non enrôlée." }, { status: 401 });
     }
 
-    const signature = Buffer.from(signatureText, "base64url");
-    if (signature.length !== 64) {
+    // Uint8Array standard pour rester compatible avec les types crypto/TS du build.
+    const signature = Uint8Array.from(Array.from(Buffer.from(signatureText, "base64url")));
+    if (signature.byteLength !== 64) {
       return NextResponse.json({ error: "Signature passerelle invalide." }, { status: 401 });
     }
 
