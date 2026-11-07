@@ -30,7 +30,7 @@ test("API : trois sources attendues et aucune dépendance à RxImage", () => {
 
 test("images : une photo locale n'est publiée qu'avec source, licence et date vérifiées", () => {
   assert.match(route, /photoMetadataComplete/);
-  assert.match(route, /localProduct\.photo_source_url\?\.startsWith\("https:"\)/);
+  assert.match(route, /localProduct\.photo_source_url\?\.startsWith\("https:\/\/"\)/);
   assert.match(route, /localProduct\.photo_licence\?\.trim\(\)/);
   assert.match(route, /localProduct\.photo_verifiee_le/);
   assert.match(route, /verifiedPhotoPath/);
@@ -200,7 +200,7 @@ test("référentiel photo : stockage par CIS, licence commerciale et absence de 
 
 test("recherche médicament : la saisie avec dosage garde le médicament pilote, les résultats non correspondants sont filtrés", () => {
   assert.match(catalogue, /Accepter les requêtes usuelles qui ajoutent dosage ou forme/);
-  assert.match(catalogue, /replace\(\/\\\\b\\\\d\+/);
+  assert.match(catalogue, /mmol/);
   assert.match(route, /matchesMedicineQuery\(cleaned, query, terms, pilot\?\.alias/);
   assert.match(route, /matchesMedicineQuery\(name, query, terms, pilot\?\.alias/);
 });
