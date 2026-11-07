@@ -33,35 +33,66 @@ function unrequestedCombination(query: string, activeIngredients: string): boole
   return overlapsAnIngredient && ingredients.some((token) => !wanted.has(token));
 }
 
-type ImageRow = {
+type ReferencePhotoRow = {
   cis: string;
-  libelle_presentation: string | null;
-  image_path: string | null;
-  image_url: string | null;
-  source_nom: string;
-  source_url: string | null;
-  licence: string | null;
-  statut: string;
+  nom: string;
+  substances_actives: string | null;
+  photo_path: string | null;
+  photo_source_url: string | null;
+  photo_licence: string | null;
+  photo_attribution: string | null;
+  photo_verifiee_le: string | null;
 };
+
+function verifiedStorageUrl(path: string | null): string | null {
+  const safePath = path?.trim() ?? "";
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/+$/, "");
+  if (!base || !safePath || safePath.startsWith("/") || safePath.includes("..") || safePath.includes("\\\\")) return null;
+  try {
+    const url = new URL(base + "/storage/v1/object/public/medicaments/" +
+      safePath.split("/").map((segment) => encodeURIComponent(segment)).join("/"));
+    if (url.protocol !== "https:" || url.origin !== new URL(base).origin) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function completePhoto(row: {
+  photo_path: string | null;
+  photo_source_url: string | null;
+  photo_licence: string | null;
+  photo_verifiee_le: string | null;
+}): boolean {
+  return Boolean(
+    row.photo_path &&
+    row.photo_source_url?.startsWith("https://") &&
+    row.photo_licence?.trim() &&
+    row.photo_verifiee_le &&
+    Number.isFinite(Date.parse(row.photo_verifiee_le))
+  );
+}
 
 async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null> {
   try {
     const sb = supabaseServer();
     const safeQuery = query
-      .replace(/\b\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\b/gi, " ")
-      .replace(/\b(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?|box|bo[iî]te)\b/gi, " ")
-      .replace(/[%_,]/g, " ").replace(/\s+/g, " ").trim();
+      .replace(/\\b\\d+(?:[.,]\\d+)?\\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\\b/gi, " ")
+      .replace(/\\b(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?|box|bo[iî]te)\\b/gi, " ")
+      .replace(/[%_,]/g, " ").replace(/\\s+/g, " ").trim();
     if (safeQuery.length < 3) return null;
 
-    // Première priorité : fiche locale NAXA dont la photo a une licence et une date de vérification.
+    // Photos locales importées et validées par un administrateur NAXA.
     const [byName, byIngredient] = await Promise.all([
       sb.from("produits")
         .select("nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le")
         .ilike("nom", "%" + safeQuery + "%")
+        .eq("fiche_validee", true)
         .limit(12),
       sb.from("produits")
         .select("nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le")
         .ilike("dci", "%" + safeQuery + "%")
+        .eq("fiche_validee", true)
         .limit(12)
     ]);
     const localProducts = [...(byName.data ?? []), ...(byIngredient.data ?? [])] as Array<{
@@ -71,70 +102,53 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
     }>;
     const seen = new Set<string>();
     for (const product of localProducts) {
-      const identity = product.nom;
-      const key = normalize(identity);
+      const key = normalize(product.nom);
       if (seen.has(key)) continue;
       seen.add(key);
-      // Ne pas montrer la photo d'une marque lorsque la requête ne nomme que sa DCI.
-      if (!exactIdentityMatch(query, identity)) continue;
-      if (unrequestedCombination(query, product.dci ?? "")) continue;
-      if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url) continue;
-      const url = product.photo_path
-        ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
-        : product.photo_url;
-      if (!url?.startsWith("https://")) continue;
+      if (!exactIdentityMatch(query, product.nom) || unrequestedCombination(query, product.dci ?? "")) continue;
+      if (!completePhoto(product)) continue;
+      const url = verifiedStorageUrl(product.photo_path);
+      if (!url) continue;
       return {
         url,
-        sourceUrl: product.photo_source_url,
-        licence: product.photo_licence,
+        sourceUrl: product.photo_source_url!,
+        licence: product.photo_licence!,
         attribution: null,
         title: product.nom,
         kind: "boite"
       };
     }
 
-    // Deuxième priorité : le catalogue d'images par CIS/CIP. Les lignes non validées
-    // ou sans fichier, licence et source ne sont jamais montrées.
+    // Référentiel par CIS. Aucun CIP fictif ni table d'images orpheline n'est requis.
+    const fields = "cis,nom,substances_actives,photo_path,photo_source_url,photo_licence,photo_attribution,photo_verifiee_le";
     const refs = await Promise.all([
-      sb.from("medicaments_referentiel_sources").select("cis,nom,substances_actives")
-        .ilike("nom", "%" + safeQuery + "%").limit(20),
-      sb.from("medicaments_referentiel_sources").select("cis,nom,substances_actives")
-        .ilike("substances_actives", "%" + safeQuery + "%").limit(20)
+      sb.from("medicaments_referentiel_sources").select(fields)
+        .ilike("nom", "%" + safeQuery + "%").limit(30),
+      sb.from("medicaments_referentiel_sources").select(fields)
+        .ilike("substances_actives", "%" + safeQuery + "%").limit(30)
     ]);
-    const refMap = new Map<string, { cis: string; nom: string; substances_actives: string | null }>();
-    for (const row of refs.flatMap((result) => result.data ?? [])) {
-      // Le nom du médicament doit correspondre; la seule DCI ne suffit pas à
-      // justifier la photo d'une présentation commerciale différente.
-      if (exactIdentityMatch(query, row.nom) && !unrequestedCombination(query, row.substances_actives ?? "")) refMap.set(row.cis, row);
+    const refMap = new Map<string, ReferencePhotoRow>();
+    for (const result of refs) {
+      for (const row of (result.data ?? []) as ReferencePhotoRow[]) {
+        if (!exactIdentityMatch(query, row.nom) || unrequestedCombination(query, row.substances_actives ?? "")) continue;
+        if (!completePhoto(row)) continue;
+        refMap.set(row.cis, row);
+      }
     }
-    const cisList = [...refMap.keys()].slice(0, 30);
-    if (!cisList.length) return null;
-    const { data: images } = await sb.from("medicaments_images")
-      .select("cis,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut")
-      .in("cis", cisList)
-      .eq("statut", "image_stockee")
-      .not("licence", "is", null)
-      .not("source_url", "is", null)
-      .limit(30);
-    for (const image of (images ?? []) as ImageRow[]) {
-      if (!image.licence?.trim() || !image.source_url?.startsWith("https://")) continue;
-      const url = image.image_path
-        ? sb.storage.from("medicaments").getPublicUrl(image.image_path).data.publicUrl
-        : image.image_url;
-      if (!url?.startsWith("https://")) continue;
-      const ref = refMap.get(image.cis);
-      if (!ref || !exactIdentityMatch(query, [ref.nom, ref.substances_actives ?? ""].join(" "))) continue;
+    for (const row of refMap.values()) {
+      const url = verifiedStorageUrl(row.photo_path);
+      if (!url) continue;
       return {
         url,
-        sourceUrl: image.source_url,
-        licence: image.licence,
-        attribution: image.source_nom || null,
-        title: [ref.nom, image.libelle_presentation].filter(Boolean).join(" — "),
+        sourceUrl: row.photo_source_url!,
+        licence: row.photo_licence!,
+        attribution: row.photo_attribution || null,
+        title: row.nom,
         kind: "boite"
       };
     }
   } catch {
-    // La source locale est facultative : on poursuit avec la recherche externe.
+    // Une source locale indisponible ne doit pas bloquer la recherche contrôlée Commons.
   }
   return null;
 }
