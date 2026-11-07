@@ -42,17 +42,17 @@ const files = {
 };
 
 test("le devis routier applique les tranches progressives et les zones tout en conservant 500 FCFA pour NAXA", () => {
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\\s*=\\s*1500/);
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX_STANDARD\\s*=\\s*3500/);
-  assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\\s*=\\s*500/);
-  assert.match(files.pricingTest, /calculerFraisLivraison\\(3\\), 1550/);
-  assert.match(files.pricingTest, /calculerFraisLivraison\\(20, "eloignee", 700\\), 5200/);
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1500/);
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX_STANDARD\s*=\s*3500/);
+  assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\s*=\s*500/);
+  assert.match(files.pricingTest, /calculerFraisLivraison\(3\), 1550/);
+  assert.match(files.pricingTest, /calculerFraisLivraison\(20, "eloignee", 700\), 5200/);
   assert.match(files.pricingTest, /commissionNaxa: 500/);
-  assert.match(files.routing, /return calculerFraisLivraison\\(distanceKm, zoneType, supplementZoneFcfa\\)/);
-  assert.match(files.createSql, /check \\(commission_naxa = 500\\)/);
-  assert.match(files.quoteSql, /new\\.frais_livraison := v_quote\\.frais_livraison/);
+  assert.match(files.routing, /return calculerFraisLivraison\(distanceKm, zoneType, supplementZoneFcfa\)/);
+  assert.match(files.createSql, /check \(commission_naxa = 500\)/);
+  assert.match(files.quoteSql, /new\.frais_livraison := v_quote\.frais_livraison/);
   assert.match(files.tariffSql, /frais_livraison between 1500 and 20000/);
-  assert.match(files.tariffSql, /v_r\\.frais_livraison between 1500 and 20000/);
+  assert.match(files.tariffSql, /v_r\.frais_livraison between 1500 and 20000/);
   assert.match(files.tariffSql, /naxa_delivery_tariff_zones/);
   assert.match(files.zoneConfig, /naxa_delivery_tariff_zones/);
   assert.match(files.adminDeliveries, /DeliveryTariffZoneConfig/);
