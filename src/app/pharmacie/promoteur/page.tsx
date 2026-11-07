@@ -184,6 +184,33 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
     securityCamerasResult.error, securityConnectionsResult.error, securityEventsResult.error,
   ].every((error) => !error);
 
+  if (section === "securite") {
+    return (
+      <main data-promoteur-section="securite" className="min-h-screen min-w-0 overflow-x-clip bg-naxa-green-50 text-naxa-green-900">
+        <div className="mx-auto max-w-[1600px] space-y-5 px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+          <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-naxa-green-900 p-5 text-white sm:p-7">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.16em] text-white/70">Espace Promoteur · Module dédié</p>
+              <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">Sécurité intelligente</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">Surveillance multi-caméras des pharmacies de votre réseau, dans le respect de votre périmètre d’accès.</p>
+            </div>
+            <Link href="/pharmacie/promoteur" className="inline-flex min-h-11 items-center rounded-full bg-[#FFE33D] px-4 py-2 text-sm font-extrabold text-naxa-green-900">← Tableau de bord</Link>
+          </header>
+          <PromoteurSecuriteIntelligente
+            pharmacies={activePharmacies.map((ph) => ({ id: ph.id, nom: ph.nom, ville: ph.ville, quartier: ph.quartier }))}
+            installations={securityInstallationsResult.data ?? []}
+            gateways={securityGatewaysResult.data ?? []}
+            cameras={securityCamerasResult.data ?? []}
+            connections={securityConnectionsResult.data ?? []}
+            events={securityEventsResult.data ?? []}
+            registryAvailable={securityRegistryAvailable}
+          />
+        </div>
+        <PromoteurSectionStyles />
+      </main>
+    );
+  }
+
   // Contrôle Promoteur 360° : sessions de service et indicateurs comptables strictement bornés
   // aux pharmacies actives, publiées et liées au Promoteur. Aucun détail de santé n'est chargé.
   const [
