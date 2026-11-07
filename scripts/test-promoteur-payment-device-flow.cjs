@@ -5,7 +5,7 @@ const test = require("node:test");
 
 const root = path.join(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
-const migration = read("supabase/migrations/20261107084300_promoteur_payment_device_capture.sql");
+const migration = read("supabase/migrations/20261107075228_promoteur_payment_device_capture_20261107.sql");
 const register = read("src/app/api/promoteur/paiements/device/register/route.ts");
 const intent = read("src/app/api/promoteur/paiements/intent/route.ts");
 const capture = read("src/app/api/promoteur/paiements/capture/route.ts");
