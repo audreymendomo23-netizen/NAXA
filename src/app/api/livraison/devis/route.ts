@@ -3,6 +3,7 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import {
   calculerMatriceRoutiere,
   calculerTarifLivraison,
+  determinerZoneLivraison,
   estCoordonneeCamerounaise,
   creerLienGoogleMaps,
 } from "@/lib/server/delivery-routing";
@@ -65,7 +66,19 @@ export async function POST(request: NextRequest) {
       }, { status: 422 });
     }
 
-    const frais = calculerTarifLivraison(km);
+    const { data: zonesData, error: zonesError } = await db
+      .from("naxa_delivery_tariff_zones")
+      .select("id,nom,zone_type,centre_latitude,centre_longitude,rayon_km,supplement_fcfa")
+      .eq("actif", true);
+    if (zonesError) throw new Error("DELIVERY_ZONE_RULES_UNAVAILABLE");
+
+    const zone = determinerZoneLivraison(client, (zonesData ?? []) as Array<{
+      id: string; nom: string; zone_type: "periurbaine" | "eloignee" | "difficile";
+      centre_latitude: number; centre_longitude: number; rayon_km: number; supplement_fcfa: number;
+    }>);
+    const zoneType = zone?.zone_type ?? "standard";
+    const zoneSupplement = Number(zone?.supplement_fcfa ?? 0);
+    const frais = calculerTarifLivraison(km, zoneType, zoneSupplement);
     const now = new Date();
     const expire = new Date(now.getTime() + 10 * 60 * 1000);
     await db.from("naxa_delivery_quotes")
@@ -86,6 +99,10 @@ export async function POST(request: NextRequest) {
         distance_routiere_km: km,
         duree_minutes: route.dureeMinutes,
         frais_livraison: frais,
+        zone_id: zone?.id ?? null,
+        zone_type: zoneType,
+        zone_supplement_fcfa: zoneSupplement,
+        formule_version: "progressive_zones_v1",
         fournisseur_itineraire: route.fournisseur,
         calcule_le: now.toISOString(),
         expire_le: expire.toISOString(),
