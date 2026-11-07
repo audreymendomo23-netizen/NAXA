@@ -16,7 +16,7 @@ test("import adaptatif : vocabulaire français/anglais et colonnes de logiciels 
     assert.ok(engine.toLowerCase().includes(token), "Alias absent : " + token);
   }
   assert.match(engine, /normaliserColonneStock/);
-  assert.match(engine, /suggest(er|ionner)ColonnesStock/);
+  assert.match(engine, /suggererColonnesStock/);
 });
 
 test("import adaptatif : détection d'en-têtes décalés et parsing multi-feuilles", () => {
