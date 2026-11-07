@@ -195,3 +195,18 @@ Relais sirène, commandes distantes signées, confirmations, anti-rejeu, arrêt 
 Périmètre fonctionnel retenu : live et lecture sécurisés, droits Promoteur/Responsable, événements locaux et clips, IA descriptive avec contrôle humain, alerte mobile par application Android compagnon, sirène physique autonome et commande distante explicitement confirmée. La reconnaissance faciale et les accusations automatiques sont exclues.
 
 **Dépendances avant le premier pilote :** pharmacie volontaire, inventaire caméra/NVR, test ONVIF, réseau/UPS, validation juridique, devis matériel et définition de conservation. Aucun coût ni délai de déploiement n'est déclaré avant ces éléments.
+
+
+## 12. Contrôles transversaux constatés sur Supabase Replay
+
+Le contrôle de sécurité du projet Replay après la migration géographique a relevé des avertissements préexistants au module Sécurité Intelligente :
+
+- Des fonctions `SECURITY DEFINER` exposées par le schéma API peuvent être appelées par `anon`, notamment `log_evenement` et `log_recherche`.
+- Plusieurs fonctions `SECURITY DEFINER` sont exécutables par `authenticated`, notamment des fonctions d'accréditation (`accrediter_profile`, `accrediter_responsable`), de rappel de lots, d'indicateurs Admin et de création/gestion d'objets Admin. Le contrôle doit vérifier pour chacune que l'autorisation interne, les arguments, le `search_path` et les privilèges d'exécution correspondent exactement au contrat.
+- La protection Supabase Auth contre les mots de passe compromis est signalée désactivée dans Replay.
+
+Ces observations ne proviennent pas du code caméra (qui n'existe pas encore) et ne sont pas corrigées par ce chantier GPS. Elles constituent des réserves de sécurité transversales pour le feu vert global de NAXA et devront être auditées fonction par fonction ; le présent chantier ne révoque aucune fonction métier sans analyse de son usage.
+
+### Contrôle du nouveau journal géographique
+
+Vérification sur Replay : `public.naxa_pharmacie_geo_audit` existe, avec RLS activée et forcée ; `anon` et `authenticated` n'ont pas le privilège `SELECT`, tandis que `service_role` possède le privilège `INSERT`. Le Security Advisor peut afficher « RLS enabled, no policy » pour cette table : ce choix est intentionnel, car aucune lecture ou écriture cliente n'est autorisée ; les écritures et consultations passent par le serveur privilégié NAXA. Cette information est distincte des avertissements `SECURITY DEFINER` ci-dessus.

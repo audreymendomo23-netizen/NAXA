@@ -255,7 +255,7 @@ test("GPS par établissement : provenance, mise en attente et vérification Admi
   const access = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "promoteur-access.ts"), "utf8");
   const adminPage = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "pharmacies", "[id]", "page.tsx"), "utf8");
   const adminAction = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "pharmacies", "[id]", "actions.ts"), "utf8");
-  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261108000000_promoteur_pharmacy_geo_management.sql"), "utf8");
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261107174620_promoteur_pharmacy_geo_management.sql"), "utf8");
   assert.match(geoForm, /name="geo_source_type"/);
   assert.match(geoForm, /setSource\("gps"\)/);
   assert.match(geoForm, /setSource\("saisie_manuelle"\)/);
