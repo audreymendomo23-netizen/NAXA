@@ -186,14 +186,16 @@ jobs:
             shopt -s nullglob
             mapfile -d '' migration_files < <(find supabase -maxdepth 1 -type f -name 'migration_*.sql' -print0 | LC_ALL=C sort -z)
             printf 'Nombre de migrations sources: %s\n' "${#migration_files[@]}"
-            if [[ "${#migration_files[@]}" -ne 96 ]]; then
-              echo "FAIL: attendu 96 migrations sources, trouvé ${#migration_files[@]}"
+            if [[ "${#migration_files[@]}" -lt 342 ]]; then
+              echo "FAIL: attendu au minimum 342 migrations sources, trouvé ${#migration_files[@]}"
               exit 1
             fi
             n=1
             for f in "${migration_files[@]}"; do
-              printf 'SOURCE[%02d]: %s\n' "$n" "$f"
-              ts=$(printf '202610060000%02d' "$n")
+              printf 'SOURCE[%03d]: %s\n' "$n" "$f"
+              # Keep a fixed 14-digit Supabase version for every migration,
+              # including n >= 100, so lexical order remains numeric order.
+              ts=$(printf '20261006%06d' "$n")
               cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
               n=$((n+1))
             done
@@ -277,8 +279,8 @@ jobs:
             PY
             mapfile -d '' test_files < <(find supabase/tests -type f -name '*.sql' -print0 | LC_ALL=C sort -z)
             echo "Nombre de tests SQL détectés récursivement: ${#test_files[@]}"
-            if [[ "${#test_files[@]}" -ne 65 ]]; then
-              echo "FAIL: attendu 65 tests SQL, trouvé ${#test_files[@]}"
+            if [[ "${#test_files[@]}" -lt 260 ]]; then
+              echo "FAIL: attendu au minimum 260 tests SQL, trouvé ${#test_files[@]}"
               printf 'Tests trouvés:\n'
               printf ' - %s\n' "${test_files[@]}"
               exit 1
