@@ -274,7 +274,7 @@ export function AccueilClient() {
         try {
           const { data: pharmRows, error: pharmError } = await sb
             .from("pharmacies")
-            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at,horaires,stock_updated_at")
+            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at:photo_verifiee_le,horaires,stock_updated_at")
             .eq("actif", true)
             .eq("visible_recherche", true)
             .is("archivee_le", null)

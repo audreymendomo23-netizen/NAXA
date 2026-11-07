@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const allRows: PharmacieRow[] = [];
   for (let offset = 0; offset < 50000; offset += 1000) {
     const { data: page, error } = await db.from("pharmacies")
-      .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,livraison_active,rayon_livraison_km,horaires,photo_url,photo_verified_at,stock_updated_at")
+      .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,livraison_active,rayon_livraison_km,horaires,photo_url,photo_verified_at:photo_verifiee_le,stock_updated_at")
       .eq("actif", true)
       .eq("visible_recherche", true)
       .eq("est_demo", false)
