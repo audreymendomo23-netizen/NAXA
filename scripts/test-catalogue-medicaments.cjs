@@ -117,6 +117,9 @@ test("photos : aucune image de substitution sans correspondance et licence véri
   assert.doesNotMatch(photoRoute, /rechercherPhotosMedicament/);
   assert.doesNotMatch(photoRoute, /wikimedia_commons/);
   assert.match(photoRoute, /exactIdentityMatch/);
+  assert.match(photoRoute, /function dosageSignature/);
+  assert.match(photoRoute, /wantedDose !== candidateDose/);
+  assert.match(photoRoute, /safeQuery\.length < 3/);
   assert.match(photoRoute, /unrequestedCombination/);
   assert.match(photoRoute, /photo_licence/);
   assert.match(photoRoute, /photo_verifiee_le/);
