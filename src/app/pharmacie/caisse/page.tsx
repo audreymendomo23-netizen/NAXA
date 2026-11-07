@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { fcfa } from "@/lib/ranking";
 import { monnaieARendre, totalPanier } from "@/lib/caisse/calculs";
 import { CaisseRetraitsMarketplace } from "@/components/pharmacie/CaisseRetraitsMarketplace";
+import { DeliveryPaymentValidationPanel } from "@/components/pharmacie/DeliveryPaymentValidationPanel";
 import RapportsALaDemande from "@/components/RapportsALaDemande";
 import { TicketPharmacyLogo } from "@/components/pharmacie/TicketPharmacyLogo";
 import { printAfterImagesLoaded } from "@/lib/print-after-images";
@@ -633,11 +634,13 @@ export default function CaissePage() {
               <button type="button" className={onglet === "caisse" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("caisse"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Encaissement</button>
               <button type="button" className={onglet === "recherche" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("recherche"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Recherche prix</button>
               <a className="btn btn-clair shrink-0" href="#caisse-retraits">Retraits Marketplace</a>
+              <a className="btn btn-clair shrink-0" href="#caisse-livraisons">Paiements livraison</a>
               <a className="btn btn-clair shrink-0" href="#caisse-decaissements">Décaissements</a>
               <a className="btn btn-clair shrink-0" href="#caisse-historique">Historique tickets</a>
               <a className="btn btn-clair shrink-0" href="#caisse-cloture">Clôture</a>
             </nav>
             <div id="caisse-retraits"><CaisseRetraitsMarketplace pharmacieId={pid} sessionId={session?.id ?? null} /></div>
+            <DeliveryPaymentValidationPanel pharmacieId={pid} sessionId={session?.id ?? null}/>
             <div id="caisse-decaissements"><CaisseDecaissements sessionId={session?.id ?? null} /></div>
             <section id="caisse-historique" className="carte mb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
