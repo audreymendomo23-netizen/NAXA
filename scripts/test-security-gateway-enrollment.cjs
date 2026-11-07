@@ -78,6 +78,6 @@ test("révocation : heartbeat bloqué, codes/clés invalidés et justification a
   assert.match(revoke, /revoked_at: now/);
   assert.match(revoke, /resource_type: "gateway"/);
   assert.match(revoke, /justification: reason/);
-  assert.match(ui.result.content, /Révoquer/);
-  assert.match(ui.result.content, /\/api\/security\/gateway\/revoke/);
+  assert.match(ui, /Révoquer/);
+  assert.match(ui, /\/api\/security\/gateway\/revoke/);
 });
