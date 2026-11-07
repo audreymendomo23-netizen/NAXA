@@ -1,6 +1,6 @@
 "use client";
 
-import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";
+import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";\nimport { PromoteurGatewayProvisioning } from "@/components/pharmacie/PromoteurGatewayProvisioning";
 
 import { useMemo, useState } from "react";
 
@@ -291,6 +291,18 @@ export function PromoteurSecuriteIntelligente({
                       <p><span className="text-slate-500">Caméras :</span> <strong>{pharmacyCameras.length}</strong></p>
                       <p><span className="text-slate-500">Alertes :</span> <strong>{openEvents.filter((event) => event.pharmacie_id === pharmacy.id).length}</strong></p>
                     </div>
+                    {pharmacyGateways.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {pharmacyGateways.map((gateway) => (
+                          <PromoteurGatewayProvisioning
+                            key={gateway.id}
+                            gatewayId={gateway.id}
+                            gatewayLabel={gateway.label}
+                            tunnelStatus={gateway.tunnel_status}
+                          />
+                        ))}
+                      </div>
+                    )}
                     {installation && <p className="mt-2 text-xs text-slate-500">Validation juridique : {installation.legal_review_status} · Information des personnes : {installation.privacy_notice_status}</p>}
                   </article>
                 );
