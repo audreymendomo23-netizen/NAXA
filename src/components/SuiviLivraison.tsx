@@ -2,6 +2,7 @@
 
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {supabaseBrowser} from "@/lib/supabase/client";
+import {DeliveryMissionChat} from "@/components/DeliveryMissionChat";
 
 type DeliveryEvent={
   id:string;event_type:string;label:string;detail:string|null;
@@ -93,6 +94,7 @@ export function SuiviLivraison({reservationId,echeanceAt,destinationLat,destinat
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Votre livreur</p>
       <p className="mt-1 font-extrabold">{driverName}</p>
     </div>}
+    <DeliveryMissionChat reservationId={reservationId} viewer="client"/>
     <ol className="space-y-3">
       {timeline.map(item=><li key={item.key} className="flex gap-3">
         <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-emerald-700"/>
