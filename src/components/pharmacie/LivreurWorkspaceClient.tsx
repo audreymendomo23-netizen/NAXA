@@ -5,6 +5,7 @@ import {useCallback,useEffect,useMemo,useState} from "react";
 import {supabaseBrowser} from "@/lib/supabase/client";
 import {EspaceNaxaSwitcher} from "@/components/EspaceNaxaSwitcher";
 import {DeliveryClientSignaturePad} from "@/components/DeliveryClientSignaturePad";
+import {DeliveryMissionChat} from "@/components/DeliveryMissionChat";
 
 type Item={quantite:number;nom:string;dosage:string|null};
 type Mission={
@@ -203,7 +204,13 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
             <div className="grid gap-3 lg:grid-cols-2">{active.map(m=><article key={m.id} className="rounded-2xl border bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Mission active</p><h3 className="mt-1 text-lg font-black">Commande #{m.reservation_id.slice(0,8).toUpperCase()}</h3></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-950">{statusLabels[m.statut]??m.statut}</span></div>
               <p className="mt-2 text-sm text-slate-600">{[m.adresse,m.repere,m.quartier,m.ville].filter(Boolean).join(", ")||"Adresse non renseignée"}</p>
-              {m.telephone&&<a href={"tel:"+m.telephone} className="mt-1 inline-block text-sm font-bold text-emerald-900 underline">Appeler le Client · {m.telephone}</a>}
+              <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-900">Contacter le Client</p>
+                {m.telephone
+                  ? <a href={"tel:"+m.telephone} className="mt-2 inline-flex min-h-10 items-center rounded-lg bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white">Appeler le Client · {m.telephone}</a>
+                  : <p className="mt-2 text-xs text-amber-900">Numéro non renseigné. Utilisez la messagerie NAXA.</p>}
+                <DeliveryMissionChat reservationId={m.reservation_id} viewer="livreur"/>
+              </div>
               <ul className="mt-3 space-y-1 border-t pt-3 text-sm">{(m.items??[]).map((item,i)=><li key={i}>{item.quantite} × {item.nom}{item.dosage?" · "+item.dosage:""}</li>)}</ul>
               <p className="mt-3 font-extrabold">Articles : {money(m.total)}</p>{m.statut==="arrived"&&m.paiement_mode==="especes_livraison"&&<p className="mt-1 text-sm font-bold">À encaisser avec la livraison : {money(m.montant_a_encaisser)}</p>}
               <div className="mt-4 flex flex-wrap gap-2">
