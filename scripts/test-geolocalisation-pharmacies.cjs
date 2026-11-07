@@ -206,3 +206,32 @@ test("Géocodage : limite globale atomique et fonction réservée au serveur", (
   assert.match(migration, /grant execute on function public\.naxa_reserve_api_rate_limit/);
   assert.match(migration, /to service_role/);
 });
+
+test("Accueil gardes : réseau NAXA national uniquement, périodes confirmées et tri par distance", () => {
+  const api = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "pharmacies", "gardes", "route.ts"), "utf8");
+  const home = fs.readFileSync(path.join(__dirname, "..", "src", "components", "AccueilClient.tsx"), "utf8");
+  assert.match(api, /\.eq\("est_demo", false\)/);
+  assert.match(api, /\.eq\("de_garde", true\)/);
+  assert.match(api, /\.lte\("garde_debut", nowIso\)/);
+  assert.match(api, /\.gt\("garde_fin", nowIso\)/);
+  assert.match(api, /\.gte\("garde_verifiee_le", verificationMin\)/);
+  assert.match(api, /\.order\("region"/);
+  assert.doesNotMatch(api, /chargerGardesMfasha|mfasha\.com/);
+  assert.doesNotMatch(api, /illustration|creerIllustrationPharmacie/);
+  assert.match(home, /gardesTriees/);
+  assert.match(home, /distance\(coord\.lat, coord\.lng, a\.lat, a\.lng\)/);
+  assert.doesNotMatch(home, /pharmaciesProches\.filter\(p => p\.de_garde\)/);
+  assert.match(home, /annuaire-medical\.cm\/fr\/pharmacies-de-garde/);
+  assert.doesNotMatch(home, /mboapharma\.cm\/single-location-3\/yaounde/);
+});
+
+test("Accueil public : l'échec GPS ne prétend plus utiliser Yaoundé par défaut", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "page.tsx"), "utf8");
+  const dictionary = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "accueil-textes.ts"), "utf8");
+  assert.match(page, /setPosition\("indisponible"\)/);
+  assert.match(page, /t\.localisationIndisponible/);
+  assert.doesNotMatch(page, /yaoundeDefaut/);
+  assert.doesNotMatch(dictionary, /Yaoundé par défaut|Yaoundé by default/);
+  assert.match(dictionary, /Position non disponible/);
+  assert.match(dictionary, /Location unavailable/);
+});
