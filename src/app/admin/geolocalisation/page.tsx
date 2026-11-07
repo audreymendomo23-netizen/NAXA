@@ -77,8 +77,7 @@ export default function GeolocalisationAdminPage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FFE23D]">Référentiel cartographique</p>
           <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">Géolocalisation des pharmacies</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">
-            Récupérez les pharmacies de Yaoundé cartographiées par OpenStreetMap. Les noms correspondants
-            peuvent compléter les coordonnées manquantes des partenaires existants, sans modifier les positions déjà renseignées.
+            Récupérez les candidats d’annuaire cartographiés dans les dix régions du Cameroun. Les noms et les villes exacts peuvent aider à compléter les coordonnées manquantes des partenaires existants, sans modifier les positions déjà renseignées.
           </p>
           <button type="button" onClick={synchroniser} disabled={synchronisation || chargement}
             className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#FFE23D] px-5 py-3 text-sm font-extrabold text-[#0B3D26] disabled:cursor-not-allowed disabled:opacity-60">
@@ -110,7 +109,7 @@ export default function GeolocalisationAdminPage() {
 
         <section className="grid gap-3 sm:grid-cols-3">
           <MetricCard label="Candidats à confirmer" value={chargement ? "…" : etat?.candidatsAConfirmer ?? "—"} detail="Référentiel public, hors partenaires" />
-          <MetricCard label="Partenaires sans GPS" value={chargement ? "…" : etat?.pharmaciesPartenairesSansCoordonnees ?? "—"} detail="Yaoundé uniquement" />
+          <MetricCard label="Partenaires sans GPS" value={chargement ? "…" : etat?.pharmaciesPartenairesSansCoordonnees ?? "—"} detail="Toutes les régions du Cameroun" />
           <MetricCard label="Dernière synchronisation" value={chargement ? "…" : dateLisible(etat?.derniereSynchronisation)} detail="Heure locale de l’appareil" />
         </section>
 
