@@ -138,6 +138,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
             if (!identities.length) return null;
             try {
               let imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> = { boite: null, comprime: null };
+              let photoSource: string | undefined;
               for (const identity of identities) {
                 const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), { signal: controller.signal });
                 if (!photoResponse.ok) continue;
@@ -148,6 +149,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                   };
                   source?: string;
                 };
+                photoSource = payload.source;
                 imageVariants = { boite: payload.photos?.boite ?? null, comprime: payload.photos?.comprime ?? null };
                 if (imageVariants.boite || imageVariants.comprime) break;
               }
@@ -156,7 +158,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
               return {
                 ...item,
                 imageUrl: primary.url,
-                imageSource: (payload.source === "catalogue_local_verifie" ? "Photo liée à la référence vérifiée — " : "Photo de référence validée — ") + (primary.kind === "boite" ? "boîte" : "présentation") + " · " + primary.licence,
+                imageSource: (photoSource === "catalogue_local_verifie" ? "Photo liée à la référence vérifiée — " : "Photo de référence validée — ") + (primary.kind === "boite" ? "boîte" : "présentation") + " · " + primary.licence,
                 imageSourceUrl: primary.sourceUrl,
                 imageLicense: primary.licence,
                 imageAttribution: primary.attribution,
