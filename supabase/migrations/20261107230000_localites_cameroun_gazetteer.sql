@@ -91,7 +91,7 @@ insert into public.localites_cameroun_sync(
 ) values (
   'forest_atlas_inc',
   'https://gis.forest-atlas.org/server/rest/services/cmr/open_data_fr/MapServer/146',
-  'CC-BY-4.0',
+  'Licence non précisée par le service source — vérifier les droits avant réutilisation',
   'Couche MINFOF/WRI/INC numérisée à partir de cartes topographiques au 1:200 000; description source: liste non exhaustive et coordonnées approximatives.',
   'jamais_lancee'
 ) on conflict(source_code) do nothing;
@@ -174,11 +174,11 @@ begin
       last_seen_at,updated_at
     ) values (
       'forest_atlas_inc',v_objectid,v_nom,
-      lower(extensions.unaccent(trim(v_nom))),v_type,v_lat,v_lng,
+      trim(regexp_replace(lower(extensions.unaccent(trim(v_nom))), '[^a-z0-9]+', ' ', 'g')),v_type,v_lat,v_lng,
       v_population,
       'https://gis.forest-atlas.org/server/rest/services/cmr/open_data_fr/MapServer/146',
-      'CC-BY-4.0',
-      'MINFOF/WRI/INC; cartes topographiques 1:200 000; coordonnées approximatives; couche source non exhaustive.',
+      'Licence non précisée par le service source — vérifier les droits avant réutilisation',
+      'MINFOF/WRI/INC; cartes topographiques 1:200 000; coordonnées approximatives; couche source non exhaustive; licence non publiée.',
       'approximate',
       v_props,
       now(),now()
@@ -215,7 +215,7 @@ begin
     'lignes_ignorees',v_skipped,
     'next_offset',p_offset+v_fetched,
     'terminee',v_fetched < p_limit,
-    'attribution','MINFOF/WRI/INC — CC BY 4.0',
+    'attribution','MINFOF/WRI/USAID; licence non publiée dans la fiche du service',
     'precision','Source approximative et non exhaustive; contrôle terrain non effectué.'
   );
 exception when others then
