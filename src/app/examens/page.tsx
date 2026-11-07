@@ -4,7 +4,10 @@ import { MenuUnivers } from "@/components/universes/MenuUnivers";
 import { supabaseServer } from "@/lib/supabase/server";
 import { reserverExamen } from "./actions";
 
-export default async function ExamensPage({searchParams}:{searchParams:{ok?:string;erreur?:string;q?:string;categorie?:string;tri?:string}}) {
+type ExamensSearchParams={ok?:string;erreur?:string;q?:string;categorie?:string;tri?:string};
+
+export default async function ExamensPage({searchParams}:{searchParams:Promise<ExamensSearchParams>}) {
+ const params=await searchParams;
  const sb=supabaseServer();
  const [{data:centers,error:centerError},{data:services,error:serviceError},{data:packs,error:packError},{data:slots,error:slotError}]=await Promise.all([
   sb.from("exam_centers").select("id,display_name,address_label,phone_public").eq("status","active").order("display_name"),
@@ -17,9 +20,9 @@ export default async function ExamensPage({searchParams}:{searchParams:{ok?:stri
  if(!centers?.length) return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-5xl pt-4"><div className="flex items-center justify-between"><Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link><MenuUnivers /></div><UniverseLanding universe="examens" /><p className="mx-auto mt-3 max-w-3xl rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Aucun centre partenaire n’est publié pour le moment. Revenez plus tard.</p></div></main>;
  const centerIds=new Set(centers.map((c:any)=>c.id));
  const usableSlots=(slots??[]).filter((s:any)=>centerIds.has(s.center_id)&&s.reserved_count<s.capacity);
- const query=(searchParams.q??"").trim().toLocaleLowerCase("fr");
- const category=searchParams.categorie??"";
- const sort=searchParams.tri??"pertinence";
+ const query=(params.q??"").trim().toLocaleLowerCase("fr");
+ const category=params.categorie??"";
+ const sort=params.tri??"pertinence";
  const availableServices=(services??[]).filter((s:any)=>centerIds.has(s.center_id)&&(!query||[s.name,s.category,s.description??""].join(" ").toLocaleLowerCase("fr").includes(query))&&(!category||s.category===category));
  const availablePacks=(packs??[]).filter((p:any)=>centerIds.has(p.center_id)&&(!query||[p.name,p.description??"","pack"].join(" ").toLocaleLowerCase("fr").includes(query))&&(!category||category==="Packs"));
  if(sort==="prix-croissant") { availableServices.sort((a:any,b:any)=>Number(a.price_fcfa)-Number(b.price_fcfa)); availablePacks.sort((a:any,b:any)=>Number(a.price_fcfa)-Number(b.price_fcfa)); }
@@ -29,12 +32,12 @@ export default async function ExamensPage({searchParams}:{searchParams:{ok?:stri
  return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]"><div className="mx-auto max-w-5xl pt-4">
  <div className="flex items-center justify-between gap-3"><Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link><MenuUnivers /></div>
  <header className="mt-3 rounded-3xl border border-[#D9CCF7] bg-[#F1EBFD] p-6 sm:p-8"><p className="text-xs font-extrabold uppercase tracking-widest text-[#6D3FD0]">NAXA · Réservation sans paiement en ligne</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Examens médicaux</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700">Compare les examens et packs proposés par les centres partenaires, puis choisis un créneau disponible. Le règlement se fait directement auprès du centre.</p></header>
- {searchParams.ok&&<p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-900">Réservation enregistrée. Ton ticket est disponible dans ton espace client. <Link href="/client" className="ml-1 underline">Ouvrir mon espace client</Link></p>}
- {searchParams.erreur&&<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-900">{searchParams.erreur==="compte"?"Cette réservation est réservée aux comptes clients connectés.":searchParams.erreur==="validation"?"Les informations de réservation sont invalides. Choisis un examen et un créneau proposés par le catalogue.":"Réservation impossible : le créneau peut avoir été pris entre-temps ou ne plus être disponible. Choisis-en un autre."}</p>}
+ {params.ok&&<p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-900">Réservation enregistrée. Ton ticket est disponible dans ton espace client. <Link href="/client" className="ml-1 underline">Ouvrir mon espace client</Link></p>}
+ {params.erreur&&<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-900">{params.erreur==="compte"?"Cette réservation est réservée aux comptes clients connectés.":params.erreur==="validation"?"Les informations de réservation sont invalides. Choisis un examen et un créneau proposés par le catalogue.":"Réservation impossible : le créneau peut avoir été pris entre-temps ou ne plus être disponible. Choisis-en un autre."}</p>}
  {!services?.length&&!packs?.length&&<p className="mt-5 rounded-2xl border bg-white p-5 text-slate-600">Aucun examen n’est publié pour le moment.</p>}
  <form method="get" className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
- <label className="text-sm font-bold">Rechercher un examen ou un pack<input type="search" name="q" value={searchParams.q??""} placeholder="Nom, catégorie…" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal"/></label>
+ <label className="text-sm font-bold">Rechercher un examen ou un pack<input type="search" name="q" value={params.q??""} placeholder="Nom, catégorie…" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal"/></label>
  <label className="text-sm font-bold">Catégorie<select name="categorie" value={category} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal"><option value="">Toutes les catégories</option>{categories.map((name)=><option key={name} value={name}>{name}</option>)}<option value="Packs">Packs d’examens</option></select></label>
  <label className="text-sm font-bold">Trier par<select name="tri" value={sort} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal"><option value="pertinence">Ordre du catalogue</option><option value="prix-croissant">Prix croissant</option><option value="prix-decroissant">Prix décroissant</option><option value="nom">Nom A à Z</option></select></label>
  </div><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-600">{availableServices.length+availablePacks.length} résultat(s) dans {centers.length} centre(s).</p><div className="flex gap-2"><Link href="/examens" className="inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-bold">Effacer</Link><button className="min-h-11 rounded-xl bg-[#6D3FD0] px-4 font-bold text-white">Rechercher</button></div></div>
