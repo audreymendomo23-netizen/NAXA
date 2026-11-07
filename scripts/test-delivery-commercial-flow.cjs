@@ -11,7 +11,7 @@ const files = {
   pricing: read("src/lib/delivery-pricing.ts"),
   routing: read("src/lib/server/delivery-routing.ts"),
   pricingTest: read("scripts/test-delivery-pricing.cjs"),
-  tariffSql: read("supabase/migrations/20261107150000_delivery_progressive_zone_tariffs.sql"),
+  tariffSql: read("supabase/migrations/20261107151233_delivery_progressive_zone_tariffs.sql"),
   adminDeliveries: read("src/app/admin/livraisons/page.tsx"),
   promoterDeliveries: read("src/app/pharmacie/promoteur/livraisons/page.tsx"),
   checkout: read("src/app/commande/nouvelle/page.tsx"),
