@@ -26,21 +26,26 @@ export async function GET(request: NextRequest) {
   }
 
   const db = supabaseAdmin();
-  const { data, error } = await db.from("pharmacies")
-    .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,livraison_active,rayon_livraison_km,horaires,photo_url,photo_verified_at,stock_updated_at")
-    .eq("actif", true)
-    .eq("visible_recherche", true)
-    .eq("est_demo", false)
-    .is("archivee_le", null)
-    .not("lat", "is", null)
-    .not("lng", "is", null)
-    .range(0, 4999);
-
-  if (error) {
-    return NextResponse.json({ ok: false, error: "Le réseau de pharmacies est momentanément indisponible." }, { status: 503 });
+  const allRows: PharmacieRow[] = [];
+  for (let offset = 0; offset < 50000; offset += 1000) {
+    const { data: page, error } = await db.from("pharmacies")
+      .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,livraison_active,rayon_livraison_km,horaires,photo_url,photo_verified_at,stock_updated_at")
+      .eq("actif", true)
+      .eq("visible_recherche", true)
+      .eq("est_demo", false)
+      .is("archivee_le", null)
+      .not("lat", "is", null)
+      .not("lng", "is", null)
+      .range(offset, offset + 999);
+    if (error) {
+      return NextResponse.json({ ok: false, error: "Le réseau de pharmacies est momentanément indisponible." }, { status: 503 });
+    }
+    const rows = (page ?? []) as PharmacieRow[];
+    allRows.push(...rows);
+    if (rows.length < 1000) break;
   }
 
-  const pharmacies = ((data ?? []) as PharmacieRow[])
+  const pharmacies = allRows
     .filter(p => estCoordonneeCamerounaise({ lat: Number(p.lat), lng: Number(p.lng) }))
     .map(p => ({ ...p, distanceVolOiseauKm: distanceVolOiseauKm(client, { lat: p.lat, lng: p.lng }) }))
     .sort((a, b) => a.distanceVolOiseauKm - b.distanceVolOiseauKm)

@@ -71,8 +71,8 @@ export function SuiviLivraisonPharmacie({reservationId}:{reservationId:string}) 
       : <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">La position GPS n’est pas encore partagée. Elle sera affichée après le retrait du colis.</p>}
     {latest&&typeof tracking.latitude_destination==="number"&&typeof tracking.longitude_destination==="number"&&
       <a className="mt-2 inline-flex text-xs font-bold underline" target="_blank" rel="noreferrer"
-        href={"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route="+latest.latitude+"%2C"+latest.longitude+"%3B"+tracking.latitude_destination+"%2C"+tracking.longitude_destination}>
-        Ouvrir l’itinéraire vers le Client
+        href={"https://www.google.com/maps/dir/?api=1&origin="+latest.latitude+","+latest.longitude+"&destination="+tracking.latitude_destination+","+tracking.longitude_destination+"&travelmode=driving"}>
+        Ouvrir l’itinéraire dans Google Maps
       </a>}
   </section>;
 }

@@ -15,6 +15,7 @@ type Meta={id:string;ville:string|null;horaires:string|null;photo_url:string|nul
 type Row=ResultatPharmacie&{ville:string;horaires:string|null;demo?:boolean};
 type CatalogItem={id:string;name:string;brand:string|null;activeIngredient:string|null;form:string|null;definition:string|null;indications:string|null;imageUrl:string|null;imageSource:string|null;imageSourceUrl?:string|null;imageLicense?:string|null;imageAttribution?:string|null;availability:"disponible"|"indisponible"|"non_verifiee";partnerPharmacyCount:number|null;lowestPartnerPrice:number|null;cameroonRegulatoryReference?:string};
 type Filters={stock:boolean;open:boolean;delivery:boolean;prescription:boolean;price:string;distance:string;rating:string};
+type LocaliteCandidate={id:string;label:string;type:string;region:string|null;departement:string|null;arrondissement:string|null;commune:string|null;lat:number;lng:number;precision:string;source:string};
 const fcfa=(n:number)=>new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g,"\u00a0")+" FCFA";
 function I({name,size=20}:{name:"back"|"search"|"x"|"filter"|"check"|"sort"|"pin"|"cart"|"pill"|"building"|"clock"|"user"|"star";size?:number}){
  const p={fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
@@ -36,7 +37,7 @@ function I({name,size=20}:{name:"back"|"search"|"x"|"filter"|"check"|"sort"|"pin
 }
 function ResultsContent(){
  const router=useRouter(),params=useSearchParams(),pValues=params.getAll("p"),basketMode=pValues.length>0;
- const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Votre position"),[coords,setCoords]=useState<{lat:number;lng:number}|null>(null),[locationInput,setLocationInput]=useState(""),[locationError,setLocationError]=useState(""),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"manual"|"fallback">("pending");
+ const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Votre position"),[coords,setCoords]=useState<{lat:number;lng:number}|null>(null),[locationInput,setLocationInput]=useState(""),[locationError,setLocationError]=useState(""),[locationCandidates,setLocationCandidates]=useState<LocaliteCandidate[]>([]),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"manual"|"fallback">("pending");
  const [filters,setFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""}),[activeFilters,setActiveFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""});
  const {ajouter,nombre}=usePanier();
  const [catalogue,setCatalogue]=useState<CatalogItem[]>([]),[catalogueLoading,setCatalogueLoading]=useState(false);
@@ -44,7 +45,39 @@ function ResultsContent(){
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
  const toggleFavori=(item:{id:string;nom:string;dosage?:string|null;photo_url?:string|null;prix?:number|null;pharmacie?:string;demo:boolean})=>{const suivants=basculerFavori({id:item.id,nom:item.nom,dosage:item.dosage??"",photo_url:item.photo_url??null,prix:typeof item.prix==="number"?item.prix:0,pharmacie:item.pharmacie??"Prix et pharmacie à confirmer",demo:item.demo});setFavoriIds(new Set(suivants.map(f=>f.id)));notifierNAXA(suivants.some(f=>f.id===item.id)?item.nom+" ajouté aux favoris.":item.nom+" retiré des favoris.")};
  const actualiserPosition=useCallback(async()=>{setLocationStatus("pending");setLocationError("");try{const position=await obtenirPositionGPS();setCoords({lat:position.lat,lng:position.lng});const ville=villeDepuisPosition(position.lat,position.lng);setCity(ville==="À proximité"?"Votre position":ville);setLocationStatus("gps")}catch{setCoords(null);setCity("Lieu à choisir");setLocationStatus("fallback");setLocationError("Autorisez la localisation ou saisissez votre ville pour voir les pharmacies de votre secteur.")}},[]);
- const rechercherLieu=useCallback(async()=>{const q=locationInput.trim();if(q.length<2){setLocationError("Saisissez une ville ou une localité du Cameroun.");return}setLocationStatus("pending");setLocationError("");try{const response=await fetch("/api/geolocalisation/recherche?q="+encodeURIComponent(q),{cache:"no-store"});const payload=await response.json() as {lat?:number;lng?:number;label?:string;error?:string};if(!response.ok||typeof payload.lat!=="number"||typeof payload.lng!=="number")throw new Error(payload.error||"Localité introuvable au Cameroun.");setCoords({lat:payload.lat,lng:payload.lng});setCity(payload.label||q);setLocationStatus("manual")}catch(error){setCoords(null);setLocationStatus("fallback");setLocationError(error instanceof Error?error.message:"Impossible de localiser cette ville.")}},[locationInput]);
+ const choisirLocalite=useCallback((candidate:LocaliteCandidate)=>{
+   setCoords({lat:candidate.lat,lng:candidate.lng});
+   setCity([candidate.label,candidate.arrondissement,candidate.departement,candidate.region].filter(Boolean).join(", "));
+   setLocationCandidates([]);
+   setLocationError(candidate.precision==="approximate"
+     ? "Position issue d’une source cartographique approximative. Vérifiez le repère sur la carte."
+     : "");
+   setLocationStatus("manual");
+ },[]);
+ const rechercherLieu=useCallback(async()=>{
+   const q=locationInput.trim();
+   if(q.length<2){setLocationError("Saisissez une ville ou une localité du Cameroun.");return}
+   setLocationStatus("pending");setLocationError("");setLocationCandidates([]);
+   try{
+     const response=await fetch("/api/geolocalisation/recherche?q="+encodeURIComponent(q),{cache:"no-store"});
+     const payload=await response.json() as {lat?:number;lng?:number;label?:string;error?:string;candidates?:LocaliteCandidate[]};
+     if(response.status===409&&Array.isArray(payload.candidates)&&payload.candidates.length){
+       setLocationCandidates(payload.candidates);
+       setLocationStatus("fallback");
+       setLocationError(payload.error||"Choisissez la bonne localité.");
+       return;
+     }
+     if(!response.ok||typeof payload.lat!=="number"||typeof payload.lng!=="number")
+       throw new Error(payload.error||"Localité introuvable au Cameroun.");
+     setCoords({lat:payload.lat,lng:payload.lng});
+     setCity(payload.label||q);
+     setLocationStatus("manual");
+   }catch(error){
+     setCoords(null);setLocationStatus("fallback");
+     setLocationError(error instanceof Error?error.message:"Impossible de localiser cette ville.");
+   }
+ },[locationInput]);
+
  useEffect(()=>{
    const q=params.getAll("q").join(" ").trim();
    setQuery(q);setDebounced(q);
@@ -86,7 +119,15 @@ function ResultsContent(){
     <div className="flex flex-wrap items-center gap-2"><span aria-live="polite" className="min-w-0 flex-1">{locationStatus==="gps"?"Position GPS utilisée":locationStatus==="manual"?"Localité sélectionnée":locationStatus==="pending"?"Recherche de votre position…":"Aucune position sélectionnée"}</span><button type="button" onClick={()=>void actualiserPosition()} className="min-h-9 rounded-lg bg-[#0F6B3F] px-3 font-bold text-white disabled:opacity-60" disabled={locationStatus==="pending"}>Utiliser le GPS</button></div>
     <form className="flex min-w-0 gap-2" onSubmit={e=>{e.preventDefault();void rechercherLieu()}}><label className="sr-only" htmlFor="naxa-ville">Ville ou localité au Cameroun</label><input id="naxa-ville" value={locationInput} onChange={e=>setLocationInput(e.target.value)} placeholder="Ville ou localité (ex. Garoua, Bafoussam, Kribi)" className="min-h-11 min-w-0 flex-1 rounded-lg border border-[#D7E5DC] px-3 text-sm text-[#0B3D26]"/><button type="submit" className="min-h-11 shrink-0 rounded-lg border border-[#0F6B3F] px-3 font-bold text-[#0F6B3F]" disabled={locationStatus==="pending"}>Choisir</button></form>
     <p className="text-[11px]">Localisation : {city}. Recherche dans le réseau partenaire à l’échelle du Cameroun.</p>{locationError&&<p role="alert" className="text-xs font-semibold text-amber-800">{locationError}</p>}
-    <p className="text-[10px] text-slate-400">Géocodage OpenStreetMap · © contributeurs OpenStreetMap</p>
+    {locationCandidates.length>0&&<ul aria-label="Localités correspondantes" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+      {locationCandidates.map(candidate=><li key={candidate.id}>
+        <button type="button" onClick={()=>choisirLocalite(candidate)} className="flex min-h-11 w-full flex-col items-start rounded-lg bg-white px-3 py-2 text-left shadow-sm">
+          <span className="text-sm font-bold text-[#0B3D26]">{candidate.label}</span>
+          <span className="text-xs text-slate-600">{[candidate.type,candidate.arrondissement,candidate.departement,candidate.region].filter(Boolean).join(" · ") || "Localité cartographiée"} · {candidate.lat.toFixed(5)}, {candidate.lng.toFixed(5)}</span>
+        </button>
+      </li>)}
+    </ul>}
+    <p className="text-[10px] text-slate-400">Référentiel de localités et OpenStreetMap · positions approximatives à vérifier sur le terrain.</p>
    </div>
    <div className="mt-4 -mx-1 flex flex-wrap gap-2 px-1 pb-1" aria-label="Filtres de recherche">
     <button type="button" onClick={()=>{setSort("distance");setAscending(true);setActiveFilters(v=>({...v,distance:""}));setFilters(v=>({...v,distance:""}))}} aria-pressed={sort==="distance"} className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[#B8F536] px-4 text-xs font-extrabold shadow-sm "+(sort==="distance"?"bg-[#B8F536] text-[#0B3D26]":"bg-white text-[#0B3D26]")}><I name="pin" size={15}/>Par distance</button>
