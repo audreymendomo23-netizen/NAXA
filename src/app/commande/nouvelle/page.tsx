@@ -347,15 +347,10 @@ export default function NouvelleTransactionPage() {
                   <input value={value} onChange={event => setter(event.target.value)} className="champ mt-1" required={label !== "Repère (facultatif)"}/>
                 </label>
               ))}
-              {lat !== null && lng !== null && <p className="text-xs text-slate-500">GPS : {lat.toFixed(5)}, {lng.toFixed(5)}</p>}
               {routeLoading && <p className="text-sm text-slate-600">Calcul de la distance routière…</p>}
               {routeQuote && deliveryFee !== null && (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                  <p className="text-xs text-emerald-900">Distance routière calculée ({routeQuote.fournisseur === "google_routes" ? "Google Routes" : "OpenStreetMap / OSRM"}) : {routeQuote.km.toFixed(1)} km · environ {routeQuote.minutes} min</p>
-                  <p className="mt-1 text-lg font-black text-emerald-950">Frais de livraison : {deliveryFee.toLocaleString("fr-FR")} FCFA</p>
-                  <p className="text-xs text-emerald-900">Tarif minimum 1 500 FCFA · maximum 3 500 FCFA · devis valable 10 minutes.</p>
-                  <a href={routeQuote.googleMapsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-bold text-emerald-950 underline">Voir le trajet dans Google Maps</a>
-                  <p className="mt-1 text-xs text-emerald-900">Le serveur NAXA enregistrera ce devis à la création de la commande. Le paiement interviendra après acceptation par le Gestionnaire de stock.</p>
+                  <p className="text-lg font-black text-emerald-950">Frais de livraison : {deliveryFee.toLocaleString("fr-FR")} FCFA</p>
                 </div>
               )}
             </section>
