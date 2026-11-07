@@ -26,20 +26,26 @@ const statusText: Record<string, string> = {
   expired: "Expirée",
 };
 
-export default async function ReservationUniversPage({ params, searchParams }: { params: { id: string }; searchParams: { ok?: string; erreur?: string; viderPanier?: string; univers?: string } }) {
-  if (!/^[0-9a-f-]{36}$/i.test(params.id)) redirect("/");
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ok?: string; erreur?: string; viderPanier?: string; univers?: string }>;
+};
+
+export default async function ReservationUniversPage({ params, searchParams }: Props) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) redirect("/");
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/univers-reservation/" + params.id);
-  const { data, error } = await sb.rpc("get_universe_reservation_receipt", { p_reservation_id: params.id });
+  if (!auth.user) redirect("/connexion?retour=/univers-reservation/" + id);
+  const { data, error } = await sb.rpc("get_universe_reservation_receipt", { p_reservation_id: id });
   const receipt = ((data ?? []) as unknown as Receipt[])[0];
   if (error || !receipt) return <main className="mx-auto max-w-xl px-4 py-8"><Link href="/" className="font-bold underline">← Accueil NAXA</Link><section className="carte mt-5"><h1 className="text-xl font-extrabold">Réservation indisponible</h1><p className="mt-2 text-sm text-slate-600">Le reçu ne peut pas être chargé. Vérifiez que vous êtes connecté au compte ayant effectué la réservation, puis réessayez.</p></section></main>;
   const canCancel = ["requested", "confirmed"].includes(receipt.status) && new Date(receipt.expires_at).getTime() > Date.now();
   const universe = receipt.universe_slug === "bebe-maman" ? "Bébé & Maman" : "Parapharmacie";
-  return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={searchParams.viderPanier} universeSlug={searchParams.univers}/>
+  return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={query.viderPanier} universeSlug={query.univers}/>
     <nav className="flex justify-end pt-3"><Link href={"/" + receipt.universe_slug} className="inline-flex min-h-10 items-center rounded-full border border-[#C8DDCF] px-4 text-sm font-bold text-[#0B3D26] underline-offset-2 hover:bg-[#EAF3ED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F6B3F]">Retour au catalogue</Link></nav>
-    {searchParams.ok && <p role="status" className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation annulée.</p>}
-    {searchParams.erreur && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">L’annulation n’a pas abouti. Actualisez le statut avant de réessayer.</p>}
+    {query.ok && <p role="status" className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation annulée.</p>}
+    {query.erreur && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">L’annulation n’a pas abouti. Actualisez le statut avant de réessayer.</p>}
     <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">{universe} · Retrait</p><h1 className="mt-1 text-2xl font-black">Mon reçu de réservation</h1>
     <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-sm text-slate-500">Statut</p><p className="mt-1 font-extrabold">{statusText[receipt.status] ?? receipt.status}</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">Sans paiement en ligne</span></div>
       <div className="mt-5 rounded-xl bg-[#E6F7F6] p-4 text-center"><p className="text-xs font-bold uppercase tracking-widest text-[#096A6F]">Code de retrait</p><p className="mt-2 font-mono text-3xl font-black tracking-[0.25em] text-[#064B2A]">{receipt.pickup_code}</p><p className="mt-2 text-xs leading-5 text-slate-700">Présentez ce code au partenaire lorsque la réservation sera marquée « Prête pour le retrait ».</p></div>
