@@ -57,3 +57,15 @@ test("interface Promoteur : code à usage unique, pas de journalisation navigate
   assert.match(dashboard, /PromoteurGatewayProvisioning/);
   assert.doesNotMatch(ui, /console\.(log|info|debug).*token/i);
 });
+
+test("migration 303 : contraintes caméra idempotentes pour les rejeux racine + horodaté", () => {
+  assert.match(migration, /do \$naxa_security_gateway_enrollment\$/);
+  for (const constraint of [
+    "naxa_security_camera_connection_path_no_credentials_ck",
+    "naxa_security_camera_connection_vault_reference_ck",
+    "naxa_security_camera_connection_metadata_no_secrets_ck",
+  ]) {
+    assert.match(migration, new RegExp("conname = '" + constraint + "'"));
+  }
+  assert.match(migration, /end\s+\$naxa_security_gateway_enrollment\$;/);
+});

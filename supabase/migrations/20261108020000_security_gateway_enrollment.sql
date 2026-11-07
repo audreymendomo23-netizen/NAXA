@@ -62,27 +62,53 @@ create table if not exists public.naxa_security_gateway_request_nonces (
 create index if not exists naxa_security_gateway_nonces_expiry_idx
   on public.naxa_security_gateway_request_nonces (gateway_id, expires_at);
 
-alter table public.naxa_security_camera_connections
-  add constraint naxa_security_camera_connection_path_no_credentials_ck
-    check (
-      endpoint_path is null
-      or endpoint_path !~* '[?&](password|passwd|token|secret|api_key|access_token|authorization)='
-    ),
-  add constraint naxa_security_camera_connection_vault_reference_ck
-    check (
-      auth_secret_reference is null
-      or (
-        auth_mode <> 'none'
-        and length(auth_secret_reference) between 10 and 264
-        and auth_secret_reference like 'vault://%'
-        and substring(auth_secret_reference from 9) ~ '^[A-Za-z0-9]'
-        and substring(auth_secret_reference from 9) !~ '[^-A-Za-z0-9/_]'
-      )
-    ),
-  add constraint naxa_security_camera_connection_metadata_no_secrets_ck
-    check (
-      connection_metadata::text !~* '"[^"]*(password|passwd|secret|token|authorization|api_key)[^"]*"[[:space:]]*:'
-    );
+do $naxa_security_gateway_enrollment$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.naxa_security_camera_connections'::regclass
+      and conname = 'naxa_security_camera_connection_path_no_credentials_ck'
+  ) then
+    alter table public.naxa_security_camera_connections
+      add constraint naxa_security_camera_connection_path_no_credentials_ck
+      check (
+        endpoint_path is null
+        or endpoint_path !~* '[?&](password|passwd|token|secret|api_key|access_token|authorization)='
+      );
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.naxa_security_camera_connections'::regclass
+      and conname = 'naxa_security_camera_connection_vault_reference_ck'
+  ) then
+    alter table public.naxa_security_camera_connections
+      add constraint naxa_security_camera_connection_vault_reference_ck
+      check (
+        auth_secret_reference is null
+        or (
+          auth_mode <> 'none'
+          and length(auth_secret_reference) between 10 and 264
+          and auth_secret_reference like 'vault://%'
+          and substring(auth_secret_reference from 9) ~ '^[A-Za-z0-9]'
+          and substring(auth_secret_reference from 9) !~ '[^-A-Za-z0-9/_]'
+        )
+      );
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.naxa_security_camera_connections'::regclass
+      and conname = 'naxa_security_camera_connection_metadata_no_secrets_ck'
+  ) then
+    alter table public.naxa_security_camera_connections
+      add constraint naxa_security_camera_connection_metadata_no_secrets_ck
+      check (
+        connection_metadata::text !~* '"[^"]*(password|passwd|secret|token|authorization|api_key)[^"]*"[[:space:]]*:'
+      );
+  end if;
+end
+$naxa_security_gateway_enrollment$;
 
 alter table public.naxa_security_gateway_enrollments enable row level security;
 alter table public.naxa_security_gateway_enrollments force row level security;
