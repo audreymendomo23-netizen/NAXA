@@ -20,6 +20,7 @@ const files = {
   inviteNotification: read("supabase/migrations/20261106172300_livreur_invite_notification_recipient.sql"),
   identityGuards: read("supabase/migrations/20261106172400_livreur_identity_verification_guards.sql"),
   inviteHardening: read("supabase/migrations/20261106173000_livreur_invite_cross_actor_scope_and_recipient_fix.sql"),
+  onCall: read("supabase/migrations/20261107110000_livreur_staff_oncall_asymmetry.sql"),
   pharmacyGuards: read("supabase/migrations/20261106172500_livreur_active_pharmacy_guards.sql"),
   pharmacyRevoke: read("supabase/migrations/20261106172600_livreur_pharmacy_revoke_assignment.sql"),
   managementRpc: read("supabase/migrations/20261106172700_livreur_management_list_rpc.sql"),
@@ -35,15 +36,32 @@ const files = {
   inviteClient: read("src/components/AcceptCourierInvitationClient.tsx"),
   assignmentPage: read("src/app/pharmacie/affectations/page.tsx"),
   assignmentActions: read("src/app/pharmacie/affectations/actions.ts"),
+  roleSwitcher: read("src/components/EspaceNaxaSwitcher.tsx"),
 };
 
-test("le Livreur reste un poste exclusif, mais peut être attribué à plusieurs pharmacies", () => {
-  assert.ok(files.schema.includes("if new.role_code='livreur' then"));
-  assert.ok(files.schema.includes("and a.role_code<>'livreur'"));
-  assert.ok(files.schema.includes("if v_profile_role<>'client' then"));
-  assert.match(files.schema, /naxa_grant_livreur_assignment/);
-  assert.match(files.schema, /pg_advisory_xact_lock/);
-  assert.match(files.schema, /naxa_delivery_missions/);
+test("le profil Livreur dédié est exclusif et la permanence staff est temporaire et bornée", () => {
+  assert.match(files.onCall, /new\.nature_affectation='ordinaire' and new\.expire_at is null/);
+  assert.match(files.onCall, /new\.nature_affectation='urgence' and new\.expire_at is not null/);
+  assert.match(files.onCall, /naxa_staff_livreur_membership_allowed/);
+  assert.match(files.onCall, /role_code='livreur'/);
+  assert.match(files.onCall, /Une autre affectation Livreur chevauche déjà cette permanence/);
+  assert.match(files.onCall, /nature_affectation='ordinaire'/);
+  assert.match(files.onCall, /Une autre affectation Livreur chevauche déjà cette période/);
+  assert.match(files.onCall, /pg_advisory_xact_lock/);
+});
+
+test("un Livreur dédié ne peut pas recevoir un poste staff ; une permanence staff peut coexister avec son poste habituel", () => {
+  assert.match(files.onCall, /Un profil Livreur dédié ne peut pas recevoir un autre poste professionnel/);
+  assert.match(files.onCall, /private\.naxa_staff_livreur_membership_allowed/);
+  assert.match(files.onCall, /a\.role_code not in \('livreur','client','admin','promoteur','pharmacie'\)/);
+});
+
+test("une mission acceptée reste terminable après la fin de permanence sans nouvelle prise", () => {
+  assert.match(files.onCall, /m\.statut in \('accepted','picked_up','arrived'\)/);
+  assert.match(files.onCall, /m\.statut='available'/);
+  assert.match(files.onCall, /a\.expire_at>now\(\)/);
+  assert.match(files.roleSwitcher, /openCourierMissions/);
+  assert.match(files.roleSwitcher, /\.in\("statut", \["accepted", "picked_up", "arrived"\]\)/);
 });
 
 
@@ -167,6 +185,7 @@ test("les nouveaux modules TS/TSX sont syntaxiquement valides", () => {
     "src/components/SuiviLivraison.tsx",
     "src/components/AcceptCourierInvitationClient.tsx",
     "src/app/invitation/livreur/page.tsx",
+    "src/components/EspaceNaxaSwitcher.tsx",
   ];
   for (const file of targets) {
     const source = read(file);

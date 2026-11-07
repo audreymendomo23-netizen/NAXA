@@ -44,7 +44,7 @@ export function InvitationLivreurForm({pharmacies,locked=false}:{pharmacies:Phar
       <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-xl">＋</span>
       <div>
         <h2 className="text-lg font-extrabold text-slate-900">Créer un compte Livreur</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">Générez une invitation nominative. La personne crée ou utilise son compte NAXA, confirme son e-mail, complète son profil majeur et accepte ensuite l’affectation.</p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Créez un profil Livreur dédié et exclusif par invitation nominative. La personne crée ou utilise son compte Client NAXA, confirme son e-mail, complète son profil majeur et accepte l’affectation. Pour qu’un membre du personnel assure une permanence temporaire, utilisez plutôt « Accorder une fonction » avec le type Urgence et une date de fin.</p>
       </div>
     </div>
     <form onSubmit={createInvite} className="mt-4 grid gap-3 sm:grid-cols-2">

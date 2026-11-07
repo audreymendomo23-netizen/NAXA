@@ -52,3 +52,13 @@ Environnement SQL autorisé pour cette recette : Supabase Replay `pwfftcsjyeibxx
 ## Frontière Production
 
 Aucune migration Supabase Production et aucune modification de données Production ne sont incluses dans cette clôture. L'historique Vercel contrôlé sur le projet NAXA ne contient aucun déploiement pour le commit Livreur `3b6ab7b` (0 résultat) ; la dernière Production listée reste sur le commit autorisé `8ebe45267b97c3b0c666b1df3f9e73df0b08c005`. Aucun déploiement Vercel n'a été demandé ou créé dans cette passe. Le code livré sur `main` n'est donc pas encore disponible en Production.
+
+
+## Correction de la règle de permanence — branche QA du 7 novembre 2026
+
+- Le profil Livreur dédié reste un compte Client autonome : affectation ordinaire sans expiration, sans autre poste professionnel actif ; le déclencheur interdit ensuite de lui attribuer un poste staff.
+- Un membre déjà affecté à une pharmacie peut recevoir une permanence Livreur de type urgence avec expiration ; un Promoteur peut désigner un membre de son réseau pour une autre pharmacie active de ce même réseau. La Pharmacie ne peut affecter que ses propres membres.
+- La permanence temporaire coexiste avec les affectations habituelles, mais un seul espace professionnel reste actif à la fois. Les affectations Livreur temporaires qui se chevauchent sont interdites, y compris entre deux pharmacies du même réseau.
+- Une mission déjà acceptée reste actionnable après l'heure de fin de permanence jusqu'à sa clôture ; une affectation expirée ne permet jamais de prendre une nouvelle mission. Le sélecteur de l'application conserve l'accès au poste Livreur seulement lorsqu'une mission est encore ouverte.
+- Le flux d'invitation reste réservé au profil Livreur dédié. Le formulaire d'affectation existant sert à la permanence temporaire du personnel.
+- Vérification Replay requise : contrôle des fonctions, déclencheur et ACL après application de la migration. Aucun changement Production ni déploiement Vercel.

@@ -107,6 +107,20 @@ export function EspaceNaxaSwitcher({ current }: Props) {
               add(roleCode, pharmacyId, pharmacyName);
             }
           }
+
+          // Une permanence arrivée à expiration reste accessible uniquement pour
+          // terminer une mission déjà acceptée ou retirée de la pharmacie.
+          const { data: openCourierMissions } = await sb.from("naxa_delivery_missions")
+            .select("pharmacie_id,pharmacies(nom)")
+            .eq("livreur_id", auth.user.id)
+            .in("statut", ["accepted", "picked_up", "arrived"]);
+          for (const mission of openCourierMissions ?? []) {
+            const pharmacyId = String(mission.pharmacie_id ?? "");
+            if (!pharmacyId) continue;
+            const relation = mission.pharmacies as { nom?: string } | { nom?: string }[] | null;
+            const pharmacyName = Array.isArray(relation) ? relation[0]?.nom ?? null : relation?.nom ?? null;
+            add("livreur", pharmacyId, pharmacyName);
+          }
         }
 
         if (alive) setSpaces([...choices.values()]);

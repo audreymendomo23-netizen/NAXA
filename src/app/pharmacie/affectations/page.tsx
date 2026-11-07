@@ -29,7 +29,7 @@ const labels:Record<string,string>={
   pharmacien:"Pharmacien",
   responsable:"Responsable",
   comptable:"Comptable",
-  livreur:"Livreur",
+  livreur:"Livreur · permanence temporaire",
 };
 const date=(v:string)=>new Date(v).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"});
 
@@ -138,7 +138,7 @@ export default async function AffectationsPage({
       <section className="rounded-2xl border bg-white p-5">
         <h2 className="text-lg font-bold">Accorder une fonction</h2>
         <p className="my-2 text-sm text-slate-600">
-          Une affectation ordinaire reste active jusqu’à révocation explicite. Une affectation urgente expire automatiquement à la date choisie. Aucun délai par défaut n’est inventé.
+          Une affectation ordinaire reste active jusqu’à révocation explicite. Une permanence Livreur accordée à un membre déjà affecté doit être de type Urgence avec une date de fin. Un profil Livreur dédié se crée par invitation et ne peut recevoir aucun autre poste professionnel.
         </p>
         <form action={accorderAffectationProfessionnelle} className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold">Pharmacie
