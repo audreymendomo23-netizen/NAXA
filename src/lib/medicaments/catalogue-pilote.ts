@@ -22,7 +22,10 @@ export function normaliserTerme(value: string): string {
 }
 
 export function trouverMedicamentPilote(query: string): MedicamentPilote | undefined {
-  const q = normaliserTerme(query);
+  // Accepter les requêtes usuelles qui ajoutent dosage ou forme au nom du médicament.
+  const q = normaliserTerme(query
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\b/gi, " ")
+    .replace(/\b(?:comprim[eé]s?|g[eé]lules?|capsules?|tablets?|capsules?|sirop|syrup)\b/gi, " "));
   return MEDICAMENTS_PILOTE.find((item) =>
     normaliserTerme(item.nomFr) === q || item.alias.some((alias) => normaliserTerme(alias) === q)
   );
