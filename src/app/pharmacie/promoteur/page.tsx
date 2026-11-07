@@ -167,7 +167,7 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
       ? adminDb.from("naxa_security_installations").select("id,pharmacie_id,status,legal_review_status,privacy_notice_status,updated_at").in("pharmacie_id", scopedIds)
       : Promise.resolve({ data: [], error: null }),
     securityRegistryEnabled && scopedIds.length
-      ? adminDb.from("naxa_security_gateways").select("id,pharmacie_id,tunnel_status,last_seen_at").in("pharmacie_id", scopedIds)
+      ? adminDb.from("naxa_security_gateways").select("id,pharmacie_id,label,serial_number,firmware_version,tunnel_status,last_seen_at").in("pharmacie_id", scopedIds)
       : Promise.resolve({ data: [], error: null }),
     securityRegistryEnabled && scopedIds.length
       ? adminDb.from("naxa_security_cameras").select("id,pharmacie_id,status,model,zone_label").in("pharmacie_id", scopedIds)
