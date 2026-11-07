@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 import { deposerPreuveComplementaire, soumettrePaiementPromoteur } from "./actions";
+import { PaymentIntentPanel } from "@/components/promoteur/PaymentIntentPanel";
 
 const LABEL: Record<string, string> = {
   orange_money: "Orange Money", mtn_momo: "MTN Mobile Money", virement: "Virement bancaire",
@@ -34,6 +35,16 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
   const pending = !error && (rows ?? []).some(r => r.statut === "en_attente" || r.statut === "non_confirme");
   const activeChannels = ["orange_money", "mtn_momo", "virement"].filter((canal) => destinations.has(canal));
   const destinationsAvailable = !destinationsError && destinationsReady;
+  const [{ data: paymentDevice }, { data: activeIntent }] = await Promise.all([
+    db.from("naxa_promoteur_payment_devices")
+      .select("id,device_name").eq("promoteur_id", user.id).eq("is_active", true)
+      .order("last_seen_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("naxa_promoteur_payment_intents")
+      .select("id,canal,expected_amount,destination_snapshot,expires_at,status")
+      .eq("promoteur_id", user.id).eq("status", "awaiting_payment")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
   const errors: Record<string, string> = {
     champs: "Vérifiez le montant et le canal de paiement.",
     canal: "Précisez un canal configuré par NAXA.",
@@ -67,8 +78,20 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
       <p className="mt-1 text-sm text-slate-600">NAXA ne débite pas votre compte. Utilisez uniquement les coordonnées administrées ci-dessous ; payez le montant exact de votre abonnement.</p>
       {destinationsError && <p role="alert" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Les destinations de paiement ne peuvent pas être chargées. Ne procédez à aucun paiement avant leur rétablissement.</p>}
       {!destinationsError && <div className="mt-3 grid gap-3 sm:grid-cols-3">{["orange_money", "mtn_momo", "virement"].map((canal) => { const d = destinations.get(canal); return <article key={canal} className="rounded-xl border border-slate-200 p-3"><p className="font-bold">{LABEL[canal]}</p>{d ? <>{<p className="mt-2 text-xs text-slate-500">Bénéficiaire</p>}<p className="font-semibold">{d.beneficiaire}</p><p className="mt-2 text-xs text-slate-500">{canal === "virement" ? "Compte bancaire" : "Code marchand"}</p><p className="break-all font-bold">{d.reference_destination}</p>{d.instructions && <p className="mt-2 text-xs text-slate-600">{d.instructions}</p>}</> : <p className="mt-2 text-sm text-amber-800">Destination non configurée par NAXA.</p>}</article>; })}</div>}
-      <h2 className="mt-6 text-lg font-extrabold">2. Déclarer le paiement effectué</h2>
-      <p className="mt-1 text-sm text-slate-600">Après paiement, saisissez la référence reçue, le numéro utilisé et la date réelle de la transaction.</p>
+      <PaymentIntentPanel
+        device={paymentDevice ? { id: paymentDevice.id, name: paymentDevice.device_name } : null}
+        activeIntent={activeIntent ? {
+          id: activeIntent.id,
+          canal: activeIntent.canal,
+          expectedAmount: activeIntent.expected_amount,
+          destination: activeIntent.destination_snapshot,
+          expiresAt: activeIntent.expires_at,
+        } : null}
+        channels={activeChannels}
+        amount={subscription?.montant_mensuel ?? null}
+      />
+      <h2 className="mt-6 text-lg font-extrabold">3. Saisie manuelle de secours</h2>
+      <p className="mt-1 text-sm text-slate-600">À utiliser uniquement si le compagnon Android ne détecte pas la notification. Vérifiez d’abord que vous êtes toujours connecté au bon compte Promoteur et saisissez les références réelles après paiement.</p>
       {error || subscriptionError ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">La déclaration est temporairement désactivée car les données nécessaires n’ont pas pu être vérifiées.</p> : pending ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Un paiement est déjà en cours de vérification. Vous pourrez soumettre une nouvelle déclaration après son traitement.</p> : !subscription?.montant_mensuel ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Votre abonnement ou son tarif mensuel n’est pas configuré. Contactez l’administrateur avant tout règlement.</p> : !destinationsAvailable ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Aucun canal de paiement n’est configuré. Contactez NAXA ; ne payez pas sur une ancienne destination.</p> : <form action={soumettrePaiementPromoteur} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-semibold">Montant payé (FCFA)<input required type="number" name="montant" min="1" step="1" inputMode="numeric" defaultValue={subscription?.montant_mensuel ?? ""} className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
         <label className="grid gap-1 text-sm font-semibold">Canal de paiement<select required name="canal" defaultValue="orange_money" className="min-h-11 rounded-xl border border-slate-300 px-3">{["orange_money", "mtn_momo", "virement"].filter((canal) => destinations.has(canal)).map((canal) => <option key={canal} value={canal}>{LABEL[canal]}</option>)}</select></label>
