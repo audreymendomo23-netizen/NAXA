@@ -1,6 +1,18 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { calculerFraisLivraison, repartirFraisLivraison } = require("../src/lib/delivery-pricing");
+const fs = require("node:fs");
+const path = require("node:path");
+const ts = require("typescript");
+const Module = require("node:module");
+
+const sourcePath = path.join(__dirname, "../src/lib/delivery-pricing.ts");
+const source = fs.readFileSync(sourcePath, "utf8");
+const compiled = ts.transpile(source, { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 });
+const pricingModule = new Module(sourcePath, module);
+pricingModule.filename = sourcePath;
+pricingModule.paths = Module._nodeModulePaths(path.dirname(sourcePath));
+pricingModule._compile(compiled, sourcePath);
+const { calculerFraisLivraison, repartirFraisLivraison } = pricingModule.exports;
 
 test("le tarif respecte le plancher, le calcul kilométrique et le plafond", () => {
   assert.equal(calculerFraisLivraison(0), 1500);
@@ -23,7 +35,7 @@ test("la commission NAXA est fixe à 500 FCFA et comprise dans le tarif", () => 
 });
 
 test("les distances et tarifs invalides sont refusés", () => {
-  assert.throws(() => calculerFraisLivraison(-1), RangeError);
-  assert.throws(() => calculerFraisLivraison(Number.NaN), RangeError);
-  assert.throws(() => repartirFraisLivraison(1200), RangeError);
+  assert.throws(() => calculerFraisLivraison(-1), error => error?.name === "RangeError");
+  assert.throws(() => calculerFraisLivraison(Number.NaN), error => error?.name === "RangeError");
+  assert.throws(() => repartirFraisLivraison(1200), error => error?.name === "RangeError");
 });
