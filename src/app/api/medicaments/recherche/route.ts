@@ -66,6 +66,10 @@ type LocalProduct = {
   forme: string | null;
   synonymes: string[] | null;
   photo_url: string | null;
+  photo_path: string | null;
+  photo_source_url: string | null;
+  photo_licence: string | null;
+  photo_verifiee_le: string | null;
   description: string | null;
   indications: string | null;
   precautions: string | null;
@@ -87,10 +91,9 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
   const needle = term.trim().slice(0, 80);
   if (needle.length < 2) return [];
   try {
-    // Ne sélectionner que les colonnes réellement présentes dans public.produits.
-    // Les métadonnées de licence/chemin photo ne sont pas encore dans ce schéma :
-    // les photos restent donc masquées jusqu'à une migration dédiée et vérifiée.
-    const fields = "id,nom,dci,forme,synonymes,photo_url,description,indications,precautions,source_fiche,fiche_validee";
+    // Les photos ne sont publiées que si le chemin Storage, la source, la licence
+    // et la date de vérification sont tous renseignés.
+    const fields = "id,nom,dci,forme,synonymes,photo_url,photo_path,photo_source_url,photo_licence,photo_verifiee_le,description,indications,precautions,source_fiche,fiche_validee";
     const [byName, byDci, bySynonym] = await Promise.all([
       sb.from("produits").select(fields).eq("fiche_validee", true).ilike("nom", "%" + needle + "%").limit(12),
       sb.from("produits").select(fields).eq("fiche_validee", true).ilike("dci", "%" + needle + "%").limit(12),
@@ -407,7 +410,32 @@ export async function GET(request: NextRequest) {
     const activeIngredient = pilot?.substanceFr ?? cleanName(genericName) ?? null;
     const formValue = formFromText(form) || formInName || (form ? cleanName(form) : null);
     const candidateHasIngredient = normaliserTerme(raw).includes(normaliserTerme(genericName)) || Boolean(pilot && pilot.alias.some((alias) => normaliserTerme(raw).includes(normaliserTerme(alias))));
-    const storagePhotoUrl = null;
+    const verifiedPhotoPath = localProduct?.photo_path?.trim() ?? "";
+    const photoMetadataComplete = Boolean(
+      localProduct &&
+      verifiedPhotoPath &&
+      !verifiedPhotoPath.startsWith("/") &&
+      !verifiedPhotoPath.includes("..") &&
+      !verifiedPhotoPath.includes("\\") &&
+      localProduct.photo_source_url?.startsWith("https://") &&
+      localProduct.photo_licence?.trim() &&
+      localProduct.photo_verifiee_le &&
+      Number.isFinite(Date.parse(localProduct.photo_verifiee_le))
+    );
+    const storageBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/+$/, "");
+    let storagePhotoUrl: string | null = null;
+    if (photoMetadataComplete && storageBase) {
+      try {
+        const url = new URL(
+          storageBase + "/storage/v1/object/public/medicaments/" +
+          verifiedPhotoPath.split("/").map((segment) => encodeURIComponent(segment)).join("/")
+        );
+        const expectedOrigin = new URL(storageBase).origin;
+        if (url.protocol === "https:" && url.origin === expectedOrigin) storagePhotoUrl = url.toString();
+      } catch {
+        storagePhotoUrl = null;
+      }
+    }
     return {
       id: localProduct?.id ?? candidate.rxcui ?? normaliserTerme(name).replace(/\s+/g, "-") + "-" + index,
       name,
@@ -433,11 +461,11 @@ export async function GET(request: NextRequest) {
         { name: "DPML Cameroun", role: "référence à consulter pour vérifier l’autorisation locale", url: "https://dpml.cm/repertoireDesAmm/index.php" }
       ],
       imageUrl: storagePhotoUrl,
-      imageSource: storagePhotoUrl ? "Photo hébergée par NAXA — licence et correspondance vérifiées" : localProduct?.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
-      imageSourceUrl: null,
-      imageLicense: null,
+      imageSource: storagePhotoUrl ? "Photo du médicament — provenance et droits vérifiés" : null,
+      imageSourceUrl: storagePhotoUrl ? localProduct?.photo_source_url ?? null : null,
+      imageLicense: storagePhotoUrl ? localProduct?.photo_licence ?? null : null,
       imageAttribution: null,
-      imageTitle: null,
+      imageTitle: storagePhotoUrl ? localProduct?.nom ?? name : null,
       source: [
         candidate.rxcui ? "RxNorm" : null,
         preferredFda ? "OpenFDA" : null,
