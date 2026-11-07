@@ -184,7 +184,7 @@ export function PromoteurSecuriteIntelligente({
             </section>
 
             {focusedCamera ? (
-              <section className="space-y-3" aria-label="Vue détaillée de la caméra">
+              <section role="dialog" aria-modal="true" aria-label="Vue caméra agrandie" className="fixed inset-0 z-[120] overflow-y-auto bg-white p-4 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <button type="button" onClick={() => setFocusedCameraId(null)} className="min-h-10 rounded-full border border-slate-300 px-4 text-sm font-bold text-slate-800 hover:bg-slate-50">
                     ← Retour aux quatre écrans
