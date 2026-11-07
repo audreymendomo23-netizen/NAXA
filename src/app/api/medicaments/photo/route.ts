@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rechercherPhotosMedicament, type MedicamentPhoto } from "@/lib/medicaments/photos-externes";
+import type { MedicamentPhoto } from "@/lib/medicaments/photos-externes";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -148,7 +148,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       };
     }
   } catch {
-    // Une source locale indisponible ne doit pas bloquer la recherche contrôlée Commons.
+    // Sans preuve locale, ne jamais substituer une image approximative.
   }
   return null;
 }
@@ -169,8 +169,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const photos = await rechercherPhotosMedicament(query);
-  return NextResponse.json({ photo: photos.boite ?? photos.comprime, photos, source: "wikimedia_commons" }, {
-    headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" }
+  // Pas de recherche d’image externe automatique : un nom proche n'établit pas
+  // la marque, le dosage, la forme ou le conditionnement exacts.
+  const photos = { boite: null, comprime: null };
+  return NextResponse.json({
+    photo: null,
+    photos,
+    source: "aucune_photo_verifiee",
+    message: "Aucune photo exacte avec provenance et droits vérifiés n’est disponible pour cette référence."
+  }, {
+    headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" }
   });
 }
