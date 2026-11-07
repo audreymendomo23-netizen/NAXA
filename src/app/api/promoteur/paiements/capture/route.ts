@@ -42,6 +42,11 @@ export async function POST(request: Request) {
     const admin = supabaseAdmin();
     const { data: auth, error: authError } = await admin.auth.getUser(accessToken);
     if (authError || !auth.user) return NextResponse.json({ error: "Session Promoteur invalide ou expirée." }, { status: 401 });
+    const { data: profile, error: profileError } = await admin.from("profiles")
+      .select("role,actif").eq("id", auth.user.id).maybeSingle();
+    if (profileError || profile?.role !== "promoteur" || profile.actif !== true) {
+      return NextResponse.json({ error: "Un compte Promoteur actif est requis pour transmettre une capture." }, { status: 403 });
+    }
     const { data: device, error: deviceError } = await admin.from("naxa_promoteur_payment_devices")
       .select("id,promoteur_id,is_active,device_token_hash")
       .eq("id", deviceId).eq("promoteur_id", auth.user.id).maybeSingle();
@@ -90,6 +95,14 @@ export async function POST(request: Request) {
 
     if (!isMatched) {
       await admin.from("naxa_promoteur_payment_intents").update({ status: "manual_review", updated_at: now.toISOString() }).eq("id", intent.id);
+      const { data: admins } = await admin.from("profiles").select("id").eq("role", "admin").eq("actif", true);
+      if (admins?.length) {
+        await admin.from("notifications").insert(admins.map((item: { id: string }) => ({
+          user_id: item.id, type: "abonnement_capture_mobile_a_revoir",
+          titre: "Notification de paiement à rapprocher",
+          corps: "Une notification mobile money reçue par le compagnon Android ne correspond pas exactement au montant ou au bénéficiaire du paiement préparé. Aucun règlement ni renouvellement n'a été créé. Vérifiez le compte marchand.",
+        })));
+      }
       return NextResponse.json({
         received: true, eventId: event.id, status: "manual_review",
         message: "Notification reçue, mais le montant ou le bénéficiaire ne correspond pas exactement. Aucun règlement n'a été déclaré.",

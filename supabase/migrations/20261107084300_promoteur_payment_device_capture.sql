@@ -1,3 +1,8 @@
+-- Existing manual submission RPC already accepts a nullable proof path.
+-- Keep the actual column constraint aligned with that supported flow.
+alter table public.abonnement_promoteur_reglements
+  alter column preuve_path drop not null;
+
 -- Promoteur mobile-money capture: device enrollment, pre-payment intent and candidate events.
 -- A notification is only a candidate signal; it can never confirm or reactivate an abonnement.
 
