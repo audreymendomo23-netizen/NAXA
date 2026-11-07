@@ -20,15 +20,15 @@ test("connecteurs : protocoles standards, APIs constructeurs, NVR/DVR et encodeu
 
 test("connexion : secret externe, passerelle du même établissement et état testé", () => {
   assert.match(migration, /auth_secret_reference/);
-  assert.match(migration, /foreign key \\(camera_id, pharmacie_id\\)/);
-  assert.match(migration, /foreign key \\(gateway_id, pharmacie_id\\)/);
+  assert.ok(migration.includes("foreign key (camera_id, pharmacie_id)"));
+  assert.ok(migration.includes("foreign key (gateway_id, pharmacie_id)"));
   assert.match(migration, /connection_status <> 'connected' or last_tested_at is not null/);
-  assert.doesNotMatch(migration, /camera_password|password\\s+text|rtsp_url\\s+text/i);
+  assert.doesNotMatch(migration, /camera_password|password\s+text|rtsp_url\s+text/i);
 });
 
 test("tableau Promoteur : connecteurs visibles seulement pour le réseau pharmacie actif", () => {
   assert.match(page, /naxa_security_camera_connections/);
-  assert.match(page, /\\.in\\("pharmacie_id", scopedIds\\)/);
+  assert.ok(page.includes('.in("pharmacie_id", scopedIds)'));
   assert.match(component, /connections=|connections:/);
   assert.match(component, /Connexion|connecteur|Adaptateur/);
 });
