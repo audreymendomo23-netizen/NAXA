@@ -183,7 +183,7 @@ test("Administration des gardes : rôle actif, source HTTPS et périodes bornée
   assert.match(api, /naxa_business_function/);
   assert.match(api, /profile\?\.role !== "admin"/);
   assert.match(api, /profile\.actif !== true/);
-  assert.match(api, /url\.protocol !== "https:"/);
+  assert.match(api, /sourceUrl\.protocol !== "https:"/);
   assert.match(api, /duration > maxDuration/);
   assert.match(api, /14 \* 24 \* 60 \* 60 \* 1000/);
   assert.match(api, /garde_verifiee_le: new Date\(\)\.toISOString\(\)/);
