@@ -93,7 +93,7 @@ test("la tarification progressive applique les zones GPS configurées côté Adm
   const quote = read("src/app/api/livraison/devis/route.ts");
   const admin = read("src/app/admin/livraisons/page.tsx");
   const zoneUi = read("src/components/DeliveryTariffZoneConfig.tsx");
-  const migration = read("supabase/migrations/20261107150000_delivery_progressive_zone_tariffs.sql");
+  const migration = read("supabase/migrations/20261107151233_delivery_progressive_zone_tariffs.sql");
   assert.match(pricing, /debut: 2\.5, fin: 5, tarifParKm: 100/);
   assert.match(pricing, /debut: 5, fin: 10, tarifParKm: 150/);
   assert.match(pricing, /debut: 10, fin: 20, tarifParKm: 200/);
