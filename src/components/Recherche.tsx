@@ -282,18 +282,30 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
             {medicaments.map((medicament) => (
               <li key={medicament.id} className="rounded-lg border border-slate-100 p-3">
                 <div className="flex items-start gap-3">
-                  <div className="flex shrink-0 gap-1.5">
-                    <img
-                      src={medicament.imageUrl || PHOTO_MEDICAMENT_PAR_DEFAUT}
-                      onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
-                      alt={medicament.imageUrl ? "Photo de référence sous licence, vérifier la correspondance avec le conditionnement local" : "Photo non disponible"}
-                      className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
-                      loading="lazy" decoding="async"
-                    />
+                  <div className="flex max-w-[168px] shrink-0 flex-wrap gap-1.5">
+                    {medicament.imageUrl ? (
+                      <img
+                        src={medicament.imageUrl}
+                        onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
+                        alt={langue === "fr" ? "Photo réelle de référence du médicament, vérifier la présentation locale" : "Real reference photo of the medicine; verify the local presentation"}
+                        title={medicament.imageSource || (langue === "fr" ? "Photo de référence" : "Reference photo")}
+                        className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                        loading="lazy" decoding="async"
+                      />
+                    ) : !medicament.imageVariants?.boite?.url && !medicament.imageVariants?.comprime?.url ? (
+                      <div className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-1 text-center text-[10px] font-semibold leading-tight text-slate-500">
+                        <svg viewBox="0 0 24 24" className="mb-1 h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                          <path d="M5 8.5 12 4l7 4.5v8L12 21l-7-4.5z" />
+                          <path d="m5 8.5 7 4.5 7-4.5M12 13v8" />
+                          <path d="M8.5 6.2 15.5 11" />
+                        </svg>
+                        {langue === "fr" ? "Photo réelle non référencée" : "No verified real photo"}
+                      </div>
+                    ) : null}
                     {medicament.imageVariants?.comprime?.url && medicament.imageVariants.comprime.url !== medicament.imageUrl && (
                       <img
                         src={medicament.imageVariants.comprime.url}
-                        alt="Référence visuelle du comprimé — vérifier l'identité avant toute utilisation"
+                        alt={langue === "fr" ? "Photo réelle de référence du comprimé" : "Real reference photo of the tablet"}
                         title={"Comprimé · " + medicament.imageVariants.comprime.licence}
                         className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
                         loading="lazy" decoding="async"
@@ -302,7 +314,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                     {medicament.imageVariants?.boite?.url && medicament.imageVariants.boite.url !== medicament.imageUrl && (
                       <img
                         src={medicament.imageVariants.boite.url}
-                        alt="Référence visuelle de la boîte — vérifier la présentation locale"
+                        alt={langue === "fr" ? "Photo réelle de référence de la boîte" : "Real reference photo of the pack"}
                         title={"Boîte · " + medicament.imageVariants.boite.licence}
                         className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
                         loading="lazy" decoding="async"
