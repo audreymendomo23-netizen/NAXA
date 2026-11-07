@@ -37,8 +37,10 @@ export async function POST(request: Request) {
     }
 
     const canonicalPublicKey = String(publicKey.export({ type: "spki", format: "pem" }));
+    const publicKeyDer = publicKey.export({ type: "spki", format: "der" });
+    // Copie en Uint8Array standard : évite l'incompatibilité de types Buffer/ArrayBufferView selon les versions TS.
     const fingerprint = createHash("sha256")
-      .update(publicKey.export({ type: "spki", format: "der" }))
+      .update(Uint8Array.from(Array.from(publicKeyDer)))
       .digest("hex");
     const tokenHash = createHash("sha256").update(token, "utf8").digest("hex");
     const admin = supabaseAdmin();
