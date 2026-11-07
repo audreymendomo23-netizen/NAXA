@@ -5,7 +5,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const YAOUNDE_BBOX = "(3.70,11.35,3.95,11.65)";
+const CAMEROON_LAT = { min: 1.5, max: 13.2 } as const;
+const CAMEROON_LNG = { min: 8.2, max: 16.5 } as const;
 const MAX_CANDIDATES = 500;
 
 type OsmElement = {
@@ -32,8 +33,8 @@ function coordonnees(element: OsmElement) {
   const lat = element.lat ?? element.center?.lat;
   const lng = element.lon ?? element.center?.lon;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)
-    || (lat as number) < 3.65 || (lat as number) > 4.0
-    || (lng as number) < 11.3 || (lng as number) > 11.7) return null;
+    || (lat as number) < CAMEROON_LAT.min || (lat as number) > CAMEROON_LAT.max
+    || (lng as number) < CAMEROON_LNG.min || (lng as number) > CAMEROON_LNG.max) return null;
   return { lat: lat as number, lng: lng as number };
 }
 
@@ -88,7 +89,7 @@ export async function POST() {
   const startedAt = new Date().toISOString();
 
   try {
-    const query = `[out:json][timeout:25];(node["amenity"="pharmacy"]${YAOUNDE_BBOX};way["amenity"="pharmacy"]${YAOUNDE_BBOX};relation["amenity"="pharmacy"]${YAOUNDE_BBOX};);out center tags;`;
+    const query = `[out:json][timeout:25];area["ISO3166-1"="CM"][admin_level=2]->.cm;(node["amenity"="pharmacy"](area.cm);way["amenity"="pharmacy"](area.cm);relation["amenity"="pharmacy"](area.cm););out center tags 500;`;
     const response = await fetch(OVERPASS_URL, {
       method: "POST",
       headers: {
@@ -112,7 +113,7 @@ export async function POST() {
       const osmUrl = `https://www.openstreetmap.org/${element.type}/${element.id}`;
       return [{
         nom_source: name.slice(0, 250),
-        ville: "Yaoundé",
+        ville: (element.tags?.["addr:city"] ?? element.tags?.["addr:town"] ?? element.tags?.["addr:municipality"] ?? "").trim() || "Non renseignée",
         quartier: element.tags?.["addr:suburb"] ?? element.tags?.["addr:neighbourhood"] ?? element.tags?.["addr:district"] ?? null,
         latitude: position.lat,
         longitude: position.lng,
@@ -134,14 +135,15 @@ export async function POST() {
 
     const { data: pharmacies, error: pharmaciesError } = await db.from("pharmacies")
       .select("id,nom,ville,lat,lng")
-      .ilike("ville", "%Yaound%")
       .limit(5000);
     if (pharmaciesError) throw new Error("Lecture des pharmacies partenaires impossible : " + pharmaciesError.message);
 
-    const byName = new Map<string, typeof candidates[number]>();
+    const byNameAndCity = new Map<string, typeof candidates[number]>();
     for (const candidate of candidates) {
-      const key = normaliserNom(candidate.nom_source);
-      if (key && !byName.has(key)) byName.set(key, candidate);
+      const nameKey = normaliserNom(candidate.nom_source);
+      const cityKey = normaliserNom(candidate.ville);
+      const key = nameKey && cityKey ? nameKey + "::" + cityKey : "";
+      if (key && candidate.ville !== "Non renseignée" && !byNameAndCity.has(key)) byNameAndCity.set(key, candidate);
     }
 
     let matched = 0;
@@ -152,7 +154,8 @@ export async function POST() {
         skippedWithCoords++;
         continue;
       }
-      const candidate = byName.get(normaliserNom(pharmacy.nom));
+      const pharmacyCity = normaliserNom(pharmacy.ville);
+      const candidate = pharmacyCity ? byNameAndCity.get(normaliserNom(pharmacy.nom) + "::" + pharmacyCity) : undefined;
       if (!candidate) { unmatched++; continue; }
 
       // Relecture/filtre des coordonnées absentes dans l'UPDATE pour ne jamais écraser
@@ -183,7 +186,7 @@ export async function POST() {
       ok: true,
       source: "OpenStreetMap / Overpass",
       attribution: "© OpenStreetMap contributors — ODbL",
-      ville: "Yaoundé",
+      zone: "Cameroun",
       candidatsImportes: candidates.length,
       pharmaciesPartenairesRapprochees: matched,
       pharmaciesAvecCoordonneesPreservees: skippedWithCoords,
@@ -210,7 +213,7 @@ export async function GET() {
   const [{ data: sync, error: syncError }, { count: pending, error: pendingError }, { count: missing, error: missingError }] = await Promise.all([
     db.from("pharmacies_geo_osm_sync").select("*").eq("id", true).maybeSingle(),
     db.from("pharmacies_geolocalisation_referentiel").select("id", { count: "exact", head: true }).eq("statut", "a_confirmer"),
-    db.from("pharmacies").select("id", { count: "exact", head: true }).ilike("ville", "%Yaound%").or("lat.is.null,lng.is.null"),
+    db.from("pharmacies").select("id", { count: "exact", head: true }).or("lat.is.null,lng.is.null"),
   ]);
   if (syncError || pendingError || missingError) {
     return jsonError("Référentiel OSM indisponible : appliquez la migration 072 et vérifiez les droits Supabase.", 503);
