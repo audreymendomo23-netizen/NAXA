@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type PointerEvent } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Point = { x: number; y: number };
@@ -14,7 +14,7 @@ export function DeliveryClientSignaturePad({ missionId, onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  function point(event: React.PointerEvent<HTMLCanvasElement>): Point {
+  function point(event: PointerEvent<HTMLCanvasElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
