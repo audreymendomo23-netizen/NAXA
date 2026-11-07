@@ -98,7 +98,7 @@ test("le suivi géographique est consultable côté Client et côté pharmacie",
 });
 
 test("les frais sont montrés au Client sans dévoiler la commission NAXA", () => {
-  assert.match(files.paymentSelector, /Frais de livraison/);
+  assert.match(files.paymentSelector, /Livraison\s*:/);
   assert.doesNotMatch(files.paymentSelector, /commission_naxa|commission NAXA/i);
   assert.match(files.pharmacyOrders, /frais_livraison/);
   assert.match(files.report, /commission_acquise/);
