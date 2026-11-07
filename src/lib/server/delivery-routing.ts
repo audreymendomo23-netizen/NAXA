@@ -1,4 +1,4 @@
-import { calculerFraisLivraison } from "@/lib/delivery-pricing";
+import { calculerFraisLivraison, selectionnerZoneTarifaire, type DeliveryZoneRule, type DeliveryZoneType, type DeliveryPoint } from "@/lib/delivery-pricing";
 
 export type CoordonneesRoutage = { lat: number; lng: number };
 export type ResultatRoute = {
@@ -151,8 +151,19 @@ export async function calculerMatriceRoutiere(
   return calculerAvecOsrm(origins, destination);
 }
 
-export function calculerTarifLivraison(distanceKm: number): number {
-  return calculerFraisLivraison(distanceKm);
+export function calculerTarifLivraison(
+  distanceKm: number,
+  zoneType: DeliveryZoneType = "standard",
+  supplementZoneFcfa = 0,
+): number {
+  return calculerFraisLivraison(distanceKm, zoneType, supplementZoneFcfa);
+}
+
+export function determinerZoneLivraison(
+  destination: DeliveryPoint,
+  zones: DeliveryZoneRule[],
+): DeliveryZoneRule | null {
+  return selectionnerZoneTarifaire(destination, zones);
 }
 
 export function creerLienGoogleMaps(origin: CoordonneesRoutage, destination: CoordonneesRoutage): string {
