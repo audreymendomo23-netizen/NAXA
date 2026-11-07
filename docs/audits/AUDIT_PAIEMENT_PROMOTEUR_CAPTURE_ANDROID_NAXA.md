@@ -35,3 +35,13 @@ Contrat de capture : Bearer token de session Supabase du Promoteur, `deviceId`, 
 - Exécuter les tests statiques du contrat et la CI groupée.
 - Terminer le module Android natif puis tester sur un téléphone réel les notifications MTN et Orange, les cas montant/destination incorrects, les doublons et l'absence de notification.
 - Tester ensuite le rapprochement d'un paiement réel via API opérateur ou compte marchand avant d'autoriser une automatisation plus forte.
+
+
+## État de la migration et contrôles Replay — 7 novembre 2026
+
+- Migration appliquée avec succès sur Replay : version distante `20261107075228`, nom `promoteur_payment_device_capture_20261107`. Le fichier source est aligné sur ce numéro de version.
+- Contrôle SQL : les trois tables existent ; RLS est activée sur les trois ; zéro droit de table pour `anon` et `authenticated` ; `preuve_path` est nullable comme l'exige le RPC existant de déclaration sans fichier.
+- Le conseiller Supabase retourne une information `rls_enabled_no_policy` sur ces trois nouvelles tables. C'est intentionnel : elles sont exclusivement pilotées par les routes serveur via `service_role`, et aucun accès direct Data API n'est accordé aux clients.
+- Les avertissements globaux SECURITY DEFINER (179 fonctions authentifiées) et protection contre les mots de passe compromis restent présents dans le projet Replay ; ils ne sont pas créés par cette migration.
+- Aucun appareil Android Promoteur ni événement de notification réel n'est présent dans Replay à ce stade. La capture native et les essais MTN/Orange sur téléphone ne sont donc pas validés.
+- Main reste inchangée. Aucune donnée ni migration Supabase Production n'a été touchée, et aucun déploiement Vercel n'a été lancé.
