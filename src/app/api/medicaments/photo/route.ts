@@ -10,14 +10,25 @@ function normalize(value: string): string {
     .replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function dosageSignature(value: string): string | null {
+  const matches = [...value.toLowerCase().matchAll(/(\\d+(?:[.,]\\d+)?)\\s*(mg|mcg|µg|ug|g|kg|ml|l|iu|ui|%)/gi)];
+  return matches.length ? matches.map(match => match[1].replace(",", ".") + match[2].replace("µ", "u")).sort().join("|") : null;
+}
+
 function tokens(value: string): string[] {
-  return [...new Set(normalize(value).split(/\s+/).filter((token) =>
-    token.length >= 3 && !/^\d+$/.test(token) &&
+  const cleaned = value
+    .replace(/\\b\\d+(?:[.,]\\d+)?\\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\\b/gi, " ")
+    .replace(/\\b\\d+\\s*(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?)\\b/gi, " ");
+  return [...new Set(normalize(cleaned).split(/\\s+/).filter((token) =>
+    token.length >= 3 && !/^\\d+$/.test(token) &&
     !/^(?:tablet|tablets|capsule|capsules|pill|pills|comprime|comprim[eé]s?|boite|box|mg|mcg|ug|ml|g|iu|ui)$/.test(token)
   ))];
 }
 
 function exactIdentityMatch(query: string, candidate: string): boolean {
+  const wantedDose = dosageSignature(query);
+  const candidateDose = dosageSignature(candidate);
+  if (wantedDose && wantedDose !== candidateDose) return false;
   const wanted = tokens(query);
   const available = new Set(tokens(candidate));
   return wanted.length > 0 && wanted.every((token) => available.has(token));
