@@ -26,6 +26,7 @@ const files = {
   config: read("src/components/PharmacyDeliveryConfig.tsx"),
   report: read("src/components/DeliveryCommissionReport.tsx"),
   createSql: read("supabase/migrations/20261107094500_delivery_distance_signature_commission_20261107.sql"),
+  quoteSql: read("supabase/migrations/20261107240000_delivery_server_route_quotes_national_tariffs.sql"),
   stockSql: read("supabase/migrations/20261107101500_delivery_stock_acceptance_payment_dispatch_20261107.sql"),
   paymentSql: read("supabase/migrations/20261107105000_delivery_payment_reference_declaration_20261107.sql"),
   trackingSql: read("supabase/migrations/20261107111500_delivery_tracking_both_apps_20261107.sql"),
@@ -35,13 +36,15 @@ const files = {
   settlementSql: read("supabase/migrations/20261107144500_delivery_subscription_commission_settlement_trigger.sql"),
 };
 
-test("le devis de livraison est limité à 1 500–3 500 FCFA et la commission reste incluse", () => {
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1500/);
-  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX\s*=\s*3500/);
+test("le devis routier serveur est limité à 1 000–3 000 FCFA et la commission reste incluse", () => {
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1000/);
+  assert.match(files.pricing, /FRAIS_LIVRAISON_MAX\s*=\s*3000/);
   assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\s*=\s*500/);
-  assert.match(files.pricingTest, /calculerFraisLivraison\(1\.5\), 1800/);
+  assert.match(files.pricingTest, /calculerFraisLivraison\(1\.5\), 1300/);
   assert.match(files.pricingTest, /commissionNaxa: 500/);
   assert.match(files.createSql, /check \(commission_naxa = 500\)/);
+  assert.match(files.quoteSql, /frais_livraison between 1000 and 3000/);
+  assert.match(files.quoteSql, /new\.frais_livraison := v_quote\.frais_livraison/);
 });
 
 test("le Client demande la livraison avant paiement et choisit le paiement seulement après confirmation Stock", () => {
