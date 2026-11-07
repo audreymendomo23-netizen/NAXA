@@ -8,6 +8,10 @@ type ChatMessage = {
   sender_id:string;
   sender_role:"client"|"livreur";
   body:string;
+  message_type:"text"|"location";
+  latitude:number|null;
+  longitude:number|null;
+  accuracy_m:number|null;
   created_at:string;
 };
 type ChatPayload = {
@@ -16,6 +20,9 @@ type ChatPayload = {
   messages:ChatMessage[];
   notice:string|null;
 };
+
+const mapUrl=(latitude:number,longitude:number)=>
+  "https://www.openstreetmap.org/?mlat="+latitude+"&mlon="+longitude+"#map=17/"+latitude+"/"+longitude;
 
 export function DeliveryMissionChat({
   reservationId,
@@ -32,6 +39,7 @@ export function DeliveryMissionChat({
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
+  const [sharingLocation,setSharingLocation]=useState(false);
   const listRef=useRef<HTMLDivElement|null>(null);
   const lastMessageId=useRef<string|null>(null);
 
@@ -80,6 +88,31 @@ export function DeliveryMissionChat({
     setBusy(false);
   }
 
+  function shareLocation(){
+    if(busy||sharingLocation||!canSend)return;
+    if(!navigator.geolocation){
+      setError("La géolocalisation n’est pas disponible sur cet appareil.");
+      return;
+    }
+    setSharingLocation(true);setError("");
+    navigator.geolocation.getCurrentPosition(async position=>{
+      const {error:rpcError}=await supabaseBrowser().rpc("naxa_delivery_send_location",{
+        p_reservation:reservationId,
+        p_latitude:position.coords.latitude,
+        p_longitude:position.coords.longitude,
+        p_accuracy_m:position.coords.accuracy,
+      });
+      if(rpcError)setError(rpcError.message||"La position n’a pas pu être partagée.");
+      else await load();
+      setSharingLocation(false);
+    },geoError=>{
+      setError(geoError.code===1
+        ?"Autorisez la localisation pour partager votre position."
+        :"Position GPS indisponible. Vérifiez le GPS et réessayez.");
+      setSharingLocation(false);
+    },{enableHighAccuracy:true,maximumAge:15000,timeout:20000});
+  }
+
   return <section className="mt-4 rounded-xl border border-emerald-100 bg-white p-3">
     <div className="flex items-center justify-between gap-2">
       <div>
@@ -97,7 +130,13 @@ export function DeliveryMissionChat({
             :messages.map(message=><div key={message.id} className={"flex "+(message.sender_role===viewer?"justify-end":"justify-start")}>
               <div className={"max-w-[88%] rounded-2xl px-3 py-2 "+(message.sender_role===viewer?"bg-[#0B3D26] text-white":"bg-white text-slate-900 shadow-sm")}>
                 <p className="mb-1 text-[10px] font-bold opacity-75">{message.sender_role==="client"?"Client":"Livreur"}</p>
-                <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
+                {message.message_type==="location"&&typeof message.latitude==="number"&&Number.isFinite(message.latitude)&&typeof message.longitude==="number"&&Number.isFinite(message.longitude)
+                  ?<div className="space-y-2">
+                    <p className="whitespace-pre-wrap break-words text-sm font-semibold">Position géographique partagée</p>
+                    <a className="inline-flex min-h-9 items-center rounded-lg bg-white/15 px-3 py-2 text-xs font-bold underline" href={mapUrl(message.latitude,message.longitude)} target="_blank" rel="noreferrer">Voir la position sur la carte</a>
+                    {typeof message.accuracy_m==="number"&&<p className="text-[10px] opacity-75">Précision GPS : environ {Math.round(message.accuracy_m)} m</p>}
+                  </div>
+                  :<p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
                 <time className="mt-1 block text-right text-[10px] opacity-70">{new Date(message.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</time>
               </div>
             </div>)}
@@ -108,10 +147,14 @@ export function DeliveryMissionChat({
           <textarea id={"delivery-chat-"+reservationId} value={draft} onChange={event=>setDraft(event.target.value)} maxLength={1000} rows={2}
             onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void send();}}}
             className="w-full rounded-xl border border-slate-300 p-3 text-sm" placeholder={viewer==="client"?"Écrivez à votre Livreur…":"Écrivez au Client…"}/>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[10px] text-slate-500">{draft.length}/1000 · Entrée pour envoyer</p>
             <button type="button" disabled={busy||!draft.trim()} onClick={()=>void send()} className="min-h-10 rounded-lg bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy?"Envoi…":"Envoyer"}</button>
           </div>
+          <button type="button" disabled={sharingLocation||busy} onClick={shareLocation} className="min-h-11 w-full rounded-lg border border-emerald-800/30 px-3 py-2 text-sm font-bold text-emerald-950 disabled:opacity-50">
+            {sharingLocation?"Localisation en cours…":"Partager ma position GPS"}
+          </button>
+          <p className="text-[10px] text-slate-500">Partage ponctuel : votre position actuelle sera visible uniquement par l’autre participant de cette livraison.</p>
         </div>:<p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{notice||"La livraison est terminée. La conversation est conservée en lecture seule."}</p>}
       </>}
     {error&&<p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
