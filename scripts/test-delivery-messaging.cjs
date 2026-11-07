@@ -7,7 +7,7 @@ const test=require("node:test");
 const root=path.join(__dirname,"..");
 const read=file=>fs.readFileSync(path.join(root,file),"utf8");
 const sql=read("supabase/migrations/20261107153000_delivery_mission_messaging.sql");
-const locationSql=read("supabase/migrations/20261107093806_delivery_mission_bidirectional_location_sharing.sql");
+const locationSql=read("supabase/migrations/20261107160000_delivery_mission_bidirectional_location_sharing.sql");
 const missions=read("supabase/migrations/20261107152000_delivery_courier_cash_status_read_model.sql");
 const chat=read("src/components/DeliveryMissionChat.tsx");
 const courier=read("src/components/pharmacie/LivreurWorkspaceClient.tsx");
