@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
     const candidates = (Array.isArray(results) ? results : []).flatMap(result => {
       const lat = Number(result?.lat);
       const lng = Number(result?.lon);
-      if (!result || !inCameroon(lat, lng)) return [];
+      if (!result || result.address?.country_code?.toLowerCase() !== "cm" || !inCameroon(lat, lng)) return [];
       const label = result.address?.city || result.address?.town || result.address?.village
         || result.address?.municipality || result.display_name || query;
       return [{

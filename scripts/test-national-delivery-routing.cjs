@@ -9,7 +9,8 @@ test("géolocalisation nationale : le GPS sert au classement de toutes les pharm
   const api = read("src/app/api/pharmacies/proches/route.ts");
   const home = read("src/components/AccueilClient.tsx");
   assert.match(api, /est_demo", false/);
-  assert.match(api, /\.range\(0, 4999\)/);
+  assert.match(api, /\.range\(offset, offset \+ 999\)/);
+  assert.match(api, /offset < 50000/);
   assert.match(api, /calculerMatriceRoutiere/);
   assert.match(api, /googleMapsUrl/);
   assert.match(home, /api\/pharmacies\/proches\?lat=/);
