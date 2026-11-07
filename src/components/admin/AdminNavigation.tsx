@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const sections = [
   { href: "/admin", label: "Tableau de bord", note: "Indicateurs et activité" },
   { href: "/admin/alertes", label: "Alertes réseau", note: "Stock et validité" },
+  { href: "/admin/gardes", label: "Pharmacies de garde", note: "Planning national vérifié" },
   { href: "/admin/journal", label: "Journal d’administration", note: "Événements tous univers" },
   { href: "/admin/messagerie", label: "Messagerie", note: "Requêtes et réponses" },
   { href: "/admin/promoteurs", label: "Dossiers Promoteurs", note: "Tous les univers" },
