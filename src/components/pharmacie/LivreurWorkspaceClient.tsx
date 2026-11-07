@@ -4,12 +4,15 @@ import Link from "next/link";
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {supabaseBrowser} from "@/lib/supabase/client";
 import {EspaceNaxaSwitcher} from "@/components/EspaceNaxaSwitcher";
+import {DeliveryClientSignaturePad} from "@/components/DeliveryClientSignaturePad";
 
 type Item={quantite:number;nom:string;dosage:string|null};
 type Mission={
   id:string;reservation_id:string;statut:string;created_at:string;ready_at:string;
   accepted_at:string|null;picked_up_at:string|null;arrived_at:string|null;delivered_at:string|null;
   failed_at?:string|null;failure_code:string|null;failure_note:string|null;commande_statut:string|null;
+  client_confirme_at?:string|null;livreur_confirme_at?:string|null;signature_client?:boolean;
+  livraison_depart_at?:string|null;livraison_echeance_at?:string|null;duree_livraison_estimee_min?:number|null;
   total:number;frais_livraison:number;ville:string|null;quartier:string|null;
   adresse:string|null;repere:string|null;telephone:string|null;items:Item[];
 };
@@ -201,16 +204,16 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
               <ul className="mt-3 space-y-1 border-t pt-3 text-sm">{(m.items??[]).map((item,i)=><li key={i}>{item.quantite} × {item.nom}{item.dosage?" · "+item.dosage:""}</li>)}</ul>
               <p className="mt-3 font-extrabold">{money(m.total)}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait</button>}
+                {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait</button>}
                 {m.statut==="picked_up"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_arrived")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Signaler mon arrivée</button>}{m.statut==="picked_up"&&<button type="button" aria-pressed={automaticTracking} onClick={()=>setAutomaticTracking(value=>!value)} className={automaticTracking?"min-h-11 rounded-xl bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-950":"min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950"}>{automaticTracking?"Arrêter le suivi GPS":"Activer le suivi GPS automatique"}</button>}
                 {["accepted","picked_up","arrived"].includes(m.statut)&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_add_location")} className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950 disabled:opacity-50">Partager ma position</button>}
-                {m.statut==="arrived"&&<p className="w-full rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Le Client doit confirmer la réception dans NAXA. Vous ne pouvez pas valider « Livrée » à sa place.</p>}
+                {m.statut==="arrived"&&<div className="w-full space-y-3"><div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950"><p className="font-bold">Validation en deux parties</p><p className="mt-1">Client : {m.client_confirme_at?"confirmé":"en attente"} · Livreur : {m.livreur_confirme_at?"confirmé":"en attente"}</p>{m.signature_client&&<p className="mt-1">Signature recueillie sur ce téléphone.</p>}</div>{!m.livreur_confirme_at&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_confirm_handover")} className="min-h-11 w-full rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer que j’ai remis la commande</button>}{m.livreur_confirme_at&&!m.client_confirme_at&&<p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">Votre confirmation est enregistrée. La commande attend la confirmation du Client ou sa signature sur ce téléphone.</p>}<DeliveryClientSignaturePad missionId={m.id} onDone={()=>void load()}/></div>}
               </div>
               {["accepted","picked_up","arrived"].includes(m.statut)&&<div className="mt-4 border-t pt-3">
                 <p className="text-xs font-bold uppercase text-slate-500">Signaler une difficulté</p>
                 <div className="mt-2 flex flex-wrap gap-2">{(["client_absent","adresse_introuvable","incident_route"] as const).map(code=><button key={code} type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_report_issue",{p_code:code,p_note:null})} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">{issueLabels[code]}</button>)}</div>
               </div>}
-              {m.statut==="picked_up"&&<p className="mt-2 text-xs text-slate-500">Le suivi GPS automatique fonctionne uniquement pendant que cet écran reste ouvert et que la localisation est autorisée. Il s’arrête lorsque vous le désactivez ou signalez votre arrivée.</p>}<p className="mt-3 text-xs text-slate-500">Acceptée : {date(m.accepted_at)} · Retirée : {date(m.picked_up_at)} · Arrivée : {date(m.arrived_at)}</p>
+              {m.statut==="picked_up"&&<p className="mt-2 text-xs text-slate-500">Le suivi GPS automatique fonctionne uniquement pendant que cet écran reste ouvert et que la localisation est autorisée. Il s’arrête lorsque vous le désactivez ou signalez votre arrivée.</p>}{m.livraison_echeance_at&&["picked_up","arrived"].includes(m.statut)&&<p className="mt-2 text-sm font-bold text-emerald-900">Délai estimé : {date(m.livraison_echeance_at)}</p>}<p className="mt-3 text-xs text-slate-500">Acceptée : {date(m.accepted_at)} · Retirée : {date(m.picked_up_at)} · Arrivée : {date(m.arrived_at)}</p>
             </article>)}</div>}
         </section>
 
