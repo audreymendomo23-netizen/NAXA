@@ -1,6 +1,6 @@
 export type StockImportField =
   | "name" | "dci" | "dosage" | "form" | "barcode"
-  | "price" | "quantity" | "batch" | "expiry" | "location";
+  | "price" | "purchaseCost" | "quantity" | "batch" | "expiry" | "location";
 
 export type StockImportColumnMap = Partial<Record<StockImportField, string>>;
 export type StockImportSourceRow = {
@@ -25,6 +25,7 @@ const ALIASES: Record<StockImportField, string[]> = {
   form: ["forme", "form", "forme galenique", "forme galénique", "presentation", "présentation", "galenic form"],
   barcode: ["code barre", "code-barres", "barcode", "ean", "ean13", "gtin", "cip", "cip13", "code produit", "ref produit", "reference produit", "référence produit", "sku"],
   price: ["prix", "pu", "prix vente", "prix de vente", "pvt", "pv", "pvttc", "tarif", "selling price", "retail price", "unit price", "prix public", "prix unitaire", "prix ttc"],
+  purchaseCost: ["prix achat", "prix d achat", "cout achat", "cout d achat", "coût achat", "coût d achat", "pa", "pmp", "prix moyen pondere", "prix moyen pondéré", "purchase price", "purchase cost", "buy price", "cost price", "unit cost", "acquisition cost"],
   quantity: ["quantite", "quantité", "qte", "qté", "stock", "qtestock", "qty", "quantity", "on hand", "available", "disponible", "stock final", "stock actuel", "solde stock", "existence", "disponibilite", "disponibilité", "physical stock"],
   batch: ["lot", "numero lot", "numéro lot", "n lot", "batch", "batch number", "lot number", "no lot", "n° lot"],
   expiry: ["peremption", "péremption", "date peremption", "date péremption", "expiration", "expiry", "expiry date", "date expiry", "dlc", "date limite", "date expiration", "expire le"],
@@ -202,6 +203,7 @@ export function convertirLignesStock(
   form: string | null;
   barcode: string | null;
   price: number | null;
+  purchaseCost: number | null;
   quantity: number | null;
   batch: string | null;
   expiry: string | null;
@@ -217,6 +219,7 @@ export function convertirLignesStock(
       form: String(value("form") ?? "").trim() || null,
       barcode: String(value("barcode") ?? "").trim() || null,
       price: parserNombreStock(value("price")),
+      purchaseCost: parserNombreStock(value("purchaseCost")),
       quantity: parserNombreStock(value("quantity")),
       batch: String(value("batch") ?? "").trim() || null,
       expiry: parserDateStock(value("expiry")),
@@ -229,7 +232,8 @@ export function validerLigneImportStock(row: ReturnType<typeof convertirLignesSt
   const errors: string[] = [];
   if (row.name.length < 2 && !row.barcode) errors.push("nom/code produit manquant");
   if (row.quantity === null || !Number.isSafeInteger(row.quantity) || row.quantity < 0) errors.push("quantité absente ou invalide");
-  if (row.price !== null && (!Number.isSafeInteger(Math.round(row.price)) || row.price < 0)) errors.push("prix invalide");
+  if (row.price !== null && (!Number.isSafeInteger(Math.round(row.price)) || row.price < 0)) errors.push("prix de vente invalide");
+  if (row.purchaseCost !== null && (!Number.isSafeInteger(Math.round(row.purchaseCost)) || row.purchaseCost < 0)) errors.push("coût d’achat invalide");
   if (Boolean(row.batch) !== Boolean(row.expiry)) errors.push("un lot doit avoir un numéro et une date de péremption");
   if (row.batch && (row.quantity === null || row.quantity <= 0)) errors.push("quantité de lot invalide");
   return errors;
