@@ -36,7 +36,7 @@ type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
   adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null; horaires: string | null; stock_updated_at: string | null;
 };
-type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; imageType?: "photo-verifiee" | "photo-source" | "illustration"; periode: string | null; horaires?: string | null; source: string };
+type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; imageType?: "photo-verifiee" | "photo-source" | "illustration"; periode: string | null; horaires?: string | null; source: string; ville?: string | null; region?: string | null; lat?: number | null; lng?: number | null; gardeVerifieeLe?: string | null };
 type StockRow = {
   produit_id: string; pharmacie_id: string; prix: number; quantite: number;
   date_peremption: string | null;
@@ -398,9 +398,15 @@ export function AccueilClient() {
     return () => { cancelled = true; };
   }, [coord, pharmacies]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
-  const gardes: GardeAuto[] = gardesAutomatiques.length
-    ? gardesAutomatiques.slice(0,4)
-    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], imageUrl: p.photo_url && p.photo_verified_at && p.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) ? p.photo_url : null, periode: null, source: "NAXA" }));
+  const gardesTriees = [...gardesAutomatiques].sort((a, b) => {
+    if (coord && a.lat != null && a.lng != null && b.lat != null && b.lng != null) {
+      return distance(coord.lat, coord.lng, a.lat, a.lng) - distance(coord.lat, coord.lng, b.lat, b.lng);
+    }
+    return [a.region || "", a.ville || "", a.nom].join(" ").localeCompare(
+      [b.region || "", b.ville || "", b.nom].join(" "), "fr",
+    );
+  });
+  const gardes: GardeAuto[] = gardesTriees.slice(0, 4);
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -540,8 +546,8 @@ export function AccueilClient() {
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
         <div className="overflow-hidden rounded-[22px] border border-[#D7E7DC] bg-gradient-to-br from-white to-[#EDF7F0] shadow-[0_12px_28px_rgba(5,74,41,0.12)]">
           <div className="border-b border-[#E0EAE3] px-4 py-3">
-            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">Pharmacies de garde proches de vous</h3>
-            <p className="mt-1 text-xs font-medium text-[#64776B]">Une pharmacie à la fois · passage automatique toutes les 3 secondes · glissez horizontalement pour parcourir la liste.</p>
+            <h3 className="text-[17px] font-extrabold leading-5 text-[#0B3D26]">{anglais ? "Verified NAXA on-duty pharmacies" : "Pharmacies de garde NAXA vérifiées"}</h3>
+            <p className="mt-1 text-xs font-medium text-[#64776B]">{coord ? (anglais ? "Sorted by distance from your location." : "Triées selon votre distance.") : (anglais ? "National partner network · location sorting starts after GPS permission." : "Réseau partenaire national · classement par proximité après autorisation GPS.")}</p>
           </div>
           {gardes.length ? (
             <div className="p-3">
@@ -550,7 +556,7 @@ export function AccueilClient() {
                   ...pharmacie,
                   source: pharmacie.source.startsWith("http") ? pharmacie.source : "https://mfasha.com/",
                 }))}
-                sourceAnnuaireUrl="https://mboapharma.cm/single-location-3/yaounde/?directory_type=pharmacie&view=list"
+                sourceAnnuaireUrl="https://www.annuaire-medical.cm/fr/pharmacies-de-garde"
               />
             </div>
           ) : (
@@ -558,7 +564,7 @@ export function AccueilClient() {
               <span className="flex h-[64px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D9E2DC] bg-[#E7EFE5]">
                 <span className="text-2xl text-[#0F6B3F]" aria-hidden="true">✚</span>
               </span>
-              <p className="text-sm leading-5 text-[#53685C]">Aucune pharmacie de garde proche de vous n’est indiquée pour le moment.</p>
+              <p className="text-sm leading-5 text-[#53685C]">{anglais ? "No current duty schedule has been verified in the NAXA partner network. Check the national directory." : "Aucune garde actuelle n’est vérifiée dans le réseau partenaire NAXA. Consultez l’annuaire national."}</p>
             </div>
           )}
         </div>
