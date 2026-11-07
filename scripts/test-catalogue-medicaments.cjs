@@ -12,6 +12,8 @@ const resultats = fs.readFileSync(path.join(root, "src/app/resultats/page.tsx"),
 const produit = fs.readFileSync(path.join(root, "src/app/produit/[id]/page.tsx"), "utf8");
 const panier = fs.readFileSync(path.join(root, "src/app/panier/page.tsx"), "utf8");
 const photos = fs.readFileSync(path.join(root, "supabase/migration_221_medicament_photo_provenance_storage.sql"), "utf8");
+const referencePhotos = fs.readFileSync(path.join(root, "supabase/migrations/20261107175000_medicament_reference_photo_provenance.sql"), "utf8");
+const photoImporter = fs.readFileSync(path.join(root, "scripts/medicaments-images-cameroun.mjs"), "utf8");
 
 test("prototype : dix termes fréquents à valider avec les pharmacies camerounaises", () => {
   const rows = [...catalogue.matchAll(/\{ nomFr: "[^"]+", substanceFr: "[^"]+", alias: \[[^\]]+\] \}/g)];
@@ -162,11 +164,13 @@ test("BDPM : référentiel séparé, source publique, RLS et script d’import o
 
 test("photos : les photos locales exigent une correspondance, une licence et une source vérifiées", () => {
   assert.match(photoRoute, /verifiedLocalPhoto/);
-  assert.match(photoRoute, /from\("medicaments_images"\)/);
-  assert.match(photoRoute, /eq\("statut", "image_stockee"\)/);
-  assert.match(photoRoute, /unrequestedCombination/);
-  assert.match(photoRoute, /exactIdentityMatch\(query, identity\)/);
+  assert.match(photoRoute, /from\("medicaments_referentiel_sources"\)/);
   assert.match(photoRoute, /exactIdentityMatch\(query, row\.nom\)/);
+  assert.match(photoRoute, /verifiedStorageUrl/);
+  assert.match(photoRoute, /completePhoto/);
+  assert.doesNotMatch(photoRoute, /medicaments_images/);
+  assert.match(photoRoute, /unrequestedCombination/);
+  assert.match(photoRoute, /exactIdentityMatch\(query, product\.nom\)/);
   assert.match(photoRoute, /photo_licence/);
   assert.match(photoRoute, /photo_verifiee_le/);
 });
@@ -176,4 +180,19 @@ test("interface : source/licence visibles et image cassée remplacée sans garde
   assert.match(resultats, /\/medicaments\/placeholder\.svg/);
   assert.match(resultats, /imageSourceUrl:null/);
   assert.match(resultats, /imageLicense:null/);
+});
+
+test("référentiel photo : stockage par CIS, licence commerciale et absence de table CIP fictive", () => {
+  assert.match(referencePhotos, /alter table public\.medicaments_referentiel_sources/);
+  assert.match(referencePhotos, /photo_source_url text/);
+  assert.match(referencePhotos, /photo_licence text/);
+  assert.match(referencePhotos, /photo_verifiee_le timestamptz/);
+  assert.match(referencePhotos, /photo_reference_photo_provenance_complete/);
+  assert.match(photoImporter, /from\("medicaments_referentiel_sources"\)/);
+  assert.match(photoImporter, /photo_path: path/);
+  assert.match(photoImporter, /photo_licence: photo\.licence/);
+  assert.match(photoImporter, /photo_attribution: photo\.attribution/);
+  assert.doesNotMatch(photoImporter, /medicaments_images/);
+  assert.match(photoImporter, /Public domain/);
+  assert.match(photoImporter, /CC BY/);
 });
