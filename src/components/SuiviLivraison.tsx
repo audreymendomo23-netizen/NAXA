@@ -102,7 +102,7 @@ export function SuiviLivraison({reservationId,echeanceAt,destinationLat,destinat
       </li>)}
     </ol>
     {echeanceAt&&tracking.picked_up_at&&<p className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-950">Délai de livraison : {remaining||"calcul en cours"}</p>}
-    {latestPosition&&<div className="rounded-xl border border-emerald-100 p-3">
+    {latestPosition&&typeof latestPosition.latitude==="number"&&typeof latestPosition.longitude==="number"&&<div className="rounded-xl border border-emerald-100 p-3">
       <p className="text-sm font-bold">Position du Livreur · actualisée {time(latestPosition.created_at)}</p>
       <iframe title="Position actuelle du livreur" className="mt-2 h-52 w-full rounded-lg border-0" loading="lazy" src={"https://www.openstreetmap.org/export/embed.html?bbox="+(latestPosition.longitude-0.008)+"%2C"+(latestPosition.latitude-0.008)+"%2C"+(latestPosition.longitude+0.008)+"%2C"+(latestPosition.latitude+0.008)+"&layer=mapnik&marker="+latestPosition.latitude+"%2C"+latestPosition.longitude}/>
       {typeof destinationLat==="number"&&typeof destinationLng==="number"&&<a className="mt-2 inline-flex text-sm font-bold text-emerald-900 underline" href={"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route="+latestPosition.latitude+"%2C"+latestPosition.longitude+"%3B"+destinationLat+"%2C"+destinationLng} target="_blank" rel="noreferrer">Voir l’itinéraire vers le Client</a>}
