@@ -240,7 +240,8 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
                 </label>
               ))}
             </div>
-            {unmapped.length>0&&<p className="mt-3 text-xs text-slate-500">Autres colonnes détectées mais non utilisées : {unmapped.join(" · ")}</p>}
+            {unmapped.length>0&&<p className="mt-3 text-xs text-slate-500">Autres colonnes détectées mais non utilisées : {unmapped.join(" · ")}. Elles ne sont pas importées automatiquement.</p>}
+            <p className="mt-2 text-xs text-slate-500">Le coût d’achat est enregistré uniquement si votre compte possède EDIT_STOCK_PARAMETERS. Le prix de vente et la quantité restent contrôlés séparément.</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded-xl border p-3"><p className="text-xs text-slate-500">Lignes candidates</p><p className="text-2xl font-black">{preview.length}</p></div>
