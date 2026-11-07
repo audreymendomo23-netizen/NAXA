@@ -46,8 +46,8 @@ type ReferencePhotoRow = {
 
 function verifiedStorageUrl(path: string | null): string | null {
   const safePath = path?.trim() ?? "";
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/+$/, "");
-  if (!base || !safePath || safePath.startsWith("/") || safePath.includes("..") || safePath.includes("\\\\")) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/[\/]+$/, "");
+  if (!base || !safePath || safePath.startsWith("/") || safePath.includes("..") || safePath.includes("\\")) return null;
   try {
     const url = new URL(base + "/storage/v1/object/public/medicaments/" +
       safePath.split("/").map((segment) => encodeURIComponent(segment)).join("/"));
@@ -77,8 +77,8 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
   try {
     const sb = supabaseServer();
     const safeQuery = query
-      .replace(/\\b\\d+(?:[.,]\\d+)?\\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\\b/gi, " ")
-      .replace(/\\b(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?|box|bo[iî]te)\\b/gi, " ")
+      .replace(/\b\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|ug|g|kg|ml|l|iu|ui|meq|mmol)\b/gi, " ")
+      .replace(/\b(?:tablets?|capsules?|pills?|comprim[eé]s?|g[eé]lules?|box|bo[iî]te)\b/gi, " ")
       .replace(/[%_,]/g, " ").replace(/\\s+/g, " ").trim();
     if (safeQuery.length < 3) return null;
 
