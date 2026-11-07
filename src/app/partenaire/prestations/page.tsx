@@ -9,7 +9,8 @@ const offerStatus: Record<string, string> = { draft: "Brouillon — en attente d
 const requestStatus: Record<string, string> = { requested: "À confirmer", confirmed: "Confirmée", completed: "Terminée", cancelled: "Annulée", expired: "Expirée" };
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
 
-export default async function PartnerHomeServices({ searchParams }: { searchParams: { ok?: string; erreur?: string; q?: string; statut_demande?: string; statut_offre?: string } }) {
+export default async function PartnerHomeServices({ searchParams }: { searchParams: Promise<{ ok?: string; erreur?: string; q?: string; statut_demande?: string; statut_offre?: string }> }) {
+  const params = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/partenaire/prestations");
@@ -31,13 +32,13 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
   ]);
   const allOffers = offersResult.data ?? [];
   const allRequests = requestsResult.data ?? [];
-  const query = (searchParams.q ?? "").trim().toLocaleLowerCase("fr");
+  const query = (params.q ?? "").trim().toLocaleLowerCase("fr");
   const offers = allOffers.filter((o: any) =>
-    (!searchParams.statut_offre || o.status === searchParams.statut_offre) &&
+    (!params.statut_offre || o.status === params.statut_offre) &&
     (!query || [o.name, o.category, o.description ?? "", o.service_area_label, active.find((m: any) => m.partner_id === o.partner_id)?.partners?.name ?? ""].join(" ").toLocaleLowerCase("fr").includes(query))
   );
   const requests = allRequests.filter((r: any) =>
-    (!searchParams.statut_demande || r.status === searchParams.statut_demande) &&
+    (!params.statut_demande || r.status === params.statut_demande) &&
     (!query || [r.offer_name, r.category, r.service_area_label, r.client_note ?? "", active.find((m: any) => m.partner_id === r.partner_id)?.partners?.name ?? ""].join(" ").toLocaleLowerCase("fr").includes(query))
   );
   // Minimiser les coordonnées chargées : ne demander les données privées
@@ -61,8 +62,8 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
         <nav className="flex flex-wrap items-center gap-3 text-sm font-bold"><BoutonNotifications/><Link href="/partenaire/catalogue" className="underline">Catalogue</Link><Link href="/partenaire/reservations" className="underline">Réservations</Link><Link href="/" className="underline">Accueil</Link></nav>
       </header>
       <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Prestations à domicile</p><h1 className="mt-1 text-3xl font-black">Mes prestations et demandes</h1><p className="mt-2 text-sm leading-6 text-slate-600">Les nouvelles prestations restent en brouillon jusqu’à validation administrative. L’adresse exacte du client reste masquée tant que la demande n’est pas confirmée.</p></div>
-      {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "creation" ? "Prestation enregistrée en brouillon." : searchParams.ok === "archive" ? "Prestation archivée." : searchParams.ok === "confirmed" ? "Demande confirmée ; l’adresse et le téléphone sont maintenant accessibles." : "Demande marquée comme terminée."}</p>}
-      {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "univers" ? "L’univers Prestations doit être ouvert pour ce partenaire." : "Action impossible : vérifie les champs, les droits et le statut actuel."}</p>}
+      {params.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{params.ok === "creation" ? "Prestation enregistrée en brouillon." : params.ok === "archive" ? "Prestation archivée." : params.ok === "confirmed" ? "Demande confirmée ; l’adresse et le téléphone sont maintenant accessibles." : "Demande marquée comme terminée."}</p>}
+      {params.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{params.erreur === "univers" ? "L’univers Prestations doit être ouvert pour ce partenaire." : "Action impossible : vérifie les champs, les droits et le statut actuel."}</p>}
       {broken && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Le suivi des prestations est temporairement indisponible. Les actions sont désactivées jusqu’au retour des données.</p>}
 
       <section className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -80,9 +81,9 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
       </section>
 
       <form method="get" className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2" role="search" aria-label="Filtrer les prestations et demandes">
-        <label className="text-sm font-semibold sm:col-span-2">Rechercher<input name="q" defaultValue={searchParams.q ?? ""} className={field} placeholder="Prestation, catégorie, zone ou précision…"/></label>
-        <label className="text-sm font-semibold">Statut du catalogue<select name="statut_offre" defaultValue={searchParams.statut_offre ?? ""} className={field}><option value="">Tous les statuts</option><option value="draft">Brouillon</option><option value="active">Publié</option><option value="archived">Archivé</option></select></label>
-        <label className="text-sm font-semibold">Statut des demandes<select name="statut_demande" defaultValue={searchParams.statut_demande ?? ""} className={field}><option value="">Tous les statuts</option><option value="requested">À confirmer</option><option value="confirmed">Confirmée</option><option value="completed">Terminée</option><option value="cancelled">Annulée</option><option value="expired">Expirée</option></select></label>
+        <label className="text-sm font-semibold sm:col-span-2">Rechercher<input name="q" defaultValue={params.q ?? ""} className={field} placeholder="Prestation, catégorie, zone ou précision…"/></label>
+        <label className="text-sm font-semibold">Statut du catalogue<select name="statut_offre" defaultValue={params.statut_offre ?? ""} className={field}><option value="">Tous les statuts</option><option value="draft">Brouillon</option><option value="active">Publié</option><option value="archived">Archivé</option></select></label>
+        <label className="text-sm font-semibold">Statut des demandes<select name="statut_demande" defaultValue={params.statut_demande ?? ""} className={field}><option value="">Tous les statuts</option><option value="requested">À confirmer</option><option value="confirmed">Confirmée</option><option value="completed">Terminée</option><option value="cancelled">Annulée</option><option value="expired">Expirée</option></select></label>
         <div className="flex gap-2 sm:col-span-2"><button className="min-h-11 rounded-xl bg-[#B73623] px-4 font-bold text-white">Filtrer</button><Link href="/partenaire/prestations" className="inline-flex min-h-11 items-center rounded-xl border px-4 font-bold">Réinitialiser</Link></div>
       </form>
 
