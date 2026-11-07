@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       .is("archivee_le", null)
       .not("lat", "is", null)
       .not("lng", "is", null)
+      .order("id", { ascending: true })
       .range(offset, offset + 999);
     if (error) {
       return NextResponse.json({ ok: false, error: "Le réseau de pharmacies est momentanément indisponible." }, { status: 503 });
