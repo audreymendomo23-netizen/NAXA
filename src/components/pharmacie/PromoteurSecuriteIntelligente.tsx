@@ -1,10 +1,12 @@
 "use client";
 
+import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";
+
 import { useMemo, useState } from "react";
 
 type Pharmacy = { id: string; nom: string; ville: string | null; quartier: string | null };
 type Installation = { id: string; pharmacie_id: string; status: string; legal_review_status: string; privacy_notice_status: string; updated_at: string };
-type Gateway = { id: string; pharmacie_id: string; tunnel_status: string; last_seen_at: string | null };
+type Gateway = { id: string; pharmacie_id: string; label: string; serial_number: string | null; firmware_version: string | null; tunnel_status: string; last_seen_at: string | null };
 type Camera = { id: string; pharmacie_id: string; status: string; model: string | null; zone_label: string };
 type SecurityEvent = { id: string; pharmacie_id: string; event_type: string; severity: string; status: string; summary: string; detected_at: string };
 type CameraConnection = { id: string; pharmacie_id: string; camera_id: string; adapter_key: string; protocol: string; connection_status: string; last_tested_at: string | null; last_error_code: string | null; is_primary: boolean };
@@ -164,6 +166,7 @@ export function PromoteurSecuriteIntelligente({
           </p>
         ) : (
           <>
+            <PromoteurSecurityInventoryForm pharmacies={pharmacies} gateways={gateways} />
             <section aria-label="Sélection du périmètre de surveillance" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <label className="block">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Pharmacie à surveiller</span>
