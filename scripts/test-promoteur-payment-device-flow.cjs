@@ -34,7 +34,7 @@ test("le paiement est préparé avant débit, montant et destination viennent du
   assert.match(intent, /naxa_promoteur_payment_devices/);
   assert.match(intent, /x-naxa-device-token/);
   assert.match(intent, /x-naxa-device-id/);
-  assert.match(intent, /expected_amount: subscription\\.montant_mensuel/);
+  assert.match(intent, /expected_amount: subscription\.montant_mensuel/);
   assert.match(intent, /status: "awaiting_payment"/);
   assert.match(page, /PaymentIntentPanel/);
   assert.match(panel, /la page web ne peut pas préparer un paiement à la place de ce téléphone/i);

@@ -35,16 +35,18 @@ export default async function PromoteurPaiementsPage({ searchParams }: { searchP
   const pending = !error && (rows ?? []).some(r => r.statut === "en_attente" || r.statut === "non_confirme");
   const activeChannels = ["orange_money", "mtn_momo", "virement"].filter((canal) => destinations.has(canal));
   const destinationsAvailable = !destinationsError && destinationsReady;
-  const [{ data: paymentDevice }, { data: activeIntent }] = await Promise.all([
-    db.from("naxa_promoteur_payment_devices")
-      .select("id,device_name").eq("promoteur_id", user.id).eq("is_active", true)
-      .order("last_seen_at", { ascending: false }).limit(1).maybeSingle(),
-    db.from("naxa_promoteur_payment_intents")
-      .select("id,canal,expected_amount,destination_snapshot,expires_at,status")
-      .eq("promoteur_id", user.id).eq("status", "awaiting_payment")
-      .gt("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
-  ]);
+  const { data: activeIntent } = await db.from("naxa_promoteur_payment_intents")
+    .select("id,canal,expected_amount,destination_snapshot,expires_at,status,device_id")
+    .eq("promoteur_id", user.id).eq("status", "awaiting_payment")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: paymentDevice } = activeIntent?.device_id
+    ? await db.from("naxa_promoteur_payment_devices")
+        .select("id,device_name").eq("id", activeIntent.device_id)
+        .eq("promoteur_id", user.id).eq("is_active", true).maybeSingle()
+    : await db.from("naxa_promoteur_payment_devices")
+        .select("id,device_name").eq("promoteur_id", user.id).eq("is_active", true)
+        .order("last_seen_at", { ascending: false }).limit(1).maybeSingle();
   const errors: Record<string, string> = {
     champs: "Vérifiez le montant et le canal de paiement.",
     canal: "Précisez un canal configuré par NAXA.",
