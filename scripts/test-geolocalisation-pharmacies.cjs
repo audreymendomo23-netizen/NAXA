@@ -245,3 +245,35 @@ test("Recherche régionale : aucune ville de repli codée en dur", () => {
   assert.match(dictionary, /Location detected/);
   assert.doesNotMatch(dictionary, /Position enregistrée|Location saved/);
 });
+
+
+test("GPS par établissement : provenance, mise en attente et vérification Admin", () => {
+  const geoForm = fs.readFileSync(path.join(__dirname, "..", "src", "components", "admin", "GeolocalisationChamps.tsx"), "utf8");
+  const create = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "actions.ts"), "utf8");
+  const promoter = fs.readFileSync(path.join(__dirname, "..", "src", "app", "pharmacie", "promoteur", "actions.ts"), "utf8");
+  const component = fs.readFileSync(path.join(__dirname, "..", "src", "components", "pharmacie", "PromoteurGeolocalisationReseau.tsx"), "utf8");
+  const access = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "promoteur-access.ts"), "utf8");
+  const adminPage = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "pharmacies", "[id]", "page.tsx"), "utf8");
+  const adminAction = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "pharmacies", "[id]", "actions.ts"), "utf8");
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261108000000_promoteur_pharmacy_geo_management.sql"), "utf8");
+  assert.match(geoForm, /name="geo_source_type"/);
+  assert.match(geoForm, /setSource\("gps"\)/);
+  assert.match(geoForm, /setSource\("saisie_manuelle"\)/);
+  assert.match(create, /estCoordonneeCamerounaise/);
+  assert.match(create, /geo_statut: "a_verifier"/);
+  assert.match(create, /geo_source_type/);
+  assert.match(access, /lat,lng,geo_statut,geo_source_type/);
+  assert.match(promoter, /access\.activeLinkIds\.has\(pharmacieId\)/);
+  assert.match(promoter, /access\.profile\.role !== "promoteur"/);
+  assert.match(promoter, /geo_statut: "a_verifier"/);
+  assert.match(promoter, /naxa_pharmacie_geo_audit/);
+  assert.match(component, /Capturer le GPS ici/);
+  assert.match(component, /saisie_manuelle/);
+  assert.match(adminAction, /validerGeolocalisationPharmacie/);
+  assert.match(adminAction, /geo_statut: "verifiee_terrain"/);
+  assert.match(adminPage, /Journal de géolocalisation/);
+  assert.match(migration, /create table if not exists public\.naxa_pharmacie_geo_audit/i);
+  assert.match(migration, /alter table public\.naxa_pharmacie_geo_audit force row level security/i);
+  assert.match(migration, /revoke all on public\.naxa_pharmacie_geo_audit from public, anon, authenticated/i);
+  assert.doesNotMatch(component, /Responsable/);
+});

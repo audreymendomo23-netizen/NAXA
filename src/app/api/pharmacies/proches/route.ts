@@ -97,9 +97,6 @@ export async function GET(request: NextRequest) {
       distanceRoutiereKm: route?.distanceKm ?? null,
       dureeTrajetMinutes: route?.dureeMinutes ?? null,
       fournisseurItineraire: route?.fournisseur ?? null,
-      fraisLivraisonIndicatifs: route && p.livraison_active
-        ? Math.max(1000, Math.min(3000, Math.round(1000 + route.distanceKm * 200)))
-        : null,
       googleMapsUrl: creerLienGoogleMaps(client, { lat: p.lat, lng: p.lng }),
     };
   }).sort((a, b) => {

@@ -62,8 +62,13 @@ test("aucune tarification livraison sur la distance à vol d'oiseau ou estimatio
   const routing = read("src/lib/server/delivery-routing.ts");
   const quote = read("src/app/api/livraison/devis/route.ts");
   assert.match(routing, /calculerTarifLivraison/);
-  assert.match(quote, /calculerTarifLivraison\(km\)/);
+  assert.match(quote, /calculerTarifLivraison\(km, zoneType, zoneSupplement\)/);
   assert.match(quote, /Aucun tarif approximatif ne sera appliqué/);
+  const proximity = read("src/app/api/pharmacies/proches/route.ts");
+  const map = read("src/components/CartePharmaciesProches.tsx");
+  assert.doesNotMatch(proximity, /fraisLivraisonIndicatifs|1000 \+ route\.distanceKm \* 200/);
+  assert.doesNotMatch(map, /fraisLivraisonIndicatifs|Livraison estimée/);
+  assert.match(map, /Frais calculés au devis officiel selon le trajet routier/);
 });
 
 

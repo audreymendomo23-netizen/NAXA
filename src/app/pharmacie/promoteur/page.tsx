@@ -12,6 +12,7 @@ import { PromoteurPasswordForm } from "@/components/pharmacie/PromoteurPasswordF
 import { PromoteurLogoManager } from "@/components/pharmacie/PromoteurLogoManager";
 import { PromoteurKpiValue } from "@/components/pharmacie/PromoteurKpiValue";
 import { EspaceNaxaSwitcher } from "@/components/EspaceNaxaSwitcher";
+import PromoteurGeolocalisationReseau from "@/components/pharmacie/PromoteurGeolocalisationReseau";
 
 type Stats = {
   pharmacies?: { total?: number; actives?: number; inactives?: number };
@@ -26,7 +27,7 @@ type Stats = {
 const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";
 const dateTime = (v: string | null | undefined) => v ? new Date(v).toLocaleString("fr-FR") : "Non renseignée";
 
-export async function PromoteurDashboard({ section = "overview" }: { section?: string }) {
+export async function PromoteurDashboard({ section = "overview", geoStatus }: { section?: string; geoStatus?: string }) {
   const access = await loadPromoteurAccess();
   const { auth, profile, links, linksError, pharmacies, pharmaciesError, convention, abonnement, activeLinkIds, expiryDate, isCommerciallyBlocked, contractDataUnavailable, contractIncomplete, shouldShowAccessStatus, hasLoadError } = access;
   const sb = supabaseServer();
@@ -521,6 +522,17 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
           </aside>
         </section>
 
+        <section className="space-y-3">
+          {geoStatus === "mis-a-jour" && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Coordonnées enregistrées. La position est en attente de vérification par NAXA.</p>}
+          {geoStatus === "perimetre" && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Modification refusée : pharmacie hors de votre réseau actif, compte inactif ou coordonnées hors du Cameroun.</p>}
+          {geoStatus === "journal" && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">La position a été enregistrée mais le journal d’audit n’a pas été confirmé. Contactez NAXA avant une nouvelle modification.</p>}
+          {geoStatus === "echec" && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">La géolocalisation n’a pas pu être enregistrée.</p>}
+        </section>
+        <PromoteurGeolocalisationReseau pharmacies={(pharmacies ?? []).filter(ph => activeLinkIds.has(ph.id) && ph.archivee_le === null).map(ph => ({
+          id: ph.id, nom: ph.nom, ville: ph.ville, quartier: ph.quartier, lat: ph.lat, lng: ph.lng,
+          geo_statut: ph.geo_statut, geo_source_type: ph.geo_source_type, geo_mise_a_jour: ph.geo_mise_a_jour,
+          geo_verifiee_le: ph.geo_verifiee_le, archivee_le: ph.archivee_le,
+        }))}/>
         <div id="securite" className="promoteur-card xl:col-span-12 space-y-4 rounded-3xl border border-naxa-green-100 bg-white p-4 sm:p-6">
           <CaisseSecurityManager cashiers={(caisses ?? []).filter((c) => c.actif === true && c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id)).map((c) => ({ id: c.id, username: c.username ?? null, first_name: c.first_name ?? null, last_name: c.last_name ?? null, pharmacie_id: c.pharmacie_id ?? null, actif: true }))} />
           <section id="configuration" className="promoteur-card rounded-3xl border border-naxa-green-100 bg-white p-5">

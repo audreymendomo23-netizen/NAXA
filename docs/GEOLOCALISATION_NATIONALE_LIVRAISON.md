@@ -77,3 +77,28 @@ Le suivi GPS continu d'un livreur lorsque la PWA est minimisée ou fermée n'est
 - Le dépôt n'a pas été déployé. Aucune clé Google Routes n'a été vérifiée en production et aucun trajet réel n'est certifié.
 - La CI GitHub doit terminer avec succès sur le dernier commit avant de déclarer les corrections web prêtes.
 - Pas de test E2E avec appareils Android physiques, GPS réel, réseau mobile camerounais ou mode arrière-plan.
+
+## Gestion GPS par établissement — décision de clôture
+
+La position géographique est une propriété de chaque ligne `pharmacies` (`lat`, `lng`). Elle ne dépend pas de la position du compte Promoteur et ne doit jamais être partagée entre plusieurs établissements.
+
+### Modes de saisie
+
+- **Administrateur à la pharmacie :** utilise le GPS du téléphone, avec précision élevée, puis contrôle le repère cartographique.
+- **Administrateur à distance :** saisit manuellement la latitude et la longitude exactes obtenues auprès de l'établissement.
+- **Promoteur multisites :** depuis « Mon réseau », choisit une pharmacie précise et renseigne ses propres coordonnées, soit par GPS lorsqu'il se trouve à cet établissement, soit manuellement. Le contrôle serveur exige un rattachement Promoteur–pharmacie actif ; une pharmacie hors de son réseau ne peut pas être modifiée.
+- **Responsable :** consultation seulement ; pas de modification de coordonnées dans ce parcours.
+
+### Statuts et certification
+
+- `inconnu` : aucune position exploitable/certifiée.
+- `a_verifier` : coordonnées enregistrées depuis GPS ou saisie manuelle, en attente de contrôle.
+- `source_publique_a_confirmer` : candidat issu d'un référentiel public, à ne pas présenter comme certifié.
+- `verifiee_terrain` : position contrôlée explicitement par l'Administration.
+- `rejetee` : position rejetée ; elle doit être corrigée avant d'être utilisée pour une découverte fiable.
+
+Les coordonnées nouvelles sont bornées au territoire camerounais. Toute modification repasse à `a_verifier`, efface la certification précédente et crée un événement dans le journal `naxa_pharmacie_geo_audit`. L'Administration peut consulter le point sur une carte, confirmer le contrôle puis certifier la position.
+
+**Séparation de deux GPS :** le GPS du Client donne sa position au moment de la recherche ; le GPS de pharmacie donne la position de l'établissement. La découverte nationale et les itinéraires utilisent les deux points et un réseau routier. Un géorepérage de zone tarifaire n'est ni un enregistrement de pharmacie, ni une condition de découverte.
+
+**Limite terrain maintenue :** une pharmacie sans coordonnées réelles n'est pas placée artificiellement sur la carte et n'obtient pas de distance fictive. Les candidats issus d'OpenStreetMap ou d'un autre répertoire public ne deviennent jamais automatiquement des partenaires NAXA.

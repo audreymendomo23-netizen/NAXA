@@ -20,7 +20,6 @@ type PharmacieCarte = {
   livraison_active?: boolean;
   distanceRoutiereKm?: number | null;
   dureeTrajetMinutes?: number | null;
-  fraisLivraisonIndicatifs?: number | null;
   googleMapsUrl?: string | null;
 };
 type Point = { lat: number; lng: number };
@@ -186,7 +185,7 @@ export default function CartePharmaciesProches({
                 {p.distanceRoutiereKm != null
                   ? <p className="mt-1 text-xs font-bold text-[#0F6B3F]">{p.distanceRoutiereKm.toLocaleString("fr-FR",{maximumFractionDigits:1})} km par la route{p.dureeTrajetMinutes ? " · environ " + p.dureeTrajetMinutes + " min" : ""}</p>
                   : p.distanceKm != null && <p className="mt-1 text-xs text-[#64776B]">{p.distanceKm.toLocaleString("fr-FR",{maximumFractionDigits:1})} km à vol d’oiseau · route indisponible</p>}
-                {p.livraison_active && p.fraisLivraisonIndicatifs != null && <p className="mt-1 text-xs font-semibold text-[#53685C]">Livraison estimée : {p.fraisLivraisonIndicatifs.toLocaleString("fr-FR")} FCFA (à confirmer au devis)</p>}
+                {p.livraison_active && <p className="mt-1 text-xs font-semibold text-[#53685C]">Frais calculés au devis officiel selon le trajet routier.</p>}
                 {p.horaires?.trim() && <p className="mt-1 text-xs leading-5 text-[#64776B]">Horaires publiés : {p.horaires}</p>}
                 {!telephone && <p className="mt-1 text-xs leading-5 text-[#64776B]">Téléphone public non renseigné.</p>}
                 {position && <a className="mt-2 inline-flex text-xs font-extrabold text-[#0F6B3F] underline" href={p.googleMapsUrl || ("https://www.google.com/maps/dir/?api=1&origin=" + position.lat + "," + position.lng + "&destination=" + p.lat + "," + p.lng + "&travelmode=driving")} target="_blank" rel="noreferrer">Ouvrir l’itinéraire dans Google Maps</a>}

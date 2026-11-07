@@ -7,6 +7,7 @@ export function GeolocalisationChamps({ className = "champ mt-1" }: { className?
   const [lng, setLng] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [source, setSource] = useState<"gps" | "saisie_manuelle">("saisie_manuelle");
 
   function localiser() {
     if (!window.isSecureContext) {
@@ -24,6 +25,7 @@ export function GeolocalisationChamps({ className = "champ mt-1" }: { className?
     const success = ({ coords }: GeolocationPosition) => {
       setLat(coords.latitude.toFixed(7));
       setLng(coords.longitude.toFixed(7));
+      setSource("gps");
       setLoading(false);
       setStatus("Coordonnées récupérées. Vérifiez que le point correspond bien à la pharmacie avant d’enregistrer.");
     };
@@ -59,9 +61,10 @@ export function GeolocalisationChamps({ className = "champ mt-1" }: { className?
   }
 
   return <section className="space-y-2">
+    <input type="hidden" name="geo_source_type" value={source}/>
     <div className="grid grid-cols-2 gap-3">
-      <label className="block text-sm font-semibold">Latitude<input name="lat" type="number" step="any" min="-90" max="90" required value={lat} onChange={e => setLat(e.target.value)} className={className}/></label>
-      <label className="block text-sm font-semibold">Longitude<input name="lng" type="number" step="any" min="-180" max="180" required value={lng} onChange={e => setLng(e.target.value)} className={className}/></label>
+      <label className="block text-sm font-semibold">Latitude<input name="lat" type="number" step="any" min="-90" max="90" required value={lat} onChange={e => { setLat(e.target.value); setSource("saisie_manuelle"); }} className={className}/></label>
+      <label className="block text-sm font-semibold">Longitude<input name="lng" type="number" step="any" min="-180" max="180" required value={lng} onChange={e => { setLng(e.target.value); setSource("saisie_manuelle"); }} className={className}/></label>
     </div>
     <button type="button" onClick={localiser} disabled={loading} className="btn w-full border border-naxa-green-700 text-naxa-green-900 disabled:opacity-60">
       {loading ? "Recherche de la position…" : "◎ Utiliser ma position pour remplir les coordonnées"}

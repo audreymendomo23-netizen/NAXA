@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
+import { estCoordonneeCamerounaise } from "@/lib/server/delivery-routing";
 
 const TYPES = new Set(["existence_legale","registre_commerce","niu","attestation_non_redevance","plan_localisation","cni_promoteur","autre"]);
 const MIME = new Set(["application/pdf","image/jpeg","image/png","image/webp"]);
@@ -118,4 +119,37 @@ export async function changerStatutServiceBebeMaman(formData: FormData) {
   revalidatePath("/admin/promoteurs");
   revalidatePath("/admin/pharmacies/" + pharmacieId);
   redirect("/admin/pharmacies/" + pharmacieId + "?ok=service");
+}
+
+
+export async function validerGeolocalisationPharmacie(formData: FormData) {
+  const user = await requireAdmin();
+  const pharmacieId = String(formData.get("pharmacie_id") ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pharmacieId)
+    || formData.get("confirmation_terrain") !== "oui") {
+    redirect("/admin/pharmacies/" + pharmacieId + "?erreur=geo-confirmation");
+  }
+  const db = supabaseAdmin();
+  const { data: pharmacy, error: readError } = await db.from("pharmacies")
+    .select("id,lat,lng,geo_statut,geo_source_type").eq("id", pharmacieId).maybeSingle();
+  if (readError || !pharmacy) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=pharmacie");
+  const lat = Number(pharmacy.lat), lng = Number(pharmacy.lng);
+  if (!estCoordonneeCamerounaise({ lat, lng })) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=geo-coord");
+  const now = new Date().toISOString();
+  const { data: updated, error } = await db.from("pharmacies").update({
+    geo_statut: "verifiee_terrain", geo_verifiee_par: user.id, geo_verifiee_le: now, geo_mise_a_jour: now,
+  }).eq("id", pharmacieId).select("id").maybeSingle();
+  if (error || !updated) redirect("/admin/pharmacies/" + pharmacieId + "?erreur=geo");
+  const { error: auditError } = await db.from("naxa_pharmacie_geo_audit").insert({
+    pharmacie_id: pharmacieId, acteur_id: user.id, role_acteur: "admin", event_type: "verification",
+    source_type: pharmacy.geo_source_type ?? "administration", latitude_precedente: lat, longitude_precedente: lng,
+    latitude_nouvelle: lat, longitude_nouvelle: lng, statut_precedent: pharmacy.geo_statut, statut_nouveau: "verifiee_terrain",
+  });
+  if (auditError) {
+    console.error("[admin.validerGeolocalisationPharmacie] audit", { code: auditError.code, message: auditError.message });
+    redirect("/admin/pharmacies/" + pharmacieId + "?erreur=journal");
+  }
+  revalidatePath("/admin/pharmacies/" + pharmacieId);
+  revalidatePath("/admin/promoteurs");
+  redirect("/admin/pharmacies/" + pharmacieId + "?ok=geo");
 }
