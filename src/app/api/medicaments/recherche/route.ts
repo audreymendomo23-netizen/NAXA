@@ -144,20 +144,42 @@ async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
 }
 
 function verifiedBdpmPhoto(item: BdpmProduct): {
-  url: string; sourceUrl: string; licence: string; attribution: string | null; title: string;
+  url: string;
+  sourceUrl: string;
+  licence: string;
+  attribution: string | null;
+  title: string;
+} | null {
+  const path = item.photo_path?.trim() ?? "";
   const base = supabaseStorageBaseUrl();
-  if (!path || !base || path.startsWith("/") || path.includes("..") || path.includes(String.fromCharCode(92))
-    || !item.photo_source_url?.startsWith("https://") || !item.photo_licence?.trim()
-    || !item.photo_verifiee_le || !Number.isFinite(Date.parse(item.photo_verifiee_le))) return null;
+  if (
+    !path ||
+    !base ||
+    path.startsWith("/") ||
+    path.includes("..") ||
+    path.includes(String.fromCharCode(92)) ||
+    !item.photo_source_url?.startsWith("https://") ||
+    !item.photo_licence?.trim() ||
+    !item.photo_verifiee_le ||
+    !Number.isFinite(Date.parse(item.photo_verifiee_le))
+  ) return null;
+
   try {
-    const url = new URL(base + "/storage/v1/object/public/medicaments/" +
-      path.split("/").map((segment) => encodeURIComponent(segment)).join("/"));
+    const url = new URL(
+      base + "/storage/v1/object/public/medicaments/" +
+      path.split("/").map((segment) => encodeURIComponent(segment)).join("/")
+    );
     if (url.protocol !== "https:" || url.origin !== new URL(base).origin) return null;
     return {
-      url: url.toString(), sourceUrl: item.photo_source_url, licence: item.photo_licence,
-      attribution: item.photo_attribution ?? null, title: item.nom,
+      url: url.toString(),
+      sourceUrl: item.photo_source_url,
+      licence: item.photo_licence,
+      attribution: item.photo_attribution ?? null,
+      title: item.nom,
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function realPartnerAvailability(productIds: string[]): Promise<{ verified: boolean; byProduct: Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }> }> {
