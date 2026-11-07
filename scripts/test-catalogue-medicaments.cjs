@@ -109,16 +109,17 @@ test("sécurité : recherche courte refusée et appels externes limités dans le
 const photoResolver = fs.readFileSync(path.join(root, "src/lib/medicaments/photos-externes.ts"), "utf8");
 const photoRoute = fs.readFileSync(path.join(root, "src/app/api/medicaments/photo/route.ts"), "utf8");
 
-test("photos : recherche séparée de boîtes et de comprimés avec licence commerciale", () => {
-  assert.match(photoRoute, /rechercherPhotosMedicament/);
-  assert.match(photoRoute, /photos\.boite/);
-  assert.match(photoRoute, /photos\.comprime/);
-  assert.match(photoResolver, /kind: "boite" \| "comprime"/);
-  assert.match(photoResolver, /item\.coverage >= 0\.75/);
-  assert.match(photoResolver, /searchVariants/);
-  assert.match(photoResolver, /likelyCombinationMismatch/);
-  assert.match(photoResolver, /allowedCommercialLicense/);
-  assert.match(photoResolver, /sourceUrl: info\.descriptionurl/);
+test("photos : aucune image de substitution sans correspondance et licence vérifiées", () => {
+  assert.match(photoRoute, /verifiedLocalPhoto/);
+  assert.match(photoRoute, /completePhoto/);
+  assert.match(photoRoute, /verifiedStorageUrl/);
+  assert.match(photoRoute, /aucune_photo_verifiee/);
+  assert.doesNotMatch(photoRoute, /rechercherPhotosMedicament/);
+  assert.doesNotMatch(photoRoute, /wikimedia_commons/);
+  assert.match(photoRoute, /exactIdentityMatch/);
+  assert.match(photoRoute, /unrequestedCombination/);
+  assert.match(photoRoute, /photo_licence/);
+  assert.match(photoRoute, /photo_verifiee_le/);
 });
 
 test("photos : aucune API RxImage arrêtée ni image non licenciée injectée automatiquement", () => {
@@ -126,7 +127,7 @@ test("photos : aucune API RxImage arrêtée ni image non licenciée injectée au
   assert.match(photoResolver, /sources d\x27images libres par défaut/);
   assert.match(recherche, /imageVariants\?\.comprime/);
   assert.match(recherche, /imageVariants\?\.boite/);
-  assert.match(recherche, /Wikimedia Commons/);
+  assert.match(recherche, /Photo de référence validée/);
 });
 
 
