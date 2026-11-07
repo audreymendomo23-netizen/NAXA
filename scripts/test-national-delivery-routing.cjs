@@ -86,3 +86,27 @@ test("le Livreur reçoit les coordonnées nécessaires à sa prochaine étape un
   assert.match(courier, /Itinéraire vers la pharmacie/);
   assert.match(courier, /Itinéraire vers le Client/);
 });
+
+test("la tarification progressive applique les zones GPS configurées côté Admin", () => {
+  const pricing = read("src/lib/delivery-pricing.ts");
+  const routing = read("src/lib/server/delivery-routing.ts");
+  const quote = read("src/app/api/livraison/devis/route.ts");
+  const admin = read("src/app/admin/livraisons/page.tsx");
+  const zoneUi = read("src/components/DeliveryTariffZoneConfig.tsx");
+  const migration = read("supabase/migrations/20261107150000_delivery_progressive_zone_tariffs.sql");
+  assert.match(pricing, /debut: 2\.5, fin: 5, tarifParKm: 100/);
+  assert.match(pricing, /debut: 5, fin: 10, tarifParKm: 150/);
+  assert.match(pricing, /debut: 10, fin: 20, tarifParKm: 200/);
+  assert.match(pricing, /debut: 20, fin: 50, tarifParKm: 250/);
+  assert.match(pricing, /zoneType === "eloignee" \|\| zoneType === "difficile"/);
+  assert.match(pricing, /selectionnerZoneTarifaire/);
+  assert.match(routing, /determinerZoneLivraison/);
+  assert.match(quote, /from\("naxa_delivery_tariff_zones"\)/);
+  assert.match(quote, /zone_supplement_fcfa: zoneSupplement/);
+  assert.match(quote, /formule_version: "progressive_zones_v1"/);
+  assert.match(admin, /DeliveryTariffZoneConfig/);
+  assert.match(zoneUi, /naxa_delivery_tariff_zones/);
+  assert.match(migration, /frais_livraison between 1500 and 20000/);
+  assert.match(migration, /commission_naxa/);
+  assert.match(migration, /v_r\.frais_livraison between 1500 and 20000/);
+});
