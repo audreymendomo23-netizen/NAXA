@@ -34,7 +34,7 @@ test("tableau Promoteur : connecteurs visibles seulement pour le réseau pharmac
 });
 
 test("documentation : limite des caméras propriétaires et validation modèle/firmware", () => {
-  assert.match(doc, /caméras propriétaires/);
+  assert.match(doc, /caméra propriétaire/);
   assert.match(doc, /modèle et firmware/);
   assert.match(doc, /encodeur analogique/);
   assert.match(doc, /API officielle/);
