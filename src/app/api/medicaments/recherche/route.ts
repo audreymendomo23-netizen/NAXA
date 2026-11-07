@@ -27,11 +27,11 @@ function cleanName(value: unknown): string {
 function matchesMedicineQuery(candidateName: string, query: string, terms: string[], pilotAliases: string[] = []): boolean {
   const candidate = normaliserTerme(cleanName(candidateName));
   if (!candidate) return false;
-  const candidateTokens = new Set(candidate.split(/\\s+/).filter(Boolean));
+  const candidateTokens = new Set(candidate.split(" ").filter(Boolean));
   const variants = [...new Set([query, ...terms, ...pilotAliases]
     .map(normaliserTerme).filter((term) => term.length >= 3))];
   return variants.some((variant) => {
-    const tokens = variant.split(/\\s+/).filter((token) => token.length >= 3 && !/^\\d+(?:[.,]\\d+)?$/.test(token));
+    const tokens = variant.split(" ").filter((token) => token.length >= 3 && !/^[0-9]+(?:[.,][0-9]+)?$/.test(token));
     return tokens.length > 0 && tokens.every((token) => candidateTokens.has(token));
   });
 }
@@ -145,10 +145,8 @@ async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
 
 function verifiedBdpmPhoto(item: BdpmProduct): {
   url: string; sourceUrl: string; licence: string; attribution: string | null; title: string;
-} | null {
-  const path = item.photo_path?.trim() ?? "";
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/+$/, "");
-  if (!path || !base || path.startsWith("/") || path.includes("..") || path.includes("\\\\")
+  const base = supabaseStorageBaseUrl();
+  if (!path || !base || path.startsWith("/") || path.includes("..") || path.includes(String.fromCharCode(92))
     || !item.photo_source_url?.startsWith("https://") || !item.photo_licence?.trim()
     || !item.photo_verifiee_le || !Number.isFinite(Date.parse(item.photo_verifiee_le))) return null;
   try {
@@ -156,15 +154,10 @@ function verifiedBdpmPhoto(item: BdpmProduct): {
       path.split("/").map((segment) => encodeURIComponent(segment)).join("/"));
     if (url.protocol !== "https:" || url.origin !== new URL(base).origin) return null;
     return {
-      url: url.toString(),
-      sourceUrl: item.photo_source_url,
-      licence: item.photo_licence,
-      attribution: item.photo_attribution,
-      title: item.nom,
+      url: url.toString(), sourceUrl: item.photo_source_url, licence: item.photo_licence,
+      attribution: item.photo_attribution ?? null, title: item.nom,
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function realPartnerAvailability(productIds: string[]): Promise<{ verified: boolean; byProduct: Map<string, { pharmacies: number; quantity: number; lowestPrice: number | null }> }> {
@@ -318,7 +311,8 @@ async function rxNormSearch(term: string): Promise<Candidate[]> {
 }
 
 async function openFdaSearch(term: string): Promise<AnyRecord[]> {
-  const safe = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const slash = String.fromCharCode(92);
+  const safe = term.split(slash).join(slash + slash).split('"').join(slash + '"');
   const search = 'openfda.generic_name:"' + safe + '" OR openfda.brand_name:"' + safe + '"';
   const apiKey = process.env.OPENFDA_API_KEY;
   const url = "https://api.fda.gov/drug/label.json?limit=10" +
@@ -455,14 +449,14 @@ export async function GET(request: NextRequest) {
       localProduct &&
       verifiedPhotoPath &&
       !verifiedPhotoPath.startsWith("/") &&
-      !verifiedPhotoPath.includes("..") &&
-      !verifiedPhotoPath.includes("\\") &&
+      !verifiedPhotoPath.includes(String.fromCharCode(92)) &&
+      !verifiedPhotoPath.includes(String.fromCharCode(92)) &&
       localProduct.photo_source_url?.startsWith("https://") &&
       localProduct.photo_licence?.trim() &&
       localProduct.photo_verifiee_le &&
       Number.isFinite(Date.parse(localProduct.photo_verifiee_le))
     );
-    const storageBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/+$/, "");
+    const storageBase = supabaseStorageBaseUrl();
     let storagePhotoUrl: string | null = null;
     if (photoMetadataComplete && storageBase) {
       try {
@@ -622,3 +616,12 @@ export async function GET(request: NextRequest) {
     notice: "Catalogue informatif. Disponibilité et prix affichés uniquement lorsqu’ils sont issus des stocks réels des pharmacies partenaires NAXA. Si le stock ne peut pas être vérifié, son statut reste non vérifié."
   }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } });
 }
+function supabaseStorageBaseUrl(): string | null {
+  let base = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+  while (base.endsWith("/")) base = base.slice(0, -1);
+  try {
+    const url = new URL(base);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch { return null; }
+}
+
