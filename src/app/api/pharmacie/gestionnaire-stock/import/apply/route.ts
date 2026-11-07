@@ -10,6 +10,7 @@ type ImportLine={
   nom:string;
   quantite:number;
   prix:number|null;
+  cout_achat:number|null;
   lot:string|null;
   peremption:string|null;
   emplacement:string|null;
@@ -30,6 +31,7 @@ export async function POST(request:NextRequest){
     const nom=String(row.nom??"").trim().slice(0,250);
     const quantite=Number(row.quantite);
     const prix=row.prix===null||row.prix===undefined||row.prix===""?null:Number(row.prix);
+    const cout_achat=row.cout_achat===null||row.cout_achat===undefined||row.cout_achat===""?null:Number(row.cout_achat);
     const lot=String(row.lot??"").trim()||null;
     const peremption=String(row.peremption??"").trim()||null;
     const emplacement=String(row.emplacement??"").trim().slice(0,160)||null;
@@ -37,9 +39,10 @@ export async function POST(request:NextRequest){
     if(nom.length<2)errors.push("Ligne "+(index+1)+": nom du produit invalide.");
     if(!Number.isSafeInteger(quantite)||quantite<0)errors.push("Ligne "+(index+1)+": quantité invalide.");
     if(prix!==null&&(!Number.isSafeInteger(prix)||prix<0))errors.push("Ligne "+(index+1)+": prix de vente invalide.");
+    if(cout_achat!==null&&(!Number.isSafeInteger(cout_achat)||cout_achat<0))errors.push("Ligne "+(index+1)+": coût d’achat invalide.");
     if(Boolean(lot)!==Boolean(peremption))errors.push("Ligne "+(index+1)+": lot et péremption doivent être renseignés ensemble.");
     if(lot&&(!Number.isSafeInteger(quantite)||quantite<=0||!/^\d{4}-\d{2}-\d{2}$/.test(peremption??"")))errors.push("Ligne "+(index+1)+": détails de lot incomplets.");
-    lines.push({produit_id,nom,quantite,prix,lot,peremption,emplacement});
+    lines.push({produit_id,nom,quantite,prix,cout_achat,lot,peremption,emplacement});
   });
   if(errors.length)return NextResponse.json({error:"L’import contient des lignes à corriger.",details:errors.slice(0,40),totalErrors:errors.length},{status:422});
 
