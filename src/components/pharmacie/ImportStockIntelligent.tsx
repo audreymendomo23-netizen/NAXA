@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import {
   convertirLignesStock,
   detecterLigneEntete,
-  parserNombreStock,
   scoreRapprochementProduit,
   suggererColonnesStock,
   validerLigneImportStock,
@@ -42,10 +41,6 @@ const FIELDS: Array<{key:StockImportField;label:string}> = [
   {key:"location",label:"Emplacement"},
 ];
 
-function stringify(value:unknown):string {
-  if(value instanceof Date)return value.toLocaleDateString("fr-FR");
-  return String(value??"").trim();
-}
 
 function readSheets(file:File):Promise<ParsedSheet[]> {
   return new Promise((resolve,reject)=>{
@@ -135,6 +130,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
   async function chooseFile(file:File|null){
     setError("");setMessage("");setResult(null);setSheets([]);setOverrides({});setConfirmSnapshot(false);setProvider("");setAiNotes([]);
     if(!file)return;
+    if(file.size>20*1024*1024){setError("Fichier trop volumineux : limite de 20 Mo.");return;}
     setLoading(true);setFileName(file.name);
     try{
       const parsed=await readSheets(file);
