@@ -25,12 +25,17 @@ test("API : trois sources attendues et aucune dépendance à RxImage", () => {
   assert.doesNotMatch(route, /rximage\.nlm\.nih\.gov/);
 });
 
-test("images : aucune photo n'est publiée tant que la provenance et les droits ne sont pas matérialisés", () => {
-  assert.match(route, /const storagePhotoUrl = null/);
-  assert.match(route, /Photo masquée jusqu’à validation de sa provenance et de ses droits/);
+test("images : une photo locale n'est publiée qu'avec source, licence et date vérifiées", () => {
+  assert.match(route, /photoMetadataComplete/);
+  assert.match(route, /localProduct\.photo_source_url\?\.startsWith\("https:"\)/);
+  assert.match(route, /localProduct\.photo_licence\?\.trim\(\)/);
+  assert.match(route, /localProduct\.photo_verifiee_le/);
+  assert.match(route, /verifiedPhotoPath/);
+  assert.match(route, /\/storage\/v1\/object\/public\/medicaments/);
   assert.doesNotMatch(route, /dailyMedImage\(/);
   assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
-});;
+  assert.match(recherche, /Photo réelle non référencée/);
+});
 
 test("upload photo : licence, URL HTTPS et confirmation des droits obligatoires", () => {
   assert.match(upload, /sourceUrl\.trim\(\)\.startsWith\("https:\/\/"\)/);
@@ -73,10 +78,12 @@ test("stock : la recherche affiche les statuts réels du réseau partenaire", ()
   assert.match(recherche, /partnerPharmacyCount/);
 });
 
-test("images : la photo locale est prioritaire et le placeholder reste disponible", () => {
+test("images : la photo locale vérifiée est prioritaire et une absence n'est pas maquillée", () => {
   assert.ok(route.includes("imageUrl: storagePhotoUrl,"));
-  assert.match(route, /Photo masquée jusqu’à validation/);
-  assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
+  assert.match(route, /imageSourceUrl: storagePhotoUrl/);
+  assert.match(route, /imageLicense: storagePhotoUrl/);
+  assert.match(recherche, /Photo réelle non référencée/);
+  assert.match(recherche, /Real reference photo/);
 });
 
 test("fiche publique : les photos sans licence validée ne sont pas affichées", () => {
