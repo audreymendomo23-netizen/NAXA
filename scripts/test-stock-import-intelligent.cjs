@@ -12,7 +12,7 @@ const applyApi = fs.readFileSync(path.join(root, "src/app/api/pharmacie/gestionn
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261107210000_stock_import_intelligent_rpc.sql"), "utf8");
 
 test("import adaptatif : vocabulaire français/anglais et colonnes de logiciels hétérogènes", () => {
-  for (const token of ["designation","libelle","active ingredient","ean13","pvttc","stock final","batch number","date peremption","emplacement"]) {
+  for (const token of ["designation","libelle","active ingredient","ean13","pvttc","prix achat","purchase price","stock final","batch number","date peremption","emplacement"]) {
     assert.ok(engine.toLowerCase().includes(token), "Alias absent : " + token);
   }
   assert.match(engine, /normaliserColonneStock/);
@@ -38,6 +38,8 @@ test("mapping IA : Gemini/Groq côté serveur, colonnes autorisées et sortie co
   assert.match(mappingApi, /authorized\(pharmacieId\)/);
   assert.match(mappingApi, /IMPORT_STOCK/);
   assert.match(mappingApi, /donnée privée masquée/);
+  assert.match(mappingApi, /purchaseCost/);
+  assert.match(mappingApi, /cout achat/);
 });
 
 test("rapprochement catalogue : code-barres, nom/DCI/dosage et correction humaine", () => {
@@ -78,6 +80,8 @@ test("RPC stock : transaction privilégiée, validation des données et garde FE
   assert.match(migration, /grant execute on function public\.naxa_import_stock_batch\(uuid,jsonb\) to authenticated/i);
   assert.match(migration, /Produit déjà suivi par lots/);
   assert.match(migration, /stocks_lots/);
+  assert.match(migration, /stocks_couts/);
+  assert.match(migration, /EDIT_STOCK_PARAMETERS/);
   assert.match(migration, /on conflict \(pharmacie_id,produit_id\) do update/);
 });
 
