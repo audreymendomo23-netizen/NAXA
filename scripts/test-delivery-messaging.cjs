@@ -47,7 +47,7 @@ test("les deux applications exposent l'appel et la messagerie NAXA",()=>{
   assert.match(clientTracking,/DeliveryMissionChat reservationId=\{reservationId\} viewer=\"client\"/);
   assert.match(chat,/naxa_delivery_list_messages/);
   assert.match(chat,/naxa_delivery_send_message/);
-  assert.match(chat,/setInterval\(\(\)=>void load\(\),5000\)/);
+  assert.match(chat,/setInterval\(\(\)\s*=>\s*void load\(\),5000\)/);
 });
 
 test("les composants de messagerie TSX sont syntaxiquement valides",()=>{
