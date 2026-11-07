@@ -243,3 +243,35 @@ Le tableau Promoteur affiche désormais, sur la route Sécurité et uniquement p
 ### Contrôle technique initial
 
 Le DDL a été exécuté dans une transaction de validation sur Supabase Replay puis annulé : les sept tables, RLS forcée, absence de privilèges anon/authenticated, droits service_role, trigger append-only, revue humaine des événements, confirmation sirène et absence de colonnes d'URL/secret vidéo ont tous été retournés true. La migration persistante Replay et le résultat CI sont suivis séparément avant tout feu vert.
+
+
+## 14. Compatibilité caméra multi-marques et multi-générations
+
+Le cahier des charges NAXA ne doit pas être limité à ONVIF. Le connecteur repose sur une passerelle locale extensible et un catalogue d'adaptateurs :
+
+- **ONVIF** : découverte et fonctions normalisées lorsque le modèle/firmware les implémente ; profils T/G/M et profil S historique selon génération.
+- **RTSP / RTSPS** : réception du flux vidéo documenté, indépendamment de l'API de contrôle constructeur ; un flux RTSP seul ne fournit pas automatiquement événements, PTZ, lecture NVR ou relais I/O.
+- **API / SDK officiels constructeur** : adaptateurs dédiés prévus pour Hikvision ISAPI, Dahua CGI/SDK, Axis VAPIX, Hanwha SUNAPI, Uniview LAPI, Vivotek API, FLIR ISOM et autres fabricants documentant une interface autorisée.
+- **NVR/DVR** : connexion au recorder et exposition des canaux ; prise en charge des systèmes multi-canaux qui ne donnent pas un endpoint indépendant à chaque caméra.
+- **Analogique** : anciennes caméras analogiques connectées à un DVR ou à un encodeur vidéo IP ; l'adaptateur s'attache alors au canal du recorder/encodeur.
+- **Caméras Wi-Fi / Cloud** : flux local ou API Cloud officielle lorsqu'elle existe et que le fabricant autorise l'intégration. Pas de contournement d'application, chiffrement ou authentification propriétaire.
+
+### Registre d'adaptateurs introduit sur QA
+
+Le catalogue `naxa_security_camera_adapters` identifie chaque famille de connecteur, son protocole et son niveau d'implémentation. Les connexions multiples d'une même caméra sont enregistrées dans `naxa_security_camera_connections`, rattachées à la même pharmacie et à une passerelle locale. L'authentification pointe vers un secret conservé hors base ; aucun mot de passe ni URI contenant des identifiants n'est stocké dans ces tables.
+
+Le registre initial référence les connecteurs génériques ONVIF, RTSP, RTSPS, NVR/DVR, encodeur analogique, capture HTTPS et API/SDK de plusieurs fabricants. **Tous sont initialement `design_only`** : leur présence au catalogue n'est pas une affirmation que le driver est déjà codé ou validé. Le statut `validated` sera réservé aux essais réussis sur les références exactes et leurs versions de firmware.
+
+### Ce que « tous les modèles possibles » veut dire dans le produit
+
+NAXA vise la compatibilité la plus large possible, et non une promesse absolue pour tout matériel existant. Une caméra propriétaire sans interface réseau documentée, API officielle, flux local accessible ou enregistreur/encodeur intermédiaire ne peut pas être intégrée proprement. Elle sera signalée `unsupported` ou `requires_credentials`, sans prétendre être connectée. Les capacités (live, lecture, enregistrement, PTZ, audio, événements, analytics, I/O) sont détectées et affichées séparément : une connexion vidéo ne signifie pas que toutes ces fonctions sont prises en charge.
+
+### Vérification à l'installation
+
+1. Identifier constructeur, modèle, firmware, type IP/Wi-Fi/analogique et recorder éventuel.
+2. Découvrir ONVIF dans le réseau local ; en l'absence d'ONVIF, vérifier RTSP/RTSPS ou l'API/SDK officiel.
+3. Si caméra analogique, identifier le modèle du DVR/encodeur et le canal.
+4. Tester le flux et chaque capacité séparément ; chiffrer les secrets hors base et refuser les ports entrants exposés sur Internet.
+5. Enregistrer le résultat par modèle/firmware, avec connecteur principal et solutions de repli.
+
+Références de compatibilité : la base officielle ONVIF est la source de vérité du statut conformant, lequel est lié à la version logicielle enregistrée ; ONVIF rappelle aussi que les fonctions conditionnelles peuvent varier d'un appareil à l'autre. Voir [produits conformes](https://www.onvif.org/conformant-products/), [profils ONVIF](https://www.onvif.org/profiles/) et [FAQ conformité](https://www.onvif.org/conformance-faq/).

@@ -162,7 +162,7 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
   const scopedIds = [...activePharmacyIds];
   const operationalCaisses = (caisses ?? []).filter((c) => c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id));
   const securityRegistryEnabled = section === "securite";
-  const [securityInstallationsResult, securityGatewaysResult, securityCamerasResult, securityEventsResult] = await Promise.all([
+  const [securityInstallationsResult, securityGatewaysResult, securityCamerasResult, securityConnectionsResult, securityEventsResult] = await Promise.all([
     securityRegistryEnabled && scopedIds.length
       ? adminDb.from("naxa_security_installations").select("id,pharmacie_id,status,legal_review_status,privacy_notice_status,updated_at").in("pharmacie_id", scopedIds)
       : Promise.resolve({ data: [], error: null }),
@@ -173,12 +173,15 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
       ? adminDb.from("naxa_security_cameras").select("id,pharmacie_id,status,model,zone_label").in("pharmacie_id", scopedIds)
       : Promise.resolve({ data: [], error: null }),
     securityRegistryEnabled && scopedIds.length
+      ? adminDb.from("naxa_security_camera_connections").select("id,pharmacie_id,camera_id,adapter_key,protocol,connection_status,last_tested_at,last_error_code,is_primary").in("pharmacie_id", scopedIds)
+      : Promise.resolve({ data: [], error: null }),
+    securityRegistryEnabled && scopedIds.length
       ? adminDb.from("naxa_security_events").select("id,pharmacie_id,event_type,severity,status,summary,detected_at").in("pharmacie_id", scopedIds).order("detected_at", { ascending: false }).limit(10)
       : Promise.resolve({ data: [], error: null }),
   ]);
   const securityRegistryAvailable = !securityRegistryEnabled || [
     securityInstallationsResult.error, securityGatewaysResult.error,
-    securityCamerasResult.error, securityEventsResult.error,
+    securityCamerasResult.error, securityConnectionsResult.error, securityEventsResult.error,
   ].every((error) => !error);
 
   // Contrôle Promoteur 360° : sessions de service et indicateurs comptables strictement bornés
@@ -560,6 +563,7 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
             installations={securityInstallationsResult.data ?? []}
             gateways={securityGatewaysResult.data ?? []}
             cameras={securityCamerasResult.data ?? []}
+            connections={securityConnectionsResult.data ?? []}
             events={securityEventsResult.data ?? []}
             registryAvailable={securityRegistryAvailable}
           />}
