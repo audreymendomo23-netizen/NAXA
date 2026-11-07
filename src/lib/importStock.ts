@@ -109,11 +109,11 @@ export function parserNombreStock(value: unknown): number | null {
     raw = decimals > 0 && decimals <= 2 ? raw.replace(",", ".") : raw.replace(/,/g, "");
   } else if (dot >= 0) {
     const decimals = raw.length - dot - 1;
-    const dots = raw.match(/\\./g) ?? [];
-    if (decimals === 3) raw = raw.replace(/\\./g, "");
+    const dots = raw.match(/[.]/g) ?? [];
+    if (decimals === 3) raw = raw.replace(/[.]/g, "");
     else if (dots.length > 1) {
       const last = raw.lastIndexOf(".");
-      raw = raw.slice(0, last).replace(/\\./g, "") + raw.slice(last);
+      raw = raw.slice(0, last).replace(/[.]/g, "") + raw.slice(last);
     }
   }
   const parsed = Number(raw);
