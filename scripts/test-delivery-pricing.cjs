@@ -15,27 +15,34 @@ pricingModule._compile(compiled, sourcePath);
 const { calculerFraisLivraison, repartirFraisLivraison } = pricingModule.exports;
 
 test("le tarif respecte le plancher, le calcul kilométrique et le plafond", () => {
-  assert.equal(calculerFraisLivraison(0), 1500);
-  assert.equal(calculerFraisLivraison(1.5), 1800);
-  assert.equal(calculerFraisLivraison(5), 2500);
-  assert.equal(calculerFraisLivraison(10), 3500);
-  assert.equal(calculerFraisLivraison(30), 3500);
+  assert.equal(calculerFraisLivraison(0.1), 1020);
+  assert.equal(calculerFraisLivraison(1.5), 1300);
+  assert.equal(calculerFraisLivraison(5), 2000);
+  assert.equal(calculerFraisLivraison(10), 3000);
+  assert.equal(calculerFraisLivraison(30), 3000);
 });
 
 test("la commission NAXA est fixe à 500 FCFA et comprise dans le tarif", () => {
-  assert.deepEqual(repartirFraisLivraison(1800), {
-    fraisClient: 1800,
+  assert.deepEqual(repartirFraisLivraison(1300), {
+    fraisClient: 1300,
     commissionNaxa: 500,
-    soldeLivraison: 1300,
+    soldeLivraison: 800,
   });
-  for (const amount of [1500, 1800, 2500, 3500]) {
+  assert.deepEqual(repartirFraisLivraison(1000), {
+    fraisClient: 1000,
+    commissionNaxa: 500,
+    soldeLivraison: 500,
+  });
+  for (const amount of [1000, 1300, 2000, 3000]) {
     const split = repartirFraisLivraison(amount);
     assert.equal(split.fraisClient, split.commissionNaxa + split.soldeLivraison);
   }
 });
 
 test("les distances et tarifs invalides sont refusés", () => {
+  assert.throws(() => calculerFraisLivraison(0), error => error?.name === "RangeError");
   assert.throws(() => calculerFraisLivraison(-1), error => error?.name === "RangeError");
   assert.throws(() => calculerFraisLivraison(Number.NaN), error => error?.name === "RangeError");
-  assert.throws(() => repartirFraisLivraison(1200), error => error?.name === "RangeError");
+  assert.throws(() => repartirFraisLivraison(999), error => error?.name === "RangeError");
+  assert.throws(() => repartirFraisLivraison(3001), error => error?.name === "RangeError");
 });

@@ -17,6 +17,11 @@ type PharmacieCarte = {
   horaires: string | null;
   telephone?: string | null;
   stock_updated_at: string | null;
+  livraison_active?: boolean;
+  distanceRoutiereKm?: number | null;
+  dureeTrajetMinutes?: number | null;
+  fraisLivraisonIndicatifs?: number | null;
+  googleMapsUrl?: string | null;
 };
 type Point = { lat: number; lng: number };
 type LeafletLayer = { addTo(map: LeafletMap): LeafletLayer; remove(): LeafletLayer };
@@ -85,7 +90,7 @@ export default function CartePharmaciesProches({
   const pharmaciesAvecContact = useMemo(() => pharmacies
     .filter(p => p.nom.trim())
     .slice()
-    .sort((a, b) => (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY))
+    .sort((a, b) => (a.distanceRoutiereKm ?? a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceRoutiereKm ?? b.distanceKm ?? Number.POSITIVE_INFINITY))
     .slice(0, 5), [pharmacies]);
 
   useEffect(() => {
@@ -98,7 +103,7 @@ export default function CartePharmaciesProches({
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
       }).addTo(map);
-      map.setView(position ? [position.lat, position.lng] : [3.848, 11.502], position ? 13 : 12);
+      map.setView(position ? [position.lat, position.lng] : [6.0, 12.5], position ? 13 : 6);
       setMapReady(true);
     }).catch(() => {
       if (!cancelled) setMapError("La carte interactive est indisponible. Vous pouvez toujours utiliser la recherche.");
@@ -178,8 +183,13 @@ export default function CartePharmaciesProches({
               <div className="min-w-0">
                 <h4 className="font-extrabold leading-5 text-[#0B3D26]">{p.nom}</h4>
                 {lieu && <p className="mt-1 text-sm leading-5 text-[#53685C]">{lieu}</p>}
+                {p.distanceRoutiereKm != null
+                  ? <p className="mt-1 text-xs font-bold text-[#0F6B3F]">{p.distanceRoutiereKm.toLocaleString("fr-FR",{maximumFractionDigits:1})} km par la route{p.dureeTrajetMinutes ? " · environ " + p.dureeTrajetMinutes + " min" : ""}</p>
+                  : p.distanceKm != null && <p className="mt-1 text-xs text-[#64776B]">{p.distanceKm.toLocaleString("fr-FR",{maximumFractionDigits:1})} km à vol d’oiseau · route indisponible</p>}
+                {p.livraison_active && p.fraisLivraisonIndicatifs != null && <p className="mt-1 text-xs font-semibold text-[#53685C]">Livraison estimée : {p.fraisLivraisonIndicatifs.toLocaleString("fr-FR")} FCFA (à confirmer au devis)</p>}
                 {p.horaires?.trim() && <p className="mt-1 text-xs leading-5 text-[#64776B]">Horaires publiés : {p.horaires}</p>}
                 {!telephone && <p className="mt-1 text-xs leading-5 text-[#64776B]">Téléphone public non renseigné.</p>}
+                {position && <a className="mt-2 inline-flex text-xs font-extrabold text-[#0F6B3F] underline" href={p.googleMapsUrl || ("https://www.google.com/maps/dir/?api=1&origin=" + position.lat + "," + position.lng + "&destination=" + p.lat + "," + p.lng + "&travelmode=driving")} target="_blank" rel="noreferrer">Ouvrir l’itinéraire dans Google Maps</a>}
               </div>
               {telephone && <a href={"tel:" + telephone} aria-label={"Appeler " + p.nom + " au " + p.telephone} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#0F6B3F] px-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#0B3D26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F6B3F]">
                 <span aria-hidden="true">☎</span> Appeler

@@ -354,48 +354,29 @@ export function AccueilClient() {
   const pharmaciesProches = useMemo(() => pharmacies.map(p => ({
     ...p,
     distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
-  })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
+  })).sort((a,b) => {
+    const aRoute = a.distanceRoutiereKm ?? a.distanceKm ?? Number.POSITIVE_INFINITY;
+    const bRoute = b.distanceRoutiereKm ?? b.distanceKm ?? Number.POSITIVE_INFINITY;
+    return aRoute - bRoute;
+  }), [pharmacies,coord]);
 
-  // Une notification unique annonce la pharmacie réellement la plus proche dès que
-  // le GPS est autorisé. OSRM fournit un temps routier estimé, pas un trafic en direct.
+  // Le serveur retourne le réseau partenaire complet, classé par distance routière lorsqu'elle est disponible.
   useEffect(() => {
     if (!coord) return;
-    const candidates = pharmacies
-      .filter((p) => p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng))
-      .map((p) => ({ ...p, distanceKm: distance(coord.lat, coord.lng, p.lat as number, p.lng as number) }))
-      .filter((p) => p.distanceKm <= 30)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
-    const nearest = candidates[0];
+    const nearest = pharmacies
+      .filter(p => p.lat !== null && p.lng !== null)
+      .sort((a,b) => (a.distanceRoutiereKm ?? a.distanceKm ?? 99999) - (b.distanceRoutiereKm ?? b.distanceKm ?? 99999))[0];
     if (!nearest) return;
-    const key = `${coord.lat.toFixed(4)}:${coord.lng.toFixed(4)}:${nearest.id}`;
+    const key = coord.lat.toFixed(4) + ":" + coord.lng.toFixed(4) + ":" + nearest.id;
     if (nearestNotificationKey.current === key) return;
     nearestNotificationKey.current = key;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch(
-          `${(process.env.NEXT_PUBLIC_NAXA_ROUTING_URL || "https://router.project-osrm.org").replace(/\/+$/, "")}/route/v1/driving/${coord.lng},${coord.lat};${nearest.lng},${nearest.lat}?overview=false&steps=false`,
-          { signal: AbortSignal.timeout(8000), cache: "no-store" },
-        );
-        if (!response.ok) throw new Error("Service de calcul d’itinéraire indisponible");
-        const route = await response.json() as { code?: string; routes?: Array<{ duration?: number; distance?: number }> };
-        const estimate = route.code === "Ok" ? route.routes?.[0] : undefined;
-        if (!response.ok || !estimate || !Number.isFinite(estimate.duration)) throw new Error("Estimation routière indisponible");
-        if (cancelled) return;
-        const minutes = Math.max(1, Math.round((estimate.duration as number) / 60));
-        const routeKm = Number.isFinite(estimate.distance) ? ((estimate.distance as number) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-        const lieu = [nearest.adresse, nearest.quartier, nearest.ville].filter(Boolean).join(", ");
-        const horaires = nearest.horaires?.trim() ? ` Horaires publiés : ${nearest.horaires}.` : "";
-        const garde = nearest.de_garde ? " Statut déclaré : pharmacie de garde." : "";
-        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}. Trajet estimé en voiture : environ ${minutes} min (${routeKm} km).${horaires}${garde} Consultez sa fiche pour appeler si un numéro public est disponible. Trafic en temps réel : données non disponibles.`);
-      } catch {
-        if (cancelled) return;
-        const lieu = [nearest.adresse, nearest.quartier, nearest.ville].filter(Boolean).join(", ");
-        const garde = nearest.de_garde ? " Statut déclaré : pharmacie de garde." : "";
-        notifierNAXA(`Pharmacie la plus proche : ${nearest.nom}${lieu ? ` — ${lieu}` : ""}, à environ ${nearest.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km à vol d’oiseau.${garde} Temps de trajet et trafic indisponibles pour le moment.`);
-      }
-    })();
-    return () => { cancelled = true; };
+    const lieu = [nearest.adresse,nearest.quartier,nearest.ville].filter(Boolean).join(", ");
+    const route = nearest.distanceRoutiereKm !== null && nearest.distanceRoutiereKm !== undefined
+      ? " à " + nearest.distanceRoutiereKm.toLocaleString("fr-FR",{maximumFractionDigits:1}) + " km par la route"
+        + (nearest.dureeTrajetMinutes ? " (environ " + nearest.dureeTrajetMinutes + " min)" : "")
+      : " à " + (nearest.distanceKm ?? 0).toLocaleString("fr-FR",{maximumFractionDigits:1}) + " km à vol d'oiseau; itinéraire routier indisponible";
+    const garde = nearest.de_garde ? " Statut déclaré : pharmacie de garde." : "";
+    notifierNAXA("Pharmacie la plus proche : " + nearest.nom + (lieu ? " — " + lieu : "") + route + "." + garde);
   }, [coord, pharmacies]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
   const gardesTriees = [...gardesAutomatiques].sort((a, b) => {
@@ -431,14 +412,25 @@ export function AccueilClient() {
   };
   const localiser = useCallback(() => {
     if (!navigator.geolocation) {
-      notifierNAXA("La géolocalisation n’est pas disponible sur cet appareil. Vous pouvez toujours consulter la liste des pharmacies.");
+      notifierNAXA("La géolocalisation n’est pas disponible sur cet appareil. Vous pouvez toujours consulter les pharmacies.");
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      pos => setCoord({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => notifierNAXA("Position non accessible. Autorisez le GPS ou consultez les pharmacies sans distance calculée."),
-      { enableHighAccuracy: true, maximumAge: 60000, timeout: 12000 },
-    );
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setCoord(current);
+      try {
+        const response = await fetch("/api/pharmacies/proches?lat=" + current.lat + "&lng=" + current.lng, { cache: "no-store" });
+        const payload = await response.json() as { ok?: boolean; pharmacies?: Pharmacie[]; message?: string };
+        if (!response.ok || !payload.ok) throw new Error(payload.message || "Réseau des pharmacies indisponible.");
+        setPharmacies(payload.pharmacies ?? []);
+        if (!payload.pharmacies?.length) notifierNAXA("Aucune pharmacie partenaire géolocalisée n’est encore disponible dans ce secteur du Cameroun.");
+        else if (payload.message) notifierNAXA(payload.message);
+      } catch {
+        notifierNAXA("Votre position GPS est connue, mais le classement routier des pharmacies est momentanément indisponible.");
+      }
+    },
+    () => notifierNAXA("Position non accessible. Autorisez le GPS ou choisissez une localité au Cameroun."),
+    { enableHighAccuracy: true, maximumAge: 60000, timeout: 15000 });
   }, []);
   const toggleFavori = (p: Produit) => {
     const suivants = basculerFavori({ id: p.id, nom: p.nom, dosage: p.dosage, photo_url: p.photo_url, prix: p.prix, pharmacie: p.pharmacie, demo: !!p.demo });

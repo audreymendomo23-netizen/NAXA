@@ -7,8 +7,6 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { usePanier } from "@/lib/panier";
 import { Logo } from "@/components/Logo";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
-import { calculerTrajet } from "@/lib/travel";
-import { calculerFraisLivraison } from "@/lib/delivery-pricing";
 
 type Pharmacy = {
   id: string; nom: string; ville: string | null; quartier: string | null; adresse: string | null;
@@ -18,7 +16,7 @@ type Address = {
   city?: string; neighborhood?: string; street?: string; landmark?: string;
   latitude?: number; longitude?: number; isDefault?: boolean;
 };
-type RouteQuote = { km: number; minutes: number; estime: boolean };
+type RouteQuote = { km: number; minutes: number; frais: number; fournisseur: "google_routes" | "osrm"; quoteId: string; googleMapsUrl: string; expireLe: string };
 type Created = {
   id: string; mode: "reservation" | "commande"; expires_at: string;
   frais_livraison?: number; distance_livraison_km?: number | null;
@@ -30,13 +28,6 @@ const METHODS = [
   ["especes_retrait", "Espèces au retrait en pharmacie"],
   ["a_convenir", "À convenir directement avec la pharmacie"],
 ] as const;
-
-function distanceVolOiseauKm(a: {lat:number;lng:number}, b: {lat:number;lng:number}) {
-  const rad = (value: number) => value * Math.PI / 180;
-  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
-}
 
 export default function NouvelleTransactionPage() {
   const router = useRouter();
@@ -120,35 +111,55 @@ export default function NouvelleTransactionPage() {
   const methods = METHODS;
 
   useEffect(() => {
-    if (!methods.some(item => item[0] === method)) setMethod("a_convenir");
-  }, [method]);
-
-  useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     if (!delivery || !pharmacie || lat === null || lng === null
       || !Number.isFinite(pharmacie.lat) || !Number.isFinite(pharmacie.lng)) {
       setRouteQuote(null);
       setRouteLoading(false);
-      return;
+      return () => controller.abort();
     }
     setRouteLoading(true);
-    const direct = distanceVolOiseauKm({ lat: pharmacie.lat, lng: pharmacie.lng }, { lat, lng });
-    void calculerTrajet(
-      { lat: pharmacie.lat, lng: pharmacie.lng },
-      { lat, lng },
-      direct,
-    ).then(route => {
-      if (!cancelled) setRouteQuote({ km: route.km, minutes: route.minutes, estime: route.estime });
-    }).catch(() => {
-      if (!cancelled) setRouteQuote({ km: direct * 1.4, minutes: Math.max(1, Math.round(direct * 4.2)), estime: true });
-    }).finally(() => { if (!cancelled) setRouteLoading(false); });
-    return () => { cancelled = true; };
+    setRouteQuote(null);
+    void (async () => {
+      try {
+        const response = await fetch("/api/livraison/devis", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ pharmacieId: pharmacie.id, latitude: lat, longitude: lng }),
+          signal: controller.signal,
+        });
+        const payload = await response.json() as {
+          ok?: boolean; quoteId?: string; km?: number; minutes?: number; frais?: number;
+          fournisseur?: "google_routes" | "osrm"; googleMapsUrl?: string; expireLe?: string; error?: string;
+        };
+        if (!response.ok || !payload.ok || !payload.quoteId
+          || !Number.isFinite(payload.km) || !Number.isFinite(payload.minutes)
+          || !Number.isFinite(payload.frais) || !payload.fournisseur
+          || !payload.googleMapsUrl || !payload.expireLe) {
+          throw new Error(payload.error || "Impossible de calculer un itinéraire routier.");
+        }
+        if (!controller.signal.aborted) setRouteQuote({
+          km: payload.km as number,
+          minutes: payload.minutes as number,
+          frais: payload.frais as number,
+          fournisseur: payload.fournisseur,
+          quoteId: payload.quoteId,
+          googleMapsUrl: payload.googleMapsUrl,
+          expireLe: payload.expireLe,
+        });
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setRouteQuote(null);
+          setError(cause instanceof Error ? cause.message : "Calcul routier indisponible.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setRouteLoading(false);
+      }
+    })();
+    return () => controller.abort();
   }, [delivery, pharmacie, lat, lng]);
 
-  const deliveryFee = useMemo(
-    () => routeQuote ? calculerFraisLivraison(routeQuote.km) : null,
-    [routeQuote],
-  );
+  const deliveryFee = useMemo(() => routeQuote?.frais ?? null, [routeQuote]);
 
   async function gps() {
     setError("");
@@ -210,6 +221,7 @@ export default function NouvelleTransactionPage() {
           ville: city, quartier: neighborhood, rue: street, repere: landmark,
           telephone: phone, latitude: lat, longitude: lng,
           distance_km: routeQuote?.km ?? null,
+          delivery_quote_id: routeQuote?.quoteId ?? null,
         },
       });
       if (rpcError) throw new Error(rpcError.message.includes("Stock insuffisant")
@@ -339,10 +351,11 @@ export default function NouvelleTransactionPage() {
               {routeLoading && <p className="text-sm text-slate-600">Calcul de la distance routière…</p>}
               {routeQuote && deliveryFee !== null && (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                  <p className="text-xs text-emerald-900">Distance routière {routeQuote.estime ? "estimée" : "calculée"} : {routeQuote.km.toFixed(1)} km</p>
+                  <p className="text-xs text-emerald-900">Distance routière calculée ({routeQuote.fournisseur === "google_routes" ? "Google Routes" : "OpenStreetMap / OSRM"}) : {routeQuote.km.toFixed(1)} km · environ {routeQuote.minutes} min</p>
                   <p className="mt-1 text-lg font-black text-emerald-950">Frais de livraison : {deliveryFee.toLocaleString("fr-FR")} FCFA</p>
-                  <p className="text-xs text-emerald-900">Tarif minimum 1 500 FCFA · maximum 3 500 FCFA</p>
-                  <p className="mt-1 text-xs text-emerald-900">Le montant sera figé à la création de votre demande. Le paiement interviendra après acceptation par le Gestionnaire de stock.</p>
+                  <p className="text-xs text-emerald-900">Tarif minimum 1 000 FCFA · maximum 3 000 FCFA · devis valable 10 minutes.</p>
+                  <a href={routeQuote.googleMapsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-bold text-emerald-950 underline">Voir le trajet dans Google Maps</a>
+                  <p className="mt-1 text-xs text-emerald-900">Le serveur NAXA enregistrera ce devis à la création de la commande. Le paiement interviendra après acceptation par le Gestionnaire de stock.</p>
                 </div>
               )}
             </section>
