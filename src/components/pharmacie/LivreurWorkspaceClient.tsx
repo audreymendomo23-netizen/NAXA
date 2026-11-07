@@ -16,6 +16,8 @@ type Mission={
   cash_payment_status:string|null;cash_received:number|null;
   client_confirme_at?:string|null;livreur_confirme_at?:string|null;signature_client?:boolean;
   livraison_depart_at?:string|null;livraison_echeance_at?:string|null;duree_livraison_estimee_min?:number|null;
+  latitude_destination?:number|null;longitude_destination?:number|null;
+  latitude_pharmacie?:number|null;longitude_pharmacie?:number|null;
   total:number;ville:string|null;quartier:string|null;
   adresse:string|null;repere:string|null;telephone:string|null;items:Item[];
 };
@@ -32,6 +34,20 @@ const statusLabels:Record<string,string>={
 const issueLabels:Record<string,string>={client_absent:"Client absent",client_injoignable:"Client injoignable",adresse_introuvable:"Adresse introuvable",incident_route:"Incident sur le trajet",commande_endommagee:"Colis endommagé",autre:"Autre difficulté"};
 const money=(value:number)=>Number(value??0).toLocaleString("fr-FR")+" FCFA";
 const date=(value:string|null)=>value?new Date(value).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"—";
+
+function NavigationMaps({latitude,longitude,label}:{latitude:number|null|undefined;longitude:number|null|undefined;label:string}){
+  if(typeof latitude!=="number"||typeof longitude!=="number"
+    ||!Number.isFinite(latitude)||!Number.isFinite(longitude))return null;
+  const url=new URL("https://www.google.com/maps/dir/");
+  url.searchParams.set("api","1");
+  url.searchParams.set("destination",latitude+","+longitude);
+  url.searchParams.set("travelmode","driving");
+  return <a href={url.toString()} target="_blank" rel="noreferrer"
+    className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950">
+    {label} dans Google Maps
+  </a>;
+}
+
 
 export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
   const [missions,setMissions]=useState<Mission[]>([]);
@@ -204,6 +220,11 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
             <div className="grid gap-3 lg:grid-cols-2">{active.map(m=><article key={m.id} className="rounded-2xl border bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Mission active</p><h3 className="mt-1 text-lg font-black">Commande #{m.reservation_id.slice(0,8).toUpperCase()}</h3></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-950">{statusLabels[m.statut]??m.statut}</span></div>
               <p className="mt-2 text-sm text-slate-600">{[m.adresse,m.repere,m.quartier,m.ville].filter(Boolean).join(", ")||"Adresse non renseignée"}</p>
+              <NavigationMaps
+                latitude={m.statut==="accepted"?m.latitude_pharmacie:m.latitude_destination}
+                longitude={m.statut==="accepted"?m.longitude_pharmacie:m.longitude_destination}
+                label={m.statut==="accepted"?"Itinéraire vers la pharmacie":"Itinéraire vers le Client"}
+              />
               <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-900">Contacter le Client</p>
                 {m.telephone

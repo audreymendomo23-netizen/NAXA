@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     .filter(p => estCoordonneeCamerounaise({ lat: Number(p.lat), lng: Number(p.lng) }))
     .map(p => ({ ...p, distanceVolOiseauKm: distanceVolOiseauKm(client, { lat: p.lat, lng: p.lng }) }))
     .sort((a, b) => a.distanceVolOiseauKm - b.distanceVolOiseauKm)
-    .slice(0, 12);
+    .slice(0, 20);
 
   if (!pharmacies.length) {
     return NextResponse.json({
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     if (a.distanceRoutiereKm !== null) return -1;
     if (b.distanceRoutiereKm !== null) return 1;
     return a.distanceKm - b.distanceKm;
-  });
+  }).slice(0,12);
 
   return NextResponse.json({
     ok: true,
