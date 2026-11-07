@@ -49,6 +49,15 @@ test("Google Maps : l'itinéraire est universel et s'ouvre sur téléphone", () 
   assert.doesNotMatch(routing, /NEXT_PUBLIC_GOOGLE_MAPS/);
 });
 
+test("le client ne voit que le montant total de livraison, sans détail de distance ni de commission", () => {
+  const checkout = read("src/app/commande/nouvelle/page.tsx");
+  assert.match(checkout, /Frais de livraison : \{deliveryFee\.toLocaleString/);
+  assert.doesNotMatch(checkout, /Distance routière calculée/);
+  assert.doesNotMatch(checkout, /commission_naxa|commissionNaxa|commission NAXA/i);
+  assert.doesNotMatch(checkout, /Tarif minimum 1 500 FCFA/);
+  assert.doesNotMatch(checkout, /Voir le trajet dans Google Maps/);
+});
+
 test("aucune tarification livraison sur la distance à vol d'oiseau ou estimation de secours", () => {
   const routing = read("src/lib/server/delivery-routing.ts");
   const quote = read("src/app/api/livraison/devis/route.ts");
