@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,18 +11,21 @@ type NominatimResult = {
   address?: { country_code?: string; city?: string; town?: string; village?: string; municipality?: string };
 };
 
-let lastRequestAt = 0;
-let requestQueue: Promise<void> = Promise.resolve();
-
-async function paceGeocoder(): Promise<void> {
-  const previous = requestQueue;
-  let release!: () => void;
-  requestQueue = new Promise<void>((resolve) => { release = resolve; });
-  await previous;
-  const delay = Math.max(0, 1100 - (Date.now() - lastRequestAt));
-  if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-  lastRequestAt = Date.now();
-  release();
+async function waitForGlobalGeocoderSlot(): Promise<void> {
+  // La réservation est atomique dans Replay/Production et partagée entre toutes
+  // les instances serverless; aucune instance ne peut dépasser le créneau global.
+  const db = supabaseAdmin();
+  const { data, error } = await db.rpc("naxa_reserve_api_rate_limit", {
+    p_key: "nominatim_public",
+    p_interval_ms: 1000,
+    p_max_wait_ms: 1500,
+  });
+  if (error || !data) throw new Error("GEOCODER_RATE_LIMIT_BUSY");
+  const slot = Date.parse(String(data));
+  if (!Number.isFinite(slot)) throw new Error("GEOCODER_RATE_LIMIT_INVALID");
+  const delay = slot - Date.now();
+  if (delay > 1500) throw new Error("GEOCODER_RATE_LIMIT_BUSY");
+  if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
 }
 
 function inCameroon(lat: number, lng: number): boolean {
@@ -53,7 +57,7 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("accept-language", "fr");
 
   try {
-    await paceGeocoder();
+    await waitForGlobalGeocoderSlot();
     const response = await fetch(url.toString(), {
       headers: {
         Accept: "application/json",
