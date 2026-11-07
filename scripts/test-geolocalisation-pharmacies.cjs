@@ -56,24 +56,36 @@ test("GPS navigateur : permission, précision et délai bornés", () => {
   assert.match(helper, /lat < -90 \|\| lat > 90 \|\| lng < -180 \|\| lng > 180/);
 });
 
-test("GPS : Yaoundé et Douala ont des replis explicites, sans suivi permanent", () => {
+test("GPS et localité manuelle : recherche nationale sans repli implicite vers Yaoundé", () => {
   const helper = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "geolocation.ts"), "utf8");
   const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "resultats", "page.tsx"), "utf8");
-  assert.match(helper, /Yaoundé:\s*\{\s*lat:\s*3\.8480,\s*lng:\s*11\.5021\s*\}/);
-  assert.match(helper, /Douala:\s*\{\s*lat:\s*4\.0511,\s*lng:\s*9\.7679\s*\}/);
-  assert.match(page, /Actualiser GPS/);
-  assert.match(page, /id="naxa-ville"/);
-  assert.match(page, /Position approximative/);
+  const geocoder = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "geolocalisation", "recherche", "route.ts"), "utf8");
+  assert.match(helper, /villeDepuisPosition/);
+  assert.match(page, /api\/geolocalisation\/recherche\?q=/);
+  assert.match(page, /Utiliser le GPS/);
+  assert.match(page, /Ville ou localité au Cameroun/);
+  assert.match(page, /setCoords\(null\)/);
+  assert.doesNotMatch(page, /useState\("Yaoundé"\)/);
+  assert.doesNotMatch(page, /YAOUNDE/);
+  assert.match(geocoder, /countrycodes", "cm"/);
+  assert.match(geocoder, /address\?\.country_code\?\.toLowerCase\(\) !== "cm"/);
+  assert.match(geocoder, /revalidate: 86400/);
+  assert.match(geocoder, /paceGeocoder/);
+  assert.doesNotMatch(geocoder, /autocomplete/i);
   assert.doesNotMatch(page, /watchPosition\s*\(/);
   assert.doesNotMatch(page, /localStorage\.setItem\([^\n]*(?:lat|lng|position|coord)/i);
 });
 
-test("OpenStreetMap : endpoint administratif protégé et synchronisation limitée à Yaoundé", () => {
+test("OpenStreetMap : référentiel national, authentification admin et rapprochement prudent", () => {
   const route = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "geolocalisation-osm", "route.ts"), "utf8");
   assert.match(route, /auth\.getUser\(\)/);
   assert.match(route, /rpc\("is_admin"\)/);
-  assert.match(route, /YAOUNDE_BBOX/);
-  assert.match(route, /openstreetmap\.org/);
+  assert.match(route, /ISO3166-1.*CM/);
+  assert.match(route, /CAMEROON_LAT/);
+  assert.match(route, /byNameAndCity/);
+  assert.match(route, /normaliserNom\(pharmacy\.ville\)/);
+  assert.doesNotMatch(route, /YAOUNDE_BBOX/);
+  assert.doesNotMatch(route, /\.ilike\("ville", "%Yaound%"/);
   assert.match(route, /pharmacies_geo_osm_sync/);
   assert.match(route, /24 \* 60 \* 60 \* 1000/);
   assert.match(route, /onConflict: "nom_source,source_url"/);
