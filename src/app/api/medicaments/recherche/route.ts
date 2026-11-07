@@ -83,6 +83,8 @@ type BdpmProduct = {
   statut_amm: string | null; etat_commercialisation: string | null; date_amm: string | null;
   titulaires: string | null; substances_actives: string | null; source_nom: string;
   source_url: string; source_dataset_updated_at: string | null;
+  photo_path: string | null; photo_source_url: string | null; photo_licence: string | null;
+  photo_attribution: string | null; photo_verifiee_le: string | null;
 };
 
 
@@ -116,7 +118,7 @@ async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
   if (needle.length < 2) return [];
   try {
     const sb = supabaseServer();
-    const fields = "cis,nom,forme,voies_administration,statut_amm,etat_commercialisation,date_amm,titulaires,substances_actives,source_nom,source_url,source_dataset_updated_at";
+    const fields = "cis,nom,forme,voies_administration,statut_amm,etat_commercialisation,date_amm,titulaires,substances_actives,source_nom,source_url,source_dataset_updated_at,photo_path,photo_source_url,photo_licence,photo_attribution,photo_verifiee_le";
     const [byName, bySubstance] = await Promise.all([
       sb.from("medicaments_referentiel_sources").select(fields).ilike("nom", "%" + needle + "%").limit(8),
       sb.from("medicaments_referentiel_sources").select(fields).ilike("substances_actives", "%" + needle + "%").limit(8)
@@ -126,6 +128,30 @@ async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
     return [...unique.values()].slice(0, 10);
   } catch {
     return [];
+  }
+}
+
+function verifiedBdpmPhoto(item: BdpmProduct): {
+  url: string; sourceUrl: string; licence: string; attribution: string | null; title: string;
+} | null {
+  const path = item.photo_path?.trim() ?? "";
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/+$/, "");
+  if (!path || !base || path.startsWith("/") || path.includes("..") || path.includes("\\\\")
+    || !item.photo_source_url?.startsWith("https://") || !item.photo_licence?.trim()
+    || !item.photo_verifiee_le || !Number.isFinite(Date.parse(item.photo_verifiee_le))) return null;
+  try {
+    const url = new URL(base + "/storage/v1/object/public/medicaments/" +
+      path.split("/").map((segment) => encodeURIComponent(segment)).join("/"));
+    if (url.protocol !== "https:" || url.origin !== new URL(base).origin) return null;
+    return {
+      url: url.toString(),
+      sourceUrl: item.photo_source_url,
+      licence: item.photo_licence,
+      attribution: item.photo_attribution,
+      title: item.nom,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -499,8 +525,19 @@ export async function GET(request: NextRequest) {
       url: match.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
       updatedAt: match.source_dataset_updated_at
     };
+    const image = normaliserTerme(match.nom) === normaliserTerme(item.name)
+      ? verifiedBdpmPhoto(match)
+      : null;
     return {
       ...item,
+      ...(image ? {
+        imageUrl: item.imageUrl || image.url,
+        imageSource: item.imageSource || "Photo réelle de référence sous licence — présentation locale à confirmer",
+        imageSourceUrl: item.imageSourceUrl || image.sourceUrl,
+        imageLicense: item.imageLicense || image.licence,
+        imageAttribution: item.imageAttribution || image.attribution,
+        imageTitle: item.imageTitle || image.title
+      } : {}),
       source: [...new Set([...item.source, match.source_nom || "BDPM"])],
       sourceDetails: [...item.sourceDetails, bdpmSource]
     };
@@ -509,7 +546,9 @@ export async function GET(request: NextRequest) {
   const bdpmResults = bdpmProducts
     .filter((item) => !existingNames.has(normaliserTerme(item.nom)))
     .slice(0, Math.max(0, 10 - mergedResults.length))
-    .map((item) => ({
+    .map((item) => {
+      const image = verifiedBdpmPhoto(item);
+      return {
       id: "bdpm-" + item.cis,
       name: item.nom,
       brand: null,
@@ -522,12 +561,12 @@ export async function GET(request: NextRequest) {
         { name: item.source_nom || "BDPM", role: "référentiel français importé dans NAXA", url: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement", updatedAt: item.source_dataset_updated_at },
         { name: "DPML Cameroun", role: "à consulter pour vérifier l’autorisation au Cameroun", url: "https://dpml.cm/repertoireDesAmm/index.php" }
       ],
-      imageUrl: null,
-      imageSource: null,
-      imageSourceUrl: null,
-      imageLicense: null,
-      imageAttribution: null,
-      imageTitle: null,
+      imageUrl: image?.url ?? null,
+      imageSource: image ? "Photo réelle de référence sous licence — présentation locale à confirmer" : null,
+      imageSourceUrl: image?.sourceUrl ?? null,
+      imageLicense: image?.licence ?? null,
+      imageAttribution: image?.attribution ?? null,
+      imageTitle: image?.title ?? null,
       source: [item.source_nom || "BDPM"],
       sourceUrl: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
       availability: "non_verifiee" as const,
@@ -544,7 +583,8 @@ export async function GET(request: NextRequest) {
       bdpmRoutes: item.voies_administration,
       bdpmHolder: item.titulaires,
       bdpmSourceDatasetUpdatedAt: item.source_dataset_updated_at
-    }));
+      };
+    });
   // Les sources externes peuvent décrire plusieurs fois le même médicament et
   // le rapprochement local peut attribuer un même produit à plusieurs variantes.
   // Dédupliquer avant la limite et conserver la première fiche, mieux priorisée.
