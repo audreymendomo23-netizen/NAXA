@@ -79,10 +79,11 @@ export async function POST(request:NextRequest){
   if("error" in auth)return auth.error;
   const safeSamples=samples.filter((row):row is Record<string,unknown>=>Boolean(row)&&typeof row==="object"&&!Array.isArray(row))
     .map(row=>Object.fromEntries(headers.map(header=>{
-      const value=row[header];
-      const text=String(value??"").slice(0,48);
-      // Exclure les téléphones, e-mails, identifiants et valeurs longues : l’IA ne reçoit que des exemples de données produit/stock.
-      const safe=/@|(?:\+?237)?\s?6\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}|\b\d{12,}\b/i.test(text)?"[valeur masquée]":text;
+      const key=header.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+      const privateColumn=/(client|patient|telephone|phone|email|adresse|prescrip|assure|customer|naissance|ordonnance|identite)/i.test(key);
+      const productColumn=/(produit|article|designation|medicament|nom commercial|dci|dosage|forme|stock|quantite|qte|prix|tarif|lot|batch|peremption|expiry|date|ean|gtin|cip|sku|rayon|emplacement)/i.test(key);
+      const value=String(row[header]??"").slice(0,48);
+      const safe=privateColumn?"[donnée privée masquée]":productColumn&&value.length>0?value:"[échantillon masqué]";
       return [header,safe];
     })));
   const deterministic=heuristic(headers);
