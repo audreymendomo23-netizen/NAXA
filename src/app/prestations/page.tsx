@@ -20,22 +20,23 @@ type HomeServiceOffer = {
 const field = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
 
-export default async function PrestationsPage({ searchParams }: { searchParams: { erreur?: string; q?: string; categorie?: string; tri?: string } }) {
+export default async function PrestationsPage({ searchParams }: { searchParams: Promise<{ erreur?: string; q?: string; categorie?: string; tri?: string }> }) {
+  const params = await searchParams;
   const { data, error } = await supabasePublic(30).rpc("get_home_service_catalog", {});
   if (error) {
     return <><UniverseLanding universe="prestations"/><p role="status" className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue des prestations est temporairement indisponible. Réessayez dans quelques instants.</p></>;
   }
   const offers = (data ?? []) as HomeServiceOffer[];
   if (!offers.length) return <><UniverseLanding universe="prestations"/><section className="mx-auto mt-4 max-w-3xl px-4 pb-8"><div className="rounded-2xl border border-[#FAD0C6] bg-white p-5"><h2 className="font-extrabold text-slate-900">Aucune prestation publiée pour le moment</h2><p className="mt-2 text-sm leading-6 text-slate-600">Les professionnels partenaires n’ont pas encore publié d’offre disponible. Revenez un peu plus tard pour consulter le catalogue.</p></div></section></>;
-  const query = (searchParams.q ?? "").trim().toLocaleLowerCase("fr");
+  const query = (params.q ?? "").trim().toLocaleLowerCase("fr");
   const categories = [...new Set(offers.map((offer) => offer.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   const filteredOffers = offers.filter((offer) => {
     const haystack = [offer.name, offer.category, offer.description ?? "", offer.partner_name, offer.city ?? "", offer.neighborhood ?? "", offer.service_area_label].join(" ").toLocaleLowerCase("fr");
-    return (!query || haystack.includes(query)) && (!searchParams.categorie || offer.category === searchParams.categorie);
+    return (!query || haystack.includes(query)) && (!params.categorie || offer.category === params.categorie);
   }).sort((a, b) => {
-    if (searchParams.tri === "prix-croissant") return (a.price_fcfa ?? Number.MAX_SAFE_INTEGER) - (b.price_fcfa ?? Number.MAX_SAFE_INTEGER);
-    if (searchParams.tri === "prix-decroissant") return (b.price_fcfa ?? -1) - (a.price_fcfa ?? -1);
-    if (searchParams.tri === "nom") return a.name.localeCompare(b.name, "fr");
+    if (params.tri === "prix-croissant") return (a.price_fcfa ?? Number.MAX_SAFE_INTEGER) - (b.price_fcfa ?? Number.MAX_SAFE_INTEGER);
+    if (params.tri === "prix-decroissant") return (b.price_fcfa ?? -1) - (a.price_fcfa ?? -1);
+    if (params.tri === "nom") return a.name.localeCompare(b.name, "fr");
     return 0;
   });
 
@@ -52,11 +53,11 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">Découvrez les services publiés par les professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
         <p className="mt-3 text-sm font-bold">{filteredOffers.length} prestation(s) affichée(s) sur {offers.length}</p>
       </section>
-      {searchParams.erreur && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "validation" ? "Vérifiez les informations, l’adresse, le téléphone et la date souhaitée." : searchParams.erreur === "annulation" ? "L’annulation n’a pas abouti. Vérifiez le statut de la demande." : "La demande n’a pas pu être envoyée. Le service peut être indisponible."}</p>}
+      {params.erreur && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{params.erreur === "validation" ? "Vérifiez les informations, l’adresse, le téléphone et la date souhaitée." : params.erreur === "annulation" ? "L’annulation n’a pas abouti. Vérifiez le statut de la demande." : "La demande n’a pas pu être envoyée. Le service peut être indisponible."}</p>}
       <form method="get" className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filtrer les prestations">
-        <label className="text-sm font-semibold lg:col-span-2">Rechercher<input className={field} name="q" defaultValue={searchParams.q ?? ""} placeholder="Service, professionnel, quartier…"/></label>
-        <label className="text-sm font-semibold">Catégorie<select className={field} name="categorie" defaultValue={searchParams.categorie ?? ""}><option value="">Toutes les catégories</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-        <label className="text-sm font-semibold">Trier par<select className={field} name="tri" defaultValue={searchParams.tri ?? "pertinence"}><option value="pertinence">Pertinence</option><option value="nom">Nom</option><option value="prix-croissant">Prix croissant</option><option value="prix-decroissant">Prix décroissant</option></select></label>
+        <label className="text-sm font-semibold lg:col-span-2">Rechercher<input className={field} name="q" defaultValue={params.q ?? ""} placeholder="Service, professionnel, quartier…"/></label>
+        <label className="text-sm font-semibold">Catégorie<select className={field} name="categorie" defaultValue={params.categorie ?? ""}><option value="">Toutes les catégories</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+        <label className="text-sm font-semibold">Trier par<select className={field} name="tri" defaultValue={params.tri ?? "pertinence"}><option value="pertinence">Pertinence</option><option value="nom">Nom</option><option value="prix-croissant">Prix croissant</option><option value="prix-decroissant">Prix décroissant</option></select></label>
         <div className="flex gap-2 sm:col-span-2 lg:col-span-4"><button className="min-h-11 rounded-xl bg-[#D4402B] px-4 font-bold text-white">Appliquer</button><Link href="/prestations" className="inline-flex min-h-11 items-center rounded-xl border px-4 font-bold">Réinitialiser</Link></div>
       </form>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
