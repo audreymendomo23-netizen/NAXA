@@ -1,4 +1,5 @@
 "use server";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -140,7 +141,6 @@ export async function declarerCameraSecurite(formData: FormData) {
     createdGateway = true;
   }
 
-  const { randomUUID } = await import("node:crypto");
   const channelKey = channelKeyInput || `manual-${randomUUID()}`;
   const camera = await db.from("naxa_security_cameras").insert({
     pharmacie_id: pharmacyId,
