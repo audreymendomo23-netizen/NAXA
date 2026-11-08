@@ -5,6 +5,7 @@ import { PromoteurGatewayProvisioning } from "@/components/pharmacie/PromoteurGa
 import { examinerCameraDecouverte } from "@/app/pharmacie/promoteur/actions";
 
 import { useMemo, useState } from "react";
+import { SecurityWhepPlayer } from "@/components/pharmacie/SecurityWhepPlayer";
 import { useSearchParams } from "next/navigation";
 
 type Pharmacy = { id: string; nom: string; ville: string | null; quartier: string | null };
@@ -298,10 +299,8 @@ export function PromoteurSecuriteIntelligente({
                   </div>
                 </div>
                 <article className="overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="flex aspect-video flex-col items-center justify-center gap-3 bg-slate-950 p-5 text-center text-white">
-                    <CameraGlyph className="h-12 w-12 text-slate-400" />
-                    <p className="font-bold">Flux vidéo réel non encore connecté</p>
-                    <p className="max-w-md text-xs leading-5 text-slate-300">Cette vue grand format est prête pour le lecteur sécurisé. Elle ne diffuse pas d’image simulée ni de flux provenant d’une caméra non testée.</p>
+                  <div className="p-3">
+                    <SecurityWhepPlayer cameraId={focusedCamera.id} />
                   </div>
                   <div className="flex flex-wrap items-start justify-between gap-3 p-4">
                     <div>
@@ -331,24 +330,26 @@ export function PromoteurSecuriteIntelligente({
                 ) : (
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     {pageCameras.map((camera) => (
-                      <button
-                        key={camera.id}
-                        type="button"
-                        onClick={() => setFocusedCameraId(camera.id)}
-                        className="group min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:border-naxa-green-700 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
-                        aria-label={"Agrandir " + camera.zone_label}
-                      >
-                        <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 bg-slate-950 p-2 text-center text-white">
-                          <CameraGlyph className="h-7 w-7 text-slate-400 sm:h-8 sm:w-8" />
-                          <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-200 sm:text-xs">Flux non activé</span>
-                          <span className="text-[10px] text-slate-300">Aperçu sécurisé à connecter</span>
-                        </div>
-                        <div className="space-y-1 p-2 sm:p-3">
-                          <p className="truncate text-xs font-extrabold sm:text-sm">{camera.zone_label}</p>
-                          <p className="truncate text-[10px] text-slate-500 sm:text-xs">{pharmacyById.get(camera.pharmacie_id)?.nom ?? "Pharmacie"} · {camera.model || "Modèle à identifier"}</p>
-                          <CameraConnectionBadge camera={camera} connections={connections} compact />
-                        </div>
-                      </button>
+                      <article key={camera.id} className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        <button
+                          type="button"
+                          onClick={() => setFocusedCameraId(camera.id)}
+                          className="group block w-full min-w-0 text-left transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naxa-green-700"
+                          aria-label={"Agrandir " + camera.zone_label}
+                        >
+                          <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 bg-slate-950 p-2 text-center text-white">
+                            <CameraGlyph className="h-7 w-7 text-slate-400 sm:h-8 sm:w-8" />
+                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-200 sm:text-xs">Caméra inventoriée</span>
+                            <span className="text-[10px] text-slate-300">Ouvrir en grand</span>
+                          </div>
+                          <div className="space-y-1 p-2 sm:p-3">
+                            <p className="truncate text-xs font-extrabold sm:text-sm">{camera.zone_label}</p>
+                            <p className="truncate text-[10px] text-slate-500 sm:text-xs">{pharmacyById.get(camera.pharmacie_id)?.nom ?? "Pharmacie"} · {camera.model || "Modèle à identifier"}</p>
+                            <CameraConnectionBadge camera={camera} connections={connections} compact />
+                          </div>
+                        </button>
+                        <SecurityWhepPlayer cameraId={camera.id} compact />
+                      </article>
                     ))}
                     {Array.from({ length: Math.max(0, 4 - pageCameras.length) }).map((_, index) => (
                       <div key={"empty-" + index} className="flex aspect-[4/3] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2 text-center text-xs text-slate-500">
