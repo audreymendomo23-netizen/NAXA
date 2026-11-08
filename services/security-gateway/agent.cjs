@@ -546,8 +546,10 @@ function buildSecurityEventPayload(input) {
     throw new Error("Résumé d’événement invalide.");
   }
   const detectedAt = typeof input.detectedAt === "string" ? input.detectedAt : new Date().toISOString();
-  if (!Number.isFinite(Date.parse(detectedAt)) ||
-    Math.abs(Date.now() - Date.parse(detectedAt)) > 7 * 24 * 60 * 60 * 1000) {
+  const detectedAtMs = Date.parse(detectedAt);
+  if (!Number.isFinite(detectedAtMs) ||
+    detectedAtMs < Date.now() - 7 * 24 * 60 * 60 * 1000 ||
+    detectedAtMs > Date.now() + 2 * 60 * 1000) {
     throw new Error("Date d’événement invalide.");
   }
   const confidence = input.confidence === undefined || input.confidence === null ? null : input.confidence;

@@ -81,7 +81,8 @@ export async function POST(request: Request) {
       /[\u0000-\u001f\u007f]/.test(summary) ||
       /rtsps?:\/\/|https?:\/\/|authorization|bearer |password\s*=/i.test(summary) ||
       !Number.isFinite(detectedAt) ||
-      Math.abs(Date.now() - detectedAt) > 7 * 24 * 60 * 60 * 1000 ||
+      detectedAt < Date.now() - 7 * 24 * 60 * 60 * 1000 ||
+      detectedAt > Date.now() + 2 * 60 * 1000 ||
       (confidence !== null && (typeof confidence !== "number" ||
         !Number.isFinite(confidence) || confidence < 0 || confidence > 1)) ||
       !fingerprintPattern.test(sourceFingerprint) || metadata === null

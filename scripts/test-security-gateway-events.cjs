@@ -42,3 +42,12 @@ test("publisher : perte de signal auto signalée une fois par interruption", () 
   assert.ok(agentSource.includes("outage.reported = true"));
   assert.ok(agentSource.includes("outage.detectedAt = null"));
 });
+
+test("dates : accepte un retard d'une semaine, refuse une date future excessive", () => {
+  const routeSource = fs.readFileSync(path.join(root, "src/app/api/security/gateway/events/route.ts"), "utf8");
+  const agentSource = fs.readFileSync(path.join(root, "services/security-gateway/agent.cjs"), "utf8");
+  assert.ok(routeSource.includes("detectedAt < Date.now() - 7 * 24 * 60 * 60 * 1000"));
+  assert.ok(routeSource.includes("detectedAt > Date.now() + 2 * 60 * 1000"));
+  assert.ok(agentSource.includes("detectedAtMs < Date.now() - 7 * 24 * 60 * 60 * 1000"));
+  assert.ok(agentSource.includes("detectedAtMs > Date.now() + 2 * 60 * 1000"));
+});
