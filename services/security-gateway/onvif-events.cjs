@@ -127,14 +127,16 @@ function buildUsernameToken(username,password,options={}) {
   const created=options.created||new Date().toISOString();
   if (nonce.length<16||nonce.length>32||!Number.isFinite(Date.parse(created))) throw new TypeError("Nonce ou date WS-Security invalide.");
   const digest=crypto.createHash("sha1").update(Buffer.concat([nonce,Buffer.from(created),Buffer.from(password)])).digest("base64");
-  return [
+  const nonceBase64 = nonce.toString("base64");
+  const header = [
     '<wsse:Security s:mustUnderstand="1"><wsse:UsernameToken>',
     "<wsse:Username>"+xmlEscape(username)+"</wsse:Username>",
     '<wsse:Password Type="'+PASSWORD_DIGEST_TYPE+'">'+digest+"</wsse:Password>",
-    '<wsse:Nonce EncodingType="'+NONCE_ENCODING+'">'+nonce.toString("base64")+"</wsse:Nonce>",
+    '<wsse:Nonce EncodingType="'+NONCE_ENCODING+'">'+nonceBase64+"</wsse:Nonce>",
     "<wsu:Created>"+xmlEscape(created)+"</wsu:Created>",
     "</wsse:UsernameToken></wsse:Security>",
   ].join("");
+  return { digest, nonce: nonceBase64, header };
 }
 function buildSoapEnvelope(options) {
   const security = buildUsernameToken(options.username, options.password, options);
@@ -149,7 +151,7 @@ function buildSoapEnvelope(options) {
     '<wsa:MessageID>urn:uuid:' + crypto.randomUUID() + '</wsa:MessageID>',
     '<wsa:ReplyTo><wsa:Address>http://www.w3.org/2005/08/addressing/anonymous</wsa:Address></wsa:ReplyTo>',
     '<wsa:To s:mustUnderstand="1">' + xmlEscape(options.to) + '</wsa:To>',
-    security,
+    security.header,
     '</s:Header><s:Body>' + options.body + '</s:Body></s:Envelope>',
   ].join("");
 }
