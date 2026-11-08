@@ -202,21 +202,85 @@ export async function POST(request: Request) {
 
     const savedIds: string[] = [];
     for (const device of devices) {
-      const { data, error } = await admin.from("naxa_security_camera_discovery_candidates").upsert({
-        gateway_id: gatewayId,
+      const candidateValues = {
         pharmacie_id: gateway.pharmacie_id,
         ...device,
         last_seen_at: now.toISOString(),
         updated_at: now.toISOString(),
-      }, { onConflict: "gateway_id,discovery_key" }).select("id").single();
-      if (error || !data) {
-        console.error("NAXA_GATEWAY_DISCOVERY_CANDIDATE_SAVE_FAILED", error?.code);
+      };
+      const { data: existingCandidate, error: existingCandidateError } = await admin
+        .from("naxa_security_camera_discovery_candidates")
+        .select("id,status")
+        .eq("gateway_id", gatewayId)
+        .eq("discovery_key", device.discovery_key)
+        .maybeSingle();
+
+      if (existingCandidateError) {
+        console.error("NAXA_GATEWAY_DISCOVERY_CANDIDATE_LOOKUP_FAILED", existingCandidateError.code);
         return NextResponse.json({
-          error: "Rapport partiellement reçu ; relancez une découverte pour réconcilier les appareils.",
+          error: "Lecture du registre de découverte indisponible.",
           receivedCount: savedIds.length,
         }, { status: 503 });
       }
-      savedIds.push(data.id);
+
+      let savedCandidateId: string | null = null;
+      if (existingCandidate) {
+        // Ne jamais réinitialiser status, camera_id ou reviewed_by lors d'une redécouverte.
+        const { data: updatedCandidate, error: updateCandidateError } = await admin
+          .from("naxa_security_camera_discovery_candidates")
+          .update(candidateValues)
+          .eq("id", existingCandidate.id)
+          .select("id")
+          .maybeSingle();
+        if (updateCandidateError || !updatedCandidate) {
+          console.error("NAXA_GATEWAY_DISCOVERY_CANDIDATE_UPDATE_FAILED", updateCandidateError?.code);
+          return NextResponse.json({
+            error: "Mise à jour du candidat impossible ; relancez une découverte pour réconcilier les appareils.",
+            receivedCount: savedIds.length,
+          }, { status: 503 });
+        }
+        savedCandidateId = updatedCandidate.id;
+      } else {
+        const { data: createdCandidate, error: createCandidateError } = await admin
+          .from("naxa_security_camera_discovery_candidates")
+          .insert({
+            gateway_id: gatewayId,
+            ...candidateValues,
+            status: "pending",
+          })
+          .select("id")
+          .maybeSingle();
+
+        if (createCandidateError?.code === "23505") {
+          // Une découverte concurrente peut avoir inséré la même identité : relire puis actualiser sans écraser la revue.
+          const { data: racedCandidate, error: raceReadError } = await admin
+            .from("naxa_security_camera_discovery_candidates")
+            .select("id")
+            .eq("gateway_id", gatewayId)
+            .eq("discovery_key", device.discovery_key)
+            .maybeSingle();
+          if (!raceReadError && racedCandidate) {
+            const { data: racedUpdate, error: racedUpdateError } = await admin
+              .from("naxa_security_camera_discovery_candidates")
+              .update(candidateValues)
+              .eq("id", racedCandidate.id)
+              .select("id")
+              .maybeSingle();
+            if (!racedUpdateError && racedUpdate) savedCandidateId = racedUpdate.id;
+          }
+        } else if (!createCandidateError && createdCandidate) {
+          savedCandidateId = createdCandidate.id;
+        }
+
+        if (!savedCandidateId) {
+          console.error("NAXA_GATEWAY_DISCOVERY_CANDIDATE_SAVE_FAILED", createCandidateError?.code);
+          return NextResponse.json({
+            error: "Rapport partiellement reçu ; relancez une découverte pour réconcilier les appareils.",
+            receivedCount: savedIds.length,
+          }, { status: 503 });
+        }
+      }
+      savedIds.push(savedCandidateId);
     }
 
     const { error: auditError } = await admin.from("naxa_security_access_audit").insert({
