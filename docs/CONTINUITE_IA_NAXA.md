@@ -465,3 +465,114 @@ Poursuivre uniquement sur les contrôles de compilation/CI et recette navigateur
 - Aucune écriture Supabase Production et aucun déploiement.
 
 - Contrôle SQL en lecture seule sur Replay `pwfftcsjyeibxxqhwysw` : 10 assertions structurelles PASS. Les fonctions présentes ont été vérifiées par leurs vrais noms/signatures (le helper `naxa_can_manage_lots(uuid)` est dans `public`) ; le RPC de rejeu est SECURITY DEFINER, exécutable uniquement par `service_role` parmi anon/authenticated/service_role ; journal `stock_manager_movement_journal` avec RLS ; colonnes LWW présentes ; policy de lecture `stocks_lots` utilise le helper et aucune policy `ALL` ne subsiste sur cette table. La migration 280 figure dans l'historique Replay. Aucune écriture réalisée par ce contrôle.
+
+
+---
+
+# Point de continuité — NAXA Security intelligente : périmètre final et prompt d'implémentation (09/11/2026)
+
+## Référence de travail vérifiée
+
+- Dépôt : audreymendomo23-netizen/NAXA.
+- Branche active pour cette intervention : qa/e2e-stabilisation-20261106.
+- HEAD vérifié avant mise à jour documentaire : b52457d03d01df658238d5c65878942efaf7cc27.
+- CI GitHub Actions #1311 : completed / success sur ce SHA exact : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42531445059.
+- Logs : 241 tests PASS / 0 FAIL ; test WS-Security UsernameToken n°203 PASS ; npx tsc --noEmit PASS ; next lint PASS ; build Next.js PASS ; pages statiques 129/129 ; audit dépendances 0 vulnérabilité ; scans de secrets de l'historique et du répertoire courant PASS.
+- Correctif UsernameToken : commit b52457d03d01df658238d5c65878942efaf7cc27.
+- Cette CI valide le logiciel de la branche QA. Elle ne prouve pas un flux caméra physique, MediaMTX déployé, une sauvegarde Drive réelle, des alertes Android en arrière-plan, un enregistrement NVR ou une sirène physique.
+- Aucun changement main, aucune écriture Supabase Production, aucune fusion et aucun déploiement Production dans cette intervention.
+
+## Fonctionnalités finales attendues
+
+Le Promoteur surveille les pharmacies actives de son réseau ; le Responsable ne voit que sa pharmacie et les fonctions déléguées. Le périmètre final confirmé comprend :
+
+1. Live multi-caméras et grille 2×2, sélection pharmacie/caméra, état mesuré.
+2. Compatibilité multi-marques ONVIF, RTSP/RTSPS, NVR/DVR, encodeur analogique, Wi-Fi et API/SDK officiels ; validation par modèle/firmware, aucune promesse universelle.
+3. Enregistrement principal local, timeline, relecture, recherche et clips avant/après événement ; continuité hors Internet.
+4. Horodatage permanent sur live et archive : date, heure à la seconde, pharmacie, caméra et fuseau ; UTC en données, Africa/Douala par défaut pour affichage. NTP, dérive et heure non fiable suivis ; original et copie horodatée/intègre distingués.
+5. Destinations sélectionnables : stockage local pharmacie/NVR, Google Drive personnel et copie locale du téléphone.
+6. Sauvegarde manuelle immédiate et automatique programmée, avec reprise, progression, déduplication, hash et états réels.
+7. Google OAuth minimal de préférence drive.file + Google Picker ; jetons chiffrés côté serveur ; upload resumable ; aucun lien public par défaut.
+8. Copie Android consultable hors ligne via API de stockage appropriée, sans permission globale inutile.
+9. Calendrier haute surveillance par pharmacie/zone, intervalles multiples et exceptions ; 22:00–08:00 et franchissement minuit ; politique signée synchronisée à la passerelle.
+10. Niveaux d'alertes personnalisables : son, vibration, répétition, acquittement, destinataires et escalade.
+11. Compagnon Android natif si aucun projet existant ; test permissions, verrouillage, Doze et limites OEM.
+12. Sirène locale autonome et commande distante confirmée, relais validé, anti-rejeu, accusé matériel, arrêt local/automatique.
+13. Moteur IA réellement exécuté et mesuré ; revue humaine ; aucune accusation automatique.
+14. Audit de lecture, export, sauvegarde, calendrier, événements, notifications et commandes sirène.
+
+## État construit à distinguer des fonctions restantes
+
+### Fondations déjà présentes dans la branche QA
+
+- Menu Sécurité Promoteur, tableau multi-pharmacies, grille 2×2 et navigation.
+- Schéma installations, passerelles, caméras, événements, métadonnées clips, commandes sirène et journal append-only ; RLS forcée, accès backend service_role.
+- Enrôlement passerelle par code unique, identité Ed25519 locale et heartbeat signé anti-rejeu.
+- Découverte ONVIF locale opt-in, candidats soumis à revue Promoteur.
+- Diagnostic ONVIF fabricant/modèle/firmware/capacités.
+- Sessions live temporaires WHEP/WebRTC, hash de ticket, vérification périmètre, révocation.
+- Tickets de publication RTSPS liés à passerelle/caméra/pharmacie et remontée santé du flux.
+- Ingestion événement signée, anti-rejeu, déduplication, gravité serveur et revue humaine.
+- Collecteur ONVIF Pull-Point, identifiants chiffrés localement, UsernameToken, parsing limité et normalisation des événements.
+- CI #1311 validée sur le SHA exact.
+
+### Non démontré ou non construit à ce checkpoint
+
+- MediaMTX n'est pas déployé ; le chemin caméra physique → passerelle → relais → navigateur n'est pas prouvé.
+- Les adaptateurs non testés ne sont pas des drivers opérationnels ; les garder design_only.
+- Enregistrement local complet, index temporel, relecture et export NVR non opérationnels.
+- Clips effectifs, tampon pré/post et stockage vidéo à construire.
+- Horodatage incrusté et contrôlé sur vidéos réelles, NTP, dérive, manifeste/hash à construire.
+- OAuth Google Drive, sélection dossier, sauvegarde manuelle/planifiée, upload resumable, reprise et révocation à construire.
+- Copie locale sur téléphone avec accès hors ligne à construire.
+- Calendrier haute surveillance et synchronisation hors ligne passerelle à construire.
+- Moteur IA d'inférence réel à construire. Le libellé edge_ai seul n'est pas une preuve.
+- Profils d'alertes sonores personnalisables, acquittement/escalade et compagnon Android natif à construire.
+- Contrôleur sirène, commandes matérielles et accusés à construire.
+- Aucun E2E complet sur pharmacie pilote prouvé.
+
+Les tables naxa_security_clips et naxa_security_siren_commands sont des métadonnées/fondations de schéma, pas des fonctions opérationnelles. Ne jamais afficher « sauvegardé », « enregistré », « live », « sonnerie activée » ou « sirène activée » sans accusé du service/équipement correspondant.
+
+## Découpage des lots restants
+
+- Lot 12 : relais média sur infrastructure dédiée, premier flux caméra physique.
+- Lot 13 : enregistrement local/NVR, index, relecture, clips pré/post.
+- Lot 14 : NTP, date/heure visible, fuseau, dérive, original + copie horodatée, hash/manifeste.
+- Lot 15 : destinations locale/Drive/téléphone, OAuth minimal, sauvegarde manuelle et programmée, uploads resumable, reprise et intégrité.
+- Lot 16 : haute surveillance 22:00–08:00, exceptions, politique signée hors ligne.
+- Lot 17 : événements et IA réellement exécutée, calibrée et mesurée.
+- Lot 18 : application Android, canaux par niveau, sonnerie, répétition, acquittement et escalade.
+- Lot 19 : relais physique, sirène locale, commande distante confirmée, anti-rejeu et arrêt.
+- Lot 20 : recette E2E matérielle multi-pharmacies et feu vert pilote.
+
+Chaque lot doit être clôturé individuellement. CI verte obligatoire, mais elle ne remplace pas les essais caméra, NVR, téléphone et relais physiques.
+
+## Références techniques officielles retenues
+
+- Google Drive OAuth scopes : https://developers.google.com/workspace/drive/api/guides/api-specific-auth
+- Google Drive resumable uploads : https://developers.google.com/workspace/drive/api/guides/manage-uploads
+- Android plein écran : https://source.android.com/docs/core/permissions/fsi-limits
+- Android 14 : https://developer.android.com/about/versions/14/behavior-changes-14
+- FCM priorité Android/Doze : https://firebase.google.com/docs/cloud-messaging/android-message-priority
+- Android notification channels : https://developer.android.com/design/ui/mobile/guides/home-screen/notifications
+- ONVIF profils et produits conformes : https://www.onvif.org/profiles/ et https://www.onvif.org/conformant-products/
+
+## Prompt d'exécution
+
+Le prompt expert complet incluant l'architecture, les lots 12 à 20, Google OAuth, sauvegardes, Android, horodatage, sirène, sécurité et critères d'acceptation est enregistré dans :
+
+docs/security/PROMPT_IMPLEMENTATION_SECURITE_INTELLIGENTE.md
+
+Ce document est une spécification de travail. Il ne signifie pas que les fonctions restantes sont construites ou que leur mise en œuvre a commencé.
+
+## Actions de cette intervention
+
+- Création du prompt expert dédié.
+- Mise à jour de ce document de continuité avec l'état réel, la preuve CI #1311 et le périmètre final.
+- Aucun code applicatif, migration SQL, variable ou configuration d'infrastructure modifiés.
+- Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
+
+## Prochaine action technique
+
+Commencer le lot 12 par un audit ciblé du chemin MediaMTX/publisher, du contrat de configuration caméras et de l'infrastructure média disponible ; identifier le matériel physique de pilote et les prérequis manquants. Ne jamais annoncer « live opérationnel » avant essai caméra/gateway réel. Ne pas toucher à main, Supabase Production ou Vercel Production.
+
