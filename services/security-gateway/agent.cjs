@@ -15,6 +15,20 @@ function buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody) {
   return Buffer.from(`${gatewayId}\n${timestamp}\n${nonce}\n${bodyHash}`, "utf8");
 }
 
+function makeSignedGatewayHeaders({ gatewayId, privateKey, rawBody, nowMs = Date.now(), nonce = crypto.randomBytes(24).toString("base64url") }) {
+  const timestamp = String(Math.floor(nowMs / 1000));
+  const canonical = buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody);
+  const signature = crypto.sign(null, canonical, privateKey).toString("base64url");
+  return {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store",
+    "X-NAXA-Gateway-ID": gatewayId,
+    "X-NAXA-Timestamp": timestamp,
+    "X-NAXA-Nonce": nonce,
+    "X-NAXA-Signature": signature,
+  };
+}
+
 function makeSignedHeartbeat({ gatewayId, privateKey, hostname = os.hostname(), nowMs = Date.now(), nonce = crypto.randomBytes(24).toString("base64url") }) {
   const payload = {
     agentVersion: AGENT_VERSION,
@@ -23,19 +37,9 @@ function makeSignedHeartbeat({ gatewayId, privateKey, hostname = os.hostname(), 
     reportedAt: new Date(nowMs).toISOString(),
   };
   const rawBody = JSON.stringify(payload);
-  const timestamp = String(Math.floor(nowMs / 1000));
-  const canonical = buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody);
-  const signature = crypto.sign(null, canonical, privateKey).toString("base64url");
   return {
     rawBody,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      "X-NAXA-Gateway-ID": gatewayId,
-      "X-NAXA-Timestamp": timestamp,
-      "X-NAXA-Nonce": nonce,
-      "X-NAXA-Signature": signature,
-    },
+    headers: makeSignedGatewayHeaders({ gatewayId, privateKey, rawBody, nowMs, nonce }),
   };
 }
 
@@ -92,7 +96,7 @@ function parseFlags(args) {
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
-    if (key === "--token-stdin" || key === "--confirm-local-network") {
+    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit") {
       values[key.slice(2)] = true;
       continue;
     }
@@ -214,11 +218,39 @@ async function discover(args) {
     throw new Error("Le délai de découverte doit être compris entre 1000 et 8000 ms.");
   }
   const devices = await discoverOnvifCameras({ timeoutMs, maxDevices: 64 });
+  let reportStatus = "local_only";
+  if (flags.submit) {
+    const config = readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR));
+    const rawBody = JSON.stringify({
+      agentVersion: AGENT_VERSION,
+      reportedAt: new Date().toISOString(),
+      devices,
+    });
+    const response = await fetch(config.apiBaseUrl + "/api/security/gateway/discoveries", {
+      method: "POST",
+      headers: makeSignedGatewayHeaders({
+        gatewayId: config.gatewayId,
+        privateKey: config.privateKey,
+        rawBody,
+      }),
+      body: rawBody,
+      signal: AbortSignal.timeout(15000),
+      cache: "no-store",
+      redirect: "error",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok !== true) {
+      throw new Error(result.error || "NAXA a refusé le rapport de découverte (HTTP " + response.status + ").");
+    }
+    reportStatus = "sent_for_human_review";
+    console.log("Rapport transmis à NAXA ; candidats en attente de validation Promoteur : " + Number(result.candidateCount || 0));
+  }
   console.log(JSON.stringify({
     protocol: "ONVIF WS-Discovery",
     scope: "IPv4 multicast local uniquement (239.255.255.250:3702, TTL=1)",
     transmittedCredentials: false,
     contactedCameraEndpoints: false,
+    reportStatus,
     devices,
     count: devices.length,
   }, null, 2));
@@ -243,4 +275,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags };
