@@ -119,10 +119,20 @@ test("Passerelle : la commande inspect impose la confirmation locale et reste sa
   assert.match(agent, /inspectOnvifDevice/);
 });
 
+function phase11Envelope(body) {
+  return '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body>' + body + "</s:Body></s:Envelope>";
+}
+function phase11Response(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: { "content-type": "application/soap+xml; charset=utf-8" },
+  });
+}
+
 test("ONVIF : endpoint Events local fourni par GetCapabilities", async () => {
   const fetchImpl = async (url, init) => {
-    if (/GetDeviceInformation/.test(init.body)) return response(envelope("<tds:GetDeviceInformationResponse><tds:Manufacturer>CamCo</tds:Manufacturer><tds:Model>IPCam</tds:Model></tds:GetDeviceInformationResponse>"));
-    return response(envelope("<tds:GetCapabilitiesResponse><tds:Capabilities><tt:Media/><tt:Events><tt:XAddr>http://192.168.1.20/onvif/events</tt:XAddr></tt:Events></tds:Capabilities></tds:GetCapabilitiesResponse>"));
+    if (/GetDeviceInformation/.test(init.body)) return phase11Response(phase11Envelope("<tds:GetDeviceInformationResponse><tds:Manufacturer>CamCo</tds:Manufacturer><tds:Model>IPCam</tds:Model></tds:GetDeviceInformationResponse>"));
+    return phase11Response(phase11Envelope("<tds:GetCapabilitiesResponse><tds:Capabilities><tt:Media/><tt:Events><tt:XAddr>http://192.168.1.20/onvif/events</tt:XAddr></tt:Events></tds:Capabilities></tds:GetCapabilitiesResponse>"));
   };
   const result=await inspectOnvifDevice({endpoint:"http://192.168.1.20/onvif/device_service",sourceAddress:"192.168.1.20",fetchImpl});
   assert.equal(result.eventsEndpoint,"http://192.168.1.20/onvif/events");
@@ -130,8 +140,8 @@ test("ONVIF : endpoint Events local fourni par GetCapabilities", async () => {
 });
 test("ONVIF : endpoint Events externe neutralisé", async () => {
   const fetchImpl = async (url, init) => {
-    if (/GetDeviceInformation/.test(init.body)) return response(envelope("<tds:GetDeviceInformationResponse><tds:Manufacturer>CamCo</tds:Manufacturer><tds:Model>IPCam</tds:Model></tds:GetDeviceInformationResponse>"));
-    return response(envelope("<tds:GetCapabilitiesResponse><tds:Capabilities><tt:Media/><tt:Events><tt:XAddr>https://events.attacker.example/subscribe</tt:XAddr></tt:Events></tds:Capabilities></tds:GetCapabilitiesResponse>"));
+    if (/GetDeviceInformation/.test(init.body)) return phase11Response(phase11Envelope("<tds:GetDeviceInformationResponse><tds:Manufacturer>CamCo</tds:Manufacturer><tds:Model>IPCam</tds:Model></tds:GetDeviceInformationResponse>"));
+    return phase11Response(phase11Envelope("<tds:GetCapabilitiesResponse><tds:Capabilities><tt:Media/><tt:Events><tt:XAddr>https://events.attacker.example/subscribe</tt:XAddr></tt:Events></tds:Capabilities></tds:GetCapabilitiesResponse>"));
   };
   const result=await inspectOnvifDevice({endpoint:"http://192.168.1.20/onvif/device_service",sourceAddress:"192.168.1.20",fetchImpl});
   assert.equal(result.eventsEndpoint,null);
