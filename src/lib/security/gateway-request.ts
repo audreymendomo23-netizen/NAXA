@@ -79,9 +79,10 @@ export async function authenticateSignedSecurityGateway(
   try {
     const publicKey = createPublicKey(keyRecord.public_key_pem);
     const digest = createHash("sha256").update(rawBody, "utf8").digest("hex");
-    const canonical = Buffer.from(gatewayId + "\n" + timestamp + "\n" + nonce + "\n" + digest, "utf8");
-    valid = signature.byteLength === 64 && publicKey.asymmetricKeyType === "ed25519" &&
-      verify(null, canonical, publicKey, signature);
+    const canonical = Uint8Array.from(Buffer.from(gatewayId + "\n" + timestamp + "\n" + nonce + "\n" + digest, "utf8"));
+    const signatureBytes = Uint8Array.from(signature);
+    valid = signatureBytes.byteLength === 64 && publicKey.asymmetricKeyType === "ed25519" &&
+      verify(null, canonical, publicKey, signatureBytes);
   } catch { valid = false; }
   if (!valid) return { ok: false, status: 401, error: "Signature passerelle invalide." };
 
