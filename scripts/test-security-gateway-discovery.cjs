@@ -62,6 +62,7 @@ test("agent : découverte seulement sur commande explicite et confirmation rése
   const source = fs.readFileSync(path.join(__dirname, "../services/security-gateway/agent.cjs"), "utf8");
   assert.match(source, /command === "discover"/);
   assert.match(source, /--confirm-local-network/);
-  assert.match(source, /239\.255\.255\.250/);
   assert.match(source, /discoverOnvifCameras/);
+  const discovery = fs.readFileSync(path.join(__dirname, "../services/security-gateway/onvif-discovery.cjs"), "utf8");
+  assert.match(discovery, /239\.255\.255\.250/);
 });

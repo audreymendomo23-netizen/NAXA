@@ -1,7 +1,7 @@
 # Phase 4 — Découverte ONVIF locale contrôlée
 
 Date : 8 novembre 2026  
-Branche : \`qa/e2e-stabilisation-20261106\`  
+Branche : `qa/e2e-stabilisation-20261106`  
 État : sonde WS-Discovery et filtre local implémentés ; tests de parsing ajoutés ; aucun matériel réel disponible pour validation terrain.
 
 ## Objectif et périmètre
@@ -10,12 +10,12 @@ La passerelle locale peut émettre une sonde ONVIF WS-Discovery pour découvrir 
 
 Commande explicite sur la passerelle :
 
-\`\`\`bash
+```bash
 sudo node /opt/naxa-security-gateway/agent.cjs discover \\
   --confirm-local-network --timeout-ms 3500
-\`\`\`
+```
 
-La commande est désactivée sans \`--confirm-local-network\`. Elle envoie une seule sonde multicast vers \`239.255.255.250:3702\`, avec TTL 1, attend entre 1 et 8 secondes, puis affiche au maximum 64 réponses reconnues.
+La commande est désactivée sans `--confirm-local-network`. Elle envoie une seule sonde multicast vers `239.255.255.250:3702`, avec TTL 1, attend entre 1 et 8 secondes, puis affiche au maximum 64 réponses reconnues.
 
 ## Contrôles de sécurité
 
