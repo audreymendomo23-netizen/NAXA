@@ -59,87 +59,44 @@ declare
   v_active_count integer;
   v_now timestamptz := pg_catalog.clock_timestamp();
 begin
-  if p_pharmacie_id is null or p_camera_id is null or p_gateway_id is null
-    or p_user_id is null or p_token_sha256 is null or p_media_path is null
+  if p_pharmacie_id is null
+    or p_camera_id is null
+    or p_gateway_id is null
+    or p_user_id is null
+    or p_token_sha256 is null
+    or p_media_path is null
     or p_expires_at is null
-    or p_token_sha256 !~ '^[0-9a-f]{64}
-    raise exception 'NAXA live session arguments rejected' using errcode = '22023';
-  end if;
-
-  -- Serialise les créations par compte : quatre lectures simultanées au maximum.
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 0));
-
-  select pg_catalog.count(*)::integer into v_active_count
-    from public.naxa_security_live_sessions
-   where user_id = p_user_id and status = 'active' and expires_at > v_now;
-
-  if v_active_count >= 4 then
-    raise exception 'NAXA live session limit reached' using errcode = '54000';
-  end if;
-
-  insert into public.naxa_security_live_sessions (
-    pharmacie_id, camera_id, gateway_id, user_id,
-    token_sha256, media_path, status, issued_at, expires_at
-  ) values (
-    p_pharmacie_id, p_camera_id, p_gateway_id, p_user_id,
-    p_token_sha256, p_media_path, 'active', v_now, p_expires_at
-  )
-  returning id into v_session_id;
-
-  insert into public.naxa_security_access_audit (
-    pharmacie_id, actor_id, actor_role, action,
-    resource_type, resource_id, justification, audit_metadata
-  ) values (
-    p_pharmacie_id, p_user_id, 'promoteur', 'camera_live_view',
-    'camera', p_camera_id, 'Ouverture d’une session vidéo WebRTC autorisée',
-    pg_catalog.jsonb_build_object(
-      'session_id', v_session_id,
-      'gateway_id', p_gateway_id,
-      'media_path', p_media_path,
-      'expires_at', p_expires_at
-    )
-  );
-
-  return v_session_id;
-end;
-$function$;
-
-revoke all on function public.naxa_security_issue_live_session(
-  uuid, uuid, uuid, uuid, text, text, timestamptz
-) from public, anon, authenticated;
-grant execute on function public.naxa_security_issue_live_session(
-  uuid, uuid, uuid, uuid, text, text, timestamptz
-) to service_role;
-
-comment on table public.naxa_security_live_sessions is
-  'Tickets WebRTC temporaires : seul le hash SHA-256 est stocké ; lecture limitée à une caméra, un Promoteur et un chemin média.';
-comment on function public.naxa_security_issue_live_session(
-  uuid, uuid, uuid, uuid, text, text, timestamptz
-) is
-  'Création atomique d’un ticket média et de son audit ; exécution réservée au service_role, quatre sessions actives maximum par Promoteur.';
-
-    or p_media_path <> 'naxa/' || p_pharmacie_id::text || '/' || p_camera_id::text
+    or p_token_sha256 !~ '^[0-9a-f]{64}$'
+    or p_media_path <> ('naxa/' || p_pharmacie_id::text || '/' || p_camera_id::text)
     or p_expires_at <= v_now
     or p_expires_at > v_now + interval '15 minutes 5 seconds'
     or not exists (
-      select 1 from public.naxa_security_cameras as camera
+      select 1
+        from public.naxa_security_cameras as camera
        where camera.id = p_camera_id
          and camera.pharmacie_id = p_pharmacie_id
          and camera.gateway_id = p_gateway_id
     )
   then
-    raise exception 'NAXA live session arguments rejected' using errcode = '22023';
+    raise exception 'NAXA live session arguments rejected'
+      using errcode = '22023';
   end if;
 
   -- Serialise les créations par compte : quatre lectures simultanées au maximum.
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 0));
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_user_id::text, 0)
+  );
 
-  select pg_catalog.count(*)::integer into v_active_count
+  select pg_catalog.count(*)::integer
+    into v_active_count
     from public.naxa_security_live_sessions
-   where user_id = p_user_id and status = 'active' and expires_at > v_now;
+   where user_id = p_user_id
+     and status = 'active'
+     and expires_at > v_now;
 
   if v_active_count >= 4 then
-    raise exception 'NAXA live session limit reached' using errcode = '54000';
+    raise exception 'NAXA live session limit reached'
+      using errcode = '54000';
   end if;
 
   insert into public.naxa_security_live_sessions (
