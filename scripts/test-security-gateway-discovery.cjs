@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { parseFlags } = require("../services/security-gateway/agent.cjs");
 const {
   isPrivateIpv4,
   isLocalHost,
@@ -65,4 +66,15 @@ test("agent : découverte seulement sur commande explicite et confirmation rése
   assert.match(source, /discoverOnvifCameras/);
   const discovery = fs.readFileSync(path.join(__dirname, "../services/security-gateway/onvif-discovery.cjs"), "utf8");
   assert.match(discovery, /239\.255\.255\.250/);
+});
+
+
+test("agent : --confirm-local-network active le bon drapeau sans activer token-stdin", () => {
+  const discoveryFlags = parseFlags(["--confirm-local-network", "--timeout-ms", "3500"]);
+  assert.equal(discoveryFlags["confirm-local-network"], true);
+  assert.equal(discoveryFlags["token-stdin"], undefined);
+  assert.equal(discoveryFlags["timeout-ms"], "3500");
+  const enrollFlags = parseFlags(["--token-stdin"]);
+  assert.equal(enrollFlags["token-stdin"], true);
+  assert.equal(enrollFlags["confirm-local-network"], undefined);
 });
