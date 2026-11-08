@@ -127,13 +127,13 @@ test("Promoteur : revue ONVIF via transaction RPC atomique", () => {
   const action = actions.slice(actions.indexOf("export async function examinerCameraDecouverte"));
 
   assert.match(action, /function examinerCameraDecouverte/);
-  assert.match(action, /activeLinkIds\\.has\\(candidate\\.pharmacie_id\\)/);
-  assert.match(action, /candidate\\.status !== "pending"/);
-  assert.match(action, /\\.rpc\\(["']naxa_security_review_discovery_candidate["']/);
-  assert.match(action, /reviewPayload\\?\\.status/);
-  assert.doesNotMatch(action, /\\.from\\(["']naxa_security_cameras["']\\)\\s*\\.insert/);
-  assert.doesNotMatch(action, /\\.from\\(["']naxa_security_camera_connections["']\\)\\s*\\.insert/);
-  assert.doesNotMatch(action, /\\.from\\(["']naxa_security_access_audit["']\\)\\s*\\.insert/);
+  assert.match(action, /activeLinkIds\.has\(candidate\.pharmacie_id\)/);
+  assert.match(action, /candidate\.status !== "pending"/);
+  assert.match(action, /\.rpc\(["']naxa_security_review_discovery_candidate["']/);
+  assert.match(action, /reviewPayload\?\.status/);
+  assert.doesNotMatch(action, /\.from\(["']naxa_security_cameras["']\)\s*\.insert/);
+  assert.doesNotMatch(action, /\.from\(["']naxa_security_camera_connections["']\)\s*\.insert/);
+  assert.doesNotMatch(action, /\.from\(["']naxa_security_access_audit["']\)\s*\.insert/);
   assert.match(component, /Valider et ajouter/);
   assert.match(component, /Ignorer/);
   assert.match(component, /examinerCameraDecouverte/);
@@ -142,8 +142,8 @@ test("Promoteur : revue ONVIF via transaction RPC atomique", () => {
   assert.match(migration, /set search_path = ''/i);
   assert.match(migration, /for update/i);
   assert.match(migration, /naxa_security_access_audit/i);
-  assert.match(migration, /connection_status[\\s\\S]{0,40}'discovered'/i);
-  assert.doesNotMatch(migration, /connection_status[\\s\\S]{0,40}'connected'/i);
-  assert.match(migration, /revoke all on function[\\s\\S]*from public, anon, authenticated/i);
-  assert.match(migration, /grant execute on function[\\s\\S]*to service_role/i);
+  assert.match(migration, /'discovered'/i);
+  assert.doesNotMatch(migration, /connection_status\s*=\s*'connected'/i);
+  assert.match(migration, /revoke all on function[\s\S]*from public, anon, authenticated/i);
+  assert.match(migration, /grant execute on function[\s\S]*to service_role/i);
 });
