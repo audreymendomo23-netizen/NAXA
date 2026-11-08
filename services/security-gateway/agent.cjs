@@ -420,6 +420,12 @@ function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal }) {
       resolve({ ...result, frameCount });
     };
     const onAbort = () => { if (child && child.exitCode === null) child.kill("SIGTERM"); };
+    // An abort may arrive while the publisher ticket request is pending.
+    // Do not spawn FFmpeg after the service shutdown has already been requested.
+    if (signal.aborted) {
+      finish({ code: null, exitSignal: "aborted" });
+      return;
+    }
     signal.addEventListener("abort", onAbort, { once: true });
     try {
       child = spawn(process.env.NAXA_FFMPEG_BIN || "ffmpeg", args, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
@@ -665,4 +671,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent };

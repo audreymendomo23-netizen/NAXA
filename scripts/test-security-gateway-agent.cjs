@@ -10,6 +10,7 @@ const {
   ensurePrivateDirectory,
   writePrivateFile,
   readSecureConfig,
+  startFfmpegPublisher,
 } = require("../services/security-gateway/agent.cjs");
 
 test("heartbeat Ed25519 : signature liée au corps, à la passerelle, à l'horodatage et au nonce", () => {
@@ -148,4 +149,26 @@ test("agent : collecteur Pull-Point configurable par stdin", () => {
   assert.ok(source.includes("--credentials-stdin"));
   assert.ok(source.includes("runPullPointCollector"));
   assert.ok(source.includes("readOnvifEventConfigs"));
+});
+
+
+test("publisher FFmpeg : ne démarre pas après un arrêt déjà demandé", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const previousBin = process.env.NAXA_FFMPEG_BIN;
+  process.env.NAXA_FFMPEG_BIN = "naxa-ffmpeg-must-not-be-started";
+  try {
+    const result = await startFfmpegPublisher({
+      sourceUrl: "rtsp://camera.local/live",
+      publishUrl: "rtsps://a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20:shortticket@video.example.test:8322/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21",
+      signal: controller.signal,
+      onFirstFrame: () => {},
+    });
+    assert.equal(result.exitSignal, "aborted");
+    assert.equal(result.frameCount, 0);
+    assert.equal(result.spawnError, undefined);
+  } finally {
+    if (previousBin === undefined) delete process.env.NAXA_FFMPEG_BIN;
+    else process.env.NAXA_FFMPEG_BIN = previousBin;
+  }
 });

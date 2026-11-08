@@ -39,5 +39,8 @@ test("durcissement conteneur, pas de publication non autorisée ni d'enregistrem
   assert.ok(config.includes("overridePublisher: false"));
   assert.ok(config.includes("record: false"));
   assert.ok(readme.includes("phase 9"));
+  assert.ok(readme.includes("action=publish"));
+  assert.ok(readme.includes("protocol=rtsp"));
+  assert.ok(readme.includes("Aucun TURN n'est actuellement configuré"));
   assert.ok(readme.includes("Aucune conservation vidéo"));
 });
