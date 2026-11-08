@@ -5,11 +5,15 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
+const { spawn } = require("node:child_process");
 const { discoverOnvifCameras } = require("./onvif-discovery.cjs");
 const { inspectOnvifDevice } = require("./onvif-inspection.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
+const CAMERA_STREAM_KEY_FILE = "camera-streams.key";
+const CAMERA_STREAM_CONFIG_FILE = "camera-streams.enc";
+const CAMERA_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody) {
   const bodyHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
@@ -97,7 +101,7 @@ function parseFlags(args) {
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
-    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit") {
+    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit" || key === "--source-stdin") {
       values[key.slice(2)] = true;
       continue;
     }
@@ -203,7 +207,11 @@ async function run(args) {
   };
   await runOnce();
   const timer = setInterval(runOnce, intervalSeconds * 1000);
-  const stop = () => { clearInterval(timer); process.exit(0); };
+  const controller = new AbortController();
+  const cameras = readCameraStreamConfigs(stateDir);
+  const publishers = cameras.map((camera) => runCameraPublisher(config, camera, controller.signal));
+  void Promise.all(publishers);
+  const stop = () => { clearInterval(timer); controller.abort(); };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
   console.log("Agent NAXA actif ; intervalle " + intervalSeconds + " s. Aucun port entrant n'est ouvert.");
@@ -285,17 +293,217 @@ async function inspect(args) {
   }, null, 2));
 }
 
+
+function validateLocalRtspSource(value) {
+  if (typeof value !== "string" || value.length < 12 || value.length > 2048 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error("URI caméra invalide.");
+  let url;
+  try { url = new URL(value); } catch { throw new Error("URI caméra invalide."); }
+  if (!["rtsp:", "rtsps:"].includes(url.protocol) || url.hash) throw new Error("Seuls RTSP et RTSPS locaux sont autorisés.");
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const ipVersion = require("node:net").isIP(host);
+  let local = false;
+  if (ipVersion === 4) {
+    const octets = host.split(".").map(Number);
+    local = octets[0] === 10 || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168) || (octets[0] === 169 && octets[1] === 254);
+  } else if (ipVersion === 6) {
+    local = host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:");
+  } else {
+    local = host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home.arpa") || /^[a-z0-9-]{1,63}$/.test(host);
+  }
+  if (!local || !host || host === "localhost") throw new Error("La caméra doit être sur une IP privée ou un DNS local.");
+  return url;
+}
+
+function readStreamEncryptionKey(stateDir) {
+  const keyPath = path.join(stateDir, CAMERA_STREAM_KEY_FILE);
+  if (!fs.existsSync(keyPath)) return null;
+  if (process.platform !== "win32" && (fs.statSync(keyPath).mode & 0o077) !== 0) throw new Error("Permissions clé caméra trop ouvertes.");
+  const value = fs.readFileSync(keyPath, "utf8").trim();
+  if (!/^[0-9a-f]{64}$/.test(value)) throw new Error("Clé locale des caméras invalide.");
+  return Buffer.from(value, "hex");
+}
+
+function readCameraStreamConfigs(stateDir) {
+  const filePath = path.join(stateDir, CAMERA_STREAM_CONFIG_FILE);
+  if (!fs.existsSync(filePath)) return [];
+  if (process.platform !== "win32" && (fs.statSync(filePath).mode & 0o077) !== 0) throw new Error("Permissions paramètres caméra trop ouvertes.");
+  const key = readStreamEncryptionKey(stateDir);
+  if (!key) throw new Error("Clé de chiffrement locale des caméras manquante.");
+  const envelope = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  if (envelope.version !== 1 || !/^[0-9a-f]{24}$/.test(envelope.iv) || !/^[0-9a-f]{32}$/.test(envelope.tag) || !/^[0-9a-f]+$/.test(envelope.ciphertext)) {
+    throw new Error("Configuration caméra chiffrée invalide.");
+  }
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(envelope.iv, "hex"));
+  decipher.setAuthTag(Buffer.from(envelope.tag, "hex"));
+  const plaintext = Buffer.concat([decipher.update(Buffer.from(envelope.ciphertext, "hex")), decipher.final()]).toString("utf8");
+  const entries = JSON.parse(plaintext);
+  if (!Array.isArray(entries) || entries.length > 64) throw new Error("Inventaire de flux local invalide.");
+  return entries.map((item) => {
+    if (!item || !CAMERA_UUID.test(item.cameraId) || typeof item.sourceUrl !== "string") throw new Error("Entrée de flux local invalide.");
+    validateLocalRtspSource(item.sourceUrl);
+    return { cameraId: item.cameraId, sourceUrl: item.sourceUrl };
+  });
+}
+
+function writeCameraStreamConfigs(stateDir, entries) {
+  ensurePrivateDirectory(stateDir);
+  if (!Array.isArray(entries) || entries.length > 64) throw new Error("Maximum 64 caméras locales.");
+  const normalized = entries.map((item) => {
+    if (!item || !CAMERA_UUID.test(item.cameraId)) throw new Error("Identifiant caméra invalide.");
+    validateLocalRtspSource(item.sourceUrl);
+    return { cameraId: item.cameraId, sourceUrl: item.sourceUrl };
+  });
+  const keyPath = path.join(stateDir, CAMERA_STREAM_KEY_FILE);
+  let key = readStreamEncryptionKey(stateDir);
+  if (!key) { key = crypto.randomBytes(32); writePrivateFile(keyPath, key.toString("hex") + "\n"); }
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(normalized), "utf8"), cipher.final()]);
+  writePrivateFile(path.join(stateDir, CAMERA_STREAM_CONFIG_FILE), JSON.stringify({
+    version: 1, iv: iv.toString("hex"), tag: cipher.getAuthTag().toString("hex"), ciphertext: ciphertext.toString("hex"),
+  }) + "\n");
+}
+
+function buildPublishFfmpegArgs(sourceUrl, publishUrl) {
+  validateLocalRtspSource(sourceUrl);
+  const target = new URL(publishUrl);
+  if (target.protocol !== "rtsps:" || !target.username || !target.password ||
+    !/^\/naxa\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/i.test(target.pathname) || target.search || target.hash) {
+    throw new Error("Destination RTSPS invalide.");
+  }
+  return [
+    "-hide_banner", "-nostdin", "-loglevel", "error", "-rtsp_transport", "tcp", "-i", sourceUrl,
+    "-map", "0:v:0", "-an", "-c:v", "copy", "-progress", "pipe:1", "-nostats", "-f", "rtsp",
+    "-rtsp_transport", "tcp", publishUrl,
+  ];
+}
+
+async function requestStreamPublishTicket(config, cameraId) {
+  if (!CAMERA_UUID.test(cameraId)) throw new Error("Identifiant caméra invalide.");
+  const rawBody = JSON.stringify({ cameraId });
+  const response = await fetch(config.apiBaseUrl + "/api/security/gateway/stream-publish-token", {
+    method: "POST",
+    headers: makeSignedGatewayHeaders({ gatewayId: config.gatewayId, privateKey: config.privateKey, rawBody }),
+    body: rawBody, signal: AbortSignal.timeout(15000), cache: "no-store", redirect: "error",
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok !== true || typeof result.publishUrl !== "string" || typeof result.expiresAt !== "string") {
+    throw new Error("Ticket de publication refusé (HTTP " + response.status + ").");
+  }
+  const url = new URL(result.publishUrl);
+  if (url.protocol !== "rtsps:" || url.username !== config.gatewayId || !url.password ||
+    !/^\/naxa\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/i.test(url.pathname)) throw new Error("Ticket RTSPS invalide.");
+  return { publishUrl: url.toString(), expiresAt: result.expiresAt };
+}
+
+async function reportStreamHealth(config, cameraId, state, frameCount) {
+  const rawBody = JSON.stringify({ cameraId, state, frameCount });
+  const response = await fetch(config.apiBaseUrl + "/api/security/gateway/stream-health", {
+    method: "POST",
+    headers: makeSignedGatewayHeaders({ gatewayId: config.gatewayId, privateKey: config.privateKey, rawBody }),
+    body: rawBody, signal: AbortSignal.timeout(10000), cache: "no-store", redirect: "error",
+  });
+  if (!response.ok) throw new Error("Statut caméra refusé (HTTP " + response.status + ").");
+}
+
+function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal }) {
+  return new Promise((resolve) => {
+    const args = buildPublishFfmpegArgs(sourceUrl, publishUrl);
+    let finished = false, frameCount = 0, stdoutBuffer = "", child;
+    const finish = (result) => {
+      if (finished) return;
+      finished = true;
+      signal.removeEventListener("abort", onAbort);
+      resolve({ ...result, frameCount });
+    };
+    const onAbort = () => { if (child && child.exitCode === null) child.kill("SIGTERM"); };
+    signal.addEventListener("abort", onAbort, { once: true });
+    try {
+      child = spawn(process.env.NAXA_FFMPEG_BIN || "ffmpeg", args, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+    } catch { finish({ code: null, spawnError: "SPAWN_FAILED" }); return; }
+    child.once("error", (error) => finish({ code: null, spawnError: error && error.code === "ENOENT" ? "FFMPEG_MISSING" : "SPAWN_FAILED" }));
+    child.stdout.on("data", (chunk) => {
+      stdoutBuffer += chunk.toString("utf8");
+      if (stdoutBuffer.length > 8192) stdoutBuffer = stdoutBuffer.slice(-4096);
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) {
+        const match = /^frame=\s*(\d+)$/.exec(line.trim());
+        if (!match) continue;
+        const count = Number(match[1]);
+        if (Number.isSafeInteger(count)) frameCount = Math.max(frameCount, count);
+        if (frameCount > 0) onFirstFrame(frameCount);
+      }
+    });
+    child.once("exit", (code, exitSignal) => finish({ code, exitSignal }));
+  });
+}
+
+async function waitDelay(ms, signal) {
+  if (signal.aborted) return;
+  await new Promise((resolve) => {
+    const timer = setTimeout(done, ms);
+    function done() { signal.removeEventListener("abort", onAbort); resolve(); }
+    function onAbort() { clearTimeout(timer); done(); }
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function runCameraPublisher(config, camera, signal) {
+  let backoffMs = 5000;
+  while (!signal.aborted) {
+    let online = false, onlineReport = Promise.resolve();
+    try {
+      const ticket = await requestStreamPublishTicket(config, camera.cameraId);
+      const result = await startFfmpegPublisher({
+        sourceUrl: camera.sourceUrl, publishUrl: ticket.publishUrl, signal,
+        onFirstFrame: (frames) => {
+          if (online) return;
+          online = true;
+          onlineReport = reportStreamHealth(config, camera.cameraId, "online", frames).catch(() => { online = false; });
+        },
+      });
+      await onlineReport;
+      if (online) await reportStreamHealth(config, camera.cameraId, "offline", result.frameCount).catch(() => {});
+      if (result.spawnError === "FFMPEG_MISSING") {
+        console.error("NAXA Security : FFmpeg absent sur la passerelle ; installation requise.");
+        backoffMs = 300000;
+      } else backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
+    } catch (error) {
+      console.error("NAXA Security : publication caméra indisponible (" +
+        (error instanceof Error ? error.message.slice(0, 100) : "erreur inconnue") + ").");
+      backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
+    }
+    await waitDelay(backoffMs, signal);
+  }
+}
+
+async function configureStream(args) {
+  const flags = parseFlags(args);
+  if (!flags["source-stdin"] || process.stdin.isTTY) throw new Error("Utilisez --source-stdin ; aucun secret caméra dans les arguments.");
+  const cameraId = String(flags["camera-id"] || "");
+  if (!CAMERA_UUID.test(cameraId)) throw new Error("Identifiant caméra invalide.");
+  const sourceUrl = fs.readFileSync(0, "utf8").trim();
+  validateLocalRtspSource(sourceUrl);
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const entries = readCameraStreamConfigs(stateDir).filter((item) => item.cameraId !== cameraId);
+  entries.push({ cameraId, sourceUrl });
+  writeCameraStreamConfigs(stateDir, entries);
+  console.log("URI caméra stockée chiffrée pour " + cameraId + ".");
+}
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "enroll") return enroll(args);
   if (command === "discover") return discover(args);
   if (command === "inspect") return inspect(args);
+  if (command === "configure-stream") return configureStream(args);
   if (command === "heartbeat") {
     const flags = parseFlags(args);
     return heartbeat(readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR)));
   }
   if (command === "run") return run(args);
-  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | run");
+  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | run");
 }
 
 if (require.main === module) {
@@ -305,4 +513,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, requestStreamPublishTicket };

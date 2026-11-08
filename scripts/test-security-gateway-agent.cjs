@@ -81,3 +81,45 @@ test("le code de jumelage est lu depuis stdin protégé, jamais depuis un argume
   assert.match(source, /fs\.readFileSync\(0, "utf8"\)/);
   assert.match(source, /if \(flags\.token\) throw/);
 });
+
+
+const { validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs } =
+  require("../services/security-gateway/agent.cjs");
+
+test("URI caméra : RTSP/RTSPS local uniquement, rejet des IP publiques", () => {
+  assert.equal(validateLocalRtspSource("rtsp://operator:secret@192.168.1.20:554/Streaming/Channels/101").protocol, "rtsp:");
+  assert.equal(validateLocalRtspSource("rtsps://camera.local:322/stream").hostname, "camera.local");
+  assert.throws(() => validateLocalRtspSource("rtsp://camera.example.com/live"), /locale/);
+  assert.throws(() => validateLocalRtspSource("http://192.168.1.20/video"), /RTSP/);
+  assert.throws(() => validateLocalRtspSource("rtsp://operator:secret@8.8.8.8/live"), /locale/);
+});
+
+test("URI et secrets caméra : AES-256-GCM, permissions 0600 et fichier chiffré", () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-camera-stream-"));
+  try {
+    ensurePrivateDirectory(base);
+    const cameraId = "a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20";
+    const source = "rtsp://operator:CameraSecret123@192.168.1.20:554/Streaming/Channels/101";
+    writeCameraStreamConfigs(base, [{ cameraId, sourceUrl: source }]);
+    const encrypted = fs.readFileSync(path.join(base, "camera-streams.enc"), "utf8");
+    assert.equal(encrypted.includes("CameraSecret123"), false);
+    assert.equal(readCameraStreamConfigs(base)[0].sourceUrl, source);
+    if (process.platform !== "win32") {
+      assert.equal(fs.statSync(path.join(base, "camera-streams.key")).mode & 0o777, 0o600);
+      assert.equal(fs.statSync(path.join(base, "camera-streams.enc")).mode & 0o777, 0o600);
+    }
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
+});
+
+test("FFmpeg : publication RTSPS, copie vidéo seule et paramètres contrôlés", () => {
+  const args = buildPublishFfmpegArgs(
+    "rtsp://camera.local/live",
+    "rtsps://a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20:shortticket@video.example.test:8322/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21"
+  );
+  assert.ok(args.includes("-rtsp_transport"));
+  assert.ok(args.includes("-c:v"));
+  assert.ok(args.includes("copy"));
+  assert.ok(args.includes("-an"));
+  assert.ok(args.includes("-progress"));
+  assert.ok(args.includes("rtsp"));
+});
