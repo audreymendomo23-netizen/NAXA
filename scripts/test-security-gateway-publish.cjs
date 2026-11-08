@@ -23,7 +23,8 @@ test("publisher tickets : hash, RLS et RPC réservés au serveur", () => {
 
 test("ticket publisher : signature Ed25519, anti-rejeu, scope gateway et live_view", () => {
   assert.ok(tokenRoute.includes("authenticateSignedSecurityGateway"));
-  assert.ok(tokenRoute.includes("camera.gateway_id"));
+  assert.ok(tokenRoute.includes('.eq("gateway_id", auth.gateway.id)'));
+  assert.ok(tokenRoute.includes('.eq("pharmacie_id", auth.gateway.pharmacie_id)'));
   assert.ok(tokenRoute.includes('connection_status !== "connected"'));
   assert.ok(tokenRoute.includes('includes("live_view")'));
   assert.ok(tokenRoute.includes("naxa_security_issue_stream_publish_ticket"));
@@ -35,7 +36,7 @@ test("ticket publisher : signature Ed25519, anti-rejeu, scope gateway et live_vi
 
 test("statut caméra : online seulement après une frame positive", () => {
   assert.ok(healthRoute.includes('["online", "offline"]'));
-  assert.ok(healthRoute.includes("frameCount < 1"));
+  assert.ok(healthRoute.includes("Number(frameCount) < 1"));
   assert.ok(healthRoute.includes("authenticateSignedSecurityGateway"));
   assert.ok(healthRoute.includes("naxa_security_report_stream_health"));
 });
