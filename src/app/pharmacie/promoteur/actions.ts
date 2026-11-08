@@ -187,7 +187,7 @@ export async function examinerCameraDecouverte(formData: FormData) {
   const decision = field(formData, "decision");
   const zoneLabel = field(formData, "zone_label");
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const safeLabel = zoneLabel.length >= 2 && zoneLabel.length <= 100 && !/[<>\u0000-\u001f]/.test(zoneLabel);
+  const safeLabel = zoneLabel.length >= 2 && zoneLabel.length <= 100 && !/[<>\\u0000-\\u001f]/.test(zoneLabel);
 
   if (
     access.profile.role !== "promoteur" || access.profile.actif !== true ||
@@ -201,7 +201,7 @@ export async function examinerCameraDecouverte(formData: FormData) {
   const db = supabaseAdmin();
   const { data: candidate, error: candidateError } = await db
     .from("naxa_security_camera_discovery_candidates")
-    .select("id,pharmacie_id,gateway_id,discovery_key,device_id,source_address,device_types,device_scopes,endpoints,status")
+    .select("id,pharmacie_id,gateway_id,status")
     .eq("id", candidateId)
     .maybeSingle();
   if (candidateError || !candidate || candidate.status !== "pending" ||
@@ -213,6 +213,7 @@ export async function examinerCameraDecouverte(formData: FormData) {
   if (!pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true || pharmacy.archivee_le !== null) {
     redirect("/pharmacie/promoteur/securite?security=review_scope");
   }
+
   const { data: gateway, error: gatewayError } = await db
     .from("naxa_security_gateways")
     .select("id,pharmacie_id,installation_id,tunnel_status")
@@ -222,6 +223,7 @@ export async function examinerCameraDecouverte(formData: FormData) {
   if (gatewayError || !gateway || gateway.tunnel_status === "revoked") {
     redirect("/pharmacie/promoteur/securite?security=review_gateway");
   }
+
   const { data: installation, error: installationError } = await db
     .from("naxa_security_installations")
     .select("status")
@@ -232,137 +234,27 @@ export async function examinerCameraDecouverte(formData: FormData) {
     redirect("/pharmacie/promoteur/securite?security=review_gateway");
   }
 
-  const now = new Date().toISOString();
-  if (decision === "dismiss") {
-    const { data: dismissed, error: dismissError } = await db
-      .from("naxa_security_camera_discovery_candidates")
-      .update({ status: "dismissed", reviewed_by: access.profile.id, reviewed_at: now, updated_at: now })
-      .eq("id", candidate.id).eq("status", "pending").select("id").maybeSingle();
-    if (dismissError || !dismissed) redirect("/pharmacie/promoteur/securite?security=review_unavailable");
-    const { error: auditError } = await db.from("naxa_security_access_audit").insert({
-      pharmacie_id: candidate.pharmacie_id,
-      actor_id: access.profile.id,
-      actor_role: "promoteur",
-      action: "device_update",
-      resource_type: "gateway",
-      resource_id: gateway.id,
-      justification: "Candidat ONVIF écarté après revue humaine du Promoteur.",
-      audit_metadata: { operation: "onvif_candidate_dismissed", candidate_id: candidate.id, discovery_key: candidate.discovery_key },
+  const expectedStatus = decision === "accept" ? "accepted" : "dismissed";
+  const { data: reviewed, error: reviewError } = await db.rpc(
+    "naxa_security_review_discovery_candidate",
+    {
+      p_candidate_id: candidate.id,
+      p_decision: decision,
+      p_zone_label: decision === "accept" ? zoneLabel : null,
+      p_reviewer_id: access.profile.id,
+    },
+  );
+  const reviewPayload = reviewed as { status?: unknown } | null;
+  if (reviewError || reviewPayload?.status !== expectedStatus) {
+    console.error("[promoteur.security] revue ONVIF atomique", {
+      code: reviewError?.code ?? "INVALID_RESULT",
     });
-    revalidatePath("/pharmacie/promoteur/securite");
-    redirect(auditError
-      ? "/pharmacie/promoteur/securite?security=review_audit"
-      : "/pharmacie/promoteur/securite?security=candidate_dismissed");
+    redirect("/pharmacie/promoteur/securite?security=review_commit");
   }
-
-  const endpoints = Array.isArray(candidate.endpoints) ? candidate.endpoints as string[] : [];
-  if (endpoints.length < 1 || endpoints.length > 4) redirect("/pharmacie/promoteur/securite?security=review_endpoint");
-  let endpoint: URL;
-  try {
-    endpoint = new URL(endpoints[0]);
-    const host = endpoint.hostname.replace(/^\\[|\\]$/g, "").toLowerCase();
-    const octets = host.split(".").map(Number);
-    const privateIpv4 = octets.length === 4 && octets.every((value) => Number.isInteger(value) && value >= 0 && value <= 255) &&
-      (octets[0] === 10 || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-       (octets[0] === 192 && octets[1] === 168) || (octets[0] === 169 && octets[1] === 254));
-    const localHost = privateIpv4 || host === "localhost" || host.endsWith(".local") || host.endsWith(".lan") ||
-      host.endsWith(".home.arpa") || /^[a-z0-9-]{1,63}$/.test(host);
-    if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password ||
-      endpoint.search || endpoint.hash || !localHost || endpoint.pathname.length > 256) {
-      redirect("/pharmacie/promoteur/securite?security=review_endpoint");
-    }
-  } catch {
-    redirect("/pharmacie/promoteur/securite?security=review_endpoint");
-  }
-
-  const channelKey = "onvif-" + candidate.discovery_key.slice(0, 32);
-  const { data: existingCamera, error: cameraReadError } = await db
-    .from("naxa_security_cameras")
-    .select("id")
-    .eq("gateway_id", gateway.id)
-    .eq("channel_key", channelKey)
-    .maybeSingle();
-  if (cameraReadError) redirect("/pharmacie/promoteur/securite?security=review_camera");
-
-  let cameraId = existingCamera?.id ?? null;
-  if (!cameraId) {
-    const { data: createdCamera, error: createCameraError } = await db
-      .from("naxa_security_cameras")
-      .insert({
-        pharmacie_id: candidate.pharmacie_id,
-        gateway_id: gateway.id,
-        channel_key: channelKey,
-        manufacturer: null,
-        model: null,
-        firmware_version: null,
-        zone_label: zoneLabel,
-        onvif_profiles: [],
-        status: "registered",
-        capabilities: {
-          source: "onvif_ws_discovery",
-          discovery_candidate_id: candidate.id,
-          discovery_key: candidate.discovery_key,
-          device_id: candidate.device_id,
-          device_types: candidate.device_types,
-          device_scopes: candidate.device_scopes,
-        },
-      })
-      .select("id").single();
-    if (createCameraError || !createdCamera) redirect("/pharmacie/promoteur/securite?security=review_camera");
-    cameraId = createdCamera.id;
-  }
-
-  const { data: primaryConnection, error: connectionReadError } = await db
-    .from("naxa_security_camera_connections")
-    .select("id")
-    .eq("camera_id", cameraId)
-    .eq("is_primary", true)
-    .maybeSingle();
-  if (connectionReadError) redirect("/pharmacie/promoteur/securite?security=review_connection");
-  if (!primaryConnection) {
-    const { error: connectionInsertError } = await db.from("naxa_security_camera_connections").insert({
-      pharmacie_id: candidate.pharmacie_id,
-      camera_id: cameraId,
-      gateway_id: gateway.id,
-      adapter_key: "generic.onvif",
-      protocol: "onvif",
-      endpoint_host: endpoint.hostname.replace(/^\\[|\\]$/g, ""),
-      endpoint_port: Number(endpoint.port || (endpoint.protocol === "https:" ? 443 : 80)),
-      endpoint_path: endpoint.pathname,
-      auth_mode: "none",
-      tls_verify: true,
-      connection_status: "discovered",
-      connection_metadata: {
-        source: "onvif_ws_discovery",
-        device_id: candidate.device_id,
-        discovery_key: candidate.discovery_key,
-      },
-      is_primary: true,
-      created_by: access.profile.id,
-    });
-    if (connectionInsertError) redirect("/pharmacie/promoteur/securite?security=review_connection");
-  }
-
-  const { data: accepted, error: acceptError } = await db
-    .from("naxa_security_camera_discovery_candidates")
-    .update({ status: "accepted", camera_id: cameraId, reviewed_by: access.profile.id, reviewed_at: now, updated_at: now })
-    .eq("id", candidate.id).eq("status", "pending").select("id").maybeSingle();
-  if (acceptError || !accepted) redirect("/pharmacie/promoteur/securite?security=review_unavailable");
-
-  const { error: auditError } = await db.from("naxa_security_access_audit").insert({
-    pharmacie_id: candidate.pharmacie_id,
-    actor_id: access.profile.id,
-    actor_role: "promoteur",
-    action: "device_update",
-    resource_type: "camera",
-    resource_id: cameraId,
-    justification: "Appareil ONVIF découvert, vérifié et ajouté à l'inventaire par le Promoteur.",
-    audit_metadata: { operation: "onvif_candidate_accepted", candidate_id: candidate.id, discovery_key: candidate.discovery_key },
-  });
 
   revalidatePath("/pharmacie/promoteur/securite");
   revalidatePath("/pharmacie/promoteur");
-  redirect(auditError
-    ? "/pharmacie/promoteur/securite?security=review_audit"
+  redirect(decision === "dismiss"
+    ? "/pharmacie/promoteur/securite?security=candidate_dismissed"
     : "/pharmacie/promoteur/securite?security=candidate_accepted");
 }

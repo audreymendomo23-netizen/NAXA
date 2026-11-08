@@ -2,7 +2,7 @@
 
 Date : 8 novembre 2026  
 Branche : `qa/e2e-stabilisation-20261106`  
-État : route de réception, registre privé et revue Promoteur implémentés ; validation CI de cette tranche en attente ; aucun matériel réel testé.
+État : transmission signée, registre privé et revue Promoteur implémentés. GitHub Actions #1281 a validé les tests, TypeScript, ESLint, audit dépendances et build sur le commit 8c92be6. La revue transactionnelle de phase 6 est suivie séparément ; aucun matériel réel testé.
 
 ## Parcours opérationnel
 
