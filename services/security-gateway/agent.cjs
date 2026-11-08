@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
+const { discoverOnvifCameras } = require("./onvif-discovery.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
@@ -91,7 +92,7 @@ function parseFlags(args) {
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
-    if (key === "--token-stdin") {
+    if (key === "--token-stdin" || key === "--confirm-local-network") {
       values["token-stdin"] = true;
       continue;
     }
@@ -203,15 +204,36 @@ async function run(args) {
   console.log("Agent NAXA actif ; intervalle " + intervalSeconds + " s. Aucun port entrant n'est ouvert.");
 }
 
+async function discover(args) {
+  const flags = parseFlags(args);
+  if (!flags["confirm-local-network"]) {
+    throw new Error("Découverte désactivée par défaut. Confirmez explicitement le réseau local avec --confirm-local-network.");
+  }
+  const timeoutMs = Number(flags["timeout-ms"] || 3500);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 8000) {
+    throw new Error("Le délai de découverte doit être compris entre 1000 et 8000 ms.");
+  }
+  const devices = await discoverOnvifCameras({ timeoutMs, maxDevices: 64 });
+  console.log(JSON.stringify({
+    protocol: "ONVIF WS-Discovery",
+    scope: "IPv4 multicast local uniquement (239.255.255.250:3702, TTL=1)",
+    transmittedCredentials: false,
+    contactedCameraEndpoints: false,
+    devices,
+    count: devices.length,
+  }, null, 2));
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "enroll") return enroll(args);
+  if (command === "discover") return discover(args);
   if (command === "heartbeat") {
     const flags = parseFlags(args);
     return heartbeat(readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR)));
   }
   if (command === "run") return run(args);
-  throw new Error("Commande attendue : enroll | heartbeat | run");
+  throw new Error("Commande attendue : enroll | heartbeat | discover | run");
 }
 
 if (require.main === module) {
