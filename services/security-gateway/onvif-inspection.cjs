@@ -53,6 +53,22 @@ function hasElement(xml, localName) {
   return new RegExp("<(?:(?:[A-Za-z_][\\w.-]*):)?" + localName + "(?=[\\s/>])", "i").test(xml);
 }
 
+function extractElement(xml, localName) {
+  const pattern = new RegExp("<(?:(?:[A-Za-z_][\\w.-]*):)?" + localName +
+    "\\b[^>]*>([\\s\\S]*?)<\\/(?:(?:[A-Za-z_][\\w.-]*):)?" + localName + "\\s*>", "i");
+  const match = pattern.exec(xml);
+  return match ? match[1] : null;
+}
+
+function extractServiceXAddr(xml, serviceName, sourceAddress) {
+  const service = extractElement(xml, serviceName);
+  if (!service) return null;
+  const address = extractText(service, "XAddr", 512);
+  if (!address) return null;
+  try { return validateTarget(address, sourceAddress).href; }
+  catch { return null; }
+}
+
 async function readBoundedBody(response) {
   const declaredLength = Number(response.headers && response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_SOAP_BYTES) {
@@ -166,6 +182,8 @@ async function inspectOnvifDevice(options = {}) {
       };
     }
     const xml = capabilitiesResponse.xml;
+    const eventsAdvertised = hasElement(xml, "Events");
+    const eventsEndpoint = extractServiceXAddr(xml, "Events", options.sourceAddress);
     const capabilities = {
       media: hasElement(xml, "Media"),
       events: hasElement(xml, "Events"),
@@ -179,6 +197,8 @@ async function inspectOnvifDevice(options = {}) {
       status: capabilities.media ? "inspected" : "onvif_without_media",
       device,
       capabilities,
+      eventsEndpoint,
+      eventsEndpointStatus: !eventsAdvertised ? "not_advertised" : eventsEndpoint ? "local_endpoint_available" : "endpoint_missing_or_non_local",
       note: capabilities.media
         ? "Service média ONVIF annoncé ; les identifiants, profils vidéo et flux RTSP restent à tester séparément."
         : "Aucun service média ONVIF détecté dans GetCapabilities ; ne pas déclarer la caméra prête pour le live.",
@@ -190,5 +210,5 @@ async function inspectOnvifDevice(options = {}) {
 
 module.exports = {
   MAX_SOAP_BYTES, DEVICE_INFO_ACTION, CAPABILITIES_ACTION, validateTarget,
-  soapEnvelope, extractText, hasElement, inspectOnvifDevice,
+  soapEnvelope, extractText, extractServiceXAddr, hasElement, inspectOnvifDevice,
 };

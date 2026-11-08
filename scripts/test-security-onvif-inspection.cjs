@@ -47,6 +47,8 @@ test("ONVIF : identifie le modèle et les capacités sans demander de flux", asy
   assert.equal(result.device.firmwareVersion, "V5.7");
   assert.equal(result.capabilities.media, true);
   assert.equal(result.capabilities.events, true);
+  assert.equal(result.eventsEndpoint, null);
+  assert.equal(result.eventsEndpointStatus, "endpoint_missing_or_non_local");
   assert.equal(result.capabilities.ptz, true);
   assert.equal(requests.length, 2);
   for (const request of requests) {
@@ -115,4 +117,23 @@ test("Passerelle : la commande inspect impose la confirmation locale et reste sa
   assert.match(agent, /--confirm-local-network/);
   assert.match(agent, /Le diagnostic ONVIF ne transmet aucune donnée/);
   assert.match(agent, /inspectOnvifDevice/);
+});
+
+test("ONVIF : endpoint Events local fourni par GetCapabilities", async () => {
+  const fetchImpl = async (url, init) => {
+    if (/GetDeviceInformation/.test(init.body)) return response(envelope("<tds:GetDeviceInformationResponse><tds:Manufacturer>CamCo</tds:Manufacturer><tds:Model>IPCam</tds:Model></tds:GetDeviceInformationResponse>"));
+    return response(envelope("<tds:GetCapabilitiesResponse><tds:Capabilities><tt:Media/><tt:Events><tt:XAddr>http://192.168.1.20/onvif/events</tt:XAddr></tt:Events></tds:Capabilities></tds:GetCapabilitiesResponse>"));
+  };
+  const result=await inspectOnvifDevice({endpoint:"http://192.168.1.20/onvif/device_service",sourceAddress:"192.168.1.20",fetchImpl});
+  assert.equal(result.eventsEndpoint,"http://192.168.1.20/onvif/events");
+  assert.equal(result.eventsEndpointStatus,"local_endpoint_available");
+});
+test("ONVIF : endpoint Events externe neutralisé", async () => {
+  const fetchImpl = async (url, init) => {
+    if (/GetDeviceInformation/.test(init.body)) return response(envelope("<tds:GetDeviceInformationResponse><tds:Manufacturer>CamCo</tds:Manufacturer><tds:Model>IPCam</tds:Model></tds:GetDeviceInformationResponse>"));
+    return response(envelope("<tds:GetCapabilitiesResponse><tds:Capabilities><tt:Media/><tt:Events><tt:XAddr>https://events.attacker.example/subscribe</tt:XAddr></tt:Events></tds:Capabilities></tds:GetCapabilitiesResponse>"));
+  };
+  const result=await inspectOnvifDevice({endpoint:"http://192.168.1.20/onvif/device_service",sourceAddress:"192.168.1.20",fetchImpl});
+  assert.equal(result.eventsEndpoint,null);
+  assert.equal(result.eventsEndpointStatus,"endpoint_missing_or_non_local");
 });
