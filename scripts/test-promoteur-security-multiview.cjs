@@ -18,9 +18,14 @@ assert.match(screen, /grid-cols-2/);
 assert.match(screen, /setFocusedCameraId\(camera\.id\)/);
 assert.match(screen, /Caméra précédente/);
 assert.match(screen, /Caméra suivante/);
-assert.match(screen, /Flux vidéo réel non encore connecté/);
-assert.match(screen, /Flux non activé/);
-assert.doesNotMatch(screen, /<video\b/i);
+assert.match(screen, /SecurityWhepPlayer/);
+assert.match(screen, /<SecurityWhepPlayer cameraId=\{camera\.id\} compact/);
+assert.match(screen, /<SecurityWhepPlayer cameraId=\{focusedCamera\.id\}/);
+const player = read("src/components/pharmacie/SecurityWhepPlayer.tsx");
+assert.match(player, /<video\b/i);
+assert.match(player, /api\/security\/cameras\/live-session/);
+assert.match(player, /application\/sdp/);
+assert.doesNotMatch(player, /rtsp:\/\//i);
 assert.match(layout, /label:"9\. Sécurité",href:"\/pharmacie\/promoteur\/securite",icon:"◉"/);
 assert.match(navigation, /"◉":/);
 assert.match(dashboard, /\.in\("pharmacie_id", scopedIds\)/);
@@ -28,7 +33,7 @@ assert.match(dashboard, /<PromoteurSecuriteIntelligente/);
 
 console.log("PASS — menu latéral Promoteur « Sécurité » et route dédiés");
 console.log("PASS — sélection de pharmacie, grille 2 × 2, pagination et navigation caméra");
-console.log("PASS — aucun faux flux vidéo n'est rendu");
+console.log("PASS — lecteur vidéo WHEP derrière autorisation de session NAXA");
 console.log("PASS — données du centre chargées sur le périmètre des pharmacies autorisées");
 
 
