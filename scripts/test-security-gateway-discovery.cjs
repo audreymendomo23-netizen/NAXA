@@ -106,22 +106,22 @@ test("agent : --submit est indépendant de --token-stdin et --confirm-local-netw
 test("API : réception ONVIF authentifiée, anti-rejeu et candidat non activé", () => {
   const route = fs.readFileSync(path.join(__dirname, "../src/app/api/security/gateway/discoveries/route.ts"), "utf8");
   assert.match(route, /createPublicKey/);
-  assert.match(route, /verify\\(null/);
+  assert.match(route, /verify\(null/);
   assert.match(route, /naxa_security_gateway_request_nonces/);
   assert.match(route, /naxa_security_camera_discovery_candidates/);
   assert.match(route, /onConflict: "gateway_id,discovery_key"/);
   assert.match(route, /isPrivateIpv4/);
   assert.match(route, /reviewRequired: true/);
-  assert.doesNotMatch(route, /fetch\\s*\\(/);
-  assert.doesNotMatch(route, /naxa_security_cameras["']\\)\\.insert/);
+  assert.doesNotMatch(route, /fetch\s*\(/);
+  assert.doesNotMatch(route, /\.from\(["']naxa_security_cameras["']\)/);
 });
 
 test("Promoteur : validation explicite du candidat avant création caméra", () => {
   const actions = fs.readFileSync(path.join(__dirname, "../src/app/pharmacie/promoteur/actions.ts"), "utf8");
   const component = fs.readFileSync(path.join(__dirname, "../src/components/pharmacie/PromoteurSecuriteIntelligente.tsx"), "utf8");
   assert.match(actions, /function examinerCameraDecouverte/);
-  assert.match(actions, /activeLinkIds\\.has\\(candidate\\.pharmacie_id\\)/);
-  assert.match(actions, /candidate\\.status !== "pending"/);
+  assert.match(actions, /activeLinkIds\.has\(candidate\.pharmacie_id\)/);
+  assert.match(actions, /candidate\.status !== "pending"/);
   assert.match(actions, /status: "registered"/);
   assert.match(actions, /connection_status: "discovered"/);
   assert.match(actions, /resource_type: "camera"/);
