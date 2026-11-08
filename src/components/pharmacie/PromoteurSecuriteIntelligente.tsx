@@ -2,8 +2,10 @@
 
 import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";
 import { PromoteurGatewayProvisioning } from "@/components/pharmacie/PromoteurGatewayProvisioning";
+import { examinerCameraDecouverte } from "@/app/pharmacie/promoteur/actions";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type Pharmacy = { id: string; nom: string; ville: string | null; quartier: string | null };
 type Installation = { id: string; pharmacie_id: string; status: string; legal_review_status: string; privacy_notice_status: string; updated_at: string };
@@ -11,6 +13,19 @@ type Gateway = { id: string; pharmacie_id: string; label: string; serial_number:
 type Camera = { id: string; pharmacie_id: string; status: string; model: string | null; zone_label: string };
 type SecurityEvent = { id: string; pharmacie_id: string; event_type: string; severity: string; status: string; summary: string; detected_at: string };
 type CameraConnection = { id: string; pharmacie_id: string; camera_id: string; adapter_key: string; protocol: string; connection_status: string; last_tested_at: string | null; last_error_code: string | null; is_primary: boolean };
+type DiscoveryCandidate = {
+  id: string;
+  pharmacie_id: string;
+  gateway_id: string;
+  device_id: string | null;
+  source_address: string;
+  device_types: string;
+  device_scopes: string;
+  endpoints: string[];
+  status: string;
+  first_seen_at: string;
+  last_seen_at: string;
+};
 
 type Props = {
   pharmacies: Pharmacy[];
@@ -18,6 +33,7 @@ type Props = {
   gateways: Gateway[];
   cameras: Camera[];
   connections: CameraConnection[];
+  discoveryCandidates: DiscoveryCandidate[];
   events: SecurityEvent[];
   registryAvailable: boolean;
 };
@@ -92,12 +108,14 @@ export function PromoteurSecuriteIntelligente({
   gateways,
   cameras,
   connections,
+  discoveryCandidates,
   events,
   registryAvailable,
 }: Props) {
   const [selectedPharmacyId, setSelectedPharmacyId] = useState("all");
   const [focusedCameraId, setFocusedCameraId] = useState<string | null>(null);
   const [cameraPage, setCameraPage] = useState(0);
+  const searchParams = useSearchParams();
 
   const visibleCameras = useMemo(
     () => selectedPharmacyId === "all"
@@ -108,6 +126,9 @@ export function PromoteurSecuriteIntelligente({
   const visibleEvents = selectedPharmacyId === "all"
     ? events
     : events.filter((event) => event.pharmacie_id === selectedPharmacyId);
+  const visibleDiscoveryCandidates = selectedPharmacyId === "all"
+    ? discoveryCandidates
+    : discoveryCandidates.filter((candidate) => candidate.pharmacie_id === selectedPharmacyId);
   const openEvents = visibleEvents.filter((event) => !["closed", "false_positive"].includes(event.status));
   const connectedCount = connections.filter((connection) => connection.connection_status === "connected").length;
   const pageCount = Math.max(1, Math.ceil(visibleCameras.length / 4));
@@ -168,6 +189,84 @@ export function PromoteurSecuriteIntelligente({
         ) : (
           <>
             <PromoteurSecurityInventoryForm pharmacies={pharmacies} gateways={gateways} />
+            {searchParams.get("security") && (
+              <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                {{
+                  candidate_accepted: "Appareil validé : sa fiche caméra est créée, mais la connexion reste à tester.",
+                  candidate_dismissed: "Appareil écarté. Il ne sera pas ajouté à l'inventaire caméra.",
+                  review_audit: "La décision a été enregistrée, mais le journal de sécurité doit être vérifié.",
+                  review_scope: "Action refusée : le Promoteur ou la pharmacie n'est pas dans le périmètre autorisé.",
+                  review_unavailable: "Ce candidat a déjà été traité ou n'est plus disponible.",
+                  review_gateway: "La passerelle est révoquée ou indisponible ; aucune caméra n'a été activée.",
+                  review_endpoint: "L'endpoint local annoncé n'a pas passé les contrôles de sécurité.",
+                  review_camera: "La fiche caméra n'a pas pu être créée. Le candidat reste à examiner.",
+                  review_connection: "La caméra existe mais son connecteur ONVIF n'a pas pu être enregistré.",
+                }[searchParams.get("security") ?? ""] ?? ""}
+              </p>
+            )}
+            <section aria-label="Appareils ONVIF découverts" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-extrabold">Appareils détectés sur le réseau local</h3>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                    Les rapports signés arrivent ici en attente de votre décision. Valider crée une fiche d'inventaire et un connecteur au statut « Détecté » ; cela n'ouvre ni flux vidéo ni session caméra.
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900">{visibleDiscoveryCandidates.length} à examiner</span>
+              </div>
+              {visibleDiscoveryCandidates.length === 0 ? (
+                <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                  Aucun candidat en attente. Lancez une découverte locale explicite depuis une passerelle enrôlée pour recevoir les appareils ONVIF.
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-3">
+                  {visibleDiscoveryCandidates.map((candidate) => {
+                    const pharmacyName = pharmacyById.get(candidate.pharmacie_id)?.nom ?? "Pharmacie du réseau";
+                    const gatewayName = gateways.find((gateway) => gateway.id === candidate.gateway_id)?.label ?? "Passerelle";
+                    return (
+                      <li key={candidate.id} className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-bold">{pharmacyName} · {gatewayName}</p>
+                            <p className="mt-1 text-xs text-slate-600">Adresse source locale : {candidate.source_address}</p>
+                          </div>
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-extrabold text-amber-950">À examiner</span>
+                        </div>
+                        <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                          <div><dt className="font-bold text-slate-600">Identifiant ONVIF</dt><dd className="break-all text-slate-800">{candidate.device_id || "Non communiqué"}</dd></div>
+                          <div><dt className="font-bold text-slate-600">Types</dt><dd className="break-words text-slate-800">{candidate.device_types || "Non précisés"}</dd></div>
+                          <div className="sm:col-span-2"><dt className="font-bold text-slate-600">Endpoint local annoncé</dt><dd className="break-all text-slate-800">{candidate.endpoints[0] || "Non communiqué"}</dd></div>
+                          {candidate.device_scopes && <div className="sm:col-span-2"><dt className="font-bold text-slate-600">Informations d'appareil annoncées</dt><dd className="break-words text-slate-800">{candidate.device_scopes}</dd></div>}
+                        </dl>
+                        <p className="mt-2 text-[11px] text-slate-500">Dernière détection : {new Date(candidate.last_seen_at).toLocaleString("fr-FR")}</p>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                          <form action={examinerCameraDecouverte} className="flex flex-1 flex-wrap items-end gap-2">
+                            <input type="hidden" name="candidate_id" value={candidate.id} />
+                            <input type="hidden" name="decision" value="accept" />
+                            <label className="min-w-[190px] flex-1 text-xs font-semibold text-slate-700">
+                              Nom de la zone caméra
+                              <input name="zone_label" required minLength={2} maxLength={100}
+                                defaultValue={"Caméra détectée — " + pharmacyName}
+                                className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900" />
+                            </label>
+                            <button type="submit" className="min-h-10 rounded-full bg-naxa-green-900 px-4 text-xs font-bold text-white">
+                              Valider et ajouter
+                            </button>
+                          </form>
+                          <form action={examinerCameraDecouverte}>
+                            <input type="hidden" name="candidate_id" value={candidate.id} />
+                            <input type="hidden" name="decision" value="dismiss" />
+                            <button type="submit" className="min-h-10 rounded-full border border-slate-300 px-4 text-xs font-bold text-slate-700">
+                              Ignorer
+                            </button>
+                          </form>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
             <section aria-label="Sélection du périmètre de surveillance" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <label className="block">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Pharmacie à surveiller</span>
