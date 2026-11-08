@@ -109,7 +109,7 @@ test("API : réception ONVIF authentifiée, anti-rejeu et candidat non activé",
   assert.match(route, /verify\(null/);
   assert.match(route, /naxa_security_gateway_request_nonces/);
   assert.match(route, /naxa_security_camera_discovery_candidates/);
-  assert.match(route, /discovery_key: device\.discovery_key/);
+  assert.match(route, /eq\("discovery_key", device\.discovery_key\)/);
   assert.match(route, /Ne jamais réinitialiser status, camera_id ou reviewed_by/);
   assert.match(route, /\.update\(candidateValues\)/);
   assert.match(route, /status: "pending"/);
