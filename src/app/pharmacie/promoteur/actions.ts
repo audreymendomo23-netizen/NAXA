@@ -258,3 +258,58 @@ export async function examinerCameraDecouverte(formData: FormData) {
     ? "/pharmacie/promoteur/securite?security=candidate_dismissed"
     : "/pharmacie/promoteur/securite?security=candidate_accepted");
 }
+
+
+export async function examinerEvenementSecurite(formData: FormData) {
+  const access = await loadPromoteurAccess();
+  const eventId = field(formData, "event_id");
+  const decision = field(formData, "decision");
+  const reviewNote = field(formData, "review_note");
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const allowedDecisions = ["acknowledged", "in_review", "false_positive", "confirmed", "closed"];
+
+  if (
+    access.profile.role !== "promoteur" || access.profile.actif !== true ||
+    access.shouldShowAccessStatus || access.linksError || access.pharmaciesError ||
+    !uuid.test(eventId) || !allowedDecisions.includes(decision) ||
+    reviewNote.length > 500 || /[\u0000-\u001f\u007f]/.test(reviewNote)
+  ) {
+    redirect("/pharmacie/promoteur/securite?security=event_scope");
+  }
+
+  const db = supabaseAdmin();
+  const { data: event, error: eventError } = await db
+    .from("naxa_security_events")
+    .select("id,pharmacie_id,status")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (eventError || !event || !access.activeLinkIds.has(event.pharmacie_id)) {
+    redirect("/pharmacie/promoteur/securite?security=event_scope");
+  }
+  const pharmacy = (access.pharmacies ?? []).find((item) =>
+    item.id === event.pharmacie_id && item.actif && item.visible_recherche && item.archivee_le === null
+  );
+  if (!pharmacy) redirect("/pharmacie/promoteur/securite?security=event_scope");
+
+  const { data: reviewed, error: reviewError } = await db.rpc(
+    "naxa_security_review_security_event",
+    {
+      p_event_id: event.id,
+      p_pharmacie_id: event.pharmacie_id,
+      p_reviewer_id: access.profile.id,
+      p_decision: decision,
+      p_review_note: reviewNote || null,
+    },
+  );
+  if (reviewError || reviewed !== decision) {
+    console.error("[promoteur.security] event review rejected", {
+      code: reviewError?.code ?? "INVALID_RESULT",
+    });
+    redirect("/pharmacie/promoteur/securite?security=event_review");
+  }
+
+  revalidatePath("/pharmacie/promoteur/securite");
+  revalidatePath("/pharmacie/promoteur");
+  redirect("/pharmacie/promoteur/securite?security=event_reviewed");
+}

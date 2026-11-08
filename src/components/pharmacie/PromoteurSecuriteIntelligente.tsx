@@ -2,7 +2,7 @@
 
 import { PromoteurSecurityInventoryForm } from "@/components/pharmacie/PromoteurSecurityInventoryForm";
 import { PromoteurGatewayProvisioning } from "@/components/pharmacie/PromoteurGatewayProvisioning";
-import { examinerCameraDecouverte } from "@/app/pharmacie/promoteur/actions";
+import { examinerCameraDecouverte, examinerEvenementSecurite } from "@/app/pharmacie/promoteur/actions";
 
 import { useMemo, useState } from "react";
 import { SecurityWhepPlayer } from "@/components/pharmacie/SecurityWhepPlayer";
@@ -12,7 +12,7 @@ type Pharmacy = { id: string; nom: string; ville: string | null; quartier: strin
 type Installation = { id: string; pharmacie_id: string; status: string; legal_review_status: string; privacy_notice_status: string; updated_at: string };
 type Gateway = { id: string; pharmacie_id: string; label: string; serial_number: string | null; firmware_version: string | null; tunnel_status: string; last_seen_at: string | null };
 type Camera = { id: string; pharmacie_id: string; status: string; model: string | null; zone_label: string };
-type SecurityEvent = { id: string; pharmacie_id: string; event_type: string; severity: string; status: string; summary: string; detected_at: string };
+type SecurityEvent = { id: string; pharmacie_id: string; camera_id: string | null; event_type: string; source_type: string; severity: string; status: string; summary: string; confidence: number | null; detected_at: string; received_at: string };
 type CameraConnection = { id: string; pharmacie_id: string; camera_id: string; adapter_key: string; protocol: string; connection_status: string; last_tested_at: string | null; last_error_code: string | null; is_primary: boolean };
 type DiscoveryCandidate = {
   id: string;
@@ -84,6 +84,28 @@ function eventLabel(value: string) {
     after_hours_presence: "Présence hors horaires",
     system_offline: "Passerelle hors ligne",
     other: "Autre événement",
+  };
+  return labels[value] ?? value;
+}
+
+function eventSourceLabel(value: string) {
+  const labels: Record<string, string> = {
+    onvif: "Événement ONVIF",
+    edge_ai: "Analyse locale déclarée",
+    gateway: "Passerelle",
+    operator: "Déclaration opérateur",
+  };
+  return labels[value] ?? "Source inconnue";
+}
+
+function eventStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    new: "À examiner",
+    acknowledged: "Pris en charge",
+    in_review: "En revue",
+    false_positive: "Faux positif",
+    confirmed: "Confirmé par le Promoteur",
+    closed: "Clos",
   };
   return labels[value] ?? value;
 }
@@ -348,7 +370,7 @@ export function PromoteurSecuriteIntelligente({
                             <CameraConnectionBadge camera={camera} connections={connections} compact />
                           </div>
                         </button>
-                        {camera.id === focusedCamera?.id ? (
+                        {camera.id === focusedCameraId ? (
                           <div className="px-2 py-3 text-center text-[10px] font-semibold text-slate-500">
                             Flux de la vue agrandie
                           </div>
@@ -422,17 +444,61 @@ export function PromoteurSecuriteIntelligente({
                 <span className="text-xs text-slate-500">Historique enregistré, pas un flux temps réel</span>
               </div>
               {visibleEvents.length === 0 ? (
-                <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun événement enregistré à ce stade.</p>
+                <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun événement reçu. Les événements transmis par une passerelle validée apparaîtront ici.</p>
               ) : (
                 <ul className="space-y-2">
                   {visibleEvents.slice(0, 10).map((event) => (
                     <li key={event.id} className="rounded-xl border border-slate-200 p-3 text-sm">
                       <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="font-semibold">{eventLabel(event.event_type)} · {pharmacyById.get(event.pharmacie_id)?.nom ?? "Pharmacie du réseau"}</p>
+                        <div>
+                          <p className="font-semibold">{eventLabel(event.event_type)} · {pharmacyById.get(event.pharmacie_id)?.nom ?? "Pharmacie du réseau"}</p>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            {eventSourceLabel(event.source_type)}
+                            {event.camera_id ? " · " + (cameras.find((camera) => camera.id === event.camera_id)?.zone_label ?? "Caméra") : ""}
+                            {event.confidence !== null ? " · confiance déclarée " + Math.round(event.confidence * 100) + "%" : ""}
+                          </p>
+                        </div>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold">{event.severity}</span>
                       </div>
                       <p className="mt-1 text-slate-600">{event.summary}</p>
-                      <p className="mt-1 text-xs text-slate-500">{new Date(event.detected_at).toLocaleString("fr-FR")} · {event.status}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {new Date(event.detected_at).toLocaleString("fr-FR")} · {eventStatusLabel(event.status)}
+                      </p>
+                      {["new","acknowledged","in_review"].includes(event.status) ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {event.status === "new" && (
+                            <form action={examinerEvenementSecurite}>
+                              <input type="hidden" name="event_id" value={event.id} />
+                              <input type="hidden" name="decision" value="acknowledged" />
+                              <button type="submit" className="min-h-9 rounded-full border border-slate-300 px-3 text-xs font-bold text-slate-700">
+                                Prendre en charge
+                              </button>
+                            </form>
+                          )}
+                          <form action={examinerEvenementSecurite}>
+                            <input type="hidden" name="event_id" value={event.id} />
+                            <input type="hidden" name="decision" value="confirmed" />
+                            <button type="submit" className="min-h-9 rounded-full bg-naxa-green-900 px-3 text-xs font-bold text-white">
+                              Confirmer après vérification
+                            </button>
+                          </form>
+                          <form action={examinerEvenementSecurite}>
+                            <input type="hidden" name="event_id" value={event.id} />
+                            <input type="hidden" name="decision" value="false_positive" />
+                            <button type="submit" className="min-h-9 rounded-full border border-slate-300 px-3 text-xs font-bold text-slate-700">
+                              Faux positif
+                            </button>
+                          </form>
+                        </div>
+                      ) : event.status === "confirmed" ? (
+                        <form action={examinerEvenementSecurite} className="mt-3">
+                          <input type="hidden" name="event_id" value={event.id} />
+                          <input type="hidden" name="decision" value="closed" />
+                          <button type="submit" className="min-h-9 rounded-full border border-slate-300 px-3 text-xs font-bold text-slate-700">
+                            Clore l’événement
+                          </button>
+                        </form>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

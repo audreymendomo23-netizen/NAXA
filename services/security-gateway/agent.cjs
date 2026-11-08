@@ -101,7 +101,7 @@ function parseFlags(args) {
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
-    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit" || key === "--source-stdin") {
+    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit" || key === "--source-stdin" || key === "--event-stdin") {
       values[key.slice(2)] = true;
       continue;
     }
@@ -495,18 +495,99 @@ async function configureStream(args) {
   writeCameraStreamConfigs(stateDir, entries);
   console.log("URI caméra stockée chiffrée pour " + cameraId + ".");
 }
+
+function buildSecurityEventPayload(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Événement de sécurité invalide.");
+  const allowedTypes = new Set([
+    "motion","intrusion","line_crossing","camera_tamper","camera_obstructed",
+    "signal_lost","after_hours_presence","system_offline","other",
+  ]);
+  const allowedSources = new Set(["onvif","edge_ai","gateway"]);
+  const cameraId = input.cameraId === null || input.cameraId === undefined ? null : String(input.cameraId);
+  if ((cameraId !== null && !CAMERA_UUID.test(cameraId)) ||
+    (cameraId === null && input.eventType !== "system_offline") ||
+    !allowedTypes.has(input.eventType) || !allowedSources.has(input.sourceType)) {
+    throw new Error("Type ou périmètre d’événement invalide.");
+  }
+  const summary = typeof input.summary === "string" ? input.summary.trim() : "";
+  if (summary.length < 2 || summary.length > 280 ||
+    /[\u0000-\u001f\u007f]/.test(summary) ||
+    /rtsps?:\/\/|https?:\/\/|authorization|bearer |password\s*=/i.test(summary)) {
+    throw new Error("Résumé d’événement invalide.");
+  }
+  const detectedAt = typeof input.detectedAt === "string" ? input.detectedAt : new Date().toISOString();
+  if (!Number.isFinite(Date.parse(detectedAt)) ||
+    Math.abs(Date.now() - Date.parse(detectedAt)) > 7 * 24 * 60 * 60 * 1000) {
+    throw new Error("Date d’événement invalide.");
+  }
+  const confidence = input.confidence === undefined || input.confidence === null ? null : input.confidence;
+  if (confidence !== null && (typeof confidence !== "number" || !Number.isFinite(confidence) ||
+    confidence < 0 || confidence > 1)) throw new Error("Confiance d’événement invalide.");
+  const metadata = input.metadata === undefined || input.metadata === null ? {} : input.metadata;
+  const allowedMetadataKeys = new Set([
+    "event_code","event_sequence","detector_id","detector_version",
+    "zone_id","rule_id","channel","sensor_type",
+  ]);
+  if (typeof metadata !== "object" || Array.isArray(metadata) || Object.keys(metadata).length > 8 ||
+    Object.entries(metadata).some(([key,value]) =>
+      !allowedMetadataKeys.has(key) ||
+      !(typeof value === "string" && value.trim().length > 0 && value.length <= 120 &&
+        !/[\u0000-\u001f\u007f]/.test(value)) &&
+      !(typeof value === "number" && Number.isSafeInteger(value) && value >= 0) &&
+      typeof value !== "boolean"
+    )) throw new Error("Métadonnées d’événement non autorisées.");
+
+  const canonical = { cameraId, eventType: input.eventType, sourceType: input.sourceType,
+    summary, confidence, detectedAt, metadata };
+  const sourceFingerprint = crypto.createHash("sha256")
+    .update(JSON.stringify(canonical), "utf8").digest("hex");
+  return { ...canonical, sourceFingerprint };
+}
+
+async function reportSecurityEvent(config, input) {
+  const body = buildSecurityEventPayload(input);
+  const rawBody = JSON.stringify(body);
+  const response = await fetch(config.apiBaseUrl + "/api/security/gateway/events", {
+    method: "POST",
+    headers: makeSignedGatewayHeaders({
+      gatewayId: config.gatewayId, privateKey: config.privateKey, rawBody,
+    }),
+    body: rawBody, signal: AbortSignal.timeout(15000),
+    cache: "no-store", redirect: "error",
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok !== true || typeof result.eventId !== "string") {
+    throw new Error("Événement non enregistré (HTTP " + response.status + ").");
+  }
+  return result.eventId;
+}
+
+async function submitSecurityEvent(args) {
+  const flags = parseFlags(args);
+  if (!flags["event-stdin"] || process.stdin.isTTY) {
+    throw new Error("Utilisez --event-stdin avec un rapport JSON sur stdin.");
+  }
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const config = readSecureConfig(stateDir);
+  const raw = fs.readFileSync(0, "utf8");
+  if (!raw || Buffer.byteLength(raw, "utf8") > 4096) throw new Error("Rapport JSON absent ou trop volumineux.");
+  const eventId = await reportSecurityEvent(config, JSON.parse(raw));
+  console.log("NAXA Security : événement enregistré " + eventId + ".");
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "enroll") return enroll(args);
   if (command === "discover") return discover(args);
   if (command === "inspect") return inspect(args);
   if (command === "configure-stream") return configureStream(args);
+  if (command === "report-event") return submitSecurityEvent(args);
   if (command === "heartbeat") {
     const flags = parseFlags(args);
     return heartbeat(readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR)));
   }
   if (command === "run") return run(args);
-  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | run");
+  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | report-event | run");
 }
 
 if (require.main === module) {
@@ -516,4 +597,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, requestStreamPublishTicket };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent };

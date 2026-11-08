@@ -124,3 +124,20 @@ test("FFmpeg : publication RTSPS, copie vidéo seule et paramètres contrôlés"
   assert.ok(args.includes("-progress"));
   assert.ok(args.includes("rtsp"));
 });
+
+const { buildSecurityEventPayload } = require("../services/security-gateway/agent.cjs");
+test("agent événements : empreinte stable et métadonnées bornées", () => {
+  const payload = {
+    cameraId: "a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20",
+    eventType: "motion", sourceType: "onvif",
+    summary: "Mouvement détecté par la caméra",
+    detectedAt: "2026-11-08T04:30:00.000Z",
+    confidence: null, metadata: { event_code: "Rule-1" },
+  };
+  const first = buildSecurityEventPayload(payload);
+  const second = buildSecurityEventPayload(payload);
+  assert.equal(first.sourceFingerprint, second.sourceFingerprint);
+  assert.match(first.sourceFingerprint, /^[0-9a-f]{64}$/);
+  assert.throws(() => buildSecurityEventPayload({ ...payload, metadata: { rtsp_url: "rtsp://camera" } }));
+  assert.throws(() => buildSecurityEventPayload({ ...payload, summary: "secret password=abc" }));
+});

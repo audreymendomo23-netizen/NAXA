@@ -26,3 +26,11 @@ test("SQL : index unique par passerelle, gravité serveur et audit", () => {
   assert.ok(migration.includes("set search_path = ''"));
   assert.doesNotMatch(migration, /grant execute[^;]+to authenticated/i);
 });
+
+test("agent événements : route gateway et stdin", () => {
+  const agentSource = fs.readFileSync(path.join(root, "services/security-gateway/agent.cjs"), "utf8");
+  assert.ok(agentSource.includes("/api/security/gateway/events"));
+  assert.ok(agentSource.includes("reportSecurityEvent"));
+  assert.ok(agentSource.includes("buildSecurityEventPayload"));
+  assert.ok(agentSource.includes("--event-stdin"));
+});
