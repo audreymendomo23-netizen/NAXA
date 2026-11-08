@@ -129,7 +129,7 @@ test("Promoteur : revue ONVIF via transaction RPC atomique", () => {
   assert.match(action, /function examinerCameraDecouverte/);
   assert.match(action, /activeLinkIds\.has\(candidate\.pharmacie_id\)/);
   assert.match(action, /candidate\.status !== "pending"/);
-  assert.match(action, /\.rpc\(["']naxa_security_review_discovery_candidate["']/);
+  assert.match(action, /\.rpc\(\s*["']naxa_security_review_discovery_candidate["']/);
   assert.match(action, /reviewPayload\?\.status/);
   assert.doesNotMatch(action, /\.from\(["']naxa_security_cameras["']\)\s*\.insert/);
   assert.doesNotMatch(action, /\.from\(["']naxa_security_camera_connections["']\)\s*\.insert/);

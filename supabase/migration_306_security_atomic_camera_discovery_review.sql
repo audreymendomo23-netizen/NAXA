@@ -31,7 +31,7 @@ declare
   v_camera_id uuid;
   v_channel_key text;
 begin
-  if p_candidate_id is null or p_reviewer_id is null or p_decision is null
+  if p_candidate_id is null or p_reviewer_id is null
      or p_decision not in ('accept', 'dismiss') then
     raise exception 'Paramètres de revue invalides' using errcode = '22023';
   end if;
