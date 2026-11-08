@@ -33,13 +33,13 @@ Activer le contrôle d'accès HTTP externe et le lecteur WebRTC :
     authHTTPAddress: https://<domaine-naxa>/api/security/mediamtx/auth
     authHTTPExclude: []
 
-    webrtc: yes
+    webrtc: true
     webrtcAddress: :8889
-    webrtcEncryption: yes
+    webrtcEncryption: true
     webrtcAllowOrigins:
       - https://<domaine-naxa>
 
-Le reverse proxy doit exposer le port WebRTC HTTPS, autoriser les méthodes POST, DELETE et OPTIONS WHEP, les en-têtes Authorization et Content-Type, exposer l'en-tête Location au navigateur, et appliquer CORS uniquement depuis le domaine NAXA. Ne jamais activer l'API de contrôle MediaMTX publiquement.
+Le reverse proxy doit exposer le port WebRTC HTTPS, autoriser les méthodes POST, DELETE et OPTIONS WHEP, les en-têtes Authorization et Content-Type, exposer l'en-tête Location au navigateur, et appliquer CORS uniquement depuis le domaine NAXA. Ne jamais activer l'API de contrôle MediaMTX publiquement. Un paquet de configuration versionné est fourni dans infra/security/mediamtx/. Il impose TLS RTSPS/WebRTC, l'authentification HTTP, désactive l'API/les métriques et laisse l'enregistrement désactivé.
 
 Le chemin logique de chaque caméra est :
 
@@ -63,7 +63,7 @@ Une absence de configuration MediaMTX ou un état non confirmé ferme l'accès. 
 
 Ce lot livre le contrôle d'accès et le lecteur WebRTC, pas le transport de la caméra jusqu'au serveur média. Il manque encore l'ingestion sortante de chaque flux depuis la passerelle de pharmacie vers MediaMTX, avec stockage local sécurisé des identifiants caméra et une politique de reconnexion. Les flux ne pourront donc s'afficher qu'après déploiement et configuration du MediaMTX, puis activation d'un publisher passerelle sur le chemin correspondant.
 
-Aucune caméra physique, aucun flux RTSP et aucun réseau réel n'ont été testés à cette phase. Le serveur média n'a pas été déployé, aucune variable Vercel n'a été créée et aucun déploiement n'a été lancé.
+Aucune caméra physique, aucun flux RTSP et aucun réseau réel n'ont été testés à cette phase. Le paquet MediaMTX n'a pas été déployé et le publish RTSP reste volontairement refusé tant que le jeton de publication dédié et l'agent passerelle sortant de la phase 9 ne sont pas livrés. Le serveur média n'a pas été déployé, aucune variable Vercel n'a été créée et aucun déploiement n'a été lancé.
 
 ## Contrôles automatisés
 
