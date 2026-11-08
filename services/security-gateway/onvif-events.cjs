@@ -81,7 +81,7 @@ function localKey(dir) {
   privateWrite(file,key.toString("hex")+"\n");
   return key;
 }
-function validateConfig(item) {
+function validateEventConfig(item) {
   if (!item || typeof item!=="object" || !UUID.test(String(item.cameraId||"")) ||
     !isPrivateIpv4(item.sourceAddress)) throw new TypeError("Identité caméra ONVIF invalide.");
   const endpoint=validateTarget(item.endpoint,item.sourceAddress);
@@ -95,7 +95,7 @@ function validateConfig(item) {
 }
 function writeOnvifEventConfigs(dir,items) {
   if (!Array.isArray(items)||items.length>64) throw new TypeError("Maximum 64 caméras ONVIF.");
-  const normalized=items.map(validateConfig), key=localKey(dir), iv=crypto.randomBytes(12);
+  const normalized=items.map(validateEventConfig), key=localKey(dir), iv=crypto.randomBytes(12);
   const cipher=crypto.createCipheriv("aes-256-gcm",key,iv);
   const ciphertext=Buffer.concat([cipher.update(JSON.stringify(normalized),"utf8"),cipher.final()]);
   privateWrite(path.join(dir,CONFIG_FILE),JSON.stringify({
@@ -119,7 +119,7 @@ function readOnvifEventConfigs(dir) {
   const plain=Buffer.concat([decipher.update(Buffer.from(env.ciphertext,"hex")),decipher.final()]).toString("utf8");
   const items=JSON.parse(plain);
   if (!Array.isArray(items)||items.length>64) throw new Error("Inventaire ONVIF local invalide.");
-  return items.map(validateConfig);
+  return items.map(validateEventConfig);
 }
 
 function buildUsernameToken(username,password,options={}) {

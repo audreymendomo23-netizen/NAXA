@@ -128,3 +128,22 @@ test("SOAP : refuse les corps de réponse qui dépassent la limite pendant le st
   }), (error) => error && error.code === "RESPONSE_TOO_LARGE");
   assert.equal(cancelled, true);
 });
+
+
+test("configuration Pull-Point : exporte validateEventConfig et valide les identifiants/cibles caméra", () => {
+  const { validateEventConfig } = require("../services/security-gateway/onvif-events.cjs");
+  const valid = validateEventConfig({
+    cameraId: "a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20",
+    sourceAddress: "192.168.1.20",
+    endpoint: "http://192.168.1.20/onvif/events",
+    username: "admin",
+    password: "secret",
+  });
+  assert.equal(valid.endpoint, "http://192.168.1.20/onvif/events");
+  assert.throws(() => validateEventConfig({
+    cameraId: "a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20",
+    sourceAddress: "192.168.1.20",
+    endpoint: "http://192.168.1.21/onvif/events",
+    username: "admin", password: "secret",
+  }));
+});
