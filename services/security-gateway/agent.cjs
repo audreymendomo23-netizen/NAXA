@@ -450,8 +450,27 @@ async function waitDelay(ms, signal) {
   });
 }
 
+async function reportPublisherSignalLoss(config, cameraId, outage) {
+  if (!outage.detectedAt || outage.reported) return;
+  try {
+    await reportSecurityEvent(config, {
+      cameraId,
+      eventType: "signal_lost",
+      sourceType: "gateway",
+      summary: "Perte du flux vidéo : le processus de publication caméra s’est arrêté.",
+      detectedAt: outage.detectedAt,
+      confidence: null,
+      metadata: { event_code: "PUBLISHER_STREAM_EXIT" },
+    });
+    outage.reported = true;
+  } catch {
+    // La même empreinte est retentée pendant cette interruption, sans créer de doublons.
+  }
+}
+
 async function runCameraPublisher(config, camera, signal) {
   let backoffMs = 5000;
+  const outage = { detectedAt: null, reported: false };
   while (!signal.aborted) {
     let online = false, onlineReport = Promise.resolve();
     try {
@@ -461,11 +480,21 @@ async function runCameraPublisher(config, camera, signal) {
         onFirstFrame: (frames) => {
           if (online) return;
           online = true;
+          if (outage.detectedAt) {
+            outage.detectedAt = null;
+            outage.reported = false;
+          }
           onlineReport = reportStreamHealth(config, camera.cameraId, "online", frames).catch(() => { online = false; });
         },
       });
       await onlineReport;
-      if (online) await reportStreamHealth(config, camera.cameraId, "offline", result.frameCount).catch(() => {});
+      if (online) {
+        await reportStreamHealth(config, camera.cameraId, "offline", result.frameCount).catch(() => {});
+        if (!signal.aborted && result.frameCount > 0 && !outage.detectedAt) {
+          outage.detectedAt = new Date().toISOString();
+        }
+      }
+      await reportPublisherSignalLoss(config, camera.cameraId, outage);
       if (result.spawnError === "FFMPEG_MISSING") {
         console.error("NAXA Security : FFmpeg absent sur la passerelle ; installation requise.");
         backoffMs = 300000;
@@ -476,6 +505,7 @@ async function runCameraPublisher(config, camera, signal) {
     } catch (error) {
       console.error("NAXA Security : publication caméra indisponible (" +
         (error instanceof Error ? error.message.slice(0, 100) : "erreur inconnue") + ").");
+      await reportPublisherSignalLoss(config, camera.cameraId, outage);
       backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
     }
     await waitDelay(backoffMs, signal);

@@ -33,4 +33,6 @@ Un Promoteur actif ne voit et ne révise que les événements de pharmacies acti
 
 ## Limites restantes
 
+La passerelle émet désormais automatiquement un événement signal_lost lorsqu'un publisher ayant déjà reçu des images s'arrête de façon inattendue. La même interruption réutilise la même empreinte et ne génère pas d'alertes répétées ; le retour des images réarme la détection.
+
 Aucun collecteur ONVIF Events (abonnement/pull), moteur IA local, notification Android, clip ou sirène physique n'est livré ici. Le canal stdin fournit le point d'intégration pour ces collecteurs ; il ne constitue pas une détection automatique en soi. Aucun matériel réel n'a été testé dans cette phase.

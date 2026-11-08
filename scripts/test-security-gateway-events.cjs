@@ -34,3 +34,11 @@ test("agent événements : route gateway et stdin", () => {
   assert.ok(agentSource.includes("buildSecurityEventPayload"));
   assert.ok(agentSource.includes("--event-stdin"));
 });
+
+test("publisher : perte de signal auto signalée une fois par interruption", () => {
+  const agentSource = fs.readFileSync(path.join(root, "services/security-gateway/agent.cjs"), "utf8");
+  assert.ok(agentSource.includes('eventType: "signal_lost"'));
+  assert.ok(agentSource.includes("reportPublisherSignalLoss"));
+  assert.ok(agentSource.includes("outage.reported = true"));
+  assert.ok(agentSource.includes("outage.detectedAt = null"));
+});
