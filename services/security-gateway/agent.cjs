@@ -93,7 +93,7 @@ function parseFlags(args) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
     if (key === "--token-stdin" || key === "--confirm-local-network") {
-      values["token-stdin"] = true;
+      values[key.slice(2)] = true;
       continue;
     }
     const value = args[index + 1];
@@ -243,4 +243,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags };
