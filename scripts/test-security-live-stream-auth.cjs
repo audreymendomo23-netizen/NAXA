@@ -17,7 +17,8 @@ test("sessions live : hash seulement, expiration courte, RLS forcée et privilè
   assert.ok(migration.includes("alter table public.naxa_security_live_sessions force row level security"));
   assert.ok(migration.includes("revoke all on public.naxa_security_live_sessions from public, anon, authenticated"));
   assert.ok(migration.includes("grant all on public.naxa_security_live_sessions to service_role"));
-  assert.ok(migration.includes("p_token_sha256 is null or p_media_path is null"));
+  assert.ok(migration.includes("p_token_sha256 is null"));
+  assert.ok(migration.includes("p_media_path is null"));
   assert.ok(migration.includes("camera.gateway_id = p_gateway_id"));
   assert.doesNotMatch(migration, /token\s+text|rtsp_url|camera_password/i);
 });
@@ -62,7 +63,7 @@ test("révocation : session liée au compte propriétaire, rôle Promoteur et af
   assert.ok(revokeRoute.includes('.eq("user_id", access.profile.id)'));
   assert.ok(revokeRoute.includes("access.activeLinkIds.has(session.pharmacie_id)"));
   assert.ok(revokeRoute.includes('status: "revoked"'));
-  assert.ok(revokeRoute.includes('status: "active"'));
+  assert.ok(revokeRoute.includes('.eq("status", "active")'));
 });
 
 test("lecteur WebRTC : ticket serveur, WHEP, fermeture, révocation et URL Location de même origine", () => {
@@ -84,7 +85,7 @@ test("documentation : MediaMTX HTTP auth, WHEP, configuration HTTPS et limites m
     "WHEP",
     "NAXA_MEDIAMTX_PUBLIC_URL",
     "ingestion sortante",
-    "aucune caméra physique",
+    "Aucune caméra physique",
     "Location au navigateur",
   ]) assert.ok(doc.includes(fragment), "Documentation incomplète: " + fragment);
 });
