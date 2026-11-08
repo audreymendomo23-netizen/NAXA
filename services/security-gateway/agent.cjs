@@ -8,6 +8,7 @@ const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { discoverOnvifCameras } = require("./onvif-discovery.cjs");
 const { inspectOnvifDevice } = require("./onvif-inspection.cjs");
+const { readOnvifEventConfigs, writeOnvifEventConfigs, runPullPointCollector } = require("./onvif-events.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
@@ -101,7 +102,7 @@ function parseFlags(args) {
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error("Option inconnue : " + key);
-    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit" || key === "--source-stdin" || key === "--event-stdin") {
+    if (key === "--token-stdin" || key === "--confirm-local-network" || key === "--submit" || key === "--source-stdin" || key === "--event-stdin" || key === "--credentials-stdin") {
       values[key.slice(2)] = true;
       continue;
     }
@@ -210,7 +211,8 @@ async function run(args) {
   const controller = new AbortController();
   const cameras = readCameraStreamConfigs(stateDir);
   const publishers = cameras.map((camera) => runCameraPublisher(config, camera, controller.signal));
-  void Promise.all(publishers);
+  const eventCollectors = readOnvifEventConfigs(stateDir).map((camera) => runCameraOnvifEvents(config, camera, controller.signal));
+  void Promise.all([...publishers, ...eventCollectors]);
   const stop = () => { clearInterval(timer); controller.abort(); };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
@@ -607,19 +609,53 @@ async function submitSecurityEvent(args) {
   console.log("NAXA Security : événement enregistré " + eventId + ".");
 }
 
+async function configureOnvifEvents(args) {
+  const flags = parseFlags(args);
+  if (!flags["credentials-stdin"] || process.stdin.isTTY) {
+    throw new Error("Utilisez --credentials-stdin avec un JSON protégé sur stdin ; aucun identifiant en argument.");
+  }
+  const raw = fs.readFileSync(0, "utf8");
+  if (!raw || Buffer.byteLength(raw, "utf8") > 4096) throw new Error("Configuration ONVIF absente ou trop volumineuse.");
+  const entry = JSON.parse(raw);
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const existing = readOnvifEventConfigs(stateDir).filter((item) => item.cameraId !== entry.cameraId);
+  existing.push(entry);
+  writeOnvifEventConfigs(stateDir, existing);
+  console.log("Collecteur Pull-Point configuré localement pour la caméra " + entry.cameraId + ". Les identifiants ne quittent pas la passerelle.");
+}
+
+async function runCameraOnvifEvents(config, camera, signal) {
+  let backoffMs = 5000;
+  while (!signal.aborted) {
+    try {
+      await runPullPointCollector({
+        ...camera,
+        signal,
+        onEvent: async (event) => { await reportSecurityEvent(config, event); },
+      });
+      backoffMs = 5000;
+    } catch {
+      console.warn("NAXA Security : abonnement ONVIF indisponible pour une caméra configurée ; nouvelle tentative prévue.");
+      backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
+    }
+    await waitDelay(backoffMs, signal);
+  }
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "enroll") return enroll(args);
   if (command === "discover") return discover(args);
   if (command === "inspect") return inspect(args);
   if (command === "configure-stream") return configureStream(args);
+  if (command === "configure-onvif-events") return configureOnvifEvents(args);
   if (command === "report-event") return submitSecurityEvent(args);
   if (command === "heartbeat") {
     const flags = parseFlags(args);
     return heartbeat(readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR)));
   }
   if (command === "run") return run(args);
-  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | report-event | run");
+  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | configure-onvif-events | report-event | run");
 }
 
 if (require.main === module) {

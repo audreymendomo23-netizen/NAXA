@@ -141,3 +141,11 @@ test("agent événements : empreinte stable et métadonnées bornées", () => {
   assert.throws(() => buildSecurityEventPayload({ ...payload, metadata: { rtsp_url: "rtsp://camera" } }));
   assert.throws(() => buildSecurityEventPayload({ ...payload, summary: "secret password=abc" }));
 });
+
+test("agent : collecteur Pull-Point configurable par stdin", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../services/security-gateway/agent.cjs"), "utf8");
+  assert.ok(source.includes("configure-onvif-events"));
+  assert.ok(source.includes("--credentials-stdin"));
+  assert.ok(source.includes("runPullPointCollector"));
+  assert.ok(source.includes("readOnvifEventConfigs"));
+});
