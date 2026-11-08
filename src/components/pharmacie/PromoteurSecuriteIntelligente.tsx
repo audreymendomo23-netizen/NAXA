@@ -348,7 +348,7 @@ export function PromoteurSecuriteIntelligente({
                             <CameraConnectionBadge camera={camera} connections={connections} compact />
                           </div>
                         </button>
-                        {camera.id === focusedCamera.id ? (
+                        {camera.id === focusedCamera?.id ? (
                           <div className="px-2 py-3 text-center text-[10px] font-semibold text-slate-500">
                             Flux de la vue agrandie
                           </div>

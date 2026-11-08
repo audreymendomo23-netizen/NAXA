@@ -19,7 +19,7 @@ assert.match(screen, /setFocusedCameraId\(camera\.id\)/);
 assert.match(screen, /Caméra précédente/);
 assert.match(screen, /Caméra suivante/);
 assert.match(screen, /SecurityWhepPlayer/);
-assert.match(screen, /camera\.id === focusedCamera\.id/);
+assert.match(screen, /camera\.id === focusedCamera\?\.id/);
 assert.match(screen, /<SecurityWhepPlayer cameraId=\{camera\.id\} compact/);
 assert.match(screen, /<SecurityWhepPlayer cameraId=\{focusedCamera\.id\}/);
 const player = read("src/components/pharmacie/SecurityWhepPlayer.tsx");
