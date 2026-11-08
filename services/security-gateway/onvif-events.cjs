@@ -137,18 +137,20 @@ function usernameToken(username,password,options={}) {
   ].join("");
 }
 function buildSoapEnvelope(options) {
+  const security = usernameToken(options.username, options.password, options);
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:wsa="http://www.w3.org/2005/08/addressing" ',
     'xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" ',
     'xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" ',
     'xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2">',
-    "<s:Header>",
-    '<wsa:Action s:mustUnderstand="1">'+xmlEscape(options.action)+"</wsa:Action>",
-    "<wsa:MessageID>urn:uuid:"+crypto.randomUUID()+"</wsa:MessageID>",
-    "<wsa:To s:mustUnderstand=\\"1\\">"+xmlEscape(options.to)+"</wsa:To>",
-    usernameToken(options.username,options.password,options),
-    "</s:Header><s:Body>"+options.body+"</s:Body></s:Envelope>",
+    '<s:Header>',
+    '<wsa:Action s:mustUnderstand="1">' + xmlEscape(options.action) + '</wsa:Action>',
+    '<wsa:MessageID>urn:uuid:' + crypto.randomUUID() + '</wsa:MessageID>',
+    '<wsa:ReplyTo><wsa:Address>http://www.w3.org/2005/08/addressing/anonymous</wsa:Address></wsa:ReplyTo>',
+    '<wsa:To s:mustUnderstand="1">' + xmlEscape(options.to) + '</wsa:To>',
+    security,
+    '</s:Header><s:Body>' + options.body + '</s:Body></s:Envelope>',
   ].join("");
 }
 async function readBounded(response) {
