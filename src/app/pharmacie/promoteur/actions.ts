@@ -222,6 +222,15 @@ export async function examinerCameraDecouverte(formData: FormData) {
   if (gatewayError || !gateway || gateway.tunnel_status === "revoked") {
     redirect("/pharmacie/promoteur/securite?security=review_gateway");
   }
+  const { data: installation, error: installationError } = await db
+    .from("naxa_security_installations")
+    .select("status")
+    .eq("id", gateway.installation_id)
+    .eq("pharmacie_id", candidate.pharmacie_id)
+    .maybeSingle();
+  if (installationError || !installation || ["suspended", "retired"].includes(installation.status)) {
+    redirect("/pharmacie/promoteur/securite?security=review_gateway");
+  }
 
   const now = new Date().toISOString();
   if (decision === "dismiss") {
