@@ -7,7 +7,7 @@ Branche : qa/e2e-stabilisation-20261106
 
 Le diagnostic ONVIF récupère l'endpoint Events annoncé par GetCapabilities, seulement si son XAddr vise l'adresse IPv4 privée exacte de la caméra. Le collecteur local crée une souscription Pull-Point, récupère les notifications avec PullMessages et tente Unsubscribe à l'arrêt. Toutes les requêtes sont initiées par la passerelle, sans port entrant. Le point de collecte recrée la souscription après huit minutes afin de ne pas dépendre de sa durée maximale annoncée.
 
-Les réponses SOAP sont limitées à 32 Ko et les DTD/entités XML sont refusées.
+Les réponses SOAP sont lues en streaming et plafonnées à 32 Ko avant accumulation en mémoire ; les DTD/entités XML sont refusées.
 
 ## Identifiants
 

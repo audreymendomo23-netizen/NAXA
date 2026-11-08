@@ -128,7 +128,7 @@ function usernameToken(username,password,options={}) {
   if (nonce.length<16||nonce.length>32||!Number.isFinite(Date.parse(created))) throw new TypeError("Nonce ou date WS-Security invalide.");
   const digest=crypto.createHash("sha1").update(Buffer.concat([nonce,Buffer.from(created),Buffer.from(password)])).digest("base64");
   return [
-    "<wsse:Security s:mustUnderstand=\\"1\\"><wsse:UsernameToken>",
+    '<wsse:Security s:mustUnderstand="1"><wsse:UsernameToken>',
     "<wsse:Username>"+xmlEscape(username)+"</wsse:Username>",
     '<wsse:Password Type="'+PASSWORD_DIGEST_TYPE+'">'+digest+"</wsse:Password>",
     '<wsse:Nonce EncodingType="'+NONCE_ENCODING+'">'+nonce.toString("base64")+"</wsse:Nonce>",
@@ -152,11 +152,30 @@ function buildSoapEnvelope(options) {
   ].join("");
 }
 async function readBounded(response) {
-  const declared=Number(response.headers&&response.headers.get("content-length"));
-  if (Number.isFinite(declared)&&declared>SOAP_LIMIT) throw Object.assign(new Error("Réponse SOAP trop volumineuse."),{code:"RESPONSE_TOO_LARGE"});
-  const text=await response.text();
-  if (Buffer.byteLength(text,"utf8")>SOAP_LIMIT) throw Object.assign(new Error("Réponse SOAP trop volumineuse."),{code:"RESPONSE_TOO_LARGE"});
-  return text;
+  const tooLarge = () => Object.assign(new Error("Réponse SOAP trop volumineuse."), { code: "RESPONSE_TOO_LARGE" });
+  const declared = Number(response.headers && response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > SOAP_LIMIT) throw tooLarge();
+
+  if (!response.body || typeof response.body.getReader !== "function") {
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") > SOAP_LIMIT) throw tooLarge();
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const part = await reader.read();
+    if (part.done) break;
+    total += part.value.byteLength;
+    if (total > SOAP_LIMIT) {
+      try { await reader.cancel(); } catch {}
+      throw tooLarge();
+    }
+    chunks.push(Buffer.from(part.value));
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 async function soapRequest(options) {
   const target=validateSubscriptionEndpoint(options.to,options.sourceAddress);
@@ -202,7 +221,7 @@ function eventTypeFor(topic,items) {
   const values=Object.fromEntries(items.map((i)=>[i.name.toLowerCase(),i.value.toLowerCase()]));
   const motion=values.ismotion||values.motion||values.state;
   if (t.includes("motion")||t.includes("cellmotion")) return ["false","0","off","inactive"].includes(motion)?null:"motion";
-  if (t.includes("linecross")||t.includes("tripwire")||t.includes("fence")) return "line_crossing";
+  if (t.includes("linecross")||(t.includes("linedetector")&&t.includes("crossed"))||t.includes("tripwire")||t.includes("fence")) return "line_crossing";
   if (t.includes("tamper")||t.includes("vandal")||t.includes("sabotage")) return "camera_tamper";
   if (t.includes("obstruct")||t.includes("cover")||t.includes("blocked")) return "camera_obstructed";
   if (t.includes("videoloss")||t.includes("signalloss")||t.includes("disconnect")) return "signal_lost";

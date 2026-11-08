@@ -108,3 +108,23 @@ test("poller Pull-Point : Create, PullMessages puis Unsubscribe",async()=>{
   assert.ok(calls.includes("event:motion"));
   assert.ok(calls.includes("unsubscribe"));
 });
+
+
+test("SOAP : refuse les corps de réponse qui dépassent la limite pendant le streaming", async () => {
+  const { pullMessages } = require("../services/security-gateway/onvif-events.cjs");
+  let cancelled = false;
+  const fetchImpl = async () => new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(20000));
+      controller.enqueue(new Uint8Array(20000));
+    },
+    cancel() { cancelled = true; },
+  }), { status: 200, headers: { "content-type": "application/soap+xml" } });
+  await assert.rejects(pullMessages({
+    sourceAddress: "192.168.1.20",
+    subscriptionEndpoint: "http://192.168.1.20/Subscription",
+    username: "operator", password: "secret",
+    fetchImpl,
+  }), (error) => error && error.code === "RESPONSE_TOO_LARGE");
+  assert.equal(cancelled, true);
+});
