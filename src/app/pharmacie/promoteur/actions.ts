@@ -187,7 +187,7 @@ export async function examinerCameraDecouverte(formData: FormData) {
   const decision = field(formData, "decision");
   const zoneLabel = field(formData, "zone_label");
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const safeLabel = zoneLabel.length >= 2 && zoneLabel.length <= 100 && !/[<>\\u0000-\\u001f]/.test(zoneLabel);
+  const safeLabel = zoneLabel.length >= 2 && zoneLabel.length <= 100 && !/[<>\u0000-\u001f]/.test(zoneLabel);
 
   if (
     access.profile.role !== "promoteur" || access.profile.actif !== true ||
