@@ -162,7 +162,7 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
   const scopedIds = [...activePharmacyIds];
   const operationalCaisses = (caisses ?? []).filter((c) => c.pharmacie_id && activePharmacyIds.has(c.pharmacie_id));
   const securityRegistryEnabled = section === "securite";
-  const [securityInstallationsResult, securityGatewaysResult, securityCamerasResult, securityConnectionsResult, securityEventsResult] = await Promise.all([
+  const [securityInstallationsResult, securityGatewaysResult, securityCamerasResult, securityConnectionsResult, securityEventsResult, securityDiscoveryCandidatesResult] = await Promise.all([
     securityRegistryEnabled && scopedIds.length
       ? adminDb.from("naxa_security_installations").select("id,pharmacie_id,status,legal_review_status,privacy_notice_status,updated_at").in("pharmacie_id", scopedIds)
       : Promise.resolve({ data: [], error: null }),
@@ -178,10 +178,17 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
     securityRegistryEnabled && scopedIds.length
       ? adminDb.from("naxa_security_events").select("id,pharmacie_id,event_type,severity,status,summary,detected_at").in("pharmacie_id", scopedIds).order("detected_at", { ascending: false }).limit(10)
       : Promise.resolve({ data: [], error: null }),
+    securityRegistryEnabled && scopedIds.length
+      ? adminDb.from("naxa_security_camera_discovery_candidates")
+          .select("id,pharmacie_id,gateway_id,device_id,source_address,device_types,device_scopes,endpoints,status,first_seen_at,last_seen_at")
+          .in("pharmacie_id", scopedIds).eq("status", "pending")
+          .order("last_seen_at", { ascending: false }).limit(50)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   const securityRegistryAvailable = !securityRegistryEnabled || [
     securityInstallationsResult.error, securityGatewaysResult.error,
     securityCamerasResult.error, securityConnectionsResult.error, securityEventsResult.error,
+    securityDiscoveryCandidatesResult.error,
   ].every((error) => !error);
 
   if (section === "securite") {
@@ -202,6 +209,7 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
             gateways={securityGatewaysResult.data ?? []}
             cameras={securityCamerasResult.data ?? []}
             connections={securityConnectionsResult.data ?? []}
+            discoveryCandidates={securityDiscoveryCandidatesResult.data ?? []}
             events={securityEventsResult.data ?? []}
             registryAvailable={securityRegistryAvailable}
           />
