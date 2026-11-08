@@ -11,8 +11,14 @@ La passerelle locale peut émettre une sonde ONVIF WS-Discovery pour découvrir 
 Commande explicite sur la passerelle :
 
 ```bash
+# Découverte locale uniquement (aucune transmission à NAXA)
 sudo node /opt/naxa-security-gateway/agent.cjs discover \\
   --confirm-local-network --timeout-ms 3500
+
+# Après enrôlement de la passerelle : découverte puis rapport signé à NAXA
+sudo node /opt/naxa-security-gateway/agent.cjs discover \\
+  --confirm-local-network --submit --timeout-ms 3500 \\
+  --state-dir /var/lib/naxa-security-gateway
 ```
 
 La commande est désactivée sans `--confirm-local-network`. Elle envoie une seule sonde multicast vers `239.255.255.250:3702`, avec TTL 1, attend entre 1 et 8 secondes, puis affiche au maximum 64 réponses reconnues.
@@ -25,7 +31,9 @@ La commande est désactivée sans `--confirm-local-network`. Elle envoie une seu
 - Les XAddrs doivent être HTTP(S), sans identifiant, mot de passe, query string ni fragment, et viser une adresse privée ou un nom local.
 - Aucun GET/POST n'est envoyé vers les XAddrs annoncés.
 - Aucun flux RTSP, snapshot, login caméra, mot de passe, clé API ou jeton n'est demandé.
-- Aucune information découverte n'est envoyée à NAXA ni écrite dans Supabase. Les résultats restent dans la sortie locale de la commande.
+- Sans `--submit`, aucune information découverte n'est envoyée à NAXA ; les résultats restent dans la sortie locale.
+- Avec `--submit`, l'agent enrôlé transmet uniquement les métadonnées reconnues dans un rapport HTTPS signé Ed25519, avec horodatage et nonce anti-rejeu. Le serveur vérifie aussi le périmètre pharmacie et le statut de la passerelle.
+- Les appareils reçus sont enregistrés dans une file de candidats privée. Ils ne sont pas créés comme caméras actives avant revue humaine du Promoteur.
 - La découverte n'est pas appelée par le heartbeat ou le service continu ; elle exige une commande manuelle explicite.
 
 ## Limites
@@ -38,4 +46,4 @@ La compatibilité RTSP, NVR/DVR, encodeurs analogiques et API constructeur reste
 
 Les tests automatisés vérifient le parsing des ProbeMatch, le filtrage des sources et endpoints, les limites de taille et le caractère explicitement opt-in de la commande. Ils ne remplacent pas un essai sur un réseau local équipé d'une vraie caméra ONVIF.
 
-**Non validé à ce stade :** découverte sur matériel réel, compatibilité de chaque constructeur/firmware, authentification ONVIF, RTSP, affichage vidéo et import automatique des appareils dans le centre Promoteur.
+**Non validé à ce stade :** découverte sur matériel réel, compatibilité de chaque constructeur/firmware, authentification ONVIF, RTSP et affichage vidéo. Le transport signé et la revue Promoteur sont construits, mais ils n'ont pas encore été exercés avec une passerelle et une caméra physiques.
