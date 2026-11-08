@@ -599,6 +599,7 @@ export async function PromoteurDashboard({ section = "overview", geoStatus }: { 
             gateways={securityGatewaysResult.data ?? []}
             cameras={securityCamerasResult.data ?? []}
             connections={securityConnectionsResult.data ?? []}
+            discoveryCandidates={securityDiscoveryCandidatesResult.data ?? []}
             events={securityEventsResult.data ?? []}
             registryAvailable={securityRegistryAvailable}
           />}

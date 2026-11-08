@@ -280,6 +280,12 @@ export async function POST(request: Request) {
           }, { status: 503 });
         }
       }
+      if (typeof savedCandidateId !== "string" || savedCandidateId.length === 0) {
+        return NextResponse.json({
+          error: "Identifiant de candidat absent après enregistrement.",
+          receivedCount: savedIds.length,
+        }, { status: 503 });
+      }
       savedIds.push(savedCandidateId);
     }
 
