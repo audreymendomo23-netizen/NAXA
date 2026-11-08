@@ -122,7 +122,7 @@ function readOnvifEventConfigs(dir) {
   return items.map(validateConfig);
 }
 
-function usernameToken(username,password,options={}) {
+function buildUsernameToken(username,password,options={}) {
   const nonce=options.nonce?Buffer.from(options.nonce):crypto.randomBytes(16);
   const created=options.created||new Date().toISOString();
   if (nonce.length<16||nonce.length>32||!Number.isFinite(Date.parse(created))) throw new TypeError("Nonce ou date WS-Security invalide.");
@@ -137,7 +137,7 @@ function usernameToken(username,password,options={}) {
   ].join("");
 }
 function buildSoapEnvelope(options) {
-  const security = usernameToken(options.username, options.password, options);
+  const security = buildUsernameToken(options.username, options.password, options);
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:wsa="http://www.w3.org/2005/08/addressing" ',
