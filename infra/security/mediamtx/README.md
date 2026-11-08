@@ -12,7 +12,8 @@ Ce dossier fournit la configuration versionnée d'un relais MediaMTX autonome. *
 - Pare-feu et NAT configurés pour les ports nécessaires :
   - TCP 8322 : publication RTSPS depuis les passerelles ;
   - TCP 8889 : handshake WHEP/HTTPS depuis les navigateurs ;
-  - UDP 8189 : transport média WebRTC.
+  - UDP 8189 : transport média WebRTC prioritaire ;
+  - TCP 8189 : transport média WebRTC de secours lorsque UDP est bloqué.
 - Ne pas exposer RTSP non chiffré TCP 8554, API 9997, métriques 9998, PPROF 9999 ou playback.
 - L'hôte doit pouvoir appeler par HTTPS l'API NAXA d'authentification.
 - DNS, certificat, ports et hôte doivent être contrôlés depuis l'extérieur avant mise en service.
@@ -35,7 +36,7 @@ Les valeurs effectives, DNS, certificats et état de disponibilité restent à v
 1. Remplacer les domaines d'exemple dans `mediamtx.yml`.
 2. Créer `secrets/` et y placer `mediamtx.crt` et `mediamtx.key` avec permissions restrictives ; ne jamais committer ces fichiers.
 3. Vérifier les montages Docker aux chemins `/run/secrets/mediamtx_tls_cert` et `/run/secrets/mediamtx_tls_key`.
-4. Configurer DNS, firewall et NAT pour 8322/TCP, 8889/TCP et 8189/UDP.
+4. Configurer DNS, firewall et NAT pour 8322/TCP, 8889/TCP, 8189/UDP et 8189/TCP.
 5. Valider le fichier avec l'image MediaMTX versionnée avant démarrage.
 6. Inspecter les logs sans afficher les tickets, URI caméra ou identifiants.
 
@@ -62,10 +63,9 @@ Toute autre action/protocole est refusé. Depuis la phase 9, la publication RTSP
 
 ## Limite WebRTC / TURN au pilote
 
-La configuration actuelle ouvre UDP 8189, mais ne configure ni listener WebRTC TCP, ni `webrtcICEServers2`, ni serveur STUN/TURN dédié. Le fonctionnement depuis un réseau permissif ne prouve donc pas la connectivité depuis tous les réseaux mobiles, NAT stricts ou pare-feu d'entreprise.
+La configuration ouvre UDP 8189 (transport prioritaire) et TCP 8189 (transport de secours si UDP est bloqué). Le port TCP doit être routé par le NAT/pare-feu jusqu’au conteneur ; activer ce listener ne prouve pas que le chemin est joignable depuis Internet. Aucun webrtcICEServers2, serveur STUN ni TURN dédié n’est configuré.
 
-Tester le live depuis Wi-Fi et réseau mobile. Si ICE direct échoue, provisionner un serveur TURN dédié, créer des identifiants temporaires et limiter leur durée, puis configurer `webrtcICEServers2` côté MediaMTX. Ne jamais placer des identifiants TURN statiques dans le JavaScript navigateur ni les committer. Aucun TURN n'est actuellement configuré.
-
+Tester le live depuis Wi-Fi et réseau mobile. Si les connexions directes UDP/TCP échouent, provisionner un serveur TURN dédié, créer des identifiants temporaires et limiter leur durée, puis configurer webrtcICEServers2 côté MediaMTX. STUN peut aider à découvrir l’adresse publique et à établir un chemin direct, mais ne remplace pas TURN lorsque le relais est nécessaire. Ne jamais placer des identifiants TURN statiques dans le JavaScript navigateur ni les committer. Aucun STUN/TURN n’est actuellement configuré.
 ## Validation et limites
 
 - `scripts/test-security-mediamtx-deployment.cjs` vérifie les paramètres versionnés ; il ne démarre pas un serveur.

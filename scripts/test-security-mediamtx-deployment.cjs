@@ -13,10 +13,14 @@ test("MediaMTX est versionné et servi uniquement sur transports TLS/WebRTC pré
   assert.ok(compose.includes("8322:8322/tcp"));
   assert.ok(compose.includes("8889:8889/tcp"));
   assert.ok(compose.includes("8189:8189/udp"));
+  assert.ok(compose.includes("8189:8189/tcp"));
   assert.ok(config.includes("rtspEncryption: strict"));
   assert.ok(config.includes("rtspsAddress: :8322"));
   assert.ok(config.includes("webrtcEncryption: true"));
   assert.ok(config.includes("webrtcAddress: :8889"));
+  assert.ok(config.includes("webrtcLocalUDPAddress: :8189"));
+  assert.ok(config.includes("webrtcLocalTCPAddress: :8189"));
+  assert.ok(readme.includes("TCP 8189 : transport média WebRTC de secours"));
 });
 
 test("MediaMTX délègue toute autorisation à NAXA et ferme l'administration", () => {

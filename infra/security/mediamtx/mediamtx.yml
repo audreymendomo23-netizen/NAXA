@@ -32,7 +32,7 @@ webrtcServerCert: /run/secrets/mediamtx_tls_cert
 webrtcAllowOrigins:
   - https://app.example.com
 webrtcLocalUDPAddress: :8189
-webrtcLocalTCPAddress: ""
+webrtcLocalTCPAddress: :8189
 webrtcIPsFromInterfaces: false
 webrtcAdditionalHosts:
   - video.example.com

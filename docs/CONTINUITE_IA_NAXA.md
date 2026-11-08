@@ -582,27 +582,27 @@ Commencer le lot 12 par un audit ciblé du chemin MediaMTX/publisher, du contrat
 
 ### État vérifié avant correction
 
-- HEAD de départ : \`33af6e672943925241e2b58c86327feaa8763457\`, branche \`qa/e2e-stabilisation-20261106\`.
+- HEAD de départ : `33af6e672943925241e2b58c86327feaa8763457`, branche `qa/e2e-stabilisation-20261106`.
 - CI #1312 : completed / success sur ce SHA exact : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42535966828.
-- Configuration MediaMTX présente : image \`bluenviron/mediamtx:1.21.3\`, RTSPS strict 8322/TCP, WHEP/HTTPS 8889/TCP, WebRTC UDP 8189, authentification HTTP NAXA, API/métriques/PPROF/playback désactivés, conteneur en lecture seule et publisher non remplaçable.
-- La route d'authentification accepte \`publish/rtsp\` via ticket publisher court et \`read/webrtc\` via ticket live. Les tickets sont liés au gateway, à la caméra, à la pharmacie et au chemin.
+- Configuration MediaMTX présente : image `bluenviron/mediamtx:1.21.3`, RTSPS strict 8322/TCP, WHEP/HTTPS 8889/TCP, WebRTC UDP 8189, authentification HTTP NAXA, API/métriques/PPROF/playback désactivés, conteneur en lecture seule et publisher non remplaçable.
+- La route d'authentification accepte `publish/rtsp` via ticket publisher court et `read/webrtc` via ticket live. Les tickets sont liés au gateway, à la caméra, à la pharmacie et au chemin.
 - Contradiction prouvée : le README MediaMTX affirmait encore que toute publication RTSPS était refusée jusqu'à la phase 9, alors que le code phase 9 l'autorise déjà avec ticket. README corrigé.
 - Défaut logiciel identifié : si l'arrêt du service survenait pendant la demande du ticket publisher, un AbortSignal déjà annulé pouvait ne pas empêcher le spawn FFmpeg. Un garde avant spawn et un test de régression sont ajoutés.
-- Lacune WebRTC : MediaMTX ouvre actuellement UDP 8189 mais ne configure ni listener TCP ni \`webrtcICEServers2\` STUN/TURN. L'accès depuis tous les réseaux mobiles/NAT n'est donc pas démontré ; aucun TURN n'a été inventé.
+- Lacune WebRTC : MediaMTX ouvre actuellement UDP 8189 mais ne configure ni listener TCP ni `webrtcICEServers2` STUN/TURN. L'accès depuis tous les réseaux mobiles/NAT n'est donc pas démontré ; aucun TURN n'a été inventé.
 - Le paquet MediaMTX ne déploie pas un serveur. Aucun hôte, domaine DNS, certificat, firewall, variable Preview, serveur TURN ou endpoint média accessible n'est prouvé configuré.
 - Aucun matériel caméra/NVR, passerelle locale, FFmpeg sur site ou réseau pilote n'est accessible dans cette vérification.
 
 ### Correctifs appliqués dans le lot 12
 
-- \`services/security-gateway/agent.cjs\` : ne démarre pas FFmpeg si le signal d'arrêt est déjà annulé ; fonction exportée pour test direct.
-- \`scripts/test-security-gateway-agent.cjs\` : test de régression « arrêt demandé avant spawn ».
-- \`infra/security/mediamtx/README.md\` : contrat phase 9 exact, variables d'environnement attendues, ports/certificats et limites TURN explicités.
-- \`scripts/test-security-mediamtx-deployment.cjs\` : assertions sur publication autorisée par ticket et absence actuelle de TURN.
+- `services/security-gateway/agent.cjs` : ne démarre pas FFmpeg si le signal d'arrêt est déjà annulé ; fonction exportée pour test direct.
+- `scripts/test-security-gateway-agent.cjs` : test de régression « arrêt demandé avant spawn ».
+- `infra/security/mediamtx/README.md` : contrat phase 9 exact, variables d'environnement attendues, ports/certificats et limites TURN explicités.
+- `scripts/test-security-mediamtx-deployment.cjs` : assertions sur publication autorisée par ticket et absence actuelle de TURN.
 - Aucun domaine, certificat, secret, compte Google, variable runtime ou endpoint fictif ajouté.
 
 ### Statut du lot 12
 
-**PARTIEL — NON VERT MATÉRIEL.** Le correctif logiciel et documentaire doit encore passer la CI sur son SHA. La clôture matérielle demande :
+**PARTIEL — NON VERT MATÉRIEL.** Le correctif logiciel et documentaire a passé la CI #1313 sur son SHA exact (completed / success). La clôture matérielle demande :
 1. serveur MediaMTX réellement installé sur un hôte dédié ;
 2. DNS, TLS, firewall et variables Preview contrôlés ;
 3. caméra réelle → passerelle → RTSPS → MediaMTX → WHEP vérifiés ;
@@ -611,4 +611,22 @@ Commencer le lot 12 par un audit ciblé du chemin MediaMTX/publisher, du contrat
 
 ### Prochaine action
 
-Vérifier la CI du correctif, puis poursuivre la recette réseau et matérielle dès qu'un hôte et un kit caméra/passerelle sont disponibles. Aucun déploiement Vercel/Production ni écriture Supabase Production.
+CI #1313 vérifiée : PASS sur 17a7d80e7e330e75c9daad51480850f7cebd9729. Le listener WebRTC TCP de secours est ajouté dans le correctif suivant ; la recette réseau et matérielle reste conditionnée à un hôte et un kit caméra/passerelle. Aucun déploiement Vercel/Production ni écriture Supabase Production.
+
+---
+
+## Addendum lot 12 — repli WebRTC TCP (09/11/2026)
+
+### Preuves et correction
+
+- CI #1313 : completed / success sur le commit 17a7d80e7e330e75c9daad51480850f7cebd9729 : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42536457278.
+- La référence MediaMTX v1.21.3 confirme que webrtcLocalTCPAddress active un listener ICE TCP lorsque le chemin UDP est bloqué. Documentation : https://mediamtx.org/docs/features/webrtc-specific-features.
+- infra/security/mediamtx/mediamtx.yml : listener webrtcLocalTCPAddress: :8189 ajouté, UDP conservé comme transport prioritaire.
+- infra/security/mediamtx/docker-compose.yml : publication du port 8189/tcp ajoutée en plus de 8189/udp.
+- infra/security/mediamtx/README.md : prérequis firewall/NAT, ordre des transports, limites et besoin éventuel de STUN/TURN documentés.
+- scripts/test-security-mediamtx-deployment.cjs : assertions sur les deux transports et la documentation ajoutées.
+- Les 20 séquences de backtick littérales échappées dans la section précédente de ce document ont été corrigées.
+
+### État restant
+
+**PARTIEL — NON VERT MATÉRIEL.** La correction de configuration doit encore passer la CI sur son SHA. STUN/TURN n’est pas configuré ; l’accessibilité depuis tous les NAT/FAI n’est pas prouvée. Aucun serveur MediaMTX, domaine/DNS/TLS, pare-feu externe, passerelle ou caméra physique n’a été mis en service ou testé dans ce lot. Ne pas démarrer l’enregistrement local ni déclarer le flux live opérationnel avant la recette physique.
