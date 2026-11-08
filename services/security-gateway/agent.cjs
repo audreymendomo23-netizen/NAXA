@@ -309,7 +309,7 @@ function validateLocalRtspSource(value) {
   } else if (ipVersion === 6) {
     local = host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:");
   } else {
-    local = host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home.arpa") || /^[a-z0-9-]{1,63}$/.test(host);
+    local = host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home.arpa");
   }
   if (!local || !host || host === "localhost") throw new Error("La caméra doit être sur une IP privée ou un DNS local.");
   return url;
@@ -469,6 +469,9 @@ async function runCameraPublisher(config, camera, signal) {
       if (result.spawnError === "FFMPEG_MISSING") {
         console.error("NAXA Security : FFmpeg absent sur la passerelle ; installation requise.");
         backoffMs = 300000;
+      } else if (result.frameCount > 0 && online) {
+        // Reconnexion rapide après expiration normale du ticket d'une caméra qui a diffusé.
+        backoffMs = 5000;
       } else backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
     } catch (error) {
       console.error("NAXA Security : publication caméra indisponible (" +

@@ -90,6 +90,7 @@ test("URI caméra : RTSP/RTSPS local uniquement, rejet des IP publiques", () => 
   assert.equal(validateLocalRtspSource("rtsp://operator:secret@192.168.1.20:554/Streaming/Channels/101").protocol, "rtsp:");
   assert.equal(validateLocalRtspSource("rtsps://camera.local:322/stream").hostname, "camera.local");
   assert.throws(() => validateLocalRtspSource("rtsp://camera.example.com/live"), /locale/);
+  assert.throws(() => validateLocalRtspSource("rtsp://camera/live"), /locale/);
   assert.throws(() => validateLocalRtspSource("http://192.168.1.20/video"), /RTSP/);
   assert.throws(() => validateLocalRtspSource("rtsp://operator:secret@8.8.8.8/live"), /locale/);
 });
