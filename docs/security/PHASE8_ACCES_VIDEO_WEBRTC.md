@@ -15,7 +15,7 @@ Cette phase ajoute le plan de contrôle NAXA pour une lecture WHEP/WebRTC via Me
 - nouvel examen de l'installation, de la pharmacie, du compte, de la passerelle et de la capacité live_view lors du handshake ;
 - lecteur navigateur WHEP avec fermeture de ressource et renouvellement avant expiration.
 
-Le navigateur ne reçoit ni endpoint caméra, ni URI RTSP, ni identifiant de caméra. Le lecteur ne reçoit qu'un ticket média temporaire du serveur NAXA.
+Le navigateur ne reçoit ni endpoint caméra, ni URI RTSP, ni identifiant de caméra. Le lecteur ne reçoit qu'un ticket média temporaire du serveur NAXA. À la fermeture, il supprime la ressource WHEP puis demande la révocation du ticket ; même si cette requête échoue, l'expiration MediaMTX reste la limite de durée.
 
 ## Variables Preview nécessaires
 
@@ -39,7 +39,7 @@ Activer le contrôle d'accès HTTP externe et le lecteur WebRTC :
     webrtcAllowOrigins:
       - https://<domaine-naxa>
 
-Le reverse proxy doit exposer le port WebRTC HTTPS, autoriser les méthodes POST et DELETE WHEP, les en-têtes Authorization et Content-Type, et CORS uniquement depuis le domaine NAXA. Ne jamais activer l'API de contrôle MediaMTX publiquement.
+Le reverse proxy doit exposer le port WebRTC HTTPS, autoriser les méthodes POST, DELETE et OPTIONS WHEP, les en-têtes Authorization et Content-Type, exposer l'en-tête Location au navigateur, et appliquer CORS uniquement depuis le domaine NAXA. Ne jamais activer l'API de contrôle MediaMTX publiquement.
 
 Le chemin logique de chaque caméra est :
 

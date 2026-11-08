@@ -59,7 +59,8 @@ export async function POST(request: Request) {
 
     const [{ data: camera, error: cameraError }, { data: gateway, error: gatewayError },
       { data: installation, error: installationError }, { data: pharmacy, error: pharmacyError },
-      { data: profile, error: profileError }, { data: connection, error: connectionError }] = await Promise.all([
+      { data: profile, error: profileError }, { data: connection, error: connectionError },
+      { data: assignment, error: assignmentError }] = await Promise.all([
       db.from("naxa_security_cameras").select("id,status")
         .eq("id", session.camera_id).eq("pharmacie_id", session.pharmacie_id).maybeSingle(),
       db.from("naxa_security_gateways").select("id,tunnel_status,last_seen_at")
@@ -73,9 +74,13 @@ export async function POST(request: Request) {
         .select("connection_status,last_tested_at,discovered_capabilities,is_primary")
         .eq("camera_id", session.camera_id).eq("pharmacie_id", session.pharmacie_id)
         .eq("is_primary", true).maybeSingle(),
+      db.from("promoteur_pharmacies").select("pharmacie_id")
+        .eq("promoteur_id", session.user_id).eq("pharmacie_id", session.pharmacie_id)
+        .eq("actif", true).maybeSingle(),
     ]);
 
-    if (cameraError || gatewayError || installationError || pharmacyError || profileError || connectionError) {
+    if (cameraError || gatewayError || installationError || pharmacyError ||
+      profileError || connectionError || assignmentError) {
       return deny(503);
     }
 
@@ -91,6 +96,7 @@ export async function POST(request: Request) {
       installation.privacy_notice_status === "approved" &&
       pharmacy?.actif === true && pharmacy.visible_recherche === true && pharmacy.archivee_le === null &&
       profile?.role === "promoteur" && profile.actif === true &&
+      assignment?.pharmacie_id === session.pharmacie_id &&
       connection?.connection_status === "connected" && connection.is_primary === true &&
       capabilities.includes("live_view") &&
       isFresh(connection.last_tested_at, CONNECTION_FRESHNESS_MS, nowMs);

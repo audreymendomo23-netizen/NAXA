@@ -67,6 +67,17 @@ export function SecurityWhepPlayer({
           // L'expiration MediaMTX reste la protection de secours.
         }
       }
+      if (authorization) {
+        try {
+          await fetch("/api/security/cameras/live-session/revoke", {
+            method: "POST",
+            headers: { Authorization: authorization },
+            cache: "no-store",
+          });
+        } catch {
+          // Le ticket expire côté serveur même si la révocation réseau échoue.
+        }
+      }
       resourceUrl = null;
       authorization = null;
       if (peer) {
@@ -133,7 +144,14 @@ export function SecurityWhepPlayer({
         const answer = await whepResponse.text();
         if (!answer.trim()) throw new Error("Réponse WebRTC vide.");
         const location = whepResponse.headers.get("Location");
-        if (location) resourceUrl = new URL(location, session.whepUrl).toString();
+        if (location) {
+          const resolvedResource = new URL(location, session.whepUrl);
+          if (resolvedResource.protocol !== "https:" ||
+            resolvedResource.origin !== new URL(session.whepUrl).origin) {
+            throw new Error("Le relais a retourné une ressource de lecture hors origine.");
+          }
+          resourceUrl = resolvedResource.toString();
+        }
         await nextPeer.setRemoteDescription({ type: "answer", sdp: answer });
 
         const refreshSeconds = Math.min(780, Math.max(60, Number(session.refreshAfterSeconds) || 780));
