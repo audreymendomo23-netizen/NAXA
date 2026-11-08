@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const { discoverOnvifCameras } = require("./onvif-discovery.cjs");
+const { inspectOnvifDevice } = require("./onvif-inspection.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
@@ -256,16 +257,45 @@ async function discover(args) {
   }, null, 2));
 }
 
+
+async function inspect(args) {
+  const flags = parseFlags(args);
+  if (!flags["confirm-local-network"]) {
+    throw new Error("Diagnostic désactivé par défaut. Confirmez explicitement le réseau local avec --confirm-local-network.");
+  }
+  if (flags.submit) {
+    throw new Error("Le diagnostic ONVIF ne transmet aucune donnée. Retirez --submit.");
+  }
+  const endpoint = String(flags.endpoint || "");
+  const sourceAddress = String(flags["source-address"] || "");
+  if (!endpoint || !sourceAddress) {
+    throw new Error("Indiquez --endpoint et --source-address (adresse IPv4 privée de la caméra).");
+  }
+  const timeoutMs = Number(flags["timeout-ms"] || 4000);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 10000) {
+    throw new Error("Le délai du diagnostic doit être compris entre 1000 et 10000 ms.");
+  }
+  const result = await inspectOnvifDevice({ endpoint, sourceAddress, timeoutMs });
+  console.log(JSON.stringify({
+    protocol: "ONVIF Device Service",
+    credentialsSent: false,
+    streamOpened: false,
+    dataTransmitted: false,
+    result,
+  }, null, 2));
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "enroll") return enroll(args);
   if (command === "discover") return discover(args);
+  if (command === "inspect") return inspect(args);
   if (command === "heartbeat") {
     const flags = parseFlags(args);
     return heartbeat(readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR)));
   }
   if (command === "run") return run(args);
-  throw new Error("Commande attendue : enroll | heartbeat | discover | run");
+  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | run");
 }
 
 if (require.main === module) {
