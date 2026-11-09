@@ -3,6 +3,7 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { PHARMACIE_SCHEMA as S } from "@/lib/pharmacie-schema";
 import { clearPharmacyCookie, readPharmacyCookie } from "@/lib/pharmacie-code-session";
 import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
+import { checkPwnedPassword } from "@/lib/auth/pwned-passwords";
 
 export async function POST(request: NextRequest) {
   const pharmacyId = readPharmacyCookie(request);
@@ -37,6 +38,22 @@ export async function POST(request: NextRequest) {
     if (userError || !email || authError) {
       return NextResponse.json({ error: "Mot de passe actuel incorrect." }, { status: 401 });
     }
+    let passwordCheck: { compromised: boolean; prevalence: number };
+    try {
+      passwordCheck = await checkPwnedPassword(newPassword);
+    } catch {
+      return NextResponse.json({
+        error: "La vérification de sécurité du mot de passe est indisponible. Réessayez.",
+        code: "PASSWORD_CHECK_UNAVAILABLE",
+      }, { status: 503 });
+    }
+    if (passwordCheck.compromised) {
+      return NextResponse.json({
+        error: "Ce mot de passe apparaît dans des fuites connues. Choisissez-en un autre.",
+        code: "PASSWORD_COMPROMISED",
+      }, { status: 409 });
+    }
+
     const { error: updateError } = await supabaseAdmin().auth.admin.updateUserById(userId, { password: newPassword });
     if (updateError) return NextResponse.json({ error: "Mise à jour du mot de passe impossible." }, { status: 500 });
     await rateLimit("ip_password", ip, "success", 5, 600, 30, 900);

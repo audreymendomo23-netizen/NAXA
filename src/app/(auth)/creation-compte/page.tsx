@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
 
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { CodeOtp } from "@/components/CodeOtp";
@@ -120,14 +119,14 @@ function Formulaire(){
   setError("");
   const sb=supabaseBrowser();
   try{
-    const passwordSecurity = await verifierSecuriteMotDePasse(password);
-    if (!passwordSecurity.ok) {
-      setError(passwordSecurity.message);
-      return;
-    }
-    const {error:passwordError}=await sb.auth.updateUser({password});
-    if(passwordError){
-      setError("Impossible d’enregistrer le mot de passe. Vérifiez votre connexion puis réessayez.");
+    const passwordResponse = await fetch("/api/auth/update-user-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const passwordResult = await passwordResponse.json().catch(() => null) as { error?: string } | null;
+    if (!passwordResponse.ok) {
+      setError(passwordResult?.error || "Impossible d’enregistrer le mot de passe. Réessayez.");
       return;
     }
     const {data:sessionData,error:sessionError}=await sb.auth.getSession();

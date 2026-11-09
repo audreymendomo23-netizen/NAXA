@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
 import { ChampFlottant } from "@/components/ChampFlottant";
 
 function forceValidPassword(value: string) {
@@ -31,10 +30,15 @@ export default function NouveauMotDePasse() {
     if (!forceValidPassword(password)) return setMessage("Le mot de passe doit contenir au moins 6 caractères, une majuscule, un chiffre et un caractère spécial.");
     if (password !== confirmation) return setMessage("Les deux mots de passe ne correspondent pas.");
     setMessage("");
-    const passwordSecurity = await verifierSecuriteMotDePasse(password);
-    if (!passwordSecurity.ok) return setMessage(passwordSecurity.message);
-    const { error } = await supabaseBrowser().auth.updateUser({ password });
-    if (error) return setMessage("Impossible de modifier le mot de passe. Le lien est peut-être expiré.");
+    const response = await fetch("/api/auth/update-user-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const result = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) {
+      return setMessage(result?.error || "Impossible de modifier le mot de passe. Le lien est peut-être expiré.");
+    }
     router.push("/connexion");
   }
 
