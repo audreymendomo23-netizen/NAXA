@@ -211,8 +211,10 @@ function startFfmpegRecorder({ sourceUrl, outputPattern, segmentSeconds, signal,
       finished = true;
       signal.removeEventListener("abort", onAbort);
       if (killTimer) clearTimeout(killTimer);
-      if (manifest) manifest.cleanup();
-      resolve(result);
+      let cleanupError = null;
+      try { if (manifest) manifest.cleanup(); }
+      catch { cleanupError = "MANIFEST_CLEANUP_FAILED"; }
+      resolve(cleanupError ? { ...result, cleanupError } : result);
     };
     const onAbort = () => {
       if (child && child.exitCode === null && child.signalCode === null) {
