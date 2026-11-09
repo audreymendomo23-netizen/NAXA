@@ -42,6 +42,45 @@ function writePrivateFile(filePath, content) {
   }
 }
 
+function createPrivateRtspManifest(sourceUrl) {
+  const validated = validateLocalRtspSource(sourceUrl);
+  const temporaryDirectory = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "naxa-rtsp-input-"));
+  ensurePrivateDirectory(temporaryDirectory);
+  const manifestPath = path.join(temporaryDirectory, "source.ffconcat");
+  const manifestUrl = validated.toString().replace(/'/g, "%27").replace(/\\/g, "%5C");
+  try {
+    writePrivateFile(
+      manifestPath,
+      "ffconcat version 1.0\nfile '" + manifestUrl + "'\noption rtsp_transport tcp\n",
+    );
+  } catch (error) {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    path: manifestPath,
+    cleanup() {
+      fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    },
+  };
+}
+
+function buildFfmpegInputArgs(manifestPath) {
+  if (typeof manifestPath !== "string" || !path.isAbsolute(manifestPath) ||
+    !manifestPath.endsWith(".ffconcat") || manifestPath.includes("..")) {
+    throw new Error("Manifeste temporaire RTSP invalide.");
+  }
+  const stat = fs.lstatSync(manifestPath);
+  if (!stat.isFile() || stat.isSymbolicLink() ||
+    (process.platform !== "win32" && (stat.mode & 0o077) !== 0)) {
+    throw new Error("Manifeste RTSP temporaire non sûr.");
+  }
+  return [
+    "-protocol_whitelist", "file,concat,rtsp,rtsps,tcp,udp,tls,crypto",
+    "-f", "concat", "-safe", "0", "-i", manifestPath,
+  ];
+}
+
 function validateLocalRtspSource(value) {
   if (typeof value !== "string" || value.length < 12 || value.length > 2048 || /[\u0000-\u001f\u007f]/.test(value)) {
     throw new Error("URI caméra invalide.");
@@ -139,8 +178,8 @@ function buildRecordingOutputPattern(recordingRoot, cameraId) {
   return path.join(cameraDirectory, cameraId + "_%Y%m%dT%H%M%S.mp4");
 }
 
-function buildRecordingFfmpegArgs(sourceUrl, outputPattern, segmentSeconds) {
-  validateLocalRtspSource(sourceUrl);
+function buildRecordingFfmpegArgs(manifestPath, outputPattern, segmentSeconds) {
+  const inputArgs = buildFfmpegInputArgs(manifestPath);
   if (typeof outputPattern !== "string" || !outputPattern.endsWith("_%Y%m%dT%H%M%S.mp4") ||
     outputPattern.includes("..") || !path.isAbsolute(outputPattern)) {
     throw new Error("Motif local de segments invalide.");
@@ -151,7 +190,7 @@ function buildRecordingFfmpegArgs(sourceUrl, outputPattern, segmentSeconds) {
   }
   return [
     "-hide_banner", "-nostdin", "-loglevel", "error",
-    "-rtsp_transport", "tcp", "-i", sourceUrl,
+    ...inputArgs,
     "-map", "0:v:0", "-an", "-c:v", "copy",
     "-f", "segment", "-segment_time", String(segmentSeconds),
     "-segment_atclocktime", "1", "-reset_timestamps", "1",
@@ -171,6 +210,7 @@ function startFfmpegRecorder({ sourceUrl, outputPattern, segmentSeconds, signal,
       finished = true;
       signal.removeEventListener("abort", onAbort);
       if (killTimer) clearTimeout(killTimer);
+      if (manifest) manifest.cleanup();
       resolve(result);
     };
     const onAbort = () => {
@@ -190,8 +230,11 @@ function startFfmpegRecorder({ sourceUrl, outputPattern, segmentSeconds, signal,
     }
     signal.addEventListener("abort", onAbort, { once: true });
     let args;
+    let manifest;
     try {
-      args = buildRecordingFfmpegArgs(sourceUrl, outputPattern, segmentSeconds);
+      if (signal.aborted) { finish({ exitSignal: "aborted", code: null }); return; }
+      manifest = createPrivateRtspManifest(sourceUrl);
+      args = buildRecordingFfmpegArgs(manifest.path, outputPattern, segmentSeconds);
       child = spawnImpl(process.env.NAXA_FFMPEG_BIN || "ffmpeg", args, {
         shell: false,
         windowsHide: true,
@@ -307,6 +350,8 @@ module.exports = {
   readRecordingPolicy,
   writeRecordingPolicy,
   buildRecordingOutputPattern,
+  createPrivateRtspManifest,
+  buildFfmpegInputArgs,
   buildRecordingFfmpegArgs,
   startFfmpegRecorder,
   pruneRecordingFiles,
