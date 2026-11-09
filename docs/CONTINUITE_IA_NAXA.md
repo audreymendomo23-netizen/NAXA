@@ -994,3 +994,12 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 
 - Ces changements sont appliqués sur Replay et versionnés sur QA uniquement. `main`, Production et Vercel ne sont pas modifiés.
 - Replay ne dispose pas encore de comptes Auth actifs pour chaque rôle Client, Pharmacien, Promoteur, Responsable et Partenaire. Les validations transactionnelles et fonctions gardées ne remplacent pas une recette complète avec ces identités réelles.
+
+
+## Addendum 2026-11-09 — privilèges de télémétrie publique
+
+- La RPC `public.log_recherche(text[])` avait un grant `EXECUTE` à `PUBLIC`. La migration Replay `20261109121757_revoke_public_execute_log_recherche` retire uniquement ce grant global et accorde explicitement `EXECUTE` à `anon`, `authenticated` et `service_role`.
+- Test SQL `supabase/tests/319_log_recherche_public_execute_acl.sql` exécuté avec succès : `anon`, `authenticated`, `service_role` peuvent toujours appeler la RPC ; `authenticator` n'a plus d'accès direct ; la fonction reste `SECURITY DEFINER`.
+- Cette correction ne supprime pas l'alerte Advisor de la RPC anonyme : son exposition à `anon` reste voulue pour la télémétrie de recherche. Les limites de 10 termes par appel et de 3 à 80 caractères sont conservées. La migration ne change pas le corps de la fonction.
+- CI #1423 sur le commit `7e8e0ed83ade9436b5b021c99e47fe773f0040fc` : succès, 296 tests réussis, 0 vulnérabilité npm, TypeScript/build réussis, 129/129 pages.
+- Replay et QA seulement ; aucune modification Production, `main` ou Vercel.
