@@ -11,7 +11,7 @@ test("lot 14 : ingestion NTP signée et installation pilote contrôlée",()=>{
  assert.ok(agent.includes("/api/security/gateway/time-integrity"));assert.ok(agent.includes("NAXA_NTP_SERVER"));
 });
 test("lot 14 : historique privé, RPC invoker, grants et audit",()=>{
- assert.ok(migration.includes("FORCE ROW LEVEL SECURITY"));assert.match(migration,/security invoker/i);
+ assert.ok(/force row level security/i.test(migration));assert.match(migration,/security invoker/i);
  assert.match(migration,/set search_path=''/i);assert.match(migration,/revoke all on function[\s\S]*from public,anon,authenticated/i);
  assert.match(migration,/grant execute on function[\s\S]*to service_role/i);assert.ok(migration.includes("naxa_security_access_audit"));
 });
