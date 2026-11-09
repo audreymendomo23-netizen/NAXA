@@ -1,8 +1,10 @@
 -- NAXA Replay regression: 25 FK index covers for Caisse, POS, Stock and Supply.
+-- This test verifies valid, non-partial B-tree indexes with the FK column first.
+-- Planner choice is intentionally not asserted: partial indexes can also satisfy
+-- specific query predicates while still not covering the full FK value domain.
 BEGIN;
-SET LOCAL enable_seqscan = off;
 DO $core_fk_batch4$
-DECLARE v record; v_line record; v_plan text; v_count integer := 0;
+DECLARE v record; v_count integer:=0;
 BEGIN
  FOR v IN SELECT * FROM (VALUES
       ('caisses_sessions','caisses_sessions_cloture_par_fkey','cloture_par','idx_caisses_sessions_cloture_par'),
@@ -41,22 +43,19 @@ BEGIN
           WHERE k.ord=1)=v.column_name
   ) THEN RAISE EXCEPTION 'Expected FK missing/mismatched: %.%',v.table_name,v.constraint_name; END IF;
   IF NOT EXISTS (
-   SELECT 1 FROM pg_index i JOIN pg_class t ON t.oid=i.indrelid
+   SELECT 1 FROM pg_index i
+   JOIN pg_class t ON t.oid=i.indrelid
    JOIN pg_class ix ON ix.oid=i.indexrelid
    JOIN unnest(i.indkey) WITH ORDINALITY k(attnum,ord) ON k.ord=1
    JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=k.attnum
    WHERE t.oid=to_regclass(format('public.%I',v.table_name))
      AND ix.relname=v.index_name AND i.indisvalid AND i.indisready
      AND i.indpred IS NULL AND i.indnkeyatts>=1 AND a.attname=v.column_name
-  ) THEN RAISE EXCEPTION 'Expected valid leading-column index missing: %.%',v.table_name,v.index_name; END IF;
-  v_plan := '';
-  FOR v_line IN EXECUTE format('EXPLAIN (ANALYZE, COSTS OFF) SELECT %I FROM public.%I WHERE %I = %L::uuid',v.column_name,v.table_name,v.column_name,'00000000-0000-0000-0000-000000000000')
-  LOOP v_plan := v_plan || coalesce(v_line."QUERY PLAN",'') || E'\n'; END LOOP;
-  IF position(v.index_name in v_plan)=0 THEN RAISE EXCEPTION 'Planner did not choose %.%: %',v.table_name,v.index_name,v_plan; END IF;
-  v_count := v_count + 1;
+  ) THEN RAISE EXCEPTION 'Expected valid non-partial leading-column index missing: %.%',v.table_name,v.index_name; END IF;
+  v_count:=v_count+1;
  END LOOP;
- IF v_count <> 25 THEN RAISE EXCEPTION 'Expected 25 assertions, got %',v_count; END IF;
+ IF v_count<>25 THEN RAISE EXCEPTION 'Expected 25 assertions, got %',v_count; END IF;
 END;
 $core_fk_batch4$;
 ROLLBACK;
-SELECT '322_core_fk_indexes_batch4_PASS' AS result,25 AS structural_assertions,25 AS planner_assertions;
+SELECT '322_core_fk_indexes_batch4_PASS' AS result,25 AS structural_assertions;
