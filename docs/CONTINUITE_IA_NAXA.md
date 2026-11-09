@@ -675,3 +675,36 @@ CI #1313 vérifiée : PASS sur 17a7d80e7e330e75c9daad51480850f7cebd9729. Le list
 ### Reprise exacte
 
 La correction logicielle/configuration MediaMTX est clôturable au vert CI. La suite est la recette d'infrastructure et du kit caméra/passerelle réel ; garder le lot 12 matériel PARTIEL jusqu'à preuve vidéo et réseau de bout en bout.
+
+---
+
+## Recette E2E — Lot 12, tests logiciels et Replay (09/11/2026)
+
+### Environnement et référence exacte
+
+- Branche : qa/e2e-stabilisation-20261106.
+- HEAD avant ce rapport : b662aa570a7d66260ae505bba0b6efb35ca3a8d4.
+- CI #1317 : completed/success sur ce SHA exact ; scans secrets, audit dépendances, validation MediaMTX officielle, tests, TypeScript, ESLint et build terminés avec succès : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42541608473.
+- Base de recette : Supabase Replay `pwfftcsjyeibxxqhwysw`, projet `naxa-ci-replay-2`, ACTIVE_HEALTHY. Aucun accès en écriture ni déploiement Production.
+- Historique Replay : migrations de sécurité jusqu'à 309 présentes (fondation 301, connectivité 302, enrôlement 303, découverte/revue 304–306, session live 307, publisher 308, événements 309).
+
+### Scénarios exécutés et résultats
+
+- CI : 242 tests automatisés PASS / 0 FAIL. Les logs montrent notamment les tests Ed25519/heartbeat, arrêt FFmpeg après abort, découverte ONVIF, ingestion d'événements signée, tickets publisher, autorisation MediaMTX publish/read, session live, lecteur WHEP et révocation ; ces tests vérifient le logiciel/contrat et utilisent des fixtures ou assertions, pas une caméra physique.
+- MediaMTX : Docker télécharge `bluenviron/mediamtx:1.21.3`, exécute `--validate-conf=/tmp/mediamtx.yml` et retourne exactement `configuration file is valid`. Aucun serveur relay n'est laissé en marche et aucun port public n'est ouvert par ce contrôle.
+- Replay — schéma : 14 tables `naxa_security_*` inspectées, RLS et FORCE RLS activés sur toutes ; aucun privilège direct SELECT/INSERT/UPDATE/DELETE pour anon/authenticated sur les tables sensibles.
+- Replay — fonctions : les 6 RPC attendues existent ; émission session live, émission ticket publisher, rapport de santé, ingestion événement et revue événement sont SECURITY INVOKER avec search_path vide ; revue atomique des candidats ONVIF SECURITY DEFINER avec search_path vide, verrouillage `FOR UPDATE`, audit et sans déclarer une connexion `connected`.
+- Replay — privilèges : émission session/ticket, ingestion/revue événements et revue atomique des candidats réservées à service_role ; index d'unicité des tickets, de session et de déduplication événements présents ; trigger audit append-only présent ; contraintes revue humaine et confirmation sirène présentes.
+- Replay — données pilote : 0 installation, 0 passerelle, 0 caméra, 0 connexion caméra, 0 événement, 0 clip, 0 commande sirène, 0 session live et 0 ticket publisher. Le catalogue contient 15 adaptateurs, tous `design_only` (0 validé).
+
+### Verdict de recette
+
+**PASS — CI, contrats logiciel, validation de configuration MediaMTX et contrôles SQL/RLS sur Replay.**
+
+**NON EXÉCUTABLE / BLOQUÉ — E2E vidéo réel.** Aucun site/installation pilote ni aucune caméra/passerelle ne sont enregistrés dans Replay. Aucun MediaMTX public avec DNS/TLS/firewall vérifiés, aucune variable runtime effective, aucun agent Linux de pharmacie et aucun flux RTSPS réel ne sont disponibles. La base Replay ne peut donc pas délivrer un ticket publish/live valide : installation `pilot_active`, revue légale et avis confidentialité approuvés, passerelle fraîche et connexion `live_view` testée manquent. Il n'existe pas de cible réelle pour tester WHEP, frames, renouvellement/révocation, coupure/reconnexion ou isolation Promoteur A/B.
+
+### Conclusion
+
+La recette E2E logicielle et SQL disponible est exécutée et PASS. La recette E2E du lot 12 selon son critère de sortie (caméra physique d'une pharmacie pilote, flux autorisé et révocable) reste PARTIELLE et non exécutée faute d'environnement/périphériques ; ne pas la noter PASS et ne pas démarrer le lot 13 avant cette preuve.
+
+Aucune donnée de test n'a été insérée dans Replay ; aucune migration n'a été appliquée pendant cette recette ; aucun secret, endpoint fictif, accès Vercel ou déploiement Production utilisé.
