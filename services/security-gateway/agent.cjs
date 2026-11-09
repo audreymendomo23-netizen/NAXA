@@ -195,7 +195,8 @@ async function fetchHighSurveillancePolicy(config){
  if(digest!==result.policySha256)throw new Error("SURVEILLANCE_POLICY_HASH_MISMATCH");
  return result.policy;
 }
-\nasync function heartbeat(config) {
+
+async function heartbeat(config) {
   const requestStartedAt = Date.now();
   const requestData = makeSignedHeartbeat({
     gatewayId: config.gatewayId,
