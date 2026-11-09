@@ -48,7 +48,11 @@ test("agent local : aucune dépendance tierce, clé privée hors serveur et aucu
   assert.match(agent, /mode: 0o600/);
   assert.match(agent, /https:/);
   assert.match(agent, /api\/security\/gateway\/heartbeat/);
-  assert.doesNotMatch(agent, /createServer\(|listen\(/);
+  assert.match(agent, /createRtspPublishProxy/);
+  assert.doesNotMatch(agent, /http\.createServer\(|https\.createServer\(/);
+  const proxy = read("services/security-gateway/rtsp-publish-proxy.cjs");
+  assert.match(proxy, /server\.listen\(0, "127\.0\.0\.1"/);
+  assert.doesNotMatch(proxy, /server\.listen\([^\n]+["']0\.0\.0\.0["']/);
 });
 
 test("interface Promoteur : code à usage unique, pas de journalisation navigateur", () => {
