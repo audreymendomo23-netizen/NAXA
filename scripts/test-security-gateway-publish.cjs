@@ -52,7 +52,7 @@ test("MediaMTX : publish limité à RTSP et lecture WebRTC conservée", () => {
 test("agent : URI caméra chiffrée, FFmpeg sans shell et statut signé", () => {
   for (const item of [
     "aes-256-gcm", "camera-streams.enc", "validateLocalRtspSource",
-    "spawn(process.env.NAXA_FFMPEG_BIN || \"ffmpeg\", args", "/api/security/gateway/stream-publish-token",
+    "spawnImpl(process.env.NAXA_FFMPEG_BIN || \"ffmpeg\", args", "/api/security/gateway/stream-publish-token",
     "/api/security/gateway/stream-health", "shell: false", 'redirect: "error"',
   ]) assert.ok(agent.includes(item), item);
   assert.ok(agent.includes("createPrivateRtspManifest"));
