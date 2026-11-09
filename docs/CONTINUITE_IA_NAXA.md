@@ -629,4 +629,13 @@ CI #1313 vérifiée : PASS sur 17a7d80e7e330e75c9daad51480850f7cebd9729. Le list
 
 ### État restant
 
-**PARTIEL — NON VERT MATÉRIEL.** La correction de configuration doit encore passer la CI sur son SHA. STUN/TURN n’est pas configuré ; l’accessibilité depuis tous les NAT/FAI n’est pas prouvée. Aucun serveur MediaMTX, domaine/DNS/TLS, pare-feu externe, passerelle ou caméra physique n’a été mis en service ou testé dans ce lot. Ne pas démarrer l’enregistrement local ni déclarer le flux live opérationnel avant la recette physique.
+**PARTIEL — NON VERT MATÉRIEL.** CI #1314 a échoué sur une seule assertion documentaire restée sur l'ancien libellé TURN ; 241/242 tests passent. Le correctif remplace cette attente par le libellé actuel STUN/TURN. Le job s'est arrêté sur les tests : TypeScript, ESLint et build ne sont donc pas validés sur ce SHA. La syntaxe YAML des deux configurations a été contrôlée localement ; le binaire officiel MediaMTX n'a pas été exécuté. STUN/TURN n’est pas configuré ; l’accessibilité depuis tous les NAT/FAI n’est pas prouvée. Aucun serveur MediaMTX, domaine/DNS/TLS, pare-feu externe, passerelle ou caméra physique n’a été mis en service ou testé dans ce lot. Ne pas démarrer l’enregistrement local ni déclarer le flux live opérationnel avant la recette physique.
+
+
+### Analyse CI #1314
+
+- Run : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42537799039 (SHA 6c1118415dcc8c55d21eb3b8fbd4a4e8ef0df047).
+- Secret scan, analyse des références, scan dépôt, installation et audit dépendances : PASS.
+- Tests : 241 PASS / 1 FAIL sur 242. Test 203 échoue uniquement parce qu'il attendait l'ancien texte « Aucun TURN n'est actuellement configuré » ; le README indique désormais « Aucun STUN/TURN n’est actuellement configuré ».
+- TypeScript, ESLint et build : non validés dans cette exécution, arrêtée après l'échec des tests.
+- Correction ciblée : aligner l'assertion documentaire sur le README actuel ; aucun changement du comportement réseau n'est nécessaire pour cette panne.
