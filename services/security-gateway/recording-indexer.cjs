@@ -20,17 +20,14 @@ function ensurePrivateDirectory(directory) {
   if (process.platform !== "win32") fs.chmodSync(directory, 0o700);
 }
 
-function writePrivateJson(filePath, value) {
+function writePrivateContent(filePath, content) {
   ensurePrivateDirectory(path.dirname(filePath));
   const temporaryPath = filePath + ".tmp-" + process.pid + "-" + crypto.randomBytes(6).toString("hex");
   let descriptor;
   try {
-    descriptor = fs.openSync(
-      temporaryPath,
-      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
-      0o600,
-    );
-    fs.writeFileSync(descriptor, JSON.stringify(value) + "\n", "utf8");
+    descriptor = fs.openSync(temporaryPath,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
+    fs.writeFileSync(descriptor, content, "utf8");
     fs.fsyncSync(descriptor);
     fs.closeSync(descriptor);
     descriptor = undefined;
@@ -43,14 +40,63 @@ function writePrivateJson(filePath, value) {
   }
 }
 
-function readPrivateJson(filePath, fallback) {
+function readOrCreateIndexKey(stateDir, indexPath, outboxPath) {
+  const keyPath = path.join(stateDir, "recording-index.key");
+  if (!fs.existsSync(keyPath)) {
+    if (fs.existsSync(indexPath) || fs.existsSync(outboxPath)) {
+      throw new Error("Clé locale d'indexation absente ; récupération manuelle requise.");
+    }
+    writePrivateContent(keyPath, crypto.randomBytes(32).toString("hex") + "\n");
+  }
+  const stat = fs.lstatSync(keyPath);
+  if (!stat.isFile() || stat.isSymbolicLink() ||
+    (process.platform !== "win32" && (stat.mode & 0o077) !== 0)) {
+    throw new Error("Clé locale d'indexation non sûre.");
+  }
+  const raw = fs.readFileSync(keyPath, "utf8").trim();
+  if (!/^[0-9a-f]{64}$/.test(raw)) throw new Error("Clé locale d'indexation invalide.");
+  return Buffer.from(raw, "hex");
+}
+
+function writeEncryptedJson(filePath, value, key) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
+  const envelope = {
+    version: 1,
+    algorithm: "aes-256-gcm",
+    iv: iv.toString("base64"),
+    tag: cipher.getAuthTag().toString("base64"),
+    ciphertext: ciphertext.toString("base64"),
+  };
+  writePrivateContent(filePath, JSON.stringify(envelope) + "\n");
+}
+
+function readEncryptedJson(filePath, fallback, key) {
   if (!fs.existsSync(filePath)) return fallback;
   const stat = fs.lstatSync(filePath);
-  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Fichier d'indexation local non sûr.");
-  if (process.platform !== "win32" && (stat.mode & 0o077) !== 0) {
-    throw new Error("Permissions trop ouvertes sur la file d'enregistrement.");
+  if (!stat.isFile() || stat.isSymbolicLink() ||
+    (process.platform !== "win32" && (stat.mode & 0o077) !== 0)) {
+    throw new Error("Fichier chiffré d'indexation local non sûr.");
   }
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  try {
+    const envelope = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (!envelope || envelope.version !== 1 || envelope.algorithm !== "aes-256-gcm" ||
+      typeof envelope.iv !== "string" || typeof envelope.tag !== "string" ||
+      typeof envelope.ciphertext !== "string") throw new Error("INVALID_ENVELOPE");
+    const iv = Buffer.from(envelope.iv, "base64");
+    const tag = Buffer.from(envelope.tag, "base64");
+    const ciphertext = Buffer.from(envelope.ciphertext, "base64");
+    if (iv.length !== 12 || tag.length !== 16 || ciphertext.length > 12 * 1024 * 1024) {
+      throw new Error("INVALID_ENVELOPE_SIZE");
+    }
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return JSON.parse(plaintext.toString("utf8"));
+  } catch {
+    throw new Error("Fichier local d'indexation chiffré illisible ou altéré.");
+  }
 }
 
 function parseSegmentName(fileName, expectedCameraId) {
@@ -181,11 +227,11 @@ function hashLocalFile(filePath) {
   return { sha256: hash.digest("hex"), sizeBytes };
 }
 
-function loadState(stateDir, cameraId) {
-  const indexPath = path.join(stateDir, "recording-index-" + cameraId + ".json");
-  const outboxPath = path.join(stateDir, "recording-outbox-" + cameraId + ".json");
-  const index = readPrivateJson(indexPath, { version: 1, indexed: {} });
-  const outbox = readPrivateJson(outboxPath, { version: 1, segments: [] });
+function loadState(stateDir, cameraId, key) {
+  const indexPath = path.join(stateDir, "recording-index-" + cameraId + ".enc");
+  const outboxPath = path.join(stateDir, "recording-outbox-" + cameraId + ".enc");
+  const index = readEncryptedJson(indexPath, { version: 1, indexed: {} }, key);
+  const outbox = readEncryptedJson(outboxPath, { version: 1, segments: [] }, key);
   if (!index || index.version !== 1 || !index.indexed || typeof index.indexed !== "object" ||
     Array.isArray(index.indexed) || !outbox || outbox.version !== 1 ||
     !Array.isArray(outbox.segments) || outbox.segments.length > MAX_OUTBOX_ENTRIES) {
@@ -248,12 +294,15 @@ function createRecordingSegmentIndexer({
   const cameraDirectory = path.join(recordingRoot, cameraId);
   ensurePrivateDirectory(recordingRoot);
   ensurePrivateDirectory(cameraDirectory);
-  const state = loadState(stateDir, cameraId);
+  const indexPath = path.join(stateDir, "recording-index-" + cameraId + ".enc");
+  const outboxPath = path.join(stateDir, "recording-outbox-" + cameraId + ".enc");
+  const key = readOrCreateIndexKey(stateDir, indexPath, outboxPath);
+  const state = loadState(stateDir, cameraId, key);
   let activeCycle = null;
 
   const saveState = () => {
-    writePrivateJson(state.indexPath, state.index);
-    writePrivateJson(state.outboxPath, state.outbox);
+    writeEncryptedJson(state.indexPath, state.index, key);
+    writeEncryptedJson(state.outboxPath, state.outbox, key);
   };
 
   async function scan() {
@@ -303,7 +352,7 @@ function createRecordingSegmentIndexer({
         };
         if (!validateQueuedRow(row, cameraId)) throw new Error("SEGMENT_METADATA_INVALID");
         state.outbox.segments.push(row);
-        writePrivateJson(state.outboxPath, state.outbox);
+        writeEncryptedJson(state.outboxPath, state.outbox, key);
         queued += 1;
       } catch (error) {
         log("NAXA Security : segment local non indexé (" +
@@ -319,9 +368,9 @@ function createRecordingSegmentIndexer({
       const batch = state.outbox.segments.slice(0, MAX_BATCH_SIZE);
       await sendBatch(batch);
       for (const row of batch) state.index.indexed[row.storage_path] = row.sha256;
-      writePrivateJson(state.indexPath, state.index);
+      writeEncryptedJson(state.indexPath, state.index, key);
       state.outbox.segments.splice(0, batch.length);
-      writePrivateJson(state.outboxPath, state.outbox);
+      writeEncryptedJson(state.outboxPath, state.outbox, key);
       sent += batch.length;
     }
     return sent;
@@ -348,7 +397,7 @@ function createRecordingSegmentIndexer({
 
   function forgetRemoved(relativePaths) {
     for (const relativePath of relativePaths) delete state.index.indexed[cameraId + "/" + relativePath];
-    writePrivateJson(state.indexPath, state.index);
+    writeEncryptedJson(state.indexPath, state.index, key);
   }
 
   return { scan, flush, runCycle, getPendingPaths, forgetRemoved };
@@ -357,6 +406,9 @@ function createRecordingSegmentIndexer({
 module.exports = {
   MAX_OUTBOX_ENTRIES,
   MAX_BATCH_SIZE,
+  readOrCreateIndexKey,
+  writeEncryptedJson,
+  readEncryptedJson,
   parseSegmentName,
   runFfprobe,
   hashLocalFile,
