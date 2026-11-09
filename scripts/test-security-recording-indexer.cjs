@@ -69,7 +69,7 @@ test("lot 13 : SHA-256 local ne lit que des fichiers réguliers", () => {
     assert.equal(result.sha256, require("node:crypto").createHash("sha256").update("sample").digest("hex"));
     const symlink = path.join(root, "link.mp4");
     fs.symlinkSync(file, symlink);
-    assert.throws(() => hashLocalFile(symlink), /not regular/i);
+    assert.throws(() => hashLocalFile(symlink), /SEGMENT_FILE_NOT_REGULAR/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
