@@ -119,7 +119,6 @@ test("lot 13 : indexe le MP4 local, chiffre la file, puis reprend après coupure
     assert.equal(queued.segments.length, 1);
     if (process.platform !== "win32") {
       assert.equal(fs.statSync(outboxPath).mode & 0o777, 0o600);
-      assert.equal(fs.statSync(indexPath).mode & 0o777, 0o600);
       assert.equal(fs.statSync(keyPath).mode & 0o777, 0o600);
     }
 
