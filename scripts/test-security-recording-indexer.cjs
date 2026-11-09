@@ -7,6 +7,8 @@ const { EventEmitter } = require("node:events");
 const {
   parseSegmentName,
   hashLocalFile,
+  readOrCreateIndexKey,
+  readEncryptedJson,
   createRecordingSegmentIndexer,
 } = require("../services/security-gateway/recording-indexer.cjs");
 
@@ -75,7 +77,7 @@ test("lot 13 : SHA-256 local ne lit que des fichiers réguliers", () => {
   }
 });
 
-test("lot 13 : indexe le MP4 local, calcule hash/codec puis garde la file si le WAN échoue", async () => {
+test("lot 13 : indexe le MP4 local, chiffre la file, puis reprend après coupure WAN", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-indexer-offline-"));
   const fileName = CAMERA + "_20261109T103000.mp4";
   try {
@@ -104,20 +106,57 @@ test("lot 13 : indexe le MP4 local, calcule hash/codec puis garde la file si le 
 
     const offline = await indexer.runCycle();
     assert.deepEqual(offline, { queued: 1, sent: 0, pending: 1 });
-    const outboxPath = path.join(root, "recording-outbox-" + CAMERA + ".json");
-    assert.equal(JSON.parse(fs.readFileSync(outboxPath, "utf8")).segments.length, 1);
-    if (process.platform !== "win32") assert.equal(fs.statSync(outboxPath).mode & 0o777, 0o600);
 
-    const restored = await indexer.runCycle();
+    const indexPath = path.join(root, "recording-index-" + CAMERA + ".enc");
+    const outboxPath = path.join(root, "recording-outbox-" + CAMERA + ".enc");
+    const keyPath = path.join(root, "recording-index.key");
+    const key = readOrCreateIndexKey(root, indexPath, outboxPath);
+    const ciphertext = fs.readFileSync(outboxPath, "utf8");
+    assert.equal(ciphertext.includes("storage_path"), false);
+    assert.equal(ciphertext.includes(CAMERA), false);
+    assert.equal(ciphertext.includes(batchHashForTest(filePath)), false);
+    const queued = readEncryptedJson(outboxPath, null, key);
+    assert.equal(queued.segments.length, 1);
+    if (process.platform !== "win32") {
+      assert.equal(fs.statSync(outboxPath).mode & 0o777, 0o600);
+      assert.equal(fs.statSync(indexPath).mode & 0o777, 0o600);
+      assert.equal(fs.statSync(keyPath).mode & 0o777, 0o600);
+    }
+
+    const restartedIndexer = createRecordingSegmentIndexer({
+      stateDir: root,
+      cameraId: CAMERA,
+      policy: POLICY,
+      minFileAgeMs: 0,
+      spawnImpl: fakeProbeSpawn(),
+      log: message => logs.push(message),
+      sendBatch: async batch => {
+        attempts += 1;
+        assert.equal(batch.length, 1);
+        assert.equal(batch[0].sha256, queued.segments[0].sha256);
+        return 1;
+      },
+    });
+    const restored = await restartedIndexer.runCycle();
     assert.deepEqual(restored, { queued: 0, sent: 1, pending: 0 });
-    const indexPath = path.join(root, "recording-index-" + CAMERA + ".json");
-    assert.ok(JSON.parse(fs.readFileSync(indexPath, "utf8")).indexed[CAMERA + "/" + fileName]);
-    assert.equal(JSON.parse(fs.readFileSync(outboxPath, "utf8")).segments.length, 0);
-    assert.deepEqual(await indexer.runCycle(), { queued: 0, sent: 0, pending: 0 });
+    const finalOutbox = readEncryptedJson(outboxPath, null, key);
+    const finalIndex = readEncryptedJson(indexPath, null, key);
+    assert.equal(finalOutbox.segments.length, 0);
+    assert.ok(finalIndex.indexed[CAMERA + "/" + fileName]);
+    assert.deepEqual(await restartedIndexer.runCycle(), { queued: 0, sent: 0, pending: 0 });
+
+    fs.unlinkSync(keyPath);
+    assert.throws(() => createRecordingSegmentIndexer({
+      stateDir: root, cameraId: CAMERA, policy: POLICY, sendBatch: async () => 1,
+    }), /Clé locale d'indexation absente/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+function batchHashForTest(filePath) {
+  return require("node:crypto").createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
 
 test("lot 13 : refuse un segment qui contient une piste audio", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-indexer-audio-"));
