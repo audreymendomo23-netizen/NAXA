@@ -639,3 +639,39 @@ CI #1313 vérifiée : PASS sur 17a7d80e7e330e75c9daad51480850f7cebd9729. Le list
 - Tests : 241 PASS / 1 FAIL sur 242. Test 203 échoue uniquement parce qu'il attendait l'ancien texte « Aucun TURN n'est actuellement configuré » ; le README indique désormais « Aucun STUN/TURN n’est actuellement configuré ».
 - TypeScript, ESLint et build : non validés dans cette exécution, arrêtée après l'échec des tests.
 - Correction ciblée : aligner l'assertion documentaire sur le README actuel ; aucun changement du comportement réseau n'est nécessaire pour cette panne.
+
+---
+
+## Clôture du correctif logiciel MediaMTX — vérification finale (09/11/2026)
+
+### Raisonnement par contradiction et cause racine
+
+- L'échec CI #1314 (SHA 6c1118415dcc8c55d21eb3b8fbd4a4e8ef0df047) n'était pas une régression applicative : 241 tests PASS et 1 FAIL sur une assertion documentaire qui attendait encore l'ancien libellé TURN. La correction 8c600f5 aligne le test sur le README ; aucun comportement réseau n'a été modifié pour corriger cet échec.
+- Le défaut de repli WebRTC était réel : UDP 8189 était configuré, mais aucun listener TCP n'était ouvert. Le listener TCP 8189 et son exposition Docker ont été ajoutés dans le correctif précédent, UDP restant prioritaire.
+- Le défaut d'arrêt passerelle était réel : FFmpeg pouvait être lancé après une annulation déjà reçue pendant la demande du ticket. Le garde avant spawn et le test de régression dédié sont présents dans la branche.
+
+### Corrections et preuves exactes
+
+- Commit 17a7d80e7e330e75c9daad51480850f7cebd9729 : garde anti-spawn après abort, test de régression, README MediaMTX corrigé ; CI #1313 PASS.
+- Commit 6c1118415dcc8c55d21eb3b8fbd4a4e8ef0df047 : ajout du listener ICE TCP 8189, port TCP publié dans Compose et assertions dédiées ; CI #1314 a révélé uniquement l'assertion documentaire obsolète.
+- Commit 8c600f5ec54c99521132b72be01f2d4f6540713e : assertion corrigée ; CI #1315 completed/success, 242 tests PASS / 0 FAIL, TypeScript, ESLint, build Next.js, scans secrets et audit dépendances PASS.
+- Commit bce5e3a614c279147265cde8952df5c21faaddeb : workflow qualité renforcé par validation de mediamtx.yml avec le binaire officiel bluenviron/mediamtx:1.21.3 et l'option --validate-conf, sans démarrer le serveur.
+- CI #1316 : completed/success sur le SHA exact bce5e3a614c279147265cde8952df5c21faaddeb. Les scans de toutes les références et du répertoire courant passent ; npm audit signale 0 vulnérabilité ; le validateur MediaMTX officiel passe ; 242 tests PASS / 0 FAIL ; la séquence TypeScript et ESLint retourne avec succès ; Next.js compile avec succès et génère 129/129 pages statiques.
+- La commande lint produit encore des avertissements non bloquants existants (notamment images HTML et une dépendance React Hook) ainsi qu'un avertissement de dépréciation de next lint ; aucune erreur bloquante n'a échoué la CI.
+- Workflow et preuve : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42541347507
+
+### Verdict exact
+
+**VERT — CORRECTIF LOGICIEL ET CONFIGURATION VERSIONNÉE.** Le défaut d'arrêt FFmpeg est corrigé et testé ; UDP/TCP WebRTC sont configurés et le fichier MediaMTX est validé par le binaire officiel ; l'intégralité des contrôles CI passe sur le SHA bce5e3a.
+
+**PARTIEL — MISE EN SERVICE MATÉRIELLE NON VALIDÉE.** Aucun serveur MediaMTX dédié, DNS, certificat TLS, firewall/NAT externe, variable Preview effective, passerelle physique ou caméra n'a été mis en service dans cette intervention. Aucun parcours caméra réelle → passerelle → RTSPS → MediaMTX → WHEP n'a été testé. La connectivité Wi-Fi/mobile reste à mesurer ; aucun STUN/TURN n'est configuré et un TURN pourra être nécessaire sur certains NAT stricts. Ne pas annoncer le live opérationnel et ne pas démarrer le lot enregistrement avant cette recette.
+
+### Périmètre préservé
+
+- Branche active : qa/e2e-stabilisation-20261106.
+- Aucun changement de main, aucune écriture Supabase Production, aucun déploiement Vercel/Production.
+- Le commit bce5e3a ne modifie que .github/workflows/naxa-quality.yml ; la validation MediaMTX officielle est un contrôle CI, pas un déploiement.
+
+### Reprise exacte
+
+La correction logicielle/configuration MediaMTX est clôturable au vert CI. La suite est la recette d'infrastructure et du kit caméra/passerelle réel ; garder le lot 12 matériel PARTIEL jusqu'à preuve vidéo et réseau de bout en bout.
