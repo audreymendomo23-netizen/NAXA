@@ -50,7 +50,7 @@ BEGIN
      AND i.indpred IS NULL AND i.indnkeyatts>=1 AND a.attname=v.column_name
   ) THEN RAISE EXCEPTION 'Expected valid leading-column index missing: %.%',v.table_name,v.index_name; END IF;
   v_plan := '';
-  FOR v_line IN EXECUTE format('EXPLAIN (ANALYZE, COSTS OFF) SELECT %I FROM public.%I WHERE %I IS NOT NULL',v.column_name,v.table_name,v.column_name)
+  FOR v_line IN EXECUTE format('EXPLAIN (ANALYZE, COSTS OFF) SELECT %I FROM public.%I WHERE %I IS NOT NULL',v.column_name,v.table_name,v.column_name,'00000000-0000-0000-0000-000000000000')
   LOOP v_plan := v_plan || coalesce(v_line."QUERY PLAN",'') || E'\n'; END LOOP;
   IF position(v.index_name in v_plan)=0 THEN RAISE EXCEPTION 'Planner did not choose %.%: %',v.table_name,v.index_name,v_plan; END IF;
   v_count := v_count + 1;
