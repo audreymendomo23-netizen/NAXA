@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
 import RapportsALaDemande from "@/components/RapportsALaDemande";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -29,7 +29,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
   const [consult,setConsult]=useState({patient:"",clientId:"",motif:"",observations:"",conclusion:"",recommandations:""});
   const [presc,setPresc]=useState({patient:"",clientId:"",consultationId:"",designation:"",quantite:"1",posologie:"",duree:"",instructions:"",commentaire:""});
 
-  async function charger(id:string){
+  const charger = useCallback(async (id:string) => {
     const [mine,received,prep]=await Promise.all([
       sb.rpc("pharmacien_prescriptions_recentes",{p_pharmacie:id,p_limite:30}),
       sb.from("prescriptions").select("id,document_ref,created_at,motif_rejet,client_id,statut").eq("pharmacie_id",id).eq("source","client").eq("statut","en_attente").order("created_at",{ascending:true}),
@@ -55,7 +55,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     const {data:audit,error:auditLoadError}=await sb.from("pharmacien_audit_events").select("id,actor_user_id,entity_type,entity_id,action,old_status,new_status,reason,occurred_at,metadata").eq("pharmacie_id",id).order("occurred_at",{ascending:false}).limit(200);
     if(auditLoadError){setAuditEvents([]);setAuditError("Le journal append-only attend la migration 190 ou ses droits RLS ne sont pas encore disponibles.");}
     else{setAuditEvents((audit??[]) as AuditEvent[]);setAuditError("");}
-  }
+  }, [sb]);
 
   useEffect(()=>{(async()=>{
     const {data:u}=await sb.auth.getUser();if(!u.user)return setMsg("Connexion requise.");
@@ -69,7 +69,7 @@ export function PharmacienWorkspace({ initialTab = "dashboard" }: { initialTab?:
     if(pharmacyError||!pharmacy||pharmacy.actif!==true)return setMsg("La pharmacie est inactive ; accès aux opérations Pharmacien refusé.");
     setProfileInfo({first_name:p.first_name??null,last_name:p.last_name??null,phone:p.phone??null,username:p.username??null,email:u.user.email??""});
     setPid(pharmacieId);charger(pharmacieId);
-  })()},[sb]);
+  })()},[sb, charger]);
 
   useEffect(()=>{
     try{const savedSize=window.localStorage.getItem("naxa-pharmacien-text-size");const savedCompact=window.localStorage.getItem("naxa-pharmacien-compact");if(savedSize==="grand")setTextSize("grand");setCompactDisplay(savedCompact==="true");}
