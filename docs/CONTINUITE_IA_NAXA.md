@@ -770,3 +770,23 @@ Prochaine tranche de code : sécuriser le cycle de protection/rétention côté 
 - L'agent ne change pas l'horloge OS. Il corrige uniquement les timestamps de signature HTTP ; FFmpeg et les caméras/NVR peuvent encore dériver.
 - Incrustation date/heure/pharmacie/caméra, fuseau IANA par site, manifeste vidéo signé, PTS/DTS, hash vérifié à l'export et comparaison physique caméra/NVR/passerelle/serveur restent à livrer.
 - Le test SNTP simulé valide le calcul protocolaire, pas l'accès réel à un serveur NTP.
+
+
+## Lot 16 — calendrier de haute surveillance (09/11/2026)
+
+### Implémentation QA en place, CI à confirmer
+- Migration 314 : table privée par pharmacie, fuseau IANA, fenêtres hebdomadaires, exceptions datées, version monotone, expiration hors ligne 72 h. RLS + FORCE RLS, accès service_role uniquement.
+- RPC transactionnelle : version incrémentée et audit Promoteur.
+- UI Promoteur : plusieurs plages, jours, horaires, fuseau local, exceptions armées/désarmées.
+- API passerelle : requête Ed25519 authentifiée, périmètre de la pharmacie, réponse HTTPS et empreinte SHA-256.
+- Agent : cache local AES-256-GCM, renouvellement 5 min, durée offline 72 h, évaluation des plages traversant minuit et état informatif pour événements ONVIF.
+- Trigger SQL : élève à `high` la priorité serveur des mouvements/intrusions/franchissements/présences hors horaires dont l'instant détecté tombe dans une plage active.
+- Exemple 22:00–08:00 vérifiable dans le module, fuseau Africa/Douala.
+
+### Limites
+- HTTPS + empreinte SHA-256, sans signature Ed25519 serveur indépendante du canal TLS ; clé de signature centrale non provisionnée.
+- Sensibilité caméra/zone ONVIF, règles IA, notifications/sonneries, destinataires, escalade, sauvegarde immédiate des clips et file durable d'événements hors ligne non raccordés.
+- UI Promoteur uniquement ; délégation Responsable mono-pharmacie non implémentée.
+- Pas d'essai sur passerelle/caméra physique.
+
+**Verdict : PARTIEL — logiciel construit, CI et recette physique restantes.**

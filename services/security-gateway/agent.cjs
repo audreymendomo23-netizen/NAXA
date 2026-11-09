@@ -13,6 +13,7 @@ const { readRecordingPolicy, writeRecordingPolicy, runCameraRecorder, createPriv
 const { createRtspPublishProxy } = require("./rtsp-publish-proxy.cjs");
 const { createRecordingSegmentIndexer } = require("./recording-indexer.cjs");
 const { queryNtpTime } = require("./time-integrity.cjs");
+const { saveEncryptedPolicy, loadEncryptedPolicy, clearEncryptedPolicy, isHighSurveillanceActive } = require("./surveillance-schedule.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
@@ -183,7 +184,18 @@ async function enroll(args) {
   console.log("État serveur initial : pending. Le tunnel ne sera connecté qu'après un heartbeat signé.");
 }
 
-async function heartbeat(config) {
+async function fetchHighSurveillancePolicy(config){
+ const rawBody=JSON.stringify({version:1});
+ const response=await fetch(config.apiBaseUrl+"/api/security/gateway/surveillance-policy",{method:"POST",
+  headers:makeSignedGatewayHeaders({gatewayId:config.gatewayId,privateKey:config.privateKey,rawBody}),body:rawBody,
+  signal:AbortSignal.timeout(15000),cache:"no-store",redirect:"error"});
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||result.ok!==true||result.complete!==true)throw new Error("SURVEILLANCE_POLICY_SYNC_INCOMPLETE");
+ const digest=crypto.createHash("sha256").update(JSON.stringify(result.policy),"utf8").digest("hex");
+ if(digest!==result.policySha256)throw new Error("SURVEILLANCE_POLICY_HASH_MISMATCH");
+ return result.policy;
+}
+\nasync function heartbeat(config) {
   const requestStartedAt = Date.now();
   const requestData = makeSignedHeartbeat({
     gatewayId: config.gatewayId,
@@ -350,8 +362,31 @@ async function run(args) {
   if (ntpTimer?.unref) ntpTimer.unref();
   const controller = new AbortController();
   const cameras = readCameraStreamConfigs(stateDir);
+  let highSurveillancePolicy = null;
+  try {
+    highSurveillancePolicy = await fetchHighSurveillancePolicy(config);
+    if (highSurveillancePolicy) saveEncryptedPolicy(stateDir, highSurveillancePolicy);
+    else clearEncryptedPolicy(stateDir);
+  } catch {
+    try { highSurveillancePolicy = loadEncryptedPolicy(stateDir); } catch { highSurveillancePolicy = null; }
+    console.warn("NAXA Security : calendrier non synchronisé ; dernière copie chiffrée utilisée si elle reste valide.");
+  }
+  const refreshHighSurveillance = async () => {
+    try {
+      const policy = await fetchHighSurveillancePolicy(config);
+      highSurveillancePolicy = policy;
+      if (policy) saveEncryptedPolicy(stateDir, policy); else clearEncryptedPolicy(stateDir);
+    } catch { console.warn("NAXA Security : renouvellement du calendrier impossible ; copie locale expirante."); }
+  };
+  const surveillanceTimer = setInterval(() => { void refreshHighSurveillance(); }, 5 * 60 * 1000);
+  if (surveillanceTimer.unref) surveillanceTimer.unref();
+  const getHighSurveillanceState = () => {
+    try { return isHighSurveillanceActive(highSurveillancePolicy); }
+    catch { return { active: false, reason: "invalid_policy" }; }
+  };
   const publishers = cameras.map((camera) => runCameraPublisher(config, camera, controller.signal));
-  const eventCollectors = readOnvifEventConfigs(stateDir).map((camera) => runCameraOnvifEvents(config, camera, controller.signal));
+  const eventCollectors = readOnvifEventConfigs(stateDir).map((camera) =>
+    runCameraOnvifEvents(config, camera, controller.signal, getHighSurveillanceState));
   const recordingPolicies = readRecordingPolicy(stateDir, cameras.map((camera) => camera.cameraId));
   const recordingWorkers = recordingPolicies.map(async (policy) => {
     const camera = cameras.find((item) => item.cameraId === policy.cameraId);
@@ -385,7 +420,7 @@ async function run(args) {
     }
   });
   void Promise.all([...publishers, ...eventCollectors, ...recordingWorkers]);
-  const stop = () => { clearInterval(timer); if (ntpTimer) clearInterval(ntpTimer); controller.abort(); };
+  const stop = () => { clearInterval(timer); if (ntpTimer) clearInterval(ntpTimer); clearInterval(surveillanceTimer); controller.abort(); };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
   console.log("Agent NAXA actif ; intervalle " + intervalSeconds + " s. Aucun port entrant n'est ouvert.");
@@ -846,14 +881,18 @@ async function configureOnvifEvents(args) {
   console.log("Collecteur Pull-Point configuré localement pour la caméra " + entry.cameraId + ". Les identifiants ne quittent pas la passerelle.");
 }
 
-async function runCameraOnvifEvents(config, camera, signal) {
+async function runCameraOnvifEvents(config, camera, signal, getHighSurveillanceState = () => ({ active: false })) {
   let backoffMs = 5000;
   while (!signal.aborted) {
     try {
       await runPullPointCollector({
         ...camera,
         signal,
-        onEvent: async (event) => { await reportSecurityEvent(config, event); },
+        onEvent: async (event) => {
+          const high = getHighSurveillanceState();
+          if (high.active) console.info("NAXA Security : événement ONVIF pendant plage haute, version " + high.policyVersion + ".");
+          await reportSecurityEvent(config, event);
+        },
       });
       backoffMs = 5000;
     } catch {
@@ -888,4 +927,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent, fetchProtectedRecordingSegments, setGatewayClockOffsetMs };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent, fetchProtectedRecordingSegments, setGatewayClockOffsetMs, fetchHighSurveillancePolicy };

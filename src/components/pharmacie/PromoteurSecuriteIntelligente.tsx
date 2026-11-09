@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { SecurityWhepPlayer } from "@/components/pharmacie/SecurityWhepPlayer";
 import { SecurityRecordingTimeline } from "@/components/pharmacie/SecurityRecordingTimeline";
 import { SecurityClockIntegrity } from "@/components/pharmacie/SecurityClockIntegrity";
+import { SecurityHighSurveillanceSchedule } from "@/components/pharmacie/SecurityHighSurveillanceSchedule";
 import { useSearchParams } from "next/navigation";
 
 type Pharmacy = { id: string; nom: string; ville: string | null; quartier: string | null };
@@ -215,6 +216,7 @@ export function PromoteurSecuriteIntelligente({
           <>
             <PromoteurSecurityInventoryForm pharmacies={pharmacies} gateways={gateways} />
             <SecurityClockIntegrity />
+            <SecurityHighSurveillanceSchedule pharmacies={pharmacies} />
             {searchParams.get("security") && (
               <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 {{
