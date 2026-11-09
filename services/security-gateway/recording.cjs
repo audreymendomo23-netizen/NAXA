@@ -308,40 +308,59 @@ async function waitDelay(ms, signal) {
   });
 }
 
-async function runCameraRecorder({ camera, policy, stateDir, signal, log = (message) => console.error(message) }) {
+async function runCameraRecorder({ camera, policy, stateDir, signal, indexer = null, log = (message) => console.error(message) }) {
   const recordingRoot = path.join(stateDir, RECORDING_DIRECTORY);
   const outputPattern = buildRecordingOutputPattern(recordingRoot, camera.cameraId);
   let backoffMs = 5000;
-  while (!signal.aborted) {
-    const maintenance = setInterval(() => {
-      try {
-        pruneRecordingFiles(recordingRoot, camera.cameraId, policy);
-      } catch (error) {
-        log("NAXA Security : rétention locale indisponible (" +
-          (error instanceof Error ? error.message.slice(0, 80) : "erreur") + ").");
-      }
-    }, 15 * 60 * 1000);
-    let result;
-    try {
-      result = await startFfmpegRecorder({
+  const protectPending = () => indexer ? indexer.getPendingPaths() : [];
+  const prune = () => {
+    const result = pruneRecordingFiles(recordingRoot, camera.cameraId, {
+      ...policy,
+      protectedPaths: protectPending(),
+    });
+    if (indexer) indexer.forgetRemoved(result.removed);
+    return result;
+  };
+  const indexCycle = () => {
+    if (!indexer) return;
+    void indexer.runCycle().catch((error) => {
+      log("NAXA Security : indexation locale en attente (" +
+        (error instanceof Error ? error.message.slice(0, 80) : "erreur") + ").");
+    });
+  };
+  indexCycle();
+  const indexTimer = indexer ? setInterval(indexCycle, 60 * 1000) : null;
+  const maintenance = setInterval(() => {
+    try { prune(); }
+    catch (error) {
+      log("NAXA Security : rétention locale indisponible (" +
+        (error instanceof Error ? error.message.slice(0, 80) : "erreur") + ").");
+    }
+  }, 15 * 60 * 1000);
+
+  try {
+    while (!signal.aborted) {
+      const result = await startFfmpegRecorder({
         sourceUrl: camera.sourceUrl,
         outputPattern,
         segmentSeconds: policy.segmentSeconds,
         signal,
       });
-    } finally {
-      clearInterval(maintenance);
+      indexCycle();
+      if (signal.aborted) break;
+      if (result?.spawnError === "FFMPEG_MISSING") {
+        log("NAXA Security : FFmpeg absent sur la passerelle ; enregistrement local arrêté.");
+        backoffMs = 300000;
+      } else {
+        try { prune(); } catch {}
+        backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
+        log("NAXA Security : enregistrement local interrompu ; reprise planifiée.");
+      }
+      await waitDelay(backoffMs, signal);
     }
-    if (signal.aborted) break;
-    if (result?.spawnError === "FFMPEG_MISSING") {
-      log("NAXA Security : FFmpeg absent sur la passerelle ; enregistrement local arrêté.");
-      backoffMs = 300000;
-    } else {
-      try { pruneRecordingFiles(recordingRoot, camera.cameraId, policy); } catch {}
-      backoffMs = Math.min(300000, Math.max(5000, backoffMs * 2));
-      log("NAXA Security : enregistrement local interrompu ; reprise planifiée.");
-    }
-    await waitDelay(backoffMs, signal);
+  } finally {
+    if (indexTimer) clearInterval(indexTimer);
+    clearInterval(maintenance);
   }
 }
 
