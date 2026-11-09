@@ -61,6 +61,6 @@ test("agent : URI caméra chiffrée, FFmpeg sans shell et statut signé", () => 
   assert.ok(proxy.includes('server.listen(0, "127.0.0.1"'));
   assert.ok(proxy.includes("rejectUnauthorized: true"));
   assert.ok(proxy.includes("Authorization: " + "authorization"));
-  assert.doesNotMatch(agent, /publishUrl: ticket\\.publishUrl/);
-  assert.doesNotMatch(agent, /buildPublishFfmpegArgs\\(camera\\.sourceUrl/);
+  assert.doesNotMatch(agent, /publishUrl: ticket\.publishUrl/);
+  assert.doesNotMatch(agent, /buildPublishFfmpegArgs\(camera\.sourceUrl/);
 });
