@@ -9,8 +9,7 @@ const { spawn } = require("node:child_process");
 const { discoverOnvifCameras } = require("./onvif-discovery.cjs");
 const { inspectOnvifDevice } = require("./onvif-inspection.cjs");
 const { readOnvifEventConfigs, writeOnvifEventConfigs, runPullPointCollector } = require("./onvif-events.cjs");
-const { readRecordingPolicy, writeRecordingPolicy, runCameraRecorder } = require("./recording.cjs");
-const { createPrivateRtspManifest, buildFfmpegInputArgs } = require("./recording.cjs");
+const { readRecordingPolicy, writeRecordingPolicy, runCameraRecorder, createPrivateRtspManifest, buildFfmpegInputArgs } = require("./recording.cjs");
 const { createRtspPublishProxy } = require("./rtsp-publish-proxy.cjs");
 
 const AGENT_VERSION = "0.1.0";
