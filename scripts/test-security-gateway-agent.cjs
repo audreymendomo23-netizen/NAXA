@@ -87,6 +87,7 @@ test("le code de jumelage est lu depuis stdin protégé, jamais depuis un argume
 const { validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs } =
   require("../services/security-gateway/agent.cjs");
 const { createPrivateRtspManifest } = require("../services/security-gateway/recording.cjs");
+const { createPrivateRtspManifest } = require("../services/security-gateway/recording.cjs");
 
 test("URI caméra : RTSP/RTSPS local uniquement, rejet des IP publiques", () => {
   assert.equal(validateLocalRtspSource("rtsp://operator:secret@192.168.1.20:554/Streaming/Channels/101").protocol, "rtsp:");
@@ -139,6 +140,40 @@ test("FFmpeg : source caméra et ticket publisher absents de la ligne de command
   } finally {
     manifest.cleanup();
   }
+});
+
+test("publisher FFmpeg : URI caméra et ticket publisher sont absents des arguments du processus", async () => {
+  const sourceUrl = "rtsp://operator:CameraSecret123@192.168.1.20:554/Streaming/Channels/101";
+  const localTarget = "rtsp://127.0.0.1:45321/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21";
+  const controller = new AbortController();
+  const { EventEmitter } = require("node:events");
+  const fakeChild = new EventEmitter();
+  fakeChild.exitCode = null;
+  fakeChild.signalCode = null;
+  fakeChild.kill = () => {};
+  let capturedArgs = [];
+  let manifestPath = null;
+  const resultPromise = startFfmpegPublisher({
+    sourceUrl,
+    publishUrl: localTarget,
+    signal: controller.signal,
+    onFirstFrame: () => {},
+    spawnImpl: (binary, args) => {
+      capturedArgs = args;
+      manifestPath = args[args.indexOf("-i") + 1];
+      assert.ok(fs.existsSync(manifestPath));
+      assert.ok(fs.readFileSync(manifestPath, "utf8").includes("CameraSecret123"));
+      return fakeChild;
+    },
+  });
+  setImmediate(() => fakeChild.emit("exit", 0, null));
+  const result = await resultPromise;
+  assert.equal(result.code, 0);
+  assert.equal(capturedArgs.join(" ").includes("CameraSecret123"), false);
+  assert.equal(capturedArgs.join(" ").includes("shortticket"), false);
+  assert.equal(capturedArgs.join(" ").includes("video.example.test"), false);
+  assert.ok(capturedArgs.includes(localTarget));
+  assert.equal(fs.existsSync(manifestPath), false);
 });
 
 const { buildSecurityEventPayload } = require("../services/security-gateway/agent.cjs");
