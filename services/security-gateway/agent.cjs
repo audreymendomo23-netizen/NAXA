@@ -482,6 +482,34 @@ function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal, spa
   });
 }
 
+async function waitDelay(ms, signal) {
+  if (signal.aborted) return;
+  await new Promise((resolve) => {
+    const timer = setTimeout(done, ms);
+    function done() { signal.removeEventListener("abort", onAbort); resolve(); }
+    function onAbort() { clearTimeout(timer); done(); }
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function reportPublisherSignalLoss(config, cameraId, outage) {
+  if (!outage.detectedAt || outage.reported) return;
+  try {
+    await reportSecurityEvent(config, {
+      cameraId,
+      eventType: "signal_lost",
+      sourceType: "gateway",
+      summary: "Perte du flux vidéo : le processus de publication caméra s’est arrêté.",
+      detectedAt: outage.detectedAt,
+      confidence: null,
+      metadata: { event_code: "PUBLISHER_STREAM_EXIT" },
+    });
+    outage.reported = true;
+  } catch {
+    // La même empreinte est retentée pendant cette interruption, sans créer de doublons.
+  }
+}
+
 async function runCameraPublisher(config, camera, signal) {
   let backoffMs = 5000;
   const outage = { detectedAt: null, reported: false };
@@ -528,6 +556,130 @@ async function runCameraPublisher(config, camera, signal) {
     }
     await waitDelay(backoffMs, signal);
   }
+}
+
+async function configureStream(args) {
+  const flags = parseFlags(args);
+  if (!flags["source-stdin"] || process.stdin.isTTY) throw new Error("Utilisez --source-stdin ; aucun secret caméra dans les arguments.");
+  const cameraId = String(flags["camera-id"] || "");
+  if (!CAMERA_UUID.test(cameraId)) throw new Error("Identifiant caméra invalide.");
+  const sourceUrl = fs.readFileSync(0, "utf8").trim();
+  validateLocalRtspSource(sourceUrl);
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const entries = readCameraStreamConfigs(stateDir).filter((item) => item.cameraId !== cameraId);
+  entries.push({ cameraId, sourceUrl });
+  writeCameraStreamConfigs(stateDir, entries);
+  console.log("URI caméra stockée chiffrée pour " + cameraId + ".");
+}
+
+async function configureRecording(args) {
+  const flags = parseFlags(args);
+  if (!flags["policy-stdin"] || process.stdin.isTTY) {
+    throw new Error("Utilisez --policy-stdin ; aucune politique ne doit être passée en argument.");
+  }
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const cameras = readCameraStreamConfigs(stateDir);
+  const allowedCameraIds = cameras.map((camera) => camera.cameraId);
+  const policy = JSON.parse(fs.readFileSync(0, "utf8"));
+  const stored = writeRecordingPolicy(stateDir, policy, allowedCameraIds);
+  console.log("Politique locale continue enregistrée pour " + stored.cameras.length +
+    " caméra(s). Audio désactivé ; aucun transfert réseau requis pour enregistrer.");
+}
+
+function buildSecurityEventPayload(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Événement de sécurité invalide.");
+  const allowedTypes = new Set([
+    "motion","intrusion","line_crossing","camera_tamper","camera_obstructed",
+    "signal_lost","after_hours_presence","system_offline","other",
+  ]);
+  const allowedSources = new Set(["onvif","edge_ai","gateway"]);
+  const cameraId = input.cameraId === null || input.cameraId === undefined ? null : String(input.cameraId);
+  if ((cameraId !== null && !CAMERA_UUID.test(cameraId)) ||
+    (cameraId === null && input.eventType !== "system_offline") ||
+    !allowedTypes.has(input.eventType) || !allowedSources.has(input.sourceType)) {
+    throw new Error("Type ou périmètre d’événement invalide.");
+  }
+  const summary = typeof input.summary === "string" ? input.summary.trim() : "";
+  if (summary.length < 2 || summary.length > 280 ||
+    /[\u0000-\u001f\u007f]/.test(summary) ||
+    /rtsps?:\/\/|https?:\/\/|authorization|bearer |password\s*=/i.test(summary)) {
+    throw new Error("Résumé d’événement invalide.");
+  }
+  const detectedAt = typeof input.detectedAt === "string" ? input.detectedAt : new Date().toISOString();
+  const detectedAtMs = Date.parse(detectedAt);
+  if (!Number.isFinite(detectedAtMs) ||
+    detectedAtMs < Date.now() - 7 * 24 * 60 * 60 * 1000 ||
+    detectedAtMs > Date.now() + 2 * 60 * 1000) {
+    throw new Error("Date d’événement invalide.");
+  }
+  const confidence = input.confidence === undefined || input.confidence === null ? null : input.confidence;
+  if (confidence !== null && (typeof confidence !== "number" || !Number.isFinite(confidence) ||
+    confidence < 0 || confidence > 1)) throw new Error("Confiance d’événement invalide.");
+  const metadata = input.metadata === undefined || input.metadata === null ? {} : input.metadata;
+  const allowedMetadataKeys = new Set([
+    "event_code","event_sequence","detector_id","detector_version",
+    "zone_id","rule_id","channel","sensor_type",
+  ]);
+  if (typeof metadata !== "object" || Array.isArray(metadata) || Object.keys(metadata).length > 8 ||
+    Object.entries(metadata).some(([key,value]) =>
+      !allowedMetadataKeys.has(key) ||
+      !(typeof value === "string" && value.trim().length > 0 && value.length <= 120 &&
+        !/[\u0000-\u001f\u007f]/.test(value)) &&
+      !(typeof value === "number" && Number.isSafeInteger(value) && value >= 0) &&
+      typeof value !== "boolean"
+    )) throw new Error("Métadonnées d’événement non autorisées.");
+
+  const canonical = { cameraId, eventType: input.eventType, sourceType: input.sourceType,
+    summary, confidence, detectedAt, metadata };
+  const sourceFingerprint = crypto.createHash("sha256")
+    .update(JSON.stringify(canonical), "utf8").digest("hex");
+  return { ...canonical, sourceFingerprint };
+}
+
+async function reportSecurityEvent(config, input) {
+  const body = buildSecurityEventPayload(input);
+  const rawBody = JSON.stringify(body);
+  const response = await fetch(config.apiBaseUrl + "/api/security/gateway/events", {
+    method: "POST",
+    headers: makeSignedGatewayHeaders({
+      gatewayId: config.gatewayId, privateKey: config.privateKey, rawBody,
+    }),
+    body: rawBody, signal: AbortSignal.timeout(15000),
+    cache: "no-store", redirect: "error",
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok !== true || typeof result.eventId !== "string") {
+    throw new Error("Événement non enregistré (HTTP " + response.status + ").");
+  }
+  return result.eventId;
+}
+
+async function submitSecurityEvent(args) {
+  const flags = parseFlags(args);
+  if (!flags["event-stdin"] || process.stdin.isTTY) {
+    throw new Error("Utilisez --event-stdin avec un rapport JSON sur stdin.");
+  }
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const config = readSecureConfig(stateDir);
+  const raw = fs.readFileSync(0, "utf8");
+  if (!raw || Buffer.byteLength(raw, "utf8") > 4096) throw new Error("Rapport JSON absent ou trop volumineux.");
+  const eventId = await reportSecurityEvent(config, JSON.parse(raw));
+  console.log("NAXA Security : événement enregistré " + eventId + ".");
+}
+
+async function configureOnvifEvents(args) {
+  const flags = parseFlags(args);
+  if (!flags["credentials-stdin"] || process.stdin.isTTY) {
+    throw new Error("Utilisez --credentials-stdin avec un JSON protégé sur stdin ; aucun identifiant en argument.");
+  }
+  const raw = fs.readFileSync(0, "utf8");
+  if (!raw || Buffer.byteLength(raw, "utf8") > 4096) throw new Error("Configuration ONVIF absente ou trop volumineuse.");
+  const entry = JSON.parse(raw);
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const existing = readOnvifEventConfigs(stateDir).filter((item) => item.cameraId !== entry.cameraId);
+  existing.push(entry);
+  writeOnvifEventConfigs(stateDir, existing);
+  console.log("Collecteur Pull-Point configuré localement pour la caméra " + entry.cameraId + ". Les identifiants ne quittent pas la passerelle.");
 }
 
 async function runCameraOnvifEvents(config, camera, signal) {
