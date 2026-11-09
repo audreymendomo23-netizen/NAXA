@@ -8,6 +8,7 @@ const {
   readRecordingPolicy,
   writeRecordingPolicy,
   buildRecordingOutputPattern,
+  createPrivateRtspManifest,
   buildRecordingFfmpegArgs,
   startFfmpegRecorder,
   pruneRecordingFiles,
@@ -64,15 +65,27 @@ test("lot 13 : sortie segmentée locale UTC, conteneur MP4 et audio désactivé"
     const pattern = buildRecordingOutputPattern(root, CAMERA_A);
     assert.ok(pattern.startsWith(path.join(root, CAMERA_A)));
     assert.ok(pattern.endsWith("_%Y%m%dT%H%M%S.mp4"));
-    const args = buildRecordingFfmpegArgs(SOURCE, pattern, 300);
-    assert.ok(args.includes("-f") && args[args.indexOf("-f") + 1] === "segment");
+    const manifest = createPrivateRtspManifest(SOURCE);
+    try {
+      const args = buildRecordingFfmpegArgs(manifest.path, pattern, 300);
+      const manifestContent = fs.readFileSync(manifest.path, "utf8");
+      assert.ok(manifestContent.includes("rtsp://operator:secret@192.168.1.20:554/stream"));
+      assert.equal(args.join(" ").includes("operator:secret"), false);
+      assert.ok(args.includes(manifest.path));
+      if (process.platform !== "win32") {
+        assert.equal(fs.statSync(manifest.path).mode & 0o777, 0o600);
+      }
+      assert.ok(args.includes("-f") && args[args.indexOf("-f") + 1] === "segment");
     assert.ok(args.includes("-segment_time") && args[args.indexOf("-segment_time") + 1] === "300");
     assert.ok(args.includes("-strftime") && args[args.indexOf("-strftime") + 1] === "1");
     assert.ok(args.includes("-an"));
     assert.ok(args.includes("copy"));
     assert.ok(args.includes("movflags=+frag_keyframe+empty_moov+default_base_moof"));
     assert.throws(() => buildRecordingFfmpegArgs(SOURCE, "/tmp/../escape_%Y%m%dT%H%M%S.mp4", 300));
-    assert.throws(() => buildRecordingOutputPattern(root, "../../escape"));
+      assert.throws(() => buildRecordingOutputPattern(root, "../../escape"));
+    } finally {
+      manifest.cleanup();
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
