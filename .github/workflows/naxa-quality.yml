@@ -63,5 +63,12 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Validate MediaMTX 1.21.3 configuration with official binary
+        run: |
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/infra/security/mediamtx/mediamtx.yml:/tmp/mediamtx.yml:ro" \
+            bluenviron/mediamtx:1.21.3 \
+            --validate-conf=/tmp/mediamtx.yml
+
       - name: Run tests, TypeScript, ESLint and production build
         run: npm run build
