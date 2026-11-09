@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PhotoPharmacie } from "@/components/PhotoPharmacie";
 
 export type PharmacieGardeCard = {
@@ -28,7 +28,7 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
   const railRef = useRef<HTMLDivElement>(null);
   const pauseAutoRef = useRef(false);
 
-  const afficherPharmacie = (index: number, behavior: ScrollBehavior = "smooth") => {
+  const afficherPharmacie = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
     if (!pharmacies.length || !railRef.current) return;
     const nextIndex = (index + pharmacies.length) % pharmacies.length;
     const rail = railRef.current;
@@ -39,7 +39,7 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     rail.scrollTo({ left: targetLeft, behavior: reducedMotion ? "auto" : behavior });
     setIndexVisible(nextIndex);
-  };
+  }, [pharmacies.length]);
 
   useEffect(() => {
     if (pharmacies.length < 2 || selection) return;
@@ -47,7 +47,7 @@ export function PharmaciesGardeListe({ pharmacies, sourceAnnuaireUrl }: Props) {
       if (!pauseAutoRef.current) afficherPharmacie(indexVisible + 1);
     }, 3000);
     return () => window.clearInterval(interval);
-  }, [pharmacies.length, selection, indexVisible]);
+  }, [pharmacies.length, selection, indexVisible, afficherPharmacie]);
 
   return (
     <>
