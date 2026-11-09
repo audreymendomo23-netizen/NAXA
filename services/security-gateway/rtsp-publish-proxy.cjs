@@ -19,7 +19,10 @@ function splitRtspFrames(buffer) {
       continue;
     }
     const boundary = buffer.indexOf("\r\n\r\n", offset);
-    if (boundary < 0) break;
+    if (boundary < 0) {
+      if (buffer.length - offset > MAX_CONTROL_MESSAGE) throw new Error("RTSP control header too large.");
+      break;
+    }
     const header = buffer.subarray(offset, boundary + 4).toString("latin1");
     const match = /(?:^|\r\n)Content-Length:\s*(\d+)\s*(?:\r\n|$)/i.exec(header);
     const bodyLength = match ? Number(match[1]) : 0;
@@ -34,15 +37,21 @@ function splitRtspFrames(buffer) {
   return { frames, remainder: buffer.subarray(offset) };
 }
 
-function normalizePath(candidate, remotePath) {
-  let url;
-  try { url = new URL(candidate); } catch { return null; }
+function normalizePath(candidate, remotePath, localBase) {
+  let url, local;
+  try { url = new URL(candidate); local = new URL(localBase); } catch { return null; }
+  if (url.protocol !== "rtsp:" || url.origin !== local.origin ||
+    url.username || url.password || url.search || url.hash) return null;
+  let decodedPath;
+  try { decodedPath = decodeURIComponent(url.pathname); } catch { return null; }
+  if (decodedPath.split("/").some((part) => part === "." || part === "..") ||
+    /[%\\\\]/.test(url.pathname)) return null;
   const normalized = url.pathname.replace(/\/$/, "");
   if (normalized !== remotePath && !normalized.startsWith(remotePath + "/")) return null;
-  return url.pathname + url.search;
+  return url.pathname;
 }
 
-function rewriteClientRequest(raw, { remoteBase, remotePath, authorization }) {
+function rewriteClientRequest(raw, { remoteBase, remotePath, localBase, authorization }) {
   const text = raw.toString("latin1");
   const boundary = text.indexOf("\r\n\r\n");
   if (boundary < 0) throw new Error("Malformed RTSP request.");
@@ -56,27 +65,35 @@ function rewriteClientRequest(raw, { remoteBase, remotePath, authorization }) {
   let requestPath;
   if (uri === "*") requestPath = remotePath;
   else if (/^rtsp:\/\//i.test(uri) || /^rtsps:\/\//i.test(uri)) {
-    requestPath = normalizePath(uri, remotePath);
+    requestPath = normalizePath(uri, remotePath, localBase);
   } else {
     requestPath = uri.startsWith("/") ? uri : "/" + uri;
-    if (!requestPath.startsWith(remotePath) ||
+    if (requestPath.includes("?") || requestPath.includes("#") ||
+      /[%\\\\]/.test(requestPath)) return null;
+    let decodedPath;
+    try { decodedPath = decodeURIComponent(requestPath); } catch { return null; }
+    if (decodedPath.split("/").some((part) => part === "." || part === "..") ||
+      !requestPath.startsWith(remotePath) ||
       (requestPath !== remotePath && !requestPath.startsWith(remotePath + "/"))) return null;
   }
   if (!requestPath) return null;
   const mappedUri = remoteBase + requestPath;
   const rewritten = [method + " " + mappedUri + " RTSP/1.0"];
   let authorizationWritten = false;
+  let hostWritten = false;
   for (const line of lines.slice(1)) {
     if (/^Authorization:/i.test(line)) {
       rewritten.push("Authorization: " + authorization);
       authorizationWritten = true;
     } else if (/^Host:/i.test(line)) {
-      rewritten.push("Host: " + remoteBase.replace(/^rtsps?:\\/\\//i, ""));
+      rewritten.push("Host: " + new URL(remoteBase).host);
+      hostWritten = true;
     } else {
       rewritten.push(line);
     }
   }
   if (!authorizationWritten) rewritten.splice(1, 0, "Authorization: " + authorization);
+  if (!hostWritten) rewritten.splice(2, 0, "Host: " + new URL(remoteBase).host);
   return Buffer.concat([Buffer.from(rewritten.join("\r\n") + "\r\n\r\n", "latin1"), body]);
 }
 
@@ -159,7 +176,7 @@ function createRtspPublishProxy(publishUrl, options = {}) {
         } else {
           let rewritten;
           try {
-            rewritten = rewriteClientRequest(frame.raw, { remoteBase, remotePath, authorization });
+            rewritten = rewriteClientRequest(frame.raw, { remoteBase, remotePath, localBase, authorization });
           } catch { cleanup(); return; }
           if (!rewritten) { cleanup(); return; }
           if (localReady) upstream.write(rewritten);
