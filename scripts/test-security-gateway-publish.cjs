@@ -10,6 +10,7 @@ const healthRoute = fs.readFileSync(path.join(root, "src/app/api/security/gatewa
 const authRoute = fs.readFileSync(path.join(root, "src/app/api/security/mediamtx/auth/route.ts"), "utf8");
 const agent = fs.readFileSync(path.join(root, "services/security-gateway/agent.cjs"), "utf8");
 const helper = fs.readFileSync(path.join(root, "src/lib/security/gateway-request.ts"), "utf8");
+const proxy = fs.readFileSync(path.join(root, "services/security-gateway/rtsp-publish-proxy.cjs"), "utf8");
 
 test("publisher tickets : hash, RLS et RPC réservés au serveur", () => {
   for (const item of [
@@ -54,4 +55,12 @@ test("agent : URI caméra chiffrée, FFmpeg sans shell et statut signé", () => 
     "spawn(process.env.NAXA_FFMPEG_BIN || \"ffmpeg\", args", "/api/security/gateway/stream-publish-token",
     "/api/security/gateway/stream-health", "shell: false", 'redirect: "error"',
   ]) assert.ok(agent.includes(item), item);
+  assert.ok(agent.includes("createPrivateRtspManifest"));
+  assert.ok(agent.includes("createRtspPublishProxy"));
+  assert.ok(agent.includes("publishUrl: localDestination.url"));
+  assert.ok(proxy.includes('server.listen(0, "127.0.0.1"'));
+  assert.ok(proxy.includes("rejectUnauthorized: true"));
+  assert.ok(proxy.includes("Authorization: " + "authorization"));
+  assert.doesNotMatch(agent, /publishUrl: ticket\\.publishUrl/);
+  assert.doesNotMatch(agent, /buildPublishFfmpegArgs\\(camera\\.sourceUrl/);
 });
