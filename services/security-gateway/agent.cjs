@@ -422,15 +422,28 @@ function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal, spa
   return new Promise((resolve) => {
     let inputManifest = null;
     let args;
-    let finished = false, frameCount = 0, stdoutBuffer = "", child;
+    let finished = false, frameCount = 0, stdoutBuffer = "", child, killTimer = null;
     const finish = (result) => {
       if (finished) return;
       finished = true;
       signal.removeEventListener("abort", onAbort);
-      if (inputManifest) inputManifest.cleanup();
-      resolve({ ...result, frameCount });
+      if (killTimer) clearTimeout(killTimer);
+      let cleanupError = null;
+      try { if (inputManifest) inputManifest.cleanup(); }
+      catch { cleanupError = "MANIFEST_CLEANUP_FAILED"; }
+      resolve({ ...result, frameCount, ...(cleanupError ? { cleanupError } : {}) });
     };
-    const onAbort = () => { if (child && child.exitCode === null) child.kill("SIGTERM"); };
+    const onAbort = () => {
+      if (child && child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGTERM");
+        killTimer = setTimeout(() => {
+          if (child && child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+        }, 10000);
+        if (killTimer.unref) killTimer.unref();
+      } else {
+        finish({ code: null, exitSignal: "aborted" });
+      }
+    };
     // An abort may arrive while the publisher ticket request is pending.
     // Do not create credentials manifests or spawn FFmpeg after shutdown starts.
     if (signal.aborted) {
