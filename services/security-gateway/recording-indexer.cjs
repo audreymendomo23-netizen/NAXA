@@ -237,7 +237,7 @@ function loadState(stateDir, cameraId, key) {
     !Array.isArray(outbox.segments) || outbox.segments.length > MAX_OUTBOX_ENTRIES) {
     throw new Error("État local d'indexation invalide.");
   }
-  const expectedCameraId = path.basename(outboxPath).slice("recording-outbox-".length, -".json".length);
+  const expectedCameraId = path.basename(outboxPath).slice("recording-outbox-".length, -".enc".length);
   if (!CAMERA_UUID.test(expectedCameraId) || !outbox.segments.every((row) => validateQueuedRow(row, expectedCameraId))) {
     throw new Error("File de segments en attente invalide.");
   }
