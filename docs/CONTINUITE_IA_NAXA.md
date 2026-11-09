@@ -753,3 +753,20 @@ Prochaine tranche de code : sécuriser le cycle de protection/rétention côté 
 - Vérification Replay : `SECURITY INVOKER`, `search_path=''`, exécution accordée à `service_role`, refusée à `anon` et `authenticated`.
 - Le lot de code raccorde route Promoteur de protection, endpoint passerelle signé de synchronisation des chemins protégés, purge locale fail-closed (si synchronisation manquante/incomplète : aucune purge), API timeline auditée et interface Promoteur. Les chemins locaux ne sont jamais fournis à l'interface.
 - Tests Replay exécutés : RPC 312 présente, invoker + search_path vide, backend-only, verrou/audit transactionnels PASS ; justification courte rejetée. Première CI du SHA 6624fc2d : 275/276 ; défaut unique du test de rétention (ancien nom protected.mp4) corrigé au SHA de reprise. CI de reprise à attendre. Matériel physique et lecture/export vidéo non couverts.
+
+
+## Lot 14 — mesure de dérive temporelle passerelle (09/11/2026)
+
+### Fondations logicielles ajoutées sur QA
+- Module SNTP local `services/security-gateway/time-integrity.cjs` : requête UDP, contrôle mode/version/stratum, originate timestamp, calcul offset et RTT, bornes de sécurité.
+- Configuration explicite `NAXA_NTP_SERVER` sur la passerelle ; aucune synchronisation système n'est déclenchée par NAXA.
+- Agent : correction de l'horodatage des requêtes signées à partir de la mesure NTP ; heartbeat HTTPS capable d'affiner un décalage si la première requête passe déjà la fenêtre de validation.
+- Migration 313 : historique privé `naxa_security_gateway_time_samples`, RLS + FORCE RLS, service_role only, RPC transactionnelle et audit.
+- Routes gateway signée et Promoteur scoppée ; affichage dérive/RTT/source/ancienneté dans Sécurité.
+- « Mesure dans le seuil » exige offset ≤1 000 ms, RTT ≤1 500 ms et mesure de moins de 10 minutes.
+
+### Limites non vertes
+- SNTP non authentifié (NTS non intégré) ; le réseau pourrait fausser la mesure. Une configuration NAXA_NTP_SERVER et une connectivité NTP réelle restent nécessaires.
+- L'agent ne change pas l'horloge OS. Il corrige uniquement les timestamps de signature HTTP ; FFmpeg et les caméras/NVR peuvent encore dériver.
+- Incrustation date/heure/pharmacie/caméra, fuseau IANA par site, manifeste vidéo signé, PTS/DTS, hash vérifié à l'export et comparaison physique caméra/NVR/passerelle/serveur restent à livrer.
+- Le test SNTP simulé valide le calcul protocolaire, pas l'accès réel à un serveur NTP.

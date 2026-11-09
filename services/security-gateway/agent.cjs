@@ -12,12 +12,19 @@ const { readOnvifEventConfigs, writeOnvifEventConfigs, runPullPointCollector } =
 const { readRecordingPolicy, writeRecordingPolicy, runCameraRecorder, createPrivateRtspManifest, buildFfmpegInputArgs } = require("./recording.cjs");
 const { createRtspPublishProxy } = require("./rtsp-publish-proxy.cjs");
 const { createRecordingSegmentIndexer } = require("./recording-indexer.cjs");
+const { queryNtpTime } = require("./time-integrity.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
 const CAMERA_STREAM_KEY_FILE = "camera-streams.key";
 const CAMERA_STREAM_CONFIG_FILE = "camera-streams.enc";
 const CAMERA_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let gatewayClockOffsetMs = 0;
+function setGatewayClockOffsetMs(value) {
+  if (!Number.isFinite(value) || !Number.isSafeInteger(Math.round(value)) || Math.abs(value) > 86400000) throw new Error("Correction d'horloge passerelle hors limites.");
+  gatewayClockOffsetMs = Math.round(value);
+  return gatewayClockOffsetMs;
+}
 
 function buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody) {
   const bodyHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
@@ -25,7 +32,7 @@ function buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody) {
 }
 
 function makeSignedGatewayHeaders({ gatewayId, privateKey, rawBody, nowMs = Date.now(), nonce = crypto.randomBytes(24).toString("base64url") }) {
-  const timestamp = String(Math.floor(nowMs / 1000));
+  const timestamp = String(Math.floor((nowMs + gatewayClockOffsetMs) / 1000));
   const canonical = buildCanonicalMessage(gatewayId, timestamp, nonce, rawBody);
   const signature = crypto.sign(null, canonical, privateKey).toString("base64url");
   return {
@@ -43,7 +50,9 @@ function makeSignedHeartbeat({ gatewayId, privateKey, hostname = os.hostname(), 
     agentVersion: AGENT_VERSION,
     hostname: String(hostname).replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 100) || "naxa-gateway",
     capabilities: ["heartbeat"],
-    reportedAt: new Date(nowMs).toISOString(),
+    reportedAt: new Date(nowMs + gatewayClockOffsetMs).toISOString(),
+    deviceTime: new Date(nowMs).toISOString(),
+    clockOffsetMs: gatewayClockOffsetMs,
   };
   const rawBody = JSON.stringify(payload);
   return {
@@ -175,6 +184,7 @@ async function enroll(args) {
 }
 
 async function heartbeat(config) {
+  const requestStartedAt = Date.now();
   const requestData = makeSignedHeartbeat({
     gatewayId: config.gatewayId,
     privateKey: config.privateKey,
@@ -190,6 +200,12 @@ async function heartbeat(config) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok || result.ok !== true) {
     throw new Error(result.error || "Heartbeat refusé (HTTP " + response.status + ").");
+  }
+  const responseReceivedAt = Date.now();
+  const serverTimeMs = Date.parse(result.serverTime || "");
+  if (Number.isFinite(serverTimeMs)) {
+    const measuredOffset = Math.round(serverTimeMs - ((requestStartedAt + responseReceivedAt) / 2));
+    if (Math.abs(measuredOffset) <= 120000) gatewayClockOffsetMs = measuredOffset;
   }
   console.log(new Date().toISOString() + " — heartbeat signé accepté ; tunnel=" + result.tunnelStatus);
 }
@@ -278,6 +294,17 @@ async function fetchProtectedRecordingSegments(config, cameraIds) {
   return output;
 }
 
+async function reportGatewayTimeIntegrity(config,sample){
+ const rawBody=JSON.stringify({ntpServer:sample.server,stratum:sample.stratum,offsetMs:sample.offsetMs,roundTripMs:sample.roundTripMs,measuredAt:sample.measuredAt});
+ const response=await fetch(config.apiBaseUrl+"/api/security/gateway/time-integrity",{
+  method:"POST",headers:makeSignedGatewayHeaders({gatewayId:config.gatewayId,privateKey:config.privateKey,rawBody}),
+  body:rawBody,signal:AbortSignal.timeout(10000),cache:"no-store",redirect:"error"
+ });
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||result.ok!==true)throw new Error("TIME_SAMPLE_REJECTED");
+ return result;
+}
+
 async function run(args) {
   const flags = parseFlags(args);
   const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
@@ -286,6 +313,18 @@ async function run(args) {
     throw new Error("L'intervalle doit être compris entre 30 et 3600 secondes.");
   }
   const config = readSecureConfig(stateDir);
+  const ntpServer = String(process.env.NAXA_NTP_SERVER || "").trim();
+  let latestNtpSample = null;
+  if (ntpServer) {
+    try {
+      latestNtpSample = await queryNtpTime({ server: ntpServer });
+      setGatewayClockOffsetMs(latestNtpSample.offsetMs);
+      console.log(new Date().toISOString() + " — mesure SNTP reçue ; décalage=" + latestNtpSample.offsetMs + " ms.");
+    } catch (error) {
+      console.error("NAXA Security : mesure SNTP impossible ; horloge système non certifiée (" +
+        (error instanceof Error ? error.message.slice(0, 80) : "erreur") + ").");
+    }
+  } else console.log("NAXA Security : NAXA_NTP_SERVER absent ; aucune mesure NTP externe n'est déclarée.");
   const runOnce = async () => {
     try {
       await heartbeat(config);
@@ -294,7 +333,21 @@ async function run(args) {
     }
   };
   await runOnce();
+  if (latestNtpSample) {
+    try { await reportGatewayTimeIntegrity(config, latestNtpSample); }
+    catch { console.error("NAXA Security : envoi de la mesure SNTP en attente de réseau."); }
+  }
   const timer = setInterval(runOnce, intervalSeconds * 1000);
+  const ntpTimer = ntpServer ? setInterval(async () => {
+    try {
+      const sample = await queryNtpTime({ server: ntpServer });
+      setGatewayClockOffsetMs(sample.offsetMs);
+      latestNtpSample = sample;
+      await reportGatewayTimeIntegrity(config, sample);
+      console.log("NAXA Security : mesure SNTP renouvelée ; décalage=" + sample.offsetMs + " ms.");
+    } catch { console.error("NAXA Security : renouvellement SNTP indisponible ; dernière mesure conservée, à revalider."); }
+  }, 5 * 60 * 1000) : null;
+  if (ntpTimer?.unref) ntpTimer.unref();
   const controller = new AbortController();
   const cameras = readCameraStreamConfigs(stateDir);
   const publishers = cameras.map((camera) => runCameraPublisher(config, camera, controller.signal));
@@ -332,7 +385,7 @@ async function run(args) {
     }
   });
   void Promise.all([...publishers, ...eventCollectors, ...recordingWorkers]);
-  const stop = () => { clearInterval(timer); controller.abort(); };
+  const stop = () => { clearInterval(timer); if (ntpTimer) clearInterval(ntpTimer); controller.abort(); };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
   console.log("Agent NAXA actif ; intervalle " + intervalSeconds + " s. Aucun port entrant n'est ouvert.");
@@ -835,4 +888,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent, fetchProtectedRecordingSegments };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent, fetchProtectedRecordingSegments, setGatewayClockOffsetMs };
