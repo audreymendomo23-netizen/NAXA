@@ -189,7 +189,7 @@ function buildRecordingFfmpegArgs(manifestPath, outputPattern, segmentSeconds) {
     throw new Error("Durée de segment hors limites.");
   }
   return [
-    "-hide_banner", "-nostdin", "-loglevel", "error",
+    " -hide_banner".trim(), "-nostdin", "-n", "-loglevel", "error",
     ...inputArgs,
     "-map", "0:v:0", "-an", "-c:v", "copy",
     "-f", "segment", "-segment_time", String(segmentSeconds),
