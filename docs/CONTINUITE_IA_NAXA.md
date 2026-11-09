@@ -1003,3 +1003,21 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Cette correction ne supprime pas l'alerte Advisor de la RPC anonyme : son exposition à `anon` reste voulue pour la télémétrie de recherche. Les limites de 10 termes par appel et de 3 à 80 caractères sont conservées. La migration ne change pas le corps de la fonction.
 - CI #1423 sur le commit `7e8e0ed83ade9436b5b021c99e47fe773f0040fc` : succès, 296 tests réussis, 0 vulnérabilité npm, TypeScript/build réussis, 129/129 pages.
 - Replay et QA seulement ; aucune modification Production, `main` ou Vercel.
+
+ 
+## Addendum 2026-11-09 — index FK ciblés sur les parcours métier
+
+### Audit et correction
+
+- Replay signalait 212 clés étrangères sans index couvrant après les deux index de privilèges précédents.
+- Revue des définitions d'index et contraintes sur les parcours Réservations, POS, crédits Marketplace, rôles professionnels, événements, alertes, rappels de lots et journal de mouvements. Les colonnes déjà couvertes en tête d'un index composite complet ont été exclues. Les clés nullable couvertes par un index unique partiel IS NOT NULL ont également été exclues pour éviter les doublons.
+- Migration Replay enregistrée sous 20261109121909_naxa_core_fk_indexes_batch2 et versionnée sur QA dans supabase/migrations/20261109121909_naxa_core_fk_indexes_batch2.sql. Elle ajoute 22 index B-tree sur les clés étrangères qui n'avaient pas de couverture complète.
+- Test versionné supabase/tests/320_naxa_core_fk_indexes_batch2.sql : 22 assertions structurelles vérifient la présence des FK, la validité/l'état ready des index et l'absence de prédicat partiel ; 22 vérifications EXPLAIN confirment que le planificateur choisit chaque index avec enable_seqscan=off. Le test groupé a été exécuté dans une transaction annulée : 44/44 assertions PASS.
+- Advisor Performance Replay après la migration : unindexed_foreign_keys passe de 212 à 191 ; aucune des 22 FK ciblées ne reste dans les findings. multiple_permissive_policies reste à 56.
+- unused_index passe de 175 à 197. Ce signal est attendu après création des index : Replay n'a pas une charge métier représentative ; certains index FK servent aussi à accélérer les suppressions/mises à jour de lignes parentes et ne doivent pas être supprimés sur la seule base de statistiques de test.
+
+### Limite et périmètre
+
+- Les timings et plans ne sont pas un benchmark de charge réelle : les tables Replay sont petites/vides après les tests transactionnels et le contrôle de sélection d'index force temporairement le planificateur à éviter les scans séquentiels.
+- Migration appliquée sur Replay et source/test versionnés sur QA uniquement. Aucun changement Production, main, ACL, donnée métier ou déploiement Vercel.
+- Il reste 191 alertes FK dans d'autres tables, plus les 56 ensembles de policies permissives à examiner individuellement. Ne pas les corriger en masse sans examiner les index composites, contraintes métier, charge et sécurité.
