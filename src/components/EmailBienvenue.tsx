@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Status = "sending" | "sent" | "failed";
 
@@ -9,7 +9,7 @@ export function EmailBienvenue({ onStatus }: { onStatus?: (status: Status) => vo
   const [message, setMessage] = useState("Vérification de l’envoi du courrier de bienvenue…");
   const attempted = useRef(false);
 
-  async function send() {
+  const send = useCallback(async () => {
     setStatus("sending");
     setMessage("Envoi du courrier de bienvenue en cours…");
     try {
@@ -24,13 +24,13 @@ export function EmailBienvenue({ onStatus }: { onStatus?: (status: Status) => vo
       setMessage("L’envoi du courrier n’a pas été confirmé. Vous pouvez réessayer.");
       onStatus?.("failed");
     }
-  }
+  }, [onStatus]);
 
   useEffect(() => {
     if (attempted.current) return;
     attempted.current = true;
     void send();
-  }, []);
+  }, [send]);
 
   return (
     <div className="mt-4 rounded-2xl border border-teal-100 bg-white/90 p-3 text-sm text-slate-700" aria-live="polite">
