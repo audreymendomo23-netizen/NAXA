@@ -952,3 +952,20 @@ Replay ne contient qu'un profil actif d'Administrateur ; les contextes Client, P
 ### Périmètre
 
 Ces deux migrations et leur preuve concernent exclusivement Replay et la branche QA. `main` reste inchangée ; aucune migration, donnée, ACL ou variable Supabase Production n'a été modifiée. Aucun PR, merge ni déploiement Vercel n'a été effectué.
+
+
+## Addendum 2026-11-09 — indexation ciblée des privilèges
+
+### Audit et correction
+
+- Replay signalait 214 clés étrangères sans index couvrant. Deux tables de privilèges actives ont été priorisées : `naxa_architecture_privileges` (638 lignes) et `naxa_role_privileges` (309 lignes). Sur les deux, la PK composite commence respectivement par `(architecture_code, role_key, privilege_code)` et `(role_key, privilege_code)` ; elle ne fournit pas un index dont `privilege_code` est le premier attribut pour les recherches inversement indexées et la maintenance de la FK.
+- Migration Replay enregistrée : `20261109121000_naxa_privilege_fk_indexes`. Elle crée deux index B-tree dédiés sur `privilege_code`, sans modifier les données, contraintes ou règles d'accès.
+- Plans Replay validés en forçant temporairement le test à considérer les index : `naxa_architecture_privileges` — Index Only Scan, 10 lignes, 0,166 ms ; `naxa_role_privileges` — Bitmap Index Scan, 4 lignes, 0,099 ms. Ces timings sont propres à Replay, pas une promesse de performance Production.
+- Les compteurs `pg_stat_user_indexes` après test : 2 scans / 20 entrées lues pour l'index architecture, 1 scan / 4 entrées lues pour l'index rôles.
+- Advisor performance après rafraîchissement : alertes de FK sans index 214 → 212 ; index inutilisés 175 (les deux nouveaux index ont été exercés) ; policies permissives multiples 56, inchangées.
+- Test SQL versionné : `supabase/tests/317_naxa_privilege_fk_indexes.sql`. Contrôle des deux index, de leur validité et de l'ordre de la première colonne ; exécuté avec succès sur Replay en transaction annulée.
+
+### Limite et périmètre
+
+- Cette passe ne traite que deux des 214 alertes ; les autres nécessitent priorisation table/charge par table et ne seront pas corrigées en masse.
+- Changements appliqués à Replay et versionnés sur QA uniquement. Aucune écriture Supabase Production, aucun merge/PR et aucun déploiement Vercel.
