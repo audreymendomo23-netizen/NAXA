@@ -58,8 +58,8 @@ test("lot 13 : seules les métadonnées vidéo MP4 sont acceptées, audio interd
 });
 
 test("lot 13 : idempotence, collision hash et audit transactionnel", () => {
-  assert.match(migration, /on conflict \\(camera_id, storage_path\\) do nothing/i);
-  assert.match(migration, /count\\(distinct s\\.sha256\\) > 1/i);
+  assert.ok(migration.toLowerCase().includes("on conflict (camera_id, storage_path) do nothing"));
+  assert.ok(migration.toLowerCase().includes("count(distinct s.sha256) > 1"));
   assert.ok(migration.includes("recording_segment_sync"));
   assert.ok(migration.includes("naxa_security_access_audit"));
   assert.ok(sqlTest.includes("sync_rpc_backend_only"));
