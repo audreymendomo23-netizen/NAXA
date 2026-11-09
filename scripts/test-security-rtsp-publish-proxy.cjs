@@ -92,3 +92,58 @@ test("proxy RTSP : URL publisher TLS stricte et écoute loopback uniquement", as
   assert.throws(() => createRtspPublishProxy("rtsp://user:pass@video.example.test:554" + REMOTE_PATH));
   assert.throws(() => createRtspPublishProxy(REMOTE_BASE + "/other/path"));
 });
+
+test("proxy RTSP : relaie une requête vers TLS et réécrit la réponse sans exposer le ticket au client", async () => {
+  const { EventEmitter } = require("node:events");
+  let acceptClient;
+  const upstreamWrites = [];
+  const clientWrites = [];
+  const tlsOptions = [];
+  class FakeServer extends EventEmitter {
+    listen(_port, _host, callback) { callback(); }
+    address() { return { port: 45678, address: "127.0.0.1" }; }
+    close(callback) { callback(); }
+  }
+  class FakeSocket extends EventEmitter {
+    write(buffer) { clientWrites.push(Buffer.from(buffer)); }
+    destroy() { this.emit("close"); }
+  }
+  const fakeUpstream = new EventEmitter();
+  fakeUpstream.authorized = true;
+  fakeUpstream.write = (buffer) => upstreamWrites.push(Buffer.from(buffer));
+  fakeUpstream.destroy = () => fakeUpstream.emit("close");
+  const ticketUrl = REMOTE_BASE.replace("rtsps://", "rtsps://" + CAMERA + ":one-use-ticket@") + REMOTE_PATH;
+  const proxy = createRtspPublishProxy(ticketUrl, {
+    serverFactory: (handler) => { acceptClient = handler; return new FakeServer(); },
+    tlsConnect: (options) => {
+      tlsOptions.push(options);
+      setImmediate(() => fakeUpstream.emit("secureConnect"));
+      return fakeUpstream;
+    },
+  });
+  const local = await proxy.listen();
+  const client = new FakeSocket();
+  acceptClient(client);
+  client.emit("data", Buffer.from(
+    "ANNOUNCE " + local.url + " RTSP/1.0\\r\\nCSeq: 9\\r\\nContent-Length: 0\\r\\n\\r\\n",
+    "latin1",
+  ));
+  await new Promise((resolve) => setImmediate(resolve));
+  const request = Buffer.concat(upstreamWrites).toString("latin1");
+  assert.ok(request.includes("ANNOUNCE " + REMOTE_BASE + REMOTE_PATH));
+  assert.ok(request.includes("Authorization: Basic "));
+  assert.equal(request.includes("one-use-ticket"), false);
+  assert.equal(tlsOptions[0].servername, "video.example.test");
+  assert.equal(tlsOptions[0].rejectUnauthorized, true);
+
+  const body = "v=0\\r\\na=control:" + REMOTE_BASE + REMOTE_PATH + "/trackID=0\\r\\n";
+  fakeUpstream.emit("data", Buffer.from(
+    "RTSP/1.0 200 OK\\r\\nCSeq: 9\\r\\nContent-Base: " + REMOTE_BASE + REMOTE_PATH + "/\\r\\n" +
+    "Content-Type: application/sdp\\r\\nContent-Length: " + Buffer.byteLength(body) + "\\r\\n\\r\\n" + body,
+    "latin1",
+  ));
+  const response = Buffer.concat(clientWrites).toString("latin1");
+  assert.ok(response.includes("Content-Base: " + local.url + "/"));
+  assert.equal(response.includes(REMOTE_BASE), false);
+  await proxy.close();
+});
