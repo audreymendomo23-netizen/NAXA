@@ -1,21 +1,26 @@
-# Lot 14 — Horodatage et intégrité temporelle
+# Lot 14 — horodatage et intégrité temporelle
 
-**État : PARTIEL — fondations logicielles en cours de validation.**  
-**Branche :** `qa/e2e-stabilisation-20261106`.
+**Statut : PARTIEL — fondations logicielles CI validées, intégrité caméra/NVR non recettée.**
 
-## Fondations construites
-- `services/security-gateway/time-integrity.cjs` : client SNTP UDP sans dépendance tierce ; contrôle mode/version/stratum, leap indicator, originate timestamp, horodatages receive/transmit, calcul offset/RTT et bornes.
-- Le serveur NTP doit être configuré explicitement via `NAXA_NTP_SERVER` sur la passerelle. Aucun serveur public n'est sélectionné silencieusement.
-- L'agent corrige ses timestamps de signature Ed25519 avec l'offset mesuré. Si l'horloge locale est dans la fenêtre d'acceptation, le heartbeat HTTPS peut affiner l'offset à partir de l'heure renvoyée par le serveur.
-- Migration `20261109040000_security_gateway_time_integrity.sql` : table privée `naxa_security_gateway_time_samples`, RLS + FORCE RLS, service_role uniquement, historique et RPC transactionnelle journalisée.
-- Routes d'ingestion passerelle signée et lecture Promoteur scoppée aux pharmacies actives.
-- UI : décalage, RTT, stratum, serveur NTP et âge. Seuil d'affichage : offset ≤1 000 ms, RTT ≤1 500 ms, mesure <10 min.
+## Implémenté
+- Client SNTP UDP local : validation mode/version/stratum/originate timestamp, calcul offset et RTT.
+- Configuration explicite NAXA_NTP_SERVER ; aucune modification automatique de l'horloge système.
+- Offset de passerelle appliqué aux timestamps des requêtes Ed25519 ; heartbeat HTTPS utilisé comme ajustement complémentaire si le premier appel est accepté.
+- Migration 313 : naxa_security_gateway_time_samples, RLS + FORCE RLS, RPC SECURITY INVOKER, search_path vide, service_role seulement, verrou et audit.
+- API passerelle signée, API de consultation Promoteur scoppée au réseau actif et composant UI affichant source/stratum/offset/RTT/âge.
+- Seuil d'affichage : offset ≤1 000 ms, RTT ≤1 500 ms, mesure de moins de 10 minutes.
 
-## Limites / preuve restante
-- SNTP seul n'est pas authentifié (NTS non implémenté) ; il s'agit d'une télémétrie, pas d'une preuve cryptographique de l'heure.
-- NAXA ne modifie pas l'horloge OS et ne prétend pas synchroniser les caméras/NVR. Seuls les timestamps de signature HTTP de la passerelle sont corrigés.
-- FFmpeg peut encore nommer les fichiers selon une horloge système incorrecte.
-- Non livré : incrustation vidéo, fuseau IANA par pharmacie, PTS/DTS, manifeste signé SHA-256, vérification hash après export et comparaison physique des 4 horloges.
-- Les tests simulés ne prouvent pas une connexion NTP réelle.
+## Preuves
+- Replay pwfftcsjyeibxxqhwysw : table/RLS, fonction, grants backend-only et audit/transaction vérifiés.
+- CI #1333 SUCCESS sur SHA e78cacf5cdf894b9df2a32d70418ee4eb362219e : 283/283 tests PASS, 0 échec, audit npm 0 vulnérabilité, TS/ESLint/build PASS, 129/129 pages.
+- Test NTP UDP simulé : calcul et rejet d'une origine incohérente ; ne prouve pas la disponibilité d'un serveur NTP du pilote.
 
-Lot 14 reste PARTIEL jusqu'à la synchronisation OS/NTP réelle, l'intégrité des archives et la recette caméra/NVR physique.
+## Restes obligatoires
+1. Configurer un serveur NTP de confiance sur la passerelle physique et mesurer dérive/RTT réels.
+2. Synchroniser l'horloge OS de la passerelle par le service d'administration Linux ; NAXA ne change pas l'heure OS.
+3. Vérifier l'horloge caméra/NVR ; SNTP passerelle ne garantit pas leur horloge.
+4. Ajouter l'incrustation date/heure seconde/pharmacie/caméra/fuseau à l'export, sans écraser l'original.
+5. Préserver PTS/DTS, créer un manifeste d'archive SHA-256 signé et vérifier le hash après export.
+6. Tester le franchissement de minuit, redémarrage, coupure réseau et comparaison physique serveur/passerelle/NVR/caméra.
+
+**Blocage matériel :** aucun gateway, caméra ou NVR n'est enregistré sur Replay ; aucune mesure réelle n'a été transmise. Le lot 14 global reste PARTIEL.

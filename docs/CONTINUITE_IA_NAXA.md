@@ -711,38 +711,17 @@ Aucune donnée de test n'a été insérée dans Replay ; aucune migration n'a é
 
 ---
 
-## Lot 13 — enregistrement local, index hors ligne et synchronisation (09/11/2026)
+## Lot 13 — enregistrement local et index (09/11/2026)
 
-### Référence et preuve CI
-- Branche : `qa/e2e-stabilisation-20261106`.
-- SHA CI validé : `cd77624e764f435be956f1c798d145e9c2bcfb39`.
-- GitHub Actions #1327 : succès complet sur ce SHA exact : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42548972061.
-- Logs : **271 tests PASS / 0 FAIL**, audit dépendances **0 vulnérabilité**, validation officielle de MediaMTX 1.21.3, compilation Next.js réussie, génération **129/129** pages statiques ; TypeScript, ESLint et build réussis.
-- Supabase Replay uniquement : `naxa-ci-replay-2` / `pwfftcsjyeibxxqhwysw`. Migration 310 appliquée ; **17/17 assertions SQL PASS**. Migration 311 + RPC de synchronisation testées sur Replay. Aucune écriture Production.
+Le périmètre livré depuis l'index initial comprend maintenant :
+- migrations 310/311 et API signée d'index de métadonnées ;
+- worker FFmpeg local opt-in, segments continus, no-overwrite, audio désactivé et secrets absents des arguments de processus ;
+- indexeur ffprobe, SHA-256 et outbox AES-256-GCM avec reprise ;
+- migration 312 et RPC protect/unprotect transactionnelle, auditée, réservée à service_role ;
+- endpoint signé de synchronisation des segments protégés ; purge locale suspendue si l'état distant est inconnu/incomplet ;
+- API et UI Promoteur de timeline des métadonnées ; aucun chemin local ou lien de lecture n'est exposé.
 
-### Logiciel réellement livré
-- Migration 310 : `naxa_security_recording_segments`, index privé des segments, clés pharmacie/passerelle/caméra cohérentes, UTC, état, durée, codec, MP4, chemin relatif, taille, SHA-256, rétention et protection justifiée. Audio interdit. RLS + FORCE RLS et accès backend uniquement.
-- Migration 311 : RPC idempotente `naxa_security_sync_recording_segments`, réservée à `service_role`, contrôle du rattachement pharmacie/caméra/passerelle, chemin déterministe, hash, durée, MP4, absence audio et audit de synchronisation.
-- Route `POST /api/security/gateway/recording-segments` : signature Ed25519 sur le corps brut, anti-rejeu, installation pilote/légale/confidentialité approuvée, caméras du même gateway/pharmacie, lot borné à 10 et métadonnées seules (aucun octet média ni URL publique).
-- Worker local FFmpeg : politique opt-in, désactivée par défaut ; caméras déjà configurées uniquement ; segments continus 30–900 secondes ; MP4, UTC, copie vidéo sans audio ; répertoire privé et manifeste temporaire 0700/0600 ; aucun identifiant caméra dans argv ; `-n` empêche l'écrasement ; arrêt demandé avant spawn respecté.
-- Indexeur local : attend la fermeture/stabilité du segment, vérifie via ffprobe sans shell, rejette les pistes audio, calcule SHA-256, vérifie inode/taille/mtime et conserve index/file d'attente AES-256-GCM chiffrés. Les envois échoués restent dans l'outbox et sont repris après redémarrage ; les chemins encore en attente sont protégés de la purge.
-- L'agent système démarre ces workers uniquement pour les caméras locales explicitement configurées et les politiques activées.
-
-### Limites précises — le lot reste PARTIEL
-- Le mode réellement exploité par la politique locale est actuellement **continu**. Les valeurs SQL prévues pour programmé/événementiel ne prouvent pas un planificateur actif.
-- La timeline utilisateur, la recherche d'archives, les filtres événementiels et la relecture pause/avance/positionnement ne sont pas encore livrés.
-- Aucun endpoint métier Promoteur/Responsable pour protéger/libérer un segment, ni synchronisation descendante des chemins protégés vers le NVR ; la protection actuellement prouvée concerne l'outbox et les chemins fournis localement au mécanisme de rétention.
-- Aucun flux vidéo d'archive n'est actuellement rendu lisible/exportable par le navigateur. Il ne faut pas exposer `storage_path` ou générer un faux lien de lecture.
-- Le quota et la purge locale existent dans le worker, mais la supervision centralisée du disque, alerte disque plein, reprise après coupure secteur et parcours de restauration doivent encore être achevés.
-- La clé AES de l'index/outbox est un fichier privé sur le même appareil que les données chiffrées : cela protège le contenu au repos contre une lecture accidentelle du fichier, mais pas contre le vol/compromission complète de l'appareil. TPM, keystore système ou coffre matériel non intégrés.
-- Aucune caméra/NVR réelle n'a été raccordée. Aucun enregistrement réel, coupure WAN/secteur ou export/lecture physique n'a été vérifié.
-- Le lot 12 live physique reste lui aussi PARTIEL : aucun flux caméra réel n'a été validé.
-
-### Verdict et reprise exacte
-**CI et fondations logicielles de l'enregistrement : PASS sur `cd77624e764f435be956f1c798d145e9c2bcfb39`. Lot 13 global : PARTIEL, non vert, non recetté matériel.**
-Aucun enregistrement n'est activé par défaut ; aucun faux appareil, clip, segment ou état connecté n'a été ajouté.
-
-Prochaine tranche de code : sécuriser le cycle de protection/rétention côté serveur et passerelle, construire la timeline métier sans exposer les chemins locaux, puis concevoir un canal de lecture/export d'archives qui reste sortant-only. Le critère matériel restera séparé. Le lot 14 (intégrité temporelle) ne doit pas être déclaré vert tant que source NTP, dérive mesurée et intégrité d'un fichier exporté ne sont pas vérifiées.
+La timeline et la protection sont livrées côté logiciel ; le lecteur/export vidéo, l'enregistrement programmé/événementiel, la supervision de disque et la recette caméra/NVR restent ouverts.
 
 
 ## Lot 13 — protection des archives et timeline metadata (09/11/2026)
@@ -752,7 +731,7 @@ Prochaine tranche de code : sécuriser le cycle de protection/rétention côté 
 - RPC `naxa_security_set_recording_protection` : transaction + verrou `FOR UPDATE`, rôle acteur, justification 8–500 caractères, changement ready/protected et audit atomique.
 - Vérification Replay : `SECURITY INVOKER`, `search_path=''`, exécution accordée à `service_role`, refusée à `anon` et `authenticated`.
 - Le lot de code raccorde route Promoteur de protection, endpoint passerelle signé de synchronisation des chemins protégés, purge locale fail-closed (si synchronisation manquante/incomplète : aucune purge), API timeline auditée et interface Promoteur. Les chemins locaux ne sont jamais fournis à l'interface.
-- Tests Replay exécutés : RPC 312 présente, invoker + search_path vide, backend-only, verrou/audit transactionnels PASS ; justification courte rejetée. Première CI du SHA 6624fc2d : 275/276 ; défaut unique du test de rétention (ancien nom protected.mp4) corrigé au SHA de reprise. CI de reprise à attendre. Matériel physique et lecture/export vidéo non couverts.
+- Tests Replay exécutés : RPC 312 présente, invoker + search_path vide, backend-only, verrou/audit transactionnels PASS ; justification courte rejetée. CI #1330 SUCCESS sur ec6f6963a1b94b30f9810730f43e49bb50cffe10 : 276/276 tests, 0 échec, audit npm 0 vulnérabilité, build Next.js et 129/129 pages PASS. Matériel physique et lecture/export vidéo non couverts.
 
 
 ## Lot 14 — mesure de dérive temporelle passerelle (09/11/2026)
@@ -789,4 +768,15 @@ Prochaine tranche de code : sécuriser le cycle de protection/rétention côté 
 - UI Promoteur uniquement ; délégation Responsable mono-pharmacie non implémentée.
 - Pas d'essai sur passerelle/caméra physique.
 
-**Verdict : PARTIEL — logiciel construit, CI et recette physique restantes.**
+**Verdict : fondations logicielles validées par CI #1341, lot 16 global PARTIEL faute de recette passerelle et de fonctions aval (alertes, IA, clips, Responsable).**
+- Commit QA testé : 909727b13bdd8872baba0450955206c3ed04d252.
+- CI #1341 SUCCESS : 290/290 tests, 0 échec, audit npm 0 vulnérabilité, build Next.js et 129/129 pages PASS.
+
+
+## Contrôle terminal CI et statut transverse — 09/11/2026
+- Branche QA : qa/e2e-stabilisation-20261106 ; SHA du lot 16 validé : 909727b13bdd8872baba0450955206c3ed04d252.
+- CI #1341 : SUCCESS ; 290 tests PASS / 0 FAIL, audit npm 0 vulnérabilité, validation officielle MediaMTX, TypeScript/ESLint/build PASS et 129/129 pages.
+- CI #1333 lot 14 : SUCCESS ; 283/283 tests PASS, audit npm 0 vulnérabilité, TypeScript/ESLint/build PASS et 129/129 pages.
+- Replay : zéro installation, passerelle, caméra, connexion, live session, clip, segment, commande sirène et politique de haute surveillance. Les 15 adaptateurs caméra sont design_only.
+- Lire docs/security/SUIVI_LOTS12_20_RESTANTS.md pour les raisons lot par lot. Les nombres Replay ne décrivent pas Production.
+- Lot 16 : contrats logiciels et CI PASS ; recette physique et fonctions aval non terminées.
