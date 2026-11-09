@@ -12,6 +12,7 @@ const {
   buildRecordingFfmpegArgs,
   startFfmpegRecorder,
   pruneRecordingFiles,
+  normalizeProtectedSegmentNames,
 } = require("../services/security-gateway/recording.cjs");
 
 const CAMERA_A = "a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20";
@@ -187,4 +188,16 @@ test("lot 13 : agent systemd démarre l'enregistrement uniquement sur politique 
   assert.ok(agent.includes("runCameraRecorder"));
   assert.ok(agent.includes("recordingWorkers"));
   assert.ok(agent.includes("Audio désactivé"));
+});
+
+
+test("lot 13 : liste de segments protégés distante strictement bornée à la caméra", () => {
+  assert.deepEqual(
+    normalizeProtectedSegmentNames(CAMERA_A, [CAMERA_A + "_20261109T050000.mp4", CAMERA_A + "_20261109T050000.mp4"]),
+    [CAMERA_A + "_20261109T050000.mp4"],
+  );
+  assert.throws(() => normalizeProtectedSegmentNames(CAMERA_A, ["../" + CAMERA_A + "_20261109T050000.mp4"]));
+  assert.throws(() => normalizeProtectedSegmentNames(CAMERA_A, ["other_20261109T050000.mp4"]));
+  assert.throws(() => normalizeProtectedSegmentNames(CAMERA_A, ["protected.mp4"]));
+  assert.throws(() => normalizeProtectedSegmentNames(CAMERA_A, "not-an-array"));
 });

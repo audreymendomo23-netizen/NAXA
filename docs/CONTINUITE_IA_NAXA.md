@@ -743,3 +743,13 @@ Aucune donnée de test n'a été insérée dans Replay ; aucune migration n'a é
 Aucun enregistrement n'est activé par défaut ; aucun faux appareil, clip, segment ou état connecté n'a été ajouté.
 
 Prochaine tranche de code : sécuriser le cycle de protection/rétention côté serveur et passerelle, construire la timeline métier sans exposer les chemins locaux, puis concevoir un canal de lecture/export d'archives qui reste sortant-only. Le critère matériel restera séparé. Le lot 14 (intégrité temporelle) ne doit pas être déclaré vert tant que source NTP, dérive mesurée et intégrité d'un fichier exporté ne sont pas vérifiées.
+
+
+## Lot 13 — protection des archives et timeline metadata (09/11/2026)
+
+### Implémentation QA en cours
+- Migration 312 `security_recording_protection_lot13` appliquée sur Replay `pwfftcsjyeibxxqhwysw`.
+- RPC `naxa_security_set_recording_protection` : transaction + verrou `FOR UPDATE`, rôle acteur, justification 8–500 caractères, changement ready/protected et audit atomique.
+- Vérification Replay : `SECURITY INVOKER`, `search_path=''`, exécution accordée à `service_role`, refusée à `anon` et `authenticated`.
+- Le lot de code raccorde route Promoteur de protection, endpoint passerelle signé de synchronisation des chemins protégés, purge locale fail-closed (si synchronisation manquante/incomplète : aucune purge), API timeline auditée et interface Promoteur. Les chemins locaux ne sont jamais fournis à l'interface.
+- Les tests Replay/CI du nouveau SHA restent à effectuer avant d'annoncer la clôture. Le matériel physique et la lecture/export vidéo ne sont pas couverts.

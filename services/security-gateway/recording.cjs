@@ -255,6 +255,22 @@ function startFfmpegRecorder({ sourceUrl, outputPattern, segmentSeconds, signal,
   });
 }
 
+function normalizeProtectedSegmentNames(cameraId, input) {
+  if (!CAMERA_UUID.test(cameraId) || !Array.isArray(input) || input.length > 10000) {
+    throw new Error("Liste de segments protégés invalide.");
+  }
+  const pattern = new RegExp("^" + cameraId + "_[0-9]{8}T[0-9]{6}\\.mp4$", "i");
+  const names = new Set();
+  for (const item of input) {
+    if (typeof item !== "string" || item.length > 64 ||
+      path.basename(item) !== item || !pattern.test(item)) {
+      throw new Error("Nom de segment protégé hors périmètre.");
+    }
+    names.add(item);
+  }
+  return [...names];
+}
+
 function pruneRecordingFiles(recordingRoot, cameraId, {
   retentionDays,
   maxBytes,
@@ -268,7 +284,8 @@ function pruneRecordingFiles(recordingRoot, cameraId, {
     throw new Error("Politique de rétention locale invalide.");
   }
   const directory = recordingCameraDirectory(recordingRoot, cameraId);
-  const protectedSet = new Set(protectedPaths.map((item) => path.resolve(directory, item)));
+  const safeProtectedNames = normalizeProtectedSegmentNames(cameraId, protectedPaths);
+  const protectedSet = new Set(safeProtectedNames.map((item) => path.resolve(directory, item)));
   const activeWindowMs = Math.max(60000, segmentSeconds * 2000 + 30000);
   const files = [];
   for (const name of fs.readdirSync(directory)) {
@@ -308,15 +325,22 @@ async function waitDelay(ms, signal) {
   });
 }
 
-async function runCameraRecorder({ camera, policy, stateDir, signal, indexer = null, log = (message) => console.error(message) }) {
+async function runCameraRecorder({ camera, policy, stateDir, signal, indexer = null, getProtectedPaths = () => null, log = (message) => console.error(message) }) {
   const recordingRoot = path.join(stateDir, RECORDING_DIRECTORY);
   const outputPattern = buildRecordingOutputPattern(recordingRoot, camera.cameraId);
   let backoffMs = 5000;
   const protectPending = () => indexer ? indexer.getPendingPaths() : [];
   const prune = () => {
+    const serverProtected = getProtectedPaths();
+    if (!Array.isArray(serverProtected)) {
+      log("NAXA Security : état des protections serveur inconnu ; purge suspendue par sécurité.");
+      return { removed: [], pruningSkipped: true, reason: "PROTECTION_SYNC_UNKNOWN" };
+    }
+    const pendingPaths = protectPending();
+    const combined = [...new Set([...serverProtected, ...pendingPaths])];
     const result = pruneRecordingFiles(recordingRoot, camera.cameraId, {
       ...policy,
-      protectedPaths: protectPending(),
+      protectedPaths: combined,
     });
     if (indexer) indexer.forgetRemoved(result.removed);
     return result;
@@ -376,5 +400,6 @@ module.exports = {
   buildRecordingFfmpegArgs,
   startFfmpegRecorder,
   pruneRecordingFiles,
+  normalizeProtectedSegmentNames,
   runCameraRecorder,
 };

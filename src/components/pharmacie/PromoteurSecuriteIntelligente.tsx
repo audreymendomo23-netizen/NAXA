@@ -6,6 +6,7 @@ import { examinerCameraDecouverte, examinerEvenementSecurite } from "@/app/pharm
 
 import { useMemo, useState } from "react";
 import { SecurityWhepPlayer } from "@/components/pharmacie/SecurityWhepPlayer";
+import { SecurityRecordingTimeline } from "@/components/pharmacie/SecurityRecordingTimeline";
 import { useSearchParams } from "next/navigation";
 
 type Pharmacy = { id: string; nom: string; ville: string | null; quartier: string | null };
@@ -438,6 +439,7 @@ export function PromoteurSecuriteIntelligente({
               })}
             </section>
 
+            <SecurityRecordingTimeline pharmacyId={selectedPharmacyId === "all" ? null : selectedPharmacyId} />
             <section className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-extrabold">Événements de sécurité</h3>

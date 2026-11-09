@@ -236,6 +236,48 @@ async function syncRecordingSegmentBatch(config, segments) {
   return result.insertedSegments;
 }
 
+async function fetchProtectedRecordingSegments(config, cameraIds) {
+  if (!Array.isArray(cameraIds) || cameraIds.length < 1 || cameraIds.length > 64 ||
+    cameraIds.some((id) => typeof id !== "string" || !CAMERA_UUID.test(id)) ||
+    new Set(cameraIds).size !== cameraIds.length) {
+    throw new Error("Liste caméra de synchronisation invalide.");
+  }
+  const rawBody = JSON.stringify({ cameraIds });
+  const response = await fetch(config.apiBaseUrl + "/api/security/gateway/recording-protection", {
+    method: "POST",
+    headers: makeSignedGatewayHeaders({
+      gatewayId: config.gatewayId,
+      privateKey: config.privateKey,
+      rawBody,
+    }),
+    body: rawBody,
+    signal: AbortSignal.timeout(15000),
+    cache: "no-store",
+    redirect: "error",
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok !== true || result.complete !== true ||
+    !result.protectedByCamera || typeof result.protectedByCamera !== "object" ||
+    Array.isArray(result.protectedByCamera)) {
+    throw new Error("PROTECTED_RECORDING_SYNC_INCOMPLETE");
+  }
+
+  const output = {};
+  for (const cameraId of cameraIds) {
+    const names = result.protectedByCamera[cameraId];
+    if (!Array.isArray(names) || names.length > 10000) throw new Error("PROTECTED_RECORDING_SYNC_INVALID");
+    const pattern = new RegExp("^" + cameraId + "_[0-9]{8}T[0-9]{6}\\.mp4$", "i");
+    if (names.some((name) => typeof name !== "string" || name.length > 64 || !pattern.test(name))) {
+      throw new Error("PROTECTED_RECORDING_SYNC_INVALID");
+    }
+    output[cameraId] = [...new Set(names)];
+  }
+  if (Object.keys(result.protectedByCamera).some((id) => !cameraIds.includes(id))) {
+    throw new Error("PROTECTED_RECORDING_SYNC_SCOPE_MISMATCH");
+  }
+  return output;
+}
+
 async function run(args) {
   const flags = parseFlags(args);
   const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
@@ -258,16 +300,36 @@ async function run(args) {
   const publishers = cameras.map((camera) => runCameraPublisher(config, camera, controller.signal));
   const eventCollectors = readOnvifEventConfigs(stateDir).map((camera) => runCameraOnvifEvents(config, camera, controller.signal));
   const recordingPolicies = readRecordingPolicy(stateDir, cameras.map((camera) => camera.cameraId));
-  const recordingWorkers = recordingPolicies.map((policy) => {
+  const recordingWorkers = recordingPolicies.map(async (policy) => {
     const camera = cameras.find((item) => item.cameraId === policy.cameraId);
-    if (!camera) return Promise.resolve();
+    if (!camera) return;
     const indexer = createRecordingSegmentIndexer({
       stateDir,
       cameraId: camera.cameraId,
       policy,
       sendBatch: (segments) => syncRecordingSegmentBatch(config, segments),
     });
-    return runCameraRecorder({ camera, policy, stateDir, signal: controller.signal, indexer });
+    let protectedPaths = null;
+    const refreshProtection = async () => {
+      try {
+        const result = await fetchProtectedRecordingSegments(config, [camera.cameraId]);
+        protectedPaths = result[camera.cameraId];
+      } catch {
+        protectedPaths = null;
+        console.error("NAXA Security : protections serveur non synchronisées ; rétention suspendue pour cette caméra.");
+      }
+    };
+    await refreshProtection();
+    const protectionTimer = setInterval(() => { void refreshProtection(); }, 60 * 1000);
+    if (protectionTimer.unref) protectionTimer.unref();
+    try {
+      await runCameraRecorder({
+        camera, policy, stateDir, signal: controller.signal, indexer,
+        getProtectedPaths: () => protectedPaths,
+      });
+    } finally {
+      clearInterval(protectionTimer);
+    }
   });
   void Promise.all([...publishers, ...eventCollectors, ...recordingWorkers]);
   const stop = () => { clearInterval(timer); controller.abort(); };
@@ -773,4 +835,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent };
+module.exports = { AGENT_VERSION, buildCanonicalMessage, makeSignedGatewayHeaders, makeSignedHeartbeat, secureApiBase, ensurePrivateDirectory, writePrivateFile, readSecureConfig, parseFlags, validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs, startFfmpegPublisher, requestStreamPublishTicket, buildSecurityEventPayload, reportSecurityEvent, fetchProtectedRecordingSegments };
