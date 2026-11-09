@@ -1044,3 +1044,14 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 
 - Advisor Replay après correction : 189 FK sans index couvrant, 175 index non utilisés observés et 51 groupes de policies permissives restant à examiner. Ces alertes sont à traiter table par table ; pas de suppression ou fusion automatique.
 - La modification est limitée à Replay et à la branche `qa/e2e-stabilisation-20261106`. `main` et Supabase Production sont inchangées ; aucun merge/PR ni déploiement n’a été effectué.
+
+## Addendum 2026-11-09 — consolidation RLS des niveaux d’architecture
+
+- Replay : `naxa_architecture_niveaux` avait `naxa_architecture_niveaux_admin_write FOR ALL` en plus de `naxa_architecture_niveaux_read FOR SELECT`. Les deux policies étaient permissives pour les SELECT authentifiés.
+- Correction : la policy Admin globale a été séparée en `INSERT`, `UPDATE` et `DELETE`, chacune conservant `(select is_admin())`. La lecture authentifiée `USING true`, RLS, grants et données restent inchangés.
+- Migration Replay : `20261109211700_naxa_architecture_niveaux_select_policy_consolidation`.
+- Test SQL structurel versionné : `supabase/tests/20261109211700_naxa_architecture_niveaux_select_policy_consolidation.sql`, exécuté avec succès sur Replay.
+- Preuve comportementale : Admin actif reconnu et autorisé à insérer/modifier/supprimer dans une transaction annulée ; authentifié non-Admin lit 10 lignes, ne modifie/supprime aucune ligne et son INSERT est refusé. `anon` n’a pas de grant SQL SELECT sur cette table et n’entre pas dans ce périmètre.
+- Advisor `multiple_permissive_policies` : **51 → 50** après retrait des doublons sur `dictionnaire` et `naxa_architecture_niveaux`. Aucun des deux objets ne figure encore dans les findings.
+- Les autres 50 ensembles de policies restent à examiner individuellement. Replay affiche toujours 189 FK sans index couvrant et 175 index non utilisés observés ; pas de suppression massive sans mesure de charge et revue des index composites.
+- QA/Replay seulement ; Production et `main` restent inchangées, aucun merge/PR ni déploiement.
