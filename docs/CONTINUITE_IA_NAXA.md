@@ -1055,3 +1055,27 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Advisor `multiple_permissive_policies` : **51 → 50** après retrait des doublons sur `dictionnaire` et `naxa_architecture_niveaux`. Aucun des deux objets ne figure encore dans les findings.
 - Les autres 50 ensembles de policies restent à examiner individuellement. Replay affiche toujours 189 FK sans index couvrant et 175 index non utilisés observés ; pas de suppression massive sans mesure de charge et revue des index composites.
 - QA/Replay seulement ; Production et `main` restent inchangées, aucun merge/PR ni déploiement.
+
+## Addendum 2026-11-09 — séparation de la lecture publique et Admin des pharmacies
+
+### Cause confirmée en lecture seule sur Production
+
+- Production contient 4 pharmacies : 1 active et 3 inactives.
+- La policy de lecture Production `pharmacies_read` utilisait `actif OR private.is_admin()`, alors que `anon` n'a pas le droit `EXECUTE` sur `private.is_admin()`.
+- Une requête réelle `anon` exécutée en lecture seule sur Production a échoué avec `42501 permission denied for function is_admin`. Aucune donnée ni policy Production n'a été modifiée.
+
+### Correction Replay / source QA
+
+- Migration Replay `20261109212452_pharmacies_select_policy_consolidation_20261109` : remplacement de la policy Admin `ALL` par trois policies DML Admin.
+- Migration Replay `20261109212710_pharmacies_admin_dml_authenticated_only_20261109` : DML limité au rôle `authenticated`, qui porte les sessions Admin NAXA ; aucun appel du helper privé pour `anon`.
+- Migration Replay `20261109212829_pharmacies_public_authenticated_read_split_20261109` : séparation explicite des lectures :
+  - `anon` lit uniquement les pharmacies actives via `pharmacies_read_anon`, sans appeler `private.is_admin()`.
+  - `authenticated` lit les pharmacies actives et, si `private.is_admin()` est vrai, conserve la visibilité des pharmacies inactives.
+- Les trois migrations Replay ci-dessus ont été ajoutées au dépôt QA avec le test structurel `supabase/tests/20261109212829_pharmacies_public_authenticated_read_split.sql`.
+
+### Preuves Replay et limites
+
+- Replay : 9 pharmacies visibles pour `anon` et pour un profil `authenticated` non-Admin ; la mise à jour Admin en session authentifiée a fonctionné. Les trois policies DML sont maintenant `TO authenticated`.
+- Le test structurel vérifie que la policy `anon` n'appelle jamais `private.is_admin()`, que chaque rôle n'a qu'une policy SELECT et que les trois policies DML restent Admin-only.
+- Advisor `multiple_permissive_policies` : **50 → 45** ; aucun finding ne cite plus `pharmacies`. Replay reste à 189 FK sans index couvrant et 175 index non utilisés observés.
+- **Production reste inchangée** : le défaut y est établi par la requête de lecture anonyme en lecture seule. Le correctif nécessite une migration Production explicitement autorisée. Aucun merge, PR ni déploiement n'a été effectué.
