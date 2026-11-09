@@ -80,6 +80,7 @@ function runFfprobe(filePath, {
   return new Promise((resolve, reject) => {
     const args = [
       "-v", "error",
+      "-protocol_whitelist", "file,crypto,data",
       "-show_entries", "format=duration:stream=codec_type,codec_name",
       "-of", "json",
       filePath,
@@ -190,6 +191,10 @@ function loadState(stateDir, cameraId) {
     !Array.isArray(outbox.segments) || outbox.segments.length > MAX_OUTBOX_ENTRIES) {
     throw new Error("État local d'indexation invalide.");
   }
+  const expectedCameraId = path.basename(outboxPath).slice("recording-outbox-".length, -".json".length);
+  if (!CAMERA_UUID.test(expectedCameraId) || !outbox.segments.every((row) => validateQueuedRow(row, expectedCameraId))) {
+    throw new Error("File de segments en attente invalide.");
+  }
   for (const [relativePath, hash] of Object.entries(index.indexed)) {
     if (typeof relativePath !== "string" || typeof hash !== "string" || !/^[0-9a-f]{64}$/.test(hash)) {
       throw new Error("Index local de segments invalide.");
@@ -199,12 +204,23 @@ function loadState(stateDir, cameraId) {
 }
 
 function validateQueuedRow(row, cameraId) {
-  return row && row.camera_id === cameraId &&
-    typeof row.storage_path === "string" &&
-    row.storage_path.startsWith(cameraId + "/") &&
-    /^[0-9a-f]{64}$/.test(row.sha256) &&
-    row.audio_enabled === false &&
-    row.container_format === "mp4";
+  if (!row || row.camera_id !== cameraId ||
+    typeof row.storage_path !== "string" ||
+    !row.storage_path.startsWith(cameraId + "/") ||
+    !/^[0-9a-f]{64}$/.test(row.sha256) ||
+    row.audio_enabled !== false || row.container_format !== "mp4" ||
+    !["continuous", "scheduled", "event"].includes(row.recording_mode) ||
+    typeof row.duration_seconds !== "number" || row.duration_seconds <= 0 || row.duration_seconds > 960 ||
+    typeof row.codec !== "string" || !/^[A-Za-z0-9_.-]{1,64}$/.test(row.codec) ||
+    !Number.isSafeInteger(row.size_bytes) || row.size_bytes <= 0) return false;
+  const fileName = path.basename(row.storage_path);
+  const parsed = parseSegmentName(fileName, cameraId);
+  return Boolean(parsed) && path.dirname(row.storage_path) === cameraId &&
+    typeof row.started_at === "string" && Number.isFinite(Date.parse(row.started_at)) &&
+    typeof row.ended_at === "string" && Number.isFinite(Date.parse(row.ended_at)) &&
+    Date.parse(row.ended_at) >= Date.parse(row.started_at) &&
+    typeof row.retention_until === "string" && Number.isFinite(Date.parse(row.retention_until)) &&
+    Date.parse(row.retention_until) >= Date.parse(row.started_at);
 }
 
 function createRecordingSegmentIndexer({
@@ -226,6 +242,7 @@ function createRecordingSegmentIndexer({
     !Number.isInteger(policy?.maxBytes) || policy.maxBytes < 1024 * 1024 * 1024) {
     throw new Error("Politique de rétention/segment invalide pour l'indexeur.");
   }
+  stateDir = path.resolve(stateDir);
   ensurePrivateDirectory(stateDir);
   const recordingRoot = path.join(stateDir, RECORDING_DIRECTORY);
   const cameraDirectory = path.join(recordingRoot, cameraId);
