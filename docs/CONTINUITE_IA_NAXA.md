@@ -905,3 +905,29 @@ Le rapport de faisabilité sécurité du 07/11/2026 conserve des alertes Replay 
 ### Verdict de cette passe
 
 **PASS logiciel QA au SHA 6fec5e0 ; 3 corrections de cohérence/SQL vérifiées sur Replay ; audit global toujours ouvert.** La base n'est pas « au bout de ce qui est corrigeable » : des optimisations de code et de RLS restent réalisables. La clôture complète de l'application demeure impossible tant que les dépendances matérielles, Android natif, Google Drive réel et la pharmacie pilote ne sont pas disponibles.
+
+## Addendum 2026-11-09 — correction des avertissements d’images
+
+### Audit, cause et correction
+
+- Sur `qa/e2e-stabilisation-20261106`, les 28 balises `<img>` identifiées par ESLint ont été remplacées par `next/image` dans 22 fichiers. Les sources, textes alternatifs, classes, gestionnaires d’erreur et comportements existants ont été conservés ; les dimensions intrinsèques ont été explicitées lorsque nécessaire.
+- Les sources externes, `blob:` et `data:` utilisent `unoptimized` pour préserver leurs URL sans ajouter de domaines distants arbitraires à la configuration Next.js. Les logos statiques locaux restent optimisables par Next.js.
+- Le premier contrôle #1416 a révélé une collision de nom : l’import `Image` masquait le constructeur navigateur `new Image()` employé dans le recadrage du profil et le scanner. La correction a renommé l’import en `NextImage` dans `src/app/client/profil/page.tsx` et `src/components/ScannerShell.tsx`.
+- Commit final du code : `935290a593c75fbf36f2fdc5fe8e85ae32b8fdd0`.
+
+### Preuve de validation
+
+- CI #1417 : **SUCCESS** sur le commit ci-dessus — https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42603304077
+- Tests Node : 296/296 PASS, 0 échec, 0 ignoré.
+- Audit des dépendances de production : 0 vulnérabilité.
+- Gitleaks : scan des références Git et de l’arbre courant réussi.
+- Configuration MediaMTX 1.21.3 : validation réussie.
+- TypeScript et build Next.js : réussis ; 129/129 pages statiques générées.
+- Avertissements ESLint `@next/next/no-img-element` : 0 dans le journal du run final.
+
+### Réserves non clôturées par cette correction
+
+- Les avertissements Node `DEP0040` (`punycode`) et `DEP0169` (`url.parse()`) demeurent dans les outils/dépendances exécutés par CI.
+- Des dépendances de développement signalent encore des dépréciations, notamment ESLint 8.57.1 et les anciens paquets `@humanwhocodes`. Elles ne sont pas mises à niveau dans cette passe.
+- Cette preuve concerne exclusivement le code de la branche QA. Le HEAD `main` reste `2374348e416d4745e19546da1151ea1ad8fefa11`. Aucun merge/PR, aucun déploiement Vercel et aucune écriture Supabase Production n’ont été effectués.
+- Les alertes RLS, les index FK, les policies permissives, les fonctions `SECURITY DEFINER` à examiner et les dépendances réelles des lots 12–20 restent ouvertes selon les constats précédents. La correction des images ne constitue pas un verdict vert global de NAXA.
