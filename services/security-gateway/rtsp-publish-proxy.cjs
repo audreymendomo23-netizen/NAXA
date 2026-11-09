@@ -111,6 +111,7 @@ function createRtspPublishProxy(publishUrl, options = {}) {
   const tlsConnect = options.tlsConnect || tls.connect;
   const sockets = new Set();
   let localUrl = null;
+  let localBase = null;
   let closed = false;
   let connectedClients = 0;
 
@@ -181,7 +182,7 @@ function createRtspPublishProxy(publishUrl, options = {}) {
       for (const frame of parsed.frames) {
         if (frame.interleaved) client.write(frame.raw);
         else {
-          try { client.write(rewriteServerResponse(frame.raw, { remoteBase, localBase: localUrl })); }
+          try { client.write(rewriteServerResponse(frame.raw, { remoteBase, localBase })); }
           catch { cleanup(); return; }
         }
       }
@@ -200,7 +201,8 @@ function createRtspPublishProxy(publishUrl, options = {}) {
       });
       const address = server.address();
       if (!address || typeof address === "string") throw new Error("Local RTSP proxy unavailable.");
-      localUrl = "rtsp://127.0.0.1:" + address.port + remotePath;
+      localBase = "rtsp://127.0.0.1:" + address.port;
+      localUrl = localBase + remotePath;
       return { url: localUrl };
     },
     async close() {
