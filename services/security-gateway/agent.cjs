@@ -419,7 +419,7 @@ async function reportStreamHealth(config, cameraId, state, frameCount) {
   if (!response.ok) throw new Error("Statut caméra refusé (HTTP " + response.status + ").");
 }
 
-function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal }) {
+function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal, spawnImpl = spawn }) {
   return new Promise((resolve) => {
     let inputManifest = null;
     let args;
@@ -442,7 +442,7 @@ function startFfmpegPublisher({ sourceUrl, publishUrl, onFirstFrame, signal }) {
     try {
       inputManifest = createPrivateRtspManifest(sourceUrl);
       args = buildPublishFfmpegArgs(inputManifest.path, publishUrl);
-      child = spawn(process.env.NAXA_FFMPEG_BIN || "ffmpeg", args, {
+      child = spawnImpl(process.env.NAXA_FFMPEG_BIN || "ffmpeg", args, {
         shell: false, windowsHide: true, stdio: ["ignore", "pipe", "ignore"],
       });
     } catch {
