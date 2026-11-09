@@ -931,3 +931,24 @@ Le rapport de faisabilité sécurité du 07/11/2026 conserve des alertes Replay 
 - Des dépendances de développement signalent encore des dépréciations, notamment ESLint 8.57.1 et les anciens paquets `@humanwhocodes`. Elles ne sont pas mises à niveau dans cette passe.
 - Cette preuve concerne exclusivement le code de la branche QA. Le HEAD `main` reste `2374348e416d4745e19546da1151ea1ad8fefa11`. Aucun merge/PR, aucun déploiement Vercel et aucune écriture Supabase Production n’ont été effectués.
 - Les alertes RLS, les index FK, les policies permissives, les fonctions `SECURITY DEFINER` à examiner et les dépendances réelles des lots 12–20 restent ouvertes selon les constats précédents. La correction des images ne constitue pas un verdict vert global de NAXA.
+
+
+## Addendum 2026-11-09 — optimisation des InitPlans RLS
+
+### Audit et correction
+
+- Replay signalait initialement 31 alertes Supabase `auth_rls_initplan`.
+- Précontrôle SQL effectué sur les 31 politiques avec trois contextes JWT : compte Administrateur actif Replay, identifiant authentifié inconnu et contexte anonyme. Les expressions d'origine et les versions encapsulées ont donné les mêmes résultats sur les lignes Replay existantes, dans les clauses USING et WITH CHECK présentes.
+- La première migration enregistrée (`20261109115431_rls_auth_initplan_policy_optimization`) a été inefficace : son motif regex était sur-échappé et n'a pas remplacé les appels. Elle est conservée pour la traçabilité de l'historique ; aucune permission n'a été modifiée.
+- La migration corrective `20261109115710_rls_auth_initplan_policy_optimization_v2` a remplacé les appels directs `auth.uid()` par `(select auth.uid())` dans exactement 31 politiques, sans changer roles, commandes ni permissive mode.
+- Contrôle après application : 31/31 politiques présentes ; 31/31 rôles, commandes et modes permissifs identiques au relevé ; 0 appel direct `auth.uid()` restant ; 31/31 politiques avec InitPlan ; RLS activé sur 24/24 tables concernées.
+- Supabase Performance Advisor après rafraîchissement : l'alerte `auth_rls_initplan` a disparu. Les alertes distinctes subsistent : 214 clés étrangères sans index couvrant, 175 index inutilisés et 56 ensembles de politiques permissives. Elles ne sont pas modifiées dans cette passe.
+- Test SQL de régression : `supabase/tests/316_rls_auth_initplan_policy_optimization.sql`. Exécution Replay réussie ; transaction annulée après assertions en lecture seule.
+
+### Limite de preuve
+
+Replay ne contient qu'un profil actif d'Administrateur ; les contextes Client, Pharmacien, Promoteur et Partenaire ne sont pas présents comme comptes Auth actifs. La comparaison SQL couvre l'Administrateur disponible, un identifiant authentifié inconnu et le contexte anonyme, mais ne remplace pas une recette de bout en bout avec des comptes réels de chaque rôle.
+
+### Périmètre
+
+Ces deux migrations et leur preuve concernent exclusivement Replay et la branche QA. `main` reste inchangée ; aucune migration, donnée, ACL ou variable Supabase Production n'a été modifiée. Aucun PR, merge ni déploiement Vercel n'a été effectué.
