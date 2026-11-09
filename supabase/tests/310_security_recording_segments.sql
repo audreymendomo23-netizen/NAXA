@@ -35,6 +35,9 @@ select
     and conname='naxa_security_recording_segments_audio_enabled_check')
     as audio_is_forbidden,
   exists (select 1 from pg_constraint where conrelid='public.naxa_security_recording_segments'::regclass
+    and conname='naxa_security_recording_segments_storage_path_check')
+    as relative_storage_path_constraint_present,
+  exists (select 1 from pg_constraint where conrelid='public.naxa_security_recording_segments'::regclass
     and conname='naxa_security_recording_segments_state_ck')
     as segment_state_machine_constraint_present,
   exists (select 1 from pg_constraint where conrelid='public.naxa_security_recording_segments'::regclass
