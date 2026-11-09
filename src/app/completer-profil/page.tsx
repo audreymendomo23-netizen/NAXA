@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -52,6 +52,8 @@ function Formulaire() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const selected = COUNTRIES.find((item) => item[0] === country) ?? COUNTRIES[0];
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const age = useMemo(() => ageOf(dob), [dob]);
 
   useEffect(() => {
@@ -80,7 +82,7 @@ function Formulaire() {
           setCountry(matchedCountry[0]);
           setPhone(phoneValue.slice(matchedCountry[2].length).replace(/\D/g, ""));
         } else if (phoneValue) {
-          setPhone(phoneValue.replace(/\D/g, "").slice(-selected[4]));
+          setPhone(phoneValue.replace(/\D/g, "").slice(-selectedRef.current[4]));
         }
         setDob(String(profile.date_of_birth || ""));
       }
