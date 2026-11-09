@@ -86,6 +86,7 @@ test("le code de jumelage est lu depuis stdin protégé, jamais depuis un argume
 
 const { validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs } =
   require("../services/security-gateway/agent.cjs");
+const { createPrivateRtspManifest } = require("../services/security-gateway/recording.cjs");
 
 test("URI caméra : RTSP/RTSPS local uniquement, rejet des IP publiques", () => {
   assert.equal(validateLocalRtspSource("rtsp://operator:secret@192.168.1.20:554/Streaming/Channels/101").protocol, "rtsp:");
@@ -113,17 +114,31 @@ test("URI et secrets caméra : AES-256-GCM, permissions 0600 et fichier chiffré
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
 
-test("FFmpeg : publication RTSPS, copie vidéo seule et paramètres contrôlés", () => {
-  const args = buildPublishFfmpegArgs(
-    "rtsp://camera.local/live",
-    "rtsps://a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20:shortticket@video.example.test:8322/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21"
+test("FFmpeg : source caméra et ticket publisher absents de la ligne de commande", () => {
+  const manifest = createPrivateRtspManifest(
+    "rtsp://operator:CameraSecret123@192.168.1.20:554/Streaming/Channels/101",
   );
-  assert.ok(args.includes("-rtsp_transport"));
-  assert.ok(args.includes("-c:v"));
-  assert.ok(args.includes("copy"));
-  assert.ok(args.includes("-an"));
-  assert.ok(args.includes("-progress"));
-  assert.ok(args.includes("rtsp"));
+  try {
+    const localTarget = "rtsp://127.0.0.1:45321/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21";
+    const args = buildPublishFfmpegArgs(manifest.path, localTarget);
+    assert.ok(args.includes("-protocol_whitelist"));
+    assert.ok(args.includes("-f") && args[args.indexOf("-f") + 1] === "concat");
+    assert.ok(args.includes("-rtsp_transport"));
+    assert.ok(args.includes("-c:v"));
+    assert.ok(args.includes("copy"));
+    assert.ok(args.includes("-an"));
+    assert.ok(args.includes("-progress"));
+    assert.ok(args.includes(localTarget));
+    assert.equal(args.join(" ").includes("CameraSecret123"), false);
+    assert.equal(args.join(" ").includes("shortticket"), false);
+    assert.equal(args.join(" ").includes("video.example.test"), false);
+    assert.ok(fs.readFileSync(manifest.path, "utf8").includes("CameraSecret123"));
+    if (process.platform !== "win32") {
+      assert.equal(fs.statSync(manifest.path).mode & 0o777, 0o600);
+    }
+  } finally {
+    manifest.cleanup();
+  }
 });
 
 const { buildSecurityEventPayload } = require("../services/security-gateway/agent.cjs");
@@ -160,7 +175,7 @@ test("publisher FFmpeg : ne démarre pas après un arrêt déjà demandé", asyn
   try {
     const result = await startFfmpegPublisher({
       sourceUrl: "rtsp://camera.local/live",
-      publishUrl: "rtsps://a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20:shortticket@video.example.test:8322/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21",
+      publishUrl: "rtsp://127.0.0.1:45321/naxa/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20/a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea21",
       signal: controller.signal,
       onFirstFrame: () => {},
     });
