@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
@@ -412,7 +413,7 @@ export function ScannerShell() {
         <span className="w-11"/>
       </header>
       <div className="relative mx-auto flex min-h-0 w-[calc(100%-2rem)] max-w-[448px] flex-1 items-center justify-center overflow-hidden rounded-[28px] bg-black">
-        {apercu && <img src={apercu} alt="Aperçu de l’ordonnance à recadrer" className="max-h-full max-w-full object-contain transition-transform duration-200 motion-reduce:transition-none" style={{ transform: "scale(" + zoomRecadrage / 100 + ")" }}/>}
+        {apercu && <Image width={1200} height={800} unoptimized src={apercu} alt="Aperçu de l’ordonnance à recadrer" className="max-h-full max-w-full object-contain transition-transform duration-200 motion-reduce:transition-none" style={{ transform: "scale(" + zoomRecadrage / 100 + ")" }}/>}
         <div className="pointer-events-none absolute inset-[12%] rounded-2xl border-2 border-[#FFE23D] shadow-[0_0_0_999px_rgba(0,0,0,.34)]"><span className="absolute left-1/2 top-2 h-1 w-14 -translate-x-1/2 rounded-full bg-[#FFE23D] motion-safe:animate-pulse motion-reduce:animate-none"/></div>
       </div>
       <div className="mx-auto w-full max-w-[480px] space-y-4 px-5 pb-5 pt-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -202,7 +203,7 @@ export default function OffrePage() {
           <section className="overflow-hidden rounded-2xl border border-naxa-green-100 bg-white shadow-sm">
             <div className="relative flex min-h-64 items-center justify-center bg-gradient-to-b from-naxa-green-50 to-white p-6">
               {produit.photo_url ? (
-                <img
+                <Image width={960} height={720} unoptimized
                   src={produit.photo_url}
                   alt={`Photo du produit ${produit.nom}`}
                   className="h-56 w-full object-contain"

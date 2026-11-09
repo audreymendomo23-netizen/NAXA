@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -118,7 +119,7 @@ export function ClientOperations() {
         <Link href="/panier" className="op-pulse inline-flex shrink-0 items-center gap-2 rounded-full bg-[#FFE23D] px-4 py-3 text-sm font-extrabold text-[#0B3D26] shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F6B3F]"><span aria-hidden="true">🛒</span> Panier <span className="rounded-full bg-[#0B3D26] px-2 py-0.5 text-xs text-white">{nombre}</span></Link>
       </div>
       <section className="op-enter relative isolate overflow-hidden rounded-[28px] bg-[#0B3D26] shadow-[0_18px_50px_rgba(11,61,38,.16)]">
-        <img src="https://pikaso.cdnpk.net/private/production/5833929439/3zclzbzrey-png16.png?token=exp=1793145600~hmac=4fe1ad2d5bcd0f12ba39d673562a2dee9559600f21b8ca5183a26fd6d41e2b14" alt="Une cliente récupère sa commande auprès d’une équipe de pharmacie" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />
+        <Image width={1600} height={1000} unoptimized src="https://pikaso.cdnpk.net/private/production/5833929439/3zclzbzrey-png16.png?token=exp=1793145600~hmac=4fe1ad2d5bcd0f12ba39d673562a2dee9559600f21b8ca5183a26fd6d41e2b14" alt="Une cliente récupère sa commande auprès d’une équipe de pharmacie" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0B3D26]/95 via-[#0B3D26]/80 to-[#0B3D26]/25" />
         <div className="max-w-xl px-5 py-8 text-white sm:px-8 sm:py-10">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur"><span className="h-2 w-2 rounded-full bg-[#FFE23D]" /> Suivi en un seul endroit</span>

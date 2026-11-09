@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -114,7 +115,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
           </dl>
           {proof && <div className="mt-4 rounded-2xl border border-slate-200 p-3">
             {isVideo && <video controls preload="metadata" className="mb-3 max-h-80 w-full rounded-xl bg-black" src={proof}>Votre navigateur ne peut pas lire cette vidéo.</video>}
-            {!isVideo && /\.(jpg|jpeg|png|webp)$/i.test(r.preuve_path) && <a href={proof} target="_blank" rel="noreferrer"><img src={proof} alt="Preuve du paiement envoyée par le Promoteur" className="mb-3 max-h-80 max-w-full rounded-xl object-contain" /></a>}
+            {!isVideo && /\.(jpg|jpeg|png|webp)$/i.test(r.preuve_path) && <a href={proof} target="_blank" rel="noreferrer"><Image width={1280} height={800} unoptimized src={proof} alt="Preuve du paiement envoyée par le Promoteur" className="mb-3 max-h-80 max-w-full rounded-xl object-contain" /></a>}
             <a className="inline-block rounded-full border border-[#0147BB] px-4 py-2 text-sm font-bold text-[#0147BB] underline" href={proof} target="_blank" rel="noreferrer" download>Consulter / télécharger la preuve privée</a>
             <p className="mt-2 text-xs text-slate-500">Lien privé temporaire, valable 10 minutes. Renouvelez la page si nécessaire.</p>
           </div>}

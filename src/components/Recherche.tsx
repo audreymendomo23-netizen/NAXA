@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
@@ -287,7 +288,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 <div className="flex items-start gap-3">
                   <div className="flex max-w-[168px] shrink-0 flex-wrap gap-1.5">
                     {medicament.imageUrl ? (
-                      <img
+                      <Image width={320} height={320} unoptimized
                         src={medicament.imageUrl}
                         onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PHOTO_MEDICAMENT_PAR_DEFAUT; }}
                         alt={langue === "fr" ? "Photo réelle de référence du médicament, vérifier la présentation locale" : "Real reference photo of the medicine; verify the local presentation"}
@@ -306,7 +307,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                       </div>
                     ) : null}
                     {medicament.imageVariants?.comprime?.url && medicament.imageVariants.comprime.url !== medicament.imageUrl && (
-                      <img
+                      <Image width={80} height={80} unoptimized
                         src={medicament.imageVariants.comprime.url}
                         alt={langue === "fr" ? "Photo réelle de référence du comprimé" : "Real reference photo of the tablet"}
                         title={"Comprimé · " + medicament.imageVariants.comprime.licence}
@@ -315,7 +316,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                       />
                     )}
                     {medicament.imageVariants?.boite?.url && medicament.imageVariants.boite.url !== medicament.imageUrl && (
-                      <img
+                      <Image width={80} height={80} unoptimized
                         src={medicament.imageVariants.boite.url}
                         alt={langue === "fr" ? "Photo réelle de référence de la boîte" : "Real reference photo of the pack"}
                         title={"Boîte · " + medicament.imageVariants.boite.licence}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 type Props = { onFinish: () => void };
@@ -69,7 +70,7 @@ export function IntroNaxa({onFinish}:Props) {
   const scale=typeof window==="undefined"?1:Math.min(window.innerWidth/720,window.innerHeight/1280);
   return <div id="naxa-intro-overlay" role="presentation" onClick={()=>{if(cancelTimer.current!==null||finished.current)return;cancelledRef.current=true;setCancelled(true);cancelTimer.current=window.setTimeout(()=>{if(!finished.current){finished.current=true;finishRef.current()}},200)}} style={{position:"fixed",inset:0,zIndex:2147483647,overflow:"hidden",background:"#064B2A",opacity:cancelled?0:1,transition:"opacity 200ms ease",touchAction:"manipulation",cursor:"pointer"}}>
     <div style={{position:"absolute",left:"50%",top:"50%",width:720,height:1280,transform:`translate(-50%,-50%) scale(${scale})`,transformOrigin:"center",overflow:"hidden",background:"#064B2A",fontFamily:"inherit"}}>
-      <img ref={logoRef} src="/naxa-logo-officiel.svg" alt="NAXA" style={{position:"absolute",left:245,top:150,width:230,height:61,objectFit:"contain",opacity:0}}/>
+      <Image width={230} height={61} ref={logoRef} src="/naxa-logo-officiel.svg" alt="NAXA" style={{position:"absolute",left:245,top:150,width:230,height:61,objectFit:"contain",opacity:0}}/>
       {phrases.map((p,i)=><div key={p.main} ref={n=>{texts.current[i]=n}} style={{position:"absolute",left:72,top:470,width:576,minHeight:220,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",textTransform:"uppercase",fontWeight:900,fontSize:72,lineHeight:.95,letterSpacing:"-.035em",color:p.color,textShadow:"0 4px 10px rgba(6,75,42,.18)",opacity:i===0?1:0,clipPath:"none",pointerEvents:"none"}}><span>{p.main}</span>{p.sub&&<span style={{marginTop:18,fontSize:29,lineHeight:1.1,letterSpacing:0,textTransform:"none"}}>{p.sub}</span>}</div>)}
       <div ref={pendulum} style={{position:"absolute",left:360,top:-980,width:0,height:1650,transform:`rotate(-${A}deg)`,transformOrigin:"0 0",pointerEvents:"none"}}>
         <div style={{position:"absolute",left:-1.5,top:0,width:3,height:1650,background:"#FFE33D",boxShadow:"8px 0 6px rgba(0,0,0,.25)"}}/>
