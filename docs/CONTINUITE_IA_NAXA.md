@@ -2,7 +2,7 @@
 
 > **Priorité documentaire (mise à jour 2026-10-16) :** `AGENTS.md` est la règle opérationnelle prioritaire. Toute consigne historique de ce document qui impose CircleCI, interdit une modification autorisée de `main`, ou exige une PR/branche de travail est obsolète et ne doit pas être appliquée contre `AGENTS.md` et les ordres explicites plus récents de l’utilisateur. La Production Supabase reste en lecture seule sans autorisation explicite et aucun secret ne doit être affiché.
 
-Dernière mise à jour : 2026-11-04
+Dernière mise à jour : 2026-11-09
 
 ## Règles impératives
 - Déclencheur « Rappel » : relire ce document, vérifier l'état réel GitHub/CI, comparer avec le dernier point, puis reprendre sans refaire inutilement le travail.
@@ -711,41 +711,35 @@ Aucune donnée de test n'a été insérée dans Replay ; aucune migration n'a é
 
 ---
 
-## Lot 13 — fondation de l'index d'enregistrement local (09/11/2026)
+## Lot 13 — enregistrement local, index hors ligne et synchronisation (09/11/2026)
 
-### Audit et contradiction
+### Référence et preuve CI
+- Branche : `qa/e2e-stabilisation-20261106`.
+- SHA CI validé : `cd77624e764f435be956f1c798d145e9c2bcfb39`.
+- GitHub Actions #1327 : succès complet sur ce SHA exact : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42548972061.
+- Logs : **271 tests PASS / 0 FAIL**, audit dépendances **0 vulnérabilité**, validation officielle de MediaMTX 1.21.3, compilation Next.js réussie, génération **129/129** pages statiques ; TypeScript, ESLint et build réussis.
+- Supabase Replay uniquement : `naxa-ci-replay-2` / `pwfftcsjyeibxxqhwysw`. Migration 310 appliquée ; **17/17 assertions SQL PASS**. Migration 311 + RPC de synchronisation testées sur Replay. Aucune écriture Production.
 
-- Audit de l'arbre QA : aucun service d'enregistrement/NVR local, indexeur de segments, timeline, lecteur d'archives ou API de lecture/export Security n'était présent.
-- La table `naxa_security_clips` existante est un registre de clips associés à des événements ; elle ne couvre pas les segments d'enregistrement continu.
-- MediaMTX reste le relais live et conserve `record: false` ; il ne doit pas devenir le NVR principal, car la vidéo doit continuer à s'enregistrer localement sans WAN.
+### Logiciel réellement livré
+- Migration 310 : `naxa_security_recording_segments`, index privé des segments, clés pharmacie/passerelle/caméra cohérentes, UTC, état, durée, codec, MP4, chemin relatif, taille, SHA-256, rétention et protection justifiée. Audio interdit. RLS + FORCE RLS et accès backend uniquement.
+- Migration 311 : RPC idempotente `naxa_security_sync_recording_segments`, réservée à `service_role`, contrôle du rattachement pharmacie/caméra/passerelle, chemin déterministe, hash, durée, MP4, absence audio et audit de synchronisation.
+- Route `POST /api/security/gateway/recording-segments` : signature Ed25519 sur le corps brut, anti-rejeu, installation pilote/légale/confidentialité approuvée, caméras du même gateway/pharmacie, lot borné à 10 et métadonnées seules (aucun octet média ni URL publique).
+- Worker local FFmpeg : politique opt-in, désactivée par défaut ; caméras déjà configurées uniquement ; segments continus 30–900 secondes ; MP4, UTC, copie vidéo sans audio ; répertoire privé et manifeste temporaire 0700/0600 ; aucun identifiant caméra dans argv ; `-n` empêche l'écrasement ; arrêt demandé avant spawn respecté.
+- Indexeur local : attend la fermeture/stabilité du segment, vérifie via ffprobe sans shell, rejette les pistes audio, calcule SHA-256, vérifie inode/taille/mtime et conserve index/file d'attente AES-256-GCM chiffrés. Les envois échoués restent dans l'outbox et sont repris après redémarrage ; les chemins encore en attente sont protégés de la purge.
+- L'agent système démarre ces workers uniquement pour les caméras locales explicitement configurées et les politiques activées.
 
-### Fondations réalisées
+### Limites précises — le lot reste PARTIEL
+- Le mode réellement exploité par la politique locale est actuellement **continu**. Les valeurs SQL prévues pour programmé/événementiel ne prouvent pas un planificateur actif.
+- La timeline utilisateur, la recherche d'archives, les filtres événementiels et la relecture pause/avance/positionnement ne sont pas encore livrés.
+- Aucun endpoint métier Promoteur/Responsable pour protéger/libérer un segment, ni synchronisation descendante des chemins protégés vers le NVR ; la protection actuellement prouvée concerne l'outbox et les chemins fournis localement au mécanisme de rétention.
+- Aucun flux vidéo d'archive n'est actuellement rendu lisible/exportable par le navigateur. Il ne faut pas exposer `storage_path` ou générer un faux lien de lecture.
+- Le quota et la purge locale existent dans le worker, mais la supervision centralisée du disque, alerte disque plein, reprise après coupure secteur et parcours de restauration doivent encore être achevés.
+- La clé AES de l'index/outbox est un fichier privé sur le même appareil que les données chiffrées : cela protège le contenu au repos contre une lecture accidentelle du fichier, mais pas contre le vol/compromission complète de l'appareil. TPM, keystore système ou coffre matériel non intégrés.
+- Aucune caméra/NVR réelle n'a été raccordée. Aucun enregistrement réel, coupure WAN/secteur ou export/lecture physique n'a été vérifié.
+- Le lot 12 live physique reste lui aussi PARTIEL : aucun flux caméra réel n'a été validé.
 
-- Migration ajoutée : `supabase/migrations/20261109010000_security_local_recording_segments.sql`.
-- Nouvelle table `naxa_security_recording_segments` : pharmacie/passerelle/caméra liées, mode continu/programmé/événementiel, état, timestamps UTC, durée, codec, conteneur, chemin relatif, taille, SHA-256, rétention, protection et motif.
-- Audio verrouillé à false par contrainte SQL ; chemins absolus, URI, traversal `..` et caractères de contrôle rejetés.
-- État `ready`/`protected` exige durée, codec, taille et hash ; état protégé exige date et raison.
-- RLS + FORCE RLS, aucun privilège direct anon/authenticated, opérations backend service_role uniquement.
-- Contraintes du journal d'accès étendues pour auditer consultation, export, suppression de segment et modification de politique d'enregistrement.
-- Test statique CI : `scripts/test-security-recording-segments.cjs`.
-- Test SQL : `supabase/tests/310_security_recording_segments.sql`.
-- Documentation phase 13 : `docs/security/PHASE13_ENREGISTREMENT_LOCAL_NVR.md`.
+### Verdict et reprise exacte
+**CI et fondations logicielles de l'enregistrement : PASS sur `cd77624e764f435be956f1c798d145e9c2bcfb39`. Lot 13 global : PARTIEL, non vert, non recetté matériel.**
+Aucun enregistrement n'est activé par défaut ; aucun faux appareil, clip, segment ou état connecté n'a été ajouté.
 
-### Preuve Replay exacte
-
-- Projet de test `naxa-ci-replay-2` : `pwfftcsjyeibxxqhwysw` (ACTIVE_HEALTHY au moment du contrôle).
-- Migration `security_local_recording_segments_lot13` appliquée avec succès sur Replay uniquement.
-- Test SQL exécuté en transaction/rollback : **17/17 assertions vraies** : table, RLS forcée, absence d'accès navigateur, privilèges backend, FK same-pharmacy, unicité chemin, audio interdit, chemin relatif, machine d'état, champs obligatoires ready, protection justifiée, audit et index timeline/rétention.
-- Aucun fichier vidéo, caméra fictive ou segment de démonstration inséré.
-
-### Statut lot 13
-
-**PARTIEL — FONDATION SQL VÉRIFIÉE.** Le modèle d'index et les garde-fous SQL sont créés et testés sur Replay.
-
-**NON LIVRÉ.** Aucun worker FFmpeg d'enregistrement local, découpage segmenté, indexeur local/hash, contrôle de capacité disque, rotation/rétention effective, mode reprise hors WAN, API timeline, autorisation de lecture/export ou lecteur d'archives n'est encore construit. La migration ne contient aucun octet vidéo.
-
-**NON RECETTÉ MATÉRIEL.** Aucune caméra physique, coupure WAN/secteur ou lecture d'une séquence réelle n'a été exécutée. Lot 13 ne peut pas être vert avant ce critère ; lot 12 matériel reste bloquant pour live de bout en bout.
-
-### Règle de progression
-
-Ne pas activer l'enregistrement par défaut. Prochaine tranche lot 13 : worker local opt-in FFmpeg segmenté, reprise indépendante du WAN, indexation locale et purge sûre avec segments protégés ; ensuite seulement les API timeline/lecture/export et la recette sur caméra réelle. Aucun passage au vert sans preuve physique.
+Prochaine tranche de code : sécuriser le cycle de protection/rétention côté serveur et passerelle, construire la timeline métier sans exposer les chemins locaux, puis concevoir un canal de lecture/export d'archives qui reste sortant-only. Le critère matériel restera séparé. Le lot 14 (intégrité temporelle) ne doit pas être déclaré vert tant que source NTP, dérive mesurée et intégrité d'un fichier exporté ne sont pas vérifiées.

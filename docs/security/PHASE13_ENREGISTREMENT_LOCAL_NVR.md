@@ -1,53 +1,101 @@
 # Phase 13 — Enregistrement local, index et relecture
 
 **Branche :** `qa/e2e-stabilisation-20261106`  
-**État actuel : PARTIEL — fondation SQL de l'index réalisée ; aucun enregistrement vidéo activé.**
+**Référence CI :** `cd77624e764f435be956f1c798d145e9c2bcfb39` — GitHub Actions #1327 SUCCESS  
+**État : PARTIEL.** La chaîne logicielle d'enregistrement local et de synchronisation d'index est construite et testée ; la timeline, la lecture/export et le pilote matériel ne sont pas terminés.
 
-## 1. Audit initial et contradiction
+## 1. Audit → contradiction → cause racine
 
-L'audit de l'arbre Git n'a trouvé aucun service d'enregistrement, NVR local, lecteur d'archives, timeline ou route de lecture/export de segments. La table historique `naxa_security_clips` ne représentait que les métadonnées de clips associés à des événements ; elle ne pouvait pas indexer les segments d'un enregistrement continu.
+La table historique `naxa_security_clips` ne représentait que des clips d'événements. Elle ne pouvait pas indexer des segments de surveillance continue. Le relais MediaMTX est destiné au direct et reste configuré sans enregistrement serveur (`record: false`) : il ne remplace pas un enregistreur local indépendant du WAN.
 
-Il serait incorrect d'activer `record: true` dans MediaMTX pour remplacer un enregistreur local. MediaMTX demeure le relais live ; l'enregistrement principal doit être géré sur la passerelle/NVR du site pour continuer sans Internet.
+Le modèle SQL et le worker local ont maintenant été ajoutés. La fiche ne doit toutefois pas confondre l'index de métadonnées avec les octets vidéo, ni les tests logiciels avec un enregistrement sur vraie caméra.
 
-## 2. Correction réalisée — migration 310
+## 2. Architecture et implémentation
+
+### 2.1 Index serveur — migration 310
 
 Fichier : `supabase/migrations/20261109010000_security_local_recording_segments.sql`
 
-La migration ajoute `naxa_security_recording_segments`, index privé des métadonnées des segments locaux :
-- pharmacie, passerelle et caméra liées par clés étrangères composites ;
-- mode continu / programmé / événementiel ;
-- état du segment, début/fin UTC et durée ;
-- codec, conteneur, taille, SHA-256 ;
-- chemin local relatif, sans chemin absolu, traversal `..`, URI ou caractères de contrôle ;
-- date de rétention, verrou de protection et motif ;
-- audio interdit par contrainte SQL.
+La table `public.naxa_security_recording_segments` conserve pharmacie, passerelle, caméra, mode, état, début/fin UTC, durée, codec, format, chemin relatif, taille, SHA-256, audio, rétention et informations de protection.
 
-Un segment ne peut devenir `ready` ou `protected` sans durée, codec, taille et hash. Un segment protégé exige date et justification. Les index servent les recherches par pharmacie/caméra/date et le balayage de rétention.
+Garde-fous :
+- clés étrangères composites empêchant les mélanges de pharmacies ;
+- audio obligatoirement désactivé ;
+- aucun chemin absolu, traversal, URI ou caractère de contrôle ;
+- états `ready`/`protected` avec durée, codec, taille et hash ;
+- état protégé avec horodatage et justification ;
+- RLS + FORCE RLS, aucun droit direct navigateur, service_role uniquement ;
+- journal d'accès prévu pour lecture/export/suppression et changements de politique.
 
-La table est sous RLS + FORCE RLS, sans accès direct `anon`/`authenticated`, et réservée à `service_role`. Les actions et ressources d'accès aux segments sont ajoutées aux contraintes du journal append-only.
+### 2.2 Worker d'enregistrement local
 
-## 3. Preuves Replay
+Fichiers : `services/security-gateway/recording.cjs`, `services/security-gateway/agent.cjs`.
 
-- Projet : `naxa-ci-replay-2` — `pwfftcsjyeibxxqhwysw`.
-- Migration appliquée sur Replay : `security_local_recording_segments_lot13` — succès.
-- Test SQL `supabase/tests/310_security_recording_segments.sql` : **17/17 assertions vraies**.
-- Vérifications : RLS forcée, permissions backend-only, liens même pharmacie, unicité caméra/chemin, audio interdit, chemin relatif, machine d'état, hash/durée/codec/taille requis, segments protégés justifiés, audit et index de timeline/rétention.
-- Aucun segment ni fausse caméra n'a été inséré.
+- Aucune écriture avant politique explicite ; défaut désactivé.
+- Seules les caméras déjà configurées localement peuvent être activées.
+- Segments continus MP4 de 30 à 900 secondes, horodatés UTC.
+- Copie de la vidéo, audio supprimé par `-an`.
+- `-n` bloque l'écrasement d'un segment existant.
+- FFmpeg ne reçoit pas les identifiants RTSP en arguments ; un manifeste temporaire privé (0600) est supprimé après l'exécution.
+- Répertoires d'état/enregistrement privés (0700), validation RTSP/RTSPS vers réseau local, pas de shell.
+- Un signal d'arrêt préexistant interdit le spawn ; arrêt du worker par AbortController.
 
-## 4. Ce qui n'est pas encore livré
+Le mode effectivement raccordé à la politique locale est continu. Le support réel des plages programmées et du déclenchement événementiel reste à implémenter.
 
-- Worker FFmpeg local qui découpe une source caméra réelle en segments récupérables.
-- Activation opt-in par caméra, enregistrement réellement indépendant du WAN et reprise après panne secteur.
-- Indexeur local qui calcule durée, codec, taille et SHA-256 et synchronise ses métadonnées lorsque le réseau revient.
-- Limitation de capacité disque, rétention/rotation et protection physique des segments protégés.
-- API serveur de timeline/recherche, autorisation Promoteur/Responsable, audit des consultations/exports/suppressions.
-- Lecteur d'archives, pause/avance, téléchargement/export signé.
-- Essai caméra/NVR physique, coupure Internet/secteur et recherche/lecture d'une séquence réelle.
+### 2.3 Indexeur local et outbox hors ligne
 
-La table SQL ne contient pas les octets vidéo et ne prouve donc aucun enregistrement.
+Fichier : `services/security-gateway/recording-indexer.cjs`.
 
-## 5. Critère de sortie inchangé
+- Attend la fermeture/stabilité du MP4, vérifie inode/taille/mtime.
+- `ffprobe` est lancé sans shell, avec timeout et sortie bornée.
+- Codec vidéo requis ; une piste audio invalide le segment.
+- SHA-256 calculé sur un fichier régulier, sans suivre de lien symbolique.
+- Index et outbox persistés avec AES-256-GCM ; reprise après redémarrage et réémission idempotente par lot.
+- Un échec réseau conserve les éléments en attente ; ceux-ci ne sont pas purgés par la rétention.
+- La synchronisation ne transporte que les métadonnées ; les octets vidéo restent localement sur la passerelle/NVR.
 
-**Le lot 13 reste PARTIEL et ne peut pas être vert** avant qu'une caméra physique enregistre localement, qu'une coupure Internet ne stoppe pas l'enregistrement, et qu'une séquence réelle soit indexée, retrouvée et lue avec les permissions et audits correspondants.
+**Limite cryptographique :** la clé AES est stockée en fichier privé sur le même appareil que les fichiers chiffrés. Ce mécanisme évite le contenu en clair dans l'index/outbox, mais ne protège pas contre la compromission ou le vol de l'appareil complet. TPM/keystore système non intégrés.
 
-L'enregistrement ne doit pas être activé par défaut ni sur un site sans consentement/validation juridique. Le lot 12 matériel demeure lui aussi une réserve sur le chemin live réel.
+### 2.4 Synchronisation signée — migration 311 et API
+
+Fichiers :
+- `supabase/migrations/20261109020000_security_recording_segment_sync.sql`
+- `src/app/api/security/gateway/recording-segments/route.ts`
+- `src/lib/security/gateway-request.ts`
+
+La passerelle transmet un lot de 1 à 10 métadonnées par HTTPS, signature Ed25519 du corps brut et nonce anti-rejeu. Le serveur contrôle l'installation pilote, les validations légale/confidentialité, le rattachement caméra/passerelle/pharmacie, le format, le chemin, le hash, la durée, la taille et l'absence audio. La RPC est réservée au backend et idempotente.
+
+Ni identifiants vidéo, ni données binaires, ni URL publiques ne sont acceptés.
+
+## 3. Preuves
+
+### Replay
+Projet : `naxa-ci-replay-2` — `pwfftcsjyeibxxqhwysw`.
+- Migration 310 appliquée ; test SQL `supabase/tests/310_security_recording_segments.sql` : **17/17 assertions PASS**.
+- Migration 311 / RPC de synchronisation testée sur Replay ; contrôles de fonction, verrouillage backend, validation du chemin, audit, lot vide et idempotence réussis.
+- Aucun segment, fichier média, appareil ou flux fictif injecté.
+
+### CI
+GitHub Actions #1327 : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42548972061
+- SHA exact : `cd77624e764f435be956f1c798d145e9c2bcfb39`.
+- **271/271 tests PASS, 0 échec**.
+- Audit des dépendances : **0 vulnérabilité**.
+- Validation officielle de la configuration MediaMTX 1.21.3 : succès.
+- Next.js : compilation réussie et **129/129 pages statiques** générées.
+- TypeScript, ESLint et build de production : succès.
+
+## 4. Restes — explicitement non verts
+
+1. **Timeline métier :** API de recherche temporelle, pagination, filtres caméra/événement/état et permissions Promoteur/Responsable.
+2. **Protection de preuve :** API protect/unprotect, journalisation complète, synchronisation descendante des segments protégés vers le worker local et preuve que la rétention ne peut les supprimer.
+3. **Relecture/export :** canal sécurisé sortant-only depuis la passerelle/NVR, jetons courts, pause/avance/positionnement, export et hash vérifié. Aucun chemin local ne doit être exposé au navigateur.
+4. **Résilience disque :** monitoring de capacité, seuils d'alerte, disque plein, reprise après coupure secteur et contrôle des segments incomplets.
+5. **Modes et politiques :** planification continue/par plages/événementielle réellement appliquée au worker, et non simplement présente dans le schéma.
+6. **Recette physique :** caméra/NVR réelle, enregistrement WAN coupé, coupure secteur/redémarrage, index, recherche, lecture et export réels.
+
+## 5. Verdict
+
+**Fondations logicielles CI + Replay : PASS. Construction du worker/indexeur : prête pour intégration de la timeline. Lot 13 complet : PARTIEL, non vert.**  
+Le lot 12 vidéo live matériel reste PARTIEL également. Aucune installation pilote, caméra ou image réelle n'a été présentée comme connectée.
+
+Ne pas activer l'enregistrement automatiquement. Le consentement, l'approbation légale et l'avis de confidentialité demeurent obligatoires. Ne pas déclarer le lot terminé avant les points 1–6 et la preuve sur matériel réel.
