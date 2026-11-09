@@ -969,3 +969,27 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 
 - Cette passe ne traite que deux des 214 alertes ; les autres nécessitent priorisation table/charge par table et ne seront pas corrigées en masse.
 - Changements appliqués à Replay et versionnés sur QA uniquement. Aucune écriture Supabase Production, aucun merge/PR et aucun déploiement Vercel.
+
+
+## Addendum 2026-11-09 — façades SECURITY DEFINER et alignement des migrations
+
+### Index FK
+
+- Le fichier migration des deux index FK est aligné sur la version Replay enregistrée : `supabase/migrations/20261109120519_naxa_privilege_fk_indexes.sql`.
+- Replay : les plans utilisent les deux nouveaux index et l'Advisor FK est passé de 214 à 212. Le test dédié est `supabase/tests/317_naxa_privilege_fk_indexes.sql`.
+
+### Audit de trois façades SECURITY DEFINER
+
+- `public.caisse_cloturer(uuid, integer)` ne fait que déléguer à la surcharge à trois arguments qui vérifie la session de caisse, la pharmacie et le titulaire actif.
+- `public.naxa_can_approve_marketplace_credit(uuid)` délègue à `private.naxa_actor_can_approve_marketplace_credit(uuid)`, qui impose l'identité, la fonction métier et le privilège Promoteur/Responsable.
+- `public.naxa_provision_caisse(uuid, uuid)` délègue à `public.naxa_grant_professional_assignment(...)`, qui vérifie l'acteur, la cible, la pharmacie, le rôle attribuable, le scope, le privilège requis et les quotas.
+- Ces trois façades n'ont pas de logique privilégiée propre : elles passent en `SECURITY INVOKER`. Les implémentations déléguées restent `SECURITY DEFINER`, avec les mêmes ACL et contrôles. Aucun droit EXECUTE n'a été ajouté ou retiré.
+- Migration Replay : `20261109120846_security_definer_guarded_wrapper_invoker`.
+- Test de régression `supabase/tests/318_security_definer_wrapper_delegation.sql` : exécuté en transaction annulée avec rôle `authenticated`, UUID fictif et cas invalides ; les trois façades délèguent et les implémentations rejettent proprement les arguments invalides.
+- Advisor sécurité Replay : les fonctions SECURITY DEFINER exécutables par `authenticated` passent de 198 à 195. Cela ne clôt pas toutes les alertes ; les fonctions restantes ne sont pas automatiquement des failles et doivent être lues individuellement.
+- Les deux RPC de télémétrie publique `log_evenement` et `log_recherche` restent accessibles à `anon` ; elles sont volontairement conservées pour la télémétrie publique et doivent rester surveillées. La protection native Supabase Auth contre les mots de passe compromis reste désactivée.
+
+### Limite et périmètre
+
+- Ces changements sont appliqués sur Replay et versionnés sur QA uniquement. `main`, Production et Vercel ne sont pas modifiés.
+- Replay ne dispose pas encore de comptes Auth actifs pour chaque rôle Client, Pharmacien, Promoteur, Responsable et Partenaire. Les validations transactionnelles et fonctions gardées ne remplacent pas une recette complète avec ces identités réelles.
