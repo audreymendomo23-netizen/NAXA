@@ -2,7 +2,7 @@
 
 Dernière vérification : 9 novembre 2026.
 Branche : qa/e2e-stabilisation-20261106.
-SHA CI de référence : 2ccbaf673e5b490688096aa2393ccdd7191fc86d (GitHub Actions #1388, SUCCESS).
+SHA de validation du code : 1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d (GitHub Actions #1389, SUCCESS). Les commits postérieurs 2f8d27262568a9260a59dd59484724a4da27a806 et celui du présent registre sont documentaires uniquement.
 Aucun changement sur main, aucune écriture Supabase Production, aucun déploiement Vercel Production.
 
 ## État et preuve par lot
@@ -48,3 +48,36 @@ Ce relevé décrit Replay seulement. Il ne donne pas l'inventaire de Production.
 5. Lot 20 : désigner une pharmacie pilote, obtenir les autorisations et fournir l'ensemble caméra/NVR/gateway/mobile/Drive.
 
 **Conclusion :** fondations logicielles et CI des lots 13, 14 et 16 validées à leurs SHA respectifs. Aucun lot 12 à 20 ne doit être annoncé entièrement opérationnel avant les preuves physiques/externe requises.
+
+
+## Addendum — revalidation CI et audit général (09/11/2026)
+
+### Revalidation du socle de sécurité
+
+- CI GitHub Actions **#1389** : SUCCESS sur le code du SHA `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d`, run [42578412264](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42578412264).
+- Résultats globaux : Gitleaks (refs Git + working tree) PASS ; audit des dépendances de production = 0 vulnérabilité ; 290/290 tests Node PASS ; TypeScript PASS ; ESLint sans erreur bloquante ; build Next.js PASS ; 129/129 pages statiques ; validation officielle MediaMTX 1.21.3 PASS.
+- La CI #1389 couvre le code applicatif inchangé depuis le SHA testé. Les commits documentaires suivants ne modifient ni logique applicative ni migrations.
+- Les lots 13, 14 et 16 restent **VERT — socle logiciel seulement** avec les sous-tests dédiés déjà consignés (27/27, 7/7, 7/7). La clôture globale de chacun reste PARTIELLE jusqu'aux extensions et validations listées dans le tableau principal.
+
+### Classement des lots différés pour recette Node.js SIL
+
+| Lot | Tests Node/SIL à créer | Ce que la simulation ne prouvera pas |
+|---|---|---|
+| 12 — Live / MediaMTX | flux RTSP local, tickets, révocation, WHEP, reconnexion, isolation tenant, perte/reprise réseau | caméra/NVR et installation média/réseau réels |
+| 15 — Drive / téléphone | faux OAuth/Drive, state/CSRF, scopes, quota, retries, intégrité, restauration et reprise de backup | consentement OAuth Google réel, Drive utilisateur et backup natif téléphone |
+| 17 — IA | événements ONVIF simulés, déduplication, contrat d'inférence, latence, file et revue humaine | modèle/runtime/accélérateur, vidéos réelles et métriques terrain |
+| 18 — Android | API/FCM factice, tokens, retries, déduplication, révocation et redémarrage worker | APK natif signé, FCM réel, Doze et réception sur téléphone |
+| 19 — Sirène | relais mock, signature/nonce, watchdog, durée maximale, ACK, panne et arrêt d'urgence logiciel | relais/GPIO, câblage, alimentation et arrêt matériel |
+| 20 — Pilote E2E | composition caméra mock→gateway→API→événement→notification→ACK, coupures et reprises | pharmacie équipée/consentante, matériel et réseau réels |
+
+Toutes les simulations doivent être éphémères, marquées `simulated=true`, exécutées via `node:test`, sans insérer de faux équipements ou de fausses missions persistantes dans Supabase Replay. Un PASS SIL ne vaut pas validation matérielle.
+
+### Résultat de l'audit code général
+
+- Inventaire du HEAD audité : 1 471 fichiers ; 73 routes API ; 132 pages ; 136 composants ; 46 modules `src/lib` ; 148 migrations SQL ; 10 fichiers Security Gateway.
+- Avertissements non bloquants à traiter côté code : éléments `<img>` à optimiser, dépendances manquantes/complexes de `useEffect`, `aria-expanded` invalide sur `textbox`, `next lint` déprécié, avertissements Node `url.parse()` et `punycode`.
+- `npm audit` de la CI ne couvre que les dépendances de production avec seuil `high` ; ce n'est pas une SAST ni un audit complet des dépendances de développement.
+- Les alertes Supabase rapportées le 07/11/2026 sur les fonctions `SECURITY DEFINER`, l'exposition de schéma et la protection contre les mots de passe compromis restent à revérifier en lecture/recette sur Replay. Elles ne sont pas neutralisées par le résultat npm audit.
+- Les mentions plus anciennes de ce registre disant que la compilation globale n'a pas été exécutée doivent être lues comme historique ; le résultat courant au SHA de code cité ci-dessus est positif.
+
+Référence détaillée de l'audit général et du plan de reprise : `docs/CONTINUITE_IA_NAXA.md`, section « Audit général du code et état Sécurité (09/11/2026) ».
