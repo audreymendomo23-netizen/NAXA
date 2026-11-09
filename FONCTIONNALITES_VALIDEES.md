@@ -2035,3 +2035,9 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - **Périmètre de livraison :** modifications intégrées à `main` ; aucun déploiement Production ni aucune écriture sur Supabase Production dans ce lot.
 - **Référence de consolidation :** tête `main` avant intégration du présent registre : `e012b497ffb1e213a33b8b8536f6a46c5d07f32f`. Les commits ci-dessus identifient les changements du lot juridique.
 
+
+## Sécurité — ACL des RPC publiques historiques de recherche (10/11/2026)
+- Défaut confirmé sur Replay : les anciennes RPC `public.log_recherche(text[])` et `public.log_evenement(...)` étaient encore exécutables par `anon` et `authenticated` en `SECURITY DEFINER`; les helpers privés équivalents existent dans la migration 262 et aucun appel applicatif courant aux RPC publiques n'a été retrouvé.
+- Correction Replay : droits client retirés; `service_role` conservé. Migration source : `supabase/migrations/20261109235840_restrict_legacy_public_search_logging_execution_20261110.sql`; test structurel : `supabase/tests/20261109235840_restrict_legacy_public_search_logging_execution.sql`.
+- Vérification SQL après application : les deux fonctions retournent `anon=false`, `authenticated=false`, `service_role=true`; l'Advisor ne signale plus d'accès `SECURITY DEFINER` par `anon`.
+- Limite : Replay uniquement; aucune migration Production, aucun déploiement, aucun build/CI ni test navigateur dans cette clôture.

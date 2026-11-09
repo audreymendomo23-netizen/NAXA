@@ -3734,3 +3734,11 @@ Les décisions détaillées sont consignées dans [docs/DECISIONS_METIER_CONFIRM
 ### Statut de vérification de cet addendum
 
 Le sous-parcours crédit Marketplace est testé en PostgreSQL isolé, non activé en Production et non validé en navigateur. Le chantier LWW hors ligne demeure ouvert ; il sera traité séparément. La vérification CI/build globale reste différée en fin de chantier.
+
+
+## Addendum — ACL des RPC publiques historiques de recherche (10/11/2026)
+
+- Contradiction vérifiée sur Replay : `public.log_recherche(text[])` et `public.log_evenement(...)` étaient encore des fonctions `SECURITY DEFINER` appelables par `anon` et `authenticated`, malgré les helpers privés présents depuis la migration 262. La recherche des noms dans le code applicatif de `main` n'a trouvé aucun appel à ces RPC publiques.
+- Correction appliquée sur Replay : retrait des droits `PUBLIC`, `anon` et `authenticated`; maintien de `EXECUTE` uniquement pour `service_role`. Migration Replay : `20261109235840_restrict_legacy_public_search_logging_execution_20261110`.
+- Vérification après correction : pour les deux fonctions, `anon=false`, `authenticated=false`, `service_role=true`. L'Advisor ne remonte plus de fonction `SECURITY DEFINER` exécutable par `anon`.
+- Périmètre : ce point ACL est clôturé sur Replay et sa migration/test sont versionnés sur `main`. Production n'a pas été modifiée. Build, CI et recette navigateur ne sont pas couverts par cette correction.
