@@ -89,8 +89,8 @@ export function SecurityRecordingTimeline({ pharmacyId }: { pharmacyId: string |
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result.ok !== true) throw new Error(result.error || "Mise à jour refusée.");
       setReason("");
-      setNotice(segment.status === "protected" ? "Protection retirée ; l'archive redevient soumise à la rétention." : "Archive protégée ; la passerelle recevra cette protection lors de sa prochaine synchronisation sécurisée.");
       await load();
+      setNotice(segment.status === "protected" ? "Protection retirée ; l'archive redevient soumise à la rétention après synchronisation de la passerelle." : "Archive protégée et auditée ; la passerelle appliquera cette protection lors de sa prochaine synchronisation sécurisée.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Protection indisponible.");
     } finally {

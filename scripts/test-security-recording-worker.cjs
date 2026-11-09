@@ -153,7 +153,8 @@ test("lot 13 : rétention ne supprime pas les segments protégés ou en cours", 
     const pattern = buildRecordingOutputPattern(root, CAMERA_A);
     const directory = path.dirname(pattern);
     const old = path.join(directory, "old.mp4");
-    const protectedFile = path.join(directory, "protected.mp4");
+    const protectedName = CAMERA_A + "_20261106T010203.mp4";
+    const protectedFile = path.join(directory, protectedName);
     const recent = path.join(directory, "active.mp4");
     fs.writeFileSync(old, "old segment");
     fs.writeFileSync(protectedFile, "protected segment");
@@ -168,7 +169,7 @@ test("lot 13 : rétention ne supprime pas les segments protégés ou en cours", 
       retentionDays: 1,
       maxBytes: 5 * 1024 * 1024 * 1024,
       segmentSeconds: 300,
-      protectedPaths: ["protected.mp4"],
+      protectedPaths: [protectedName],
       nowMs: now,
     });
     assert.deepEqual(result.removed, ["old.mp4"]);

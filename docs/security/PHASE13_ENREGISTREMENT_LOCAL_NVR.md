@@ -99,3 +99,27 @@ GitHub Actions #1327 : https://github.com/audreymendomo23-netizen/NAXA/actions/r
 Le lot 12 vidéo live matériel reste PARTIEL également. Aucune installation pilote, caméra ou image réelle n'a été présentée comme connectée.
 
 Ne pas activer l'enregistrement automatiquement. Le consentement, l'approbation légale et l'avis de confidentialité demeurent obligatoires. Ne pas déclarer le lot terminé avant les points 1–6 et la preuve sur matériel réel.
+
+
+## Complément — protection et timeline des métadonnées (09/11/2026)
+
+### Migration 312 / RPC
+- Migration locale QA : `supabase/migrations/20261109030000_security_recording_protection.sql`.
+- Migration appliquée sur Replay sous le nom `security_recording_protection_lot13`.
+- RPC `naxa_security_set_recording_protection` : verrouille la ligne `FOR UPDATE`, autorise ready/protected, exige une justification 8–500 caractères, protège ou libère et ajoute un audit dans la même transaction.
+- Test Replay : existence/type de signature PASS ; SECURITY INVOKER et search_path vide PASS ; service_role autorisé, anon/authenticated refusés PASS ; verrou et audit PASS ; justification trop courte rejetée PASS.
+
+### Parcours Promoteur et passerelle
+- `POST /api/security/recording-segments/protection` : Promoteur actif, pharmacie rattachée/active, motif obligatoire, aucun chemin local exposé.
+- `POST /api/security/gateway/recording-protection` : requête Ed25519 signée et anti-rejeu ; la passerelle ne reçoit que les noms de fichiers protégés des caméras de son gateway. Si le résultat est trop volumineux ou incomplet, le serveur ne prétend pas que la liste est complète.
+- Worker local : les noms protégés sont normalisés/validés strictement ; un snapshot serveur inconnu ou incomplet suspend la purge locale ; outbox toujours protégé.
+- Aucun flux entrant vers la passerelle n'est ouvert.
+
+### Timeline
+- `GET /api/security/recording-segments` : bornes 31 jours, 100 lignes, périmètre Promoteur et pharmacies actives, journalise chaque segment affiché ; aucun `storage_path` renvoyé.
+- `SecurityRecordingTimeline` branché dans le tableau Sécurité : dates, codec, taille, SHA-256, statut, motif, protection/libération avec justification.
+- Pas de faux lecteur : la lecture et l'export restent explicitement indisponibles à ce stade.
+
+### CI
+- Première CI sur `6624fc2d` : **275 PASS / 1 FAIL sur 276**. Cause racine prouvée : l'ancien test de rétention utilisait `protected.mp4`, non conforme au nouveau validateur par caméra. Le test est corrigé pour employer le nom réel `{camera_uuid}_YYYYMMDDTHHMMSS.mp4`.
+- Nouvelle CI du SHA de correction attendue ; aucun statut vert avant son résultat.
