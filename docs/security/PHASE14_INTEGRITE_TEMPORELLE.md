@@ -1,6 +1,6 @@
 # Lot 14 — horodatage et intégrité temporelle
 
-**Statut : PARTIEL — fondations logicielles CI validées, intégrité caméra/NVR non recettée.**
+**Socle logiciel : VERT (tests dédiés et CI #1388). Lot 14 complet : PARTIEL — horloges caméra/NVR et intégrité d'export non vérifiées.**
 
 ## Implémenté
 - Client SNTP UDP local : validation mode/version/stratum/originate timestamp, calcul offset et RTT.
@@ -11,6 +11,8 @@
 - Seuil d'affichage : offset ≤1 000 ms, RTT ≤1 500 ms, mesure de moins de 10 minutes.
 
 ## Preuves
+- Revalidation finale de branche : CI #1388 SUCCESS sur SHA 2ccbaf673e5b490688096aa2393ccdd7191fc86d, avec **290/290 tests PASS** et **7/7 sous-tests lot 14 PASS** dans les logs.
+- Audit des dépendances de production : 0 vulnérabilité ; TypeScript, ESLint, build Next.js et 129/129 pages statiques PASS.
 - Replay pwfftcsjyeibxxqhwysw : table/RLS, fonction, grants backend-only et audit/transaction vérifiés.
 - CI #1333 SUCCESS sur SHA e78cacf5cdf894b9df2a32d70418ee4eb362219e : 283/283 tests PASS, 0 échec, audit npm 0 vulnérabilité, TS/ESLint/build PASS, 129/129 pages.
 - Test NTP UDP simulé : calcul et rejet d'une origine incohérente ; ne prouve pas la disponibilité d'un serveur NTP du pilote.

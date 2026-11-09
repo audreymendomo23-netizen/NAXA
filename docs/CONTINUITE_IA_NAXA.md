@@ -780,3 +780,17 @@ La timeline et la protection sont livrées côté logiciel ; le lecteur/export v
 - Replay : zéro installation, passerelle, caméra, connexion, live session, clip, segment, commande sirène et politique de haute surveillance. Les 15 adaptateurs caméra sont design_only.
 - Lire docs/security/SUIVI_LOTS12_20_RESTANTS.md pour les raisons lot par lot. Les nombres Replay ne décrivent pas Production.
 - Lot 16 : contrats logiciels et CI PASS ; recette physique et fonctions aval non terminées.
+
+
+## Point de reprise — lots sécurité 13, 14 et 16 (09/11/2026, après demande de mise au vert)
+
+- Demande utilisateur : mettre au vert les trois lots immédiatement clôturables côté logiciel ; reporter les autres lots et leurs recettes Node.js à une phase ultérieure.
+- Périmètre retenu : **VERT pour le socle logiciel livré et testé** des lots 13, 14 et 16 ; **PARTIEL pour la clôture globale** tant que les extensions logicielles explicitement listées et les recettes physiques ne sont pas faites. Ne jamais résumer ces lots comme totalement opérationnels.
+- Branche contrôlée : `qa/e2e-stabilisation-20261106`, commit parent vérifié `2ccbaf673e5b490688096aa2393ccdd7191fc86d`. Aucune modification de `main`, aucune écriture Supabase Production, aucun déploiement Vercel.
+- GitHub Actions #1388 : SUCCESS sur SHA `2ccbaf673e5b490688096aa2393ccdd7191fc86d` — 290/290 tests PASS, 0 échec ; npm audit production 0 vulnérabilité ; TypeScript, ESLint, Next.js build et 129/129 pages PASS.
+- Logs CI dédiés : lot 13 27/27 ; lot 14 7/7 ; lot 16 7/7 ; total 41/41 sous-tests explicitement étiquetés.
+- Lot 13 : worker FFmpeg opt-in, indexeur/hash/outbox, synchronisation signée, protection transactionnelle et timeline metadata testés. Restent lecteur/export, planification/événementiel, surveillance disque/récupération et caméra/NVR réels.
+- Lot 14 : client SNTP, validation des réponses, offset/RTT, ajustement des signatures passerelle, stockage/audit et UI testés. Restent NTP réel, horloge OS/caméra/NVR, incrustation et manifeste/export signé.
+- Lot 16 : fuseau IANA, plages et franchissement minuit, exceptions, snapshot chiffré, RPC/audit, API gateway et trigger de priorité testés. Restent signature serveur indépendante, file offline durable, notifications/escalades/clips, délégation Responsable et gateway réel.
+- Les 3 fiches de phase et le registre `docs/security/SUIVI_LOTS12_20_RESTANTS.md` sont alignés sur cette qualification. Les lots 12, 15, 17, 18, 19 et 20 restent différés pour les recettes Node.js/SIL et/ou prérequis externes.
+- Prochaine action lors de la reprise : construire séparément les recettes Node.js SIL pour les lots différés ; ne pas créer de faux équipements/données Replay et ne pas annoncer de validation matérielle.

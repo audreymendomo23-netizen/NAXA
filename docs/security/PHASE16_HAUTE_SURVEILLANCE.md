@@ -1,6 +1,6 @@
 # Lot 16 — calendrier de haute surveillance
 
-**Statut : PARTIEL — fondations logicielles validées par CI #1341 ; recette passerelle et fonctionnalités aval ouvertes.**
+**Socle logiciel : VERT (tests dédiés et CI #1388). Lot 16 complet : PARTIEL — alertes aval, file hors ligne et recette passerelle ouvertes.**
 
 ## Socle implémenté
 - Migration 314 : politique par pharmacie, fuseau IANA, fenêtres hebdomadaires, exceptions datées, version croissante et expiration hors ligne 72 h.
@@ -12,6 +12,8 @@
 - Trigger serveur : mouvements/intrusions/franchissements/présences hors horaires dans une plage active reçoivent une priorité high.
 
 ## Preuves
+- Revalidation finale de branche : CI #1388 SUCCESS sur SHA 2ccbaf673e5b490688096aa2393ccdd7191fc86d, avec **290/290 tests PASS** et **7/7 sous-tests lot 16 PASS** dans les logs.
+- Audit des dépendances de production : 0 vulnérabilité ; TypeScript, ESLint, build Next.js et 129/129 pages statiques PASS.
 - Migration 314 appliquée sur Supabase Replay pwfftcsjyeibxxqhwysw.
 - Table présente, RLS forcée, RPC invoker verrouillée, exécution service_role seulement, trigger et évaluateur SQL présents.
 - CI #1341 SUCCESS, SHA exact 909727b13bdd8872baba0450955206c3ed04d252 :

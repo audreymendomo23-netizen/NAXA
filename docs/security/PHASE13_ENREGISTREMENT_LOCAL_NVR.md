@@ -2,7 +2,7 @@
 
 **Branche :** `qa/e2e-stabilisation-20261106`  
 **Référence CI :** `cd77624e764f435be956f1c798d145e9c2bcfb39` — GitHub Actions #1327 SUCCESS  
-**État : PARTIEL.** La chaîne logicielle d'enregistrement local et de synchronisation d'index est construite et testée ; la timeline, la lecture/export et le pilote matériel ne sont pas terminés.
+**Socle logiciel : VERT (tests dédiés et CI #1388). Lot 13 complet : PARTIEL.** La timeline metadata/protection est livrée ; la lecture/export vidéo, les modes programmé/événementiel, la supervision disque et la recette NVR restent ouverts.
 
 ## 1. Audit → contradiction → cause racine
 
@@ -68,6 +68,8 @@ La passerelle transmet un lot de 1 à 10 métadonnées par HTTPS, signature Ed25
 Ni identifiants vidéo, ni données binaires, ni URL publiques ne sont acceptés.
 
 ## 3. Preuves
+- Revalidation finale de branche : CI #1388 SUCCESS sur SHA 2ccbaf673e5b490688096aa2393ccdd7191fc86d, avec **290/290 tests PASS** et **27/27 sous-tests lot 13 PASS** dans les logs.
+- Audit des dépendances de production : 0 vulnérabilité ; TypeScript, ESLint, build Next.js et 129/129 pages statiques PASS.
 
 ### Replay
 Projet : `naxa-ci-replay-2` — `pwfftcsjyeibxxqhwysw`.
