@@ -44,7 +44,7 @@ test("proxy RTSP : refuse toute URI de caméra ou de chemin hors ticket", () => 
     authorization,
   }), null);
   const wrongOrigin = Buffer.from(
-    "ANNOUNCE rtsp://evil.example.test:554" + REMOTE_PATH + " RTSP/1.0\\r\\nCSeq: 4\\r\\n\\r\\n",
+    "ANNOUNCE rtsp://evil.example.test:554" + REMOTE_PATH + " RTSP/1.0\r\nCSeq: 4\r\n\r\n",
     "latin1",
   );
   assert.equal(rewriteClientRequest(wrongOrigin, {
@@ -54,7 +54,7 @@ test("proxy RTSP : refuse toute URI de caméra ou de chemin hors ticket", () => 
     authorization,
   }), null);
   const traversal = Buffer.from(
-    "ANNOUNCE " + LOCAL_BASE + REMOTE_PATH + "/%2e%2e/escape RTSP/1.0\\r\\nCSeq: 5\\r\\n\\r\\n",
+    "ANNOUNCE " + LOCAL_BASE + REMOTE_PATH + "/%2e%2e/escape RTSP/1.0\r\nCSeq: 5\r\n\r\n",
     "latin1",
   );
   assert.equal(rewriteClientRequest(traversal, {
