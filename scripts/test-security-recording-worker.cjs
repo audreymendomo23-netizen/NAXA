@@ -75,13 +75,14 @@ test("lot 13 : sortie segmentée locale UTC, conteneur MP4 et audio désactivé"
       if (process.platform !== "win32") {
         assert.equal(fs.statSync(manifest.path).mode & 0o777, 0o600);
       }
-      assert.ok(args.includes("-f") && args[args.indexOf("-f") + 1] === "segment");
-    assert.ok(args.includes("-segment_time") && args[args.indexOf("-segment_time") + 1] === "300");
-    assert.ok(args.includes("-strftime") && args[args.indexOf("-strftime") + 1] === "1");
-    assert.ok(args.includes("-an"));
-    assert.ok(args.includes("copy"));
-    assert.ok(args.includes("movflags=+frag_keyframe+empty_moov+default_base_moof"));
-    assert.throws(() => buildRecordingFfmpegArgs(SOURCE, "/tmp/../escape_%Y%m%dT%H%M%S.mp4", 300));
+      assert.ok(args.includes("-protocol_whitelist"));
+      assert.ok(args.includes("-f") && args[args.indexOf("-f") + 1] === "concat");
+      assert.ok(args.includes("-segment_time") && args[args.indexOf("-segment_time") + 1] === "300");
+      assert.ok(args.includes("-strftime") && args[args.indexOf("-strftime") + 1] === "1");
+      assert.ok(args.includes("-an"));
+      assert.ok(args.includes("copy"));
+      assert.ok(args.includes("movflags=+frag_keyframe+empty_moov+default_base_moof"));
+      assert.throws(() => buildRecordingFfmpegArgs(manifest.path, "/tmp/../escape_%Y%m%dT%H%M%S.mp4", 300));
       assert.throws(() => buildRecordingOutputPattern(root, "../../escape"));
     } finally {
       manifest.cleanup();
