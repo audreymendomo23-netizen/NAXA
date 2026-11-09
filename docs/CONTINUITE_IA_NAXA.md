@@ -1079,3 +1079,12 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Le test structurel vérifie que la policy `anon` n'appelle jamais `private.is_admin()`, que chaque rôle n'a qu'une policy SELECT et que les trois policies DML restent Admin-only.
 - Advisor `multiple_permissive_policies` : **50 → 45** ; aucun finding ne cite plus `pharmacies`. Replay reste à 189 FK sans index couvrant et 175 index non utilisés observés.
 - **Production reste inchangée** : le défaut y est établi par la requête de lecture anonyme en lecture seule. Le correctif nécessite une migration Production explicitement autorisée. Aucun merge, PR ni déploiement n'a été effectué.
+
+## Addendum 2026-11-09 — séparation RLS des équivalences de produits
+
+- Replay : `produit_equivalences` avait `produit_equivalences_admin FOR ALL` et `produit_equivalences_lecture FOR SELECT` sur `anon,authenticated`. Le chevauchement concernait les SELECT authentifiés.
+- Correction : lecture séparée — `anon` voit les entrées actives sans appeler le helper privé ; `authenticated` voit les entrées actives et Admin conserve la visibilité des inactives via `private.is_admin()`. Les écritures sont réparties en trois policies DML `TO authenticated` gardées par `is_admin()`.
+- Migration Replay : `20261109213201_produit_equivalences_read_policy_split_20261109`.
+- Test structurel SQL `supabase/tests/20261109213201_produit_equivalences_read_policy_split.sql` exécuté avec succès. La table Replay contenait 0 ligne et aucun trigger ; aucune donnée artificielle n’a été créée. Les droits effectifs d’écriture n’ont donc pas été revendiqués comme testés par des lignes métier.
+- Advisor `multiple_permissive_policies` : **45 → 44** ; aucun finding ne cite plus `produit_equivalences`.
+- Replay reste à 189 FK sans index couvrant et 175 index non utilisés observés ; les 44 autres groupes de policies demandent une revue spécifique de leurs portées et ne seront pas fusionnés en masse.
