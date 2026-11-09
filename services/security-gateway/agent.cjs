@@ -9,6 +9,7 @@ const { spawn } = require("node:child_process");
 const { discoverOnvifCameras } = require("./onvif-discovery.cjs");
 const { inspectOnvifDevice } = require("./onvif-inspection.cjs");
 const { readOnvifEventConfigs, writeOnvifEventConfigs, runPullPointCollector } = require("./onvif-events.cjs");
+const { readRecordingPolicy, writeRecordingPolicy, runCameraRecorder } = require("./recording.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
@@ -212,7 +213,13 @@ async function run(args) {
   const cameras = readCameraStreamConfigs(stateDir);
   const publishers = cameras.map((camera) => runCameraPublisher(config, camera, controller.signal));
   const eventCollectors = readOnvifEventConfigs(stateDir).map((camera) => runCameraOnvifEvents(config, camera, controller.signal));
-  void Promise.all([...publishers, ...eventCollectors]);
+  const recordingPolicies = readRecordingPolicy(stateDir, cameras.map((camera) => camera.cameraId));
+  const recordingWorkers = recordingPolicies.map((policy) => {
+    const camera = cameras.find((item) => item.cameraId === policy.cameraId);
+    if (!camera) return Promise.resolve();
+    return runCameraRecorder({ camera, policy, stateDir, signal: controller.signal });
+  });
+  void Promise.all([...publishers, ...eventCollectors, ...recordingWorkers]);
   const stop = () => { clearInterval(timer); controller.abort(); };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
@@ -534,6 +541,20 @@ async function configureStream(args) {
   console.log("URI caméra stockée chiffrée pour " + cameraId + ".");
 }
 
+async function configureRecording(args) {
+  const flags = parseFlags(args);
+  if (!flags["policy-stdin"] || process.stdin.isTTY) {
+    throw new Error("Utilisez --policy-stdin ; aucune politique ne doit être passée en argument.");
+  }
+  const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
+  const cameras = readCameraStreamConfigs(stateDir);
+  const allowedCameraIds = cameras.map((camera) => camera.cameraId);
+  const policy = JSON.parse(fs.readFileSync(0, "utf8"));
+  const stored = writeRecordingPolicy(stateDir, policy, allowedCameraIds);
+  console.log("Politique locale continue enregistrée pour " + stored.cameras.length +
+    " caméra(s). Audio désactivé ; aucun transfert réseau requis pour enregistrer.");
+}
+
 function buildSecurityEventPayload(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Événement de sécurité invalide.");
   const allowedTypes = new Set([
@@ -654,6 +675,7 @@ async function main() {
   if (command === "discover") return discover(args);
   if (command === "inspect") return inspect(args);
   if (command === "configure-stream") return configureStream(args);
+  if (command === "configure-recording") return configureRecording(args);
   if (command === "configure-onvif-events") return configureOnvifEvents(args);
   if (command === "report-event") return submitSecurityEvent(args);
   if (command === "heartbeat") {
@@ -661,7 +683,7 @@ async function main() {
     return heartbeat(readSecureConfig(path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR)));
   }
   if (command === "run") return run(args);
-  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | configure-onvif-events | report-event | run");
+  throw new Error("Commande attendue : enroll | heartbeat | discover | inspect | configure-stream | configure-recording | configure-onvif-events | report-event | run");
 }
 
 if (require.main === module) {
