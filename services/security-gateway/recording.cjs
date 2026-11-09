@@ -203,6 +203,7 @@ function buildRecordingFfmpegArgs(manifestPath, outputPattern, segmentSeconds) {
 function startFfmpegRecorder({ sourceUrl, outputPattern, segmentSeconds, signal, spawnImpl = spawn }) {
   return new Promise((resolve) => {
     let child;
+    let manifest;
     let finished = false;
     let killTimer = null;
     const finish = (result) => {
@@ -230,7 +231,6 @@ function startFfmpegRecorder({ sourceUrl, outputPattern, segmentSeconds, signal,
     }
     signal.addEventListener("abort", onAbort, { once: true });
     let args;
-    let manifest;
     try {
       if (signal.aborted) { finish({ exitSignal: "aborted", code: null }); return; }
       manifest = createPrivateRtspManifest(sourceUrl);
