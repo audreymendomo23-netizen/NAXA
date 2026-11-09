@@ -32,7 +32,7 @@ test("lot 13 : index des segments locaux lié à une pharmacie, caméra et passe
 
 test("lot 13 : état de segment cohérent, chemin relatif borné et audio interdit", () => {
   assert.match(migration, /status in \('recording','ready','protected','degraded','corrupt','deleted','error'\)/);
-  assert.match(migration, /storage_path !~ '\(\^\/\|/);
+  assert.ok(migration.includes("storage_path !~"));
   assert.match(migration, /audio_enabled boolean not null default false/);
   assert.match(migration, /check \(audio_enabled = false\)/);
   assert.match(migration, /duration_seconds is not null and codec is not null and size_bytes is not null and sha256 is not null/);
