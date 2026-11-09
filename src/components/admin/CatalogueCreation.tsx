@@ -119,7 +119,7 @@ export function CatalogueCreation({ pharmacies, initialUniverse, ok, erreur, err
       <form action={rattacherServiceBebeMaman} className="space-y-3">
         <div ref={suggestionsRef} className="relative">
           <label className="block text-sm font-semibold">Entrer la pharmacie de parrainage
-            <input value={pharmacyQuery} onChange={(event) => { setPharmacyQuery(event.target.value); setSelectedPharmacy(null); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} autoComplete="off" placeholder="Saisir le nom d’une pharmacie partenaire…" className={field} required aria-expanded={suggestionsOpen && matches.length > 0} aria-controls="pharmacie-parrainage-options"/>
+            <input role="combobox" aria-autocomplete="list" value={pharmacyQuery} onChange={(event) => { setPharmacyQuery(event.target.value); setSelectedPharmacy(null); setSuggestionsOpen(true); }} onFocus={() => setSuggestionsOpen(true)} autoComplete="off" placeholder="Saisir le nom d’une pharmacie partenaire…" className={field} required aria-expanded={suggestionsOpen && matches.length > 0} aria-controls="pharmacie-parrainage-options"/>
           </label>
           {suggestionsOpen && matches.length > 0 && <ul id="pharmacie-parrainage-options" role="listbox" className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
             {matches.map((p) => <li key={p.id} role="option" aria-selected={selectedPharmacy?.id === p.id}>
