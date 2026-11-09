@@ -864,3 +864,44 @@ Le rapport de faisabilité sécurité du 07/11/2026 conserve des alertes Replay 
 - **Déjà verts avec preuve actuelle :** qualité générale CI au SHA `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d` ; socles logiciels des lots 13, 14 et 16.
 - **Vert possible par correction/tests logiciels accessibles :** avertissements ESLint/React/ARIA, migration du script lint, vérification ACL/RLS/`SECURITY DEFINER` et réglages Auth sur Replay, et recettes SIL des lots différés une fois leurs interfaces/code manquants construits.
 - **À réserver aux recettes SIL Node.js puis aux preuves terrain :** lots 12, 15, 17, 18, 19 et 20. Une recette Node.js peut mettre au vert le contrat logiciel simulé ; elle ne peut pas certifier caméra, Drive OAuth réel, AI sur vidéos réelles, Android/FCM sur téléphone, relais de sirène ni pilote équipé.
+
+
+## Addendum — audit approfondi, clôtures accessibles et écarts terrain (09/11/2026 — reprise après interruption)
+
+### Preuve qualité la plus récente sur QA
+
+- Branche : `qa/e2e-stabilisation-20261106`.
+- SHA applicatif vérifié : `6fec5e0890cfc653f146ff7639a8577b15ef4e8c`.
+- GitHub Actions #1414 : SUCCESS — https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42600593801.
+- Journaux du job unique : scan Gitleaks sur tous les refs/historiques et le répertoire courant PASS ; audit des dépendances de production = 0 vulnérabilité ; validation de la configuration officielle MediaMTX 1.21.3 PASS ; tests Node `296/296`, 0 échec, 0 skip ; TypeScript PASS ; ESLint terminé sans erreur ; build Next.js PASS ; pages statiques `129/129`.
+- Le ratissage du fichier `src/app/resultats/page.tsx` a stabilisé les dépendances de l'effet de recherche (coordonnées dérivées et sélection panier mémorisée). Les deux avertissements `react-hooks/exhaustive-deps` ont disparu. Il reste 28 avertissements ESLint, principalement les usages HTML `<img>` non optimisés ; ils ne bloquent pas le build.
+- Le PASS ci-dessus certifie le logiciel de QA au SHA cité. Il ne certifie ni la branche `main`, ni les services externes, ni un parcours navigateur/appareil complet.
+
+### Corrections SQL et tests réalisés — Replay seulement
+
+- Migration source QA `supabase/migrations/20261109101500_replay_duplicate_index_cleanup.sql` et test `supabase/tests/20261109101500_replay_duplicate_index_cleanup.sql` ajoutés. La migration a supprimé sur `naxa-ci-replay-2` quatre index identiques redondants : `abonnements_pharmacie_unique_base`, `commandes_fournisseurs_lignes_order_idx`, `reservation_events_pharmacie_idx` et `stocks_lots_id_uq`. L'index unique `stocks_lots_id_uidx`, adossé à une contrainte, a été conservé et vérifié unique/valide. Test transactionnel PASS ; l'Advisor Replay ne signale plus de doublons d'index. Aucun index Production n'a été modifié.
+- Migrations QA déjà présentes et appliquées sur Replay : `20261109060000_fournisseurs_rls_policy_consolidation.sql` et `20261109070000_revoke_execute_favoris_purchase_trigger.sql`. Le test transactionnel fournisseur refuse la lecture, l'insertion, la modification et la suppression pour un sujet sans profil professionnel actif ; le test trigger confirme l'absence d'EXECUTE direct pour `anon`, `authenticated` et `service_role`, tout en vérifiant que le trigger reste attaché. Les deux tests SQL passent. Pas de changement Production.
+- Relecture contradictoire des tables d'architecture : les policies de lecture existent bien. Le test corrigé sous le rôle `authenticated` avec le contexte Admin retourne 638 lignes `naxa_architecture_privileges`, 309 `naxa_role_privileges` et 3 `pharmacie_architectures`. Le constat antérieur « tables sans policy / page privilèges cassée » est retiré ; la première mesure à zéro n'était pas valide.
+- Les 43 tables Replay signalées `rls_enabled_no_policy` ne sont pas accordées aux rôles `anon` ou `authenticated` : le contrôle SQL retourne 0 table de cette liste ayant un accès applicatif. Elles sont fermées au client et ne constituent pas une fuite RLS sur la base des ACL vérifiées.
+
+### État sécurité Supabase revalidé en lecture seule
+
+- Replay : deux fonctions `SECURITY DEFINER` exécutables par `anon` sont les RPC de télémétrie publique `log_evenement` et `log_recherche`, qui limitent les types/volumes et filtrent les termes ; leur accès public doit rester surveillé.
+- Replay : 198 fonctions `SECURITY DEFINER` sont exécutables par `authenticated`. Une recherche de gardes directes trouve 188 fonctions contenant un contrôle explicite d'identité, de rôle ou de scope ; 10 autres sont des wrappers/délégations ou des fonctions de télémétrie qui doivent être suivis individuellement. Ce nombre Advisor n'est pas un décompte de failles confirmées. Aucun retrait global d'EXECUTE n'est justifié.
+- Replay : Advisor performance après le nettoyage — 31 policies avec `auth_rls_initplan`, 214 clés étrangères sans index couvrant signalées, 175 index sans utilisation observée, 56 ensembles de policies permissives. Ces alertes sont des pistes de performance/revue, non des preuves d'accès indu. Les politiques multiples sont parfois intentionnelles (Admin + propriétaire + partenaire) ; ne pas les fusionner ou supprimer massivement sans tests d'autorisation par rôle. Les index non utilisés ne doivent pas être supprimés sur un environnement de test sans statistiques de charge représentatives.
+- Production, lecture seule : les tables d'architecture sont lisibles selon les policies attendues. En revanche, `fournisseurs` conserve encore les quatre policies héritées `fournisseurs_read_scope`, `fournisseurs_insert_scope`, `fournisseurs_update_scope`, `fournisseurs_delete_scope` en plus des policies `*_staff`. La migration QA de consolidation correspondante n'a pas été appliquée en Production ; son application y demande une autorisation explicite.
+- Protection native Supabase Auth contre les mots de passe compromis : l'Advisor la signale toujours désactivée. Le code QA exécute déjà une vérification HIBP serveur, en mode fail-closed, sur les routes de changement Pharmacie, Promoteur et inscription/récupération ; les sous-tests 141–143 passent. Cela ne remplace pas le réglage natif du projet et ne signifie pas que cette correction est présente sur `main`. L'activation native nécessite le réglage Auth du projet ; aucun outil de configuration Auth utilisable dans cette passe n'a permis de l'activer.
+- Production est restée en lecture seule : aucune migration, ACL, donnée métier, variable ou déploiement modifié.
+
+### État des lots et du reste de l'application
+
+- Lots 13, 14 et 16 : **VERT pour le socle logiciel testé seulement** ; état de livraison complet reste PARTIEL tant que les lectures vidéo, l'horloge caméra/NVR, les signatures/alertes et passerelles physiques listées dans le tableau ne sont pas validées.
+- Lots 12, 15, 17, 18, 19 et 20 restent PARTIELS/BLOQUÉS par les éléments précis déjà listés dans `docs/security/SUIVI_LOTS12_20_RESTANTS.md`. Le périmètre demandé ici n'a pas étendu les travaux en construisant une recette E2E Node.js.
+- Corrections encore réalisables par code/SQL/outil disponible : les 28 avertissements d'images ; les 31 policies RLS à initplan (après réécriture et test rôle par rôle) ; les 214 index de clés étrangères (après priorisation par tables et coût d'écriture) ; les policies permissives (revue individuelle) ; les 10 wrappers `SECURITY DEFINER` non classés par inspection de leurs fonctions déléguées ; migration de consolidation fournisseur Production après autorisation ; modernisation des dépendances/outils de lint.
+- Dépendances qui ne peuvent pas être certifiées par les outils et environnements actuels seuls : caméra/NVR/flux et réseau pilote ; consentement réel Google Drive/OAuth et compte Drive ; modèle d'inférence/vidéos terrain/accélérateur ; projet Android natif signé + Firebase/FCM et téléphone physique ; contrôleur relais/sirène/câblage/UPS ; pharmacie pilote et consentements opérationnels. Ces éléments exigent des systèmes, appareils, comptes ou décisions externes réels.
+- Le dépôt reste désynchronisé : `main` HEAD `2374348e416d4745e19546da1151ea1ad8fefa11` ; QA HEAD au moment de cet addendum `6fec5e0890cfc653f146ff7639a8577b15ef4e8c`, 459 commits devant `main`, aucun commit derrière. Ne pas lire la CI QA comme une validation de `main`.
+- Aucun merge/PR, aucun déploiement Vercel et aucune écriture Supabase Production n'ont été effectués.
+
+### Verdict de cette passe
+
+**PASS logiciel QA au SHA 6fec5e0 ; 3 corrections de cohérence/SQL vérifiées sur Replay ; audit global toujours ouvert.** La base n'est pas « au bout de ce qui est corrigeable » : des optimisations de code et de RLS restent réalisables. La clôture complète de l'application demeure impossible tant que les dépendances matérielles, Android natif, Google Drive réel et la pharmacie pilote ne sont pas disponibles.
