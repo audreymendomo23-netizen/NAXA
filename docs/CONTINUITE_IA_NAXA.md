@@ -1088,3 +1088,13 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Test structurel SQL `supabase/tests/20261109213201_produit_equivalences_read_policy_split.sql` exécuté avec succès. La table Replay contenait 0 ligne et aucun trigger ; aucune donnée artificielle n’a été créée. Les droits effectifs d’écriture n’ont donc pas été revendiqués comme testés par des lignes métier.
 - Advisor `multiple_permissive_policies` : **45 → 44** ; aucun finding ne cite plus `produit_equivalences`.
 - Replay reste à 189 FK sans index couvrant et 175 index non utilisés observés ; les 44 autres groupes de policies demandent une revue spécifique de leurs portées et ne seront pas fusionnés en masse.
+
+## Addendum 2026-11-09 — consolidation des lectures Admin des partenaires
+
+- Replay : `partner_members`, `partner_universes` et `partners` avaient chacune une policy Admin `FOR ALL` plus une policy de lecture propriétaire/membre ; l’Advisor signalait une policy SELECT permissive superposée par table.
+- Correction : le chemin Admin a été ajouté à la policy de lecture existante (lecture personnelle, membre d’un partenaire actif, ou Admin), puis les anciennes policies Admin `ALL` ont été remplacées par `INSERT`, `UPDATE` et `DELETE` `TO authenticated`, chacune gardée par `is_admin()`.
+- Le garde de phase 1 `guard_medical_devices_partner_universe_phase1` reste attaché à `partner_universes`.
+- Migration Replay : `20261109213523_partner_admin_read_policy_consolidation_20261109`. Test structurel `supabase/tests/20261109213523_partner_admin_read_policy_consolidation.sql` exécuté avec succès.
+- Replay : les trois tables contiennent 0 ligne ; aucune donnée métier fictive n’a été créée. La preuve de ce lot est structurelle, pas une recette comportementale d’un partenaire réel.
+- Advisor `multiple_permissive_policies` : **44 → 41** après cette migration. Les trois tables ne figurent plus dans les findings. Replay conserve 189 FK sans index couvrant et 175 index non utilisés observés.
+- Aucun changement Production, `main`, ACL de table ou déploiement ; migration limitée à Replay/QA.
