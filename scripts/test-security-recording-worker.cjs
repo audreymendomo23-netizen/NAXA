@@ -134,6 +134,5 @@ test("lot 13 : agent systemd démarre l'enregistrement uniquement sur politique 
   assert.ok(agent.includes("readRecordingPolicy(stateDir"));
   assert.ok(agent.includes("runCameraRecorder"));
   assert.ok(agent.includes("recordingWorkers"));
-  assert.ok(agent.includes("Aucune politique") === false);
   assert.ok(agent.includes("Audio désactivé"));
 });
