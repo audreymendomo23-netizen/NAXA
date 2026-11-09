@@ -72,6 +72,7 @@ test("lot 13 : test SQL couvre RLS, clés, audio, état et timeline", () => {
     "segment_gateway_bound_to_same_pharmacy",
     "segment_camera_bound_to_same_pharmacy",
     "audio_is_forbidden",
+    "relative_storage_path_constraint_present",
     "ready_requires_hash_duration_codec_and_size",
     "protected_segments_require_reason_and_time",
     "camera_timeline_index_present",
