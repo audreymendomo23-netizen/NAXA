@@ -39,10 +39,11 @@ function ResultsContent(){
  const router=useRouter(),params=useSearchParams(),pValues=params.getAll("p"),basketMode=pValues.length>0;
  const basketSelectionKey=JSON.stringify(pValues);
  const selectedBasketItems=useMemo(()=> (JSON.parse(basketSelectionKey) as string[]).map(v=>({produit_id:v.split(":")[0],quantite:Math.max(1,Math.min(10,Number(v.split(":")[1])||1))})),[basketSelectionKey]);
- const coordsLat=coords?.lat;
- const coordsLng=coords?.lng;
+
  const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Votre position"),[coords,setCoords]=useState<{lat:number;lng:number}|null>(null),[locationInput,setLocationInput]=useState(""),[locationError,setLocationError]=useState(""),[locationCandidates,setLocationCandidates]=useState<LocaliteCandidate[]>([]),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"manual"|"fallback">("pending");
  const [filters,setFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""}),[activeFilters,setActiveFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""});
+ const coordsLat=coords?.lat;
+ const coordsLng=coords?.lng;
  const {ajouter,nombre}=usePanier();
  const [catalogue,setCatalogue]=useState<CatalogItem[]>([]),[catalogueLoading,setCatalogueLoading]=useState(false);
  const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set()),[assurancesVisuelles,setAssurancesVisuelles]=useState<string[]>([]);
