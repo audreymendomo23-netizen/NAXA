@@ -708,3 +708,44 @@ La correction logicielle/configuration MediaMTX est clôturable au vert CI. La s
 La recette E2E logicielle et SQL disponible est exécutée et PASS. La recette E2E du lot 12 selon son critère de sortie (caméra physique d'une pharmacie pilote, flux autorisé et révocable) reste PARTIELLE et non exécutée faute d'environnement/périphériques ; ne pas la noter PASS et ne pas démarrer le lot 13 avant cette preuve.
 
 Aucune donnée de test n'a été insérée dans Replay ; aucune migration n'a été appliquée pendant cette recette ; aucun secret, endpoint fictif, accès Vercel ou déploiement Production utilisé.
+
+---
+
+## Lot 13 — fondation de l'index d'enregistrement local (09/11/2026)
+
+### Audit et contradiction
+
+- Audit de l'arbre QA : aucun service d'enregistrement/NVR local, indexeur de segments, timeline, lecteur d'archives ou API de lecture/export Security n'était présent.
+- La table `naxa_security_clips` existante est un registre de clips associés à des événements ; elle ne couvre pas les segments d'enregistrement continu.
+- MediaMTX reste le relais live et conserve `record: false` ; il ne doit pas devenir le NVR principal, car la vidéo doit continuer à s'enregistrer localement sans WAN.
+
+### Fondations réalisées
+
+- Migration ajoutée : `supabase/migrations/20261109010000_security_local_recording_segments.sql`.
+- Nouvelle table `naxa_security_recording_segments` : pharmacie/passerelle/caméra liées, mode continu/programmé/événementiel, état, timestamps UTC, durée, codec, conteneur, chemin relatif, taille, SHA-256, rétention, protection et motif.
+- Audio verrouillé à false par contrainte SQL ; chemins absolus, URI, traversal `..` et caractères de contrôle rejetés.
+- État `ready`/`protected` exige durée, codec, taille et hash ; état protégé exige date et raison.
+- RLS + FORCE RLS, aucun privilège direct anon/authenticated, opérations backend service_role uniquement.
+- Contraintes du journal d'accès étendues pour auditer consultation, export, suppression de segment et modification de politique d'enregistrement.
+- Test statique CI : `scripts/test-security-recording-segments.cjs`.
+- Test SQL : `supabase/tests/310_security_recording_segments.sql`.
+- Documentation phase 13 : `docs/security/PHASE13_ENREGISTREMENT_LOCAL_NVR.md`.
+
+### Preuve Replay exacte
+
+- Projet de test `naxa-ci-replay-2` : `pwfftcsjyeibxxqhwysw` (ACTIVE_HEALTHY au moment du contrôle).
+- Migration `security_local_recording_segments_lot13` appliquée avec succès sur Replay uniquement.
+- Test SQL exécuté en transaction/rollback : **17/17 assertions vraies** : table, RLS forcée, absence d'accès navigateur, privilèges backend, FK same-pharmacy, unicité chemin, audio interdit, chemin relatif, machine d'état, champs obligatoires ready, protection justifiée, audit et index timeline/rétention.
+- Aucun fichier vidéo, caméra fictive ou segment de démonstration inséré.
+
+### Statut lot 13
+
+**PARTIEL — FONDATION SQL VÉRIFIÉE.** Le modèle d'index et les garde-fous SQL sont créés et testés sur Replay.
+
+**NON LIVRÉ.** Aucun worker FFmpeg d'enregistrement local, découpage segmenté, indexeur local/hash, contrôle de capacité disque, rotation/rétention effective, mode reprise hors WAN, API timeline, autorisation de lecture/export ou lecteur d'archives n'est encore construit. La migration ne contient aucun octet vidéo.
+
+**NON RECETTÉ MATÉRIEL.** Aucune caméra physique, coupure WAN/secteur ou lecture d'une séquence réelle n'a été exécutée. Lot 13 ne peut pas être vert avant ce critère ; lot 12 matériel reste bloquant pour live de bout en bout.
+
+### Règle de progression
+
+Ne pas activer l'enregistrement par défaut. Prochaine tranche lot 13 : worker local opt-in FFmpeg segmenté, reprise indépendante du WAN, indexation locale et purge sûre avec segments protégés ; ensuite seulement les API timeline/lecture/export et la recette sur caméra réelle. Aucun passage au vert sans preuve physique.
