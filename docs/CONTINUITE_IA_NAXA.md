@@ -794,3 +794,73 @@ La timeline et la protection sont livrées côté logiciel ; le lecteur/export v
 - Lot 16 : fuseau IANA, plages et franchissement minuit, exceptions, snapshot chiffré, RPC/audit, API gateway et trigger de priorité testés. Restent signature serveur indépendante, file offline durable, notifications/escalades/clips, délégation Responsable et gateway réel.
 - Les 3 fiches de phase et le registre `docs/security/SUIVI_LOTS12_20_RESTANTS.md` sont alignés sur cette qualification. Les lots 12, 15, 17, 18, 19 et 20 restent différés pour les recettes Node.js/SIL et/ou prérequis externes.
 - Prochaine action lors de la reprise : construire séparément les recettes Node.js SIL pour les lots différés ; ne pas créer de faux équipements/données Replay et ne pas annoncer de validation matérielle.
+
+
+## Point de reprise — audit général du code et état Sécurité (09/11/2026)
+
+### Référence et preuves exactes
+
+- Dépôt : `audreymendomo23-netizen/NAXA`.
+- Branche contrôlée : `qa/e2e-stabilisation-20261106`, HEAD `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d`.
+- Depuis le commit `2ccbaf673e5b490688096aa2393ccdd7191fc86d`, un seul commit documentaire a été ajouté ; aucun fichier applicatif, migration ou configuration n'a changé dans cet intervalle.
+- GitHub Actions **#1389** : [run 42578412264](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42578412264), SUCCESS sur le SHA exact `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d`.
+- Résultats du run : scan Gitleaks des refs Git et du working tree PASS ; `npm audit --omit=dev --audit-level=high` = **0 vulnérabilité de production** ; suite Node **290/290 PASS, 0 échec, 0 ignoré** ; TypeScript PASS ; ESLint terminé sans erreur bloquante ; compilation Next.js PASS ; génération statique **129/129 pages** ; configuration officielle MediaMTX 1.21.3 validée.
+- Le workflow exécute `npm run build`, qui appelle le pré-build qualité défini dans `package.json`. Cette preuve couvre le dépôt QA à ce SHA ; elle ne prouve ni un déploiement, ni un comportement Production, ni une recette navigateur/authentifiée.
+
+### Inventaire du dépôt examiné
+
+Au SHA contrôlé, l'arbre Git contient 1 471 fichiers : 73 routes API, 132 pages Next.js, 136 composants, 46 modules `src/lib`, 148 migrations SQL et 10 fichiers du service Security Gateway. Cet inventaire confirme une base applicative large, mais le nombre de fichiers ne vaut pas validation métier.
+
+### État logiciel déjà construit
+
+- Client/Marketplace : accueil, recherche, catalogue, panier, réservation/retrait, paiement guidé, scan/import d'ordonnance, historique client et interactions WhatsApp sont documentés comme construits ; les statuts historiques de `FONCTIONNALITES_VALIDEES.md` doivent toutefois être relus au regard du HEAD courant avant d'en déduire une certification E2E.
+- ERP pharmacie : espaces pharmacie et équipes, import de stock, lots/FEFO, caisse/POS, réservations avec hold de stock, comptabilité et exports disposent de code, migrations et tests de contrat/SQL. Le mode hors ligne ne doit pas être décrit comme ERP complet : le périmètre offline garanti dans les fiches actuelles reste notamment la correction de quantité du stock non lotisé ; les ventes, la caisse et les clôtures exigent une preuve dédiée.
+- Rôles professionnels : le modèle d'affectations et de poste actif est construit ; les tests SQL Replay 295–299 donnent 36 assertions PASS. Cela ne prouve pas l'inscription et l'utilisation simultanées par de vrais comptes Promoteur, Pharmacie, Caisse, Pharmacien, Stock, Comptable et Livreur.
+- Livreur : workflow applicatif avancé (affectation/invitation, préparation Stock avant publication, acceptation atomique, retrait, arrivée, position au premier plan, suivi Client, performance et export). Les migrations jusqu'à `20261106172700` sont présentes sur Replay et la suite générale passe. Restent le parcours Auth multi-comptes, les accès Promoteur/Pharmacie réels, la recette commande→stock→livraison et Push/appareil. Les anciennes lignes de recette qui le disent « non construit » sont périmées et doivent être traitées comme historique.
+- Sécurité intelligente : le tableau Promoteur, les APIs de passerelle, les sessions live temporaires, le lecteur WHEP, la découverte/normalisation ONVIF, l'enregistrement local, la protection des segments, l'historique temporel et le calendrier haute surveillance ont un socle versionné. Le catalogue de 15 familles d'adaptateurs caméra reste `design_only` tant que chaque modèle/firmware n'a pas été réellement testé.
+
+### Lots Sécurité — qualification à conserver
+
+- **Lot 13 — socle logiciel VERT** : 27/27 sous-tests dédiés documentés PASS ; worker FFmpeg opt-in, indexeur/hash/outbox, synchronisation signée, protection transactionnelle et timeline de métadonnées. Le lot complet reste PARTIEL : lecture/export vidéo, planification/événementiel, télémétrie disque/récupération et test caméra/NVR manquent.
+- **Lot 14 — socle logiciel VERT** : 7/7 sous-tests dédiés documentés PASS ; SNTP, validation mode/version/stratum/originate, offset/RTT, historique privé, audit et UI. Le lot complet reste PARTIEL : serveur NTP réel, horloge OS/caméra/NVR, incrustation vérifiable, manifeste signé et intégrité après export manquent.
+- **Lot 16 — socle logiciel VERT** : 7/7 sous-tests dédiés documentés PASS ; fuseau IANA, plages traversant minuit, exceptions, cache local chiffré, RPC/audit, API passerelle et priorité SQL d'événement. Le lot complet reste PARTIEL : signature serveur indépendante, file offline durable, alertes/escalades/clips, délégation Responsable et passerelle réelle manquent.
+- Ces trois lots sont verts **pour leur socle logiciel uniquement**, pas pour l'exploitation complète ou un site réel.
+
+### Lots différés — recette Node.js SIL à construire
+
+| Lot | Socle déjà présent | Recette SIL à construire | Limite non simulable |
+|---|---|---|---|
+| 12 — Live / MediaMTX | Auth/tickets, API live, proxy et config MediaMTX validée | RTSP local, tickets expirés/révoqués, connexion, reconnexion, réseau coupé, isolation multi-pharmacie, WHEP | Caméra/NVR, réseau, DNS/TLS et serveur média réellement déployés |
+| 15 — Drive / sauvegardes | Backup DB quotidien chiffré en artefact GitHub (90 jours), S3 facultatif ; onboarding Google seul | Faux fournisseur OAuth/Drive, state/CSRF, scopes, quota, reprise, checksum et restauration | Projet Google Cloud, consentement OAuth réel, Drive du Promoteur, copie locale native téléphone |
+| 17 — IA / détection | ONVIF discovery/events et normalisation | Pull-Point simulé, événements dupliqués/retardés, contrats d'inférence, files, latence, erreurs et revue humaine | Runtime/modèle réel, accélérateur, dataset vidéo autorisé, faux positifs/négatifs terrain |
+| 18 — Android | PWA/Web Push et logique serveur de notifications | API/FCM simulé, jetons, retries, déduplication, révocation, file et redémarrage de workers | Projet Android natif, APK signé, FCM réel, Doze, écran verrouillé et téléphones physiques |
+| 19 — Sirène | Table de commandes et contraintes SQL | Relais factice local, signatures, nonce, watchdog, durée maximale, ACK, panne et arrêt d'urgence simulé | GPIO/relais/contrôleur, câblage, alimentation/UPS et arrêt matériel réel |
+| 20 — E2E pilote | APIs, règles et tests isolés déjà disponibles | Scénario composé caméra simulée→gateway→API→événements→notification→accusé, avec coupures/reprises et isolation | Pharmacie volontaire équipée, consentements, NVR/caméra, gateway, réseau/UPS et mobile réels |
+
+Les recettes SIL devront être explicitement marquées `simulated=true` et s'exécuter en local/CI avec `node:test`, fixtures éphémères et aucun faux équipement persistant dans Replay. Un PASS SIL validera le logiciel simulé, jamais le matériel réel.
+
+### Audit qualité — points à traiter sans bloquer la CI
+
+Le run #1389 passe, mais ses logs montrent des avertissements non bloquants :
+- usages répétés de `<img>` au lieu de `next/image` ;
+- dépendances manquantes ou expressions complexes dans plusieurs `useEffect` ;
+- attribut `aria-expanded` appliqué à des éléments ayant le rôle implicite `textbox` ;
+- `next lint` est déprécié et devra être remplacé par l'ESLint CLI avant Next.js 16 ;
+- avertissements Node sur `url.parse()` et `punycode`.
+Ces points sont corrigeables par le code, sans équipement réel. Le contrôle npm exécuté porte sur les dépendances de production avec seuil `high` ; il ne remplace pas une revue complète des dépendances de développement ou une analyse SAST.
+
+### Risques sécurité transversaux à ne pas marquer verts
+
+Le rapport de faisabilité sécurité du 07/11/2026 conserve des alertes Replay à recontrôler : fonctions `SECURITY DEFINER` exposées à `anon` ou `authenticated` (dont `log_evenement` et `log_recherche`), vues/fonctions sensibles, schéma `private` exposé dans la configuration Data API et protection Supabase Auth contre les mots de passe compromis signalée désactivée. Ces constats ne sont pas revalidés dans le run GitHub #1389 ; ils exigent un audit SQL/ACL/RLS et de configuration sur Replay, fonction par fonction. Ne pas les considérer corrigés parce que npm audit et CI passent.
+
+### Contradictions documentaires repérées
+
+- `STATUT.md` et certaines sections historiques de `FONCTIONNALITES_VALIDEES.md` indiquent encore que build/typecheck/lint/npm test n'ont pas été exécutés ou que le workflow Livreur n'existe pas. Ces mentions précèdent les vérifications récentes et ne doivent plus servir de statut courant.
+- `FONCTIONNALITES_VALIDEES.md` contient plusieurs états successifs du même sujet. Garder les historiques, mais faire prévaloir les addenda datés et les preuves sur SHA exact.
+- Le présent point de reprise est établi sur la branche QA uniquement. Aucun changement sur `main`, aucune écriture Supabase Production et aucun déploiement Vercel Production.
+
+### Classement opérationnel
+
+- **Déjà verts avec preuve actuelle :** qualité générale CI au SHA `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d` ; socles logiciels des lots 13, 14 et 16.
+- **Vert possible par correction/tests logiciels accessibles :** avertissements ESLint/React/ARIA, migration du script lint, vérification ACL/RLS/`SECURITY DEFINER` et réglages Auth sur Replay, et recettes SIL des lots différés une fois leurs interfaces/code manquants construits.
+- **À réserver aux recettes SIL Node.js puis aux preuves terrain :** lots 12, 15, 17, 18, 19 et 20. Une recette Node.js peut mettre au vert le contrat logiciel simulé ; elle ne peut pas certifier caméra, Drive OAuth réel, AI sur vidéos réelles, Android/FCM sur téléphone, relais de sirène ni pilote équipé.
