@@ -5,25 +5,24 @@ BEGIN;
 
 DO $naxa_wrapper_metadata_test$
 BEGIN
-  IF (SELECT prosecdef FROM pg_proc WHERE oid='public.caisse_cloturer(uuid,integer)'::regprocedure) IS NOT FALSE THEN
-    RAISE EXCEPTION 'caisse_cloturer wrapper is not SECURITY INVOKER';
-  END IF;
-  IF (SELECT prosecdef FROM pg_proc WHERE oid='public.naxa_can_approve_marketplace_credit(uuid)'::regprocedure) IS NOT FALSE THEN
-    RAISE EXCEPTION 'naxa_can_approve_marketplace_credit is not SECURITY INVOKER';
-  END IF;
-  IF (SELECT prosecdef FROM pg_proc WHERE oid='public.naxa_provision_caisse(uuid,uuid)'::regprocedure) IS NOT FALSE THEN
-    RAISE EXCEPTION 'naxa_provision_caisse is not SECURITY INVOKER';
+  IF (SELECT prosecdef FROM pg_proc WHERE oid='public.caisse_cloturer(uuid,integer)'::regprocedure) IS NOT FALSE
+     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.naxa_can_approve_marketplace_credit(uuid)'::regprocedure) IS NOT FALSE
+     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.naxa_provision_caisse(uuid,uuid)'::regprocedure) IS NOT FALSE
+     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.accrediter_responsable(uuid,uuid)'::regprocedure) IS NOT FALSE THEN
+    RAISE EXCEPTION 'One of the four compatibility facades remains SECURITY DEFINER';
   END IF;
 
   IF NOT has_function_privilege('authenticated','public.caisse_cloturer(uuid,integer,text)','EXECUTE')
      OR NOT has_function_privilege('authenticated','private.naxa_actor_can_approve_marketplace_credit(uuid)','EXECUTE')
-     OR NOT has_function_privilege('authenticated','public.naxa_grant_professional_assignment(uuid,uuid,text,timestamptz,timestamptz,text)','EXECUTE') THEN
+     OR NOT has_function_privilege('authenticated','public.naxa_grant_professional_assignment(uuid,uuid,text,timestamptz,timestamptz,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.accrediter_profile(uuid,uuid,smallint,uuid)','EXECUTE') THEN
     RAISE EXCEPTION 'authenticated lost EXECUTE on a guarded delegated implementation';
   END IF;
 
   IF (SELECT prosecdef FROM pg_proc WHERE oid='public.caisse_cloturer(uuid,integer,text)'::regprocedure) IS NOT TRUE
      OR (SELECT prosecdef FROM pg_proc WHERE oid='private.naxa_actor_can_approve_marketplace_credit(uuid)'::regprocedure) IS NOT TRUE
-     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.naxa_grant_professional_assignment(uuid,uuid,text,timestamptz,timestamptz,text)'::regprocedure) IS NOT TRUE THEN
+     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.naxa_grant_professional_assignment(uuid,uuid,text,timestamptz,timestamptz,text)'::regprocedure) IS NOT TRUE
+     OR (SELECT prosecdef FROM pg_proc WHERE oid='public.accrediter_profile(uuid,uuid,smallint,uuid)'::regprocedure) IS NOT TRUE THEN
     RAISE EXCEPTION 'A guarded implementation lost SECURITY DEFINER';
   END IF;
 END;
@@ -61,6 +60,16 @@ BEGIN
     GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
     IF v_message <> 'Session caisse introuvable ou hors périmètre' THEN
       RAISE EXCEPTION 'Unexpected caisse guard result: %',v_message;
+    END IF;
+  END;
+
+  BEGIN
+    PERFORM public.accrediter_responsable(NULL::uuid,NULL::uuid);
+    RAISE EXCEPTION 'Expected accreditation implementation to reject unknown actor';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+    IF v_message <> 'Acteur invalide' THEN
+      RAISE EXCEPTION 'Unexpected accreditation guard result: %',v_message;
     END IF;
   END;
 END;
