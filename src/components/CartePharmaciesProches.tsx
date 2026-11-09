@@ -82,6 +82,7 @@ export default function CartePharmaciesProches({
   const markersRef = useRef<LeafletLayer[]>([]);
   const [mapError, setMapError] = useState("");
   const [mapReady, setMapReady] = useState(false);
+  const initialPosition = useRef(position);
   const pharmaciesAvecGPS = useMemo(
     () => pharmacies.filter(p => p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)),
     [pharmacies],
@@ -102,7 +103,7 @@ export default function CartePharmaciesProches({
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
       }).addTo(map);
-      map.setView(position ? [position.lat, position.lng] : [6.0, 12.5], position ? 13 : 6);
+      map.setView(initialPosition.current ? [initialPosition.current.lat, initialPosition.current.lng] : [6.0, 12.5], initialPosition.current ? 13 : 6);
       setMapReady(true);
     }).catch(() => {
       if (!cancelled) setMapError("La carte interactive est indisponible. Vous pouvez toujours utiliser la recherche.");
