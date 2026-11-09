@@ -22,6 +22,7 @@ test("proxy RTSP : injecte le ticket publisher uniquement côté relais TLS", ()
   const rewritten = rewriteClientRequest(request, {
     remoteBase: REMOTE_BASE,
     remotePath: REMOTE_PATH,
+    localBase: LOCAL_BASE,
     authorization,
   }).toString("latin1");
   assert.ok(rewritten.startsWith("ANNOUNCE " + REMOTE_BASE + REMOTE_PATH + " RTSP/1.0"));
@@ -39,6 +40,27 @@ test("proxy RTSP : refuse toute URI de caméra ou de chemin hors ticket", () => 
   assert.equal(rewriteClientRequest(outside, {
     remoteBase: REMOTE_BASE,
     remotePath: REMOTE_PATH,
+    localBase: LOCAL_BASE,
+    authorization,
+  }), null);
+  const wrongOrigin = Buffer.from(
+    "ANNOUNCE rtsp://evil.example.test:554" + REMOTE_PATH + " RTSP/1.0\\r\\nCSeq: 4\\r\\n\\r\\n",
+    "latin1",
+  );
+  assert.equal(rewriteClientRequest(wrongOrigin, {
+    remoteBase: REMOTE_BASE,
+    remotePath: REMOTE_PATH,
+    localBase: LOCAL_BASE,
+    authorization,
+  }), null);
+  const traversal = Buffer.from(
+    "ANNOUNCE " + LOCAL_BASE + REMOTE_PATH + "/%2e%2e/escape RTSP/1.0\\r\\nCSeq: 5\\r\\n\\r\\n",
+    "latin1",
+  );
+  assert.equal(rewriteClientRequest(traversal, {
+    remoteBase: REMOTE_BASE,
+    remotePath: REMOTE_PATH,
+    localBase: LOCAL_BASE,
     authorization,
   }), null);
 });
@@ -125,7 +147,7 @@ test("proxy RTSP : relaie une requête vers TLS et réécrit la réponse sans ex
   const client = new FakeSocket();
   acceptClient(client);
   client.emit("data", Buffer.from(
-    "ANNOUNCE " + local.url + " RTSP/1.0\\r\\nCSeq: 9\\r\\nContent-Length: 0\\r\\n\\r\\n",
+    "ANNOUNCE " + local.url + " RTSP/1.0\r\nCSeq: 9\r\nContent-Length: 0\r\n\r\n",
     "latin1",
   ));
   await new Promise((resolve) => setImmediate(resolve));
@@ -136,10 +158,10 @@ test("proxy RTSP : relaie une requête vers TLS et réécrit la réponse sans ex
   assert.equal(tlsOptions[0].servername, "video.example.test");
   assert.equal(tlsOptions[0].rejectUnauthorized, true);
 
-  const body = "v=0\\r\\na=control:" + REMOTE_BASE + REMOTE_PATH + "/trackID=0\\r\\n";
+  const body = "v=0\r\na=control:" + REMOTE_BASE + REMOTE_PATH + "/trackID=0\r\n";
   fakeUpstream.emit("data", Buffer.from(
-    "RTSP/1.0 200 OK\\r\\nCSeq: 9\\r\\nContent-Base: " + REMOTE_BASE + REMOTE_PATH + "/\\r\\n" +
-    "Content-Type: application/sdp\\r\\nContent-Length: " + Buffer.byteLength(body) + "\\r\\n\\r\\n" + body,
+    "RTSP/1.0 200 OK\r\nCSeq: 9\r\nContent-Base: " + REMOTE_BASE + REMOTE_PATH + "/\r\n" +
+    "Content-Type: application/sdp\r\nContent-Length: " + Buffer.byteLength(body) + "\r\n\r\n" + body,
     "latin1",
   ));
   const response = Buffer.concat(clientWrites).toString("latin1");
