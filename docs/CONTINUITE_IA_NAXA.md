@@ -1021,3 +1021,26 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Les timings et plans ne sont pas un benchmark de charge réelle : les tables Replay sont petites/vides après les tests transactionnels et le contrôle de sélection d'index force temporairement le planificateur à éviter les scans séquentiels.
 - Migration appliquée sur Replay et source/test versionnés sur QA uniquement. Aucun changement Production, main, ACL, donnée métier ou déploiement Vercel.
 - Il reste 191 alertes FK dans d'autres tables, plus les 56 ensembles de policies permissives à examiner individuellement. Ne pas les corriger en masse sans examiner les index composites, contraintes métier, charge et sécurité.
+
+## Addendum 2026-11-09 — consolidation RLS du dictionnaire
+
+### Audit et correction
+
+- Replay : la table `public.dictionnaire` avait deux policies permissives de lecture : `dico_admin FOR ALL USING is_admin()` et `dico_lecture FOR SELECT USING true`. L’Advisor la signalait pour plusieurs rôles effectifs.
+- Correction : la policy globale Admin a été remplacée par trois policies dédiées `INSERT`, `UPDATE` et `DELETE`, chacune gardant exactement `is_admin()`. La policy `dico_lecture` reste seule pour `SELECT` public ; RLS et les grants de table n’ont pas été modifiés.
+- Migration Replay appliquée sous la version `20261109210843`, enregistrée dans `supabase/migrations/20261109210843_dictionnaire_select_policy_consolidation.sql`.
+- Test structurel versionné : `supabase/tests/20261109210843_dictionnaire_select_policy_consolidation.sql`.
+
+### Preuves Replay
+
+- Advisor `multiple_permissive_policies` : **56 → 51** ; aucun finding ne cite plus `dictionnaire`.
+- Policies relues après migration : une seule SELECT publique (`dico_lecture`), trois policies d’écriture `is_admin()`, RLS toujours activé.
+- Test Admin Replay : `is_admin() = true` ; INSERT, UPDATE et DELETE autorisés dans une transaction de test ensuite annulée.
+- Test profil authentifié non-Admin : 14 lignes lisibles ; UPDATE/DELETE ne retournent aucune ligne ; INSERT refusé par RLS.
+- Test `anon` : 14 lignes lisibles ; UPDATE/DELETE ne retournent aucune ligne ; INSERT refusé par RLS.
+- La recette structurelle SQL a été exécutée avec succès. Aucune donnée de test n’a été conservée.
+
+### État restant
+
+- Advisor Replay après correction : 189 FK sans index couvrant, 175 index non utilisés observés et 51 groupes de policies permissives restant à examiner. Ces alertes sont à traiter table par table ; pas de suppression ou fusion automatique.
+- La modification est limitée à Replay et à la branche `qa/e2e-stabilisation-20261106`. `main` et Supabase Production sont inchangées ; aucun merge/PR ni déploiement n’a été effectué.
