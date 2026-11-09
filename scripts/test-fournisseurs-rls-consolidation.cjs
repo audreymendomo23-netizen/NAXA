@@ -38,7 +38,7 @@ test("the intended active ERP staff allow-list remains the write contract", () =
     "fournisseurs_update_staff",
     "fournisseurs_delete_staff",
   ]) {
-    assert.ok(staffMigration.includes("CREATE POLICY " + name));
+    assert.ok(staffMigration.toLowerCase().includes(("create policy " + name).toLowerCase()));
   }
   assert.ok(staffMigration.includes("p.actif=true"));
   for (const role of ["promoteur", "pharmacien", "pharmacien_assistant", "responsable", "gestionnaire_stock", "magasinier"]) {
