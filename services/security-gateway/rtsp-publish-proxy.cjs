@@ -70,6 +70,8 @@ function rewriteClientRequest(raw, { remoteBase, remotePath, authorization }) {
     if (/^Authorization:/i.test(line)) {
       rewritten.push("Authorization: " + authorization);
       authorizationWritten = true;
+    } else if (/^Host:/i.test(line)) {
+      rewritten.push("Host: " + remoteBase.replace(/^rtsps?:\\/\\//i, ""));
     } else {
       rewritten.push(line);
     }
