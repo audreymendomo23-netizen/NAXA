@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "test:travel-taxi": "node scripts/test-travel-taxi.cjs",
     "test:geolocalisation": "node scripts/test-geolocalisation-pharmacies.cjs",
     "test:catalogue-medicaments": "node scripts/test-catalogue-medicaments.cjs",
