@@ -92,6 +92,43 @@ test("lot 13 : sortie segmentée locale UTC, conteneur MP4 et audio désactivé"
   }
 });
 
+test("lot 13 : FFmpeg ne reçoit pas l'URI caméra secrète dans argv et le manifeste est détruit", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-recording-argv-"));
+  const outputPattern = buildRecordingOutputPattern(root, CAMERA_A);
+  const controller = new AbortController();
+  const { EventEmitter } = require("node:events");
+  let capturedArgs = [];
+  let manifestPath = null;
+  const fakeChild = new EventEmitter();
+  fakeChild.exitCode = null;
+  fakeChild.signalCode = null;
+  fakeChild.kill = () => {};
+  try {
+    const resultPromise = startFfmpegRecorder({
+      sourceUrl: SOURCE,
+      outputPattern,
+      segmentSeconds: 300,
+      signal: controller.signal,
+      spawnImpl: (binary, args) => {
+        capturedArgs = args;
+        manifestPath = args[args.indexOf("-i") + 1];
+        assert.equal(binary, process.env.NAXA_FFMPEG_BIN || "ffmpeg");
+        assert.ok(fs.existsSync(manifestPath));
+        assert.ok(fs.readFileSync(manifestPath, "utf8").includes("operator:secret"));
+        return fakeChild;
+      },
+    });
+    setImmediate(() => fakeChild.emit("exit", 0, null));
+    const result = await resultPromise;
+    assert.equal(result.code, 0);
+    assert.equal(capturedArgs.join(" ").includes("operator:secret"), false);
+    assert.equal(capturedArgs.join(" ").includes("192.168.1.20"), false);
+    assert.equal(fs.existsSync(manifestPath), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("lot 13 : arrêt déjà demandé interdit tout spawn FFmpeg", async () => {
   const controller = new AbortController();
   controller.abort();
