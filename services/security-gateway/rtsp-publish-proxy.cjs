@@ -40,7 +40,8 @@ function splitRtspFrames(buffer) {
 function normalizePath(candidate, remotePath, localBase) {
   let url, local;
   try { url = new URL(candidate); local = new URL(localBase); } catch { return null; }
-  if (url.protocol !== "rtsp:" || url.origin !== local.origin ||
+  if (url.protocol !== "rtsp:" || url.hostname !== local.hostname ||
+    (url.port || "554") !== (local.port || "554") ||
     url.username || url.password || url.search || url.hash) return null;
   let decodedPath;
   try { decodedPath = decodeURIComponent(url.pathname); } catch { return null; }
