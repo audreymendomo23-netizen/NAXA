@@ -126,3 +126,14 @@ test("lot 13 : rétention ne supprime pas les segments protégés ou en cours", 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("lot 13 : agent systemd démarre l'enregistrement uniquement sur politique explicite", () => {
+  const agent = fs.readFileSync(path.join(__dirname, "../services/security-gateway/agent.cjs"), "utf8");
+  assert.ok(agent.includes('command === "configure-recording"'));
+  assert.ok(agent.includes('flags["policy-stdin"]'));
+  assert.ok(agent.includes("readRecordingPolicy(stateDir"));
+  assert.ok(agent.includes("runCameraRecorder"));
+  assert.ok(agent.includes("recordingWorkers"));
+  assert.ok(agent.includes("Aucune politique") === false);
+  assert.ok(agent.includes("Audio désactivé"));
+});
