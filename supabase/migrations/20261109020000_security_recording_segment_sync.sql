@@ -90,6 +90,19 @@ begin
       storage_path text,
       sha256 text
     )
+    group by s.camera_id, s.storage_path
+    having count(distinct s.sha256) > 1
+  ) then
+    raise exception using errcode = '23505', message = 'Recording segment batch contains conflicting hashes for one path';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.jsonb_to_recordset(p_segments) as s(
+      camera_id uuid,
+      storage_path text,
+      sha256 text
+    )
     join public.naxa_security_recording_segments existing
       on existing.camera_id = s.camera_id
      and existing.storage_path = s.storage_path
