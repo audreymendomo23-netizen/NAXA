@@ -11,6 +11,7 @@ const { inspectOnvifDevice } = require("./onvif-inspection.cjs");
 const { readOnvifEventConfigs, writeOnvifEventConfigs, runPullPointCollector } = require("./onvif-events.cjs");
 const { readRecordingPolicy, writeRecordingPolicy, runCameraRecorder, createPrivateRtspManifest, buildFfmpegInputArgs } = require("./recording.cjs");
 const { createRtspPublishProxy } = require("./rtsp-publish-proxy.cjs");
+const { createRecordingSegmentIndexer } = require("./recording-indexer.cjs");
 
 const AGENT_VERSION = "0.1.0";
 const DEFAULT_STATE_DIR = "/var/lib/naxa-security-gateway";
@@ -193,6 +194,48 @@ async function heartbeat(config) {
   console.log(new Date().toISOString() + " — heartbeat signé accepté ; tunnel=" + result.tunnelStatus);
 }
 
+async function syncRecordingSegmentBatch(config, segments) {
+  if (!Array.isArray(segments) || segments.length < 1 || segments.length > 10) {
+    throw new Error("Lot local de segments hors limites.");
+  }
+  const payload = {
+    segments: segments.map((segment) => ({
+      cameraId: segment.camera_id,
+      recordingMode: segment.recording_mode,
+      startedAt: segment.started_at,
+      endedAt: segment.ended_at,
+      durationSeconds: segment.duration_seconds,
+      codec: segment.codec,
+      containerFormat: segment.container_format,
+      storagePath: segment.storage_path,
+      sizeBytes: segment.size_bytes,
+      sha256: segment.sha256,
+      audioEnabled: false,
+      retentionUntil: segment.retention_until,
+    })),
+  };
+  const rawBody = JSON.stringify(payload);
+  const response = await fetch(config.apiBaseUrl + "/api/security/gateway/recording-segments", {
+    method: "POST",
+    headers: makeSignedGatewayHeaders({
+      gatewayId: config.gatewayId,
+      privateKey: config.privateKey,
+      rawBody,
+    }),
+    body: rawBody,
+    signal: AbortSignal.timeout(15000),
+    cache: "no-store",
+    redirect: "error",
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok !== true ||
+    !Number.isSafeInteger(result.insertedSegments) ||
+    result.insertedSegments < 0 || result.insertedSegments > segments.length) {
+    throw new Error("SYNCHRONIZATION_REJECTED");
+  }
+  return result.insertedSegments;
+}
+
 async function run(args) {
   const flags = parseFlags(args);
   const stateDir = path.resolve(flags["state-dir"] || DEFAULT_STATE_DIR);
@@ -218,7 +261,13 @@ async function run(args) {
   const recordingWorkers = recordingPolicies.map((policy) => {
     const camera = cameras.find((item) => item.cameraId === policy.cameraId);
     if (!camera) return Promise.resolve();
-    return runCameraRecorder({ camera, policy, stateDir, signal: controller.signal });
+    const indexer = createRecordingSegmentIndexer({
+      stateDir,
+      cameraId: camera.cameraId,
+      policy,
+      sendBatch: (segments) => syncRecordingSegmentBatch(config, segments),
+    });
+    return runCameraRecorder({ camera, policy, stateDir, signal: controller.signal, indexer });
   });
   void Promise.all([...publishers, ...eventCollectors, ...recordingWorkers]);
   const stop = () => { clearInterval(timer); controller.abort(); };
