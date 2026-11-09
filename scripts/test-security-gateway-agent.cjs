@@ -87,7 +87,7 @@ test("le code de jumelage est lu depuis stdin protégé, jamais depuis un argume
 const { validateLocalRtspSource, writeCameraStreamConfigs, readCameraStreamConfigs, buildPublishFfmpegArgs } =
   require("../services/security-gateway/agent.cjs");
 const { createPrivateRtspManifest } = require("../services/security-gateway/recording.cjs");
-const { createPrivateRtspManifest } = require("../services/security-gateway/recording.cjs");
+
 
 test("URI caméra : RTSP/RTSPS local uniquement, rejet des IP publiques", () => {
   assert.equal(validateLocalRtspSource("rtsp://operator:secret@192.168.1.20:554/Streaming/Channels/101").protocol, "rtsp:");
@@ -150,6 +150,7 @@ test("publisher FFmpeg : URI caméra et ticket publisher sont absents des argume
   const fakeChild = new EventEmitter();
   fakeChild.exitCode = null;
   fakeChild.signalCode = null;
+  fakeChild.stdout = new EventEmitter();
   fakeChild.kill = () => {};
   let capturedArgs = [];
   let manifestPath = null;
