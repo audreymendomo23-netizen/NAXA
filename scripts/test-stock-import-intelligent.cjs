@@ -154,7 +154,7 @@ test("vérificateur déterministe : rejette une DCI ou une forme incompatible", 
     { id: "p5", nom: "Paracétamol", dci: "paracetamol", dosage: "500mg", forme: "comprimé" }
   );
   assert.equal(dci.accepted, false);
-  assert.equal(dci.reason, "Principe actif (DCI) incompatible.");
+  assert.equal(dci.reason, "Principe actif (DCI) absent ou incompatible.");
   assert.equal(form.accepted, false);
   assert.match(form.reason, /Forme pharmaceutique absente ou incompatible/);
 });
@@ -172,6 +172,25 @@ test("vérificateur déterministe : normalise les unités microgrammes équivale
   const result = stockEngine.verifierCorrespondanceIA(
     { name: "Vitamine D", dosage: "50 µg", form: "comprimé" },
     { id: "p7", nom: "Vitamine D", dosage: "50 mcg", forme: "comprimé" }
+  );
+  assert.equal(result.accepted, true);
+});
+
+test("vérificateur déterministe : refuse une fiche catalogue incomplète si la source fournit une DCI", () => {
+  const result = stockEngine.verifierCorrespondanceIA(
+    { name: "Paracétamol", dci: "paracetamol" },
+    { id: "p8", nom: "Paracétamol", dci: null },
+    { requireScore: false }
+  );
+  assert.equal(result.accepted, false);
+  assert.match(result.reason, /DCI absent ou incompatible/);
+});
+
+test("sélection manuelle : autorise le faible score seulement sans contradiction vérifiable", () => {
+  const result = stockEngine.verifierCorrespondanceIA(
+    { name: "Nom fournisseur peu ressemblant" },
+    { id: "p9", nom: "Paracétamol" },
+    { requireScore: false }
   );
   assert.equal(result.accepted, true);
 });
