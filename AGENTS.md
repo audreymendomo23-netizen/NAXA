@@ -1,3 +1,11 @@
+# REPRISE OBLIGATOIRE — BRANCHE DE VÉRIFICATION NAXA
+
+**Branche active : `qa/e2e-stabilisation-20261106`.** `main` reste la branche par défaut, mais n'est pas la branche de travail de cette campagne. Aucune écriture ni fusion vers main sans ordre explicite.
+
+À chaque nouvelle conversation/session, avant toute action : lire intégralement ce fichier, puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, puis `STATUT.md` et les documents métier/audit indiqués par le registre. Vérifier le HEAD QA et ne reprendre que les lots ouverts ou affectés par un changement. Ne jamais rejouer un lot clos parce qu'une nouvelle conversation commence.
+
+---
+
 # PROTOCOLE D’EXÉCUTION NAXA — PRIORITÉ OPÉRATIONNELLE
 
 Ce fichier est la consigne de travail à appliquer à chaque intervention sur NAXA. Il remplace les anciennes consignes de workflow contradictoires présentes dans la documentation, notamment toute instruction imposant CircleCI, Netlify, des branches de travail ou des Pull Requests.
