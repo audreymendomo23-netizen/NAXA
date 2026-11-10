@@ -78,6 +78,11 @@ test("écriture stock : identité active, pharmacie autorisée et privilège IMP
   assert.match(applyApi, /EDIT_STOCK_PARAMETERS|naxa_has_privilege/);
   assert.match(applyApi, /from\("produits"\)/);
   assert.match(applyApi, /L’identité de certains produits/);
+  assert.match(applyApi, /requireScore:false/);
+  assert.match(applyApi, /select\("id,nom,dci,dosage,forme,code_barre,conditionnement"\)/);
+  assert.match(wizard, /dci:row.dci,dosage:row.dosage,form:row.form,barcode:row.barcode/);
+  assert.match(wizard, /selectedProduct/);
+  assert.match(wizard, /requireScore:false/);
   assert.doesNotMatch(engine, /supabaseBrowser/);
   assert.doesNotMatch(engine, /\.from\("stocks"\)\.upsert/);
 });
