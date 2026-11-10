@@ -9,6 +9,12 @@ const wizard = fs.readFileSync(path.join(root, "src/components/pharmacie/ImportS
 const workspace = fs.readFileSync(path.join(root, "src/components/pharmacie/GestionnaireStockEspace.tsx"), "utf8");
 const mappingApi = fs.readFileSync(path.join(root, "src/app/api/pharmacie/gestionnaire-stock/import/mapping/route.ts"), "utf8");
 const applyApi = fs.readFileSync(path.join(root, "src/app/api/pharmacie/gestionnaire-stock/import/apply/route.ts"), "utf8");
+const matchApi = fs.readFileSync(path.join(root, "src/app/api/pharmacie/gestionnaire-stock/import/match/route.ts"), "utf8");
+const ts = require("typescript");
+const compiledEngine = ts.transpileModule(engine, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } });
+const engineModule = { exports: {} };
+new Function("module", "exports", compiledEngine.outputText)(engineModule, engineModule.exports);
+const stockEngine = engineModule.exports;
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261107210000_stock_import_intelligent_rpc.sql"), "utf8");
 const purchaseCostMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261107220000_stock_import_purchase_cost.sql"), "utf8");
 
@@ -93,4 +99,57 @@ test("lignes non interprétables : aucune quantité ou prix inventé", () => {
   assert.match(engine, /validerLigneImportStock/);
   assert.match(applyApi, /Number\.isSafeInteger\(quantite\)/);
   assert.match(applyApi, /prix de vente invalide/);
+});
+
+test("suggestions IA : API authentifiée, candidats limités au catalogue et sorties filtrées", () => {
+  assert.match(matchApi, /auth\\.getUser\\(\\)/);
+  assert.match(matchApi, /naxa_has_privilege/);
+  assert.match(matchApi, /from\\("produits"\\)/);
+  assert.match(matchApi, /allowedByRow/);
+  assert.match(matchApi, /allowed\\?\\.has\\(productId\\)/);
+  assert.match(matchApi, /GEMINI_API_KEY/);
+  assert.match(matchApi, /GROQ_API_KEY/);
+  assert.doesNotMatch(matchApi, /naxa_import_stock_batch/);
+  assert.match(wizard, /Utiliser cette proposition/);
+  assert.match(wizard, /aucune n’est sélectionnée automatiquement/);
+  assert.match(wizard, /verifierCorrespondanceIA/);
+});
+
+test("vérificateur déterministe : accepte une identité compatible et un code-barres exact", () => {
+  const row = { name: "Doliprane", dci: "paracétamol", dosage: "500 mg", form: "CP", barcode: "3400930000001" };
+  const product = { id: "p1", nom: "Paracétamol", dci: "paracetamol", dosage: "500mg", forme: "comprimé", code_barre: "3400930000001" };
+  const result = stockEngine.verifierCorrespondanceIA(row, product);
+  assert.equal(result.accepted, true);
+  assert.equal(result.score, 1);
+});
+
+test("vérificateur déterministe : rejette un code-barres contradictoire", () => {
+  const row = { name: "Paracétamol", barcode: "3400930000001" };
+  const product = { id: "p2", nom: "Paracétamol", code_barre: "3400930000002" };
+  const result = stockEngine.verifierCorrespondanceIA(row, product);
+  assert.equal(result.accepted, false);
+  assert.match(result.reason, /Code-barres incompatible/);
+});
+
+test("vérificateur déterministe : rejette un dosage contradictoire même si l'IA le propose", () => {
+  const row = { name: "Paracétamol", dci: "paracetamol", dosage: "500 mg", form: "comprimé" };
+  const product = { id: "p3", nom: "Paracétamol", dci: "paracetamol", dosage: "250 mg", forme: "comprimé" };
+  const result = stockEngine.verifierCorrespondanceIA(row, product);
+  assert.equal(result.accepted, false);
+  assert.match(result.reason, /Dosage incompatible/);
+});
+
+test("vérificateur déterministe : rejette une DCI ou une forme incompatible", () => {
+  const dci = stockEngine.verifierCorrespondanceIA(
+    { name: "Paracétamol", dci: "paracetamol", dosage: "500mg", form: "comprimé" },
+    { id: "p4", nom: "Paracétamol", dci: "ibuprofene", dosage: "500mg", forme: "comprimé" }
+  );
+  const form = stockEngine.verifierCorrespondanceIA(
+    { name: "Paracétamol", dci: "paracetamol", dosage: "500mg", form: "sirop" },
+    { id: "p5", nom: "Paracétamol", dci: "paracetamol", dosage: "500mg", forme: "comprimé" }
+  );
+  assert.equal(dci.accepted, false);
+  assert.match(dci.reason, /DCI incompatible/);
+  assert.equal(form.accepted, false);
+  assert.match(form.reason, /Forme pharmaceutique incompatible/);
 });
