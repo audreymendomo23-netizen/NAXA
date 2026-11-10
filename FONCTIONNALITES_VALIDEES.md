@@ -2049,3 +2049,7 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Les files Admin `/admin/prestations/demandes` et `/admin/pilotage/reservations` sont présentes en lecture seule; plafonds actuels : 100 lignes, et 400 événements pour Marketplace. Rendu navigateur non certifié.
 - Replay seulement : aucune migration ni modification de données Production, aucun déploiement, aucun build/CI et aucun E2E Node.js dans cette clôture.
 - Dérive encore ouverte : 29 migrations Replay du 09/11 ne sont pas présentes comme fichiers source dans GitHub `main`; la reconstitution/versionisation de ces sources reste nécessaire.
+
+## Auth — nettoyage des imports du contrôle anti-mots de passe compromis (10/11/2026)
+- Suppression des imports dupliqués `verifierSecuriteMotDePasse` dans les pages Création de compte et Mot de passe oublié. Le contrôle HIBP est conservé.
+- Correction statique relue sur `main`; build/typecheck/lint/CI restent à exécuter.

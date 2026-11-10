@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter,useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
-import { verifierSecuriteMotDePasse } from "@/lib/auth/password-security-client";
 import { ChampFlottant } from "@/components/ChampFlottant";
 import { CodeOtp } from "@/components/CodeOtp";
 import { useAuthDraftState, useClearSignupDrafts } from "@/components/auth/AuthDraftContext";

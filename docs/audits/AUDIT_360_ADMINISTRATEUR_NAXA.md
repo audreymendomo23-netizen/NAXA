@@ -3764,3 +3764,10 @@ Le sous-parcours crédit Marketplace est testé en PostgreSQL isolé, non activ�
 ### Réserve de synchronisation des migrations
 
 - Replay contient 30 migrations datées du 09/11/2026; seule la migration ACL `20261109235840` de cette série est maintenant versionnée sur `main`. Les 29 autres sources SQL du 09/11 ne sont pas présentes dans l'arbre GitHub `main` contrôlé. Cette dérive empêche de certifier une reconstruction complète de Replay à partir du dépôt et doit être résolue avant certification globale.
+
+
+## Addendum — Correction statique du contrôle Auth (10/11/2026)
+
+- Le contrôle de la branche `main` a trouvé deux imports identiques de `verifierSecuriteMotDePasse` dans `src/app/(auth)/creation-compte/page.tsx` et `src/app/(auth)/mot-de-passe-oublie/page.tsx`. Ces doublons sont incompatibles avec une compilation TypeScript propre et déclenchent aussi les règles de lint des imports.
+- Les imports en double ont été supprimés dans les deux fichiers. La relecture confirme un seul import par fichier et conserve l'appel au contrôle HIBP dans les deux parcours.
+- **État : correction source intégrée; compilation, lint et CI non exécutés.** Ne pas déclarer le lot Auth vert avant ces contrôles. Aucun changement Supabase Production ni déploiement.
