@@ -147,11 +147,12 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 ## 9. Lot STOCK-IMPORT-AI-01 — rapprochement hybride IA + moteur déterministe (10/11/2026)
 
 **Branche :** `qa/e2e-stabilisation-20261106`  
-**Commit code/tests de référence :** `757af58d1f0119f4a32b30131e2f0934d2ceb421` (les mises à jour documentaires ultérieures ne changent pas le code).
+**Commit code/tests de référence :** `4acbd7560112be80cf35324fec32dfb0b2a2cebe` (les mises à jour documentaires ultérieures ne changent pas le code).
 
 ### Fait — implémentation sur QA
 
 - `src/app/api/pharmacie/gestionnaire-stock/import/match/route.ts` : nouvelle API serveur authentifiée ; vérifie le compte actif et le privilège `IMPORT_STOCK` (ou Admin), relit les produits candidats dans le catalogue NAXA et ne transmet au modèle que ces candidats limités.
+- `/import/apply` relit aussi les fiches produits au moment de l’écriture et réexécute les contrôles déterministes avant l'appel à la RPC. L’aperçu applique le même contrôle à toute sélection, automatique, IA ou manuelle. Une sélection manuelle peut lever le seuil de score, jamais une contradiction des données.
 - Fournisseurs IA : Gemini 2.5 Flash, puis Groq/Llama 3.3 70B en repli. Les sorties sont filtrées : UUID valides, candidats existants de la ligne, une seule proposition par ligne, justification bornée. En absence d'IA disponible, aucune suggestion IA n'est appliquée.
 - `src/lib/importStock.ts` : `verifierCorrespondanceIA` contrôle indépendamment code-barres, DCI, dosage, forme pharmaceutique et score algorithmique minimal. Les unités de dosage usuelles sont normalisées (dont `µg`/`mcg`).
 - `src/components/pharmacie/ImportStockIntelligent.tsx` : suggestions visibles par ligne, recontrôlées au rendu après tout changement de mapping ; aucune sélection automatique. L'utilisateur doit cliquer explicitement « Utiliser cette proposition », puis confirmer l'instantané avant l'import.
@@ -159,10 +160,10 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 
 ### Preuves et limites des tests
 
-- **PASS 6/6 tests comportementaux isolés** exécutés localement le 10/11/2026 avec `node --test /tmp/naxa-verify.test.cjs`. Le module TypeScript `src/lib/importStock.ts` a été transpilé avec TypeScript global ; les six scénarios portent sur la logique exacte du vérificateur : correspondance compatible, code-barres contradictoire, dosage contradictoire, DCI/forme contradictoires, score trop faible, équivalence `50 µg`/`50 mcg`.
+- **PASS 9/9 tests comportementaux isolés** exécutés localement le 10/11/2026 avec `node --test /tmp/naxa-verify.test.cjs`. Le module TypeScript `src/lib/importStock.ts` a été transpilé avec TypeScript global ; les neuf scénarios couvrent correspondance compatible, code-barres incompatible ou absent, dosage contradictoire, DCI/forme absentes ou incompatibles, score IA trop faible, sélection manuelle sans contradiction et équivalence `50 µg`/`50 mcg`.
 - Le test CJS versionné `scripts/test-stock-import-intelligent.cjs` a été modifié, mais **n'a pas été exécuté comme fichier complet** dans cette passe.
 - `npm test`, `npx tsc --noEmit`, lint et build complet **non exécutés** : aucun checkout local du dépôt n'était disponible dans l'environnement d'exécution ; aucun résultat ne doit être inféré.
-- Le commit QA `757af58` n'avait pas de status checks GitHub retournés (`statuses=[]`). Le miroir GitLab `87443849` ne possède pas la branche `qa/e2e-stabilisation-20261106` (GET branche : 404) ; aucune pipeline GitLab sur ce HEAD n'a donc été exécutée.
+- Le dernier commit code/tests QA `4acbd7560112be80cf35324fec32dfb0b2a2cebe` n'avait pas de status checks GitHub retournés (`statuses=[]`). Le miroir GitLab `87443849` ne possède pas la branche `qa/e2e-stabilisation-20261106` (GET branche : 404) ; aucune pipeline GitLab sur ce HEAD n'a donc été exécutée.
 - Clés Gemini/Groq et appel réel aux fournisseurs non vérifiés dans l'environnement QA ; aucun fichier réel exporté d'un logiciel tiers n'a été importé de bout en bout.
 
 **Statut : JAUNE — code intégré et logique déterministe ciblée PASS, mais test du fichier CJS, typecheck/build/lint, disponibilité réelle IA et import métier externe non prouvés.** Ne pas annoncer le lot vert tant que ces réserves ne sont pas levées.
