@@ -166,6 +166,7 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 - `npm test`, `npx tsc --noEmit`, lint et build complet **non exécutés** : aucun checkout local du dépôt n'était disponible dans l'environnement d'exécution ; aucun résultat ne doit être inféré.
 - Le dernier commit code/tests QA `4acbd7560112be80cf35324fec32dfb0b2a2cebe` n'avait pas de status checks GitHub retournés (`statuses=[]`). Le miroir GitLab `87443849` ne possède pas la branche `qa/e2e-stabilisation-20261106` (GET branche : 404) ; aucune pipeline GitLab sur ce HEAD n'a donc été exécutée.
 - Clés Gemini/Groq et appel réel aux fournisseurs non vérifiés dans l'environnement QA ; aucun fichier réel exporté d'un logiciel tiers n'a été importé de bout en bout.
+- **Limite d'autorisation à conserver visible :** le présent contrôle d'identité est exécuté par la route serveur `/import/apply`. La RPC existante `public.naxa_import_stock_batch` conserve son droit EXECUTE pour `authenticated` dans sa migration actuelle ; cette passe n'a pas changé son contrat SQL/ACL. Un appel PostgREST direct à cette RPC ne passe donc pas nécessairement par le nouveau contrôle de rapprochement. Le verrouillage SQL de ce chemin direct reste un lot distinct si ce mode d'appel est dans le périmètre.
 
 **Statut : JAUNE — code intégré et logique déterministe ciblée PASS, mais test du fichier CJS, typecheck/build/lint, disponibilité réelle IA et import métier externe non prouvés.** Ne pas annoncer le lot vert tant que ces réserves ne sont pas levées.
 
