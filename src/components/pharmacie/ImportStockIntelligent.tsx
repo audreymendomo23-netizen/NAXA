@@ -5,6 +5,7 @@ import {
   convertirLignesStock,
   detecterLigneEntete,
   scoreRapprochementProduit,
+  verifierCorrespondanceIA,
   suggererColonnesStock,
   validerLigneImportStock,
   type StockImportColumnMap,
@@ -27,6 +28,7 @@ type PreviewRow = ReturnType<typeof convertirLignesStock>[number] & {
   score: number;
   errors: string[];
 };
+type AiSuggestion = { productId: string; reason: string; score: number };
 
 const FIELDS: Array<{key:StockImportField;label:string}> = [
   {key:"name",label:"Nom / désignation"},
@@ -82,9 +84,9 @@ function readSheets(file:File):Promise<ParsedSheet[]> {
   });
 }
 
-function topMatches(row:ReturnType<typeof convertirLignesStock>[number],products:Product[]) {
+function topMatches(row:ReturnType<typeof convertirLignesStock>[number],products:Product[],minimumScore=0.28) {
   return products.map(product=>({product,score:scoreRapprochementProduit(row,product)}))
-    .filter(item=>item.score>=0.28)
+    .filter(item=>item.score>=minimumScore)
     .sort((a,b)=>b.score-a.score)
     .slice(0,8);
 }
@@ -97,6 +99,9 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
   const [mapping,setMapping]=useState<StockImportColumnMap>({});
   const [provider,setProvider]=useState("");
   const [aiNotes,setAiNotes]=useState<string[]>([]);
+  const [aiSuggestions,setAiSuggestions]=useState<Record<number,AiSuggestion>>({});
+  const [aiMatching,setAiMatching]=useState(false);
+  const [matchProvider,setMatchProvider]=useState("");
   const [loading,setLoading]=useState(false);
   const [importing,setImporting]=useState(false);
   const [confirmSnapshot,setConfirmSnapshot]=useState(false);
@@ -126,10 +131,11 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
   const goodRows=preview.filter(row=>row.errors.length===0);
   const skippedRows=preview.length-goodRows.length;
   const unmapped= currentSheet?currentSheet.headers.filter(header=>!Object.values(mapping).includes(header)):[];
-  const canImport=Boolean(pharmacieId&&goodRows.length&&confirmSnapshot&&!loading&&!importing);
+  const aiEligibleRows=preview.filter(row=>!row.productId&&(row.name||row.barcode)&&topMatches(row,products,0.12).length>0).length;
+  const canImport=Boolean(pharmacieId&&goodRows.length&&confirmSnapshot&&!loading&&!importing&&!aiMatching);
 
   async function chooseFile(file:File|null){
-    setError("");setMessage("");setResult(null);setSheets([]);setOverrides({});setConfirmSnapshot(false);setProvider("");setAiNotes([]);
+    setError("");setMessage("");setResult(null);setSheets([]);setOverrides({});setAiSuggestions({});setMatchProvider("");setConfirmSnapshot(false);setProvider("");setAiNotes([]);
     if(!file)return;
     if(file.size>20*1024*1024){setError("Fichier trop volumineux : limite de 20 Mo.");return;}
     setLoading(true);setFileName(file.name);
@@ -159,7 +165,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
   async function changeSheet(name:string){
     const sheet=sheets.find(item=>item.name===name);
     if(!sheet)return;
-    setSheetName(name);setOverrides({});
+    setSheetName(name);setOverrides({});setAiSuggestions({});setMatchProvider("");
     const initial=suggererColonnesStock(sheet.headers);
     setMapping(initial);setMessage("");setAiNotes([]);
     try{
@@ -172,6 +178,53 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
         setMapping({...initial,...(data.mapping??{})});setProvider(data.provider??"local");setAiNotes(data.notes??[]);
       }
     }catch{/* Le mapping local reste disponible. */}
+  }
+
+  async function suggestProductMatches(){
+    const rows=preview
+      .filter(row=>!row.productId&&(row.name||row.barcode)&&topMatches(row,products,0.12).length>0)
+      .slice(0,40);
+    if(!rows.length)return;
+    setAiMatching(true);setError("");setMessage("");
+    try{
+      const response=await fetch("/api/pharmacie/gestionnaire-stock/import/match",{
+        method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({
+          pharmacieId,
+          rows:rows.map(row=>({
+            sourceRow:row.sourceRow,name:row.name,dci:row.dci,dosage:row.dosage,
+            form:row.form,barcode:row.barcode,
+            candidates:topMatches(row,products,0.12).map(item=>item.product.id)
+          }))
+        })
+      });
+      const data=await response.json() as {
+        suggestions?:Array<{sourceRow:number;productId:string;reason:string}>;
+        provider?:string;fallback?:boolean;notes?:string[]
+      };
+      if(!response.ok)throw new Error(data?.notes?.join(" ")||"Service de rapprochement indisponible.");
+      const verified:Record<number,AiSuggestion>={};
+      let rejected=0;
+      for(const suggestion of data.suggestions??[]){
+        const row=rows.find(item=>item.sourceRow===suggestion.sourceRow);
+        const product=products.find(item=>item.id===suggestion.productId);
+        if(!row||!product){rejected++;continue;}
+        const check=verifierCorrespondanceIA(row,product);
+        if(!check.accepted){rejected++;continue;}
+        verified[row.sourceRow]={productId:product.id,reason:suggestion.reason||check.reason,score:check.score};
+      }
+      setAiSuggestions(verified);
+      setMatchProvider(data.provider??"local");
+      const accepted=Object.keys(verified).length;
+      const note=data.fallback
+        ?"IA indisponible : le moteur local reste actif. Aucune proposition IA n’a été appliquée."
+        :accepted+" suggestion(s) IA vérifiée(s) par le moteur ; aucune n’est sélectionnée automatiquement."+(rejected?" "+rejected+" suggestion(s) rejetée(s) par les contrôles de compatibilité.":"");
+      setAiNotes(old=>[...old.filter(item=>!item.startsWith("Rapprochement IA :")),"Rapprochement IA : "+note,...(data.notes??[])]);
+      setMessage("Rapprochement terminé via "+(data.provider??"moteur local")+". Choisissez explicitement chaque suggestion avant import.");
+    }catch(cause){
+      setAiSuggestions({});
+      setAiNotes(old=>[...old,"Rapprochement IA indisponible : "+(cause instanceof Error?cause.message:"erreur inconnue")+". Le rapprochement local et la sélection manuelle restent disponibles."]);
+    }finally{setAiMatching(false);}
   }
 
   async function importRows(){
@@ -201,7 +254,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">Assistant intelligent de reprise</p>
         <h2 className="mt-1 text-lg font-extrabold text-slate-900">Importer un stock depuis n’importe quel logiciel</h2>
-        <p className="mt-1 text-sm text-slate-600">Excel, CSV, TSV ou export compatible XLSX. NAXA détecte la feuille, la ligne d’en-tête, les colonnes et les références du catalogue. Vous validez avant écriture.</p>
+        <p className="mt-1 text-sm text-slate-600">Excel, CSV, TSV ou export compatible XLSX. NAXA détecte la feuille et les colonnes. L’IA propose les rapprochements incertains ; le moteur contrôle les incompatibilités et vous décidez avant écriture.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-semibold">Pharmacie cible
@@ -243,6 +296,15 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
             {unmapped.length>0&&<p className="mt-3 text-xs text-slate-500">Autres colonnes détectées mais non utilisées : {unmapped.join(" · ")}. Elles ne sont pas importées automatiquement.</p>}
             <p className="mt-2 text-xs text-slate-500">Le coût d’achat est enregistré uniquement si votre compte possède EDIT_STOCK_PARAMETERS. Le prix de vente et la quantité restent contrôlés séparément.</p>
           </div>
+          {(aiEligibleRows>0||Object.keys(aiSuggestions).length>0)&&<div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+            <p className="text-sm font-bold text-blue-950">Rapprochement assisté par IA</p>
+            <p className="mt-1 text-xs text-blue-900">L’IA propose uniquement parmi les candidats du catalogue NAXA. Le moteur contrôle DCI, dosage, forme et code-barres. Rien n’est sélectionné sans votre action.</p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button type="button" disabled={aiMatching||loading||importing||aiEligibleRows===0} onClick={()=>void suggestProductMatches()} className="min-h-10 rounded-lg bg-blue-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{aiMatching?"Analyse des correspondances…":"Analyser "+aiEligibleRows+" ligne(s) incertaine(s) avec l’IA"}</button>
+              {matchProvider&&<span className="text-xs text-blue-900">Fournisseur IA : {matchProvider} · {Object.keys(aiSuggestions).length} proposition(s) vérifiée(s)</span>}
+              {aiEligibleRows>40&&<span className="text-xs text-blue-900">40 lignes maximum par analyse ; relancez pour les suivantes.</span>}
+            </div>
+          </div>}
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded-xl border p-3"><p className="text-xs text-slate-500">Lignes candidates</p><p className="text-2xl font-black">{preview.length}</p></div>
             <div className="rounded-xl border p-3"><p className="text-xs text-slate-500">Prêtes à importer</p><p className="text-2xl font-black text-emerald-700">{goodRows.length}</p></div>
@@ -258,11 +320,16 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
                     <td className="p-2">{row.sourceRow}</td>
                     <td className="max-w-52 p-2"><p className="font-semibold">{row.name||row.barcode||"Sans nom"}</p><p className="text-slate-500">{[row.dci,row.dosage,row.form].filter(Boolean).join(" · ")}</p></td>
                     <td className="min-w-60 p-2">
-                      <select value={row.productId} onChange={event=>setOverrides(old=>({...old,[row.sourceRow]:event.target.value}))} className="w-full rounded-lg border p-2">
+                      <select value={row.productId} onChange={event=>{setOverrides(old=>({...old,[row.sourceRow]:event.target.value}));setAiSuggestions(old=>{const next={...old};delete next[row.sourceRow];return next;});}} className="w-full rounded-lg border p-2">
                         <option value="">À rapprocher</option>
                         {candidates.map(({product,score})=><option key={product.id} value={product.id}>{product.nom} {product.dosage??""} · {Math.round(score*100)}%</option>)}
                         {products.slice(0,40).filter(product=>!candidates.some(item=>item.product.id===product.id)).map(product=><option key={product.id} value={product.id}>{product.nom} {product.dosage??""}</option>)}
                       </select>
+                      {aiSuggestions[row.sourceRow]&&row.productId!==aiSuggestions[row.sourceRow].productId&&<div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-2">
+                        <p className="font-semibold text-blue-950">Suggestion IA · contrôle moteur {Math.round(aiSuggestions[row.sourceRow].score*100)}%</p>
+                        <p className="mt-1 text-blue-900">{aiSuggestions[row.sourceRow].reason}</p>
+                        <button type="button" onClick={()=>setOverrides(old=>({...old,[row.sourceRow]:aiSuggestions[row.sourceRow].productId}))} className="mt-2 min-h-9 rounded-lg border border-blue-700 px-3 py-1 font-bold text-blue-900">Utiliser cette proposition</button>
+                      </div>}
                     </td>
                     <td className="p-2 tabular-nums">{row.quantity??"—"}</td>
                     <td className="p-2 tabular-nums">{row.price===null?"Conserver / vérifier":Math.round(row.price).toLocaleString("fr-FR")}</td>
