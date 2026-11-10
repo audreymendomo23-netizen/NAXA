@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   if (catalogueError) return NextResponse.json({ error: "Catalogue NAXA temporairement indisponible." }, { status: 503 });
 
   const productsById = new Map<string, CatalogueProduct>(
-    (catalogue ?? []).map(product => [String(product.id), product as CatalogueProduct])
+    (catalogue ?? []).map(product => [String(product.id), product as CatalogueProduct] as [string, CatalogueProduct])
   );
   const allowedByRow = new Map<number, Set<string>>();
   const promptRows = rows.map(row => {
