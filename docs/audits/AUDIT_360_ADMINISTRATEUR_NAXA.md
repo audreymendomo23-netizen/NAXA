@@ -3771,3 +3771,11 @@ Le sous-parcours crédit Marketplace est testé en PostgreSQL isolé, non activ�
 - Le contrôle de la branche `main` a trouvé deux imports identiques de `verifierSecuriteMotDePasse` dans `src/app/(auth)/creation-compte/page.tsx` et `src/app/(auth)/mot-de-passe-oublie/page.tsx`. Ces doublons sont incompatibles avec une compilation TypeScript propre et déclenchent aussi les règles de lint des imports.
 - Les imports en double ont été supprimés dans les deux fichiers. La relecture confirme un seul import par fichier et conserve l'appel au contrôle HIBP dans les deux parcours.
 - **État : correction source intégrée; compilation, lint et CI non exécutés.** Ne pas déclarer le lot Auth vert avant ces contrôles. Aucun changement Supabase Production ni déploiement.
+
+
+## Addendum — RLS des profils enfants Promoteur (10/11/2026)
+
+- Défaut reproduit sur Replay : un profil Promoteur dont le rôle canonique était nul (convention expirée/abonnement invalide) pouvait encore lire les profils enfants via la clause parent inconditionnelle de `profiles_self`. L'ancien `is_promoteur()` retournait toujours vrai pour ce profil actif, mais ne vérifiait pas la validité commerciale.
+- Correction Replay : `profiles_self` ne donne plus que l'accès au profil propre et à l'Admin actif; les lectures et modifications d'équipe passent par le routeur canonique `naxa_business_function(auth.uid())='promoteur'`. Les policies de profils ne s'appliquent plus à `anon`.
+- Test transactionnel Replay PASS : Promoteur valide lit son enfant (1); Promoteur expiré ne lit ni ne modifie son enfant (0); anon ne lit aucun profil (0). Les fixtures Auth, profils, pharmacies, abonnement et rattachement sont annulées.
+- Migration : `20261110012000_profiles_rls_active_promoter_scope_20261110`. Aucun changement Production ni déploiement.

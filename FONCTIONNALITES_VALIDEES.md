@@ -2053,3 +2053,8 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 ## Auth — nettoyage des imports du contrôle anti-mots de passe compromis (10/11/2026)
 - Suppression des imports dupliqués `verifierSecuriteMotDePasse` dans les pages Création de compte et Mot de passe oublié. Le contrôle HIBP est conservé.
 - Correction statique relue sur `main`; build/typecheck/lint/CI restent à exécuter.
+
+## RLS Profils — accès équipe limité au Promoteur commercialement valide (10/11/2026)
+- Correction d'un contournement de la politique `profiles_self` : la relation parent/enfant seule ne suffit plus à lire les profils d'équipe. Le rôle Promoteur canonique valide est désormais exigé; les règles Admin et Responsable restent séparées. Accès anonyme aux profils retiré.
+- Test SQL Replay PASS : Promoteur valide = lecture enfant autorisée; Promoteur expiré = lecture/modification refusées; anon = lecture refusée. Fixtures annulées par rollback.
+- Migration source : `supabase/migrations/20261110012000_profiles_rls_active_promoter_scope_20261110.sql`; build, CI et recette UI non exécutés.
