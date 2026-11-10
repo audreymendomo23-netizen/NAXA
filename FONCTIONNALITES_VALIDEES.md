@@ -2041,3 +2041,11 @@ La correction effective du replay est portée par `0a13542b4e2917086f2f5264c139c
 - Correction Replay : droits client retirés; `service_role` conservé. Migration source : `supabase/migrations/20261109235840_restrict_legacy_public_search_logging_execution_20261110.sql`; test structurel : `supabase/tests/20261109235840_restrict_legacy_public_search_logging_execution.sql`.
 - Vérification SQL après application : les deux fonctions retournent `anon=false`, `authenticated=false`, `service_role=true`; l'Advisor ne signale plus d'accès `SECURITY DEFINER` par `anon`.
 - Limite : Replay uniquement; aucune migration Production, aucun déploiement, aucun build/CI ni test navigateur dans cette clôture.
+
+## Admin 360 — correction du garde Admin inactif et contrôles Examens/Services (10/11/2026)
+- Défaut corrigé sur Replay : `private.is_admin()` propageait NULL pour un profil inactif. La fonction retourne maintenant un booléen non nullable via `coalesce(..., false)`; cela évite les contournements des gardes SQL `IF NOT (is_admin OR ...)`.
+- Migration : `supabase/migrations/20261110000324_admin_is_admin_boolean_false_for_inactive_20261110.sql`.
+- Tests Replay PASS : `20261102105033` (périmètre public Examens), `20261102105542` (matrice RLS Admin actif/inactif, partenaire, Client, anon), et `269_admin_exam_services_active_guards.sql` (33 assertions, dont refus de trois RPC pour Admin inactif).
+- Les files Admin `/admin/prestations/demandes` et `/admin/pilotage/reservations` sont présentes en lecture seule; plafonds actuels : 100 lignes, et 400 événements pour Marketplace. Rendu navigateur non certifié.
+- Replay seulement : aucune migration ni modification de données Production, aucun déploiement, aucun build/CI et aucun E2E Node.js dans cette clôture.
+- Dérive encore ouverte : 29 migrations Replay du 09/11 ne sont pas présentes comme fichiers source dans GitHub `main`; la reconstitution/versionisation de ces sources reste nécessaire.

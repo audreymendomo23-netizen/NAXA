@@ -39,7 +39,7 @@ begin
   if v_def not ilike '%security definer%'
      or v_def not ilike '%ar.role_code=''admin''%'
      or v_def not ilike '%p.role::text=''admin''%'
-     or v_def not ilike '%p.actif is true%'
+     or (v_def not ilike '%p.actif=true%' and v_def not ilike '%p.actif is true%')
      or v_def not ilike '%ar.pharmacie_id is null%' then
     raise exception '269.5b : le routeur ne vérifie pas rôle, activité et portée Admin globale';
   end if;
@@ -139,7 +139,7 @@ set local request.jwt.claim.sub = '00000000-0000-4000-8000-000000000002';
 do $admin_inactive$
 declare n integer;
 begin
-  if public.is_admin() then raise exception '269.14 : Admin inactif autorisé par le garde'; end if;
+  if public.is_admin() is distinct from false then raise exception '269.14 : Admin inactif doit être explicitement refusé (false non NULL)'; end if;
   select count(*) into n from public.exam_appointments where id='30000000-0000-4000-8000-000000000001';
   if n <> 0 then raise exception '269.15 : Admin inactif lit le ticket examen'; end if;
   select count(*) into n from public.home_service_requests where id in ('50000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000004');
@@ -149,8 +149,18 @@ begin
   get diagnostics n = row_count;
   if n <> 0 then raise exception '269.17 : Admin inactif modifie une offre'; end if;
   begin
+    perform public.admin_set_exam_center_status('20000000-0000-4000-8000-000000000001','suspended');
+    raise exception '269.18a : Admin inactif modifie un centre Examens';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.admin_set_home_service_offer_status('40000000-0000-4000-8000-000000000001','archived');
+    raise exception '269.18b : Admin inactif archive une offre domicile';
+  exception when insufficient_privilege then null;
+  end;
+  begin
     perform public.transition_home_service_request('50000000-0000-4000-8000-000000000002','confirmed');
-    raise exception '269.18 : Admin inactif effectue une transition';
+    raise exception '269.18c : Admin inactif effectue une transition';
   exception when insufficient_privilege then null;
   end;
 end
@@ -215,5 +225,5 @@ begin
 end
 $final$;
 
-select 'PASS — ADM-EXAM-03 / ADM-SERVICES-03 : 31 assertions structurelles et comportementales' as result;
+select 'PASS — ADM-EXAM-03 / ADM-SERVICES-03 : 33 assertions structurelles et comportementales' as result;
 rollback;

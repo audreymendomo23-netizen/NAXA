@@ -3742,3 +3742,25 @@ Le sous-parcours crédit Marketplace est testé en PostgreSQL isolé, non activ�
 - Correction appliquée sur Replay : retrait des droits `PUBLIC`, `anon` et `authenticated`; maintien de `EXECUTE` uniquement pour `service_role`. Migration Replay : `20261109235840_restrict_legacy_public_search_logging_execution_20261110`.
 - Vérification après correction : pour les deux fonctions, `anon=false`, `authenticated=false`, `service_role=true`. L'Advisor ne remonte plus de fonction `SECURITY DEFINER` exécutable par `anon`.
 - Périmètre : ce point ACL est clôturé sur Replay et sa migration/test sont versionnés sur `main`. Production n'a pas été modifiée. Build, CI et recette navigateur ne sont pas couverts par cette correction.
+
+
+## Addendum — Audit 360 Admin : constats Examens / Services / rôle Admin (10/11/2026)
+
+### Corrections confirmées sur `main` et Supabase Replay
+
+- **ADM-UNIV-EXAM-01 — lecture Admin des brouillons/suspendus : CORRIGÉE sur Replay.** Les politiques `exam_centers_admin_read`, `exam_services_admin_read` et `exam_packs_admin_read` existent, séparées des lectures publiques/partenaires. Test `20261102105542_admin_exam_catalog_active_read.sql` : PASS, Admin actif/inactif, partenaire, Client et anon.
+- **ADM-UNIV-EXAM-02 — corrélation partenaire/publication : CORRIGÉE sur Replay.** `exam_centers_public_read` exige le centre actif et `universe_partner_is_public(exam_centers.partner_id,'examens')`; le helper vérifie le partenaire de la ligne, l'association, l'univers et le feature flag. Test `20261102105033_admin_exam_centers_public_scope.sql` : PASS avec deux partenaires dont un seul associé.
+- **ADM-UNIV-EXAM-03 / ADM-EXAM-03 — Admin inactif : cause racine corrigée sur Replay.** `private.naxa_business_function` renvoyait NULL pour un profil inactif et `private.is_admin()` propageait ce NULL. Dans les RPC `SECURITY DEFINER`, une condition du type `IF NOT (is_admin OR can_manage)` pouvait alors ne pas rejeter l'action. `private.is_admin()` retourne maintenant `coalesce(..., false)`. La migration Replay est `20261110000324_admin_is_admin_boolean_false_for_inactive_20261110`.
+- Le test `269_admin_exam_services_active_guards.sql` a été renforcé : assertion explicite `is_admin() IS FALSE` (et non NULL), refus des RPC de statut centre Examens, offre domicile et transition d'une demande par Admin inactif. **33 assertions PASS** après correction du test (l'assertion initiale sur la syntaxe `p.actif IS TRUE` était trop stricte; la fonction utilise aussi la forme équivalente `p.actif=true`).
+- **ADM-UNIV-SERVICES-01 / ADM-SERVICES-01 : file source présente.** `/admin/prestations/demandes` existe, protégée par `requireAdminActive`, en lecture seule et sans exposer adresse précise/téléphone/notes privées. Elle indique le total et limite le chargement aux 100 demandes récentes.
+- **ADM-MKT-01 : file source présente.** `/admin/pilotage/reservations` existe, protégée par `requireAdminActive`, en lecture seule; elle charge 100 réservations et jusqu'à 400 événements, avec indicateur du total.
+
+### Statut réellement acquis
+
+- Tests SQL Replay ciblés : E14 PASS, E17 PASS, 269 PASS (33 assertions). Les deux tests de visibilité Examens et le parcours RLS/transition Admin/Services sont donc vérifiés dans Replay.
+- Les pages Prestations et Marketplace sont établies par le code; leur rendu navigateur et leurs données métier réelles ne sont pas certifiés ici. La page Examens conserve des plafonds de lecture (200 centres, 300 examens, 200 packs, 300 réservations) sans pagination démontrée. **L'étape 8 reste JAUNE**, mais les anciens défauts RLS/missing-queue précités ne doivent plus être présentés comme encore non corrigés.
+- Aucun test E2E Node.js, build, lint, typecheck, déploiement ni changement Supabase Production n'a été exécuté dans cette clôture.
+
+### Réserve de synchronisation des migrations
+
+- Replay contient 30 migrations datées du 09/11/2026; seule la migration ACL `20261109235840` de cette série est maintenant versionnée sur `main`. Les 29 autres sources SQL du 09/11 ne sont pas présentes dans l'arbre GitHub `main` contrôlé. Cette dérive empêche de certifier une reconstruction complète de Replay à partir du dépôt et doit être résolue avant certification globale.
