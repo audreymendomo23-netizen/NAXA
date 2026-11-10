@@ -88,7 +88,7 @@ export async function POST(request:NextRequest){
       return [header,safe];
     })));
   const deterministic=heuristic(headers);
-  const geminiKey=process.env.GEMINI_API_KEY??process.env.GOOGLE_GEMINI_API_KEY;
+  const geminiKey=process.env.GEMINI_API_KEY??process.env.GOOGLE_GEMINI_API_KEY??process.env.Gemini_API_Key;
   const groqKey=process.env.GROQ_API_KEY;
   const prompt=[
     "Tu es un expert en migration de données de pharmacies vers un ERP.",

@@ -17,6 +17,8 @@ new Function("module", "exports", compiledEngine.outputText)(engineModule, engin
 const stockEngine = engineModule.exports;
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261107210000_stock_import_intelligent_rpc.sql"), "utf8");
 const purchaseCostMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261107220000_stock_import_purchase_cost.sql"), "utf8");
+const rpcGuardMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261110013000_stock_import_rpc_service_role_guard.sql"), "utf8");
+const rpcGuardTest = fs.readFileSync(path.join(root, "supabase/tests/stock_import_rpc_service_role_guard.sql"), "utf8");
 
 test("import adaptatif : vocabulaire français/anglais et colonnes de logiciels hétérogènes", () => {
   for (const token of ["designation","libelle","active ingredient","ean13","pvttc","prix achat","purchase price","stock final","batch number","date peremption","emplacement"]) {
@@ -38,6 +40,7 @@ test("import adaptatif : détection d'en-têtes décalés et parsing multi-feuil
 test("mapping IA : Gemini/Groq côté serveur, colonnes autorisées et sortie contrôlée", () => {
   assert.match(mappingApi, /GEMINI_API_KEY/);
   assert.match(mappingApi, /GOOGLE_GEMINI_API_KEY/);
+  assert.match(mappingApi, /Gemini_API_Key/);
   assert.match(mappingApi, /GROQ_API_KEY/);
   assert.match(mappingApi, /generativelanguage\.googleapis\.com/);
   assert.match(mappingApi, /api\.groq\.com/);
@@ -73,7 +76,9 @@ test("écriture stock : identité active, pharmacie autorisée et privilège IMP
   assert.match(applyApi, /profile\?\.actif!==true/);
   assert.match(applyApi, /naxa_has_privilege/);
   assert.match(applyApi, /IMPORT_STOCK/);
-  assert.match(applyApi, /naxa_import_stock_batch/);
+  assert.match(applyApi, /naxa_import_stock_batch_as_actor/);
+  assert.match(applyApi, /supabaseAdmin\(\)/);
+  assert.doesNotMatch(applyApi, /sb\.rpc\("naxa_import_stock_batch"/);
   assert.match(applyApi, /verifierCorrespondanceIA/);
   assert.match(applyApi, /EDIT_STOCK_PARAMETERS|naxa_has_privilege/);
   assert.match(applyApi, /from\("produits"\)/);
@@ -94,6 +99,14 @@ test("RPC stock : transaction privilégiée, validation des données et garde FE
   assert.match(migration, /naxa_has_privilege\('IMPORT_STOCK'/);
   assert.match(migration, /revoke all on function public\.naxa_import_stock_batch\(uuid,jsonb\) from public,anon/i);
   assert.match(migration, /grant execute on function public\.naxa_import_stock_batch\(uuid,jsonb\) to authenticated/i);
+  assert.match(rpcGuardMigration, /naxa_import_stock_batch_as_actor/);
+  assert.match(rpcGuardMigration, /request\.jwt\.claim\.role/);
+  assert.match(rpcGuardMigration, /set_config\(\x27request\.jwt\.claim\.sub\x27/);
+  assert.match(rpcGuardMigration, /revoke all on function public\.naxa_import_stock_batch\(uuid,jsonb\)[\s\S]*from public, anon, authenticated, service_role/i);
+  assert.match(rpcGuardMigration, /grant execute on function public\.naxa_import_stock_batch_as_actor\(uuid,uuid,jsonb\)[\s\S]*to service_role/i);
+  assert.doesNotMatch(rpcGuardMigration, /grant execute[\s\S]*to authenticated/i);
+  assert.match(rpcGuardTest, /has_function_privilege/);
+  assert.match(rpcGuardTest, /ROLLBACK/i);
   assert.match(migration, /Produit déjà suivi par lots/);
   assert.match(migration, /stocks_lots/);
   assert.match(purchaseCostMigration, /stocks_couts/);
@@ -117,12 +130,22 @@ test("suggestions IA : API authentifiée, candidats limités au catalogue et sor
   assert.ok(matchApi.includes("allowedByRow"));
   assert.ok(matchApi.includes("allowed?.has(productId)"));
   assert.match(matchApi, /GEMINI_API_KEY/);
+  assert.match(matchApi, /Gemini_API_Key/);
   assert.match(matchApi, /GROQ_API_KEY/);
   assert.doesNotMatch(matchApi, /naxa_import_stock_batch/);
   assert.match(wizard, /Utiliser cette proposition/);
   assert.match(wizard, /aucune n’est sélectionnée automatiquement/);
   assert.match(wizard, /verifierCorrespondanceIA/);
   assert.match(wizard, /const checkedSuggestion=/);
+});
+
+test("RPC de sécurité : le serveur est le seul chemin de mutation, et la recette SQL est transactionnelle", () => {
+  assert.match(rpcGuardMigration, /security definer/i);
+  assert.match(rpcGuardMigration, /service_role/i);
+  assert.match(applyApi, /supabaseAdmin\(\)/);
+  assert.match(applyApi, /p_actor:user\.id/);
+  assert.match(rpcGuardTest, /rollback/i);
+  assert.match(rpcGuardTest, /service_role/i);
 });
 
 test("vérificateur déterministe : accepte une identité compatible et un code-barres exact", () => {
@@ -188,7 +211,7 @@ test("vérificateur déterministe : refuse une fiche catalogue incomplète si la
     { requireScore: false }
   );
   assert.equal(result.accepted, false);
-  assert.match(result.reason, /DCI absent ou incompatible/);
+  assert.equal(result.reason, "Principe actif (DCI) absent ou incompatible.");
 });
 
 test("sélection manuelle : autorise le faible score seulement sans contradiction vérifiable", () => {

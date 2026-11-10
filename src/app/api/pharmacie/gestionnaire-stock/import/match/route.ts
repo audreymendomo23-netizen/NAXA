@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     "Lignes et candidats autorisés : " + JSON.stringify(promptRows)
   ].join("\n");
 
-  const geminiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GEMINI_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GEMINI_API_KEY ?? process.env.Gemini_API_Key;
   const groqKey = process.env.GROQ_API_KEY;
 
   if (geminiKey) {

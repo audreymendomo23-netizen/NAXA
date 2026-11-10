@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { verifierCorrespondanceIA, type StockImportProduct } from "@/lib/importStock";
 
 export const runtime = "nodejs";
@@ -94,7 +94,10 @@ export async function POST(request:NextRequest){
     details:identityErrors.slice(0,40),totalErrors:identityErrors.length
   },{status:422});
 
-  const {data,error}=await sb.rpc("naxa_import_stock_batch",{p_pharmacie:pharmacieId,p_lignes:lines});
+  const admin=supabaseAdmin();
+  const {data,error}=await admin.rpc("naxa_import_stock_batch_as_actor",{
+    p_actor:user.id,p_pharmacie:pharmacieId,p_lignes:lines
+  });
   if(error)return NextResponse.json({error:error.message||"Import refusé par les contrôles du stock."},{status:409});
   return NextResponse.json({ok:true,result:data},{status:200,headers:{"Cache-Control":"no-store"}});
 }
