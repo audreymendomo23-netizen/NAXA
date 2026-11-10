@@ -14,7 +14,7 @@ Détails et preuve de test : `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, 
 # BRANCHE ACTIVE DES VÉRIFICATIONS — NAXA
 
 **Branche de travail :** `qa/e2e-stabilisation-20261106`.
-**Dernier commit de code/tests de référence :** `d93e1000be26705c1feefd543da904c0bd7c8ec9` (les commits suivants de cette passe sont documentaires).
+**Dernier commit de code/tests de référence :** `4acbd7560112be80cf35324fec32dfb0b2a2cebe` (les commits suivants de cette passe sont documentaires).
 Avant toute nouvelle session : lire `AGENTS.md`, puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Reprendre seulement les réserves ouvertes et les lots réellement impactés. `main` est la branche par défaut, non la branche active de cette campagne. Ne pas écrire ni fusionner vers main sans ordre explicite.
 
 ---
