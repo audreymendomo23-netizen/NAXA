@@ -2,8 +2,8 @@
 
 > **Document obligatoire à lire avant chaque nouvelle conversation ou session d'agent NAXA.**
 > Branche active des vérifications : `qa/e2e-stabilisation-20261106`.
-> HEAD de référence vérifié le 10/11/2026 : `d93e1000be26705c1feefd543da904c0bd7c8ec9`.
-> Dernier commit : `test(core): assert full FK index coverage`, daté du 09/11/2026 à 23:43:57 UTC.
+> Dernier HEAD actuel après mise à jour documentaire QA : `950f6943507203f2fdb1adf22e4d80757aed7965`.
+> Dernier commit de code/tests avant les commits de gouvernance documentaire : `d93e1000be26705c1feefd543da904c0bd7c8ec9` — `test(core): assert full FK index coverage`, daté du 09/11/2026 à 23:43:57 UTC.
 
 ## 1. Lecture obligatoire avant toute reprise
 
@@ -48,8 +48,8 @@ Chaque réouverture indique le déclencheur, l'ancien SHA de preuve, le nouveau 
 
 ### État Git
 
-- HEAD QA vérifié : `d93e1000be26705c1feefd543da904c0bd7c8ec9`.
-- Dernier commit QA : `test(core): assert full FK index coverage` (09/11/2026 23:43:57 UTC).
+- HEAD QA actuel après les commits de gouvernance documentaire : `950f6943507203f2fdb1adf22e4d80757aed7965`.
+- Dernier commit de code/tests précédant les seuls commits documentaires de gouvernance : `d93e1000be26705c1feefd543da904c0bd7c8ec9` — `test(core): assert full FK index coverage` (09/11/2026 23:43:57 UTC).
 - Aucun status check GitHub associé à ce SHA n'a été retourné lors du contrôle du 10/11/2026. Cela ne prouve ni réussite ni échec d'une pipeline tierce ; la validation CI reste **non prouvée sur ce SHA**.
 - HEAD `main` observé avant les modifications documentaires incorrectement poussées sur main : `3edc5bbd0b11592909e40c99ee8ac606a312941d` (10/11/2026 00:13:44 UTC). Ne pas confondre avec le checkpoint QA.
 
