@@ -1,3 +1,5 @@
+> **Obligation avant chaque nouvelle session NAXA :** lire `AGENTS.md`, puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, puis `STATUT.md` et la continuité pertinente. Le registre fait foi pour les lots déjà testés : une preuve **CLOS** ne doit pas être rejouée sans déclencheur de réouverture documenté. Commencer par vérifier le HEAD de `main` et ne traiter que le delta et les réserves ouvertes.
+
 > **DOCUMENTS DE RÉFÉRENCE — NAXA**
 >
 > Pour l’audit 360 Administrateur en cours, les autorités de gouvernance et de séquencement sont le **MANDAT CTO NAXA** et le **cahier des charges Audit 360 du parcours Administrateur** ([audit de référence](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier des charges NAXA v3.7 reste une référence fonctionnelle lorsqu’il ne contredit pas les décisions approuvées plus récentes. Le Prompt maître et les anciens rapports restent des archives documentaires : ils ne gouvernent pas le workflow de cet audit. Les fichiers historiques présents dans le dépôt ne sont pas réputés supprimés.
