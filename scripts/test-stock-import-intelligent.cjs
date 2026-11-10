@@ -17,7 +17,7 @@ new Function("module", "exports", compiledEngine.outputText)(engineModule, engin
 const stockEngine = engineModule.exports;
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261107210000_stock_import_intelligent_rpc.sql"), "utf8");
 const purchaseCostMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261107220000_stock_import_purchase_cost.sql"), "utf8");
-const rpcGuardMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261110013000_stock_import_rpc_service_role_guard.sql"), "utf8");
+const rpcGuardMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261110011755_stock_import_rpc_service_role_guard_20261110.sql"), "utf8");
 const rpcGuardTest = fs.readFileSync(path.join(root, "supabase/tests/stock_import_rpc_service_role_guard.sql"), "utf8");
 
 test("import adaptatif : vocabulaire français/anglais et colonnes de logiciels hétérogènes", () => {

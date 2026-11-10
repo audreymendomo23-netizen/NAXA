@@ -1,20 +1,22 @@
 ## Import stock hybride IA + moteur — 10/11/2026
 
-**Branche QA :** `qa/e2e-stabilisation-20261106` · **Commit code/tests :** `4acbd7560112be80cf35324fec32dfb0b2a2cebe`.
+**Branche QA :** `qa/e2e-stabilisation-20261106` · **Commit code/tests :** `a9009431a2a1dc9df14b01a1e1d6f1cd18ecb01a`.
 
-- Implémentation : suggestions Gemini/Groq limitées aux produits candidats relus dans le catalogue ; contrôle déterministe indépendant (code-barres, DCI, dosage, forme, score) ; aucune sélection IA automatique ; validation humaine avant import.
-- **Tests ciblés isolés : 9/9 PASS** sur un extrait isolé des fonctions du vérificateur ; TypeScript strict isolé PASS sur ce même extrait. Contrôle déterministe rejoué aussi côté API avant l'écriture RPC.
-- **JAUNE :** le fichier CJS complet, `npm test`, typecheck, lint, build, appel réel Gemini/Groq et import réel d'un fichier externe restent non exécutés/non prouvés. Le miroir GitLab n'a pas cette branche QA ; aucun status check GitHub n'est retourné pour le commit de code/tests.
-- Aucun changement Supabase, aucune écriture Production, aucun déploiement.
+- Implémentation : suggestions Gemini/Groq limitées aux produits candidats relus dans le catalogue ; moteur déterministe indépendant (code-barres, DCI, dosage, forme, score) ; aucune sélection IA automatique et confirmation humaine.
+- Durcissement : la route authentifie/autorise l'acteur, puis délègue à une RPC réservée à `service_role`. L'ancienne RPC est inaccessible à `anon` et `authenticated`. Le code reconnaît aussi la variable Preview `Gemini_API_Key` déjà configurée.
+- **Tests ciblés : 18/18 PASS** avec `node --test scripts/test-stock-import-intelligent.cjs`, sur les fichiers commités de QA.
+- **E2E SQL Replay : PASS** — ACL, mutation d'une ligne et vérification dans la transaction, puis rollback confirmé ; le stock fixture est resté à 26 unités après la recette. ACL vérifiées : ancienne RPC bloquée pour anon/authenticated/service_role ; wrapper autorisé uniquement à service_role.
+- Migration Replay : `20261110011755_stock_import_rpc_service_role_guard_20261110`. Aucun changement Production ni déploiement.
+- **JAUNE :** appel réel Gemini/Groq, import HTTP avec un fichier externe, `npm test` global, typecheck complet, lint et build non prouvés. Aucun déploiement QA de cette branche ; secrets IA masqués et non vérifiables.
 
-Détails et preuve de test : `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, lot **STOCK-IMPORT-AI-01**.
+Détails : `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, lot **STOCK-IMPORT-AI-01**.
 
 ---
 
 # BRANCHE ACTIVE DES VÉRIFICATIONS — NAXA
 
 **Branche de travail :** `qa/e2e-stabilisation-20261106`.
-**Dernier commit de code/tests de référence :** `4acbd7560112be80cf35324fec32dfb0b2a2cebe` (les commits suivants de cette passe sont documentaires).
+**Dernier commit de code/tests de référence :** `a9009431a2a1dc9df14b01a1e1d6f1cd18ecb01a` (les commits suivants de cette passe sont documentaires).
 Avant toute nouvelle session : lire `AGENTS.md`, puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Reprendre seulement les réserves ouvertes et les lots réellement impactés. `main` est la branche par défaut, non la branche active de cette campagne. Ne pas écrire ni fusionner vers main sans ordre explicite.
 
 ---

@@ -147,28 +147,33 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 ## 9. Lot STOCK-IMPORT-AI-01 — rapprochement hybride IA + moteur déterministe (10/11/2026)
 
 **Branche :** `qa/e2e-stabilisation-20261106`  
-**Commit code/tests de référence :** `4acbd7560112be80cf35324fec32dfb0b2a2cebe` (les mises à jour documentaires ultérieures ne changent pas le code).
+**Commit code/tests :** `a9009431a2a1dc9df14b01a1e1d6f1cd18ecb01a` (HEAD de la correction au moment de la recette).
 
-### Fait — implémentation sur QA
+### Fait — implémentation et durcissement
 
-- `src/app/api/pharmacie/gestionnaire-stock/import/match/route.ts` : nouvelle API serveur authentifiée ; vérifie le compte actif et le privilège `IMPORT_STOCK` (ou Admin), relit les produits candidats dans le catalogue NAXA et ne transmet au modèle que ces candidats limités.
-- `/import/apply` relit aussi les fiches produits au moment de l’écriture et réexécute les contrôles déterministes avant l'appel à la RPC. L’aperçu applique le même contrôle à toute sélection, automatique, IA ou manuelle. Une sélection manuelle peut lever le seuil de score, jamais une contradiction des données.
-- Fournisseurs IA : Gemini 2.5 Flash, puis Groq/Llama 3.3 70B en repli. Les sorties sont filtrées : UUID valides, candidats existants de la ligne, une seule proposition par ligne, justification bornée. En absence d'IA disponible, aucune suggestion IA n'est appliquée.
-- `src/lib/importStock.ts` : `verifierCorrespondanceIA` contrôle indépendamment code-barres, DCI, dosage, forme pharmaceutique et score algorithmique minimal. Les unités de dosage usuelles sont normalisées (dont `µg`/`mcg`).
-- `src/components/pharmacie/ImportStockIntelligent.tsx` : suggestions visibles par ligne, recontrôlées au rendu après tout changement de mapping ; aucune sélection automatique. L'utilisateur doit cliquer explicitement « Utiliser cette proposition », puis confirmer l'instantané avant l'import.
-- `scripts/test-stock-import-intelligent.cjs` : tests contractuels étendus (API sécurisée, candidats limités au catalogue, absence d'écriture stock dans l'API IA, sélection humaine et tests fonctionnels du vérificateur).
+- `src/app/api/pharmacie/gestionnaire-stock/import/match/route.ts` : API serveur authentifiée, vérification du compte actif et de `IMPORT_STOCK` (ou Admin), candidats relus dans le catalogue NAXA et limités par ligne.
+- Le mapping IA et le rapprochement acceptent les noms de variables Gemini canoniques et le nom existant `Gemini_API_Key` en Preview ; Groq reste le fournisseur de repli.
+- `src/lib/importStock.ts` : vérification déterministe indépendante du code-barres, de la DCI, du dosage, de la forme et du score ; normalisation des unités usuelles dont `µg`/`mcg`. Aucune suggestion IA n'est appliquée sans action humaine.
+- `/import/apply` revalide l'utilisateur, son compte actif, son privilège, le catalogue et les identités produits avant toute mutation.
+- La mutation ne passe plus directement par la RPC publique depuis le client utilisateur. `supabaseAdmin()` appelle désormais `public.naxa_import_stock_batch_as_actor`, qui exige le rôle `service_role`, fixe l'identité de l'acteur validé dans les claims transactionnels et délègue à la RPC métier existante.
+- Migration source : `supabase/migrations/20261110011755_stock_import_rpc_service_role_guard_20261110.sql`. Elle retire EXECUTE sur l'ancienne RPC à `PUBLIC`, `anon`, `authenticated` et `service_role`, puis accorde uniquement la nouvelle entrée serveur à `service_role`.
+- `supabase/tests/stock_import_rpc_service_role_guard.sql` vérifie les ACL et exécute une mutation de stock sur Replay dans une transaction annulée.
 
-### Preuves et limites des tests
+### Preuves exécutées
 
-- **PASS 9/9 tests comportementaux isolés** exécutés localement le 10/11/2026 avec `node --test /tmp/naxa-verify.test.cjs`. Un extrait isolé des fonctions pertinentes de `src/lib/importStock.ts` a été copié dans `/tmp/naxa-verify.ts`, transpilé puis testé ; les neuf scénarios couvrent correspondance compatible, code-barres incompatible ou absent, dosage contradictoire, DCI/forme absentes ou incompatibles, score IA trop faible, sélection manuelle sans contradiction et équivalence `50 µg`/`50 mcg`.
-- **PASS TypeScript strict isolé** sur cet extrait : `tsc --noEmit --strict --target ES2020 --module commonjs /tmp/naxa-verify.ts`. Ce n'est pas un typecheck du dépôt complet.
-- Le test CJS versionné `scripts/test-stock-import-intelligent.cjs` a été modifié, mais **n'a pas été exécuté comme fichier complet** dans cette passe.
-- `npm test`, `npx tsc --noEmit`, lint et build complet **non exécutés** : aucun checkout local du dépôt n'était disponible dans l'environnement d'exécution ; aucun résultat ne doit être inféré.
-- Le dernier commit code/tests QA `4acbd7560112be80cf35324fec32dfb0b2a2cebe` n'avait pas de status checks GitHub retournés (`statuses=[]`). Le miroir GitLab `87443849` ne possède pas la branche `qa/e2e-stabilisation-20261106` (GET branche : 404) ; aucune pipeline GitLab sur ce HEAD n'a donc été exécutée.
-- Clés Gemini/Groq et appel réel aux fournisseurs non vérifiés dans l'environnement QA ; aucun fichier réel exporté d'un logiciel tiers n'a été importé de bout en bout.
-- **Limite d'autorisation à conserver visible :** le présent contrôle d'identité est exécuté par la route serveur `/import/apply`. La RPC existante `public.naxa_import_stock_batch` conserve son droit EXECUTE pour `authenticated` dans sa migration actuelle ; cette passe n'a pas changé son contrat SQL/ACL. Un appel PostgREST direct à cette RPC ne passe donc pas nécessairement par le nouveau contrôle de rapprochement. Le verrouillage SQL de ce chemin direct reste un lot distinct si ce mode d'appel est dans le périmètre.
+- **Node ciblé : 18/18 PASS** — exécution du fichier versionné `node --test scripts/test-stock-import-intelligent.cjs` dans un bac Vercel isolé, après chargement des sources du commit QA et installation de TypeScript 5.6.2. Le test DCI a été corrigé pour vérifier le libellé réel `Principe actif (DCI) absent ou incompatible.`.
+- **SQL E2E Replay : PASS** — exécution du fichier versionné `supabase/tests/stock_import_rpc_service_role_guard.sql`. Résultat retourné : `stock_import_rpc_service_role_guard E2E PASS (rollback confirmé)`. La RPC serveur a importé une ligne, la quantité a été contrôlée à +1 dans la transaction, puis le rollback a annulé l'écriture.
+- **ACL Replay après migration : PASS** — ancienne RPC : `anon=false`, `authenticated=false`, `service_role=false` ; nouvelle RPC : `anon=false`, `authenticated=false`, `service_role=true`.
+- **Contrôle après rollback : PASS** — stock de la fixture `NAXA TEST — Pharmacie Bastos` / `Amlodipine NAXA Test` revenu à `26` unités, prix `3 075 FCFA`, égal à la valeur initiale observée. Migration Replay enregistrée sous version `20261110011755`, nom `stock_import_rpc_service_role_guard_20261110`.
+- **Configuration Preview :** clés sensibles référencées sous `Gemini_API_Key` et `GROQ_API_KEY` ; leurs valeurs sont masquées par Vercel et n'ont pas été lues. Le code reconnaît maintenant le nom Gemini déjà configuré. Aucun déploiement QA n'existe sur cette branche (liste Vercel : 0).
 
-**Statut : JAUNE — code intégré et logique déterministe ciblée PASS, mais test du fichier CJS, typecheck/build/lint, disponibilité réelle IA et import métier externe non prouvés.** Ne pas annoncer le lot vert tant que ces réserves ne sont pas levées.
+### Réserves restantes — statut JAUNE
 
-**Sécurité métier :** aucune migration Supabase, écriture de stock, migration Production ou déploiement effectué. L'API IA ne modifie jamais le stock.
+- L'appel réel vers Gemini/Groq n'a pas été exécuté : aucun déploiement QA de cette branche n'est disponible et les valeurs sensibles ne sont pas exposées par les outils. La présence du nom de variable ne prouve ni sa validité ni la réponse du fournisseur.
+- La recette DB E2E Replay couvre ACL + appel serveur + mutation + rollback ; elle ne remplace pas l'essai HTTP authentifié de l'API Next.js avec un fichier réel exporté d'un logiciel de pharmacie.
+- `npm test` global, typecheck complet `npx tsc --noEmit`, lint et build Next.js non exécutés : le bac isolé ne contient que les fichiers nécessaires au test ciblé, pas le dépôt complet et ses dépendances.
+- GitHub Actions : aucun workflow associé au HEAD QA ; status checks vides. Le miroir GitLab ne possède pas cette branche QA.
 
+**Statut : JAUNE — rapprochement et contrôle serveur testés, sécurité RPC corrigée et E2E SQL Replay PASS ; l'appel fournisseur IA réel, la recette HTTP/fichier externe et les contrôles globaux du dépôt restent non prouvés.**
+
+**Périmètre :** changements de code sur QA, migration et données de test sur Replay uniquement ; aucune écriture Supabase Production, aucun changement de configuration de clé, aucun déploiement.
