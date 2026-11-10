@@ -193,10 +193,14 @@ export function scoreRapprochementProduit(row: {
 }
 
 function normaliserDosageStock(value: unknown): string {
-  return normaliserColonneStock(value)
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("fr")
+    .replace(/microgrammes?|mcg|µg|μg/g, "ug")
+    .replace(/milligrammes?/g, "mg")
+    .replace(/grammes?/g, "g")
     .replace(/\s+/g, "")
-    .replace(/µ|μ/g, "u")
-    .replace(/mcg/g, "ug");
+    .replace(/,/g, ".");
 }
 
 function normaliserFormeStock(value: unknown): string {
