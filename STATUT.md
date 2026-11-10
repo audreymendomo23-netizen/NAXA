@@ -1,9 +1,3 @@
-# RÈGLE DE REPRISE OBLIGATOIRE — NAXA
-
-Avant toute reprise d'une nouvelle conversation ou session d'agent, lire intégralement `AGENTS.md` puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Vérifier le HEAD `main` et poursuivre uniquement les réserves ouvertes ou les lots réellement impactés. **Ne pas relancer les tests des lots CLOS sans déclencheur documenté.** Cette règle est impérative ; en cas d'indisponibilité d'un document obligatoire, le signaler avant tout travail.
-
----
-
 ## Recette pilote pharmacies et utilisateurs — 05/11/2026
 
 **Statut : 🟡 terrain non certifié ; contrôles Replay ciblés PASS.**
