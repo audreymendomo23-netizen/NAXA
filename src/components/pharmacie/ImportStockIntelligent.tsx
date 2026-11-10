@@ -316,6 +316,10 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
               <tbody>
                 {preview.slice(0,100).map(row=>{
                   const candidates=topMatches(row,products);
+                  const savedSuggestion=aiSuggestions[row.sourceRow];
+                  const suggestedProduct=savedSuggestion?products.find(product=>product.id===savedSuggestion.productId):undefined;
+                  const checkedSuggestion=savedSuggestion&&suggestedProduct?verifierCorrespondanceIA(row,suggestedProduct):null;
+                  const suggestion=checkedSuggestion?.accepted?{...savedSuggestion,score:checkedSuggestion.score}:undefined;
                   return <tr key={row.sourceRow} className="border-t align-top">
                     <td className="p-2">{row.sourceRow}</td>
                     <td className="max-w-52 p-2"><p className="font-semibold">{row.name||row.barcode||"Sans nom"}</p><p className="text-slate-500">{[row.dci,row.dosage,row.form].filter(Boolean).join(" · ")}</p></td>
@@ -325,10 +329,10 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
                         {candidates.map(({product,score})=><option key={product.id} value={product.id}>{product.nom} {product.dosage??""} · {Math.round(score*100)}%</option>)}
                         {products.slice(0,40).filter(product=>!candidates.some(item=>item.product.id===product.id)).map(product=><option key={product.id} value={product.id}>{product.nom} {product.dosage??""}</option>)}
                       </select>
-                      {aiSuggestions[row.sourceRow]&&row.productId!==aiSuggestions[row.sourceRow].productId&&<div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-2">
-                        <p className="font-semibold text-blue-950">Suggestion IA · contrôle moteur {Math.round(aiSuggestions[row.sourceRow].score*100)}%</p>
-                        <p className="mt-1 text-blue-900">{aiSuggestions[row.sourceRow].reason}</p>
-                        <button type="button" onClick={()=>setOverrides(old=>({...old,[row.sourceRow]:aiSuggestions[row.sourceRow].productId}))} className="mt-2 min-h-9 rounded-lg border border-blue-700 px-3 py-1 font-bold text-blue-900">Utiliser cette proposition</button>
+                      {suggestion&&row.productId!==suggestion.productId&&<div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-2">
+                        <p className="font-semibold text-blue-950">Suggestion IA · contrôle moteur {Math.round(suggestion.score*100)}%</p>
+                        <p className="mt-1 text-blue-900">{suggestion.reason}</p>
+                        <button type="button" onClick={()=>setOverrides(old=>({...old,[row.sourceRow]:suggestion.productId}))} className="mt-2 min-h-9 rounded-lg border border-blue-700 px-3 py-1 font-bold text-blue-900">Utiliser cette proposition</button>
                       </div>}
                     </td>
                     <td className="p-2 tabular-nums">{row.quantity??"—"}</td>
