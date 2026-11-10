@@ -1,3 +1,9 @@
+# Addendum de gouvernance — 10/11/2026
+
+**Branche active de la campagne de vérification : `qa/e2e-stabilisation-20261106`.** La branche `main` reste la branche par défaut GitHub, mais elle n'est pas la branche de travail de cette campagne. Toute mention de `main` comme branche de travail dans les instantanés historiques ci-dessous décrit le contexte au moment de leur rédaction et ne remplace pas l'ordre utilisateur actuel. Aucun changement ni merge vers `main` sans ordre explicite. Avant toute reprise, lire `AGENTS.md` et `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`.
+
+---
+
 # Audit 360° Administrateur — état de la phase préliminaire (05/11/2026)
 
 > **Statut du mandat : PHASE PRÉLIMINAIRE EN COURS.** L'audit détaillé du parcours Administrateur (cartographie page par page, inventaire des éléments, boucles d'interaction et simulation des 1 000 cas) n'a pas commencé. Il attend l'autorisation explicite prévue par le MANDAT CTO. Le présent état ne certifie ni la complétude fonctionnelle de NAXA, ni l'aptitude au lancement.
