@@ -102,11 +102,11 @@ test("lignes non interprétables : aucune quantité ou prix inventé", () => {
 });
 
 test("suggestions IA : API authentifiée, candidats limités au catalogue et sorties filtrées", () => {
-  assert.match(matchApi, /auth\\.getUser\\(\\)/);
-  assert.match(matchApi, /naxa_has_privilege/);
-  assert.match(matchApi, /from\\("produits"\\)/);
-  assert.match(matchApi, /allowedByRow/);
-  assert.match(matchApi, /allowed\\?\\.has\\(productId\\)/);
+  assert.ok(matchApi.includes("auth.getUser()"));
+  assert.ok(matchApi.includes("naxa_has_privilege"));
+  assert.ok(matchApi.includes('.from("produits")'));
+  assert.ok(matchApi.includes("allowedByRow"));
+  assert.ok(matchApi.includes("allowed?.has(productId)"));
   assert.match(matchApi, /GEMINI_API_KEY/);
   assert.match(matchApi, /GROQ_API_KEY/);
   assert.doesNotMatch(matchApi, /naxa_import_stock_batch/);
@@ -150,7 +150,7 @@ test("vérificateur déterministe : rejette une DCI ou une forme incompatible", 
     { id: "p5", nom: "Paracétamol", dci: "paracetamol", dosage: "500mg", forme: "comprimé" }
   );
   assert.equal(dci.accepted, false);
-  assert.match(dci.reason, /Principe actif \\(DCI\\) incompatible/);
+  assert.equal(dci.reason, "Principe actif (DCI) incompatible.");
   assert.equal(form.accepted, false);
   assert.match(form.reason, /Forme pharmaceutique incompatible/);
 });
