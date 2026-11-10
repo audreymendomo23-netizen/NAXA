@@ -1,15 +1,3 @@
-## Lecture obligatoire avant toute reprise — registre de clôture
-
-**RÈGLE IMPÉRATIVE POUR CHAQUE NOUVELLE CONVERSATION OU SESSION D'AGENT NAXA :** avant toute analyse, commande, modification ou proposition technique, lire intégralement, dans cet ordre :
-1. `AGENTS.md` (présent protocole).
-2. `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md` (registre des lots fermés, réserves et checkpoint).
-3. `STATUT.md` ; le présent registre est le checkpoint technique de reprise. Lire en plus tout document de continuité explicitement référencé par l'index et effectivement présent sur `main`.
-4. Pour une mission Admin 360, `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` et le NAXA-MANDAT CTO actif.
-
-Ensuite, vérifier le HEAD de `main` et ne reprendre que les lots ouverts ou impactés depuis leur preuve. **Un lot CLOS ne doit jamais être retesté simplement parce qu'une nouvelle conversation commence.** Il ne peut être rouvert que par un changement pertinent du code/migration/schéma/configuration, une régression observée, une dérive de l'environnement, une demande explicite ou une contradiction probante. Enregistrer tout déclencheur et toute nouvelle preuve dans le registre.
-
-Si un document obligatoire est inaccessible, le signaler avant de commencer et ne pas prétendre avoir effectué la lecture. Ne pas repartir de zéro ni remplacer ces documents par un résumé mémoire. Ce contrôle de reprise prévaut sur tout réflexe d'audit global répétitif.
-
 # PROTOCOLE D’EXÉCUTION NAXA — PRIORITÉ OPÉRATIONNELLE
 
 Ce fichier est la consigne de travail à appliquer à chaque intervention sur NAXA. Il remplace les anciennes consignes de workflow contradictoires présentes dans la documentation, notamment toute instruction imposant CircleCI, Netlify, des branches de travail ou des Pull Requests.
