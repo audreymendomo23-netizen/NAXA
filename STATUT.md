@@ -1,9 +1,9 @@
 ## Import stock hybride IA + moteur — 10/11/2026
 
-**Branche QA :** `qa/e2e-stabilisation-20261106` · **Commit code/tests :** `757af58d1f0119f4a32b30131e2f0934d2ceb421`.
+**Branche QA :** `qa/e2e-stabilisation-20261106` · **Commit code/tests :** `4acbd7560112be80cf35324fec32dfb0b2a2cebe`.
 
 - Implémentation : suggestions Gemini/Groq limitées aux produits candidats relus dans le catalogue ; contrôle déterministe indépendant (code-barres, DCI, dosage, forme, score) ; aucune sélection IA automatique ; validation humaine avant import.
-- **Tests ciblés isolés : 6/6 PASS** sur les règles déterministes du vérificateur.
+- **Tests ciblés isolés : 9/9 PASS** sur les règles déterministes du vérificateur. Contrôle déterministe rejoué aussi côté API avant l'écriture RPC.
 - **JAUNE :** le fichier CJS complet, `npm test`, typecheck, lint, build, appel réel Gemini/Groq et import réel d'un fichier externe restent non exécutés/non prouvés. Le miroir GitLab n'a pas cette branche QA ; aucun status check GitHub n'est retourné pour le commit de code/tests.
 - Aucun changement Supabase, aucune écriture Production, aucun déploiement.
 
