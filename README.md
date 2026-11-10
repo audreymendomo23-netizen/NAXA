@@ -1,3 +1,5 @@
+> **CAMPAGNE DE VÉRIFICATION ACTIVE :** branche `qa/e2e-stabilisation-20261106`. `main` est la branche par défaut du dépôt, mais n'est pas la branche de travail QA. Avant toute intervention ou nouvelle conversation, lire `AGENTS.md` puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Ne pas répéter les tests des lots clos sans déclencheur documenté. Aucun merge vers `main` sans ordre explicite.
+
 > **DOCUMENTS DE RÉFÉRENCE — NAXA**
 >
 > Pour l’audit 360 Administrateur en cours, les autorités de gouvernance et de séquencement sont le **MANDAT CTO NAXA** et le **cahier des charges Audit 360 du parcours Administrateur** ([audit de référence](docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md)). Le cahier des charges NAXA v3.7 reste une référence fonctionnelle lorsqu’il ne contredit pas les décisions approuvées plus récentes. Le Prompt maître et les anciens rapports restent des archives documentaires : ils ne gouvernent pas le workflow de cet audit. Les fichiers historiques présents dans le dépôt ne sont pas réputés supprimés.
