@@ -192,6 +192,73 @@ export function scoreRapprochementProduit(row: {
   return best;
 }
 
+function normaliserDosageStock(value: unknown): string {
+  return normaliserColonneStock(value)
+    .replace(/\\s+/g, "")
+    .replace(/µ|μ/g, "u")
+    .replace(/mcg/g, "ug");
+}
+
+function normaliserFormeStock(value: unknown): string {
+  const form = normaliserColonneStock(value);
+  if (/\\b(comprime|cp|tablet|tab)\\b/.test(form)) return "comprime";
+  if (/\\b(ge?lule|capsule)\\b/.test(form)) return "capsule";
+  if (/\\b(sirop|syrup)\\b/.test(form)) return "sirop";
+  if (/\\b(suspension)\\b/.test(form)) return "suspension";
+  if (/\\b(solution buvable|solution orale|oral solution)\\b/.test(form)) return "solution orale";
+  if (/\\b(injectable|injection|ampoule)\\b/.test(form)) return "injectable";
+  if (/\\b(creme|cream)\\b/.test(form)) return "creme";
+  if (/\\b(pommade|ointment)\\b/.test(form)) return "pommade";
+  if (/\\b(collyre|eye drops)\\b/.test(form)) return "collyre";
+  return form;
+}
+
+/**
+ * Vérification indépendante d'une suggestion IA.
+ * L'IA ne peut jamais contourner un identifiant incompatible, une DCI,
+ * un dosage ou une forme contradictoire. La suggestion reste à valider
+ * explicitement par l'utilisateur même lorsque ce contrôle passe.
+ */
+export function verifierCorrespondanceIA(
+  row: { name: string; dci?: string | null; dosage?: string | null; form?: string | null; barcode?: string | null },
+  product: StockImportProduct
+): { accepted: boolean; score: number; reason: string } {
+  const sourceBarcode = normaliserColonneStock(row.barcode).replace(/\\s/g, "");
+  const targetBarcode = normaliserColonneStock(product.code_barre).replace(/\\s/g, "");
+  if (sourceBarcode && targetBarcode && sourceBarcode !== targetBarcode) {
+    return { accepted: false, score: 0, reason: "Code-barres incompatible." };
+  }
+
+  const sourceDci = cleProduitStock(row.dci);
+  const targetDci = cleProduitStock(product.dci);
+  if (sourceDci && targetDci && sourceDci !== targetDci) {
+    return { accepted: false, score: 0, reason: "Principe actif (DCI) incompatible." };
+  }
+
+  const sourceDose = normaliserDosageStock(row.dosage);
+  const targetDose = normaliserDosageStock(product.dosage);
+  if (sourceDose && targetDose && sourceDose !== targetDose) {
+    return { accepted: false, score: 0, reason: "Dosage incompatible." };
+  }
+
+  const sourceForm = normaliserFormeStock(row.form);
+  const targetForm = normaliserFormeStock(product.forme);
+  if (sourceForm && targetForm && sourceForm !== targetForm) {
+    return { accepted: false, score: 0, reason: "Forme pharmaceutique incompatible." };
+  }
+
+  const score = scoreRapprochementProduit(row, product);
+  if (score < 0.45) {
+    return { accepted: false, score, reason: "Correspondance insuffisamment étayée par le moteur de vérification." };
+  }
+
+  return {
+    accepted: true,
+    score,
+    reason: "Aucune contradiction de code-barres, DCI, dosage ou forme ; rapprochement confirmé par le moteur."
+  };
+}
+
 export function convertirLignesStock(
   rows: Record<string, unknown>[],
   mapping: StockImportColumnMap,
