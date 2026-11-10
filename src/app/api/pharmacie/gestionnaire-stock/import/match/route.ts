@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const row = item as Record<string, unknown>;
     const sourceRow = Number(row.sourceRow);
     const candidates = Array.isArray(row.candidates)
-      ? [...new Set(row.candidates.filter((id): id is string => typeof id === "string" && UUID.test(id))].slice(0, 8))
+      ? [...new Set(row.candidates.filter((id): id is string => typeof id === "string" && UUID.test(id)))].slice(0, 8)
       : [];
     if (!Number.isSafeInteger(sourceRow) || sourceRow < 1 || !candidates.length) continue;
     rows.push({
