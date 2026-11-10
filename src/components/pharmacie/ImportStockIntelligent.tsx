@@ -124,7 +124,12 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
       const productId=overrides[row.sourceRow]??(decisive?best!.product.id:"");
       const errors=validerLigneImportStock(row);
       if(!productId)errors.push("Produit à rapprocher manuellement");
-      if(productId&&!products.some(product=>product.id===productId))errors.push("Produit du catalogue introuvable");
+      const selectedProduct=productId?products.find(product=>product.id===productId):undefined;
+      if(productId&&!selectedProduct)errors.push("Produit du catalogue introuvable");
+      if(selectedProduct){
+        const check=verifierCorrespondanceIA(row,selectedProduct,{requireScore:false});
+        if(!check.accepted)errors.push(check.reason);
+      }
       return {...row,sourceSheet:currentSheet?.name??"",productId,score:best?.score??0,errors};
     });
   },[converted,products,overrides,currentSheet]);
@@ -233,6 +238,7 @@ export function ImportStockIntelligent({pharmacies,products}:{pharmacies:Pharmac
     try{
       const lignes=goodRows.map(row=>({
         produit_id:row.productId,nom:row.name,
+        dci:row.dci,dosage:row.dosage,form:row.form,barcode:row.barcode,
         quantite:Math.round(row.quantity??0),
         prix:row.price===null?null:Math.round(row.price),
         cout_achat:row.purchaseCost===null?null:Math.round(row.purchaseCost),
