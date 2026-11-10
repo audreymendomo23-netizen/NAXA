@@ -3,7 +3,7 @@
 **RÈGLE IMPÉRATIVE POUR CHAQUE NOUVELLE CONVERSATION OU SESSION D'AGENT NAXA :** avant toute analyse, commande, modification ou proposition technique, lire intégralement, dans cet ordre :
 1. `AGENTS.md` (présent protocole).
 2. `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md` (registre des lots fermés, réserves et checkpoint).
-3. `STATUT.md` et le document de continuité/reprise indiqué par le registre ou l'index.
+3. `STATUT.md` ; le présent registre est le checkpoint technique de reprise. Lire en plus tout document de continuité explicitement référencé par l'index et effectivement présent sur `main`.
 4. Pour une mission Admin 360, `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` et le NAXA-MANDAT CTO actif.
 
 Ensuite, vérifier le HEAD de `main` et ne reprendre que les lots ouverts ou impactés depuis leur preuve. **Un lot CLOS ne doit jamais être retesté simplement parce qu'une nouvelle conversation commence.** Il ne peut être rouvert que par un changement pertinent du code/migration/schéma/configuration, une régression observée, une dérive de l'environnement, une demande explicite ou une contradiction probante. Enregistrer tout déclencheur et toute nouvelle preuve dans le registre.
