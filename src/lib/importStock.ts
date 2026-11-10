@@ -194,22 +194,22 @@ export function scoreRapprochementProduit(row: {
 
 function normaliserDosageStock(value: unknown): string {
   return normaliserColonneStock(value)
-    .replace(/\\s+/g, "")
+    .replace(/\s+/g, "")
     .replace(/µ|μ/g, "u")
     .replace(/mcg/g, "ug");
 }
 
 function normaliserFormeStock(value: unknown): string {
   const form = normaliserColonneStock(value);
-  if (/\\b(comprime|cp|tablet|tab)\\b/.test(form)) return "comprime";
-  if (/\\b(ge?lule|capsule)\\b/.test(form)) return "capsule";
-  if (/\\b(sirop|syrup)\\b/.test(form)) return "sirop";
-  if (/\\b(suspension)\\b/.test(form)) return "suspension";
-  if (/\\b(solution buvable|solution orale|oral solution)\\b/.test(form)) return "solution orale";
-  if (/\\b(injectable|injection|ampoule)\\b/.test(form)) return "injectable";
-  if (/\\b(creme|cream)\\b/.test(form)) return "creme";
-  if (/\\b(pommade|ointment)\\b/.test(form)) return "pommade";
-  if (/\\b(collyre|eye drops)\\b/.test(form)) return "collyre";
+  if (/\b(comprime|cp|tablet|tab)\b/.test(form)) return "comprime";
+  if (/\b(ge?lule|capsule)\b/.test(form)) return "capsule";
+  if (/\b(sirop|syrup)\b/.test(form)) return "sirop";
+  if (/\b(suspension)\b/.test(form)) return "suspension";
+  if (/\b(solution buvable|solution orale|oral solution)\b/.test(form)) return "solution orale";
+  if (/\b(injectable|injection|ampoule)\b/.test(form)) return "injectable";
+  if (/\b(creme|cream)\b/.test(form)) return "creme";
+  if (/\b(pommade|ointment)\b/.test(form)) return "pommade";
+  if (/\b(collyre|eye drops)\b/.test(form)) return "collyre";
   return form;
 }
 
@@ -223,8 +223,8 @@ export function verifierCorrespondanceIA(
   row: { name: string; dci?: string | null; dosage?: string | null; form?: string | null; barcode?: string | null },
   product: StockImportProduct
 ): { accepted: boolean; score: number; reason: string } {
-  const sourceBarcode = normaliserColonneStock(row.barcode).replace(/\\s/g, "");
-  const targetBarcode = normaliserColonneStock(product.code_barre).replace(/\\s/g, "");
+  const sourceBarcode = normaliserColonneStock(row.barcode).replace(/\s/g, "");
+  const targetBarcode = normaliserColonneStock(product.code_barre).replace(/\s/g, "");
   if (sourceBarcode && targetBarcode && sourceBarcode !== targetBarcode) {
     return { accepted: false, score: 0, reason: "Code-barres incompatible." };
   }
