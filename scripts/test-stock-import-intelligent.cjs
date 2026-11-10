@@ -113,6 +113,7 @@ test("suggestions IA : API authentifiée, candidats limités au catalogue et sor
   assert.match(wizard, /Utiliser cette proposition/);
   assert.match(wizard, /aucune n’est sélectionnée automatiquement/);
   assert.match(wizard, /verifierCorrespondanceIA/);
+  assert.match(wizard, /const checkedSuggestion=/);
 });
 
 test("vérificateur déterministe : accepte une identité compatible et un code-barres exact", () => {
@@ -161,4 +162,12 @@ test("vérificateur déterministe : refuse une suggestion trop faible", () => {
   );
   assert.equal(result.accepted, false);
   assert.match(result.reason, /insuffisamment étayée/);
+});
+
+test("vérificateur déterministe : normalise les unités microgrammes équivalentes", () => {
+  const result = stockEngine.verifierCorrespondanceIA(
+    { name: "Vitamine D", dosage: "50 µg", form: "comprimé" },
+    { id: "p7", nom: "Vitamine D", dosage: "50 mcg", forme: "comprimé" }
+  );
+  assert.equal(result.accepted, true);
 });
