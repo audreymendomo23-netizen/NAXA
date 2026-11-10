@@ -149,7 +149,16 @@ test("vérificateur déterministe : rejette une DCI ou une forme incompatible", 
     { id: "p5", nom: "Paracétamol", dci: "paracetamol", dosage: "500mg", forme: "comprimé" }
   );
   assert.equal(dci.accepted, false);
-  assert.match(dci.reason, /DCI incompatible/);
+  assert.match(dci.reason, /Principe actif \\(DCI\\) incompatible/);
   assert.equal(form.accepted, false);
   assert.match(form.reason, /Forme pharmaceutique incompatible/);
+});
+
+test("vérificateur déterministe : refuse une suggestion trop faible", () => {
+  const result = stockEngine.verifierCorrespondanceIA(
+    { name: "Molécule inconnue 77" },
+    { id: "p6", nom: "Paracétamol" }
+  );
+  assert.equal(result.accepted, false);
+  assert.match(result.reason, /insuffisamment étayée/);
 });
