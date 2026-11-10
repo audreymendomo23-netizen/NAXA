@@ -160,7 +160,8 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 
 ### Preuves et limites des tests
 
-- **PASS 9/9 tests comportementaux isolés** exécutés localement le 10/11/2026 avec `node --test /tmp/naxa-verify.test.cjs`. Le module TypeScript `src/lib/importStock.ts` a été transpilé avec TypeScript global ; les neuf scénarios couvrent correspondance compatible, code-barres incompatible ou absent, dosage contradictoire, DCI/forme absentes ou incompatibles, score IA trop faible, sélection manuelle sans contradiction et équivalence `50 µg`/`50 mcg`.
+- **PASS 9/9 tests comportementaux isolés** exécutés localement le 10/11/2026 avec `node --test /tmp/naxa-verify.test.cjs`. Un extrait isolé des fonctions pertinentes de `src/lib/importStock.ts` a été copié dans `/tmp/naxa-verify.ts`, transpilé puis testé ; les neuf scénarios couvrent correspondance compatible, code-barres incompatible ou absent, dosage contradictoire, DCI/forme absentes ou incompatibles, score IA trop faible, sélection manuelle sans contradiction et équivalence `50 µg`/`50 mcg`.
+- **PASS TypeScript strict isolé** sur cet extrait : `tsc --noEmit --strict --target ES2020 --module commonjs /tmp/naxa-verify.ts`. Ce n'est pas un typecheck du dépôt complet.
 - Le test CJS versionné `scripts/test-stock-import-intelligent.cjs` a été modifié, mais **n'a pas été exécuté comme fichier complet** dans cette passe.
 - `npm test`, `npx tsc --noEmit`, lint et build complet **non exécutés** : aucun checkout local du dépôt n'était disponible dans l'environnement d'exécution ; aucun résultat ne doit être inféré.
 - Le dernier commit code/tests QA `4acbd7560112be80cf35324fec32dfb0b2a2cebe` n'avait pas de status checks GitHub retournés (`statuses=[]`). Le miroir GitLab `87443849` ne possède pas la branche `qa/e2e-stabilisation-20261106` (GET branche : 404) ; aucune pipeline GitLab sur ce HEAD n'a donc été exécutée.
