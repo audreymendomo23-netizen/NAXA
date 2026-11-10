@@ -225,34 +225,35 @@ function normaliserFormeStock(value: unknown): string {
  */
 export function verifierCorrespondanceIA(
   row: { name: string; dci?: string | null; dosage?: string | null; form?: string | null; barcode?: string | null },
-  product: StockImportProduct
+  product: StockImportProduct,
+  options: { requireScore?: boolean } = {}
 ): { accepted: boolean; score: number; reason: string } {
   const sourceBarcode = normaliserColonneStock(row.barcode).replace(/\s/g, "");
   const targetBarcode = normaliserColonneStock(product.code_barre).replace(/\s/g, "");
-  if (sourceBarcode && targetBarcode && sourceBarcode !== targetBarcode) {
-    return { accepted: false, score: 0, reason: "Code-barres incompatible." };
+  if (sourceBarcode && (!targetBarcode || sourceBarcode !== targetBarcode)) {
+    return { accepted: false, score: 0, reason: "Code-barres absent du catalogue ou incompatible." };
   }
 
   const sourceDci = cleProduitStock(row.dci);
   const targetDci = cleProduitStock(product.dci);
-  if (sourceDci && targetDci && sourceDci !== targetDci) {
-    return { accepted: false, score: 0, reason: "Principe actif (DCI) incompatible." };
+  if (sourceDci && (!targetDci || sourceDci !== targetDci)) {
+    return { accepted: false, score: 0, reason: "Principe actif (DCI) absent ou incompatible." };
   }
 
   const sourceDose = normaliserDosageStock(row.dosage);
   const targetDose = normaliserDosageStock(product.dosage);
-  if (sourceDose && targetDose && sourceDose !== targetDose) {
-    return { accepted: false, score: 0, reason: "Dosage incompatible." };
+  if (sourceDose && (!targetDose || sourceDose !== targetDose)) {
+    return { accepted: false, score: 0, reason: "Dosage absent ou incompatible." };
   }
 
   const sourceForm = normaliserFormeStock(row.form);
   const targetForm = normaliserFormeStock(product.forme);
-  if (sourceForm && targetForm && sourceForm !== targetForm) {
-    return { accepted: false, score: 0, reason: "Forme pharmaceutique incompatible." };
+  if (sourceForm && (!targetForm || sourceForm !== targetForm)) {
+    return { accepted: false, score: 0, reason: "Forme pharmaceutique absente ou incompatible." };
   }
 
   const score = scoreRapprochementProduit(row, product);
-  if (score < 0.45) {
+  if (options.requireScore !== false && score < 0.45) {
     return { accepted: false, score, reason: "Correspondance insuffisamment étayée par le moteur de vérification." };
   }
 
