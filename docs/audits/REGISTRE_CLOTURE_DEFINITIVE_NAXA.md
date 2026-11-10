@@ -10,7 +10,7 @@ Avant toute analyse, commande, modification ou proposition technique sur NAXA, t
 
 1. Lire intégralement `AGENTS.md`.
 2. Lire intégralement le présent fichier.
-3. Lire `STATUT.md` et le document de continuité/reprise effectivement référencé par `AGENTS.md` ou l'index du projet.
+3. Lire `STATUT.md`. Le présent registre contient le checkpoint technique de reprise. Lire en plus tout autre document de continuité/reprise uniquement s'il est explicitement référencé par `AGENTS.md` ou l'index du projet et effectivement présent sur `main`.
 4. Pour une mission Audit 360, lire aussi `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` et le mandat CTO en vigueur.
 5. Vérifier le HEAD réel de `main`, puis le comparer au dernier checkpoint inscrit ci-dessous. Pour un sujet Supabase, vérifier l'environnement et les migrations concernées avant toute action.
 6. Reprendre au premier point **OUVERT / JAUNE / BLOQUÉ** pertinent. Ne pas recommencer un lot **CLOS** au seul motif qu'une nouvelle conversation a commencé.
