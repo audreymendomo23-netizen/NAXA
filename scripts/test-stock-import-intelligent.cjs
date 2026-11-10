@@ -54,7 +54,7 @@ test("rapprochement catalogue : code-barres, nom/DCI/dosage et correction humain
   assert.match(engine, /code_barre/);
   assert.match(wizard, /topMatches/);
   assert.match(wizard, /À rapprocher/);
-  assert.match(wizard, /onChange=\{event=>setOverrides/);
+  assert.match(wizard, /onChange=\{event=>\{setOverrides/);
   assert.match(wizard, /Produits? catalogue NAXA/);
 });
 
