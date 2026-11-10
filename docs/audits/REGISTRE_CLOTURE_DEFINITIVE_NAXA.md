@@ -147,7 +147,7 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 ## 9. Lot STOCK-IMPORT-AI-01 — rapprochement hybride IA + moteur déterministe (10/11/2026)
 
 **Branche :** `qa/e2e-stabilisation-20261106`  
-**Commit code/tests :** `a9009431a2a1dc9df14b01a1e1d6f1cd18ecb01a` (HEAD de la correction au moment de la recette).
+**Commit code/tests :** `cab8b965c3464b4d7acd1285c888a8e4f82440c4` (HEAD de la correction au moment de la recette).
 
 ### Fait — implémentation et durcissement
 
@@ -163,6 +163,7 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 
 - **Node ciblé : 18/18 PASS** — exécution du fichier versionné `node --test scripts/test-stock-import-intelligent.cjs` dans un bac Vercel isolé, après chargement des sources du commit QA et installation de TypeScript 5.6.2. Le test DCI a été corrigé pour vérifier le libellé réel `Principe actif (DCI) absent ou incompatible.`.
 - **SQL E2E Replay : PASS** — exécution du fichier versionné `supabase/tests/stock_import_rpc_service_role_guard.sql`. Résultat retourné : `stock_import_rpc_service_role_guard E2E PASS (rollback confirmé)`. La RPC serveur a importé une ligne, la quantité a été contrôlée à +1 dans la transaction, puis le rollback a annulé l'écriture.
+- **Syntaxe TypeScript ciblée : PASS** — les trois routes `apply`, `mapping` et `match` ont été transpilées sans diagnostic de syntaxe avec TypeScript 5.6.2. Ce contrôle n'est pas un typecheck sémantique complet.
 - **ACL Replay après migration : PASS** — ancienne RPC : `anon=false`, `authenticated=false`, `service_role=false` ; nouvelle RPC : `anon=false`, `authenticated=false`, `service_role=true`.
 - **Contrôle après rollback : PASS** — stock de la fixture `NAXA TEST — Pharmacie Bastos` / `Amlodipine NAXA Test` revenu à `26` unités, prix `3 075 FCFA`, égal à la valeur initiale observée. Migration Replay enregistrée sous version `20261110011755`, nom `stock_import_rpc_service_role_guard_20261110`.
 - **Configuration Preview :** clés sensibles référencées sous `Gemini_API_Key` et `GROQ_API_KEY` ; leurs valeurs sont masquées par Vercel et n'ont pas été lues. Le code reconnaît maintenant le nom Gemini déjà configuré. Aucun déploiement QA n'existe sur cette branche (liste Vercel : 0).
@@ -172,6 +173,7 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 - L'appel réel vers Gemini/Groq n'a pas été exécuté : aucun déploiement QA de cette branche n'est disponible et les valeurs sensibles ne sont pas exposées par les outils. La présence du nom de variable ne prouve ni sa validité ni la réponse du fournisseur.
 - La recette DB E2E Replay couvre ACL + appel serveur + mutation + rollback ; elle ne remplace pas l'essai HTTP authentifié de l'API Next.js avec un fichier réel exporté d'un logiciel de pharmacie.
 - `npm test` global, typecheck complet `npx tsc --noEmit`, lint et build Next.js non exécutés : le bac isolé ne contient que les fichiers nécessaires au test ciblé, pas le dépôt complet et ses dépendances.
+- Défaut découvert lors du contrôle de syntaxe : parenthèse fermante incorrecte dans la construction des candidats de `match/route.ts`, corrigée au commit `cab8b965`; le contrôle ciblé est désormais PASS.
 - GitHub Actions : aucun workflow associé au HEAD QA ; status checks vides. Le miroir GitLab ne possède pas cette branche QA.
 
 **Statut : JAUNE — rapprochement et contrôle serveur testés, sécurité RPC corrigée et E2E SQL Replay PASS ; l'appel fournisseur IA réel, la recette HTTP/fichier externe et les contrôles globaux du dépôt restent non prouvés.**
