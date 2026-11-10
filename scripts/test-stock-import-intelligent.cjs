@@ -74,6 +74,10 @@ test("écriture stock : identité active, pharmacie autorisée et privilège IMP
   assert.match(applyApi, /naxa_has_privilege/);
   assert.match(applyApi, /IMPORT_STOCK/);
   assert.match(applyApi, /naxa_import_stock_batch/);
+  assert.match(applyApi, /verifierCorrespondanceIA/);
+  assert.match(applyApi, /EDIT_STOCK_PARAMETERS|naxa_has_privilege/);
+  assert.match(applyApi, /from\("produits"\)/);
+  assert.match(applyApi, /L’identité de certains produits/);
   assert.doesNotMatch(engine, /supabaseBrowser/);
   assert.doesNotMatch(engine, /\.from\("stocks"\)\.upsert/);
 });
@@ -129,7 +133,7 @@ test("vérificateur déterministe : rejette un code-barres contradictoire", () =
   const product = { id: "p2", nom: "Paracétamol", code_barre: "3400930000002" };
   const result = stockEngine.verifierCorrespondanceIA(row, product);
   assert.equal(result.accepted, false);
-  assert.match(result.reason, /Code-barres incompatible/);
+  assert.match(result.reason, /Code-barres absent du catalogue ou incompatible/);
 });
 
 test("vérificateur déterministe : rejette un dosage contradictoire même si l'IA le propose", () => {
@@ -137,7 +141,7 @@ test("vérificateur déterministe : rejette un dosage contradictoire même si l'
   const product = { id: "p3", nom: "Paracétamol", dci: "paracetamol", dosage: "250 mg", forme: "comprimé" };
   const result = stockEngine.verifierCorrespondanceIA(row, product);
   assert.equal(result.accepted, false);
-  assert.match(result.reason, /Dosage incompatible/);
+  assert.match(result.reason, /Dosage absent ou incompatible/);
 });
 
 test("vérificateur déterministe : rejette une DCI ou une forme incompatible", () => {
@@ -152,7 +156,7 @@ test("vérificateur déterministe : rejette une DCI ou une forme incompatible", 
   assert.equal(dci.accepted, false);
   assert.equal(dci.reason, "Principe actif (DCI) incompatible.");
   assert.equal(form.accepted, false);
-  assert.match(form.reason, /Forme pharmaceutique incompatible/);
+  assert.match(form.reason, /Forme pharmaceutique absente ou incompatible/);
 });
 
 test("vérificateur déterministe : refuse une suggestion trop faible", () => {
