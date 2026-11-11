@@ -31,6 +31,13 @@ function zonedParts(date: Date, timezone: string) {
   };
 }
 
+function isMissingFeatureSchema(error: unknown) {
+  const code = error && typeof error === "object" && "code" in error
+    ? String((error as { code?: unknown }).code ?? "")
+    : "";
+  return ["42P01", "42703", "PGRST200", "PGRST204", "PGRST205"].includes(code);
+}
+
 export async function GET(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
@@ -334,6 +341,8 @@ export async function GET(request: Request) {
   let homeServiceRemindersDue = 0;
   let homeServiceRemindersPush = 0;
   let homeServiceRemindersFailed = 0;
+  let homeServiceAvailable = true;
+  let homeServiceSchemaReady = true;
 
   const homeServiceWindowStart = new Date(now.getTime() - 6 * 60_000).toISOString();
   const homeServiceWindowEnd = new Date(now.getTime() + 8 * 86400_000).toISOString();
@@ -347,8 +356,14 @@ export async function GET(request: Request) {
     .limit(5000);
 
   if (homeServiceRequestsError) {
-    failed++;
-    homeServiceRemindersFailed++;
+    if (isMissingFeatureSchema(homeServiceRequestsError)) {
+      homeServiceAvailable = false;
+      homeServiceSchemaReady = false;
+      console.warn("Home-service reminders not active: apply the appointment/reminder migration first.");
+    } else {
+      failed++;
+      homeServiceRemindersFailed++;
+    }
   } else {
     homeServiceChecked = homeServiceRequests?.length ?? 0;
     const partnerIds = [...new Set((homeServiceRequests ?? []).map((r: { partner_id: string }) => r.partner_id))];
@@ -366,8 +381,15 @@ export async function GET(request: Request) {
       ]);
 
       if (preferencesResult.error || membersResult.error) {
-        failed++;
-        homeServiceRemindersFailed++;
+        const schemaError = preferencesResult.error ?? membersResult.error;
+        if (isMissingFeatureSchema(schemaError)) {
+          homeServiceAvailable = false;
+          homeServiceSchemaReady = false;
+          console.warn("Home-service reminder preferences not available until their migration is applied.");
+        } else {
+          failed++;
+          homeServiceRemindersFailed++;
+        }
       } else {
         const userIds = [...new Set((membersResult.data ?? [])
           .map((m: { user_id: string | null }) => m.user_id).filter((id: string | null): id is string => Boolean(id)))];
@@ -419,22 +441,34 @@ export async function GET(request: Request) {
                 ignoreDuplicates: true,
               });
             if (upsertError) {
-              failed++;
-              homeServiceRemindersFailed++;
+              if (isMissingFeatureSchema(upsertError)) {
+                homeServiceAvailable = false;
+                homeServiceSchemaReady = false;
+                console.warn("Home-service reminder dispatch table is not installed yet.");
+              } else {
+                failed++;
+                homeServiceRemindersFailed++;
+              }
             }
           }
 
-          const { data: pendingDispatches, error: pendingError } = await db
-            .from("home_service_reminder_dispatches")
-            .select("id,request_id,recipient_id,offset_minutes,scheduled_at,notification_created_at,attempts")
-            .eq("state", "pending")
-            .lte("due_at", now.toISOString())
-            .lt("attempts", 12)
-            .order("due_at", { ascending: true })
-            .limit(500);
+          const { data: pendingDispatches, error: pendingError } = homeServiceSchemaReady
+            ? await db.from("home_service_reminder_dispatches")
+                .select("id,request_id,recipient_id,offset_minutes,scheduled_at,notification_created_at,attempts")
+                .eq("state", "pending")
+                .lte("due_at", now.toISOString())
+                .lt("attempts", 12)
+                .order("due_at", { ascending: true })
+                .limit(500)
+            : { data: [], error: null };
           if (pendingError) {
-            failed++;
-            homeServiceRemindersFailed++;
+            if (isMissingFeatureSchema(pendingError)) {
+              homeServiceAvailable = false;
+              homeServiceSchemaReady = false;
+            } else {
+              failed++;
+              homeServiceRemindersFailed++;
+            }
           } else {
             const subscriptionCache = new Map<string, any[]>();
             for (const dispatch of pendingDispatches ?? []) {
@@ -547,9 +581,15 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: true })
     .limit(500);
 
+  let notificationPushAvailable = true;
   if (outboxError) {
-    failed++;
-    notificationPushFailed++;
+    if (isMissingFeatureSchema(outboxError)) {
+      notificationPushAvailable = false;
+      console.warn("Global NAXA Push outbox not active until its migration is applied.");
+    } else {
+      failed++;
+      notificationPushFailed++;
+    }
   } else {
     notificationPushChecked = outboxItems?.length ?? 0;
     const outboxSubscriptions = new Map<string, any[]>();
@@ -657,6 +697,8 @@ export async function GET(request: Request) {
     notificationPushChecked,
     notificationPushSent,
     notificationPushFailed,
+    homeServiceAvailable,
+    notificationPushAvailable,
     at: now.toISOString(),
   }, { status: hasFailures ? 503 : 200 });
 }
