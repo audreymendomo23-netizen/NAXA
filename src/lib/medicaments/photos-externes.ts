@@ -260,7 +260,7 @@ async function fetchCimaJson(url: string): Promise<CimaResponse | null> {
   try {
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1500),
       next: { revalidate: 604800 }
     });
     if (!response.ok) return null;
@@ -506,8 +506,9 @@ export async function rechercherPhotosMedicament(term: string): Promise<PhotosMe
   // Recherche directe par GTIN dans Open Products Facts : seulement si l'identité
   // du code-barres est exacte et que la fiche indique une catégorie médicament.
   if (/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(query)) {
+    // Un code-barres est un identifiant, jamais un terme textuel pour CIMA/Commons.
     const barcodePhoto = await searchOpenProductsFactsByBarcode(query);
-    if (barcodePhoto) return { boite: barcodePhoto, comprime: null };
+    return { boite: barcodePhoto, comprime: null };
   }
   if (!identityTokens(query).length) return { boite: null, comprime: null };
 
