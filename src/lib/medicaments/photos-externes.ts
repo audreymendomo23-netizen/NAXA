@@ -43,7 +43,9 @@ const ACTIVE_INGREDIENT_TOKENS = new Set([
   "ipratropium", "omeprazole", "domperidone", "ondansetron", "artesunate",
   "amodiaquine", "artemether", "lumefantrine", "sulfamethoxazole", "trimethoprim",
   "quinine", "dihydroartemisinin", "piperaquine", "losartan", "amlodipine",
-  "hydrochlorothiazide", "atorvastatin", "rosuvastatin", "warfarin", "rivaroxaban"
+  "hydrochlorothiazide", "atorvastatin", "rosuvastatin", "warfarin", "rivaroxaban",
+  "ibuprofeno", "amoxicilina", "aspirina", "diclofenaco", "omeprazol", "azitromicina",
+  "metformina", "cetirizina", "loratadina", "atorvastatina", "amlodipino"
 ]);
 
 function normalize(value: string): string {
@@ -110,15 +112,20 @@ const CIMA_LICENSE = "AEMPS — données ouvertes, réutilisation gratuite avec 
 const CIMA_NAME_ALIASES: Record<string, string> = {
   acetaminophen: "paracetamol",
   ibuprofen: "ibuprofeno",
+  ibuprofene: "ibuprofeno",
   amoxicillin: "amoxicilina",
+  amoxicilline: "amoxicilina",
   aspirin: "aspirina",
   diclofenac: "diclofenaco",
   omeprazole: "omeprazol",
   azithromycin: "azitromicina",
+  azithromycine: "azitromicina",
   metformin: "metformina",
+  metformine: "metformina",
   cetirizine: "cetirizina",
   loratadine: "loratadina",
   atorvastatin: "atorvastatina",
+  atorvastatine: "atorvastatina",
   amlodipine: "amlodipino",
   losartan: "losartan",
   salbutamol: "salbutamol"
@@ -162,8 +169,15 @@ function cimaSearchTerm(query: string): string {
 
 function cimaNameMatches(query: string, candidateName: string): boolean {
   const wanted = identityTokens(query).map((token) => CIMA_NAME_ALIASES[token] ?? token);
-  const actual = new Set(identityTokens(candidateName));
-  return wanted.length > 0 && wanted.every((token) => actual.has(token));
+  const candidateTokens = identityTokens(candidateName);
+  const actual = new Set(candidateTokens);
+  if (!wanted.length || !wanted.every((token) => actual.has(token))) return false;
+
+  // Une DCI seule ne doit pas hériter de la photo d'une marque espagnole
+  // contenant cette molécule. Pour une requête mono-substance, le nom doit
+  // rester limité à cette substance après retrait du dosage et de la forme.
+  const singleIngredient = wanted.length === 1 && ACTIVE_INGREDIENT_TOKENS.has(wanted[0]);
+  return !singleIngredient || (candidateTokens.length === 1 && candidateTokens[0] === wanted[0]);
 }
 
 function cimaIngredients(medicine: CimaMedicine): string {
@@ -374,8 +388,12 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
       const coverage = matchingCount / required.length;
       const detectedKind = kindOf(page);
       const exactCoreMatch = required.some((token) => titleTokens.has(token));
+      const singleIngredient = required.length === 1 && ACTIVE_INGREDIENT_TOKENS.has(required[0]);
+      const titleIdentityTokens = identityTokens(title);
+      const ingredientOnlyMismatch = singleIngredient &&
+        (titleIdentityTokens.length !== 1 || titleIdentityTokens[0] !== required[0]);
       const combinationMismatch = likelyCombinationMismatch(title, required);
-      return { info, title, matchingCount, coverage, detectedKind, exactCoreMatch, combinationMismatch };
+      return { info, title, matchingCount, coverage, detectedKind, exactCoreMatch, ingredientOnlyMismatch, combinationMismatch };
     }).filter((item) =>
       item.info?.thumburl?.startsWith("https://") &&
       item.info.url?.startsWith("https://") &&
@@ -383,6 +401,7 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
       item.exactCoreMatch &&
       item.coverage >= 0.75 &&
       item.detectedKind === kind &&
+      !item.ingredientOnlyMismatch &&
       !item.combinationMismatch
     ).sort((a, b) =>
       b.coverage - a.coverage || b.matchingCount - a.matchingCount
