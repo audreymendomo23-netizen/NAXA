@@ -173,7 +173,9 @@ test("interface : source/licence visibles et image cassée remplacée sans garde
 
 test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont intégrées avec garde-fous", () => {
   assert.ok(photoResolver.includes("https://cima.aemps.es/cima/rest"));
-  assert.match(photoResolver, /CIMA_LICENSE/);
+  assert.match(photoResolver, /allowedCimaImageRights/);
+  assert.ok(photoResolver.includes("if (!url || !rights) return null"));
+  assert.ok(!photoResolver.includes("CIMA_LICENSE ="));
   assert.match(photoResolver, /materialas/);
   assert.match(photoResolver, /formafarmac/);
   assert.match(photoResolver, /cimaNameMatches/);
