@@ -33,7 +33,7 @@ test("les images sont attribuées et la licence CC BY-SA est affichée", () => {
 });
 
 test("la bibliothèque reste informative, sans prix, stock, commande ni publicité", () => {
-  assert.match(library, /ne représente pas les stocks des pharmacies partenaires/);
+  assert.match(library, /ne représentent pas les stocks des pharmacies partenaires/);
   assert.match(library, /aucun prix, classement, placement sponsorisé ni incitation à l’achat/);
   assert.match(library, /ne prouve ni référencement local, ni stock, ni disponibilité/);
   assert.doesNotMatch(library, /Ajouter au panier|Commander|Prix FCFA|en stock/i);
@@ -48,7 +48,7 @@ test("Bébé & Maman filtre les références autour du bébé et de la maternit�
 });
 
 test("la galerie est visible sur les vitrines Parapharmacie et Bébé & Maman", () => {
-  assert.match(catalog, /<ProductImageLibrary universe=\{universe\} \/>/);
+  assert.match(catalog, /<ProductImageLibrary universe=\{universe\}\s*\/>/);
 });
 
 test("l’aperçu de bibliothèque est intégré à l’accueil principal du client", () => {
