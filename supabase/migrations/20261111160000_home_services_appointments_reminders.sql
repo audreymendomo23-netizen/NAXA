@@ -258,4 +258,86 @@ $function$;
 revoke all on function public.transition_home_service_request(uuid,text) from public,anon;
 grant execute on function public.transition_home_service_request(uuid,text) to authenticated;
 
+
+-- File d'attente centrale : toute notification applicative devient éligible au Push.
+-- Les messages avec fil_id sont exclus ici car leur flux Push dédié existe déjà.
+create table if not exists public.naxa_notification_push_outbox (
+  id uuid primary key default gen_random_uuid(),
+  source_notification_id text not null,
+  recipient_id uuid not null references auth.users(id) on delete cascade,
+  notification_type text not null,
+  title text not null check (length(trim(title)) between 1 and 160),
+  body text not null check (length(body) <= 1000),
+  target_url text not null default '/notifications',
+  state text not null default 'pending' check (state in ('pending','sent')),
+  attempts integer not null default 0 check (attempts >= 0),
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(source_notification_id,recipient_id)
+);
+
+create index if not exists naxa_notification_push_outbox_pending_idx
+  on public.naxa_notification_push_outbox(created_at)
+  where state='pending';
+
+alter table public.naxa_notification_push_outbox enable row level security;
+revoke all on public.naxa_notification_push_outbox from public,anon,authenticated;
+grant all on public.naxa_notification_push_outbox to service_role;
+
+create or replace function public.enqueue_naxa_notification_push()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_source_id text:=coalesce(to_jsonb(new)->>'id',gen_random_uuid()::text);
+  v_target text:='/notifications';
+  v_recipients uuid[];
+  v_recipient uuid;
+begin
+  -- Messages : le endpoint de messagerie envoie déjà un Push contextualisé.
+  if new.fil_id is not null then return new; end if;
+  -- Les rappels de rendez-vous sont envoyés par le sous-flux dédié du même cron.
+  if new.type='home_service_appointment_reminder' then return new; end if;
+
+  v_target:=case
+    when new.type like 'abonnement_%' then '/promoteur/paiements'
+    when new.type like 'home_service_%' then '/partenaire/prestations'
+    when new.type like 'reservation%' then '/notifications'
+    when new.type like 'suivi_%' then '/suivi'
+    else '/notifications'
+  end;
+
+  if new.user_id is not null then
+    v_recipients:=array[new.user_id];
+  elsif new.pharmacie_id is not null then
+    select coalesce(array_agg(p.id),array[]::uuid[])
+    into v_recipients
+    from public.profiles p
+    where p.pharmacie_id=new.pharmacie_id and p.actif=true;
+  else
+    return new;
+  end if;
+
+  foreach v_recipient in array v_recipients loop
+    insert into public.naxa_notification_push_outbox(
+      source_notification_id,recipient_id,notification_type,title,body,target_url
+    ) values (
+      v_source_id,v_recipient,new.type,new.titre,new.corps,v_target
+    )
+    on conflict(source_notification_id,recipient_id) do nothing;
+  end loop;
+  return new;
+end;
+$function$;
+
+drop trigger if exists naxa_notification_push_enqueue on public.notifications;
+create trigger naxa_notification_push_enqueue
+after insert on public.notifications
+for each row execute function public.enqueue_naxa_notification_push();
+
+revoke all on function public.enqueue_naxa_notification_push() from public,anon,authenticated;
+
 commit;
