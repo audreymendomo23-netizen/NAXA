@@ -222,7 +222,6 @@ const eligibleProducts = useMemo(() => products.filter(p => {
         {visibleProducts.map(p => {
           const stock = Math.max(0, Math.floor(Number(p.available_quantity)));
           const selected = cart.find(x => x.productId === p.product_id);
-          const baby = universe === "bebe-maman";
           return (
             <article
               key={p.product_id}
