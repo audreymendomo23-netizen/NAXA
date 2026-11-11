@@ -161,8 +161,8 @@ begin
         or (d.state='processing' and coalesce(d.locked_at,d.updated_at)<now()-interval '10 minutes')
       )
     order by d.due_at
-    for update skip locked
     limit greatest(1,least(coalesce(p_batch_size,500),1000))
+    for update skip locked
   ), claimed as (
     update public.home_service_reminder_dispatches d
     set state='processing',locked_at=now(),attempts=d.attempts+1,
@@ -326,7 +326,7 @@ create table if not exists public.naxa_notification_push_outbox (
 
 create index if not exists naxa_notification_push_outbox_pending_idx
   on public.naxa_notification_push_outbox(created_at)
-  where state='pending';
+  where state in ('pending','processing');
 
 alter table public.naxa_notification_push_outbox enable row level security;
 revoke all on public.naxa_notification_push_outbox from public,anon,authenticated;
@@ -355,8 +355,8 @@ begin
         or (o.state='processing' and coalesce(o.locked_at,o.updated_at)<now()-interval '10 minutes')
       )
     order by o.created_at
-    for update skip locked
     limit greatest(1,least(coalesce(p_batch_size,500),1000))
+    for update skip locked
   ), claimed as (
     update public.naxa_notification_push_outbox o
     set state='processing',locked_at=now(),attempts=o.attempts+1,
