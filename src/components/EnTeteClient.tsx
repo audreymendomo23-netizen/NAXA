@@ -166,7 +166,7 @@ export function EnTeteClient() {
  { titre: "Parapharmacie", href: "/parapharmacie", locked: true },
  { titre: "Bébé & maman", href: "/bebe-maman", locked: true },
  { titre: "Dispositifs médicaux", href: "/suivi", locked: false },
- { titre: "Examens médicaux", href: "/examens", locked: true },
+ { titre: "Examens médicaux", href: "/examens", locked: false },
  { titre: "Prestations / Soins à domicile", href: "/prestations", locked: true },
 ].map(item => item.locked ? (
           <button
