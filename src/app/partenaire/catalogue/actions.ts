@@ -24,6 +24,127 @@ async function partnerContext() {
   return { sb, userId: auth.user.id, memberships: eligible };
 }
 
+
+// Catalogue photo partenaire — les octets sont envoyés au bucket dédié via la session
+// du membre ; cette action ne lie que le chemin qui appartient à son partenaire/produit.
+const PARTNER_PHOTO_BUCKET = "partner-catalogue-photos";
+const WEBP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i;
+
+function cheminPhotoAutorise(path: string, partnerId: string, productId: string) {
+  const prefix = partnerId + "/" + productId + "/";
+  const fileName = path.startsWith(prefix) ? path.slice(prefix.length) : "";
+  return WEBP_FILE.test(fileName);
+}
+
+function urlHttps(value: string) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export async function enregistrerPhotoProduitCatalogue(form: FormData): Promise<{ ok: boolean; message: string }> {
+  const { sb, userId, memberships } = await partnerContext();
+  const partnerId = field(form, "partner_id", 36);
+  const productId = field(form, "product_id", 36);
+  const photoPath = field(form, "photo_path", 180);
+  const sourceUrl = field(form, "photo_source_url", 1000);
+  const licence = field(form, "photo_licence", 500);
+  const rightsConfirmed = form.get("rights_confirmed") === "on";
+
+  if (!uuid(partnerId) || !uuid(productId)
+      || !memberships.some((membership: any) => membership.partner_id === partnerId)
+      || !cheminPhotoAutorise(photoPath, partnerId, productId)
+      || !urlHttps(sourceUrl) || licence.length < 5 || !rightsConfirmed) {
+    return { ok: false, message: "Données photo invalides ou partenaire non autorisé." };
+  }
+
+  const { data: product, error: productError } = await sb.from("partner_products")
+    .select("id,partner_id,universe_slug,photo_path")
+    .eq("id", productId)
+    .eq("partner_id", partnerId)
+    .maybeSingle();
+  if (productError || !product || !["parapharmacie", "bebe-maman"].includes(product.universe_slug)) {
+    return { ok: false, message: "Produit introuvable dans ce partenaire." };
+  }
+
+  const { data: association, error: associationError } = await sb.from("partner_universes")
+    .select("enabled")
+    .eq("partner_id", partnerId)
+    .eq("universe_slug", product.universe_slug)
+    .maybeSingle();
+  if (associationError || association?.enabled !== true) {
+    return { ok: false, message: "Cet univers n’est plus activé pour ce partenaire." };
+  }
+
+  const publicUrl = sb.storage.from(PARTNER_PHOTO_BUCKET).getPublicUrl(photoPath).data.publicUrl;
+  const now = new Date().toISOString();
+  const { data: updated, error: updateError } = await sb.from("partner_products").update({
+    photo_url: publicUrl,
+    photo_path: photoPath,
+    photo_source_url: sourceUrl,
+    photo_licence: licence,
+    photo_rights_confirmed_at: now,
+    photo_rights_confirmed_by: userId,
+    photo_uploaded_by: userId,
+    updated_at: now,
+  }).eq("id", productId).eq("partner_id", partnerId).select("id").maybeSingle();
+
+  if (updateError || updated?.id !== productId) {
+    return { ok: false, message: "La photo n’a pas pu être liée au produit. Vérifiez l’accès au catalogue." };
+  }
+
+  if (product.photo_path && product.photo_path !== photoPath
+      && cheminPhotoAutorise(product.photo_path, partnerId, productId)) {
+    await sb.storage.from(PARTNER_PHOTO_BUCKET).remove([product.photo_path]).catch(() => undefined);
+  }
+
+  revalidatePath("/partenaire/catalogue");
+  revalidatePath("/" + product.universe_slug);
+  return { ok: true, message: "Photo enregistrée." };
+}
+
+export async function retirerPhotoProduitCatalogue(form: FormData): Promise<{ ok: boolean; message: string }> {
+  const { sb, memberships } = await partnerContext();
+  const partnerId = field(form, "partner_id", 36);
+  const productId = field(form, "product_id", 36);
+  if (!uuid(partnerId) || !uuid(productId)
+      || !memberships.some((membership: any) => membership.partner_id === partnerId)) {
+    return { ok: false, message: "Partenaire ou produit non autorisé." };
+  }
+
+  const { data: product, error: productError } = await sb.from("partner_products")
+    .select("id,partner_id,universe_slug,photo_path")
+    .eq("id", productId)
+    .eq("partner_id", partnerId)
+    .maybeSingle();
+  if (productError || !product) return { ok: false, message: "Produit introuvable." };
+
+  const { data: updated, error: updateError } = await sb.from("partner_products").update({
+    photo_url: null,
+    photo_path: null,
+    photo_source_url: null,
+    photo_licence: null,
+    photo_rights_confirmed_at: null,
+    photo_rights_confirmed_by: null,
+    photo_uploaded_by: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", productId).eq("partner_id", partnerId).select("id").maybeSingle();
+
+  if (updateError || updated?.id !== productId) {
+    return { ok: false, message: "Impossible de retirer la photo du produit." };
+  }
+
+  if (product.photo_path && cheminPhotoAutorise(product.photo_path, partnerId, productId)) {
+    await sb.storage.from(PARTNER_PHOTO_BUCKET).remove([product.photo_path]).catch(() => undefined);
+  }
+
+  revalidatePath("/partenaire/catalogue");
+  revalidatePath("/" + product.universe_slug);
+  return { ok: true, message: "Photo retirée." };
+}
+
 export async function creerProduitCatalogue(form: FormData) {
   const { sb, userId, memberships } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);

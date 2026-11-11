@@ -30,6 +30,7 @@ const BUCKET_PROMOTER_PROOFS = "preuves-reglements-promoteurs";
 const BUCKET_PHARMACY_PHOTOS = "pharmacies-photos";
 const BUCKET_MEDICAMENTS = "medicaments";
 const BUCKET_PRODUCTS_PHOTOS = "produits-photos";
+const BUCKET_PARTNER_CATALOGUE_PHOTOS = "partner-catalogue-photos";
 
 function required(name, fallback) {
   const value = process.env[name] || fallback;
@@ -300,6 +301,7 @@ async function run() {
         [BUCKET_PROMOTER_PROOFS, userA.id + "/storage-e2e-" + suffix + ".pdf", pdf, "application/pdf"],
         [BUCKET_MEDICAMENTS, "storage-e2e-" + suffix + ".png", PNG, "image/png"],
         [BUCKET_PRODUCTS_PHOTOS, "storage-e2e-" + suffix + ".png", PNG, "image/png"],
+        [BUCKET_PARTNER_CATALOGUE_PHOTOS, "00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000001/storage-e2e-" + suffix + ".webp", PNG, "image/png"],
         [BUCKET_PHARMACY_PHOTOS, "logos/00000000-0000-4000-8000-000000000000/storage-e2e-" + suffix + ".png", PNG, "image/png"],
       ];
       for (const [bucket, path, bytes, mime] of cases) {
