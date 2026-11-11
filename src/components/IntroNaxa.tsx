@@ -6,10 +6,10 @@ type Props = { onFinish: () => void };
 const A = 8.5;
 const HIGH = 11;
 const phrases = [
-  { main: "RECHERCHEZ VOTRE MÉDICAMENT", color: "#FFFFFF" },
-  { main: "VÉRIFIEZ LA DISPONIBILITÉ EN TEMPS RÉEL", color: "#FFE33D" },
-  { main: "COMPAREZ LES PHARMACIES", sub: "Distance, Trafic, Prix", color: "#FFFFFF" },
-  { main: "RÉSERVEZ OU COMMANDEZ", color: "#FFE33D" },
+  { main: "BIENVENUE DANS L’ÉCOSYSTÈME NAXA", color: "#FFFFFF" },
+  { main: "VOTRE SANTÉ, VOS SERVICES", color: "#FFE33D" },
+  { main: "PLUSIEURS UNIVERS", sub: "Une seule application, un seul compte", color: "#FFFFFF" },
+  { main: "CHOISISSEZ VOTRE ESPACE", color: "#FFE33D" },
 ];
 function angleAt(t:number) {
   if(t<.6)return -A;
@@ -78,7 +78,7 @@ export function IntroNaxa({onFinish}:Props) {
         </div>
       </div>
       <div ref={footerRef} style={{position:"absolute",left:0,bottom:0,width:720,height:230,borderRadius:"40px 40px 0 0",background:"#064B2A",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px calc(24px + env(safe-area-inset-bottom))",boxSizing:"border-box",textAlign:"center",fontSize:39,fontWeight:800,lineHeight:1.15,color:"#FFFFFF",opacity:0,transform:"translateY(20px)",transition:"opacity 500ms ease, transform 500ms ease"}}>
-        <div>Trouver votre médicament</div><div style={{color:"#FFE33D"}}>en quelques secondes avec NAXA</div>
+        <div>Un seul compte pour vos services</div><div style={{color:"#FFE33D"}}>de santé et de proximité avec NAXA</div>
       </div>
     </div>
   </div>;

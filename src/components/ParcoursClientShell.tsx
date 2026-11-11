@@ -21,7 +21,17 @@ function appartientAuParcoursClient(pathname: string) {
     || pathname === "/reservations"
     || pathname.startsWith("/reservations/")
     || pathname.startsWith("/reservation/")
-    || pathname.startsWith("/univers-reservation/");
+    || pathname.startsWith("/univers-reservation/")
+    || pathname === "/parapharmacie"
+    || pathname.startsWith("/parapharmacie/")
+    || pathname === "/examens"
+    || pathname.startsWith("/examens/")
+    || pathname === "/prestations"
+    || pathname.startsWith("/prestations/")
+    || pathname === "/bebe-maman"
+    || pathname.startsWith("/bebe-maman/")
+    || pathname === "/suivi"
+    || pathname.startsWith("/suivi/") && !pathname.startsWith("/suivi/professionnel");
 }
 
 export function ParcoursClientShell({ children }: { children: React.ReactNode }) {

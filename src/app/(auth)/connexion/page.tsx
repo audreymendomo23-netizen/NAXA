@@ -6,6 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { CocheValidation } from "@/components/CocheValidation";
+import {
+  ecosystemeDepuisChemin,
+  ECOSYSTEME_PAR_ID,
+  espaceAuthentificationEcosysteme,
+  routeProfessionnelleEcosysteme,
+} from "@/lib/ecosystemes";
 
 type Bulle = { x: number; y: number; vx: number; vy: number; r: number };
 type Particule = { x: number; y: number; vx: number; vy: number; vie: number; rayon: number; couleur: string };
@@ -198,7 +204,11 @@ function GoogleIcon() {
 
 function TitreEspace() {
   const search = useSearchParams();
-  const titre = search.get("espace") === "pharmacie" ? "Espace pharmacie" : "Espace client";
+  const retour = search.get("retour") || "/";
+  const ecosysteme = ecosystemeDepuisChemin(retour);
+  const titre = search.get("professionnel") === "1"
+    ? "Accès professionnel · " + ECOSYSTEME_PAR_ID[ecosysteme].shortLabel
+    : ecosysteme === "pharmacie" ? "Espace pharmacie" : "Espace " + ECOSYSTEME_PAR_ID[ecosysteme].shortLabel;
 
   return (
     <p
@@ -211,6 +221,32 @@ function TitreEspace() {
       />
       {titre}
     </p>
+  );
+}
+
+
+function AccesProfessionnel() {
+  const search = useSearchParams();
+  const retour = search.get("retour") || "/";
+  const ecosysteme = ecosystemeDepuisChemin(retour);
+  if (search.get("espace") === "pharmacie") return null;
+  const target = routeProfessionnelleEcosysteme(ecosysteme);
+  const authSpace = espaceAuthentificationEcosysteme(ecosysteme);
+  const href = `/connexion?espace=${authSpace}&retour=${encodeURIComponent(target)}&professionnel=1`;
+  return (
+    <Link
+      href={href}
+      aria-label={`Accès professionnel ${ECOSYSTEME_PAR_ID[ecosysteme].label}`}
+      title={`Accès professionnel · ${ECOSYSTEME_PAR_ID[ecosysteme].label}`}
+      className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-[#0B5D36]/15 bg-white/90 px-2.5 text-[11px] font-extrabold text-[#064B2A] shadow-sm transition hover:bg-white sm:px-3 sm:text-xs"
+    >
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.2"/>
+        <path d="M5 20c.5-3.4 2.8-5.2 7-5.2s6.5 1.8 7 5.2"/>
+        <path d="M18.5 4.5h3M20 3v3"/>
+      </svg>
+      <span>Accès professionnel</span>
+    </Link>
   );
 }
 
@@ -544,13 +580,18 @@ export default function Connexion() {
         className="relative z-10 w-full shrink-0 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
       >
-        <div className="flex w-full items-center justify-between gap-3">
-          <div className="logo-pastille reveal" style={d(0)}>
+        <div className="flex w-full items-center justify-between gap-2">
+          <div className="logo-pastille reveal shrink-0" style={d(0)}>
             <Logo taille={30} />
           </div>
-          <Suspense fallback={<span aria-hidden="true" className="h-6 w-28" />}>
-            <TitreEspace />
-          </Suspense>
+          <div className="flex min-w-0 items-center gap-2">
+            <Suspense fallback={<span aria-hidden="true" className="h-6 w-24" />}>
+              <TitreEspace />
+            </Suspense>
+            <Suspense fallback={<span aria-hidden="true" className="h-10 w-10" />}>
+              <AccesProfessionnel />
+            </Suspense>
+          </div>
         </div>
       </div>
       <div className="relative z-10 flex w-full flex-1 items-center justify-center py-8">

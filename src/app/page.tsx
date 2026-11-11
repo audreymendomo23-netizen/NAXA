@@ -6,6 +6,13 @@ import { EnTeteAccueil } from "@/components/EnTeteAccueil";
 import { IntroNaxa } from "@/components/IntroNaxa";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Recherche } from "@/components/Recherche";
+import { SelectionEcosysteme } from "@/components/SelectionEcosysteme";
+import {
+  ECOSYSTEME_PAR_ID,
+  enregistrerEcosystemeSelectionne,
+  lireEcosystemeSelectionne,
+  type EcosystemeId,
+} from "@/lib/ecosystemes";
 import {
   recherchesFrequentes,
   textes,
@@ -79,6 +86,7 @@ export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
   const [introVisible, setIntroVisible] = useState(false);
   const [ageGate, setAgeGate] = useState<"required" | "minor" | null>("required");
+  const [selectionEcosystemeVisible, setSelectionEcosystemeVisible] = useState(false);
 
   function ageStatus(): "adult" | "minor" | "missing" {
     try {
@@ -118,7 +126,10 @@ export default function Accueil() {
       }
     }
     setAgeGate(confirmed ? null : "minor");
-    if (confirmed) setIntroVisible(true);
+    if (confirmed) {
+      setSelectionEcosystemeVisible(false);
+      setIntroVisible(true);
+    }
   }
 
   useEffect(() => {
@@ -129,9 +140,26 @@ export default function Accueil() {
     // La déclaration d'accueil est indépendante de celles demandées pour les actions.
     const ageInitial = ageStatus();
     const destination = destinationApresAge();
+    const selectionInitiale = lireEcosystemeSelectionne();
     if (ageInitial === "adult" && destination) {
       enregistrerCookieAge(true);
       window.location.replace(destination);
+      return () => { actif = false; };
+    }
+    if (ageInitial === "adult" && selectionInitiale && selectionInitiale !== "pharmacie") {
+      void fetch("/api/universes/status", { cache: "no-store" })
+        .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("status")))
+        .then((result: { universes?: Partial<Record<EcosystemeId, boolean>> }) => {
+          if (!actif) return;
+          if (result.universes?.[selectionInitiale] === true) {
+            window.location.replace(ECOSYSTEME_PAR_ID[selectionInitiale].href);
+          } else {
+            setSelectionEcosystemeVisible(true);
+          }
+        })
+        .catch(() => { if (actif) setSelectionEcosystemeVisible(true); });
+      setAgeGate(null);
+      setIntroVisible(false);
       return () => { actif = false; };
     }
     setAgeGate(ageInitial === "adult" ? null : ageInitial === "minor" ? "minor" : "required");
@@ -149,7 +177,12 @@ export default function Accueil() {
         .eq("id", userId)
         .maybeSingle();
       if (actif && !error && profile?.role === "client" && window.location.pathname === "/") {
-        window.location.replace("/client");
+        const selected = lireEcosystemeSelectionne();
+        if (!selected) {
+          setSelectionEcosystemeVisible(true);
+          return;
+        }
+        window.location.replace(selected === "pharmacie" ? "/client" : ECOSYSTEME_PAR_ID[selected].href);
       }
     };
 
@@ -190,16 +223,30 @@ export default function Accueil() {
         void redirigerClientConnecte(session.user.id);
         return;
       }
-      try {
-        if (window.sessionStorage.getItem(key) === "1") {
-          setIntroVisible(false);
-          return;
+      if (!selectionInitiale) {
+        try {
+          if (window.sessionStorage.getItem(key) === "1") {
+            setIntroVisible(false);
+            setSelectionEcosystemeVisible(true);
+            return;
+          }
+          window.sessionStorage.setItem(key, "1");
+        } catch {
+          // En cas de stockage indisponible, privilégier l'accès au sélecteur.
         }
-        window.sessionStorage.setItem(key, "1");
-      } catch {
-        // En cas de stockage indisponible, privilégier l'accès à l'accueil.
+        setIntroVisible(true);
+      } else {
+        try {
+          if (window.sessionStorage.getItem(key) === "1") {
+            setIntroVisible(false);
+            return;
+          }
+          window.sessionStorage.setItem(key, "1");
+        } catch {
+          // L'accueil reste utilisable si le stockage est indisponible.
+        }
+        setIntroVisible(true);
       }
-      setIntroVisible(true);
     }).catch(() => {
       if (actif) {
         const age = ageStatus();
@@ -242,6 +289,36 @@ export default function Accueil() {
     document.documentElement.lang = langue;
   }, [langue]);
 
+  async function choisirEcosysteme(id: EcosystemeId) {
+    enregistrerEcosystemeSelectionne(id);
+    setSelectionEcosystemeVisible(false);
+    if (id !== "pharmacie") {
+      window.location.assign(ECOSYSTEME_PAR_ID[id].href);
+      return;
+    }
+    try {
+      const { data: { session } } = await supabaseBrowser().auth.getSession();
+      if (session) {
+        const { data: profile } = await supabaseBrowser()
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (profile?.role === "client") {
+          window.location.assign("/client");
+          return;
+        }
+      }
+    } catch {
+      // En cas de session illisible, garder l'accès public Pharmacie.
+    }
+  }
+
+  function terminerAnimationOuverture() {
+    setIntroVisible(false);
+    if (!lireEcosystemeSelectionne()) setSelectionEcosystemeVisible(true);
+  }
+
   function localiser() {
     if (!navigator.geolocation) {
       setPosition("defaut");
@@ -266,7 +343,7 @@ export default function Accueil() {
 
   return (
     <>
-    <main>
+    {!selectionEcosystemeVisible && <main>
       <EnTeteAccueil langue={langue} setLangue={setLangue} />
 
       <div className="relative z-10 mx-auto -mt-5 w-full max-w-xl shrink-0 px-4">
@@ -366,7 +443,10 @@ export default function Accueil() {
           <p className="pt-1 text-center font-semibold">{t.builtWith}</p>
         </div>
       </footer>
-    </main>
+    </main>}
+    {selectionEcosystemeVisible && !ageGate && (
+      <SelectionEcosysteme onSelect={choisirEcosysteme} />
+    )}
     {ageGate && <div className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-[#064B2A] p-4" role="dialog" aria-modal="true" aria-labelledby="naxa-age-gate-title">
       <section className="w-full max-w-md rounded-3xl border border-white/15 bg-white p-6 shadow-2xl sm:p-8">
         <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2FAF5] text-[#064B2A]" aria-hidden="true">
@@ -383,7 +463,7 @@ export default function Accueil() {
         <p className="mt-5 text-xs leading-5 text-slate-500">Cette déclaration est une indication fournie par l’utilisateur et ne constitue pas, à elle seule, une vérification d’identité ou d’âge.</p>
       </section>
     </div>}
-    {introVisible && !ageGate && <IntroNaxa onFinish={() => setIntroVisible(false)} />}
+    {introVisible && !ageGate && <IntroNaxa onFinish={terminerAnimationOuverture} />}
     </>
   );
 }

@@ -8,6 +8,12 @@ import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { IconeNAXA } from "@/components/IconeNAXA";
 import { BoutonPanierEntete } from "@/components/BoutonPanierEntete";
 import { notifierNAXA } from "@/components/NotificationGlobale";
+import {
+  ECOSYSTEMES,
+  ECOSYSTEME_PAR_ID,
+  enregistrerEcosystemeSelectionne,
+  ecosystemeDepuisChemin,
+} from "@/lib/ecosystemes";
 
 const actions = [
   { titre: "Accueil", description: "Espace client", href: "/client", mots: "accueil maison espace client" },
@@ -64,6 +70,9 @@ function CadenasVerrouille() {
 export function EnTeteClient() {
   const router = useRouter();
   const pathname = usePathname();
+  const ecosystemeActif = ecosystemeDepuisChemin(pathname);
+  const themeEcosysteme = ECOSYSTEME_PAR_ID[ecosystemeActif];
+  const universesMenu = ECOSYSTEMES.filter((item) => item.id !== ecosystemeActif);
   const headerScene = pathname.includes("profil") || pathname.includes("messages") || pathname.includes("posologie")
     ? { image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1600&q=80", position: "center 42%" }
     : pathname.includes("reservation") || pathname.includes("univers-reservation")
@@ -112,34 +121,30 @@ export function EnTeteClient() {
   function ouvrirAction(href: string) {
     closeSearchAndMenu();
     const chemin = href.split("?")[0];
-    const notificationsParEspace: Record<string, string> = {
-      "/examens": "Vous êtes un laboratoire ou centre d'imagerie médicale agréé? Contactez-nous",
-      "/prestations": "Vous êtes un Infirmier diplomés d'Etat, Sage-femmeDiplomés d'etat,Kinésithérapeuthe ou physiothérapeuthe diplomé, aide-soignant diplomé, Médécin généraliste, Technicien de laboratoire diplomé, Psychologue clinicien diplomé? Contactez-nous",
-      "/aide": "Veuillez contactez les services d'urgences au numero 119 , 112 , 111 , 118 , ou vous rapprocher de l'officine la plus proche",
-    };
-    const notification = notificationsParEspace[chemin];
-    if (notification) { notifierNAXA(notification); return; }
-    const verrouille = ["/parapharmacie", "/bebe-maman"].includes(chemin);
-    const aideVerrouillee = href.startsWith("mailto:") && /subject=(Besoin|Centre|Contact)%20?d/i.test(href);
-    if (verrouille || aideVerrouillee) { notifierNAXA("Cet espace n'est pas disponible actuellement"); return; }
+    if (chemin === "/aide") {
+      notifierNAXA("Pour une urgence médicale, contactez directement les services d’urgence locaux.");
+      return;
+    }
     if (href.startsWith("mailto:")) { window.location.href = href; return; }
+    const target = ECOSYSTEMES.find((item) => item.href === chemin);
+    if (target) enregistrerEcosystemeSelectionne(target.id);
     router.push(href);
   }
 
-  return <header className="naxa-green-header sticky top-0 z-50 isolate min-h-[104px] overflow-visible px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white">
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-[#0B3D26]">
+  return <header className="naxa-green-header sticky top-0 z-50 isolate min-h-[104px] overflow-visible px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white" style={{ backgroundColor: themeEcosysteme.color }}>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" style={{ backgroundColor: themeEcosysteme.color }}>
       <div className="absolute inset-0 bg-cover bg-center transition-[background-image] duration-500" style={{ backgroundImage: `url("${headerScene.image}")`, backgroundPosition: headerScene.position }} />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#073820]/95 via-[#0B3D26]/80 to-[#0B3D26]/65" />
-      <div className="absolute inset-0 bg-[#0B3D26]/15" />
+      <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(90deg, ${themeEcosysteme.color}F2, ${themeEcosysteme.color}D9 58%, ${themeEcosysteme.color}C9)` }} />
+      <div className="absolute inset-0" style={{ backgroundColor: themeEcosysteme.color, opacity: 0.12 }} />
     </div>
     <div ref={wrapRef} className="mx-auto max-w-[480px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <Logo clair taille={38}/>
-          <p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">Votre médicament, à 2 minutes</p>
+          <p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">{themeEcosysteme.tagline}</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          <BoutonPanierEntete/>
+          {["pharmacie", "parapharmacie", "bebe-maman"].includes(ecosystemeActif) && <BoutonPanierEntete/>}
           <BoutonNotifications/>
           <button type="button" aria-label={searchOpen ? "Fermer la recherche générale" : "Rechercher dans NAXA"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(v => !v); setMenuOpen(false); }} data-naxa-client-search className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><IconeNAXA name="search" size={22}/></button>
           <button type="button" aria-label={menuOpen ? "Fermer le menu" : "Autres services"} aria-expanded={menuOpen} onClick={() => { setMenuOpen(v => !v); setSearchOpen(false); }} data-naxa-client-menu className="flex h-10 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">
@@ -161,35 +166,28 @@ export function EnTeteClient() {
         </div>}
       </div>}
 
-      {menuOpen && <nav data-naxa-client-menu aria-label="Autres services NAXA" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#0F6B3F] p-2 text-white shadow-2xl">
-        {[
- { titre: "Parapharmacie", href: "/parapharmacie", locked: true },
- { titre: "Bébé & maman", href: "/bebe-maman", locked: true },
- { titre: "Dispositifs médicaux", href: "/suivi", locked: false },
- { titre: "Examens médicaux", href: "/examens", locked: false },
- { titre: "Prestations / Soins à domicile", href: "/prestations", locked: true },
-].map(item => item.locked ? (
-          <button
-            key={item.titre}
-            type="button"
-            onClick={() => ouvrirAction(item.href)}
-            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white/90 transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"
-          >
-            <span>{item.titre}</span>
-            <CadenasVerrouille />
-          </button>
-        ) : (
+      {menuOpen && <nav data-naxa-client-menu aria-label="Changer d’écosystème" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/20 p-2 text-white shadow-2xl" style={{ backgroundColor: themeEcosysteme.color }}>
+        <p className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/70">Changer d’écosystème</p>
+        {universesMenu.map((item) => (
           <Link
-            key={item.titre}
+            key={item.id}
             href={item.href}
-            onClick={closeSearchAndMenu}
-            className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"
+            onClick={() => {
+              closeSearchAndMenu();
+              enregistrerEcosystemeSelectionne(item.id);
+            }}
+            className="flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2"
+            style={{ outlineColor: themeEcosysteme.accent }}
           >
-            <span>{item.titre}</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg font-black" style={{ color: item.color, backgroundColor: item.softColor }}>{item.symbol}</span>
+            <span className="min-w-0 flex-1">{item.label}</span>
             <IconeNAXA name="chevron-right" size={17}/>
           </Link>
         ))}
-<button type="button" onClick={() => ouvrirAction("/aide")} className="mt-1 flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10"><span>Besoin d’aide ?</span><CadenasVerrouille /></button>
+        <button type="button" onClick={() => ouvrirAction("/aide")} className="mt-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10">
+          <span>Besoin d’aide ?</span>
+          <IconeNAXA name="chevron-right" size={17}/>
+        </button>
       </nav>}
     </div>
   </header>;
