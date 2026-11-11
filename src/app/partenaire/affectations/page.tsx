@@ -35,10 +35,12 @@ export default async function AffectationsParapharmacie({
     ||(role!=="promoteur"&&role!=="responsable")) {
     redirect("/partenaire/catalogue?erreur=selection_espace");
   }
-  const {data:canViewTeam,error:teamError}=await sb.rpc("naxa_can_partner",{
-    p_privilege:"VIEW_TEAM",p_partner_id:partnerId,
-  });
+  const [{data:canViewTeam,error:teamError},{data:canSuspendCashier,error:suspendCashierError}]=await Promise.all([
+    sb.rpc("naxa_can_partner",{p_privilege:"VIEW_TEAM",p_partner_id:partnerId}),
+    sb.rpc("naxa_can_partner",{p_privilege:"SUSPEND_CAISSE",p_partner_id:partnerId}),
+  ]);
   if(teamError||canViewTeam!==true)redirect("/partenaire/catalogue?erreur=autorisation");
+  const responsableCanRevokeCashier=role==="responsable"&&!suspendCashierError&&canSuspendCashier===true;
 
   const [{data:partner,error:partnerLoadError},{data:architecture,error:architectureError},{data:rows,error:assignmentsError}]=await Promise.all([
     sb.from("partners").select("id,name,status").eq("id",partnerId).eq("partner_type","parapharmacie").maybeSingle(),
@@ -166,7 +168,7 @@ export default async function AffectationsParapharmacie({
                   <p className="mt-1 text-xs text-slate-500">Début : {dateLabel(assignment.commence_at)} · Fin : {assignment.expire_at?dateLabel(assignment.expire_at):"sans échéance"} · Motif : {assignment.motif}</p>
                   {assignment.revoque_at&&<p className="mt-1 text-xs text-slate-500">Révoquée le {dateLabel(assignment.revoque_at)} · {assignment.motif_revocation}</p>}
                 </div>
-                {isPromoteur&&active&&<form action={revoquerAffectationParapharmacie} className="flex max-w-sm flex-col gap-2">
+                {(isPromoteur||(responsableCanRevokeCashier&&assignment.role_code==="caisse"))&&active&&<form action={revoquerAffectationParapharmacie} className="flex max-w-sm flex-col gap-2">
                   <input type="hidden" name="partner_id" value={partnerId}/>
                   <input type="hidden" name="affectation_id" value={assignment.id}/>
                   <input name="motif_revocation" required minLength={5} maxLength={500} placeholder="Motif de révocation" className="rounded-lg border p-2 text-sm"/>
