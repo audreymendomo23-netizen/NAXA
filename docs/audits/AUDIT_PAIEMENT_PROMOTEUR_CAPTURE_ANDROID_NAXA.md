@@ -63,3 +63,25 @@ La migration `20261111013000_promoteur_payment_three_stage_verification` a été
 
 
 **Contrôles locaux complémentaires — 11/11/2026 :** parseur testé sur les cinq modèles SMS transmis (Orange payeur, Orange marchand, MTN payeur, MTN marchand, MTN Successintegral court) : 5/5 PASS. Fallback IA simulé avec une réponse structurée Gemini : 2/2 PASS (date anglaise DD/MM/YYYY acceptée, date opérateur inventée rejetée). Aucune clé réelle ni appel fournisseur IA n'a été utilisé pour ces tests.
+
+
+## Mise à jour de clôture des cinq points — 11 novembre 2026
+
+### 1. Capture du téléphone Admin
+Ajout de l'enrôlement Admin par compte actif et par canal, avec code marchand figé et jeton d'appareil haché côté base. Nouvel endpoint POST /api/admin/paiements/device/register, capture POST /api/admin/paiements/capture, table de journal naxa_admin_payment_capture_events, et liste des événements dans le cockpit Admin.
+
+### 2. Compagnon Android natif
+Projet source Java/Gradle ajouté sous android/payment-companion/. Il utilise SMS_RECEIVED_ACTION et SmsMessage.getOriginatingAddress() (adresse brute), jamais le libellé d'un contact ; il ne demande pas READ_SMS et n'inspecte pas l'historique. Les jetons Supabase et appareil sont chiffrés avec Android Keystore AES-GCM. L'APK n'est pas compilé : l'environnement ne contient ni Gradle, ni Android SDK, ni ADB.
+
+**Blocage de distribution :** la permission RECEIVE_SMS est dangereuse et hard-restricted. Google Play Protect peut bloquer une application téléchargée d'Internet lorsqu'elle la déclare. La capture native exige une voie d'installation approuvée qui permet l'allowlist de cette permission ; le téléchargement direct depuis le site NAXA n'est donc pas validé. Ne pas désactiver Play Protect ni contourner cette restriction.
+
+### 3. Confirmation/renouvellement Admin SMS
+Le RPC naxa_promoteur_payment_auto_confirm_admin_sms appelle la confirmation Admin canonique uniquement après contrôle du SMS de crédit, de l'expéditeur alphanumérique exact, du canal, du montant, de la destination figée, du payeur, de la référence unique liée au dossier et de l'heure. Une capture reçue 15 minutes avant à 30 minutes après l'heure de paiement déclarée est acceptée ; tout cas absent, tardif, dupliqué ou ambigu reste manuel. Les suspensions indépendantes ne sont pas réactivées.
+
+### 4. OCR des justificatifs
+PromoteurPaymentProofOcr et promoteurPaymentProofOcr.ts ajoutent la lecture locale d'images et de PDF (trois pages maximum), bilingue français/anglais. Les champs reconnus et la confiance OCR sont transmis au serveur ; le texte complet demeure temporaire côté navigateur et n'est pas persisté. L'OCR classe et rapproche, mais ne confirme jamais un paiement.
+
+### 5. Tests et preuves
+Migrations Replay : versions 20261111011044, 20261111011317, 20261111012919, 20261111012923, 20261111013438, 20261111013608. Tests SQL promoteur_payment_three_stage_verification.sql et promoteur_payment_admin_sms_auto_confirm.sql : PASS. Les scripts Node de régression sont ajoutés mais pas exécutés dans cette session ; typecheck, lint, build Next, build Android et tests sur SIM réelles ne sont pas prouvés.
+
+**Bloqueurs d'E2E :** aucune destination marchande réelle n'est configurée dans Replay (0 destination active) et aucun téléphone réel n'est enrôlé. L'expéditeur SMS alphanumérique n'est pas une signature cryptographique ; le test réel doit inclure les possibilités de spoofing et les délais opérateur.

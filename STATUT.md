@@ -1,21 +1,38 @@
-## Paiement abonnement Promoteur — contrôles à trois niveaux — 11/11/2026
+## Paiement abonnement Promoteur — état de la reprise — 11/11/2026
 
-**État : 🟡 code versionné sur QA ; migration Replay appliquée ; test SQL ciblé PASS. Aucun déploiement ni changement Production.**
+**Statut global : JAUNE.** Le circuit Admin SMS, la confirmation serveur et l'OCR sont codés. Les migrations et tests SQL sont passés sur Replay. Le compagnon Android est ajouté comme source, mais il n'est ni compilé ni testé sur téléphone. Aucun paiement E2E réel n'a été exécuté.
 
-- Nouvelles déclarations limitées à MTN Mobile Money et Orange Money ; les lignes bancaires historiques restent consultables, mais le virement est retiré des nouveaux formulaires et destinations.
-- Niveau 1 : l'API de capture exige désormais le SMS brut, l'adresse d'expéditeur brute, un appareil enrôlé, l'heure de réception et un rapprochement exact avec l'intention : canal, montant, bénéficiaire, référence et fenêtre de temps. Les messages MTN courts sans référence/horodatage sont informatifs seulement.
-- Niveau 2 : un registre sécurisé de références secondaires autorise le rapprochement d'une référence marchand différente (ex. MP) sur le même dossier, avec source et horodatages distincts. L'enrôlement du téléphone Admin et son endpoint de capture ne sont pas encore construits.
-- Niveau 3 : le formulaire Promoteur accepte le SMS collé, en français ou anglais, ainsi qu'un justificatif dès la déclaration. Règles locales puis Gemini/Groq en extraction ; seul un ensemble de champs structurés est conservé, jamais le SMS brut. Les captures/PDF sont joints au dossier, mais leur OCR automatique n'est pas encore implémenté ; l'Admin peut les examiner.
-- Références : normalisation alphanumérique et contrainte unique globale dans les règlements, plus index unique des événements de capture ; le registre secondaire permet de lier PP et MP au même paiement sans réutiliser une référence déjà affectée à un autre dossier.
-- **Migrations Replay : appliquées** — `promoteur_payment_three_stage_verification_20261111` (`20261111011044`) et `promoteur_payment_secondary_reference_history_guard` (`20261111011317`). Pré-requis Replay synchronisés (confirmation abonnement, destinations/instantané, preuve facultative). ACL vérifiées : RPC déclaration et RPC référence secondaire `anon=false`, `authenticated=false`, `service_role=true`. Trois index uniques vérifiés ; RPC secondaire également protégée contre les références principales des règlements historiques ; cron horaire vérifié. Aucun code marchand n'est encore configuré dans Replay (0 destination active), donc pas de recette transactionnelle complète possible.
-- **Test SQL ciblé : PASS** — `supabase/tests/promoteur_payment_three_stage_verification.sql` exécuté sur Replay, rollback implicite du test confirmé.
-- Date/heure : la date de transaction opérateur, l'heure de réception du SMS et l'heure de déclaration serveur sont séparées. Africa/Douala est utilisé pour les conversions d'horodatage dans les règles métier.
-- Tolérance : une déclaration valide ouvre 24 h de vérification et le cron de validité diffère uniquement l'expiration commerciale pendant cette fenêtre. La règle ne réactive aucun compte/profil/pharmacie déjà inactif ou suspendu indépendamment.
-- Sécurité : l'analyse manuelle reste en attente d'une confirmation Admin ; aucune capture Android n'est considérée comme preuve opérateur cryptographiquement authentifiée. Le niveau 1 natif reste inopérant tant que l'application Android et son service SMS ne sont pas livrés.
+### Les cinq chantiers
 
-**Vérification locale complémentaire :** 5/5 formats SMS sur le parseur déterministe ; 2/2 tests de repli IA avec réponse Gemini simulée (anglais + date DD/MM/YYYY, puis rejet d'une date inventée). Ce n'est pas un appel réel à Gemini.
+1. **Téléphone Admin — CODE QA.** Endpoints d'enrôlement séparé par canal et capture SMS ajoutés : /api/admin/paiements/device/register et /api/admin/paiements/capture. L'interface Admin liste les captures, leur état et le lien vers le dossier. Les événements sont protégés par RLS ; aucun accès direct anon/authenticated.
+2. **Compagnon Android — SOURCE AJOUTÉE, NON BUILDÉE.** Projet Java/Gradle android/payment-companion/ : connexion Supabase, enrôlement Promoteur/Admin, stockage des jetons via Android Keystore AES-GCM, SMS_RECEIVED_ACTION, lecture de l'adresse brute SmsMessage.getOriginatingAddress(), filtre exact OrangeMoney/MobileMoney, transmission au backend. Aucun accès READ_SMS, aucune lecture des contacts ni des conversations. Build non exécuté : Android SDK, Gradle et ADB absents de l'environnement.
+3. **Renouvellement automatique — CODE SQL INSTALLÉ.** Un SMS de crédit reçu par le téléphone Admin peut renouveler l'abonnement uniquement si l'expéditeur brut, le sens crédit, montant FCFA, canal, destination marchande, payeur, référence liée au même dossier, unicité et délais concordent. La fenêtre SMS Admin est limitée à 15 minutes avant / 30 minutes après l'heure de paiement déclarée, à l'intérieur de la tolérance de 24 h. Ambiguïté, payeur manquant, conflit ou écart = revue manuelle. La RPC appelle la confirmation Admin canonique et ne réactive aucun compte/pharmacie suspendu indépendamment.
+4. **OCR justificatifs — CODE QA.** Images et PDF, 3 pages PDF maximum, OCR local navigateur en français + anglais. Les champs structurés sont enregistrés ; le texte intégral du justificatif reste temporaire dans le navigateur et n'est pas persisté. L'OCR n'est jamais une confirmation automatique.
+5. **Recette — SQL CIBLÉ PASS, E2E TERRAIN BLOQUÉ.** Les tests SQL des trois niveaux et de la capture Admin passent sur Replay. Aucun code marchand n'est configuré dans Replay (0 destination active), aucun appareil Promoteur/Admin n'est enrôlé et aucun SMS réel MTN/Orange n'a été testé. La suite Node statique versionnée, le typecheck complet, lint, build Next.js et build APK restent à exécuter.
 
-**Non prouvé à ce point :** suite Node du dépôt (`node --test scripts/test-*.cjs`), typecheck, lint, build, tests sur SIM MTN/Orange, enrôlement Admin et intégration Android native. Le niveau 2 (enrôlement/capture Android Admin) et le renouvellement sans intervention Admin ne sont pas livrés. OCR image/PDF absent ; preuve jointe inspectable par Admin seulement. Statut JAUNE ; ne pas présenter le chantier comme terminé.
+### Migrations Replay appliquées
+
+| Version distante | Migration |
+|---|---|
+| 20261111011044 | promoteur_payment_three_stage_verification_20261111 |
+| 20261111011317 | promoteur_payment_secondary_reference_history_guard |
+| 20261111012919 | promoteur_payment_admin_sms_capture_schema |
+| 20261111012923 | promoteur_payment_declaration_sms_received_at_fix |
+| 20261111013438 | promoteur_payment_admin_sms_auto_confirm_rpc |
+| 20261111013608 | promoteur_payment_admin_sms_time_guard |
+
+### Preuves et réserves de sécurité
+
+- supabase/tests/promoteur_payment_three_stage_verification.sql : PASS.
+- supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql : PASS.
+- ACL capture Admin : anon=false, authenticated=false, service_role=true. RLS active sur les deux tables Admin et index unique sur les références d'événements.
+- 5 modèles SMS fournis : parseur déterministe 5/5 ; repli IA simulé 2/2. Aucun appel réel Gemini/Groq n'est revendiqué.
+- Un Sender ID alphanumérique SMS n'est pas une signature cryptographique. Le code applique exactement les contrôles choisis et garde les cas incomplets en manuel, mais une validation opérateur/SIM réelle reste requise avant de considérer le risque de spoofing résolu.
+- **Blocage de distribution Android :** RECEIVE_SMS est une permission dangereuse hard-restricted ; Play Protect peut bloquer les applications téléchargées depuis Internet (navigateur/site) qui la déclarent. La capture automatique nécessite une voie d'installation approuvée/allowlistée. Ne pas contourner Play Protect. Le téléchargement direct depuis le site NAXA n'est pas validé pour ce compagnon.
+- Replay ne dispose d'aucune destination marchande. Aucun code marchand réel ne doit être inventé pour débloquer les tests.
+
+**Périmètre :** branche QA uniquement, Supabase Replay uniquement. Aucune écriture Production, aucun déploiement Vercel, aucune modification main.
+
 
 ## Import stock hybride IA + moteur — 10/11/2026
 

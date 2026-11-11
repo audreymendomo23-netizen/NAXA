@@ -184,10 +184,25 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 
 ---
 
-## Paiements abonnement Promoteur — 11/11/2026 — JAUNE
+## Paiements abonnement Promoteur — contrôles à trois niveaux, Admin SMS et OCR — 11/11/2026 — JAUNE
 
-**Périmètre ajouté au code QA :** retrait du virement pour les nouvelles déclarations ; analyse SMS FR/EN par règles + IA ; dépôt de justificatifs à la déclaration ; registre unique de références (y compris alias PP/MP) ; distinction heure opérateur / réception SMS / déclaration serveur ; tolérance commerciale de 24 h.
+**Périmètre QA :** niveau 1 SMS Promoteur, niveau 2 SMS marchand sur téléphone Admin et référence secondaire, niveau 3 SMS collé/preuve manuelle et OCR navigateur FR/EN. Le virement bancaire est retiré des nouvelles déclarations, mais son historique est conservé.
 
-**Niveau 1 :** contrat serveur de capture renforcé pour exiger un SMS brut, un expéditeur brut reconnu, un appareil Promoteur enrôlé et une intention active. **Niveau 2 :** RPC sécurisé d'ajout d'une référence secondaire disponible, mais capture sur téléphone Admin et son enrôlement restent à construire. **Niveau 3 :** SMS collé et justificatifs joints, extraction automatique et revue Admin si doute ; OCR image/PDF automatique non implémenté.
+**Migrations Replay appliquées :** 20261111011044 (base trois niveaux), 20261111011317 (référence secondaire contre historique), 20261111012919 (tables appareil/événement Admin), 20261111012923 (heure de réception SMS au RPC), 20261111013438 (RPC d'auto-confirmation Admin), 20261111013608 (fenêtre temporelle SMS Admin 15 min avant / 30 min après).
 
-**Preuves exécutées :** migrations Replay appliquées (`20261111011044` et `20261111011317`) ; `supabase/tests/promoteur_payment_three_stage_verification.sql` PASS après corrections des assertions d'inspection ; ACL RPC vérifiées (`anon=false`, `authenticated=false`, `service_role=true`) ; colonnes/index uniques et cron de validité vérifiés dans le schéma Replay. Le garde sur référence secondaire compare également l'historique principal complet. Aucune destination marchande n'est configurée dans Replay (0 destination active). Aucun module Android natif, aucune écriture Production et aucun déploiement. La tolérance de 24 h maintient uniquement un accès déjà actif ; elle ne réactive pas une suspension antérieure.
+**Preuves Replay :** supabase/tests/promoteur_payment_three_stage_verification.sql PASS ; supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql PASS. Tables Admin en RLS, pas de lecture anon/authenticated, RPC auto-confirmation exécutable par service_role uniquement ; index unique sur la référence événement.
+
+**Chantiers codés :**
+- Capture Admin : enrôlement par canal, capture SMS brut, rapprochement unique des dossiers, liste des événements dans le cockpit Admin.
+- Auto-renouvellement : RPC qui appelle la confirmation Admin canonique seulement après rapprochement strict. Ambiguïté, référence dupliquée, payeur absent ou délai hors fenêtre = revue manuelle. Aucun profil/pharmacie suspendu indépendamment n'est réactivé.
+- OCR : images et PDF de 3 pages maximum, français + anglais ; texte complet temporaire dans le navigateur, champs structurés enregistrés, aucune décision de paiement prise par OCR.
+- Compagnon Android : source native Java/Gradle ajoutée dans android/payment-companion/ ; session Supabase, enrôlement Promoteur/Admin, jetons chiffrés Android Keystore, filtrage strict OrangeMoney/MobileMoney sur l'adresse d'expéditeur brute. Pas d'accès READ_SMS ni historique de messages.
+
+**Réserves / statut JAUNE :**
+- Aucun APK compilé : Android SDK, Gradle et ADB absents de l'environnement. Aucun essai sur téléphone réel ni SIM MTN/Orange.
+- RECEIVE_SMS est une permission dangereuse hard-restricted ; Play Protect peut bloquer l'installation d'une application qui la déclare quand elle est téléchargée depuis Internet. Le canal de téléchargement NAXA n'est pas validé pour la capture native ; une voie d'installation approuvée/allowlistée est nécessaire. Ne pas contourner Play Protect.
+- Supabase Replay a zéro destination marchande active. Aucun test complet de paiement ne doit être simulé avec un code inventé.
+- Scripts Node de régression ajoutés mais non exécutés dans cette passe ; typecheck complet, lint, build Next.js, build APK et recette E2E téléphone restent non prouvés.
+- Les Sender IDs alphanumériques SMS ne sont pas une authentification cryptographique ; validation opérateur/anti-spoofing réelle requise avant d'affirmer le risque nul.
+
+**Périmètre :** QA branch only et Supabase Replay only ; main, Supabase Production et Vercel Production non touchés.
