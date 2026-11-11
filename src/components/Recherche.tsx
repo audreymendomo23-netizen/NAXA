@@ -127,50 +127,72 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
         setRechercheCatalogue("repos");
         enregistrerCacheRecherche(terme, results);
 
-        // Recherche indépendante : une requête par fiche, afin de ne jamais
-        // attribuer la photo d'un médicament à un autre résultat de la liste.
+        // Recherche indépendante : une photo ne peut jamais être attribuée à un autre résultat.
+        // Deux workers maximum : ils séquencent les appels externes et protègent les quotas gratuits.
         const ciblesPhoto = results.filter((item) => !item.imageUrl).slice(0, 10);
         if (ciblesPhoto.length) {
-          void Promise.all(ciblesPhoto.map(async (item) => {
-            const identities = [...new Set([item.brand, item.name, item.activeIngredient]
-              .filter((value): value is string => Boolean(value && value.trim().length >= 3))
-              .map((value) => value.trim()))];
-            if (!identities.length) return null;
-            try {
-              let imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> = { boite: null, comprime: null };
-              for (const identity of identities) {
-                const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), { signal: controller.signal });
+          const imageUpdates = new Map<string, MedicamentRecherche>();
+          let prochainIndexPhoto = 0;
+          const workerPhoto = async () => {
+            while (!controller.signal.aborted) {
+              const item = ciblesPhoto[prochainIndexPhoto++];
+              if (!item) return;
+              const identity = [item.brand, item.name, item.activeIngredient]
+                .find((value): value is string => Boolean(value && value.trim().length >= 3))?.trim();
+              if (!identity) continue;
+              try {
+                const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), {
+                  signal: controller.signal
+                });
                 if (!photoResponse.ok) continue;
                 const payload = await photoResponse.json() as {
                   photos?: {
-                    boite?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
-                    comprime?: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime" } | null;
+                    boite?: {
+                      url: string; sourceUrl: string; licence: string; attribution: string | null;
+                      title: string; kind: "boite" | "comprime";
+                      provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
+                    } | null;
+                    comprime?: {
+                      url: string; sourceUrl: string; licence: string; attribution: string | null;
+                      title: string; kind: "boite" | "comprime";
+                      provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
+                    } | null;
                   };
                 };
-                imageVariants = { boite: payload.photos?.boite ?? null, comprime: payload.photos?.comprime ?? null };
-                if (imageVariants.boite || imageVariants.comprime) break;
+                const imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> = {
+                  boite: payload.photos?.boite ?? null,
+                  comprime: payload.photos?.comprime ?? null
+                };
+                const primary = imageVariants.boite ?? imageVariants.comprime;
+                if (!primary || controller.signal.aborted) continue;
+                const sourceName = primary.provider === "cima_aemps"
+                  ? "AEMPS / CIMA"
+                  : primary.provider === "open_products_facts"
+                    ? "Open Products Facts"
+                    : primary.provider === "catalogue_local_verifie"
+                      ? "Catalogue local NAXA"
+                      : "Wikimedia Commons";
+                imageUpdates.set(item.id, {
+                  ...item,
+                  imageUrl: primary.url,
+                  imageSource: sourceName + " — " + (primary.kind === "boite" ? "boîte" : "forme pharmaceutique") + " · " + primary.licence,
+                  imageSourceUrl: primary.sourceUrl,
+                  imageLicense: primary.licence,
+                  imageAttribution: primary.attribution,
+                  imageTitle: primary.title,
+                  imageVariants
+                } satisfies MedicamentRecherche);
+              } catch {
+                // Une photo non récupérable ne bloque pas les autres résultats.
               }
-              const primary = imageVariants.boite ?? imageVariants.comprime;
-              if (!primary || controller.signal.aborted) return null;
-              return {
-                ...item,
-                imageUrl: primary.url,
-                imageSource: "Wikimedia Commons — " + (primary.kind === "boite" ? "boîte" : "comprimé") + " · " + primary.licence,
-                imageSourceUrl: primary.sourceUrl,
-                imageLicense: primary.licence,
-                imageAttribution: primary.attribution,
-                imageTitle: primary.title,
-                imageVariants
-              } satisfies MedicamentRecherche;
-            } catch {
-              return null;
             }
-          })).then((updates) => {
-            if (controller.signal.aborted) return;
-            const byId = new Map(updates.filter((item) => item !== null).map((item) => [item.id, item] as const));
-            if (!byId.size) return;
-            const updated = results.map((item) => byId.get(item.id) ?? item);
-            setMedicaments((current) => current.map((item) => byId.get(item.id) ?? item));
+          };
+          void Promise.all(
+            Array.from({ length: Math.min(2, ciblesPhoto.length) }, () => workerPhoto())
+          ).then(() => {
+            if (controller.signal.aborted || !imageUpdates.size) return;
+            const updated = results.map((item) => imageUpdates.get(item.id) ?? item);
+            setMedicaments((current) => current.map((item) => imageUpdates.get(item.id) ?? item));
             enregistrerCacheRecherche(terme, updated);
           }).catch(() => undefined);
         }
