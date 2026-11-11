@@ -57,7 +57,7 @@ test("l’aperçu de bibliothèque est intégré à l’accueil principal du cli
   assert.match(route, /loadProductImageLibrary\("bebe-maman"\)/);
   assert.match(preview, /\/api\/bibliotheque-images/);
   assert.match(home, /<ProductImageLibraryPreview \/>/);
-  assert.match(home, /Bibliothèque visuelle/);
+  assert.match(preview, /Bibliothèque visuelle des produits/);
 });
 
 process.stdout.write("Bibliothèque visuelle et affichage principal vérifiés.\n");
