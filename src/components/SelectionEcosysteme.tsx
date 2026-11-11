@@ -16,6 +16,15 @@ export function SelectionEcosysteme({ onSelect }: Props) {
   const [availability, setAvailability] = useState<Availability>({ pharmacie: true });
   const [loading, setLoading] = useState(true);
   const [availabilityError, setAvailabilityError] = useState(false);
+  const [lockedNotice, setLockedNotice] = useState("");
+
+  useEffect(() => {
+    const lockedSlug = new URLSearchParams(window.location.search).get("universVerrouille");
+    if (lockedSlug) {
+      const lockedItem = ECOSYSTEMES.find((item) => item.id === lockedSlug);
+      if (lockedItem) setLockedNotice(`L’espace ${lockedItem.label} est actuellement verrouillé par l’administration NAXA.`);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -53,6 +62,11 @@ export function SelectionEcosysteme({ onSelect }: Props) {
           </p>
         </div>
 
+        {lockedNotice && (
+          <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            {lockedNotice}
+          </p>
+        )}
         {availabilityError && (
           <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
             La disponibilité des autres espaces ne peut pas être vérifiée pour le moment. Seul l’espace Pharmacie reste accessible jusqu’au rétablissement du contrôle.

@@ -235,11 +235,36 @@ export function EnTeteClient() {
       </nav>}
     </div>
     <style jsx>{`
-      @keyframes naxa-ecosysteme-identite {
+      @keyframes naxa-ecosysteme-pharmacie {
         from { opacity: .55; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      .naxa-ecosysteme-tagline { animation: naxa-ecosysteme-identite 420ms ease-out both; }
+      @keyframes naxa-ecosysteme-parapharmacie {
+        from { opacity: .45; transform: translateX(-5px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes naxa-ecosysteme-examens {
+        from { opacity: .4; transform: scale(.97); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes naxa-ecosysteme-domicile {
+        from { opacity: .45; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes naxa-ecosysteme-bebe {
+        from { opacity: .5; letter-spacing: .04em; }
+        to { opacity: 1; letter-spacing: normal; }
+      }
+      @keyframes naxa-ecosysteme-dispositifs {
+        from { opacity: .45; filter: blur(2px); }
+        to { opacity: 1; filter: blur(0); }
+      }
+      .naxa-ecosysteme-tagline { animation: naxa-ecosysteme-pharmacie 420ms ease-out both; }
+      [data-naxa-ecosysteme="parapharmacie"] .naxa-ecosysteme-tagline { animation-name: naxa-ecosysteme-parapharmacie; }
+      [data-naxa-ecosysteme="examens"] .naxa-ecosysteme-tagline { animation-name: naxa-ecosysteme-examens; }
+      [data-naxa-ecosysteme="prestations"] .naxa-ecosysteme-tagline { animation-name: naxa-ecosysteme-domicile; }
+      [data-naxa-ecosysteme="bebe-maman"] .naxa-ecosysteme-tagline { animation-name: naxa-ecosysteme-bebe; }
+      [data-naxa-ecosysteme="dispositifs"] .naxa-ecosysteme-tagline { animation-name: naxa-ecosysteme-dispositifs; }
       @media (prefers-reduced-motion: reduce) {
         .naxa-ecosysteme-tagline { animation: none !important; }
       }

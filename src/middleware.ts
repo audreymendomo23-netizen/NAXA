@@ -66,6 +66,58 @@ export async function middleware(req: NextRequest) {
     (prefix) => path === prefix || path.startsWith(prefix + "/")
   );
 
+  // Le verrouillage Admin doit aussi protéger les URL saisies directement.
+  // La policy RLS publique de public.universes ne retourne que les espaces actifs.
+  const universParcours = [
+    { prefix: "/parapharmacie", slug: "parapharmacie" },
+    { prefix: "/bebe-maman", slug: "bebe-maman" },
+    { prefix: "/examens", slug: "examens" },
+    { prefix: "/centre-examens", slug: "examens" },
+    { prefix: "/prestations", slug: "prestations" },
+    { prefix: "/partenaire/prestations", slug: "prestations" },
+    { prefix: "/suivi", slug: "suivi" },
+  ];
+  const universVerrouillable = universParcours.find(
+    (item) => path === item.prefix || path.startsWith(item.prefix + "/")
+  );
+  if (universVerrouillable) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    let enabled = false;
+    try {
+      if (!supabaseUrl || !anonKey) throw new Error("public_supabase_not_configured");
+      const statusUrl = new URL("/rest/v1/universes", supabaseUrl);
+      statusUrl.searchParams.set("select", "slug");
+      statusUrl.searchParams.set("slug", `eq.${universVerrouillable.slug}`);
+      const statusResponse = await fetch(statusUrl.toString(), {
+        method: "GET",
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+      if (!statusResponse.ok) throw new Error("universe_status_unavailable");
+      const rows = await statusResponse.json();
+      enabled = Array.isArray(rows) && rows.some(
+        (row) => row && row.slug === universVerrouillable.slug
+      );
+    } catch {
+      // Fail closed : un état Admin inconnu ne doit jamais ouvrir un univers.
+      enabled = false;
+    }
+
+    if (!enabled) {
+      const target = req.nextUrl.clone();
+      target.pathname = "/";
+      target.search = "";
+      target.searchParams.set("choisirEcosysteme", "1");
+      target.searchParams.set("universVerrouille", universVerrouillable.slug);
+      return NextResponse.redirect(target);
+    }
+  }
+
   // Les pages publiques et les écrans d'authentification ne doivent pas attendre
   // Supabase : une panne réseau ne doit jamais bloquer l'affichage du site.
   if (isOnboardingExempt || path.startsWith("/api/") || !protectedPath) {
