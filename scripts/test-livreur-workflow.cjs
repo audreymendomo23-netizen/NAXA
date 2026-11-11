@@ -100,7 +100,7 @@ test("une mission peut être réaffectée avant collecte, jamais après", () => 
 test("la prise de mission est atomique et le journal des offres reste privé", () => {
   assert.match(files.offers, /select \* into v_m from public\.naxa_delivery_missions where id=p_mission for update/);
   assert.match(files.offers, /update public\.naxa_delivery_mission_offers/);
-  assert.match(files.offers, /offer_status='lost'/);
+  assert.match(files.offers, /offer_status=case when livreur_id=v_uid then 'accepted' else 'lost' end/);
   assert.match(files.offers, /acceptance_rate/);
   assert.match(files.offers, /revoke all on public\.naxa_delivery_mission_offers from public,anon,authenticated/);
   assert.match(files.hardening, /naxa_delivery_driver_can_act/);
