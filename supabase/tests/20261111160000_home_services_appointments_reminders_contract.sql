@@ -71,6 +71,25 @@ begin
   if not v_transition_guard then
     raise exception 'Legacy transition RPC must reject confirmation without a scheduled slot';
   end if;
+
+  if to_regclass('public.naxa_notification_push_outbox') is null then
+    raise exception 'Global NAXA notification Push outbox missing';
+  end if;
+
+  if not exists (
+    select 1 from pg_trigger t
+    join pg_class c on c.oid=t.tgrelid
+    join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relname='notifications'
+      and t.tgname='naxa_notification_push_enqueue' and not t.tgisinternal
+  ) then
+    raise exception 'Global notification Push enqueue trigger missing';
+  end if;
+
+  if has_table_privilege('authenticated','public.naxa_notification_push_outbox','SELECT')
+    or has_table_privilege('anon','public.naxa_notification_push_outbox','SELECT') then
+    raise exception 'Global notification Push outbox is exposed to client roles';
+  end if;
 end
 $test$;
 
