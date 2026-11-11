@@ -80,14 +80,14 @@ test("l'identité Livreur exige un e-mail vérifié, le consentement et 18 ans r
 });
 
 test("la Pharmacie peut gérer et révoquer ses Livreurs sans interrompre une mission", () => {
-  assert.match(files.pharmacyRevoke, /v_actor_role='pharmacie' and v_assignment\\.role_code='livreur'/);
-  assert.match(files.pharmacyRevoke, /naxa_active_role_pharmacy\\(v_actor\\)/);
-  assert.match(files.pharmacyRevoke, /naxa_scope_allows\\(v_actor,v_assignment\\.pharmacie_id,'PHARMACIE'\\)/);
+  assert.match(files.pharmacyRevoke, /v_actor_role='pharmacie' and v_assignment\.role_code='livreur'/);
+  assert.match(files.pharmacyRevoke, /naxa_active_role_pharmacy\(v_actor\)/);
+  assert.match(files.pharmacyRevoke, /naxa_scope_allows\(v_actor,v_assignment\.pharmacie_id,'PHARMACIE'\)/);
   assert.match(files.schema, /naxa_block_livreur_revoke_with_open_delivery/);
 });
 
 test("les missions sont bloquées si la pharmacie est suspendue ou archivée", () => {
-  assert.match(files.pharmacyGuards, /ph\\.actif=true and ph\\.archivee_le is null/);
+  assert.match(files.pharmacyGuards, /ph\.actif=true and ph\.archivee_le is null/);
   assert.match(files.pharmacyGuards, /La pharmacie est suspendue ou archivée/);
 });
 
