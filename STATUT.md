@@ -1,17 +1,19 @@
 ## Paiement abonnement Promoteur — contrôles à trois niveaux — 11/11/2026
 
-**État : 🟡 code préparé sur la branche QA ; migration Replay et recettes à exécuter. Aucun déploiement ni changement Production.**
+**État : 🟡 code versionné sur QA ; migration Replay appliquée ; test SQL ciblé PASS. Aucun déploiement ni changement Production.**
 
 - Nouvelles déclarations limitées à MTN Mobile Money et Orange Money ; les lignes bancaires historiques restent consultables, mais le virement est retiré des nouveaux formulaires et destinations.
 - Niveau 1 : l'API de capture exige désormais le SMS brut, l'adresse d'expéditeur brute, un appareil enrôlé, l'heure de réception et un rapprochement exact avec l'intention : canal, montant, bénéficiaire, référence et fenêtre de temps. Les messages MTN courts sans référence/horodatage sont informatifs seulement.
 - Niveau 2 : un registre sécurisé de références secondaires autorise le rapprochement d'une référence marchand différente (ex. MP) sur le même dossier, avec source et horodatages distincts. L'enrôlement du téléphone Admin et son endpoint de capture ne sont pas encore construits.
 - Niveau 3 : le formulaire Promoteur accepte le SMS collé, en français ou anglais, ainsi qu'un justificatif dès la déclaration. Règles locales puis Gemini/Groq en extraction ; seul un ensemble de champs structurés est conservé, jamais le SMS brut. Les captures/PDF sont joints au dossier, mais leur OCR automatique n'est pas encore implémenté ; l'Admin peut les examiner.
 - Références : normalisation alphanumérique et contrainte unique globale dans les règlements, plus index unique des événements de capture ; le registre secondaire permet de lier PP et MP au même paiement sans réutiliser une référence déjà affectée à un autre dossier.
+- **Migration Replay : appliquée** (`promoteur_payment_three_stage_verification_20261111`). Pré-requis Replay synchronisés (confirmation abonnement, destinations/instantané, preuve facultative). ACL vérifiées : RPC déclaration et RPC référence secondaire `anon=false`, `authenticated=false`, `service_role=true`. Index uniques et cron horaire vérifiés.
+- **Test SQL ciblé : PASS** — `supabase/tests/promoteur_payment_three_stage_verification.sql` exécuté sur Replay, rollback implicite du test confirmé.
 - Date/heure : la date de transaction opérateur, l'heure de réception du SMS et l'heure de déclaration serveur sont séparées. Africa/Douala est utilisé pour les conversions d'horodatage dans les règles métier.
 - Tolérance : une déclaration valide ouvre 24 h de vérification et le cron de validité diffère uniquement l'expiration commerciale pendant cette fenêtre. La règle ne réactive aucun compte/profil/pharmacie déjà inactif ou suspendu indépendamment.
 - Sécurité : l'analyse manuelle reste en attente d'une confirmation Admin ; aucune capture Android n'est considérée comme preuve opérateur cryptographiquement authentifiée. Le niveau 1 natif reste inopérant tant que l'application Android et son service SMS ne sont pas livrés.
 
-**Non prouvé à ce point :** migration Replay, régressions Node/SQL, typecheck, lint, build, tests sur SIM MTN/Orange, enrôlement Admin et intégration Android native. Statut JAUNE ; ne pas présenter le chantier comme terminé.
+**Non prouvé à ce point :** test Node ciblé, typecheck, lint, build, tests sur SIM MTN/Orange, enrôlement Admin et intégration Android native. Le niveau 2 (capture Admin) et le renouvellement sans intervention Admin ne sont pas livrés. Statut JAUNE ; ne pas présenter le chantier comme terminé.
 
 ## Import stock hybride IA + moteur — 10/11/2026
 
