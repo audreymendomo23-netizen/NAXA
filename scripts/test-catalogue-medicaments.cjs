@@ -177,6 +177,8 @@ test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont int
   assert.match(photoResolver, /materialas/);
   assert.match(photoResolver, /formafarmac/);
   assert.match(photoResolver, /cimaNameMatches/);
+  assert.match(photoResolver, /strictImageIdentityTokens/);
+  assert.match(photoResolver, /ingredientOnlyMismatch/);
   assert.match(photoResolver, /provider: "cima_aemps"/);
   assert.ok(photoResolver.includes("https://world.openproductsfacts.org/api/v2/product/"));
   assert.ok(photoResolver.includes("product?.code ?? json.code"));
