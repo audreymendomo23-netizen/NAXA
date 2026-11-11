@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { PromoteurPaymentProofOcr } from "@/components/admin/PromoteurPaymentProofOcr";
 import { confirmerReglementPromoteur, contesterReglementPromoteur } from "./actions";
 
 type SearchParams = Promise<{ ok?: string; erreur?: string }>;
@@ -16,9 +17,10 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
   const query = await searchParams;
   await requireAdminActive("/admin/pilotage/reglements");
   const db = supabaseAdmin();
-  const [{ data: pending, error: pendingError }, { data: recent, error: recentError }] = await Promise.all([
+  const [{ data: pending, error: pendingError }, { data: recent, error: recentError }, { data: adminSmsEvents, error: adminSmsEventsError }] = await Promise.all([
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,destination_snapshot,declared_at,created_at,verification_deadline_at,verification_level,verification_status,verification_details").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_au,declared_at,destination_snapshot,created_at,motif_contestation").neq("statut", "en_attente").order("created_at", { ascending: false }).limit(50),
+    db.from("naxa_admin_payment_capture_events").select("id,canal,transaction_reference,amount,payer_number,merchant_reference,sender_origin_id,sms_received_at,match_status,reglement_id").order("created_at", { ascending: false }).limit(50),
   ]);
   const paymentRows = [...(pending ?? []), ...(recent ?? [])];
   const promoterIds = [...new Set(paymentRows.map(r => r.promoteur_id).filter((id): id is string => typeof id === "string" && id.length > 0))];
@@ -98,6 +100,28 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
     {query?.ok && <p role="status" className="rounded-2xl bg-white p-4 text-green-800">{query?.ok === "confirme" ? "Paiement confirmé, abonnement renouvelé et reçu disponible dans l’espace Promoteur." : "Règlement mis à jour."}</p>}
     {query?.erreur && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">{errors[query?.erreur] ?? "Une erreur est survenue."}</p>}
     {paymentContextUnavailable && <p role="alert" className="rounded-2xl border border-amber-300 bg-white p-4 text-sm text-amber-900">L’identité du Promoteur ou la liste de ses pharmacies rattachées est incomplète. La confirmation est désactivée jusqu’à ce que le dossier soit entièrement vérifiable.</p>}
+    <section className="space-y-3 rounded-2xl border border-indigo-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-black">SMS reçus sur le téléphone Admin ({adminSmsEvents?.length ?? 0})</h2>
+        <span className="text-xs text-slate-500">Contrôle de secours · Orange Money / MTN Mobile Money</span>
+      </div>
+      {adminSmsEventsError && <p role="alert" className="text-sm text-red-700">Les événements SMS Admin n'ont pas pu être chargés.</p>}
+      {!adminSmsEventsError && !adminSmsEvents?.length && <p className="text-sm text-slate-600">Aucun SMS marchand capturé. Enrôlez le téléphone Admin dans le compagnon NAXA pour activer le deuxième contrôle.</p>}
+      {!adminSmsEventsError && adminSmsEvents?.map(event => <article key={event.id} className="rounded-xl border border-slate-200 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-bold">{event.canal === "orange_money" ? "Orange Money" : "MTN Mobile Money"} · {money(event.amount)}</p>
+          <span className={"rounded-full px-2 py-1 text-xs font-bold " + (event.match_status === "confirmed" ? "bg-green-100 text-green-800" : event.match_status === "manual_review" || event.match_status === "ambiguous" ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700")}>
+            {event.match_status === "confirmed" ? "Abonnement renouvelé" : event.match_status === "ambiguous" ? "Plusieurs dossiers possibles" : event.match_status === "manual_review" ? "Revue manuelle" : event.match_status === "matched" ? "Rapproché" : event.match_status}
+          </span>
+        </div>
+        <p className="mt-1 break-all text-sm">Référence : <strong>{event.transaction_reference}</strong></p>
+        <p className="text-xs text-slate-600">Expéditeur : {event.sender_origin_id} · Payeur : {event.payer_number ?? "—"} · Reçu : {date(event.sms_received_at)}</p>
+        <p className="text-xs text-slate-600">Destination : {event.merchant_reference}</p>
+        {event.reglement_id
+          ? <Link href={"/admin/pilotage/reglements#paiement-" + event.reglement_id} className="mt-2 inline-block text-sm font-bold text-[#0147BB] underline">Ouvrir le dossier de paiement</Link>
+          : <p className="mt-2 text-xs font-semibold text-amber-900">Aucun dossier unique identifié. Le rapprochement manuel reste nécessaire.</p>}
+      </article>)}
+    </section>
     <section className="space-y-3">
       <h2 className="text-xl font-black">Paiements à vérifier ({pending?.length ?? 0})</h2>
       {pendingError && <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">Impossible de charger les paiements à vérifier.</p>}
@@ -126,6 +150,8 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
             {!isVideo && /\.(jpg|jpeg|png|webp)$/i.test(r.preuve_path) && <a href={proof} target="_blank" rel="noreferrer"><Image width={1280} height={800} unoptimized src={proof} alt="Preuve du paiement envoyée par le Promoteur" className="mb-3 max-h-80 max-w-full rounded-xl object-contain" /></a>}
             <a className="inline-block rounded-full border border-[#0147BB] px-4 py-2 text-sm font-bold text-[#0147BB] underline" href={proof} target="_blank" rel="noreferrer" download>Consulter / télécharger la preuve privée</a>
             <p className="mt-2 text-xs text-slate-500">Lien privé temporaire, valable 10 minutes. Renouvelez la page si nécessaire.</p>
+            {!isVideo && <PromoteurPaymentProofOcr proofUrl={proof} reglementId={r.id}/>}
+
           </div>}
           {!proof && <p className="mt-3 text-sm text-amber-800">{r.preuve_path ? "La preuve complémentaire déposée n’a pas pu être chargée. Vous pouvez procéder uniquement après vérification externe complète." : "Aucune preuve complémentaire n’a encore été déposée. Vérifiez directement la transaction auprès de l’opérateur ou de la banque."}</p>}
           <form action={confirmerReglementPromoteur} className="mt-4"><input type="hidden" name="reglement_id" value={r.id}/><label className="mb-3 flex items-start gap-2 text-sm"><input required type="checkbox" name="preuve_verifiee" className="mt-1 h-4 w-4 accent-[#0F6B3F]"/><span>J’ai vérifié directement auprès de l’opérateur ou de la banque la réalité de l’encaissement, le montant, le canal, le compte payeur, la destination et la référence exacte de cette transaction.</span></label><button disabled={paymentContextUnavailable} className="min-h-11 rounded-full bg-[#0F6B3F] px-5 font-bold text-white disabled:opacity-40">Confirmer l’encaissement réel et renouveler l’abonnement</button><p className="mt-2 text-xs text-slate-500">Cette action est définitive et journalisée. Elle met à jour l’échéance à partir de la date de validation.</p></form>
