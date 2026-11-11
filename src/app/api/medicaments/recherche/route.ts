@@ -322,6 +322,11 @@ export async function GET(request: NextRequest) {
   if (query.length < 2) {
     return NextResponse.json({ results: [], message: "Saisissez au moins deux caractères." });
   }
+  // Un EAN/GTIN ne doit pas partir vers RxNorm, openFDA ou DailyMed comme terme médical.
+  // L'interface le transmet directement à l'endpoint photo/Open Products Facts.
+  if (/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(query)) {
+    return NextResponse.json({ results: [], barcodeLookup: true });
+  }
 
   const pilot = trouverMedicamentPilote(query);
   const terms = termesRecherche(query);
