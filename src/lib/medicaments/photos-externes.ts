@@ -216,11 +216,9 @@ function cimaNameMatches(query: string, candidateName: string): boolean {
   const actual = new Set(candidateTokens);
   if (!wanted.length || !wanted.every((token) => actual.has(token))) return false;
 
-  // Une DCI seule ne doit pas hériter de la photo d'une marque espagnole
-  // contenant cette molécule. Pour une requête mono-substance, le nom doit
-  // rester limité à cette substance après retrait du dosage et de la forme.
-  const singleIngredient = wanted.length === 1 && ACTIVE_INGREDIENT_TOKENS.has(wanted[0]);
-  if (!singleIngredient) return true;
+  // Pour toute recherche d'un seul terme (marque ou DCI), exiger une identité
+  // stricte après retrait de la forme et du dosage : aucun ajout de marque ou association.
+  if (wanted.length !== 1) return true;
   const strictTokens = strictImageIdentityTokens(candidateName).map((token) => CIMA_NAME_ALIASES[token] ?? token);
   return strictTokens.length === 1 && strictTokens[0] === wanted[0];
 }
@@ -456,12 +454,12 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
       const coverage = matchingCount / required.length;
       const detectedKind = kindOf(page);
       const exactCoreMatch = required.some((token) => titleTokens.has(token));
-      const singleIngredient = required.length === 1 && ACTIVE_INGREDIENT_TOKENS.has(required[0]);
+      const singleTokenLookup = required.length === 1;
       const titleIdentityTokens = strictImageIdentityTokens(title);
-      const ingredientOnlyMismatch = singleIngredient &&
+      const singleTokenIdentityMismatch = singleTokenLookup &&
         (titleIdentityTokens.length !== 1 || titleIdentityTokens[0] !== required[0]);
       const combinationMismatch = likelyCombinationMismatch(title, required);
-      return { info, title, matchingCount, coverage, detectedKind, exactCoreMatch, ingredientOnlyMismatch, combinationMismatch };
+      return { info, title, matchingCount, coverage, detectedKind, exactCoreMatch, singleTokenIdentityMismatch, combinationMismatch };
     }).filter((item) =>
       item.info?.thumburl?.startsWith("https://") &&
       item.info.url?.startsWith("https://") &&
@@ -469,7 +467,7 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
       item.exactCoreMatch &&
       item.coverage >= 0.75 &&
       item.detectedKind === kind &&
-      !item.ingredientOnlyMismatch &&
+      !item.singleTokenIdentityMismatch &&
       !item.combinationMismatch
     ).sort((a, b) =>
       b.coverage - a.coverage || b.matchingCount - a.matchingCount
