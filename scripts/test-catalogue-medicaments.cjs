@@ -188,3 +188,12 @@ test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont int
   assert.match(photoRoute, /provider: "catalogue_local_verifie"/);
   assert.ok(photoRoute.includes("selected?.provider"));
 });
+
+test("photos : le chargement client borne la concurrence et conserve la provenance réelle", () => {
+  assert.ok(recherche.includes("Math.min(2, ciblesPhoto.length)"));
+  assert.ok(!recherche.includes("Promise.all(ciblesPhoto.map"));
+  assert.ok(recherche.includes("AEMPS / CIMA"));
+  assert.ok(recherche.includes("Open Products Facts"));
+  assert.ok(recherche.includes("Wikimedia Commons"));
+  assert.ok(photoRoute.includes("aucune_source_gratuite_trouvee"));
+});
