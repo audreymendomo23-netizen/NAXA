@@ -64,6 +64,24 @@ function identityTokens(value: string): string[] {
   ))];
 }
 
+const IMAGE_IDENTITY_STOPWORDS = new Set([
+  "medicine", "medicament", "drug", "pharmaceutical", "box", "package", "packaging",
+  "carton", "blister", "outer", "tablet", "tablets", "pill", "pills", "capsule",
+  "capsules", "caplet", "comprimido", "comprimidos", "tableta", "tabletas",
+  "gelule", "gelules", "capsula", "capsulas", "oral", "efg", "efervescente",
+  "efervescentes", "recubierto", "recubiertos", "solution", "solucion", "suspension",
+  "suspensiones", "jarabe", "polvo", "cream", "crema", "ointment", "pommade"
+]);
+
+function strictImageIdentityTokens(value: string): string[] {
+  return normalize(value).split(/\\s+/).filter((token) =>
+    token.length > 0 &&
+    !IMAGE_IDENTITY_STOPWORDS.has(token) &&
+    !/^\\d+(?:[.,]\\d+)?(?:mg|mcg|ug|g|kg|ml|iu|ui)?$/.test(token) &&
+    !/^(?:mg|mcg|ug|g|kg|ml|iu|ui)$/.test(token)
+  );
+}
+
 function plain(value: string | undefined): string {
   return (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -189,7 +207,9 @@ function cimaNameMatches(query: string, candidateName: string): boolean {
   // contenant cette molécule. Pour une requête mono-substance, le nom doit
   // rester limité à cette substance après retrait du dosage et de la forme.
   const singleIngredient = wanted.length === 1 && ACTIVE_INGREDIENT_TOKENS.has(wanted[0]);
-  return !singleIngredient || (candidateTokens.length === 1 && candidateTokens[0] === wanted[0]);
+  if (!singleIngredient) return true;
+  const strictTokens = strictImageIdentityTokens(candidateName).map((token) => CIMA_NAME_ALIASES[token] ?? token);
+  return strictTokens.length === 1 && strictTokens[0] === wanted[0];
 }
 
 function cimaIngredients(medicine: CimaMedicine): string {
@@ -401,7 +421,7 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
       const detectedKind = kindOf(page);
       const exactCoreMatch = required.some((token) => titleTokens.has(token));
       const singleIngredient = required.length === 1 && ACTIVE_INGREDIENT_TOKENS.has(required[0]);
-      const titleIdentityTokens = identityTokens(title);
+      const titleIdentityTokens = strictImageIdentityTokens(title);
       const ingredientOnlyMismatch = singleIngredient &&
         (titleIdentityTokens.length !== 1 || titleIdentityTokens[0] !== required[0]);
       const combinationMismatch = likelyCombinationMismatch(title, required);
