@@ -13,3 +13,21 @@ export async function ajouterHoraireExamen(form:FormData){const {sb,user}=await 
 export async function genererCreneauxExamen(form:FormData){const {sb,user}=await context();const center=String(form.get("center_id")??"");if(!uuid(center)||!await centerAllowed(sb,user.id,center))fail();const {error}=await sb.rpc("generate_exam_slots_for_center",{p_center_id:center,p_days:14});if(error)fail();revalidatePath("/partenaire/examens");revalidatePath("/examens");redirect("/partenaire/examens?ok=creneaux");}
 
 export async function creerPackExamen(form:FormData){const {sb,user}=await context();const center=String(form.get("center_id")??"");const name=String(form.get("name")??"").trim();const desc=String(form.get("description")??"").trim();const price=Number(form.get("price_fcfa"));if(!uuid(center)||!await centerAllowed(sb,user.id,center)||name.length<2||name.length>180||desc.length>1000||!Number.isSafeInteger(price)||price<0||price>100000000)fail();const {error}=await sb.from("exam_packs").insert({center_id:center,name,description:desc||null,price_fcfa:price,status:"draft"});if(error)fail();revalidatePath("/partenaire/examens");revalidatePath("/admin/examens");revalidatePath("/examens");redirect("/partenaire/examens?ok=pack");}
+
+ 
+export async function transitionExamAppointment(form:FormData){
+ const {sb}=await context();
+ const appointment=String(form.get("appointment_id")??"");
+ const nextStatus=String(form.get("next_status")??"");
+ if(!uuid(appointment)||!["confirmed","completed","cancelled"].includes(nextStatus))fail();
+ const {error}=await sb.rpc("transition_exam_appointment",{
+  p_appointment_id:appointment,
+  p_next_status:nextStatus
+ });
+ if(error)fail();
+ revalidatePath("/partenaire/examens");
+ revalidatePath("/admin/examens");
+ revalidatePath("/client");
+ revalidatePath("/examens");
+ redirect("/partenaire/examens?ok=statut");
+}
