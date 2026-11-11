@@ -77,9 +77,19 @@ export async function middleware(req: NextRequest) {
     { prefix: "/partenaire/prestations", slug: "prestations" },
     { prefix: "/suivi", slug: "suivi" },
   ];
-  const universVerrouillable = universParcours.find(
+  let universVerrouillable = universParcours.find(
     (item) => path === item.prefix || path.startsWith(item.prefix + "/")
   );
+  if (path === "/partenaire/catalogue" || path.startsWith("/partenaire/catalogue/")) {
+    const ecosystemeCatalogue =
+      req.nextUrl.searchParams.get("ecosysteme")
+      ?? req.cookies.get("naxa-ecosysteme")?.value;
+    if (ecosystemeCatalogue === "parapharmacie") {
+      universVerrouillable = { prefix: "/partenaire/catalogue", slug: "parapharmacie" };
+    } else if (ecosystemeCatalogue === "bebe-maman") {
+      universVerrouillable = { prefix: "/partenaire/catalogue", slug: "bebe-maman" };
+    }
+  }
   if (universVerrouillable) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

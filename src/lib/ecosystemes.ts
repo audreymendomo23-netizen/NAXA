@@ -138,8 +138,8 @@ export function enregistrerEcosystemeSelectionne(id: EcosystemeId): void {
 export function routeProfessionnelleEcosysteme(id: EcosystemeId): string {
   switch (id) {
     case "pharmacie": return "/pharmacie";
-    case "parapharmacie":
-    case "bebe-maman": return "/partenaire/catalogue";
+    case "parapharmacie": return "/partenaire/catalogue?ecosysteme=parapharmacie";
+    case "bebe-maman": return "/partenaire/catalogue?ecosysteme=bebe-maman";
     case "examens": return "/centre-examens";
     case "prestations": return "/partenaire/prestations";
     case "dispositifs": return "/suivi/professionnel";

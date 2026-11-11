@@ -24,7 +24,7 @@ Le choix mémorisé permet le retour direct vers le dernier écosystème à la p
 | Maman & Bébé | `/bebe-maman` | Rose |
 | Dispositifs médicaux | `/suivi` | Bleu |
 
-L’identité Client est commune. Les données, historiques, réservations et paniers métier restent cloisonnés selon les modules existants. Le changement d’écosystème ne confère aucun rôle ou droit professionnel.
+L’identité Client est commune. Les données, historiques, réservations et paniers métier restent cloisonnés selon les modules existants. Le changement d’écosystème ne confère aucun rôle ou droit professionnel. Le portail catalogue partagé conserve le slug sélectionné dans l’URL afin que le contrôle Admin puisse appliquer le verrou approprié.
 
 ## Verrouillage administrateur
 
@@ -48,7 +48,8 @@ Le panier actuellement branché à `BoutonPanierEntete` reste visible uniquement
 
 La connexion Client des autres écosystèmes affiche « Accès professionnel » en haut à droite. Le raccourci conserve l’écosystème et revient vers son portail existant :
 
-- Parapharmacie / Maman & Bébé : `/partenaire/catalogue`
+- Parapharmacie : `/partenaire/catalogue?ecosysteme=parapharmacie`
+- Maman & Bébé : `/partenaire/catalogue?ecosysteme=bebe-maman`
 - Examens : `/centre-examens`
 - Soins à domicile : `/partenaire/prestations`
 - Dispositifs médicaux : `/suivi/professionnel`

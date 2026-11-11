@@ -21,7 +21,8 @@ export function SelectionEcosysteme({ onSelect }: Props) {
   useEffect(() => {
     const lockedSlug = new URLSearchParams(window.location.search).get("universVerrouille");
     if (lockedSlug) {
-      const lockedItem = ECOSYSTEMES.find((item) => item.id === lockedSlug);
+      const ecosystemeId = lockedSlug === "suivi" ? "dispositifs" : lockedSlug;
+      const lockedItem = ECOSYSTEMES.find((item) => item.id === ecosystemeId);
       if (lockedItem) setLockedNotice(`L’espace ${lockedItem.label} est actuellement verrouillé par l’administration NAXA.`);
     }
   }, []);
