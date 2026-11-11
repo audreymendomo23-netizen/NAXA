@@ -3,6 +3,7 @@ import { supabasePublic } from "@/lib/supabase/server";
 import { UniverseLanding } from "@/components/universes/UniverseLanding";
 import { UniverseProductGrid } from "@/components/universes/UniverseProductGrid";
 import { MenuUnivers } from "@/components/universes/MenuUnivers";
+import { ProductImageLibrary } from "@/components/universes/ProductImageLibrary";
 
 type UniverseKey = "parapharmacie" | "bebe-maman";
 type CatalogProduct = {
@@ -25,7 +26,12 @@ const actionErrorText: Record<string, string> = {
 export async function UniverseCatalog({ universe, actionError }: { universe: UniverseKey; actionError?: string }) {
   const actionMessage = actionError ? actionErrorText[actionError] ?? "Cette action n’a pas abouti. Réessayez." : null;
   const actionNotice = actionMessage ? <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{actionMessage}</p> : null;
-  const { data, error } = await supabasePublic(30).rpc("get_universe_catalog", { p_universe_slug: universe });
+  const sb = supabasePublic(600);
+  const [{ data, error }, { data: featureFlag }] = await Promise.all([
+    sb.rpc("get_universe_catalog", { p_universe_slug: universe }),
+    sb.from("feature_flags").select("enabled").eq("flag_key", "universe." + universe).maybeSingle(),
+  ]);
+  const imageLibraryEnabled = featureFlag?.enabled === true;
   if (error) {
     return <><UniverseLanding universe={universe}/><div className="mx-auto max-w-3xl px-4">{actionNotice}<p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue est temporairement indisponible. Réessayez dans quelques instants.</p></div></>;
   }
@@ -35,6 +41,7 @@ export async function UniverseCatalog({ universe, actionError }: { universe: Uni
     {actionNotice}
     <header className="flex flex-wrap items-center justify-between gap-3"><Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link><nav className="flex gap-2"><Link href="/parapharmacie" className="min-h-10 rounded-full border px-3 py-2 text-sm font-bold">Parapharmacie</Link><Link href="/bebe-maman" className="min-h-10 rounded-full border px-3 py-2 text-sm font-bold">Bébé & Maman</Link></nav><MenuUnivers /></header>
     <section className="mt-4 rounded-3xl p-6 sm:p-8" style={{backgroundColor:theme.soft}}><p className="text-xs font-extrabold uppercase tracking-widest" style={{color:theme.color}}>NAXA · Retrait auprès du partenaire</p><h1 className="mt-2 text-3xl font-black">{theme.title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">{universe === "bebe-maman" ? "Catalogue factuel des articles disponibles auprès des pharmacies partenaires. Aucune publicité, mise en avant sponsorisée ou offre promotionnelle n’est diffusée dans cet univers." : "Consultez les produits disponibles, préparez un panier et réservez auprès d’un partenaire pour un retrait sur place. Aucun paiement en ligne ni livraison n’est proposé ici."}</p><p className="mt-3 text-sm font-bold">{products.length} produit(s) disponible(s)</p></section>
+    {imageLibraryEnabled && <div className="mt-5"><ProductImageLibrary universe={universe}/></div>}
     <div className="mt-5"><UniverseProductGrid products={products} universe={universe}/></div>
     <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600">Les disponibilités sont calculées en tenant compte des réservations en cours. La réservation ne constitue pas un paiement. Vérifiez le statut avant de vous déplacer.</p>
   </div></main>;
