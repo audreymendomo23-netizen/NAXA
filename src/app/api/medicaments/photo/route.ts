@@ -54,8 +54,8 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
     if (safeQuery.length < 3) return null;
 
     const fields = "nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le";
-    const barcode = query.replace(/\\D/g, "");
-    if (/^(?:\\d{8}|\\d{12}|\\d{13}|\\d{14})$/.test(barcode)) {
+    const barcode = query.replace(/\D/g, "");
+    if (/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(barcode)) {
       // Un GTIN ne peut retrouver qu'une fiche portant exactement ce code.
       const { data } = await sb.from("produits")
         .select(fields)
