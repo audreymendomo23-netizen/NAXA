@@ -206,6 +206,7 @@ test("photos : le chargement client borne la concurrence et conserve la provenan
   assert.ok(resultats.includes('photo?.provider==="open_products_facts"'));
   assert.ok(route.includes("id,nom,dci,code_barre,forme"));
   assert.ok(route.includes("barcode: localProduct?.code_barre"));
+  assert.ok(route.includes("barcodeLookup: true"));
   assert.ok(recherche.includes("item.barcode"));
   assert.ok(resultats.includes("item.barcode"));
   assert.ok(photoResolver.includes("Un code-barres est un identifiant"));
