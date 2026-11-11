@@ -6,7 +6,7 @@ import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { BulleErreur } from "@/components/BulleErreur";
 import { textes } from "@/lib/accueil-textes";
 
-type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; safetyInformation?: { warnings: string | null; adverseReactions: string | null; contraindications: string | null; precautions: string | null; source: string | null; sourceUrl: string; updatedAt: string | null } | null; sourceDetails?: { name: string; role: string; url: string; updatedAt?: string | null }[]; imageVariants?: { boite: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null; comprime: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null }; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
+type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; barcode?: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; safetyInformation?: { warnings: string | null; adverseReactions: string | null; contraindications: string | null; precautions: string | null; source: string | null; sourceUrl: string; updatedAt: string | null } | null; sourceDetails?: { name: string; role: string; url: string; updatedAt?: string | null }[]; imageVariants?: { boite: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null; comprime: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null }; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 const CACHE_RECHERCHE_KEY = "naxa-medicament-search-v1";
 type CacheRecherche = { updatedAt: number; byQuery: Record<string, MedicamentRecherche[]>; corpus: MedicamentRecherche[] };
@@ -182,32 +182,45 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
             while (!controller.signal.aborted) {
               const item = ciblesPhoto[prochainIndexPhoto++];
               if (!item) return;
+              const barcode = (item.barcode ?? "").replace(/\D/g, "");
               const identity = [item.brand, item.name, item.activeIngredient]
                 .find((value): value is string => Boolean(value && value.trim().length >= 3))?.trim();
-              if (!identity) continue;
+              const photoQueries = [
+                /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(barcode) ? barcode : null,
+                identity
+              ].filter((value): value is string => Boolean(value));
+              if (!photoQueries.length) continue;
               try {
-                const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(identity), {
-                  signal: controller.signal
-                });
-                if (!photoResponse.ok) continue;
-                const payload = await photoResponse.json() as {
-                  photos?: {
-                    boite?: {
-                      url: string; sourceUrl: string; licence: string; attribution: string | null;
-                      title: string; kind: "boite" | "comprime";
-                      provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
-                    } | null;
-                    comprime?: {
-                      url: string; sourceUrl: string; licence: string; attribution: string | null;
-                      title: string; kind: "boite" | "comprime";
-                      provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
-                    } | null;
+                let imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> | null = null;
+                for (const photoQuery of photoQueries) {
+                  const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(photoQuery), {
+                    signal: controller.signal
+                  });
+                  if (!photoResponse.ok) continue;
+                  const payload = await photoResponse.json() as {
+                    photos?: {
+                      boite?: {
+                        url: string; sourceUrl: string; licence: string; attribution: string | null;
+                        title: string; kind: "boite" | "comprime";
+                        provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
+                      } | null;
+                      comprime?: {
+                        url: string; sourceUrl: string; licence: string; attribution: string | null;
+                        title: string; kind: "boite" | "comprime";
+                        provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
+                      } | null;
+                    };
                   };
-                };
-                const imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> = {
-                  boite: payload.photos?.boite ?? null,
-                  comprime: payload.photos?.comprime ?? null
-                };
+                  const candidateVariants: NonNullable<MedicamentRecherche["imageVariants"]> = {
+                    boite: payload.photos?.boite ?? null,
+                    comprime: payload.photos?.comprime ?? null
+                  };
+                  if (candidateVariants.boite || candidateVariants.comprime) {
+                    imageVariants = candidateVariants;
+                    break;
+                  }
+                }
+                if (!imageVariants) continue;
                 const primary = imageVariants.boite ?? imageVariants.comprime;
                 if (!primary || controller.signal.aborted) continue;
                 const sourceName = primary.provider === "cima_aemps"
