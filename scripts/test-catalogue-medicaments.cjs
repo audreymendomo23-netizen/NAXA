@@ -195,5 +195,7 @@ test("photos : le chargement client borne la concurrence et conserve la provenan
   assert.ok(recherche.includes("AEMPS / CIMA"));
   assert.ok(recherche.includes("Open Products Facts"));
   assert.ok(recherche.includes("Wikimedia Commons"));
+  assert.ok(resultats.includes("Math.min(2,ciblesPhoto.length)"));
+  assert.ok(resultats.includes("AEMPS / CIMA"));
   assert.ok(photoRoute.includes("aucune_source_gratuite_trouvee"));
 });
