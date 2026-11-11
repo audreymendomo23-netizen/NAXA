@@ -172,19 +172,19 @@ test("interface : source/licence visibles et image cassée remplacée sans garde
 });
 
 test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont intégrées avec garde-fous", () => {
-  assert.match(photoResolver, /cima\\.aemps\\.es\\/cima\\/rest/);
+  assert.ok(photoResolver.includes("https://cima.aemps.es/cima/rest"));
   assert.match(photoResolver, /CIMA_LICENSE/);
   assert.match(photoResolver, /materialas/);
   assert.match(photoResolver, /formafarmac/);
   assert.match(photoResolver, /cimaNameMatches/);
   assert.match(photoResolver, /provider: "cima_aemps"/);
-  assert.match(photoResolver, /world\\.openproductsfacts\\.org\\/api\\/v2\\/product/);
-  assert.match(photoResolver, /product\\?\\.code/);
+  assert.ok(photoResolver.includes("https://world.openproductsfacts.org/api/v2/product/"));
+  assert.ok(photoResolver.includes("product?.code ?? json.code"));
   assert.match(photoResolver, /CC BY-SA/);
   assert.match(photoResolver, /provider: "open_products_facts"/);
   assert.match(photoResolver, /revalidate: 604800/);
   assert.match(photoResolver, /Deux variantes séquentielles/);
   assert.match(photoResolver, /provider: "wikimedia_commons"/);
   assert.match(photoRoute, /provider: "catalogue_local_verifie"/);
-  assert.match(photoRoute, /selected\\?\\.provider/);
+  assert.ok(photoRoute.includes("selected?.provider"));
 });
