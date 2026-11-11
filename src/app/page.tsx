@@ -391,7 +391,7 @@ export default function Accueil() {
         </div>
         <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0A6B3A]">NAXA · Santé & proximité</p>
         <h2 id="naxa-age-gate-title" className="mt-2 text-2xl font-extrabold leading-tight text-[#064B2A]">{ageGate === "minor" ? "Accès non autorisé" : "Avant d’accéder à NAXA"}</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{ageGate === "minor" ? "Vous avez déclaré avoir moins de 18 ans. L’accès à NAXA est bloqué. Cette décision est mémorisée sur cet appareil pendant 30 jours." : "NAXA est destiné aux personnes âgées de 18 ans ou plus. Confirmez votre âge pour accéder à la recherche publique de médicaments et de pharmacies."}</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{ageGate === "minor" ? "Vous avez déclaré avoir moins de 18 ans. L’accès à NAXA est bloqué. Cette décision est mémorisée sur cet appareil pendant 30 jours." : "NAXA est destiné aux personnes âgées de 18 ans ou plus. Confirmez votre âge pour choisir un espace et accéder aux services de la plateforme."}</p>
         {ageGate === "required" && <div className="mt-6 grid gap-3">
           <button type="button" className="btn btn-canari w-full" onClick={() => declarerAge(true)}>J’ai 18 ans ou plus</button>
           <button type="button" className="btn btn-clair w-full" onClick={() => declarerAge(false)}>J’ai moins de 18 ans</button>
