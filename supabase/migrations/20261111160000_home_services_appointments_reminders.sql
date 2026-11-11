@@ -298,7 +298,7 @@ declare
   v_recipient uuid;
 begin
   -- Messages : le endpoint de messagerie envoie déjà un Push contextualisé.
-  if new.fil_id is not null then return new; end if;
+  if new.fil_id is not null or new.type='message' then return new; end if;
   -- Les rappels de rendez-vous sont envoyés par le sous-flux dédié du même cron.
   if new.type='home_service_appointment_reminder' then return new; end if;
 
@@ -311,7 +311,10 @@ begin
   end;
 
   if new.user_id is not null then
-    v_recipients:=array[new.user_id];
+    select coalesce(array_agg(p.id),array[]::uuid[])
+    into v_recipients
+    from public.profiles p
+    where p.id=new.user_id and p.actif=true;
   elsif new.pharmacie_id is not null then
     select coalesce(array_agg(p.id),array[]::uuid[])
     into v_recipients
