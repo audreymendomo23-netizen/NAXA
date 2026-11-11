@@ -63,6 +63,7 @@ type LocalProduct = {
   id: string;
   nom: string;
   dci: string | null;
+  code_barre: string | null;
   forme: string | null;
   synonymes: string[] | null;
   photo_url: string | null;
@@ -90,7 +91,7 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
     // Ne sélectionner que les colonnes réellement présentes dans public.produits.
     // Les métadonnées de licence/chemin photo ne sont pas encore dans ce schéma :
     // les photos restent donc masquées jusqu'à une migration dédiée et vérifiée.
-    const fields = "id,nom,dci,forme,synonymes,photo_url,description,indications,precautions,source_fiche,fiche_validee";
+    const fields = "id,nom,dci,code_barre,forme,synonymes,photo_url,description,indications,precautions,source_fiche,fiche_validee";
     const [byName, byDci, bySynonym] = await Promise.all([
       sb.from("produits").select(fields).eq("fiche_validee", true).ilike("nom", "%" + needle + "%").limit(12),
       sb.from("produits").select(fields).eq("fiche_validee", true).ilike("dci", "%" + needle + "%").limit(12),
@@ -413,6 +414,7 @@ export async function GET(request: NextRequest) {
       name,
       brand: brand ? cleanName(brand) : null,
       activeIngredient: localProduct?.dci || activeIngredient || null,
+      barcode: localProduct?.code_barre ?? null,
       form: localProduct?.forme || (formValue ? cleanName(formValue) : null),
       definition: cleanPublicText(localProduct?.description, 460) ?? (candidateHasIngredient ? cleanPublicText(preferredFda?.description, 460) : null),
       indications: cleanPublicText(localProduct?.indications, 620) ?? (candidateHasIngredient ? cleanPublicText(preferredFda?.indications_and_usage, 620) : null),
