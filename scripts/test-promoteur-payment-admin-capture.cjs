@@ -27,6 +27,7 @@ const androidReceiver = read(androidRoot + "app/src/main/java/cm/naxa/paymentcom
 const androidApi = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/NaxaApi.java");
 const androidVault = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SecureVault.java");
 const androidBuild = read(androidRoot + "app/build.gradle");
+const androidRootBuild = read(androidRoot + "build.gradle");
 const androidReadme = read(androidRoot + "README.md");
 
 test("toutes les nouvelles routes/composants TypeScript se transpilent", () => {
@@ -136,7 +137,7 @@ test("compagnon Android : jetons chiffres par Android Keystore AES-GCM", () => {
 });
 
 test("compagnon Android : versions Gradle/API et restriction Play Protect documentees", () => {
-  assert.match(androidBuild, /9\.4\.0/);
+  assert.match(androidRootBuild, /9\.4\.0/);
   assert.match(androidBuild, /compileSdk 37/);
   assert.match(androidBuild, /targetSdk 36/);
   assert.match(androidReadme, /hard-restricted/);
