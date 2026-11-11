@@ -40,12 +40,12 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
 
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
     <div className="mx-auto max-w-6xl pt-4">
-      <section className="rounded-3xl border border-[#FAD0C6] bg-[#FFEFEA] p-6 sm:p-8">
+      <section className="relative isolate overflow-hidden rounded-3xl border border-[#FAD0C6] p-6 text-white shadow-sm sm:p-8" style={{backgroundImage:'linear-gradient(90deg, #A83C2DF0 0%, #A83C2DD9 62%, #A83C2D99 100%), url("/images/ecosystemes/ecosystemes.webp")',backgroundSize:"100% 100%, 300% 200%",backgroundPosition:"center, 0% 100%"}}>
         <span className="inline-flex rounded-full bg-white/80 px-3 py-1.5 text-xs font-extrabold text-[#9B3527]">Demande sans paiement en ligne</span>
-        <p className="mt-3 text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
-        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Prestations et soins à domicile</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">Découvrez les services publiés par les professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
-        <p className="mt-3 text-sm font-bold">{filteredOffers.length} prestation(s) affichée(s) sur {offers.length}</p>
+        <p className="mt-3 text-xs font-extrabold uppercase tracking-widest text-white/90">NAXA · Services et accompagnement</p>
+        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Soins à domicile</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-white/95">Services et accompagnement à domicile auprès des professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
+        <p className="mt-3 text-sm font-bold text-white">{filteredOffers.length} prestation(s) affichée(s) sur {offers.length}</p>
       </section>
       {searchParams.erreur && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "validation" ? "Vérifiez les informations, l’adresse, le téléphone et la date souhaitée." : searchParams.erreur === "annulation" ? "L’annulation n’a pas abouti. Vérifiez le statut de la demande." : "La demande n’a pas pu être envoyée. Le service peut être indisponible."}</p>}
       <form method="get" className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="Filtrer les prestations">

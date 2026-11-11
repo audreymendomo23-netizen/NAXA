@@ -85,24 +85,31 @@ export function SelectionEcosysteme({ onSelect }: Props) {
                 type="button"
                 disabled={waiting || locked}
                 onClick={() => onSelect(item.id)}
-                className="group flex min-h-[128px] items-start gap-4 rounded-2xl border bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
-                style={{ borderColor: locked ? "#E2E8F0" : item.softColor }}
+                className="group relative isolate flex min-h-[158px] items-start gap-4 overflow-hidden rounded-2xl border p-4 text-left text-white shadow-md transition duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75 disabled:hover:translate-y-0 disabled:hover:shadow-md"
+                style={{
+                  borderColor: locked ? "#CBD5E1" : item.softColor,
+                  backgroundColor: item.color,
+                  backgroundImage: `linear-gradient(100deg, ${locked ? "#334155E8" : item.color + "F0"} 0%, ${locked ? "#475569D9" : item.color + "D9"} 58%, ${locked ? "#64748BAA" : item.color + "B0"} 100%), url("${item.image}")`,
+                  backgroundSize: "100% 100%, 300% 200%",
+                  backgroundPosition: `center, ${item.imagePosition}`,
+                  backgroundRepeat: "no-repeat",
+                }}
               >
                 <span
                   aria-hidden="true"
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl font-black"
-                  style={{ backgroundColor: item.softColor, color: item.color }}
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/35 bg-white/90 text-2xl font-black shadow-sm"
+                  style={{ color: item.color }}
                 >
                   {item.symbol}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2 font-extrabold text-slate-900">
+                  <span className="flex flex-wrap items-center gap-2 font-extrabold text-white drop-shadow-sm">
                     {item.label}
-                    {locked && <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">Verrouillé</span>}
-                    {waiting && <span className="text-[10px] font-semibold text-slate-400">Vérification…</span>}
+                    {locked && <span className="rounded-full border border-white/30 bg-slate-950/35 px-2 py-1 text-[10px] font-bold text-white">Verrouillé</span>}
+                    {waiting && <span className="text-[10px] font-semibold text-white/85">Vérification…</span>}
                   </span>
-                  <span className="mt-1 block text-sm leading-5 text-slate-600">{item.description}</span>
-                  {locked && <span className="mt-2 block text-xs font-semibold text-slate-500">Accès fermé par l’administration NAXA</span>}
+                  <span className="mt-1 block text-sm font-medium leading-5 text-white/95 drop-shadow-sm">{item.description}</span>
+                  {locked && <span className="mt-2 block text-xs font-semibold text-white/90">Accès fermé par l’administration NAXA</span>}
                   {enabled && <span className="mt-2 block text-xs font-bold" style={{ color: item.color }}>Accéder à cet espace <span aria-hidden="true">→</span></span>}
                 </span>
               </button>

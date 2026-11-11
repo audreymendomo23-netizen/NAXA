@@ -34,7 +34,7 @@ const universes: Record<UniverseKey, Universe> = {
     bullets: ["Catalogue des examens et des packs", "Tarifs communiqués par les centres", "Rendez-vous selon les disponibilités du centre"],
   },
   prestations: {
-    title: "Prestations à domicile", slogan: "Votre allié santé",
+    title: "Soins à domicile", slogan: "Votre allié santé",
     description: "Découvrez les services proposés par des professionnels vérifiés.",
     route: "/prestations", color: "#D4402B", soft: "#FFEFEA", border: "#FAD0C6", icon: "⌂",
     bullets: ["Services et zones d’intervention", "Demandes de réservation", "Adresse protégée jusqu’à confirmation"],
@@ -60,14 +60,14 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
       <div className="mx-auto max-w-5xl pt-4 sm:pt-6">
 
         <section className="mt-4 overflow-hidden rounded-3xl border bg-white shadow-sm" style={{ borderColor: item.border }}>
-          <div className="p-6 sm:p-9" style={{ backgroundColor: item.soft }}>
+          <div className="p-6 text-white sm:p-9" style={{ backgroundColor: item.color, backgroundImage: universe === "aide" ? "none" : `linear-gradient(90deg, ${item.color}F2 0%, ${item.color}C9 68%, ${item.color}99 100%), url("/images/ecosystemes/ecosystemes.webp")`, backgroundSize: "100% 100%, 300% 200%", backgroundPosition: `center, ${universe === "parapharmacie" ? "50% 0%" : universe === "examens" ? "100% 0%" : universe === "prestations" ? "0% 100%" : universe === "bebe-maman" ? "50% 100%" : "100% 100%"}` }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm" style={{ color: item.color }} aria-hidden="true">{item.icon}</div>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/30 bg-white/90 text-3xl shadow-sm" style={{ color: item.color }} aria-hidden="true">{item.icon}</div>
               {comingSoon && universe !== "suivi" && <span className="inline-flex min-h-9 items-center rounded-full border border-white/80 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm">Bientôt disponible</span>}
             </div>
-            <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.12em]" style={{ color: item.color }}>{item.slogan}</p>
+            <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.12em] text-white/90">{item.slogan}</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">{item.title}</h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">{item.description}</p>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-white/95">{item.description}</p>
           </div>
 
           <div className="grid gap-6 p-5 sm:p-7">

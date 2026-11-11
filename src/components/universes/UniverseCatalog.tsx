@@ -10,8 +10,8 @@ type CatalogProduct = {
   photo_url: string | null; price_fcfa: number; available_quantity: number; unit_label: string;
 };
 const config = {
-  parapharmacie: { title: "Parapharmacie", color: "#0B7F85", soft: "#E6F7F6" },
-  "bebe-maman": { title: "Bébé & Maman", color: "#C93774", soft: "#FDEEF4" },
+  parapharmacie: { title: "Parapharmacie", description: "Hygiène et bien-être", color: "#0B7F85", soft: "#E6F7F6", imagePosition: "50% 0%" },
+  "bebe-maman": { title: "Bébé & Maman", description: "Espace dédié", color: "#C93774", soft: "#FDEEF4", imagePosition: "50% 100%" },
 };
 
 const actionErrorText: Record<string, string> = {
@@ -33,7 +33,7 @@ export async function UniverseCatalog({ universe, actionError }: { universe: Uni
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]"><div className="mx-auto max-w-6xl pt-4">
     {actionNotice}
 
-    <section className="mt-4 rounded-3xl p-6 sm:p-8" style={{backgroundColor:theme.soft}}><p className="text-xs font-extrabold uppercase tracking-widest" style={{color:theme.color}}>NAXA · Retrait auprès du partenaire</p><h1 className="mt-2 text-3xl font-black">{theme.title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">{universe === "bebe-maman" ? "Catalogue factuel des articles disponibles auprès des pharmacies partenaires. Aucune publicité, mise en avant sponsorisée ou offre promotionnelle n’est diffusée dans cet univers." : "Consultez les produits disponibles, préparez un panier et réservez auprès d’un partenaire pour un retrait sur place. Aucun paiement en ligne ni livraison n’est proposé ici."}</p><p className="mt-3 text-sm font-bold">{products.length} produit(s) disponible(s)</p></section>
+    <section className="relative isolate mt-4 overflow-hidden rounded-3xl p-6 text-white shadow-sm sm:p-8" style={{backgroundColor:theme.color,backgroundImage:`linear-gradient(90deg, ${theme.color}F0 0%, ${theme.color}D9 62%, ${theme.color}A6 100%), url("/images/ecosystemes/ecosystemes.webp")`,backgroundSize:"100% 100%, 300% 200%",backgroundPosition:`center, ${theme.imagePosition}`}}><p className="text-xs font-extrabold uppercase tracking-widest text-white/90">NAXA · Retrait auprès du partenaire</p><h1 className="mt-2 text-3xl font-black">{theme.title}</h1><p className="mt-1 text-sm font-extrabold text-white/95">{theme.description}</p><p className="mt-2 max-w-2xl text-sm leading-6 text-white/90">{universe === "bebe-maman" ? "Catalogue factuel des articles disponibles auprès des pharmacies partenaires. Aucune publicité, mise en avant sponsorisée ou offre promotionnelle n’est diffusée dans cet univers." : "Consultez les produits disponibles, préparez un panier et réservez auprès d’un partenaire pour un retrait sur place. Aucun paiement en ligne ni livraison n’est proposé ici."}</p><p className="mt-3 text-sm font-bold">{products.length} produit(s) disponible(s)</p></section>
     <div className="mt-5"><ProductImageLibrary universe={universe}/></div>
     <div className="mt-5"><UniverseProductGrid products={products} universe={universe}/></div>
     <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600">Les disponibilités sont calculées en tenant compte des réservations en cours. La réservation ne constitue pas un paiement. Vérifiez le statut avant de vous déplacer.</p>

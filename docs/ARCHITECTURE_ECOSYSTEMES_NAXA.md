@@ -1,6 +1,6 @@
 # Architecture d’accès aux écosystèmes NAXA
 
-**État : intégration source préparée — recette fonctionnelle et déploiement non réalisés.**
+**État : code visuel intégré sur main — déploiement Production et recette fonctionnelle à confirmer.**
 
 ## Parcours d’ouverture
 
@@ -12,6 +12,24 @@
 6. Les autres écosystèmes sont des parcours Client protégés : sans session, le middleware redirige vers l’authentification et conserve la destination demandée.
 
 Le choix mémorisé permet le retour direct vers le dernier écosystème à la prochaine ouverture. Le lien « Changer d’écosystème » de la connexion permet de revenir au sélecteur.
+
+
+## Identité visuelle et descriptions
+
+Les six écosystèmes partagent une mosaïque visuelle optimisée issue des images fournies. Chaque vignette est réutilisée sur le sélecteur, l’en-tête Client et les bandeaux des pages métier, avec un voile coloré pour maintenir le contraste des textes.
+
+| Écosystème | Description affichée | Illustration |
+|---|---|---|
+| Pharmacie | Médicaments et pharmacies | Rayons de pharmacie |
+| Parapharmacie | Hygiène et bien-être | Produits de parapharmacie |
+| Examens médicaux | Laboratoires et analyses | Laboratoire médical |
+| Soins à domicile | Services et accompagnement | Accompagnement à domicile |
+| Maman & Bébé | Espace dédié | Articles bébé et maternité |
+| Dispositifs médicaux | Équipements et matériel | Appareils médicaux |
+
+Ressource : `public/images/ecosystemes/ecosystemes.webp` (mosaïque 3 × 2, afin de réduire les requêtes réseau distinctes).
+
+Les illustrations proviennent de l’archive fournie pour cette intégration. La provenance initiale et les licences d’exploitation n’étaient pas jointes au lot ; elles restent à confirmer avant toute diffusion commerciale des visuels.
 
 ## Écosystèmes et routes Client
 
@@ -61,6 +79,6 @@ La connexion professionnelle Pharmacie reste inchangée.
 ## Contrôles et limites
 
 - Contrôle statique des fichiers touchés et des routes ciblées effectué pendant cette passe.
-- Tests Node, TypeScript, ESLint, build Next.js et recette navigateur non exécutés : aucun environnement local/repo exécutable n’était disponible dans cette passe.
-- Aucune migration, écriture Supabase, publication de version ou action Vercel n’a été réalisée.
+- Pour le lot visuel : contrôle statique des modifications effectué. Tests Node, TypeScript, ESLint, build Next.js et recette navigateur à confirmer sur le commit livré.
+- Aucune migration ni écriture Supabase n’est nécessaire pour le lot visuel. Le déploiement Vercel et sa recette runtime restent à confirmer.
 - L’activation réelle de chaque espace dépend de l’état effectif de `public.universes` dans l’environnement Supabase ciblé.

@@ -79,7 +79,7 @@ export function EnTeteAccueil({
   }
 
   return (
-    <header className="shrink-0 bg-naxa-green-900 px-5 pt-4 text-white">
+    <header className="relative isolate shrink-0 overflow-visible bg-naxa-green-900 px-5 pt-4 text-white" style={{ backgroundImage: 'linear-gradient(90deg, #064B2AF2 0%, #064B2AD9 62%, #064B2A99 100%), url("/images/ecosystemes/ecosystemes.webp")', backgroundSize: "100% 100%, 300% 200%", backgroundPosition: "center, 0% 0%" }}>
       <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
         <Logo />
 
