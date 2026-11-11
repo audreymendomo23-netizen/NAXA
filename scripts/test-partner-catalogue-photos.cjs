@@ -32,8 +32,8 @@ test("upload et suppression Storage sont bornés au partenaire, à l’univers e
   assert.match(migration, /partner_catalogue_photo_delete/);
   assert.match(migration, /partner_members/);
   assert.match(migration, /partner_universes/);
-  assert.match(migration, /pp\.partner_id::text = split_part\(name, '/', 1\)/);
-  assert.match(migration, /pp\.id::text = split_part\(name, '/', 2\)/);
+  assert.match(migration, /pp\.partner_id::text = split_part\(storage\.objects\.name, '/', 1\)/);
+  assert.match(migration, /pp\.id::text = split_part\(storage\.objects\.name, '/', 2\)/);
   assert.match(migration, /pm\.user_id = \(SELECT auth\.uid\(\)\)/);
   assert.match(migration, /pm\.member_role IN \('owner', 'manager', 'operator'\)/);
   assert.doesNotMatch(migration, /CREATE POLICY partner_catalogue_photo_update/);
