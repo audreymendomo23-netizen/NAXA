@@ -30,8 +30,12 @@ begin
   where partner_id=p_partner and active=true;
   if v_architecture is null then return false; end if;
 
-  if p_privilege='IMPORT_PRODUCTS' and v_role in ('promoteur','responsable','gestionnaire_stock') then
-    return true;
+  -- L'import crée des produits ET initialise leur stock.
+  -- Il exige donc les deux privilèges réels de la matrice NAXA.
+  if p_privilege='IMPORT_PRODUCTS' then
+    return v_role in ('promoteur','responsable')
+      and private.naxa_has_partner_privilege('CREATE_PRODUCT',p_partner)
+      and private.naxa_has_partner_privilege('IMPORT_STOCK',p_partner);
   end if;
 
   if v_role in ('pharmacien','gestionnaire_stock','magasinier')
@@ -109,8 +113,25 @@ begin
   if p_motif is null or length(trim(p_motif))<5 or length(trim(p_motif))>500 then
     raise exception 'Motif obligatoire (5 à 500 caractères)';
   end if;
-  if not exists (select 1 from public.profiles p where p.id=p_target and p.actif=true) then
-    raise exception 'Le compte cible doit être actif';
+  -- Le contrôle est serveur : une invocation RPC directe ne doit pas
+  -- contourner l'éligibilité validée par l'interface.
+  if not exists (
+    select 1
+    from public.profiles p
+    join auth.users u on u.id=p.id
+    where p.id=p_target
+      and p.actif=true
+      and p.age_verified=true
+      and p.consent_accepted_at is not null
+      and p.username is not null
+      and p.first_name is not null
+      and p.last_name is not null
+      and p.phone is not null
+      and p.date_of_birth is not null
+      and p.date_of_birth <= (current_date-interval '18 years')::date
+      and u.email_confirmed_at is not null
+  ) then
+    raise exception 'Le compte cible doit être actif, majeur, complet, consentant et avec e-mail confirmé';
   end if;
 
   select architecture_code,max_caisses,max_responsables into v_arch,v_max_caisses,v_max_responsables
