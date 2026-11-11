@@ -13,7 +13,7 @@ type Props = {
 type Availability = Partial<Record<EcosystemeId, boolean>>;
 
 export function SelectionEcosysteme({ onSelect }: Props) {
-  const [availability, setAvailability] = useState<Availability | null>(null);
+  const [availability, setAvailability] = useState<Availability>({ pharmacie: true });
   const [loading, setLoading] = useState(true);
   const [availabilityError, setAvailabilityError] = useState(false);
 

@@ -105,11 +105,12 @@ export function estEcosystemeId(value: string | null | undefined): value is Ecos
 }
 
 export function ecosystemeDepuisChemin(pathname: string): EcosystemeId {
-  if (pathname === "/parapharmacie" || pathname.startsWith("/parapharmacie/")) return "parapharmacie";
-  if (pathname === "/examens" || pathname.startsWith("/examens/")) return "examens";
-  if (pathname === "/prestations" || pathname.startsWith("/prestations/")) return "prestations";
-  if (pathname === "/bebe-maman" || pathname.startsWith("/bebe-maman/")) return "bebe-maman";
-  if (pathname === "/suivi" || pathname.startsWith("/suivi/")) return "dispositifs";
+  const pathOnly = pathname.split(/[?#]/, 1)[0] || "/";
+  if (pathOnly === "/parapharmacie" || pathOnly.startsWith("/parapharmacie/")) return "parapharmacie";
+  if (pathOnly === "/examens" || pathOnly.startsWith("/examens/")) return "examens";
+  if (pathOnly === "/prestations" || pathOnly.startsWith("/prestations/")) return "prestations";
+  if (pathOnly === "/bebe-maman" || pathOnly.startsWith("/bebe-maman/")) return "bebe-maman";
+  if (pathOnly === "/suivi" || pathOnly.startsWith("/suivi/")) return "dispositifs";
   return "pharmacie";
 }
 

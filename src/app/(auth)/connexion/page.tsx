@@ -600,6 +600,11 @@ export default function Connexion() {
           <Suspense>
             <Formulaire />
           </Suspense>
+          <div className="mt-5 text-center">
+            <Link href="/?choisirEcosysteme=1" className="text-xs font-semibold text-[#0A6B3A] underline underline-offset-4">
+              Changer d’écosystème
+            </Link>
+          </div>
         </div>
       </div>
     </main>

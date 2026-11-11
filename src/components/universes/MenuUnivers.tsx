@@ -125,6 +125,9 @@ export function MenuUnivers() {
               </div>
             );
           })}
+          <Link href="/aide" onClick={() => setOpen(false)} className="mt-1 flex min-h-11 items-center justify-between rounded-xl border-t border-slate-100 px-3 py-2 pt-3 text-sm font-bold text-emerald-900">
+            <span>{language === "en" ? "Need help?" : "Besoin d’aide ?"}</span><span aria-hidden="true">›</span>
+          </Link>
         </nav>
       )}
     </div>

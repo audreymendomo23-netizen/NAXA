@@ -141,9 +141,16 @@ export default function Accueil() {
     const ageInitial = ageStatus();
     const destination = destinationApresAge();
     const selectionInitiale = lireEcosystemeSelectionne();
+    const forcerChoixEcosysteme = new URLSearchParams(window.location.search).get("choisirEcosysteme") === "1";
     if (ageInitial === "adult" && destination) {
       enregistrerCookieAge(true);
       window.location.replace(destination);
+      return () => { actif = false; };
+    }
+    if (ageInitial === "adult" && forcerChoixEcosysteme) {
+      setAgeGate(null);
+      setIntroVisible(false);
+      setSelectionEcosystemeVisible(true);
       return () => { actif = false; };
     }
     if (ageInitial === "adult" && selectionInitiale && selectionInitiale !== "pharmacie") {
@@ -171,6 +178,10 @@ export default function Accueil() {
       // Un client connecté doit retrouver son accueil client, pas l'accueil public.
       // Respecter le contrôle d'âge avant toute redirection vers une page protégée.
       if (ageStatus() !== "adult" || window.location.pathname !== "/") return;
+      if (new URLSearchParams(window.location.search).get("choisirEcosysteme") === "1") {
+        setSelectionEcosystemeVisible(true);
+        return;
+      }
       const { data: profile, error } = await sb
         .from("profiles")
         .select("role")
@@ -220,7 +231,8 @@ export default function Accueil() {
       setAgeGate(null);
       if (session) {
         setIntroVisible(false);
-        void redirigerClientConnecte(session.user.id);
+        if (forcerChoixEcosysteme) setSelectionEcosystemeVisible(true);
+        else void redirigerClientConnecte(session.user.id);
         return;
       }
       if (!selectionInitiale) {
